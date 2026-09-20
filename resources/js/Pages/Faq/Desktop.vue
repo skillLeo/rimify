@@ -1,0 +1,54 @@
+<script setup lang="ts">
+/**
+ * FAQ — desktop.
+ *
+ * PORTED VERBATIM from `design-reference/desktop/faq.html`, the design's own shell.
+ *
+ * Read this before editing:
+ *
+ *  - Everything below is the design's markup, character for character, including every inline
+ *    style and every hand-written SVG. It is not "based on" the prototype; it IS the prototype.
+ *    Do not tidy the inline styles into classes, do not extract components, do not reorder
+ *    attributes, do not change a pixel value because it looks odd. All of that is measured.
+ *  - The `data-mount` divs are intentionally empty. `shared/pages.js` fills each one at runtime
+ *    with the real markup for that section (the question accordions, the contact rows). Filling
+ *    one here by hand would put our markup back into the page and re-create exactly the drift
+ *    this replaced.
+ *  - The German copy is the design's. It is not translated, not rewritten, not corrected.
+ *
+ * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
+ * added to this file.
+ */
+
+import { Head } from '@inertiajs/vue3'
+</script>
+
+<template>
+    <Head title="FAQ" />
+
+    <main id="main">
+    <div class="wrap" style="padding:64px 40px 96px;display:grid;grid-template-columns:58fr 42fr;gap:48px;align-items:start">
+            <div>
+                <h1 class="h2">Meistgestellte Fragen</h1>
+                <div class="ffield" style="margin-top:20px">
+                    <input class="field" data-faqq placeholder="Suchen" aria-label="Fragen durchsuchen" style="padding-right:48px">
+                    <span class="ic r"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM16.2 16.2L21 21"/></svg></span>
+                </div>
+                <div style="margin-top:28px" data-mount="faq-list"></div>
+            </div>
+
+            <aside class="card raised" style="padding:28px;position:sticky;top:24px">
+                <h2 class="h3">Nicht gefunden, was du suchst?</h2>
+                <p class="body ink2" style="font-size:15px;margin-top:8px">Schreib uns – wir antworten meist am selben Werktag.</p>
+                <div style="margin-top:20px" data-mount="contact-rows"></div>
+                <div class="hr" style="margin:24px 0"></div>
+                <div class="row" style="gap:10px">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex:none"><circle cx="10" cy="10" r="10" fill="#1A44D4"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <strong style="font:700 15px/1.3 Lato,sans-serif">Kompatibilität sofort prüfen</strong>
+                </div>
+                <p class="body ink2" style="font-size:14px;margin-top:8px">Fahrzeug wählen, Felge wählen – wir sagen dir verbindlich, ob sie freigegeben ist.</p>
+                <a class="btn btn-s btn-full" style="margin-top:14px" href="rimify-check.html">RIMIFY-CHECK öffnen</a>
+            </aside>
+        </div>
+    </main>
+</template>
