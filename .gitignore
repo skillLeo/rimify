@@ -1,0 +1,53 @@
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.codex
+/.cursor/
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/fonts-manifest.dev.json
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+_ide_helper.php
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# RIMIFY
+/coverage
+/test-results
+/playwright-report
+/bootstrap/ssr
+/storage/app/imports/*
+!/storage/app/imports/.gitkeep
+/storage/framework/phpstan
+
+/bootstrap/cache/*.php
+
+# ── Visual fidelity ──────────────────────────────────────────────────────────────────────────
+#
+# What is TRACKED is deliberate. The baselines, the DOM signatures and the HARs under
+# tests/visual/ are the contract every page is measured against — they come from the prototype
+# and nowhere else, so they belong in review like any other specification. design-reference/ and
+# its _rendered/ captures are tracked for the same reason: _rendered/ is what each screen is ported
+# from (tests/visual/README.md §5), and a port is not reviewable if its source is not in the tree.
+#
+# Only per-run output is ignored.
+/tests/visual/artifacts
+/tests/visual/test-results
+/tests/visual/playwright-report
+/tests/visual/report.html
+/tests/visual/capture-manifest.json

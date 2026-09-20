@@ -1,0 +1,56 @@
+{
+    "$schema": "https://www.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build && vite build --ssr",
+        "dev": "vite",
+        "typecheck": "vue-tsc --noEmit",
+        "test": "vitest run",
+        "test:coverage": "vitest run --coverage",
+        "e2e": "playwright test",
+        "design:serve": "http-server design-reference -p 5500 -c-1 --silent",
+        "visual:capture": "node scripts/capture-reference.mjs",
+        "visual": "playwright test --config playwright.visual.config.ts",
+        "visual:report": "node scripts/visual-report.mjs",
+        "lint": "eslint resources/js e2e",
+        "format": "prettier --write resources/js e2e"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@playwright/test": "^1.63.0",
+        "@types/dompurify": "^3.0.5",
+        "@types/node": "^26.6.2",
+        "@typescript-eslint/eslint-plugin": "^8.70.0",
+        "@typescript-eslint/parser": "^8.70.0",
+        "@vitejs/plugin-vue": "^6.0.9",
+        "@vitest/coverage-v8": "^5.0.1",
+        "@vue/test-utils": "^2.5.1",
+        "concurrently": "^10.0.3",
+        "dompurify": "^3.4.15",
+        "eslint": "^10.11.0",
+        "eslint-plugin-vue": "^10.11.0",
+        "happy-dom": "^20.14.5",
+        "http-server": "^14.1.1",
+        "laravel-vite-plugin": "^3.1",
+        "pixelmatch": "^7.2.0",
+        "pngjs": "^7.0.0",
+        "prettier": "^3.9.8",
+        "typescript": "^6.0.3",
+        "vite": "^8.0.0",
+        "vitest": "^5.0.1",
+        "vue-tsc": "^3.3.11"
+    },
+    "optionalDependencies": {
+        "@laravel/multiplex": "^0.4.1"
+    },
+    "dependencies": {
+        "@fontsource/ibm-plex-mono": "^5.3.0",
+        "@fontsource/lato": "^5.3.0",
+        "@inertiajs/vue3": "^3.7.1",
+        "@vueuse/core": "^15.0.0",
+        "pinia": "^4.0.3",
+        "vue": "^3.5.43",
+        "ziggy-js": "^2.6.4"
+    }
+}
