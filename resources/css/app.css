@@ -1,0 +1,315 @@
+/*
+ * RIMIFY — stylesheet entry point.
+ *
+ * The design system is two files, and both are now BYTE-IDENTICAL COPIES of the prototype's:
+ *   resources/css/tokens.css      ← design-reference/shared/tokens.css
+ *   resources/css/components.css  ← design-reference/shared/components.css
+ *
+ * `diff` between each pair must print nothing. Never reformat them, never rename a variable,
+ * never "improve" a value, never add a rule. Anything of our own goes below the imports.
+ *
+ * Fonts are NOT self-hosted any more. The first line of tokens.css imports Lato and IBM Plex
+ * Mono from Google Fonts, and that import is part of the copy. The design was drawn and measured
+ * with those exact faces; a self-hosted substitute has different metrics, which changes every
+ * line length and moves every box beneath it. Loading both at once is worse still — the same
+ * text renders in whichever face wins, and the page is then reproducible on neither.
+ * `style-src` already allows fonts.googleapis.com and `font-src` fonts.gstatic.com.
+ */
+
+@import './tokens.css';
+@import './components.css';
+
+/*
+ * Ours, not the design's — everything above this line is a verbatim copy.
+ *
+ * Inertia mounts into an element of its own, so our document has one node the design's does not:
+ * <body> → <div id="app"> → <main id="main">, where the design has <body> → <main id="main">.
+ *
+ * `display: contents` removes that box entirely. The element generates no box of its own and its
+ * children are laid out exactly as if they were children of <body>, which is what the design has.
+ * This is not a nudge to make a diff go away — it is the accurate description of an element that
+ * exists only to give a framework something to mount onto.
+ */
+#app {
+    display: contents;
+}
+
+/*
+ * Selected text has to stay readable on the dark surfaces too.
+ *
+ * tokens.css sets `::selection{background:var(--wash)}` — a pale blue — and no colour, so
+ * selected text keeps whatever colour it already had. That is fine on the white sections and
+ * unreadable everywhere the design puts white text on black: the hero headline, the whole footer,
+ * the admin brand panel. White on #EAEEFA is close to invisible.
+ *
+ * The design's selection colour is kept exactly as chosen; only the missing text colour is
+ * supplied. `--ink` on `--wash` is the same pairing the design already uses for its wash panels.
+ *
+ * Two rules, not one selector list: `::-moz-selection` is unknown to other engines, and an
+ * unknown selector in a list invalidates the entire rule.
+ */
+::selection {
+    background: var(--wash);
+    color: var(--ink);
+}
+
+::-moz-selection {
+    background: var(--wash);
+    color: var(--ink);
+}
+
+/* ── Image lightbox ──────────────────────────────────────────────────────────────────────────
+ *
+ * Ours; the design has no zoom. Built entirely from the design's own tokens and easings so it
+ * belongs to the same product rather than looking bolted on.
+ *
+ * Nothing here renders until the overlay is opened, so the fidelity gate never sees it. The one
+ * permanent effect is the cursor on a zoomable well, and a cursor is not painted into a
+ * screenshot.
+ */
+.pcard .well,
+[data-mount='pdp-gallery'] .well {
+    cursor: zoom-in;
+}
+
+.rmf-lb {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rmf-lb[hidden] {
+    display: none;
+}
+
+.rmf-lb__scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(6, 8, 12, 0.88);
+    opacity: 0;
+    transition: opacity var(--e3);
+}
+
+/* Blur is progressive: without support the scrim alone is already enough separation. */
+@supports (backdrop-filter: blur(4px)) {
+    .rmf-lb__scrim {
+        backdrop-filter: blur(6px) saturate(0.9);
+    }
+}
+
+.rmf-lb.is-open .rmf-lb__scrim {
+    opacity: 1;
+}
+
+.rmf-lb.is-closing .rmf-lb__scrim {
+    opacity: 0;
+}
+
+.rmf-lb__figure {
+    position: relative;
+    margin: 0;
+    max-width: min(1100px, calc(100vw - 96px));
+    max-height: calc(100vh - 152px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    /* The open animation drives transform/opacity from JS; both stay on the compositor. */
+    transition:
+        transform var(--e3),
+        opacity var(--e3);
+    will-change: transform;
+}
+
+.rmf-lb__img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100vh - 200px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 14px;
+    background: #05070b;
+    box-shadow: var(--sh-2);
+    cursor: zoom-in;
+    transition: transform var(--e3);
+}
+
+.rmf-lb__img.is-magnified {
+    cursor: zoom-out;
+    /* JS supplies the translate so the point under the pointer stays under the pointer. */
+    transition: transform 90ms linear;
+}
+
+.rmf-lb__cap {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    min-height: 20px;
+    color: rgba(255, 255, 255, 0.82);
+    font: 400 14px/1.4 Lato, sans-serif;
+}
+
+.rmf-lb__count {
+    font: 500 12px/1 'IBM Plex Mono', ui-monospace, monospace;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.55);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+}
+
+.rmf-lb__btn {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transition:
+        background var(--e1),
+        transform var(--e1);
+}
+
+.rmf-lb__btn:hover {
+    background: var(--blue);
+}
+
+.rmf-lb__btn:active {
+    transform: scale(0.94);
+}
+
+.rmf-lb__btn:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
+.rmf-lb__btn[hidden] {
+    display: none;
+}
+
+.rmf-lb__close {
+    top: 24px;
+    right: 24px;
+}
+
+.rmf-lb__prev {
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.rmf-lb__next {
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.rmf-lb__prev:active,
+.rmf-lb__next:active {
+    transform: translateY(-50%) scale(0.94);
+}
+
+/* The page must not scroll behind the overlay, and must not lose its place. The offset is held
+   in `top` by the script, which restores the scroll position on close. */
+body.rmf-lb-open {
+    position: fixed;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+}
+
+body.is-mobile .rmf-lb__figure {
+    max-width: calc(100vw - 32px);
+}
+
+body.is-mobile .rmf-lb__close {
+    top: 12px;
+    right: 12px;
+}
+
+body.is-mobile .rmf-lb__prev {
+    left: 8px;
+}
+
+body.is-mobile .rmf-lb__next {
+    right: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rmf-lb__figure,
+    .rmf-lb__img,
+    .rmf-lb__scrim {
+        transition: none;
+    }
+}
+
+/*
+ * The print rules from the design's own shells.
+ *
+ * `design-reference/{desktop,mobile}/check-ergebnis.html` and `bestellung.html` each carry this
+ * block inline — and only those four. Both screens have a print button (`data-print`, which calls
+ * window.print()), so these are not decoration: they are what makes a legal check result and an
+ * order confirmation come out of a printer as a readable document instead of a screenshot of a
+ * dark website.
+ *
+ * The rules are the design's, unchanged. Only the selectors are qualified with the page they were
+ * loaded on, which is what limited them in the prototype: the block lived in those two files and
+ * nowhere else, so it applied to those two screens and nowhere else.
+ */
+@media print {
+    /* ── check-ergebnis.html ─────────────────────────────────────────────────────────────── */
+    body[data-page='check-ergebnis'] #top,
+    body[data-page='check-ergebnis'] #bottom,
+    body[data-page='check-ergebnis'] .btn,
+    body[data-page='check-ergebnis'] .bnav,
+    body[data-page='check-ergebnis'] .no-print {
+        display: none !important;
+    }
+
+    body[data-page='check-ergebnis'] {
+        background: #fff;
+    }
+
+    body[data-page='check-ergebnis'] .card,
+    body[data-page='check-ergebnis'] .pnl {
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+    }
+
+    body[data-page='check-ergebnis'] [data-mount='erg-result'] > div {
+        background: #fff !important;
+        border: 1px solid #000 !important;
+    }
+
+    body[data-page='check-ergebnis'] .wrap {
+        max-width: none;
+        padding: 0;
+    }
+
+    body[data-page='check-ergebnis'] a {
+        color: #000;
+        text-decoration: none;
+    }
+
+    /* ── bestellung.html — a shorter block, not the same one. It keeps the buttons and the
+       bottom bar visible and does not restyle .pnl or .wrap. Reproduced as written. ──────── */
+    body[data-page='bestellung'] #top,
+    body[data-page='bestellung'] #bottom,
+    body[data-page='bestellung'] .no-print {
+        display: none !important;
+    }
+
+    body[data-page='bestellung'] {
+        background: #fff;
+    }
+
+    body[data-page='bestellung'] .card {
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+    }
+}
