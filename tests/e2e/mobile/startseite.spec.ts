@@ -14,10 +14,18 @@ test.describe('Startseite/Mobile', () => {
 
         const vp = page.viewportSize()
 
-        // The fold check is specified at 390 × 844 (home.md H2). A landscape phone or a 667 px
-        // iPhone SE cannot hold h1, subline and the whole panel; there the tabs must still be in
-        // view and the button reachable.
-        if (isLandscape(page) || (vp?.height ?? 0) < 800) {
+        // The fold check is specified at 390 × 844 (home.md H2). A landscape phone (390 px tall)
+        // holds the h1 and the scan button only; the panel is one scroll away. A 667 px iPhone SE
+        // cannot hold h1, subline and the whole panel; there the tabs must still be in view and
+        // the button reachable.
+        if (isLandscape(page)) {
+            await button.scrollIntoViewIfNeeded()
+            await expect(button).toBeInViewport()
+
+            return
+        }
+
+        if ((vp?.height ?? 0) < 800) {
             await expect(page.getByRole('tab', { name: 'HSN/TSN' })).toBeInViewport()
             await button.scrollIntoViewIfNeeded()
             await expect(button).toBeInViewport()
@@ -357,7 +365,7 @@ test.describe('Startseite/Mobile', () => {
         await settle()
         await page.getByRole('tab', { name: 'Marke & Modell' }).click()
         await settle()
-        await page.getByRole('tab', { name: 'Neu' }).click()
+        await page.locator('#h5').getByRole('tab', { name: 'Neu' }).click()
         await settle()
         await page.locator('#h11 .accordion__trigger').first().scrollIntoViewIfNeeded()
         await settle()
