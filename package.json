@@ -13,7 +13,10 @@
         "lint:css": "stylelint \"resources/css/**/*.css\" \"resources/js/**/*.vue\"",
         "format": "prettier --write resources/js e2e",
         "qa": "node scripts/qa/overflow.mjs && node scripts/qa/console.mjs && node scripts/qa/axe.mjs && node scripts/qa/style-inventory.mjs",
-        "qa:shots": "node scripts/qa/review-shots.mjs"
+        "qa:shots": "node scripts/qa/review-shots.mjs",
+        "qa:lighthouse": "node scripts/qa/lighthouse.mjs",
+        "visual": "playwright test -c playwright.visual.config.ts",
+        "visual:update": "playwright test -c playwright.visual.config.ts --update-snapshots"
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.13.0",
