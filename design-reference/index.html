@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RIMIFY · Prototyp</title>
+<link rel="stylesheet" href="shared/tokens.css">
+<style>
+  body{background:#0B0D11;color:#EDEFF3;overflow:hidden}
+  .bar{height:64px;display:flex;align-items:center;gap:20px;padding:0 24px;background:#000;border-bottom:1px solid #1C212B}
+  .bar .wordmark{color:#fff;font-size:22px}
+  .tag{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:999px;background:#1A44D4;color:#fff;
+    font:700 11px/1 Lato,sans-serif;letter-spacing:.10em;text-transform:uppercase}
+  select,button{font:inherit}
+  .sel{height:40px;border-radius:8px;background:#12151C;color:#EDEFF3;border:1px solid #232834;padding:0 32px 0 12px;
+    font:400 14px/1 Lato,sans-serif;appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none'><path d='M4 6.5l4 4 4-4' stroke='%2379818F' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center}
+  .seg2{display:inline-flex;background:#12151C;border:1px solid #232834;border-radius:999px;padding:4px;gap:4px}
+  .seg2 button{height:32px;padding:0 16px;border-radius:999px;border:0;background:none;color:#A6AEBD;font:700 13px/1 Lato,sans-serif;cursor:pointer}
+  .seg2 button[aria-pressed=true]{background:#1A44D4;color:#fff}
+  .ghost{height:40px;padding:0 16px;border-radius:8px;border:1px solid #232834;background:none;color:#A6AEBD;
+    font:700 13px/1 Lato,sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;flex:none}
+  .ghost:hover{color:#fff;border-color:#3A4254}
+  .stage{height:calc(100vh - 64px);overflow:auto;padding:36px;display:flex;gap:56px;align-items:flex-start;justify-content:flex-start}
+  .stage > *{margin:auto}
+  .lab{font:500 11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;color:#79818F;margin-bottom:12px;text-transform:uppercase}
+  .frame{background:#fff;border:1px solid #232834;overflow:hidden}
+  .fd{width:1440px;height:900px}
+  .phone{width:414px;height:868px;box-sizing:border-box;border-radius:44px;background:#000;padding:12px;box-shadow:0 30px 60px -30px rgba(0,0,0,.9)}
+  .phone .frame{width:390px;height:844px;border-radius:34px;border:0}
+  iframe{width:100%;height:100%;border:0;display:block;background:#fff}
+  .scaler{transform-origin:top left}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="wordmark">RIMIFY</span>
+  <span class="tag">Prototyp</span>
+  <select class="sel" id="page" aria-label="Seite"></select>
+  <div class="seg2" id="dev">
+    <button data-d="desktop">Desktop</button>
+    <button data-d="mobile">Mobil</button>
+    <button data-d="both" aria-pressed="true">Nebeneinander</button>
+  </div>
+  <div style="flex:1"></div>
+  <button class="ghost" id="reload">Neu laden</button>
+  <a class="ghost" id="full" href="desktop/startseite.html" target="_blank" rel="noopener" style="text-decoration:none">Vollbild öffnen</a>
+</div>
+<div class="stage" id="stage"></div>
+
+<script src="shared/data.js"></script>
+<script>
+(function(){
+  var st = {p:'startseite', d:'both'};
+  try{ var s=localStorage.getItem('rmf_shell'); if(s){ s=JSON.parse(s); st.p=s.p||st.p; st.d=s.d||st.d; } }catch(e){}
+  var sel=document.getElementById('page'), stage=document.getElementById('stage');
+  sel.innerHTML = RMF.pages.map(function(p){return '<option value="'+p[0]+'">'+p[1]+'</option>';}).join('');
+  sel.value = st.p;
+
+  function save(){ try{ localStorage.setItem('rmf_shell', JSON.stringify(st)); }catch(e){} }
+  function frame(dir){ return '<iframe src="'+dir+'/'+st.p+'.html" title="'+dir+'"></iframe>'; }
+
+  function render(){
+    var avail = stage.clientWidth - 72, availH = stage.clientHeight - 100;
+    if(avail <= 0){ setTimeout(render, 60); return; }
+    document.getElementById('full').href = (st.d==='mobile'?'mobile':'desktop')+'/'+st.p+'.html';
+    Array.prototype.forEach.call(document.querySelectorAll('#dev button'), function(b){
+      b.setAttribute('aria-pressed', b.getAttribute('data-d')===st.d);
+    });
+    function clamp(v){ return Math.max(.18, Math.min(1, v)); }
+    function box(label, w, h, sc, inner){
+      return '<div><div class="lab">'+label+'</div>'+
+        '<div style="width:'+Math.round(w*sc)+'px;height:'+Math.round(h*sc)+'px;overflow:hidden">'+
+        '<div class="scaler" style="transform:scale('+sc+')">'+inner+'</div></div></div>';
+    }
+    var deskInner = '<div class="frame fd">'+frame('desktop')+'</div>';
+    var phoneInner = '<div class="phone"><div class="frame">'+frame('mobile')+'</div></div>';
+    var html='';
+    if(st.d==='desktop'){
+      var sc = clamp(Math.min(avail/1440, availH/900));
+      html = box('Desktop 1440', 1440, 900, sc, deskInner);
+    } else if(st.d==='mobile'){
+      var scm = clamp(Math.min(avail/414, availH/868));
+      html = box('Mobile 390', 414, 868, scm, phoneInner);
+    } else {
+      var sc2 = clamp(Math.min((avail-56)/1854, availH/900));
+      html = box('Desktop 1440', 1440, 900, sc2, deskInner) +
+             box('Mobile 390', 414, 868, sc2, phoneInner);
+    }
+    stage.innerHTML = html;
+  }
+  sel.addEventListener('change', function(){ st.p=sel.value; save(); render(); });
+  Array.prototype.forEach.call(document.querySelectorAll('#dev button'), function(b){
+    b.addEventListener('click', function(){ st.d=b.getAttribute('data-d'); save(); render(); });
+  });
+  document.getElementById('reload').addEventListener('click', render);
+  window.addEventListener('resize', render);
+  if(window.ResizeObserver){ var lastW = 0; new ResizeObserver(function(){
+    var w = stage.clientWidth; if(Math.abs(w - lastW) < 8) return; lastW = w; render();
+  }).observe(stage); }
+  render();
+})();
+</script>
+</body>
+</html>

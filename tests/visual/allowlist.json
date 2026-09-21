@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Agreed exemptions from the pixel gate. §9 permits at most five, and fidelity.spec.ts",
+    "enforces that count rather than trusting it.",
+    "",
+    "An entry belongs here ONLY for content that genuinely cannot be reproduced deterministically",
+    "on both sides. §8 is explicit: never add an entry to make a real difference disappear. If a",
+    "section is the wrong height, the wrong colour or in the wrong order, that is a defect in the",
+    "port — fix the cause.",
+    "",
+    "Each entry needs a `case`, a `reason` long enough to be a real explanation, and optionally a",
+    "`viewport` and a pixel `region` {x, y, width, height}. A region is blanked in BOTH images.",
+    "",
+    "Starting empty. Every entry added later should be justifiable to someone who was not here."
+  ],
+  "entries": []
+}
