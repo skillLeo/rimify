@@ -152,7 +152,7 @@ function selected(facet: string): string[] {
 <style scoped>
 .mplp__title {
     text-align: center;
-    margin: 0 0 var(--s2);
+    margin: 0 0 var(--space-2);
 }
 
 .mplp__sub {
@@ -164,13 +164,13 @@ function selected(facet: string): string[] {
 
 .mplp__cta,
 .mplp__filter {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mplp__grid {
     display: grid;
-    gap: var(--s3);
-    margin-top: var(--s4);
+    gap: var(--space-3);
+    margin-top: var(--space-4);
 }
 
 .mplp__sheet {
@@ -181,23 +181,23 @@ function selected(facet: string): string[] {
 }
 
 .mplp__entry {
-    margin: var(--s4) 0;
+    margin: var(--space-4) 0;
 }
 
 .mplp__group + .mplp__group {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mplp__chips {
-    margin-top: var(--s2);
+    margin-top: var(--space-2);
 }
 
 /* Sticky, because the count is the reason to press it. */
 .mplp__apply {
     position: sticky;
     bottom: 0;
-    margin: var(--s5) calc(var(--gutter-m) * -1) 0;
-    padding: var(--s3) var(--gutter-m) calc(var(--s3) + env(safe-area-inset-bottom));
+    margin: var(--space-5) calc(var(--gutter) * -1) 0;
+    padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom));
     background: var(--surface);
     border-top: 1px solid var(--line);
 }

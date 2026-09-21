@@ -66,7 +66,7 @@ const STEPS = [
 .mchk__hero {
     position: relative;
     border-radius: 0;
-    padding: var(--s7) var(--gutter-m);
+    padding: var(--space-7) var(--gutter);
     overflow: hidden;
 }
 
@@ -81,16 +81,16 @@ const STEPS = [
 }
 
 .mchk__title {
-    margin: var(--s2) 0 0;
+    margin: var(--space-2) 0 0;
     color: #fff;
 }
 
 .mchk__card {
-    padding: var(--s4);
+    padding: var(--space-4);
 }
 
 .mchk__steps {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .mchk__num {
@@ -98,7 +98,7 @@ const STEPS = [
     place-items: center;
     width: 32px;
     height: 32px;
-    margin-bottom: var(--s2);
+    margin-bottom: var(--space-2);
     border-radius: 50%;
     background: var(--wash);
     color: var(--blue);
@@ -108,8 +108,8 @@ const STEPS = [
 .mchk__note {
     display: flex;
     align-items: flex-start;
-    gap: var(--s3);
-    margin-top: var(--s5);
+    gap: var(--space-3);
+    margin-top: var(--space-5);
     color: var(--blue);
 }
 

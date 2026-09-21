@@ -32,7 +32,7 @@ const VERDICT_CLASS: Record<string, string> = {
         <div class="wrap">
             <div class="mord__head">
                 <Svg :markup="tick" />
-                <h1 class="t-h2">Danke für deine Bestellung.</h1>
+                <h1 class="t-h1">Danke für deine Bestellung.</h1>
                 <p class="t-body">
                     Bestellnummer <strong class="data">{{ order.number }}</strong>
                 </p>
@@ -77,15 +77,15 @@ const VERDICT_CLASS: Record<string, string> = {
     display: grid;
     justify-items: center;
     text-align: center;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .mord__lines {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .mord__label {
-    margin: 2px 0 var(--s3);
+    margin: 2px 0 var(--space-3);
     font-weight: 700;
 }
 
@@ -94,12 +94,12 @@ const VERDICT_CLASS: Record<string, string> = {
 }
 
 .mord__summary {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mord__rows {
     display: grid;
-    gap: var(--s2);
+    gap: var(--space-2);
     margin: 0;
 }
 
@@ -107,7 +107,7 @@ const VERDICT_CLASS: Record<string, string> = {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
     font-size: 15px;
 }
 
@@ -126,11 +126,11 @@ const VERDICT_CLASS: Record<string, string> = {
 }
 
 .mord__help {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mord__contact {
-    margin: var(--s2) 0 0;
+    margin: var(--space-2) 0 0;
     font-size: 20px;
     font-weight: 700;
 }

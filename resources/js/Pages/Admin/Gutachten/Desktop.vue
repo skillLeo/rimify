@@ -78,7 +78,7 @@ const STATUS_CLASS: Record<string, string> = {
 
 <style scoped>
 .gut__head {
-    margin-bottom: var(--s4);
+    margin-bottom: var(--space-4);
 }
 
 .gut__num {
@@ -92,7 +92,7 @@ const STATUS_CLASS: Record<string, string> = {
 }
 
 .gut__empty {
-    margin: var(--s5) 0 0;
+    margin: var(--space-5) 0 0;
     text-align: center;
 }
 </style>

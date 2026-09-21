@@ -23,7 +23,7 @@ defineProps<KontaktProps>()
     <section class="section">
         <div class="wrap kon">
             <div>
-                <h1 class="t-h2">Kontakt</h1>
+                <h1 class="t-h1">Kontakt</h1>
                 <p class="t-body">
                     Fragen zur Freigabe, zur Größe oder zur Lieferung? Schreib uns – oder ruf einfach an.
                 </p>
@@ -99,18 +99,18 @@ defineProps<KontaktProps>()
 .kon {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 380px;
-    gap: var(--s6);
+    gap: var(--space-6);
     align-items: start;
 }
 
 .kon__form {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .kon__grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--s3);
+    gap: var(--space-3);
 }
 
 .kon__wide {
@@ -118,7 +118,7 @@ defineProps<KontaktProps>()
 }
 
 .kon__send {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .kon__card {
@@ -133,7 +133,7 @@ defineProps<KontaktProps>()
 }
 
 .kon__cardbody {
-    padding: var(--s5);
+    padding: var(--space-5);
 }
 
 .kon__value {
@@ -144,13 +144,13 @@ defineProps<KontaktProps>()
 }
 
 .kon__rule {
-    margin: var(--s4) 0;
+    margin: var(--space-4) 0;
 }
 
 .kon__note {
     display: flex;
     align-items: flex-start;
-    gap: var(--s3);
+    gap: var(--space-3);
     color: var(--blue);
 }
 

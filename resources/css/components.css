@@ -1,40 +1,42 @@
 /*
  * RIMIFY — components
  *
- * Every rule here resolves through a token in tokens.css. No literal colour, radius, shadow or
- * duration appears below, which is the property that lets the whole system be retuned from one file.
+ * Every rule resolves through a token in tokens.css. No literal colour, size, radius, shadow or
+ * duration appears below, which is what lets the whole system be retuned from one file.
  *
- * The depth rule that governs the entire sheet: a container gets EITHER a border OR a fill — never
- * both, and never border + fill + shadow. Nested panels inside a card take a --wash or --ground
- * fill with no border at all. That single rule is what keeps the page from reading as a wireframe.
+ * Two rules govern the sheet:
+ *
+ *   Depth comes from tone, not from shadow. A container separates itself with a --surface fill
+ *   against --ground, plus one hairline. Only things that genuinely float — a dropdown, a sheet,
+ *   a toast, the header once it has scrolled — carry a shadow.
+ *
+ *   Colour is a signal. Blue means "act here", green/amber/red mean fitment verdict or stock.
+ *   Nothing is tinted for mood.
  */
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BUTTONS · §5.2
-   Full-width inside cards is correct and deliberate — it is right for the thumb.
+   BUTTONS
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--s2);
-    min-height: 48px;
-    padding-inline: var(--s5);
-    border: 0;
-    border-radius: var(--r-btn);
-    font-size: 14px;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding-inline: var(--space-4);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-body);
     font-weight: 700;
     line-height: 1.2;
     text-align: center;
     text-decoration: none;
     cursor: pointer;
     transition:
-        background-color var(--d-hover) var(--ease),
-        border-color var(--d-hover) var(--ease),
-        color var(--d-hover) var(--ease),
-        transform var(--d-hover) var(--ease),
-        box-shadow var(--d-hover) var(--ease);
+        background-color var(--duration-instant) var(--ease-standard),
+        border-color var(--duration-instant) var(--ease-standard),
+        color var(--duration-instant) var(--ease-standard);
 }
 
 .btn--block {
@@ -42,15 +44,16 @@
     width: 100%;
 }
 
-.btn--lg {
-    min-height: 52px;
-    font-size: 15px;
+.btn--sm {
+    min-height: 36px;
+    padding-inline: var(--space-3);
+    font-size: var(--text-small);
 }
 
-.btn--sm {
-    min-height: 40px;
-    padding-inline: var(--s4);
-    font-size: 13px;
+.btn--lg {
+    min-height: 52px;
+    padding-inline: var(--space-5);
+    font-size: var(--text-h3);
 }
 
 .btn--primary {
@@ -58,122 +61,92 @@
     color: #fff;
 }
 
-.btn--primary:hover {
-    background: var(--blue-h);
-    transform: translateY(-1px);
-    box-shadow: var(--sh-1);
-}
-
-.btn--primary:active {
-    background: var(--blue-p);
-    transform: translateY(0);
-    box-shadow: none;
-}
-
-/* A --line fill with an ink-3 label, never a faded blue: a washed-out brand colour still
-   reads as "press me". */
-.btn--primary:disabled,
-.btn--primary[aria-disabled='true'] {
-    background: var(--line);
-    color: var(--ink3);
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
 .btn--secondary {
     background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--ink);
-}
-
-.btn--secondary:hover {
-    border-color: var(--blue);
-    color: var(--blue);
-}
-
-.btn--secondary:disabled,
-.btn--secondary[aria-disabled='true'] {
-    color: var(--ink3);
     border-color: var(--line);
-    cursor: not-allowed;
+    color: var(--ink);
 }
 
 .btn--quiet {
     background: transparent;
-    border: 1px solid transparent;
     color: var(--blue);
-    padding-inline: var(--s3);
-}
-
-.btn--quiet:hover {
-    border-color: var(--bline);
+    padding-inline: var(--space-3);
 }
 
 .btn--ghost-dark {
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.3);
     color: #fff;
 }
 
-.btn--ghost-dark:hover {
-    border-color: #fff;
-}
+/* Hover belongs to pointers. On a touch screen it would stick after the tap. */
+@media (hover: hover) and (pointer: fine) {
+    .btn--primary:hover {
+        background: var(--blue-h);
+    }
 
-@media (max-width: 720px) {
-    .btn {
-        min-height: 52px;
+    .btn--secondary:hover {
+        border-color: var(--ink2);
+        background: var(--band);
+    }
+
+    .btn--quiet:hover {
+        background: var(--wash);
+    }
+
+    .btn--ghost-dark:hover {
+        border-color: #fff;
     }
 }
 
+.btn--primary:active {
+    background: var(--blue-p);
+}
+
+.btn--secondary:active {
+    background: var(--field);
+}
+
+/* A --field fill with --ink3 text, never a faded blue: a washed-out brand colour still reads
+   as "press me". */
+.btn:disabled,
+.btn[aria-disabled='true'],
+.btn--is-disabled {
+    background: var(--field);
+    border-color: transparent;
+    color: var(--ink3);
+    cursor: not-allowed;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   SURFACES · §5.1
+   SURFACES
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .card {
     background: var(--surface);
-    border-radius: var(--r-card);
-    box-shadow: var(--sh-1);
-    padding: var(--s5);
-}
-
-.card--flat {
-    box-shadow: none;
     border: 1px solid var(--line);
-}
-
-.card--lifted {
-    box-shadow: var(--sh-2);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
 }
 
 .panel {
     background: var(--surface);
-    border-radius: var(--r-panel);
-    box-shadow: var(--sh-1);
-    padding: var(--s6);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-6);
 }
 
-/* Nested inside a card: fill, no border. The whole point of §3's depth rule. */
+/* Nested inside a card: a fill and no border at all. A box inside a box needs one edge, not two. */
 .panel--wash {
     background: var(--wash);
-    border-radius: var(--r-img);
-    box-shadow: none;
-    padding: var(--s4);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
 }
 
 .panel--ground {
     background: var(--ground);
-    border-radius: var(--r-img);
-    box-shadow: none;
-    padding: var(--s4);
-}
-
-/* Hairlines inside a card stop 20px short of the inner edge. Reads as hand-drawn. */
-.hr-inset {
-    height: 1px;
-    background: var(--line-s);
-    border: 0;
-    margin: var(--s4) var(--s5);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
 }
 
 .hr {
@@ -183,49 +156,57 @@
     margin: 0;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   MICRO LABEL + DATA
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.micro {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink3);
-    display: block;
+.hr-inset {
+    height: 1px;
+    background: var(--line-s);
+    border: 0;
+    margin: var(--space-4) 0;
 }
 
-.data {
+/* ═══════════════════════════════════════════════════════════════════════════
+   VALUES AND PRICES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.price {
     font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
+    font-size: var(--text-h3);
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.price--lg {
+    font-size: var(--text-h2);
+}
+
+.price-note {
+    font-size: var(--text-small);
+    color: var(--ink3);
+}
+
+/* Prices carry their legal note wherever they appear (PAngV §6). */
+.price-legal {
+    font-size: var(--text-small);
+    color: var(--ink3);
+}
+
+.stars {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-small);
     font-variant-numeric: tabular-nums;
     color: var(--ink2);
 }
 
-.price {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-}
-
-.price--sm {
-    font-size: 17px;
-}
-
-.price-note {
-    font-size: 12px;
-    color: var(--ink3);
+.stars__glyph {
+    color: var(--warn);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CHIPS AND SIZE SELECTORS · §5.3
-   The most-touched control on the site. A mis-tap here selects the wrong legal
-   configuration, which is why the target is 44px and the spacing is real.
+   CHIPS, FILTER PILLS, BADGES
+   Rectangular with a small radius — a pill reads as a tag, and these are controls.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .chip {
@@ -234,39 +215,40 @@
     align-items: center;
     justify-content: center;
     min-width: 44px;
-    min-height: 44px;
-    padding-inline: var(--s3);
-    background: var(--ground);
-    border: 0;
-    border-radius: var(--r-pill);
+    min-height: 40px;
+    padding-inline: var(--space-3);
+    background: var(--field);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: var(--text-small);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     color: var(--ink2);
     cursor: pointer;
-    transition:
-        background-color var(--d-state) var(--ease),
-        color var(--d-state) var(--ease);
+    transition: background-color var(--duration-fast) var(--ease-standard),
+        color var(--duration-fast) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard);
 }
 
-.chip:hover:not(:disabled):not(.chip--blocked) {
-    background: var(--wash);
+@media (hover: hover) and (pointer: fine) {
+    .chip:hover:not(:disabled):not(.chip--blocked) {
+        border-color: var(--ink2);
+    }
 }
 
 .chip--on,
 .chip[aria-pressed='true'] {
-    background: var(--blue);
-    color: #fff;
+    background: var(--wash);
+    border-color: var(--bline);
+    color: var(--blue);
 }
 
-/* Not permitted for THIS vehicle. Shown, never hidden — it tells the customer something
-   true about their car, and hiding it would look like the size does not exist. */
+/* Not permitted on the chosen car. Shown and struck through, never hidden: hiding it would say
+   the size does not exist, which is a different and false statement. */
 .chip--blocked {
-    opacity: 0.45;
+    color: var(--ink3);
     cursor: not-allowed;
-    background: var(--ground);
-    color: var(--ink2);
 }
 
 .chip--blocked::after {
@@ -284,56 +266,56 @@
     pointer-events: none;
 }
 
+.chip--static {
+    cursor: default;
+    min-height: 32px;
+    min-width: 40px;
+}
+
 .chip-row {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
-/* Filter pills — text, not measurements, so no mono. */
+/* Filter control: text, not a measurement, so no mono. */
 .pill {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
-    min-height: 36px;
-    padding-inline: var(--s3);
-    border-radius: var(--r-pill);
-    background: var(--ground);
-    border: 0;
-    font-size: 13px;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding-inline: var(--space-3);
+    background: var(--field);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-small);
     font-weight: 700;
     color: var(--ink2);
     cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-standard),
+        color var(--duration-fast) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard);
 }
 
 .pill--on {
-    background: var(--blue);
-    color: #fff;
+    background: var(--wash);
+    border-color: var(--bline);
+    color: var(--blue);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   STATUS · §5.5
-   Green, amber and red mean fitment status and stock, and nothing else, ever.
+   STATUS · verdict and stock, and nothing else
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .tag {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px var(--s2);
-    border-radius: var(--r-pill);
-    font-size: 11px;
+    gap: var(--space-1);
+    padding: 3px var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-small);
     font-weight: 700;
-    letter-spacing: 0.02em;
-}
-
-.tag::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    flex: none;
+    line-height: 1.3;
 }
 
 .tag--ok {
@@ -351,41 +333,26 @@
     color: var(--danger);
 }
 
-/* UNKNOWN is its own state and must never be dressed as a refusal (R-07). Neutral,
-   not red: "we do not know" is different from "no". */
+/*
+ * UNKNOWN is its own state and must never be dressed as a refusal (R-07). Neutral, not red:
+ * "we hold no document" is a different fact from "your car may not have this".
+ */
 .tag--unknown {
-    background: var(--ground);
+    background: var(--field);
     color: var(--ink2);
 }
 
-.stars {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-}
-
-/* One glyph plus a number. Never five drawn stars. */
-.stars__glyph {
-    color: var(--star);
-}
-
-.stars__count {
-    color: var(--ink3);
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   PRODUCT IMAGERY · §5.4 — the biggest single visual upgrade
-   A wheel floating on flat white is why the cards looked cheap. The well plus the
-   elliptical contact shadow puts the wheel IN space rather than on top of it.
+   PRODUCT IMAGERY
+   Until the client's own photographs arrive, a product frame shows an honest placeholder —
+   never a stock photo of a different wheel, and never a drawing dressed up as a photograph.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .well {
     position: relative;
     aspect-ratio: 1 / 1;
-    border-radius: var(--r-img);
-    background: linear-gradient(180deg, var(--surface) 0%, #fafbfe 100%);
+    border-radius: var(--radius-lg);
+    background: var(--field);
     overflow: hidden;
     display: grid;
     place-items: center;
@@ -393,146 +360,157 @@
 
 .well__art {
     width: 78%;
-    transition: transform var(--d-sheet) var(--ease);
 }
 
-.well__shadow {
+/* The product frame fills the square exactly, so its caption is never cut off by the well. */
+.well > .pphoto {
     position: absolute;
-    left: 50%;
-    bottom: 12%;
-    width: 55%;
-    height: 6px;
-    transform: translateX(-50%);
-    border-radius: 50%;
-    background: rgba(14, 17, 22, 0.14);
-    filter: blur(10px);
-    transition:
-        width var(--d-sheet) var(--ease),
-        opacity var(--d-sheet) var(--ease);
+    inset: 0;
 }
 
 .well__tag {
     position: absolute;
-    top: var(--s3);
-    right: var(--s3);
+    top: var(--space-3);
+    right: var(--space-3);
     z-index: 1;
 }
 
+.photo-pending {
+    display: grid;
+    place-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 100%;
+    padding: var(--space-4);
+    text-align: center;
+}
+
+.photo-pending__brand {
+    font-size: var(--text-h3);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink2);
+}
+
+.photo-pending__note {
+    font-size: var(--text-small);
+    color: var(--ink3);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   PRODUCT CARD · §5.5 — exactly this order, top to bottom
+   PRODUCT CARD · every card in a listing shows the same field set, in this order
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .pcard {
+    position: relative;
     display: flex;
     flex-direction: column;
     background: var(--surface);
-    border-radius: var(--r-card);
-    box-shadow: var(--sh-1);
-    padding: var(--s4);
-    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
     color: inherit;
-    transition: box-shadow var(--d-state) var(--ease);
+    text-decoration: none;
+    transition: border-color var(--duration-fast) var(--ease-standard);
 }
 
-/* raised → lifted, the image scales, and NOTHING else moves. */
-.pcard:hover {
-    box-shadow: var(--sh-2);
-}
-
-.pcard:hover .well__art {
-    transform: scale(1.04);
-}
-
-.pcard:hover .well__shadow {
-    width: 62%;
-    opacity: 0.8;
+@media (hover: hover) and (pointer: fine) {
+    .pcard:hover {
+        border-color: var(--ink2);
+    }
 }
 
 .pcard__brand {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .pcard__model {
-    font-size: 18px;
+    font-size: var(--text-h3);
     font-weight: 700;
     color: var(--ink);
-    line-height: 1.25;
-    margin: 2px 0 0;
+    line-height: 1.3;
+    margin-top: 2px;
 }
 
 .pcard__finish {
-    font-size: 14px;
+    font-size: var(--text-small);
     color: var(--ink2);
-    margin: 2px 0 0;
+    margin-top: 2px;
 }
 
 .pcard__rating {
-    margin-top: var(--s2);
+    margin-top: var(--space-2);
 }
 
 .pcard__sizes {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .pcard__divider {
     height: 1px;
     background: var(--line-s);
     border: 0;
-    margin: var(--s4) 0;
+    margin: var(--space-4) 0;
 }
 
 .pcard__price {
     margin-top: auto;
 }
 
-.pcard__action {
-    margin-top: var(--s3);
-}
-
-/* The single most valuable line on the card — it always names the vehicle. */
 .pcard__fitment {
     display: flex;
     align-items: center;
-    gap: var(--s2);
-    margin-top: var(--s3);
-    font-size: 13px;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    font-size: var(--text-small);
     font-weight: 700;
+}
+
+.pcard__action {
+    position: relative;
+    z-index: 1;
+    margin-top: var(--space-3);
 }
 
 .grid-cards {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--s5);
+    gap: var(--space-5);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1199px) {
     .grid-cards {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 899px) {
     .grid-cards {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-4);
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 639px) {
     .grid-cards {
-        gap: var(--s3);
+        gap: var(--space-3);
+    }
+
+    .grid-cards .pcard {
+        padding: var(--space-3);
     }
 }
 
-/* Horizontal rails scroll-snap. Never a carousel that advances on its own. */
+/* A horizontal rail scroll-snaps. It never advances on its own. */
 .rail {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 78%;
-    gap: var(--s3);
+    gap: var(--space-3);
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    padding-inline: var(--gutter-m);
-    margin-inline: calc(var(--gutter-m) * -1);
+    padding-inline: var(--gutter);
+    margin-inline: calc(var(--gutter) * -1);
     scrollbar-width: none;
 }
 
@@ -544,24 +522,29 @@
     scroll-snap-align: start;
 }
 
+@media (min-width: 900px) {
+    .rail {
+        grid-auto-columns: 32%;
+    }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   THE RIMIFY-CHECK DEVICE · §5.6 — the signature component, three densities
-   It ALWAYS names the vehicle. "Passend" alone is meaningless.
+   THE VERDICT PANEL · it always names the vehicle
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .rcheck-inline {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
-    font-size: 13px;
+    gap: var(--space-2);
+    font-size: var(--text-small);
     font-weight: 700;
     color: var(--blue);
 }
 
 .rcheck-panel {
     background: var(--wash);
-    border-radius: var(--r-img);
-    padding: var(--s4);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
 }
 
 .rcheck-panel--warn {
@@ -573,14 +556,14 @@
 }
 
 .rcheck-panel--unknown {
-    background: var(--ground);
+    background: var(--field);
 }
 
 .rcheck-panel__head {
     display: flex;
     align-items: center;
-    gap: var(--s2);
-    font-size: 11px;
+    gap: var(--space-2);
+    font-size: var(--text-micro);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -600,17 +583,17 @@
 }
 
 .rcheck-panel__vehicle {
-    font-size: 15px;
+    font-size: var(--text-body);
     font-weight: 700;
     color: var(--ink);
-    margin-top: var(--s2);
+    margin-top: var(--space-2);
 }
 
 .rcheck-hero {
     background: var(--blue);
     color: #fff;
-    border-radius: var(--r-panel);
-    padding: var(--s7);
+    border-radius: var(--radius-md);
+    padding: var(--space-7);
 }
 
 .rcheck-hero .micro {
@@ -618,15 +601,15 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   INPUTS AND FORMS · §5.7
+   FIELDS
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .field-label {
     display: block;
-    font-size: 14px;
+    font-size: var(--text-small);
     font-weight: 700;
     color: var(--ink);
-    margin-bottom: 6px;
+    margin-bottom: var(--space-1);
 }
 
 .field-label__req {
@@ -635,24 +618,24 @@
 
 .field {
     width: 100%;
-    min-height: 48px;
-    padding: 0 var(--s3);
+    min-height: 44px;
+    padding: 0 var(--space-3);
     background: var(--field);
     border: 1px solid transparent;
-    border-radius: var(--r-btn);
-    font-size: 15px;
+    border-radius: var(--radius-sm);
+    /* Never below 16px on a phone: iOS zooms into a smaller field and never zooms back. */
+    font-size: 16px;
     color: var(--ink);
     transition:
-        background-color var(--d-hover) var(--ease),
-        border-color var(--d-hover) var(--ease),
-        box-shadow var(--d-hover) var(--ease);
+        background-color var(--duration-instant) var(--ease-standard),
+        border-color var(--duration-instant) var(--ease-standard),
+        box-shadow var(--duration-instant) var(--ease-standard);
 }
 
 .field::placeholder {
     color: var(--ink3);
 }
 
-/* Focus: white fill, 1px blue border AND a 3px wash ring. Both together. */
 .field:focus {
     outline: none;
     background: var(--surface);
@@ -662,111 +645,127 @@
 
 .field--error {
     border-color: var(--danger);
+    background: var(--danger-w);
 }
 
+/* The error line reserves its space, so a message appearing never shifts the form. */
 .field-error {
     display: block;
-    margin-top: 6px;
-    font-size: 13px;
+    min-height: 1.4em;
+    margin-top: var(--space-1);
+    font-size: var(--text-small);
     color: var(--danger);
 }
 
 textarea.field {
     min-height: 120px;
-    padding-block: var(--s3);
+    padding-block: var(--space-3);
     line-height: 1.5;
     resize: vertical;
 }
 
 select.field {
     appearance: none;
-    padding-right: var(--s6);
+    padding-right: var(--space-6);
     background-image: linear-gradient(45deg, transparent 50%, var(--ink2) 50%),
         linear-gradient(135deg, var(--ink2) 50%, transparent 50%);
-    background-position: calc(100% - 20px) 21px, calc(100% - 14px) 21px;
+    background-position: calc(100% - 20px) 19px, calc(100% - 14px) 19px;
     background-size: 6px 6px, 6px 6px;
     background-repeat: no-repeat;
 }
 
-/* HSN and TSN: mono, uppercase, letterspaced. The customer is copying characters off a
-   document, so the field must look like the document. */
+/* HSN and TSN: the customer is copying characters off a document, so the field looks like the
+   document — mono, uppercase, letterspaced. */
 .field--key {
     font-family: var(--mono);
-    font-size: 15px;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
 }
 
+.field-help {
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   LIST ROWS — the make / model picker · --row fill, no border
+   LIST ROWS · the make / model picker
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .row-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
     width: 100%;
     min-height: 48px;
-    padding: var(--s2) var(--s3);
-    background: var(--row);
-    border: 0;
-    border-radius: var(--r-btn);
-    font-size: 15px;
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-body);
     font-weight: 700;
     color: var(--ink);
     text-align: left;
+    text-decoration: none;
     cursor: pointer;
-    transition: background-color var(--d-hover) var(--ease);
+    transition: border-color var(--duration-instant) var(--ease-standard),
+        background-color var(--duration-instant) var(--ease-standard);
 }
 
-.row-item:hover {
-    background: var(--wash);
+@media (hover: hover) and (pointer: fine) {
+    .row-item:hover {
+        border-color: var(--ink2);
+    }
 }
 
 .row-item--on {
-    background: var(--blue);
-    color: #fff;
+    border-color: var(--blue);
+    background: var(--wash);
+    color: var(--blue);
 }
 
 .row-list {
     display: grid;
-    gap: var(--s2);
+    gap: var(--space-2);
     max-height: 320px;
     overflow-y: auto;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   TABLES · §5.8 — no vertical rules, no zebra striping
+   TABLES · dividers, never zebra; measured columns right-aligned
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: var(--text-body);
 }
 
 .table th {
-    font-size: 11px;
+    font-size: var(--text-micro);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--ink3);
+    color: var(--ink2);
     text-align: left;
-    padding: var(--s2) var(--s3);
-    border-bottom: 1px solid var(--line-s);
+    padding: var(--space-2) var(--space-3);
+    background: var(--field);
+    border-bottom: 1px solid var(--border-strong);
     white-space: nowrap;
 }
 
 .table td {
-    padding: var(--s3);
+    padding: var(--space-3);
     border-bottom: 1px solid var(--line-s);
     vertical-align: middle;
-    height: 64px;
+    height: 48px;
 }
 
-.table tbody tr:hover {
-    background: var(--ground);
+@media (hover: hover) and (pointer: fine) {
+    .table tbody tr:hover {
+        background: var(--band);
+    }
 }
 
 .table .num {
@@ -774,30 +773,28 @@ select.field {
     font-variant-numeric: tabular-nums;
 }
 
-/* The Warenkorb line-item table is taller — it carries an image, a vehicle and a verdict
-   per row, not just a figure (design-system.md §5.8 CONFLICT note). */
 .table--cart td {
     height: 96px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   HEADER · pure black, kept
+   HEADER · white, sticky, one hairline. The navigation is never removed.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .hdr {
     position: sticky;
     top: 0;
     z-index: 40;
-    background: var(--black);
-    color: #fff;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
 }
 
 .hdr__bar {
     display: flex;
     align-items: center;
-    gap: var(--s5);
+    gap: var(--space-5);
     height: var(--header-h);
-    max-width: var(--page-max);
+    max-width: var(--container);
     margin-inline: auto;
     padding-inline: var(--gutter);
 }
@@ -805,21 +802,32 @@ select.field {
 .hdr__nav {
     display: flex;
     align-items: center;
-    gap: var(--s5);
+    gap: var(--space-5);
     margin-left: auto;
 }
 
 .hdr__link {
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--ink2);
+    font-size: var(--text-body);
     font-weight: 700;
     text-decoration: none;
-    transition: color var(--d-hover) var(--ease);
+    border-bottom: 2px solid transparent;
+    transition: color var(--duration-instant) var(--ease-standard);
 }
 
-.hdr__link:hover,
+@media (hover: hover) and (pointer: fine) {
+    .hdr__link:hover {
+        color: var(--ink);
+    }
+}
+
+/* The current page is marked by an underline as well as colour, so it does not rely on hue. */
 .hdr__link[aria-current='page'] {
-    color: #fff;
+    color: var(--ink);
+    border-bottom-color: var(--border-strong);
 }
 
 .hdr__icon {
@@ -831,147 +839,105 @@ select.field {
     height: 44px;
     border: 0;
     background: transparent;
-    color: #fff;
-    border-radius: var(--r-btn);
+    color: var(--ink);
+    border-radius: var(--radius-sm);
     cursor: pointer;
 }
 
 .hdr__badge {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 2px;
+    right: 2px;
     min-width: 18px;
     height: 18px;
     padding-inline: 5px;
-    border-radius: var(--r-pill);
+    border-radius: var(--radius-round);
     background: var(--blue);
     color: #fff;
-    font-size: 11px;
+    font-size: var(--text-micro);
     font-weight: 700;
     line-height: 18px;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
-/* The wordmark. A logo asset, not bold italic body text — but until the client supplies
-   the SVG this is the agreed stand-in (design-system.md §2 CONFLICT, master wins). */
+/* The wordmark is set upright. A skewed italic logotype is a styling effect, not a mark. */
 .wordmark {
-    font-weight: 900;
-    font-style: italic;
-    font-size: 24px;
-    letter-spacing: -0.02em;
-    transform: skewX(-6deg);
-    color: #fff;
+    font-weight: 700;
+    font-size: var(--text-h3);
+    letter-spacing: 0.06em;
+    color: var(--ink);
     text-decoration: none;
     line-height: 1;
 }
 
-.wordmark--ink {
-    color: var(--ink);
+.wordmark--light {
+    color: var(--on-dark);
 }
 
-/* ── The vehicle context, state two: the white box under the black bar ────────
-   State one is nothing at all. State three is the blue bar. The white box and the
-   blue bar must NEVER render together — they are the same fact told twice. */
+/* ── The chosen vehicle, one chip, identical on every route ───────────────── */
 
-.vctx {
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-}
-
-.vctx__inner {
-    display: flex;
+.vchip {
+    display: inline-flex;
     align-items: center;
-    gap: var(--s3);
-    max-width: var(--page-max);
-    margin-inline: auto;
-    padding: var(--s3) var(--gutter);
-    font-size: 14px;
+    gap: var(--space-2);
+    min-height: 40px;
+    max-width: 44vw;
+    padding-inline: var(--space-3);
+    background: var(--field);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-small);
+    color: var(--ink);
+    cursor: pointer;
+    text-align: left;
 }
 
-.vctx__name {
+@media (hover: hover) and (pointer: fine) {
+    .vchip:hover {
+        border-color: var(--ink2);
+    }
+}
+
+.vchip__name {
     font-weight: 700;
-    color: var(--ink);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.vctx__change {
-    margin-left: auto;
-    flex: none;
-}
-
-/* ── State three: the blue bar, used where the page IS about the vehicle ──── */
-
-.vbar {
-    background: var(--blue);
-    color: #fff;
-}
-
-.vbar__inner {
-    display: flex;
-    align-items: center;
-    gap: var(--s3);
-    max-width: var(--page-max);
-    margin-inline: auto;
-    padding: var(--s3) var(--gutter);
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.vbar a {
-    color: #fff;
-}
-
-@media (max-width: 720px) {
-    .hdr__bar {
-        height: var(--header-h-m);
-        gap: var(--s3);
-        padding-inline: var(--gutter-m);
-    }
-
-    .hdr__nav {
-        display: none;
-    }
-
-    .vctx__inner,
-    .vbar__inner {
-        padding-inline: var(--gutter-m);
-    }
-
-    .wordmark {
-        font-size: 20px;
-    }
+.vchip__keys {
+    font-family: var(--mono);
+    color: var(--ink2);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   FOOTER · black, four columns
+   FOOTER
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .ftr {
-    background: var(--black);
-    color: rgba(255, 255, 255, 0.72);
-    padding-block: var(--s8) var(--s6);
-    font-size: 14px;
+    background: var(--ink);
+    color: var(--on-dark-2);
+    padding-block: var(--space-8) var(--space-6);
+    font-size: var(--text-small);
 }
 
 .ftr__cols {
     display: grid;
     grid-template-columns: 1.4fr repeat(3, 1fr);
-    gap: var(--s6);
-    max-width: var(--page-max);
+    gap: var(--space-6);
+    max-width: var(--container);
     margin-inline: auto;
     padding-inline: var(--gutter);
 }
 
 .ftr__head {
-    font-size: 11px;
+    font-size: var(--text-micro);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.5);
-    margin-bottom: var(--s3);
+    color: var(--on-dark-2);
+    margin-bottom: var(--space-3);
 }
 
 .ftr__list {
@@ -979,231 +945,92 @@ select.field {
     margin: 0;
     padding: 0;
     display: grid;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .ftr a {
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--on-dark-2);
     text-decoration: none;
 }
 
-.ftr a:hover {
-    color: #fff;
+@media (hover: hover) and (pointer: fine) {
+    .ftr a:hover {
+        color: var(--on-dark);
+    }
 }
 
 .ftr__base {
-    max-width: var(--page-max);
-    margin: var(--s7) auto 0;
-    padding: var(--s4) var(--gutter) 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    max-width: var(--container);
+    margin: var(--space-7) auto 0;
+    padding: var(--space-4) var(--gutter) 0;
+    border-top: 1px solid rgba(247, 248, 253, 0.14);
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s4);
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.5);
+    gap: var(--space-4);
+    font-size: var(--text-small);
+    color: var(--on-dark-2);
 }
 
-@media (max-width: 860px) {
+@media (max-width: 899px) {
     .ftr__cols {
         grid-template-columns: repeat(2, 1fr);
-        padding-inline: var(--gutter-m);
-    }
-
-    .ftr__base {
-        padding-inline: var(--gutter-m);
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   MOBILE BOTTOM NAV · §6 — designed for the thumb, not the desktop squeezed
-   The centre item is the brand's promise, put under the thumb.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.bnav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 50;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    align-items: end;
-    height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    background: var(--surface);
-    border-top: 1px solid var(--line);
-}
-
-.bnav__item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    height: var(--bottomnav-h);
-    color: var(--ink3);
-    font-size: 10px;
-    font-weight: 700;
-    text-decoration: none;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-}
-
-.bnav__item[aria-current='page'] {
-    color: var(--blue);
-}
-
-/* Breaks the bar's top edge by 12px. It is the one element allowed to do that. */
-.bnav__check {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    height: var(--bottomnav-h);
-    color: var(--blue);
-    font-size: 10px;
-    font-weight: 700;
-    text-decoration: none;
-    padding-bottom: 6px;
-}
-
-.bnav__check-dot {
-    display: grid;
-    place-items: center;
-    width: 52px;
-    height: 52px;
-    margin-top: -12px;
-    margin-bottom: 2px;
-    border-radius: 50%;
-    background: var(--blue);
-    color: #fff;
-    box-shadow: var(--sh-2);
-}
-
-.bnav__badge {
-    position: absolute;
-    top: 6px;
-    right: 50%;
-    transform: translateX(18px);
-    min-width: 16px;
-    height: 16px;
-    padding-inline: 4px;
-    border-radius: var(--r-pill);
-    background: var(--blue);
-    color: #fff;
-    font-size: 10px;
-    line-height: 16px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-}
-
-.bnav__item {
-    position: relative;
-}
-
-/* Every storefront page reserves the bar's height so the last element is never
-   trapped underneath it. */
-.has-bnav {
-    padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + var(--s4));
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   HERO · the photograph is the LCP element and must NEVER fade in
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.hero {
-    position: relative;
-    background: var(--black);
-    color: #fff;
-    overflow: hidden;
-}
-
-.hero__art {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* One of exactly two permitted gradients on the whole site. */
-.hero__scrim {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-        100deg,
-        rgba(0, 0, 0, 0.82) 0%,
-        rgba(0, 0, 0, 0.62) 42%,
-        rgba(0, 0, 0, 0.2) 100%
-    );
-}
-
-.hero__inner {
-    position: relative;
-    max-width: var(--page-max);
-    margin-inline: auto;
-    padding: var(--s9) var(--gutter);
-    display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
-    gap: var(--s7);
-    align-items: center;
-}
-
-.hero__eyebrow {
-    color: rgba(255, 255, 255, 0.72);
-}
-
-/* Rise 12px and fade over 400ms, staggered 60ms. Reduced motion collapses it
-   to nothing via the global rule in tokens.css. */
-.rise {
-    animation: rise var(--d-hero) var(--ease) both;
-}
-
-.rise-1 {
-    animation-delay: 60ms;
-}
-
-.rise-2 {
-    animation-delay: 120ms;
-}
-
-.rise-3 {
-    animation-delay: 180ms;
-}
-
-@keyframes rise {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-
-    to {
-        opacity: 1;
-        transform: none;
-    }
-}
-
-@media (max-width: 860px) {
-    .hero__inner {
+@media (max-width: 639px) {
+    .ftr__cols {
         grid-template-columns: 1fr;
-        padding: 56px var(--gutter-m);
-        gap: var(--s5);
     }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SHEETS, TOASTS, ACCORDIONS
+   OVERLAYS · the only place a shadow is allowed
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .scrim {
     position: fixed;
     inset: 0;
     z-index: 60;
-    background: rgba(14, 17, 22, 0.44);
+    background: rgba(14, 17, 22, 0.4);
+    animation: fade-in var(--duration-fast) var(--ease-out) both;
 }
 
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* A drawer holds navigation. It comes from the edge it belongs to. */
+.drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 61;
+    width: min(360px, 88vw);
+    padding: var(--space-5) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom));
+    background: var(--surface);
+    box-shadow: var(--shadow-overlay);
+    overflow-y: auto;
+    animation: drawer-in var(--duration-moderate) var(--ease-out) both;
+}
+
+@keyframes drawer-in {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: none;
+    }
+}
+
+/* A sheet holds a transient choice, and only on a phone. */
 .sheet {
     position: fixed;
     left: 0;
@@ -1213,9 +1040,10 @@ select.field {
     max-height: 88vh;
     overflow-y: auto;
     background: var(--surface);
-    border-radius: var(--r-panel) var(--r-panel) 0 0;
-    padding: var(--s5) var(--gutter-m) calc(var(--s5) + env(safe-area-inset-bottom));
-    animation: sheet-up var(--d-sheet) var(--ease) both;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    box-shadow: var(--shadow-overlay);
+    padding: var(--space-5) var(--gutter) calc(var(--space-5) + env(safe-area-inset-bottom));
+    animation: sheet-up var(--duration-moderate) var(--ease-out) both;
 }
 
 @keyframes sheet-up {
@@ -1229,44 +1057,80 @@ select.field {
 }
 
 .sheet__grab {
-    width: 36px;
+    width: 32px;
     height: 4px;
-    border-radius: var(--r-pill);
+    border-radius: var(--radius-round);
     background: var(--line);
-    margin: 0 auto var(--s4);
+    margin: 0 auto var(--space-4);
 }
 
-/* Pins above the bottom nav. The legal status must never be separated from the
-   button that acts on it. */
+/* The one persistent bar on a phone: the next action on the product page, above the fold's edge. */
 .stickybar {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+    bottom: 0;
     z-index: 45;
     display: flex;
     align-items: center;
-    gap: var(--s3);
-    padding: var(--s3) var(--gutter-m);
+    gap: var(--space-3);
+    min-height: 64px;
+    padding: var(--space-2) var(--gutter) calc(var(--space-2) + env(safe-area-inset-bottom));
     background: var(--surface);
     border-top: 1px solid var(--line);
+    box-shadow: var(--shadow-raised);
 }
 
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: var(--space-6);
+    transform: translateX(-50%);
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    max-width: min(480px, calc(100vw - 2 * var(--space-4)));
+    padding: var(--space-3) var(--space-4);
+    background: var(--ink);
+    color: var(--on-dark);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-overlay);
+    font-size: var(--text-body);
+    animation: toast-in var(--duration-moderate) var(--ease-out) both;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, var(--space-3));
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCORDION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .acc {
-    border-bottom: 1px solid var(--line-s);
+    border-bottom: 1px solid var(--line);
 }
 
 .acc__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
     width: 100%;
     min-height: 56px;
-    padding: var(--s3) 0;
+    padding: var(--space-3) 0;
     background: transparent;
     border: 0;
-    font-size: 16px;
+    font-size: var(--text-h3);
     font-weight: 700;
     color: var(--ink);
     text-align: left;
@@ -1274,66 +1138,131 @@ select.field {
 }
 
 .acc__body {
-    padding-bottom: var(--s4);
+    padding-bottom: var(--space-4);
     color: var(--ink2);
-}
-
-.toast {
-    position: fixed;
-    left: 50%;
-    bottom: var(--s6);
-    transform: translateX(-50%);
-    z-index: 70;
-    display: flex;
-    align-items: center;
-    gap: var(--s3);
-    max-width: 480px;
-    padding: var(--s3) var(--s4);
-    background: var(--ink);
-    color: #fff;
-    border-radius: var(--r-btn);
-    box-shadow: var(--sh-2);
-    font-size: 14px;
+    max-width: 65ch;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   EMPTY, LOADING, ERROR — designed, not defaults (§7)
+   EMPTY, LOADING
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .state {
     display: grid;
-    justify-items: center;
-    text-align: center;
-    gap: var(--s3);
-    padding: var(--s8) var(--s4);
+    justify-items: start;
+    gap: var(--space-3);
+    padding: var(--space-8) 0;
     color: var(--ink2);
 }
 
 .state__title {
-    font-size: 20px;
+    font-size: var(--text-h3);
     font-weight: 700;
     color: var(--ink);
 }
 
+/* A skeleton mirrors the box it stands in for, and pulses rather than sweeping: a shimmer
+   gradient is decoration, and decoration has no business in a loading state. */
 .skeleton {
-    background: linear-gradient(90deg, var(--line-s) 25%, var(--ground) 37%, var(--line-s) 63%);
-    background-size: 400% 100%;
-    border-radius: var(--r-img);
-    animation: shimmer 1.4s ease infinite;
+    background: var(--field);
+    border-radius: var(--radius-md);
+    animation: skeleton-pulse 1.6s var(--ease-in-out) infinite;
 }
 
-@keyframes shimmer {
-    from {
-        background-position: 100% 0;
+@keyframes skeleton-pulse {
+    0%,
+    100% {
+        opacity: 1;
     }
 
-    to {
-        background-position: -100% 0;
+    50% {
+        opacity: 0.94;
     }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ADMIN · the same tokens, a denser frame, plus the dark layer
+   PAGINATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pager {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.pager__page {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: var(--space-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink2);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.pager__page--on {
+    background: var(--wash);
+    border-color: var(--bline);
+    color: var(--blue);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHECKOUT STEPPER · it reflects the page, it does not decorate it
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.steps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.steps__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-small);
+    color: var(--ink3);
+}
+
+.steps__num {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-round);
+    background: var(--field);
+    color: var(--ink3);
+    font-size: var(--text-small);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.steps__item--done {
+    color: var(--ink2);
+}
+
+.steps__item--done .steps__num {
+    background: var(--ok-w);
+    color: var(--ok);
+}
+
+.steps__item--on {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.steps__item--on .steps__num {
+    background: var(--blue);
+    color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN · the same tokens, a denser frame
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .adm {
@@ -1344,30 +1273,32 @@ select.field {
 }
 
 .adm__side {
-    background: var(--black);
-    color: rgba(255, 255, 255, 0.72);
-    padding: var(--s5) var(--s3);
+    background: var(--ink);
+    color: var(--on-dark-2);
+    padding: var(--space-5) var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .adm__link {
     display: flex;
     align-items: center;
-    gap: var(--s3);
-    min-height: 40px;
-    padding-inline: var(--s3);
-    border-radius: var(--r-btn);
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 14px;
+    gap: var(--space-3);
+    min-height: 44px;
+    padding-inline: var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--on-dark-2);
+    font-size: var(--text-body);
     font-weight: 700;
     text-decoration: none;
 }
 
-.adm__link:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
+@media (hover: hover) and (pointer: fine) {
+    .adm__link:hover {
+        background: rgba(247, 248, 253, 0.1);
+        color: var(--on-dark);
+    }
 }
 
 .adm__link[aria-current='page'] {
@@ -1377,39 +1308,43 @@ select.field {
 
 .adm__main {
     min-width: 0;
-    padding: var(--s6);
+    padding: var(--space-6) var(--gutter);
 }
 
 .adm__topbar {
     display: flex;
     align-items: center;
-    gap: var(--s4);
-    margin-bottom: var(--s5);
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
 }
 
-.tiles {
+/* Operational metrics: a label and a real number that links to the list behind it. */
+.metrics {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--s4);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
 }
 
-.tile {
+.metric {
+    display: block;
+    padding: var(--space-4);
     background: var(--surface);
-    border-radius: var(--r-card);
-    box-shadow: var(--sh-1);
-    padding: var(--s4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    color: inherit;
+    text-decoration: none;
 }
 
-.tile__value {
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: -0.02em;
+.metric__value {
+    font-family: var(--mono);
+    font-size: var(--text-h2);
+    font-weight: 700;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
-    margin-top: 6px;
+    margin-top: var(--space-1);
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 1199px) {
     .adm {
         grid-template-columns: 1fr;
     }
@@ -1417,91 +1352,26 @@ select.field {
     .adm__side {
         flex-direction: row;
         overflow-x: auto;
-        padding: var(--s3);
+        padding: var(--space-3);
     }
-
-    .adm__main {
-        padding: var(--s4) var(--gutter-m);
-    }
-
-    .tiles {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-/* The dark layer is a token redefinition, not a second stylesheet — and it is a
-   deliberate dark, not the "cyber" dark mode §7 bans. Opt-in only, admin only. */
-[data-theme='dark'] {
-    --surface: #14171d;
-    --ground: #0e1116;
-    --band: #14171d;
-    --field: #1b1f27;
-    --row: #1b1f27;
-    --line: #262b35;
-    --line-s: #1f242d;
-    --ink: #eef0f5;
-    --ink2: #a7aebd;
-    --ink3: #7b8394;
-    --wash: #16224a;
-    --bline: #263a76;
-    --black: #0a0c10;
-    --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -14px rgba(0, 0, 0, 0.6);
-    --sh-2: 0 2px 4px rgba(0, 0, 0, 0.45), 0 18px 40px -18px rgba(0, 0, 0, 0.7);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    SMALL LAYOUT HELPERS
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.stack {
-    display: grid;
-    gap: var(--s3);
-}
-
-.stack-4 {
-    display: grid;
-    gap: var(--s4);
-}
-
-.stack-5 {
-    display: grid;
-    gap: var(--s5);
-}
-
-.cluster {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s3);
-}
-
-.between {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s3);
-}
-
 .split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 380px;
-    gap: var(--s6);
+    gap: var(--space-6);
     align-items: start;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 1199px) {
     .split {
         grid-template-columns: 1fr;
-        gap: var(--s5);
+        gap: var(--space-5);
     }
-}
-
-.muted {
-    color: var(--ink2);
-}
-
-.quiet {
-    color: var(--ink3);
 }
 
 .desktop-only {
@@ -1512,12 +1382,21 @@ select.field {
     display: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 899px) {
     .desktop-only {
         display: none;
     }
 
     .mobile-only {
         display: revert;
+    }
+
+    .hdr__bar {
+        height: var(--header-h-m);
+        gap: var(--space-3);
+    }
+
+    .hdr__nav {
+        display: none;
     }
 }

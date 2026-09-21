@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * The vehicle selector: the guided route on the left, the key numbers on the right.
+ * The vehicle selector: the guided route and the key numbers, side by side.
  *
  * Two routes in, because the two halves of this audience are genuinely different. Someone who
- * knows their car picks make → model → variant; someone holding their Fahrzeugschein types four
+ * knows their car picks Marke → Modell → Variante; someone holding their Fahrzeugschein types four
  * characters and three, which is faster — and is also the only route that can resolve to two cars.
  *
  * Three outcomes, and none of them is a dead end (R-09):
@@ -12,6 +12,9 @@
  *   no match        → everything typed stays on screen and three ways forward are offered.
  *
  * The drill is server-driven, so the back button works and a chosen make is a shareable URL.
+ *
+ * Where the key numbers are found is written next to the fields, not hidden in the FAQ: it is the
+ * question this form is asked most often, and an answer one tap away is not an answer.
  */
 
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
@@ -30,7 +33,7 @@ const props = withDefaults(
         selectedModel: string | null
         /** Where a drill step navigates to — the selector page or the check page. */
         basePath?: string
-        /** The hero card is tighter than the full-page version. */
+        /** The homepage fold is tighter than the full-page version. */
         compact?: boolean
     }>(),
     { basePath: '/felgen-suchen', compact: false }
@@ -55,19 +58,37 @@ const level = computed<'make' | 'model' | 'variant'>(() => {
     return props.selectedModel === null ? 'model' : 'variant'
 })
 
+const stepLabel = computed(() => {
+    if (level.value === 'make') {
+        return 'Marke wählen'
+    }
+
+    return level.value === 'model' ? 'Modell wählen' : 'Variante wählen'
+})
+
 const rows = computed(() => {
     const needle = query.value.trim().toLowerCase()
 
     if (level.value === 'make') {
         return props.makes
             .filter((m) => needle === '' || m.make.toLowerCase().includes(needle))
-            .map((m) => ({ key: m.make, label: m.make, note: `${m.models}`, blocked: false }))
+            .map((m) => ({
+                key: m.make,
+                label: m.make,
+                note: `${m.models} Modelle`,
+                blocked: false,
+            }))
     }
 
     if (level.value === 'model') {
         return props.models
             .filter((m) => needle === '' || m.model.toLowerCase().includes(needle))
-            .map((m) => ({ key: m.model, label: m.model, note: `${m.variants}`, blocked: false }))
+            .map((m) => ({
+                key: m.model,
+                label: m.model,
+                note: `${m.variants} Varianten`,
+                blocked: false,
+            }))
     }
 
     return props.variants
@@ -144,16 +165,17 @@ function onTsn(event: Event): void {
 
 <template>
     <div class="vsel" :class="{ 'vsel--compact': compact }">
-        <div class="vsel__col">
+        <!-- Route one: the guided drill. -->
+        <section class="vsel__col" aria-labelledby="vsel-drill-title">
             <div class="vsel__head">
                 <button v-if="level !== 'make'" class="vsel__back" type="button" @click="back">
                     <Icon name="chevron-right" :size="20" />
                     {{ level === 'variant' ? selectedMake : 'Zurück' }}
                 </button>
-                <span class="t-h3 vsel__title">Wähle dein Auto</span>
+                <h3 id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</h3>
             </div>
 
-            <label class="visually-hidden" :for="`vsel-q-${basePath}`">Suche</label>
+            <label class="visually-hidden" :for="`vsel-q-${basePath}`">Marke oder Modell suchen</label>
             <div class="vsel__search">
                 <Icon name="search" :size="20" />
                 <input
@@ -161,7 +183,7 @@ function onTsn(event: Event): void {
                     v-model="query"
                     class="field vsel__input"
                     type="search"
-                    placeholder="Suche"
+                    placeholder="Suchen"
                     autocomplete="off"
                 />
             </div>
@@ -188,27 +210,18 @@ function onTsn(event: Event): void {
                     Kein Treffer. Prüfe die Schreibweise oder nutze die Schlüsselnummern.
                 </p>
             </div>
-        </div>
+        </section>
 
-        <div class="vsel__divider mobile-only"><span>ODER</span></div>
+        <div class="vsel__divider" aria-hidden="true"><span>oder</span></div>
 
-        <div class="vsel__col vsel__col--keys">
-            <span class="t-h3 vsel__title">Oder ganz einfach mit Fahrzeugschein</span>
+        <!-- Route two: the key numbers off the registration document. -->
+        <section class="vsel__col vsel__col--keys" aria-labelledby="vsel-keys-title">
+            <h3 id="vsel-keys-title" class="t-h3 vsel__title">Mit Schlüsselnummern</h3>
 
             <form @submit.prevent="submitKeys">
                 <div class="vsel__keys">
                     <div>
-                        <label class="field-label" :for="`hsn-${basePath}`">
-                            HSN
-                            <button
-                                class="vsel__help"
-                                type="button"
-                                aria-label="Wo finde ich HSN und TSN?"
-                                @click="helpOpen = !helpOpen"
-                            >
-                                ?
-                            </button>
-                        </label>
+                        <label class="field-label" :for="`hsn-${basePath}`">HSN</label>
                         <input
                             :id="`hsn-${basePath}`"
                             class="field field--key"
@@ -217,10 +230,11 @@ function onTsn(event: Event): void {
                             inputmode="numeric"
                             maxlength="4"
                             autocomplete="off"
+                            enterkeyhint="next"
                             placeholder="0005"
+                            :aria-invalid="keys.errors.hsn ? 'true' : undefined"
                             @input="onHsn"
                         />
-                        <span v-if="keys.errors.hsn" class="field-error">{{ keys.errors.hsn }}</span>
                     </div>
 
                     <div>
@@ -231,15 +245,26 @@ function onTsn(event: Event): void {
                             class="field field--key"
                             :class="{ 'field--error': keys.errors.tsn }"
                             :value="keys.tsn"
-                            inputmode="text"
                             maxlength="3"
                             autocomplete="off"
-                            placeholder="AAS"
+                            enterkeyhint="go"
+                            placeholder="582"
+                            :aria-invalid="keys.errors.tsn ? 'true' : undefined"
                             @input="onTsn"
                         />
-                        <span v-if="keys.errors.tsn" class="field-error">{{ keys.errors.tsn }}</span>
                     </div>
                 </div>
+
+                <span class="field-error">{{ keys.errors.hsn ?? keys.errors.tsn ?? '' }}</span>
+
+                <!-- The answer to the question this form is asked most, next to the fields. -->
+                <p class="field-help">
+                    Beide stehen in deiner Zulassungsbescheinigung Teil I – die HSN in Feld 2.1, die
+                    TSN in Feld 2.2.
+                    <button class="vsel__helplink" type="button" @click="helpOpen = !helpOpen">
+                        {{ helpOpen ? 'Abbildung ausblenden' : 'Abbildung zeigen' }}
+                    </button>
+                </p>
 
                 <button
                     class="btn btn--primary btn--block vsel__go"
@@ -249,10 +274,6 @@ function onTsn(event: Event): void {
                     {{ keys.processing ? 'Wird geprüft …' : 'Fahrzeug wählen' }}
                 </button>
             </form>
-
-            <button class="vsel__helplink mobile-only" type="button" @click="helpOpen = !helpOpen">
-                Wo finde ich HSN und TSN?
-            </button>
 
             <!-- Several matches. A confirmation, not a failure: the rows carry exactly what
                  differs between the candidates and nothing that does not. -->
@@ -273,15 +294,20 @@ function onTsn(event: Event): void {
                     type="button"
                     @click="pick(row.id)"
                 >
-                    <span class="vsel__candidate-name">{{ row.label }}</span>
-                    <span class="data vsel__candidate-values">
-                        <template v-for="attribute in lookup.distinction.attributes" :key="attribute">
-                            {{ lookup.distinction.labels[attribute] }}:
-                            {{ row.values[attribute] }}
-                        </template>
-                        <template v-if="row.vsn"> VSN {{ row.vsn }}</template>
+                    <span class="vsel__candidate-text">
+                        <span class="vsel__candidate-name">{{ row.label }}</span>
+                        <span class="data vsel__candidate-values">
+                            <template
+                                v-for="attribute in lookup.distinction.attributes"
+                                :key="attribute"
+                            >
+                                {{ lookup.distinction.labels[attribute] }}:
+                                {{ row.values[attribute] }}
+                            </template>
+                            <template v-if="row.vsn"> VSN {{ row.vsn }}</template>
+                        </span>
                     </span>
-                    <Icon name="chevron-right" :size="20" />
+                    <span class="btn btn--secondary btn--sm vsel__candidate-cta">Das ist meins</span>
                 </button>
             </div>
 
@@ -292,11 +318,13 @@ function onTsn(event: Event): void {
                     Zu dieser Kombination haben wir kein Fahrzeug gefunden.
                 </p>
                 <div class="vsel__miss-actions">
-                    <button class="btn btn--secondary" type="button" @click="helpOpen = true">
+                    <button class="btn btn--secondary btn--sm" type="button" @click="helpOpen = true">
                         Schlüsselnummern prüfen
                     </button>
-                    <Link :href="basePath" class="btn btn--secondary">Stattdessen Marke wählen</Link>
-                    <Link href="/kontakt" class="btn btn--quiet">Daten an RIMIFY senden</Link>
+                    <Link :href="basePath" class="btn btn--secondary btn--sm">
+                        Stattdessen Marke wählen
+                    </Link>
+                    <Link href="/kontakt" class="btn btn--quiet btn--sm">Daten an RIMIFY senden</Link>
                 </div>
             </div>
 
@@ -306,6 +334,7 @@ function onTsn(event: Event): void {
                         class="pill"
                         :class="{ 'pill--on': doc === 'neu' }"
                         type="button"
+                        :aria-pressed="doc === 'neu'"
                         @click="doc = 'neu'"
                     >
                         Neuer Fahrzeugschein
@@ -314,6 +343,7 @@ function onTsn(event: Event): void {
                         class="pill"
                         :class="{ 'pill--on': doc === 'alt' }"
                         type="button"
+                        :aria-pressed="doc === 'alt'"
                         @click="doc = 'alt'"
                     >
                         Alter Fahrzeugschein
@@ -322,25 +352,15 @@ function onTsn(event: Event): void {
 
                 <DocFacsimile :variant="doc" :width="520" />
             </div>
-
-            <p class="quiet vsel__hint">
-                Findest du dein Fahrzeug nicht?
-                <Link href="/kontakt" class="vsel__hintlink">Wir suchen es für dich.</Link>
-            </p>
-        </div>
+        </section>
     </div>
 </template>
 
 <style scoped>
 .vsel {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--s6);
+    gap: var(--space-5);
     align-items: start;
-}
-
-.vsel--compact {
-    gap: var(--s5);
 }
 
 .vsel__col {
@@ -350,8 +370,8 @@ function onTsn(event: Event): void {
 .vsel__head {
     display: flex;
     align-items: center;
-    gap: var(--s3);
-    margin-bottom: var(--s3);
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
 }
 
 .vsel__title {
@@ -361,13 +381,13 @@ function onTsn(event: Event): void {
 .vsel__back {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     min-height: 44px;
-    padding-inline: var(--s2);
+    padding-inline: var(--space-2);
     background: transparent;
     border: 0;
     color: var(--blue);
-    font-size: 14px;
+    font-size: var(--text-small);
     font-weight: 700;
     cursor: pointer;
 }
@@ -385,7 +405,7 @@ function onTsn(event: Event): void {
 
 .vsel__search :deep(svg) {
     position: absolute;
-    left: var(--s3);
+    left: var(--space-3);
     pointer-events: none;
 }
 
@@ -394,13 +414,13 @@ function onTsn(event: Event): void {
 }
 
 .vsel__rows {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .vsel__label {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--space-2);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -413,175 +433,175 @@ function onTsn(event: Event): void {
 
 .vsel__note {
     flex: none;
-    color: inherit;
-    opacity: 0.7;
 }
 
 .vsel__empty {
-    padding: var(--s4) 0;
-    margin: 0;
+    padding: var(--space-4) 0;
+}
+
+/* "oder" between the two routes: a hairline through the gap, not a heading. */
+.vsel__divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--ink3);
+    font-size: var(--text-small);
+}
+
+.vsel__divider::before,
+.vsel__divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
 }
 
 .vsel__keys {
     display: grid;
     grid-template-columns: 1.2fr 1fr;
-    gap: var(--s3);
-    margin-top: var(--s3);
-}
-
-.vsel__help {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    margin-left: 6px;
-    border-radius: 50%;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink2);
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    vertical-align: middle;
-}
-
-.vsel__go {
-    margin-top: var(--s4);
+    gap: var(--space-3);
+    margin-top: var(--space-3);
 }
 
 .vsel__helplink {
-    margin-top: var(--s3);
+    padding: 0;
     background: transparent;
     border: 0;
-    padding: 0;
     color: var(--blue);
-    font-size: 14px;
+    font-size: inherit;
     font-weight: 700;
-    text-align: left;
+    text-decoration: underline;
     cursor: pointer;
-    min-height: 44px;
+}
+
+.vsel__go {
+    margin-top: var(--space-4);
 }
 
 .vsel__chooser {
-    margin-top: var(--s4);
+    margin-top: var(--space-5);
 }
 
 .vsel__chooser-title {
-    margin: 0 0 var(--s3);
+    margin-bottom: var(--space-3);
 }
 
 .vsel__chooser-note {
-    margin: 0 0 var(--s3);
-    font-size: 13px;
+    margin-bottom: var(--space-3);
+    font-size: var(--text-small);
 }
 
-/* White with a hairline, 72px tall. It must read as a list of cars, not as an error panel. */
+/* A list of cars, not an error panel. */
 .vsel__candidate {
     display: flex;
     align-items: center;
-    gap: var(--s3);
+    justify-content: space-between;
+    gap: var(--space-3);
     width: 100%;
     min-height: 72px;
-    padding: var(--s3);
-    margin-bottom: var(--s2);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: var(--r-btn);
+    border-radius: var(--radius-sm);
     text-align: left;
     cursor: pointer;
 }
 
-.vsel__candidate:hover {
-    background: var(--wash);
+@media (hover: hover) and (pointer: fine) {
+    .vsel__candidate:hover {
+        border-color: var(--ink2);
+    }
+}
+
+.vsel__candidate-text {
+    display: grid;
+    gap: var(--space-1);
+    min-width: 0;
 }
 
 .vsel__candidate-name {
     font-weight: 700;
-    flex: 1;
-    min-width: 0;
 }
 
 .vsel__candidate-values {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s3);
-    color: var(--ink2);
+    gap: var(--space-3);
+}
+
+.vsel__candidate-cta {
+    flex: none;
 }
 
 .vsel__miss {
-    margin-top: var(--s4);
-    padding: var(--s4);
+    margin-top: var(--space-4);
+    padding: var(--space-4);
     background: var(--warn-w);
-    border-radius: var(--r-img);
+    border-radius: var(--radius-md);
 }
 
 .vsel__miss-title {
     display: flex;
     align-items: center;
-    gap: var(--s2);
-    margin: 0 0 var(--s3);
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
     color: var(--warn);
-    font-size: 14px;
+    font-size: var(--text-small);
     font-weight: 700;
 }
 
 .vsel__miss-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .vsel__doc {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .vsel__toggle {
     display: flex;
-    gap: var(--s2);
-    margin-bottom: var(--s3);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
 }
 
-.vsel__hint {
-    margin-top: var(--s4);
-    font-size: 13px;
-}
-
-.vsel__hintlink {
-    color: var(--blue);
+/* The key-number route comes first on a phone: faster for anyone holding their papers. The
+   divider follows it, so "oder" always sits between the two routes. */
+.vsel__col--keys {
+    order: -2;
 }
 
 .vsel__divider {
-    display: none;
+    order: -1;
 }
 
-@media (max-width: 860px) {
+@media (min-width: 900px) {
     .vsel {
-        grid-template-columns: 1fr;
-        gap: var(--s4);
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        gap: var(--space-6);
     }
 
-    /* The key-number block comes first on a phone: faster for anyone holding their papers. */
+    .vsel--compact {
+        gap: var(--space-5);
+    }
+
     .vsel__col--keys {
-        order: -1;
+        order: 0;
     }
 
     .vsel__divider {
-        display: flex;
-        align-items: center;
-        gap: var(--s3);
-        color: var(--ink3);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.1em;
+        order: 0;
+        flex-direction: column;
+        align-self: stretch;
     }
 
     .vsel__divider::before,
     .vsel__divider::after {
-        content: '';
-        flex: 1;
-        height: 1px;
-        background: var(--line);
+        width: 1px;
+        height: auto;
     }
 }
 </style>

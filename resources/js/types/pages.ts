@@ -46,6 +46,7 @@ export interface StartseiteProps {
     makes: MakeOption[]
     brands: { name: string; slug: string; spokes: number }[]
     month: string
+    faq: { id: number; question: string; answer: string }[]
 }
 
 export interface SelectorProps {

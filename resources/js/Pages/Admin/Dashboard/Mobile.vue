@@ -47,7 +47,7 @@ const KIND_LABEL: Record<string, string> = {
 
 <style scoped>
 .mdash__chart {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mdash__chart :deep(svg) {
@@ -57,11 +57,11 @@ const KIND_LABEL: Record<string, string> = {
 }
 
 .mdash__conflicts {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .mdash__conflict {
-    padding: var(--s3);
+    padding: var(--space-3);
 }
 
 .mdash__vehicle {
@@ -70,6 +70,6 @@ const KIND_LABEL: Record<string, string> = {
 }
 
 .mdash__tag {
-    margin-top: var(--s2);
+    margin-top: var(--space-2);
 }
 </style>

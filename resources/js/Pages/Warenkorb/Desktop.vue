@@ -19,7 +19,7 @@ defineProps<BasketProps>()
 
     <section class="section">
         <div class="wrap">
-            <h1 class="t-h2">Warenkorb</h1>
+            <h1 class="t-h1">Warenkorb</h1>
 
             <div v-if="lines.length > 0" class="split cart__split">
                 <div class="card cart__lines">
@@ -76,24 +76,24 @@ defineProps<BasketProps>()
 
 <style scoped>
 .cart__split {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .cart__lines {
-    padding: var(--s3) var(--s4);
+    padding: var(--space-3) var(--space-4);
 }
 
 .cart__rows {
     display: grid;
-    gap: var(--s2);
-    margin: var(--s4) 0;
+    gap: var(--space-2);
+    margin: var(--space-4) 0;
 }
 
 .cart__rows div {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
     font-size: 15px;
 }
 
@@ -110,19 +110,19 @@ defineProps<BasketProps>()
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .cart__go {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .cart__ssl {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--s2);
-    margin: var(--s4) 0 0;
+    gap: var(--space-2);
+    margin: var(--space-4) 0 0;
     color: var(--ink3);
 }
 </style>

@@ -19,7 +19,7 @@ const summaryOpen = ref(false)
 
     <section class="section mko">
         <div class="wrap">
-            <h1 class="t-h2">Kasse</h1>
+            <h1 class="t-h1">Kasse</h1>
 
             <div class="card mko__summary">
                 <button class="acc__head" type="button" :aria-expanded="summaryOpen" @click="summaryOpen = !summaryOpen">
@@ -100,27 +100,27 @@ const summaryOpen = ref(false)
 }
 
 .mko__summary {
-    margin-top: var(--s4);
-    padding: 0 var(--s4);
+    margin-top: var(--space-4);
+    padding: 0 var(--space-4);
 }
 
 .mko__line {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
     font-size: 14px;
     padding-block: 6px;
 }
 
 .mko__form {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .mko__pair {
     display: grid;
     grid-template-columns: 0.8fr 1.2fr;
-    gap: var(--s3);
+    gap: var(--space-3);
 }
 
 .mko__pay {

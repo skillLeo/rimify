@@ -26,7 +26,7 @@ defineProps<RechtlichesProps>()
             </nav>
 
             <article class="card mrec__body">
-                <h1 class="t-h2">{{ tabs.find((t) => t.slug === active)?.title ?? 'Rechtliches' }}</h1>
+                <h1 class="t-h1">{{ tabs.find((t) => t.slug === active)?.title ?? 'Rechtliches' }}</h1>
 
                 <div v-for="block in blocks" :key="block.id" class="mrec__block">
                     <h2 v-if="block.data.heading" class="t-h3">{{ block.data.heading }}</h2>
@@ -44,11 +44,11 @@ defineProps<RechtlichesProps>()
 <style scoped>
 .mrec__rail {
     display: flex;
-    gap: var(--s2);
+    gap: var(--space-2);
     overflow-x: auto;
-    padding-bottom: var(--s2);
-    margin-inline: calc(var(--gutter-m) * -1);
-    padding-inline: var(--gutter-m);
+    padding-bottom: var(--space-2);
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
     scrollbar-width: none;
 }
 
@@ -62,18 +62,18 @@ defineProps<RechtlichesProps>()
 }
 
 .mrec__body {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mrec__body h1 {
-    margin: 0 0 var(--s4);
+    margin: 0 0 var(--space-4);
 }
 
 .mrec__block + .mrec__block {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mrec__block h2 {
-    margin: 0 0 var(--s2);
+    margin: 0 0 var(--space-2);
 }
 </style>

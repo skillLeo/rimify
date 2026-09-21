@@ -45,7 +45,7 @@ const STATUS_CLASS: Record<string, string> = {
 
 <style scoped>
 .mgut__card {
-    padding: var(--s3);
+    padding: var(--space-3);
 }
 
 .mgut__num {
@@ -53,7 +53,7 @@ const STATUS_CLASS: Record<string, string> = {
 }
 
 .mgut__issuer {
-    margin: var(--s2) 0 4px;
+    margin: var(--space-2) 0 4px;
     font-size: 14px;
     color: var(--ink2);
 }

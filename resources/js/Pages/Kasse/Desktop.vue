@@ -20,7 +20,7 @@ defineProps<KasseProps>()
 
     <section class="section">
         <div class="wrap">
-            <h1 class="t-h2">Kasse</h1>
+            <h1 class="t-h1">Kasse</h1>
 
             <div class="split ko__split">
                 <form class="stack-5" @submit.prevent>
@@ -124,7 +124,7 @@ defineProps<KasseProps>()
 
 <style scoped>
 .ko__split {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .ko__group {
@@ -134,13 +134,13 @@ defineProps<KasseProps>()
 
 .ko__group legend {
     padding: 0;
-    margin-bottom: var(--s4);
+    margin-bottom: var(--space-4);
 }
 
 .ko__grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--s3);
+    gap: var(--space-3);
 }
 
 .ko__wide {
@@ -149,15 +149,15 @@ defineProps<KasseProps>()
 
 .ko__rows {
     display: grid;
-    gap: var(--s2);
-    margin: var(--s4) 0;
+    gap: var(--space-2);
+    margin: var(--space-4) 0;
 }
 
 .ko__rows div {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
     font-size: 15px;
 }
 
@@ -174,19 +174,19 @@ defineProps<KasseProps>()
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .ko__pay {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .ko__ssl {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--s2);
-    margin: var(--s4) 0 0;
+    gap: var(--space-2);
+    margin: var(--space-4) 0 0;
     color: var(--ink3);
 }
 </style>

@@ -59,6 +59,18 @@ final readonly class Chrome
             'menus' => $this->menus(),
             'cartCount' => $this->cartCount($request),
             'routeName' => $routeName,
+            /*
+             * Contact details reach the footer and every trust line from one place (D-023). Shared
+             * rather than passed per controller, because the footer renders on every route and a
+             * page that forgot to pass them would quietly show nothing.
+             */
+            'contact' => [
+                'email' => (string) config('rimify.contact.email'),
+                'phone' => (string) config('rimify.contact.phone'),
+                'phoneIntl' => (string) config('rimify.contact.phone_intl'),
+                'whatsapp' => (string) config('rimify.contact.whatsapp'),
+                'hours' => (string) config('rimify.contact.hours'),
+            ],
         ];
     }
 

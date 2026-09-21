@@ -77,7 +77,7 @@ const STEPS = [
 .chk__hero {
     position: relative;
     border-radius: 0;
-    padding-block: var(--s9);
+    padding-block: var(--space-9);
     overflow: hidden;
 }
 
@@ -93,7 +93,7 @@ const STEPS = [
 }
 
 .chk__title {
-    margin: var(--s3) 0 var(--s3);
+    margin: var(--space-3) 0 var(--space-3);
     color: #fff;
     max-width: 18ch;
 }
@@ -105,8 +105,8 @@ const STEPS = [
 .chk__steps {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--s5);
-    margin-top: var(--s7);
+    gap: var(--space-5);
+    margin-top: var(--space-7);
 }
 
 .chk__num {
@@ -114,7 +114,7 @@ const STEPS = [
     place-items: center;
     width: 32px;
     height: 32px;
-    margin-bottom: var(--s3);
+    margin-bottom: var(--space-3);
     border-radius: 50%;
     background: var(--wash);
     color: var(--blue);
@@ -122,14 +122,14 @@ const STEPS = [
 }
 
 .chk__step h2 {
-    margin: 0 0 var(--s2);
+    margin: 0 0 var(--space-2);
 }
 
 .chk__note {
     display: flex;
     align-items: center;
-    gap: var(--s3);
-    margin-top: var(--s6);
+    gap: var(--space-3);
+    margin-top: var(--space-6);
     color: var(--blue);
 }
 

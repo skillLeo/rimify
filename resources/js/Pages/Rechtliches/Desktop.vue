@@ -32,7 +32,7 @@ defineProps<RechtlichesProps>()
             </nav>
 
             <article class="card rec__body">
-                <h1 class="t-h2">{{ tabs.find((t) => t.slug === active)?.title ?? 'Rechtliches' }}</h1>
+                <h1 class="t-h1">{{ tabs.find((t) => t.slug === active)?.title ?? 'Rechtliches' }}</h1>
 
                 <div v-for="block in blocks" :key="block.id" class="rec__block">
                     <h2 v-if="block.data.heading" class="t-h3">{{ block.data.heading }}</h2>
@@ -51,21 +51,21 @@ defineProps<RechtlichesProps>()
 .rec {
     display: grid;
     grid-template-columns: 240px minmax(0, 1fr);
-    gap: var(--s6);
+    gap: var(--space-6);
     align-items: start;
 }
 
 .rec__rail {
     display: grid;
-    gap: var(--s1);
+    gap: var(--space-1);
 }
 
 .rec__tab {
     display: flex;
     align-items: center;
     min-height: 44px;
-    padding-inline: var(--s3);
-    border-radius: var(--r-btn);
+    padding-inline: var(--space-3);
+    border-radius: var(--radius-sm);
     color: var(--ink2);
     font-size: 14px;
     font-weight: 700;
@@ -84,14 +84,14 @@ defineProps<RechtlichesProps>()
 }
 
 .rec__body h1 {
-    margin: 0 0 var(--s5);
+    margin: 0 0 var(--space-5);
 }
 
 .rec__block + .rec__block {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .rec__block h2 {
-    margin: 0 0 var(--s2);
+    margin: 0 0 var(--space-2);
 }
 </style>

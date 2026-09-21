@@ -1,15 +1,17 @@
 <script setup lang="ts">
 /**
- * The storefront frame: header, page, footer, and the bottom bar on a phone.
+ * The storefront frame: header, page, footer, and the two overlays the header can open.
  *
- * The burger sheet and the vehicle panel live here rather than in the header so that `Esc` has one
- * owner and focus returns to one place — a sheet that traps focus and a sheet that loses it are
- * equally broken, and both are the kind of thing that only shows up under a keyboard.
+ * There is no bottom tab bar. Navigation on a phone lives in a drawer behind the menu button:
+ * a fixed bar would spend a fifth of an 844px screen on chrome that is used occasionally, and the
+ * product page needs the bottom edge for its price and its one real action.
+ *
+ * Both overlays live here rather than in the header so that Esc has one owner and focus returns
+ * to one place.
  */
 
 import { Link } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import BottomNav from '../Components/Chrome/BottomNav.vue'
 import Icon from '../Components/Art/Icon.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
 import SiteHeader from '../Components/Chrome/SiteHeader.vue'
@@ -23,6 +25,7 @@ const menus = useMenus()
 
 const menuOpen = ref(false)
 const vehicleOpen = ref(false)
+const anyOpen = computed(() => menuOpen.value || vehicleOpen.value)
 
 const sheetItems = computed(() =>
     menus.value.header.map((item) => ({
@@ -42,12 +45,21 @@ function onKeydown(event: KeyboardEvent): void {
     }
 }
 
-// The listener is attached in onMounted, never at module scope: the SSR pass has no `document`,
-// and a layout that reaches for one there takes the whole first render down.
+// Attached on mount, never at module scope: the SSR pass has no `document`, and a layout that
+// reaches for one there takes the whole first render down.
 onMounted(() => document.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+    document.removeEventListener('keydown', onKeydown)
+    document.body.style.removeProperty('overflow')
+})
 
-// Any navigation closes whatever is open — otherwise a sheet survives the page beneath it.
+// The page behind an overlay does not scroll; otherwise a flick on the scrim moves the page under
+// the drawer and the customer loses their place.
+watch(anyOpen, (open) => {
+    document.body.style.overflow = open ? 'hidden' : ''
+})
+
+// Any navigation closes whatever is open — otherwise a drawer survives the page beneath it.
 watch(() => shared.value.routeName, closeAll)
 </script>
 
@@ -57,30 +69,29 @@ watch(() => shared.value.routeName, closeAll)
 
         <SiteHeader @open-menu="menuOpen = true" @open-vehicle="vehicleOpen = true" />
 
-        <main id="inhalt" class="shell__main" :class="{ 'has-bnav': shared.isMobile }">
+        <main id="inhalt" class="shell__main">
             <slot />
         </main>
 
         <SiteFooter />
 
-        <!-- Gated on the server-side device split rather than hidden with CSS: the desktop page
-             should not ship markup it can never show, and `isMobile` is already decided before
-             the first byte. -->
-        <BottomNav v-if="shared.isMobile" />
-
-        <!-- The burger sheet: full height, the same items as the desktop nav. -->
+        <!-- Navigation: a drawer from the edge, full height, the same items as the desktop nav. -->
         <template v-if="menuOpen">
             <div class="scrim" @click="closeAll" />
-            <div class="sheet sheet--menu" role="dialog" aria-modal="true" aria-label="Menü">
-                <div class="sheet__grab" />
+            <div class="drawer" role="dialog" aria-modal="true" aria-label="Menü">
                 <div class="between">
                     <span class="t-h3">Menü</span>
-                    <button class="hdr__icon sheet__close" type="button" aria-label="Schließen" @click="closeAll">
+                    <button class="hdr__icon" type="button" aria-label="Schließen" @click="closeAll">
                         <Icon name="close" :size="24" />
                     </button>
                 </div>
-                <nav class="sheet__nav">
-                    <Link v-for="item in sheetItems" :key="item.label" :href="item.target" class="sheet__link">
+                <nav class="drawer__nav">
+                    <Link
+                        v-for="item in sheetItems"
+                        :key="item.label"
+                        :href="item.target"
+                        class="drawer__link"
+                    >
                         {{ item.label }}
                         <Icon name="chevron-right" :size="20" />
                     </Link>
@@ -88,7 +99,8 @@ watch(() => shared.value.routeName, closeAll)
             </div>
         </template>
 
-        <!-- The vehicle panel. Two actions, both of which the customer can reverse. -->
+        <!-- The vehicle: a transient choice, so a sheet rather than a drawer. Two actions, both
+             reversible. -->
         <template v-if="vehicleOpen && shared.vehicle">
             <div class="scrim" @click="closeAll" />
             <div class="sheet" role="dialog" aria-modal="true" aria-label="Fahrzeug">
@@ -126,40 +138,30 @@ watch(() => shared.value.routeName, closeAll)
     min-width: 0;
 }
 
-.sheet--menu {
-    max-height: 100vh;
-    height: 100%;
-    border-radius: 0;
-}
-
-.sheet__close {
-    color: var(--ink);
-}
-
-.sheet__nav {
+.drawer__nav {
     display: grid;
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
-.sheet__link {
+.drawer__link {
     display: flex;
     align-items: center;
     justify-content: space-between;
     min-height: 56px;
     color: var(--ink);
-    font-size: 17px;
+    font-size: var(--text-lead);
     font-weight: 700;
     text-decoration: none;
     border-bottom: 1px solid var(--line-s);
 }
 
 .sheet__vehicle {
-    margin: var(--s2) 0 4px;
+    margin: var(--space-2) 0 var(--space-1);
 }
 
 .sheet__actions {
     display: grid;
-    gap: var(--s2);
-    margin-top: var(--s5);
+    gap: var(--space-2);
+    margin-top: var(--space-5);
 }
 </style>

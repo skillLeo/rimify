@@ -56,7 +56,7 @@ watch(
     justify-content: center;
     width: 32px;
     height: 32px;
-    margin-left: var(--s2);
+    margin-left: var(--space-2);
     background: transparent;
     border: 0;
     color: rgba(255, 255, 255, 0.72);

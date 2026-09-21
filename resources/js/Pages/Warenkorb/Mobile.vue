@@ -28,7 +28,7 @@ const VERDICT_TONE: Record<string, string> = {
 
     <section class="section mcart">
         <div class="wrap">
-            <h1 class="t-h2">Warenkorb</h1>
+            <h1 class="t-h1">Warenkorb</h1>
 
             <div v-if="lines.length > 0" class="stack-4 mcart__lines">
                 <article v-for="line in lines" :key="line.key" class="card mcart__line">
@@ -110,13 +110,13 @@ const VERDICT_TONE: Record<string, string> = {
 }
 
 .mcart__lines {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mcart__line {
     display: flex;
-    gap: var(--s3);
-    padding: var(--s3);
+    gap: var(--space-3);
+    padding: var(--space-3);
 }
 
 .mcart__art {
@@ -126,7 +126,7 @@ const VERDICT_TONE: Record<string, string> = {
     display: grid;
     place-items: center;
     background: var(--ground);
-    border-radius: var(--r-img);
+    border-radius: var(--radius-lg);
 }
 
 .mcart__text {
@@ -149,25 +149,25 @@ const VERDICT_TONE: Record<string, string> = {
 .mcart__flags {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s2);
+    gap: var(--space-2);
     margin-top: 6px;
 }
 
 .mcart__foot {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .mcart__stepper {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .mcart__step {
     width: 44px;
     height: 44px;
     border: 1px solid var(--line);
-    border-radius: var(--r-btn);
+    border-radius: var(--radius-sm);
     background: var(--surface);
     font-size: 18px;
     font-weight: 700;

@@ -19,7 +19,7 @@ defineProps<KontaktProps>()
 
     <section class="section">
         <div class="wrap">
-            <h1 class="t-h2">Kontakt</h1>
+            <h1 class="t-h1">Kontakt</h1>
 
             <!-- The same replacement the desktop page makes: a real workshop, never the
                  smiling-team composition from the client's Figma. -->
@@ -81,13 +81,13 @@ defineProps<KontaktProps>()
 .mkon__art {
     position: relative;
     aspect-ratio: 16 / 10;
-    margin-top: var(--s4);
-    border-radius: var(--r-card);
+    margin-top: var(--space-4);
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
 .mkon__direct {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mkon__row {
@@ -97,15 +97,15 @@ defineProps<KontaktProps>()
 .mkon__row span {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .mkon__hours {
-    margin: var(--s3) 0 0;
+    margin: var(--space-3) 0 0;
     font-size: 13px;
 }
 
 .mkon__form {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 </style>

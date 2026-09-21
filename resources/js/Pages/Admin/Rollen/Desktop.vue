@@ -65,7 +65,7 @@ defineProps<AdminRollenProps>()
 .rol__legend {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--s4);
+    gap: var(--space-4);
 }
 
 .rol__role {
@@ -77,7 +77,7 @@ defineProps<AdminRollenProps>()
 }
 
 .rol__sys {
-    margin-left: var(--s2);
+    margin-left: var(--space-2);
 }
 
 .rol__desc {
@@ -86,14 +86,14 @@ defineProps<AdminRollenProps>()
 }
 
 .rol__matrix {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
     overflow-x: auto;
 }
 
 .rol__matrix td,
 .rol__matrix th {
     height: 44px;
-    padding-block: var(--s2);
+    padding-block: var(--space-2);
 }
 
 .rol__col {
@@ -107,7 +107,7 @@ defineProps<AdminRollenProps>()
     text-transform: none;
     letter-spacing: 0;
     vertical-align: top;
-    padding-top: var(--s3);
+    padding-top: var(--space-3);
     white-space: nowrap;
 }
 

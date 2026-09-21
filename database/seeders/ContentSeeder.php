@@ -61,7 +61,7 @@ class ContentSeeder extends Seeder
             ['label' => 'Felgen suchen', 'route_name' => 'felgen.suchen', 'behaviour' => 'vehicle_aware'],
             ['label' => 'FAQ', 'route_name' => 'faq'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt'],
-            ['label' => 'RIMIFY CHECK ✓', 'route_name' => 'check.index'],
+            ['label' => 'RIMIFY-CHECK', 'route_name' => 'check.index'],
         ]);
 
         // Footer column 2, beneath the `SEITEN` micro-label.
@@ -75,14 +75,15 @@ class ContentSeeder extends Seeder
         /*
          * Footer column 3, beneath `RECHTLICHES`. These address a page by slug rather than by route,
          * so they carry an `href` — `nav_items` has no column for route parameters and inventing one
-         * would buy nothing.
+         * would buy nothing. The prefix matters: the legal pages live under /rechtliches/{slug}, and
+         * a bare /impressum is a 404 — the one link a German shop may not break (§5 DDG).
          */
         $this->menu('footer_legal', [
-            ['label' => 'Impressum', 'href' => '/impressum'],
-            ['label' => 'Datenschutz', 'href' => '/datenschutz'],
-            ['label' => 'AGB', 'href' => '/agb'],
-            ['label' => 'Widerrufsbelehrung', 'href' => '/widerrufsbelehrung'],
-            ['label' => 'Versand', 'href' => '/versand'],
+            ['label' => 'Impressum', 'href' => '/rechtliches/impressum'],
+            ['label' => 'Datenschutz', 'href' => '/rechtliches/datenschutz'],
+            ['label' => 'AGB', 'href' => '/rechtliches/agb'],
+            ['label' => 'Widerrufsbelehrung', 'href' => '/rechtliches/widerrufsbelehrung'],
+            ['label' => 'Versand', 'href' => '/rechtliches/versand'],
         ]);
 
         /*
@@ -384,6 +385,13 @@ class ContentSeeder extends Seeder
                 'visible' => true,
             ]);
         }
+
+        // The list above is the whole menu. Rows are keyed on their label, so a renamed item would
+        // otherwise survive under its old name and appear twice; anything no longer listed goes.
+        DB::table('nav_items')
+            ->where('menu', $menu)
+            ->whereNotIn('label', array_column($items, 'label'))
+            ->delete();
     }
 
     /**

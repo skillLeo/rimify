@@ -46,7 +46,7 @@ const copy = computed(() => {
             </div>
 
             <p class="data merr__code">{{ status }}</p>
-            <h1 class="t-h2">{{ copy.title }}</h1>
+            <h1 class="t-h1">{{ copy.title }}</h1>
             <p class="t-body">{{ copy.body }}</p>
 
             <div class="stack merr__actions">
@@ -62,12 +62,12 @@ const copy = computed(() => {
     display: grid;
     justify-items: center;
     text-align: center;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .merr__art {
     opacity: 0.5;
-    margin-bottom: var(--s3);
+    margin-bottom: var(--space-3);
 }
 
 .merr__code {
@@ -79,6 +79,6 @@ const copy = computed(() => {
 
 .merr__actions {
     width: 100%;
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 </style>

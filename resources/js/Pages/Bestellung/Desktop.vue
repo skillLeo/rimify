@@ -38,7 +38,7 @@ const VERDICT_CLASS: Record<string, string> = {
         <div class="wrap ord">
             <div class="ord__head">
                 <Svg :markup="tick" />
-                <h1 class="t-h2">Danke für deine Bestellung.</h1>
+                <h1 class="t-h1">Danke für deine Bestellung.</h1>
                 <p class="t-body">
                     Deine Bestellnummer ist <strong class="data">{{ order.number }}</strong
                     >. Eine Bestätigung ist unterwegs.
@@ -122,8 +122,8 @@ const VERDICT_CLASS: Record<string, string> = {
     text-align: center;
     display: grid;
     justify-items: center;
-    gap: var(--s2);
-    margin-bottom: var(--s7);
+    gap: var(--space-2);
+    margin-bottom: var(--space-7);
 }
 
 .ord__split {
@@ -141,15 +141,15 @@ const VERDICT_CLASS: Record<string, string> = {
 
 .ord__rows {
     display: grid;
-    gap: var(--s2);
-    margin: var(--s4) 0;
+    gap: var(--space-2);
+    margin: var(--space-4) 0;
 }
 
 .ord__rows div {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
     font-size: 15px;
 }
 
@@ -168,7 +168,7 @@ const VERDICT_CLASS: Record<string, string> = {
 }
 
 .ord__contact {
-    margin: var(--s2) 0 0;
+    margin: var(--space-2) 0 0;
     font-size: 20px;
     font-weight: 700;
 }

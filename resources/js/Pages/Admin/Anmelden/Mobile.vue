@@ -15,7 +15,7 @@ const busy = ref(false)
 
     <main id="inhalt" class="mlogin">
         <span class="wordmark wordmark--ink mlogin__mark">RIMIFY</span>
-        <h1 class="t-h2">Anmelden</h1>
+        <h1 class="t-h1">Anmelden</h1>
         <p class="t-body">Zugang zum Verwaltungsbereich.</p>
 
         <form class="stack-4 mlogin__fields" @submit.prevent>
@@ -47,16 +47,16 @@ const busy = ref(false)
 <style scoped>
 .mlogin {
     min-height: 100vh;
-    padding: var(--s8) var(--gutter-m);
+    padding: var(--space-8) var(--gutter);
     background: var(--surface);
 }
 
 .mlogin__mark {
     display: block;
-    margin-bottom: var(--s7);
+    margin-bottom: var(--space-7);
 }
 
 .mlogin__fields {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 </style>

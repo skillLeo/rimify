@@ -194,49 +194,49 @@ function addToBasket(): void {
 }
 
 .mpdp__well {
-    border-radius: var(--r-card);
+    border-radius: var(--radius-md);
 }
 
 .mpdp__brand {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mpdp__title {
-    margin: 2px 0 var(--s2);
+    margin: 2px 0 var(--space-2);
 }
 
 .mpdp__block {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mpdp__row {
-    margin-top: var(--s2);
+    margin-top: var(--space-2);
 }
 
 .mpdp__blockednote {
-    margin: var(--s2) 0 0;
+    margin: var(--space-2) 0 0;
     font-size: 13px;
 }
 
 .mpdp__specs {
     display: grid;
-    gap: var(--s2);
-    margin-top: var(--s4);
+    gap: var(--space-2);
+    margin-top: var(--space-4);
 }
 
 .mpdp__spec {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--s3);
+    gap: var(--space-3);
 }
 
 .mpdp__fit {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mpdp__fit-cta {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .mpdp__barprice {

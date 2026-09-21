@@ -110,27 +110,27 @@ const headline = computed(() => {
 
 <style scoped>
 .fit__entry {
-    margin: var(--s2) 0 0;
+    margin: var(--space-2) 0 0;
     font-size: 14px;
     font-weight: 700;
 }
 
 .fit__note {
-    margin: var(--s2) 0 0;
+    margin: var(--space-2) 0 0;
     font-size: 13px;
 }
 
 .fit__conditions {
     display: grid;
     gap: 6px;
-    margin: var(--s3) 0 0;
-    padding-left: var(--s4);
+    margin: var(--space-3) 0 0;
+    padding-left: var(--space-4);
     font-size: 14px;
     color: var(--ink2);
 }
 
 .fit__tyres {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .fit__tyres p {
@@ -138,7 +138,7 @@ const headline = computed(() => {
 }
 
 .fit__reason {
-    margin: var(--s3) 0 0;
+    margin: var(--space-3) 0 0;
     font-size: 14px;
     color: var(--ink2);
 }
@@ -146,8 +146,8 @@ const headline = computed(() => {
 .fit__doc {
     display: flex;
     align-items: center;
-    gap: var(--s2);
-    margin: var(--s3) 0 0;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
     color: var(--ink2);
 }
 </style>

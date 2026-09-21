@@ -26,7 +26,7 @@ const open = ref<number | null>(null)
     <section class="section">
         <div class="wrap faq">
             <div>
-                <h1 class="t-h2">Meistgestellte Fragen</h1>
+                <h1 class="t-h1">Meistgestellte Fragen</h1>
 
                 <div v-for="group in groups" :key="group.key" class="faq__group">
                     <p class="micro">{{ group.key }}</p>
@@ -68,16 +68,16 @@ const open = ref<number | null>(null)
 .faq {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 380px;
-    gap: var(--s6);
+    gap: var(--space-6);
     align-items: start;
 }
 
 .faq__group {
-    margin-top: var(--s6);
+    margin-top: var(--space-6);
 }
 
 .faq__group .micro {
-    margin-bottom: var(--s3);
+    margin-bottom: var(--space-3);
 }
 
 .faq__help {
@@ -92,11 +92,11 @@ const open = ref<number | null>(null)
 }
 
 .faq__helpbody {
-    padding: var(--s5);
+    padding: var(--space-5);
 }
 
 .faq__helpbody h2 {
-    margin: 0 0 var(--s3);
+    margin: 0 0 var(--space-3);
 }
 
 .faq__phone {

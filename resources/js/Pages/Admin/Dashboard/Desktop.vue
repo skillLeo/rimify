@@ -70,8 +70,8 @@ const KIND_LABEL: Record<string, string> = {
 .dash__row {
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    gap: var(--s4);
-    margin-top: var(--s4);
+    gap: var(--space-4);
+    margin-top: var(--space-4);
     align-items: start;
 }
 
@@ -91,7 +91,7 @@ const KIND_LABEL: Record<string, string> = {
 }
 
 .dash__empty {
-    margin: var(--s4) 0 0;
+    margin: var(--space-4) 0 0;
 }
 
 @media (max-width: 1200px) {

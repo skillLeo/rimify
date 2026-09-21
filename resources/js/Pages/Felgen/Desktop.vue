@@ -124,7 +124,7 @@ const pages = computed(() => {
 .plp__crumbs {
     display: flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--space-2);
     font-size: 13px;
     color: var(--ink3);
 }
@@ -139,7 +139,7 @@ const pages = computed(() => {
 }
 
 .plp__title {
-    margin: var(--s4) auto var(--s2);
+    margin: var(--space-4) auto var(--space-2);
     text-align: center;
     max-width: 22ch;
 }
@@ -155,8 +155,8 @@ const pages = computed(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--s4);
-    margin-top: var(--s5);
+    gap: var(--space-4);
+    margin-top: var(--space-5);
 }
 
 .plp__notice-text {
@@ -166,25 +166,25 @@ const pages = computed(() => {
 }
 
 .plp__filters {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .plp__grid {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .plp__pages {
     display: flex;
     justify-content: center;
-    gap: var(--s2);
-    margin-top: var(--s7);
+    gap: var(--space-2);
+    margin-top: var(--space-7);
 }
 
 .plp__page {
     min-width: 44px;
     min-height: 44px;
     border: 0;
-    border-radius: var(--r-btn);
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--ink2);
     font-weight: 700;

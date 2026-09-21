@@ -54,9 +54,9 @@ const active = ref(props.roles[0]?.id ?? 0)
 <style scoped>
 .mrol__rail {
     display: flex;
-    gap: var(--s2);
+    gap: var(--space-2);
     overflow-x: auto;
-    padding-bottom: var(--s2);
+    padding-bottom: var(--space-2);
     scrollbar-width: none;
 }
 
@@ -69,14 +69,14 @@ const active = ref(props.roles[0]?.id ?? 0)
 }
 
 .mrol__modules {
-    margin-top: var(--s4);
+    margin-top: var(--space-4);
 }
 
 .mrol__module {
-    padding: var(--s3);
+    padding: var(--space-3);
 }
 
 .mrol__actions {
-    margin-top: var(--s2);
+    margin-top: var(--space-2);
 }
 </style>

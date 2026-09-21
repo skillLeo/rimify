@@ -19,7 +19,7 @@ const open = ref<number | null>(null)
 
     <section class="section">
         <div class="wrap">
-            <h1 class="t-h2">Meistgestellte Fragen</h1>
+            <h1 class="t-h1">Meistgestellte Fragen</h1>
 
             <div v-for="group in groups" :key="group.key" class="mfaq__group">
                 <p class="micro">{{ group.key }}</p>
@@ -57,15 +57,15 @@ const open = ref<number | null>(null)
 
 <style scoped>
 .mfaq__group {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .mfaq__group .micro {
-    margin-bottom: var(--s2);
+    margin-bottom: var(--space-2);
 }
 
 .mfaq__help {
-    margin-top: var(--s6);
+    margin-top: var(--space-6);
     padding: 0;
     overflow: hidden;
 }
@@ -77,11 +77,11 @@ const open = ref<number | null>(null)
 }
 
 .mfaq__helpbody {
-    padding: var(--s4);
+    padding: var(--space-4);
 }
 
 .mfaq__helpbody h2 {
-    margin: 0 0 var(--s3);
+    margin: 0 0 var(--space-3);
 }
 
 .mfaq__phone {

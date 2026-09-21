@@ -45,12 +45,22 @@ export interface Menus {
     mobile_bottom: NavItem[]
 }
 
+export interface ContactProp {
+    email: string
+    phone: string
+    phoneIntl: string
+    whatsapp: string
+    hours: string
+}
+
 export interface SharedProps {
     headerMode: HeaderMode
     vehicle: VehicleProp | null
     menus: Menus
     cartCount: number
     routeName: string | null
+    /** One source of truth for the phone, the e-mail and the opening hours (D-023). */
+    contact: ContactProp
     isMobile: boolean
     locale: string
     /** Remote photography layered over the drawn art — a temporary client-review flag. */

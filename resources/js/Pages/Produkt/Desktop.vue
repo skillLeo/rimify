@@ -213,19 +213,19 @@ function addToBasket(): void {
 .pdp {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 420px;
-    gap: var(--s7);
+    gap: var(--space-7);
     align-items: start;
 }
 
 .pdp__well {
     background: linear-gradient(180deg, var(--surface) 0%, #fafbfe 100%);
-    border-radius: var(--r-card);
+    border-radius: var(--radius-md);
 }
 
 .pdp__thumbs {
     display: flex;
-    gap: var(--s2);
-    margin-top: var(--s3);
+    gap: var(--space-2);
+    margin-top: var(--space-3);
 }
 
 .pdp__thumb {
@@ -236,7 +236,7 @@ function addToBasket(): void {
     padding: 6px;
     background: var(--surface);
     border: 1px solid transparent;
-    border-radius: var(--r-img);
+    border-radius: var(--radius-lg);
     cursor: pointer;
 }
 
@@ -245,29 +245,29 @@ function addToBasket(): void {
 }
 
 .pdp__title {
-    margin: 4px 0 var(--s2);
+    margin: 4px 0 var(--space-2);
 }
 
 .pdp__block {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .pdp__swatches {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s2);
-    margin-top: var(--s2);
+    gap: var(--space-2);
+    margin-top: var(--space-2);
 }
 
 .pdp__swatch {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--space-2);
     min-height: 44px;
-    padding-inline: var(--s3);
+    padding-inline: var(--space-3);
     background: var(--ground);
     border: 1px solid transparent;
-    border-radius: var(--r-pill);
+    border-radius: var(--radius-round);
     font-size: 13px;
     font-weight: 700;
     color: var(--ink2);
@@ -287,22 +287,22 @@ function addToBasket(): void {
 }
 
 .pdp__chips {
-    margin-top: var(--s2);
+    margin-top: var(--space-2);
 }
 
 .pdp__blockednote {
-    margin: var(--s2) 0 0;
+    margin: var(--space-2) 0 0;
     font-size: 13px;
 }
 
 .pdp__specs {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .pdp__spec-rows {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--s3);
+    gap: var(--space-3);
     margin: 0;
 }
 
@@ -311,15 +311,15 @@ function addToBasket(): void {
 }
 
 .pdp__fit {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .pdp__fit-cta {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .pdp__price {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .pdp__price .price {
@@ -328,10 +328,10 @@ function addToBasket(): void {
 }
 
 .pdp__stock {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 
 .pdp__add {
-    margin-top: var(--s3);
+    margin-top: var(--space-3);
 }
 </style>

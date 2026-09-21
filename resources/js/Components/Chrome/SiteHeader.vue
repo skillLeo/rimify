@@ -1,15 +1,22 @@
 <script setup lang="ts">
 /**
- * The black header and the vehicle-context state machine.
+ * The header.
  *
- * `headerMode` arrives from the server in the first Inertia response and nothing here recomputes
- * it (R-08). That is why the white box and the blue bar can never both appear, and why the header
- * is correct on first paint rather than rendering plain and swapping a frame later — a header that
- * corrects itself tells the customer the site is unsure which car they chose.
+ * White, sticky, one hairline, and it lifts only once the page has scrolled under it — the one
+ * static-looking element allowed a shadow, because at that moment it genuinely floats above the
+ * content.
+ *
+ * Two rules it must never break:
+ *
+ *  - The navigation is never removed. Choosing a vehicle changes what the pages show, not whether
+ *    the customer can still reach the rest of the site.
+ *  - The chosen vehicle is one chip, in one place, on every route. `headerMode` arrives from the
+ *    server in the first response (R-08) and decides whether the chip is shown, never what shape
+ *    it takes — a header that rearranges itself between pages reads as two different sites.
  */
 
 import { Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Art/Icon.vue'
 import { resolveHref, useMenus, useShared } from '../../composables/useShared'
 
@@ -17,31 +24,35 @@ const shared = useShared()
 const menus = useMenus()
 
 const vehicle = computed(() => shared.value.vehicle)
-const mode = computed(() => shared.value.headerMode)
-const listingHref = computed(() => '/felgen')
+const showVehicle = computed(() => vehicle.value !== null && shared.value.headerMode !== 'SUPPRESSED')
 
 const items = computed(() =>
     menus.value.header.map((item) => ({
         ...item,
-        target: resolveHref(item.href, item.behaviour, vehicle.value !== null, listingHref.value),
+        target: resolveHref(item.href, item.behaviour, vehicle.value !== null, '/felgen'),
     }))
 )
 
 defineEmits<{ (e: 'open-menu'): void; (e: 'open-vehicle'): void }>()
+
+const lifted = ref(false)
+
+// Passive, and it only ever flips a boolean: a scroll handler that writes layout would be the
+// slowest thing on the page.
+function onScroll(): void {
+    lifted.value = window.scrollY > 4
+}
+
+onMounted(() => {
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+})
+
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 </script>
 
 <template>
-    <!-- State three. Used where the page is NOT about buying: it offers a way back into the
-         listing rather than restating the vehicle a second time inside the black bar. -->
-    <div v-if="mode === 'BLUE_BAR' && vehicle" class="vbar">
-        <div class="vbar__inner">
-            <span>Gewähltes Fahrzeug: {{ vehicle.short }}</span>
-            <span aria-hidden="true">|</span>
-            <Link :href="listingHref" class="vbar__link">Felgen anzeigen</Link>
-        </div>
-    </div>
-
-    <header class="hdr">
+    <header class="hdr" :class="{ 'hdr--lifted': lifted }">
         <div class="hdr__bar">
             <button
                 class="hdr__icon mobile-only"
@@ -53,21 +64,6 @@ defineEmits<{ (e: 'open-menu'): void; (e: 'open-vehicle'): void }>()
             </button>
 
             <Link href="/" class="wordmark" aria-label="RIMIFY — Startseite">RIMIFY</Link>
-
-            <!-- State two: the white box, inside the buying process only. -->
-            <button
-                v-if="mode === 'WHITE_BOX' && vehicle"
-                class="hdr__vbox"
-                type="button"
-                @click="$emit('open-vehicle')"
-            >
-                <span class="hdr__vbox-label">Gewähltes Fahrzeug:</span>
-                <span class="hdr__vbox-name">
-                    <span class="desktop-only">{{ vehicle.label }}</span>
-                    <span class="mobile-only">{{ vehicle.short }}</span>
-                    <span class="hdr__vbox-keys desktop-only">({{ vehicle.keyNumbers }})</span>
-                </span>
-            </button>
 
             <nav class="hdr__nav" aria-label="Hauptnavigation">
                 <Link
@@ -81,90 +77,70 @@ defineEmits<{ (e: 'open-menu'): void; (e: 'open-vehicle'): void }>()
                 </Link>
             </nav>
 
+            <!-- The chosen vehicle. Same chip, same place, every route. -->
+            <button
+                v-if="showVehicle && vehicle"
+                class="vchip desktop-only"
+                type="button"
+                @click="$emit('open-vehicle')"
+            >
+                <Icon name="wheel" :size="20" />
+                <span class="vchip__name">{{ vehicle.label }}</span>
+                <span class="vchip__keys">{{ vehicle.keyNumbers }}</span>
+                <Icon name="chevron-down" :size="20" />
+            </button>
+
             <Link href="/warenkorb" class="hdr__cart" aria-label="Warenkorb">
                 <Icon name="cart" :size="24" />
-                <span class="hdr__cart-label">Warenkorb</span>
+                <span class="hdr__cart-label desktop-only">Warenkorb</span>
                 <span v-if="shared.cartCount > 0" class="hdr__badge">{{ shared.cartCount }}</span>
             </Link>
+        </div>
+
+        <!-- On a phone the chip sits under the bar rather than inside it: at 390px there is no
+             room for a vehicle name beside a wordmark and a basket without truncating all three. -->
+        <div v-if="showVehicle && vehicle" class="hdr__vrow mobile-only">
+            <button class="vchip vchip--full" type="button" @click="$emit('open-vehicle')">
+                <Icon name="wheel" :size="20" />
+                <span class="vchip__name">{{ vehicle.short }}</span>
+                <span class="vchip__keys">{{ vehicle.keyNumbers }}</span>
+                <Icon name="chevron-down" :size="20" />
+            </button>
         </div>
     </header>
 </template>
 
 <style scoped>
-.hdr__vbox {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
-    margin-left: var(--s4);
-    padding: 10px var(--s3);
-    background: var(--surface);
-    border: 0;
-    border-radius: var(--r-btn);
-    cursor: pointer;
-    text-align: left;
-    /* It must never wrap to two lines and never push the cart off a 390px screen. */
-    min-width: 0;
-    max-width: 46vw;
-}
-
-.hdr__vbox-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--ink2);
-    line-height: 1.1;
-}
-
-.hdr__vbox-name {
-    display: flex;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ink);
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-}
-
-.hdr__vbox-keys {
-    font-family: var(--mono);
-    font-weight: 500;
-    color: var(--ink2);
+.hdr--lifted {
+    box-shadow: var(--shadow-raised);
 }
 
 .hdr__cart {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
     min-width: 44px;
     min-height: 44px;
-    margin-left: var(--s3);
-    color: #fff;
+    padding-inline: var(--space-2);
+    margin-left: var(--space-3);
+    color: var(--ink);
+    font-size: var(--text-body);
+    font-weight: 700;
     text-decoration: none;
 }
 
-.hdr__cart-label {
-    font-size: 11px;
-    font-weight: 700;
+.hdr__vrow {
+    padding: 0 var(--gutter) var(--space-2);
 }
 
-.vbar__link {
-    color: #fff;
-    text-decoration: underline;
+.vchip {
+    margin-left: var(--space-4);
 }
 
-@media (max-width: 720px) {
-    .hdr__cart-label {
-        display: none;
-    }
-
-    .hdr__vbox {
-        margin-left: auto;
-    }
+.vchip--full {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
 }
 </style>

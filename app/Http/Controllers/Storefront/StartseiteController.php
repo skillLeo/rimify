@@ -33,7 +33,35 @@ class StartseiteController extends Controller
             // The month is part of the heading — "Bestseller aus Mai 2026" — so it is computed
             // here rather than written into a translation string that would go stale.
             'month' => $this->currentMonthDe(),
+            'faq' => $this->faqPreview(),
         ]);
+    }
+
+    /**
+     * The first three published answers, in the editors' own order — the same rows /faq shows, so
+     * the homepage can never promise an answer the FAQ page does not give.
+     *
+     * @return list<array{id: int, question: string, answer: string}>
+     */
+    private function faqPreview(): array
+    {
+        $rows = DB::table('faq_entries')
+            ->where('published', true)
+            ->orderBy('sort_order')
+            ->limit(3)
+            ->get(['id', 'question_de', 'answer_de']);
+
+        $out = [];
+
+        foreach ($rows as $row) {
+            $out[] = [
+                'id' => (int) $row->id,
+                'question' => (string) $row->question_de,
+                'answer' => (string) $row->answer_de,
+            ];
+        }
+
+        return $out;
     }
 
     /**

@@ -130,8 +130,8 @@ function toggleOpen(facet: string): void {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--s2);
-    padding: var(--s2);
+    gap: var(--space-2);
+    padding: var(--space-2);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
@@ -156,7 +156,7 @@ function toggleOpen(facet: string): void {
     min-width: 18px;
     height: 18px;
     padding-inline: 5px;
-    border-radius: var(--r-pill);
+    border-radius: var(--radius-round);
     background: var(--blue);
     color: #fff;
     font-size: 11px;
@@ -175,25 +175,25 @@ function toggleOpen(facet: string): void {
 
 .fbar__panel {
     position: absolute;
-    top: calc(100% + var(--s2));
+    top: calc(100% + var(--space-2));
     left: 0;
     z-index: 30;
     min-width: 240px;
     max-height: 320px;
     overflow-y: auto;
-    padding: var(--s2);
+    padding: var(--space-2);
     background: var(--surface);
     border-radius: 12px;
-    box-shadow: var(--sh-2);
+    box-shadow: var(--shadow-overlay);
 }
 
 .fbar__opt {
     display: flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--space-2);
     min-height: 44px;
-    padding-inline: var(--s2);
-    border-radius: var(--r-btn);
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-sm);
     font-size: 14px;
     cursor: pointer;
 }
@@ -218,7 +218,7 @@ function toggleOpen(facet: string): void {
 
 .fbar__empty {
     margin: 0;
-    padding: var(--s3) var(--s2);
+    padding: var(--space-3) var(--space-2);
     font-size: 13px;
 }
 

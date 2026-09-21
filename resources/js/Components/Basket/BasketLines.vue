@@ -129,7 +129,7 @@ const VERDICT_TONE: Record<string, string> = {
 .bl__item {
     display: flex;
     align-items: center;
-    gap: var(--s3);
+    gap: var(--space-3);
 }
 
 .bl__art {
@@ -139,7 +139,7 @@ const VERDICT_TONE: Record<string, string> = {
     display: grid;
     place-items: center;
     background: var(--ground);
-    border-radius: var(--r-img);
+    border-radius: var(--radius-lg);
 }
 
 .bl__text {
@@ -161,13 +161,13 @@ const VERDICT_TONE: Record<string, string> = {
 .bl__flags {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s2);
+    gap: var(--space-2);
     margin-top: 6px;
 }
 
 .bl__conditions {
-    margin: var(--s2) 0 0;
-    padding-left: var(--s4);
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-4);
     font-size: 13px;
     color: var(--ink2);
 }
@@ -175,14 +175,14 @@ const VERDICT_TONE: Record<string, string> = {
 .bl__stepper {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--space-2);
 }
 
 .bl__step {
     width: 44px;
     height: 44px;
     border: 1px solid var(--line);
-    border-radius: var(--r-btn);
+    border-radius: var(--radius-sm);
     background: var(--surface);
     font-size: 18px;
     font-weight: 700;
@@ -202,10 +202,10 @@ const VERDICT_TONE: Record<string, string> = {
     justify-content: center;
     width: 44px;
     height: 44px;
-    margin-left: var(--s2);
+    margin-left: var(--space-2);
     background: transparent;
     border: 0;
-    border-radius: var(--r-btn);
+    border-radius: var(--radius-sm);
     color: var(--ink3);
     cursor: pointer;
 }

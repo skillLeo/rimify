@@ -19,7 +19,7 @@ defineProps<SelectorProps>()
 
     <section class="section">
         <div class="wrap">
-            <h1 class="t-h2">Auto wählen, garantiert passende Felge finden</h1>
+            <h1 class="t-h1">Auto wählen, garantiert passende Felge finden</h1>
             <p class="t-body">
                 Zwei Wege – über die Fahrzeugdaten oder direkt über die Schlüsselnummern aus deinem
                 Fahrzeugschein.
@@ -41,6 +41,6 @@ defineProps<SelectorProps>()
 
 <style scoped>
 .sel__panel {
-    margin-top: var(--s6);
+    margin-top: var(--space-6);
 }
 </style>

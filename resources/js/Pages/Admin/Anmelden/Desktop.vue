@@ -27,7 +27,7 @@ const busy = ref(false)
     <main id="inhalt" class="login">
         <div class="login__form">
             <span class="wordmark wordmark--ink login__mark">RIMIFY</span>
-            <h1 class="t-h2">Anmelden</h1>
+            <h1 class="t-h1">Anmelden</h1>
             <p class="t-body">Zugang zum Verwaltungsbereich.</p>
 
             <form class="stack-4 login__fields" @submit.prevent>
@@ -78,21 +78,21 @@ const busy = ref(false)
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: var(--s8) var(--s7);
+    padding: var(--space-8) var(--space-7);
     background: var(--surface);
 }
 
 .login__mark {
-    margin-bottom: var(--s7);
+    margin-bottom: var(--space-7);
 }
 
 .login__fields {
-    margin-top: var(--s5);
+    margin-top: var(--space-5);
 }
 
 .login__art {
     position: relative;
-    background: var(--black);
+    background: var(--ink);
     overflow: hidden;
 }
 
