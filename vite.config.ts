@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
+import { FontaineTransform } from 'fontaine';
 
-// No Tailwind: the design system is resources/css/tokens.css + components.css (CONTRIBUTING.md §4).
-// Lato and IBM Plex Mono are self-hosted through @fontsource and fingerprinted by Vite.
+// No Tailwind: the design system is resources/css/tokens.css, governed by docs/design/DIRECTION.md.
+// Archivo Variable is self-hosted from public/fonts; fontaine reads its metrics at build time and
+// writes an "Archivo Variable fallback" face over Arial, so the swap moves no text.
 export default defineConfig({
     plugins: [
         laravel({
@@ -18,6 +20,10 @@ export default defineConfig({
                     includeAbsolute: false,
                 },
             },
+        }),
+        FontaineTransform.vite({
+            fallbacks: ['Arial', 'Helvetica Neue', 'Segoe UI'],
+            resolvePath: (id) => new URL(`./public${id}`, import.meta.url),
         }),
     ],
     resolve: {

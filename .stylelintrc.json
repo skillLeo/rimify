@@ -1,0 +1,48 @@
+{
+    "plugins": ["stylelint-declaration-strict-value"],
+    "rules": {
+        "scale-unlimited/declaration-strict-value": [
+            [
+                "/color$/",
+                "fill",
+                "stroke",
+                "background-color",
+                "box-shadow",
+                "border-radius",
+                "font-size",
+                "font-family",
+                "z-index"
+            ],
+            {
+                "ignoreValues": ["currentColor", "transparent", "inherit", "none", "initial", "unset", "0", "auto"],
+                "disableFix": true,
+                "message": "${property} takes a token from tokens.css, never a literal (docs/design/DIRECTION.md)"
+            }
+        ],
+        "declaration-property-value-disallowed-list": {
+            "backdrop-filter": ["/.+/"],
+            "-webkit-backdrop-filter": ["/.+/"],
+            "background-clip": ["text"],
+            "-webkit-background-clip": ["text"],
+            "background": ["/gradient\\(/"],
+            "background-image": ["/gradient\\(/"],
+            "transition": ["/(^|\\s)all(\\s|,|$)/"],
+            "transition-property": ["all"]
+        }
+    },
+    "overrides": [
+        {
+            "files": ["**/*.vue"],
+            "customSyntax": "postcss-html"
+        }
+    ],
+    "ignoreFiles": [
+        "resources/css/tokens.css",
+        "resources/css/fonts.css",
+        "resources/css/legacy.css",
+        "resources/js/Layouts/PrototypeLayout.vue",
+        "node_modules/**",
+        "public/**",
+        "vendor/**"
+    ]
+}

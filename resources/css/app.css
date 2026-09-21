@@ -1,75 +1,31 @@
 /*
  * RIMIFY — stylesheet entry point.
  *
- *   fonts.css       self-hosted Lato and IBM Plex Mono
- *   tokens.css      variables, reset, type scale, layout utilities
- *   components.css  buttons, fields, cards, chips, tables, header, footer, bottom nav, admin frame
+ *   fonts.css       Archivo Variable, self-hosted
+ *   tokens.css      every value the interface uses (docs/design/DIRECTION.md)
+ *   base.css        reset, type scale, page grid, keyboard duties          @layer base
+ *   components.css  buttons, fields, chips, verdicts, tiles, overlays       @layer components
+ *   legacy.css      the previous system, for pages not yet moved            @layer legacy
  *
- * Every rule resolves through a token; no literal colour, radius or duration appears in a scoped
- * style. Extend the system here or in a component's scoped block, never by forking a value.
+ * Layer order is the migration plan: the reset sits lowest, legacy above it so a page that still
+ * uses it keeps its own link and heading colours, and the current components above both — a page
+ * that still uses legacy inherits the current buttons, fields and type the moment they exist, and
+ * nothing new ever depends on it.
  */
+
+@layer base, legacy, components;
 
 @import './fonts.css';
 @import './tokens.css';
+@import './base.css';
 @import './components.css';
+@import './legacy.css';
 
 /* ── Selection ─────────────────────────────────────────────────────────────── */
 
 ::selection {
-    background: var(--wash);
-    color: var(--ink);
-}
-
-::-moz-selection {
-    background: var(--wash);
-    color: var(--ink);
-}
-
-/* ── Touch feedback ─────────────────────────────────────────────────────────
-   The control answers the tap, not the browser: no tap-highlight rectangle, a short press
-   animation instead. `scale` composes with any `transform` a control already uses. */
-
-html {
-    -webkit-tap-highlight-color: transparent;
-}
-
-@keyframes rmf-press {
-    to {
-        scale: 0.97;
-    }
-}
-
-@media (hover: none) and (pointer: coarse) {
-    :is(button, [role='button'], .btn, .chip, .pill, .row-item, .bnav__item, .bnav__check, .pcard, .makecard, .acc__head):active {
-        animation: rmf-press 110ms ease-out forwards;
-    }
-
-    :is(button, [role='button'], .btn, .chip, .pill, .bnav) {
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-    }
-
-    /* Hover effects are for pointers. On a touch screen they would stick after the tap. */
-    .btn--primary:hover {
-        transform: none;
-        box-shadow: none;
-    }
-
-    .pcard:hover .well__art {
-        transform: none;
-    }
-
-    .pcard:hover,
-    .makecard:hover {
-        box-shadow: var(--sh-1);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    :is(button, [role='button'], .btn, .chip, .pill, .row-item, .bnav__item, .bnav__check, .pcard, .makecard, .acc__head):active {
-        animation: none;
-    }
+    background: var(--c-blue-tint);
+    color: var(--c-ink);
 }
 
 /* ── The mobile page is exactly as wide as the phone ─────────────────────────
@@ -78,15 +34,26 @@ html {
    creating a scroll container, so sticky elements keep working. */
 
 body.is-mobile main,
-body.is-mobile .hdr,
-body.is-mobile .vbar,
-body.is-mobile .ftr {
+body.is-mobile header,
+body.is-mobile footer {
     overflow-x: clip;
 }
 
 /* ── Navigation progress (Inertia, includeCSS: false) ───────────────────────── */
 
+/*
+ * Inertia shows the progress element as a manual popover, so it sits in the top layer with the
+ * browser's own popover box. The container draws nothing; only the bar inside it is visible.
+ */
 #nprogress {
+    inset: 0 0 auto;
+    width: 100%;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
     pointer-events: none;
 }
 
@@ -94,10 +61,10 @@ body.is-mobile .ftr {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 200;
+    z-index: var(--z-skip);
     width: 100%;
     height: 2px;
-    background: var(--blue);
+    background: var(--c-blue);
 }
 
 #nprogress .peg {
