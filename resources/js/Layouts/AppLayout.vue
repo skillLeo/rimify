@@ -67,7 +67,10 @@ function removeVehicle(): void {
 </script>
 
 <template>
-    <div class="shell">
+    <!-- The bar's height is a token; when the server shows no bar, the offsets that add it
+         (sticky elements, anchor margins) must add nothing. Decided by the server-side header
+         mode, so the SSR frame and the client agree (R-08). -->
+    <div class="shell" :class="{ 'shell--vbar': vehicle !== null && (shared.headerMode === 'WHITE_BOX' || shared.headerMode === 'BLUE_BAR') }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
         <SiteHeader />
@@ -102,6 +105,11 @@ function removeVehicle(): void {
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
+}
+
+/* No bar, no offset: sticky elements and anchor margins read the token below the shell. */
+.shell:not(.shell--vbar) {
+    --vbar-h: 0px;
 }
 
 .shell__main {
