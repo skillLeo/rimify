@@ -215,13 +215,16 @@ it('merges a repeated add into one line instead of two', function (): void {
     $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
     $cookies = rimifyVehicleCookie($vehicle->id);
 
-    $model = WheelModel::query()->firstOrFail();
-    $config = $model->configs()->firstOrFail();
+    // A configuration the engine permits on this car: the basket refuses any other on the server,
+    // whatever the page showed, so the first row of the catalogue is not necessarily addable.
+    $card = $this->withCookies($cookies)->get('/felgen')->viewData('page')['props']['cards'][0];
+    $configs = $this->withCookies($cookies)->get('/felgen/'.$card['slug'])->viewData('page')['props']['configs'];
+    $config = collect($configs)->firstOrFail(fn (array $c): bool => $c['verdict']['sellable'] === true);
 
     foreach ([4, 4] as $quantity) {
         $this->withCookies($cookies)->post('/warenkorb', [
             'kind' => 'WHEEL',
-            'wheelConfigId' => $config->id,
+            'wheelConfigId' => $config['id'],
             'quantity' => $quantity,
         ]);
     }

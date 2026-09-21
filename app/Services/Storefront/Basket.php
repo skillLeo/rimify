@@ -101,6 +101,35 @@ final readonly class Basket
         $request->session()->put(self::SESSION_KEY, $cart);
     }
 
+    /**
+     * Why this wheel may not be added right now, or null when it may.
+     *
+     * The product page disables its button in both cases; this is the same rule on the server, so
+     * a stale tab or a hand-made request cannot put a wheel the engine refuses for the chosen car
+     * into the basket under a "Zum Warenkorb hinzugefügt." toast. With no vehicle there is no
+     * claim to check, in either direction (R-11: the UI only hides).
+     */
+    public function refusalFor(Request $request, int $wheelConfigId): ?string
+    {
+        $config = WheelConfig::query()->find($wheelConfigId);
+
+        if ($config === null) {
+            return 'Diese Felge gibt es nicht mehr.';
+        }
+
+        $vehicleId = $this->vehicleId($request);
+
+        if ($vehicleId !== null && ! $this->resolver->resolve($vehicleId, $config->id)->isSellable()) {
+            return 'Diese Felge ist für dein Fahrzeug nicht freigegeben.';
+        }
+
+        if ($config->stock_qty <= 0) {
+            return 'Diese Größe ist derzeit ausverkauft.';
+        }
+
+        return null;
+    }
+
     /** A quantity of zero is a removal, which is what the stepper's minus reaches at one. */
     public function setQuantity(Request $request, string $key, int $quantity): void
     {

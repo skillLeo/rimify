@@ -37,6 +37,14 @@ class WarenkorbController extends Controller
 
     public function store(BasketLineRequest $request): RedirectResponse
     {
+        $refusal = $request->kind() === 'WHEEL'
+            ? $this->basket->refusalFor($request, $request->referenceId())
+            : null;
+
+        if ($refusal !== null) {
+            return back()->withErrors(['wheelConfigId' => $refusal]);
+        }
+
         $this->basket->add(
             $request,
             $request->kind(),

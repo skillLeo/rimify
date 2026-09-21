@@ -76,6 +76,46 @@ final readonly class ListingQuery
     }
 
     /**
+     * The configurations behind a page of cards: every wheel configuration the listing matched for
+     * these model-and-finish pairs, under the SAME predicate as the cards themselves.
+     *
+     * The listing decides which cards exist; what a card then claims about the car is asked of the
+     * fitment engine for exactly these configurations, so the card and the product page can never
+     * give two different answers (R-13).
+     *
+     * @param  array<string, mixed>  $filters
+     * @param  list<int>  $modelIds
+     * @param  list<int>  $finishIds
+     * @return array<string, list<int>> keyed `model:finish`
+     */
+    public function configIdsFor(int $vehicleId, array $filters, array $modelIds, array $finishIds): array
+    {
+        if ($modelIds === [] || $finishIds === []) {
+            return [];
+        }
+
+        [$where, $bindings] = $this->predicate($vehicleId, $filters);
+
+        $models = implode(', ', array_fill(0, count($modelIds), '?'));
+        $finishes = implode(', ', array_fill(0, count($finishIds), '?'));
+
+        $sql = "
+            SELECT DISTINCT wm.id AS model_id, wf.id AS finish_id, wc.id AS config_id
+            {$this->fromAndJoins()}
+            WHERE {$where} AND wm.id IN ({$models}) AND wf.id IN ({$finishes})
+            ORDER BY wc.id
+        ";
+
+        $out = [];
+
+        foreach (DB::select($sql, [...$bindings, ...$modelIds, ...$finishIds]) as $row) {
+            $out[$row->model_id.':'.$row->finish_id][] = (int) $row->config_id;
+        }
+
+        return $out;
+    }
+
+    /**
      * How many cards the current filter set produces, for pagination.
      *
      * @param  array<string, mixed>  $filters

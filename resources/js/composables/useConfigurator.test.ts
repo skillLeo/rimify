@@ -99,6 +99,89 @@ describe('useConfigurator', () => {
         expect(c.selected.value?.id).toBe(3)
     })
 
+    it('strikes a diameter through only when none of its configurations is permitted', () => {
+        // BBS SR "Volcano Grau" on the BMW: two 18" rows, one refused, one permitted.
+        const configs = [
+            config({ id: 44, widthIn: 8.5, etMm: 40, priceCents: 94900, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false }) }),
+            config({ id: 43, widthIn: 8, etMm: 45, priceCents: 89900 }),
+        ]
+
+        const c = useConfigurator(() => configs, 10)
+        const eighteen = c.sizes.value.find((s) => s.diameter === 18)!
+
+        expect(eighteen.blocked).toBe(false)
+        expect(eighteen.config.id).toBe(43)
+        expect(c.selected.value?.id).toBe(43)
+    })
+
+    it('marks the chip of the selected diameter with the selected configuration', () => {
+        const configs = [
+            config({ id: 1, widthIn: 8, priceCents: 80000 }),
+            config({ id: 2, widthIn: 8.5, priceCents: 90000 }),
+        ]
+
+        const c = useConfigurator(() => configs, 10)
+        c.selectVariant(c.variants.value.find((v) => v.id === 2)!)
+
+        expect(c.selected.value?.id).toBe(2)
+        expect(c.sizes.value[0]?.config.id).toBe(2)
+    })
+
+    it('offers every width and ET inside the chosen diameter, refused ones disabled', () => {
+        // BBS SR "Himalaya Grau": 8J ET45 carries an Auflage, 8,5J ET40 is permitted outright.
+        const configs = [
+            config({ id: 41, widthIn: 8, etMm: 45, sizeLabel: '8J × 18 · ET 45', priceCents: 89900, verdict: verdict({ status: 'CONDITIONAL' }) }),
+            config({ id: 42, widthIn: 8.5, etMm: 40, sizeLabel: '8,5J × 18 · ET 40', priceCents: 94900 }),
+            config({ id: 45, widthIn: 9, etMm: 35, sizeLabel: '9J × 18 · ET 35', priceCents: 99900, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) }),
+            config({ id: 46, diameterIn: 19, widthIn: 8.5, etMm: 40, priceCents: 109900 }),
+        ]
+
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.variants.value.map((v) => v.label)).toEqual(['8J × 18 · ET 45', '8,5J × 18 · ET 40', '9J × 18 · ET 35'])
+        expect(c.variants.value[2]).toMatchObject({ blocked: true, reason: 'ET außerhalb des Gutachtens.' })
+
+        c.selectVariant(c.variants.value[1]!)
+        expect(c.selected.value?.id).toBe(42)
+
+        c.selectVariant(c.variants.value[2]!)
+        expect(c.selected.value?.id).toBe(42)
+    })
+
+    it('opens on a permitted size that is in stock before a cheaper one that is sold out', () => {
+        const configs = [
+            config({ id: 1, priceCents: 80000, inStock: false, stockQty: 0 }),
+            config({ id: 2, diameterIn: 19, priceCents: 90000 }),
+        ]
+
+        expect(useConfigurator(() => configs, 10).selected.value?.id).toBe(2)
+    })
+
+    it('keeps the chosen size when the colour changes and the new finish offers it', () => {
+        const configs = [
+            config({ id: 1, finishId: 10, diameterIn: 18, priceCents: 80000 }),
+            config({ id: 2, finishId: 10, diameterIn: 19, priceCents: 90000 }),
+            config({ id: 3, finishId: 20, diameterIn: 18, priceCents: 80000 }),
+            config({ id: 4, finishId: 20, diameterIn: 19, priceCents: 90000 }),
+        ]
+
+        const c = useConfigurator(() => configs, 10)
+        c.selectSize(c.sizes.value.find((s) => s.diameter === 19)!)
+        c.selectFinish(20)
+
+        expect(c.selected.value?.id).toBe(4)
+    })
+
+    it('speaks to the customer informally when a refused size carries no reason of its own', () => {
+        const configs = [
+            config({ id: 1, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: null }) }),
+        ]
+
+        expect(useConfigurator(() => configs, 10).sizes.value[0]?.reason).toBe(
+            'Für dein Fahrzeug nicht freigegeben.'
+        )
+    })
+
     it('reports the cheapest price of the finish as the from-price', () => {
         const configs = [
             config({ id: 1, priceCents: 120000, price: '1.200,00 €' }),

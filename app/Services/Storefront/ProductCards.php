@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
+use App\Domain\Fitment\Contracts\VehicleRepository;
+use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
+use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
 use App\Support\GermanFormat;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +25,11 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class ProductCards
 {
-    public function __construct(private ListingQuery $listing) {}
+    public function __construct(
+        private ListingQuery $listing,
+        private FitmentResolver $resolver,
+        private VehicleRepository $vehicles,
+    ) {}
 
     /**
      * Cards for a chosen vehicle: only wheels a published document permits on that exact variant.
@@ -45,23 +54,87 @@ final readonly class ProductCards
         // making the listing one statement.
         $presentation = $this->presentationFor($modelIds, $finishIds);
         $diameters = $this->diametersFor($modelIds, $finishIds);
+        $configIds = $this->listing->configIdsFor($vehicleId, $filters, $modelIds, $finishIds);
+        $vehicle = $this->vehicles->find($vehicleId);
 
         $cards = [];
 
         foreach ($result['rows'] as $row) {
-            $cards[] = $this->fromListingRow($row, $presentation, $diameters);
+            $key = (int) ($row['model_id'] ?? 0).':'.(int) ($row['finish_id'] ?? 0);
+
+            $cards[] = $this->fromListingRow(
+                $row,
+                $presentation,
+                $diameters,
+                $this->claim($vehicle, $configIds[$key] ?? []),
+            );
         }
 
         return ['cards' => $cards, 'total' => $result['total']];
     }
 
     /**
+     * What a card may say about the car: asked of the fitment engine for exactly the configurations
+     * the card stands for, and merged toward caution — CONDITIONAL if any of them is, entry if any
+     * of them needs it, the union of their Auflagen.
+     *
+     * The listing's own SQL knew only whether an entry was required, so a wheel whose Auflage was,
+     * say, "Nur mit den angegebenen Radschrauben zulässig." was shown as plainly "Passend" in the
+     * grid and "Mit Auflagen" on its product page. The engine is the one source of that answer
+     * (R-13), and a listing card is no exception.
+     *
+     * @param  list<int>  $configIds
+     * @return array{status: string, requiresEntry: bool, conditions: list<string>}
+     */
+    private function claim(?VehicleRecord $vehicle, array $configIds): array
+    {
+        $status = null;
+        $requiresEntry = false;
+        $conditions = [];
+
+        foreach ($vehicle === null ? [] : $configIds as $configId) {
+            $verdict = $this->resolver->resolveForVehicle($vehicle, $configId);
+
+            if (! $verdict->isSellable()) {
+                continue;
+            }
+
+            $status = ($status === VerdictStatus::Conditional || $verdict->status === VerdictStatus::Conditional)
+                ? VerdictStatus::Conditional
+                : VerdictStatus::Permitted;
+            $requiresEntry = $requiresEntry || $verdict->requiresEntry;
+            $conditions = Condition::union($conditions, $verdict->conditions);
+        }
+
+        // The listing and the engine disagree about this card. It makes no positive claim.
+        if ($status === null) {
+            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'conditions' => []];
+        }
+
+        // Merged across configurations, "Keine Eintragung erforderlich." from one of them would
+        // contradict the entry another one needs.
+        if ($requiresEntry) {
+            $conditions = array_filter($conditions, static fn (Condition $c): bool => $c->code !== 'NO_ENTRY_REQUIRED');
+        }
+
+        return [
+            'status' => $status->value,
+            'requiresEntry' => $requiresEntry,
+            'conditions' => array_values(array_map(
+                static fn (Condition $c): string => $c->sentenceDe(),
+                $conditions,
+            )),
+        ];
+    }
+
+    /**
      * Cards with no vehicle in play: the whole published catalogue, one card per model and finish,
      * showing its cheapest configuration. No fitment claim is made anywhere on these.
      *
+     * @param  int|null  $limit  null for the whole range
      * @return list<array<string, mixed>>
      */
-    public function catalogue(int $limit = 24, ?string $brand = null): array
+    public function catalogue(?int $limit = 24, ?string $brand = null): array
     {
         $rows = DB::table('wheel_configs as wc')
             ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
@@ -76,7 +149,9 @@ final readonly class ProductCards
                 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish',
             )
             ->orderByRaw('MIN(wc.price_cents) ASC')
-            ->limit($limit)
+            ->orderBy('wm.id')
+            ->orderBy('wf.id')
+            ->when($limit !== null, fn ($q) => $q->limit((int) $limit))
             ->get([
                 'wm.id as model_id',
                 'wm.name as model_name',
@@ -118,15 +193,16 @@ final readonly class ProductCards
     }
 
     /**
-     * A listing row carries the fitment facts the catalogue path cannot know — whether ANY of this
-     * model's permitted configurations needs entry in the papers.
+     * A listing row carries the fitment facts the catalogue path cannot know: the engine's claim
+     * about this card's configurations on the chosen car.
      *
      * @param  array<string, mixed>  $row
      * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int}>  $presentation
      * @param  array<string, list<string>>  $diameters
+     * @param  array{status: string, requiresEntry: bool, conditions: list<string>}  $claim
      * @return array<string, mixed>
      */
-    private function fromListingRow(array $row, array $presentation, array $diameters): array
+    private function fromListingRow(array $row, array $presentation, array $diameters, array $claim): array
     {
         $modelId = (int) ($row['model_id'] ?? 0);
         $finishId = (int) ($row['finish_id'] ?? 0);
@@ -150,11 +226,7 @@ final readonly class ProductCards
             fromPriceCents: (int) ($row['from_price_cents'] ?? 0),
             stockQty: (int) ($row['best_stock_qty'] ?? 0),
             diameters: $diameters[$key] ?? [],
-            fitment: [
-                // Merged toward caution across this card's configurations: if any permitted
-                // configuration needs entry, the card says so rather than promising otherwise.
-                'requiresEntry' => (bool) ($row['any_entry_required'] ?? false),
-            ],
+            fitment: $claim,
         );
     }
 

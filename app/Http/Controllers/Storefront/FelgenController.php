@@ -17,6 +17,7 @@ use App\Models\WheelModel;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -52,8 +53,11 @@ class FelgenController extends Controller
         ]);
     }
 
+    /** Cards per listing page. The page's pager derives its page count from the same number. */
+    private const PER_PAGE = 24;
+
     /** The listing. With a vehicle it is a compliance answer; without one it is a catalogue. */
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $vehicleId = $this->vehicleId($request);
         $filters = $this->filters($request);
@@ -61,7 +65,10 @@ class FelgenController extends Controller
         if ($vehicleId === null) {
             return Inertia::render('Felgen/Index', [
                 'hasVehicle' => false,
-                'cards' => $this->cards->catalogue(limit: 24),
+                // The whole catalogue. This page has no pager without a vehicle and states the
+                // number of cards it shows as the size of the range, so a cap here hid a product
+                // and made "24 Felgen im Sortiment" untrue.
+                'cards' => $this->cards->catalogue(limit: null),
                 'total' => null,
                 'facets' => [],
                 'filters' => $filters,
@@ -69,7 +76,21 @@ class FelgenController extends Controller
         }
 
         $page = max(1, $request->integer('seite', 1));
-        $result = $this->cards->forVehicle($vehicleId, $filters, perPage: 24, page: $page);
+        $result = $this->cards->forVehicle($vehicleId, $filters, perPage: self::PER_PAGE, page: $page);
+        $lastPage = max(1, (int) ceil($result['total'] / self::PER_PAGE));
+
+        // A page past the end is not "no wheels for this car". Rendering it empty told the
+        // customer exactly that — with no pager to get back — so it goes to the last real page.
+        if ($page > $lastPage) {
+            $query = $request->query();
+            unset($query['seite']);
+
+            if ($lastPage > 1) {
+                $query['seite'] = $lastPage;
+            }
+
+            return redirect()->route('felgen.index', $query);
+        }
 
         // An empty listing with no filters applied is a catalogue gap, not a filter mistake — and
         // it is the case that turns a silent lost sale into a ranked shopping list of documents.
@@ -169,6 +190,8 @@ class FelgenController extends Controller
             ];
         }
 
+        $finishes = $this->openingFinishFirst($finishes, $configs, $request->integer('ausfuehrung'));
+
         return Inertia::render('Produkt/Index', [
             'product' => [
                 'modelId' => $wheel->id,
@@ -188,6 +211,42 @@ class FelgenController extends Controller
             'configs' => $configs,
             'hasVehicle' => $vehicleId !== null,
         ]);
+    }
+
+    /**
+     * The product page opens on its first finish, so the first finish is the one the customer
+     * came for: the finish named in the link (a listing card is one model in one finish), or else
+     * one that is permitted on their car.
+     *
+     * Without this, the "Racing Schwarz — Passend für BMW 3er" card opened a page showing
+     * Graphite matt, "Nicht freigegeben für BMW 3er" and a disabled basket button: two answers
+     * about one wheel, one click apart. The order of the rest is kept (usort is stable).
+     *
+     * @param  list<array{id: int, name: string, hex: string|null, artFinish: string}>  $finishes
+     * @param  list<array<string, mixed>>  $configs
+     * @return list<array{id: int, name: string, hex: string|null, artFinish: string}>
+     */
+    private function openingFinishFirst(array $finishes, array $configs, int $requested): array
+    {
+        $permitted = [];
+
+        foreach ($configs as $config) {
+            $verdict = $config['verdict'] ?? null;
+
+            if (is_array($verdict) && ($verdict['sellable'] ?? false) === true) {
+                $permitted[(int) $config['finishId']] = true;
+            }
+        }
+
+        $rank = static fn (array $finish): int => match (true) {
+            $finish['id'] === $requested => 0,
+            isset($permitted[$finish['id']]) => 1,
+            default => 2,
+        };
+
+        usort($finishes, static fn (array $a, array $b): int => $rank($a) <=> $rank($b));
+
+        return $finishes;
     }
 
     private function vehicleId(Request $request): ?int
