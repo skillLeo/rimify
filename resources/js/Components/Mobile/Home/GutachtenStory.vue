@@ -27,12 +27,37 @@ const facts = computed(() => {
     return `${decimal(s.gutachten, 0)} Gutachten · ${decimal(s.variants, 0)} Fahrzeugvarianten · ${decimal(s.wheels, 0)} Felgen mit Gutachten`
 })
 
-/* Rows 3–5 of the example table; row 4 is the customer's car. */
-const ROWS = [
-    { make: 'VW', type: '5G', approval: 'e1*2007/46*0300*', tyres: '205/55 R16, 225/45 R17', conditions: 'A02' },
-    { make: 'BMW', type: '346C', approval: 'e1*2001/116*0136*', tyres: '225/40 R18, 225/45 R17', conditions: '–' },
-    { make: 'Mercedes', type: '204', approval: 'e1*2001/116*0431*', tyres: '225/45 R17', conditions: 'A11, K1a' },
+/*
+ * The example document, verbatim from the desktop story (`Components/Home/GutachtenStory.vue`,
+ * `EXAMPLE_ROWS`) — the desktop keeps its rows inline, so they are copied here until they live in
+ * a module both documents import (docs/mobile/REQUESTS.md). Every row is fictional; row 4 is the
+ * one the story marks.
+ */
+interface DocRow {
+    maker: string
+    trade: string
+    type: string
+    approval: string
+    tyres: string
+    conditions: string
+}
+
+const EXAMPLE_ROWS: readonly DocRow[] = [
+    { maker: 'Audi', trade: 'A4 Avant', type: 'B8', approval: 'e1*2001/116*0430*', tyres: '235/40 R18, 245/40 R18', conditions: 'A02' },
+    { maker: 'VW', trade: 'Golf VII', type: '5G', approval: 'e1*2007/46*0300*', tyres: '225/40 R18, 225/45 R17', conditions: '–' },
+    { maker: 'Mercedes-Benz', trade: 'C-Klasse', type: 'W205', approval: 'e1*2007/46*0402*', tyres: '225/45 R17, 245/40 R18', conditions: 'A11' },
+    { maker: 'BMW', trade: '3er Coupé', type: '346C', approval: 'e1*2001/116*0136*', tyres: '225/40 R18, 225/45 R17', conditions: '–' },
+    { maker: 'Škoda', trade: 'Octavia', type: '5E', approval: 'e11*2007/46*0122*', tyres: '225/45 R17, 225/40 R18', conditions: 'K1a' },
+    { maker: 'Ford', trade: 'Focus', type: 'DEH', approval: 'e13*2007/46*0350*', tyres: '215/45 R17, 235/35 R19', conditions: 'A02' },
+    { maker: 'Opel', trade: 'Astra', type: 'K', approval: 'e1*2007/46*0519*', tyres: '225/45 R17, 225/40 R18', conditions: '–' },
+    { maker: 'Seat', trade: 'Leon', type: '5F', approval: 'e9*2007/46*0141*', tyres: '225/40 R18, 225/45 R17', conditions: 'A11' },
+    { maker: 'VW', trade: 'Passat', type: '3G', approval: 'e1*2007/46*0396*', tyres: '235/45 R17, 235/40 R18', conditions: 'K1a' },
 ]
+
+const TARGET = 3
+
+/* The crop shows rows 3–5 (the marked row in the middle) with one tyre size each: the columns are 318 px wide at 390. */
+const rows = EXAMPLE_ROWS.slice(TARGET - 1, TARGET + 2).map((row) => ({ ...row, tyre: row.tyres.split(',')[0]?.trim() ?? row.tyres }))
 
 const STEPS = [
     {
@@ -61,11 +86,11 @@ const STEPS = [
 /*
  * The strokes, in the crop's own coordinates: x in thousandths of the table width, y in CSS px
  * (one heading row and three body rows of 28 px; row 4 is the middle one, centred at y 70).
- * Columns: Hersteller 0–22 % · Typ 22–34 · Genehmigungsnr. 34–64 · Reifengrößen 64–86 · Auflagen 86–100.
+ * Columns: Hersteller 0–18 % · Typ 18–28 · Genehmigungsnr. 28–64 · Reifengrößen 64–88 · Auflagen 88–100.
  * Each starts a few px before its cell and ends a few after, with a slight wave — a hand, not a rule.
  */
 const STROKES: Record<number, string> = {
-    1: 'M 214 69 C 320 67.5 500 72 648 70',
+    1: 'M 174 69 C 290 67.5 480 72 648 70',
     2: 'M -6 70.5 C 250 68.5 700 72.5 1008 69.5',
     3: 'M 634 69 C 760 71 900 67.5 1008 70',
 }
@@ -98,11 +123,11 @@ const STROKES: Record<number, string> = {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="row in ROWS" :key="row.type">
-                                    <td>{{ row.make }}</td>
+                                <tr v-for="row in rows" :key="row.type">
+                                    <td>{{ row.maker }}</td>
                                     <td>{{ row.type }}</td>
                                     <td>{{ row.approval }}</td>
-                                    <td>{{ row.tyres }}</td>
+                                    <td>{{ row.tyre }}</td>
                                     <td>{{ row.conditions }}</td>
                                 </tr>
                             </tbody>
@@ -183,6 +208,11 @@ const STROKES: Record<number, string> = {
     font-variant-numeric: tabular-nums;
 }
 
+/* A crop is 318 px wide at 390: the condensed width keeps every heading and number whole. */
+.doc--crop {
+    font-stretch: 75%;
+}
+
 .doc__head {
     display: flex;
     justify-content: space-between;
@@ -212,7 +242,7 @@ const STROKES: Record<number, string> = {
 .doc__table th,
 .doc__table td {
     height: 28px;
-    padding: 0 var(--sp-4) 0 0;
+    padding: 0 2px 0 0;
     text-align: left;
     vertical-align: middle;
     white-space: nowrap;
@@ -227,11 +257,11 @@ const STROKES: Record<number, string> = {
     border-bottom-color: var(--c-line-2);
 }
 
-.doc__c1 { width: 22%; }
-.doc__c2 { width: 12%; }
-.doc__c3 { width: 30%; }
-.doc__c4 { width: 22%; }
-.doc__c5 { width: 14%; }
+.doc__c1 { width: 18%; }
+.doc__c2 { width: 10%; }
+.doc__c3 { width: 36%; }
+.doc__c4 { width: 24%; }
+.doc__c5 { width: 12%; }
 
 .doc__caption {
     display: block;

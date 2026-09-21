@@ -16,17 +16,16 @@ import MobileLayout from '../../Layouts/MobileLayout.vue'
 import FitmentCalculator from '../../Components/Home/FitmentCalculator.vue'
 import GutachtenStory from '../../Components/Mobile/Home/GutachtenStory.vue'
 import HeroFrame from '../../Components/Mobile/Home/HeroFrame.vue'
+import KomplettradWheel from '../../Components/Mobile/Home/KomplettradWheel.vue'
 import VehiclePanel from '../../Components/Mobile/Home/VehiclePanel.vue'
 import ListRow from '../../Components/Mobile/ListRow.vue'
 import Shelf from '../../Components/Mobile/Shelf.vue'
 import Accordion from '../../Components/Ui/Accordion.vue'
 import Icon from '../../Components/Ui/Icon.vue'
-import Picture from '../../Components/Ui/Picture.vue'
 import ProductTile from '../../Components/Ui/ProductTile.vue'
 import ProductTileSkeleton from '../../Components/Ui/ProductTileSkeleton.vue'
 import TyreLabel, { type TyreClass } from '../../Components/Ui/TyreLabel.vue'
-import komplettradImage from '../../images/komplettrad.json'
-import { decimal } from '../../format'
+import { felgen, NNBSP } from '../../format'
 import { isIconName, type IconName } from '../../icons'
 import { useShared } from '../../composables/useShared'
 import type { StartseiteProps } from '../../types/pages'
@@ -56,6 +55,9 @@ const subline = computed(() => {
 
 /** F1 for the shared vehicle, in the first paint; the listing's total is the same figure's fallback. */
 const vehicleCount = computed(() => props.fitmentCount?.count ?? props.popular.total)
+
+/** `1 passende Felge` · `9 passende Felgen` — `felgen()` with the adjective between the number and the noun. */
+const passende = (count: number): string => felgen(count).replace(NNBSP, `${NNBSP}passende `)
 
 /* ── H3 ─────────────────────────────────────────────────────────────────────── */
 
@@ -95,7 +97,7 @@ function switchTab(key: string): void {
 }
 
 const listingLabel = computed(() =>
-    vehicle.value && vehicleCount.value !== null ? `${decimal(vehicleCount.value, 0)} passende Felgen anzeigen` : 'Alle Felgen ansehen'
+    vehicle.value && vehicleCount.value !== null ? `${passende(vehicleCount.value)} anzeigen` : 'Alle Felgen ansehen'
 )
 
 /* ── H6 ─────────────────────────────────────────────────────────────────────── */
@@ -111,7 +113,7 @@ const sizes = computed(() =>
             return {
                 ...s,
                 struck,
-                line: fitting === null ? `${decimal(s.count, 0)} Felgen` : struck ? 'keine passenden' : `${decimal(fitting, 0)} passende Felgen`,
+                line: fitting === null ? felgen(s.count) : struck ? 'keine passenden' : passende(fitting),
             }
         })
 )
@@ -325,10 +327,10 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
             <h2 v-if="sizes.length" class="h2 home-h2">Nach Marke</h2>
             <ul class="brand-grid" aria-label="Felgenmarken">
                 <li v-for="(brand, i) in brandRows" :key="brand ? brand.slug : `empty-${i}`" class="brand-grid__cell">
-                    <Link v-if="brand" :href="brand.href" class="brand-grid__link m-press" :aria-label="`${brand.name}: ${decimal(brand.count, 0)} Felgen`">
+                    <Link v-if="brand" :href="brand.href" class="brand-grid__link m-press" :aria-label="`${brand.name}: ${felgen(brand.count)}`">
                         <span v-if="brand.logo" class="brand-mark" :style="{ maskImage: `url(${brand.logo})` }" aria-hidden="true" />
                         <span v-else class="h4 brand-grid__name">{{ brand.name }}</span>
-                        <span class="micro quiet num">{{ decimal(brand.count, 0) }} Felgen</span>
+                        <span class="micro quiet num">{{ felgen(brand.count) }}</span>
                     </Link>
                 </li>
             </ul>
@@ -338,10 +340,10 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     <!-- H7 · The one dark band: what a Komplettrad is, and its tyre's regulated facts. -->
     <section v-if="tyre" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
-            <h2 id="h7-title" class="h2 home-h2">Kompletträder – montiert und gewuchtet.</h2>
+            <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an – mit dem Gutachten für dein Fahrzeug.</p>
 
-            <Picture :image="komplettradImage" :alt="`Komplettrad: ${tyre.title}`" sizes="100vw" class="home-komplett__photo" />
+            <KomplettradWheel class="home-komplett__wheel" />
 
             <TyreLabel
                 :title="tyre.title"
@@ -398,7 +400,6 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
             <li v-for="guide in guides" :key="guide.slug">
                 <Link :href="`/ratgeber/${guide.slug}`" class="guide m-press" prefetch>
                     <span class="h4 guide__title">{{ guide.title }}</span>
-                    <span class="body muted guide__teaser">{{ guide.teaser }}</span>
                     <span class="small quiet num">{{ guide.minutes }} Min. Lesezeit</span>
                 </Link>
             </li>
@@ -441,7 +442,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 }
 
 .home-lead {
-    max-width: 68ch;
+    max-width: 54ch;
     margin: var(--sp-12) 0 var(--sp-24);
 }
 
@@ -456,7 +457,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 }
 
 .home-hero__sub {
-    max-width: 68ch;
+    max-width: 54ch;
     margin-top: var(--sp-12);
 }
 
@@ -481,8 +482,10 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     gap: var(--sp-20) var(--gutter);
 }
 
+/* Rows pack to the top, so the shorter item's title sits level with its neighbour's. */
 .home-promises__item {
     display: grid;
+    align-content: start;
     gap: var(--sp-4);
     justify-items: start;
     color: var(--c-ink);
@@ -628,10 +631,9 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     color: var(--c-on-dark-2);
 }
 
-.home-komplett__photo {
+/* The grid's 16 px plus this margin: `--sp-32` above and below the wheel. */
+.home-komplett__wheel {
     margin-block: var(--sp-16);
-    border-radius: var(--r-tile);
-    aspect-ratio: 16 / 9;
 }
 
 .home-komplett__label {
@@ -663,14 +665,13 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     margin-bottom: var(--sp-24);
 }
 
+/* No box on a band: the title and the reading time stand on the section, separated by space. */
 .guide {
     display: grid;
     align-content: start;
     gap: var(--sp-8);
     height: 100%;
-    padding: var(--sp-16);
-    border-radius: var(--r-tile);
-    background: var(--c-band);
+    min-height: 44px;
     color: var(--c-ink);
     text-decoration: none;
 }
@@ -680,13 +681,6 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
         text-decoration: underline;
         text-underline-offset: 3px;
     }
-}
-
-.guide__teaser {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
 }
 
 /* ── H11 ────────────────────────────────────────────────────────────────────── */

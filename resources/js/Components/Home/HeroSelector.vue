@@ -335,7 +335,8 @@ function choose(vehicleId: number): void {
 }
 
 function submit(): void {
-    if (pending.value || selection.value === null || zero.value) {
+    // A pair the server has just answered "not found" is not looked up again: the three routes are the actions.
+    if (pending.value || selection.value === null || zero.value || notFound.value) {
         return
     }
 
@@ -385,8 +386,15 @@ watch(
 const chooser = computed(() =>
     lookup.value?.status === 'ambiguous' && lookup.value.distinction !== undefined ? lookup.value.distinction : null
 )
+
+/*
+ * The pair the server has just answered "not found" — regardless of whether the notice was
+ * dismissed. Looking it up again would only produce the same answer, so the primary stays disabled
+ * until the HSN or the TSN changes; the three routes are the actions (R-09).
+ */
+const answered = computed(() => page.props.lookup ?? null)
 const notFound = computed(
-    () => lookup.value?.status === 'not_found' && hsn.value === lookup.value.hsn && tsn.value === lookup.value.tsn
+    () => answered.value?.status === 'not_found' && hsn.value === answered.value.hsn && tsn.value === answered.value.tsn
 )
 
 /** `Höchstgeschwindigkeit 280 km/h · Achslast vorn 1.160 kg · VSN 123`: what differs, and only that. */
@@ -827,12 +835,15 @@ onBeforeUnmount(() => treeController?.abort())
                 </template>
             </p>
 
-            <!-- While the chooser is up, its own button is the action; the primary would only repeat the lookup. -->
+            <!--
+                While the chooser is up, its own button is the action; the primary would only repeat the lookup.
+                After a not-found answer it stays disabled until the HSN or the TSN changes (R-09: the routes lead on).
+            -->
             <button
                 v-if="!chooser"
                 class="btn btn--primary btn--lg btn--block sel__go"
                 type="submit"
-                :disabled="selection === null || zero || pending"
+                :disabled="selection === null || zero || pending || notFound"
                 :aria-busy="pending ? 'true' : undefined"
             >
                 {{ buttonLabel }}

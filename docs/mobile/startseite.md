@@ -16,10 +16,10 @@ document (`hero.sublineMobile`, `fitmentCount`, `sizes[].fitting`, `brands[].cou
 | H4 | `h2` + facts line (`hero.stats`, only when every count > 0) + three stacked blocks, each with its own static document crop and marker state | band, `.section` |
 | H5 (+H5b) | `h2` (*Beliebt für deinen {short}* with a vehicle), tabs (partial reload of `popular` with `?beliebt=`), shelf of 8 `ProductTile`s at 62vw, *Alle Felgen ansehen* / *{total} passende Felgen anzeigen*; H5b shelf when history exists | surface, `.section--tight` |
 | H6 | size shelf (96 px tiles, `.display .num` 40/44, only `count > 0`; with a vehicle the line reads *{fitting} passende Felgen* and a size with `fitting === 0` is struck — `--c-ink-3`, line-through, `aria-disabled`, not a link, never hidden), brand hairline grid 3 per row (mask logo or `.h4` wordmark, *{count} Felgen*, `aria-label` *{name}: {count} Felgen*) | band, `.section` |
-| H7 | dark band: `h2`, sentence, the Kompletträder photograph (`komplettrad.json`, 16:9), `TyreLabel` at full width, `.btn--light` | `--c-dark`, `.section--tight` (does not consume a tone slot) |
+| H7 | dark band: `h2`, sentence, the cut-out (`hero-wheel.json` through `KomplettradWheel.vue`) at 240 px turning 0° → −120° with the scroll (`animation-timeline: view()`, static under reduced motion), `TyreLabel` at full width, `.btn--light` | `--c-dark`, `.section--tight` (does not consume a tone slot) |
 | H8 | `h2`, lead, the shared `FitmentCalculator` (two stacked fieldsets, drawing, values, honest line, *Link kopieren*) | surface, `.section` |
 | H9 | only with `partners.enabled`: `h2` + *Beispieldaten* badge, PLZ field, button, the empty line | band, `.section--tight` |
-| H10 | `h2`, shelf (78vw) of the three guides, each one link to `/ratgeber/{slug}` (title, teaser clamped to two lines, reading time) | band, `.section--tight` |
+| H10 | `h2`, shelf (78vw) of the three guides, each one link to `/ratgeber/{slug}` (title `.h4` and reading time; no box, no teaser) | band, `.section--tight` |
 | H11 | `h2`, status line with the 8 px dot (`--c-ok` when open), four contact rows (tel, WhatsApp, mail, hours), `Accordion` of five FAQs, *Alle Fragen ansehen* | surface, `.section` |
 
 The tone alternates over the light sections and the padding over all of them (home.md §0.3), so
@@ -65,14 +65,18 @@ names for that case. Every section carries `id`, `data-section` and `aria-labell
 `HeroFrame.vue`: the cut-out (`images/hero-wheel.json` through the shared `Picture`, whose
 `<img>` fallback follows the manifest's `fallback: "png"`) at 70 % of a 7 / 6 frame, on `.hero-studio` (light pool) and
 `.hero-contact` (the ellipse it stands on) — the two allowlisted gradients — with two
-`SpecCallout`s (*Felgengröße*, *Einpresstiefe*), the line *LK … · MLB …* beneath, the caption link
-(brand · model · finish, *ab {price} · pro Felge*), and *Symbolfoto* when `product.symbolic`.
-Lazy; the lines draw on `load` (`.frame.is-ready`). `WheelOutline` at 60 % if the image fails.
+`SpecCallout`s (the size and the offset, matched by the desktop's label regexes in
+`calloutSlots.ts`, targets from the manifest mapped into the phone frame), the line *LK … · MLB …*
+beneath, and the caption link (brand · model · finish, *ab {price} · pro Felge*). While
+`product.symbolic` the frame names no product — no link, no brand, no price — and one `.micro`
+line says *Symbolbild – Werte einer Beispielkonfiguration*. Lazy; the lines draw on `load`
+(`.frame.is-ready`). `WheelOutline` at 60 % if the image fails. See `startseite-fixes.md`.
 
 ## Gutachten story
 
 `GutachtenStory.vue`: three blocks, each a crop of the fictional *Teilegutachten Nr. 12-3456
-(Beispiel)* (rows 3–5, five columns, 28 px rows, `--fs-micro`, `font-stretch: 85%`) with an SVG
+(Beispiel)* (the desktop's rows 3–5 verbatim, one tyre size each, five columns at 18 / 10 / 36 /
+24 / 12 %, 28 px rows, `--fs-micro`, `font-stretch: 75%`) with an SVG
 marker overlay (`--c-marker` through an SVG gradient, `mix-blend-mode: multiply`, two wavy
 strokes per highlight, 22 px, `non-scaling-stroke`): block 1 marks *Typ · Genehmigungsnr.*, block
 2 the whole row and its tyre sizes, block 3 everything plus the *Freigegeben* stamp at −4°. Step 3
@@ -147,10 +151,10 @@ type-checked, linted and unit-tested, and need the coordinator's rebuild followe
 - H9 renders only with the `partners` flag (off here); its endpoint and the map come later
   (main agent's decision).
 - The Kompletträder button leads to `/felgen` (vehicle) or `/felgen-suchen` (none): `/komplettraeder`
-  comes later. The image is the 16:9 photograph the pipeline has, not a square cut-out, so it
-  does not turn with the scroll.
+  comes later. The turning cut-out is the hero's rim (`hero-wheel.json`) until `komplettrad.json`
+  is the square rim-with-tyre cut-out (`REQUESTS.md`).
 - The calculator keeps the shared component's two stacked fieldsets rather than *Aktuell · Neu*
-  tabs; a `layout` prop on the shared component is requested.
+  tabs; the `layout="tabs"` prop on the shared component is still absent (`REQUESTS.md`).
 - The last device-lab run predates the coordinator's answers (notify endpoint, guide links, the
   shared `Picture`, the typed props) and the sheet-on-prefetch fix in `MobileLayout.vue`; those
   changes are type-checked, linted and unit-tested, and the lab

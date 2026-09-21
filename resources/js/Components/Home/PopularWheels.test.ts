@@ -171,20 +171,18 @@ describe('PopularWheels', () => {
         expect(wrapper.findAll('#h5 .tile')).toHaveLength(8)
     })
 
-    it('names the vehicle, drops the tabs, carries the count on the button and a verdict on every tile', () => {
+    it('names the vehicle, keeps the tabs the server sends, carries the count on the button and a verdict on every tile', () => {
         const wrapper = mountPopular({
             vehicle,
             popular: popular({
                 title: null,
-                tabs: [],
-                active: 'fahrzeug',
                 total: 1247,
                 cards: cards.map((c, i) => card(i + 1, { fitment: { status: i % 2 ? 'CONDITIONAL' : 'PERMITTED', requiresEntry: false, conditions: i % 2 ? ['Die Änderung ist in die Fahrzeugpapiere einzutragen.'] : [] } })),
             }),
         })
 
         expect(wrapper.find('h2').text()).toBe('Beliebt für deinen BMW 3er')
-        expect(wrapper.findAll('[role="tab"]')).toHaveLength(0)
+        expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Beliebt', 'Neu', 'Bis 200 €'])
         expect(wrapper.find('.popular__more a').text()).toBe('1.247 passende Felgen anzeigen')
         expect(wrapper.find('.popular__more a').attributes('href')).toBe('/felgen')
 
@@ -194,6 +192,14 @@ describe('PopularWheels', () => {
             expect(tile.find('.verdict').exists()).toBe(true)
         }
         expect(wrapper.text()).toContain('Die Änderung ist in die Fahrzeugpapiere einzutragen.')
+    })
+
+    it('renders the row alone when the server sends no tabs', () => {
+        const wrapper = mountPopular({ vehicle, popular: popular({ title: null, tabs: [], active: 'beliebt', total: 3 }) })
+
+        expect(wrapper.findAll('[role="tab"]')).toHaveLength(0)
+        expect(wrapper.findAll('#h5 .tile')).toHaveLength(8)
+        expect(wrapper.find('.popular__more a').text()).toBe('3 passende Felgen anzeigen')
     })
 
     it('renders Zuletzt angesehen only with history', () => {

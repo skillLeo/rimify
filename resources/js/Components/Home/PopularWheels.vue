@@ -2,8 +2,10 @@
 /**
  * H5 · Beliebte Felgen, and H5b · Zuletzt angesehen.
  *
- * Eight real wheels from the catalogue in one of three real orders; with a vehicle chosen the row
- * is that car's answer, every tile carries its verdict, and the tabs give way to the count.
+ * Eight real wheels from the catalogue in one of three real orders; with a vehicle chosen the
+ * heading names the car, every tile carries its verdict, and the button carries the count. The
+ * tabs are the server's: they render whenever it sends them, with a vehicle or without (spec H5
+ * keeps *Beliebt · Neu · Bis 200 €* in both states); an empty list renders the row alone.
  * Changing a tab is a partial reload of `popular` only: the page keeps its scroll position and its
  * state, the grid shows skeletons while the request runs, and a failed request says so above the
  * last tiles that loaded rather than in place of them.
@@ -144,7 +146,7 @@ function keyOf(card: ProductCardProp): string {
                 </TabsContent>
             </TabsRoot>
 
-            <!-- With a vehicle there are no tabs: the row is the answer for that car. -->
+            <!-- No tabs from the server: the row stands alone. -->
             <template v-else>
                 <div v-if="popular.cards.length > 0" class="tile-grid popular__grid popular__grid--vehicle">
                     <ProductTile v-for="(card, i) in popular.cards" :key="keyOf(card)" :card="card" :vehicle="vehicle" :eager="i < 4" compare />

@@ -2,14 +2,19 @@
 /**
  * The fitment calculator (H8 / F6): "Was ändert sich mit der neuen Größe?"
  *
- * Two columns, Aktuell and Neu, five figures each. Out of them come the cross-section drawing and
+ * Two setups, Aktuell and Neu, five figures each. Out of them come the cross-section drawing and
  * four values — Außenkante, Innenkante, Abrollumfang, Tacho bei 100 km/h — all from
  * `lib/fitmentMath`, which is the only place the arithmetic lives.
  *
+ * Two layouts, one component, chosen by the page: `table` (the desktop document) is the compact
+ * table of controls — the label at the left, the two `.input`s beside it, five rows — with the
+ * drawing and the values beside it; `tabs` (the phone document) is Aktuell · Neu as tabs with the
+ * five fields stacked, then the drawing, the values, the honest line and a full-width button.
+ *
  * The page supplies the section and the heading; this is the body. When the customer's vehicle is
- * known, `prefill` sets Aktuell to its original size and Neu to the same, so the first thing shown
- * is an honest "nothing changes yet". Without a vehicle, the two columns show the worked example
- * from the specification.
+ * known, `prefill` sets Aktuell to its original size and Neu to the same, says so above the form,
+ * and the first thing shown is an honest "nothing changes yet". Without a vehicle, the two setups
+ * show the worked example from the specification.
  *
  * Sharing: "Link kopieren" writes `?rechner=W1-D1-ET1-TW1-A1_W2-D2-ET2-TW2-A2` to the clipboard;
  * on mount, the same parameter is read back and — if every figure is one this form offers —
@@ -19,10 +24,12 @@
  * The one line under the values is the point of the section: these are arithmetic, not approval.
  */
 
+import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 import { computed, onMounted, reactive, ref, useId, watch } from 'vue'
 import { decimal, NNBSP, withUnit } from '../../format'
 import { compare, type WheelSetup, signedDecimal } from '../../lib/fitmentMath'
 import OffsetSection from './OffsetSection.vue'
+import type { VehicleProp } from '../../types/rimify'
 
 export interface CalculatorPrefill {
     widthIn: number
@@ -32,7 +39,17 @@ export interface CalculatorPrefill {
     aspect: number
 }
 
-const props = withDefaults(defineProps<{ prefill?: CalculatorPrefill | null }>(), { prefill: null })
+export type CalculatorLayout = 'table' | 'tabs'
+
+const props = withDefaults(
+    defineProps<{
+        prefill?: CalculatorPrefill | null
+        /** The shared vehicle, named in the prefill note; the note needs both a vehicle and a prefill. */
+        vehicle?: VehicleProp | null
+        layout?: CalculatorLayout
+    }>(),
+    { prefill: null, vehicle: null, layout: 'table' }
+)
 
 type Side = 'current' | 'next'
 type SelectField = Exclude<keyof WheelSetup, 'etMm'>
@@ -67,12 +84,13 @@ function jLabel(widthIn: number): string {
     return withUnit(decimal(widthIn, Number.isInteger(widthIn) ? 0 : 1), 'J')
 }
 
+/* Selects carry their unit in the option text (the chevron owns the right edge); the ET field carries a suffix. */
 const FIELDS: { key: Field; label: string; option: (v: number) => string }[] = [
     { key: 'widthIn', label: 'Felgenbreite', option: jLabel },
     { key: 'diameterIn', label: 'Durchmesser', option: (v) => withUnit(v, 'Zoll') },
-    { key: 'etMm', label: 'Einpresstiefe (ET) in mm', option: String },
+    { key: 'etMm', label: 'Einpresstiefe (ET)', option: String },
     { key: 'tyreWidthMm', label: 'Reifenbreite', option: (v) => withUnit(v, 'mm') },
-    { key: 'aspect', label: 'Querschnitt', option: String },
+    { key: 'aspect', label: 'Querschnitt', option: (v) => withUnit(v, '%') },
 ]
 
 /* The worked example from the specification, shown when no vehicle is known. */
@@ -139,6 +157,10 @@ const etText = reactive<Record<Side, string>>({
 
 const errors = reactive<Record<Side, Partial<Record<Field, string>>>>({ current: {}, next: {} })
 
+/* True while the figures are the vehicle's own; a shared link or a hand-edit makes the note untrue. */
+const fromVehicle = ref(prefilled !== null)
+const prefillNote = computed(() => (fromVehicle.value && props.vehicle !== null ? props.vehicle.short : null))
+
 function apply(current: WheelSetup, next: WheelSetup): void {
     Object.assign(setups.current, current)
     Object.assign(setups.next, next)
@@ -155,6 +177,7 @@ watch(
 
         if (s !== null) {
             apply(s, s)
+            fromVehicle.value = true
         }
     }
 )
@@ -291,9 +314,10 @@ const shareParam = computed(() => `${encode(setups.current)}_${encode(setups.nex
 const shareStatus = ref<'idle' | 'copied' | 'manual'>('idle')
 const shareUrl = ref('')
 
-/* A link describes one comparison; once the figures move, the old confirmation is stale. */
+/* A link describes one comparison; once the figures move, the old confirmation is stale — and so is the note. */
 watch(shareParam, () => {
     shareStatus.value = 'idle'
+    fromVehicle.value = false
 })
 
 async function copyLink(): Promise<void> {
@@ -318,6 +342,7 @@ onMounted(() => {
 
     if (shared !== null) {
         apply(shared.current, shared.next)
+        fromVehicle.value = false
     }
 })
 
@@ -332,29 +357,44 @@ function fid(side: Side, field: Field): string {
 function eid(side: Side, field: Field): string {
     return `${fid(side, field)}-error`
 }
+
+/** The table's row labels and column heads, referenced by every control's `aria-labelledby`. */
+function rid(field: Field): string {
+    return `${uid}-row-${field}`
+}
+
+function hid(side: Side): string {
+    return `${uid}-head-${side}`
+}
+
+const tab = ref<Side>('current')
 </script>
 
 <template>
-    <div class="calc">
+    <div class="calc grid" :class="`calc--${layout}`">
         <form class="calc__form" novalidate @submit.prevent>
-            <div class="calc__cols">
-                <fieldset v-for="side in SIDES" :key="side.key" class="calc__col">
-                    <legend class="h4 calc__legend">{{ side.label }}</legend>
-                    <p class="small muted num calc__summary">{{ summaries[side.key] }}</p>
+            <p v-if="prefillNote" class="small quiet calc__prefill">Vorbelegt mit der Serienbereifung deines {{ prefillNote }}.</p>
 
-                    <div v-for="field in FIELDS" :key="field.key" class="form-field">
-                        <label class="form-field__label" :for="fid(side.key, field.key)">{{ field.label }}</label>
+            <!-- Desktop: a compact table of controls — the label at the left, Aktuell and Neu beside it. -->
+            <div v-if="layout === 'table'" class="calc__table" role="group" aria-label="Aktuelle und neue Größe">
+                <span class="calc__corner" aria-hidden="true" />
+                <span v-for="side in SIDES" :id="hid(side.key)" :key="side.key" class="label calc__head">{{ side.label }}</span>
 
+                <template v-for="field in FIELDS" :key="field.key">
+                    <span :id="rid(field.key)" class="label calc__row-label">{{ field.label }}</span>
+
+                    <span v-for="side in SIDES" :key="side.key" class="input-group calc__cell">
                         <input
                             v-if="field.key === 'etMm'"
                             :id="fid(side.key, field.key)"
-                            class="input num"
+                            class="input num calc__et"
                             type="number"
                             :min="ET_MIN"
                             :max="ET_MAX"
                             step="1"
                             autocomplete="off"
                             :value="etText[side.key]"
+                            :aria-labelledby="`${rid(field.key)} ${hid(side.key)}`"
                             :aria-invalid="errors[side.key].etMm ? 'true' : undefined"
                             :aria-describedby="eid(side.key, field.key)"
                             @change="onEtChange(side.key, $event)"
@@ -365,6 +405,7 @@ function eid(side: Side, field: Field): string {
                             :id="fid(side.key, field.key)"
                             v-model="setups[side.key][field.key]"
                             class="input num"
+                            :aria-labelledby="`${rid(field.key)} ${hid(side.key)}`"
                             :aria-invalid="errors[side.key][field.key] ? 'true' : undefined"
                             :aria-describedby="eid(side.key, field.key)"
                             @blur="validateSelect(side.key, field.key as SelectField)"
@@ -373,27 +414,74 @@ function eid(side: Side, field: Field): string {
                                 {{ field.option(option) }}
                             </option>
                         </select>
+                        <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true">mm</span>
+                    </span>
+
+                    <div class="calc__errors">
+                        <p v-for="side in SIDES" :id="eid(side.key, field.key)" :key="side.key" class="form-field__error">
+                            {{ errors[side.key][field.key] ?? '' }}
+                        </p>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Each setup in one line, as a tyre shop would write it. -->
+            <ul v-if="layout === 'table'" class="calc__summaries" aria-label="Die beiden Größen">
+                <li v-for="side in SIDES" :key="side.key" class="small muted num calc__summary">
+                    <span class="calc__summary-side">{{ side.label }}:</span> {{ summaries[side.key] }}
+                </li>
+            </ul>
+
+            <!-- Phone: Aktuell · Neu as tabs, the five fields stacked under each. -->
+            <TabsRoot v-else v-model="tab" class="calc__tabs">
+                <TabsList class="tabs__list" aria-label="Aktuelle oder neue Größe">
+                    <TabsTrigger v-for="side in SIDES" :key="side.key" :value="side.key" class="tabs__trigger">{{ side.label }}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent v-for="side in SIDES" :key="side.key" :value="side.key" class="tabs__content calc__fields">
+                    <p class="small muted num calc__summary">{{ summaries[side.key] }}</p>
+
+                    <div v-for="field in FIELDS" :key="field.key" class="form-field">
+                        <label class="form-field__label" :for="fid(side.key, field.key)">{{ field.label }}</label>
+
+                        <span class="input-group">
+                            <input
+                                v-if="field.key === 'etMm'"
+                                :id="fid(side.key, field.key)"
+                                class="input num calc__et"
+                                type="number"
+                                :min="ET_MIN"
+                                :max="ET_MAX"
+                                step="1"
+                                autocomplete="off"
+                                :value="etText[side.key]"
+                                :aria-invalid="errors[side.key].etMm ? 'true' : undefined"
+                                :aria-describedby="eid(side.key, field.key)"
+                                @change="onEtChange(side.key, $event)"
+                                @blur="validateEt(side.key)"
+                            />
+                            <select
+                                v-else
+                                :id="fid(side.key, field.key)"
+                                v-model="setups[side.key][field.key]"
+                                class="input num"
+                                :aria-invalid="errors[side.key][field.key] ? 'true' : undefined"
+                                :aria-describedby="eid(side.key, field.key)"
+                                @blur="validateSelect(side.key, field.key as SelectField)"
+                            >
+                                <option v-for="option in OPTIONS[field.key as SelectField]" :key="option" :value="option">
+                                    {{ field.option(option) }}
+                                </option>
+                            </select>
+                            <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true">mm</span>
+                        </span>
 
                         <p :id="eid(side.key, field.key)" class="form-field__error">
                             {{ errors[side.key][field.key] ?? '' }}
                         </p>
                     </div>
-                </fieldset>
-            </div>
-
-            <div class="calc__actions">
-                <button class="btn btn--secondary" type="button" @click="copyLink">Link kopieren</button>
-                <span class="small quiet" role="status" aria-live="polite">
-                    {{ shareStatus === 'copied' ? 'Link kopiert.' : '' }}
-                </span>
-            </div>
-
-            <!-- No clipboard here (an older browser, a page without HTTPS): the link is still yours to copy. -->
-            <div v-if="shareStatus === 'manual'" class="form-field">
-                <label class="form-field__label" :for="`${uid}-share`">Link zum Kopieren</label>
-                <input :id="`${uid}-share`" class="input" type="url" readonly :value="shareUrl" @focus="selectAll" />
-                <p class="form-field__help">Automatisch kopieren klappt hier nicht – markiere den Link und kopiere ihn selbst.</p>
-            </div>
+                </TabsContent>
+            </TabsRoot>
         </form>
 
         <div class="calc__result">
@@ -413,63 +501,130 @@ function eid(side: Side, field: Field): string {
                 Rechenwerte ersetzen kein Gutachten – ob eine Kombination zulässig ist, steht im Gutachten.
             </p>
         </div>
+
+        <!-- Sharing: in the form's column on the desktop, under the honest line on the phone. -->
+        <div class="calc__share">
+            <div class="calc__actions">
+                <button class="btn btn--secondary" :class="layout === 'tabs' ? 'btn--block' : 'btn--sm'" type="button" @click="copyLink">
+                    Link kopieren
+                </button>
+                <span class="small quiet" role="status" aria-live="polite">
+                    {{ shareStatus === 'copied' ? 'Link kopiert.' : '' }}
+                </span>
+            </div>
+
+            <!-- No clipboard here (an older browser, a page without HTTPS): the link is still yours to copy. -->
+            <div v-if="shareStatus === 'manual'" class="form-field">
+                <label class="form-field__label" :for="`${uid}-share`">Link zum Kopieren</label>
+                <input :id="`${uid}-share`" class="input" type="url" readonly :value="shareUrl" @focus="selectAll" />
+                <p class="form-field__help">Automatisch kopieren klappt hier nicht – markiere den Link und kopiere ihn selbst.</p>
+            </div>
+        </div>
     </div>
 </template>
 
 <style scoped>
+/* The page grid's columns, the section's own rows. */
 .calc {
-    display: grid;
-    gap: var(--sp-40);
+    row-gap: var(--sp-32);
     align-items: start;
+}
+
+.calc__form,
+.calc__result,
+.calc__share {
+    grid-column: 1 / -1;
+    min-width: 0;
 }
 
 .calc__form {
     display: grid;
-    gap: var(--sp-24);
-    min-width: 0;
+    gap: var(--sp-16);
 }
 
-.calc__cols {
+/* ── The compact table: one label, two controls, five rows ─────────────────── */
+
+.calc__table {
     display: grid;
-    gap: var(--sp-24);
+    grid-template-columns: minmax(0, 1fr) 120px 120px;
+    gap: var(--sp-12) var(--gutter);
+    align-items: center;
 }
 
-/* A fieldset is a column, not a box. */
-.calc__col {
-    display: grid;
-    gap: var(--sp-12);
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
+.calc__head {
+    text-align: left;
 }
 
-.calc__legend {
-    padding: 0;
-}
-
-.calc__summary {
-    margin-bottom: var(--sp-4);
+.calc__row-label {
     overflow-wrap: anywhere;
 }
 
+.calc__cell {
+    min-width: 0;
+}
+
+/* The errors take a row of their own under the controls; empty ones keep no height. */
+.calc__errors {
+    display: grid;
+    grid-column: 1 / -1;
+    gap: var(--sp-4);
+    margin-top: calc(-1 * var(--sp-12));
+}
+
+.calc__errors .form-field__error:empty {
+    display: none;
+}
+
+/* The suffix owns the right edge of the ET field, so the number keeps its spinner off it. */
+.calc__et {
+    appearance: textfield;
+    padding-right: var(--sp-40);
+}
+
+.calc__et::-webkit-inner-spin-button,
+.calc__et::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+}
+
+/* ── The tabs (phone): the five fields stacked under each ───────────────────── */
+
+.calc__fields {
+    display: grid;
+    gap: var(--sp-12);
+}
+
+.calc__summary {
+    overflow-wrap: anywhere;
+}
+
+.calc__summaries {
+    display: grid;
+    gap: var(--sp-4);
+}
+
+.calc__summary-side {
+    color: var(--c-ink);
+    font-weight: 500;
+}
+
+/* ── Sharing ───────────────────────────────────────────────────────────────── */
+
 .calc__actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    display: grid;
+    gap: var(--sp-8);
+}
+
+.calc__share {
+    display: grid;
     gap: var(--sp-16);
 }
+
+/* ── The result ────────────────────────────────────────────────────────────── */
 
 .calc__result {
     display: grid;
     gap: var(--sp-24);
-    min-width: 0;
-}
-
-/* The sheet is a portrait drawing: never wider than a wheel needs, and centred on a phone. */
-.calc__drawing {
-    max-width: 320px;
-    margin-inline: auto;
 }
 
 .calc__note {
@@ -478,25 +633,52 @@ function eid(side: Side, field: Field): string {
 }
 
 .calc__honest {
-    max-width: 68ch;
+    max-width: 54ch;
     hyphens: auto;
 }
 
-@media (min-width: 560px) {
-    .calc__cols {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--gutter);
-    }
+/*
+ * Stacked (tabs, and the table below 1024): the phone puts the button after the honest line, the
+ * last thing in the block; the table keeps it with the form, so the result goes last there.
+ */
+.calc--table .calc__result {
+    order: 1;
 }
 
+/* ── ≥ 1024: form in columns 1–5, drawing and values in 7–12 ───────────────── */
+
 @media (min-width: 1024px) {
-    .calc {
-        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-        gap: var(--sp-64);
+    /* Two rows: the form, then the share block — which takes the slack of the taller result column, from its top. */
+    .calc--table {
+        grid-template-rows: auto minmax(0, 1fr);
     }
 
-    .calc__drawing {
-        margin-inline: 0;
+    .calc--table .calc__form,
+    .calc--table .calc__share {
+        grid-column: 1 / span 5;
+    }
+
+    .calc--table .calc__form {
+        grid-row: 1;
+    }
+
+    .calc--table .calc__share {
+        grid-row: 2;
+        align-self: start;
+        margin-top: calc(-1 * var(--sp-16));
+    }
+
+    .calc--table .calc__result {
+        grid-column: 7 / span 6;
+        grid-row: 1 / span 2;
+        order: 0;
+    }
+
+    .calc--table .calc__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--sp-16);
     }
 }
 </style>

@@ -3,7 +3,8 @@
  * H8 · Der Rechner — "Was ändert sich mit der neuen Größe?" (F6, signature moment 4).
  *
  * The section owns the heading and the lead; the calculator owns the form, the drawing, the four
- * values and the honest line that says the Gutachten decides, not the arithmetic.
+ * values and the honest line that says the Gutachten decides, not the arithmetic. The shared
+ * vehicle goes through so the calculator can say whose Serienbereifung it was prefilled with.
  *
  * The calculator is imported statically on purpose. As an async component its chunk was
  * `modulepreload`ed by Vite's runtime helper during hydration and imported a moment later, which
@@ -13,8 +14,9 @@
 
 import FitmentCalculator from './FitmentCalculator.vue'
 import type { CalculatorPrefill } from '../../types/pages'
+import type { VehicleProp } from '../../types/rimify'
 
-defineProps<{ prefill: CalculatorPrefill | null }>()
+withDefaults(defineProps<{ prefill: CalculatorPrefill | null; vehicle?: VehicleProp | null }>(), { vehicle: null })
 </script>
 
 <template>
@@ -30,7 +32,7 @@ defineProps<{ prefill: CalculatorPrefill | null }>()
             </div>
 
             <div class="calc-section__body">
-                <FitmentCalculator :prefill="prefill" />
+                <FitmentCalculator :prefill="prefill" :vehicle="vehicle" layout="table" />
             </div>
         </div>
     </section>
@@ -42,7 +44,7 @@ defineProps<{ prefill: CalculatorPrefill | null }>()
 }
 
 .calc-section__lead {
-    max-width: 68ch;
+    max-width: 54ch;
     margin-top: var(--sp-12);
     hyphens: auto;
 }

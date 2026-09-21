@@ -3,49 +3,73 @@
  * H6 · Schnell finden — Nach Zollgröße · Nach Marke.
  *
  * Two shortcuts into the catalogue for people who already know what they want. The size tiles are
- * typography, not icons: the number is the tile. A diameter with nothing in stock is shown struck
- * and is not a link — shown, never hidden, so the range reads as a range. Brands sit in a hairline
+ * typography, not icons: the number is the tile. A diameter with nothing in stock is not a tile at
+ * all; with a vehicle chosen, a diameter that no document permits on that car is shown struck and
+ * is not a link — shown, never hidden, so the range reads as a range. Brands sit in a hairline
  * grid as monochrome marks; until the admin has uploaded a logo, the name is the mark.
  */
 
 import { Link } from '@inertiajs/vue3'
-import { decimal } from '../../format'
+import { computed } from 'vue'
+import { felgen, NNBSP } from '../../format'
 import type { StartseiteProps } from '../../types/pages'
+import type { VehicleProp } from '../../types/rimify'
 
-defineProps<{
+const props = defineProps<{
     sizes: StartseiteProps['sizes']
     brands: StartseiteProps['brands']
+    vehicle: VehicleProp | null
 }>()
 
-/* German counts its nouns: one Felge, otherwise Felgen. */
-function countLine(count: number): string {
-    return count === 1 ? '1 Felge' : `${decimal(count, 0)} Felgen`
+/** `1 passende Felge` · `9 passende Felgen` — `felgen()` with the adjective between the number and the noun. */
+function passende(count: number): string {
+    return felgen(count).replace(NNBSP, `${NNBSP}passende `)
 }
+
+/*
+ * A size with no wheel at all is not a tile. With a vehicle, the count is what a document permits
+ * on that car; when the engine has no figure for it, the tile keeps the plain catalogue count and
+ * claims nothing (CLAUDE.md §2).
+ */
+const tiles = computed(() =>
+    props.sizes
+        .filter((size) => size.count > 0)
+        .map((size) => {
+            const fitting = props.vehicle === null ? null : size.fitting
+            const struck = fitting === 0
+
+            return {
+                ...size,
+                struck,
+                line: fitting === null ? felgen(size.count) : struck ? 'keine passenden' : passende(fitting),
+            }
+        })
+)
 </script>
 
 <template>
     <section id="h6" class="find" data-section="H6" aria-labelledby="h6-heading">
         <div class="container">
-            <div v-if="sizes.length > 0" class="find__row">
+            <div v-if="tiles.length > 0" class="find__row">
                 <h2 id="h6-heading" class="h2">Nach Zollgröße</h2>
                 <ul class="sizes" aria-label="Felgen nach Zollgröße">
-                    <li v-for="size in sizes" :key="size.inch" class="sizes__item">
-                        <Link v-if="size.count > 0" :href="size.href" class="size-tile" prefetch>
+                    <li v-for="size in tiles" :key="size.inch" class="sizes__item">
+                        <span v-if="size.struck" class="size-tile size-tile--struck" aria-disabled="true">
                             <span class="display num size-tile__number">{{ size.inch }}</span>
                             <span class="small muted">Zoll</span>
-                            <span class="small num muted">{{ countLine(size.count) }}</span>
-                        </Link>
-                        <span v-else class="size-tile size-tile--struck" aria-disabled="true">
-                            <span class="display num size-tile__number">{{ size.inch }}</span>
-                            <span class="small muted">Zoll</span>
-                            <span class="small muted">keine Felgen</span>
+                            <span class="small muted">{{ size.line }}</span>
                         </span>
+                        <Link v-else :href="size.href" class="size-tile" prefetch>
+                            <span class="display num size-tile__number">{{ size.inch }}</span>
+                            <span class="small muted">Zoll</span>
+                            <span class="small num muted">{{ size.line }}</span>
+                        </Link>
                     </li>
                 </ul>
             </div>
 
             <div v-if="brands.length > 0" class="find__row">
-                <h2 :id="sizes.length > 0 ? 'h6-brands' : 'h6-heading'" class="h2">Nach Marke</h2>
+                <h2 :id="tiles.length > 0 ? 'h6-brands' : 'h6-heading'" class="h2">Nach Marke</h2>
                 <ul class="brands" aria-label="Felgen nach Marke">
                     <li v-for="brand in brands" :key="brand.slug" class="brands__item">
                         <Link :href="brand.href" class="brand-cell" :aria-label="brand.logo ? brand.name : undefined" prefetch>
@@ -95,6 +119,7 @@ function countLine(count: number): string {
     transition: color var(--d-1) var(--ease-std);
 }
 
+/* Struck: the number in the tertiary ink, crossed out; the tile is not a link and says why. */
 .size-tile--struck .size-tile__number {
     color: var(--c-ink-3);
     text-decoration: line-through;

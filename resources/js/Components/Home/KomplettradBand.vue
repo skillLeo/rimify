@@ -7,18 +7,17 @@
  * scroll-driven animation where the browser has one, and simply a still wheel everywhere else —
  * there is no scroll listener, ever. Under reduced motion the wheel stands at 0°.
  *
- * The photograph of a mounted wheel is the pipeline's output for `komplettrad`; the cut-out that
- * turns is the hero's until the client's own complete-wheel cut-out arrives
- * (docs/phase0/ASSET-REQUEST.md §5). Neither carries a scrim: a scrim would be a second gradient.
+ * One picture, and it is the subject: the cut-out that turns. It is the hero's rim until the
+ * client's own complete-wheel cut-out — rim with tyre, front-facing — arrives
+ * (docs/phase0/ASSET-REQUEST.md §5) and replaces it in `resources/js/images/`. No lifestyle
+ * photograph beside it (spec H7 "Never"), and no scrim: a scrim would be a second gradient.
  */
 
 import { Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
-import Picture from '../Ui/Picture.vue'
 import TyreLabel, { type TyreClass } from '../Ui/TyreLabel.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import heroWheel from '../../images/hero-wheel.json'
-import komplettrad from '../../images/komplettrad.json'
 import type { EuTyreLabel } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -56,7 +55,6 @@ const href = computed(() => (props.vehicle === null ? '/felgen-suchen?ziel=kompl
 
 /* The cut-out: AVIF, WebP, then the PNG the manifest names as its fallback (it has an alpha channel). */
 const WHEEL_SIZES = '(min-width: 1280px) 416px, (min-width: 1024px) 30vw, (min-width: 768px) 45vw, 240px'
-const PHOTO_SIZES = '(min-width: 1280px) 526px, (min-width: 1024px) 40vw, (min-width: 768px) 704px, 100vw'
 
 const wheelFailed = ref(false)
 const largest = heroWheel.widths[heroWheel.widths.length - 1] ?? heroWheel.width
@@ -75,8 +73,6 @@ function srcset(ext: string): string {
                     Felge und Reifen kommen fertig montiert und gewuchtet bei dir an – mit dem Gutachten für dein Fahrzeug.
                 </p>
                 <Link :href="href" class="btn btn--light komplett__button">Kompletträder für mein Fahrzeug</Link>
-
-                <Picture class="komplett__photo" :image="komplettrad" alt="Ein montiertes Komplettrad am Fahrzeug" :sizes="PHOTO_SIZES" />
             </div>
 
             <div class="komplett__stage">
@@ -127,12 +123,6 @@ function srcset(ext: string): string {
 
 .komplett__button {
     margin-top: var(--sp-32);
-}
-
-.komplett__photo {
-    margin-top: var(--sp-32);
-    aspect-ratio: 16 / 9;
-    border-radius: var(--r-tile);
 }
 
 /* The cut-out is square and centred, so the turn never changes the layout box. */

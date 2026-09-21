@@ -122,9 +122,19 @@ const line = computed(() => {
     }
 }
 
+/* Motion off: the line and its dot rest in their end state from the first paint — nothing draws, nothing appears. */
 @media (prefers-reduced-motion: reduce) {
     :global(.frame:not(.is-ready)) .callout__line {
         opacity: 1;
+    }
+
+    :global(.frame) .callout__line path,
+    :global(.frame) .callout__line circle,
+    :global(.frame.is-ready) .callout__line path,
+    :global(.frame.is-ready) .callout__line circle {
+        animation: none;
+        opacity: 1;
+        stroke-dashoffset: 0;
     }
 }
 </style>

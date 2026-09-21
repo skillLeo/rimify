@@ -94,7 +94,7 @@ function readingTime(minutes: number): string {
 
 .guide__teaser {
     display: -webkit-box;
-    max-width: 68ch;
+    max-width: 54ch;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;

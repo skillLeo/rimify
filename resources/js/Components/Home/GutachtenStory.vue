@@ -4,14 +4,21 @@
  *
  * A paper document on the left: the "Verwendungsbereich" table of a fictional Teilegutachten, set
  * small and narrow the way a type-approval document is set. On the right, three steps. As the
- * steps scroll into view, highlighter strokes mark the row of the chosen vehicle and, at the end,
+ * steps scroll into view, highlighter strokes mark the row of the example vehicle and, at the end,
  * the verdict stamp lands. The marker colour and its gradient exist for this one illustration
  * (docs/phase0/ADDENDUM.md §C, docs/design/sections/home.md §0.6).
  *
- * Motion is scroll-driven where the browser has `animation-timeline: view()`; elsewhere an
- * IntersectionObserver switches a `data-step` attribute and CSS transitions do the rest, never
- * flickering back. Under reduced motion, without JavaScript, and in print, the document simply
- * rests in its end state: every stroke drawn, the stamp down.
+ * The document is an example and stays one: the marked row is always the fictional BMW row, with
+ * a vehicle chosen or not. A "Beispiel" document that asserted a verdict for the customer's real
+ * car — which no document here knows anything about — would be the one thing CLAUDE.md §2 forbids.
+ * The row changes only when the engine hands the page a real document row for that vehicle.
+ *
+ * Motion is one scroll-driven timeline over the steps column where the browser has
+ * `animation-timeline: view()`, so the four moments — find, mark, read the sizes, answer — play in
+ * that order at every viewport height. Elsewhere two IntersectionObservers advance a `data-step`
+ * attribute in the same order and CSS transitions do the rest, never flickering back. Below 1024,
+ * under reduced motion, without JavaScript, and in print, the document simply rests in its end
+ * state: every stroke drawn, the stamp down.
  *
  * The document is the one place on the site where an Auflage may appear as a code — it is a
  * facsimile. Everything the reader is meant to understand stands beside it, as sentences (R-15).
@@ -21,11 +28,9 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
 import { decimal } from '../../format'
 import type { HomeStats } from '../../types/pages'
-import type { VehicleProp } from '../../types/rimify'
 
 const props = defineProps<{
     stats: HomeStats
-    vehicle: VehicleProp | null
 }>()
 
 /* ── The document ─────────────────────────────────────────────────────────────── */
@@ -57,28 +62,6 @@ const EXAMPLE_ROWS: readonly DocRow[] = [
 ]
 
 const TARGET = 3
-
-/*
- * With a vehicle chosen, the marked row names it. The page knows the make and the variant; it does
- * not know the type code, the approval number or the tyre sizes of that car's row in any document,
- * so those cells stay empty rather than borrow the example's values (CLAUDE.md §2).
- */
-const rows = computed<readonly DocRow[]>(() => {
-    if (props.vehicle === null) {
-        return EXAMPLE_ROWS
-    }
-
-    const own: DocRow = {
-        maker: props.vehicle.make,
-        trade: props.vehicle.variant,
-        type: '–',
-        approval: '–',
-        tyres: '–',
-        conditions: '–',
-    }
-
-    return EXAMPLE_ROWS.map((row, i) => (i === TARGET ? own : row))
-})
 
 /* ── The marker strokes, in the table's own coordinate space ─────────────────── */
 
@@ -144,12 +127,49 @@ const EXAMPLE_CONDITIONS = [
     'Die Änderung ist in die Fahrzeugpapiere einzutragen.',
 ]
 
-/* ── Motion fallback: an observer where the browser has no scroll-driven animations ── */
+/* ── Motion fallback: observers where the browser has no scroll-driven animations ── */
+
+/**
+ * The same order as the timeline: step 1 → stroke 1, step 2 → stroke 2, step 3 → stroke 3, and the
+ * stamp once step 3 has moved on up to the top quarter of the viewport. The centre band catches
+ * each step as it is read; the upper band is where step 3 is when the reader is done with it.
+ */
+const STATES = ['1', '2', '3', 'stamped'] as const
+const CENTRE_BAND = '-40% 0px -40% 0px'
+const UPPER_BAND = '0px 0px -75% 0px'
 
 const root = ref<HTMLElement | null>(null)
 const fallback = ref(false)
-const step = ref(0)
-let observer: IntersectionObserver | undefined
+const reached = ref(0)
+const observers: IntersectionObserver[] = []
+
+const step = computed(() => (fallback.value && reached.value > 0 ? STATES[reached.value - 1] : undefined))
+
+function advance(to: number): void {
+    /* The highest state reached stays reached: scrolling back never undraws a stroke. */
+    if (to > reached.value) {
+        reached.value = to
+    }
+}
+
+function observe(rootMargin: string, targets: HTMLElement[], state: (el: HTMLElement) => number): void {
+    const observer = new IntersectionObserver(
+        (entries) => {
+            for (const entry of entries) {
+                if (entry.isIntersecting) {
+                    advance(state(entry.target as HTMLElement))
+                }
+            }
+        },
+        { rootMargin }
+    )
+
+    for (const el of targets) {
+        observer.observe(el)
+    }
+
+    observers.push(observer)
+}
 
 onMounted(() => {
     if (typeof IntersectionObserver === 'undefined') {
@@ -157,33 +177,25 @@ onMounted(() => {
     }
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const desktop = window.matchMedia('(min-width: 1024px)').matches
     const native = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('animation-timeline: view()')
 
-    if (reduced || native || root.value === null) {
+    if (reduced || !desktop || native || root.value === null) {
         return
     }
 
+    const steps = [...root.value.querySelectorAll<HTMLElement>('[data-step-index]')]
+    const last = steps[steps.length - 1]
+
     fallback.value = true
-    observer = new IntersectionObserver(
-        (entries) => {
-            for (const entry of entries) {
-                const reached = Number((entry.target as HTMLElement).dataset.stepIndex)
+    observe(CENTRE_BAND, steps, (el) => Number(el.dataset.stepIndex))
 
-                /* The highest step reached stays reached: scrolling back never undraws a stroke. */
-                if (entry.isIntersecting && reached > step.value) {
-                    step.value = reached
-                }
-            }
-        },
-        { rootMargin: '-40% 0px -40% 0px' }
-    )
-
-    for (const el of root.value.querySelectorAll<HTMLElement>('[data-step-index]')) {
-        observer.observe(el)
+    if (last !== undefined) {
+        observe(UPPER_BAND, [last], () => STATES.length)
     }
 })
 
-onBeforeUnmount(() => observer?.disconnect())
+onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
 </script>
 
 <template>
@@ -193,7 +205,7 @@ onBeforeUnmount(() => observer?.disconnect())
         class="story"
         :class="{ 'is-io': fallback }"
         data-section="H4"
-        :data-step="fallback && step > 0 ? step : undefined"
+        :data-step="step"
         aria-labelledby="h4-heading"
     >
         <div class="container">
@@ -222,7 +234,7 @@ onBeforeUnmount(() => observer?.disconnect())
                                 <div class="doc__row doc__row--head">
                                     <span v-for="heading in HEADINGS" :key="heading" class="doc__cell doc__cell--head">{{ heading }}</span>
                                 </div>
-                                <div v-for="(row, i) in rows" :key="i" class="doc__row" :class="{ 'doc__row--target': i === TARGET }">
+                                <div v-for="(row, i) in EXAMPLE_ROWS" :key="i" class="doc__row" :class="{ 'doc__row--target': i === TARGET }">
                                     <span class="doc__cell">{{ row.maker }}</span>
                                     <span class="doc__cell">{{ row.trade }}</span>
                                     <span class="doc__cell">{{ row.type }}</span>
@@ -436,7 +448,7 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 
 .story__text {
-    max-width: 68ch;
+    max-width: 54ch;
     hyphens: auto;
 }
 
@@ -470,70 +482,62 @@ onBeforeUnmount(() => observer?.disconnect())
         gap: var(--sp-64);
     }
 
+    /* The column is longer than one viewport, so the four moments are apart on the timeline. */
     .story__step {
-        min-height: 240px;
+        min-height: 32vh;
     }
 }
 
-/* ── Motion: the strokes follow the steps ──────────────────────────────────── */
+/* ── Motion: one timeline over the steps column, four consecutive slices of it ── */
 
-@supports (animation-timeline: view()) {
-    .story {
-        timeline-scope: --step-1, --step-2, --step-3;
-    }
+@media (min-width: 1024px) {
+    @supports (animation-timeline: view()) {
+        .story {
+            timeline-scope: --story;
+        }
 
-    .story__step:nth-child(1) {
-        view-timeline: --step-1 block;
-    }
+        .story__steps {
+            view-timeline: --story block;
+        }
 
-    .story__step:nth-child(2) {
-        view-timeline: --step-2 block;
-    }
+        .marker__stroke--1 {
+            animation: draw linear both;
+            animation-timeline: --story;
+            animation-range: cover 5% cover 25%;
+        }
 
-    .story__step:nth-child(3) {
-        view-timeline: --step-3 block;
-    }
+        .marker__stroke--2 {
+            animation: draw linear both;
+            animation-timeline: --story;
+            animation-range: cover 30% cover 50%;
+        }
 
-    .marker__stroke--1 {
-        animation: draw linear both;
-        animation-timeline: --step-1;
-        animation-range: entry 20% entry 80%;
-    }
+        .marker__stroke--3 {
+            animation: draw linear both;
+            animation-timeline: --story;
+            animation-range: cover 52% cover 68%;
+        }
 
-    .marker__stroke--2 {
-        animation: draw linear both;
-        animation-timeline: --step-2;
-        animation-range: entry 20% entry 70%;
-    }
-
-    .marker__stroke--3 {
-        animation: draw linear both;
-        animation-timeline: --step-2;
-        animation-range: entry 70% exit 20%;
-    }
-
-    .doc__stamp {
-        animation: land linear both;
-        animation-timeline: --step-3;
-        animation-range: entry 30% entry 60%;
+        .doc__stamp {
+            animation: land linear both;
+            animation-timeline: --story;
+            animation-range: cover 72% cover 85%;
+        }
     }
 }
 
-/* The observer fallback: the class arrives on mount, the attribute as the steps are reached. */
+/* The observer fallback: the class arrives on mount, the attribute as the steps are reached — in the same order. */
 .story.is-io .marker__stroke {
     stroke-dashoffset: 1;
     transition: stroke-dashoffset var(--d-3) var(--ease-out);
 }
 
-.story.is-io .marker__stroke--3 {
-    transition-delay: var(--d-3);
-}
-
 .story.is-io[data-step] .marker__stroke--1,
 .story.is-io[data-step='2'] .marker__stroke--2,
-.story.is-io[data-step='2'] .marker__stroke--3,
 .story.is-io[data-step='3'] .marker__stroke--2,
-.story.is-io[data-step='3'] .marker__stroke--3 {
+.story.is-io[data-step='3'] .marker__stroke--3,
+.story.is-io[data-step='stamped'] .marker__stroke--2,
+.story.is-io[data-step='stamped'] .marker__stroke--3 {
     stroke-dashoffset: 0;
 }
 
@@ -545,7 +549,7 @@ onBeforeUnmount(() => observer?.disconnect())
         transform var(--d-2) var(--ease-out);
 }
 
-.story.is-io[data-step='3'] .doc__stamp {
+.story.is-io[data-step='stamped'] .doc__stamp {
     opacity: 1;
     transform: rotate(-4deg) scale(1);
 }

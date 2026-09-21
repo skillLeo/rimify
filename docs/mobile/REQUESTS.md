@@ -18,6 +18,22 @@ these until it lands.
 - Still open, by the main agent's decision: Konto, `/komplettraeder`, the partners endpoint
   (fallbacks stay as built); DocumentScan's contract (the adapter stays).
 
+## New (design-review fixes, 2026-09-22)
+
+- `resources/js/Components/Home/GutachtenStory.vue` keeps its `EXAMPLE_ROWS` (and `TARGET`)
+  inline. The phone story (`Components/Mobile/Home/GutachtenStory.vue`) now carries a verbatim
+  copy (review finding 12) so both documents show the same fictional rows. Please move the nine
+  rows and `TARGET` into a data module — e.g. `resources/js/Components/Home/gutachtenRows.ts`
+  exporting `EXAMPLE_ROWS` and `TARGET` — and the phone story imports it and drops its copy.
+- `resources/js/Components/Home/FitmentCalculator.vue`: the `layout="tabs"` prop (review finding
+  13) is not on the component yet (`defineProps<{ prefill }>` only). The phone mounts it as
+  before (`Startseite/Mobile.vue`, H8); once the prop exists the mount gains `layout="tabs"` —
+  one attribute, nothing else on the phone changes.
+- `resources/js/images/komplettrad.json` is still the 16:9 photograph. The phone's H7 now turns
+  the `hero-wheel.json` cut-out at 240 px (`Components/Mobile/Home/KomplettradWheel.vue`, review
+  finding 4). When `scripts/cutout.mjs` produces the front-facing complete wheel (rim with tyre,
+  square, `fallback: "png"`) as `komplettrad.json`, that component switches its import — one line.
+
 ## New
 
 - `database/seeders/ContentSeeder.php` (the `startseite` page's `hero` block): seed `sub_mobile`

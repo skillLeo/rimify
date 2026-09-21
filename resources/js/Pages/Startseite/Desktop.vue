@@ -86,15 +86,15 @@ const rhythm = computed<Partial<Record<SectionKey, string>>>(() => {
 
     <PromiseRow v-if="showPromises" :promises="promises" />
 
-    <GutachtenStory :class="rhythm.h4" :stats="hero.stats" :vehicle="vehicle" />
+    <GutachtenStory :class="rhythm.h4" :stats="hero.stats" />
 
     <PopularWheels :class="rhythm.h5" :popular="popular" :recently-viewed="recentlyViewed" :vehicle="vehicle" />
 
-    <FindFast v-if="showFindFast" :class="rhythm.h6" :sizes="sizes" :brands="brands" />
+    <FindFast v-if="showFindFast" :class="rhythm.h6" :sizes="sizes" :brands="brands" :vehicle="vehicle" />
 
     <KomplettradBand :class="rhythm.h7" :tyre="komplettrad.tyre" :vehicle="vehicle" />
 
-    <CalculatorSection :class="rhythm.h8" :prefill="calculator.prefill" />
+    <CalculatorSection :class="rhythm.h8" :prefill="calculator.prefill" :vehicle="vehicle" />
 
     <PartnersSection v-if="showPartners" :class="rhythm.h9" :demo="partners.demo" />
 

@@ -401,9 +401,25 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Anrufen: 0800 123 45 67'])
         expect(routes[2]!.attributes('href')).toBe('tel:+498001234567')
 
+        // The routes are the actions: the primary would only repeat the lookup, so it is disabled.
+        expect(button(wrapper).element.disabled).toBe(true)
+        await wrapper.find('form').trigger('submit')
+        expect(forms.find((f) => 'hsn' in f)!.post).not.toHaveBeenCalled()
+
         await routes[0]!.trigger('click')
         await nextTick()
         expect(document.activeElement).toBe(byLabel(wrapper, 'HSN (Feld 2.1)').element)
+        expect(wrapper.find('.sel__notfound').exists()).toBe(false)
+        expect(button(wrapper).element.disabled).toBe(true)
+
+        // A different pair is a new question, and the button is back.
+        await byLabel(wrapper, 'HSN (Feld 2.1)').setValue('9998')
+        await nextTick()
+        expect(button(wrapper).element.disabled).toBe(false)
+
+        await byLabel(wrapper, 'HSN (Feld 2.1)').setValue('9999')
+        await nextTick()
+        expect(button(wrapper).element.disabled).toBe(true)
 
         await routes[1]!.trigger('click')
         await nextTick()

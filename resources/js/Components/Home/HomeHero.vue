@@ -7,10 +7,17 @@
  * real thing by thin leader lines. Every value on the stage is the chosen product's own, formatted
  * on the server; nothing here is typed.
  *
+ * While the photograph is a stand-in (`product.symbolic`), the stage shows the values and one line
+ * saying so — and prints no brand, no model and no price, and links nowhere: a German buyer who
+ * knows a mesh wheel when he sees one is not told it is something else. With the product's own
+ * cut-out the caption names it and the whole stage is one link to it.
+ *
  * Signature moment 1, "Studio light": when the photograph has painted, one light pass crosses the
  * wheel (900 ms, once); when that ends, the leader lines draw in. A fine pointer rolls the wheel
  * ±8° as it moves across the frame. Under reduced motion nothing moves and the lines are there
- * from the first paint.
+ * from the first paint. The blended, masked pass is composited inside the wheel's own box only
+ * (`isolation` on the wheel, never on the frame): an isolated frame rendered empty in Chromium for
+ * the whole sweep on a cold visit.
  *
  * The photograph's targets are calibrated once against the cut-out and live in the manifest
  * (`resources/js/images/hero-wheel.json` → `targets`), so a later cut-out swap edits data, not code.
@@ -63,9 +70,14 @@ const SLOTS: readonly { key: TargetKey; x: number; y: number; label: RegExp }[] 
 const SUBLINE =
     'Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen. Du gibst dein Auto an, wir prüfen den Rest.'
 
+/* The one sentence for a stand-in photograph, in both documents. */
+const SYMBOLIC = 'Symbolbild – Werte einer Beispielkonfiguration'
+const SYMBOLIC_ALT = 'Symbolbild einer Leichtmetallfelge, Ansicht von vorn'
+
 const page = usePage<SharedProps>()
 const vehicle = computed(() => page.props.vehicle)
 const product = computed(() => props.hero.product)
+const symbolic = computed(() => product.value?.symbolic === true)
 const manifest = computed<CutoutManifest>(() => MANIFESTS[product.value?.image ?? ''] ?? (heroWheel as CutoutManifest))
 
 const title = computed(() =>
@@ -73,9 +85,13 @@ const title = computed(() =>
 )
 const subline = computed(() => (props.hero.subline.trim() === '' ? SUBLINE : props.hero.subline))
 
-const alt = computed(() =>
-    product.value === null ? '' : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`
-)
+const alt = computed(() => {
+    if (product.value === null) {
+        return ''
+    }
+
+    return symbolic.value ? SYMBOLIC_ALT : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`
+})
 const perWheel = computed(() => (product.value === null ? '' : euro(Math.round(product.value.fromPriceCents / 4))))
 
 /** Each server value on its slot: matched by what the label says, else by the order shipped. */
@@ -210,11 +226,13 @@ onBeforeUnmount(() => {
                     <div class="hero-studio" aria-hidden="true" />
                     <div class="hero-contact" aria-hidden="true" />
 
-                    <a
+                    <!-- One link, one tab stop — the wheel and the caption — when the photograph is the product's own. -->
+                    <component
+                        :is="symbolic ? 'div' : 'a'"
                         v-if="product"
                         class="hero__link"
-                        :href="`/felgen/${product.slug}`"
-                        :aria-label="`Zur Felge ${product.brand} ${product.name}`"
+                        :href="symbolic ? undefined : `/felgen/${product.slug}`"
+                        :aria-label="symbolic ? undefined : `Zur Felge ${product.brand} ${product.name}`"
                     >
                         <span class="hero__wheel" :class="{ 'hero__wheel--fallback': failed }" :style="{ '--roll': `${roll}deg` }">
                             <Picture
@@ -232,11 +250,11 @@ onBeforeUnmount(() => {
                                 <span ref="sweep" class="hero-sweep" @animationend="onSweepEnd" />
                             </span>
                         </span>
-                        <span class="hero__caption">
+                        <span v-if="!symbolic" class="hero__caption">
                             <span class="small hero__caption-name">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
                             <span class="small num muted">ab {{ perWheel }} · pro Felge</span>
                         </span>
-                    </a>
+                    </component>
                     <span v-else class="hero__wheel hero__wheel--fallback" aria-hidden="true">
                         <WheelOutline />
                     </span>
@@ -251,9 +269,9 @@ onBeforeUnmount(() => {
                         :tx="c.tx"
                         :ty="c.ty"
                     />
-                </div>
 
-                <p v-if="product?.symbolic" class="micro quiet hero__symbolic">Symbolbild – Werte der gezeigten Konfiguration</p>
+                    <p v-if="symbolic" class="micro quiet hero__symbolic">{{ SYMBOLIC }}</p>
+                </div>
             </div>
         </div>
     </section>
@@ -282,7 +300,7 @@ onBeforeUnmount(() => {
 }
 
 .hero__subline {
-    max-width: 68ch;
+    max-width: 54ch;
     margin-top: var(--sp-16);
     color: var(--c-ink-2);
 }
@@ -298,7 +316,11 @@ onBeforeUnmount(() => {
     min-width: 0;
 }
 
-/* 768–1023: the frame stands below the panel, 4 / 3, the wheel at 60 %. */
+/*
+ * 768–1023: the frame stands below the panel, 4 / 3, the wheel at 60 %. The frame is deliberately
+ * no stacking context of its own (no `isolation`, no transform): the blended sweep is confined to
+ * the wheel's box below, so the studio, the shadow and the callouts never join its compositing group.
+ */
 .hero__frame {
     --wheel-w: 60%;
     --wheel-bottom: 16%;
@@ -307,7 +329,6 @@ onBeforeUnmount(() => {
     width: 100%;
     max-width: 560px;
     aspect-ratio: 4 / 3;
-    isolation: isolate;
 }
 
 .hero-studio {
@@ -350,6 +371,7 @@ onBeforeUnmount(() => {
     border-radius: var(--r-round);
 }
 
+/* The wheel's box is the one isolated group: the sweep blends with the photograph and nothing else. */
 .hero__wheel {
     position: absolute;
     left: calc((100% - var(--wheel-w)) / 2);
@@ -357,6 +379,7 @@ onBeforeUnmount(() => {
     z-index: var(--z-raised);
     width: var(--wheel-w);
     aspect-ratio: 1;
+    isolation: isolate;
     transform: rotate(var(--roll, 0deg));
     transition: transform var(--d-2) var(--ease-out);
 }
@@ -408,6 +431,11 @@ onBeforeUnmount(() => {
     animation: sweep calc(1.5 * var(--d-4)) var(--ease-std) forwards;
 }
 
+/* Its own layer for exactly the animation's duration; released once the lines start drawing. */
+.is-lit:not(.is-ready) .hero-sweep {
+    will-change: transform;
+}
+
 @keyframes sweep {
     from {
         transform: translateX(-100%);
@@ -446,12 +474,29 @@ onBeforeUnmount(() => {
     }
 }
 
+/* The stand-in note sits inside the frame, bottom right, where the caption is not. */
 .hero__symbolic {
+    position: absolute;
+    right: 4%;
+    bottom: 4%;
+    z-index: var(--z-raised);
     display: block;
-    margin-top: var(--sp-8);
+    max-width: 50%;
+    text-align: right;
 }
 
-/* ── 1024–1279: split 6 / 6, the stage bleeding to the viewport edge ───────── */
+/*
+ * Up to 1279 the frame is short (420 px at 768, 400 px at 1024–1279) and the Mittenlochbohrung box
+ * (y 72 % + 56 px) would meet a caption at the bottom edge; the caption sits under the box instead.
+ */
+@media (max-width: 1279px) {
+    .hero__caption {
+        top: calc(72% + 56px + var(--sp-8));
+        bottom: auto;
+    }
+}
+
+/* ── 1024–1279: split 6 / 6, the stage bleeding to the viewport edge, the frame 500 × 400 ── */
 
 @media (min-width: 1024px) {
     .hero__grid {
@@ -477,24 +522,50 @@ onBeforeUnmount(() => {
     }
 }
 
-/* 1024–1279 the frame is 400 px tall and the Mittenlochbohrung box (y 72 %) would meet the caption; the caption sits under the box. */
-@media (min-width: 1024px) and (max-width: 1279px) {
-    .hero__caption {
-        top: calc(72% + 56px + var(--sp-8));
-        bottom: auto;
-    }
-}
-
-/* ── ≥ 1280: split 5 / 7, the bleed reaching past the centred content ───────── */
-
+/*
+ * ── ≥ 1280: split 5 / 7, the bleed reaching past the centred content ─────────
+ *
+ * The stage is the box. The frame takes the copy column's height (608 px at 1440 — h1, subline,
+ * panel) instead of setting the row's height itself, so the fold arithmetic of §H2 holds: H2 ends
+ * at 720, H3 begins at 816. Its width follows the height at 4 / 3 (811 px at 608), capped at the
+ * stage, so the callout geometry — percentages of the frame — is the same at 1440 and at 1920.
+ * The wheel is sized from the height (82,5 %, its bottom at 84 %) for the same reason: the frame
+ * is as wide as the stage allows, but never taller than the copy.
+ */
 @media (min-width: 1280px) {
     .hero__copy {
         grid-column: span 5;
     }
 
     .hero__stage {
+        position: relative;
         grid-column: span 7;
         margin-right: calc((100vw - var(--content-max)) / -2);
+    }
+
+    .hero__frame {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: auto;
+        /* Never a collapsed frame in an engine that ignores the ratio on a positioned box. */
+        min-width: 75%;
+        max-width: 100%;
+        max-height: none;
+        aspect-ratio: 4 / 3;
+    }
+
+    .hero__wheel {
+        left: 50%;
+        width: auto;
+        height: 82.5%;
+        transform: translateX(-50%) rotate(var(--roll, 0deg));
+    }
+
+    .hero-contact {
+        width: auto;
+        height: 6.6%;
     }
 }
 

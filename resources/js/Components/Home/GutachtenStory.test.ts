@@ -3,52 +3,51 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import GutachtenStory from './GutachtenStory.vue'
 import type { HomeStats } from '../../types/pages'
-import type { VehicleProp } from '../../types/rimify'
 
 const stats: HomeStats = { gutachten: 1234, variants: 56789, wheels: 412, brands: 6 }
 
-const vehicle: VehicleProp = {
-    id: 3,
-    make: 'Audi',
-    model: 'RS 4',
-    variant: 'RS 4 Avant Quattro',
-    label: 'Audi RS 4 Avant Quattro',
-    short: 'Audi RS 4',
-    hsn: '0588',
-    tsn: 'AAS',
-    keyNumbers: 'HSN 0588 · TSN AAS',
-    buildWindow: '09/2012–06/2019',
-}
-
-/* The observer the fallback attaches, with a way to fire it from the test. */
+/* The observers the fallback attaches — one per band — with a way to fire them from the test. */
 type IoCallback = (entries: { isIntersecting: boolean; target: Element }[]) => void
-let ioCallback: IoCallback | null = null
-const observed: Element[] = []
+const callbacks = new Map<string, IoCallback>()
+const observed = new Map<string, Element[]>()
 
 class FakeIntersectionObserver {
-    constructor(callback: IoCallback) {
-        ioCallback = callback
+    private readonly band: string
+
+    constructor(callback: IoCallback, options: { rootMargin?: string } = {}) {
+        this.band = options.rootMargin ?? ''
+        callbacks.set(this.band, callback)
+        observed.set(this.band, [])
     }
 
     observe(el: Element): void {
-        observed.push(el)
+        observed.get(this.band)?.push(el)
     }
 
     disconnect(): void {
-        observed.length = 0
+        observed.set(this.band, [])
     }
 }
 
-function reach(wrapper: VueWrapper, step: number): void {
+const CENTRE = '-40% 0px -40% 0px'
+const UPPER = '0px 0px -75% 0px'
+
+function reach(wrapper: VueWrapper, step: number, band = CENTRE): void {
     const el = wrapper.find(`[data-step-index="${step}"]`).element
-    ioCallback?.([{ isIntersecting: true, target: el }])
+    callbacks.get(band)?.([{ isIntersecting: true, target: el }])
+}
+
+function media(queries: Record<string, boolean>): void {
+    window.matchMedia = vi.fn((query: string) => ({
+        matches: Object.entries(queries).some(([needle, value]) => value && query.includes(needle)),
+    })) as unknown as typeof window.matchMedia
 }
 
 let wrappers: VueWrapper[] = []
 
-function mountStory(props: { stats?: HomeStats; vehicle?: VehicleProp | null } = {}): VueWrapper {
+function mountStory(props: { stats?: HomeStats } = {}): VueWrapper {
     const wrapper = mount(GutachtenStory, {
-        props: { stats: props.stats ?? stats, vehicle: props.vehicle ?? null },
+        props: { stats: props.stats ?? stats },
         attachTo: document.body,
     })
     wrappers.push(wrapper)
@@ -57,11 +56,11 @@ function mountStory(props: { stats?: HomeStats; vehicle?: VehicleProp | null } =
 }
 
 beforeEach(() => {
-    ioCallback = null
-    observed.length = 0
+    callbacks.clear()
+    observed.clear()
     vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
     vi.stubGlobal('CSS', { supports: () => false })
-    window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia
+    media({ 'min-width: 1024px': true })
 })
 
 afterEach(() => {
@@ -105,18 +104,16 @@ describe('GutachtenStory', () => {
         expect(wrapper.find('.doc__stamp .verdict--ok').text()).toBe('Freigegeben')
     })
 
-    it('names the chosen vehicle in the marked row and borrows nothing from the example', () => {
-        const wrapper = mountStory({ vehicle })
+    it('keeps the example row as it is: the document never names a real car it knows nothing about', () => {
+        const wrapper = mountStory()
+        const rows = wrapper.findAll('.doc__row:not(.doc__row--head)')
 
-        const target = wrapper.find('.doc__row--target')
-        expect(target.text()).toContain('Audi')
-        expect(target.text()).toContain('RS 4 Avant Quattro')
-        expect(target.text()).not.toContain('346C')
-        expect(target.text()).not.toContain('e1*2001/116*0136*')
-        expect(target.text()).not.toContain('225/40 R18')
-
-        // The rest of the document is still the example.
+        expect(rows).toHaveLength(9)
+        expect(rows[3]!.classes()).toContain('doc__row--target')
+        expect(rows[3]!.text()).toContain('346C')
+        expect(rows[3]!.findAll('.doc__cell').map((c) => c.text())).not.toContain('')
         expect(wrapper.find('figure.doc').text()).toContain('Golf VII')
+        expect(wrapper.text()).not.toContain('– · –')
     })
 
     it('writes the Auflagen out as sentences beside the document and keeps the codes inside it', () => {
@@ -151,14 +148,21 @@ describe('GutachtenStory', () => {
         expect(empty.find('.story__facts').exists()).toBe(false)
     })
 
-    it('falls back to an observer without scroll-driven animations and never steps backwards', async () => {
+    it('falls back to observers without scroll-driven animations, in the story order, and never steps backwards', async () => {
         const wrapper = mountStory()
         await nextTick()
 
         const section = wrapper.find('section#h4')
         expect(section.classes()).toContain('is-io')
         expect(section.attributes('data-step')).toBeUndefined()
-        expect(observed).toHaveLength(3)
+        // The centre band watches every step; the upper band only the last one, for the stamp.
+        expect(observed.get(CENTRE)).toHaveLength(3)
+        expect(observed.get(UPPER)).toHaveLength(1)
+        expect(observed.get(UPPER)?.[0]?.getAttribute('data-step-index')).toBe('3')
+
+        reach(wrapper, 1)
+        await nextTick()
+        expect(section.attributes('data-step')).toBe('1')
 
         reach(wrapper, 2)
         await nextTick()
@@ -172,6 +176,29 @@ describe('GutachtenStory', () => {
         reach(wrapper, 3)
         await nextTick()
         expect(section.attributes('data-step')).toBe('3')
+
+        // The stamp lands only once step 3 has moved on up, after its own stroke.
+        reach(wrapper, 3, UPPER)
+        await nextTick()
+        expect(section.attributes('data-step')).toBe('stamped')
+
+        reach(wrapper, 2)
+        await nextTick()
+        expect(section.attributes('data-step')).toBe('stamped')
+    })
+
+    it('never lets the upper band skip ahead of the centre band order', async () => {
+        const wrapper = mountStory()
+        await nextTick()
+
+        // A fast scroll can fire the upper band first; the state still only ever advances.
+        reach(wrapper, 3, UPPER)
+        await nextTick()
+        expect(wrapper.find('section#h4').attributes('data-step')).toBe('stamped')
+
+        reach(wrapper, 2)
+        await nextTick()
+        expect(wrapper.find('section#h4').attributes('data-step')).toBe('stamped')
     })
 
     it('attaches no observer when the browser drives the animation from the scroll', async () => {
@@ -181,16 +208,26 @@ describe('GutachtenStory', () => {
         await nextTick()
 
         expect(wrapper.find('section#h4').classes()).not.toContain('is-io')
-        expect(observed).toHaveLength(0)
+        expect(callbacks.size).toBe(0)
     })
 
     it('attaches no observer under reduced motion, so the end state stands from the first paint', async () => {
-        window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia
+        media({ 'min-width: 1024px': true, 'reduced-motion': true })
 
         const wrapper = mountStory()
         await nextTick()
 
         expect(wrapper.find('section#h4').classes()).not.toContain('is-io')
-        expect(observed).toHaveLength(0)
+        expect(callbacks.size).toBe(0)
+    })
+
+    it('attaches no observer below 1024, where the document stands above the steps fully drawn', async () => {
+        media({ 'min-width: 1024px': false })
+
+        const wrapper = mountStory()
+        await nextTick()
+
+        expect(wrapper.find('section#h4').classes()).not.toContain('is-io')
+        expect(callbacks.size).toBe(0)
     })
 })

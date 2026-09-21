@@ -215,10 +215,75 @@ test.describe('Startseite/Mobile', () => {
         await open(page, '/')
         const size = page.locator('#h6 a.size-tile').first()
         await expect(size).toHaveAttribute('href', /\/felgen\?zoll=\d+/)
-        await expect(size).toContainText(/\d+ Felgen/)
+        // `felgen()` joins the number and the noun with a narrow no-break space; one wheel is *1 Felge*.
+        await expect(size).toContainText(/\d+\sFelgen?\b/)
         const brand = page.locator('#h6 .brand-grid__link').first()
         await expect(brand).toHaveAttribute('href', /\/felgen\?marke=/)
-        await expect(brand).toHaveAttribute('aria-label', /: \d+ Felgen$/)
+        await expect(brand).toHaveAttribute('aria-label', /: \d+\sFelgen?$/)
+    })
+
+    test('hero frame: two callouts over the wheel, the key line beneath, no placeholder in the code fields', async ({ page }) => {
+        await open(page, '/')
+
+        const frame = page.locator('#h2 .hero-frame')
+        await expect(frame).toHaveCount(1)
+        await expect(frame.locator('.callout')).toHaveCount(2)
+        await expect(frame.locator('.callout__label').nth(0)).toContainText(/größe|breite|durchmesser/i)
+        await expect(frame.locator('.callout__label').nth(1)).toContainText(/einpress/i)
+        await expect(page.locator('#h2 .hero-mobile__rest')).toContainText(/LK .+ · MLB .+mm$/)
+
+        // A symbolic picture names no product: no brand, no price, no link; the sentence says what it is.
+        const symbolic = page.locator('#h2 .hero-mobile__symbolic')
+        if ((await symbolic.count()) === 1) {
+            await expect(symbolic).toHaveText('Symbolbild – Werte einer Beispielkonfiguration')
+            await expect(page.locator('#h2 .hero-mobile a')).toHaveCount(0)
+            await expect(page.locator('#h2 .hero-mobile')).not.toContainText(/pro Felge/)
+        } else {
+            await expect(page.locator('#h2 .hero-mobile__caption')).toContainText(/pro Felge/)
+            await expect(frame).toHaveAttribute('href', /^\/felgen\//)
+        }
+
+        await page.getByRole('tab', { name: 'HSN/TSN' }).click()
+        await expect(page.getByLabel('HSN (Feld 2.1)')).not.toHaveAttribute('placeholder')
+        await expect(page.getByLabel('TSN (Feld 2.2)')).not.toHaveAttribute('placeholder')
+    })
+
+    test('Gutachten crops: three, whole headings, one tyre size per row, the marked row in the middle', async ({ page }) => {
+        await open(page, '/')
+
+        const crops = page.locator('#h4 figure.doc--crop')
+        await expect(crops).toHaveCount(3)
+        await crops.first().scrollIntoViewIfNeeded()
+
+        const overflowing = await crops.evaluateAll((figures) =>
+            figures.flatMap((f) => [...f.querySelectorAll('th, td')].filter((c) => c.scrollWidth > c.clientWidth + 1).map((c) => c.textContent?.trim() ?? ''))
+        )
+        expect(overflowing, 'cells that ellipsise').toEqual([])
+
+        const marked = crops.nth(2).locator('tbody tr').nth(1)
+        await expect(marked).toContainText('BMW')
+        await expect(marked).toContainText('346C')
+        await expect(marked).toContainText('225/40 R18')
+        await expect(marked).not.toContainText(',')
+        await expect(crops.nth(2).locator('.doc__stamp')).toContainText('Freigegeben')
+    })
+
+    test('dark band: the cut-out at 240 px, no lifestyle photograph', async ({ page }) => {
+        await open(page, '/')
+
+        const band = page.locator('#h7')
+        test.skip((await band.count()) === 0, 'no Kompletträder on this catalogue')
+
+        await band.scrollIntoViewIfNeeded()
+        await expect(band).toContainText('Kompletträder – montiert und gewuchtet.')
+        await expect(band.locator('.home-komplett__photo')).toHaveCount(0)
+
+        const wheel = band.locator('.komplett-wheel')
+        await expect(wheel).toHaveCount(1)
+        const box = await wheel.boundingBox()
+        expect(Math.round(box?.width ?? 0)).toBeLessThanOrEqual(240)
+        expect(Math.round(box?.width ?? 0)).toBe(Math.round(box?.height ?? 0))
+        await expect(wheel.locator('img')).toHaveAttribute('src', /hero-wheel/)
     })
 
     test('guides are one link each, into the Ratgeber', async ({ page }) => {
@@ -226,9 +291,12 @@ test.describe('Startseite/Mobile', () => {
         const links = page.locator('#h10 a')
         const count = await links.count()
         expect(count).toBeGreaterThan(0)
+        // Title and reading time only: no teaser, no box on the band.
+        await expect(page.locator('#h10 .guide__teaser')).toHaveCount(0)
 
         for (let i = 0; i < count; i++) {
             await expect(links.nth(i)).toHaveAttribute('href', /^\/ratgeber\/[a-z0-9-]+$/)
+            await expect(links.nth(i).locator('.guide__title')).toBeVisible()
         }
 
         const href = await links.first().getAttribute('href')

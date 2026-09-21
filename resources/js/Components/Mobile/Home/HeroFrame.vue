@@ -2,8 +2,11 @@
 /**
  * The hero frame on a phone: the admin-chosen wheel as a cut-out standing on a contact shadow
  * in a pool of studio light, two spec callouts pointing at it, the remaining two values in one
- * line beneath, and the caption that is the link to the product. The values are the product's
- * own; the picture may be symbolic while the supplier's packshot is missing, and says so.
+ * line beneath, and the caption that is the link to the product.
+ *
+ * While the picture is symbolic — a free-licence photograph standing in for the supplier's
+ * packshot — the frame names no product: no brand, no model, no price, no link. The values are
+ * still real (they are the configuration's), and one line says what the picture is.
  *
  * Below the fold on the phone, so lazy; the h1 is the LCP. The leader lines draw once the image
  * has painted (SpecCallout keys on `.frame.is-ready`). No sweep and no roll on a phone.
@@ -11,39 +14,68 @@
 
 import { Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
-import Picture from '../../Ui/Picture.vue'
+import Picture, { type ImageManifest } from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
 import { euro } from '../../../format'
-import manifest from '../../../images/hero-wheel.json'
+import heroWheel from '../../../images/hero-wheel.json'
 import type { HeroProduct } from '../../../types/pages'
+import { assignSlots, FRAME_SLOTS, phoneTargets, SHORT_LABEL, type SlotKey, type Targets } from './calloutSlots'
+
+interface CutoutManifest extends ImageManifest {
+    targets?: Targets
+}
 
 const props = defineProps<{ product: HeroProduct }>()
+
+const manifest = heroWheel as CutoutManifest
 
 const ready = ref(false)
 const failed = ref(false)
 
 const href = computed(() => `/felgen/${props.product.slug}`)
-const alt = computed(() => `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`)
+const alt = computed(() =>
+    props.product.symbolic ? 'Symbolbild einer Felge, Ansicht von vorn' : `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`
+)
 const perWheel = computed(() => euro(Math.round(props.product.fromPriceCents / 4)))
 
+/* Where the two boxes sit in the frame (§H2, 390); the line's target comes from the manifest. */
+const BOXES: Readonly<Record<SlotKey, { x: number; y: number } | null>> = {
+    widthDiameter: { x: 2, y: 6 },
+    offset: { x: 62, y: 8 },
+    boltCircle: null,
+    centreBore: null,
+}
+
+const targets = phoneTargets(manifest.targets)
+
 /* The two callouts the phone shows; the other two values read as one line under the frame. */
-const callouts = computed(() => {
-    const byLabel = new Map(props.product.spec.map((s) => [s.label, s.value]))
+const slots = computed(() => assignSlots(props.product.spec))
+const callouts = computed(() =>
+    slots.value.flatMap((s) => {
+        const box = BOXES[s.key]
 
-    return {
-        size: byLabel.get('Felgengröße') ?? '',
-        et: byLabel.get('Einpresstiefe') ?? '',
-        rest: props.product.spec.filter((s) => s.label !== 'Felgengröße' && s.label !== 'Einpresstiefe'),
-    }
-})
+        return box && FRAME_SLOTS.includes(s.key) ? [{ ...s, ...box, ...targets[s.key] }] : []
+    })
+)
+const rest = computed(() => slots.value.filter((s) => !FRAME_SLOTS.includes(s.key)))
 
-const SHORT: Record<string, string> = { Lochkreis: 'LK', Mittenlochbohrung: 'MLB' }
+/* `LK 5 × 112 · MLB 66,6 mm`: a value that already starts with its short label is not doubled. */
+const restLine = computed(() =>
+    rest.value.map((s) => (s.value.startsWith(`${SHORT_LABEL[s.key]} `) ? s.value : `${SHORT_LABEL[s.key]} ${s.value}`)).join(' · ')
+)
 </script>
 
 <template>
     <div class="hero-mobile">
-        <Link :href="href" class="frame hero-frame" :class="{ 'is-ready': ready }" :aria-label="`Zur Felge ${product.brand} ${product.name}`" prefetch>
+        <component
+            :is="product.symbolic ? 'div' : Link"
+            :href="product.symbolic ? undefined : href"
+            class="frame hero-frame"
+            :class="{ 'is-ready': ready }"
+            :aria-label="product.symbolic ? undefined : `Zur Felge ${product.brand} ${product.name}`"
+            :prefetch="product.symbolic ? undefined : true"
+        >
             <span class="hero-studio" aria-hidden="true" />
             <span class="hero-contact" aria-hidden="true" />
 
@@ -52,22 +84,19 @@ const SHORT: Record<string, string> = { Lochkreis: 'LK', Mittenlochbohrung: 'MLB
                 <Picture :image="manifest" :alt="alt" sizes="70vw" @loaded="ready = true" />
             </span>
             <span v-else class="hero-frame__outline" aria-hidden="true">
-                <WheelOutline :spokes="5" />
+                <WheelOutline :bolts="product.config.boltHoles" />
             </span>
 
-            <SpecCallout v-if="callouts.size" label="Felgengröße" :value="callouts.size" :x="2" :y="6" :tx="33" :ty="44" />
-            <SpecCallout v-if="callouts.et" label="Einpresstiefe" :value="callouts.et" :x="62" :y="8" :tx="55" :ty="46" />
-        </Link>
+            <SpecCallout v-for="c in callouts" :key="c.key" :label="c.label" :value="c.value" :x="c.x" :y="c.y" :tx="c.tx" :ty="c.ty" />
+        </component>
 
-        <p v-if="callouts.rest.length" class="small num muted hero-mobile__rest">
-            <template v-for="(s, i) in callouts.rest" :key="s.label">{{ i > 0 ? ' · ' : '' }}{{ SHORT[s.label] ?? s.label }} {{ s.value }}</template>
-        </p>
+        <p v-if="rest.length" class="small num muted hero-mobile__rest">{{ restLine }}</p>
 
-        <Link :href="href" class="hero-mobile__caption" prefetch>
+        <Link v-if="!product.symbolic" :href="href" class="hero-mobile__caption" prefetch>
             <span class="small hero-mobile__name">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
             <span class="small num muted">ab {{ perWheel }} · pro Felge</span>
         </Link>
-        <p v-if="product.symbolic" class="micro quiet">Symbolfoto – die Werte sind die dieser Felge.</p>
+        <p v-else class="micro quiet hero-mobile__symbolic">Symbolbild – Werte einer Beispielkonfiguration</p>
     </div>
 </template>
 
@@ -117,11 +146,6 @@ const SHORT: Record<string, string> = { Lochkreis: 'LK', Mittenlochbohrung: 'MLB
     transform: translateX(-50%);
 }
 
-/* The cut-out has its own alpha; the placeholder behind it must not paint a square. */
-.hero-frame__wheel :deep(.picture) {
-    background-image: none;
-}
-
 .hero-frame__wheel :deep(img) {
     height: auto;
     object-fit: contain;
@@ -132,7 +156,13 @@ const SHORT: Record<string, string> = { Lochkreis: 'LK', Mittenlochbohrung: 'MLB
     color: var(--c-ink-3);
 }
 
-.hero-mobile__rest {
+/* The callouts are later in the DOM than the wheel and share its layer: they paint over it. */
+.hero-frame :deep(.callout-anchor) {
+    z-index: var(--z-raised);
+}
+
+.hero-mobile__rest,
+.hero-mobile__symbolic {
     padding-inline: var(--sp-4);
 }
 

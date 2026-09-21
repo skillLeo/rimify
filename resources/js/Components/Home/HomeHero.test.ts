@@ -160,8 +160,8 @@ describe('HomeHero', () => {
         expect(byLabel['Mittenlochbohrung']).toContain('left: 6%')
     })
 
-    it('links the wheel and the caption once, with the per-wheel price and the alt text', () => {
-        const wrapper = mountHero()
+    it('links the wheel and the caption once, with the per-wheel price and the alt text, when the photograph is the product', () => {
+        const wrapper = mountHero({ hero: hero({ product: product({ symbolic: false }) }) })
         const links = wrapper.findAll('a')
 
         expect(links).toHaveLength(1)
@@ -173,11 +173,29 @@ describe('HomeHero', () => {
         expect(wrapper.find('img').attributes('alt')).toBe('BBS RS in Silber, Ansicht von vorn')
         expect(wrapper.find('img').attributes('loading')).toBe('eager')
         expect(wrapper.find('img').attributes('fetchpriority')).toBe('high')
+        expect(wrapper.text()).not.toContain('Symbolbild')
     })
 
-    it('says the picture is symbolic only when the server says so', () => {
-        expect(mountHero().text()).toContain('Symbolbild – Werte der gezeigten Konfiguration')
-        expect(mountHero({ hero: hero({ product: product({ symbolic: false }) }) }).text()).not.toContain('Symbolbild')
+    it('under a stand-in photograph prints the values and the one note, but no brand, no price and no link', () => {
+        const wrapper = mountHero()
+
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.find('.hero__caption').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('BBS')
+        expect(wrapper.text()).not.toContain('RS · Silber')
+        expect(wrapper.text()).not.toContain('pro Felge')
+        expect(wrapper.find('img').attributes('alt')).toBe('Symbolbild einer Leichtmetallfelge, Ansicht von vorn')
+        expect(wrapper.find('img').attributes('fetchpriority')).toBe('high')
+
+        // The values are the product's own and stay; the note is the one sentence, inside the frame.
+        expect(wrapper.findAll('.callout')).toHaveLength(4)
+        const note = wrapper.find('.hero__frame .hero__symbolic')
+        expect(note.text()).toBe('Symbolbild – Werte einer Beispielkonfiguration')
+        expect(note.classes()).toContain('micro')
+        expect(note.classes()).toContain('quiet')
+        expect(wrapper.text()).not.toContain('Symbolfoto')
+        expect(wrapper.text()).not.toContain('Werte der gezeigten Konfiguration')
+        expect(wrapper.find('.hero__link').attributes('aria-label')).toBeUndefined()
     })
 
     it('lights the frame on load and draws the lines when the sweep has ended', async () => {
