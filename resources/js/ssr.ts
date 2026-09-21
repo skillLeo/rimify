@@ -28,4 +28,7 @@ createServer((page) =>
                 .use(ZiggyVue, { ...ziggy, location: new URL(ziggy.location) });
         },
     }),
+    // On a shared host the default port may already belong to another application, so it is
+    // configurable. INERTIA_SSR_URL in .env must point at the same port.
+    { port: Number(process.env.INERTIA_SSR_PORT ?? 13714) },
 );
