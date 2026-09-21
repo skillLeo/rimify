@@ -58,6 +58,40 @@
     color: var(--ink);
 }
 
+/*
+ * A marque tile never widens its grid.
+ *
+ * A make without a logo falls back to its name in heavy type. A grid item's automatic minimum
+ * width is its content, so one long name widened every `1fr` column — and on a phone the grid,
+ * the page and the zoom with it. The name now shortens inside its own tile instead.
+ */
+.mtile {
+    min-width: 0;
+}
+
+.mtile-l > b,
+.mtile-n {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/*
+ * The mobile page is exactly as wide as the phone.
+ *
+ * Android Chrome widens the layout viewport to the widest element and zooms the whole page out to
+ * fit it; `overflow-x: hidden` on <body> does not stop that. `clip` on the three page regions
+ * does: overflowing content is cut at the screen edge instead of widening the page. Inner
+ * scrollers (rails, chip rows) are unaffected, and `clip` creates no scroll container, so sticky
+ * elements keep working.
+ */
+body.is-mobile main,
+body.is-mobile #top,
+body.is-mobile #bottom {
+    overflow-x: clip;
+}
+
 /* ── Image lightbox ──────────────────────────────────────────────────────────────────────────
  *
  * Ours; the design has no zoom. Built entirely from the design's own tokens and easings so it

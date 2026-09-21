@@ -46,6 +46,17 @@ use Illuminate\Support\Facades\DB;
 final readonly class LiveData
 {
     /**
+     * Vehicle makes whose marque tile the design names differently from the database. The
+     * runtime maps these keys back to exactly these make names for the tile's link.
+     *
+     * @var array<string, string>
+     */
+    private const TILE_KEYS = [
+        'Mercedes-Benz' => 'MERCEDES',
+        'Volkswagen' => 'VW',
+    ];
+
+    /**
      * The whole payload. `$vehicleId` is the visitor's chosen vehicle, or null when they have not
      * chosen one — and that distinction decides whether any fitment claim is made at all.
      *
@@ -427,6 +438,11 @@ final readonly class LiveData
      * The marque tiles on the homepage — vehicle makes we actually hold vehicles for, so a tile
      * never leads to an empty selector.
      *
+     * The runtime keys each tile's logo on the design's short name and maps that name back to
+     * the full make for the link (`MERCEDES` → `Mercedes-Benz`). Sending `MERCEDES-BENZ` instead
+     * matches no logo, so the tile falls back to the name in heavy type — wider than a phone
+     * tile, which stretched the grid and zoomed the whole mobile page out.
+     *
      * @return list<string>
      */
     private function tiles(): array
@@ -437,7 +453,7 @@ final readonly class LiveData
             ->orderBy('make')
             ->limit(8)
             ->pluck('make')
-            ->map(fn ($v) => mb_strtoupper((string) $v))
+            ->map(fn ($v): string => self::TILE_KEYS[(string) $v] ?? mb_strtoupper((string) $v))
             ->all();
     }
 
