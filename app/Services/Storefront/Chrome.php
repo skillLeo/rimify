@@ -32,7 +32,13 @@ final readonly class Chrome
 
     private const MENU_CACHE_TTL = 300;
 
-    public function __construct(private HeaderModeResolver $headerMode) {}
+    /**
+     * The cookie choice, written by the browser as plain JSON and read here so the first frame
+     * already knows whether to show the consent sheet — no banner that appears a beat late.
+     */
+    public const CONSENT_COOKIE = 'rmf_consent';
+
+    public function __construct(private HeaderModeResolver $headerMode, private MegaMenu $mega) {}
 
     /**
      * @return array<string, mixed>
@@ -71,6 +77,35 @@ final readonly class Chrome
                 'whatsapp' => (string) config('rimify.contact.whatsapp'),
                 'hours' => (string) config('rimify.contact.hours'),
             ],
+            'mega' => $this->mega->share(),
+            'consent' => $this->consent($request),
+        ];
+    }
+
+    /**
+     * The visitor's cookie choice, or null while none has been made. Anything unparseable is no
+     * choice: the sheet shows again rather than assuming a consent that was never given.
+     *
+     * @return array{necessary: true, statistics: bool, decidedAt: string}|null
+     */
+    private function consent(Request $request): ?array
+    {
+        $raw = $request->cookie(self::CONSENT_COOKIE);
+
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        if (! is_array($decoded) || ! isset($decoded['decidedAt']) || ! is_string($decoded['decidedAt'])) {
+            return null;
+        }
+
+        return [
+            'necessary' => true,
+            'statistics' => ($decoded['statistics'] ?? false) === true,
+            'decidedAt' => $decoded['decidedAt'],
         ];
     }
 
@@ -125,7 +160,8 @@ final readonly class Chrome
         $menus = Cache::remember(self::MENU_CACHE_KEY, self::MENU_CACHE_TTL, function (): array {
             $grouped = [
                 'header' => [],
-                'footer_pages' => [],
+                'footer_shop' => [],
+                'footer_service' => [],
                 'footer_legal' => [],
                 'mobile_bottom' => [],
             ];

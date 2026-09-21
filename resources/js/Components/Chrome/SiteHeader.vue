@@ -1,146 +1,288 @@
 <script setup lang="ts">
 /**
- * The header.
+ * The header. Above it, on a desktop, a utility line that scrolls away; the header itself is 64px,
+ * sticky, and never changes height — once the page has scrolled under it, it gains a hairline and
+ * nothing else. On a phone it is 56px: the wordmark, the search, the vehicle, and the bottom bar
+ * carries the rest.
  *
- * White, sticky, one hairline, and it lifts only once the page has scrolled under it — the one
- * static-looking element allowed a shadow, because at that moment it genuinely floats above the
- * content.
- *
- * Two rules it must never break:
- *
- *  - The navigation is never removed. Choosing a vehicle changes what the pages show, not whether
- *    the customer can still reach the rest of the site.
- *  - The chosen vehicle is one chip, in one place, on every route. `headerMode` arrives from the
- *    server in the first response (R-08) and decides whether the chip is shown, never what shape
- *    it takes — a header that rearranges itself between pages reads as two different sites.
+ * Two rules it never breaks: the navigation is never removed, and the chosen vehicle is one
+ * element in one place on every route (the vehicle bar beneath, decided by the server — R-08).
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import Icon from '../Art/Icon.vue'
-import { resolveHref, useMenus, useShared } from '../../composables/useShared'
+import Icon from '../Ui/Icon.vue'
+import MegaMenu from './MegaMenu.vue'
+import SearchBox from './SearchBox.vue'
+import VehicleBar from './VehicleBar.vue'
+import { useShell } from '../../composables/useShell'
+import { useShared } from '../../composables/useShared'
 
 const shared = useShared()
-const menus = useMenus()
+const shell = useShell()
 
 const vehicle = computed(() => shared.value.vehicle)
-const showVehicle = computed(() => vehicle.value !== null && shared.value.headerMode !== 'SUPPRESSED')
+const contact = computed(() => shared.value.contact)
+const telHref = computed(() => `tel:${contact.value.phoneIntl.replace(/\s/g, '')}`)
 
-const items = computed(() =>
-    menus.value.header.map((item) => ({
-        ...item,
-        target: resolveHref(item.href, item.behaviour, vehicle.value !== null, '/felgen'),
-    }))
-)
-
-defineEmits<{ (e: 'open-menu'): void; (e: 'open-vehicle'): void }>()
-
-const lifted = ref(false)
-
-// Passive, and it only ever flips a boolean: a scroll handler that writes layout would be the
-// slowest thing on the page.
-function onScroll(): void {
-    lifted.value = window.scrollY > 4
-}
+/* Scrolled or not, decided by a sentinel above the header rather than a scroll listener. */
+const sentinel = ref<HTMLElement | null>(null)
+const scrolled = ref(false)
+let observer: IntersectionObserver | undefined
 
 onMounted(() => {
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
+    if (sentinel.value === null) {
+        return
+    }
+
+    observer = new IntersectionObserver(([entry]) => {
+        scrolled.value = entry ? !entry.isIntersecting : false
+    })
+    observer.observe(sentinel.value)
 })
 
-onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
+onBeforeUnmount(() => observer?.disconnect())
+
+function removeVehicle(): void {
+    router.delete('/fahrzeug', { preserveScroll: true })
+}
 </script>
 
 <template>
-    <header class="hdr" :class="{ 'hdr--lifted': lifted }">
-        <div class="hdr__bar">
-            <button
-                class="hdr__icon mobile-only"
-                type="button"
-                aria-label="Menü öffnen"
-                @click="$emit('open-menu')"
-            >
-                <Icon name="menu" :size="24" />
-            </button>
+    <div class="utility from-lg">
+        <div class="container utility__row">
+            <span>Versand aus Deutschland</span>
+            <span>Gutachten zu jeder Felge als PDF</span>
+            <span class="utility__help">
+                Hilfe: <a :href="telHref" class="utility__phone num">{{ contact.phone }}</a>
+                <span class="quiet">· {{ contact.hours }}</span>
+            </span>
+        </div>
+    </div>
 
-            <Link href="/" class="wordmark" aria-label="RIMIFY — Startseite">RIMIFY</Link>
+    <div ref="sentinel" class="sh-sentinel" aria-hidden="true" />
 
-            <nav class="hdr__nav" aria-label="Hauptnavigation">
-                <Link
-                    v-for="item in items"
-                    :key="item.label"
-                    :href="item.target"
-                    class="hdr__link"
-                    :aria-current="shared.routeName === item.routeName ? 'page' : undefined"
-                >
-                    {{ item.label }}
+    <header class="site-header" :class="{ 'site-header--scrolled': scrolled }">
+        <div class="container sh__bar">
+            <Link href="/" class="brand" aria-label="RIMIFY – Startseite" prefetch>RIMIFY</Link>
+
+            <MegaMenu class="from-lg sh__nav" />
+
+            <div class="sh__tools">
+                <SearchBox class="from-lg" />
+
+                <!-- The vehicle on a desktop: a chip with a small menu. -->
+                <DropdownMenuRoot v-if="vehicle">
+                    <DropdownMenuTrigger class="chip sh__vchip from-lg">
+                        <Icon name="car" :size="20" />
+                        <span class="sh__vname">{{ vehicle.short }}</span>
+                        <Icon name="chevron-down" :size="16" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuPortal>
+                        <DropdownMenuContent class="popover sh__vmenu" align="end" :side-offset="8">
+                            <p class="menu__label num">{{ vehicle.label }} · {{ vehicle.keyNumbers }}</p>
+                            <DropdownMenuItem as-child>
+                                <Link href="/felgen" class="menu__item" prefetch><Icon name="wheel" :size="20" />Passende Felgen anzeigen</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem as-child>
+                                <Link href="/felgen-suchen" class="menu__item"><Icon name="car" :size="20" />Fahrzeug ändern</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator class="menu__separator" />
+                            <DropdownMenuItem class="menu__item" @select="removeVehicle">
+                                <Icon name="close" :size="20" />Fahrzeug entfernen
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenuPortal>
+                </DropdownMenuRoot>
+                <Link v-else href="/felgen-suchen" class="chip sh__vchip from-lg">
+                    <Icon name="car" :size="20" />
+                    Fahrzeug wählen
                 </Link>
-            </nav>
 
-            <!-- The chosen vehicle. Same chip, same place, every route. -->
-            <button
-                v-if="showVehicle && vehicle"
-                class="vchip desktop-only"
-                type="button"
-                @click="$emit('open-vehicle')"
-            >
-                <Icon name="wheel" :size="20" />
-                <span class="vchip__name">{{ vehicle.label }}</span>
-                <span class="vchip__keys">{{ vehicle.keyNumbers }}</span>
-                <Icon name="chevron-down" :size="20" />
-            </button>
+                <!-- On a phone: the search and the vehicle as icons; the basket lives in the bottom bar. -->
+                <button class="icon-btn until-lg" type="button" aria-label="Suche" @click="shell.paletteOpen.value = true">
+                    <Icon name="search" :size="24" />
+                </button>
+                <button
+                    v-if="vehicle"
+                    class="icon-btn until-lg sh__vicon"
+                    type="button"
+                    :aria-label="`Dein Fahrzeug: ${vehicle.label}`"
+                    @click="shell.vehicleOpen.value = true"
+                >
+                    <Icon name="car" :size="24" />
+                    <span class="sh__dot" aria-hidden="true" />
+                </button>
+                <Link v-else href="/felgen-suchen" class="icon-btn until-lg" aria-label="Fahrzeug wählen">
+                    <Icon name="car" :size="24" />
+                </Link>
 
-            <Link href="/warenkorb" class="hdr__cart" aria-label="Warenkorb">
-                <Icon name="cart" :size="24" />
-                <span class="hdr__cart-label desktop-only">Warenkorb</span>
-                <span v-if="shared.cartCount > 0" class="hdr__badge">{{ shared.cartCount }}</span>
-            </Link>
+                <Link
+                    href="/warenkorb"
+                    class="sh__cart from-lg"
+                    :aria-label="shared.cartCount > 0 ? `Warenkorb, ${shared.cartCount} Artikel` : 'Warenkorb'"
+                    prefetch
+                >
+                    <span class="sh__cart-icon">
+                        <Icon name="cart" :size="24" />
+                        <span v-if="shared.cartCount > 0" class="badge badge--count sh__badge" aria-hidden="true">{{ shared.cartCount }}</span>
+                    </span>
+                    <span>Warenkorb</span>
+                </Link>
+            </div>
         </div>
 
-        <!-- On a phone the chip sits under the bar rather than inside it: at 390px there is no
-             room for a vehicle name beside a wordmark and a basket without truncating all three. -->
-        <div v-if="showVehicle && vehicle" class="hdr__vrow mobile-only">
-            <button class="vchip vchip--full" type="button" @click="$emit('open-vehicle')">
-                <Icon name="wheel" :size="20" />
-                <span class="vchip__name">{{ vehicle.short }}</span>
-                <span class="vchip__keys">{{ vehicle.keyNumbers }}</span>
-                <Icon name="chevron-down" :size="20" />
-            </button>
-        </div>
+        <VehicleBar />
     </header>
 </template>
 
 <style scoped>
-.hdr--lifted {
-    box-shadow: var(--shadow-raised);
+.utility {
+    height: var(--utility-h);
+    background: var(--c-band);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
 }
 
-.hdr__cart {
-    position: relative;
-    display: inline-flex;
+.utility__row {
+    display: flex;
     align-items: center;
-    gap: var(--space-2);
-    min-width: 44px;
-    min-height: 44px;
-    padding-inline: var(--space-2);
-    margin-left: var(--space-3);
-    color: var(--ink);
-    font-size: var(--text-body);
-    font-weight: 700;
+    gap: var(--sp-24);
+    height: 100%;
+}
+
+.utility__help {
+    margin-left: auto;
+}
+
+.utility__phone {
+    color: var(--c-ink);
+    font-weight: 500;
     text-decoration: none;
 }
 
-.hdr__vrow {
-    padding: 0 var(--gutter) var(--space-2);
+@media (hover: hover) and (pointer: fine) {
+    .utility__phone:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
 }
 
-.vchip {
-    margin-left: var(--space-4);
+.sh-sentinel {
+    height: 1px;
+    margin-top: -1px;
 }
 
-.vchip--full {
-    width: 100%;
-    max-width: none;
-    margin-left: 0;
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-header);
+    background: var(--c-surface);
+}
+
+.site-header--scrolled {
+    box-shadow: var(--e-1);
+}
+
+.sh__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-16);
+    height: var(--header-h-m);
+}
+
+.brand {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: var(--fs-h4);
+    font-weight: 700;
+    font-stretch: var(--wdth-display);
+    letter-spacing: 0.04em;
+    color: var(--c-ink);
+    text-decoration: none;
+}
+
+.sh__nav {
+    margin-left: var(--sp-8);
+}
+
+.sh__tools {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin-left: auto;
+}
+
+.sh__vchip {
+    max-width: 220px;
+    min-height: 40px;
+    text-decoration: none;
+}
+
+.sh__vname {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sh__vicon {
+    position: relative;
+}
+
+.sh__dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--r-round);
+    background: var(--c-blue);
+}
+
+.sh__cart {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-12);
+    min-height: 44px;
+    padding-inline: var(--sp-8);
+    color: var(--c-ink);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .sh__cart:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+
+.sh__cart-icon {
+    position: relative;
+    display: inline-flex;
+}
+
+.sh__badge {
+    position: absolute;
+    top: calc(-1 * var(--sp-8));
+    right: calc(-1 * var(--sp-8));
+}
+
+@media (min-width: 1024px) {
+    .sh__bar {
+        height: var(--header-h);
+        gap: var(--sp-24);
+    }
+}
+</style>
+
+<!-- The vehicle menu is rendered in a portal, out of reach of a scoped attribute. -->
+<style>
+.sh__vmenu {
+    min-width: 280px;
 }
 </style>

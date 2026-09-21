@@ -40,9 +40,32 @@ export interface NavItem {
 
 export interface Menus {
     header: NavItem[]
-    footer_pages: NavItem[]
+    footer_shop: NavItem[]
+    footer_service: NavItem[]
     footer_legal: NavItem[]
     mobile_bottom: NavItem[]
+}
+
+export interface MenuLink {
+    label: string
+    href: string
+    sub?: string
+    count?: number
+}
+
+/** What the Felgen menu opens onto; every entry leads to a real listing. */
+export interface MegaMenuProp {
+    brands: MenuLink[]
+    sizes: MenuLink[]
+    makes: MenuLink[]
+    popular: MenuLink[]
+}
+
+/** The visitor's cookie choice; null while none has been made. */
+export interface ConsentProp {
+    necessary: true
+    statistics: boolean
+    decidedAt: string
 }
 
 export interface ContactProp {
@@ -61,6 +84,8 @@ export interface SharedProps {
     routeName: string | null
     /** One source of truth for the phone, the e-mail and the opening hours (D-023). */
     contact: ContactProp
+    mega: MegaMenuProp
+    consent: ConsentProp | null
     isMobile: boolean
     locale: string
     /** Remote photography layered over the drawn art — a temporary client-review flag. */
@@ -83,6 +108,8 @@ export interface ProductCardProp {
     finishId: number
     finishName: string
     art: ArtProp
+    /** The packshot, once the catalogue has one. Null shows the drawn wheel, plainly captioned. */
+    image?: string | null
     rating: number | null
     ratingCount: number
     ratingLabel: string | null
@@ -92,13 +119,26 @@ export interface ProductCardProp {
     stockQty: number
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
-    /** Null when no vehicle is chosen: with no car, no compatibility claim is made at all. */
-    fitment: { requiresEntry: boolean } | null
+    /**
+     * Null when no vehicle is chosen: with no car, no compatibility claim is made at all.
+     *
+     * Otherwise the fitment engine's answer for the configurations this card stands for, merged
+     * toward caution. `CONDITIONAL` always travels with its Auflagen as full German sentences.
+     */
+    fitment: CardFitment | null
+}
+
+export interface CardFitment {
+    status?: VerdictStatus
+    requiresEntry: boolean
+    conditions?: string[]
 }
 
 export interface FacetOption {
     value: string
     count: number
+    /** The value as a customer reads it — `8,5` rather than `8.50` (R-10). */
+    label?: string
 }
 
 export type Facets = Record<string, FacetOption[]>

@@ -58,18 +58,23 @@ class ContentSeeder extends Seeder
          * component nor a second nav row knows anything about it.
          */
         $this->menu('header', [
-            ['label' => 'Felgen suchen', 'route_name' => 'felgen.suchen', 'behaviour' => 'vehicle_aware'],
+            ['label' => 'Felgen', 'route_name' => 'felgen.index'],
+            ['label' => 'RIMIFY-Check', 'route_name' => 'check.index'],
             ['label' => 'FAQ', 'route_name' => 'faq'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt'],
-            ['label' => 'RIMIFY-CHECK', 'route_name' => 'check.index'],
         ]);
 
-        // Footer column 2, beneath the `SEITEN` micro-label.
-        $this->menu('footer_pages', [
-            ['label' => 'Felgen suchen', 'route_name' => 'felgen.suchen'],
-            ['label' => 'RIMIFY-CHECK', 'route_name' => 'check.index'],
-            ['label' => 'FAQ', 'route_name' => 'faq'],
+        // The footer's first two columns: the shop, and the help around it.
+        $this->menu('footer_shop', [
+            ['label' => 'Alle Felgen', 'route_name' => 'felgen.index'],
+            ['label' => 'Fahrzeug wählen', 'route_name' => 'felgen.suchen'],
+            ['label' => 'RIMIFY-Check', 'route_name' => 'check.index'],
+        ]);
+
+        $this->menu('footer_service', [
+            ['label' => 'Fragen und Antworten', 'route_name' => 'faq'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt'],
+            ['label' => 'Versand', 'href' => '/rechtliches/versand'],
         ]);
 
         /*
@@ -83,18 +88,16 @@ class ContentSeeder extends Seeder
             ['label' => 'Datenschutz', 'href' => '/rechtliches/datenschutz'],
             ['label' => 'AGB', 'href' => '/rechtliches/agb'],
             ['label' => 'Widerrufsbelehrung', 'href' => '/rechtliches/widerrufsbelehrung'],
-            ['label' => 'Versand', 'href' => '/rechtliches/versand'],
         ]);
 
         /*
-         * The mobile bar is exactly five items and the middle one is the raised blue circle, so the
-         * order is load-bearing rather than editorial. Icons are keys from the agreed icon set — the
-         * design spec names the five labels but never says which glyph each one carries.
+         * The phone's bottom bar is exactly five items, so the order is load-bearing rather than
+         * editorial. Icons are keys from the icon set.
          */
         $this->menu('mobile_bottom', [
             ['label' => 'Start', 'route_name' => 'startseite', 'icon' => 'home'],
             ['label' => 'Felgen', 'route_name' => 'felgen.index', 'icon' => 'wheel'],
-            ['label' => 'RIMIFY-CHECK', 'route_name' => 'check.index', 'icon' => 'check-circle'],
+            ['label' => 'Check', 'route_name' => 'check.index', 'icon' => 'check-circle'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt', 'icon' => 'phone'],
             ['label' => 'Warenkorb', 'route_name' => 'warenkorb.index', 'icon' => 'cart'],
         ]);

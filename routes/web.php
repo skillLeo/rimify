@@ -6,6 +6,8 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\DesignController;
 use App\Http\Controllers\Storefront\BestellungController;
 use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugController;
@@ -54,9 +56,26 @@ Route::delete('/warenkorb/{line}', [WarenkorbController::class, 'destroy'])->nam
 Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
 
+/*
+ * The JSON endpoints the shell calls. They sit in the web group on purpose: the session and the
+ * vehicle cookie are what most of them answer about, and a GET carries no CSRF token to check.
+ */
+Route::prefix('api/v1')->name('api.')->middleware('throttle:60,1')->group(function (): void {
+    Route::get('/search', SearchController::class)->name('search');
+});
+
 Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
 Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtliches');
+
+/*
+ * The design specimen: every token and every component in every state, on one page. It exists so
+ * a component is reviewed once, in isolation, before a page is built on it. Local and test
+ * environments only — it is not part of the shop.
+ */
+if (app()->environment(['local', 'testing'])) {
+    Route::get('/__design', DesignController::class)->name('design');
+}
 
 // ── Admin ────────────────────────────────────────────────────────────────────────────────────
 //
