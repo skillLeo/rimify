@@ -863,6 +863,8 @@ onBeforeUnmount(() => treeController?.abort())
 
 <style scoped>
 .sel {
+    container-type: inline-size;
+    container-name: sel;
     padding: var(--sp-24);
     border-radius: var(--r-tile);
     background: var(--c-surface);
@@ -876,14 +878,20 @@ onBeforeUnmount(() => treeController?.abort())
     border: 0;
 }
 
-/* Three tabs in a six-column panel (1024–1279) need a tighter row than the default: 14 px, --sp-16 apart. */
-@media (max-width: 1279px) {
+/*
+ * Three tabs need 435 px at --fs-body with --sp-24 gaps and 373 px at --fs-small with --sp-16
+ * (home-overhaul.md §4.2). The dense row is decided by the panel's own width, never the viewport:
+ * a viewport rule left the 1280–1287 px panel (480 wide, 432 inside) three pixels short and
+ * clipped *Fahrzeugschein scannen* under the hidden scrollbar.
+ */
+@container sel (width < 500px) {
     .sel :deep(.tabs__list) {
         gap: var(--sp-16);
     }
 
     .sel :deep(.tabs__trigger) {
         font-size: var(--fs-small);
+        line-height: var(--lh-small);
     }
 }
 

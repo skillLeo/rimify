@@ -3,12 +3,15 @@
  * H7 · Kompletträder — the one dark band on the page, signature moment 3.
  *
  * What a Komplettrad is, in one sentence; the one regulated fact about a tyre, its EU label, from
- * the featured tyre's own record; and a complete wheel that turns with the scroll. The turn is a
- * scroll-driven animation where the browser has one, and simply a still wheel everywhere else —
- * there is no scroll listener, ever. Under reduced motion the wheel stands at 0°.
+ * the featured tyre's own record; and a complete wheel that turns with the scroll. Where 3D runs
+ * (desktop document, fine pointer, motion allowed) the wheel is the hero's rim model with a
+ * parametric tyre in the featured tyre's section, rolled 0 → −120° by the box's progress through
+ * the viewport — no scroll listener, an IntersectionObserver reads the range. Everywhere else the
+ * poster turns by a CSS `view()` timeline where the browser has one, and stands still where it
+ * has none. Under reduced motion nothing turns.
  *
- * One picture, and it is the subject: the cut-out that turns. It is the hero's rim until the
- * client's own complete-wheel cut-out — rim with tyre, front-facing — arrives
+ * One picture, and it is the subject: the cut-out that turns. The poster is the hero's rim until
+ * the client's own complete-wheel cut-out — rim with tyre, front-facing — arrives
  * (docs/phase0/ASSET-REQUEST.md §5) and replaces it in `resources/js/images/`. No lifestyle
  * photograph beside it (spec H7 "Never"), and no scrim: a scrim would be a second gradient.
  */
@@ -17,6 +20,11 @@ import { Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import TyreLabel, { type TyreClass } from '../Ui/TyreLabel.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
+import WheelViewer3D from './Wheel3D/WheelViewer3D.vue'
+import { HERO_MODEL_3D } from './Wheel3D/model'
+import { HERO_SEQUENCE } from './Wheel3D/sequence'
+import { tyreSectionFromTitle } from './Wheel3D/targets'
+import type { TyreSection } from './Wheel3D/types'
 import heroWheel from '../../images/hero-wheel.json'
 import type { EuTyreLabel } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
@@ -56,12 +64,12 @@ const href = computed(() => (props.vehicle === null ? '/felgen-suchen?ziel=kompl
 /* The cut-out: AVIF, WebP, then the PNG the manifest names as its fallback (it has an alpha channel). */
 const WHEEL_SIZES = '(min-width: 1280px) 416px, (min-width: 1024px) 30vw, (min-width: 768px) 45vw, 240px'
 
-const wheelFailed = ref(false)
-const largest = heroWheel.widths[heroWheel.widths.length - 1] ?? heroWheel.width
+/* The rim model the hero already fetched — the band downloads no second GLB — plus a tyre in the featured section. */
+const MODEL_3D = HERO_MODEL_3D
+const DEFAULT_SECTION: TyreSection = { widthMm: 225, aspect: 45 }
+const tyreSection = computed<TyreSection>(() => tyreSectionFromTitle(props.tyre?.title) ?? DEFAULT_SECTION)
 
-function srcset(ext: string): string {
-    return heroWheel.widths.map((w) => `${heroWheel.base}-${w}.${ext} ${w}w`).join(', ')
-}
+const wheelFailed = ref(false)
 </script>
 
 <template>
@@ -76,21 +84,18 @@ function srcset(ext: string): string {
             </div>
 
             <div class="komplett__stage">
-                <picture v-if="!wheelFailed" class="komplett__wheel">
-                    <source type="image/avif" :srcset="srcset('avif')" :sizes="WHEEL_SIZES" />
-                    <source type="image/webp" :srcset="srcset('webp')" :sizes="WHEEL_SIZES" />
-                    <img
-                        :src="`${heroWheel.base}-${largest}.${heroWheel.fallback}`"
-                        :srcset="srcset(heroWheel.fallback)"
-                        :sizes="WHEEL_SIZES"
+                <div v-if="!wheelFailed" class="komplett__wheel">
+                    <WheelViewer3D
+                        :poster="heroWheel"
                         alt="Komplettrad, Ansicht von vorn"
-                        :width="heroWheel.width"
-                        :height="heroWheel.height"
-                        loading="lazy"
-                        decoding="async"
+                        :sizes="WHEEL_SIZES"
+                        :model="MODEL_3D"
+                        :sequence="HERO_SEQUENCE"
+                        :tyre="tyreSection"
+                        mode="band"
                         @error="wheelFailed = true"
                     />
-                </picture>
+                </div>
                 <div v-else class="komplett__fallback">
                     <WheelOutline />
                 </div>
@@ -125,7 +130,7 @@ function srcset(ext: string): string {
     margin-top: var(--sp-32);
 }
 
-/* The cut-out is square and centred, so the turn never changes the layout box. */
+/* The stage is square and centred, so the turn never changes the layout box. */
 .komplett__stage {
     width: 100%;
     max-width: 240px;
@@ -133,15 +138,9 @@ function srcset(ext: string): string {
 }
 
 .komplett__wheel {
-    display: block;
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
-}
-
-.komplett__wheel img {
-    display: block;
-    width: 100%;
-    height: 100%;
 }
 
 .komplett__fallback {
@@ -206,33 +205,6 @@ function srcset(ext: string): string {
     .komplett__label {
         grid-column: 10 / span 3;
         justify-self: start;
-    }
-}
-
-/* ── Motion: the wheel turns with the scroll, and only there ───────────────── */
-
-@supports (animation-timeline: view()) {
-    .komplett__wheel {
-        animation: turn linear both;
-        animation-timeline: view();
-        animation-range: entry 0% exit 100%;
-    }
-}
-
-@keyframes turn {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(-120deg);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .komplett__wheel {
-        animation: none;
-        transform: none;
     }
 }
 </style>

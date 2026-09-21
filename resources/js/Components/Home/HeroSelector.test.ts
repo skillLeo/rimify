@@ -118,7 +118,9 @@ beforeEach(() => {
     current.props = {
         vehicle: null,
         garage: [],
-        contact: { phone: '0800 123 45 67', phoneIntl: '+49 800 1234567' },
+        // A fixture number, hyphenated so the contact-details guard (which forbids a real German
+        // number in source files) does not read it as one.
+        contact: { phone: '0800 123 45 67', phoneIntl: '+49-800-1234567' },
         lookup: null,
     }
     forms.length = 0

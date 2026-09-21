@@ -19,16 +19,25 @@
  * (`isolation` on the wheel, never on the frame): an isolated frame rendered empty in Chromium for
  * the whole sweep on a cold visit.
  *
- * The photograph's targets are calibrated once against the cut-out and live in the manifest
- * (`resources/js/images/hero-wheel.json` → `targets`), so a later cut-out swap edits data, not code.
+ * The wheel itself is `WheelViewer3D`: the poster from the first byte, and — on a desktop document
+ * with a fine pointer, after the poster has painted and the browser is idle — the 3D wheel over it
+ * (§4.1). While the model is on screen the callout line ends follow its projected features and
+ * the boxes stay put; before and without it, the photograph's targets apply. Those are calibrated
+ * once against the cut-out and live in the manifest (`resources/js/images/hero-wheel.json` →
+ * `targets`), so a later cut-out swap edits data, not code.
  */
 
 import { usePage } from '@inertiajs/vue3'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import Picture, { type ImageManifest } from '../Ui/Picture.vue'
+import type { ImageManifest } from '../Ui/Picture.vue'
 import SpecCallout from '../Ui/SpecCallout.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
+import WheelViewer3D from './Wheel3D/WheelViewer3D.vue'
+import { HERO_MODEL_3D } from './Wheel3D/model'
+import { HERO_SEQUENCE } from './Wheel3D/sequence'
+import { boxToFrame } from './Wheel3D/targets'
+import type { BoxTargets, Stage } from './Wheel3D/types'
 import { euro } from '../../format'
 import heroWheel from '../../images/hero-wheel.json'
 import type { MakeOption, StartseiteProps } from '../../types/pages'
@@ -50,6 +59,13 @@ interface CutoutManifest extends ImageManifest {
 
 /* The cut-out manifests the page knows; `hero.product.image` names one of them. */
 const MANIFESTS: Readonly<Record<string, CutoutManifest>> = { 'hero-wheel': heroWheel as CutoutManifest }
+
+/*
+ * The 3D wheel over the poster: the parametric mesh built by scripts/3d/build-wheel.mjs from the
+ * hero configuration (§4.1). The server's `hero.product.model3d` will replace this import once
+ * the catalogue carries licensed models; until then the one bundled manifest is the model.
+ */
+const MODEL_3D = HERO_MODEL_3D
 
 /* The calibrated targets for the current cut-out (frame %, §H2), used when a manifest carries none. */
 const DEFAULT_TARGETS: Targets = {
@@ -111,12 +127,56 @@ const callouts = computed(() => {
             break
         }
 
-        const target = (manifest.value.targets ?? DEFAULT_TARGETS)[slot.key]
+        const target = (frameTargets.value ?? manifest.value.targets ?? DEFAULT_TARGETS)[slot.key]
         out.push({ key: slot.key, label: entry.label, value: entry.value, x: slot.x, y: slot.y, tx: target.tx, ty: target.ty })
     }
 
     return out
 })
+
+/* ── The 3D stage: the line ends follow the model, the boxes stay put ────────── */
+
+const wheel = ref<HTMLElement | null>(null)
+const stage = ref<Stage>('poster')
+/** The model's targets as the viewer projects them (percent of the wheel's box), while 3D is on. */
+const boxTargets = ref<BoxTargets | null>(null)
+/** The same, in the frame's percentages — what the callouts draw to. */
+const frameTargets = ref<Targets | null>(null)
+
+let resizer: ResizeObserver | null = null
+
+/** Map the box targets into the frame with both rectangles as they are laid out right now. */
+function remapTargets(): void {
+    if (boxTargets.value === null || frame.value === null || wheel.value === null) {
+        frameTargets.value = null
+
+        return
+    }
+
+    const frameBox = frame.value.getBoundingClientRect()
+    const wheelBox = wheel.value.getBoundingClientRect()
+    const out = {} as Targets
+
+    for (const key of Object.keys(boxTargets.value) as TargetKey[]) {
+        out[key] = boxToFrame(boxTargets.value[key], wheelBox, frameBox)
+    }
+
+    frameTargets.value = out
+}
+
+function onTargets(targets: BoxTargets): void {
+    boxTargets.value = targets
+    remapTargets()
+}
+
+function onStage(next: Stage): void {
+    stage.value = next
+
+    if (next !== '3d') {
+        boxTargets.value = null
+        remapTargets()
+    }
+}
 
 /* ── Signature moment 1 ──────────────────────────────────────────────────────── */
 
@@ -202,6 +262,12 @@ onMounted(() => {
         frame.value.addEventListener('pointerleave', onLeave)
         rolling = true
     }
+
+    // The frame's geometry changes with the viewport; the model's targets are re-mapped, never re-projected.
+    if (typeof ResizeObserver !== 'undefined' && frame.value !== null) {
+        resizer = new ResizeObserver(() => remapTargets())
+        resizer.observe(frame.value)
+    }
 })
 
 onBeforeUnmount(() => {
@@ -209,6 +275,8 @@ onBeforeUnmount(() => {
         frame.value.removeEventListener('pointermove', onMove)
         frame.value.removeEventListener('pointerleave', onLeave)
     }
+
+    resizer?.disconnect()
 })
 </script>
 
@@ -222,7 +290,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="hero__stage">
-                <div ref="frame" class="frame hero__frame" :class="{ 'is-lit': lit, 'is-ready': ready }">
+                <div ref="frame" class="frame hero__frame" :class="{ 'is-lit': lit, 'is-ready': ready }" :data-stage="stage">
                     <div class="hero-studio" aria-hidden="true" />
                     <div class="hero-contact" aria-hidden="true" />
 
@@ -234,16 +302,22 @@ onBeforeUnmount(() => {
                         :href="symbolic ? undefined : `/felgen/${product.slug}`"
                         :aria-label="symbolic ? undefined : `Zur Felge ${product.brand} ${product.name}`"
                     >
-                        <span class="hero__wheel" :class="{ 'hero__wheel--fallback': failed }" :style="{ '--roll': `${roll}deg` }">
-                            <Picture
+                        <span ref="wheel" class="hero__wheel" :class="{ 'hero__wheel--fallback': failed }" :style="{ '--roll': `${roll}deg` }">
+                            <WheelViewer3D
                                 v-if="!failed"
-                                :image="manifest"
+                                :poster="manifest"
                                 :alt="alt"
                                 sizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, 70vw"
                                 eager
-                                class="hero__picture"
+                                :model="MODEL_3D"
+                                :sequence="HERO_SEQUENCE"
+                                :finish="product.finish"
+                                :roll="roll"
+                                mode="hero"
                                 @loaded="onLoaded"
-                                @error.capture="onError"
+                                @error="onError"
+                                @targets="onTargets"
+                                @stage="onStage"
                             />
                             <WheelOutline v-else :bolts="product.config.boltHoles" />
                             <span v-if="!failed" class="hero__sweep-mask" aria-hidden="true">
@@ -371,7 +445,11 @@ onBeforeUnmount(() => {
     border-radius: var(--r-round);
 }
 
-/* The wheel's box is the one isolated group: the sweep blends with the photograph and nothing else. */
+/*
+ * The wheel's box is the one isolated group: the sweep blends with the photograph and nothing else.
+ * The box itself never turns: `--roll` is read by the viewer, which turns the poster by CSS or the
+ * model in 3D, so the canvas's frame stays where the callouts expect it.
+ */
 .hero__wheel {
     position: absolute;
     left: calc((100% - var(--wheel-w)) / 2);
@@ -380,8 +458,6 @@ onBeforeUnmount(() => {
     width: var(--wheel-w);
     aspect-ratio: 1;
     isolation: isolate;
-    transform: rotate(var(--roll, 0deg));
-    transition: transform var(--d-2) var(--ease-out);
 }
 
 .hero__wheel--fallback {
@@ -392,13 +468,6 @@ onBeforeUnmount(() => {
 .hero__wheel--fallback :deep(.outline) {
     width: 60%;
     height: 60%;
-}
-
-.hero__picture {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
 }
 
 /*
@@ -560,7 +629,7 @@ onBeforeUnmount(() => {
         left: 50%;
         width: auto;
         height: 82.5%;
-        transform: translateX(-50%) rotate(var(--roll, 0deg));
+        transform: translateX(-50%);
     }
 
     .hero-contact {
@@ -574,10 +643,6 @@ onBeforeUnmount(() => {
 @media (prefers-reduced-motion: reduce) {
     .hero-sweep {
         display: none;
-    }
-
-    .hero__wheel {
-        transition: none;
     }
 }
 </style>
