@@ -1400,3 +1400,16 @@ select.field {
         display: none;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOUCH · last in the file on purpose, so it wins over every control's own size
+   On a touch screen every control is at least 44px tall, whatever its size on desktop.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (pointer: coarse) {
+    .btn--sm,
+    .chip:not(.chip--static),
+    .pill {
+        min-height: 44px;
+    }
+}

@@ -463,7 +463,11 @@ function onTsn(event: Event): void {
     margin-top: var(--space-3);
 }
 
+/* Its own line, and a full 44px tall: a text-sized link inside a sentence is too small to tap. */
 .vsel__helplink {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
     padding: 0;
     background: transparent;
     border: 0;
