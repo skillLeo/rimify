@@ -1,8 +1,13 @@
 name: Deploy
 
-# Every push to main builds the front end on GitHub's runner, publishes source + build on the
-# `deploy` branch, and then runs deploy/remote.sh on the host over SSH. Nothing is compiled on the
-# production host: it is shared hosting, and a build there exhausts the account's process limit.
+# Every push to main produces a ready-to-run release on the `deploy` branch: the source, the PHP
+# dependencies (installed for production) and the compiled client and SSR bundles. The host's own
+# Git integration pulls that branch, and pulling is the whole deployment — nothing is installed or
+# compiled on the host. It is shared hosting: a build there once exhausted the account's process
+# limit and took every site on it offline.
+#
+# Optional: set the repository variable SSH_RELEASE=true (plus the SSH_* and DB_* secrets) to also
+# run deploy/remote.sh on the host after each release — migrations, caches, SSR restart.
 
 on:
   push:
@@ -18,17 +23,26 @@ permissions:
 
 jobs:
   build:
-    name: Build and publish
+    name: Build the release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, gd, zip, bcmath
+          coverage: none
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Install
+      - name: PHP dependencies (production only)
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+
+      - name: Node dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Typecheck
@@ -37,22 +51,23 @@ jobs:
       - name: Build client and SSR bundles
         run: npm run build
 
-      # The deploy branch is main plus the compiled assets, committed on top of the previous deploy
-      # so the host always pulls a fast-forward.
+      # The release is main plus vendor/ and the compiled assets, committed on top of the previous
+      # release so the host always pulls a fast-forward.
       - name: Publish to the deploy branch
         run: |
           git config user.name "SkillLeo"
           git config user.email "hassam.dev.571@gmail.com"
-          git add -f public/build bootstrap/ssr
+          git add -f vendor public/build bootstrap/ssr bootstrap/cache/packages.php bootstrap/cache/services.php
           TREE=$(git write-tree)
           PARENT=""
           if git fetch --quiet origin deploy; then PARENT="-p $(git rev-parse FETCH_HEAD)"; fi
-          COMMIT=$(git commit-tree "$TREE" $PARENT -m "build: $(git log -1 --format='%h %s')")
+          COMMIT=$(git commit-tree "$TREE" $PARENT -m "release: $(git log -1 --format='%h %s')")
           git push origin "$COMMIT:refs/heads/deploy"
 
-  deploy:
-    name: Release on the host
+  release:
+    name: Post-release steps on the host
     needs: build
+    if: vars.SSH_RELEASE == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Pull and release over SSH
@@ -68,8 +83,8 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           envs: DB_DATABASE,DB_USERNAME,DB_PASSWORD
           command_timeout: 15m
-          # Fetched by URL rather than through a named remote: the host's own Git integration made the
-          # clone and may have named its remote differently. The repository is public, so no token.
+          # Fetched by URL rather than through a named remote: the host's own Git integration made
+          # the clone and may have named its remote differently. The repository is public.
           script: |
             set -e
             cd "$HOME/domains/rimify.skillleo.com/public_html"
