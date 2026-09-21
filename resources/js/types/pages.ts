@@ -118,8 +118,8 @@ export interface StartseiteProps {
     hero: {
         title: string
         subline: string
-        /** The phone document's shorter sentence. */
-        sublineMobile: string
+        /** The phone document's shorter sentence; the desktop one when absent. */
+        sublineMobile?: string
         product: HeroProduct | null
         stats: HomeStats
     }

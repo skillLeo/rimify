@@ -22,7 +22,11 @@ export async function consentGiven(context: BrowserContext, baseURL: string): Pr
 /** Open a route and wait until the client has taken over the server-rendered page. */
 export async function open(page: Page, path: string): Promise<void> {
     await page.goto(path, { waitUntil: 'networkidle' });
-    await page.waitForFunction(() => document.querySelector('#app')?.__vue_app__ !== undefined, null, { timeout: 15_000 });
+    await page.waitForFunction(
+        () => (document.querySelector('#app') as (Element & { __vue_app__?: unknown }) | null)?.__vue_app__ !== undefined,
+        null,
+        { timeout: 15_000 },
+    );
     await page.evaluate(() => document.fonts.ready);
 }
 

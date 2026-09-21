@@ -20,7 +20,7 @@ export interface VehicleProp {
     model: string
     variant: string
     /** How a Gutachten names the car (`B9`); null when the data does not carry it. */
-    typeDesignation: string | null
+    typeDesignation?: string | null
     /** `Audi RS 4 Avant Quattro` — used wherever there is room. */
     label: string
     /** `Audi RS 4` — the phone-width truncation, which must never wrap to two lines. */
