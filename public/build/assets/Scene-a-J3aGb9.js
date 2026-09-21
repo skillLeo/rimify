@@ -1,0 +1,1 @@
+import{S as e,f as t,u as n,v as r}from"./app-C-ynDaOw.js";import{c as i,n as a}from"./art-U8LumNI1.js";var o=r({__name:`Scene`,props:{name:{},width:{default:640},title:{default:void 0}},setup(r){let o=r,s=n(()=>a(o.name,{width:o.width,title:o.title}));return(n,r)=>(e(),t(i,{markup:s.value},null,8,[`markup`]))}});export{o as t};

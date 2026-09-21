@@ -1,0 +1,110 @@
+/**
+ * `icon(name)` — one set, 1.5px stroke, `currentColor`, 24×24, 20px and 24px sizes only.
+ *
+ * More than one icon style is on the banned list (design-system spec §7), so this is the
+ * complete vocabulary: 32 names, in source order, and nothing is added without the list changing.
+ * Every glyph is drawn on the same 24-unit grid with the same stroke weight, joins and caps, which
+ * is what makes a row of them look like a set rather than a collection.
+ */
+
+export const ICON_NAMES = [
+    'check',
+    'check-circle',
+    'chevron-down',
+    'chevron-right',
+    'arrow-right',
+    'search',
+    'cart',
+    'phone',
+    'whatsapp',
+    'mail',
+    'truck',
+    'shield',
+    'document',
+    'filter',
+    'close',
+    'menu',
+    'home',
+    'wheel',
+    'star',
+    'info',
+    'warning',
+    'plus',
+    'minus',
+    'trash',
+    'eye',
+    'lock',
+    'user',
+    'grid',
+    'box',
+    'chart',
+    'settings',
+    'logout',
+] as const
+
+export type IconName = (typeof ICON_NAMES)[number]
+
+/** The rating star is the one filled glyph — it is a mark, not a control. */
+const FILLED: ReadonlySet<string> = new Set(['star'])
+
+const PATHS: Readonly<Record<IconName, string>> = {
+    check: '<path d="M4 12.5 9 17.5 20 6.5"/>',
+    'check-circle':
+        '<circle cx="12" cy="12" r="9"/><path d="M8 12.2 10.9 15 16 9.4"/>',
+    'chevron-down': '<path d="m6 9.5 6 6 6-6"/>',
+    'chevron-right': '<path d="m9.5 6 6 6-6 6"/>',
+    'arrow-right': '<path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="m15.8 15.8 4.2 4.2"/>',
+    cart: '<path d="M3 4h2.2l2.3 11h10l2.2-8H6.2"/><circle cx="9.5" cy="19" r="1.6"/><circle cx="17.5" cy="19" r="1.6"/>',
+    phone: '<path d="M6.2 3.5h3l1.5 4-2 1.4a12 12 0 0 0 6.4 6.4l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A17.5 17.5 0 0 1 4.2 5.7a2 2 0 0 1 2-2.2Z"/>',
+    whatsapp:
+        '<path d="M20 11.7A8 8 0 0 1 8.3 18.9L4 20l1.2-4.2A8 8 0 1 1 20 11.7Z"/><path d="M9.4 9.1c.3-.7.6-.7.9-.7h.7c.2 0 .5 0 .8.6l.9 2.1-.7.8c-.2.2-.3.4-.1.7a6.2 6.2 0 0 0 2.8 2.4c.3.1.5.1.7-.1l.7-.8 2.1.9c.5.2.6.5.6.7v.7c0 .3 0 .6-.7.9a3.7 3.7 0 0 1-2.6.1 11 11 0 0 1-6.2-6.2 3.7 3.7 0 0 1 .1-2.1Z"/>',
+    mail: '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.8 7 8.2 6 8.2-6"/>',
+    truck: '<path d="M3 6.5h10.5v10H3z"/><path d="M13.5 10h3.8l2.7 3v3.5h-6.5z"/><circle cx="7.5" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
+    shield: '<path d="M12 3.2 19.5 6v5.6c0 4-3 7-7.5 9.2-4.5-2.2-7.5-5.2-7.5-9.2V6Z"/>',
+    document:
+        '<path d="M6 3.2h7.5L18.5 8v12.8H6Z"/><path d="M13.3 3.4V8h5"/><path d="M9 13h6.5M9 16.5h6.5"/>',
+    filter: '<path d="M3.5 5.5h17l-6.6 7.7v5.1l-3.8 2.2v-7.3Z"/>',
+    close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    home: '<path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.2h-5V20H4Z"/>',
+    wheel: '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3"/><path d="M12 3.4v5.6M12 15v5.6M3.4 12h5.6M15 12h5.6"/>',
+    star: '<path d="m12 3.6 2.6 5.5 5.9.8-4.3 4.2 1 6-5.2-2.9-5.2 2.9 1-6L3.5 9.9l5.9-.8Z"/>',
+    info: '<circle cx="12" cy="12" r="8.6"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/>',
+    warning:
+        '<path d="M12 3.8 21 19.4H3Z"/><path d="M12 9.8v4.4"/><path d="M12 17.1h.01"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
+    trash: '<path d="M4.5 6.5h15"/><path d="M9.5 6.5V4h5v2.5"/><path d="M6.5 6.5 7.5 20h9l1-13.5"/><path d="M10.5 10v6M13.5 10v6"/>',
+    eye: '<path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="2.9"/>',
+    lock: '<rect x="4.5" y="10" width="15" height="10.2" rx="2"/><path d="M8 10V7.8a4 4 0 0 1 8 0V10"/>',
+    user: '<circle cx="12" cy="8.2" r="3.7"/><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0"/>',
+    grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+    box: '<path d="m12 3.4 8 4.2v8.8l-8 4.2-8-4.2V7.6Z"/><path d="m4 7.6 8 4.2 8-4.2M12 11.8V20"/>',
+    chart: '<path d="M4 20V4"/><path d="M4 20h16"/><path d="m7 15.5 3.8-4.4 3.2 2.4 5-6"/>',
+    settings:
+        '<circle cx="12" cy="12" r="3.1"/><path d="M19.5 14a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-2.8-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.6 13h-.3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 11 3.6v-.3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 2.8 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.3a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.4 1Z"/>',
+    logout: '<path d="M9.5 20H5.5a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="m15 8 4 4-4 4"/><path d="M19 12H9.5"/>',
+}
+
+export interface IconOptions {
+    /** 20 or 24 only — the design system defines no other size. */
+    size?: 20 | 24
+    /** Decorative by default; pass a label only when the icon is the sole content of a control. */
+    label?: string
+}
+
+export function icon(name: IconName, options: IconOptions = {}): string {
+    const size = options.size ?? 20
+    const filled = FILLED.has(name)
+
+    const a11y = options.label
+        ? `role="img" aria-label="${options.label.replace(/"/g, '&quot;')}"`
+        : 'aria-hidden="true"'
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="${filled ? 'currentColor' : 'none'}" stroke="${filled ? 'none' : 'currentColor'}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${a11y} focusable="false">${PATHS[name]}</svg>`
+}
+
+export function isIconName(value: string): value is IconName {
+    return value in PATHS
+}

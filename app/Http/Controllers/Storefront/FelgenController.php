@@ -1,0 +1,277 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Storefront;
+
+use App\Domain\Fitment\Data\TyreSize;
+use App\Domain\Fitment\Infrastructure\ListingQuery;
+use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\VerdictReason;
+use App\Domain\Fitment\Verdict\VerdictStatus;
+use App\Domain\Storefront\VehicleContext;
+use App\Http\Controllers\Controller;
+use App\Models\CatalogueGapEvent;
+use App\Models\WheelModel;
+use App\Services\Storefront\ProductCards;
+use App\Services\Storefront\VehicleTree;
+use App\Support\GermanFormat;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+/**
+ * The selector, the listing and the product page.
+ *
+ * All three are the same idea at three resolutions: what is legally permitted on THIS car. The
+ * listing without a vehicle is deliberately a weaker page than the listing with one, and it says
+ * so rather than pretending the whole catalogue fits every car.
+ */
+class FelgenController extends Controller
+{
+    public function __construct(
+        private readonly ProductCards $cards,
+        private readonly VehicleTree $tree,
+        private readonly ListingQuery $listing,
+        private readonly FitmentResolver $resolver,
+    ) {}
+
+    /** The vehicle selector: make → model → variant, or the two key numbers. */
+    public function suchen(Request $request): Response
+    {
+        $make = $request->string('marke')->toString();
+        $model = $request->string('modell')->toString();
+
+        return Inertia::render('FelgenSuchen/Index', [
+            'makes' => $this->tree->makes(),
+            'selectedMake' => $make === '' ? null : $make,
+            'selectedModel' => $model === '' ? null : $model,
+            'models' => $make === '' ? [] : $this->tree->models($make),
+            'variants' => ($make === '' || $model === '') ? [] : $this->tree->variants($make, $model),
+        ]);
+    }
+
+    /** The listing. With a vehicle it is a compliance answer; without one it is a catalogue. */
+    public function index(Request $request): Response
+    {
+        $vehicleId = $this->vehicleId($request);
+        $filters = $this->filters($request);
+
+        if ($vehicleId === null) {
+            return Inertia::render('Felgen/Index', [
+                'hasVehicle' => false,
+                'cards' => $this->cards->catalogue(limit: 24),
+                'total' => null,
+                'facets' => [],
+                'filters' => $filters,
+            ]);
+        }
+
+        $page = max(1, $request->integer('seite', 1));
+        $result = $this->cards->forVehicle($vehicleId, $filters, perPage: 24, page: $page);
+
+        // An empty listing with no filters applied is a catalogue gap, not a filter mistake — and
+        // it is the case that turns a silent lost sale into a ranked shopping list of documents.
+        if ($result['total'] === 0 && $filters === []) {
+            CatalogueGapEvent::record(
+                reasonCode: VerdictReason::NO_DOCUMENT,
+                surface: 'plp',
+                vehicleId: $vehicleId,
+            );
+        }
+
+        return Inertia::render('Felgen/Index', [
+            'hasVehicle' => true,
+            'cards' => $result['cards'],
+            'total' => $result['total'],
+            // Counts carry the OTHER filters but not the facet's own, so "18 Zoll (312)" means
+            // "312 results if you add this" rather than a number that only holds in isolation.
+            'facets' => $this->listing->facets($vehicleId, $filters),
+            'filters' => $filters,
+            'page' => $page,
+        ]);
+    }
+
+    /** The product page. One model, its finishes, its configurations. */
+    public function show(Request $request, string $model): Response
+    {
+        $wheel = WheelModel::query()
+            ->with(['brand', 'finishes', 'configs'])
+            ->where('slug', $model)
+            ->firstOrFail();
+
+        $vehicleId = $this->vehicleId($request);
+        $configs = [];
+        $anyUnknown = false;
+
+        foreach ($wheel->configs as $config) {
+            $verdict = $vehicleId === null ? null : $this->verdictFor($vehicleId, $config->id);
+
+            if ($verdict !== null && $verdict['status'] === VerdictStatus::Unknown->value) {
+                $anyUnknown = true;
+            }
+
+            $configs[] = [
+                // Price, stock and verdict arrive together in one payload, so selecting a size
+                // changes all three in ONE commit. A page where the price updates a frame before
+                // the legal answer has, for that frame, told the customer something untrue.
+                'verdict' => $verdict,
+                'id' => $config->id,
+                'finishId' => $config->wheel_finish_id,
+                'sku' => $config->sku,
+                'diameterIn' => (float) $config->diameter_in,
+                'widthIn' => (float) $config->width_in,
+                'etMm' => (int) $config->et_mm,
+                'sizeLabel' => GermanFormat::wheelSize(
+                    (float) $config->width_in,
+                    (float) $config->diameter_in,
+                    (int) $config->et_mm,
+                ),
+                'fullLabel' => GermanFormat::wheelLabel(
+                    (float) $config->width_in,
+                    (float) $config->diameter_in,
+                    (int) $config->et_mm,
+                    (int) $config->bolt_holes,
+                    (float) $config->bolt_circle_mm,
+                    (float) $config->centre_bore_mm,
+                ),
+                'boltPattern' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm),
+                'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
+                'priceCents' => (int) $config->price_cents,
+                'price' => GermanFormat::money((int) $config->price_cents),
+                'stockQty' => (int) $config->stock_qty,
+                'inStock' => $config->stock_qty > 0,
+                'kbaNumber' => $config->kba_number,
+                'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
+            ];
+        }
+
+        // A model we hold no document for, on a car the customer has chosen, is the single most
+        // useful thing this business can learn: it names a Gutachten worth buying, ranked by how
+        // often real customers ask for it.
+        if ($anyUnknown && $vehicleId !== null) {
+            CatalogueGapEvent::record(
+                reasonCode: VerdictReason::NO_DOCUMENT,
+                surface: 'pdp',
+                vehicleId: $vehicleId,
+            );
+        }
+
+        $finishes = [];
+
+        foreach ($wheel->finishes as $finish) {
+            $finishes[] = [
+                'id' => $finish->id,
+                'name' => $finish->name_de,
+                'hex' => $finish->hex,
+                'artFinish' => $finish->art_finish,
+            ];
+        }
+
+        return Inertia::render('Produkt/Index', [
+            'product' => [
+                'modelId' => $wheel->id,
+                'slug' => $wheel->slug,
+                'modelName' => $wheel->name,
+                'brandName' => $wheel->brand->name,
+                'typeDesignation' => $wheel->type_designation,
+                'descriptionDe' => $wheel->description_de,
+                'spokes' => $wheel->spoke_count,
+                'rating' => $wheel->rating,
+                'ratingCount' => $wheel->rating_count,
+                'ratingLabel' => $wheel->rating === null
+                    ? null
+                    : GermanFormat::rating($wheel->rating, $wheel->rating_count),
+            ],
+            'finishes' => $finishes,
+            'configs' => $configs,
+            'hasVehicle' => $vehicleId !== null,
+        ]);
+    }
+
+    private function vehicleId(Request $request): ?int
+    {
+        $raw = $request->cookie(VehicleContext::COOKIE);
+
+        return VehicleContext::decode(is_string($raw) ? $raw : null)?->vehicleId;
+    }
+
+    /**
+     * One verdict per configuration, computed by the same engine every other surface calls (R-13).
+     *
+     * `NOT_PERMITTED` and `UNKNOWN` are carried separately and rendered differently. Collapsing
+     * them into "no" would tell the customer something false — "we checked and your car cannot
+     * have this" when the truth is "we hold no document" — and would cost RIMIFY the one signal
+     * that says which Gutachten to buy next.
+     *
+     * @return array<string, mixed>
+     */
+    private function verdictFor(int $vehicleId, int $wheelConfigId): array
+    {
+        $verdict = $this->resolver->resolve($vehicleId, $wheelConfigId);
+
+        return [
+            'status' => $verdict->status->value,
+            'label' => $verdict->status->labelDe(),
+            'sellable' => $verdict->isSellable(),
+            'requiresEntry' => $verdict->requiresEntry,
+            'entryNoteDe' => $verdict->entryNoteDe,
+            // Full German sentences, never codes such as A02 (R-15).
+            'conditions' => array_map(
+                static fn (Condition $condition): string => $condition->sentenceDe(),
+                $verdict->conditions,
+            ),
+            // The reason is a German sentence, because a disabled chip with no explanation reads
+            // as a broken control rather than as a fact about the customer's car.
+            'reason' => $verdict->reason?->textDe,
+            'reasonCode' => $verdict->reason?->code,
+            'document' => $verdict->document === null ? null : [
+                'number' => $verdict->document->number,
+                'issuer' => $verdict->document->issuer,
+                'kind' => $verdict->document->kind,
+            ],
+            'tyreSizes' => array_map(
+                static fn (TyreSize $size): string => $size->labelDe(),
+                $verdict->front->sizes,
+            ),
+        ];
+    }
+
+    /**
+     * Filter state lives in the query string so a filtered listing can be shared, bookmarked and
+     * reached with the back button.
+     *
+     * @return array<string, mixed>
+     */
+    private function filters(Request $request): array
+    {
+        $filters = [];
+
+        foreach (ListingQuery::FACETS as $facet) {
+            if (! $request->has($facet)) {
+                continue;
+            }
+
+            if ($facet === 'ohne_eintragung') {
+                if ($request->boolean($facet)) {
+                    $filters[$facet] = true;
+                }
+
+                continue;
+            }
+
+            $value = $request->input($facet);
+            $values = array_values(array_filter(
+                is_array($value) ? $value : explode(',', (string) $value),
+                static fn (mixed $v): bool => is_string($v) && $v !== '',
+            ));
+
+            if ($values !== []) {
+                $filters[$facet] = $values;
+            }
+        }
+
+        return $filters;
+    }
+}

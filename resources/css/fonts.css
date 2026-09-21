@@ -1,0 +1,28 @@
+/*
+ * RIMIFY — web fonts, self-hosted.
+ *
+ * Not loaded from Google: the CSP is nonce-based with no third-party `style-src` or `font-src`,
+ * and a face that arrives after first paint reflows the 56px headline — which is the LCP element.
+ * Vite fingerprints the .woff2 files and they ship from our own origin.
+ *
+ * Only the weights the design system actually uses (design-system.md §2):
+ *   Lato           400 · 700 · 900 · 900 italic (the wordmark stand-in)
+ *   IBM Plex Mono  400 · 500  — measured values only, 11–13px, never prose
+ *
+ * latin-ext is included because it carries Š (U+0160). "Škoda" is a make in the vehicle table,
+ * and a make rendered in a fallback face on the selector is exactly the kind of small wrongness
+ * this client has rejected before.
+ */
+
+@import '@fontsource/lato/latin-400.css';
+@import '@fontsource/lato/latin-ext-400.css';
+@import '@fontsource/lato/latin-700.css';
+@import '@fontsource/lato/latin-ext-700.css';
+@import '@fontsource/lato/latin-900.css';
+@import '@fontsource/lato/latin-ext-900.css';
+@import '@fontsource/lato/latin-900-italic.css';
+
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-500.css';

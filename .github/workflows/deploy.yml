@@ -1,0 +1,79 @@
+name: Deploy
+
+# Every push to main builds the front end on GitHub's runner, publishes source + build on the
+# `deploy` branch, and then runs deploy/remote.sh on the host over SSH. Nothing is compiled on the
+# production host: it is shared hosting, and a build there exhausts the account's process limit.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx vue-tsc --noEmit
+
+      - name: Build client and SSR bundles
+        run: npm run build
+
+      # The deploy branch is main plus the compiled assets, committed on top of the previous deploy
+      # so the host always pulls a fast-forward.
+      - name: Publish to the deploy branch
+        run: |
+          git config user.name "SkillLeo"
+          git config user.email "hassam.dev.571@gmail.com"
+          git add -f public/build bootstrap/ssr
+          TREE=$(git write-tree)
+          PARENT=""
+          if git fetch --quiet origin deploy; then PARENT="-p $(git rev-parse FETCH_HEAD)"; fi
+          COMMIT=$(git commit-tree "$TREE" $PARENT -m "build: $(git log -1 --format='%h %s')")
+          git push origin "$COMMIT:refs/heads/deploy"
+
+  deploy:
+    name: Release on the host
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and release over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: DB_DATABASE,DB_USERNAME,DB_PASSWORD
+          command_timeout: 15m
+          # Fetched by URL rather than through a named remote: the host's own Git integration made the
+          # clone and may have named its remote differently. The repository is public, so no token.
+          script: |
+            set -e
+            cd "$HOME/domains/rimify.skillleo.com/public_html"
+            git fetch --quiet https://github.com/${{ github.repository }}.git deploy
+            git checkout -q -B deploy FETCH_HEAD
+            git reset -q --hard FETCH_HEAD
+            bash deploy/remote.sh

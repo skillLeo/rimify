@@ -1,0 +1,17 @@
+# RIMIFY on shared hosting: the repository is the document root, so only public/ is served.
+# Dotfiles (.env, .git) are refused outright; everything else is answered from public/.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Certificate renewal must keep reaching the host's challenge files.
+    RewriteRule ^\.well-known/ - [L]
+
+    # Never serve .env, .git or any other dotfile.
+    RewriteRule (^|/)\. - [F,L]
+
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
