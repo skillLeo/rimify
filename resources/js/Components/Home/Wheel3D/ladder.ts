@@ -59,18 +59,29 @@ export function probe(isMobile: boolean, hasModel: boolean, hasSequence: boolean
     return { ...base, saveData: connection?.saveData === true, webgl2: hasWebgl2() }
 }
 
+/** Renderers that are WebGL in name only: the page would spend the CPU the poster does not need. */
+const SOFTWARE_RENDERER = /swiftshader|llvmpipe|softpipe|software|mesa offscreen|basic render/i
+
+/**
+ * WebGL2 on a real GPU. The probe context is left to the garbage collector on purpose: losing
+ * it by hand makes Firefox print "WebGL context was lost" to the console, which the console
+ * gate rightly treats as a warning.
+ */
 export function hasWebgl2(): boolean {
     try {
         const canvas = document.createElement('canvas')
-        const gl = canvas.getContext('webgl2')
+        const gl = canvas.getContext('webgl2', { failIfMajorPerformanceCaveat: true }) as
+            | (Partial<WebGL2RenderingContext> & { isContextLost?: () => boolean })
+            | null
 
-        if (gl === null) {
+        if (gl === null || gl.isContextLost?.() === true) {
             return false
         }
 
-        gl.getExtension('WEBGL_lose_context')?.loseContext()
+        const debug = gl.getExtension?.('WEBGL_debug_renderer_info') as { UNMASKED_RENDERER_WEBGL: number } | null | undefined
+        const renderer = debug && gl.getParameter ? String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)) : ''
 
-        return true
+        return !SOFTWARE_RENDERER.test(renderer)
     } catch {
         return false
     }

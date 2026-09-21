@@ -157,7 +157,8 @@ onBeforeUnmount(() => observer?.disconnect())
                         </div>
                     </div>
 
-                    <div class="pdp__block">
+                    <!-- `#groessen`: where the compare page's "Größe wählen" lands. -->
+                    <div id="groessen" class="pdp__block">
                         <span class="micro">Durchmesser (Zoll)</span>
                         <div class="chip-row pdp__chips">
                             <button

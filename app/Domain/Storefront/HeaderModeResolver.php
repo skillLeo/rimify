@@ -13,7 +13,7 @@ namespace App\Domain\Storefront;
 final readonly class HeaderModeResolver
 {
     /** The booking process, exactly as the client's Figma annotation defines it: PLP, PDP, cart. */
-    public const BOOKING_ROUTES = ['felgen.index', 'felgen.show', 'felgen.fuer', 'warenkorb.index'];
+    public const BOOKING_ROUTES = ['felgen.index', 'felgen.show', 'felgen.fuer', 'vergleich.index', 'warenkorb.index'];
 
     /** Checkout and confirmation never show a vehicle presentation (edge case E5). */
     public const SUPPRESSED_ROUTES = ['kasse.index', 'kasse.store', 'bestellung.show'];

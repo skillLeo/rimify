@@ -56,6 +56,7 @@ final readonly class ProductCards
         $presentation = $this->presentationFor($modelIds, $finishIds);
         $diameters = $this->diametersFor($modelIds, $finishIds);
         $configIds = $this->listing->configIdsFor($vehicleId, $filters, $modelIds, $finishIds);
+        $diameterOf = $this->diameterByConfig($configIds);
         $vehicle = $this->vehicles->find($vehicleId);
 
         $cards = [];
@@ -67,7 +68,7 @@ final readonly class ProductCards
                 $row,
                 $presentation,
                 $diameters,
-                $this->claim($vehicle, $configIds[$key] ?? []),
+                $this->claim($vehicle, $configIds[$key] ?? [], $diameterOf),
             );
         }
 
@@ -84,14 +85,19 @@ final readonly class ProductCards
      * grid and "Mit Auflagen" on its product page. The engine is the one source of that answer
      * (R-13), and a listing card is no exception.
      *
+     * The diameters the permitted configurations come in travel with the claim, so a tile can
+     * grey the sizes no document permits on this car (in the same spelling as `diameters`).
+     *
      * @param  list<int>  $configIds
-     * @return array{status: string, requiresEntry: bool, conditions: list<string>}
+     * @param  array<int, string>  $diameterOf  configuration id → its diameter, formatted
+     * @return array{status: string, requiresEntry: bool, conditions: list<string>, diametersFitting: list<string>}
      */
-    private function claim(?VehicleRecord $vehicle, array $configIds): array
+    private function claim(?VehicleRecord $vehicle, array $configIds, array $diameterOf = []): array
     {
         $status = null;
         $requiresEntry = false;
         $conditions = [];
+        $fitting = [];
 
         foreach ($vehicle === null ? [] : $configIds as $configId) {
             $verdict = $this->resolver->resolveForVehicle($vehicle, $configId);
@@ -105,12 +111,19 @@ final readonly class ProductCards
                 : VerdictStatus::Permitted;
             $requiresEntry = $requiresEntry || $verdict->requiresEntry;
             $conditions = Condition::union($conditions, $verdict->conditions);
+
+            if (isset($diameterOf[$configId])) {
+                $fitting[$diameterOf[$configId]] = true;
+            }
         }
 
         // The listing and the engine disagree about this card. It makes no positive claim.
         if ($status === null) {
-            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'conditions' => []];
+            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'conditions' => [], 'diametersFitting' => []];
         }
+
+        $diametersFitting = array_keys($fitting);
+        usort($diametersFitting, static fn (string $a, string $b): int => (float) str_replace(',', '.', $a) <=> (float) str_replace(',', '.', $b));
 
         // Merged across configurations, "Keine Eintragung erforderlich." from one of them would
         // contradict the entry another one needs.
@@ -125,7 +138,32 @@ final readonly class ProductCards
                 static fn (Condition $c): string => $c->sentenceDe(),
                 $conditions,
             )),
+            'diametersFitting' => $diametersFitting,
         ];
+    }
+
+    /**
+     * Each configuration's diameter, formatted the way the card lists its sizes, for every
+     * configuration a page of cards stands for — one query for the page.
+     *
+     * @param  array<string, list<int>>  $configIdsByCard
+     * @return array<int, string>
+     */
+    private function diameterByConfig(array $configIdsByCard): array
+    {
+        $ids = array_values(array_unique(array_merge([], ...array_values($configIdsByCard))));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach (DB::table('wheel_configs')->whereIn('id', $ids)->get(['id', 'diameter_in']) as $row) {
+            $out[(int) $row->id] = GermanFormat::trimmedDecimal((string) $row->diameter_in, 1);
+        }
+
+        return $out;
     }
 
     /**
@@ -229,7 +267,7 @@ final readonly class ProductCards
      * @param  array<string, mixed>  $row
      * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, image: array<string, mixed>|null, is_demo: bool}>  $presentation
      * @param  array<string, list<string>>  $diameters
-     * @param  array{status: string, requiresEntry: bool, conditions: list<string>}  $claim
+     * @param  array{status: string, requiresEntry: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
      * @return array<string, mixed>
      */
     private function fromListingRow(array $row, array $presentation, array $diameters, array $claim): array
@@ -241,6 +279,9 @@ final readonly class ProductCards
         $look = $presentation[$key] ?? [
             'art_finish' => 'graphite', 'spoke_count' => 5, 'rating' => null, 'rating_count' => 0, 'image' => null, 'is_demo' => false,
         ];
+
+        $diametersFitting = $claim['diametersFitting'];
+        unset($claim['diametersFitting']);
 
         return $this->card(
             modelId: $modelId,
@@ -259,6 +300,7 @@ final readonly class ProductCards
             fitment: $claim,
             image: $look['image'],
             isDemo: $look['is_demo'],
+            diametersFitting: $diametersFitting,
         );
     }
 
@@ -266,6 +308,7 @@ final readonly class ProductCards
      * @param  list<string>  $diameters
      * @param  array<string, mixed>|null  $fitment
      * @param  array<string, mixed>|null  $image
+     * @param  list<string>|null  $diametersFitting  the sizes a document permits on the vehicle; null without one
      * @return array<string, mixed>
      */
     private function card(
@@ -285,6 +328,7 @@ final readonly class ProductCards
         ?array $fitment,
         ?array $image,
         bool $isDemo,
+        ?array $diametersFitting = null,
     ): array {
         return [
             'modelId' => $modelId,
@@ -293,6 +337,8 @@ final readonly class ProductCards
             'brandName' => $brandName,
             'finishId' => $finishId,
             'finishName' => $finishName,
+            // The key the compare store and the compare page agree on.
+            'compareKey' => $modelId.':'.$finishId,
             // The two arguments wheelSVG() takes. Without them every card draws the same wheel.
             'art' => ['finish' => $artFinish, 'spokes' => $spokeCount],
             // This finish's own cut-out as `Picture` reads it, or null: a card without a
@@ -308,6 +354,9 @@ final readonly class ProductCards
             'inStock' => $stockQty > 0,
             'stockQty' => $stockQty,
             'diameters' => $diameters,
+            // With a vehicle: the subset of `diameters` a document permits on it, same spelling.
+            // Null without a vehicle — no size is claimed to fit anything.
+            'diametersFitting' => $diametersFitting,
             'fitment' => $fitment,
         ];
     }
