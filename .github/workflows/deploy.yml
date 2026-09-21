@@ -57,7 +57,12 @@ jobs:
         run: |
           git config user.name "SkillLeo"
           git config user.email "hassam.dev.571@gmail.com"
-          git add -f vendor public/build bootstrap/ssr bootstrap/cache/packages.php bootstrap/cache/services.php
+          git add -f vendor public/build bootstrap/ssr
+          # Package manifests: shipped when composer produced them; Laravel regenerates any that
+          # are missing on first boot.
+          for f in bootstrap/cache/packages.php bootstrap/cache/services.php; do
+            if [ -f "$f" ]; then git add -f "$f"; fi
+          done
           TREE=$(git write-tree)
           PARENT=""
           if git fetch --quiet origin deploy; then PARENT="-p $(git rev-parse FETCH_HEAD)"; fi
