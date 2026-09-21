@@ -55,29 +55,34 @@ jobs:
       # release so the host always pulls a fast-forward.
       - name: Publish to the deploy branch
         run: |
+          # Any failure is reported as an annotation with the command's own output, so it can be
+          # read on the run page without digging through the log.
+          report() { echo "::error title=Publish failed at: $1::$(tr '\n' ' ' < /tmp/out | tail -c 1500)"; exit 1; }
+          echo "::notice title=Release size::vendor $(du -sh vendor | cut -f1), build $(du -sh public/build | cut -f1), largest file $(find vendor public/build bootstrap/ssr -type f -printf '%s %p\n' | sort -n | tail -1)"
           git config user.name "SkillLeo"
           git config user.email "hassam.dev.571@gmail.com"
-          git add -f vendor public/build bootstrap/ssr
+          git add -f vendor public/build bootstrap/ssr > /tmp/out 2>&1 || report "git add"
           # Package manifests: shipped when composer produced them; Laravel regenerates any that
           # are missing on first boot.
           for f in bootstrap/cache/packages.php bootstrap/cache/services.php; do
-            if [ -f "$f" ]; then git add -f "$f"; fi
+            if [ -f "$f" ]; then git add -f "$f" > /tmp/out 2>&1 || report "git add $f"; fi
           done
           PARENT=""
-          if git fetch --quiet origin deploy; then
+          if git fetch --quiet origin deploy > /tmp/out 2>&1; then
             PREVIOUS=$(git rev-parse FETCH_HEAD)
             PARENT="-p $PREVIOUS"
             # This token may not change workflow files on any branch, so a release carries the
             # previous release's .github/ unchanged. The host never reads it, and the workflow that
             # runs is always the one on main.
-            git rm -r -q --cached .github
+            git rm -r -q --cached .github > /tmp/out 2>&1 || report "git rm .github"
             if git cat-file -e "$PREVIOUS:.github" 2>/dev/null; then
-              git read-tree --prefix=.github/ "$PREVIOUS:.github"
+              git read-tree --prefix=.github/ "$PREVIOUS:.github" > /tmp/out 2>&1 || report "git read-tree"
             fi
           fi
-          TREE=$(git write-tree)
-          COMMIT=$(git commit-tree "$TREE" $PARENT -m "release: $(git log -1 --format='%h %s')")
-          git push origin "$COMMIT:refs/heads/deploy"
+          TREE=$(git write-tree 2> /tmp/out) || report "git write-tree"
+          COMMIT=$(git commit-tree "$TREE" $PARENT -m "release: $(git log -1 --format='%h %s')" 2> /tmp/out) || report "git commit-tree"
+          git push origin "$COMMIT:refs/heads/deploy" > /tmp/out 2>&1 || report "git push"
+          echo "::notice title=Released::$COMMIT"
 
   release:
     name: Post-release steps on the host
