@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Storefront;
 
+use App\Domain\Fitment\Infrastructure\ListingQuery;
+use App\Domain\Fitment\Resolver\VehicleResolver;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\MegaMenu;
 use App\Services\Storefront\ProductCards;
@@ -42,6 +45,9 @@ class StartseiteController extends Controller
         private readonly MegaMenu $mega,
         private readonly HomeStats $stats,
         private readonly RecentlyViewed $recentlyViewed,
+        private readonly FitmentCount $count,
+        private readonly VehicleResolver $resolver,
+        private readonly ListingQuery $listing,
     ) {}
 
     public function index(Request $request): Response
@@ -51,21 +57,27 @@ class StartseiteController extends Controller
         $tab = array_key_exists($tab, self::TABS) ? $tab : 'beliebt';
         $blocks = $this->blocks();
 
+        $vehicle = $vehicleId === null ? null : $this->resolver->find($vehicleId);
+
         return Inertia::render(DevicePage::resolve('Startseite', $request), [
             'hero' => [
                 'title' => (string) ($blocks['hero']['headline'] ?? 'Felgen, die an dein Auto dürfen.'),
                 'subline' => (string) ($blocks['hero']['sub'] ?? ''),
+                // The phone document's shorter sentence; the desktop one stays the fallback.
+                'sublineMobile' => (string) ($blocks['hero']['sub_mobile'] ?? $blocks['hero']['sub'] ?? ''),
                 'product' => $this->heroProduct(),
                 'stats' => $this->stats->counts(),
             ],
             'selector' => ['makes' => $this->tree->makes()],
+            // F1 for the chosen vehicle, in the first paint rather than one round trip later.
+            'fitmentCount' => $vehicle === null ? null : $this->count->forVehicle($vehicle),
             'promises' => $this->promises($blocks),
             'popular' => $this->popular($vehicleId, $tab),
             'recentlyViewed' => $this->cards->catalogue(
                 limit: 12,
                 options: ['modelIds' => $this->recentlyViewed->ids($request->session())],
             ),
-            'sizes' => $this->sizes(),
+            'sizes' => $this->sizes($vehicleId),
             'brands' => $this->brands(),
             'komplettrad' => ['tyre' => $this->featuredTyre()],
             'calculator' => ['prefill' => $vehicleId === null ? null : $this->prefill($vehicleId)],
@@ -134,7 +146,8 @@ class StartseiteController extends Controller
             // product's own, and the page says the picture is not (docs/phase0/ASSET-REQUEST.md).
             'symbolic' => true,
             'spec' => [
-                ['label' => 'Felgengröße', 'value' => GermanFormat::wheelSize((float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm)],
+                // Width × diameter without the ET: the ET has its own callout.
+                ['label' => 'Breite × Durchmesser', 'value' => GermanFormat::trimmedDecimal((float) $config->width_in, 2).' J × '.GermanFormat::trimmedDecimal((float) $config->diameter_in, 1)],
                 ['label' => 'Lochkreis', 'value' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm)],
                 ['label' => 'Mittenlochbohrung', 'value' => GermanFormat::millimetres((float) $config->centre_bore_mm)],
                 ['label' => 'Einpresstiefe', 'value' => 'ET '.(int) $config->et_mm],
@@ -203,16 +216,25 @@ class StartseiteController extends Controller
 
     /**
      * The size tiles, 16 to 22 Zoll, each with the number of models — the same figures the Felgen
-     * panel shows, so the two can never disagree.
+     * panel shows, so the two can never disagree. With a vehicle, `fitting` is how many of them a
+     * document permits on that car (the listing's own facet); null without one.
      *
-     * @return list<array{inch: int, count: int, href: string}>
+     * @return list<array{inch: int, count: int, fitting: int|null, href: string}>
      */
-    private function sizes(): array
+    private function sizes(?int $vehicleId): array
     {
         $shared = [];
 
         foreach ($this->mega->share()['sizes'] as $size) {
             $shared[(int) $size['label']] = $size;
+        }
+
+        $fitting = [];
+
+        if ($vehicleId !== null) {
+            foreach ($this->listing->facets($vehicleId)['zoll'] ?? [] as $option) {
+                $fitting[(int) $option['value']] = (int) $option['count'];
+            }
         }
 
         $out = [];
@@ -221,6 +243,7 @@ class StartseiteController extends Controller
             $out[] = [
                 'inch' => $inch,
                 'count' => isset($shared[$inch]) ? (int) $shared[$inch]['count'] : 0,
+                'fitting' => $vehicleId === null ? null : ($fitting[$inch] ?? 0),
                 'href' => '/felgen?zoll='.$inch,
             ];
         }
@@ -232,7 +255,7 @@ class StartseiteController extends Controller
      * Brands with at least one published, in-stock configuration. A brand tile leading to an
      * empty listing reads as a broken site, so a brand without stock is not a tile.
      *
-     * @return list<array{name: string, slug: string, logo: string|null, href: string}>
+     * @return list<array{name: string, slug: string, logo: string|null, count: int, href: string}>
      */
     private function brands(): array
     {
@@ -246,7 +269,7 @@ class StartseiteController extends Controller
             ->where('wc.stock_qty', '>', 0)
             ->groupBy('br.id', 'br.name', 'br.slug', 'br.logo_path', 'br.sort_order')
             ->orderBy('br.sort_order')
-            ->get(['br.name', 'br.slug', 'br.logo_path']);
+            ->get(['br.name', 'br.slug', 'br.logo_path', DB::raw('COUNT(DISTINCT wm.id) as models')]);
 
         $out = [];
 
@@ -255,6 +278,7 @@ class StartseiteController extends Controller
                 'name' => (string) $row->name,
                 'slug' => (string) $row->slug,
                 'logo' => is_string($row->logo_path) && $row->logo_path !== '' ? '/storage/'.ltrim($row->logo_path, '/') : null,
+                'count' => (int) $row->models,
                 'href' => '/felgen?marke='.rawurlencode((string) $row->slug),
             ];
         }

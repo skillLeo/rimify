@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Storefront\Garage;
+use App\Domain\Storefront\VehicleContext;
 use App\Models\Setting;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
@@ -28,7 +29,9 @@ it('ships the hero with a real product and its own values', function (): void {
             ->where('hero.title', 'Felgen, die an dein Auto dürfen.')
             ->has('hero.product.slug')
             ->has('hero.product.spec', 4)
-            ->where('hero.product.spec.0.label', 'Felgengröße')
+            ->where('hero.product.spec.0.label', 'Breite × Durchmesser')
+            ->has('hero.product.config.widthIn')
+            ->where('hero.product.image', 'hero-wheel')
             ->has('hero.stats.gutachten')
             ->has('selector.makes')
             ->has('promises', 4)
@@ -63,9 +66,27 @@ it('lists seven size tiles and only brands with stock', function (): void {
         ->has('sizes', 7)
         ->where('sizes.0.inch', 16)
         ->where('sizes.6.inch', 22)
+        // Without a vehicle nothing is claimed to fit.
+        ->where('sizes.0.fitting', null)
+        ->where('fitmentCount', null)
         ->has('brands')
-        ->where('brands', fn ($brands) => collect($brands)->every(fn (array $b): bool => $b['href'] === '/felgen?marke='.$b['slug']))
+        ->where('brands', fn ($brands) => collect($brands)->every(fn (array $b): bool => $b['href'] === '/felgen?marke='.$b['slug'] && $b['count'] >= 1))
     );
+});
+
+it('answers for the chosen vehicle in the first paint', function (): void {
+    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+
+    $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($vehicle->id, true))->encode()])
+        ->get('/')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('fitmentCount.count', fn ($n) => is_int($n) && $n > 0)
+            ->where('sizes', fn ($sizes) => collect($sizes)->every(fn (array $s): bool => is_int($s['fitting'])))
+            ->where('sizes', fn ($sizes) => collect($sizes)->sum('fitting') > 0)
+            ->where('popular.title', null)
+            ->where('popular.total', fn ($n) => is_int($n) && $n > 0)
+            ->has('calculator.prefill.widthIn')
+        );
 });
 
 it('shows the EU label of a real tyre and at most five answers', function (): void {

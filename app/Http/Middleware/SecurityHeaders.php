@@ -45,7 +45,9 @@ final class SecurityHeaders
     private function policy(string $nonce): string
     {
         $connect = ["'self'"];
-        $script = ["'self'", "'nonce-{$nonce}'"];
+        // `'wasm-unsafe-eval'` lets the on-device OCR (F5) instantiate its WebAssembly core
+        // inside a same-origin worker; it permits WebAssembly only, never `eval`.
+        $script = ["'self'", "'nonce-{$nonce}'", "'wasm-unsafe-eval'"];
         $style = ["'self'", "'nonce-{$nonce}'"];
 
         /*
@@ -81,6 +83,8 @@ final class SecurityHeaders
             "font-src 'self'",
             'img-src '.implode(' ', $img),
             'connect-src '.implode(' ', $connect),
+            // The OCR worker and the service worker are our own files, never a blob.
+            "worker-src 'self'",
             "form-action 'self' https://checkout.stripe.com",
             "frame-ancestors 'none'",
             "base-uri 'self'",

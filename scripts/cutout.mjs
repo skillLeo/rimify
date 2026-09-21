@@ -33,11 +33,11 @@ const cropped = await sharp(source)
     .extract({ left: Math.round(cx - r), top: Math.round(cy - r), width: size, height: size })
     .toBuffer()
 
-// A circle with a two-pixel soft edge, as the alpha channel.
+// A circle with a three-pixel soft edge, carried in the mask's ALPHA channel: `dest-in` keeps the
+// photo only where the mask is opaque, so the outside must be transparent, not black.
 const mask = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-        <defs><radialGradient id="e"><stop offset="${((r - 3) / r) * 100}%" stop-color="#fff"/><stop offset="100%" stop-color="#000"/></radialGradient></defs>
-        <rect width="100%" height="100%" fill="#000"/>
+        <defs><radialGradient id="e"><stop offset="${((r - 3) / r) * 100}%" stop-color="#fff" stop-opacity="1"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
         <circle cx="${r}" cy="${r}" r="${r}" fill="url(#e)"/>
     </svg>`,
 )

@@ -182,6 +182,8 @@ class ContentSeeder extends Seeder
         $this->block($page, 'hero', 10, [
             'headline' => 'Felgen, die an dein Auto dürfen.',
             'sub' => 'Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen. Du gibst dein Auto an, wir prüfen den Rest.',
+            // The phone document has room for one sentence.
+            'sub_mobile' => 'Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.',
         ]);
 
         // `promise_row`: the client's four titles with one neutral line each. The lines promise

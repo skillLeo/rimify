@@ -1123,7 +1123,7 @@
     }
 
     .sheet__grab {
-        width: 32px;
+        width: 36px;
         height: 4px;
         margin: 0 auto var(--sp-16);
         border-radius: var(--r-round);

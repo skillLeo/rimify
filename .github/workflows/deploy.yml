@@ -50,6 +50,11 @@ jobs:
       - name: Node dependencies
         run: npm ci --no-audit --no-fund
 
+      # The Fahrzeugschein scan runs on the customer's device from our own origin: the worker,
+      # the WebAssembly cores and the German language data are shipped with the release.
+      - name: OCR assets
+        run: npm run ocr:assets
+
       - name: Typecheck
         run: npx vue-tsc --noEmit
 
@@ -66,7 +71,7 @@ jobs:
           echo "::notice title=Release size::vendor $(du -sh vendor | cut -f1), build $(du -sh public/build | cut -f1), largest file $(find vendor public/build bootstrap/ssr -type f -printf '%s %p\n' | sort -n | tail -1)"
           git config user.name "SkillLeo"
           git config user.email "hassam.dev.571@gmail.com"
-          git add -f vendor public/build bootstrap/ssr > /tmp/out 2>&1 || report "git add"
+          git add -f vendor public/build public/ocr bootstrap/ssr > /tmp/out 2>&1 || report "git add"
           # Package manifests: shipped when composer produced them; Laravel regenerates any that
           # are missing on first boot.
           for f in bootstrap/cache/packages.php bootstrap/cache/services.php; do

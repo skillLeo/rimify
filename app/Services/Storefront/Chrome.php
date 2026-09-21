@@ -178,6 +178,8 @@ final readonly class Chrome
             'make' => $vehicle->make,
             'model' => $vehicle->model,
             'variant' => $vehicle->variant,
+            // How a Gutachten names the car; the story's marked row shows it.
+            'typeDesignation' => $vehicle->type_designation,
             'label' => trim($vehicle->make.' '.$vehicle->variant),
             'short' => trim($vehicle->make.' '.$vehicle->model),
             'hsn' => $vehicle->hsn,

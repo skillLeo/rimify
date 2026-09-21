@@ -77,10 +77,12 @@ export interface PopularTab {
     label: string
 }
 
+export type TyreClass = 'A' | 'B' | 'C' | 'D' | 'E'
+
 export interface EuTyreLabel {
     title: string
-    fuel: string
-    wet: string
+    fuel: TyreClass
+    wet: TyreClass
     noiseDb: number
     noiseClass: 'A' | 'B' | 'C'
     eprelId: string | null
@@ -116,10 +118,14 @@ export interface StartseiteProps {
     hero: {
         title: string
         subline: string
+        /** The phone document's shorter sentence. */
+        sublineMobile: string
         product: HeroProduct | null
         stats: HomeStats
     }
     selector: { makes: MakeOption[] }
+    /** F1 for the shared vehicle, in the first paint; null without a vehicle. */
+    fitmentCount: { count: number; permitted: number; conditional: number } | null
     promises: { title: string; text: string; icon: string }[]
     popular: {
         /** Null with a vehicle: the heading then names the vehicle. */
@@ -132,8 +138,9 @@ export interface StartseiteProps {
         total: number | null
     }
     recentlyViewed: ProductCardProp[]
-    sizes: { inch: number; count: number; href: string }[]
-    brands: { name: string; slug: string; logo: string | null; href: string }[]
+    /** `fitting`: how many of the size's models a document permits on the vehicle; null without one. */
+    sizes: { inch: number; count: number; fitting: number | null; href: string }[]
+    brands: { name: string; slug: string; logo: string | null; count: number; href: string }[]
     komplettrad: { tyre: EuTyreLabel | null }
     calculator: { prefill: CalculatorPrefill | null }
     partners: { enabled: boolean; demo: boolean }
