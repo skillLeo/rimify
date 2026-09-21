@@ -115,7 +115,9 @@ onBeforeUnmount(() => observer?.disconnect())
             </nav>
 
             <div class="pdp">
-                <!-- Gallery: one frame per finish, same drawing, the finish that is selected. -->
+                <!-- Gallery: one frame, the finish that is selected. No thumbnail strip until
+                     three real photographs exist — three drawings would claim three shots. The
+                     finish is chosen once, with the swatches in the purchase panel. -->
                 <div class="pdp__gallery">
                     <div class="well pdp__well">
                         <ProductPhoto
@@ -124,28 +126,12 @@ onBeforeUnmount(() => observer?.disconnect())
                             :size="560"
                         />
                     </div>
-
-                    <div v-if="finishes.length > 1" class="pdp__thumbs" role="group" aria-label="Ausführung">
-                        <button
-                            v-for="item in finishes"
-                            :key="item.id"
-                            class="pdp__thumb"
-                            :class="{ 'pdp__thumb--on': item.id === config.finishId.value }"
-                            type="button"
-                            :aria-pressed="item.id === config.finishId.value"
-                            :aria-label="item.name"
-                            @click="config.selectFinish(item.id)"
-                        >
-                            <ProductPhoto :spokes="product.spokes" :finish="item.artFinish" :size="96" :note="false" />
-                        </button>
-                    </div>
                 </div>
 
-                <!-- The purchase panel. -->
+                <!-- The purchase panel. The H1 names the brand; no eyebrow repeats it above. -->
                 <div class="pdp__buy">
-                    <span class="micro">{{ product.brandName }}</span>
-                    <h1 class="t-h1 pdp__title">{{ product.brandName }} {{ product.modelName }}</h1>
-                    <p v-if="product.typeDesignation" class="data">Typ {{ product.typeDesignation }}</p>
+                    <h1 class="t-h1">{{ product.brandName }} {{ product.modelName }}</h1>
+                    <p v-if="product.typeDesignation" class="data pdp__type">Typ {{ product.typeDesignation }}</p>
                     <p v-if="product.rating !== null && product.ratingCount > 0" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>
                         <span class="tabular">{{ product.ratingLabel }}</span>
@@ -270,7 +256,7 @@ onBeforeUnmount(() => observer?.disconnect())
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div class="pdp__sticky-price">
             <p class="price">{{ selected.price }}</p>
-            <p class="price-note">für 4 Felgen, inkl. MwSt.</p>
+            <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"
@@ -313,29 +299,7 @@ onBeforeUnmount(() => observer?.disconnect())
     margin-inline: auto;
 }
 
-.pdp__thumbs {
-    display: flex;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
-}
-
-.pdp__thumb {
-    display: grid;
-    place-items: center;
-    width: 72px;
-    height: 72px;
-    padding: var(--space-1);
-    background: var(--field);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-}
-
-.pdp__thumb--on {
-    border: 2px solid var(--border-strong);
-}
-
-.pdp__title {
+.pdp__type {
     margin-top: var(--space-1);
 }
 

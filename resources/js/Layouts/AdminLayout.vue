@@ -108,7 +108,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .adm__mark {
-    font-size: 20px;
+    font-size: var(--fs-h4);
     margin: 0 var(--space-3) var(--space-5);
 }
 

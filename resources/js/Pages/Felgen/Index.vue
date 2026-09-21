@@ -250,7 +250,7 @@ onBeforeUnmount(() => {
 .plp__bar {
     position: sticky;
     top: var(--header-h-m);
-    z-index: 5;
+    z-index: var(--z-sticky);
     margin: 0 calc(var(--gutter) * -1) var(--space-4);
     padding: var(--space-2) var(--gutter);
     background: var(--ground);
@@ -269,7 +269,7 @@ onBeforeUnmount(() => {
     padding-inline: var(--space-1);
     border-radius: var(--radius-round);
     background: var(--blue);
-    color: #fff;
+    color: var(--c-surface);
     font-size: var(--text-micro);
 }
 

@@ -53,21 +53,6 @@ const PACKAGE_ROWS = [
                 <p class="t-lead home-hero__lead">
                     Wähle dein Fahrzeug – wir zeigen dir nur Felgen, die dafür freigegeben sind.
                 </p>
-
-                <dl class="home-hero__facts">
-                    <div>
-                        <dt class="micro">Freigabe</dt>
-                        <dd>Gutachten zu jeder Felge</dd>
-                    </div>
-                    <div>
-                        <dt class="micro">Lager</dt>
-                        <dd>Über 150 Modelle</dd>
-                    </div>
-                    <div>
-                        <dt class="micro">Versand</dt>
-                        <dd>Bis 14 Uhr bestellt, am selben Werktag raus</dd>
-                    </div>
-                </dl>
             </div>
 
             <!-- With a vehicle already chosen, the fold says so and offers the next step instead
@@ -109,15 +94,8 @@ const PACKAGE_ROWS = [
             <div class="home-trust__item">
                 <Icon name="truck" :size="20" />
                 <span>
-                    <strong>Versand aus Deutschland</strong>
-                    <span class="home-trust__sub">versichert mit DHL</span>
-                </span>
-            </div>
-            <div class="home-trust__item">
-                <Icon name="document" :size="20" />
-                <span>
-                    <strong>Gutachten als PDF</strong>
-                    <span class="home-trust__sub">auf jeder Produktseite</span>
+                    <strong>Versand in 1–2 Werktagen</strong>
+                    <span class="home-trust__sub">Lagerware aus Deutschland, versichert mit DHL</span>
                 </span>
             </div>
             <div class="home-trust__item">
@@ -248,7 +226,11 @@ const PACKAGE_ROWS = [
                 </tbody>
             </table>
 
-            <Link href="/felgen-suchen" class="btn btn--primary home-pack__cta">
+            <!-- With the car already chosen, the step is the listing, not the question again. -->
+            <Link v-if="vehicle" href="/felgen" class="btn btn--primary home-pack__cta">
+                Felgen für {{ vehicle.short }} anzeigen
+            </Link>
+            <Link v-else href="/felgen-suchen" class="btn btn--primary home-pack__cta">
                 Jetzt Auto wählen und passende Felgen finden
             </Link>
         </div></div>
@@ -271,7 +253,9 @@ const PACKAGE_ROWS = [
                     @click="openFaq = openFaq === entry.id ? null : entry.id"
                 >
                     {{ entry.question }}
-                    <Icon :name="openFaq === entry.id ? 'minus' : 'plus'" :size="20" />
+                    <span class="home-faq__chev" :class="{ 'home-faq__chev--open': openFaq === entry.id }">
+                        <Icon name="chevron-down" :size="20" />
+                    </span>
                 </button>
                 <div v-show="openFaq === entry.id" :id="`faq-${entry.id}`" class="acc__body">
                     {{ entry.answer }}
@@ -301,17 +285,6 @@ const PACKAGE_ROWS = [
     color: var(--ink2);
 }
 
-.home-hero__facts {
-    display: grid;
-    gap: var(--space-4);
-    margin: var(--space-6) 0 0;
-}
-
-.home-hero__facts dd {
-    margin: var(--space-1) 0 0;
-    font-weight: 700;
-}
-
 .home-hero__panel {
     min-width: 0;
 }
@@ -321,15 +294,15 @@ const PACKAGE_ROWS = [
 }
 
 .home-hero__actions {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
     gap: var(--space-3);
     margin-top: var(--space-5);
 }
 
 @media (min-width: 640px) {
-    .home-hero__facts {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    .home-hero__actions {
+        display: flex;
+        flex-wrap: wrap;
     }
 }
 
@@ -341,10 +314,6 @@ const PACKAGE_ROWS = [
     .home-hero__grid {
         grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
         gap: var(--space-7);
-    }
-
-    .home-hero__facts {
-        grid-template-columns: 1fr;
     }
 }
 
@@ -396,10 +365,10 @@ const PACKAGE_ROWS = [
     color: var(--ink2);
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 900px) {
     .home-trust__row {
         grid-auto-flow: row;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         overflow: visible;
     }
 }
@@ -407,7 +376,14 @@ const PACKAGE_ROWS = [
 /* ── Shared section head ──────────────────────────────────────────────────── */
 
 .home-head {
+    align-items: baseline;
     margin-bottom: var(--space-5);
+}
+
+/* The "all" link keeps to one line; the heading beside it is what wraps. */
+.home-head > .btn {
+    flex: none;
+    white-space: nowrap;
 }
 
 /* ── Browse lists ─────────────────────────────────────────────────────────── */
@@ -557,9 +533,21 @@ const PACKAGE_ROWS = [
     text-align: center;
 }
 
+/* Ink, not green: green means a fitment verdict or stock, and "included" is neither. */
 .home-pack__col :deep(svg) {
     margin-inline: auto;
-    color: var(--ok);
+    color: var(--ink);
+}
+
+.home-faq__chev {
+    display: inline-flex;
+    flex: none;
+    color: var(--ink2);
+    transition: transform var(--duration-base) var(--ease-in-out);
+}
+
+.home-faq__chev--open {
+    transform: rotate(180deg);
 }
 
 .home-pack__cta {
