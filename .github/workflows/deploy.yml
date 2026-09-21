@@ -63,9 +63,19 @@ jobs:
           for f in bootstrap/cache/packages.php bootstrap/cache/services.php; do
             if [ -f "$f" ]; then git add -f "$f"; fi
           done
-          TREE=$(git write-tree)
           PARENT=""
-          if git fetch --quiet origin deploy; then PARENT="-p $(git rev-parse FETCH_HEAD)"; fi
+          if git fetch --quiet origin deploy; then
+            PREVIOUS=$(git rev-parse FETCH_HEAD)
+            PARENT="-p $PREVIOUS"
+            # This token may not change workflow files on any branch, so a release carries the
+            # previous release's .github/ unchanged. The host never reads it, and the workflow that
+            # runs is always the one on main.
+            git rm -r -q --cached .github
+            if git cat-file -e "$PREVIOUS:.github" 2>/dev/null; then
+              git read-tree --prefix=.github/ "$PREVIOUS:.github"
+            fi
+          fi
+          TREE=$(git write-tree)
           COMMIT=$(git commit-tree "$TREE" $PARENT -m "release: $(git log -1 --format='%h %s')")
           git push origin "$COMMIT:refs/heads/deploy"
 
