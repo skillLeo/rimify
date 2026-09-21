@@ -43,8 +43,9 @@ swapped for a competitor's, the section has failed.
 - About 85 % of any screen is neutral, 10 % photography, 5 % blue.
 - Blue means "act here": primary buttons, links, focus, the selected state. Never a background for
   mood, never a rule, never an icon that does nothing.
-- Green, amber and red appear only as verdicts, stock and errors. `Unbekannt` is neutral grey so
-  it can never be mistaken for a refusal.
+- Green, amber and red appear only as verdicts, stock, errors and the Felgenrechner's tolerance
+  light (`sections/home-overhaul.md` §3), which never borrows the verdict component or its words.
+  `Unbekannt` is neutral grey so it can never be mistaken for a refusal.
 - No tinted section backgrounds. Sections alternate `--c-surface` and `--c-band`; one dark band
   (`--c-dark`) per page at most.
 - Text on dark bands is `--c-surface` (primary) and `--c-on-dark-2` (secondary). Scrims over
@@ -112,7 +113,7 @@ shadow on the same element. Content is separated with space, bands and alignment
 
 ```css
 --e-1: 0 1px 0 var(--c-line);                                   /* the sticky header once scrolled */
---e-2: 0 2px 4px rgb(11 15 20 / .06), 0 8px 24px rgb(11 15 20 / .10);  /* menus, popovers, palette, the selector panel */
+--e-2: 0 2px 4px rgb(11 15 20 / .06), 0 8px 24px rgb(11 15 20 / .10);  /* menus, popovers, palette, the selector panel, the product card's image tile on hover */
 --e-3: 0 16px 48px rgb(11 15 20 / .22);                         /* dialogs, drawers */
 ```
 
@@ -138,7 +139,8 @@ stretched link). No other z-index exists.
 - No bounce, no springs, no staggered cascades, no parallax on text, no custom cursors, no magnetic
   buttons, no fade-up on scroll. Nothing animates by itself except the homepage's four signature
   moments (callout lines drawing in, the Gutachten highlight following the steps, the wheel turning
-  with the scroll in the dark band, the cross-section morphing between values).
+  with the scroll in the dark band, the clearance drawing morphing between values). The 3D wheel
+  renders on demand: it turns with the pointer and with the scroll, never on its own.
 - `prefers-reduced-motion: reduce` → no motion; every element rests in its end state.
 - A price, a stock figure or a verdict never animates. Numbers change instantly.
 - Scrolling is native. No smooth-scroll library. Every anchor target carries `scroll-margin-top`
@@ -147,7 +149,9 @@ stretched link). No other z-index exists.
 ## 6 · Interaction states — every interactive element, no exceptions
 
 - **Hover** only inside `@media (hover: hover) and (pointer: fine)`: a colour change, an underline
-  or an image swap. A card is never lifted or scaled.
+  or an image swap. A card is never translated or scaled as a whole; the product card's hover is its
+  image tile gaining `--e-2` and the image inside it scaling to 1.03 (`sections/home-overhaul.md`
+  §1), and nothing more.
 - **Focus-visible:** `2px solid var(--c-blue)` outline, `2px` offset; `--c-surface` on dark bands.
   Never `outline: none` without a replacement of equal visibility.
 - **Active:** the pressed colour; a button may move 1 px down, nothing more.
@@ -173,7 +177,11 @@ sits in a coloured tile above a heading.
 **Imagery.** Real photography only. Packshots 1:1 on a seamless light grey, the same three-quarter
 angle and light for every wheel; lifestyle shots of real cars in natural light, low angle, wheel in
 focus, one colour grade. No AI images, no stock people, no illustrated cars, no isometric art. The
-drawn SVG wheel survives only as the `onerror` fallback of a real photograph. Every image has
+drawn SVG wheel survives only as the `onerror` fallback of a real photograph. The one rendered
+object is the interactive 3D wheel of the hero stage and the Kompletträder band — a licensed glTF
+model of a real wheel, or a parametric mesh from the catalogue's spoke count — which mounts over a
+photographic poster and never stands in for a packshot in a tile (`sections/home-overhaul.md` §4).
+Every image has
 `width` and `height` or an aspect-ratio box; `<picture>` with AVIF → WebP → JPEG and `srcset`; the
 hero image is preloaded with `fetchpriority="high"`, everything below the fold is lazy.
 
