@@ -40,7 +40,12 @@ jobs:
           cache: npm
 
       - name: PHP dependencies (production only)
-        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+        run: |
+          composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+          # Documentation is never read at runtime, and some of it is not safe to publish:
+          # stripe-php's README carries a sample test key that GitHub's push protection rightly
+          # refuses. The release ships code only.
+          find vendor -type f -iname '*.md' -delete
 
       - name: Node dependencies
         run: npm ci --no-audit --no-fund
