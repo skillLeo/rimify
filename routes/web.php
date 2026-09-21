@@ -6,8 +6,6 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\RollenController;
-use App\Http\Controllers\DesignLinkController;
-use App\Http\Controllers\Dev\FixtureController;
 use App\Http\Controllers\Storefront\BestellungController;
 use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugController;
@@ -27,19 +25,6 @@ use Illuminate\Support\Facades\Route;
  */
 
 // ── Storefront ───────────────────────────────────────────────────────────────────────────────
-
-/*
- * The design's own link targets, registered FIRST.
- *
- * Its runtime draws RELATIVE hrefs (`produkt.html`, `felgen.html`) because in the prototype every
- * page is a sibling in one folder. Our routes have depth, so from /felgen the browser asks for
- * /felgen/produkt.html. Registered after the storefront routes that is swallowed by /felgen/{model}
- * with the model set to "produkt.html", which 404s - which is exactly what made every card button
- * appear to do nothing. Nothing real ends in .html, so matching it first cannot shadow a page.
- */
-Route::get('/{path}.html', DesignLinkController::class)
-    ->where('path', '.*')
-    ->name('design.link');
 
 Route::get('/', [StartseiteController::class, 'index'])->name('startseite');
 
@@ -73,25 +58,16 @@ Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
 Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtliches');
 
-// ── Visual fidelity fixtures ─────────────────────────────────────────────────────────────────
-//
-// Used by the visual fidelity suite (tests/visual). Puts a page into the exact state its
-// design-reference counterpart was captured in, so a visual case measures the screen rather than
-// the route that leads to it.
-//
-// The guard is the whole point: this sets vehicle state from an unauthenticated GET, which is
-// correct for a fixture and would be a hole in production. Registering it inside the condition
-// rather than adding middleware means the route does not exist at all when APP_ENV is anything
-// else — `php artisan route:list` on production shows nothing to find.
-if (app()->environment('local', 'testing')) {
-    Route::get('/__fixture/{case}', FixtureController::class)
-        ->where('case', '[A-Za-z0-9@_-]+')
-        ->name('fixture');
-}
-
 // ── Admin ────────────────────────────────────────────────────────────────────────────────────
 //
 // Guests are redirected here by bootstrap/app.php, so the path is fixed by that setting too.
+
+/*
+ * Unmatched paths land here rather than in the router's own 404, so the request still passes
+ * through the web middleware: the session, the device split and the shared Inertia props all
+ * exist when the error page renders, and the 404 keeps the header, the basket and the vehicle.
+ */
+Route::fallback(static fn () => abort(404));
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/anmelden', [AdminLoginController::class, 'create'])

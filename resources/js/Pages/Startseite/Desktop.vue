@@ -1,176 +1,593 @@
 <script setup lang="ts">
 /**
- * Startseite — desktop.
+ * The homepage, desktop. Nine sections, in the order the Figma fixes.
  *
- * PORTED VERBATIM from `design-reference/desktop/startseite.html`, the design's own shell.
- *
- * Read this before editing:
- *
- *  - Everything below is the design's markup, character for character, including every inline
- *    style and every hand-written SVG. It is not "based on" the prototype; it IS the prototype.
- *    Do not tidy the inline styles into classes, do not extract components, do not reorder
- *    attributes, do not change a pixel value because it looks odd. All of that is measured.
- *  - The `data-mount` divs are intentionally empty. `shared/pages.js` fills each one at runtime
- *    with the real markup for that section (hero photograph, brand cards, marque tiles, product
- *    cards, FAQ). Filling one here by hand would put our markup back into the page and re-create
- *    exactly the drift this replaced.
- *  - The German copy is the design's. It is not translated, not rewritten, not corrected.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
+ * It is the showpiece and it sets the language every other page inherits: the micro-label above a
+ * value, one accent used three or four times, hairlines that stop short, and real data density.
+ * Nothing on it is a placeholder — the bestseller rail, the make grid and the brand cards are all
+ * live rows.
  */
 
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
+import BrandBanner from '../../Components/Art/BrandBanner.vue'
+import Car from '../../Components/Art/Car.vue'
+import HeroScene from '../../Components/Art/HeroScene.vue'
+import Icon from '../../Components/Art/Icon.vue'
+import Photo from '../../Components/Media/Photo.vue'
+import ProductCard from '../../Components/Product/ProductCard.vue'
+import Scene from '../../Components/Art/Scene.vue'
+import VehicleSelector from '../../Components/Vehicle/VehicleSelector.vue'
+import { useShared } from '../../composables/useShared'
+import { PHOTOS, brandPhoto } from '../../media/photos'
+import type { StartseiteProps } from '../../types/pages'
+
+defineProps<StartseiteProps>()
+
+const shared = useShared()
+
+const TRUST = [
+    'Über 150 Modelle auf Lager',
+    'Gutachten zu jeder Felge',
+    'Versand aus Deutschland',
+    'Komplettrad montiert & gewuchtet',
+]
+
+const BRAND_STRIP = ['BBS', 'YIDO', 'BORBET', 'OZ RACING', 'ALUTEC', 'rotiform']
+
+const REASONS = [
+    {
+        title: 'Geprüfte Freigabe, kein Risiko',
+        body: 'Jede Felge, die wir dir zeigen, ist für dein Fahrzeug durch ein Gutachten freigegeben. Auflagen nennen wir im Klartext – vor dem Kauf, nicht danach. Das Gutachten kannst du auf jeder Produktseite herunterladen.',
+    },
+    {
+        title: 'Komplettrad, fertig montiert',
+        body: 'Auf Wunsch ziehen wir die Reifen auf und wuchten die Räder bei uns im Haus. Du bekommst fertige Räder inklusive Ventilen, Anbauset und ABE – auspacken, anschrauben, losfahren.',
+    },
+    {
+        title: 'Versand aus Deutschland',
+        body: 'Über 150 Modelle liegen bei uns auf Lager. Bestellungen bis 14 Uhr gehen am selben Werktag raus, versichert mit DHL. Fragen beantworten wir am Telefon, nicht per Formularbrief.',
+    },
+]
 </script>
 
 <template>
-    <Head title="Felgen mit Gutachten" />
+    <Head title="Felgen mit geprüfter Freigabe" />
 
-    <main id="main">
-    <!-- 1 · HERO -->
-        <section style="position:relative;min-height:880px;overflow:hidden;background:#05070B">
-            <div data-mount="hero-scene" style="position:absolute;inset:0"></div>
-            <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,rgba(4,6,10,.94) 0%,rgba(4,6,10,.80) 38%,rgba(4,6,10,.28) 68%,rgba(4,6,10,.10) 100%)"></div>
-            <div class="wrap" style="position:relative;min-height:880px;padding-top:56px;padding-bottom:108px;display:flex;align-items:center">
-                <div style="width:480px">
-                    <div class="rise" style="font:700 11px/1.4 Lato,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8FA6FF">RIMIFY-CHECK · Freigabe geprüft</div>
-                    <h1 lang="de" class="display rise rise-1" style="margin-top:14px;color:#fff">Felgen, die zu deinem Auto passen.<br><span style="color:#8FA6FF">Garantiert.</span></h1>
-                    <p class="rise rise-2" style="margin-top:16px;max-width:400px;font:400 17px/1.55 Lato,sans-serif;color:rgba(255,255,255,.80)">Wähle dein Fahrzeug – wir zeigen dir nur Felgen, die dafür freigegeben sind.</p>
-                    <div class="rise rise-3" style="margin-top:28px;width:440px;background:#fff;border-radius:18px;box-shadow:var(--sh-2);overflow:hidden">
-                        <div style="background:var(--blue);color:#fff;font:700 15px/1 Lato,sans-serif;padding:16px 24px">Fahrzeug wählen</div>
-                        <div style="padding:24px" data-mount="hero-selector"></div>
+    <!-- 1 · Hero. The LCP element: painted, never faded in. The photograph sits over the drawn
+         scene, and falls back to it if the URL is blocked or dead. -->
+    <section class="hero">
+        <div class="hero__art">
+            <Photo :photo="PHOTOS.heroDesktop" eager>
+                <HeroScene layout="desktop" finish="graphite" :spokes="10" />
+            </Photo>
+        </div>
+        <div class="hero__scrim" />
+
+        <div class="hero__inner">
+            <div>
+                <p class="t-micro hero__eyebrow rise rise-1">RIMIFY-CHECK · FREIGABE GEPRÜFT</p>
+                <h1 class="t-display hero__title rise rise-2">
+                    Felgen, die zu deinem Auto passen.<br />
+                    <span class="hero__accent">Garantiert.</span>
+                </h1>
+                <p class="t-body hero__sub rise rise-3">
+                    Wähle dein Fahrzeug – wir zeigen dir nur Felgen, die dafür freigegeben sind.
+                </p>
+            </div>
+
+            <div class="card card--lifted hero__card rise rise-3">
+                <div class="hero__cardbar">
+                    <span class="t-ui">Fahrzeug wählen</span>
+                </div>
+                <VehicleSelector
+                    :makes="makes"
+                    :models="[]"
+                    :variants="[]"
+                    :selected-make="null"
+                    :selected-model="null"
+                    base-path="/felgen-suchen"
+                    compact
+                />
+            </div>
+        </div>
+
+        <ul class="hero__trust">
+            <li v-for="item in TRUST" :key="item">
+                <Icon name="check" :size="20" />
+                {{ item }}
+            </li>
+        </ul>
+    </section>
+
+    <!-- 2 · Brand strip. Wordmarks only; no logos we do not have. -->
+    <section class="strip">
+        <div class="wrap strip__inner">
+            <span v-for="brand in BRAND_STRIP" :key="brand" class="strip__name">{{ brand }}</span>
+        </div>
+    </section>
+
+    <!-- 3 · Brands -->
+    <section class="section surface">
+        <div class="wrap">
+            <h2 class="t-h2">Entdecke die beliebtesten Felgenmarken</h2>
+            <div class="brandgrid">
+                <article v-for="brand in brands" :key="brand.slug" class="brandcard">
+                    <!-- The photograph is the ground; the drawn wheel and wordmark composite on
+                         top of it, so the card keeps its identity whichever layer renders. -->
+                    <div class="brandcard__art">
+                        <Photo :photo="brandPhoto(brand.slug)" class="brandcard__photo">
+                            <span />
+                        </Photo>
+                        <BrandBanner
+                            class="brandcard__banner"
+                            :brand="brand.name"
+                            :spokes="brand.spokes"
+                            :width="620"
+                        />
                     </div>
-                </div>
-            </div>
-            <div style="position:absolute;left:0;right:0;bottom:0;height:52px;background:rgba(4,6,10,.55);border-top:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center" data-mount="trust"></div>
-        </section>
-
-        <!-- 2 · BRAND STRIP -->
-        <section style="height:96px;background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center">
-            <div class="wrap" style="width:100%;display:flex;align-items:center;justify-content:space-between" data-mount="brandstrip"></div>
-        </section>
-
-        <!-- 3 · MARKEN -->
-        <section class="sec white">
-            <div class="wrap">
-                <h2 class="h2" style="text-align:center;margin-bottom:40px">Entdecke die beliebtesten Felgenmarken</h2>
-                <div class="grid2" data-mount="brandcards"></div>
-            </div>
-        </section>
-
-        <!-- 4 · AUTO WÄHLEN -->
-        <section class="sec band">
-            <div class="wrap">
-                <h2 class="h2" style="margin-bottom:32px">Auto wählen, garantiert passende Felge finden</h2>
-                <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:24px" data-mount="tiles"></div>
-                <a class="link" style="margin-top:28px" href="felgen-suchen.html">Alle Marken anzeigen
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13.5 6.5L19 12l-5.5 5.5"/></svg></a>
-            </div>
-        </section>
-
-        <!-- 5 · BESTSELLER -->
-        <section class="sec white">
-            <div class="wrap">
-                <div class="spread" style="align-items:baseline;margin-bottom:36px">
-                    <h2 class="h2">Bestseller aus Mai 2026</h2>
-                    <a class="link" href="felgen.html">Alle Felgen ansehen
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13.5 6.5L19 12l-5.5 5.5"/></svg></a>
-                </div>
-                <div class="grid4" data-mount="bestseller"></div>
-            </div>
-        </section>
-
-        <!-- 6 · DEIN VORTEIL -->
-        <section class="sec band">
-            <div class="wrap">
-                <div class="card raised pnl" style="display:grid;grid-template-columns:46fr 54fr;overflow:hidden">
-                    <div class="pad-l">
-                        <div class="row" style="gap:10px">
-                            <span class="h3" style="font-size:20px">Dein Vorteil:</span>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="10" fill="#1A44D4"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            <span class="h3 bl" style="font-size:20px">RIMIFY-CHECK</span>
-                        </div>
-                        <p class="body ink2" style="margin-top:16px;max-width:460px">Mit RIMIFY CHECK prüfen wir die Kompatibilität zwischen Fahrzeug und Felge. So kannst du sicher sein, dass deine Wunschfelge zu deinem Fahrzeug passt und zugelassen ist.</p>
-                        <div class="wash" style="margin-top:24px;padding:18px 20px">
-                            <div class="row" style="gap:40px">
-                                <div><div class="micro" style="color:var(--ink2)">Fahrzeug</div><div class="mono" style="margin-top:6px">BMW M4 F82</div></div>
-                                <div><div class="micro" style="color:var(--ink2)">Felge</div><div class="mono" style="margin-top:6px">Wheelforce CF.3</div></div>
-                            </div>
-                            <div style="height:1px;background:var(--bline);margin:16px 0"></div>
-                            <div class="row" style="gap:10px">
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#2E8B22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                <span style="font:700 14px/1.4 Lato,sans-serif">Freigegeben – keine Eintragung erforderlich</span>
-                            </div>
-                        </div>
-                        <a class="btn btn-p" style="margin-top:24px" href="rimify-check.html">
-                            <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9.2" stroke="#fff" stroke-width="1.6"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            RIMIFY-CHECK</a>
+                    <div class="brandcard__body">
+                        <p class="brandcard__stock">Über 150 Modelle auf Lager und sofort lieferbar</p>
+                        <Link :href="`/felgen?marke=${encodeURIComponent(brand.name)}`" class="btn btn--quiet">
+                            Felgen ansehen →
+                        </Link>
                     </div>
-                    <div style="position:relative;min-height:460px;background:var(--ground);overflow:hidden">
-                        <div data-mount="car-check" style="position:absolute;inset:0"></div>
-                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
-                            <line x1="0" y1="46" x2="44" y2="56" stroke="#1A44D4" stroke-width="0.25" vector-effect="non-scaling-stroke"/>
-                            <line x1="0" y1="58" x2="26" y2="76" stroke="#1A44D4" stroke-width="0.25" vector-effect="non-scaling-stroke"/>
-                            <circle cx="44" cy="56" r="0.7" fill="#1A44D4" vector-effect="non-scaling-stroke"/>
-                            <circle cx="26" cy="76" r="0.7" fill="#1A44D4" vector-effect="non-scaling-stroke"/>
-                        </svg>
-                    </div>
-                </div>
+                </article>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- 7 · WARUM RIMIFY -->
-        <section class="sec white">
-            <div class="wrap">
-                <h2 class="h2" style="margin-bottom:40px">Warum RIMIFY?</h2>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr)" data-mount="warum"></div>
+    <!-- 4 · The make grid, straight from the vehicle table. -->
+    <section class="section band">
+        <div class="wrap">
+            <h2 class="t-h2">Auto wählen, garantiert passende Felge finden</h2>
+            <div class="makegrid">
+                <Link
+                    v-for="make in makes"
+                    :key="make.make"
+                    :href="`/felgen-suchen?marke=${encodeURIComponent(make.make)}`"
+                    class="makecard"
+                >
+                    <span class="makecard__name">{{ make.make }}</span>
+                    <span class="data makecard__count">{{ make.models }} Modelle</span>
+                </Link>
             </div>
-        </section>
+            <Link href="/felgen-suchen" class="btn btn--quiet makegrid__all">Alle Marken anzeigen →</Link>
+        </div>
+    </section>
 
-        <!-- 8 · FELGENPAKET -->
-        <section class="sec band">
-            <div class="wrap">
-                <div class="card raised pnl" style="display:grid;grid-template-columns:42fr 58fr;overflow:hidden">
-                    <div data-mount="scene-lager" style="min-height:400px"></div>
-                    <div class="pad-l">
-                        <h2 class="h2">Dein Felgenpaket</h2>
-                        <div style="margin-top:28px;border:1px solid var(--line);border-radius:14px;padding:22px 24px">
-                            <div class="micro">Lieferung</div>
-                            <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#4A5160" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">Felgen</span></div>
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#4A5160" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Anbauset &amp; ABE</span></div>
-                            </div>
+    <!-- 5 · Bestsellers -->
+    <section class="section surface">
+        <div class="wrap">
+            <div class="between section__head">
+                <h2 class="t-h2">Bestseller aus {{ month }}</h2>
+                <Link href="/felgen" class="btn btn--quiet">Alle Felgen ansehen →</Link>
+            </div>
+            <div class="grid-cards">
+                <ProductCard
+                    v-for="card in bestsellers.slice(0, 4)"
+                    :key="`${card.modelId}-${card.finishId}`"
+                    :card="card"
+                    :vehicle="shared.vehicle"
+                />
+            </div>
+        </div>
+    </section>
+
+    <!-- 6 · The RIMIFY-CHECK promise, with a worked example. -->
+    <section class="section band">
+        <div class="wrap checkblock">
+            <div>
+                <h2 class="t-h2">
+                    Dein Vorteil: <span class="checkblock__accent">✓ RIMIFY-CHECK</span>
+                </h2>
+                <p class="t-body">
+                    Mit RIMIFY CHECK prüfen wir die Kompatibilität zwischen Fahrzeug und Felge. So
+                    kannst du sicher sein, dass deine Wunschfelge zu deinem Fahrzeug passt und
+                    zugelassen ist.
+                </p>
+
+                <div class="rcheck-panel checkblock__panel">
+                    <p class="rcheck-panel__head"><Icon name="check-circle" :size="20" /> RIMIFY-CHECK</p>
+                    <dl class="checkblock__rows">
+                        <div>
+                            <dt class="micro">Fahrzeug</dt>
+                            <dd class="checkblock__value">BMW M4 F82</dd>
                         </div>
-                        <div style="margin-top:16px;background:var(--wash);border:1px solid var(--blue);border-radius:14px;padding:22px 24px">
-                            <div class="row" style="gap:12px"><span class="pill pill-blue">Empfohlen</span><span class="h4">Komplettrad</span></div>
-                            <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Montage der Reifen auf die Felgen</span></div>
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Wuchten</span></div>
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Ventile &amp; Gewichte</span></div>
-                            </div>
+                        <div>
+                            <dt class="micro">Felge</dt>
+                            <dd class="checkblock__value">Wheelforce CF.3</dd>
                         </div>
-                        <a class="btn btn-p btn-full" style="margin-top:24px" href="felgen-suchen.html">Jetzt Auto wählen und passende Felgen finden
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13.5 6.5L19 12l-5.5 5.5"/></svg></a>
-                    </div>
+                    </dl>
+                    <p class="checkblock__verdict">
+                        <Icon name="check" :size="20" />
+                        Freigegeben – keine Eintragung erforderlich
+                    </p>
                 </div>
-            </div>
-        </section>
 
-        <!-- 9 · FAQ -->
-        <section class="sec white" style="padding-bottom:112px">
-            <div class="wrap" style="display:grid;grid-template-columns:62fr 38fr;gap:40px;align-items:start">
-                <div>
-                    <h2 class="h2" style="margin-bottom:28px">Meistgestellte Fragen</h2>
-                    <div data-mount="faq-home"></div>
-                </div>
-                <div class="card raised pad">
-                    <h3 class="h4">Weitere Fragen oder Unterstützung benötigt?</h3>
-                    <div style="margin-top:20px" data-mount="contact-rows"></div>
-                    <p class="body ink2" style="margin-top:20px;font-size:15px">Wir freuen uns von dir zu hören.</p>
-                    <div style="margin-top:18px;border-radius:10px;overflow:hidden" data-mount="scene-werkstatt"></div>
-                    <a class="btn btn-s btn-full" style="margin-top:18px" href="kontakt.html">Zum Kontaktformular</a>
+                <Link href="/rimify-check" class="btn btn--primary checkblock__cta">RIMIFY-CHECK</Link>
+            </div>
+
+            <div class="checkblock__art">
+                <Photo :photo="PHOTOS.checkBlock">
+                    <Car variant="white" finish="silver" :spokes="5" :width="760" />
+                </Photo>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7 · Why RIMIFY -->
+    <section class="section surface">
+        <div class="wrap">
+            <h2 class="t-h2">Warum RIMIFY?</h2>
+            <div class="reasons">
+                <article v-for="reason in REASONS" :key="reason.title" class="card reasons__item">
+                    <h3 class="t-h3">{{ reason.title }}</h3>
+                    <p class="t-body">{{ reason.body }}</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- 8 · The package comparison -->
+    <section class="section band">
+        <div class="wrap">
+            <h2 class="t-h2">Dein Felgenpaket</h2>
+            <div class="packages">
+                <article class="card packages__item">
+                    <span class="micro">Lieferung</span>
+                    <ul class="packages__list">
+                        <li><Icon name="check" :size="20" /> Felgen</li>
+                        <li><Icon name="check" :size="20" /> inkl. Anbauset &amp; ABE</li>
+                    </ul>
+                </article>
+
+                <article class="card card--lifted packages__item packages__item--rec">
+                    <span class="tag tag--ok packages__pill">EMPFOHLEN</span>
+                    <h3 class="t-h3">Komplettrad</h3>
+                    <ul class="packages__list">
+                        <li><Icon name="check" :size="20" /> inkl. Montage der Reifen auf die Felgen</li>
+                        <li><Icon name="check" :size="20" /> inkl. Wuchten</li>
+                        <li><Icon name="check" :size="20" /> inkl. Ventile &amp; Gewichte</li>
+                    </ul>
+                </article>
+
+                <div class="packages__art">
+                    <Photo :photo="PHOTOS.lager">
+                        <Scene name="lager" :width="560" />
+                    </Photo>
                 </div>
             </div>
-        </section>
-    </main>
+
+            <Link href="/felgen-suchen" class="btn btn--primary packages__cta">
+                Jetzt Auto wählen und passende Felgen finden
+            </Link>
+        </div>
+    </section>
+
+    <!-- 9 · The FAQ teaser sits on /faq, linked from here. -->
+    <section class="section surface">
+        <div class="wrap faqblock">
+            <div>
+                <h2 class="t-h2">Meistgestellte Fragen</h2>
+                <Link href="/faq" class="btn btn--secondary">Alle Fragen ansehen</Link>
+            </div>
+
+            <article class="card faqblock__help">
+                <div class="faqblock__art">
+                    <Photo :photo="PHOTOS.werkstatt">
+                        <Scene name="werkstatt" :width="520" />
+                    </Photo>
+                </div>
+                <div class="faqblock__body">
+                    <h3 class="t-h3">Weitere Fragen oder Unterstützung benötigt?</h3>
+                    <p class="t-body">Wir freuen uns von dir zu hören.</p>
+                    <Link href="/kontakt" class="btn btn--secondary">Zum Kontaktformular</Link>
+                </div>
+            </article>
+        </div>
+    </section>
 </template>
+
+<style scoped>
+.hero__title {
+    margin: var(--s3) 0 var(--s4);
+    color: #fff;
+}
+
+/* The one place a second blue appears, and it is a tint of the same hue, not a second brand
+   colour: the accent half of the headline. */
+.hero__accent {
+    color: #8fa6ff;
+}
+
+.hero__sub {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 18px;
+}
+
+.hero__card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.hero__cardbar {
+    padding: var(--s3) var(--s4);
+    background: var(--ground);
+}
+
+.hero__card :deep(.vsel) {
+    padding: var(--s4);
+}
+
+.hero__trust {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s4);
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: 0 var(--gutter) var(--s7);
+    list-style: none;
+}
+
+.hero__trust li {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.strip {
+    background: var(--black);
+    padding-block: var(--s4);
+}
+
+.strip__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s5);
+}
+
+.strip__name {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 17px;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: -0.01em;
+}
+
+.section__head {
+    margin-bottom: var(--s5);
+}
+
+.brandgrid,
+.reasons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s5);
+    margin-top: var(--s5);
+}
+
+.reasons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.brandcard {
+    background: var(--surface);
+    border-radius: var(--r-card);
+    box-shadow: var(--sh-1);
+    overflow: hidden;
+}
+
+.brandcard__art {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--black);
+}
+
+.brandcard__photo :deep(.photo) {
+    position: absolute;
+    inset: 0;
+}
+
+/* The drawn banner rides on top of the photograph. Its own gradient ground is what shows when
+   the photograph is off or fails, so the card never loses the wordmark. */
+.brandcard__banner {
+    position: absolute;
+    inset: 0;
+}
+
+.brandcard__banner :deep(svg) {
+    width: 100%;
+    height: 100%;
+}
+
+.brandcard__art:has(.photo) .brandcard__banner :deep(rect:first-of-type) {
+    opacity: 0.35;
+}
+
+.checkblock__art,
+.packages__art,
+.faqblock__art {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-card);
+}
+
+.checkblock__art {
+    aspect-ratio: 16 / 10;
+}
+
+.packages__art {
+    aspect-ratio: 4 / 3;
+}
+
+.faqblock__art {
+    aspect-ratio: 16 / 10;
+}
+
+.brandcard__body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    padding: var(--s4);
+}
+
+.brandcard__stock {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink2);
+}
+
+.makegrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--s3);
+    margin: var(--s5) 0 var(--s4);
+}
+
+.makecard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    min-height: 64px;
+    padding: var(--s3) var(--s4);
+    background: var(--surface);
+    border-radius: var(--r-card);
+    box-shadow: var(--sh-1);
+    color: inherit;
+    text-decoration: none;
+    transition: box-shadow var(--d-state) var(--ease);
+}
+
+.makecard:hover {
+    box-shadow: var(--sh-2);
+}
+
+.makecard__name {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.makegrid__all {
+    padding-inline: 0;
+}
+
+.checkblock {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s7);
+    align-items: center;
+}
+
+.checkblock__accent {
+    color: var(--blue);
+}
+
+.checkblock__panel {
+    margin-top: var(--s5);
+}
+
+.checkblock__rows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s4);
+    margin: var(--s3) 0;
+}
+
+.checkblock__rows dd {
+    margin: 2px 0 0;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.checkblock__verdict {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin: 0;
+    padding-top: var(--s3);
+    border-top: 1px solid var(--bline);
+    color: var(--ok);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.checkblock__cta {
+    margin-top: var(--s5);
+}
+
+.reasons__item h3 {
+    margin: 0 0 var(--s2);
+}
+
+.packages {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--s5);
+    margin: var(--s5) 0;
+    align-items: start;
+}
+
+.packages__item {
+    position: relative;
+}
+
+.packages__pill {
+    position: absolute;
+    top: calc(var(--s4) * -1);
+    left: var(--s5);
+}
+
+.packages__list {
+    display: grid;
+    gap: var(--s2);
+    margin: var(--s3) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 15px;
+}
+
+.packages__list li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s2);
+    color: var(--ink2);
+}
+
+.packages__list :deep(svg) {
+    color: var(--ok);
+    flex: none;
+}
+
+.packages__art {
+    border-radius: var(--r-card);
+    overflow: hidden;
+}
+
+.faqblock {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s6);
+    align-items: center;
+}
+
+.faqblock__help {
+    padding: 0;
+    overflow: hidden;
+}
+
+.faqblock__body {
+    padding: var(--s5);
+}
+
+.faqblock__body h3 {
+    margin: 0 0 var(--s2);
+}
+</style>

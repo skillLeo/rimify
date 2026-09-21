@@ -1,74 +1,128 @@
 <script setup lang="ts">
 /**
- * Warenkorb — desktop.
+ * The basket.
  *
- * PORTED VERBATIM from `design-reference/desktop/warenkorb.html`, the design's own shell.
- *
- * Read this before editing:
- *
- *  - Everything below is the design's markup, character for character, including every inline
- *    style and every hand-written SVG. It is not "based on" the prototype; it IS the prototype.
- *    Do not tidy the inline styles into classes, do not extract components, do not reorder
- *    attributes, do not change a pixel value because it looks odd. All of that is measured.
- *  - The `data-mount` divs are intentionally empty. `shared/pages2.js` fills `cart-lines`,
- *    `cart-options` and `cart-sum` at runtime from the stored basket, totals included. Filling
- *    one here by hand would put our markup back into the page and re-create exactly the drift
- *    this replaced.
- *  - The German copy is the design's, down to the fixed delivery date. It is not translated,
- *    not rewritten, not corrected.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
+ * The empty state is designed rather than defaulted: an empty basket is a page people reach by
+ * accident, and it should send them somewhere rather than apologise.
  */
 
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
+import BasketLines from '../../Components/Basket/BasketLines.vue'
+import Icon from '../../Components/Art/Icon.vue'
+import type { BasketProps } from '../../types/pages'
+
+defineProps<BasketProps>()
 </script>
 
 <template>
     <Head title="Warenkorb" />
 
-    <main id="main">
-    <div style="max-width:940px;margin:0 auto;padding:40px 40px 96px">
-            <h1 class="h2">Warenkorb</h1>
+    <section class="section">
+        <div class="wrap">
+            <h1 class="t-h2">Warenkorb</h1>
 
-            <div style="margin-top:28px" data-mount="cart-lines"></div>
+            <div v-if="lines.length > 0" class="split cart__split">
+                <div class="card cart__lines">
+                    <BasketLines :lines="lines" />
+                </div>
 
-            <!-- Komplettrad -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:40px;align-items:start">
-                <div>
-                    <h2 class="h4">Räder kommen im Komplettrad</h2>
-                    <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
-                        <div class="row" style="gap:10px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bl" style="font:400 14px/1.4 Lato,sans-serif">inkl. Montage der Reifen auf die Felgen</span></div>
-                        <div class="row" style="gap:10px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bl" style="font:400 14px/1.4 Lato,sans-serif">inkl. Anbauset &amp; ABE</span></div>
-                        <div class="row" style="gap:10px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="bl" style="font:400 14px/1.4 Lato,sans-serif">inkl. Wuchten</span></div>
+                <aside class="card cart__summary">
+                    <h2 class="t-h3">Zusammenfassung</h2>
+
+                    <dl class="cart__rows">
+                        <div>
+                            <dt>Zwischensumme</dt>
+                            <dd class="tabular">{{ totals.subtotal }}</dd>
+                        </div>
+                        <div>
+                            <dt>Versand</dt>
+                            <dd class="tabular">
+                                {{ totals.freeShipping ? 'Kostenlos' : totals.shipping }}
+                            </dd>
+                        </div>
+                    </dl>
+
+                    <hr class="hr" />
+
+                    <div class="cart__total">
+                        <span class="t-ui">Gesamt</span>
+                        <span class="price">{{ totals.total }}</span>
                     </div>
-                </div>
-                <div style="background:var(--blue);border-radius:12px;padding:20px 24px;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center">
-                    <div class="row" style="gap:12px">
-                        <svg width="26" height="26" viewBox="0 0 20 20" fill="none" style="flex:none"><circle cx="10" cy="10" r="10" fill="#fff"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#1A44D4" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <strong style="font:700 15px/1.2 Lato,sans-serif;color:#fff">RIMIFY-<br>GARANTIE</strong>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px">
-                        <div class="row" style="gap:8px;color:#fff"><svg width="14" height="14" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 13px/1.3 Lato,sans-serif">Garantierte Passgenauigkeit</span></div>
-                        <div class="row" style="gap:8px;color:#fff"><svg width="14" height="14" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 13px/1.3 Lato,sans-serif">Express Versand</span></div>
-                        <div class="row" style="gap:8px;color:#fff"><svg width="14" height="14" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 13px/1.3 Lato,sans-serif">Gutachten zu jeder Felge</span></div>
-                        <div class="row" style="gap:8px;color:#fff"><svg width="14" height="14" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 13px/1.3 Lato,sans-serif">Montiert und gewuchtet</span></div>
-                    </div>
-                </div>
+                    <p class="price-note">inkl. {{ totals.tax }} MwSt.</p>
+
+                    <Link href="/kasse" class="btn btn--primary btn--block btn--lg cart__go">
+                        Zur Kasse
+                    </Link>
+
+                    <p class="cart__ssl">
+                        <Icon name="lock" :size="20" />
+                        <span class="micro">SSL gesichert</span>
+                    </p>
+                </aside>
             </div>
 
-            <div data-mount="cart-options"></div>
-
-            <div class="wash row" style="margin-top:32px;gap:14px;padding:16px 20px">
-                <span class="bl" style="display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2h11.6v9.6H2.5zM14.1 9.4h4.2l3.2 3.2v3.2h-7.4M6.5 20a2 2 0 100-4 2 2 0 000 4zM17.5 20a2 2 0 100-4 2 2 0 000 4z"/></svg></span>
-                <div><div style="font:700 14px/1 Lato,sans-serif">Lieferung</div>
-                    <div class="ink2 mono" style="margin-top:4px">voraussichtlich 21.11.2025</div></div>
-            </div>
-
-            <h2 class="h4" style="margin-top:40px">Deine Bestellung</h2>
-            <div class="spread" style="align-items:flex-start;margin-top:14px">
-                <div class="card raised pad" style="max-width:520px;flex:1" data-mount="cart-sum"></div>
+            <div v-else class="state">
+                <Icon name="cart" :size="24" />
+                <p class="state__title">Dein Warenkorb ist leer.</p>
+                <p class="t-body">
+                    Wähle dein Fahrzeug – wir zeigen dir anschließend nur Felgen, die dafür
+                    freigegeben sind.
+                </p>
+                <Link href="/felgen-suchen" class="btn btn--primary">Fahrzeug wählen</Link>
             </div>
         </div>
-    </main>
+    </section>
 </template>
+
+<style scoped>
+.cart__split {
+    margin-top: var(--s5);
+}
+
+.cart__lines {
+    padding: var(--s3) var(--s4);
+}
+
+.cart__rows {
+    display: grid;
+    gap: var(--s2);
+    margin: var(--s4) 0;
+}
+
+.cart__rows div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s3);
+    font-size: 15px;
+}
+
+.cart__rows dt {
+    color: var(--ink2);
+}
+
+.cart__rows dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.cart__total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: var(--s4);
+}
+
+.cart__go {
+    margin-top: var(--s4);
+}
+
+.cart__ssl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s2);
+    margin: var(--s4) 0 0;
+    color: var(--ink3);
+}
+</style>

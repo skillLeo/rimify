@@ -1,54 +1,108 @@
 <script setup lang="ts">
 /**
- * FAQ — desktop.
+ * The FAQ. Groups from the database, so marketing adds an answer without a deployment.
  *
- * PORTED VERBATIM from `design-reference/desktop/faq.html`, the design's own shell.
- *
- * Read this before editing:
- *
- *  - Everything below is the design's markup, character for character, including every inline
- *    style and every hand-written SVG. It is not "based on" the prototype; it IS the prototype.
- *    Do not tidy the inline styles into classes, do not extract components, do not reorder
- *    attributes, do not change a pixel value because it looks odd. All of that is measured.
- *  - The `data-mount` divs are intentionally empty. `shared/pages.js` fills each one at runtime
- *    with the real markup for that section (the question accordions, the contact rows). Filling
- *    one here by hand would put our markup back into the page and re-create exactly the drift
- *    this replaced.
- *  - The German copy is the design's. It is not translated, not rewritten, not corrected.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
+ * This is one of the pages that shows the blue bar rather than the white box: a visitor with a car
+ * chosen is not inside the buying process here, and restating their vehicle in the black header
+ * would imply this page is about it.
  */
 
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
+import { ref } from 'vue'
+import Icon from '../../Components/Art/Icon.vue'
+import Photo from '../../Components/Media/Photo.vue'
+import Scene from '../../Components/Art/Scene.vue'
+import { PHOTOS } from '../../media/photos'
+import type { FaqProps } from '../../types/pages'
+
+defineProps<FaqProps>()
+
+const open = ref<number | null>(null)
 </script>
 
 <template>
-    <Head title="FAQ" />
+    <Head title="Meistgestellte Fragen" />
 
-    <main id="main">
-    <div class="wrap" style="padding:64px 40px 96px;display:grid;grid-template-columns:58fr 42fr;gap:48px;align-items:start">
+    <section class="section">
+        <div class="wrap faq">
             <div>
-                <h1 class="h2">Meistgestellte Fragen</h1>
-                <div class="ffield" style="margin-top:20px">
-                    <input class="field" data-faqq placeholder="Suchen" aria-label="Fragen durchsuchen" style="padding-right:48px">
-                    <span class="ic r"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM16.2 16.2L21 21"/></svg></span>
+                <h1 class="t-h2">Meistgestellte Fragen</h1>
+
+                <div v-for="group in groups" :key="group.key" class="faq__group">
+                    <p class="micro">{{ group.key }}</p>
+
+                    <div v-for="entry in group.entries" :key="entry.id" class="acc">
+                        <button
+                            class="acc__head"
+                            type="button"
+                            :aria-expanded="open === entry.id"
+                            @click="open = open === entry.id ? null : entry.id"
+                        >
+                            {{ entry.question }}
+                            <Icon :name="open === entry.id ? 'minus' : 'plus'" :size="20" />
+                        </button>
+                        <div v-if="open === entry.id" class="acc__body t-body">{{ entry.answer }}</div>
+                    </div>
                 </div>
-                <div style="margin-top:28px" data-mount="faq-list"></div>
             </div>
 
-            <aside class="card raised" style="padding:28px;position:sticky;top:24px">
-                <h2 class="h3">Nicht gefunden, was du suchst?</h2>
-                <p class="body ink2" style="font-size:15px;margin-top:8px">Schreib uns – wir antworten meist am selben Werktag.</p>
-                <div style="margin-top:20px" data-mount="contact-rows"></div>
-                <div class="hr" style="margin:24px 0"></div>
-                <div class="row" style="gap:10px">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex:none"><circle cx="10" cy="10" r="10" fill="#1A44D4"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <strong style="font:700 15px/1.3 Lato,sans-serif">Kompatibilität sofort prüfen</strong>
+            <aside class="card faq__help">
+                <div class="faq__art">
+                    <Photo :photo="PHOTOS.werkstatt">
+                        <Scene name="werkstatt" :width="480" />
+                    </Photo>
                 </div>
-                <p class="body ink2" style="font-size:14px;margin-top:8px">Fahrzeug wählen, Felge wählen – wir sagen dir verbindlich, ob sie freigegeben ist.</p>
-                <a class="btn btn-s btn-full" style="margin-top:14px" href="rimify-check.html">RIMIFY-CHECK öffnen</a>
+                <div class="faq__helpbody">
+                    <h2 class="t-h3">Weitere Fragen oder Unterstützung benötigt?</h2>
+                    <p class="faq__phone">{{ contact.phone }}</p>
+                    <p class="quiet">{{ contact.hours }}</p>
+                    <p class="t-body">Wir freuen uns von dir zu hören.</p>
+                    <Link href="/kontakt" class="btn btn--secondary btn--block">Zum Kontaktformular</Link>
+                </div>
             </aside>
         </div>
-    </main>
+    </section>
 </template>
+
+<style scoped>
+.faq {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: var(--s6);
+    align-items: start;
+}
+
+.faq__group {
+    margin-top: var(--s6);
+}
+
+.faq__group .micro {
+    margin-bottom: var(--s3);
+}
+
+.faq__help {
+    padding: 0;
+    overflow: hidden;
+}
+
+.faq__art {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+}
+
+.faq__helpbody {
+    padding: var(--s5);
+}
+
+.faq__helpbody h2 {
+    margin: 0 0 var(--s3);
+}
+
+.faq__phone {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--blue);
+}
+</style>

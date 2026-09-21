@@ -1,27 +1,25 @@
 <script setup lang="ts">
 /**
  * The device split. `isMobile` is decided on the server from the User-Agent, so the first frame
- * the server renders is already the frame the client hydrates to.
+ * the server renders is already the frame the client hydrates to — there is no layout shift and no
+ * moment where a phone briefly shows a desktop grid.
  *
- * The two variants are separate documents in the design, not one responsive layout, so this
- * chooses between them rather than letting CSS reshape one into the other.
- *
- * The layout is `PrototypeLayout`, which renders `<main id="main">` and nothing else. The header
- * and footer are NOT rendered here: `shared/app.js` writes them into the `#top` and `#bottom`
- * divs in app.blade.php. Using the old `AppLayout` would draw a second, hand-written header over
- * the design's own.
+ * The props type lives in `types/pages.ts` and is shared with both variants, so a renamed
+ * controller key breaks the build rather than emptying a section quietly.
  */
 
-import PrototypeLayout from '../../Layouts/PrototypeLayout.vue'
+import AppLayout from '../../Layouts/AppLayout.vue'
 import Desktop from './Desktop.vue'
 import Mobile from './Mobile.vue'
 import { useShared } from '../../composables/useShared'
+import type { StartseiteProps } from '../../types/pages'
 
-defineOptions({ layout: PrototypeLayout })
+defineOptions({ layout: AppLayout })
 
+const props = defineProps<StartseiteProps>()
 const shared = useShared()
 </script>
 
 <template>
-    <component :is="shared.isMobile ? Mobile : Desktop" />
+    <component :is="shared.isMobile ? Mobile : Desktop" v-bind="props" />
 </template>

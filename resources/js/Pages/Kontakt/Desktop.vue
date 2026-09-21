@@ -1,84 +1,161 @@
 <script setup lang="ts">
 /**
- * Kontakt — desktop.
+ * Kontakt.
  *
- * PORTED VERBATIM from `design-reference/desktop/kontakt.html`, the design's own shell.
- *
- * Read this before editing:
- *
- *  - Everything below is the design's markup, character for character, including every inline
- *    style and every hand-written SVG. It is not "based on" the prototype; it IS the prototype.
- *    Do not tidy the inline styles into classes, do not extract components, do not reorder
- *    attributes, do not change a pixel value because it looks odd. All of that is measured.
- *  - The `data-mount` slots belong to the design's runtime. `shared/pages2.js` takes over the
- *    `kontakt-form` section and fills `scene-werkstatt` with the drawn workshop scene. The form
- *    markup inside `kontakt-form` is the shell's own and is copied exactly as it stands; nothing
- *    here is ours to add to, empty the slot or replace it with components.
- *  - The German copy, the telephone number and the office hours are the design's. They are not
- *    translated, not rewritten, not corrected.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
+ * The stock photograph of a smiling team in a bright office is on the banned list — including the
+ * one in the client's own Figma — so the slot is filled by the drawn `werkstatt` scene instead.
+ * Every contact detail renders from configuration, never from a literal in this file (D-023).
  */
 
-import { Head, usePage } from '@inertiajs/vue3'
+import { Head } from '@inertiajs/vue3'
+import Icon from '../../Components/Art/Icon.vue'
+import Photo from '../../Components/Media/Photo.vue'
+import Scene from '../../Components/Art/Scene.vue'
+import { PHOTOS } from '../../media/photos'
+import type { KontaktProps } from '../../types/pages'
 
-// Contact details come from config/rimify.php through KontaktController (decisions log D-023).
-const contact = usePage<{ contact: { email: string; phone: string } }>().props.contact
+defineProps<KontaktProps>()
 </script>
 
 <template>
     <Head title="Kontakt" />
 
-    <main id="main">
-    <div class="wrap" style="padding:80px 40px;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start">
+    <section class="section">
+        <div class="wrap kon">
+            <div>
+                <h1 class="t-h2">Kontakt</h1>
+                <p class="t-body">
+                    Fragen zur Freigabe, zur Größe oder zur Lieferung? Schreib uns – oder ruf einfach an.
+                </p>
 
-            <section class="card raised" style="padding:32px" data-mount="kontakt-form">
-                <h2 class="h3">Sende uns eine Nachricht</h2>
-                <div class="grid2" style="gap:16px;margin-top:20px">
-                    <div><label class="flabel">Vollständiger Name<span class="req">*</span></label><input class="field" required></div>
-                    <div><label class="flabel">Firma</label><input class="field"></div>
-                </div>
-                <div class="grid2" style="gap:16px;margin-top:16px">
-                    <div><label class="flabel">E-Mail<span class="req">*</span></label><input class="field" type="email" required></div>
-                    <div><label class="flabel">Telefon</label><input class="field" type="tel"></div>
-                </div>
-                <label class="flabel" style="margin-top:16px">Nachricht<span class="req">*</span></label>
-                <textarea class="field" required></textarea>
-                <p class="ink3" style="font:400 12px/1.5 Lato,sans-serif;margin-top:10px">Pflichtfelder mit * markiert.</p>
-                <div style="width:300px;height:78px;background:var(--field);border-radius:8px;margin-top:16px;display:flex;align-items:center;gap:12px;padding:0 16px">
-                    <span class="ink3" style="display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 2.8v5.1c0 4.7-3.1 8-7.5 9.3-4.4-1.3-7.5-4.6-7.5-9.3V5.8L12 3z"/></svg></span>
-                    <div><div class="micro">Sicherheitsprüfung</div>
-                        <div class="ink3" style="font:400 12px/1.4 Lato,sans-serif;margin-top:4px">Automatisch geprüft – kein Klick nötig.</div></div>
-                </div>
-                <button class="btn btn-p" style="margin-top:20px;width:50%" data-send>Senden</button>
-            </section>
-
-            <section>
-                <h1 class="h2">Kontaktiere uns</h1>
-                <p class="body ink2" style="margin-top:14px;max-width:60ch">Fragen zur Passgenauigkeit, zu einer Bestellung oder zu einem Gutachten? Schreib uns oder ruf einfach an – wir antworten in der Regel noch am selben Werktag.</p>
-
-                <div style="margin-top:28px;display:flex;flex-direction:column;gap:20px">
-                    <div class="row" style="gap:14px">
-                        <span class="bl" style="display:flex"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 5.2h17.6v13.6H3.2zM3.8 6.4L12 12.6l8.2-6.2"/></svg></span>
-                        <a :href="`mailto:${contact.email}`" class="tap" style="font:700 16px/1 Lato,sans-serif;color:var(--ink)">{{ contact.email }}</a>
+                <form class="card kon__form" @submit.prevent>
+                    <div class="kon__grid">
+                        <div>
+                            <label class="field-label" for="kon-name">
+                                Name <span class="field-label__req">*</span>
+                            </label>
+                            <input id="kon-name" class="field" autocomplete="name" />
+                        </div>
+                        <div>
+                            <label class="field-label" for="kon-mail">
+                                E-Mail <span class="field-label__req">*</span>
+                            </label>
+                            <input id="kon-mail" class="field" type="email" autocomplete="email" />
+                        </div>
+                        <div class="kon__wide">
+                            <label class="field-label" for="kon-vehicle">Fahrzeug</label>
+                            <input id="kon-vehicle" class="field" placeholder="z. B. Audi RS 4 Avant" />
+                        </div>
+                        <div class="kon__wide">
+                            <label class="field-label" for="kon-msg">
+                                Nachricht <span class="field-label__req">*</span>
+                            </label>
+                            <textarea id="kon-msg" class="field"></textarea>
+                        </div>
                     </div>
-                    <div class="row" style="gap:14px;align-items:flex-start">
-                        <span class="bl" style="display:flex"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 4h3.6l1.5 3.6-2.2 1.7a12.2 12.2 0 005.6 5.6l1.7-2.2 3.6 1.5v3.6c0 .7-.6 1.3-1.3 1.2C9.4 18.4 5.6 14.6 4.1 5.3 4 4.6 4.6 4 5.3 4z"/></svg></span>
-                        <div><div style="font:700 16px/1 Lato,sans-serif;font-variant-numeric:tabular-nums">{{ contact.phone }}</div>
-                            <div class="ink3" style="font:400 13px/1 Lato,sans-serif;margin-top:5px">Mo-Fr: 9:00 - 18:00 Uhr</div></div>
+
+                    <button class="btn btn--primary kon__send" type="submit">Nachricht senden</button>
+                </form>
+            </div>
+
+            <aside class="stack-4">
+                <div class="card kon__card">
+                    <!-- This slot replaces the smiling-team stock photo from the client's own
+                         Figma. No faces, no team: a real workshop, or nothing. -->
+                    <div class="kon__art">
+                        <Photo :photo="PHOTOS.kontakt">
+                            <Scene name="werkstatt" :width="480" />
+                        </Photo>
+                    </div>
+                    <div class="kon__cardbody">
+                        <span class="micro">Telefon</span>
+                        <p class="kon__value">{{ contact.phoneIntl }}</p>
+                        <p class="quiet">{{ contact.hours }}</p>
+
+                        <hr class="hr kon__rule" />
+
+                        <span class="micro">WhatsApp</span>
+                        <p class="kon__value">{{ contact.whatsapp }}</p>
+
+                        <hr class="hr kon__rule" />
+
+                        <span class="micro">E-Mail</span>
+                        <p class="kon__value">{{ contact.email }}</p>
                     </div>
                 </div>
 
-                <h2 class="h4" style="margin-top:28px">Wir freuen uns von dir zu hören.</h2>
-                <div style="margin-top:18px;border-radius:12px;overflow:hidden" data-mount="scene-werkstatt"></div>
-
-                <div class="row" style="gap:20px;margin-top:20px;flex-wrap:wrap">
-                    <a href="rechtliches.html?t=impressum" class="ink2 tap" style="font:400 13px/1 Lato,sans-serif">Impressum</a>
-                    <a href="rechtliches.html?t=datenschutz" class="ink2 tap" style="font:400 13px/1 Lato,sans-serif">Datenschutz</a>
-                    <a href="rechtliches.html?t=versand" class="ink2 tap" style="font:400 13px/1 Lato,sans-serif">Versandinformationen</a>
+                <div class="panel--wash kon__note">
+                    <Icon name="phone" :size="24" />
+                    <p class="t-body">
+                        Fragen beantworten wir am Telefon, nicht per Formularbrief.
+                    </p>
                 </div>
-            </section>
+            </aside>
         </div>
-    </main>
+    </section>
 </template>
+
+<style scoped>
+.kon {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: var(--s6);
+    align-items: start;
+}
+
+.kon__form {
+    margin-top: var(--s5);
+}
+
+.kon__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s3);
+}
+
+.kon__wide {
+    grid-column: span 2;
+}
+
+.kon__send {
+    margin-top: var(--s4);
+}
+
+.kon__card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.kon__art {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+}
+
+.kon__cardbody {
+    padding: var(--s5);
+}
+
+.kon__value {
+    margin: 4px 0 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--blue);
+}
+
+.kon__rule {
+    margin: var(--s4) 0;
+}
+
+.kon__note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s3);
+    color: var(--blue);
+}
+
+.kon__note p {
+    margin: 0;
+    color: var(--ink);
+}
+</style>

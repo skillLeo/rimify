@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 
-// No Tailwind. The design system is resources/css/tokens.css + components.css, ported verbatim
-// from the design prototype (CONTRIBUTING.md §4). Lato and IBM Plex Mono load from Google Fonts.
+// No Tailwind: the design system is resources/css/tokens.css + components.css (CONTRIBUTING.md §4).
+// Lato and IBM Plex Mono are self-hosted through @fontsource and fingerprinted by Vite.
 export default defineConfig({
     plugins: [
         laravel({

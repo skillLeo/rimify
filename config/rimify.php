@@ -64,47 +64,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Photography — TEMPORARY, for client review only
+    | Photography
     |--------------------------------------------------------------------------
     |
-    | The build pack is explicit that every visual ships as inline SVG: "External images cannot
-    | load in this environment. A grey box with a picture icon is a failure." The drawn art layer
-    | in resources/js/art exists for exactly that reason and remains the default.
-    |
-    | This flag layers remote photography OVER that art so the client can review photographic
-    | compositions before committing to licensed assets. Every slot keeps its drawn version as the
-    | fallback, so a blocked, throttled or dead URL degrades to the wheel and never to a grey box.
-    |
-    | Turn it off before launch, or replace resources/js/media/photos.ts with the client's own
-    | licensed files on our origin. Unsplash is not a licence RIMIFY holds.
+    | Photographs are served from our own origin (public/images) and every slot keeps a drawn SVG
+    | fallback, so a missing file degrades to the drawing and never to a grey box. The flag turns
+    | the photographic layer off without a build; the host list widens the CSP's `img-src` for the
+    | day the client puts images on a CDN. Named hosts only, never a wildcard —
+    | tests/Feature/Platform/SecurityHeadersTest.php fails the build if a `*` appears.
     */
     'photography' => [
-        'enabled' => (bool) env('RIMIFY_STOCK_PHOTOGRAPHY', true),
+        'enabled' => (bool) env('RIMIFY_PHOTOGRAPHY', true),
 
-        /*
-         * Exact hosts added to the CSP's `img-src` while the flag is on. Hosts only, never a
-         * wildcard — tests/Feature/Platform/SecurityHeadersTest.php fails the build if a `*`
-         * appears anywhere in the policy, which is the rule that stops this becoming permanent.
-         */
-        /*
-         * The default list is not a guess — it is every host `design-reference/shared/art.js`
-         * actually fetches from, and leaving one out is not a safe failure. The design layers
-         * each photograph over a drawn SVG and reveals the drawing on `onerror`, so a blocked
-         * host does not leave a gap: it silently swaps in different artwork. That is how the
-         * eight marque logos were rendering as bold text instead of marks.
-         *
-         *   images.unsplash.com   the two direct `photo-…` URLs, and where every download 302s to
-         *   unsplash.com          `ART.photo` builds `/photos/<id>/download?...`, which redirects
-         *   cdn.simpleicons.org   seven of the eight marque logos in `LOGO`
-         *   upload.wikimedia.org  the Mercedes mark, the one logo not on simpleicons
-         *   plus.unsplash.com     kept from before; harmless and may be needed by licensed swaps
-         */
         'hosts' => array_values(array_filter(array_map(
             'trim',
-            explode(',', (string) env(
-                'RIMIFY_STOCK_PHOTOGRAPHY_HOSTS',
-                'https://images.unsplash.com,https://plus.unsplash.com,https://unsplash.com,https://cdn.simpleicons.org,https://upload.wikimedia.org',
-            )),
+            explode(',', (string) env('RIMIFY_PHOTOGRAPHY_HOSTS', '')),
         ))),
     ],
 

@@ -1,48 +1,120 @@
 <script setup lang="ts">
-/**
- * RIMIFY-CHECK — mobile.
- *
- * PORTED VERBATIM from `design-reference/mobile/rimify-check.html`.
- *
- * This is a DIFFERENT DOCUMENT from the desktop page, not a responsive variant of it. The desktop
- * page draws the two steps as a 72px numbered rail in a `grid-template-columns:72px 1fr` card;
- * the mobile page drops that rail entirely and puts a small numbered badge inline on each step's
- * heading row. None of that can be reached from the desktop markup with media queries, which is
- * why the design ships two files and so do we.
- *
- * The same rules apply as on the desktop page: the markup is the design's, character for
- * character, and the `data-mount` divs stay empty for `shared/pages2.js` to fill at runtime.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
- */
+/** RIMIFY-CHECK on a phone: the selector first, the explanation beneath it. */
 
 import { Head } from '@inertiajs/vue3'
+import Icon from '../../Components/Art/Icon.vue'
+import Photo from '../../Components/Media/Photo.vue'
+import VehicleSelector from '../../Components/Vehicle/VehicleSelector.vue'
+import { PHOTOS } from '../../media/photos'
+import type { SelectorProps } from '../../types/pages'
+
+defineProps<SelectorProps>()
+
+const STEPS = [
+    { title: 'Fahrzeug wählen', body: 'Über die Fahrzeugdaten oder die Schlüsselnummern aus deinem Fahrzeugschein.' },
+    { title: 'Felge wählen', body: 'Marke, Modell und Größe – wir prüfen jede Kombination einzeln.' },
+    { title: 'Ergebnis erhalten', body: 'Mit Gutachten, Auflagen im Klartext und passenden Reifengrößen.' },
+]
 </script>
 
 <template>
     <Head title="RIMIFY-CHECK" />
 
-    <main id="main">
-    <section class="white" style="padding:40px 0">
-            <div class="wrap" style="text-align:center">
-                <div class="micro bl" style="letter-spacing:.14em">RIMIFY-CHECK</div>
-                <h1 class="display" style="font-size:30px;margin-top:10px">Passt diese Felge auf dein Auto?</h1>
-                <p class="body ink2" style="margin-top:10px">In zwei Schritten zur verbindlichen Antwort – mit dem Gutachten als Beleg.</p>
-            </div>
-        </section>
-
-        <div class="wrap" style="padding-bottom:56px">
-            <div class="card lifted pnl pad-s">
-                <div class="row" style="gap:10px"><span style="width:28px;height:28px;border-radius:999px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px/1 Lato,sans-serif;flex:none">1</span>
-                    <h2 class="h4">Fahrzeug wählen</h2></div>
-                <div style="margin-top:14px" data-mount="chk-step1"></div>
-                <div class="hr" style="margin:24px 0"></div>
-                <div class="row" style="gap:10px"><span style="width:28px;height:28px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink2);display:flex;align-items:center;justify-content:center;font:700 13px/1 Lato,sans-serif;flex:none">2</span>
-                    <h2 class="h4">Felge wählen</h2></div>
-                <div style="margin-top:14px" data-mount="chk-step2"></div>
-            </div>
-            <div style="margin-top:20px" data-mount="chk-result"></div>
+    <section class="rcheck-hero mchk__hero">
+        <div class="mchk__art" aria-hidden="true">
+            <Photo :photo="PHOTOS.checkHero"><span /></Photo>
         </div>
-    </main>
+
+        <div class="mchk__inner">
+            <p class="micro">RIMIFY-CHECK</p>
+            <h1 class="t-display mchk__title">Passt diese Felge an mein Auto?</h1>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="wrap">
+            <div class="card mchk__card">
+                <VehicleSelector
+                    :makes="makes"
+                    :models="models"
+                    :variants="variants"
+                    :selected-make="selectedMake"
+                    :selected-model="selectedModel"
+                    base-path="/rimify-check"
+                />
+            </div>
+
+            <div class="stack-4 mchk__steps">
+                <article v-for="(step, index) in STEPS" :key="step.title" class="card">
+                    <span class="mchk__num">{{ index + 1 }}</span>
+                    <h2 class="t-h3">{{ step.title }}</h2>
+                    <p class="t-body">{{ step.body }}</p>
+                </article>
+            </div>
+
+            <div class="panel--wash mchk__note">
+                <Icon name="shield" :size="24" />
+                <p class="t-body">
+                    Liegt für eine Kombination kein Gutachten vor, sagen wir das – und raten nicht.
+                </p>
+            </div>
+        </div>
+    </section>
 </template>
+
+<style scoped>
+.mchk__hero {
+    position: relative;
+    border-radius: 0;
+    padding: var(--s7) var(--gutter-m);
+    overflow: hidden;
+}
+
+.mchk__art {
+    position: absolute;
+    inset: 0;
+    opacity: 0.26;
+}
+
+.mchk__inner {
+    position: relative;
+}
+
+.mchk__title {
+    margin: var(--s2) 0 0;
+    color: #fff;
+}
+
+.mchk__card {
+    padding: var(--s4);
+}
+
+.mchk__steps {
+    margin-top: var(--s5);
+}
+
+.mchk__num {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin-bottom: var(--s2);
+    border-radius: 50%;
+    background: var(--wash);
+    color: var(--blue);
+    font-weight: 900;
+}
+
+.mchk__note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s3);
+    margin-top: var(--s5);
+    color: var(--blue);
+}
+
+.mchk__note p {
+    margin: 0;
+    color: var(--ink);
+}
+</style>

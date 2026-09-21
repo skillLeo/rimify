@@ -36,18 +36,3 @@ Thumbs.db
 /storage/framework/phpstan
 
 /bootstrap/cache/*.php
-
-# ── Visual fidelity ──────────────────────────────────────────────────────────────────────────
-#
-# What is TRACKED is deliberate. The baselines, the DOM signatures and the HARs under
-# tests/visual/ are the contract every page is measured against — they come from the prototype
-# and nowhere else, so they belong in review like any other specification. design-reference/ and
-# its _rendered/ captures are tracked for the same reason: _rendered/ is what each screen is ported
-# from (tests/visual/README.md §5), and a port is not reviewable if its source is not in the tree.
-#
-# Only per-run output is ignored.
-/tests/visual/artifacts
-/tests/visual/test-results
-/tests/visual/playwright-report
-/tests/visual/report.html
-/tests/visual/capture-manifest.json

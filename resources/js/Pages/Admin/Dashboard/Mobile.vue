@@ -1,62 +1,75 @@
 <script setup lang="ts">
-/**
- * Admin · Dashboard — mobile.
- *
- * PORTED VERBATIM from `design-reference/mobile/admin-dashboard.html`.
- *
- * This is a DIFFERENT DOCUMENT from the desktop page, not a responsive variant of it. The greeting
- * loses the `.spread` row and the theme switch drops below it as a full-width button; the two
- * 62fr/38fr columns become one stack of four `.card.pad-s` sections; the chart and the order table
- * each get their own `overflow-x:auto` scroller. None of that can be reached from the desktop
- * markup with media queries, which is why the design ships two files and so do we.
- *
- * The same rules apply as on the desktop page: the markup is the design's, character for
- * character, and the `data-mount` divs stay empty for `shared/admin.js` to fill — including
- * `adm-side`, `adm-top` and `adm-rail`, which are the panel's own chrome rather than a Vue layout.
- *
- * One thing the shell carries that this file cannot: its `<main>` is `<main id="main"
- * style="padding-bottom:0">`, cancelling the 96px the bottom navigation reserves. The `<main>` tag
- * belongs to `PrototypeLayout`, so that belongs in the layout or the shared CSS — not in markup
- * invented here.
- */
+/** The dashboard on a phone: two tiles per row, the chart beneath, conflicts as cards. */
 
 import { Head } from '@inertiajs/vue3'
+import RevenueChart from '../../../Components/Art/RevenueChart.vue'
+import type { AdminDashboardProps } from '../../../types/pages'
+
+const props = defineProps<AdminDashboardProps>()
+
+const points = props.revenue.map((r) => ({ label: r.label, value: r.value }))
+
+const KIND_LABEL: Record<string, string> = {
+    ENTRY_REQUIREMENT: 'Eintragungspflicht',
+    TYRE_SIZES: 'Reifengrößen',
+    WIDTH_ET_RANGE: 'Breite / ET',
+    CONDITIONS: 'Auflagen',
+}
 </script>
 
 <template>
     <Head title="Dashboard" />
 
-    <main id="main" style="padding-bottom:0">
-    <div class="adm">
-            <aside class="adm-side" data-mount="adm-side"></aside>
-            <div class="adm-main">
-                <header class="adm-top" data-mount="adm-top"></header>
-                <nav class="adm-rail" data-mount="adm-rail" aria-label="Module"></nav>
-                <div class="adm-body">
-                    <h1 class="h2">Guten Morgen, Stefan.</h1>
-                    <p class="body ink2" style="margin-top:6px">7 Bestellungen warten auf Bearbeitung.</p>
-                    <button class="btn btn-s btn-full" data-theme style="margin-top:16px">Dunkel</button>
+    <div class="tiles">
+        <article v-for="tile in tiles" :key="tile.key" class="tile">
+            <span class="micro">{{ tile.label }}</span>
+            <p class="tile__value">{{ tile.value }}</p>
+        </article>
+    </div>
 
-                    <div class="grid3" style="margin-top:20px" data-mount="adm-tiles"></div>
+    <section class="card mdash__chart">
+        <span class="micro">Umsatz, 12 Monate</span>
+        <RevenueChart :points="points" :width="360" :height="180" />
+    </section>
 
-                    <section class="card pad-s" style="margin-top:20px">
-                        <h2 class="h4">Umsatz</h2>
-                        <div style="margin-top:14px;overflow-x:auto" data-mount="adm-chart"></div>
-                    </section>
-                    <section class="card pad-s" style="margin-top:16px">
-                        <h2 class="h4" style="margin-bottom:14px">Letzte Bestellungen</h2>
-                        <div style="overflow-x:auto" data-mount="adm-orders"></div>
-                    </section>
-                    <section class="card pad-s" style="margin-top:16px">
-                        <h2 class="h4">Aktivität</h2>
-                        <div style="margin-top:6px" data-mount="adm-activity"></div>
-                    </section>
-                    <section class="card pad-s" style="margin-top:16px">
-                        <h2 class="h4">Zu erledigen</h2>
-                        <div style="margin-top:6px" data-mount="adm-todo"></div>
-                    </section>
-                </div>
-            </div>
-        </div>
-    </main>
+    <section class="stack mdash__conflicts">
+        <span class="micro">Offene Konflikte</span>
+        <article v-for="conflict in conflicts" :key="conflict.id" class="card mdash__conflict">
+            <p class="mdash__vehicle">{{ conflict.vehicle }}</p>
+            <span class="data">{{ conflict.keyNumbers }}</span>
+            <span class="tag mdash__tag" :class="conflict.blocking ? 'tag--danger' : 'tag--warn'">
+                {{ KIND_LABEL[conflict.kind] ?? conflict.kind }}
+            </span>
+        </article>
+        <p v-if="conflicts.length === 0" class="quiet">Keine offenen Konflikte.</p>
+    </section>
 </template>
+
+<style scoped>
+.mdash__chart {
+    margin-top: var(--s4);
+}
+
+.mdash__chart :deep(svg) {
+    width: 100%;
+    height: auto;
+    color: var(--ink2);
+}
+
+.mdash__conflicts {
+    margin-top: var(--s5);
+}
+
+.mdash__conflict {
+    padding: var(--s3);
+}
+
+.mdash__vehicle {
+    margin: 0;
+    font-weight: 700;
+}
+
+.mdash__tag {
+    margin-top: var(--s2);
+}
+</style>

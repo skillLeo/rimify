@@ -1,17 +1,5 @@
 * text=auto eol=lf
 
-# The design prototype is the visual specification and is compared byte-for-byte against our own
-# CSS (`diff design-reference/shared/tokens.css resources/css/tokens.css` must print nothing).
-# `text=auto eol=lf` above would rewrite CRLF on checkout on Windows and make that diff fail on
-# every line, so these paths are exempt from all line-ending normalisation.
-design-reference/** -text
-resources/css/tokens.css -text
-resources/css/components.css -text
-
-# PNG baselines are the pixel contract; never let a filter near them.
-tests/visual/baseline/** -text
-tests/visual/**/*.har -text
-
 *.blade.php diff=html
 *.css diff=css
 *.html diff=html

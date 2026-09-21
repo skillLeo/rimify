@@ -1,152 +1,391 @@
 <script setup lang="ts">
 /**
- * Startseite — mobile.
+ * The homepage, phone. Designed for the thumb, not squeezed from the desktop.
  *
- * PORTED VERBATIM from `design-reference/mobile/startseite.html`.
- *
- * This is a DIFFERENT DOCUMENT from the desktop page, not a responsive variant of it. The hero is
- * a 4/5 image block with the selector card pulled up over its lower edge by `margin:-28px 16px 0`;
- * the marque tiles are a 4-column grid rather than 8; the bestsellers are a horizontal `.rail`
- * instead of a `.grid4`; the "Dein Vorteil" panel stacks the photograph above the text rather
- * than beside it. None of that can be reached from the desktop markup with media queries, which
- * is why the design ships two files and so do we.
- *
- * The same rules apply as on the desktop page: the markup is the design's, character for
- * character, and the `data-mount` divs stay empty for `shared/pages.js` to fill.
+ * Two real differences rather than a narrower grid: the selector sits in the lower two thirds of
+ * the first screen so it is reachable one-handed, and the bestseller row is a scroll-snapping rail
+ * rather than a stack — a phone user scrolling past four full-height cards never reaches the rest
+ * of the page.
  */
 
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
+import HeroScene from '../../Components/Art/HeroScene.vue'
+import Icon from '../../Components/Art/Icon.vue'
+import Photo from '../../Components/Media/Photo.vue'
+import ProductCard from '../../Components/Product/ProductCard.vue'
+import Scene from '../../Components/Art/Scene.vue'
+import { useShared } from '../../composables/useShared'
+import { PHOTOS } from '../../media/photos'
+import type { StartseiteProps } from '../../types/pages'
+
+defineProps<StartseiteProps>()
+
+const shared = useShared()
+
+const TRUST = [
+    'Über 150 Modelle auf Lager',
+    'Gutachten zu jeder Felge',
+    'Versand aus Deutschland',
+    'Komplettrad montiert & gewuchtet',
+]
+
+const REASONS = [
+    {
+        title: 'Geprüfte Freigabe, kein Risiko',
+        body: 'Jede Felge, die wir dir zeigen, ist für dein Fahrzeug durch ein Gutachten freigegeben. Auflagen nennen wir im Klartext – vor dem Kauf, nicht danach. Das Gutachten kannst du auf jeder Produktseite herunterladen.',
+    },
+    {
+        title: 'Komplettrad, fertig montiert',
+        body: 'Auf Wunsch ziehen wir die Reifen auf und wuchten die Räder bei uns im Haus. Du bekommst fertige Räder inklusive Ventilen, Anbauset und ABE – auspacken, anschrauben, losfahren.',
+    },
+    {
+        title: 'Versand aus Deutschland',
+        body: 'Über 150 Modelle liegen bei uns auf Lager. Bestellungen bis 14 Uhr gehen am selben Werktag raus, versichert mit DHL. Fragen beantworten wir am Telefon, nicht per Formularbrief.',
+    },
+]
 </script>
 
 <template>
-    <Head title="Felgen mit Gutachten" />
+    <Head title="Felgen mit geprüfter Freigabe" />
 
-    <main id="main">
-    <!-- 1 · HERO -->
-        <section style="position:relative;padding-bottom:28px">
-            <div style="position:relative;width:100%;aspect-ratio:4/5;min-height:560px;overflow:hidden;background:#05070B">
-                <div data-mount="hero-scene" style="position:absolute;inset:0"></div>
-                <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(4,6,10,.94) 0%,rgba(4,6,10,.70) 46%,rgba(4,6,10,.30) 76%,rgba(4,6,10,.60) 100%)"></div>
-                <div style="position:absolute;left:16px;right:16px;top:28px;pointer-events:none">
-                    <div class="rise" style="font:700 11px/1.4 Lato,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8FA6FF">RIMIFY-CHECK · Freigabe geprüft</div>
-                    <h1 lang="de" class="display rise rise-1" style="margin-top:12px;color:#fff">Felgen, die zu deinem Auto passen.<br><span style="color:#8FA6FF">Garantiert.</span></h1>
-                    <p class="rise rise-2" style="margin-top:12px;font:400 15px/1.55 Lato,sans-serif;color:rgba(255,255,255,.80)">Wähle dein Fahrzeug – wir zeigen dir nur Felgen, die dafür freigegeben sind.</p>
+    <section class="mhero">
+        <div class="mhero__art">
+            <Photo :photo="PHOTOS.heroMobile" eager>
+                <HeroScene layout="mobile" finish="graphite" :spokes="10" />
+            </Photo>
+        </div>
+        <div class="mhero__scrim" />
+
+        <div class="mhero__inner">
+            <p class="t-micro mhero__eyebrow">RIMIFY-CHECK · FREIGABE GEPRÜFT</p>
+            <h1 class="t-display mhero__title">
+                Felgen, die zu deinem Auto passen.<br />
+                <span class="mhero__accent">Garantiert.</span>
+            </h1>
+            <p class="t-body mhero__sub">
+                Wähle dein Fahrzeug – wir zeigen dir nur Felgen, die dafür freigegeben sind.
+            </p>
+
+            <Link href="/felgen-suchen" class="btn btn--primary btn--block btn--lg mhero__cta">
+                Fahrzeug wählen
+            </Link>
+        </div>
+    </section>
+
+    <section class="mtrust">
+        <ul>
+            <li v-for="item in TRUST" :key="item">
+                <Icon name="check" :size="20" />
+                {{ item }}
+            </li>
+        </ul>
+    </section>
+
+    <section class="section surface">
+        <div class="wrap">
+            <div class="between">
+                <h2 class="t-h2">Bestseller aus {{ month }}</h2>
+            </div>
+            <div class="rail msection__rail">
+                <ProductCard
+                    v-for="card in bestsellers.slice(0, 6)"
+                    :key="`${card.modelId}-${card.finishId}`"
+                    :card="card"
+                    :vehicle="shared.vehicle"
+                />
+            </div>
+            <Link href="/felgen" class="btn btn--secondary btn--block">Alle Felgen ansehen</Link>
+        </div>
+    </section>
+
+    <section class="section band">
+        <div class="wrap">
+            <h2 class="t-h2">Auto wählen, garantiert passende Felge finden</h2>
+            <div class="mmakes">
+                <Link
+                    v-for="make in makes"
+                    :key="make.make"
+                    :href="`/felgen-suchen?marke=${encodeURIComponent(make.make)}`"
+                    class="row-item"
+                >
+                    <span>{{ make.make }}</span>
+                    <span class="data">{{ make.models }}</span>
+                </Link>
+            </div>
+        </div>
+    </section>
+
+    <section class="section surface">
+        <div class="wrap">
+            <h2 class="t-h2">Entdecke die beliebtesten Felgenmarken</h2>
+            <div class="mbrands">
+                <Link
+                    v-for="brand in brands"
+                    :key="brand.slug"
+                    :href="`/felgen?marke=${encodeURIComponent(brand.name)}`"
+                    class="row-item"
+                >
+                    <span>{{ brand.name }}</span>
+                    <Icon name="chevron-right" :size="20" />
+                </Link>
+            </div>
+        </div>
+    </section>
+
+    <section class="section band">
+        <div class="wrap">
+            <h2 class="t-h2">Dein Vorteil: <span class="maccent">✓ RIMIFY-CHECK</span></h2>
+            <p class="t-body">
+                Mit RIMIFY CHECK prüfen wir die Kompatibilität zwischen Fahrzeug und Felge. So kannst
+                du sicher sein, dass deine Wunschfelge zu deinem Fahrzeug passt und zugelassen ist.
+            </p>
+
+            <div class="rcheck-panel mcheck">
+                <p class="rcheck-panel__head"><Icon name="check-circle" :size="20" /> RIMIFY-CHECK</p>
+                <div class="mcheck__row">
+                    <span class="micro">Fahrzeug</span>
+                    <p class="mcheck__value">BMW M4 F82</p>
                 </div>
-            </div>
-            <div class="rise rise-3" style="margin:-28px 16px 0;position:relative;background:#fff;border-radius:18px;box-shadow:var(--sh-2);overflow:hidden">
-                <div style="background:var(--blue);color:#fff;font:700 15px/1 Lato,sans-serif;padding:16px 20px">Fahrzeug wählen</div>
-                <div style="padding:20px" data-mount="hero-selector"></div>
-            </div>
-            <div style="margin-top:20px;display:flex;gap:10px;overflow-x:auto;padding:0 16px;scroll-snap-type:x mandatory" data-mount="trust"></div>
-        </section>
-
-        <!-- 2 · BRAND STRIP -->
-        <section style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:24px 16px;display:flex;gap:32px;overflow-x:auto;scroll-snap-type:x mandatory" data-mount="brandstrip"></section>
-
-        <!-- 3 · MARKEN -->
-        <section class="sec white">
-            <div class="wrap">
-                <h2 class="h2" style="margin-bottom:24px">Entdecke die beliebtesten Felgenmarken</h2>
-                <div style="display:flex;flex-direction:column;gap:16px" data-mount="brandcards"></div>
-            </div>
-        </section>
-
-        <!-- 4 · AUTO WÄHLEN -->
-        <section class="sec band">
-            <div class="wrap">
-                <h2 class="h2" style="margin-bottom:20px">Auto wählen, garantiert passende Felge finden</h2>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" data-mount="tiles"></div>
-                <a class="link" style="margin-top:20px" href="felgen-suchen.html">Alle Marken anzeigen
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13.5 6.5L19 12l-5.5 5.5"/></svg></a>
-            </div>
-        </section>
-
-        <!-- 5 · BESTSELLER -->
-        <section class="sec white" style="padding-left:0;padding-right:0">
-            <div class="wrap" style="margin-bottom:20px"><h2 class="h2">Bestseller aus Mai 2026</h2></div>
-            <div style="padding:0 16px"><div class="rail" data-mount="bestseller"></div></div>
-        </section>
-
-        <!-- 6 · DEIN VORTEIL -->
-        <section class="sec band">
-            <div class="wrap">
-                <div class="card raised pnl" style="overflow:hidden">
-                    <div style="position:relative;aspect-ratio:16/10;background:var(--ground);overflow:hidden" data-mount="car-check"></div>
-                    <div class="pad-s">
-                        <div class="row" style="gap:8px;flex-wrap:wrap">
-                            <span class="h3" style="font-size:20px">Dein Vorteil:</span>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="10" fill="#1A44D4"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            <span class="h3 bl" style="font-size:20px">RIMIFY-CHECK</span>
-                        </div>
-                        <p class="body ink2" style="margin-top:14px">Mit RIMIFY CHECK prüfen wir die Kompatibilität zwischen Fahrzeug und Felge. So kannst du sicher sein, dass deine Wunschfelge zu deinem Fahrzeug passt und zugelassen ist.</p>
-                        <div class="wash" style="margin-top:18px">
-                            <div class="row" style="gap:28px">
-                                <div><div class="micro" style="color:var(--ink2)">Fahrzeug</div><div class="mono" style="margin-top:6px">BMW M4 F82</div></div>
-                                <div><div class="micro" style="color:var(--ink2)">Felge</div><div class="mono" style="margin-top:6px">Wheelforce CF.3</div></div>
-                            </div>
-                            <div style="height:1px;background:var(--bline);margin:14px 0"></div>
-                            <div class="row" style="gap:10px;align-items:flex-start">
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="flex:none;margin-top:2px"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#2E8B22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                <span style="font:700 14px/1.4 Lato,sans-serif">Freigegeben – keine Eintragung erforderlich</span>
-                            </div>
-                        </div>
-                        <a class="btn btn-p btn-full" style="margin-top:18px" href="rimify-check.html">
-                            <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9.2" stroke="#fff" stroke-width="1.6"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            RIMIFY-CHECK</a>
-                    </div>
+                <div class="mcheck__row">
+                    <span class="micro">Felge</span>
+                    <p class="mcheck__value">Wheelforce CF.3</p>
                 </div>
+                <p class="mcheck__verdict">
+                    <Icon name="check" :size="20" />
+                    Freigegeben – keine Eintragung erforderlich
+                </p>
             </div>
-        </section>
 
-        <!-- 7 · WARUM RIMIFY -->
-        <section class="sec white">
-            <div class="wrap">
-                <h2 class="h2" style="margin-bottom:24px">Warum RIMIFY?</h2>
-                <div style="display:flex;flex-direction:column" data-mount="warum"></div>
-            </div>
-        </section>
+            <Link href="/rimify-check" class="btn btn--primary btn--block mcheck__cta">RIMIFY-CHECK</Link>
+        </div>
+    </section>
 
-        <!-- 8 · FELGENPAKET -->
-        <section class="sec band">
-            <div class="wrap">
-                <div class="card raised pnl" style="overflow:hidden">
-                    <div data-mount="scene-lager"></div>
-                    <div class="pad-s">
-                        <h2 class="h2">Dein Felgenpaket</h2>
-                        <div style="margin-top:20px;border:1px solid var(--line);border-radius:14px;padding:18px">
-                            <div class="micro">Lieferung</div>
-                            <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#4A5160" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">Felgen</span></div>
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#4A5160" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Anbauset &amp; ABE</span></div>
-                            </div>
-                        </div>
-                        <div style="margin-top:14px;background:var(--wash);border:1px solid var(--blue);border-radius:14px;padding:18px">
-                            <div class="row" style="gap:10px;flex-wrap:wrap"><span class="pill pill-blue">Empfohlen</span><span class="h4">Komplettrad</span></div>
-                            <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
-                                <div class="row" style="align-items:flex-start"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none;margin-top:3px"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Montage der Reifen auf die Felgen</span></div>
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Wuchten</span></div>
-                                <div class="row"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#1A44D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1.4 Lato,sans-serif">inkl. Ventile &amp; Gewichte</span></div>
-                            </div>
-                        </div>
-                        <a class="btn btn-p btn-full" style="margin-top:20px;height:auto;min-height:52px;padding:12px 16px;line-height:1.3" href="felgen-suchen.html">Jetzt Auto wählen und passende Felgen finden</a>
-                    </div>
+    <section class="section surface">
+        <div class="wrap stack-4">
+            <h2 class="t-h2">Warum RIMIFY?</h2>
+            <article v-for="reason in REASONS" :key="reason.title" class="card">
+                <h3 class="t-h3">{{ reason.title }}</h3>
+                <p class="t-body">{{ reason.body }}</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="section band">
+        <div class="wrap stack-4">
+            <h2 class="t-h2">Dein Felgenpaket</h2>
+
+            <article class="card">
+                <span class="micro">Lieferung</span>
+                <ul class="mpack">
+                    <li><Icon name="check" :size="20" /> Felgen</li>
+                    <li><Icon name="check" :size="20" /> inkl. Anbauset &amp; ABE</li>
+                </ul>
+            </article>
+
+            <article class="card card--lifted mpack__rec">
+                <span class="tag tag--ok">EMPFOHLEN</span>
+                <h3 class="t-h3">Komplettrad</h3>
+                <ul class="mpack">
+                    <li><Icon name="check" :size="20" /> inkl. Montage der Reifen auf die Felgen</li>
+                    <li><Icon name="check" :size="20" /> inkl. Wuchten</li>
+                    <li><Icon name="check" :size="20" /> inkl. Ventile &amp; Gewichte</li>
+                </ul>
+            </article>
+
+            <Link href="/felgen-suchen" class="btn btn--primary btn--block">
+                Jetzt Auto wählen und passende Felgen finden
+            </Link>
+        </div>
+    </section>
+
+    <section class="section surface">
+        <div class="wrap stack-4">
+            <h2 class="t-h2">Meistgestellte Fragen</h2>
+            <Link href="/faq" class="btn btn--secondary btn--block">Alle Fragen ansehen</Link>
+
+            <article class="card mhelp">
+                <div class="mhelp__art">
+                    <Photo :photo="PHOTOS.werkstatt">
+                        <Scene name="werkstatt" :width="420" />
+                    </Photo>
                 </div>
-            </div>
-        </section>
-
-        <!-- 9 · FAQ -->
-        <section class="sec white">
-            <div class="wrap">
-                <h2 class="h2" style="margin-bottom:20px">Meistgestellte Fragen</h2>
-                <div data-mount="faq-home"></div>
-                <div class="card raised pad-s" style="margin-top:24px">
-                    <h3 class="h4">Weitere Fragen oder Unterstützung benötigt?</h3>
-                    <div style="margin-top:18px" data-mount="contact-rows"></div>
-                    <p class="body ink2" style="margin-top:18px">Wir freuen uns von dir zu hören.</p>
-                    <div style="margin-top:16px;border-radius:10px;overflow:hidden" data-mount="scene-werkstatt"></div>
-                    <a class="btn btn-s btn-full" style="margin-top:16px" href="kontakt.html">Zum Kontaktformular</a>
+                <div class="mhelp__body">
+                    <h3 class="t-h3">Weitere Fragen oder Unterstützung benötigt?</h3>
+                    <p class="t-body">Wir freuen uns von dir zu hören.</p>
+                    <Link href="/kontakt" class="btn btn--secondary btn--block">Zum Kontaktformular</Link>
                 </div>
-            </div>
-        </section>
-    </main>
+            </article>
+        </div>
+    </section>
 </template>
+
+<style scoped>
+.mhero {
+    position: relative;
+    background: var(--black);
+    color: #fff;
+    overflow: hidden;
+    min-height: 78vh;
+    display: flex;
+    align-items: flex-end;
+}
+
+.mhero__art,
+.mhero__scrim {
+    position: absolute;
+    inset: 0;
+}
+
+.mhero__art :deep(svg) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mhero__scrim {
+    background: linear-gradient(
+        180deg,
+        rgba(4, 6, 10, 0.5) 0%,
+        rgba(4, 6, 10, 0.72) 48%,
+        rgba(4, 6, 10, 0.94) 100%
+    );
+}
+
+/* The selector sits in the lower two thirds so it is reachable one-handed. */
+.mhero__inner {
+    position: relative;
+    padding: var(--s8) var(--gutter-m) var(--s7);
+}
+
+.mhero__eyebrow {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.mhero__title {
+    margin: var(--s2) 0 var(--s3);
+    color: #fff;
+}
+
+.mhero__accent {
+    color: #8fa6ff;
+}
+
+.mhero__sub {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.mhero__cta {
+    margin-top: var(--s5);
+}
+
+.mtrust {
+    background: var(--black);
+    padding: 0 var(--gutter-m) var(--s6);
+}
+
+.mtrust ul {
+    display: grid;
+    gap: var(--s2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mtrust li {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.msection__rail {
+    margin-block: var(--s4);
+}
+
+.mmakes,
+.mbrands {
+    display: grid;
+    gap: var(--s2);
+    margin-top: var(--s4);
+}
+
+.maccent {
+    color: var(--blue);
+}
+
+.mcheck {
+    margin-top: var(--s4);
+}
+
+.mcheck__row + .mcheck__row {
+    margin-top: var(--s3);
+}
+
+.mcheck__value {
+    margin: 2px 0 0;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.mcheck__verdict {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin: var(--s3) 0 0;
+    padding-top: var(--s3);
+    border-top: 1px solid var(--bline);
+    color: var(--ok);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.mcheck__cta {
+    margin-top: var(--s4);
+}
+
+.mpack {
+    display: grid;
+    gap: var(--s2);
+    margin: var(--s3) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 15px;
+}
+
+.mpack li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s2);
+    color: var(--ink2);
+}
+
+.mpack :deep(svg) {
+    color: var(--ok);
+    flex: none;
+}
+
+.mpack__rec h3 {
+    margin: var(--s2) 0 0;
+}
+
+.mhelp {
+    padding: 0;
+    overflow: hidden;
+}
+
+.mhelp__art {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+}
+
+.mhelp__body {
+    padding: var(--s4);
+}
+
+.mhelp__body h3 {
+    margin: 0 0 var(--s2);
+}
+</style>

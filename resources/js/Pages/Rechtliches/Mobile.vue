@@ -1,29 +1,79 @@
 <script setup lang="ts">
-/**
- * Rechtliches — mobile.
- *
- * PORTED VERBATIM from `design-reference/mobile/rechtliches.html`.
- *
- * This is a DIFFERENT DOCUMENT from the desktop page, not a responsive variant of it. The desktop
- * page is a two-column grid with the rail held sticky in a card beside the body; here the rail is
- * a bare `<nav>` stacked above an article that is pushed down by `margin-top:24px`. That cannot be
- * reached from the desktop markup with media queries, which is why the design ships two files and
- * so do we.
- *
- * The same rules apply as on the desktop page: the markup is the design's, character for
- * character, and the `data-mount` divs stay empty for `shared/pages2.js` to fill.
- */
+/** The legal rail as a horizontal scroller above the text. */
 
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
+import type { RechtlichesProps } from '../../types/pages'
+
+defineProps<RechtlichesProps>()
 </script>
 
 <template>
     <Head title="Rechtliches" />
 
-    <main id="main">
-    <div class="wrap" style="padding:28px 16px 56px">
-            <nav data-mount="legal-tabs"></nav>
-            <article style="margin-top:24px" data-mount="legal-body"></article>
+    <section class="section">
+        <div class="wrap">
+            <nav class="mrec__rail" aria-label="Rechtliches">
+                <Link
+                    v-for="tab in tabs"
+                    :key="tab.slug"
+                    :href="`/rechtliches/${tab.slug}`"
+                    class="pill"
+                    :class="{ 'pill--on': tab.slug === active }"
+                    :aria-current="tab.slug === active ? 'page' : undefined"
+                >
+                    {{ tab.title }}
+                </Link>
+            </nav>
+
+            <article class="card mrec__body">
+                <h1 class="t-h2">{{ tabs.find((t) => t.slug === active)?.title ?? 'Rechtliches' }}</h1>
+
+                <div v-for="block in blocks" :key="block.id" class="mrec__block">
+                    <h2 v-if="block.data.heading" class="t-h3">{{ block.data.heading }}</h2>
+                    <p class="t-body">{{ block.data.body }}</p>
+                </div>
+
+                <p v-if="blocks.length === 0" class="t-body quiet">
+                    Für diesen Abschnitt liegt noch kein Text vor.
+                </p>
+            </article>
         </div>
-    </main>
+    </section>
 </template>
+
+<style scoped>
+.mrec__rail {
+    display: flex;
+    gap: var(--s2);
+    overflow-x: auto;
+    padding-bottom: var(--s2);
+    margin-inline: calc(var(--gutter-m) * -1);
+    padding-inline: var(--gutter-m);
+    scrollbar-width: none;
+}
+
+.mrec__rail::-webkit-scrollbar {
+    display: none;
+}
+
+.mrec__rail .pill {
+    flex: none;
+    text-decoration: none;
+}
+
+.mrec__body {
+    margin-top: var(--s4);
+}
+
+.mrec__body h1 {
+    margin: 0 0 var(--s4);
+}
+
+.mrec__block + .mrec__block {
+    margin-top: var(--s4);
+}
+
+.mrec__block h2 {
+    margin: 0 0 var(--s2);
+}
+</style>

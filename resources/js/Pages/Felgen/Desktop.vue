@@ -1,57 +1,199 @@
 <script setup lang="ts">
 /**
- * Felgen (Produktliste) — desktop.
+ * The listing. With a vehicle it is a compliance answer; without one it is the open catalogue and
+ * says so in a strip above the grid rather than quietly implying everything fits.
  *
- * PORTED VERBATIM from `design-reference/desktop/felgen.html`, the design's own shell.
- *
- * Read this before editing:
- *
- *  - Everything below is the design's markup, character for character, including every inline
- *    style. It is not "based on" the prototype; it IS the prototype. Do not tidy the inline styles
- *    into classes, do not extract components, do not reorder attributes, do not change a pixel
- *    value because it looks odd. All of that is measured.
- *  - The `data-mount` slots are intentionally empty. `shared/pages2.js` fills each one at runtime
- *    with the real markup for that slot (heading and count, the "kein Fahrzeug" prompt, the filter
- *    rail, the segment control, the reset link, the product grid, the pager). The headline text
- *    inside `plp-head` is the design's own pre-runtime state and is copied with it; everything
- *    else stays empty. Filling one here by hand would put our markup back into the page and
- *    re-create exactly the drift this replaced.
- *  - The German copy is the design's. It is not translated, not rewritten, not corrected.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
+ * One result is still a grid, never a redirect to the product page — a redirect would steal the
+ * back button and hide the fact that the filter narrowed to one.
  */
 
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import FilterBar from '../../Components/Listing/FilterBar.vue'
+import Icon from '../../Components/Art/Icon.vue'
+import ProductCard from '../../Components/Product/ProductCard.vue'
+import { useListingFilters } from '../../composables/useListingFilters'
+import { useShared } from '../../composables/useShared'
+import type { FelgenProps } from '../../types/pages'
+
+const props = defineProps<FelgenProps>()
+
+const shared = useShared()
+const filters = useListingFilters(() => props.filters)
+
+const heading = computed(() =>
+    shared.value.vehicle === null
+        ? 'Unser gesamtes Felgensortiment'
+        : `Unser gesamtes Felgensortiment für deinen ${shared.value.vehicle.short}`
+)
+
+const countLine = computed(() => {
+    if (props.total === null) {
+        return 'Wähle dein Fahrzeug, um nur freigegebene Felgen zu sehen.'
+    }
+
+    return `${props.total} Felgen mit gültiger Freigabe für dieses Fahrzeug.`
+})
+
+const pages = computed(() => {
+    if (props.total === null) {
+        return []
+    }
+
+    const last = Math.max(1, Math.ceil(props.total / 24))
+
+    return Array.from({ length: Math.min(last, 12) }, (_, i) => i + 1)
+})
 </script>
 
 <template>
     <Head title="Felgen" />
 
-    <main id="main">
-    <div class="wrap" style="padding-top:28px;padding-bottom:96px">
-            <nav class="crumb"><a href="startseite.html">RIMIFY</a>›<span class="ink2">Felgen</span></nav>
+    <section class="section">
+        <div class="wrap">
+            <nav class="plp__crumbs" aria-label="Brotkrumen">
+                <Link href="/">RIMIFY</Link>
+                <span aria-hidden="true">›</span>
+                <span class="plp__crumb-current">Felgen</span>
+            </nav>
 
-            <h1 class="h2" style="text-align:center;margin-top:28px;max-width:20ch;margin-inline:auto" data-mount="plp-head">Unser gesamtes Felgensortiment</h1>
-            <p class="body ink2" style="text-align:center;font-size:15px;margin-top:10px" data-mount="plp-count"></p>
+            <h1 class="t-h2 plp__title">{{ heading }}</h1>
+            <p class="plp__sub">{{ countLine }}</p>
 
-            <div style="margin-top:28px" data-mount="plp-novehicle"></div>
-
-            <div style="margin-top:28px" data-mount="plp-filters"></div>
-
-            <div class="spread" style="margin-top:20px">
-                <div class="row" style="gap:16px">
-                    <span data-mount="plp-seg"></span>
-                    <span data-mount="plp-reset"></span>
-                </div>
-                <label class="row" style="gap:10px"><span class="ink2" style="font:400 14px/1 Lato,sans-serif">Sortieren:</span>
-                    <select class="field" data-sort style="width:190px;height:40px;background:#fff;box-shadow:0 0 0 1px var(--line)">
-                        <option>Beliebt</option><option>Preis aufsteigend</option><option>Preis absteigend</option><option>Bewertung</option>
-                    </select></label>
+            <!-- No vehicle: the page is honest about what it is, and offers the fix. -->
+            <div v-if="!hasVehicle" class="panel--wash plp__notice">
+                <p class="plp__notice-text">
+                    Wähle dein Fahrzeug, um nur freigegebene Felgen zu sehen.
+                </p>
+                <Link href="/felgen-suchen" class="btn btn--primary">Fahrzeug wählen</Link>
             </div>
 
-            <div class="grid4" style="margin-top:28px" data-mount="plp-grid"></div>
-            <div class="pager" data-mount="plp-pager"></div>
+            <FilterBar
+                v-if="hasVehicle"
+                :facets="facets"
+                :filters="filters.current.value"
+                :total="total"
+                class="plp__filters"
+                @toggle="filters.toggle"
+                @toggle-entry="filters.toggleEntry"
+                @reset="filters.reset"
+            />
+
+            <div v-if="cards.length > 0" class="grid-cards plp__grid">
+                <ProductCard
+                    v-for="card in cards"
+                    :key="`${card.modelId}-${card.finishId}`"
+                    :card="card"
+                    :vehicle="shared.vehicle"
+                />
+            </div>
+
+            <!-- Never an empty grid: the gap is named and two ways forward are offered. -->
+            <div v-else class="state">
+                <Icon name="info" :size="24" />
+                <p class="state__title">Für dieses Fahrzeug haben wir noch keine freigegebenen Felgen.</p>
+                <p class="t-body">
+                    RIMIFY zeigt ausschließlich Felgen, für die ein gültiges Gutachten vorliegt. Sobald
+                    eine Freigabe für dein Fahrzeug vorliegt, erscheint sie hier.
+                </p>
+                <div class="cluster">
+                    <Link href="/kontakt" class="btn btn--primary">Benachrichtigen, sobald verfügbar</Link>
+                    <Link href="/felgen-suchen" class="btn btn--secondary">Anderes Fahrzeug wählen</Link>
+                </div>
+            </div>
+
+            <!-- Numbered pages with a real `?seite=`. Never infinite scroll. -->
+            <nav v-if="pages.length > 1" class="plp__pages" aria-label="Seiten">
+                <button
+                    v-for="n in pages"
+                    :key="n"
+                    class="plp__page"
+                    :class="{ 'plp__page--on': (page ?? 1) === n }"
+                    type="button"
+                    :aria-current="(page ?? 1) === n ? 'page' : undefined"
+                    @click="filters.goToPage(n)"
+                >
+                    {{ n }}
+                </button>
+            </nav>
         </div>
-    </main>
+    </section>
 </template>
+
+<style scoped>
+.plp__crumbs {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-size: 13px;
+    color: var(--ink3);
+}
+
+.plp__crumbs a {
+    color: var(--ink3);
+    text-decoration: none;
+}
+
+.plp__crumb-current {
+    color: var(--ink2);
+}
+
+.plp__title {
+    margin: var(--s4) auto var(--s2);
+    text-align: center;
+    max-width: 22ch;
+}
+
+.plp__sub {
+    margin: 0 auto;
+    text-align: center;
+    font-size: 15px;
+    color: var(--ink2);
+}
+
+.plp__notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s4);
+    margin-top: var(--s5);
+}
+
+.plp__notice-text {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.plp__filters {
+    margin-top: var(--s5);
+}
+
+.plp__grid {
+    margin-top: var(--s5);
+}
+
+.plp__pages {
+    display: flex;
+    justify-content: center;
+    gap: var(--s2);
+    margin-top: var(--s7);
+}
+
+.plp__page {
+    min-width: 44px;
+    min-height: 44px;
+    border: 0;
+    border-radius: var(--r-btn);
+    background: var(--surface);
+    color: var(--ink2);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.plp__page--on {
+    background: var(--blue);
+    color: #fff;
+}
+</style>

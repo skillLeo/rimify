@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Domain\Storefront\VehicleContext;
 use App\Services\Storefront\Chrome;
-use App\Support\Design\PrototypePage;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -42,24 +40,8 @@ class HandleInertiaRequests extends Middleware
             'isMobile' => (bool) $request->attributes->get(DetectDevice::ATTRIBUTE, false),
             'locale' => 'de',
             /*
-             * The prototype screen this route renders. It goes onto `<body data-page="...">`,
-             * where `shared/app.js` reads it to choose the header state and the page builder —
-             * so it is shared here rather than set per page, and cannot be forgotten on one.
-             */
-            'designPage' => PrototypePage::forRoute($request->route()?->getName()),
-            /*
-             * The chosen vehicle's id, for the live-data payload in app.blade.php. Null means no
-             * vehicle — and that is the difference between a catalogue that makes fitment claims
-             * and one that makes none at all, so it is read from the same cookie the rest of the
-             * storefront reads rather than inferred anywhere else.
-             */
-            'vehicleId' => VehicleContext::decode(
-                $request->cookie(VehicleContext::COOKIE)
-            )?->vehicleId,
-            /*
-             * Whether remote photography is layered over the drawn art (config/rimify.php).
-             * Shared rather than compiled in, so the flag that widens the CSP and the flag that
-             * renders an <img> are the same flag and cannot drift apart.
+             * Whether photography is layered over the drawn art (config/rimify.php). Shared
+             * rather than compiled in, so one env change turns it off without a build.
              */
             'photography' => config('rimify.photography.enabled') === true,
             'flash' => [

@@ -7,7 +7,6 @@ use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
-use App\Support\Design\PrototypePage;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -64,17 +63,11 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             /*
-             * An error page has to carry its own props.
+             * An error page has to carry its own device split.
              *
              * A 404 is thrown during routing, before the `web` group runs — so DetectDevice never
-             * set `isMobile` and HandleInertiaRequests never shared it. Without it the device
-             * split has nothing to switch on and every phone is served the desktop page: the
-             * mobile 404 came out 1857px tall against the design's 4604px, because it was the
-             * desktop document rendered at 390px.
-             *
-             * So the two props the shell needs are computed here. `designPage` puts the right
-             * name on <body data-page>, which is what `shared/app.js` reads to decide it is the
-             * 404 screen rather than the Startseite.
+             * set `isMobile` and HandleInertiaRequests never shared it. Without it every phone
+             * would be served the desktop chrome.
              */
             $isMobile = $request->attributes->get(DetectDevice::ATTRIBUTE);
 
@@ -89,7 +82,6 @@ return Application::configure(basePath: dirname(__DIR__))
             return Inertia::render('Fehler/Index', [
                 'status' => $response->getStatusCode(),
                 'isMobile' => (bool) $isMobile,
-                'designPage' => PrototypePage::forComponent('Fehler/Index'),
             ])
                 ->toResponse($request)
                 ->setStatusCode($response->getStatusCode());

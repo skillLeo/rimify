@@ -1,114 +1,250 @@
 <script setup lang="ts">
 /**
- * Produkt (PDP) — mobile.
+ * The product page on a phone.
  *
- * PORTED VERBATIM from `design-reference/mobile/produkt.html`.
- *
- * This is a DIFFERENT DOCUMENT from the desktop page, not a responsive variant of it. The gallery
- * sits above the title instead of beside it; the three panels stack as `pad-s` cards rather than a
- * `grid3`; there is a blue RIMIFY-CHECK panel that the desktop page does not have at all; the
- * Komplettrad offers are a horizontal `.rail` instead of a `.grid4`; and the page ends in a
- * `sticky-bar`. None of that can be reached from the desktop markup with media queries, which is
- * why the design ships two files and so do we.
- *
- * The same rules apply as on the desktop page: the markup is the design's, character for
- * character, and the `data-mount` divs stay empty for `shared/pages.js` to fill at runtime.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
+ * The one structural difference: once the main panel scrolls away, a sticky bar pins above the
+ * bottom nav carrying the price, the fitment status and `In den Warenkorb`. The legal status must
+ * never be separated from the button that acts on it, and on a 390px screen that separation
+ * happens by scrolling rather than by layout.
  */
 
-import { Head } from '@inertiajs/vue3'
+import { Head, Link, useForm } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
+import Wheel from '../../Components/Art/Wheel.vue'
+import { useConfigurator } from '../../composables/useConfigurator'
+import { useShared } from '../../composables/useShared'
+import type { ProduktProps } from '../../types/pages'
+
+const props = defineProps<ProduktProps>()
+
+const shared = useShared()
+const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
+
+const finish = computed(
+    () => props.finishes.find((f) => f.id === config.finishId.value) ?? null
+)
+
+const basket = useForm({
+    kind: 'WHEEL' as const,
+    wheelConfigId: 0,
+    tyreVariantId: null as number | null,
+    quantity: 4,
+})
+
+const canBuy = computed(() => {
+    const selected = config.selected.value
+
+    if (selected === null || !selected.inStock) {
+        return false
+    }
+
+    return selected.verdict === null || selected.verdict.sellable
+})
+
+const statusTag = computed(() => {
+    const verdict = config.selected.value?.verdict ?? null
+
+    if (verdict === null) {
+        return config.selected.value?.inStock
+            ? { label: 'Auf Lager', cls: 'tag--ok' }
+            : { label: 'Ausverkauft', cls: 'tag--danger' }
+    }
+
+    switch (verdict.status) {
+        case 'PERMITTED':
+            return { label: 'Freigegeben', cls: 'tag--ok' }
+        case 'CONDITIONAL':
+            return { label: 'Mit Auflagen', cls: 'tag--warn' }
+        case 'NOT_PERMITTED':
+            return { label: 'Nicht freigegeben', cls: 'tag--danger' }
+        default:
+            return { label: 'Keine Angabe', cls: 'tag--unknown' }
+    }
+})
+
+function addToBasket(): void {
+    const selected = config.selected.value
+
+    if (selected === null) {
+        return
+    }
+
+    basket.wheelConfigId = selected.id
+    basket.post('/warenkorb', { preserveScroll: true })
+}
 </script>
 
 <template>
-    <Head title="Felge" />
+    <Head :title="`${product.brandName} ${product.modelName}`" />
 
-    <main id="main">
-    <div class="wrap" style="padding-top:16px">
-            <nav class="crumb" data-mount="pdp-crumb"></nav>
-            <div style="margin-top:16px" data-mount="pdp-gallery"></div>
-            <div class="row" style="gap:8px;margin-top:12px;overflow-x:auto" data-mount="pdp-thumbs"></div>
-
-            <h1 class="h2" style="font-size:25px;margin-top:20px" data-mount="pdp-title"></h1>
-            <div class="row" style="gap:0;margin-top:8px" data-mount="pdp-rating"></div>
-
-            <div style="margin-top:20px"><span class="lab">Farbe:</span>
-                <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:10px" data-mount="pdp-swatch"></div></div>
-            <div style="margin-top:20px"><span class="lab">Größe:</span>
-                <div class="chips" style="margin-top:10px" data-mount="pdp-sizes"></div></div>
-            <div style="margin-top:18px" data-mount="pdp-select"></div>
-            <div style="margin-top:18px" data-mount="pdp-verdict"></div>
-            <div style="margin-top:20px" data-mount="pdp-price"></div>
-            <div style="margin-top:18px" data-mount="pdp-add"></div>
-
-            <div class="card" style="margin-top:28px;padding:14px 16px;border-radius:10px;display:flex;align-items:center;gap:12px">
-                <span class="bl" style="display:flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/></svg></span>
-                <div class="grow"><div style="font:700 14px/1.3 Lato,sans-serif">Finanzierung ab 62,52 € / Monat</div>
-                    <div class="ink3" style="font:400 12px/1.4 Lato,sans-serif;margin-top:2px">Bei 12 Monaten Laufzeit. Ohne Zinsen.</div></div>
+    <section class="section mpdp">
+        <div class="wrap">
+            <div class="well mpdp__well">
+                <span class="well__shadow" />
+                <span class="well__art">
+                    <Wheel
+                        :spokes="product.spokes"
+                        :finish="finish?.artFinish ?? 'graphite'"
+                        :size="360"
+                    />
+                </span>
             </div>
 
-            <!-- Blaues RIMIFY-CHECK Panel (mobil) -->
-            <div style="margin-top:20px;background:var(--blue);border-radius:14px;overflow:hidden">
-                <div class="row" style="gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.18)">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="10" fill="#fff"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#1A44D4" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <strong style="font:700 15px/1 Lato,sans-serif;color:#fff">RIMIFY-CHECK</strong></div>
-                <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
-                    <div class="row" style="gap:10px;color:#fff"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 14px/1.4 Lato,sans-serif">Wir garantieren die Passgenauigkeit für dein Fahrzeug.</span></div>
-                    <div class="row" style="gap:10px;color:#fff"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 14px/1.4 Lato,sans-serif">Gutachten liegt vor und ist als PDF abrufbar.</span></div>
-                    <div class="row" style="gap:10px;color:#fff"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 14px/1.4 Lato,sans-serif">Auflagen nennen wir im Klartext – vor dem Kauf.</span></div>
+            <span class="micro mpdp__brand">{{ product.brandName }}</span>
+            <h1 class="t-h2 mpdp__title">{{ product.modelName }}</h1>
+            <p v-if="product.ratingLabel" class="stars">
+                <span class="stars__glyph" aria-hidden="true">★</span>
+                <span class="tabular">{{ product.ratingLabel }}</span>
+            </p>
+
+            <div class="mpdp__block">
+                <span class="micro">Farbe</span>
+                <div class="chip-row mpdp__row">
+                    <button
+                        v-for="item in finishes"
+                        :key="item.id"
+                        class="chip"
+                        :class="{ 'chip--on': item.id === config.finishId.value }"
+                        type="button"
+                        :aria-pressed="item.id === config.finishId.value"
+                        @click="config.selectFinish(item.id)"
+                    >
+                        {{ item.name }}
+                    </button>
                 </div>
             </div>
 
-            <section class="card raised pad-s" style="margin-top:20px">
-                <div class="row" style="gap:10px"><span class="bl" style="display:flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.8a8.8 8.8 0 100-17.6 8.8 8.8 0 000 17.6zM12 14.8a2.8 2.8 0 100-5.6 2.8 2.8 0 000 5.6z"/></svg></span>
-                    <h2 style="font:700 16px/1 Lato,sans-serif">Felgendetails</h2></div>
-                <div style="margin-top:14px" data-mount="pdp-details"></div>
-            </section>
-
-            <section class="card raised pad-s" style="margin-top:16px">
-                <div class="row" style="gap:10px"><span class="bl" style="display:flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.8a8.8 8.8 0 100-17.6 8.8 8.8 0 000 17.6zM12 3.2v6M3.2 12h6"/></svg></span>
-                    <h2 style="font:700 16px/1 Lato,sans-serif">Passende Reifen</h2></div>
-                <div class="micro" style="margin-top:14px">Empfohlen</div>
-                <div class="wash row" style="margin-top:8px;padding:12px 14px;gap:10px">
-                    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#2E8B22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <span class="mono" style="font-size:12px"><b class="bl">VA:</b> 245 / 45 R20 · <b class="bl">HA:</b> 245 / 45 R20</span></div>
-                <p class="ink3" style="font:400 12px/1.5 Lato,sans-serif;margin-top:14px">Mindestens Tragfähigkeitsindex 92, Geschwindigkeitsindex Y.</p>
-            </section>
-
-            <section class="card raised pad-s" style="margin-top:16px">
-                <div class="row" style="gap:10px"><span class="bl" style="display:flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5L12 3.5l8.5 4v9L12 20.5l-8.5-4zM12 11.5v9"/></svg></span>
-                    <h2 style="font:700 16px/1 Lato,sans-serif">Zubehör (inkl.)</h2></div>
-                <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px">
-                    <div class="row" style="gap:10px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#2E8B22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1 Lato,sans-serif">ABE</span></div>
-                    <div class="row" style="gap:10px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#2E8B22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1 Lato,sans-serif">Anbauset</span></div>
-                    <div class="row" style="gap:10px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" style="flex:none"><path d="M3.5 9.4l3.4 3.4 7.6-7.9" stroke="#2E8B22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font:400 15px/1 Lato,sans-serif">Ventile</span></div>
+            <div class="mpdp__block">
+                <span class="micro">Verfügbare Größen</span>
+                <div class="chip-row mpdp__row">
+                    <button
+                        v-for="size in config.sizes.value"
+                        :key="size.diameter"
+                        class="chip"
+                        :class="{
+                            'chip--on': config.selected.value?.id === size.config.id,
+                            'chip--blocked': size.blocked,
+                        }"
+                        type="button"
+                        :disabled="size.blocked"
+                        :aria-pressed="config.selected.value?.id === size.config.id"
+                        :title="size.reason ?? undefined"
+                        @click="config.selectSize(size)"
+                    >
+                        {{ size.label }}
+                    </button>
                 </div>
-            </section>
+                <p v-if="config.sizes.value.some((s) => s.blocked)" class="quiet mpdp__blockednote">
+                    Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.
+                </p>
+            </div>
+
+            <div v-if="config.selected.value" class="panel--ground mpdp__specs">
+                <div class="mpdp__spec">
+                    <span class="micro">Maß</span>
+                    <span class="data">{{ config.selected.value.sizeLabel }}</span>
+                </div>
+                <div class="mpdp__spec">
+                    <span class="micro">Lochkreis</span>
+                    <span class="data">{{ config.selected.value.boltPattern }}</span>
+                </div>
+                <div class="mpdp__spec">
+                    <span class="micro">Mittenlochbohrung</span>
+                    <span class="data">{{ config.selected.value.centreBore }}</span>
+                </div>
+            </div>
+
+            <FitmentPanel
+                class="mpdp__fit"
+                :verdict="config.selected.value?.verdict ?? null"
+                :vehicle="shared.vehicle"
+            >
+                <Link
+                    v-if="!hasVehicle"
+                    href="/felgen-suchen"
+                    class="btn btn--secondary btn--block mpdp__fit-cta"
+                >
+                    Fahrzeug wählen
+                </Link>
+            </FitmentPanel>
         </div>
+    </section>
 
-        <section class="sec band" style="margin-top:40px;padding-left:0;padding-right:0">
-            <div class="wrap">
-                <h2 class="h2" style="text-align:center">Angebote für 4 Kompletträder</h2>
-                <div class="row" style="justify-content:center;gap:8px;margin-top:10px;align-items:flex-start">
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="flex:none;margin-top:2px"><circle cx="10" cy="10" r="10" fill="#1A44D4"/><path d="M5.8 10.3l2.7 2.7 5.7-5.9" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <span class="ink2" style="font:400 13px/1.4 Lato,sans-serif"><b class="bl">RIMIFY-CHECK:</b> Passend für BMW 3er Coupe mit Borbet Havanna <span class="mono">8,5 x 18 | ET 35</span></span>
-                </div>
-            </div>
-            <div style="padding:0 16px;margin-top:20px"><div class="rail" data-mount="pdp-tyres"></div></div>
-        </section>
-
-        <section class="sec white">
-            <div class="wrap">
-                <h2 class="h2" style="text-align:center">Gesamtes Reifen-Sortiment</h2>
-                <div style="margin-top:20px;background:var(--wash);border-radius:14px;padding:20px">
-                    <label><span class="flabel">Art</span><select class="field" style="background:#fff"><option>Sommerreifen</option><option>Winterreifen</option></select></label>
-                    <label style="display:block;margin-top:14px"><span class="flabel">Reifengröße</span><select class="field mono" style="background:#fff;font-size:13px"><option>VA: 245 / 45 R20 · HA: 245 / 45 R20</option></select></label>
-                    <button class="btn btn-p btn-full" style="margin-top:16px">suchen</button>
-                </div>
-            </div>
-        </section>
-
-        <div class="sticky-bar" data-mount="pdp-sticky"></div>
-    </main>
+    <!-- Price, legal status and action travel together. -->
+    <div class="stickybar mpdp__bar">
+        <div class="mpdp__barprice">
+            <span class="price price--sm">{{ config.selected.value?.price ?? '' }}</span>
+            <span class="tag" :class="statusTag.cls">{{ statusTag.label }}</span>
+        </div>
+        <button
+            class="btn btn--primary mpdp__baradd"
+            type="button"
+            :disabled="!canBuy || basket.processing"
+            @click="addToBasket"
+        >
+            In den Warenkorb
+        </button>
+    </div>
 </template>
+
+<style scoped>
+.mpdp {
+    padding-bottom: calc(var(--bottomnav-h) + 88px);
+}
+
+.mpdp__well {
+    border-radius: var(--r-card);
+}
+
+.mpdp__brand {
+    margin-top: var(--s4);
+}
+
+.mpdp__title {
+    margin: 2px 0 var(--s2);
+}
+
+.mpdp__block {
+    margin-top: var(--s4);
+}
+
+.mpdp__row {
+    margin-top: var(--s2);
+}
+
+.mpdp__blockednote {
+    margin: var(--s2) 0 0;
+    font-size: 13px;
+}
+
+.mpdp__specs {
+    display: grid;
+    gap: var(--s2);
+    margin-top: var(--s4);
+}
+
+.mpdp__spec {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s3);
+}
+
+.mpdp__fit {
+    margin-top: var(--s4);
+}
+
+.mpdp__fit-cta {
+    margin-top: var(--s3);
+}
+
+.mpdp__barprice {
+    display: grid;
+    gap: 2px;
+}
+
+.mpdp__baradd {
+    margin-left: auto;
+}
+</style>

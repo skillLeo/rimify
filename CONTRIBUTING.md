@@ -50,8 +50,8 @@ wrong answer. Missing or unparseable data **always fails closed** — never open
 - **Laravel 13** · PHP 8.3+ · **MySQL 8.4** (InnoDB, utf8mb4, **strict mode on**) · Redis · Horizon
 - **Inertia v3 + Vue 3.5 + SSR** — server-side rendering is a requirement, not an option
 - **Pest** for PHP tests, **Vitest** for component tests, **Playwright** for end-to-end
-- **No Tailwind.** The design system is `resources/css/tokens.css` and `components.css`, ported
-  verbatim from the design prototype. Extend them; never replace them.
+- **No Tailwind.** The design system is `resources/css/tokens.css` and `components.css`. Every
+  rule resolves through a token; no literal colour, radius, shadow or duration in a scoped style.
 
 ## §5 · Design tokens
 

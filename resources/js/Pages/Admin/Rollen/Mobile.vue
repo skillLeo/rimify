@@ -1,44 +1,82 @@
 <script setup lang="ts">
 /**
- * Rollen und Berechtigungen — mobile.
+ * Rollen on a phone.
  *
- * PORTED VERBATIM from `design-reference/mobile/admin-rollen.html`.
- *
- * This is a DIFFERENT DOCUMENT from the desktop page, not a responsive variant of it. The heading
- * drops the 30px override, the sub-line is shortened to one clause, the tab rail and the matrix
- * card each gain `overflow-x:auto` so the permission grid scrolls sideways instead of being
- * squeezed, and the card is `pad-s` rather than `pad`. None of that can be reached from the
- * desktop markup with media queries, which is why the design ships two files and so do we.
- *
- * The same rules apply as on the desktop page: the markup is the design's, character for
- * character, and the `data-mount` divs stay empty for `shared/admin.js` to fill.
- *
- * One thing the shell carries that this file cannot: its `<main>` opens as
- * `<main id="main" style="padding-bottom:0">`, cancelling `body.is-mobile main{padding-bottom:96px}`
- * because the admin has no bottom bar. `<main>` belongs to `PrototypeLayout`, so that override
- * belongs in the shared CSS — not in new markup here.
+ * A seven-column matrix does not survive 390px, so the axes swap: one role at a time, chosen from
+ * a pill rail, with its modules listed beneath. The same data, asked the other way round.
  */
 
 import { Head } from '@inertiajs/vue3'
+import { ref } from 'vue'
+import Icon from '../../../Components/Art/Icon.vue'
+import type { AdminRollenProps } from '../../../types/pages'
+
+const props = defineProps<AdminRollenProps>()
+
+const active = ref(props.roles[0]?.id ?? 0)
 </script>
 
 <template>
-    <Head title="Rollen" />
+    <Head title="Rollen & Rechte" />
 
-    <main id="main" style="padding-bottom:0">
-    <div class="adm">
-            <aside class="adm-side" data-mount="adm-side"></aside>
-            <div class="adm-main">
-                <header class="adm-top" data-mount="adm-top"></header>
-                <nav class="adm-rail" data-mount="adm-rail" aria-label="Module"></nav>
-                <div class="adm-body">
-                    <h1 class="h2">Rollen und Berechtigungen</h1>
-                    <p class="body ink2" style="margin-top:6px">Änderungen werden erst nach dem Speichern wirksam.</p>
-                    <div style="margin-top:18px;overflow-x:auto" data-mount="rol-tabs"></div>
-                    <div style="margin-top:16px" data-mount="rol-diff"></div>
-                    <section class="card pad-s" style="margin-top:16px;overflow-x:auto" data-mount="rol-matrix"></section>
-                </div>
+    <div class="mrol__rail">
+        <button
+            v-for="role in roles"
+            :key="role.id"
+            class="pill"
+            :class="{ 'pill--on': role.id === active }"
+            type="button"
+            :aria-pressed="role.id === active"
+            @click="active = role.id"
+        >
+            {{ role.label }}
+        </button>
+    </div>
+
+    <div class="stack mrol__modules">
+        <article v-for="module in modules" :key="module.module" class="card mrol__module">
+            <span class="micro">{{ module.label }}</span>
+            <div class="chip-row mrol__actions">
+                <span
+                    v-for="action in module.actions"
+                    :key="action.action"
+                    class="pill"
+                    :class="{ 'pill--on': action.roles[active] }"
+                >
+                    <Icon v-if="action.roles[active]" name="check" :size="20" />
+                    {{ action.label }}
+                </span>
             </div>
-        </div>
-    </main>
+        </article>
+    </div>
 </template>
+
+<style scoped>
+.mrol__rail {
+    display: flex;
+    gap: var(--s2);
+    overflow-x: auto;
+    padding-bottom: var(--s2);
+    scrollbar-width: none;
+}
+
+.mrol__rail::-webkit-scrollbar {
+    display: none;
+}
+
+.mrol__rail .pill {
+    flex: none;
+}
+
+.mrol__modules {
+    margin-top: var(--s4);
+}
+
+.mrol__module {
+    padding: var(--s3);
+}
+
+.mrol__actions {
+    margin-top: var(--s2);
+}
+</style>

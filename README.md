@@ -83,8 +83,8 @@ resources/
 ├── js/Pages/           one Inertia page per screen, each with a Desktop and a Mobile variant
 ├── css/                design tokens and component stylesheet
 └── views/app.blade.php the document shell
-public/prototype/       the storefront's interactive layer and local imagery
-tests/                  Pest unit + feature tests, Playwright end-to-end, visual fidelity suite
+public/images/          placeholder photography until the client's own arrives
+tests/                  Pest unit + feature tests, Playwright end-to-end
 ```
 
 **Rendering.** Pages are server-side rendered through Inertia SSR. The device split (desktop or
@@ -151,7 +151,6 @@ Playwright suite. A change is finished only when this passes.
 | `composer test` | PHP test suite |
 | `npm run test` | Component tests |
 | `npm run e2e` | End-to-end tests |
-| `npm run visual` | Visual fidelity suite — see [`tests/visual/README.md`](tests/visual/README.md) |
 
 Feature tests run against a real MySQL database (`rimify_test`), never SQLite: the engine relies on
 triggers, CHECK constraints and window functions that SQLite would silently accept.

@@ -17,8 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
  * execute. Stripe Checkout is hosted (a redirect, never an embedded script), so the only
  * third-party script origin is none at all.
  *
- * `img-src` widens to named photography hosts only while the temporary review flag is on, and
- * narrows back to `'self' data: blob:` the moment it is off.
+ * `img-src` is `'self' data: blob:`, widened to named hosts only when config/rimify.php lists any.
  */
 final class SecurityHeaders
 {
@@ -47,12 +46,13 @@ final class SecurityHeaders
     {
         $connect = ["'self'"];
         $script = ["'self'", "'nonce-{$nonce}'"];
-        $style = ["'self'", "'nonce-{$nonce}'", 'https://fonts.googleapis.com'];
+        $style = ["'self'", "'nonce-{$nonce}'"];
 
         /*
-         * Remote photography is a temporary review aid (config/rimify.php → photography). Named
-         * hosts only: a wildcard here would let any origin place pixels on a page that talks about
-         * legal approvals, and the header test fails the build if one appears.
+         * Photography is served from our own origin. The host list exists for the day the client
+         * puts images on a CDN: named hosts only, never a wildcard — a wildcard would let any origin
+         * place pixels on a page that talks about legal approvals, and the header test fails the
+         * build if one appears.
          */
         $img = ["'self'", 'data:', 'blob:'];
 
@@ -78,19 +78,7 @@ final class SecurityHeaders
             'style-src '.implode(' ', $style),
             // Generated SVG art and measured widths use style attributes; attributes cannot carry a nonce.
             "style-src-attr 'unsafe-inline'",
-            /*
-             * The design's own runtime attaches a handful of handlers as ATTRIBUTES: `onerror` on
-             * every photograph (that is what reveals the drawn fallback when an image is blocked,
-             * so without this a failed image leaves the grey box the design was built to avoid),
-             * and `onmouseover`/`onmouseout` on the brand strip and the admin tiles.
-             *
-             * `script-src-attr` is the narrow permission for exactly that: it allows handler
-             * attributes and nothing else. Inline <script> blocks are still refused, because
-             * `script-src` above carries a nonce and no 'unsafe-inline'. That is the difference
-             * between permitting the design's hover effects and permitting injected script.
-             */
-            "script-src-attr 'unsafe-inline'",
-            "font-src 'self' https://fonts.gstatic.com",
+            "font-src 'self'",
             'img-src '.implode(' ', $img),
             'connect-src '.implode(' ', $connect),
             "form-action 'self' https://checkout.stripe.com",

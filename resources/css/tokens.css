@@ -1,78 +1,289 @@
-/* RIMIFY — tokens, reset, type scale */
-@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,900&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/*
+ * RIMIFY — design tokens
+ *
+ * The palette is sampled from the client's Figma (CONTRIBUTING.md §5). No component may reference
+ * a literal colour, radius, shadow or duration — everything resolves through a token, which is
+ * also what makes the dark layer a redefinition rather than a second stylesheet.
+ */
 
-:root{
-  --blue:#1A44D4; --blue-h:#1F4EE8; --blue-p:#1536AE;
-  --wash:#EAEEFA; --bline:#C9D4F5; --hi:#8FA6FF;
-  --black:#000000; --ink:#0E1116; --ink2:#4A5160; --ink3:#7B8394;
-  --ground:#F7F8FD; --band:#F2F5FC; --surface:#FFFFFF;
-  --field:#F5F5F5; --row:#E9E9E9; --line:#E5E5E5; --line-s:#EEF0F5;
-  --ok:#2E8B22; --ok-w:#E8F4E5;
-  --warn:#9A6400; --warn-w:#FBF1DC;
-  --danger:#B01018; --danger-w:#FBE8E8;
-  --star:#F9C112;
-  --sh-1:0 1px 2px rgba(14,17,22,.05),0 8px 24px -14px rgba(14,17,22,.16);
-  --sh-2:0 2px 4px rgba(14,17,22,.06),0 18px 40px -18px rgba(14,17,22,.22);
-  --e1:120ms ease-out;
-  --e2:180ms cubic-bezier(.2,.8,.2,1);
-  --e3:240ms cubic-bezier(.2,.8,.2,1);
+:root {
+    /* ── Brand ─────────────────────────────────────────────────────────────────
+       #1A44D4 is the ONLY accent. Green, amber and red mean fitment status and
+       stock, nothing else — the moment red means "reduziert" it stops meaning
+       "not permitted". */
+    --blue: #1a44d4;
+    --blue-h: #1f4ee8;
+    --blue-p: #1536ae;
+    --wash: #eaeefa;
+    --bline: #c9d4f5;
+
+    /* ── Neutrals · every grey carries a slight blue bias toward the accent.
+       A pure mid-grey next to an electric blue reads as unfinished. ────────── */
+    --black: #000000;
+    --ink: #0e1116;
+    --ink2: #4a5160;
+    --ink3: #7b8394;
+    --ground: #f7f8fd;
+    --band: #f2f5fc;
+    --surface: #ffffff;
+    --field: #f5f5f5;
+    --row: #e9e9e9;
+    --line: #e5e5e5;
+    --line-s: #eef0f5;
+
+    /* ── Semantic · one meaning each, never borrowed for marketing ─────────── */
+    --ok: #2e8b22;
+    --ok-w: #e8f4e5;
+    --warn: #9a6400;
+    --warn-w: #fbf1dc;
+    --danger: #b01018;
+    --danger-w: #fbe8e8;
+    --star: #f9c112;
+
+    /* ── Type ──────────────────────────────────────────────────────────────────
+       Lato for language, IBM Plex Mono for MEASURED VALUES ONLY — sizes, ET,
+       load indices, key numbers. Small sizes, never prose. It is what makes the
+       product read as engineered rather than merchandised. */
+    --sans: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* ── Elevation · exactly three levels, no more ─────────────────────────────
+       flat = hairline only · raised = --sh-1 · lifted = --sh-2 */
+    --sh-1: 0 1px 2px rgba(14, 17, 22, 0.05), 0 8px 24px -14px rgba(14, 17, 22, 0.16);
+    --sh-2: 0 2px 4px rgba(14, 17, 22, 0.06), 0 18px 40px -18px rgba(14, 17, 22, 0.22);
+
+    /* ── Space · 4 8 12 16 24 32 48 64 96 128 ──────────────────────────────── */
+    --s1: 4px;
+    --s2: 8px;
+    --s3: 12px;
+    --s4: 16px;
+    --s5: 24px;
+    --s6: 32px;
+    --s7: 48px;
+    --s8: 64px;
+    --s9: 96px;
+    --s10: 128px;
+
+    /* ── Radius · ONE radius per element class. Never mix 12 and 16 on a page. */
+    --r-btn: 8px;
+    --r-card: 14px;
+    --r-panel: 18px;
+    --r-img: 10px;
+    --r-pill: 999px;
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    --page-max: 1280px;
+    --gutter: 40px;
+    --gutter-m: 16px;
+    --header-h: 76px;
+    --header-h-m: 60px;
+    --bottomnav-h: 64px;
+
+    /* ── Motion · exists to make state changes legible, not to entertain ───── */
+    --d-hover: 120ms;
+    --d-state: 180ms;
+    --d-sheet: 240ms;
+    --d-hero: 400ms;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-*,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{
-  margin:0;background:var(--ground);color:var(--ink);
-  font:400 16px/1.6 Lato,"Helvetica Neue",Arial,sans-serif;
-  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
-img,svg{display:block;max-width:100%}
-button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
-input,select,textarea{font:inherit;color:inherit}
-a{color:var(--blue);text-decoration:none}
-a:hover{color:var(--blue-h);text-decoration:underline}
-h1,h2,h3,h4,p{margin:0}
-ul{margin:0;padding:0;list-style:none}
-:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
-::placeholder{color:var(--ink3)}
-::selection{background:var(--wash)}
 
-/* ── type ─────────────────────────────────────────────── */
-.display{font:900 56px/1.06 Lato,sans-serif;letter-spacing:-.03em;text-wrap:balance}
-.h2{font:700 34px/1.2 Lato,sans-serif;letter-spacing:-.02em;text-wrap:balance}
-.h3{font:700 20px/1.3 Lato,sans-serif;letter-spacing:-.01em}
-.h4{font:700 18px/1.3 Lato,sans-serif;letter-spacing:-.01em}
-.body{font:400 16px/1.6 Lato,sans-serif;text-wrap:pretty}
-.lab{font:700 14px/1 Lato,sans-serif}
-.micro{font:700 11px/1 Lato,sans-serif;letter-spacing:.10em;text-transform:uppercase;color:var(--ink3)}
-.mono,.num{font-variant-numeric:tabular-nums}
-.mono{font:500 13px/1.35 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.01em}
-.ink2{color:var(--ink2)} .ink3{color:var(--ink3)} .bl{color:var(--blue)}
-.wordmark{font:italic 900 25px/1 Lato,sans-serif;letter-spacing:-.02em;transform:skewX(-6deg);display:inline-block}
-
-body.is-mobile .display{font-size:34px}
-body.is-mobile .h2{font-size:25px}
-body.is-mobile .h3{font-size:18px}
-body.is-mobile .body{font-size:15px}
-
-/* ── layout ───────────────────────────────────────────── */
-.wrap{max-width:1280px;margin:0 auto;padding:0 40px}
-.sec{padding:96px 0}
-.sec-s{padding:64px 0}
-.band{background:var(--band)}
-.white{background:var(--surface)}
-body.is-mobile .wrap{max-width:390px;padding:0 16px}
-body.is-mobile .sec{padding:56px 0}
-body.is-mobile .sec-s{padding:40px 0}
-.row{display:flex;align-items:center;gap:12px}
-.col{display:flex;flex-direction:column}
-.spread{display:flex;align-items:center;justify-content:space-between;gap:24px}
-.grow{flex:1;min-width:0}
-.hide{display:none!important}
-
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0ms!important;transition-duration:.001ms!important}
+html {
+    -webkit-text-size-adjust: 100%;
 }
-@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
-.rise{animation:rise .4s cubic-bezier(.2,.8,.2,1) both}
-.rise-1{animation-delay:.06s}.rise-2{animation-delay:.12s}.rise-3{animation-delay:.18s}
+
+body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    /* German compounds are long; never let a heading clip. */
+    overflow-wrap: break-word;
+}
+
+img,
+svg {
+    max-width: 100%;
+    display: block;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+a {
+    color: var(--blue);
+}
+
+/* ── Type scale ────────────────────────────────────────────────────────────── */
+
+.t-display {
+    font-size: 56px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.03;
+    text-wrap: balance;
+}
+
+.t-h2 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    text-wrap: balance;
+}
+
+.t-h3 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+}
+
+.t-body {
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.6;
+    max-width: 68ch;
+}
+
+.t-ui {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* The signature device of this system: the uppercase micro-label above a value.
+   +0.10em tracking. Used for every small label — AB UVP, VERFÜGBARE GRÖSSEN,
+   FAHRZEUG, GUTACHTEN. It alone lifts the whole kit. */
+.t-micro {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink3);
+}
+
+/* Measured values only. Tabular figures so digits align in columns. */
+.t-data {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Every price, size, dimension and quantity. Non-negotiable (R-10). */
+.tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+    .t-display {
+        font-size: 34px;
+    }
+
+    .t-h2 {
+        font-size: 25px;
+    }
+
+    .t-h3 {
+        font-size: 18px;
+    }
+
+    .t-body {
+        font-size: 15px;
+    }
+}
+
+/* ── Layout utilities ──────────────────────────────────────────────────────── */
+
+.wrap {
+    max-width: var(--page-max);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+}
+
+.section {
+    padding-block: var(--s9);
+}
+
+.band {
+    background: var(--band);
+}
+
+.surface {
+    background: var(--surface);
+}
+
+@media (max-width: 720px) {
+    .wrap {
+        padding-inline: var(--gutter-m);
+    }
+
+    .section {
+        padding-block: 56px;
+    }
+}
+
+/* ── Accessibility ─────────────────────────────────────────────────────────── */
+
+:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+    border-radius: var(--r-btn);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.skip-link {
+    position: absolute;
+    left: var(--s4);
+    top: -100px;
+    z-index: 100;
+    background: var(--surface);
+    color: var(--ink);
+    padding: var(--s3) var(--s4);
+    border-radius: var(--r-btn);
+    box-shadow: var(--sh-2);
+    transition: top var(--d-state) var(--ease);
+}
+
+.skip-link:focus {
+    top: var(--s4);
+}
+
+/* The whole interface must stay usable with motion off — it is the same state machine. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

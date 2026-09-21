@@ -1,75 +1,102 @@
 <script setup lang="ts">
 /**
- * Admin · Dashboard — desktop.
+ * The dashboard. Six tiles, a revenue line, and the open-conflict queue.
  *
- * PORTED VERBATIM from `design-reference/desktop/admin-dashboard.html`, the design's own shell.
- *
- * Read this before editing:
- *
- *  - Everything below is the design's markup, character for character, including every inline
- *    style. It is not "based on" the prototype; it IS the prototype. Do not tidy the inline styles
- *    into classes, do not extract components, do not reorder attributes, do not change a pixel
- *    value because it looks odd. All of that is measured — the 62fr/38fr column split, the 28px
- *    first gap and the 24px ones after it included.
- *  - The `data-mount` divs are intentionally empty. `shared/admin.js` fills each one at runtime:
- *    the sidebar, the top bar and the module rail are the panel's own chrome, and `adm-tiles`,
- *    `adm-chart`, `adm-orders`, `adm-activity` and `adm-todo` are its content. The panel frame is
- *    therefore part of this page's markup, not a Vue `AdminLayout` wrapped around it — an
- *    `AdminLayout` would draw a second, hand-written sidebar over the design's own.
- *  - The `data-theme` button is the design's own dark-mode switch; `shared/app.js` binds it.
- *  - The German copy is the design's. It is not translated, not rewritten, not corrected.
- *
- * If something looks wrong on screen, the fix belongs in the shared CSS/JS — never in new markup
- * added to this file.
+ * The conflicts are on the dashboard and not behind a menu because they are the one thing here
+ * that costs money while it is ignored: an unresolved entry-requirement disagreement means a
+ * fitment nobody can publish, which is a wheel nobody can buy.
  */
 
 import { Head } from '@inertiajs/vue3'
+import RevenueChart from '../../../Components/Art/RevenueChart.vue'
+import type { AdminDashboardProps } from '../../../types/pages'
+
+const props = defineProps<AdminDashboardProps>()
+
+const points = props.revenue.map((r) => ({ label: r.label, value: r.value }))
+
+const KIND_LABEL: Record<string, string> = {
+    ENTRY_REQUIREMENT: 'Eintragungspflicht',
+    TYRE_SIZES: 'Reifengrößen',
+    WIDTH_ET_RANGE: 'Breite / ET',
+    CONDITIONS: 'Auflagen',
+}
 </script>
 
 <template>
     <Head title="Dashboard" />
 
-    <main id="main">
-    <div class="adm">
-            <aside class="adm-side" data-mount="adm-side"></aside>
-            <div class="adm-main">
-                <header class="adm-top" data-mount="adm-top"></header>
-                <nav class="adm-rail" data-mount="adm-rail" aria-label="Module"></nav>
-                <div class="adm-body">
-                    <div class="spread">
-                        <div>
-                            <h1 class="h2" style="font-size:30px">Guten Morgen, Stefan.</h1>
-                            <p class="body ink2" style="font-size:15px;margin-top:6px">7 Bestellungen warten auf Bearbeitung.</p>
-                        </div>
-                        <button class="btn btn-s" data-theme style="height:44px">Dunkel</button>
-                    </div>
+    <div class="tiles">
+        <article v-for="tile in tiles" :key="tile.key" class="tile">
+            <span class="micro">{{ tile.label }}</span>
+            <p class="tile__value">{{ tile.value }}</p>
+        </article>
+    </div>
 
-                    <div class="grid3" style="margin-top:28px" data-mount="adm-tiles"></div>
+    <div class="dash__row">
+        <section class="card dash__chart">
+            <span class="micro">Umsatz, 12 Monate</span>
+            <RevenueChart :points="points" :width="720" :height="220" />
+        </section>
 
-                    <div style="display:grid;grid-template-columns:62fr 38fr;gap:24px;margin-top:24px;align-items:start">
-                        <div>
-                            <section class="card pad">
-                                <div class="spread"><h2 class="h4">Umsatz</h2><span class="micro">Letzte 12 Monate</span></div>
-                                <div style="margin-top:16px" data-mount="adm-chart"></div>
-                            </section>
-                            <section class="card pad" style="margin-top:24px">
-                                <h2 class="h4" style="margin-bottom:16px">Letzte Bestellungen</h2>
-                                <div data-mount="adm-orders"></div>
-                            </section>
-                        </div>
-                        <div>
-                            <section class="card pad">
-                                <h2 class="h4">Aktivität</h2>
-                                <div style="margin-top:8px" data-mount="adm-activity"></div>
-                            </section>
-                            <section class="card pad" style="margin-top:24px">
-                                <h2 class="h4">Zu erledigen</h2>
-                                <div style="margin-top:8px" data-mount="adm-todo"></div>
-                            </section>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
+        <section class="card dash__conflicts">
+            <span class="micro">Offene Konflikte</span>
+
+            <table v-if="conflicts.length > 0" class="table dash__table">
+                <tbody>
+                    <tr v-for="conflict in conflicts" :key="conflict.id">
+                        <td>
+                            <p class="dash__vehicle">{{ conflict.vehicle }}</p>
+                            <span class="data">{{ conflict.keyNumbers }}</span>
+                        </td>
+                        <td>
+                            <span
+                                class="tag"
+                                :class="conflict.blocking ? 'tag--danger' : 'tag--warn'"
+                            >
+                                {{ KIND_LABEL[conflict.kind] ?? conflict.kind }}
+                            </span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p v-else class="quiet dash__empty">Keine offenen Konflikte.</p>
+        </section>
+    </div>
 </template>
+
+<style scoped>
+.dash__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: var(--s4);
+    margin-top: var(--s4);
+    align-items: start;
+}
+
+.dash__chart :deep(svg) {
+    width: 100%;
+    height: auto;
+    color: var(--ink2);
+}
+
+.dash__table td {
+    height: 56px;
+}
+
+.dash__vehicle {
+    margin: 0;
+    font-weight: 700;
+}
+
+.dash__empty {
+    margin: var(--s4) 0 0;
+}
+
+@media (max-width: 1200px) {
+    .dash__row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
