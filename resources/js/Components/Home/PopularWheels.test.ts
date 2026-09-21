@@ -1,4 +1,5 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 import { euro, NNBSP } from '../../format'
@@ -99,6 +100,8 @@ function mountPopular(props: Partial<{ popular: StartseiteProps['popular']; rece
 
 beforeEach(() => {
     get.mockReset()
+    // The tiles read the compare store.
+    setActivePinia(createPinia())
 })
 
 afterEach(() => {
@@ -108,7 +111,7 @@ afterEach(() => {
 })
 
 describe('PopularWheels', () => {
-    it('shows eight tiles with a per-wheel price and its legal line, and never a rating or a Details button', () => {
+    it('shows eight tiles with a per-wheel price and its legal line, one CTA each, and never a rating or a bare Details button', () => {
         const wrapper = mountPopular()
 
         const tiles = wrapper.findAll('#h5 .tile')
@@ -120,10 +123,14 @@ describe('PopularWheels', () => {
             expect(tile.find('.tile__legal').text()).toBe('inkl. MwSt., zzgl. Versand')
             expect(tile.find('.star, [class*="rating"]').exists()).toBe(false)
             expect(tile.find('.verdict').exists()).toBe(false)
+            // One link per card, and it says what happens.
+            expect(tile.findAll('a')).toHaveLength(1)
+            expect(tile.find('a.tile__cta').text()).toBe('Details ansehen')
+            expect(tile.find('input.tile__compare-input').exists()).toBe(true)
         }
 
         expect(wrapper.find('#h5 .tile__price').text()).toBe(`ab ${euro(19000)} pro Felge`)
-        expect(wrapper.text()).not.toContain('Details')
+        expect(wrapper.text()).not.toMatch(/Details(?! ansehen)/)
         expect(wrapper.text()).not.toContain('Sehr gut')
         expect(wrapper.find('h2').text()).toBe('Beliebte Felgen')
         expect(wrapper.find('.popular__more a').text()).toBe('Alle Felgen ansehen')

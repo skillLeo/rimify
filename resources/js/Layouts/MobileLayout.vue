@@ -26,6 +26,7 @@ import SearchSheet from '../Components/Mobile/SearchSheet.vue'
 import TabBar from '../Components/Mobile/TabBar.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import Toast from '../Components/Chrome/Toast.vue'
+import CompareTray from '../Components/Compare/CompareTray.vue'
 import { provideConsent } from '../composables/useConsent'
 import { provideShell } from '../composables/useShell'
 import { useShared } from '../composables/useShared'
@@ -167,6 +168,9 @@ function fromVehicleSheet(href: string | undefined): void {
         <main id="inhalt" class="mshell__main">
             <slot />
         </main>
+
+        <!-- After the page, before the footer; above the tab bar, never while a sticky bar owns the edge. -->
+        <CompareTray :hidden="shell.stickyBar.value" :bottom-nav="tabBar" />
 
         <MobileFooter v-if="footer" />
         <TabBar v-if="tabBar" />

@@ -17,6 +17,7 @@ import ShortcutsDialog from '../Components/Chrome/ShortcutsDialog.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
 import SiteHeader from '../Components/Chrome/SiteHeader.vue'
 import Toast from '../Components/Chrome/Toast.vue'
+import CompareTray from '../Components/Compare/CompareTray.vue'
 import Dialog from '../Components/Ui/Dialog.vue'
 import { provideConsent } from '../composables/useConsent'
 import { provideShell } from '../composables/useShell'
@@ -78,6 +79,9 @@ function removeVehicle(): void {
         <main id="inhalt" class="shell__main">
             <slot />
         </main>
+
+        <!-- After the page, before the footer: Tab reaches it after the content. -->
+        <CompareTray />
 
         <SiteFooter />
         <BottomNav />

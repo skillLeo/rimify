@@ -4,9 +4,10 @@
  *
  * Two shortcuts into the catalogue for people who already know what they want. The size tiles are
  * typography, not icons: the number is the tile. A diameter with nothing in stock is not a tile at
- * all; with a vehicle chosen, a diameter that no document permits on that car is shown struck and
- * is not a link — shown, never hidden, so the range reads as a range. Brands sit in a hairline
- * grid as monochrome marks; until the admin has uploaded a logo, the name is the mark.
+ * all; with a vehicle chosen, a diameter that no document permits on that car is greyed with its
+ * count and is not a link — shown, never hidden, never struck (home-overhaul.md §0.6), so the
+ * range reads as a range. Brands sit in a hairline grid as monochrome marks; until the admin has
+ * uploaded a logo, the name is the mark.
  */
 
 import { Link } from '@inertiajs/vue3'
@@ -28,20 +29,19 @@ function passende(count: number): string {
 
 /*
  * A size with no wheel at all is not a tile. With a vehicle, the count is what a document permits
- * on that car; when the engine has no figure for it, the tile keeps the plain catalogue count and
- * claims nothing (CLAUDE.md §2).
+ * on that car — `0 passende Felgen` greys the tile and takes its link away; when the engine has
+ * no figure for it, the tile keeps the plain catalogue count and claims nothing (CLAUDE.md §2).
  */
 const tiles = computed(() =>
     props.sizes
         .filter((size) => size.count > 0)
         .map((size) => {
             const fitting = props.vehicle === null ? null : size.fitting
-            const struck = fitting === 0
 
             return {
                 ...size,
-                struck,
-                line: fitting === null ? felgen(size.count) : struck ? 'keine passenden' : passende(fitting),
+                none: fitting === 0,
+                line: fitting === null ? felgen(size.count) : passende(fitting),
             }
         })
 )
@@ -54,10 +54,10 @@ const tiles = computed(() =>
                 <h2 id="h6-heading" class="h2">Nach Zollgröße</h2>
                 <ul class="sizes" aria-label="Felgen nach Zollgröße">
                     <li v-for="size in tiles" :key="size.inch" class="sizes__item">
-                        <span v-if="size.struck" class="size-tile size-tile--struck" aria-disabled="true">
+                        <span v-if="size.none" class="size-tile size-tile--none" aria-disabled="true">
                             <span class="display num size-tile__number">{{ size.inch }}</span>
-                            <span class="small muted">Zoll</span>
-                            <span class="small muted">{{ size.line }}</span>
+                            <span class="small quiet">Zoll</span>
+                            <span class="small num quiet">{{ size.line }}</span>
                         </span>
                         <Link v-else :href="size.href" class="size-tile" prefetch>
                             <span class="display num size-tile__number">{{ size.inch }}</span>
@@ -119,13 +119,13 @@ const tiles = computed(() =>
     transition: color var(--d-1) var(--ease-std);
 }
 
-/* Struck: the number in the tertiary ink, crossed out; the tile is not a link and says why. */
-.size-tile--struck .size-tile__number {
+/* Nothing permitted on the chosen car: the number in the tertiary ink, the count under it, no
+   link. Greyed, never struck. */
+.size-tile--none .size-tile__number {
     color: var(--c-ink-3);
-    text-decoration: line-through;
 }
 
-.size-tile--struck {
+.size-tile--none {
     cursor: not-allowed;
 }
 

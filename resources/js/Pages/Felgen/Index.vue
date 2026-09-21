@@ -17,7 +17,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FilterBar from '../../Components/Listing/FilterBar.vue'
 import Icon from '../../Components/Art/Icon.vue'
-import ProductCard from '../../Components/Product/ProductCard.vue'
+import ProductTile from '../../Components/Ui/ProductTile.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
 import type { FelgenProps } from '../../types/pages'
@@ -125,12 +125,16 @@ onBeforeUnmount(() => {
                 </aside>
 
                 <div class="plp__results">
-                    <div v-if="cards.length > 0" class="plp__grid">
-                        <ProductCard
-                            v-for="card in cards"
+                    <!-- The same card as the homepage (home-overhaul.md §1): one CTA, one checkbox. -->
+                    <div v-if="cards.length > 0" class="tile-grid plp__grid">
+                        <ProductTile
+                            v-for="(card, i) in cards"
                             :key="`${card.modelId}-${card.finishId}`"
                             :card="card"
                             :vehicle="vehicle"
+                            :eager="i < 4"
+                            sizes="(min-width: 1280px) 240px, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 45vw"
+                            compare
                         />
                     </div>
 
@@ -277,12 +281,6 @@ onBeforeUnmount(() => {
     display: none;
 }
 
-.plp__grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
-}
-
 .plp__pager {
     margin-top: var(--space-7);
 }
@@ -303,10 +301,6 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 640px) {
-    .plp__grid {
-        gap: var(--space-4);
-    }
-
     .plp__bar-btn {
         width: auto;
     }
@@ -315,10 +309,6 @@ onBeforeUnmount(() => {
 @media (min-width: 900px) {
     .plp__bar {
         top: var(--header-h);
-    }
-
-    .plp__grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
@@ -346,8 +336,9 @@ onBeforeUnmount(() => {
         border-radius: var(--radius-md);
     }
 
-    .plp__layout:not(.plp__layout--filters) .plp__grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+    /* Beside the filters there is room for three columns, not four. */
+    .plp__layout--filters .plp__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 </style>

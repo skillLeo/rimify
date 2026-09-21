@@ -14,6 +14,8 @@ export const ROUTES = [
     '/felgen-suchen',
     '/felgen',
     '/felgen/{product}',
+    '/vergleich',
+    '/felgenrechner',
     '/rimify-check',
     '/warenkorb',
     '/kasse',

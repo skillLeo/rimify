@@ -7,7 +7,15 @@
 
 import { computed } from 'vue'
 
-const props = withDefaults(defineProps<{ spokes?: number; bolts?: number }>(), { spokes: 5, bolts: 5 })
+const props = withDefaults(
+    defineProps<{
+        spokes?: number
+        bolts?: number
+        /** How much of its box the drawing fills: 70 % by default, 60 % in a product tile (home-overhaul.md §1). */
+        size?: string
+    }>(),
+    { spokes: 5, bolts: 5, size: '70%' }
+)
 
 const spokeAngles = computed(() => Array.from({ length: props.spokes }, (_, i) => (360 / props.spokes) * i))
 const boltAngles = computed(() => Array.from({ length: props.bolts }, (_, i) => (360 / props.bolts) * i - 90))
@@ -20,7 +28,7 @@ function boltAt(angle: number): { cx: number; cy: number } {
 </script>
 
 <template>
-    <svg viewBox="0 0 200 200" class="outline" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 200 200" class="outline" :style="{ width: size, height: size }" aria-hidden="true" focusable="false">
         <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
             <circle cx="100" cy="100" r="94" />
             <circle cx="100" cy="100" r="82" />

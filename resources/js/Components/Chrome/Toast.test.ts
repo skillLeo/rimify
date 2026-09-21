@@ -21,7 +21,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }))
 
 const { default: Toast } = await import('./Toast.vue')
-const { toastFrom, TOAST_MS } = await import('./toast')
+const { toast, toastFrom, TOAST_ACTION_MS, TOAST_MS } = await import('./toast')
 
 /** A server response arriving, as Inertia announces it. */
 function respond(toast: string | null): void {
@@ -114,6 +114,62 @@ describe('Toast', () => {
 
         wrapper.unmount()
         expect(listeners.success).toHaveLength(0)
+    })
+
+    it('shows a client message with its action, and runs the action once', async () => {
+        const wrapper = mount(Toast)
+        const run = vi.fn()
+
+        toast.show({ text: 'BBS CI-R zum Vergleich hinzugefügt.', action: { label: 'Rückgängig', run } })
+        await nextTick()
+
+        expect(wrapper.find('.toast__text').text()).toBe('BBS CI-R zum Vergleich hinzugefügt.')
+        const action = wrapper.find('.toast__action')
+        expect(action.text()).toBe('Rückgängig')
+        expect(action.attributes('type')).toBe('button')
+
+        await action.trigger('click')
+        expect(run).toHaveBeenCalledTimes(1)
+        expect(wrapper.find('.toast').exists()).toBe(false)
+    })
+
+    it('stays longer with an action, and a new message replaces the current one', async () => {
+        vi.useFakeTimers()
+        const wrapper = mount(Toast)
+
+        toast.show({ text: 'Erste.', action: { label: 'Rückgängig', run: () => undefined } })
+        await nextTick()
+        vi.advanceTimersByTime(TOAST_MS + 10)
+        await nextTick()
+        expect(wrapper.find('.toast').exists()).toBe(true)
+
+        toast.show({ text: 'Zweite.' })
+        await nextTick()
+        expect(wrapper.findAll('.toast')).toHaveLength(1)
+        expect(wrapper.find('.toast__text').text()).toBe('Zweite.')
+        expect(wrapper.find('.toast__action').exists()).toBe(false)
+
+        vi.advanceTimersByTime(TOAST_ACTION_MS + 10)
+        await nextTick()
+        expect(wrapper.find('.toast').exists()).toBe(false)
+    })
+
+    it('holds while a child has focus and F8 reaches the action', async () => {
+        vi.useFakeTimers()
+        const wrapper = mount(Toast, { attachTo: document.body })
+
+        toast.show({ text: 'Mit Aktion.', action: { label: 'Rückgängig', run: () => undefined } })
+        await nextTick()
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8', bubbles: true }))
+        expect(document.activeElement).toBe(wrapper.find('.toast__action').element)
+
+        await wrapper.find('.toast').trigger('focusin')
+        vi.advanceTimersByTime(TOAST_ACTION_MS + 10)
+        await nextTick()
+        expect(wrapper.find('.toast').exists()).toBe(true)
+
+        wrapper.unmount()
     })
 })
 

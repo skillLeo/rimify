@@ -523,7 +523,8 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
-       PRODUCT TILE · one link, one image, the same five lines on every tile
+       PRODUCT TILE v2 · one image, the same lines on every tile, one link (the CTA), one checkbox
+       docs/design/sections/home-overhaul.md §1
        ═══════════════════════════════════════════════════════════════════════════ */
 
     .tile {
@@ -538,6 +539,7 @@
 
     .tile__media {
         position: relative;
+        display: grid;
         aspect-ratio: 1;
         margin-bottom: var(--sp-8);
         overflow: hidden;
@@ -545,13 +547,36 @@
         background: var(--c-band);
     }
 
-    .tile__media img,
-    .tile__media picture {
+    .tile__media > picture,
+    .tile__media > img {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: contain;
+    }
+
+    /* The cut-out is framed in the pipeline (the wheel is 80 % of the canvas): no padding here. */
+    .tile .tile__media .picture img {
+        object-fit: contain;
+        transform-origin: 50% 50%;
+        transition: transform var(--d-2) var(--ease-out);
+    }
+
+    /* The drawing, when there is no cut-out, sits at 60 % in the tertiary ink with no caption:
+       `WheelOutline size="60%"` carries that itself (its scoped style is unlayered and would
+       beat a rule here). */
+
+    /* The hover elevation lives on a layer whose opacity animates; the shadow itself never does. */
+    .tile__media::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: var(--e-2);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--d-2) var(--ease-out);
     }
 
     .tile__media--alt {
@@ -560,8 +585,28 @@
     }
 
     @media (hover: hover) and (pointer: fine) {
+        .tile:hover .tile__media::after {
+            opacity: 1;
+        }
+
+        .tile:hover .tile__media .picture img {
+            transform: scale(1.03);
+        }
+
         .tile:hover .tile__media--alt {
             opacity: 1;
+        }
+
+        /* The card reads as one control: hovering anywhere on it fills the button. */
+        .tile:hover .tile__cta {
+            background: var(--c-blue-hover);
+        }
+    }
+
+    /* On a touch screen the press is the media fill going one step darker, instantly. */
+    @media (pointer: coarse) {
+        .tile:active .tile__media {
+            background: var(--c-line);
         }
     }
 
@@ -572,7 +617,8 @@
         z-index: var(--z-base);
     }
 
-    /* Compare sits above the stretched link and appears when the tile is hovered or focused. */
+    /* Compare sits above the stretched link and appears when the tile is hovered or focused. It
+       sits after the CTA in the DOM (tab order), at the media's top-right corner in the box. */
     .tile__compare {
         position: absolute;
         top: var(--sp-8);
@@ -585,10 +631,22 @@
         padding: 0 var(--sp-8);
         border-radius: var(--r-control);
         background: var(--c-surface);
+        color: var(--c-ink);
         font-size: var(--fs-small);
+        line-height: var(--lh-small);
         font-weight: 500;
+        cursor: pointer;
         opacity: 0;
         transition: opacity var(--d-1) var(--ease-std);
+    }
+
+    .tile__compare-input {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        margin: 0;
+        accent-color: var(--c-blue);
+        cursor: inherit;
     }
 
     .tile:hover .tile__compare,
@@ -603,12 +661,20 @@
         }
     }
 
+    /* At the cap, unticked: the box says so and the label explains through the toast. */
+    .tile__compare--full {
+        background: var(--c-band);
+        color: var(--c-ink-3);
+        cursor: not-allowed;
+    }
+
     .tile__brand {
         font-size: var(--fs-small);
         line-height: var(--lh-small);
         color: var(--c-ink-3);
     }
 
+    /* The name is text in v2; the CTA is the link. */
     .tile__name {
         font-size: var(--fs-body);
         line-height: var(--lh-body);
@@ -618,19 +684,25 @@
         overflow-wrap: anywhere;
     }
 
-    /* The whole tile is the link; the name is the link's text. */
-    .tile__name::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        z-index: var(--z-base);
-    }
-
     @media (hover: hover) and (pointer: fine) {
         .tile:hover .tile__name {
             text-decoration: underline;
             text-underline-offset: 3px;
         }
+    }
+
+    .tile:focus-within .tile__name {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    /* Finish and sizes: two lines, joined into one only in a very narrow tile (below). */
+    .tile__meta {
+        display: contents;
+    }
+
+    .tile__sep {
+        display: none;
     }
 
     .tile__finish,
@@ -639,6 +711,11 @@
         line-height: var(--lh-small);
         color: var(--c-ink-2);
         font-variant-numeric: tabular-nums;
+    }
+
+    /* A size no document permits on the chosen car: greyed and named as such, never struck. */
+    .tile__size--none {
+        color: var(--c-ink-3);
     }
 
     .tile__price {
@@ -659,6 +736,64 @@
         font-size: var(--fs-micro);
         line-height: var(--lh-micro);
         color: var(--c-ink-3);
+    }
+
+    /* The actions sit on one baseline across a row, whatever the tile above them carries. */
+    .tile__actions {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-12);
+        margin-top: auto;
+        padding-top: var(--sp-12);
+    }
+
+    /* The one link, stretched over the whole card. Static, so the stretch belongs to the card
+       and not to the button (a positioned button would contain its own ::after). */
+    .tile__cta {
+        position: static;
+        min-height: 36px;
+        padding-inline: var(--sp-12);
+    }
+
+    .tile__cta::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: var(--z-base);
+    }
+
+    /* A pressed transform on the link would move the stretch under the pointer mid-click. */
+    .tile .tile__cta:active {
+        transform: none;
+    }
+
+    /* Two-up on a 320 px phone: finish and sizes share a line, the CTA takes the width. */
+    @container (width < 200px) {
+        .tile__meta {
+            display: block;
+            font-size: var(--fs-small);
+            line-height: var(--lh-small);
+            color: var(--c-ink-2);
+        }
+
+        .tile__sep,
+        .tile__finish,
+        .tile__sizes {
+            display: inline;
+        }
+
+        .tile__cta {
+            flex: 1;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .tile__media::after,
+        .tile__media--alt,
+        .tile__compare,
+        .tile .tile__media .picture img {
+            transition: none;
+        }
     }
 
     .tile-grid {
@@ -932,6 +1067,71 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
+       FELGENRECHNER · the one tolerance light, the input row, the three result blocks
+       (docs/design/sections/home-overhaul.md §3)
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    /* Mirrors `.stock`'s anatomy under its own name: a tolerance is a different fact from stock.
+       The dot carries the colour, the sentence carries the meaning — never the verdict component. */
+    .light {
+        display: inline-flex;
+        align-items: flex-start;
+        gap: var(--sp-8);
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+        font-weight: 500;
+    }
+
+    .light::before {
+        content: '';
+        flex: none;
+        width: 8px;
+        height: 8px;
+        margin-top: 6px;
+        border-radius: var(--r-round);
+        background: currentColor;
+    }
+
+    .light--ok {
+        color: var(--c-ok);
+    }
+
+    .light--warn {
+        color: var(--c-warn);
+    }
+
+    .light--bad {
+        color: var(--c-bad);
+    }
+
+    /* The two fieldsets, Aktuell and Neu: side by side from 1024, stacked below. */
+    .calc-row {
+        display: grid;
+        gap: var(--sp-24) var(--gutter);
+        min-width: 0;
+    }
+
+    @media (min-width: 1024px) {
+        .calc-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    /* Three results stacked, a hairline above each — not boxes. */
+    .calc-results {
+        display: grid;
+        min-width: 0;
+    }
+
+    .calc-result {
+        display: grid;
+        gap: var(--sp-4);
+        min-width: 0;
+        padding: var(--sp-16) 0;
+        border-top: 1px solid var(--c-line);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
        KEYBOARD HINT
        ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -1187,6 +1387,505 @@
         color: var(--c-ink-3);
     }
 
+    /* ═══════════════════════════════════════════════════════════════════════════
+       COMPARE TRAY · the sticky bottom bar holding up to four wheels (home-overhaul.md §2.4)
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    .tray {
+        position: fixed;
+        inset-inline: 0;
+        bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+        z-index: var(--z-sticky);
+        height: var(--stickybar-h);
+        background: var(--c-surface);
+        color: var(--c-ink);
+        border-top: 1px solid var(--c-line);
+    }
+
+    /* A phone document without the tab bar: the tray takes the bottom edge itself. */
+    .tray--flush {
+        bottom: env(safe-area-inset-bottom);
+    }
+
+    @media (min-width: 1024px) {
+        .tray,
+        .tray--flush {
+            bottom: 0;
+        }
+    }
+
+    /* Everything hugs the left, so the cookie card in the right corner never covers the button. */
+    .tray__row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: var(--sp-24);
+        height: 100%;
+    }
+
+    .tray__thumbs {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-12);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .tray__thumb {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-4);
+    }
+
+    .tray__img {
+        display: grid;
+        flex: none;
+        width: 48px;
+        height: 48px;
+        overflow: hidden;
+        border-radius: var(--r-control);
+        background: var(--c-band);
+    }
+
+    .tray__img .picture,
+    .tray__img img {
+        width: 100%;
+        height: 100%;
+    }
+
+    .tray .tray__img .picture img {
+        object-fit: contain;
+    }
+
+    .tray__remove {
+        width: 24px;
+        height: 24px;
+        color: var(--c-ink-3);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .tray__remove:hover {
+            color: var(--c-ink);
+        }
+    }
+
+    .tray__count {
+        display: grid;
+        flex: none;
+        width: 120px;
+    }
+
+    .tray__actions {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: var(--sp-16);
+    }
+
+    /* The ghost's icon (a wrapper span around the icon) shows only where its label is hidden. */
+    .tray__clear-icon {
+        display: none;
+    }
+
+    /* 768–1023, the desktop document with the bottom bar: smaller thumbnails, the ghost as an icon. */
+    @media (max-width: 1023px) {
+        .tray__img {
+            width: 40px;
+            height: 40px;
+        }
+
+        .tray__clear-icon {
+            display: inline-flex;
+        }
+
+        .tray__clear-label {
+            display: none;
+        }
+    }
+
+    /* The phone document: one button of four thumbnails opens the sheet; the primary at the edge. */
+    .tray__thumbs-btn {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: var(--sp-4);
+        min-height: 48px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .tray--phone .tray__row {
+        gap: var(--sp-12);
+    }
+
+    .tray--phone .tray__img {
+        width: 36px;
+        height: 36px;
+    }
+
+    .tray--phone .tray__count {
+        width: auto;
+    }
+
+    .tray--phone .tray__go {
+        min-width: 140px;
+        margin-left: auto;
+    }
+
+    @media (max-width: 399px) {
+        .tray--phone .tray__count {
+            display: none;
+        }
+    }
+
+    /* In over --d-3, out over --d-2; nothing under reduced motion. */
+    .tray-enter-active {
+        transition: transform var(--d-3) var(--ease-out), opacity var(--d-3) var(--ease-out);
+    }
+
+    .tray-leave-active {
+        transition: transform var(--d-2) var(--ease-in), opacity var(--d-2) var(--ease-in);
+    }
+
+    .tray-enter-from,
+    .tray-leave-to {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .tray-enter-active,
+        .tray-leave-active {
+            transition: none;
+        }
+    }
+
+    /* The page keeps clear of the tray (`html[data-tray="open"] main#inhalt`): that rule lives
+       unlayered in CompareTray.vue, because the layouts' scoped padding rules are unlayered too. */
+
+    /* The sheet's rows on the phone. */
+    .tray__sheet-rows {
+        margin-inline: calc(-1 * var(--page-margin));
+    }
+
+    .tray__sheet-foot {
+        display: grid;
+        gap: var(--sp-8);
+        margin-top: var(--sp-16);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       COMPARE PAGE · the grouped table on /vergleich (home-overhaul.md §2.6)
+       Every row is its own grid on one shared template, so below 1024 each row can scroll
+       sideways (kept in step by the page) while the stick row stays sticky against the page.
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    .compare {
+        --n: 2;
+        --compare-cols: calc(2 * ((100% - 11 * var(--gutter)) / 12) + var(--gutter)) repeat(var(--n), minmax(0, 1fr));
+
+        color: var(--c-ink);
+    }
+
+    .compare__row {
+        display: grid;
+        grid-template-columns: var(--compare-cols);
+        column-gap: var(--gutter);
+        align-items: start;
+    }
+
+    .compare__row--data {
+        border-top: 1px solid var(--c-line);
+    }
+
+    .compare__label,
+    .compare__cell {
+        min-width: 0;
+        padding: var(--sp-12) 0;
+        overflow-wrap: anywhere;
+    }
+
+    .compare__label {
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+        font-weight: 500;
+        color: var(--c-ink-2);
+    }
+
+    .compare__cell {
+        font-size: var(--fs-body);
+        line-height: var(--lh-body);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .compare__cell--muted {
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+        color: var(--c-ink-2);
+    }
+
+    .compare__list {
+        display: grid;
+        gap: var(--sp-4);
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+        color: var(--c-ink-2);
+    }
+
+    .compare__group {
+        padding-top: var(--sp-24);
+    }
+
+    /* The head: the cut-out at column width, the names, the price, the badge, one remove button. */
+    .compare__head .compare__cell {
+        position: relative;
+        display: grid;
+        gap: var(--sp-4);
+        padding-top: 0;
+    }
+
+    .compare__img {
+        display: grid;
+        aspect-ratio: 1;
+        margin-bottom: var(--sp-8);
+        overflow: hidden;
+        border-radius: var(--r-tile);
+        background: var(--c-band);
+    }
+
+    .compare__img .picture,
+    .compare__img img {
+        width: 100%;
+        height: 100%;
+    }
+
+    .compare .compare__img .picture img {
+        object-fit: contain;
+    }
+
+    .compare__remove {
+        position: absolute;
+        top: var(--sp-8);
+        right: var(--sp-8);
+        z-index: var(--z-raised);
+        width: 28px;
+        height: 28px;
+        background: var(--c-surface);
+        color: var(--c-ink-3);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .compare__remove:hover {
+            color: var(--c-ink);
+        }
+    }
+
+    .compare__price {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* The stick row: names the columns while the head scrolls away. One hairline, always. */
+    .compare__stick {
+        position: sticky;
+        top: calc(var(--header-h) + var(--vbar-h));
+        z-index: var(--z-sticky);
+        background: var(--c-surface);
+        border-bottom: 1px solid var(--c-line);
+    }
+
+    /* The phone document has no vehicle bar: the app bar alone, plus the notch. */
+    .compare--phone .compare__stick {
+        top: calc(var(--header-h-m) + env(safe-area-inset-top));
+    }
+
+    .compare__stick .compare__cell {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-12);
+        min-height: 72px;
+    }
+
+    .compare__stick .compare__img {
+        flex: none;
+        width: 48px;
+        height: 48px;
+        margin: 0;
+        border-radius: var(--r-control);
+    }
+
+    .compare__stick-name {
+        display: grid;
+        flex: 1;
+        min-width: 0;
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+        font-weight: 600;
+    }
+
+    .compare__stick .verdict {
+        flex: none;
+        margin-left: auto;
+    }
+
+    /* The actions row: no hairline; a full-width button per column. */
+    .compare__actions .compare__cell {
+        display: grid;
+        gap: var(--sp-8);
+        padding-top: var(--sp-24);
+    }
+
+    /* Differences: weight and ink only. Nothing hides, nothing moves, no colour. */
+    .compare[data-diff='on'] .compare__row--same .compare__label,
+    .compare[data-diff='on'] .compare__row--same .compare__cell {
+        color: var(--c-ink-3);
+    }
+
+    .compare[data-diff='on'] .compare__diff {
+        font-weight: 600;
+    }
+
+    /* The page head. */
+    .compare-head {
+        display: grid;
+        gap: var(--sp-8);
+        align-items: end;
+    }
+
+    .compare-head__meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--sp-16);
+    }
+
+    .compare-head__toggle {
+        justify-self: start;
+    }
+
+    .compare-table {
+        margin-top: var(--sp-32);
+    }
+
+    .compare-notice {
+        margin-bottom: var(--sp-16);
+    }
+
+    @media (min-width: 1024px) {
+        .compare-head {
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            column-gap: var(--gutter);
+        }
+
+        .compare-head__copy {
+            grid-column: 1 / span 8;
+        }
+
+        .compare-head__toggle {
+            grid-column: 9 / span 4;
+            justify-self: end;
+        }
+    }
+
+    /* 768–1023: the label column two of eight, item columns at least 200 px; rows scroll sideways. */
+    @media (max-width: 1023px) {
+        .compare {
+            --compare-cols: 161px repeat(var(--n), minmax(200px, 1fr));
+        }
+
+        /* No scroll snap: the rows are kept in step by the page, and a snap fighting that sync
+           would jitter. */
+        .compare__row {
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            scrollbar-width: none;
+        }
+
+        .compare__row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .compare__label {
+            position: sticky;
+            left: 0;
+            z-index: var(--z-raised);
+            background: var(--c-surface);
+        }
+    }
+
+    /* The phone: two columns visible, the rest by scrolling; the label becomes a row of its own
+       whose text stays put while the values move. */
+    @media (max-width: 767px) {
+        .compare {
+            --compare-cols: repeat(var(--n), calc((100% - var(--gutter)) / 2));
+        }
+
+        .compare__label {
+            grid-column: 1 / -1;
+            position: static;
+            padding-bottom: 0;
+        }
+
+        .compare__label .label {
+            position: sticky;
+            left: 0;
+            display: inline-block;
+        }
+
+        .compare__head .compare__label,
+        .compare__stick .compare__label {
+            display: none;
+        }
+
+        .compare__stick .compare__cell {
+            flex-wrap: wrap;
+            gap: var(--sp-8);
+        }
+
+        .compare__stick .compare__img {
+            width: 40px;
+            height: 40px;
+        }
+
+        .compare__stick .verdict {
+            margin-left: 0;
+        }
+
+        .compare-head__toggle {
+            width: 100%;
+        }
+    }
+
+    /* Print: nothing sticks, nothing scrolls, the controls are gone. */
+    @media print {
+        .compare__stick {
+            position: static;
+        }
+
+        .compare__row {
+            overflow: visible;
+        }
+
+        .compare__remove,
+        .compare__actions,
+        .compare-head__toggle,
+        .tray {
+            display: none;
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       DEMO NOTE · the one place a page says its products are seeded (home-overhaul.md §6)
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    .badge.demo-note {
+        margin-left: var(--sp-12);
+        vertical-align: middle;
+    }
+
     /* Toast: one at a time, dark, at the bottom edge, above the phone's bottom nav. */
     .toast-viewport {
         position: fixed;
@@ -1246,8 +1945,25 @@
         min-width: 0;
     }
 
+    /* The one thing to do about a confirmation: *Rückgängig*. */
+    .toast__action {
+        flex: none;
+        min-height: 36px;
+    }
+
     .toast .icon-btn {
         color: var(--c-on-dark-2);
+    }
+
+    /* With the tray open the toast clears it. */
+    html[data-tray='open'] .toast-viewport {
+        bottom: calc(var(--bottomnav-h) + var(--stickybar-h) + var(--sp-12) + env(safe-area-inset-bottom));
+    }
+
+    @media (min-width: 1024px) {
+        html[data-tray='open'] .toast-viewport {
+            bottom: calc(var(--sp-24) + var(--stickybar-h));
+        }
     }
 
     @keyframes toast-in {
@@ -1444,10 +2160,27 @@
         .btn--sm,
         .chip,
         .link,
-        .tile__compare,
         .tabs__trigger,
-        .menu__item {
+        .menu__item,
+        .toast__action {
             min-height: 44px;
+        }
+
+        /* The card's two controls: the phone brief's 48. */
+        .tile .tile__cta,
+        .tile__compare {
+            min-height: 48px;
+        }
+
+        .tray__remove,
+        .compare__remove {
+            width: 48px;
+            height: 48px;
+        }
+
+        .compare__remove {
+            top: 0;
+            right: 0;
         }
     }
 }

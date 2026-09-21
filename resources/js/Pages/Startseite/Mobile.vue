@@ -363,7 +363,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     <section id="h8" data-section="H8" :class="cls('h8')" aria-labelledby="h8-title">
         <div class="container">
             <h2 id="h8-title" class="h2 home-h2">Was ändert sich mit der neuen Größe?</h2>
-            <p class="body muted home-lead">Vergleiche deine aktuelle Größe mit einer neuen. Die Zeichnung zeigt den Querschnitt, die Werte darunter den Unterschied.</p>
+            <p class="body muted home-lead">Vergleiche deine aktuelle Größe mit einer neuen. Die Zeichnung zeigt von oben, wie weit die Felge wandert.</p>
             <FitmentTeaser :prefill="calculator.prefill" :vehicle="vehicle" layout="phone" />
         </div>
     </section>

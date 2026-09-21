@@ -23,6 +23,8 @@ const shell = useShell()
             <dd>In Listen bewegen</dd>
             <dt><Kbd :keys="['↵']" /></dt>
             <dd>Auswahl öffnen</dd>
+            <dt><Kbd :keys="['F8']" /></dt>
+            <dd>Letzte Meldung</dd>
         </dl>
     </Dialog>
 </template>

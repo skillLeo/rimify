@@ -18,11 +18,13 @@ use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugController;
 use App\Http\Controllers\Storefront\FaqController;
 use App\Http\Controllers\Storefront\FelgenController;
+use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Http\Controllers\Storefront\KontaktController;
 use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
+use App\Http\Controllers\Storefront\VergleichController;
 use App\Http\Controllers\Storefront\WarenkorbController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,10 +38,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StartseiteController::class, 'index'])->name('startseite');
 Route::get('/ratgeber/{slug}', RatgeberController::class)->name('ratgeber.show');
+Route::get('/felgenrechner', [FelgenrechnerController::class, 'index'])->name('felgenrechner.index');
 
 Route::get('/felgen-suchen', [FelgenController::class, 'suchen'])->name('felgen.suchen');
 Route::get('/felgen', [FelgenController::class, 'index'])->name('felgen.index');
 Route::get('/felgen/{model}', [FelgenController::class, 'show'])->name('felgen.show');
+// Up to four wheels side by side; the keys travel in `?f=` so a comparison is a link.
+Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich.index');
 
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');

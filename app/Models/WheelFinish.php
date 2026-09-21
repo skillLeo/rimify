@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $hex
  * @property string $art_finish
  * @property int $sort_order
+ * @property array<string, mixed>|null $image_manifest
  */
 class WheelFinish extends Model
 {
@@ -35,12 +36,18 @@ class WheelFinish extends Model
 
     protected $table = 'wheel_finishes';
 
-    protected $fillable = ['wheel_model_id', 'name_de', 'name_en', 'hex', 'art_finish', 'sort_order'];
+    protected $fillable = ['wheel_model_id', 'name_de', 'name_en', 'hex', 'art_finish', 'sort_order', 'image_manifest'];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['sort_order' => 'integer'];
+        return [
+            'sort_order' => 'integer',
+            // The cut-out as `Picture` reads it (name, base, width, height, widths, fallback,
+            // placeholder), written by wheels:process-images. NULL is "no photograph", never a
+            // borrowed one.
+            'image_manifest' => 'array',
+        ];
     }
 
     /** @return BelongsTo<WheelModel, $this> */
