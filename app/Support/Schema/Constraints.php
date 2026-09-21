@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Schema;
 
+use Illuminate\Database\MySqlConnection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -29,8 +30,28 @@ final class Constraints
             'ALTER TABLE `%s` ADD CONSTRAINT `%s` CHECK (%s)',
             $table,
             $name,
-            $expression,
+            self::forServer($expression),
         ));
+    }
+
+    /**
+     * MariaDB refuses `REGEXP_LIKE()` inside a CHECK clause (error 1901) but accepts the REGEXP
+     * operator. `(?-i)` keeps the match case-sensitive under a `_ci` collation, which is what the
+     * `'c'` match type means on MySQL. On MySQL the expression is used exactly as written.
+     */
+    private static function forServer(string $expression): string
+    {
+        $connection = DB::connection();
+
+        if (! $connection instanceof MySqlConnection || ! $connection->isMaria()) {
+            return $expression;
+        }
+
+        return (string) preg_replace(
+            "/REGEXP_LIKE\\((`[A-Za-z0-9_]+`),\\s*'([^']*)',\\s*'c'\\)/",
+            "$1 REGEXP '(?-i)$2'",
+            $expression,
+        );
     }
 
     public static function drop(string $table, string $name): void
