@@ -86,11 +86,11 @@ const STEPS = [
 /*
  * The strokes, in the crop's own coordinates: x in thousandths of the table width, y in CSS px
  * (one heading row and three body rows of 28 px; row 4 is the middle one, centred at y 70).
- * Columns: Hersteller 0–22 % · Typ 22–33 · Genehmigungsnr. 33–63 · Reifengrößen 63–86 · Auflagen 86–100.
+ * Columns: Hersteller 0–24 % · Typ 24–35 · Genehmigungsnr. 35–63 · Reifengrößen 63–86 · Auflagen 86–100.
  * Each starts a few px before its cell and ends a few after, with a slight wave — a hand, not a rule.
  */
 const STROKES: Record<number, string> = {
-    1: 'M 214 69 C 320 67.5 500 72 638 70',
+    1: 'M 234 69 C 340 67.5 510 72 638 70',
     2: 'M -6 70.5 C 250 68.5 700 72.5 1008 69.5',
     3: 'M 624 69 C 750 71 900 67.5 1008 70',
 }
@@ -257,10 +257,10 @@ const STROKES: Record<number, string> = {
     border-bottom-color: var(--c-line-2);
 }
 
-/* 318 px at 390: Hersteller must hold "Mercedes-Benz" and Auflagen its own heading, whole. */
-.doc__c1 { width: 22%; }
+/* 303 px on a 375 px phone: Hersteller must hold "Mercedes-Benz" and Auflagen its own heading, whole. */
+.doc__c1 { width: 24%; }
 .doc__c2 { width: 11%; }
-.doc__c3 { width: 30%; }
+.doc__c3 { width: 28%; }
 .doc__c4 { width: 23%; }
 .doc__c5 { width: 14%; }
 
