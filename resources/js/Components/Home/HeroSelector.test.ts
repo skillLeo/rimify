@@ -120,7 +120,7 @@ beforeEach(() => {
         garage: [],
         // A fixture number, hyphenated so the contact-details guard (which forbids a real German
         // number in source files) does not read it as one.
-        contact: { phone: '0800 123 45 67', phoneIntl: '+49-800-1234567' },
+        contact: { phone: '0800 555 01 00', phoneIntl: '+49-800-5550100' },
         lookup: null,
     }
     forms.length = 0
@@ -247,7 +247,7 @@ describe('HeroSelector — the button and the count', () => {
         await flushPromises()
         await nextTick()
         expect(wrapper.find('.sel__zero .form-field__error').text()).toBe(
-            'Das hat nicht geklappt. Versuch es bitte noch einmal oder ruf uns an: 0800 123 45 67.'
+            'Das hat nicht geklappt. Versuch es bitte noch einmal oder ruf uns an: 0800 555 01 00.'
         )
     })
 })
@@ -400,8 +400,8 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(notice.text()).toContain('Zu 9999/ZZZ haben wir kein Fahrzeug gefunden.')
 
         const routes = notice.findAll('.link')
-        expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Anrufen: 0800 123 45 67'])
-        expect(routes[2]!.attributes('href')).toBe('tel:+498001234567')
+        expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Anrufen: 0800 555 01 00'])
+        expect(routes[2]!.attributes('href')).toBe('tel:+49-800-5550100')
 
         // The routes are the actions: the primary would only repeat the lookup, so it is disabled.
         expect(button(wrapper).element.disabled).toBe(true)

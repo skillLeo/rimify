@@ -55,6 +55,16 @@ jobs:
       - name: OCR assets
         run: npm run ocr:assets
 
+      # The demo catalogue's cut-outs are rendered here from the free-licence photographs named in
+      # the seed map, so neither the photographs nor 77 MB of derived images live in the repository.
+      - name: Demo wheel imagery
+        run: |
+          php artisan wheels:fetch-photos
+          php artisan wheels:process-images
+
+      - name: 3D assets
+        run: npm run 3d:assets
+
       - name: Typecheck
         run: npx vue-tsc --noEmit
 
@@ -71,7 +81,7 @@ jobs:
           echo "::notice title=Release size::vendor $(du -sh vendor | cut -f1), build $(du -sh public/build | cut -f1), largest file $(find vendor public/build bootstrap/ssr -type f -printf '%s %p\n' | sort -n | tail -1)"
           git config user.name "SkillLeo"
           git config user.email "hassam.dev.571@gmail.com"
-          git add -f vendor public/build public/ocr bootstrap/ssr > /tmp/out 2>&1 || report "git add"
+          git add -f vendor public/build public/ocr public/3d storage/app/public/demo bootstrap/ssr > /tmp/out 2>&1 || report "git add"
           # Package manifests: shipped when composer produced them; Laravel regenerates any that
           # are missing on first boot.
           for f in bootstrap/cache/packages.php bootstrap/cache/services.php; do

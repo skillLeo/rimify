@@ -94,7 +94,10 @@ const page = usePage<SharedProps>()
 const vehicle = computed(() => page.props.vehicle)
 const product = computed(() => props.hero.product)
 const symbolic = computed(() => product.value?.symbolic === true)
-const manifest = computed<CutoutManifest>(() => MANIFESTS[product.value?.image ?? ''] ?? (heroWheel as CutoutManifest))
+/* The finish's own cut-out when the catalogue has one; otherwise the bundled stand-in it names. */
+const manifest = computed<CutoutManifest>(
+    () => (product.value?.imageManifest as CutoutManifest | null | undefined) ?? MANIFESTS[product.value?.image ?? ''] ?? (heroWheel as CutoutManifest),
+)
 
 const title = computed(() =>
     vehicle.value === null ? props.hero.title : `Felgen, die an deinen ${vehicle.value.short} dürfen.`
@@ -290,7 +293,13 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="hero__stage">
-                <div ref="frame" class="frame hero__frame" :class="{ 'is-lit': lit, 'is-ready': ready }" :data-stage="stage">
+                <div
+                    ref="frame"
+                    class="frame hero__frame"
+                    :class="{ 'is-lit': lit, 'is-ready': ready }"
+                    :data-stage="stage"
+                    :style="{ '--sweep-mask': `url(${manifest.base}-480.png)` }"
+                >
                     <div class="hero-studio" aria-hidden="true" />
                     <div class="hero-contact" aria-hidden="true" />
 
@@ -481,7 +490,8 @@ onBeforeUnmount(() => {
     z-index: var(--z-raised);
     overflow: hidden;
     pointer-events: none;
-    mask-image: url('/images/hero-wheel/hero-wheel-480.png');
+    /* The current cut-out's own alpha, set by the frame; the bundled stand-in when none is set. */
+    mask-image: var(--sweep-mask, url('/images/hero-wheel/hero-wheel-480.png'));
     mask-size: 100% 100%;
     mask-repeat: no-repeat;
     mix-blend-mode: soft-light;

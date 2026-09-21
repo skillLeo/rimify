@@ -28,7 +28,10 @@ interface CutoutManifest extends ImageManifest {
 
 const props = defineProps<{ product: HeroProduct }>()
 
-const manifest = heroWheel as CutoutManifest
+/* The finish's own cut-out when the catalogue has one; otherwise the bundled stand-in. */
+const manifest = computed<CutoutManifest>(
+    () => (props.product.imageManifest as CutoutManifest | null | undefined) ?? (heroWheel as CutoutManifest),
+)
 
 const ready = ref(false)
 const failed = ref(false)
@@ -47,7 +50,7 @@ const BOXES: Readonly<Record<SlotKey, { x: number; y: number } | null>> = {
     centreBore: null,
 }
 
-const targets = phoneTargets(manifest.targets)
+const targets = computed(() => phoneTargets(manifest.value.targets))
 
 /* The two callouts the phone shows; the other two values read as one line under the frame. */
 const slots = computed(() => assignSlots(props.product.spec))
@@ -55,7 +58,7 @@ const callouts = computed(() =>
     slots.value.flatMap((s) => {
         const box = BOXES[s.key]
 
-        return box && FRAME_SLOTS.includes(s.key) ? [{ ...s, ...box, ...targets[s.key] }] : []
+        return box && FRAME_SLOTS.includes(s.key) ? [{ ...s, ...box, ...targets.value[s.key] }] : []
     })
 )
 const rest = computed(() => slots.value.filter((s) => !FRAME_SLOTS.includes(s.key)))
