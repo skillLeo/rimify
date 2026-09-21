@@ -25,6 +25,12 @@ export default defineConfig({
             '@': '/resources/js',
         },
     },
+    // The SSR bundle carries its dependencies inside it. The production host is shared hosting,
+    // where installing node_modules is slow and competes with the sites for processes; a
+    // self-contained ssr.js needs nothing but the node binary.
+    ssr: {
+        noExternal: true,
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],
