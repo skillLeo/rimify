@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
 use Inertia\Testing\AssertableInertia;
 
@@ -27,7 +28,7 @@ it('serves a guide with its lead, its sections and the other two guides', functi
 });
 
 it('lists exactly three guides on the homepage', function (): void {
-    $this->seed(\Database\Seeders\CommerceSeeder::class);
+    $this->seed(CommerceSeeder::class);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->has('guides', 3)
