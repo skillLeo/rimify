@@ -74,6 +74,7 @@ class FelgenController extends Controller
                 'total' => null,
                 'facets' => [],
                 'filters' => $filters,
+                'demo' => $this->demo(),
             ]);
         }
 
@@ -113,7 +114,17 @@ class FelgenController extends Controller
             'facets' => $this->listing->facets($vehicleId, $filters),
             'filters' => $filters,
             'page' => $page,
+            'demo' => $this->demo(),
         ]);
+    }
+
+    /**
+     * Whether seeded demonstration rows are on the page, so it can say so (OVERHAUL.md §2). The
+     * flag leaves with the rows before launch.
+     */
+    private function demo(): bool
+    {
+        return WheelModel::query()->where('is_demo', true)->exists();
     }
 
     /** The product page. One model, its finishes, its configurations. */

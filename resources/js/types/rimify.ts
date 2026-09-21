@@ -7,6 +7,9 @@
  */
 
 import type { Finish } from '../art'
+import type { ImageManifest } from '../Components/Ui/Picture.vue'
+
+export type { ImageManifest }
 
 /** The four presentations of the vehicle-context state machine. Decided on the server (R-08). */
 export type HeaderMode = 'PLAIN' | 'WHITE_BOX' | 'BLUE_BAR' | 'SUPPRESSED'
@@ -126,8 +129,12 @@ export interface ProductCardProp {
     finishId: number
     finishName: string
     art: ArtProp
-    /** The packshot, once the catalogue has one. Null shows the drawn wheel, plainly captioned. */
-    image?: string | null
+    /**
+     * This finish's own cut-out (`wheel_finishes.image_manifest`) as `Picture` reads it: AVIF →
+     * WebP → PNG at the listed widths, 1:1, with the 4:3 frame under `wide`. Null shows the
+     * drawn outline, plainly — never another finish's photograph.
+     */
+    image: (ImageManifest & { wide?: ImageManifest }) | null
     rating: number | null
     ratingCount: number
     ratingLabel: string | null
@@ -138,12 +145,26 @@ export interface ProductCardProp {
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
     /**
+     * The subset of `diameters` with a `PERMITTED`/`CONDITIONAL` configuration for the vehicle;
+     * null without a vehicle (or while the server does not send it — the tile then greys nothing).
+     */
+    diametersFitting?: string[] | null
+    /** `${modelId}:${finishId}` — the one key the compare store uses. Derived on the client when absent. */
+    compareKey?: string
+    /** A seeded demonstration row (`wheel_models.is_demo`). Nothing on the card says so; the page does. */
+    isDemo?: boolean
+    /**
      * Null when no vehicle is chosen: with no car, no compatibility claim is made at all.
      *
      * Otherwise the fitment engine's answer for the configurations this card stands for, merged
      * toward caution. `CONDITIONAL` always travels with its Auflagen as full German sentences.
      */
     fitment: CardFitment | null
+}
+
+/** The one key the compare store, the tray and `/vergleich?f=` share (home-overhaul.md §0.3). */
+export function compareKeyOf(card: Pick<ProductCardProp, 'modelId' | 'finishId' | 'compareKey'>): string {
+    return card.compareKey ?? `${card.modelId}:${card.finishId}`
 }
 
 export interface CardFitment {

@@ -11,13 +11,16 @@ use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Models\WheelConfig;
+use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Storefront\CalculatorPrefill;
 use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\MegaMenu;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
+use App\Support\DemoWheels;
 use App\Support\DevicePage;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
@@ -48,6 +51,7 @@ class StartseiteController extends Controller
         private readonly FitmentCount $count,
         private readonly VehicleResolver $resolver,
         private readonly ListingQuery $listing,
+        private readonly CalculatorPrefill $calculatorPrefill,
     ) {}
 
     public function index(Request $request): Response
@@ -80,19 +84,27 @@ class StartseiteController extends Controller
             'sizes' => $this->sizes($vehicleId),
             'brands' => $this->brands(),
             'komplettrad' => ['tyre' => $this->featuredTyre()],
-            'calculator' => ['prefill' => $vehicleId === null ? null : $this->prefill($vehicleId)],
+            // The same service /felgenrechner reads: the teaser and the full tool start on one size.
+            'calculator' => ['prefill' => $vehicleId === null ? null : $this->calculatorPrefill->forVehicle($vehicleId)],
             'partners' => [
                 'enabled' => config('rimify.features.partners') === true,
                 'demo' => app()->environment(['local', 'staging', 'testing']),
             ],
             'guides' => $this->guides(),
             'faq' => $this->faqPreview(),
+            // Seeded demonstration rows are on the page: it says so (OVERHAUL.md §2), and the
+            // flag leaves with the rows before launch.
+            'demo' => WheelModel::query()->where('is_demo', true)->exists(),
         ]);
     }
 
     /**
      * The wheel the hero shows, chosen by the admin (`settings.hero_product_id`); until one is
      * chosen, the first published model. Its callout values are the cheapest configuration's own.
+     *
+     * The finish shown is the one the catalogue has a photograph of: among the model's finishes
+     * with a cut-out, the cheapest configuration; without any cut-out, the cheapest of all, under
+     * the bundled stand-in photograph — which the page then names as a stand-in.
      *
      * @return array<string, mixed>|null
      */
@@ -111,8 +123,14 @@ class StartseiteController extends Controller
             return null;
         }
 
+        $pictured = WheelFinish::query()
+            ->where('wheel_model_id', $model->id)
+            ->whereNotNull('image_manifest')
+            ->pluck('id');
+
         $config = WheelConfig::query()
             ->where('wheel_model_id', $model->id)
+            ->when($pictured->isNotEmpty(), fn ($q) => $q->whereIn('wheel_finish_id', $pictured))
             ->orderBy('price_cents')
             ->orderBy('id')
             ->first();
@@ -121,18 +139,25 @@ class StartseiteController extends Controller
             return null;
         }
 
-        $finish = DB::table('wheel_finishes')->where('id', $config->wheel_finish_id)->value('name_de');
+        $finish = WheelFinish::query()->find($config->wheel_finish_id);
+        $manifest = $finish === null ? null : $finish->image_manifest;
+
+        if (! DemoWheels::wellFormed($manifest)) {
+            $manifest = null;
+        }
 
         return [
             'slug' => (string) $model->slug,
             'name' => (string) $model->name,
             'brand' => (string) $model->brand->name,
-            'finish' => is_string($finish) ? $finish : '',
+            'finish' => $finish === null ? '' : (string) $finish->name_de,
             'fromPriceCents' => (int) $config->price_cents,
             'fromPrice' => GermanFormat::money((int) $config->price_cents),
-            // The cut-out manifest the page renders (resources/js/images/<image>.json), until the
-            // admin uploads a per-product cut-out.
+            // The bundled stand-in the page can always render (resources/js/images/hero-wheel.json)
+            // and, when the catalogue has one, the finish's own cut-out, which takes precedence.
+            // Two keys rather than one union: the hero components index a record with `image`.
             'image' => 'hero-wheel',
+            'imageManifest' => $manifest,
             // The configuration's own numbers, for the callouts and the calculator.
             'config' => [
                 'widthIn' => (float) $config->width_in,
@@ -142,9 +167,10 @@ class StartseiteController extends Controller
                 'boltCircleMm' => (float) $config->bolt_circle_mm,
                 'centreBoreMm' => (float) $config->centre_bore_mm,
             ],
-            // A free-licence photograph stands in for the supplier's packshot; the values are the
-            // product's own, and the page says the picture is not (docs/phase0/ASSET-REQUEST.md).
-            'symbolic' => true,
+            // With no cut-out of its own, a free-licence photograph stands in for the supplier's
+            // packshot; the values are the product's own, and the page says the picture is not
+            // (docs/phase0/ASSET-REQUEST.md).
+            'symbolic' => $manifest === null,
             'spec' => [
                 // Width × diameter without the ET: the ET has its own callout.
                 ['label' => 'Breite × Durchmesser', 'value' => GermanFormat::trimmedDecimal((float) $config->width_in, 2).' J × '.GermanFormat::trimmedDecimal((float) $config->diameter_in, 1)],
@@ -239,7 +265,7 @@ class StartseiteController extends Controller
             ));
         }
 
-        return array_values($cards);
+        return $cards;
     }
 
     /**
@@ -344,36 +370,6 @@ class StartseiteController extends Controller
             'noiseDb' => (int) $row->eu_noise_db,
             'noiseClass' => (string) $row->eu_noise_class,
             'eprelId' => is_string($row->eprel_id) && $row->eprel_id !== '' ? $row->eprel_id : null,
-        ];
-    }
-
-    /**
-     * The calculator's starting values for the chosen car: the first permitted configuration and
-     * its first tyre size from the documents — real data, or nothing.
-     *
-     * @return array{widthIn: float, diameterIn: float, etMm: int, tyreWidth: int, aspect: int}|null
-     */
-    private function prefill(int $vehicleId): ?array
-    {
-        $row = DB::table('fitments as f')
-            ->join('wheel_configs as wc', 'wc.id', '=', 'f.wheel_config_id')
-            ->join('fitment_tyre_sizes as ts', 'ts.fitment_id', '=', 'f.id')
-            ->where('f.vehicle_id', $vehicleId)
-            ->whereNull('wc.deleted_at')
-            ->orderBy('wc.diameter_in')
-            ->orderBy('f.id')
-            ->first(['wc.width_in', 'wc.diameter_in', 'wc.et_mm', 'ts.width_mm', 'ts.aspect']);
-
-        if ($row === null) {
-            return null;
-        }
-
-        return [
-            'widthIn' => (float) $row->width_in,
-            'diameterIn' => (float) $row->diameter_in,
-            'etMm' => (int) $row->et_mm,
-            'tyreWidth' => (int) $row->width_mm,
-            'aspect' => (int) $row->aspect,
         ];
     }
 

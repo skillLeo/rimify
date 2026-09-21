@@ -11,18 +11,33 @@ use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Support\DemoWheels;
 use App\Support\MakeName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Twelve wheel models, deliberately uneven.
+ * Twenty wheel models, deliberately uneven, every one of them flagged `is_demo`.
  *
  * A demo catalogue where every product is in stock, unconditioned and identically priced proves
  * nothing: it is exactly the dataset under which a listing page looks finished and then falls over
  * on the client's own data. So two models are out of stock, the spoke counts and palettes differ
- * per model so the drawn grid reads as a real catalogue rather than one wheel twelve times, and
- * the prices span the whole 689,00 – 1.196,00 € band the spec names.
+ * per model so the grid reads as a real catalogue rather than one wheel twenty times, the bolt
+ * patterns span the German market (5 × 112, 5 × 120, 5 × 108, 5 × 114,3), and the prices run from
+ * 479,00 € to 1.196,00 €.
+ *
+ * The names are real ranges (BBS CI-R, OZ Ultraleggera, BORBET Havanna, Dezent TZ …) with
+ * plausible sizes from public specification sheets, so the client sees the shop with the kind of
+ * data it will hold. None of it is stock RIMIFY has: `is_demo` says so on the page and leaves with
+ * the rows before launch (docs/phase0/OVERHAUL.md §2).
+ *
+ * Each finish that has a free-licence photograph in database/seeders/content/wheel-photos.php
+ * carries that cut-out's manifest, read from where `wheels:process-images` wrote it. One
+ * photograph serves at most one model; a finish without one draws the outline.
+ *
+ * The first twelve models are kept exactly as first seeded — same order, same finishes, same
+ * sizes — because their configurations' SKUs are numbered in sequence and the fitment seeds hang
+ * off those rows. New models are appended, never inserted.
  *
  * Ratings are stored, not computed. There is no review table yet, and a star figure recalculated
  * on every listing render would be the slowest join on the busiest page for a number that changes
@@ -30,8 +45,12 @@ use Illuminate\Support\Str;
  */
 class CatalogueSeeder extends Seeder
 {
+    /** Lochkreis and Mittenlochbohrung of the first twelve models, before per-model patterns existed. */
+    private const DEFAULT_BOLT = [5, 112.0, 66.60];
+
     /**
-     * brand => [name, type designation, spokes, rating, rating count, [finish, hex, palette], sizes]
+     * brand => [name, type designation, spokes, rating, rating count, [finish, hex, palette], sizes,
+     * optional [bolt holes, bolt circle mm, centre bore mm]]
      *
      * @var list<array{
      *     brand: string,
@@ -42,7 +61,8 @@ class CatalogueSeeder extends Seeder
      *     ratings: int,
      *     finishes: list<array{0: string, 1: string, 2: string}>,
      *     sizes: list<array{0: float, 1: float, 2: int, 3: float}>,
-     *     stock: int
+     *     stock: int,
+     *     bolt?: array{0: int, 1: float, 2: float}
      * }>
      */
     private const MODELS = [
@@ -170,6 +190,97 @@ class CatalogueSeeder extends Seeder
             'sizes' => [[8.0, 18.0, 35, 779.00], [8.5, 18.0, 45, 819.00]],
             'stock' => 18,
         ],
+
+        // ── Appended for the demo catalogue (OVERHAUL.md §2). Never reorder the twelve above. ──
+        [
+            'brand' => 'Brock', 'name' => 'B32', 'type' => 'B32',
+            'spokes' => 10, 'rating' => 4.5, 'ratings' => 264,
+            'finishes' => [
+                ['Kristallsilber', '#C3C8CF', 'silver'],
+                ['Schwarz Klarlack', '#1A1C20', 'black'],
+            ],
+            'sizes' => [[7.5, 17.0, 45, 549.00], [8.0, 18.0, 45, 619.00], [8.5, 19.0, 45, 699.00]],
+            'bolt' => [5, 112.0, 66.60],
+            'stock' => 26,
+        ],
+        [
+            'brand' => 'Brock', 'name' => 'B40', 'type' => 'B40',
+            'spokes' => 5, 'rating' => 4.3, 'ratings' => 118,
+            'finishes' => [
+                ['Silber', '#C3C8CF', 'silver'],
+                ['Schwarz matt', '#1A1C20', 'black'],
+            ],
+            'sizes' => [[8.0, 18.0, 35, 639.00], [8.5, 19.0, 40, 729.00]],
+            // A BMW pattern, so not every demo wheel claims the VW group's 5 × 112.
+            'bolt' => [5, 120.0, 72.60],
+            'stock' => 14,
+        ],
+        [
+            'brand' => 'MAM', 'name' => 'A5', 'type' => 'A5',
+            'spokes' => 5, 'rating' => 4.4, 'ratings' => 203,
+            'finishes' => [
+                ['Palladium', '#B9BEC6', 'silver'],
+                ['Schwarz matt', '#1A1C20', 'black'],
+            ],
+            'sizes' => [[8.0, 18.0, 30, 589.00], [8.5, 19.0, 35, 669.00]],
+            'bolt' => [5, 112.0, 66.60],
+            'stock' => 19,
+        ],
+        [
+            'brand' => 'MAM', 'name' => 'RS4', 'type' => 'RS4',
+            'spokes' => 10, 'rating' => 4.2, 'ratings' => 87,
+            'finishes' => [
+                ['Silber', '#C3C8CF', 'silver'],
+                ['Schwarz Front poliert', '#2A2E35', 'polished'],
+            ],
+            'sizes' => [[7.5, 17.0, 40, 559.00], [8.0, 18.0, 42, 629.00]],
+            'bolt' => [5, 108.0, 63.40],
+            'stock' => 11,
+        ],
+        [
+            'brand' => 'Dezent', 'name' => 'TZ', 'type' => 'TZ',
+            'spokes' => 5, 'rating' => 4.6, 'ratings' => 341,
+            'finishes' => [
+                ['Silber', '#C3C8CF', 'silver'],
+                ['Schwarz', '#1A1C20', 'black'],
+            ],
+            'sizes' => [[7.0, 17.0, 40, 529.00], [7.5, 18.0, 45, 599.00]],
+            'bolt' => [5, 114.3, 67.10],
+            'stock' => 30,
+        ],
+        [
+            'brand' => 'Dezent', 'name' => 'TN', 'type' => 'TN',
+            'spokes' => 10, 'rating' => 4.5, 'ratings' => 512,
+            'finishes' => [
+                ['Silber', '#C3C8CF', 'silver'],
+                ['Dark', '#3A3E45', 'graphite'],
+            ],
+            'sizes' => [[7.0, 16.0, 38, 479.00], [7.5, 17.0, 38, 539.00]],
+            'bolt' => [5, 112.0, 57.10],
+            'stock' => 40,
+        ],
+        [
+            'brand' => 'AEZ', 'name' => 'Leipzig', 'type' => 'ALZ',
+            'spokes' => 10, 'rating' => 4.7, 'ratings' => 176,
+            'finishes' => [
+                ['Silber', '#C3C8CF', 'silver'],
+                ['Dark', '#3A3E45', 'graphite'],
+            ],
+            'sizes' => [[8.0, 18.0, 35, 749.00], [8.5, 19.0, 40, 829.00]],
+            'bolt' => [5, 112.0, 66.60],
+            'stock' => 9,
+        ],
+        [
+            'brand' => 'OZ RACING', 'name' => 'Formula HLT', 'type' => 'OZ-FHLT',
+            'spokes' => 5, 'rating' => 4.8, 'ratings' => 289,
+            'finishes' => [
+                ['Race Silber', '#C3C8CF', 'silver'],
+                ['Grigio Corsa', '#5A5F66', 'graphite'],
+            ],
+            'sizes' => [[8.0, 18.0, 45, 899.00], [8.5, 19.0, 40, 979.00], [9.0, 19.0, 45, 1049.00]],
+            'bolt' => [5, 112.0, 66.60],
+            'stock' => 7,
+        ],
     ];
 
     public function run(): void
@@ -184,6 +295,7 @@ class CatalogueSeeder extends Seeder
 
         $brands = $this->seedBrands();
         $this->seedWheels($brands);
+        $this->attachPhotographs();
         $this->seedTyres($brands);
     }
 
@@ -192,6 +304,7 @@ class CatalogueSeeder extends Seeder
     {
         $names = [
             'BORBET', 'OZ RACING', 'ALUTEC', 'BBS', 'YIDO', 'Rotiform',
+            'Brock', 'MAM', 'Dezent', 'AEZ',
             'Bridgestone', 'Continental', 'Michelin',
         ];
 
@@ -219,6 +332,8 @@ class CatalogueSeeder extends Seeder
         $sku = 0;
 
         foreach (self::MODELS as $spec) {
+            [$boltHoles, $boltCircle, $centreBore] = $spec['bolt'] ?? self::DEFAULT_BOLT;
+
             $model = WheelModel::updateOrCreate(
                 ['slug' => Str::slug($spec['brand'].'-'.$spec['name'])],
                 [
@@ -229,6 +344,8 @@ class CatalogueSeeder extends Seeder
                     'rating' => $spec['rating'],
                     'rating_count' => $spec['ratings'],
                     'status' => CatalogueStatus::Published->value,
+                    // Every row this seeder writes is a demonstration, and the page says so.
+                    'is_demo' => true,
                 ],
             );
 
@@ -257,11 +374,11 @@ class CatalogueSeeder extends Seeder
                             'diameter_in' => $diameter,
                             'width_in' => $width,
                             'et_mm' => $et,
-                            'bolt_circle_mm' => 112.0,
+                            'bolt_circle_mm' => $boltCircle,
                         ],
                         [
-                            'bolt_holes' => 5,
-                            'centre_bore_mm' => 66.60,
+                            'bolt_holes' => $boltHoles,
+                            'centre_bore_mm' => $centreBore,
                             'hump' => 'H2',
                             'bead_profile' => 'J',
                             'kba_number' => sprintf('%05d', 46_000 + $sku),
@@ -278,6 +395,41 @@ class CatalogueSeeder extends Seeder
                     );
                 }
             }
+        }
+    }
+
+    /**
+     * The cut-outs, finish by finish, from the photograph map. A demo finish that is not in the
+     * map — or whose cut-out has not been rendered on this machine — carries NULL and draws the
+     * outline: missing data fails closed, it never borrows another finish's picture.
+     */
+    private function attachPhotographs(): void
+    {
+        $demoModelIds = WheelModel::query()->where('is_demo', true)->pluck('id');
+
+        WheelFinish::query()
+            ->whereIn('wheel_model_id', $demoModelIds)
+            ->whereNotNull('image_manifest')
+            ->update(['image_manifest' => null]);
+
+        foreach (DemoWheels::photos() as $photo) {
+            $model = WheelModel::query()->where('slug', $photo['model'])->first();
+
+            if ($model === null) {
+                continue;
+            }
+
+            $finish = WheelFinish::query()
+                ->where('wheel_model_id', $model->id)
+                ->where('name_de', $photo['finish'])
+                ->first();
+
+            if ($finish === null) {
+                continue;
+            }
+
+            $finish->image_manifest = DemoWheels::manifest($photo['slug']);
+            $finish->save();
         }
     }
 

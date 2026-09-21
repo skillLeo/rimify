@@ -22,7 +22,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Five approval documents, and the fitment rows that hang off them.
+ * Eight approval documents, and the fitment rows that hang off them.
  *
  * The fitment row is the primary object in this database: compatibility is a relationship between
  * a vehicle, a wheel configuration and the document that permits it, never an attribute of the
@@ -33,6 +33,9 @@ use Illuminate\Support\Facades\DB;
  * the system treats as a hard block, because there is no safe way to average "you need a TÜV
  * appointment" with "you do not". It is seeded as a DRAFT row plus an open, blocking conflict, so
  * the storefront is unaffected and the admin panel has a genuine unresolved conflict on day one.
+ *
+ * The last three cover the demo catalogue's remaining ranges (Brock, MAM, and the ALCAR brands
+ * Dezent and AEZ), so a model with a photograph also has a car it may go on.
  */
 class ApprovalSeeder extends Seeder
 {
@@ -51,6 +54,9 @@ class ApprovalSeeder extends Seeder
         'bbs' => ['BBS'],
         'yido' => ['YIDO', 'rotiform'],
         'conflicting' => ['BORBET'],
+        'brock' => ['Brock'],
+        'mam' => ['MAM'],
+        'alcar' => ['Dezent', 'AEZ'],
     ];
 
     public function run(): void
@@ -90,7 +96,10 @@ class ApprovalSeeder extends Seeder
      *     oz: ApprovalDocument,
      *     bbs: ApprovalDocument,
      *     yido: ApprovalDocument,
-     *     conflicting: ApprovalDocument
+     *     conflicting: ApprovalDocument,
+     *     brock: ApprovalDocument,
+     *     mam: ApprovalDocument,
+     *     alcar: ApprovalDocument
      * }
      */
     private function seedDocuments(): array
@@ -139,6 +148,30 @@ class ApprovalSeeder extends Seeder
                 now()->subMonths(1)->toDateString(),
                 null,
                 7,
+            ),
+            'brock' => $this->document(
+                'TG-2026-0006',
+                ApprovalKind::Teilegutachten,
+                'TÜV NORD',
+                now()->subMonths(6)->toDateString(),
+                null,
+                12,
+            ),
+            'mam' => $this->document(
+                'TG-2026-0007',
+                ApprovalKind::Teilegutachten,
+                'TÜV SÜD',
+                now()->subMonths(5)->toDateString(),
+                null,
+                10,
+            ),
+            'alcar' => $this->document(
+                'TG-2026-0008',
+                ApprovalKind::Teilegutachten,
+                'TÜV Rheinland',
+                now()->subMonths(4)->toDateString(),
+                null,
+                16,
             ),
         ];
     }

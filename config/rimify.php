@@ -110,6 +110,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Demo catalogue imagery
+    |--------------------------------------------------------------------------
+    |
+    | Where `wheels:process-images` writes the transparent cut-outs of the demo wheels, and where
+    | CatalogueSeeder reads their manifests from. Relative paths are taken from the project root.
+    | The test suite points `wheels_dir` at an empty directory (phpunit.xml) so a test never picks
+    | up whatever this machine happens to have rendered.
+    */
+    'demo' => [
+        'wheels_dir' => env('RIMIFY_DEMO_WHEELS_DIR', 'storage/app/public/demo/wheels'),
+        // The URL the manifests' `base` starts with: the public disk's symlink.
+        'public_base' => env('RIMIFY_DEMO_WHEELS_URL', '/storage/demo/wheels'),
+        // The free-licence source photographs, credited in docs/image-credits.md.
+        'sources_dir' => env('RIMIFY_DEMO_SOURCES_DIR', 'storage/app/public/placeholder'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Approval documents
     |--------------------------------------------------------------------------
     */

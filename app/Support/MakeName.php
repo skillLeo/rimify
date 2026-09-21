@@ -46,6 +46,10 @@ final class MakeName
         'alutec' => 'ALUTEC',
         'yido' => 'YIDO',
         'rotiform' => 'Rotiform',
+        'brock' => 'Brock',
+        'mam' => 'MAM',
+        'dezent' => 'Dezent',
+        'aez' => 'AEZ',
     ];
 
     public static function normalise(string $name): string

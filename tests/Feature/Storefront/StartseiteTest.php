@@ -7,19 +7,27 @@ use App\Domain\Storefront\VehicleContext;
 use App\Models\Setting;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
+use App\Support\DemoWheels;
 use Database\Seeders\AccessSeeder;
+use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\DemoWheelFixtures;
 
 /**
  * The homepage props: everything on the page is data, and the data has the shape the sections
  * expect. Nothing here is a placeholder.
  */
 beforeEach(function (): void {
+    $this->dir = DemoWheelFixtures::emptyDir();
     $this->seed(CommerceSeeder::class);
     $this->seed(AccessSeeder::class);
     $this->seed(ContentSeeder::class);
+});
+
+afterEach(function (): void {
+    DemoWheelFixtures::remove($this->dir);
 });
 
 it('ships the hero with a real product and its own values', function (): void {
@@ -31,11 +39,46 @@ it('ships the hero with a real product and its own values', function (): void {
             ->has('hero.product.spec', 4)
             ->where('hero.product.spec.0.label', 'Breite × Durchmesser')
             ->has('hero.product.config.widthIn')
+            // No cut-out rendered: the bundled stand-in, named as such.
             ->where('hero.product.image', 'hero-wheel')
+            ->where('hero.product.imageManifest', null)
+            ->where('hero.product.symbolic', true)
             ->has('hero.stats.gutachten')
             ->has('selector.makes')
             ->has('promises', 4)
+            // Seeded rows are demonstration data, and the page is told so.
+            ->where('demo', true)
         );
+});
+
+it('shows the hero finish under its own cut-out once the catalogue has one', function (): void {
+    $hero = WheelModel::query()->where('status', 'published')->orderBy('id')->firstOrFail();
+    $photo = collect(DemoWheels::photos())->firstWhere('model', $hero->slug);
+
+    expect($photo)->not->toBeNull('the hero product must have a photograph in wheel-photos.php');
+
+    DemoWheelFixtures::write($this->dir, [$photo['slug']]);
+    $this->seed(CatalogueSeeder::class);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.product.slug', $hero->slug)
+        // The finish shown is the one with the picture, not merely the cheapest.
+        ->where('hero.product.finish', $photo['finish'])
+        ->where('hero.product.image', 'hero-wheel')
+        ->where('hero.product.imageManifest.name', $photo['slug'])
+        ->where('hero.product.imageManifest.fallback', 'png')
+        ->has('hero.product.imageManifest.wide.height')
+        ->where('hero.product.symbolic', false)
+    );
+});
+
+it('tells the listing that the catalogue is demonstration data', function (): void {
+    $this->get('/felgen')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', true));
+
+    WheelModel::query()->update(['is_demo' => false]);
+
+    $this->get('/felgen')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false));
 });
 
 it('shows the admin-chosen hero product', function (): void {

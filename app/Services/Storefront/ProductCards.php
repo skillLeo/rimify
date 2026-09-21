@@ -11,6 +11,7 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
+use App\Support\DemoWheels;
 use App\Support\GermanFormat;
 use Illuminate\Support\Facades\DB;
 
@@ -162,7 +163,7 @@ final readonly class ProductCards
             ->when($modelIds !== null, fn ($q) => $q->whereIn('wm.id', $modelIds))
             ->groupBy(
                 'wm.id', 'wm.name', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
-                'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish',
+                'wm.is_demo', 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish', 'wf.image_manifest',
             )
             ->when($maxPriceCents !== null, fn ($q) => $q->havingRaw('MIN(wc.price_cents) <= ?', [(int) $maxPriceCents]))
             ->when($modelIds !== null, fn ($q) => $q->orderByRaw(
@@ -184,10 +185,12 @@ final readonly class ProductCards
                 'wm.spoke_count',
                 'wm.rating',
                 'wm.rating_count',
+                'wm.is_demo',
                 'br.name as brand_name',
                 'wf.id as finish_id',
                 'wf.name_de as finish_name',
                 'wf.art_finish',
+                'wf.image_manifest',
                 DB::raw('MIN(wc.price_cents) as from_price_cents'),
                 DB::raw('MAX(wc.stock_qty) as best_stock_qty'),
                 DB::raw('GROUP_CONCAT(DISTINCT wc.diameter_in ORDER BY wc.diameter_in) as diameters'),
@@ -211,6 +214,8 @@ final readonly class ProductCards
                 stockQty: (int) $row->best_stock_qty,
                 diameters: $this->diameters(is_string($row->diameters) ? $row->diameters : ''),
                 fitment: null,
+                image: $this->manifest($row->image_manifest),
+                isDemo: (bool) $row->is_demo,
             );
         }
 
@@ -222,7 +227,7 @@ final readonly class ProductCards
      * about this card's configurations on the chosen car.
      *
      * @param  array<string, mixed>  $row
-     * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int}>  $presentation
+     * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, image: array<string, mixed>|null, is_demo: bool}>  $presentation
      * @param  array<string, list<string>>  $diameters
      * @param  array{status: string, requiresEntry: bool, conditions: list<string>}  $claim
      * @return array<string, mixed>
@@ -234,7 +239,7 @@ final readonly class ProductCards
         $key = $modelId.':'.$finishId;
 
         $look = $presentation[$key] ?? [
-            'art_finish' => 'graphite', 'spoke_count' => 5, 'rating' => null, 'rating_count' => 0,
+            'art_finish' => 'graphite', 'spoke_count' => 5, 'rating' => null, 'rating_count' => 0, 'image' => null, 'is_demo' => false,
         ];
 
         return $this->card(
@@ -252,12 +257,15 @@ final readonly class ProductCards
             stockQty: (int) ($row['best_stock_qty'] ?? 0),
             diameters: $diameters[$key] ?? [],
             fitment: $claim,
+            image: $look['image'],
+            isDemo: $look['is_demo'],
         );
     }
 
     /**
      * @param  list<string>  $diameters
      * @param  array<string, mixed>|null  $fitment
+     * @param  array<string, mixed>|null  $image
      * @return array<string, mixed>
      */
     private function card(
@@ -275,6 +283,8 @@ final readonly class ProductCards
         int $stockQty,
         array $diameters,
         ?array $fitment,
+        ?array $image,
+        bool $isDemo,
     ): array {
         return [
             'modelId' => $modelId,
@@ -285,6 +295,11 @@ final readonly class ProductCards
             'finishName' => $finishName,
             // The two arguments wheelSVG() takes. Without them every card draws the same wheel.
             'art' => ['finish' => $artFinish, 'spokes' => $spokeCount],
+            // This finish's own cut-out as `Picture` reads it, or null: a card without a
+            // photograph draws the outline and never borrows another finish's picture.
+            'image' => $image,
+            // A seeded demonstration row. The page says so, once; the card carries the fact.
+            'isDemo' => $isDemo,
             'rating' => $rating,
             'ratingCount' => $ratingCount,
             'ratingLabel' => $rating === null ? null : GermanFormat::rating($rating, $ratingCount),
@@ -302,7 +317,7 @@ final readonly class ProductCards
      *
      * @param  list<int>  $modelIds
      * @param  list<int>  $finishIds
-     * @return array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int}>
+     * @return array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, image: array<string, mixed>|null, is_demo: bool}>
      */
     private function presentationFor(array $modelIds, array $finishIds): array
     {
@@ -314,7 +329,7 @@ final readonly class ProductCards
             ->join('wheel_finishes as wf', 'wf.wheel_model_id', '=', 'wm.id')
             ->whereIn('wm.id', $modelIds)
             ->whereIn('wf.id', $finishIds)
-            ->get(['wm.id as model_id', 'wf.id as finish_id', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wf.art_finish']);
+            ->get(['wm.id as model_id', 'wf.id as finish_id', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.is_demo', 'wf.art_finish', 'wf.image_manifest']);
 
         $out = [];
 
@@ -324,10 +339,26 @@ final readonly class ProductCards
                 'spoke_count' => (int) $row->spoke_count,
                 'rating' => $row->rating === null ? null : (float) $row->rating,
                 'rating_count' => (int) $row->rating_count,
+                'image' => $this->manifest($row->image_manifest),
+                'is_demo' => (bool) $row->is_demo,
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * The stored manifest as an array, or null when there is none or it is not one `Picture`
+     * could render. A malformed manifest fails closed to the drawing rather than to a broken
+     * image (CLAUDE.md §2).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function manifest(mixed $stored): ?array
+    {
+        $decoded = is_string($stored) ? json_decode($stored, true) : $stored;
+
+        return DemoWheels::wellFormed($decoded) ? $decoded : null;
     }
 
     /**

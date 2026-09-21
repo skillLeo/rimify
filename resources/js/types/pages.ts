@@ -11,6 +11,7 @@ import type {
     BasketLine,
     BasketTotals,
     Facets,
+    ImageManifest,
     ProductCardProp,
     VerdictStatus,
 } from './rimify'
@@ -49,9 +50,15 @@ export interface HeroProduct {
     finish: string
     fromPriceCents: number
     fromPrice: string
-    /** Name of the cut-out manifest in `resources/js/images/` (the hero photo). */
+    /** Name of a bundled cut-out manifest in `resources/js/images/` (`hero-wheel`): the stand-in the page can always render. */
     image: string
-    /** True while a free-licence photograph stands in for the supplier's packshot. */
+    /**
+     * The hero finish's own cut-out (`wheel_finishes.image_manifest`, with the 4:3 frame under
+     * `wide`) when the catalogue has one. Takes precedence over `image`; null (the server always
+     * sends the key) or absent (a fixture) means the stand-in.
+     */
+    imageManifest?: (ImageManifest & { wide?: ImageManifest }) | null
+    /** True while the stand-in photograph is shown — i.e. whenever `imageManifest` is null. */
     symbolic: boolean
     config: {
         widthIn: number
@@ -88,12 +95,32 @@ export interface EuTyreLabel {
     eprelId: string | null
 }
 
+/** The vehicle's original size, the calculator's *Aktuell* — real data from the documents, or null. */
 export interface CalculatorPrefill {
     widthIn: number
     diameterIn: number
     etMm: number
     tyreWidth: number
     aspect: number
+}
+
+/** One side of the calculator, as `lib/fitmentMath`'s `WheelSetup` writes it. */
+export interface RechnerSetup {
+    widthIn: number
+    diameterIn: number
+    etMm: number
+    tyreWidthMm: number
+    aspect: number
+}
+
+/**
+ * /felgenrechner: the vehicle's prefill as the homepage has it, and the comparison a shared link
+ * carried in `?rechner=` — parsed on the server so the first paint already shows it; null when
+ * the parameter is absent or not something the form offers (never an error page).
+ */
+export interface FelgenrechnerProps {
+    prefill: CalculatorPrefill | null
+    state: { current: RechnerSetup; next: RechnerSetup } | null
 }
 
 export interface GuideTeaser {
@@ -146,6 +173,11 @@ export interface StartseiteProps {
     partners: { enabled: boolean; demo: boolean }
     guides: GuideTeaser[]
     faq: FaqPreview[]
+    /**
+     * True while any published wheel model is seeded demo data (`wheel_models.is_demo`). The page
+     * then shows the *Demodaten* note; the flag disappears with the rows before launch.
+     */
+    demo: boolean
 }
 
 export interface SelectorProps {
@@ -189,6 +221,8 @@ export interface FelgenProps {
     facets: Facets
     filters: Record<string, unknown>
     page?: number
+    /** True while any published wheel model is seeded demo data; the listing shows the *Demodaten* note. */
+    demo: boolean
 }
 
 export interface ProduktProps {
@@ -242,6 +276,34 @@ export interface ConfigVerdict {
     reasonCode: string | null
     document: { number: string | null; issuer: string | null; kind: string } | null
     tyreSizes: string[]
+}
+
+/** One column of `/vergleich`: the card plus the figures the table lines up (home-overhaul.md §2.6). */
+export interface CompareItem extends ProductCardProp {
+    specs: {
+        /** `8 J × 18 · 8,5 J × 19` — one entry per distinct width × diameter. */
+        sizes: string[]
+        /** `ET 35 – ET 45`, or one value. */
+        etRange: string
+        /** `LK 5 × 112` */
+        boltPattern: string
+        /** `66,6 mm` */
+        centreBore: string
+        documents: { kind: 'ABE' | 'Teilegutachten' | 'ECE' | 'EG-Genehmigung'; number: string | null }[]
+    }
+    /** Merged toward caution across the model's configurations; null without a vehicle. */
+    verdict: ConfigVerdict | null
+    /** Decided on the server: the page never picks a size. */
+    buy: { kind: 'basket'; configId: number; sizeLabel: string } | { kind: 'choose'; href: string } | { kind: 'none' }
+}
+
+export interface VergleichProps {
+    items: CompareItem[]
+    /** Keys that were asked for and are no longer in the range. */
+    missing: number
+    cap: 4
+    /** Any product on the page is seeded demo data: the page carries the note once. */
+    demo: boolean
 }
 
 export interface CheckErgebnisProps {
