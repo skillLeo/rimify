@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { finishFor, roughnessFor } from './finish'
-import { decideStage, motionAllowed, type LadderEnv } from './ladder'
+import { decideStage, hasWebgl2, motionAllowed, type LadderEnv } from './ladder'
 import { HERO_MODEL_3D as model } from './model'
 import { boxToFrame, cameraDistanceMm, framing, projectTargets, SLOT_KEYS, tyreOuterRadiusMm, tyreSectionFromTitle } from './targets'
 import { tyreProfile } from './tyre'
@@ -154,5 +154,54 @@ describe('decideStage', () => {
         expect(decideStage({ ...desktop, hasModel: false })).toBe('sequence')
         expect(decideStage({ ...desktop, saveData: true })).toBe('sequence')
         expect(decideStage({ ...desktop, webgl2: false, hasSequence: false })).toBe('poster')
+    })
+})
+
+describe('hasWebgl2', () => {
+    const RENDERER = 0x1f01
+
+    /** A probe context answering `RENDERER` with `named`, and the debug extension with `unmasked` when asked. */
+    function context(named: string, unmasked: string | null): { getExtension: ReturnType<typeof vi.fn>; getParameter: ReturnType<typeof vi.fn> } {
+        const getExtension = vi.fn((name: string) => (name === 'WEBGL_debug_renderer_info' && unmasked !== null ? { UNMASKED_RENDERER_WEBGL: 0x9246 } : null))
+        const getParameter = vi.fn((p: number) => (p === RENDERER ? named : p === 0x9246 ? unmasked : null))
+        Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+            value: (kind: string, options: { failIfMajorPerformanceCaveat?: boolean }) =>
+                kind === 'webgl2' && options?.failIfMajorPerformanceCaveat === true ? { RENDERER, getExtension, getParameter, isContextLost: () => false } : null,
+            configurable: true,
+            writable: true,
+        })
+
+        return { getExtension, getParameter }
+    }
+
+    afterEach(() => {
+        Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', { value: () => null, configurable: true, writable: true })
+    })
+
+    it('reads RENDERER and never asks the deprecated extension when the string names a GPU', () => {
+        const gl = context('ANGLE (Intel, Intel(R) HD Graphics Direct3D11 vs_5_0 ps_5_0), or similar', 'Intel')
+
+        expect(hasWebgl2()).toBe(true)
+        expect(gl.getExtension).not.toHaveBeenCalled()
+    })
+
+    it('asks the extension only behind the generic WebKit string, and rejects a software renderer either way', () => {
+        const masked = context('WebKit WebGL', 'Apple M2')
+        expect(hasWebgl2()).toBe(true)
+        expect(masked.getExtension).toHaveBeenCalledWith('WEBGL_debug_renderer_info')
+
+        context('WebKit WebGL', 'Google SwiftShader')
+        expect(hasWebgl2()).toBe(false)
+
+        context('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)', null)
+        expect(hasWebgl2()).toBe(false)
+
+        context('llvmpipe (LLVM 15.0.7, 256 bits)', null)
+        expect(hasWebgl2()).toBe(false)
+    })
+
+    it('is false without a context', () => {
+        Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', { value: () => null, configurable: true, writable: true })
+        expect(hasWebgl2()).toBe(false)
     })
 })

@@ -62,10 +62,15 @@ export function probe(isMobile: boolean, hasModel: boolean, hasSequence: boolean
 /** Renderers that are WebGL in name only: the page would spend the CPU the poster does not need. */
 const SOFTWARE_RENDERER = /swiftshader|llvmpipe|softpipe|software|mesa offscreen|basic render/i
 
+/** What Safari and WebKit answer to `RENDERER` when they hide the GPU; only then is the extension worth asking. */
+const GENERIC_RENDERER = /^(webkit webgl|mozilla|webgl)$/i
+
 /**
  * WebGL2 on a real GPU. The probe context is left to the garbage collector on purpose: losing
  * it by hand makes Firefox print "WebGL context was lost" to the console, which the console
- * gate rightly treats as a warning.
+ * gate rightly treats as a warning. `RENDERER` is read first — Firefox deprecates
+ * `WEBGL_debug_renderer_info` with a console warning of its own — and the extension is consulted
+ * only when `RENDERER` is the generic string WebKit returns.
  */
 export function hasWebgl2(): boolean {
     try {
@@ -74,12 +79,19 @@ export function hasWebgl2(): boolean {
             | (Partial<WebGL2RenderingContext> & { isContextLost?: () => boolean })
             | null
 
-        if (gl === null || gl.isContextLost?.() === true) {
+        if (gl === null || gl.isContextLost?.() === true || typeof gl.getParameter !== 'function') {
             return false
         }
 
-        const debug = gl.getExtension?.('WEBGL_debug_renderer_info') as { UNMASKED_RENDERER_WEBGL: number } | null | undefined
-        const renderer = debug && gl.getParameter ? String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)) : ''
+        let renderer = String(gl.getParameter(gl.RENDERER ?? 0x1f01) ?? '')
+
+        if (GENERIC_RENDERER.test(renderer.trim())) {
+            const debug = gl.getExtension?.('WEBGL_debug_renderer_info') as { UNMASKED_RENDERER_WEBGL: number } | null | undefined
+
+            if (debug) {
+                renderer = String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) ?? '')
+            }
+        }
 
         return !SOFTWARE_RENDERER.test(renderer)
     } catch {

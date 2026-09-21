@@ -103,9 +103,11 @@ function intersecting(): void {
     )
 }
 
+/** A WebGL2 context on a real GPU (as `RENDERER` names it), or none at all. */
 function webgl(present: boolean): void {
     Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
-        value: () => (present ? { getExtension: () => null } : null),
+        value: () =>
+            present ? { RENDERER: 0x1f01, getParameter: () => 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0)', getExtension: () => null } : null,
         configurable: true,
         writable: true,
     })

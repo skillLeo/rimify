@@ -55,6 +55,17 @@ const MM = 0.001
 const { scene, renderer, invalidate } = useTres()
 const { onRender } = useLoop()
 
+/*
+ * three reads every program's info log after linking and prints it as a warning when it is not
+ * empty — on ANGLE/Direct3D (Firefox and WebKit on Windows) the HLSL compiler notes X4122
+ * precision remarks inside three's own PMREM convolution shader, which is no defect of ours.
+ * three documents `checkShaderErrors` as the production switch for exactly this read; it stays
+ * on in development, where a broken shader must be seen.
+ */
+if ('debug' in renderer && typeof renderer.debug === 'object') {
+    renderer.debug.checkShaderErrors = import.meta.env.DEV
+}
+
 const group = new Group()
 const frame = framing(props.model, props.tyre)
 /** On the axle, looking at the wheel's centre — a camera's rest orientation looks down −Z already. */
@@ -150,6 +161,32 @@ function buildTyre(tyre: TyreSection): Mesh {
     return new Mesh(geometry, material)
 }
 
+/**
+ * The HDR arrives as a `DataTexture` with `flipY = true`; a data upload with a y-flip makes
+ * Firefox warn ("Alpha-premult and y-flip are deprecated for non-DOM-Element uploads"). The rows
+ * are turned over here instead, once, and the texture uploaded as it is — the same picture, so
+ * the environment keeps its orientation.
+ */
+function preflipRows(texture: Texture): void {
+    const image = texture.image as { data: Uint16Array | Float32Array; width: number; height: number }
+    const { data, width, height } = image
+    const channels = data.length / (width * height)
+    const row = width * channels
+    const tmp = data.slice(0, row)
+
+    for (let y = 0; y < Math.floor(height / 2); y++) {
+        const a = y * row
+        const b = (height - 1 - y) * row
+        tmp.set(data.subarray(a, a + row))
+        data.copyWithin(a, b, b + row)
+        data.set(tmp, b)
+    }
+
+    texture.flipY = false
+    texture.premultiplyAlpha = false
+    texture.needsUpdate = true
+}
+
 function withTimeout<T>(promise: Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
         timeout = window.setTimeout(() => reject(new Error('3D load timeout')), LOAD_TIMEOUT_MS)
@@ -184,6 +221,7 @@ onMounted(async () => {
             return
         }
 
+        preflipRows(hdr)
         hdr.mapping = EquirectangularReflectionMapping
         disposables.push(hdr)
         scene.value.environment = hdr

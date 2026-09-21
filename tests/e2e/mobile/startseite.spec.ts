@@ -193,9 +193,11 @@ test.describe('Startseite/Mobile', () => {
         // A narrow no-break space joins the number and the €, as format.ts writes it.
         await expect(page.locator('#h5 .tile__price').first()).toHaveText(/^ab \d{1,3}(\.\d{3})*,\d{2}[\s ]€\s?pro Felge$/)
 
-        await page.getByRole('tab', { name: 'Neu' }).click()
+        // Scoped to the row: the calculator teaser has a tab named "Neu" as well.
+        const neu = page.locator('#h5').getByRole('tab', { name: 'Neu' })
+        await neu.click()
         await expect.poll(() => new URL(page.url()).searchParams.get('beliebt')).toBe('neu')
-        await expect(page.getByRole('tab', { name: 'Neu' })).toHaveAttribute('aria-selected', 'true')
+        await expect(neu).toHaveAttribute('aria-selected', 'true')
         expect(await page.locator('#h5 .tile').count()).toBeGreaterThanOrEqual(1)
     })
 
