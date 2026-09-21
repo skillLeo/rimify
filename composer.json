@@ -77,9 +77,11 @@
             "@php vendor/bin/pest --coverage --min=85",
             "npx vue-tsc --noEmit",
             "npm run lint:css",
+            "npm run lint",
             "npx vitest run --coverage",
             "npm run build",
             "npx playwright test",
+            "npx playwright test -c tests/e2e/mobile/playwright.config.ts",
             "npm run qa"
         ],
         "verify:php": [
