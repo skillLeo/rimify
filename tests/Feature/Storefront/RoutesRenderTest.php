@@ -29,15 +29,29 @@ it('renders the homepage with real catalogue cards', function (): void {
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page
-                ->component('Startseite/Index')
-                ->has('bestsellers', 8)
-                ->has('makes')
+                ->component('Startseite/Desktop')
+                ->has('popular.cards', 8)
+                ->has('selector.makes')
                 ->has('brands')
                 // Without these two the card draws the same grey five-spoke wheel twelve times.
-                ->has('bestsellers.0.art.finish')
-                ->has('bestsellers.0.art.spokes')
-                ->where('bestsellers.0.fitment', null)
+                ->has('popular.cards.0.art.finish')
+                ->has('popular.cards.0.art.spokes')
+                // No vehicle, no claim: the catalogue row carries no fitment line at all.
+                ->where('popular.cards.0.fitment', null)
         );
+});
+
+it('renders the phone homepage for a phone and the desktop one for everything else', function (): void {
+    $mobile = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36';
+
+    // The desktop request first: `withHeaders()` keeps its headers for the rest of the test.
+    $this->get('/')
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Startseite/Desktop')->where('isMobile', false));
+
+    $this->withHeaders(['User-Agent' => $mobile])
+        ->get('/')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Startseite/Mobile')->where('isMobile', true));
 });
 
 it('ships the header mode and the menus on every page', function (): void {

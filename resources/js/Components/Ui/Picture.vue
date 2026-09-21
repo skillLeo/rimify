@@ -15,6 +15,8 @@ export interface ImageManifest {
     height: number
     widths: number[]
     placeholder: string
+    /** The format of the `<img>` fallback: `jpg` (the default) or `png` for a transparent cut-out. */
+    fallback?: string
 }
 
 const props = withDefaults(
@@ -33,7 +35,9 @@ const emit = defineEmits<{ (e: 'loaded'): void }>()
 const loaded = ref(false)
 
 const srcset = (ext: string): string => props.image.widths.map((w) => `${props.image.base}-${w}.${ext} ${w}w`).join(', ')
-const fallback = computed(() => `${props.image.base}-${props.image.widths[props.image.widths.length - 1]}.jpg`)
+// The manifest names its own fallback format: a cut-out with transparency ships PNG, a photo JPEG.
+const fallbackExt = computed(() => props.image.fallback ?? 'jpg')
+const fallback = computed(() => `${props.image.base}-${props.image.widths[props.image.widths.length - 1]}.${fallbackExt.value}`)
 
 function onLoad(): void {
     loaded.value = true
@@ -47,7 +51,7 @@ function onLoad(): void {
         <source type="image/webp" :srcset="srcset('webp')" :sizes="sizes" />
         <img
             :src="fallback"
-            :srcset="srcset('jpg')"
+            :srcset="srcset(fallbackExt)"
             :sizes="sizes"
             :alt="alt"
             :width="image.width"
