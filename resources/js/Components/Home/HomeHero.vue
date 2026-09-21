@@ -1,0 +1,512 @@
+<script setup lang="ts">
+/**
+ * H2 — the hero of the desktop homepage: the question, the selector, and one real wheel.
+ *
+ * Left, the `h1`, the subline and the selector panel. Right, the stage: a front-facing cut-out
+ * standing on a contact shadow in a pool of studio light, with four measured values pointed at the
+ * real thing by thin leader lines. Every value on the stage is the chosen product's own, formatted
+ * on the server; nothing here is typed.
+ *
+ * Signature moment 1, "Studio light": when the photograph has painted, one light pass crosses the
+ * wheel (900 ms, once); when that ends, the leader lines draw in. A fine pointer rolls the wheel
+ * ±8° as it moves across the frame. Under reduced motion nothing moves and the lines are there
+ * from the first paint.
+ *
+ * The photograph's targets are calibrated once against the cut-out and live in the manifest
+ * (`resources/js/images/hero-wheel.json` → `targets`), so a later cut-out swap edits data, not code.
+ */
+
+import { usePage } from '@inertiajs/vue3'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import Picture, { type ImageManifest } from '../Ui/Picture.vue'
+import SpecCallout from '../Ui/SpecCallout.vue'
+import WheelOutline from '../Ui/WheelOutline.vue'
+import HeroSelector from './HeroSelector.vue'
+import { euro } from '../../format'
+import heroWheel from '../../images/hero-wheel.json'
+import type { MakeOption, StartseiteProps } from '../../types/pages'
+import type { SharedProps } from '../../types/rimify'
+
+const props = defineProps<{
+    hero: StartseiteProps['hero']
+    selector: { makes: MakeOption[] }
+}>()
+
+type TargetKey = 'widthDiameter' | 'offset' | 'boltCircle' | 'centreBore'
+
+type Targets = Record<TargetKey, { tx: number; ty: number }>
+
+interface CutoutManifest extends ImageManifest {
+    /** Calibrated once against the cut-out; a regenerated manifest without them falls back below. */
+    targets?: Targets
+}
+
+/* The cut-out manifests the page knows; `hero.product.image` names one of them. */
+const MANIFESTS: Readonly<Record<string, CutoutManifest>> = { 'hero-wheel': heroWheel as CutoutManifest }
+
+/* The calibrated targets for the current cut-out (frame %, §H2), used when a manifest carries none. */
+const DEFAULT_TARGETS: Targets = {
+    widthDiameter: { tx: 35, ty: 11 },
+    offset: { tx: 59, ty: 41 },
+    boltCircle: { tx: 59, ty: 50 },
+    centreBore: { tx: 50, ty: 44 },
+}
+
+/* Where each callout box sits (frame %, §H2); the line's target comes from the manifest. */
+const SLOTS: readonly { key: TargetKey; x: number; y: number; label: RegExp }[] = [
+    { key: 'widthDiameter', x: 4, y: 10, label: /größe|breite|durchmesser/i },
+    { key: 'offset', x: 70, y: 8, label: /einpress|\bET\b/i },
+    { key: 'boltCircle', x: 72, y: 68, label: /lochkreis|\bLK\b/i },
+    { key: 'centreBore', x: 6, y: 72, label: /mittenloch|\bMLB\b/i },
+]
+
+const SUBLINE =
+    'Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen. Du gibst dein Auto an, wir prüfen den Rest.'
+
+const page = usePage<SharedProps>()
+const vehicle = computed(() => page.props.vehicle)
+const product = computed(() => props.hero.product)
+const manifest = computed<CutoutManifest>(() => MANIFESTS[product.value?.image ?? ''] ?? (heroWheel as CutoutManifest))
+
+const title = computed(() =>
+    vehicle.value === null ? props.hero.title : `Felgen, die an deinen ${vehicle.value.short} dürfen.`
+)
+const subline = computed(() => (props.hero.subline.trim() === '' ? SUBLINE : props.hero.subline))
+
+const alt = computed(() =>
+    product.value === null ? '' : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`
+)
+const perWheel = computed(() => (product.value === null ? '' : euro(Math.round(product.value.fromPriceCents / 4))))
+
+/** Each server value on its slot: matched by what the label says, else by the order shipped. */
+const callouts = computed(() => {
+    if (product.value === null) {
+        return []
+    }
+
+    const free = [...SLOTS]
+    const out: { key: TargetKey; label: string; value: string; x: number; y: number; tx: number; ty: number }[] = []
+
+    for (const entry of product.value.spec) {
+        const at = free.findIndex((slot) => slot.label.test(entry.label))
+        const slot = at >= 0 ? free.splice(at, 1)[0] : free.shift()
+
+        if (slot === undefined) {
+            break
+        }
+
+        const target = (manifest.value.targets ?? DEFAULT_TARGETS)[slot.key]
+        out.push({ key: slot.key, label: entry.label, value: entry.value, x: slot.x, y: slot.y, tx: target.tx, ty: target.ty })
+    }
+
+    return out
+})
+
+/* ── Signature moment 1 ──────────────────────────────────────────────────────── */
+
+const frame = ref<HTMLElement | null>(null)
+const sweep = ref<HTMLElement | null>(null)
+const lit = ref(false)
+const ready = ref(false)
+const failed = ref(false)
+const roll = ref(0)
+
+let reduced = false
+let rolling = false
+
+function onLoaded(): void {
+    if (lit.value) {
+        return
+    }
+
+    lit.value = true
+
+    if (reduced) {
+        ready.value = true
+
+        return
+    }
+
+    // If the sweep cannot run, the lines still draw: the moment never blocks the content.
+    void nextTick(() => {
+        const el = sweep.value
+
+        if (el === null || typeof el.getAnimations !== 'function' || el.getAnimations().length === 0) {
+            ready.value = true
+        }
+    })
+}
+
+function onSweepEnd(): void {
+    ready.value = true
+}
+
+function onError(): void {
+    failed.value = true
+    ready.value = true
+}
+
+function onMove(event: PointerEvent): void {
+    if (event.pointerType !== 'mouse' || frame.value === null) {
+        return
+    }
+
+    const rect = frame.value.getBoundingClientRect()
+    const half = rect.width / 2
+
+    if (half <= 0) {
+        return
+    }
+
+    roll.value = Math.max(-8, Math.min(8, ((event.clientX - rect.left - half) / half) * 8))
+}
+
+function onLeave(): void {
+    roll.value = 0
+}
+
+onMounted(() => {
+    reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    // A cached photograph may have loaded before hydration, and `load` will not fire again.
+    const img = frame.value?.querySelector('img') ?? null
+
+    if (img !== null && img.complete && img.getAttribute('src') !== null) {
+        if (img.naturalWidth > 0) {
+            onLoaded()
+        } else {
+            onError()
+        }
+    }
+
+    // The roll belongs to a fine pointer only, and never under reduced motion: the listener is
+    // not attached at all otherwise.
+    if (!reduced && window.matchMedia('(hover: hover) and (pointer: fine)').matches && frame.value !== null) {
+        frame.value.addEventListener('pointermove', onMove)
+        frame.value.addEventListener('pointerleave', onLeave)
+        rolling = true
+    }
+})
+
+onBeforeUnmount(() => {
+    if (rolling && frame.value !== null) {
+        frame.value.removeEventListener('pointermove', onMove)
+        frame.value.removeEventListener('pointerleave', onLeave)
+    }
+})
+</script>
+
+<template>
+    <section id="h2" class="hero band" data-section="H2" aria-labelledby="h2-title">
+        <div class="container hero__grid">
+            <div class="hero__copy">
+                <h1 id="h2-title" class="h1 hero__title">{{ title }}</h1>
+                <p class="body-l hero__subline">{{ subline }}</p>
+                <HeroSelector :selector="selector" class="hero__panel" />
+            </div>
+
+            <div class="hero__stage">
+                <div ref="frame" class="frame hero__frame" :class="{ 'is-lit': lit, 'is-ready': ready }">
+                    <div class="hero-studio" aria-hidden="true" />
+                    <div class="hero-contact" aria-hidden="true" />
+
+                    <a
+                        v-if="product"
+                        class="hero__link"
+                        :href="`/felgen/${product.slug}`"
+                        :aria-label="`Zur Felge ${product.brand} ${product.name}`"
+                    >
+                        <span class="hero__wheel" :class="{ 'hero__wheel--fallback': failed }" :style="{ '--roll': `${roll}deg` }">
+                            <Picture
+                                v-if="!failed"
+                                :image="manifest"
+                                :alt="alt"
+                                sizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, 70vw"
+                                eager
+                                class="hero__picture"
+                                @loaded="onLoaded"
+                                @error.capture="onError"
+                            />
+                            <WheelOutline v-else :bolts="product.config.boltHoles" />
+                            <span v-if="!failed" class="hero__sweep-mask" aria-hidden="true">
+                                <span ref="sweep" class="hero-sweep" @animationend="onSweepEnd" />
+                            </span>
+                        </span>
+                        <span class="hero__caption">
+                            <span class="small hero__caption-name">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
+                            <span class="small num muted">ab {{ perWheel }} · pro Felge</span>
+                        </span>
+                    </a>
+                    <span v-else class="hero__wheel hero__wheel--fallback" aria-hidden="true">
+                        <WheelOutline />
+                    </span>
+
+                    <SpecCallout
+                        v-for="c in callouts"
+                        :key="c.key"
+                        :label="c.label"
+                        :value="c.value"
+                        :x="c.x"
+                        :y="c.y"
+                        :tx="c.tx"
+                        :ty="c.ty"
+                    />
+                </div>
+
+                <p v-if="product?.symbolic" class="micro quiet hero__symbolic">Symbolbild – Werte der gezeigten Konfiguration</p>
+            </div>
+        </div>
+    </section>
+</template>
+
+<style scoped>
+.hero {
+    padding-block: var(--sp-48) var(--sp-64);
+    overflow-x: clip;
+}
+
+.hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-40) var(--gutter);
+    align-items: start;
+}
+
+.hero__copy {
+    min-width: 0;
+}
+
+.hero__title {
+    max-width: 14ch;
+    color: var(--c-ink);
+}
+
+.hero__subline {
+    max-width: 68ch;
+    margin-top: var(--sp-16);
+    color: var(--c-ink-2);
+}
+
+.hero__panel {
+    margin-top: var(--sp-32);
+}
+
+/* ── The stage ───────────────────────────────────────────────────────────────── */
+
+.hero__stage {
+    align-self: stretch;
+    min-width: 0;
+}
+
+/* 768–1023: the frame stands below the panel, 4 / 3, the wheel at 60 %. */
+.hero__frame {
+    --wheel-w: 60%;
+    --wheel-bottom: 16%;
+
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    aspect-ratio: 4 / 3;
+    isolation: isolate;
+}
+
+.hero-studio {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-base);
+    pointer-events: none;
+    /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+    background-image: radial-gradient(60% 50% at 50% 62%, var(--c-surface) 0%, rgb(255 255 255 / 0) 100%);
+}
+
+/* The ellipse the wheel stands on: 78 % of the wheel wide, 8 % of it tall, its centre 1 % above the wheel's bottom edge. */
+.hero-contact {
+    position: absolute;
+    left: 50%;
+    bottom: calc(var(--wheel-bottom) + 1%);
+    z-index: var(--z-base);
+    width: calc(var(--wheel-w) * 0.78);
+    aspect-ratio: 78 / 8;
+    transform: translate(-50%, 50%);
+    pointer-events: none;
+    /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+    background-image: radial-gradient(50% 50% at 50% 50%, rgb(11 15 20 / 0.28) 0%, rgb(11 15 20 / 0.12) 45%, rgb(11 15 20 / 0) 72%);
+}
+
+/* One link, one tab stop: the wheel and the caption are both inside it; it has no box of its own. */
+.hero__link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.hero__link:focus-visible {
+    outline: none;
+}
+
+.hero__link:focus-visible .hero__wheel {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
+    border-radius: var(--r-round);
+}
+
+.hero__wheel {
+    position: absolute;
+    left: calc((100% - var(--wheel-w)) / 2);
+    bottom: var(--wheel-bottom);
+    z-index: var(--z-raised);
+    width: var(--wheel-w);
+    aspect-ratio: 1;
+    transform: rotate(var(--roll, 0deg));
+    transition: transform var(--d-2) var(--ease-out);
+}
+
+.hero__wheel--fallback {
+    display: flex;
+    color: var(--c-ink-3);
+}
+
+.hero__wheel--fallback :deep(.outline) {
+    width: 60%;
+    height: 60%;
+}
+
+.hero__picture {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/*
+ * The light pass. The wheel's own alpha masks the wrapper — a mask on the moving element would
+ * travel with it — and the wrapper blends the pass into the photograph; the pass itself carries
+ * the gradient and the motion.
+ */
+.hero__sweep-mask {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-raised);
+    overflow: hidden;
+    pointer-events: none;
+    mask-image: url('/images/hero-wheel/hero-wheel-480.png');
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
+    mix-blend-mode: soft-light;
+}
+
+.hero-sweep {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transform: translateX(-100%);
+    /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+    background-image: linear-gradient(115deg, rgb(255 255 255 / 0) 35%, rgb(255 255 255 / 0.55) 50%, rgb(255 255 255 / 0) 65%);
+}
+
+.is-lit .hero-sweep {
+    animation: sweep calc(1.5 * var(--d-4)) var(--ease-std) forwards;
+}
+
+@keyframes sweep {
+    from {
+        transform: translateX(-100%);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(100%);
+        opacity: 1;
+    }
+}
+
+.hero__frame :deep(.callout-anchor) {
+    z-index: var(--z-raised);
+}
+
+.hero__caption {
+    position: absolute;
+    left: 4%;
+    bottom: 4%;
+    z-index: var(--z-raised);
+    display: grid;
+    gap: var(--sp-4);
+    max-width: 60%;
+}
+
+.hero__caption-name {
+    font-weight: 500;
+    color: var(--c-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .hero__link:hover .hero__caption-name {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+
+.hero__symbolic {
+    display: block;
+    margin-top: var(--sp-8);
+}
+
+/* ── 1024–1279: split 6 / 6, the stage bleeding to the viewport edge ───────── */
+
+@media (min-width: 1024px) {
+    .hero__grid {
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .hero__copy {
+        grid-column: span 6;
+    }
+
+    .hero__stage {
+        grid-column: span 6;
+        max-width: none;
+        margin-right: calc(-1 * var(--page-margin));
+    }
+
+    .hero__frame {
+        --wheel-w: 66%;
+
+        max-width: none;
+        max-height: 100%;
+        aspect-ratio: 5 / 4;
+    }
+}
+
+/* 1024–1279 the frame is 400 px tall and the Mittenlochbohrung box (y 72 %) would meet the caption; the caption sits under the box. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .hero__caption {
+        top: calc(72% + 56px + var(--sp-8));
+        bottom: auto;
+    }
+}
+
+/* ── ≥ 1280: split 5 / 7, the bleed reaching past the centred content ───────── */
+
+@media (min-width: 1280px) {
+    .hero__copy {
+        grid-column: span 5;
+    }
+
+    .hero__stage {
+        grid-column: span 7;
+        margin-right: calc((100vw - var(--content-max)) / -2);
+    }
+}
+
+/* ── Reduced motion: nothing moves, the lines are there from the first paint ── */
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-sweep {
+        display: none;
+    }
+
+    .hero__wheel {
+        transition: none;
+    }
+}
+</style>

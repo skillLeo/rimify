@@ -7,7 +7,7 @@
 // few pixels. `--cap` draws a plain centre cap over the hub, for a photo whose hub carries a
 // third-party mark. Output: transparent AVIF, WebP and PNG at 480, 768 and the crop's own width,
 // plus a manifest for the Picture component.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import sharp from 'sharp'
 
@@ -68,10 +68,16 @@ for (const width of widths) {
 
 const placeholder = await sharp(master).resize({ width: 24 }).png().toBuffer()
 
+// Anything hand-written into the manifest — the callout targets, calibrated against the picture —
+// survives a re-cut; only the measured fields are rewritten.
+const manifestPath = `resources/js/images/${name}.json`
+const previous = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {}
+
 writeFileSync(
-    `resources/js/images/${name}.json`,
+    manifestPath,
     JSON.stringify(
         {
+            ...previous,
             name,
             base: `/images/${name}/${name}`,
             width: size,
