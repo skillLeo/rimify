@@ -1,27 +1,8 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount, type VueWrapper } from '@vue/test-utils'
+import { afterEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
-import { NNBSP, withUnit } from '../../format'
+import { cloneState, DEFAULT_STATE, type RechnerState } from '../../lib/rechner'
 import FitmentCalculator from './FitmentCalculator.vue'
-import type { VehicleProp } from '../../types/rimify'
-
-const mm = (value: string) => withUnit(value, 'mm')
-
-/* The worked example from the specification is what the calculator shows without a vehicle. */
-const EXAMPLE_PARAM = '7.5-17-45-225-45_8.5-19-35-225-35'
-
-const vehicle: VehicleProp = {
-    id: 3,
-    make: 'BMW',
-    model: '3er',
-    variant: 'Coupé',
-    label: 'BMW 3er Coupé',
-    short: 'BMW 3er',
-    hsn: '0005',
-    tsn: '582',
-    keyNumbers: 'HSN 0005 · TSN 582',
-    buildWindow: '01/1995–12/1999',
-}
 
 type Side = 'current' | 'next'
 
@@ -33,7 +14,7 @@ interface Column {
     aspect: HTMLSelectElement
 }
 
-/** One control, found by the id the component gives it — the same in both layouts. */
+/** One control, found by the id the component gives it — the same in every layout. */
 function control<T extends HTMLElement>(wrapper: VueWrapper, side: Side, field: string): T {
     const found = wrapper.find<T>(`[id$="-${side}-${field}"]`)
 
@@ -44,7 +25,6 @@ function control<T extends HTMLElement>(wrapper: VueWrapper, side: Side, field: 
     return found.element
 }
 
-/** The five controls of one side. */
 function column(wrapper: VueWrapper, side: Side): Column {
     return {
         width: control<HTMLSelectElement>(wrapper, side, 'widthIn'),
@@ -73,18 +53,28 @@ function nameOf(wrapper: VueWrapper, el: HTMLElement): string {
     return wrapper.find(`label[for="${CSS.escape(el.id)}"]`).text()
 }
 
+function change(el: HTMLElement, value: string): void {
+    ;(el as HTMLInputElement).value = value
+    el.dispatchEvent(new Event('change'))
+}
+
 let mounted: VueWrapper[] = []
 
-function mountCalculator(props: Record<string, unknown> = {}): VueWrapper {
-    const wrapper = mount(FitmentCalculator, { props, attachTo: document.body })
+function mountForm(props: Record<string, unknown> = {}): VueWrapper {
+    const wrapper = mount(FitmentCalculator, {
+        props: { modelValue: cloneState(DEFAULT_STATE), ...props },
+        attachTo: document.body,
+    })
     mounted.push(wrapper)
 
     return wrapper
 }
 
-beforeEach(() => {
-    window.history.replaceState(null, '', '/')
-})
+function lastEmitted<T>(wrapper: VueWrapper, event: string): T | undefined {
+    const calls = wrapper.emitted(event)
+
+    return calls?.[calls.length - 1]?.[0] as T | undefined
+}
 
 afterEach(() => {
     mounted.forEach((w) => w.unmount())
@@ -92,56 +82,45 @@ afterEach(() => {
     document.body.innerHTML = ''
 })
 
-describe('FitmentCalculator', () => {
-    it('shows the required values for 225/45 R17 on 7,5 J ET 45 → 225/35 R19 on 8,5 J ET 35', () => {
-        const wrapper = mountCalculator()
-        const text = wrapper.text()
+describe('FitmentCalculator (the form)', () => {
+    it('shows the comparison it was given in every control', () => {
+        const wrapper = mountForm()
 
-        expect(text).toContain(mm('634,3'))
-        expect(text).toContain(mm('640,1'))
-        expect(text).toContain(mm('+22,7'))
-        expect(text).toContain(mm('+2,7'))
-        expect(text).toContain(mm('2.010,9'))
-        expect(text).toContain(withUnit('+0,9', '%'))
-        expect(text).toContain(withUnit('100,9', 'km/h'))
-
-        expect(text).toContain('Außenkante')
-        expect(text).toContain('Innenkante')
-        expect(text).toContain('Abrollumfang')
-        expect(text).toContain(`Tacho bei ${withUnit(100, 'km/h')}`)
+        expect(setupOf(column(wrapper, 'current'))).toEqual([7.5, 17, 45, 225, 45])
+        expect(setupOf(column(wrapper, 'next'))).toEqual([8.5, 19, 35, 225, 35])
     })
 
-    it('carries the honest line, verbatim', () => {
-        const wrapper = mountCalculator()
+    it('lays the teaser out as two fieldsets with short labels, five fields each, and the unit as a suffix on the ET only', () => {
+        const wrapper = mountForm({ layout: 'row' })
 
-        expect(wrapper.text()).toContain(
-            'Rechenwerte ersetzen kein Gutachten – ob eine Kombination zulässig ist, steht im Gutachten.'
-        )
+        const sets = wrapper.findAll('fieldset')
+        expect(sets).toHaveLength(2)
+        expect(sets.map((s) => s.find('legend').text())).toEqual(['Aktuell', 'Neu'])
+        expect(wrapper.find('.calc-row').exists()).toBe(true)
+
+        const controls = wrapper.findAll('select, input[type="number"]')
+        expect(controls).toHaveLength(10)
+        expect(controls.slice(0, 5).map((c) => nameOf(wrapper, c.element as HTMLElement))).toEqual([
+            'Breite',
+            'Durchmesser',
+            'ET',
+            'Reifenbreite',
+            'Querschnitt',
+        ])
+        expect(wrapper.findAll('.input-group__suffix').map((s) => s.text())).toEqual(['mm', 'mm'])
+
+        for (const c of controls) {
+            expect(c.classes()).toContain('input')
+        }
     })
 
-    it('states the four results in German on the drawing, a landscape half-section without arrowheads', () => {
-        const wrapper = mountCalculator()
-        const label = wrapper.find('[role="img"]').attributes('aria-label') ?? ''
-
-        expect(label).toContain(`Außenkante ${mm('+22,7')}`)
-        expect(label).toContain(`Innenkante ${mm('+2,7')}`)
-        expect(label).toContain(`Abrollumfang ${mm('2.010,9')} (${withUnit('+0,9', '%')})`)
-        expect(label).toContain(`tatsächlich ${withUnit('100,9', 'km/h')}`)
-        expect(wrapper.find('[role="img"] svg').attributes('viewBox')).toBe('0 0 480 300')
-        expect(wrapper.find('.offset__arrow').exists()).toBe(false)
-        expect(wrapper.find('.offset__label--outer').text()).toBe(`außen ${mm('+22,7')}`)
-        expect(wrapper.find('.offset__label--inner').text()).toBe(`innen ${mm('+2,7')}`)
-        expect(wrapper.find('.offset__label--diameter').text()).toBe(`Ø${NNBSP}${mm('640,1')}`)
-        expect(wrapper.find('.offset__label--face').text()).toBe('Anlagefläche')
-    })
-
-    it('lays the desktop form out as a compact table: five rows, one label, Aktuell and Neu beside it', () => {
-        const wrapper = mountCalculator()
-        const table = wrapper.find('.calc__table')
+    it('lays the full page out as a compact table: five rows, one label, Aktuell and Neu beside it', () => {
+        const wrapper = mountForm({ layout: 'table' })
+        const table = wrapper.find('.calc-form__table')
 
         expect(table.attributes('role')).toBe('group')
-        expect(table.findAll('.calc__head').map((h) => h.text())).toEqual(['Aktuell', 'Neu'])
-        expect(table.findAll('.calc__row-label').map((l) => l.text())).toEqual([
+        expect(table.findAll('.calc-form__head').map((h) => h.text())).toEqual(['Aktuell', 'Neu'])
+        expect(table.findAll('.calc-form__row-label').map((l) => l.text())).toEqual([
             'Felgenbreite',
             'Durchmesser',
             'Einpresstiefe (ET)',
@@ -150,23 +129,29 @@ describe('FitmentCalculator', () => {
         ])
         expect(wrapper.findAll('fieldset')).toHaveLength(0)
         expect(wrapper.findAll('[role="tab"]')).toHaveLength(0)
-        expect(wrapper.findAll('.calc__summary').map((s) => s.text())).toEqual([
-            `Aktuell: 7,5${NNBSP}J × 17 · ET${NNBSP}45 · 225/45 R17 · Ø${NNBSP}${mm('634,3')}`,
-            `Neu: 8,5${NNBSP}J × 19 · ET${NNBSP}35 · 225/35 R19 · Ø${NNBSP}${mm('640,1')}`,
+
+        const names = wrapper.findAll('select, input[type="number"]').map((c) => nameOf(wrapper, c.element as HTMLElement))
+        expect(names).toEqual([
+            'Felgenbreite Aktuell',
+            'Felgenbreite Neu',
+            'Durchmesser Aktuell',
+            'Durchmesser Neu',
+            'Einpresstiefe (ET) Aktuell',
+            'Einpresstiefe (ET) Neu',
+            'Reifenbreite Aktuell',
+            'Reifenbreite Neu',
+            'Querschnitt Aktuell',
+            'Querschnitt Neu',
         ])
-        expect(table.findAll('.input-group__suffix').map((s) => s.text())).toEqual(['mm', 'mm'])
-        expect(wrapper.find('.calc__share .btn').classes()).toContain('btn--sm')
-        expect(wrapper.find('.calc__share .btn').classes()).not.toContain('btn--block')
     })
 
-    it('renders Aktuell · Neu as tabs with the five fields, then the drawing, the values, the line and a full-width button', async () => {
-        const wrapper = mountCalculator({ layout: 'tabs' })
+    it('renders Aktuell · Neu as tabs on the phone, one side at a time, each field with a visible label', async () => {
+        const wrapper = mountForm({ layout: 'tabs' })
 
-        expect(wrapper.find('.calc__table').exists()).toBe(false)
+        expect(wrapper.find('.calc-form__table').exists()).toBe(false)
         const tabs = wrapper.findAll('[role="tab"]')
         expect(tabs.map((t) => t.text())).toEqual(['Aktuell', 'Neu'])
 
-        // One tab at a time, each field with its own visible label.
         let controls = wrapper.findAll('select, input[type="number"]')
         expect(controls).toHaveLength(5)
         expect(controls.map((c) => nameOf(wrapper, c.element as HTMLElement))).toEqual([
@@ -184,197 +169,98 @@ describe('FitmentCalculator', () => {
         controls = wrapper.findAll('select, input[type="number"]')
         expect(controls).toHaveLength(5)
         expect(setupOf(column(wrapper, 'next'))).toEqual([8.5, 19, 35, 225, 35])
-
-        // The order of the block: form, drawing, values, honest line, then the button.
-        const html = wrapper.html()
-        const at = (needle: string) => html.indexOf(needle)
-        expect(at('role="tablist"')).toBeLessThan(at('role="img"'))
-        expect(at('role="img"')).toBeLessThan(at('class="specs'))
-        expect(at('class="specs')).toBeLessThan(at('Rechenwerte ersetzen kein Gutachten'))
-        expect(at('Rechenwerte ersetzen kein Gutachten')).toBeLessThan(at('Link kopieren'))
-
-        const button = wrapper.find('.calc__share .btn')
-        expect(button.classes()).toContain('btn--block')
-        expect(button.classes()).toContain('btn--secondary')
     })
 
-    it('recalculates when a figure changes', async () => {
-        const wrapper = mountCalculator()
+    it('offers the specification’s ranges: 5,5 … 12 J, 13 … 24 Zoll, 135 … 355 mm, 25 … 85 %', () => {
+        const wrapper = mountForm()
+        const options = (el: HTMLSelectElement) => Array.from(el.options).map((o) => o.value)
         const neu = column(wrapper, 'next')
 
-        neu.diameter.value = '18'
-        neu.diameter.dispatchEvent(new Event('change'))
-        await nextTick()
-
-        // 225/35 R18: 457,2 + 157,5 = 614,7 mm, and the speedometer now reads high.
-        expect(wrapper.text()).toContain(mm('614,7'))
-        expect(wrapper.text()).toContain(withUnit('96,9', 'km/h'))
+        expect(options(neu.width)[0]).toBe('5.5')
+        expect(options(neu.width).at(-1)).toBe('12')
+        expect(options(neu.diameter)).toHaveLength(12)
+        expect(options(neu.tyreWidth)[0]).toBe('135')
+        expect(options(neu.tyreWidth).at(-1)).toBe('355')
+        expect(options(neu.aspect).at(-1)).toBe('85')
+        expect(neu.et.getAttribute('min')).toBe('-30')
+        expect(neu.et.getAttribute('max')).toBe('70')
+        // The option text carries the unit, German-formatted.
+        expect(neu.width.options[neu.width.selectedIndex]?.text.trim()).toBe('8,5 J')
     })
 
-    it('fills Aktuell from the vehicle, starts Neu at the same size and says whose Serienbereifung it is', async () => {
-        const wrapper = mountCalculator({
-            prefill: { widthIn: 8, diameterIn: 18, etMm: 40, tyreWidth: 235, aspect: 40 },
-            vehicle,
-        })
-
-        expect(setupOf(column(wrapper, 'current'))).toEqual([8, 18, 40, 235, 40])
-        expect(setupOf(column(wrapper, 'next'))).toEqual([8, 18, 40, 235, 40])
-
-        const text = wrapper.text()
-        expect(text).toContain(mm('±0,0'))
-        expect(text).toContain(withUnit('100,0', 'km/h'))
-        expect(text).toContain('235/40 R18')
-
-        const note = wrapper.find('.calc__prefill')
-        expect(note.text()).toBe('Vorbelegt mit der Serienbereifung deines BMW 3er.')
-        expect(note.classes()).toContain('small')
-        expect(note.classes()).toContain('quiet')
-        // The note stands above the form's controls.
-        expect(wrapper.html().indexOf('calc__prefill')).toBeLessThan(wrapper.html().indexOf('calc__table'))
-
-        // Once a figure is the customer's own, the note would be untrue.
-        const neu = column(wrapper, 'next')
-        neu.diameter.value = '19'
-        neu.diameter.dispatchEvent(new Event('change'))
-        await nextTick()
-        expect(wrapper.find('.calc__prefill').exists()).toBe(false)
-    })
-
-    it('prints no prefill note without a vehicle, and none without a prefill', () => {
-        expect(mountCalculator({ prefill: { widthIn: 8, diameterIn: 18, etMm: 40, tyreWidth: 235, aspect: 40 } }).find('.calc__prefill').exists()).toBe(false)
-        expect(mountCalculator({ vehicle }).find('.calc__prefill').exists()).toBe(false)
-        expect(mountCalculator({ vehicle, prefill: { widthIn: 7.25, diameterIn: 17, etMm: 45, tyreWidth: 225, aspect: 45 } }).find('.calc__prefill').exists()).toBe(false)
-    })
-
-    it('ignores a prefill the form could not have produced itself', () => {
-        const wrapper = mountCalculator({
-            prefill: { widthIn: 7.25, diameterIn: 17, etMm: 45, tyreWidth: 225, aspect: 45 },
-        })
-
-        expect(setupOf(column(wrapper, 'current'))).toEqual([7.5, 17, 45, 225, 45])
-    })
-
-    it('copies a shareable link and reads the same comparison back on mount', async () => {
-        const writeText = vi.fn().mockResolvedValue(undefined)
-        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-
-        const wrapper = mountCalculator()
-        const button = wrapper.findAll('button').find((b) => b.text() === 'Link kopieren')
-
-        expect(button).toBeDefined()
-        await button?.trigger('click')
-        await flushPromises()
-
-        expect(writeText).toHaveBeenCalledTimes(1)
-        const url = new URL(writeText.mock.calls[0]?.[0] as string)
-        expect(url.searchParams.get('rechner')).toBe(EXAMPLE_PARAM)
-        expect(wrapper.find('[role="status"]').text()).toBe('Link kopiert.')
-
-        // The other end of the link: the same figures, and the link outranks the vehicle prefill — and its note.
-        window.history.replaceState(null, '', `/?rechner=${url.searchParams.get('rechner')}`)
-        const again = mountCalculator({
-            prefill: { widthIn: 6, diameterIn: 15, etMm: 38, tyreWidth: 185, aspect: 65 },
-            vehicle,
-        })
-        await nextTick()
-
-        expect(setupOf(column(again, 'current'))).toEqual([7.5, 17, 45, 225, 45])
-        expect(setupOf(column(again, 'next'))).toEqual([8.5, 19, 35, 225, 35])
-        expect(again.text()).toContain(mm('+22,7'))
-        expect(again.find('.calc__prefill').exists()).toBe(false)
-    })
-
-    it('round-trips a negative ET through the link', async () => {
-        window.history.replaceState(null, '', '/?rechner=8-17--10-225-45_8-17--20-225-45')
-        const wrapper = mountCalculator()
-        await nextTick()
-
-        expect(column(wrapper, 'current').et.value).toBe('-10')
-        expect(column(wrapper, 'next').et.value).toBe('-20')
-        expect(wrapper.text()).toContain(mm('+10,0'))
-        expect(wrapper.text()).toContain(mm('−10,0'))
-
-        const writeText = vi.fn().mockResolvedValue(undefined)
-        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-        await wrapper.findAll('button').find((b) => b.text() === 'Link kopieren')?.trigger('click')
-        await flushPromises()
-
-        const url = new URL(writeText.mock.calls[0]?.[0] as string)
-        expect(url.searchParams.get('rechner')).toBe('8-17--10-225-45_8-17--20-225-45')
-    })
-
-    it('fails closed on a link with figures the form does not offer', async () => {
-        window.history.replaceState(null, '', '/?rechner=99-1-999-1-1_7.5-17-45-225-45')
-        const wrapper = mountCalculator()
-        await nextTick()
-
-        expect(setupOf(column(wrapper, 'current'))).toEqual([7.5, 17, 45, 225, 45])
-        expect(setupOf(column(wrapper, 'next'))).toEqual([8.5, 19, 35, 225, 35])
-    })
-
-    it('offers the link to copy by hand when the clipboard is not available', async () => {
-        Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
-        const wrapper = mountCalculator()
-
-        await wrapper.findAll('button').find((b) => b.text() === 'Link kopieren')?.trigger('click')
-        await flushPromises()
-
-        const manual = wrapper.find('input[type="url"]')
-        expect(manual.exists()).toBe(true)
-        expect((manual.element as HTMLInputElement).value).toContain(`rechner=${EXAMPLE_PARAM}`)
-        expect(wrapper.find('[role="status"]').text()).toBe('')
-    })
-
-    it('explains an impossible ET under the field on blur and keeps the last good value', async () => {
-        const wrapper = mountCalculator()
+    it('hands a changed comparison up — and only when every figure is one it offers', async () => {
+        const wrapper = mountForm()
         const neu = column(wrapper, 'next')
 
-        neu.et.value = '80'
-        neu.et.dispatchEvent(new Event('change'))
+        change(neu.diameter, '18')
+        await nextTick()
+
+        const state = lastEmitted<RechnerState>(wrapper, 'update:modelValue')
+        expect(state?.next.diameterIn).toBe(18)
+        expect(state?.current).toEqual(DEFAULT_STATE.current)
+        expect(lastEmitted<boolean>(wrapper, 'update:valid')).toBe(true)
+    })
+
+    it('explains an impossible ET under the field, marks it invalid and hands nothing up', async () => {
+        const wrapper = mountForm()
+        const neu = column(wrapper, 'next')
+
+        change(neu.et, '80')
         neu.et.dispatchEvent(new Event('blur'))
         await nextTick()
 
         expect(neu.et.getAttribute('aria-invalid')).toBe('true')
         const errorId = neu.et.getAttribute('aria-describedby') ?? ''
         const error = wrapper.find(`#${CSS.escape(errorId)}`)
-        expect(error.text()).toBe('Bitte eine ganze Zahl zwischen −50 und 70 angeben.')
+        expect(error.text()).toBe('Die Einpresstiefe liegt zwischen −30 und 70 mm.')
         expect(error.classes()).toContain('form-field__error')
+        expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+        expect(lastEmitted<boolean>(wrapper, 'update:valid')).toBe(false)
 
-        // The result still stands on ET 35: nothing was computed from a value that is not allowed.
-        expect(wrapper.text()).toContain(mm('+22,7'))
-
-        neu.et.value = '25'
-        neu.et.dispatchEvent(new Event('change'))
+        change(neu.et, '-30')
         neu.et.dispatchEvent(new Event('blur'))
         await nextTick()
 
         expect(neu.et.getAttribute('aria-invalid')).toBeNull()
         expect(error.text()).toBe('')
-        expect(wrapper.text()).toContain(mm('+32,7'))
+        expect(lastEmitted<RechnerState>(wrapper, 'update:modelValue')?.next.etMm).toBe(-30)
+        expect(lastEmitted<boolean>(wrapper, 'update:valid')).toBe(true)
     })
 
-    it('names every control by its row and its column and keeps each input at body size', () => {
-        const wrapper = mountCalculator()
-        const controls = wrapper.findAll('select, input[type="number"]')
+    it('follows a comparison applied from outside and clears its errors', async () => {
+        const wrapper = mountForm()
+        const neu = column(wrapper, 'next')
 
-        expect(controls).toHaveLength(10)
+        change(neu.et, '99')
+        neu.et.dispatchEvent(new Event('blur'))
+        await nextTick()
+        expect(neu.et.getAttribute('aria-invalid')).toBe('true')
 
-        const names = controls.map((c) => nameOf(wrapper, c.element as HTMLElement))
-        expect(names).toEqual([
-            'Felgenbreite Aktuell',
-            'Felgenbreite Neu',
-            'Durchmesser Aktuell',
-            'Durchmesser Neu',
-            'Einpresstiefe (ET) Aktuell',
-            'Einpresstiefe (ET) Neu',
-            'Reifenbreite Aktuell',
-            'Reifenbreite Neu',
-            'Querschnitt Aktuell',
-            'Querschnitt Neu',
-        ])
-
-        for (const control of controls) {
-            expect(control.classes()).toContain('input')
+        const next: RechnerState = {
+            current: { widthIn: 8, diameterIn: 18, etMm: 40, tyreWidthMm: 235, aspect: 40 },
+            next: { widthIn: 9, diameterIn: 20, etMm: 30, tyreWidthMm: 245, aspect: 30 },
         }
+        await wrapper.setProps({ modelValue: next })
+
+        expect(setupOf(column(wrapper, 'current'))).toEqual([8, 18, 40, 235, 40])
+        expect(setupOf(column(wrapper, 'next'))).toEqual([9, 20, 30, 245, 30])
+        expect(neu.et.getAttribute('aria-invalid')).toBeNull()
+        expect(lastEmitted<boolean>(wrapper, 'update:valid')).toBe(true)
+    })
+
+    it('marks the Aktuell controls as prefilled when told so, and nothing else', () => {
+        const wrapper = mountForm({ prefilled: true })
+
+        expect(wrapper.findAll('[data-prefilled="true"]')).toHaveLength(5)
+        expect(column(wrapper, 'current').width.getAttribute('data-prefilled')).toBe('true')
+        expect(column(wrapper, 'next').width.getAttribute('data-prefilled')).toBeNull()
+        expect(mountForm().findAll('[data-prefilled]')).toHaveLength(0)
+    })
+
+    it('is a form that never submits, with every button typed', () => {
+        const wrapper = mountForm()
+
+        expect(wrapper.find('form').attributes('novalidate')).toBeDefined()
+        expect(wrapper.findAll('button').every((b) => b.attributes('type') !== undefined)).toBe(true)
     })
 })

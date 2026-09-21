@@ -2,17 +2,18 @@
 /**
  * H8 · Der Rechner — "Was ändert sich mit der neuen Größe?" (F6, signature moment 4).
  *
- * The section owns the heading and the lead; the calculator owns the form, the drawing, the four
- * values and the honest line that says the Gutachten decides, not the arithmetic. The shared
- * vehicle goes through so the calculator can say whose Serienbereifung it was prefilled with.
+ * The section owns the heading and the lead; the teaser owns the input row, the clearance
+ * drawing, the three results and the line that says the Gutachten decides, not the arithmetic.
+ * The shared vehicle goes through so the teaser can say whose Serienbereifung it was prefilled
+ * with.
  *
- * The calculator is imported statically on purpose. As an async component its chunk was
+ * The teaser is imported statically on purpose. As an async component its chunk was
  * `modulepreload`ed by Vite's runtime helper during hydration and imported a moment later, which
  * WebKit reports as a preload "not used within a few seconds" — a console warning the G5 gate
  * refuses. In the page's own module graph the chunk is preloaded and consumed together.
  */
 
-import FitmentCalculator from './FitmentCalculator.vue'
+import FitmentTeaser from './FitmentTeaser.vue'
 import type { CalculatorPrefill } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -26,13 +27,13 @@ withDefaults(defineProps<{ prefill: CalculatorPrefill | null; vehicle?: VehicleP
                 <div class="calc-section__head">
                     <h2 id="h8-heading" class="h2">Was ändert sich mit der neuen Größe?</h2>
                     <p class="body muted calc-section__lead">
-                        Vergleiche deine aktuelle Größe mit einer neuen. Die Zeichnung zeigt den Querschnitt, die Werte darunter den Unterschied.
+                        Vergleiche deine aktuelle Größe mit einer neuen. Die Zeichnung zeigt von oben, wie weit die Felge wandert.
                     </p>
                 </div>
             </div>
 
             <div class="calc-section__body">
-                <FitmentCalculator :prefill="prefill" :vehicle="vehicle" layout="table" />
+                <FitmentTeaser :prefill="prefill" :vehicle="vehicle" layout="desktop" />
             </div>
         </div>
     </section>

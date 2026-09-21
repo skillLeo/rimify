@@ -13,7 +13,7 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
-import FitmentCalculator from '../../Components/Home/FitmentCalculator.vue'
+import FitmentTeaser from '../../Components/Home/FitmentTeaser.vue'
 import GutachtenStory from '../../Components/Mobile/Home/GutachtenStory.vue'
 import HeroFrame from '../../Components/Mobile/Home/HeroFrame.vue'
 import KomplettradWheel from '../../Components/Mobile/Home/KomplettradWheel.vue'
@@ -102,18 +102,18 @@ const listingLabel = computed(() =>
 
 /* ── H6 ─────────────────────────────────────────────────────────────────────── */
 
-/* A size with no wheel at all is not a tile; one with no permitted wheel for the car is shown struck. */
+/* A size with no wheel at all is not a tile; one with no permitted wheel for the car is greyed with
+   its count and is not a link — never struck (home-overhaul.md §0.6). */
 const sizes = computed(() =>
     props.sizes
         .filter((s) => s.count > 0)
         .map((s) => {
             const fitting = vehicle.value ? s.fitting : null
-            const struck = fitting === 0
 
             return {
                 ...s,
-                struck,
-                line: fitting === null ? felgen(s.count) : struck ? 'keine passenden' : passende(fitting),
+                none: fitting === 0,
+                line: fitting === null ? felgen(s.count) : passende(fitting),
             }
         })
 )
@@ -270,7 +270,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 
             <Shelf v-else-if="popular.cards.length" bare hide-head :title="popularTitle" width="62vw" list-label="Felgen">
                 <li v-for="(card, i) in popular.cards" :key="`${card.modelId}-${card.finishId}`">
-                    <ProductTile :card="card" :vehicle="vehicle" :eager="i < 2" />
+                    <ProductTile :card="card" :vehicle="vehicle" :eager="i < 2" compare />
                 </li>
             </Shelf>
 
@@ -309,11 +309,11 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 
         <Shelf v-if="sizes.length" bare hide-head title="Nach Zollgröße" width="96px" list-label="Zollgrößen">
             <li v-for="size in sizes" :key="size.inch">
-                <!-- Struck, never hidden: nothing of this size is permitted on the chosen car. -->
-                <span v-if="size.struck" class="size-tile size-tile--struck" aria-disabled="true">
+                <!-- Greyed, never hidden, never struck: nothing of this size is permitted on the chosen car. -->
+                <span v-if="size.none" class="size-tile size-tile--none" aria-disabled="true">
                     <span class="display num size-tile__n">{{ size.inch }}</span>
-                    <span class="small muted">Zoll</span>
-                    <span class="small num muted">{{ size.line }}</span>
+                    <span class="small quiet">Zoll</span>
+                    <span class="small num quiet">{{ size.line }}</span>
                 </span>
                 <Link v-else :href="size.href" class="size-tile m-press">
                     <span class="display num size-tile__n">{{ size.inch }}</span>
@@ -364,7 +364,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
         <div class="container">
             <h2 id="h8-title" class="h2 home-h2">Was ändert sich mit der neuen Größe?</h2>
             <p class="body muted home-lead">Vergleiche deine aktuelle Größe mit einer neuen. Die Zeichnung zeigt den Querschnitt, die Werte darunter den Unterschied.</p>
-            <FitmentCalculator :prefill="calculator.prefill" />
+            <FitmentTeaser :prefill="calculator.prefill" :vehicle="vehicle" layout="phone" />
         </div>
     </section>
 
@@ -560,13 +560,12 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     }
 }
 
-.size-tile--struck {
+.size-tile--none {
     cursor: not-allowed;
 }
 
-.size-tile--struck .size-tile__n {
+.size-tile--none .size-tile__n {
     color: var(--c-ink-3);
-    text-decoration: line-through;
 }
 
 .home-brands {

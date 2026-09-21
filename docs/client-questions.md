@@ -105,3 +105,29 @@ unpublished. Item 11 above is the summary; this is the list.
     bestimmten Felge verwendet werden dürfen, muss ebenfalls in einem Dokument stehen.“ (Spacers need
     their own approval; please confirm the guide may say this at all, or whether spacers should not be
     mentioned.)
+
+**Felgenrechner – die Toleranzampel (Homepage H8 und /felgenrechner)**
+
+34. The calculator shows a green, amber or red light on the change of the *Abrollumfang*
+    (rolling circumference ≈ Ø × π × 0,97). The thresholds are a practitioner's rule of thumb
+    from the tyre trade, not a figure from a regulation, and need legal review:
+    - green for −2,5 % … +1,5 %;
+    - red below −12,7 %, derived from the speedometer rule (ECE R39 / § 57 StVZO: the indicated
+      speed may never be below the real speed and at most 10 % + 4 km/h above it — at an indicated
+      100 km/h the real speed must be at least 96 / 1,1 = 87,3 km/h, i.e. −12,7 %, even from an
+      exactly calibrated speedometer);
+    - amber everywhere else.
+
+    The three sentences next to the light, please confirm or amend:
+    - „Innerhalb der üblichen Toleranz von −2,5 % bis +1,5 %.“
+    - „Kleiner als die übliche Toleranz (−2,5 % bis +1,5 %). Der Tacho zeigt dann mehr an als
+      bisher – ob das passt, steht in der Freigabe.“ / „Größer als die übliche Toleranz (−2,5 % bis
+      +1,5 %). Der Tacho zeigt dann weniger an als bisher – zu wenig darf er nie anzeigen. Ob das
+      noch passt, steht in der Freigabe.“
+    - „So viel kleiner darf der Abrollumfang nicht sein: Der Tacho würde mehr als 10 % + 4 km/h zu
+      viel anzeigen.“
+
+    Every surface of the calculator carries: „Rechenwerte ersetzen kein Gutachten – ob eine
+    Kombination zulässig ist, steht im Gutachten. Alle Angaben ohne Gewähr; verbindlich sind
+    Fahrzeugschein bzw. CoC und die Reifenfreigabe.“ (Is „Reifenfreigabe“ the right term for the
+    manufacturer's tyre release, or should it read „Reifenfreigabe des Herstellers“?)
