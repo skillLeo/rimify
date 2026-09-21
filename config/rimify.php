@@ -64,6 +64,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Service hours — the live status line
+    |--------------------------------------------------------------------------
+    |
+    | The hours the phone is answered, computed in Europe/Berlin with the public holidays of the
+    | office's state. NRW is assumed from the 0211 number and is listed in docs/client-questions.md.
+    */
+    'service' => [
+        'timezone' => 'Europe/Berlin',
+        'region' => env('RIMIFY_SERVICE_REGION', 'DE-NW'),
+        'weekdays' => [1, 2, 3, 4, 5],
+        'from' => env('RIMIFY_SERVICE_FROM', '09:00'),
+        'to' => env('RIMIFY_SERVICE_TO', '18:00'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Feature flags
+    |--------------------------------------------------------------------------
+    */
+    'features' => [
+        // Fitting partners near the customer (H9). Off until the partner list is real.
+        'partners' => (bool) env('RIMIFY_FEATURE_PARTNERS', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Photography
     |--------------------------------------------------------------------------
     |

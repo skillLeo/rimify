@@ -201,7 +201,8 @@
 
     /* Running text: a comfortable measure, and German compounds hyphenated by the browser. */
     .prose {
-        max-width: 68ch;
+        /* Archivo runs narrow: 54ch is 65–70 characters per line (DIRECTION §3). */
+        max-width: 54ch;
         hyphens: auto;
         text-wrap: pretty;
     }

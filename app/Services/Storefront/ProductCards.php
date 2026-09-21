@@ -131,11 +131,26 @@ final readonly class ProductCards
      * Cards with no vehicle in play: the whole published catalogue, one card per model and finish,
      * showing its cheapest configuration. No fitment claim is made anywhere on these.
      *
+     * Options, all optional and all real queries: `order` — `price` (cheapest first, the default),
+     * `newest` (the model's creation date) or `coverage` (the number of document rows behind the
+     * model, which is the closest thing to popularity this catalogue can measure honestly);
+     * `maxPriceCents` — only models whose cheapest configuration is at or under it; `modelIds` —
+     * only these models, in the order given.
+     *
      * @param  int|null  $limit  null for the whole range
+     * @param  array{order?: string, maxPriceCents?: int|null, modelIds?: list<int>}  $options
      * @return list<array<string, mixed>>
      */
-    public function catalogue(?int $limit = 24, ?string $brand = null): array
+    public function catalogue(?int $limit = 24, ?string $brand = null, array $options = []): array
     {
+        $order = $options['order'] ?? 'price';
+        $maxPriceCents = $options['maxPriceCents'] ?? null;
+        $modelIds = $options['modelIds'] ?? null;
+
+        if ($modelIds === []) {
+            return [];
+        }
+
         $rows = DB::table('wheel_configs as wc')
             ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
             ->join('wheel_finishes as wf', 'wf.id', '=', 'wc.wheel_finish_id')
@@ -144,10 +159,20 @@ final readonly class ProductCards
             ->whereNull('wm.deleted_at')
             ->where('wm.status', CatalogueStatus::Published->value)
             ->when($brand !== null, fn ($q) => $q->where('br.slug', $brand))
+            ->when($modelIds !== null, fn ($q) => $q->whereIn('wm.id', $modelIds))
             ->groupBy(
-                'wm.id', 'wm.name', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count',
+                'wm.id', 'wm.name', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
                 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish',
             )
+            ->when($maxPriceCents !== null, fn ($q) => $q->havingRaw('MIN(wc.price_cents) <= ?', [(int) $maxPriceCents]))
+            ->when($modelIds !== null, fn ($q) => $q->orderByRaw(
+                'FIELD(wm.id, '.implode(', ', array_fill(0, count($modelIds), '?')).')',
+                $modelIds,
+            ))
+            ->when($order === 'newest', fn ($q) => $q->orderBy('wm.created_at', 'desc'))
+            ->when($order === 'coverage', fn ($q) => $q->orderByRaw(
+                '(SELECT COUNT(*) FROM fitments f JOIN wheel_configs c ON c.id = f.wheel_config_id WHERE c.wheel_model_id = wm.id) DESC',
+            ))
             ->orderByRaw('MIN(wc.price_cents) ASC')
             ->orderBy('wm.id')
             ->orderBy('wf.id')

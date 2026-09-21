@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
+use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\HeaderMode;
 use App\Domain\Storefront\HeaderModeResolver;
 use App\Domain\Storefront\VehicleContext;
@@ -38,7 +39,11 @@ final readonly class Chrome
      */
     public const CONSENT_COOKIE = 'rmf_consent';
 
-    public function __construct(private HeaderModeResolver $headerMode, private MegaMenu $mega) {}
+    public function __construct(
+        private HeaderModeResolver $headerMode,
+        private MegaMenu $mega,
+        private ServiceStatus $service,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -79,7 +84,44 @@ final readonly class Chrome
             ],
             'mega' => $this->mega->share(),
             'consent' => $this->consent($request),
+            // The last five vehicles, for the hero chips, the header chip and the palette (F7).
+            'garage' => $this->garage($request),
+            // Whether the phone is answered right now (F9); the client re-asks every minute.
+            'serviceStatus' => $this->service->now(),
         ];
+    }
+
+    /**
+     * @return list<array{id: int, label: string, short: string}>
+     */
+    private function garage(Request $request): array
+    {
+        $raw = $request->cookie(Garage::COOKIE);
+        $garage = Garage::decode(is_string($raw) ? $raw : null);
+
+        if ($garage->isEmpty()) {
+            return [];
+        }
+
+        // A soft-deleted vehicle silently leaves the garage; the ids keep the cookie's order.
+        $rows = Vehicle::query()->whereIn('id', $garage->vehicleIds)->get()->keyBy('id');
+        $out = [];
+
+        foreach ($garage->vehicleIds as $id) {
+            $vehicle = $rows->get($id);
+
+            if ($vehicle === null) {
+                continue;
+            }
+
+            $out[] = [
+                'id' => (int) $vehicle->id,
+                'label' => trim($vehicle->make.' '.$vehicle->variant),
+                'short' => trim($vehicle->make.' '.$vehicle->model),
+            ];
+        }
+
+        return $out;
     }
 
     /**

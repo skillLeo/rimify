@@ -15,6 +15,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CatalogueGapEvent;
 use App\Models\WheelModel;
 use App\Services\Storefront\ProductCards;
+use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +37,7 @@ class FelgenController extends Controller
         private readonly VehicleTree $tree,
         private readonly ListingQuery $listing,
         private readonly FitmentResolver $resolver,
+        private readonly RecentlyViewed $recentlyViewed,
     ) {}
 
     /** The vehicle selector: make → model → variant, or the two key numbers. */
@@ -121,6 +123,8 @@ class FelgenController extends Controller
             ->with(['brand', 'finishes', 'configs'])
             ->where('slug', $model)
             ->firstOrFail();
+
+        $this->recentlyViewed->record($request->session(), (int) $wheel->id);
 
         $vehicleId = $this->vehicleId($request);
         $configs = [];

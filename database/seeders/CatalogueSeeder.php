@@ -11,6 +11,7 @@ use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Support\MakeName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -150,7 +151,7 @@ class CatalogueSeeder extends Seeder
             'stock' => 0,
         ],
         [
-            'brand' => 'rotiform', 'name' => 'KPS', 'type' => 'RF-KPS',
+            'brand' => 'Rotiform', 'name' => 'KPS', 'type' => 'RF-KPS',
             'spokes' => 5, 'rating' => 4.7, 'ratings' => 265,
             'finishes' => [
                 ['Gloss Schwarz', '#1A1C20', 'black'],
@@ -160,7 +161,7 @@ class CatalogueSeeder extends Seeder
             'stock' => 7,
         ],
         [
-            'brand' => 'rotiform', 'name' => 'BLQ', 'type' => 'RF-BLQ',
+            'brand' => 'Rotiform', 'name' => 'BLQ', 'type' => 'RF-BLQ',
             'spokes' => 7, 'rating' => 4.6, 'ratings' => 331,
             'finishes' => [
                 ['Silber gebürstet', '#D5DAE0', 'polished'],
@@ -190,7 +191,7 @@ class CatalogueSeeder extends Seeder
     private function seedBrands(): array
     {
         $names = [
-            'BORBET', 'OZ RACING', 'ALUTEC', 'BBS', 'YIDO', 'rotiform',
+            'BORBET', 'OZ RACING', 'ALUTEC', 'BBS', 'YIDO', 'Rotiform',
             'Bridgestone', 'Continental', 'Michelin',
         ];
 
@@ -198,9 +199,14 @@ class CatalogueSeeder extends Seeder
         $sort = 0;
 
         foreach ($names as $name) {
+            // One spelling per brand, compared without regard to case: "rotiform" and "Rotiform"
+            // are the same brand and must never become two rows (docs/phase0/ADDENDUM.md D5).
+            $spelling = MakeName::normalise($name);
+            $existing = Brand::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($spelling)])->first();
+
             $brands[$name] = Brand::updateOrCreate(
-                ['slug' => Str::slug($name)],
-                ['name' => $name, 'sort_order' => $sort += 10],
+                ['slug' => $existing === null ? Str::slug($spelling) : $existing->slug],
+                ['name' => $spelling, 'sort_order' => $sort += 10],
             );
         }
 
@@ -284,16 +290,18 @@ class CatalogueSeeder extends Seeder
      */
     private function seedTyres(array $brands): void
     {
+        // Label classes and noise as printed on the EU label; the EPREL id is the register entry
+        // the label links to, and it is null until the real one is known.
         $tyres = [
-            ['Bridgestone', 'Potenza Sport', 'sommer', 245, 45, 18.0, 100, 'Y', 13, 'C', 'A', 71],
-            ['Continental', 'PremiumContact 7', 'sommer', 245, 45, 18.0, 96, 'W', 12, 'B', 'A', 70],
-            ['Michelin', 'Pilot Sport 5', 'sommer', 245, 45, 18.0, 92, 'Y', 13, 'C', 'A', 72],
-            ['Bridgestone', 'Blizzak LM005', 'winter', 245, 45, 18.0, 100, 'V', 11, 'C', 'B', 72],
-            ['Continental', 'AllSeasonContact 2', 'ganzjahres', 255, 40, 19.0, 100, 'Y', 13, 'C', 'B', 72],
-            ['Michelin', 'Pilot Sport 4 S', 'sommer', 255, 40, 19.0, 100, 'Y', 13, 'D', 'A', 73],
+            ['Bridgestone', 'Potenza Sport', 'sommer', 245, 45, 18.0, 100, 'Y', 13, 'C', 'A', 71, 'B', null],
+            ['Continental', 'PremiumContact 7', 'sommer', 245, 45, 18.0, 96, 'W', 12, 'B', 'A', 70, 'B', null],
+            ['Michelin', 'Pilot Sport 5', 'sommer', 245, 45, 18.0, 92, 'Y', 13, 'C', 'A', 72, 'B', null],
+            ['Bridgestone', 'Blizzak LM005', 'winter', 245, 45, 18.0, 100, 'V', 11, 'C', 'B', 72, 'B', null],
+            ['Continental', 'AllSeasonContact 2', 'ganzjahres', 255, 40, 19.0, 100, 'Y', 13, 'C', 'B', 72, 'B', null],
+            ['Michelin', 'Pilot Sport 4 S', 'sommer', 255, 40, 19.0, 100, 'Y', 13, 'D', 'A', 73, 'C', null],
         ];
 
-        foreach ($tyres as [$brand, $name, $season, $width, $aspect, $diameter, $load, $symbol, $rank, $fuel, $grip, $noise]) {
+        foreach ($tyres as [$brand, $name, $season, $width, $aspect, $diameter, $load, $symbol, $rank, $fuel, $grip, $noise, $noiseClass, $eprelId]) {
             TyreVariant::updateOrCreate(
                 [
                     'brand_id' => $brands[$brand]->id,
@@ -310,6 +318,8 @@ class CatalogueSeeder extends Seeder
                     'eu_fuel_class' => $fuel,
                     'eu_wet_grip_class' => $grip,
                     'eu_noise_db' => $noise,
+                    'eu_noise_class' => $noiseClass,
+                    'eprel_id' => $eprelId,
                     'price_cents' => 14_900 + $load * 90,
                     'currency' => 'EUR',
                     'stock_qty' => 24,

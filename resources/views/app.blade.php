@@ -9,6 +9,14 @@
     {{-- The typeface used above the fold, fetched before the stylesheet asks for it. --}}
     <link rel="preload" href="/fonts/archivo-latin-wdth.woff2" as="font" type="font/woff2" crossorigin>
 
+    {{-- The homepage's LCP image on the desktop document: the hero cut-out, fetched before the
+         bundle asks for it. The phone document's LCP is the headline, so it preloads nothing. --}}
+    @if (($page['component'] ?? '') === 'Startseite/Desktop')
+        <link rel="preload" as="image" fetchpriority="high" type="image/avif"
+              imagesrcset="/images/hero-wheel/hero-wheel-480.avif 480w, /images/hero-wheel/hero-wheel-768.avif 768w, /images/hero-wheel/hero-wheel-1124.avif 1124w"
+              imagesizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, 70vw">
+    @endif
+
     @routes(nonce: Vite::cspNonce())
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
     @inertiaHead

@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Api\FitmentCountController;
+use App\Http\Controllers\Api\FitmentNotifyController;
 use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\VehicleTreeController;
 use App\Http\Controllers\DesignController;
+use App\Http\Controllers\Storefront\BenachrichtigungController;
 use App\Http\Controllers\Storefront\BestellungController;
 use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugController;
@@ -15,6 +20,7 @@ use App\Http\Controllers\Storefront\FaqController;
 use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Http\Controllers\Storefront\KontaktController;
+use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\WarenkorbController;
@@ -29,6 +35,7 @@ use Illuminate\Support\Facades\Route;
 // ── Storefront ───────────────────────────────────────────────────────────────────────────────
 
 Route::get('/', [StartseiteController::class, 'index'])->name('startseite');
+Route::get('/ratgeber/{slug}', RatgeberController::class)->name('ratgeber.show');
 
 Route::get('/felgen-suchen', [FelgenController::class, 'suchen'])->name('felgen.suchen');
 Route::get('/felgen', [FelgenController::class, 'index'])->name('felgen.index');
@@ -62,7 +69,18 @@ Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('
  */
 Route::prefix('api/v1')->name('api.')->middleware('throttle:60,1')->group(function (): void {
     Route::get('/search', SearchController::class)->name('search');
+    Route::get('/vehicles/models', [VehicleTreeController::class, 'models'])->name('vehicles.models');
+    Route::get('/vehicles/variants', [VehicleTreeController::class, 'variants'])->name('vehicles.variants');
+    Route::get('/fitment/count', FitmentCountController::class)->name('fitment.count');
+    // Writes a row and sends a mail: a tighter limit than the read endpoints.
+    Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:10,1')->name('fitment.notify');
 });
+
+// The two links a subscription mail carries (F2); tokens, no session.
+Route::get('/benachrichtigung/bestaetigen/{token}', [BenachrichtigungController::class, 'bestaetigen'])
+    ->name('benachrichtigung.bestaetigen');
+Route::get('/benachrichtigung/abmelden/{token}', [BenachrichtigungController::class, 'abmelden'])
+    ->name('benachrichtigung.abmelden');
 
 Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
@@ -97,5 +115,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/gutachten', [GutachtenController::class, 'index'])->name('gutachten.index');
         Route::get('/rollen', [RollenController::class, 'index'])->name('rollen.index');
+        Route::get('/benachrichtigungen', [BenachrichtigungenController::class, 'index'])->name('benachrichtigungen.index');
     });
 });

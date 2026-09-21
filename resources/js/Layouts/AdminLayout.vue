@@ -34,6 +34,7 @@ const rail: RailItem[] = [
     { label: 'Dashboard', href: '/admin', routeName: 'admin.dashboard', icon: 'grid' },
     { label: 'Gutachten', href: '/admin/gutachten', routeName: 'admin.gutachten.index', icon: 'document' },
     { label: 'Rollen & Rechte', href: '/admin/rollen', routeName: 'admin.rollen.index', icon: 'lock' },
+    { label: 'Benachrichtigungen', href: '/admin/benachrichtigungen', routeName: 'admin.benachrichtigungen.index', icon: 'mail' },
 ]
 
 function toggleTheme(): void {

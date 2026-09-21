@@ -76,6 +76,18 @@ export interface ContactProp {
     hours: string
 }
 
+export interface GarageVehicle {
+    id: number
+    label: string
+    short: string
+}
+
+export interface ServiceStatusProp {
+    open: boolean
+    label: string
+    until: string
+}
+
 export interface SharedProps {
     headerMode: HeaderMode
     vehicle: VehicleProp | null
@@ -86,6 +98,10 @@ export interface SharedProps {
     contact: ContactProp
     mega: MegaMenuProp
     consent: ConsentProp | null
+    /** The last five vehicles chosen on this browser, most recent first (F7). */
+    garage: GarageVehicle[]
+    /** Whether the phone is answered right now, computed on the server (F9). */
+    serviceStatus: ServiceStatusProp
     isMobile: boolean
     locale: string
     /** Remote photography layered over the drawn art — a temporary client-review flag. */

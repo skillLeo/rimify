@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Storefront;
 
 use App\Domain\Fitment\Resolver\VehicleDisambiguator;
 use App\Domain\Fitment\Resolver\VehicleResolver;
+use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\VehicleContext;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\ResolveKeyNumbersRequest;
@@ -110,12 +111,17 @@ class FahrzeugController extends Controller
     {
         $context = (new VehicleContext($vehicleId))->enteredBooking();
 
+        // The garage remembers the last five choices, so a second car is one tap, not a form.
+        $raw = request()->cookie(Garage::COOKIE);
+        $garage = Garage::decode(is_string($raw) ? $raw : null)->with($vehicleId);
+
         return redirect()
             ->route('felgen.index')
             ->withCookie(Cookie::make(
                 VehicleContext::COOKIE,
                 $context->encode(),
                 VehicleContext::LIFETIME_MINUTES,
-            ));
+            ))
+            ->withCookie(Cookie::make(Garage::COOKIE, $garage->encode(), Garage::LIFETIME_MINUTES));
     }
 }

@@ -19,7 +19,9 @@ const widths = args.width ? [Number(args.width)] : [390, 1440]
 const out = args.out ?? 'docs/qa/style-inventory.json'
 
 /* Elements that may carry a gradient: photo scrims only. Two entries, as the system allows. */
-const GRADIENT_ALLOWLIST = ['.photo-scrim', '.band-scrim']
+// The two photo scrims, the hero's three studio-light layers and the Gutachten story's marker
+// (docs/design/sections/home.md §0.6). Nothing else on the site carries a gradient.
+const GRADIENT_ALLOWLIST = ['.photo-scrim', '.band-scrim', '.hero-studio', '.hero-contact', '.hero-sweep', '.marker']
 
 /* Token names, by role, straight from the stylesheet. */
 const tokens = readFileSync('resources/css/tokens.css', 'utf8')

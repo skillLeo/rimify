@@ -41,12 +41,104 @@ export interface VariantOption {
     [key: string]: unknown
 }
 
+/** The wheel the hero shows: an admin-chosen product and its cheapest configuration's own values. */
+export interface HeroProduct {
+    slug: string
+    name: string
+    brand: string
+    finish: string
+    fromPriceCents: number
+    fromPrice: string
+    /** Name of the cut-out manifest in `resources/js/images/` (the hero photo). */
+    image: string
+    /** True while a free-licence photograph stands in for the supplier's packshot. */
+    symbolic: boolean
+    config: {
+        widthIn: number
+        diameterIn: number
+        etMm: number
+        boltHoles: number
+        boltCircleMm: number
+        centreBoreMm: number
+    }
+    /** The four callout values, already formatted on the server. */
+    spec: { label: string; value: string }[]
+}
+
+export interface HomeStats {
+    gutachten: number
+    variants: number
+    wheels: number
+    brands: number
+}
+
+export interface PopularTab {
+    key: 'beliebt' | 'neu' | 'bis200'
+    label: string
+}
+
+export interface EuTyreLabel {
+    title: string
+    fuel: string
+    wet: string
+    noiseDb: number
+    noiseClass: 'A' | 'B' | 'C'
+    eprelId: string | null
+}
+
+export interface CalculatorPrefill {
+    widthIn: number
+    diameterIn: number
+    etMm: number
+    tyreWidth: number
+    aspect: number
+}
+
+export interface GuideTeaser {
+    slug: string
+    title: string
+    teaser: string
+    minutes: number
+}
+
+export interface FaqPreview {
+    id: number
+    question: string
+    answer: string
+}
+
+/**
+ * The homepage. `garage`, `vehicle`, `serviceStatus` and `contact` come from the shared props;
+ * everything here is data from the database or the configuration — nothing on the page is typed
+ * into a template (docs/design/sections/home.md §0.7).
+ */
 export interface StartseiteProps {
-    bestsellers: ProductCardProp[]
-    makes: MakeOption[]
-    brands: { name: string; slug: string; spokes: number }[]
-    month: string
-    faq: { id: number; question: string; answer: string }[]
+    hero: {
+        title: string
+        subline: string
+        product: HeroProduct | null
+        stats: HomeStats
+    }
+    selector: { makes: MakeOption[] }
+    promises: { title: string; text: string; icon: string }[]
+    popular: {
+        /** Null with a vehicle: the heading then names the vehicle. */
+        title: string | null
+        /** Empty with a vehicle: the row is that car's answer, not a catalogue order. */
+        tabs: PopularTab[]
+        active: string
+        cards: ProductCardProp[]
+        /** The listing's count for the vehicle; null without one. */
+        total: number | null
+    }
+    recentlyViewed: ProductCardProp[]
+    sizes: { inch: number; count: number; href: string }[]
+    brands: { name: string; slug: string; logo: string | null; href: string }[]
+    komplettrad: { tyre: EuTyreLabel | null }
+    calculator: { prefill: CalculatorPrefill | null }
+    partners: { enabled: boolean; demo: boolean }
+    guides: GuideTeaser[]
+    faq: FaqPreview[]
 }
 
 export interface SelectorProps {
@@ -242,6 +334,19 @@ export interface AdminGutachtenProps {
         fitmentCount: number
         publishedCount: number
     }[]
+}
+
+export interface AdminBenachrichtigungenProps {
+    subscriptions: {
+        id: number
+        email: string
+        vehicle: string
+        keyNumbers: string
+        status: string
+        requestedAt: string
+        notifiedAt: string | null
+    }[]
+    demand: { vehicle: string; keyNumbers: string; waiting: number }[]
 }
 
 export interface AdminRollenProps {

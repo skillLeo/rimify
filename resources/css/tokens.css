@@ -39,6 +39,9 @@
     --c-star: #e9a800;
     /* Ink at 40 %: the one translucent colour, for the layer behind a dialog. */
     --c-scrim: rgb(11 15 20 / 0.4);
+    /* Document illustration only: the highlighter strokes on the Gutachten excerpt (homepage H4,
+       gradient allowlisted as `marker`). Never a background, text, badge or chart colour. */
+    --c-marker: #ffe45c;
 
     /* ── Type · one family, one scale ────────────────────────────────────────────
        Sizes below are the desktop scale; the phone scale follows under a media query. */

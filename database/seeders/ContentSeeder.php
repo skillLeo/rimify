@@ -43,6 +43,52 @@ class ContentSeeder extends Seeder
         $this->seedFaqPage();
         $this->seedContactPage();
         $this->seedLegalPages();
+        $this->seedGuides();
+    }
+
+    /**
+     * The three guides the homepage links to (H10). The articles live in
+     * database/seeders/content/ratgeber.php as data; a lead block carries the teaser and the reading
+     * time, and each section is one `prose` block of a heading and its paragraphs.
+     */
+    private function seedGuides(): void
+    {
+        $file = __DIR__.'/content/ratgeber.php';
+
+        if (! is_file($file)) {
+            return;
+        }
+
+        /** @var list<array{slug: string, title: string, teaser: string, minutes: int, meta_description?: string, blocks: list<array{heading: string, text: string}>}> $guides */
+        $guides = require $file;
+
+        foreach ($guides as $guide) {
+            $page = $this->page($guide['slug'], 'guide', $guide['title']);
+
+            if (isset($guide['meta_description'])) {
+                DB::table('pages')->where('id', $page)->update(['meta_description' => $guide['meta_description']]);
+            }
+
+            $this->block($page, 'guide_lead', 0, [
+                'teaser' => $guide['teaser'],
+                'minutes' => $guide['minutes'],
+            ]);
+
+            // Prose blocks are keyed by their position: `block()` upserts by type, and an article
+            // has several of the same type.
+            DB::table('page_blocks')->where('page_id', $page)->where('type', 'prose')->delete();
+
+            foreach ($guide['blocks'] as $index => $block) {
+                DB::table('page_blocks')->insert([
+                    'page_id' => $page,
+                    'type' => 'prose',
+                    'sort_order' => 10 + $index * 10,
+                    'data' => json_encode(['heading' => $block['heading'], 'text' => $block['text']], JSON_THROW_ON_ERROR),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -134,12 +180,19 @@ class ContentSeeder extends Seeder
         // `hero`: eyebrow, two-part headline, sub. The selector card inside the hero is a component,
         // not content — its labels are shared with felgen-suchen and are not marketing's to edit.
         $this->block($page, 'hero', 10, [
-            'eyebrow' => 'RIMIFY-CHECK · FREIGABE GEPRÜFT',
-            'headline' => 'Felgen, die zu deinem Auto passen.',
-            // Rendered on its own line in #8FA6FF. Kept as a second field because the accent colour
-            // applies to this half only; concatenating would lose that.
-            'headline_accent' => 'Garantiert.',
-            'sub' => 'Wähle dein Fahrzeug – wir zeigen dir nur Felgen, die dafür freigegeben sind.',
+            'headline' => 'Felgen, die an dein Auto dürfen.',
+            'sub' => 'Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen. Du gibst dein Auto an, wir prüfen den Rest.',
+        ]);
+
+        // `promise_row`: the client's four titles with one neutral line each. The lines promise
+        // nothing beyond their title and are listed in docs/client-questions.md for confirmation.
+        $this->block($page, 'promise_row', 15, [
+            'items' => [
+                ['icon' => 'check', 'title' => 'Garantierte Passgenauigkeit', 'text' => 'Jede Felge, die wir dir zeigen, steht mit deinem Fahrzeug im Gutachten.'],
+                ['icon' => 'document', 'title' => 'Gutachten zu jeder Felge', 'text' => 'Das Gutachten oder die ABE liegt jeder Bestellung als PDF bei.'],
+                ['icon' => 'wrench', 'title' => 'Montiert und gewuchtet', 'text' => 'Kompletträder verlassen unser Haus fertig montiert und gewuchtet.'],
+                ['icon' => 'truck', 'title' => 'Express-Versand aus Deutschland', 'text' => 'Lagerware geht innerhalb von 1–2 Werktagen raus.'],
+            ],
         ]);
 
         // `trust_strip`: ordered short promises pinned inside the hero's bottom edge.

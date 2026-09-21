@@ -50,6 +50,9 @@ swapped for a competitor's, the section has failed.
 - Text on dark bands is `--c-surface` (primary) and `--c-on-dark-2` (secondary). Scrims over
   photography are `--c-ink` at 40–60 % alpha; they are the only place a gradient may appear, and
   only on an element carrying `.photo-scrim` or `.band-scrim`.
+- `--c-marker: #FFE45C` is document illustration only — the highlighter strokes on the homepage's
+  Gutachten excerpt (`.marker`, one of the four homepage signature gradients `hero-studio ·
+  hero-contact · hero-sweep · marker` specified in `sections/home.md`) — and appears nowhere else.
 
 ## 3 · Type — one family, a real scale
 
@@ -75,7 +78,8 @@ tabular figures.
   weight 500, `--c-ink-2`, above its value.
 - `font-variant-numeric: tabular-nums` on every price, size, count and date.
 - A number and its unit are joined with a narrow no-break space: `72,6 mm`, `189,00 €`, `ET 35`.
-- Body text measures 60–72 characters; `max-width: 68ch` on running text.
+- Body text measures 60–72 characters; `max-width: 54ch` on running text (Archivo's `ch` is
+  narrow — 54ch sets 65–70 characters per line; 68ch set 85–89).
 - `hyphens: auto` on body text, `overflow-wrap: anywhere` inside tight tiles, `lang="de"` on the
   document. Tested with *Kraftfahrzeug-Zulassungsbescheinigung* and *Reifendruckkontrollsystem*.
 

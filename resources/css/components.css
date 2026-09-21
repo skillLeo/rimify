@@ -217,6 +217,8 @@
 
     .form-field {
         display: grid;
+        /* Rows pack to the top: a field next to one carrying an error keeps its own height. */
+        align-content: start;
         gap: var(--sp-4);
         min-width: 0;
     }
@@ -784,7 +786,8 @@
     }
 
     .accordion__body {
-        max-width: 68ch;
+        /* Archivo runs narrow: 54ch is 65–70 characters per line (DIRECTION §3). */
+        max-width: 54ch;
         padding-bottom: var(--sp-24);
         color: var(--c-ink-2);
         hyphens: auto;
@@ -1041,8 +1044,11 @@
 
     /* On a phone the actions stack, each the full width, in the same order. */
     @media (max-width: 767px) {
+        /* One column of full-width buttons; the flex `flex-end` above must not survive into it. */
         .dialog__actions {
             display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            justify-content: stretch;
         }
 
         .dialog__actions .btn {

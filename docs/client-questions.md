@@ -45,3 +45,63 @@ title; please confirm every line, or replace it with the wording the shop can st
 ## Photography and brands
 
 12. See `docs/phase0/ASSET-REQUEST.md` for the photographs, logos and marks the site needs.
+
+## Ratgeber – Aussagen zum Recht, bitte prüfen
+
+The three guides in `database/seeders/content/ratgeber.php` are written for a lay reader and
+deliberately cautious. Every sentence below touches law, an authority or an approval procedure and
+is quoted verbatim; please confirm each one, correct it, or strike it. Until then the guides stay
+unpublished. Item 11 above is the summary; this is the list.
+
+**HSN und TSN finden**
+
+13. „Die Zulassungsbescheinigung Teil I ist das Dokument, das früher Fahrzeugschein hieß.“ (Is this
+    equivalence acceptable as stated, or should the guide say the Fahrzeugschein was replaced?)
+14. „Achslast und Höchstgeschwindigkeit entscheiden mit darüber, welche Tragfähigkeit und welches
+    Geschwindigkeitssymbol die Reifen brauchen und was das Gutachten für dein Fahrzeug freigibt.“
+    (Rule for the minimum load index and speed symbol; please confirm the wording.)
+
+**ABE, Teilegutachten, ECE – der Unterschied**
+
+15. „Sie unterscheiden sich darin, wer sie ausstellt und was du nach dem Anschrauben noch tun musst.“
+16. „Für Felgen wird sie vom Kraftfahrt-Bundesamt erteilt.“ (Issuing authority for a wheel ABE.)
+17. „In vielen Fällen reicht es, die ABE im Fahrzeug mitzuführen und die Auflagen einzuhalten.“ (What
+    an ABE exempts the owner from; "in vielen Fällen" is deliberate, not "immer".)
+18. „Sie nennt für jedes Fahrzeug, ob eine Abnahme durch eine Prüfstelle und eine Eintragung in die
+    Fahrzeugpapiere nötig sind.“ (Is it correct that the ABE itself states this per vehicle?)
+19. „Ein Teilegutachten stellt ein Prüflabor oder ein technischer Dienst aus.“ (Issuer.)
+20. „Anders als die ABE ist es allein noch keine Erlaubnis.“ (Legal status of a Teilegutachten.)
+21. „Mit einem Teilegutachten muss die Änderung an deinem Fahrzeug von einer Prüfstelle abgenommen
+    werden.“ (When an Abnahme is required.)
+22. „Danach wird die Änderung in die Fahrzeugpapiere eingetragen. Erst dann ist die Felge an deinem
+    Fahrzeug freigegeben.“ (When the Eintragung is required and what it completes.)
+23. „Vor der Abnahme solltest du mit der Felge nicht auf öffentlichen Straßen unterwegs sein.“ (Written
+    as advice, not as a prohibition. Should the trip to the Prüfstelle be mentioned as the exception?)
+24. „Die ECE-Genehmigung ist eine internationale Genehmigung nach den Regelungen der
+    Wirtschaftskommission der Vereinten Nationen für Europa.“ (Nature of the ECE approval; the
+    regulation number is deliberately not named.)
+25. „Eine Felge mit ECE-Genehmigung trägt ein eingeprägtes Prüfzeichen.“ (Marking on the wheel.)
+26. „Die ECE-Genehmigung wird in Deutschland anerkannt, sie gilt aber nur für die Fahrzeuge und Größen,
+    die im zugehörigen Dokument stehen.“ (Recognition in Germany and its scope.)
+27. „Ob eine Eintragung nötig ist, hängt wie bei der ABE von den Angaben und den Auflagen im Dokument
+    ab.“ (Eintragung under an ECE approval.)
+28. „Typische Auflagen betreffen die Reifengröße, den Abstand zur Karosserie oder Bauteile, die
+    angepasst werden müssen.“ (Examples only; please confirm they are representative.)
+29. „Eintragung heißt: Die Änderung wird in die Zulassungsbescheinigung Teil I aufgenommen. Dafür nimmt
+    eine Prüfstelle die Änderung ab und stellt eine Bescheinigung aus, mit der du zur Zulassungsstelle
+    gehst.“ (The Eintragung procedure in two sentences; deadlines and fees are deliberately omitted.)
+30. Not law, but a promise the shop must be able to keep: „Welches Dokument das ist, siehst du bei der
+    Felge, ebenso die Auflagen und ob eine Eintragung nötig ist. Das Dokument selbst kannst du auf der
+    Produktseite herunterladen.“ (Same commitment as item 7 and the homepage feature panel.)
+
+**Einpresstiefe (ET) verständlich erklärt**
+
+31. „Genau deshalb steht in jedem Gutachten, welche ET für welches Fahrzeug freigegeben ist.“ (Is
+    "jedem" defensible, or should it read "im Gutachten"?)
+32. „Eine ET, die dort nicht steht, ist für dieses Fahrzeug nicht freigegeben, auch wenn sie nur wenige
+    Millimeter abweicht. Einen Toleranzbereich, den du selbst festlegen könntest, gibt es nicht.“ (No
+    tolerance outside the document.)
+33. „Das gilt auch für Distanzscheiben. Sie verändern die wirksame ET, und ob sie zusammen mit einer
+    bestimmten Felge verwendet werden dürfen, muss ebenfalls in einem Dokument stehen.“ (Spacers need
+    their own approval; please confirm the guide may say this at all, or whether spacers should not be
+    mentioned.)
