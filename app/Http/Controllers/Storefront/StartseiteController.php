@@ -187,22 +187,24 @@ class StartseiteController extends Controller
      */
     private function popular(?int $vehicleId, string $tab): array
     {
-        if ($vehicleId !== null) {
-            $result = $this->cards->forVehicle($vehicleId, [], 8, 1);
-
-            return [
-                'title' => null,
-                'tabs' => [],
-                'active' => 'fahrzeug',
-                'cards' => $result['cards'],
-                'total' => $result['total'],
-            ];
-        }
-
         $tabs = [];
 
         foreach (self::TABS as $key => $definition) {
             $tabs[] = ['key' => $key, 'label' => $definition['label']];
+        }
+
+        if ($vehicleId !== null) {
+            // The car's own answer, then the tab's order or filter applied to it: the listing
+            // decides which cards exist, the tab only arranges them (R-13).
+            $result = $this->cards->forVehicle($vehicleId, [], 24, 1);
+
+            return [
+                'title' => null,
+                'tabs' => $tabs,
+                'active' => $tab,
+                'cards' => array_slice($this->arrange($result['cards'], $tab), 0, 8),
+                'total' => $result['total'],
+            ];
         }
 
         return [
@@ -212,6 +214,32 @@ class StartseiteController extends Controller
             'cards' => $this->cards->catalogue(limit: 8, options: self::TABS[$tab]['options']),
             'total' => null,
         ];
+    }
+
+    /**
+     * The three orders on a set of cards that the listing already chose: `beliebt` keeps the
+     * listing's order, `neu` puts the newest models first, `bis200` keeps the ones from 200 € down.
+     *
+     * @param  list<array<string, mixed>>  $cards
+     * @return list<array<string, mixed>>
+     */
+    private function arrange(array $cards, string $tab): array
+    {
+        if ($tab === 'bis200') {
+            return array_values(array_filter($cards, static fn (array $card): bool => (int) $card['fromPriceCents'] <= 20_000));
+        }
+
+        if ($tab === 'neu') {
+            $ids = array_values(array_unique(array_map(static fn (array $card): int => (int) $card['modelId'], $cards)));
+            $created = DB::table('wheel_models')->whereIn('id', $ids)->pluck('created_at', 'id');
+
+            usort($cards, static fn (array $a, array $b): int => strcmp(
+                (string) ($created[(int) $b['modelId']] ?? ''),
+                (string) ($created[(int) $a['modelId']] ?? ''),
+            ));
+        }
+
+        return array_values($cards);
     }
 
     /**

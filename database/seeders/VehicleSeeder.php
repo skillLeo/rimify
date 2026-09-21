@@ -266,7 +266,7 @@ class VehicleSeeder extends Seeder
         // ── HSN with significant leading zeros ──────────────────────────────────────
         [
             'source_vehicle_id' => 3, 'hsn' => '0005', 'tsn' => '582', 'vsn' => '00003',
-            'make' => 'BMW', 'model' => '3er', 'variant' => '3er Coupe',
+            'make' => 'BMW', 'model' => '3er', 'variant' => '3er Coupé',
             'type_designation' => 'E36', 'eg_nummer_raw' => 'E1*98/14*0105*',
             'body_form' => 'Coupe', 'drive_axle' => 'Hinterachse',
             'build_from' => '1995-01-01', 'build_to' => '1999-12-31',

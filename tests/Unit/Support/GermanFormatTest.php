@@ -50,7 +50,7 @@ it('never writes a rim width with a decimal point', function (): void {
 it('formats the wheel size and the full wheel label', function (): void {
     expect(GermanFormat::wheelSize(8.5, 18.0, 35))->toBe("8,5J \u{00D7} 18 \u{00B7} ET 35")
         ->and(GermanFormat::wheelLabel(8.5, 18.0, 35, 5, 112.0, 66.60))
-        ->toBe("8,5J \u{00D7} 18 \u{00B7} ET 35 \u{00B7} 5/112 \u{00B7} 66,6\u{00A0}mm");
+        ->toBe("8,5J \u{00D7} 18 \u{00B7} ET 35 \u{00B7} 5\u{00A0}\u{00D7}\u{00A0}112 \u{00B7} 66,6\u{00A0}mm");
 });
 
 it('uses the multiplication sign, not the letter x', function (): void {
@@ -62,8 +62,9 @@ it('handles a negative offset, which real wheels have', function (): void {
 });
 
 it('formats bolt patterns and centre bores', function (): void {
-    expect(GermanFormat::boltPattern(5, 112.0))->toBe('5/112')
-        ->and(GermanFormat::boltPattern(5, 114.3))->toBe('5/114,3')
+    // Written the way a Gutachten writes it, with no-break spaces so it never wraps.
+    expect(GermanFormat::boltPattern(5, 112.0))->toBe("5\u{00A0}\u{00D7}\u{00A0}112")
+        ->and(GermanFormat::boltPattern(5, 114.3))->toBe("5\u{00A0}\u{00D7}\u{00A0}114,3")
         ->and(GermanFormat::millimetres(66.60))->toBe("66,6\u{00A0}mm")
         ->and(GermanFormat::millimetres(72.0))->toBe("72\u{00A0}mm");
 });

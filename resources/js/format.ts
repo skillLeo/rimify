@@ -35,6 +35,11 @@ export function withUnit(value: string | number, unit: string): string {
 }
 
 /** `18 Zoll`, `18,5 Zoll`; a list reads `17 · 18 · 19 Zoll`. */
+/** `1 Felge` · `12 Felgen` — one spelling for every count of wheels on the site. */
+export function felgen(count: number): string {
+    return `${decimal(count, 0)}${NNBSP}${count === 1 ? 'Felge' : 'Felgen'}`
+}
+
 export function zoll(inches: number | string | (number | string)[]): string {
     const list = Array.isArray(inches) ? inches : [inches]
     const values = list.map((v) => (typeof v === 'number' ? decimal(v, Number.isInteger(v) ? 0 : 1) : v))

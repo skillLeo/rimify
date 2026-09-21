@@ -46,7 +46,9 @@ function onLoad(): void {
 </script>
 
 <template>
-    <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="{ backgroundImage: `url(${image.placeholder})` }">
+    <!-- A transparent cut-out gets no blurred placeholder: an opaque square behind it would
+         show as a box until the file paints. -->
+    <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="fallbackExt === 'png' ? undefined : { backgroundImage: `url(${image.placeholder})` }">
         <source type="image/avif" :srcset="srcset('avif')" :sizes="sizes" />
         <source type="image/webp" :srcset="srcset('webp')" :sizes="sizes" />
         <img

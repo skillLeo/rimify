@@ -115,10 +115,10 @@ final class GermanFormat
         ]);
     }
 
-    /** `5/112`, and `5/114,3` where the circle is fractional. */
+    /** `5 × 112`, and `5 × 114,3` where the circle is fractional — the way a Gutachten writes it. */
     public static function boltPattern(int $holes, float|int|string $circleMm): string
     {
-        return $holes.'/'.self::trimmedDecimal($circleMm, 1);
+        return $holes.self::NBSP.self::TIMES.self::NBSP.self::trimmedDecimal($circleMm, 1);
     }
 
     /** `245/45 R18 92Y`, or `245/45 R18` when the indices are not given. */

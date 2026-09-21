@@ -68,10 +68,10 @@ const perWheel = computed(() => euro(Math.round(props.card.fromPriceCents / 4)))
                 decoding="async"
                 @error="failed = true"
             />
-            <template v-else>
-                <WheelOutline :spokes="card.art.spokes" />
-                <span class="tile__pending micro">Foto folgt</span>
-            </template>
+            <!-- Until the packshot exists the drawing stands alone; a caption would make the
+                 missing photograph the tile's message. -->
+            <WheelOutline v-else :spokes="card.art.spokes" />
+            <span v-if="!photo" class="visually-hidden">Noch kein Foto</span>
 
             <VerdictBadge v-if="verdict" :status="verdict.status" class="tile__badge" />
 

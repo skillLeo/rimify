@@ -112,11 +112,16 @@ const sheetVisible = computed(() => consent.decided.value === null)
         padding: var(--sp-24);
     }
 
-    /* One row: two equal buttons and the settings link — keeps the card under 240 px, so it never
-       reaches the selector card above it. */
+    /* Two equal buttons in one row, the settings link under them: the labels never truncate,
+       and the card stays well clear of the selector panel to its left. */
     .consent__actions {
-        grid-template-columns: 1fr 1fr auto;
+        grid-template-columns: 1fr 1fr;
         align-items: center;
+    }
+
+    .consent__settings {
+        grid-column: 1 / -1;
+        min-height: 32px;
     }
 }
 
