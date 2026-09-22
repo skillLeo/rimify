@@ -12,6 +12,11 @@
  *
  * The quantity stepper floors at 1. Taking a line out is its own, labelled action, so a tap on
  * "−" can never make a line disappear.
+ *
+ * Every line is a wheel (D6). A line from the demo range says so and stays in the basket, and the
+ * way to the Kasse stays open so the flow can be reviewed: the server refuses the order there
+ * (ACCURACY.md D4). While no shipping price is configured, shipping is named, not priced, and it
+ * is not in the total.
  */
 
 import { Head, Link } from '@inertiajs/vue3'
@@ -19,14 +24,16 @@ import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
-import Tyre from '../../Components/Art/Tyre.vue'
 import { useBasket } from '../../composables/useBasket'
 import { useShared } from '../../composables/useShared'
-import type { BasketProps } from '../../types/pages'
+import type { BasketLine, BasketTotals } from '../../types/rimify'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
-const props = defineProps<BasketProps>()
+const props = defineProps<{
+    lines: (BasketLine & { demo?: boolean })[]
+    totals: BasketTotals & { shippingConfigured?: boolean }
+}>()
 
 const basket = useBasket()
 const shared = useShared()
@@ -36,6 +43,12 @@ const vehicle = computed(() => shared.value.vehicle)
 const blocked = computed(() =>
     props.lines.some((line) => !line.inStock || (line.verdict !== null && line.verdict !== undefined && !line.verdict.sellable))
 )
+
+/** Any line from the demo range: the summary says the order cannot be placed yet. */
+const hasDemo = computed(() => props.lines.some((line) => line.demo !== false))
+
+/** No shipping price has been given yet: fails closed, the figure is left out rather than guessed. */
+const shippingOpen = computed(() => props.totals.shippingConfigured !== true)
 
 const VERDICT_TONE: Record<string, string> = {
     PERMITTED: 'tag--ok',
@@ -66,13 +79,11 @@ const VERDICT_TONE: Record<string, string> = {
                         <li v-for="line in lines" :key="line.key" class="bl__line">
                             <div class="bl__thumb">
                                 <ProductPhoto
-                                    v-if="line.art.kind === 'wheel'"
                                     :spokes="line.art.spokes ?? 5"
                                     :finish="line.art.finish ?? 'graphite'"
                                     :size="96"
                                     :note="false"
                                 />
-                                <Tyre v-else :label="line.art.label ?? ''" :size="72" />
                             </div>
 
                             <div class="bl__main">
@@ -86,7 +97,8 @@ const VERDICT_TONE: Record<string, string> = {
                                 <p class="bl__sub">{{ line.subtitle }}</p>
                                 <p v-if="line.sizeLabel" class="data bl__size">{{ line.sizeLabel }}</p>
 
-                                <p v-if="!line.inStock || line.verdict" class="bl__flags">
+                                <p v-if="!line.inStock || line.verdict || line.demo !== false" class="bl__flags">
+                                    <span v-if="line.demo !== false" class="tag tag--unknown">Beispielsortiment</span>
                                     <span v-if="!line.inStock" class="tag tag--danger">Nicht mehr verfügbar</span>
                                     <span
                                         v-if="line.verdict"
@@ -172,8 +184,9 @@ const VERDICT_TONE: Record<string, string> = {
                             <dd class="tabular">{{ totals.subtotal }}</dd>
                         </div>
                         <div class="sum__row">
-                            <dt>Versand <span class="sum__hint">Standard DHL</span></dt>
-                            <dd v-if="totals.freeShipping" class="sum__word">Kostenlos</dd>
+                            <dt>Versand</dt>
+                            <dd v-if="shippingOpen" class="sum__word sum__open">wird noch festgelegt</dd>
+                            <dd v-else-if="totals.freeShipping" class="sum__word">Kostenlos</dd>
                             <dd v-else class="tabular">{{ totals.shipping }}</dd>
                         </div>
                         <div class="sum__row sum__row--total">
@@ -181,7 +194,16 @@ const VERDICT_TONE: Record<string, string> = {
                             <dd class="tabular">{{ totals.total }}</dd>
                         </div>
                     </dl>
-                    <p class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
+                    <p v-if="shippingOpen" class="price-legal">
+                        inkl. {{ totals.tax }} MwSt. · Versandkosten werden noch festgelegt
+                    </p>
+                    <p v-else class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
+
+                    <!-- The demo range may be walked through to the Kasse; the order is refused there. -->
+                    <p v-if="hasDemo" class="cart__demo">
+                        Dein Warenkorb enthält Felgen aus unserem Beispielsortiment. Du kannst dir die
+                        Kasse ansehen, bestellen kannst du sie noch nicht.
+                    </p>
 
                     <!-- Fails closed: a line that cannot be sold stops the checkout, and says why. -->
                     <template v-if="blocked">
@@ -419,12 +441,6 @@ const VERDICT_TONE: Record<string, string> = {
     color: var(--ink2);
 }
 
-.sum__hint {
-    display: block;
-    font-size: var(--text-small);
-    color: var(--ink3);
-}
-
 .sum__row dd {
     margin: 0;
     font-family: var(--mono);
@@ -435,6 +451,17 @@ const VERDICT_TONE: Record<string, string> = {
 .sum__row dd.sum__word {
     font-family: var(--sans);
     font-weight: 700;
+}
+
+.sum__row dd.sum__open {
+    font-weight: 500;
+    color: var(--ink2);
+}
+
+.cart__demo {
+    margin-top: var(--space-4);
+    font-size: var(--text-small);
+    color: var(--ink2);
 }
 
 .bl__blocked {

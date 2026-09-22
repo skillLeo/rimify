@@ -219,8 +219,12 @@ export interface BasketLine {
 
 export interface BasketTotals {
     subtotal: string
+    subtotalCents?: number
+    /** False while the client has not set a shipping price: the figure reads "wird noch festgelegt". */
+    shippingConfigured?: boolean
     shipping: string
-    shippingCents: number
+    /** Null while the shipping price is not configured; it is then left out of the total. */
+    shippingCents: number | null
     freeShipping: boolean
     tax: string
     total: string

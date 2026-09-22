@@ -26,10 +26,16 @@ final readonly class Basket
 {
     public const SESSION_KEY = 'cart';
 
-    /** Free shipping from 500 €, which is what the storefront advertises. */
-    private const FREE_SHIPPING_FROM_CENTS = 50_000;
+    /** Why an order with a demo line cannot be placed. Demo rows are walkable; nothing binding happens. */
+    public const DEMO_REFUSAL = 'In deinem Warenkorb liegen Felgen aus unserem Beispielsortiment. '
+        .'Du kannst dir alles ansehen, bestellen kannst du sie noch nicht – es wurde nichts bestellt und nichts berechnet.';
 
-    private const SHIPPING_CENTS = 990;
+    public const SHIPPING_REFUSAL = 'Die Versandkosten werden noch festgelegt. Solange kannst du noch nicht bestellen – '
+        .'dein Warenkorb bleibt gespeichert.';
+
+    public const BLOCKED_REFUSAL = 'Eine Position im Warenkorb kann so nicht bestellt werden. Im Warenkorb siehst du, welche es ist.';
+
+    public const EMPTY_REFUSAL = 'Dein Warenkorb ist noch leer – lege zuerst eine Felge hinein.';
 
     private const VAT_RATE = 1.19;
 
@@ -55,11 +61,11 @@ final readonly class Basket
             $lines[] = $rendered;
         }
 
-        $shipping = ($subtotal === 0 || $subtotal >= self::FREE_SHIPPING_FROM_CENTS)
-            ? 0
-            : self::SHIPPING_CENTS;
+        $shipping = $this->shippingFor($subtotal);
 
-        $total = $subtotal + $shipping;
+        // While the shipping price is unknown it stays out of the total: the page says so beside
+        // the figure rather than adding a number nobody has confirmed.
+        $total = $subtotal + ($shipping ?? 0);
         // German prices are shown gross, so VAT is extracted from the total rather than added.
         $tax = (int) round($total - ($total / self::VAT_RATE));
 
@@ -68,8 +74,9 @@ final readonly class Basket
             'totals' => [
                 'subtotalCents' => $subtotal,
                 'subtotal' => GermanFormat::money($subtotal),
+                'shippingConfigured' => $this->shippingConfigured(),
                 'shippingCents' => $shipping,
-                'shipping' => GermanFormat::money($shipping),
+                'shipping' => $shipping === null ? 'wird noch festgelegt' : GermanFormat::money($shipping),
                 'freeShipping' => $shipping === 0 && $subtotal > 0,
                 'taxCents' => $tax,
                 'tax' => GermanFormat::money($tax),
@@ -78,6 +85,47 @@ final readonly class Basket
                 'count' => array_sum(array_map(static fn (array $l): int => (int) $l['quantity'], $lines)),
             ],
         ];
+    }
+
+    /**
+     * Why an order cannot be placed from this basket, or null when nothing in the basket stands in
+     * the way. The checkout shows the same sentence the server answers a submission with.
+     */
+    public function orderRefusal(Request $request): ?string
+    {
+        return $this->refusalOf($this->summary($request));
+    }
+
+    /**
+     * @param  array{lines: list<array<string, mixed>>, totals: array<string, mixed>}  $summary
+     */
+    public function refusalOf(array $summary): ?string
+    {
+        $lines = $summary['lines'];
+
+        if ($lines === []) {
+            return self::EMPTY_REFUSAL;
+        }
+
+        foreach ($lines as $line) {
+            if (($line['demo'] ?? true) !== false) {
+                return self::DEMO_REFUSAL;
+            }
+        }
+
+        foreach ($lines as $line) {
+            $verdict = $line['verdict'] ?? null;
+
+            if (($line['inStock'] ?? false) !== true || (is_array($verdict) && ($verdict['sellable'] ?? false) !== true)) {
+                return self::BLOCKED_REFUSAL;
+            }
+        }
+
+        if ($summary['totals']['shippingConfigured'] !== true) {
+            return self::SHIPPING_REFUSAL;
+        }
+
+        return null;
     }
 
     /**
@@ -111,6 +159,9 @@ final readonly class Basket
      * a stale tab or a hand-made request cannot put a wheel the engine refuses for the chosen car
      * into the basket under a "Zum Warenkorb hinzugefügt." toast. With no vehicle there is no
      * claim to check, in either direction (R-11: the UI only hides).
+     *
+     * A demo wheel may go into the basket: the flow stays walkable for review. The order is what
+     * the server refuses (ACCURACY.md D4).
      */
     public function refusalFor(Request $request, int $wheelConfigId): ?string
     {
@@ -169,6 +220,30 @@ final readonly class Basket
     public function key(int $wheelConfigId): string
     {
         return 'wheel:'.$wheelConfigId;
+    }
+
+    /** Whether the client has given a shipping price (config/rimify.php `shipping.cost_cents`). */
+    private function shippingConfigured(): bool
+    {
+        return is_int(config('rimify.shipping.cost_cents'));
+    }
+
+    /** The shipping for a subtotal in cents, or null while no shipping price is configured. */
+    private function shippingFor(int $subtotal): ?int
+    {
+        $cost = config('rimify.shipping.cost_cents');
+
+        if (! is_int($cost)) {
+            return null;
+        }
+
+        $freeFrom = config('rimify.shipping.free_from_cents');
+
+        if ($subtotal === 0 || (is_int($freeFrom) && $subtotal >= $freeFrom)) {
+            return 0;
+        }
+
+        return max(0, $cost);
     }
 
     /**
@@ -270,6 +345,8 @@ final readonly class Basket
             'lineTotalCents' => (int) $config->price_cents * $quantity,
             'lineTotal' => GermanFormat::money((int) $config->price_cents * $quantity),
             'inStock' => $config->stock_qty >= $quantity,
+            // A seeded demonstration model: it may sit in the basket, it can never be ordered.
+            'demo' => (bool) $model->is_demo,
             // Re-computed on every render, never trusted from the session: a document may have
             // been superseded since this line was added, and the basket is the last place that
             // can say so before money changes hands.

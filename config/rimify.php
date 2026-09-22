@@ -87,6 +87,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Shipping
+    |--------------------------------------------------------------------------
+    |
+    | Integer cents. The client has not given a shipping price or a free-shipping threshold, so
+    | both are null until an environment variable names a real one. While the cost is null the
+    | basket and the checkout say "Versandkosten werden noch festgelegt", keep shipping out of the
+    | total, and the server refuses to place an order. A null threshold means no free shipping.
+    */
+    'shipping' => [
+        'cost_cents' => is_numeric(env('RIMIFY_SHIPPING_COST_CENTS')) ? (int) env('RIMIFY_SHIPPING_COST_CENTS') : null,
+        'free_from_cents' => is_numeric(env('RIMIFY_SHIPPING_FREE_FROM_CENTS')) ? (int) env('RIMIFY_SHIPPING_FREE_FROM_CENTS') : null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature flags
     |--------------------------------------------------------------------------
     */

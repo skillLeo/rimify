@@ -11,18 +11,29 @@
  *
  * The summary sits beside the form from 1200px, sticky, only as wide as it needs. On a phone it
  * comes first, folded to one line with the total, so the figure is known before the typing starts.
+ *
+ * Nothing binding happens yet (ACCURACY.md D4): every step can be walked, and `orderRefusal` is
+ * the sentence the server answers a submission with — a demo line, an unconfigured shipping
+ * price, or no payment yet. It is shown above the final button, which stays disabled while it
+ * stands. No carrier, no delivery time, no payment provider is named: none is confirmed (D7).
  */
 
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, nextTick, reactive, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import { useShared } from '../../composables/useShared'
-import type { KasseProps } from '../../types/pages'
+import type { BasketLine, BasketTotals, ContactProp } from '../../types/rimify'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
-const props = defineProps<KasseProps>()
+const props = defineProps<{
+    lines: (BasketLine & { demo?: boolean })[]
+    totals: BasketTotals & { shippingConfigured?: boolean }
+    contact: ContactProp
+    /** Why an order cannot be placed right now, or null. */
+    orderRefusal?: string | null
+}>()
 
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle)
@@ -53,7 +64,7 @@ const form = reactive({
     billingHouseNumber: '',
     billingZip: '',
     billingCity: '',
-    shipping: 'dhl',
+    shipping: 'standard',
 })
 
 const errors = reactive<Record<string, string>>({})
@@ -127,14 +138,37 @@ function next(): void {
     }
 }
 
+/** The server's answer to a submission: why the order was not placed. */
+const serverRefusal = ref<string | null>(null)
+
 /*
- * Placing the order lands with the payment integration. Until then the button validates the
- * whole checkout one last time and does nothing it cannot keep.
+ * The button validates the whole checkout one last time, then asks the server, which decides
+ * (R-11). While the page already knows the answer is no, the button is disabled and says why.
  */
 function submit(): void {
     if (!validateAddress()) {
         goTo(1)
+
+        return
     }
+
+    if (props.orderRefusal) {
+        return
+    }
+
+    router.post('/kasse', { ...form }, {
+        preserveScroll: true,
+        preserveState: true,
+        onError: (failed: Record<string, string>) => {
+            serverRefusal.value = failed.order ?? null
+
+            for (const [key, message] of Object.entries(failed)) {
+                if (key !== 'order') {
+                    errors[key] = message
+                }
+            }
+        },
+    })
 }
 
 /** A line that is sold out or not sellable for the chosen car stops the checkout here too. */
@@ -144,7 +178,24 @@ const blocked = computed(() =>
     )
 )
 
-const shippingLabel = computed(() => (props.totals.freeShipping ? 'Kostenlos' : props.totals.shipping))
+/** No shipping price has been given yet: it is named, left out of the total, and not guessed. */
+const shippingOpen = computed(() => props.totals.shippingConfigured !== true)
+
+const shippingLabel = computed(() => {
+    if (shippingOpen.value) {
+        return 'wird noch festgelegt'
+    }
+
+    return props.totals.freeShipping ? 'Kostenlos' : props.totals.shipping
+})
+
+/** Abnahme and Eintragung are paid to the Prüfstelle, not to us: the page says so when it applies. */
+const needsEntry = computed(() => props.lines.some((line) => line.verdict?.requiresEntry === true))
+
+/** The Eintragung line, unless an Auflage on the line already says it in full. */
+function showsEntry(line: BasketLine): boolean {
+    return line.verdict?.requiresEntry === true && !line.verdict.conditions.some((c) => c.includes('Eintragung'))
+}
 
 const VERDICT_TONE: Record<string, string> = {
     PERMITTED: 'tag--ok',
@@ -237,10 +288,18 @@ const VERDICT_TONE: Record<string, string> = {
                                             · <span class="data">{{ line.sizeLabel }}</span></template
                                         >
                                     </p>
-                                    <p v-if="line.verdict" class="ko__line-flag">
-                                        <span class="tag" :class="VERDICT_TONE[line.verdict.status] ?? 'tag--unknown'">
+                                    <p v-if="line.verdict || line.demo !== false" class="ko__line-flag">
+                                        <span v-if="line.demo !== false" class="tag tag--unknown">Beispielsortiment</span>
+                                        <span
+                                            v-if="line.verdict"
+                                            class="tag"
+                                            :class="VERDICT_TONE[line.verdict.status] ?? 'tag--unknown'"
+                                        >
                                             {{ line.verdict.label }}
                                         </span>
+                                    </p>
+                                    <p v-if="showsEntry(line)" class="ko__line-entry">
+                                        Eintragung in die Fahrzeugpapiere erforderlich.
                                     </p>
                                     <ul v-if="line.verdict && line.verdict.conditions.length" class="ko__conditions">
                                         <li v-for="condition in line.verdict.conditions" :key="condition">
@@ -264,7 +323,10 @@ const VERDICT_TONE: Record<string, string> = {
                                     <dd class="tabular">{{ totals.total }}</dd>
                                 </div>
                             </dl>
-                            <p class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
+                            <p v-if="shippingOpen" class="price-legal">
+                                inkl. {{ totals.tax }} MwSt. · Versandkosten werden noch festgelegt
+                            </p>
+                            <p v-else class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
                         </div>
                     </aside>
 
@@ -293,7 +355,7 @@ const VERDICT_TONE: Record<string, string> = {
                                             :aria-invalid="errors.email ? 'true' : undefined"
                                         />
                                         <p id="ko-mail-help" class="field-help">
-                                            Für die Bestellbestätigung und das Gutachten.
+                                            Hierhin schicken wir dir Infos zu deiner Bestellung.
                                         </p>
                                         <span id="ko-mail-err" class="field-error">{{ errors.email ?? '' }}</span>
                                     </div>
@@ -512,7 +574,7 @@ const VERDICT_TONE: Record<string, string> = {
                                 </div>
                                 <div v-if="step === 3" class="ko__recap-row">
                                     <dt class="micro">Versand</dt>
-                                    <dd>Standard DHL · 2–4 Werktage · <span class="tabular">{{ shippingLabel }}</span></dd>
+                                    <dd>Standardversand · <span :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</span></dd>
                                     <button class="btn btn--quiet ko__change" type="button" @click="goTo(2)">
                                         Ändern<span class="visually-hidden"> (Versand)</span>
                                     </button>
@@ -525,12 +587,11 @@ const VERDICT_TONE: Record<string, string> = {
                                 <fieldset class="ko__group">
                                     <legend class="visually-hidden">Versandart</legend>
                                     <label class="ko__option">
-                                        <input v-model="form.shipping" type="radio" name="shipping" value="dhl" />
+                                        <input v-model="form.shipping" type="radio" name="shipping" value="standard" />
                                         <span class="ko__option-text">
-                                            <span class="ko__option-name">Standard DHL</span>
-                                            <span class="ko__option-note">2–4 Werktage</span>
+                                            <span class="ko__option-name">Standardversand</span>
                                         </span>
-                                        <span class="ko__option-price tabular">{{ shippingLabel }}</span>
+                                        <span class="ko__option-price" :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</span>
                                     </label>
                                 </fieldset>
 
@@ -543,9 +604,10 @@ const VERDICT_TONE: Record<string, string> = {
                             <!-- Step 3 · Zahlung -->
                             <template v-else>
                                 <h2 class="t-h2 ko__step-title" tabindex="-1" data-step-title>Zahlung</h2>
-                                <p class="t-body ko__pay-note">
-                                    Die Zahlung wird sicher über Stripe abgewickelt. Deine Kartendaten
-                                    erreichen RIMIFY nicht.
+
+                                <!-- The server's own answer, before anyone presses the button. -->
+                                <p v-if="orderRefusal" id="ko-refusal" class="ko__refusal" role="status">
+                                    {{ orderRefusal }}
                                 </p>
 
                                 <div class="ko__final">
@@ -553,12 +615,30 @@ const VERDICT_TONE: Record<string, string> = {
                                         <span>Gesamt</span>
                                         <span class="tabular">{{ totals.total }}</span>
                                     </p>
-                                    <p class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
+                                    <p v-if="shippingOpen" class="price-legal">
+                                        inkl. {{ totals.tax }} MwSt. · Versandkosten werden noch festgelegt
+                                    </p>
+                                    <p v-else class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
 
-                                    <button class="btn btn--primary btn--lg btn--block ko__pay" type="submit">
+                                    <!-- §312j BGB: the button states the obligation to pay, in these words. -->
+                                    <button
+                                        class="btn btn--primary btn--lg btn--block ko__pay"
+                                        type="submit"
+                                        :disabled="Boolean(orderRefusal)"
+                                        :aria-describedby="orderRefusal ? 'ko-refusal' : undefined"
+                                    >
                                         Zahlungspflichtig bestellen
                                     </button>
-                                    <p class="t-small quiet ko__final-note">Es entstehen keine weiteren Kosten.</p>
+                                    <p v-if="serverRefusal" class="ko__refusal ko__refusal--after" role="alert">
+                                        {{ serverRefusal }}
+                                    </p>
+                                    <!-- Only with a shipping price: until then the total is not the whole amount. -->
+                                    <p v-if="!shippingOpen" class="t-small quiet ko__final-note">
+                                        Von uns kommen keine weiteren Kosten dazu.
+                                    </p>
+                                    <p v-if="needsEntry" class="t-small quiet ko__final-note">
+                                        Für Abnahme und Eintragung berechnet die Prüfstelle eigene Gebühren.
+                                    </p>
                                     <p class="t-small ko__legal-links">
                                         <Link href="/rechtliches/agb">AGB</Link>
                                         <span aria-hidden="true">·</span>
@@ -684,7 +764,16 @@ const VERDICT_TONE: Record<string, string> = {
 }
 
 .ko__line-flag {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
     margin-top: var(--space-2);
+}
+
+.ko__line-entry {
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
+    font-weight: 700;
 }
 
 .ko__conditions {
@@ -835,12 +924,6 @@ const VERDICT_TONE: Record<string, string> = {
     font-weight: 700;
 }
 
-.ko__option-note {
-    display: block;
-    font-size: var(--text-small);
-    color: var(--ink2);
-}
-
 .ko__option-price {
     margin-left: auto;
     font-family: var(--mono);
@@ -881,9 +964,17 @@ const VERDICT_TONE: Record<string, string> = {
     color: var(--ink2);
 }
 
-.ko__pay-note {
+/* Why no order can be placed: a quiet, readable statement, not an error colour. */
+.ko__refusal {
     margin-top: var(--space-3);
-    color: var(--ink2);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--border-strong);
+    background: var(--band);
+    color: var(--ink);
+}
+
+.ko__refusal--after {
+    margin-top: var(--space-3);
 }
 
 .ko__final {

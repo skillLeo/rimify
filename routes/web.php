@@ -66,6 +66,8 @@ Route::post('/warenkorb', [WarenkorbController::class, 'store'])->name('warenkor
 Route::patch('/warenkorb/{line}', [WarenkorbController::class, 'update'])->name('warenkorb.update');
 Route::delete('/warenkorb/{line}', [WarenkorbController::class, 'destroy'])->name('warenkorb.destroy');
 Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
+// Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
+Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:10,1')->name('kasse.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
 
 /*
