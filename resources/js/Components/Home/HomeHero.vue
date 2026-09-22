@@ -303,20 +303,21 @@ onBeforeUnmount(() => {
                     <div class="hero-studio" aria-hidden="true" />
                     <div class="hero-contact" aria-hidden="true" />
 
-                    <!-- One link, one tab stop — the wheel and the caption — when the photograph is the product's own. -->
+                    <!-- One link, one tab stop — the wheel and the caption — when the photograph is the product's own.
+                         Named by its content (the picture's alt, the callouts, the caption): no aria-label, so the
+                         visible text is part of the accessible name. -->
                     <component
                         :is="symbolic ? 'div' : 'a'"
                         v-if="product"
                         class="hero__link"
                         :href="symbolic ? undefined : `/felgen/${product.slug}`"
-                        :aria-label="symbolic ? undefined : `Zur Felge ${product.brand} ${product.name}`"
                     >
                         <span ref="wheel" class="hero__wheel" :class="{ 'hero__wheel--fallback': failed }" :style="{ '--roll': `${roll}deg` }">
                             <WheelViewer3D
                                 v-if="!failed"
                                 :poster="manifest"
                                 :alt="alt"
-                                sizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, 70vw"
+                                sizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, calc(70vw - 22px)"
                                 eager
                                 :model="MODEL_3D"
                                 :sequence="HERO_SEQUENCE"

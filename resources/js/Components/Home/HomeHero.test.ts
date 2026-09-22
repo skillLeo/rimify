@@ -167,7 +167,8 @@ describe('HomeHero', () => {
         expect(links).toHaveLength(1)
         const link = links[0]!
         expect(link.attributes('href')).toBe('/felgen/bbs-rs-silber')
-        expect(link.attributes('aria-label')).toBe('Zur Felge BBS RS')
+        // Named by content — alt, callouts, caption — never by a label that leaves the visible text out.
+        expect(link.attributes('aria-label')).toBeUndefined()
         expect(link.text()).toContain('BBS RS · Silber')
         expect(link.text()).toContain(`ab 189,00${NNBSP}€ · pro Felge`)
         expect(wrapper.find('img').attributes('alt')).toBe('BBS RS in Silber, Ansicht von vorn')

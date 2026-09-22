@@ -13,8 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
  * TLS, HSTS, CSP, X-Content-Type-Options, Referrer-Policy — spec §12, verified by a
  * feature test so a missing header fails the build rather than a penetration test.
  *
- * The CSP is nonce-based: Vite tags and Ziggy's @routes script carry the nonce, nothing else may
- * execute. Stripe Checkout is hosted (a redirect, never an embedded script), so the only
+ * The CSP is nonce-based: the Vite tags carry the nonce, nothing else may execute. Stripe Checkout is hosted (a redirect, never an embedded script), so the only
  * third-party script origin is none at all.
  *
  * `img-src` is `'self' data: blob:`, widened to named hosts only when config/rimify.php lists any.

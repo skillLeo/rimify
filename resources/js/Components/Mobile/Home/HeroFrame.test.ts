@@ -95,8 +95,13 @@ describe('HeroFrame', () => {
         const frame = wrapper.find('.hero-frame')
         expect(frame.element.tagName).toBe('A')
         expect(frame.attributes('href')).toBe('/felgen/borbet-havanna-graphite-matt')
-        expect(frame.attributes('aria-label')).toBe('Zur Felge BORBET Havanna')
+        // The link is named by its content — the picture's alt and the callouts — never by a label
+        // that would leave the visible text out of the accessible name.
+        expect(frame.attributes('aria-label')).toBeUndefined()
         expect(wrapper.find('img').attributes('alt')).toBe('BORBET Havanna in Graphite matt, Ansicht von vorn')
+        expect(wrapper.find('img').attributes('sizes')).toContain('calc(70vw - 22px)')
+        expect(wrapper.find('img').attributes('loading')).toBe('eager')
+        expect(wrapper.find('img').attributes('fetchpriority')).toBe('high')
 
         const caption = wrapper.find('a.hero-mobile__caption')
         expect(caption.text()).toContain('BORBET Havanna · Graphite matt')

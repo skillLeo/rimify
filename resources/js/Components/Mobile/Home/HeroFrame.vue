@@ -8,8 +8,9 @@
  * packshot — the frame names no product: no brand, no model, no price, no link. The values are
  * still real (they are the configuration's), and one line says what the picture is.
  *
- * Below the fold on the phone, so lazy; the h1 is the LCP. The leader lines draw once the image
- * has painted (SpecCallout keys on `.frame.is-ready`). No sweep and no roll on a phone.
+ * On a tall phone the frame is in the first viewport and its picture is the LCP, so it loads
+ * eagerly (app.blade.php preloads it). The leader lines draw once the image has painted
+ * (SpecCallout keys on `.frame.is-ready`). No sweep and no roll on a phone.
  */
 
 import { Link, usePage } from '@inertiajs/vue3'
@@ -34,6 +35,9 @@ const page = usePage<{ demo?: boolean }>()
 const manifest = computed<CutoutManifest>(
     () => (props.product.imageManifest as CutoutManifest | null | undefined) ?? (heroWheel as CutoutManifest),
 )
+
+/* The wheel is 70 % of the frame, the frame the container: 70vw less 70 % of the two gutters. */
+const HERO_SIZES = '(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, calc(70vw - 22px)'
 
 const ready = ref(false)
 const failed = ref(false)
@@ -78,15 +82,16 @@ const restLine = computed(() =>
             :href="product.symbolic ? undefined : href"
             class="frame hero-frame"
             :class="{ 'is-ready': ready }"
-            :aria-label="product.symbolic ? undefined : `Zur Felge ${product.brand} ${product.name}`"
             :prefetch="product.symbolic ? undefined : true"
         >
             <span class="hero-studio" aria-hidden="true" />
             <span class="hero-contact" aria-hidden="true" />
 
-            <!-- `error` does not bubble, but it does pass this wrapper in the capture phase. -->
+            <!-- The link's name is the picture's alt plus the callouts: no aria-label, so the visible
+                 text is part of the name. `error` does not bubble, but it does pass this wrapper in
+                 the capture phase. The sizes match the hero preload in app.blade.php. -->
             <span v-if="!failed" class="hero-frame__wheel" @error.capture="failed = true">
-                <Picture :image="manifest" :alt="alt" sizes="70vw" @loaded="ready = true" />
+                <Picture :image="manifest" :alt="alt" :sizes="HERO_SIZES" eager @loaded="ready = true" />
             </span>
             <span v-else class="hero-frame__outline" aria-hidden="true">
                 <WheelOutline :bolts="product.config.boltHoles" />

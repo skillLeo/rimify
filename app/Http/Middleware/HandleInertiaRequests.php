@@ -7,7 +7,6 @@ namespace App\Http\Middleware;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
-use Tighten\Ziggy\Ziggy;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -55,11 +54,6 @@ class HandleInertiaRequests extends Middleware
              * Null on every ordinary request, so it costs nothing to carry.
              */
             'lookup' => $request->session()->get('lookup'),
-            // The SSR process has no `window.Ziggy`; it reads the route list from here.
-            'ziggy' => fn (): array => [
-                ...(new Ziggy)->toArray(),
-                'location' => $request->url(),
-            ],
         ];
     }
 }

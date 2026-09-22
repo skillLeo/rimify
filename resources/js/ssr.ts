@@ -4,7 +4,6 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import createServer from '@inertiajs/vue3/server';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
-import { ZiggyVue, type Config } from 'ziggy-js';
 
 const appName = process.env.VITE_APP_NAME || 'RIMIFY';
 
@@ -19,16 +18,9 @@ createServer((page) =>
         resolve: (name) =>
             resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob<DefineComponent>('./Pages/**/*.vue')),
         setup({ App, props, plugin }) {
-            // The server has no `window.Ziggy`; HandleInertiaRequests shares the route list instead.
-            // A page rendered outside the web middleware (a maintenance page) has none, and must
-            // still render rather than take the SSR process down.
-            const ziggy = page.props.ziggy as (Config & { location: string }) | undefined;
-
-            const app = createSSRApp({ render: () => h(App, props) })
+            return createSSRApp({ render: () => h(App, props) })
                 .use(plugin)
                 .use(createPinia());
-
-            return ziggy ? app.use(ZiggyVue, { ...ziggy, location: new URL(ziggy.location) }) : app;
         },
     }),
     // On a shared host the default port may already belong to another application, so it is

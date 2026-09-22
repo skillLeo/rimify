@@ -17,9 +17,9 @@
     {{-- The typeface used above the fold, fetched before the stylesheet asks for it. --}}
     <link rel="preload" href="/fonts/archivo-latin-wdth.woff2" as="font" type="font/woff2" crossorigin>
 
-    {{-- The homepage's LCP image on the desktop document: the hero cut-out, fetched before the
-         bundle asks for it. The phone document's LCP is the headline, so it preloads nothing. --}}
-    @if (($page['component'] ?? '') === 'Startseite/Desktop')
+    {{-- The homepage's LCP image on both documents: the hero cut-out, fetched before the bundle
+         asks for it. `imagesizes` must match the `sizes` on the picture (HomeHero, HeroFrame). --}}
+    @if (in_array($page['component'] ?? '', ['Startseite/Desktop', 'Startseite/Mobile'], true))
         @php
             $heroManifest = $page['props']['hero']['product']['imageManifest'] ?? null;
             $heroSet = is_array($heroManifest) && isset($heroManifest['base'], $heroManifest['widths'])
@@ -28,11 +28,21 @@
         @endphp
         <link rel="preload" as="image" fetchpriority="high" type="image/avif"
               imagesrcset="{{ $heroSet }}"
-              imagesizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, 70vw">
+              imagesizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, calc(70vw - 22px)">
     @endif
 
-    @routes(nonce: Vite::cspNonce())
-    @vite(['resources/css/app.css', 'resources/js/app.ts'])
+    {{-- The page component's chunk as well: its stylesheet (and its layout's) is then in the head
+         with the entry, not fetched after the bundle has resolved the page. Without it the
+         server-rendered page paints unstyled first and every section shifts at hydration. --}}
+    @php
+        $entries = ['resources/css/app.css', 'resources/js/app.ts'];
+        $component = $page['component'] ?? '';
+
+        if ($component !== '' && file_exists(resource_path("js/Pages/{$component}.vue"))) {
+            $entries[] = "resources/js/Pages/{$component}.vue";
+        }
+    @endphp
+    @vite($entries)
     @inertiaHead
 </head>
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}
