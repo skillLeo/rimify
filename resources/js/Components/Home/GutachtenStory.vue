@@ -478,14 +478,16 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
         top: calc(var(--header-h) + var(--vbar-h) + var(--sp-24));
     }
 
+    /*
+     * The steps sit at their natural height, one after the other, beside the document, and the
+     * block is no taller than it needs to be. The timeline below is the column's `cover` range:
+     * it spans the viewport height plus the column, so the four moments stay apart on it without
+     * stretching the steps with empty space (they used to be forced to 32vh each).
+     */
     .story__steps {
         grid-column: 9 / span 4;
-        gap: var(--sp-64);
-    }
-
-    /* The column is longer than one viewport, so the four moments are apart on the timeline. */
-    .story__step {
-        min-height: 32vh;
+        align-self: center;
+        gap: var(--sp-40);
     }
 }
 
