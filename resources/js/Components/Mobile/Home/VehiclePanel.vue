@@ -501,7 +501,11 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             <div v-else-if="zero" class="notice vpanel__zero">
                 <div>
                     <p>Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.</p>
-                    <template v-if="notifyState === 'done'">
+                    <!-- Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). -->
+                    <p v-if="shared.notifyByMail !== true" class="small muted">
+                        Schreib uns gern eine E-Mail an <a class="link" :href="`mailto:${contact.email}`">{{ contact.email }}</a>.
+                    </p>
+                    <template v-else-if="notifyState === 'done'">
                         <p class="small muted">Danke. Bestätige bitte den Link in der E-Mail, die wir dir gerade geschickt haben.</p>
                     </template>
                     <form v-else class="vpanel__notify" @submit.prevent="notify">

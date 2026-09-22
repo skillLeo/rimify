@@ -128,6 +128,8 @@ beforeEach(() => {
         garage: [],
         contact: WITH_PHONE,
         lookup: null,
+        // Outgoing mail configured: the notify form shows (F2). Off, it offers the address instead.
+        notifyByMail: true,
     }
     forms.length = 0
     routerMock.delete.mockReset()

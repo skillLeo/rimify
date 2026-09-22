@@ -807,7 +807,11 @@ onBeforeUnmount(() => treeController?.abort())
             <div v-else-if="zero && counted" class="notice sel__zero">
                 <div class="sel__zero-body">
                     <p>Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.</p>
-                    <template v-if="notify.state !== 'sent'">
+                    <!-- Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). -->
+                    <p v-if="page.props.notifyByMail !== true">
+                        Schreib uns gern eine E-Mail an <a class="link" :href="`mailto:${contact?.email}`">{{ contact?.email }}</a>.
+                    </p>
+                    <template v-else-if="notify.state !== 'sent'">
                         <p>Sag uns deine E-Mail-Adresse – wir melden uns, sobald ein Gutachten dein Fahrzeug nennt.</p>
                         <div class="form-field">
                             <label class="form-field__label" :for="`${id}-email`">E-Mail-Adresse</label>

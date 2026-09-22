@@ -8,9 +8,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class FitmentNotifyRequest extends FormRequest
 {
+    /**
+     * Refused, before any validation, while outgoing mail is not configured: the double opt-in
+     * could not arrive, so a subscription would be a promise nobody keeps (rimify.features.notify_by_mail).
+     */
     public function authorize(): bool
     {
-        return true;
+        return (bool) config('rimify.features.notify_by_mail');
     }
 
     protected function prepareForValidation(): void

@@ -19,12 +19,28 @@ use Illuminate\Support\Facades\Mail;
 beforeEach(function (): void {
     $this->seed(CommerceSeeder::class);
     Mail::fake();
+    // The feature is on wherever outgoing mail is configured; the preview has it off.
+    config()->set('rimify.features.notify_by_mail', true);
 });
 
+/** The BMW 330i G20 (5 × 112): a car the demo documents cover well (docs/phase0/ACCURACY.md §3.1). */
 function bmw(): Vehicle
 {
-    return Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+    return Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
 }
+
+it('refuses every request while outgoing mail is not configured, and stores and sends nothing', function (): void {
+    config()->set('rimify.features.notify_by_mail', false);
+
+    $this->postJson('/api/v1/fitment/notify', ['email' => 'kunde@example.de', 'fahrzeug' => bmw()->id])
+        ->assertForbidden();
+
+    // Refused before validation: a bad address earns no field-by-field answer either.
+    $this->postJson('/api/v1/fitment/notify', ['email' => 'nope', 'fahrzeug' => 0])->assertForbidden();
+
+    expect(FitmentSubscription::query()->count())->toBe(0);
+    Mail::assertNothingSent();
+});
 
 it('stores the request and sends one confirmation mail', function (): void {
     $this->postJson('/api/v1/fitment/notify', ['email' => ' Kunde@Example.de ', 'fahrzeug' => bmw()->id])

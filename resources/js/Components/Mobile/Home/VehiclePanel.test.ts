@@ -66,7 +66,7 @@ function routes(wrapper: VueWrapper): DOMWrapper<Element>[] {
 }
 
 beforeEach(() => {
-    current.props = { vehicle: null, garage: [], contact: WITHOUT_PHONE, lookup: null }
+    current.props = { vehicle: null, garage: [], contact: WITHOUT_PHONE, lookup: null, notifyByMail: true }
     routerMock.post.mockReset()
     routerMock.delete.mockReset()
 

@@ -108,6 +108,11 @@ return [
     'features' => [
         // Fitting partners near the customer (H9). Off until the partner list is real.
         'partners' => (bool) env('RIMIFY_FEATURE_PARTNERS', false),
+        // "Sag mir Bescheid" by e-mail (F2). It is a double opt-in, so it only works where mail
+        // really leaves the server. The preview's mail driver is `log`, where a confirmation would
+        // never arrive and nobody would ever be told. Off until outgoing mail is configured; while
+        // it is off, the forms offer the shop's e-mail address instead.
+        'notify_by_mail' => (bool) env('RIMIFY_FEATURE_NOTIFY_BY_MAIL', false),
     ],
 
     /*

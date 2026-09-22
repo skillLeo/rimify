@@ -88,6 +88,8 @@ final readonly class Chrome
             // Its own key: pages pass a `demo` of their own (a demo product, a seeded order), and a
             // page prop would replace a shared one of the same name, hiding the badge on that page.
             'demoBadge' => self::demo(),
+            // Whether "Sag mir Bescheid" can work: only where outgoing mail is configured (F2).
+            'notifyByMail' => (bool) config('rimify.features.notify_by_mail'),
         ];
     }
 

@@ -113,6 +113,8 @@ export interface SharedProps {
     serviceStatus: ServiceStatusProp
     /** Demonstration rows are on show: the header carries the Demodaten badge (ACCURACY D4). A page's own `demo` prop is a different thing. */
     demoBadge: boolean
+    /** "Sag mir Bescheid" by e-mail works only where outgoing mail is configured; otherwise the forms offer the shop's address. */
+    notifyByMail?: boolean
     isMobile: boolean
     locale: string
     /** Remote photography layered over the drawn art — a temporary client-review flag. */

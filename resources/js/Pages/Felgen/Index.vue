@@ -18,6 +18,7 @@ import AppLayout from '../../Layouts/AppLayout.vue'
 import FilterBar from '../../Components/Listing/FilterBar.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ProductTile from '../../Components/Ui/ProductTile.vue'
+import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
 import type { FelgenProps } from '../../types/pages'
@@ -156,6 +157,12 @@ onBeforeUnmount(() => {
                         <p class="t-body">
                             RIMIFY zeigt ausschließlich Felgen, für die ein gültiges Gutachten vorliegt.
                         </p>
+                        <!-- F2's real endpoint, never the old contact form, which sent nothing (ACCURACY D5). -->
+                        <VehicleNotify
+                            v-if="appliedCount === 0 && vehicle"
+                            :vehicle-id="vehicle.id"
+                            :vehicle-label="vehicle.short"
+                        />
                         <div class="cluster">
                             <button
                                 v-if="appliedCount > 0"
@@ -165,9 +172,6 @@ onBeforeUnmount(() => {
                             >
                                 Filter zurücksetzen
                             </button>
-                            <Link v-else href="/kontakt" class="btn btn--primary">
-                                Benachrichtigen, sobald verfügbar
-                            </Link>
                             <Link href="/felgen-suchen" class="btn btn--secondary">Anderes Fahrzeug wählen</Link>
                         </div>
                     </div>
