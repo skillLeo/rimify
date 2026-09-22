@@ -74,12 +74,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | The hours someone answers, computed in Europe/Berlin with the public holidays of the office's
-    | state. The client has confirmed Mo–Fr 9–17 but not the state: DE-NW is an assumption pending
-    | their answer, listed in docs/client-questions.md.
+    | state. The client has confirmed Mo–Fr 9–17 but not the state, so the region is null until
+    | RIMIFY_SERVICE_REGION names one (docs/client-questions.md). While it is null, a day that is a
+    | public holiday in any German state makes no live claim: the status line shows the hours.
     */
     'service' => [
         'timezone' => 'Europe/Berlin',
-        'region' => env('RIMIFY_SERVICE_REGION', 'DE-NW'),
+        'region' => env('RIMIFY_SERVICE_REGION') ?: null,
         'weekdays' => [1, 2, 3, 4, 5],
         'from' => env('RIMIFY_SERVICE_FROM', '09:00'),
         'to' => env('RIMIFY_SERVICE_TO', '17:00'),
