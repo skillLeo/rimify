@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Storefront;
 
 use App\Domain\Fitment\Contracts\VehicleRepository;
-use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
 use App\Support\DemoWheels;
@@ -59,6 +59,12 @@ final readonly class ProductCards
         $diameterOf = $this->diameterByConfig($configIds);
         $vehicle = $this->vehicles->find($vehicleId);
 
+        // Every configuration on the page decided in one call, so the engine reads its rows once
+        // for the page rather than once per configuration.
+        $verdicts = $vehicle === null
+            ? []
+            : $this->resolver->resolveManyForVehicle($vehicle, array_merge([], ...array_values($configIds)));
+
         $cards = [];
 
         foreach ($result['rows'] as $row) {
@@ -68,7 +74,7 @@ final readonly class ProductCards
                 $row,
                 $presentation,
                 $diameters,
-                $this->claim($vehicle, $configIds[$key] ?? [], $diameterOf),
+                $this->claim($verdicts, $configIds[$key] ?? [], $diameterOf),
             );
         }
 
@@ -88,21 +94,23 @@ final readonly class ProductCards
      * The diameters the permitted configurations come in travel with the claim, so a tile can
      * grey the sizes no document permits on this car (in the same spelling as `diameters`).
      *
+     * @param  array<int, FitmentVerdict>  $verdicts  the engine's verdicts for the page, by configuration id
      * @param  list<int>  $configIds
      * @param  array<int, string>  $diameterOf  configuration id → its diameter, formatted
      * @return array{status: string, requiresEntry: bool, conditions: list<string>, diametersFitting: list<string>}
      */
-    private function claim(?VehicleRecord $vehicle, array $configIds, array $diameterOf = []): array
+    private function claim(array $verdicts, array $configIds, array $diameterOf = []): array
     {
         $status = null;
         $requiresEntry = false;
         $conditions = [];
         $fitting = [];
 
-        foreach ($vehicle === null ? [] : $configIds as $configId) {
-            $verdict = $this->resolver->resolveForVehicle($vehicle, $configId);
+        foreach ($configIds as $configId) {
+            $verdict = $verdicts[$configId] ?? null;
 
-            if (! $verdict->isSellable()) {
+            // No verdict (no vehicle, or not asked about) is no claim — never a default yes.
+            if ($verdict === null || ! $verdict->isSellable()) {
                 continue;
             }
 

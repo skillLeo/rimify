@@ -255,8 +255,13 @@ final readonly class CompareRows
         /** @var array<string, FitmentVerdict> $firstOf */
         $firstOf = [];
 
+        $verdicts = $this->resolver->resolveMany(
+            $vehicleId,
+            array_map(static fn (WheelConfig $config): int => (int) $config->id, $configs),
+        );
+
         foreach ($configs as $config) {
-            $verdict = $this->resolver->resolve($vehicleId, (int) $config->id);
+            $verdict = $verdicts[(int) $config->id];
             $firstOf[$verdict->status->value] ??= $verdict;
 
             if ($verdict->status !== VerdictStatus::NotPermitted) {

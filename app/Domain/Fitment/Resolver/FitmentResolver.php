@@ -66,9 +66,54 @@ final readonly class FitmentResolver
         return $this->resolveForVehicle($vehicle, $wheelConfigId);
     }
 
+    /**
+     * `resolve()` for several configurations of one vehicle, with the vehicle looked up once.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, FitmentVerdict> keyed by configuration id, one for every id asked about
+     */
+    public function resolveMany(int $vehicleId, array $wheelConfigIds): array
+    {
+        $vehicle = $this->vehicles->find($vehicleId);
+
+        if ($vehicle === null) {
+            $verdicts = [];
+
+            foreach (array_unique($wheelConfigIds) as $id) {
+                $verdicts[$id] = $this->unknownWithoutVehicle($vehicleId, $id);
+            }
+
+            return $verdicts;
+        }
+
+        return $this->resolveManyForVehicle($vehicle, $wheelConfigIds);
+    }
+
     public function resolveForVehicle(VehicleRecord $vehicle, int $wheelConfigId): FitmentVerdict
     {
-        $wheel = $this->fitments->findWheelConfig($wheelConfigId);
+        return $this->resolveManyForVehicle($vehicle, [$wheelConfigId])[$wheelConfigId];
+    }
+
+    /**
+     * One verdict per configuration asked about, each decided exactly as `resolveForVehicle()`
+     * decides it — that method is this one with a single id. Only the reads are shared: the rows,
+     * the configurations and the "does any document know this wheel" question are each asked once
+     * for the whole set, so a page of listing cards costs a handful of queries, not a handful per
+     * configuration.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, FitmentVerdict> keyed by configuration id, one for every id asked about
+     */
+    public function resolveManyForVehicle(VehicleRecord $vehicle, array $wheelConfigIds): array
+    {
+        $ids = array_values(array_unique($wheelConfigIds));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $wheels = $this->fitments->findWheelConfigs($ids);
+        $verdicts = [];
 
         // ── Step 1 · the vehicle must be usable at all ───────────────────────────────────
         // Asked before anything else: a vehicle whose axle loads or top speed could not be parsed
@@ -76,39 +121,68 @@ final readonly class FitmentResolver
         // minimum is not "no minimum" (R-03). This outranks R-06 — a document stating its own
         // minimum does not rescue a vehicle we cannot characterise.
         if (! $vehicle->hasCompleteLegalData()) {
-            return $this->negative(
-                VerdictStatus::Unknown,
-                $vehicle,
-                $wheel,
-                VerdictReason::of(VerdictReason::VEHICLE_INCOMPLETE),
-            );
+            foreach ($ids as $id) {
+                $verdicts[$id] = $this->negative(
+                    VerdictStatus::Unknown,
+                    $vehicle,
+                    $wheels[$id] ?? null,
+                    VerdictReason::of(VerdictReason::VEHICLE_INCOMPLETE),
+                );
+            }
+
+            return $verdicts;
         }
 
         // ── Steps 2 and 3 · rows scoped by law and by document ───────────────────────────
-        $rows = $this->fitments->publishedRowsFor($vehicle->id, $wheelConfigId);
+        $rowsByConfig = $this->fitments->publishedRowsFor($vehicle->id, $ids);
+        $covering = [];
 
-        $covering = array_values(array_filter(
-            $rows,
-            fn (FitmentRow $row): bool => $row->windowCovers($vehicle->buildWindow)
-                && ($wheel === null || $row->permitsGeometry($wheel->widthIn, $wheel->etMm)),
-        ));
+        foreach ($ids as $id) {
+            $wheel = $wheels[$id] ?? null;
 
-        if ($covering === []) {
-            return $this->negativeWithoutCoverage($vehicle, $wheel, $wheelConfigId, $rows);
+            $covering[$id] = array_values(array_filter(
+                $rowsByConfig[$id] ?? [],
+                fn (FitmentRow $row): bool => $row->windowCovers($vehicle->buildWindow)
+                    && ($wheel === null || $row->permitsGeometry($wheel->widthIn, $wheel->etMm)),
+            ));
         }
 
-        // ── Steps 4, 5 and 6 · merged toward caution across every covering row ───────────
-        try {
-            return $this->buildPositiveVerdict($vehicle, $wheel, $covering);
-        } catch (ReferenceDataMissing) {
-            // A configuration fault must never present itself as a permissive legal answer.
-            return $this->negative(
-                VerdictStatus::Unknown,
-                $vehicle,
-                $wheel,
-                VerdictReason::of(VerdictReason::REFERENCE_DATA_MISSING),
-            );
+        // Asked only about the configurations nothing covers, which is the only place the answer
+        // is used.
+        $uncovered = array_keys(array_filter($covering, static fn (array $rows): bool => $rows === []));
+        $documented = $uncovered === []
+            ? []
+            : array_flip($this->fitments->configsWithPublishedDocument($uncovered));
+
+        foreach ($ids as $id) {
+            $wheel = $wheels[$id] ?? null;
+
+            if ($covering[$id] === []) {
+                $verdicts[$id] = $this->negativeWithoutCoverage(
+                    $vehicle,
+                    $wheel,
+                    isset($documented[$id]),
+                    $rowsByConfig[$id] ?? [],
+                );
+
+                continue;
+            }
+
+            // ── Steps 4, 5 and 6 · merged toward caution across every covering row ───────
+            try {
+                $verdicts[$id] = $this->buildPositiveVerdict($vehicle, $wheel, $covering[$id]);
+            } catch (ReferenceDataMissing) {
+                // A configuration fault must never present itself as a permissive legal answer.
+                $verdicts[$id] = $this->negative(
+                    VerdictStatus::Unknown,
+                    $vehicle,
+                    $wheel,
+                    VerdictReason::of(VerdictReason::REFERENCE_DATA_MISSING),
+                );
+            }
         }
+
+        return $verdicts;
     }
 
     /** @param list<FitmentRow> $covering */
@@ -330,15 +404,16 @@ final readonly class FitmentResolver
      * No covering row. The distinction here is the whole reason there are four states: we either
      * hold a document and it does not cover this car, or we hold nothing at all.
      *
+     * @param  bool  $documented  whether any published, valid document holds a row for the wheel
      * @param  list<FitmentRow>  $allRows
      */
     private function negativeWithoutCoverage(
         VehicleRecord $vehicle,
         ?WheelConfigRecord $wheel,
-        int $wheelConfigId,
+        bool $documented,
         array $allRows,
     ): FitmentVerdict {
-        if (! $this->fitments->hasPublishedDocumentForConfig($wheelConfigId)) {
+        if (! $documented) {
             // We hold no evidence either way — and this is what the catalogue-gap report ranks.
             return $this->negative(
                 VerdictStatus::Unknown,
@@ -389,7 +464,7 @@ final readonly class FitmentResolver
         return $this->negative(
             VerdictStatus::Unknown,
             $placeholder,
-            $this->fitments->findWheelConfig($wheelConfigId),
+            $this->fitments->findWheelConfigs([$wheelConfigId])[$wheelConfigId] ?? null,
             VerdictReason::of(VerdictReason::VEHICLE_NOT_FOUND),
         );
     }

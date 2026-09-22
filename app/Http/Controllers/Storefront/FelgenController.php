@@ -8,6 +8,7 @@ use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
@@ -141,8 +142,13 @@ class FelgenController extends Controller
         $configs = [];
         $anyUnknown = false;
 
+        // Every configuration of the wheel decided in one call: the engine reads the rows once.
+        $verdicts = $vehicleId === null
+            ? []
+            : $this->resolver->resolveMany($vehicleId, $wheel->configs->pluck('id')->map(static fn (mixed $id): int => (int) $id)->values()->all());
+
         foreach ($wheel->configs as $config) {
-            $verdict = $vehicleId === null ? null : $this->verdictFor($vehicleId, $config->id);
+            $verdict = isset($verdicts[$config->id]) ? $this->verdictFor($verdicts[$config->id]) : null;
 
             if ($verdict !== null && $verdict['status'] === VerdictStatus::Unknown->value) {
                 $anyUnknown = true;
@@ -284,10 +290,8 @@ class FelgenController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function verdictFor(int $vehicleId, int $wheelConfigId): array
+    private function verdictFor(FitmentVerdict $verdict): array
     {
-        $verdict = $this->resolver->resolve($vehicleId, $wheelConfigId);
-
         return [
             'status' => $verdict->status->value,
             'label' => $verdict->status->labelDe(),

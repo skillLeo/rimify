@@ -17,21 +17,33 @@ use App\Domain\Fitment\Data\WheelConfigRecord;
 interface FitmentRepository
 {
     /**
-     * Published rows permitting this wheel configuration on this vehicle.
+     * Published rows permitting these wheel configurations on this vehicle, read in one pass for
+     * the whole set — a page of listing cards asks about dozens of configurations at once.
      *
-     * @return list<FitmentRow>
+     * Every configuration asked about is a key of the result, with an empty list when no row
+     * names it, so a missing key can never be mistaken for "not asked".
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, list<FitmentRow>>
      */
-    public function publishedRowsFor(int $vehicleId, int $wheelConfigId): array;
+    public function publishedRowsFor(int $vehicleId, array $wheelConfigIds): array;
 
     /**
-     * Does ANY published, valid document hold a row for this wheel configuration — for any
-     * vehicle at all?
+     * Which of these wheel configurations does ANY published, valid document hold a row for — for
+     * any vehicle at all?
      *
      * This is what separates NOT_PERMITTED from UNKNOWN. If no document mentions the wheel, we
      * hold no evidence either way and must say so; if documents exist but none covers this car,
      * we have checked and the answer is no.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return list<int>
      */
-    public function hasPublishedDocumentForConfig(int $wheelConfigId): bool;
+    public function configsWithPublishedDocument(array $wheelConfigIds): array;
 
-    public function findWheelConfig(int $wheelConfigId): ?WheelConfigRecord;
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, WheelConfigRecord> keyed by configuration id; an unknown id is absent
+     */
+    public function findWheelConfigs(array $wheelConfigIds): array;
 }

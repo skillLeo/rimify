@@ -30,40 +30,53 @@ final class InMemoryFitmentRepository implements FitmentRepository
         private array $configsWithAnyDocument = [],
     ) {}
 
-    /** @return list<FitmentRow> */
-    public function publishedRowsFor(int $vehicleId, int $wheelConfigId): array
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, list<FitmentRow>>
+     */
+    public function publishedRowsFor(int $vehicleId, array $wheelConfigIds): array
     {
-        return array_values(array_filter(
-            $this->rows,
-            static fn (FitmentRow $row): bool => $row->vehicleId === $vehicleId
-                && $row->wheelConfigId === $wheelConfigId,
-        ));
-    }
-
-    public function hasPublishedDocumentForConfig(int $wheelConfigId): bool
-    {
-        if (in_array($wheelConfigId, $this->configsWithAnyDocument, true)) {
-            return true;
-        }
+        $byConfig = array_fill_keys($wheelConfigIds, []);
 
         foreach ($this->rows as $row) {
-            if ($row->wheelConfigId === $wheelConfigId) {
-                return true;
+            if ($row->vehicleId === $vehicleId && in_array($row->wheelConfigId, $wheelConfigIds, true)) {
+                $byConfig[$row->wheelConfigId][] = $row;
             }
         }
 
-        return false;
+        return $byConfig;
     }
 
-    public function findWheelConfig(int $wheelConfigId): ?WheelConfigRecord
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return list<int>
+     */
+    public function configsWithPublishedDocument(array $wheelConfigIds): array
     {
+        $documented = $this->configsWithAnyDocument;
+
+        foreach ($this->rows as $row) {
+            $documented[] = $row->wheelConfigId;
+        }
+
+        return array_values(array_intersect($wheelConfigIds, $documented));
+    }
+
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, WheelConfigRecord>
+     */
+    public function findWheelConfigs(array $wheelConfigIds): array
+    {
+        $found = [];
+
         foreach ($this->configs as $config) {
-            if ($config->id === $wheelConfigId) {
-                return $config;
+            if (in_array($config->id, $wheelConfigIds, true)) {
+                $found[$config->id] = $config;
             }
         }
 
-        return null;
+        return $found;
     }
 
     public function withRows(FitmentRow ...$rows): self
