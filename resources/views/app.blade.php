@@ -31,18 +31,13 @@
               imagesizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, calc(70vw - 22px)">
     @endif
 
-    {{-- The page component's chunk as well: its stylesheet (and its layout's) is then in the head
-         with the entry, not fetched after the bundle has resolved the page. Without it the
-         server-rendered page paints unstyled first and every section shifts at hydration. --}}
-    @php
-        $entries = ['resources/css/app.css', 'resources/js/app.ts'];
-        $component = $page['component'] ?? '';
-
-        if ($component !== '' && file_exists(resource_path("js/Pages/{$component}.vue"))) {
-            $entries[] = "resources/js/Pages/{$component}.vue";
-        }
-    @endphp
-    @vite($entries)
+    @vite(['resources/css/app.css', 'resources/js/app.ts'])
+    {{-- The page component's stylesheets (and its layout's) in the head with the entry's, so the
+         server-rendered page never paints unstyled and shifts at hydration. Styles only — the
+         page's script stays a dynamic import (App\Support\PageStyles says why). --}}
+    @foreach (\App\Support\PageStyles::for($page['component'] ?? '') as $href)
+        <link rel="stylesheet" href="{{ $href }}">
+    @endforeach
     @inertiaHead
 </head>
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}
