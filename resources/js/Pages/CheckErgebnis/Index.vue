@@ -15,19 +15,37 @@
 import { Head, Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import { useShared } from '../../composables/useShared'
+import { mailtoHref } from '../../lib/mailto'
 import type { CheckErgebnisProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
 const props = defineProps<CheckErgebnisProps>()
 
+const shared = useShared()
+
 interface Copy {
     tag: string | null
     label: string | null
     title: string
     body: string
-    primary: { href: string; label: string }
+    /** `mail` opens the customer's mail program; it is a plain link, never an Inertia visit. */
+    primary: { href: string; label: string; mail?: true }
 }
+
+/*
+ * "No document" is a question we can take by e-mail, the shop's one channel (ACCURACY D5): the
+ * mail already carries the result number, so nobody has to describe the combination again.
+ */
+const askHref = computed(() =>
+    mailtoHref(shared.value.contact.email, {
+        subject: 'Anfrage zu meinem RIMIFY-CHECK',
+        // The token, named for what it is: the page's address would need the origin, which the
+        // server-rendered first frame does not have.
+        body: `Meine Ergebnis-Nummer: ${props.token}\n\n`,
+    })
+)
 
 const copy = computed<Copy>(() => {
     switch (props.result?.status) {
@@ -61,7 +79,7 @@ const copy = computed<Copy>(() => {
                 label: 'Keine Angabe',
                 title: 'Zu dieser Kombination können wir nichts sagen.',
                 body: 'Für diese Kombination liegt uns kein Gutachten vor. Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir es nicht belegen können.',
-                primary: { href: '/kontakt', label: 'Anfrage senden' },
+                primary: { href: askHref.value, label: 'Per E-Mail nachfragen', mail: true },
             }
         default:
             return {
@@ -88,14 +106,15 @@ const copy = computed<Copy>(() => {
             <p class="t-body res__body">{{ copy.body }}</p>
 
             <div class="res__actions">
-                <Link :href="copy.primary.href" class="btn btn--primary">{{ copy.primary.label }}</Link>
+                <a v-if="copy.primary.mail" :href="copy.primary.href" class="btn btn--primary">{{ copy.primary.label }}</a>
+                <Link v-else :href="copy.primary.href" class="btn btn--primary">{{ copy.primary.label }}</Link>
                 <Link v-if="result !== null" href="/rimify-check" class="btn btn--secondary">
                     Neue Prüfung starten
                 </Link>
             </div>
 
             <dl class="res__meta">
-                <dt class="micro">Ergebnis-Link</dt>
+                <dt class="micro">Ergebnis-Nummer</dt>
                 <dd class="data">{{ token }}</dd>
             </dl>
         </div>
