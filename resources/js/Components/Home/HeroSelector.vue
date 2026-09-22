@@ -58,7 +58,18 @@ const page = usePage<SharedProps & { lookup?: LookupResult | null }>()
 const vehicle = computed(() => page.props.vehicle)
 const contact = computed(() => page.props.contact)
 const garage = computed(() => (page.props.garage ?? []).filter((g) => g.id !== vehicle.value?.id))
-const phoneHref = computed(() => `tel:${(contact.value?.phoneIntl ?? contact.value?.phone ?? '').replace(/\s/g, '')}`)
+/*
+ * The third way forward (R-09) and the line under a failed request: the phone when the client has
+ * given one, otherwise the e-mail — the same route either way, never an invented number.
+ */
+const reach = computed(() => {
+    const phone = contact.value?.phone ?? null
+    const email = contact.value?.email ?? ''
+
+    return phone
+        ? { href: `tel:${(contact.value?.phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}` }
+        : { href: `mailto:${email}`, label: `Schreib uns: ${email}`, sentence: `schreib uns: ${email}` }
+})
 
 const id = useId()
 const tab = ref<Tab>('marke')
@@ -494,7 +505,7 @@ async function sendNotify(): Promise<void> {
 }
 
 function generalError(): string {
-    return `Das hat nicht geklappt. Versuch es bitte noch einmal oder ruf uns an: ${contact.value?.phone ?? ''}.`
+    return `Das hat nicht geklappt. Versuch es bitte noch einmal oder ${reach.value.sentence}.`
 }
 
 onBeforeUnmount(() => treeController?.abort())
@@ -777,7 +788,7 @@ onBeforeUnmount(() => treeController?.abort())
                                 <ul class="sel__routes">
                                     <li><button class="link" type="button" @click="checkAgain">Nochmal prüfen</button></li>
                                     <li><button class="link" type="button" @click="viaMake">Über Marke &amp; Modell wählen</button></li>
-                                    <li><a class="link" :href="phoneHref">Anrufen: {{ contact?.phone }}</a></li>
+                                    <li><a class="link" :href="reach.href">{{ reach.label }}</a></li>
                                 </ul>
                             </div>
                         </div>

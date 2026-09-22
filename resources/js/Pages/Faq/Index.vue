@@ -14,15 +14,11 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
-import { useShared } from '../../composables/useShared'
 import type { FaqProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
 const props = defineProps<FaqProps>()
-
-const shared = useShared()
-const whatsapp = computed(() => shared.value.contact?.whatsapp ?? null)
 
 const open = ref<number | null>(null)
 const query = ref('')
@@ -50,10 +46,10 @@ function toggle(id: number): void {
     open.value = open.value === id ? null : id
 }
 
-const telHref = computed(() => `tel:${props.contact.phone.replace(/\s/g, '')}`)
-const waHref = computed(() =>
-    whatsapp.value === null ? null : `https://wa.me/${whatsapp.value.replace(/[^0-9]/g, '')}`
-)
+/* Phone and WhatsApp only when the client has given them; without a phone the e-mail carries the hours. */
+const phone = computed(() => props.contact.phoneIntl ?? props.contact.phone)
+const telHref = computed(() => `tel:${(phone.value ?? '').replace(/\s/g, '')}`)
+const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').replace(/[^0-9]/g, '')}`)
 </script>
 
 <template>
@@ -113,20 +109,20 @@ const waHref = computed(() =>
                 <p class="t-body faq__help-sub">Schreib uns – wir antworten meist am selben Werktag.</p>
 
                 <ul class="faq__ways">
-                    <li>
+                    <li v-if="phone">
                         <a class="faq__way" :href="telHref">
                             <Icon name="phone" :size="20" />
                             <span>
-                                <span class="faq__way-value tabular">{{ contact.phone }}</span>
+                                <span class="faq__way-value tabular">{{ phone }}</span>
                                 <span class="faq__way-note">{{ contact.hours }}</span>
                             </span>
                         </a>
                     </li>
-                    <li v-if="waHref && whatsapp">
+                    <li v-if="contact.whatsapp">
                         <a class="faq__way" :href="waHref" rel="noopener">
                             <Icon name="phone" :size="20" />
                             <span>
-                                <span class="faq__way-value tabular">{{ whatsapp }}</span>
+                                <span class="faq__way-value tabular">{{ contact.whatsapp }}</span>
                                 <span class="faq__way-note">WhatsApp</span>
                             </span>
                         </a>
@@ -136,7 +132,7 @@ const waHref = computed(() =>
                             <Icon name="mail" :size="20" />
                             <span>
                                 <span class="faq__way-value">{{ contact.email }}</span>
-                                <span class="faq__way-note">E-Mail</span>
+                                <span class="faq__way-note">{{ phone ? 'E-Mail' : `E-Mail · ${contact.hours}` }}</span>
                             </span>
                         </a>
                     </li>

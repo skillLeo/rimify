@@ -73,11 +73,15 @@ export interface ConsentProp {
     decidedAt: string
 }
 
+/**
+ * The shop's contact details (config/rimify.php). A detail the client has not given is null —
+ * never a placeholder — and every surface then leaves it out and offers the e-mail instead.
+ */
 export interface ContactProp {
     email: string
-    phone: string
-    phoneIntl: string
-    whatsapp: string
+    phone: string | null
+    phoneIntl: string | null
+    whatsapp: string | null
     hours: string
 }
 
@@ -105,7 +109,7 @@ export interface SharedProps {
     consent: ConsentProp | null
     /** The last five vehicles chosen on this browser, most recent first (F7). */
     garage: GarageVehicle[]
-    /** Whether the phone is answered right now, computed on the server (F9). */
+    /** Whether someone answers right now, computed on the server (F9). */
     serviceStatus: ServiceStatusProp
     isMobile: boolean
     locale: string

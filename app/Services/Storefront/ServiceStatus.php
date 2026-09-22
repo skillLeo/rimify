@@ -8,7 +8,7 @@ use Carbon\CarbonImmutable;
 use Spatie\Holidays\Holidays;
 
 /**
- * Whether someone answers the phone right now, and when they next will.
+ * Whether someone answers right now, and when they next will.
  *
  * Computed in Europe/Berlin from the hours in config/rimify.php and the public holidays of the
  * state the office is in — a line saying "Jetzt erreichbar" on Fronleichnam would be the kind of
@@ -72,7 +72,7 @@ final readonly class ServiceStatus
         }
 
         [$fromH, $fromM] = $this->parts((string) config('rimify.service.from', '09:00'));
-        [$toH, $toM] = $this->parts((string) config('rimify.service.to', '18:00'));
+        [$toH, $toM] = $this->parts((string) config('rimify.service.to', '17:00'));
 
         return [$day->setTime($fromH, $fromM), $day->setTime($toH, $toM)];
     }
@@ -84,7 +84,7 @@ final readonly class ServiceStatus
         return Holidays::for('de', year: $day->year, region: $region)->isHoliday($day);
     }
 
-    /** "heute" is never said: the label already reads "bis 18:00 Uhr" while open. */
+    /** "heute" is never said: the label already reads "bis 17:00 Uhr" while open. */
     private function when(CarbonImmutable $now, CarbonImmutable $open): string
     {
         if ($open->isSameDay($now)) {

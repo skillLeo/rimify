@@ -52,14 +52,20 @@ return [
     |
     | A hard-coded phone number in a Blade file or an SFC is a defect, and
     | tests/Feature/Content/ContactDetailsTest.php fails the build if one appears.
+    |
+    | The client has given an e-mail address and service hours, and no phone number and no
+    | WhatsApp. Those three are therefore null unless an environment variable names a real one: an
+    | unset or empty variable is null, never a placeholder. Every surface that would have shown the
+    | phone hides it and offers the e-mail instead — an invented number on the client's shop would be
+    | exactly the confident wrong answer this product must never give.
     */
     'contact' => [
         'email' => env('RIMIFY_CONTACT_EMAIL', 'info@rimify.de'),
-        'phone' => env('RIMIFY_CONTACT_PHONE', '0211 1255555'),
-        'phone_intl' => env('RIMIFY_CONTACT_PHONE_INTL', '+49 211 1255555'),
-        'whatsapp' => env('RIMIFY_CONTACT_WHATSAPP', '+49 176 4777777'),
+        'phone' => env('RIMIFY_CONTACT_PHONE') ?: null,
+        'phone_intl' => env('RIMIFY_CONTACT_PHONE_INTL') ?: null,
+        'whatsapp' => env('RIMIFY_CONTACT_WHATSAPP') ?: null,
         // En dashes, per German typography and the Copy Pack.
-        'hours' => env('RIMIFY_CONTACT_HOURS', 'Mo–Fr 9:00–18:00 Uhr'),
+        'hours' => env('RIMIFY_CONTACT_HOURS', 'Mo–Fr 9:00–17:00 Uhr'),
     ],
 
     /*
@@ -67,15 +73,16 @@ return [
     | Service hours — the live status line
     |--------------------------------------------------------------------------
     |
-    | The hours the phone is answered, computed in Europe/Berlin with the public holidays of the
-    | office's state. NRW is assumed from the 0211 number and is listed in docs/client-questions.md.
+    | The hours someone answers, computed in Europe/Berlin with the public holidays of the office's
+    | state. The client has confirmed Mo–Fr 9–17 but not the state: DE-NW is an assumption pending
+    | their answer, listed in docs/client-questions.md.
     */
     'service' => [
         'timezone' => 'Europe/Berlin',
         'region' => env('RIMIFY_SERVICE_REGION', 'DE-NW'),
         'weekdays' => [1, 2, 3, 4, 5],
         'from' => env('RIMIFY_SERVICE_FROM', '09:00'),
-        'to' => env('RIMIFY_SERVICE_TO', '18:00'),
+        'to' => env('RIMIFY_SERVICE_TO', '17:00'),
     ],
 
     /*

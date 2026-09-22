@@ -14,7 +14,7 @@
  */
 
 import { Head } from '@inertiajs/vue3'
-import { reactive } from 'vue'
+import { computed, reactive } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import Photo from '../../Components/Media/Photo.vue'
@@ -40,8 +40,9 @@ const form = reactive({
     website: '',
 })
 
-const telHref = `tel:${props.contact.phoneIntl.replace(/\s/g, '')}`
-const waHref = `https://wa.me/${props.contact.whatsapp.replace(/[^0-9]/g, '')}`
+/* Phone and WhatsApp only when the client has given them; the e-mail always. */
+const telHref = computed(() => `tel:${(props.contact.phoneIntl ?? props.contact.phone ?? '').replace(/\s/g, '')}`)
+const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').replace(/[^0-9]/g, '')}`)
 </script>
 
 <template>
@@ -51,8 +52,9 @@ const waHref = `https://wa.me/${props.contact.whatsapp.replace(/[^0-9]/g, '')}`
         <div class="wrap">
             <h1 class="t-h1">Kontakt</h1>
             <p class="t-lead kon__lead">
-                Fragen zur Passgenauigkeit, zu einer Bestellung oder zu einem Gutachten? Schreib uns
-                oder ruf einfach an – wir antworten in der Regel noch am selben Werktag.
+                Fragen zur Passgenauigkeit, zu einer Bestellung oder zu einem Gutachten?
+                {{ contact.phone ? 'Schreib uns oder ruf einfach an' : 'Schreib uns' }} – wir antworten
+                in der Regel noch am selben Werktag.
             </p>
 
             <div class="kon">
@@ -132,7 +134,7 @@ const waHref = `https://wa.me/${props.contact.whatsapp.replace(/[^0-9]/g, '')}`
                     <p class="t-small quiet">{{ contact.hours }}</p>
 
                     <ul class="kon__ways">
-                        <li>
+                        <li v-if="contact.phone">
                             <a class="kon__way" :href="telHref">
                                 <Icon name="phone" :size="20" />
                                 <span>
@@ -141,7 +143,7 @@ const waHref = `https://wa.me/${props.contact.whatsapp.replace(/[^0-9]/g, '')}`
                                 </span>
                             </a>
                         </li>
-                        <li>
+                        <li v-if="contact.whatsapp">
                             <a class="kon__way" :href="waHref" rel="noopener">
                                 <Icon name="phone" :size="20" />
                                 <span>

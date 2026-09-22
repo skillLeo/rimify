@@ -24,7 +24,8 @@ const shell = useShell()
 
 const vehicle = computed(() => shared.value.vehicle)
 const contact = computed(() => shared.value.contact)
-const telHref = computed(() => `tel:${contact.value.phoneIntl.replace(/\s/g, '')}`)
+/* The phone only when the client has given one; otherwise the e-mail is the help line. */
+const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 
 /* Scrolled or not, decided by a sentinel above the header rather than a scroll listener. */
 const sentinel = ref<HTMLElement | null>(null)
@@ -55,8 +56,11 @@ function removeVehicle(): void {
             <span>Versand aus Deutschland</span>
             <span>Gutachten zu jeder Felge als PDF</span>
             <span class="utility__help">
-                Hilfe: <a :href="telHref" class="utility__phone num">{{ contact.phone }}</a>
-                <span class="quiet">· {{ contact.hours }}</span>
+                Hilfe:
+                <a v-if="contact.phone" :href="telHref" class="utility__contact num">{{ contact.phone }}</a>
+                <a v-else :href="`mailto:${contact.email}`" class="utility__contact">{{ contact.email }}</a>
+                <!-- The space sits inside the span: between two elements on separate lines the template drops it. -->
+                <span class="quiet"> · {{ contact.hours }}</span>
             </span>
         </div>
     </div>
@@ -157,14 +161,14 @@ function removeVehicle(): void {
     margin-left: auto;
 }
 
-.utility__phone {
+.utility__contact {
     color: var(--c-ink);
     font-weight: 500;
     text-decoration: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .utility__phone:hover {
+    .utility__contact:hover {
         text-decoration: underline;
         text-underline-offset: 3px;
     }

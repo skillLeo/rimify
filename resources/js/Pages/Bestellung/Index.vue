@@ -73,7 +73,15 @@ const lines = computed(() =>
     }))
 )
 
-const telHref = computed(() => `tel:${props.contact.phone.replace(/\s/g, '')}`)
+/*
+ * Questions about the order go to the phone when the client has given one, otherwise to the
+ * e-mail with the order number already in the subject — never to an invented number.
+ */
+const questionHref = computed(() =>
+    props.contact.phone
+        ? `tel:${(props.contact.phoneIntl ?? props.contact.phone).replace(/\s/g, '')}`
+        : `mailto:${props.contact.email}?subject=${encodeURIComponent(`Bestellung ${props.order.number}`)}`
+)
 </script>
 
 <template>
@@ -189,12 +197,13 @@ const telHref = computed(() => `tel:${props.contact.phone.replace(/\s/g, '')}`)
                             </div>
                         </li>
                         <li>
-                            <a class="ord__next-row ord__next-link" :href="telHref">
-                                <Icon name="phone" :size="20" />
+                            <a class="ord__next-row ord__next-link" :href="questionHref">
+                                <Icon :name="contact.phone ? 'phone' : 'mail'" :size="20" />
                                 <div>
                                     <p class="ord__next-title">Fragen zur Bestellung</p>
                                     <p class="ord__next-text">
-                                        <span class="tabular">{{ contact.phone }}</span> · {{ contact.hours }}
+                                        <span v-if="contact.phone" class="tabular">{{ contact.phone }}</span>
+                                        <span v-else>{{ contact.email }}</span> · {{ contact.hours }}
                                     </p>
                                 </div>
                                 <Icon name="chevron-right" :size="20" />

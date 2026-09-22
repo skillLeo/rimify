@@ -42,6 +42,18 @@ const vehicle = computed(() => shared.value.vehicle)
 const contact = computed(() => shared.value.contact)
 const lookup = computed(() => page.props.lookup ?? null)
 
+/*
+ * The third way forward (R-09) and the line under a failed request: the phone when the client has
+ * given one, otherwise the e-mail — the same route either way, never an invented number.
+ */
+const reach = computed(() => {
+    const { phone, phoneIntl, email } = contact.value
+
+    return phone
+        ? { href: `tel:${(phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}` }
+        : { href: `mailto:${email}`, label: `Schreib uns: ${email}`, sentence: `schreib uns: ${email}` }
+})
+
 const picker = useVehiclePicker()
 const uid = useId()
 
@@ -251,7 +263,7 @@ function xsrfToken(): string {
 
 /*
  * `POST /api/v1/fitment/notify`: 202 means the confirmation mail is on its way; 422 names the
- * field; anything else is the honest line with the phone number.
+ * field; anything else is the honest line with the way to reach us.
  */
 async function notify(): Promise<void> {
     if (notifyEmail.value.trim() === '' || count.value.status !== 'ready') {
@@ -472,7 +484,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                     <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir kein Fahrzeug gefunden.</p>
                     <button class="link" type="button" @click="focusHsn">Nochmal prüfen</button>
                     <button class="link" type="button" @click="picker.route.value = 'guided'">Über Marke &amp; Modell wählen</button>
-                    <a class="link num" :href="`tel:${contact.phoneIntl.replace(/\s/g, '')}`">Anrufen: {{ contact.phone }}</a>
+                    <a class="link num" :href="reach.href">{{ reach.label }}</a>
                 </div>
             </div>
         </div>
@@ -498,7 +510,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                             <label class="form-field__label" :for="`${uid}-mail`">E-Mail-Adresse</label>
                             <input :id="`${uid}-mail`" v-model="notifyEmail" class="input" type="email" autocomplete="email" inputmode="email" enterkeyhint="send" required>
                             <p class="form-field__error">
-                                <template v-if="notifyState === 'failed'">{{ notifyError || `Das hat nicht geklappt. Versuch es bitte noch einmal oder ruf uns an: ${contact.phone}.` }}</template>
+                                <template v-if="notifyState === 'failed'">{{ notifyError || `Das hat nicht geklappt. Versuch es bitte noch einmal oder ${reach.sentence}.` }}</template>
                             </p>
                         </div>
                         <button class="btn btn--secondary btn--block" type="submit" :aria-busy="notifyState === 'busy' ? 'true' : undefined">Bescheid geben</button>

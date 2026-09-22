@@ -4,7 +4,7 @@ import { defineComponent, h, nextTick, reactive } from 'vue'
 import { NNBSP } from '../../format'
 import { COUNT_DEBOUNCE_MS } from '../../composables/useFitmentCount'
 import type { LookupResult } from '../../types/pages'
-import type { VehicleProp } from '../../types/rimify'
+import type { ContactProp, VehicleProp } from '../../types/rimify'
 
 type Form = Record<string, unknown> & { post: ReturnType<typeof vi.fn>; processing: boolean; errors: Record<string, string> }
 
@@ -49,6 +49,14 @@ const MAKES = [
     { make: 'Audi', models: 2 },
     { make: 'BMW', models: 3 },
 ]
+
+/*
+ * Fixtures only — the shop's details come from config/rimify.php. The e-mail is on a reserved
+ * example domain, and the number is hyphenated so the contact-details guard (which forbids a German
+ * number in source files) does not read it as one.
+ */
+const WITHOUT_PHONE: ContactProp = { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9:00–17:00 Uhr' }
+const WITH_PHONE: ContactProp = { ...WITHOUT_PHONE, phone: '0800 555 01 00', phoneIntl: '+49-800-5550100' }
 
 function count(n: number, label = 'BMW 320i'): Record<string, unknown> {
     return { count: n, permitted: n, conditional: 0, vehicle: { id: 7, label, short: 'BMW 3er' }, ambiguous: [] }
@@ -118,9 +126,7 @@ beforeEach(() => {
     current.props = {
         vehicle: null,
         garage: [],
-        // A fixture number, hyphenated so the contact-details guard (which forbids a real German
-        // number in source files) does not read it as one.
-        contact: { phone: '0800 555 01 00', phoneIntl: '+49-800-5550100' },
+        contact: WITH_PHONE,
         lookup: null,
     }
     forms.length = 0
@@ -248,6 +254,24 @@ describe('HeroSelector — the button and the count', () => {
         await nextTick()
         expect(wrapper.find('.sel__zero .form-field__error').text()).toBe(
             'Das hat nicht geklappt. Versuch es bitte noch einmal oder ruf uns an: 0800 555 01 00.'
+        )
+    })
+
+    it('names the e-mail, never a phone, on a server failure while no phone number is published', async () => {
+        current.props.contact = WITHOUT_PHONE
+        respond('/api/v1/fitment/count', count(0))
+        respond('/api/v1/fitment/notify', {}, 500)
+        const wrapper = mountSelector()
+        await openTab(wrapper, 'HSN/TSN')
+        await typeKeys(wrapper, '0005', '582')
+        await settle()
+
+        await byLabel(wrapper, 'E-Mail-Adresse').setValue('kunde@example.de')
+        await wrapper.findAll('button').find((b) => b.text() === 'Bescheid geben')!.trigger('click')
+        await flushPromises()
+        await nextTick()
+        expect(wrapper.find('.sel__zero .form-field__error').text()).toBe(
+            'Das hat nicht geklappt. Versuch es bitte noch einmal oder schreib uns: service@example.com.'
         )
     })
 })
@@ -426,6 +450,21 @@ describe('HeroSelector — HSN/TSN', () => {
         await routes[1]!.trigger('click')
         await nextTick()
         expect(wrapper.find('[role="tab"][data-state="active"]').text()).toBe('Marke & Modell')
+    })
+
+    it('still offers three routes, the third one the e-mail, while no phone number is published (R-09)', async () => {
+        current.props.contact = WITHOUT_PHONE
+        current.props.lookup = { status: 'not_found', hsn: '9999', tsn: 'ZZZ' } satisfies LookupResult
+        const wrapper = mountSelector()
+        await nextTick()
+
+        const notice = wrapper.find('.sel__notfound')
+        expect(notice.text()).toContain('Zu 9999/ZZZ haben wir kein Fahrzeug gefunden.')
+
+        const routes = notice.findAll('.link')
+        expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns: service@example.com'])
+        expect(routes[2]!.attributes('href')).toBe('mailto:service@example.com')
+        expect(wrapper.find('a[href^="tel:"]').exists()).toBe(false)
     })
 })
 

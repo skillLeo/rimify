@@ -172,7 +172,10 @@ test.describe('Startseite/Mobile', () => {
         await expect(page.getByLabel('HSN (Feld 2.1)')).toHaveValue('9999')
         await expect(page.getByRole('button', { name: 'Nochmal prüfen' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Über Marke & Modell wählen' })).toBeVisible()
-        await expect(page.getByRole('link', { name: /Anrufen:/ })).toBeVisible()
+        // The third route: the e-mail while the client has published no phone number (R-09).
+        const write = page.locator('#h2').getByRole('link', { name: /^Schreib uns: / })
+        await expect(write).toBeVisible()
+        await expect(write).toHaveAttribute('href', /^mailto:/)
         await expect(page.locator('[data-primary]')).toBeDisabled()
     })
 
@@ -326,8 +329,9 @@ test.describe('Startseite/Mobile', () => {
 
     test('service block: real contact data and five questions', async ({ page }) => {
         await open(page, '/')
-        const tel = page.locator('#h11 a[href^="tel:"]')
-        await expect(tel).toHaveCount(1)
+        // The client has published no phone and no WhatsApp: the e-mail is the one link, never an invented number.
+        await expect(page.locator('#h11 a[href^="tel:"]')).toHaveCount(0)
+        await expect(page.locator('#h11 a[href*="wa.me"]')).toHaveCount(0)
         await expect(page.locator('#h11 a[href^="mailto:"]')).toHaveCount(1)
         await expect(page.locator('#h11 .accordion__item')).toHaveCount(5)
 

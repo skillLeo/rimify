@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -66,11 +67,10 @@ class BestellungController extends Controller
                 'trackingCode' => $record->tracking_code,
             ],
             'lines' => $lines,
-            'contact' => [
-                'email' => config('rimify.contact.email'),
-                'phone' => config('rimify.contact.phone'),
-                'hours' => config('rimify.contact.hours'),
-            ],
+            // The shared shape, whole: a page prop named `contact` replaces the shared one for the
+            // header and the footer too. The phone is null until the client gives one, and the page
+            // then offers the e-mail.
+            'contact' => Chrome::contact(),
         ]);
     }
 }

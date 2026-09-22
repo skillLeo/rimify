@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
 use App\Services\Storefront\Basket;
+use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,10 +29,9 @@ class KasseController extends Controller
         return Inertia::render('Kasse/Index', [
             'lines' => $basket['lines'],
             'totals' => $basket['totals'],
-            'contact' => [
-                'email' => config('rimify.contact.email'),
-                'phone' => config('rimify.contact.phone'),
-            ],
+            // The shared shape, whole: a page prop named `contact` replaces the shared one for the
+            // header and the footer too. The phone is null until the client gives one.
+            'contact' => Chrome::contact(),
         ]);
     }
 }

@@ -18,7 +18,8 @@ defineProps<{ demo: boolean }>()
 
 const shared = useShared()
 const contact = computed(() => shared.value.contact)
-const telHref = computed(() => `tel:${contact.value.phoneIntl.replace(/\s/g, '')}`)
+/* The phone when the client has given one, otherwise the e-mail — never an invented number. */
+const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 
 const uid = useId()
 const plz = ref('')
@@ -119,9 +120,13 @@ const border = `M ${BORDER.map(project).join(' L ')} Z`
                     <p v-if="searched === null" class="body muted">Gib deine Postleitzahl ein – wir zeigen dir die drei nächsten Montagepartner.</p>
                     <div v-else class="empty partners__empty" role="status">
                         <p class="empty__title">Noch keine Partner in deiner Nähe.</p>
-                        <p class="empty__text">
+                        <p v-if="contact.phone" class="empty__text">
                             Ruf uns an, wir finden einen Weg:
                             <a :href="telHref" class="num">{{ contact.phone }}</a>
+                        </p>
+                        <p v-else class="empty__text">
+                            Schreib uns, wir finden einen Weg:
+                            <a :href="`mailto:${contact.email}`">{{ contact.email }}</a>
                         </p>
                     </div>
                 </div>

@@ -23,8 +23,9 @@ const shared = useShared()
 const contact = computed(() => shared.value.contact)
 const status = computed(() => shared.value.serviceStatus)
 
-const telHref = computed(() => `tel:${contact.value.phoneIntl.replace(/\s/g, '')}`)
-const waHref = computed(() => `https://wa.me/${contact.value.whatsapp.replace(/[^\d]/g, '')}`)
+/* Phone and WhatsApp only when the client has given them; the e-mail and the hours always. */
+const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
+const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/[^\d]/g, '')}`)
 const mailHref = computed(() => `mailto:${contact.value.email}`)
 
 const items = computed<AccordionEntry[]>(() => props.faq.map((entry) => ({ id: entry.id, title: entry.question, body: entry.answer })))
@@ -53,11 +54,11 @@ onBeforeUnmount(() => {
                 <p class="small status" :class="status.open ? 'status--open' : 'status--closed'">{{ status.label }}</p>
 
                 <ul class="contacts">
-                    <li class="contacts__row">
+                    <li v-if="contact.phone" class="contacts__row">
                         <Icon name="phone" :size="20" />
                         <a :href="telHref" class="num contacts__link">{{ contact.phone }}</a>
                     </li>
-                    <li class="contacts__row">
+                    <li v-if="contact.whatsapp" class="contacts__row">
                         <!-- The official WhatsApp mark is never redrawn; until the brand kit is in, the slot keeps the rows aligned. -->
                         <span class="contacts__slot" aria-hidden="true" />
                         <a :href="waHref" class="num contacts__link" rel="noopener" target="_blank">WhatsApp: {{ contact.whatsapp }}</a>

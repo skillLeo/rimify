@@ -75,20 +75,47 @@ final readonly class Chrome
              * rather than passed per controller, because the footer renders on every route and a
              * page that forgot to pass them would quietly show nothing.
              */
-            'contact' => [
-                'email' => (string) config('rimify.contact.email'),
-                'phone' => (string) config('rimify.contact.phone'),
-                'phoneIntl' => (string) config('rimify.contact.phone_intl'),
-                'whatsapp' => (string) config('rimify.contact.whatsapp'),
-                'hours' => (string) config('rimify.contact.hours'),
-            ],
+            'contact' => self::contact(),
             'mega' => $this->mega->share(),
             'consent' => $this->consent($request),
             // The last five vehicles, for the hero chips, the header chip and the palette (F7).
             'garage' => $this->garage($request),
-            // Whether the phone is answered right now (F9); the client re-asks every minute.
+            // Whether someone answers right now (F9); the client re-asks every minute.
             'serviceStatus' => $this->service->now(),
         ];
+    }
+
+    /**
+     * The contact details as every surface receives them — the shared prop and the pages that pass
+     * their own (D-023).
+     *
+     * A detail the client has not given is null: never an empty string, never a placeholder. The
+     * components hide what is null and offer the e-mail in its place, so a missing phone number
+     * costs a phone call and never shows a number nobody answers.
+     *
+     * @return array{email: string, phone: string|null, phoneIntl: string|null, whatsapp: string|null, hours: string}
+     */
+    public static function contact(): array
+    {
+        return [
+            'email' => (string) config('rimify.contact.email'),
+            'phone' => self::given(config('rimify.contact.phone')),
+            'phoneIntl' => self::given(config('rimify.contact.phone_intl')),
+            'whatsapp' => self::given(config('rimify.contact.whatsapp')),
+            'hours' => (string) config('rimify.contact.hours'),
+        ];
+    }
+
+    /** A configured value, or null when it is absent, not a string, or only whitespace. */
+    private static function given(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 
     /**

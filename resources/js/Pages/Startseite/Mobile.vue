@@ -157,8 +157,9 @@ async function findPartners(): Promise<void> {
 
 const faqItems = computed(() => props.faq.slice(0, 5).map((f) => ({ id: f.id, title: f.question, body: f.answer })))
 const statusLine = computed(() => service.value?.label ?? contact.value.hours)
-const telHref = computed(() => `tel:${contact.value.phoneIntl.replace(/\s/g, '')}`)
-const waHref = computed(() => `https://wa.me/${contact.value.whatsapp.replace(/\D/g, '')}`)
+/* Phone and WhatsApp only when the client has given them; the e-mail and the hours always. */
+const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
+const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/\D/g, '')}`)
 
 /* ── Rhythm: band / surface and section / section--tight by position (§0.3) ── */
 
@@ -419,8 +420,8 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
         </div>
 
         <div class="home-contact">
-            <ListRow icon="phone" :title="contact.phone" :href="telHref" external :chevron="false" />
-            <ListRow :title="`WhatsApp: ${contact.whatsapp}`" :href="waHref" external :chevron="false">
+            <ListRow v-if="contact.phone" icon="phone" :title="contact.phone" :href="telHref" external :chevron="false" />
+            <ListRow v-if="contact.whatsapp" :title="`WhatsApp: ${contact.whatsapp}`" :href="waHref" external :chevron="false">
                 <template #leading><span class="home-contact__slot" aria-hidden="true" /></template>
             </ListRow>
             <ListRow icon="mail" :title="contact.email" :href="`mailto:${contact.email}`" external :chevron="false" />

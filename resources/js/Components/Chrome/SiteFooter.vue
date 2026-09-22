@@ -18,8 +18,9 @@ const consent = useConsent()
 const shell = useShell()
 
 const contact = computed(() => shared.value.contact)
-const telHref = computed(() => `tel:${contact.value.phoneIntl.replace(/\s/g, '')}`)
-const waHref = computed(() => `https://wa.me/${contact.value.whatsapp.replace(/[^\d]/g, '')}`)
+/* Phone and WhatsApp only when the client has given them; the e-mail and the hours always. */
+const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
+const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/[^\d]/g, '')}`)
 const year = new Date().getFullYear()
 </script>
 
@@ -31,12 +32,12 @@ const year = new Date().getFullYear()
                     <span class="brand">RIMIFY</span>
                     <p class="footer__claim">Felgen, deren Gutachten dein Fahrzeug nennt.</p>
                     <ul class="footer__contact">
-                        <li>
+                        <li v-if="contact.phone">
                             <a :href="telHref" class="footer__contact-link num"><Icon name="phone" :size="20" />{{ contact.phone }}</a>
                         </li>
-                        <li>
+                        <li v-if="contact.whatsapp">
                             <!-- The official WhatsApp mark is never redrawn (DIRECTION §7); until the
-                                 brand kit is in, the slot keeps the four rows aligned. -->
+                                 brand kit is in, the slot keeps the rows aligned. -->
                             <a :href="waHref" class="footer__contact-link num" rel="noopener" target="_blank"><span class="footer__icon-slot" aria-hidden="true" />WhatsApp {{ contact.whatsapp }}</a>
                         </li>
                         <li>

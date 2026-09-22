@@ -48,7 +48,9 @@ const actions = computed<Entry[]>(() => {
 
     list.push({ id: 'a-cart', group: 'Aktionen', label: 'Warenkorb öffnen', sub: shared.value.cartCount > 0 ? `${shared.value.cartCount} Artikel` : null, href: '/warenkorb', icon: 'cart' })
     list.push({ id: 'a-check', group: 'Aktionen', label: 'RIMIFY-Check', sub: 'Passt eine Felge an mein Auto?', href: '/rimify-check', icon: 'check-circle' })
-    list.push({ id: 'a-contact', group: 'Aktionen', label: 'Kontakt', sub: shared.value.contact.phone, href: '/kontakt', icon: 'phone' })
+    // The phone when the client has given one, otherwise the address — never an invented number.
+    const phone = shared.value.contact.phone
+    list.push({ id: 'a-contact', group: 'Aktionen', label: 'Kontakt', sub: phone ?? shared.value.contact.email, href: '/kontakt', icon: phone ? 'phone' : 'mail' })
     list.push({
         id: 'a-help',
         group: 'Aktionen',

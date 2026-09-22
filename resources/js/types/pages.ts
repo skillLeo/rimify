@@ -10,6 +10,7 @@
 import type {
     BasketLine,
     BasketTotals,
+    ContactProp,
     Facets,
     ImageManifest,
     ProductCardProp,
@@ -238,7 +239,8 @@ export interface ProduktProps {
         ratingCount: number
         ratingLabel: string | null
     }
-    finishes: { id: number; name: string; hex: string | null; artFinish: string }[]
+    /** `image`: the finish's own studio photograph and its other angles, or null — then it is drawn. */
+    finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
     configs: ProduktConfig[]
     hasVehicle: boolean
 }
@@ -316,8 +318,14 @@ export interface BasketProps {
     totals: BasketTotals
 }
 
+/*
+ * A page that passes `contact` passes the shared shape whole: the page prop replaces the shared
+ * one, and the header and the footer read it too. Phone and WhatsApp are null until the client
+ * gives them.
+ */
+
 export interface KasseProps extends BasketProps {
-    contact: { email: string; phone: string }
+    contact: ContactProp
 }
 
 export interface BestellungProps {
@@ -349,22 +357,16 @@ export interface BestellungProps {
             detail: Record<string, unknown>
         } | null
     }[]
-    contact: { email: string; phone: string; hours: string }
+    contact: ContactProp
 }
 
 export interface FaqProps {
     groups: { key: string; entries: { id: number; question: string; answer: string }[] }[]
-    contact: { phone: string; email: string; hours: string }
+    contact: ContactProp
 }
 
 export interface KontaktProps {
-    contact: {
-        email: string
-        phone: string
-        phoneIntl: string
-        whatsapp: string
-        hours: string
-    }
+    contact: ContactProp
 }
 
 export interface RechtlichesProps {

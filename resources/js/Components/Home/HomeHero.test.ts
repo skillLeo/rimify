@@ -111,7 +111,8 @@ function imageState(complete: boolean, naturalWidth: number): void {
 }
 
 beforeEach(() => {
-    current.props = { vehicle: null, garage: [], contact: { phone: '0800 123', phoneIntl: '+49 800 123' } }
+    // No phone, as on the live shop until the client publishes one; the e-mail is a reserved example domain.
+    current.props = { vehicle: null, garage: [], contact: { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9:00–17:00 Uhr' } }
     media(false)
     imageState(false, 0)
     // A running CSS animation, as the browser reports it after `is-lit` is applied.

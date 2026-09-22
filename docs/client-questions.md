@@ -5,13 +5,20 @@ is confirmed, the site either shows nothing in its place or shows the neutral wo
 
 ## Service and contact
 
-1. **Federal state for public holidays.** The live "Jetzt erreichbar" status uses the public
-   holidays of Nordrhein-Westfalen, assumed from the Düsseldorf phone number (0211). Please confirm
-   the state, or the exact holiday calendar the shop follows.
-2. **Opening hours.** Currently `Mo–Fr 9:00–18:00 Uhr` from the configuration. Please confirm, and
-   say whether Saturday hours or a lunch break apply.
-3. **WhatsApp.** The number `+49 176 4777777` is shown as a WhatsApp contact. Please confirm it is
-   monitored and may be published.
+1. **Federal state for public holidays — still open.** The live "Jetzt erreichbar" status uses the
+   public holidays of Nordrhein-Westfalen (`DE-NW`). That was assumed from a placeholder phone
+   number which has since been removed, so the assumption has no basis left. Please tell us the
+   federal state the office is in, or the exact holiday calendar the shop follows.
+2. **Opening hours — answered.** Mo–Fr 9–17. The site shows `Mo–Fr 9:00–17:00 Uhr` and the status
+   line closes at 17:00. Please say if Saturday hours or a lunch break ever apply.
+3. **Phone and WhatsApp — answered: none.** The client has given no phone number and no WhatsApp,
+   so the site shows neither; every place that offered a call now offers `info@rimify.de` instead.
+   Should a number be published later, it is set in the environment (`RIMIFY_CONTACT_PHONE`,
+   `RIMIFY_CONTACT_PHONE_INTL`, `RIMIFY_CONTACT_WHATSAPP`) and appears everywhere at once.
+
+**Fitting partners — still open.** The "Montage in deiner Nähe" section stays switched off
+(`RIMIFY_FEATURE_PARTNERS`) until the client names real fitting partners, or confirms there are none
+at launch.
 
 ## Navigation
 

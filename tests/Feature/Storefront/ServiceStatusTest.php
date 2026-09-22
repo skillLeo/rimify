@@ -6,7 +6,8 @@ use App\Services\Storefront\ServiceStatus;
 use Carbon\CarbonImmutable;
 
 /**
- * F9 — the live status line. Hours from configuration, public holidays of NRW, Europe/Berlin.
+ * F9 — the live status line. Hours from configuration (the client's Mo–Fr 9–17), public holidays
+ * of NRW (an assumption pending the client's answer), Europe/Berlin.
  */
 function statusAt(string $berlinTime): array
 {
@@ -17,7 +18,7 @@ it('says until when someone answers during the hours', function (): void {
     $status = statusAt('2026-09-23 10:15'); // a Wednesday
 
     expect($status['open'])->toBeTrue()
-        ->and($status['label'])->toBe('Jetzt erreichbar – bis 18:00 Uhr');
+        ->and($status['label'])->toBe('Jetzt erreichbar – bis 17:00 Uhr');
 });
 
 it('names today when the office opens later the same day', function (): void {
@@ -25,6 +26,12 @@ it('names today when the office opens later the same day', function (): void {
 
     expect($status['open'])->toBeFalse()
         ->and($status['label'])->toBe('Wieder erreichbar ab heute, 9:00 Uhr');
+});
+
+it('closes at 17:00, the client\'s hours', function (): void {
+    expect(statusAt('2026-09-23 16:59')['open'])->toBeTrue()
+        ->and(statusAt('2026-09-23 17:00')['open'])->toBeFalse()
+        ->and(statusAt('2026-09-23 17:00')['label'])->toBe('Wieder erreichbar ab morgen, 9:00 Uhr');
 });
 
 it('names tomorrow after closing time', function (): void {
