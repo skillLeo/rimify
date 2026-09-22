@@ -336,6 +336,8 @@ onBeforeUnmount(() => {
                         <span v-if="!symbolic" class="hero__caption">
                             <span class="small hero__caption-name">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
                             <span class="small num muted">ab {{ perWheel }} · pro Felge</span>
+                            <!-- Seeded demonstration rows: the page says so, once (OVERHAUL.md §2). -->
+                            <span v-if="page.props.demo" class="micro quiet demo-note">Demodaten – Beispielsortiment mit Fotos unter freier Lizenz.</span>
                         </span>
                     </component>
                     <span v-else class="hero__wheel hero__wheel--fallback" aria-hidden="true">

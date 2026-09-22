@@ -21,6 +21,8 @@ export function toastFrom(props: Record<string, unknown> | undefined | null): st
 export interface ToastMessage {
     text: string
     action?: { label: string; run: () => void }
+    /** A check for a confirmation (the default); `info` for a refusal or a limit. */
+    icon?: 'check-circle' | 'info'
 }
 
 type Listener = (message: ToastMessage) => void

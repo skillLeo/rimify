@@ -16,7 +16,7 @@
 
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { decimal, NNBSP, withUnit } from '../format'
-import { compare, signedDecimal, type Comparison } from '../lib/fitmentMath'
+import { compare, signedDecimal, type Comparison, type WheelSetup } from '../lib/fitmentMath'
 import {
     cloneState,
     decodeState,
@@ -91,10 +91,25 @@ function mm(value: number): string {
     return Number.isFinite(value) ? withUnit(decimal(value, 1), 'mm') : '–'
 }
 
+/**
+ * The next plausible step up from a size: one inch more, ten points less profile, half an inch
+ * wider, the ET unchanged — so a page opened with a vehicle shows a real change at first paint
+ * instead of "nothing changes" under a heading that asks what changes. Every value stays on the
+ * grid the form offers.
+ */
+export function nextStep(s: WheelSetup): WheelSetup {
+    return {
+        ...s,
+        widthIn: Math.min(12, s.widthIn + 0.5),
+        diameterIn: Math.min(24, s.diameterIn + 1),
+        aspect: Math.max(25, s.aspect - 10),
+    }
+}
+
 export function useRechner(options: UseRechnerOptions): Rechner {
     const prefilled = fromPrefill(options.prefill())
     const shared = isState(options.state) ? options.state : null
-    const initial = shared ?? (prefilled === null ? DEFAULT_STATE : { current: prefilled, next: prefilled })
+    const initial = shared ?? (prefilled === null ? DEFAULT_STATE : { current: prefilled, next: nextStep(prefilled) })
 
     const state = reactive<RechnerState>(cloneState(initial))
     const valid = ref(true)
@@ -170,7 +185,7 @@ export function useRechner(options: UseRechnerOptions): Rechner {
         const s = fromPrefill(prefill)
 
         if (s !== null) {
-            replace({ current: s, next: s })
+            replace({ current: s, next: nextStep(s) })
             fromVehicle.value = true
         }
     })
@@ -185,6 +200,11 @@ export function useRechner(options: UseRechnerOptions): Rechner {
                 replace(fromUrl)
                 fromVehicle.value = false
             }
+        }
+
+        // The address bar is the share link from the first paint, not from the first change.
+        if (options.writeUrl === true && !new URLSearchParams(window.location.search).has('rechner')) {
+            writeUrl()
         }
     })
 

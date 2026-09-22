@@ -12,7 +12,7 @@
  * has painted (SpecCallout keys on `.frame.is-ready`). No sweep and no roll on a phone.
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Picture, { type ImageManifest } from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
@@ -27,6 +27,8 @@ interface CutoutManifest extends ImageManifest {
 }
 
 const props = defineProps<{ product: HeroProduct }>()
+
+const page = usePage<{ demo?: boolean }>()
 
 /* The finish's own cut-out when the catalogue has one; otherwise the bundled stand-in. */
 const manifest = computed<CutoutManifest>(
@@ -100,6 +102,8 @@ const restLine = computed(() =>
             <span class="small num muted">ab {{ perWheel }} · pro Felge</span>
         </Link>
         <p v-else class="micro quiet hero-mobile__symbolic">Symbolbild – Werte einer Beispielkonfiguration</p>
+        <!-- Seeded demonstration rows: the page says so, once (OVERHAUL.md §2). -->
+        <p v-if="page.props.demo" class="micro quiet demo-note">Demodaten – Beispielsortiment mit Fotos unter freier Lizenz.</p>
     </div>
 </template>
 

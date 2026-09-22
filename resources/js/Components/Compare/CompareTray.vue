@@ -21,6 +21,7 @@ import ListRow from '../Mobile/ListRow.vue'
 import Icon from '../Ui/Icon.vue'
 import Picture from '../Ui/Picture.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
+import { hasMobileShell } from '../../composables/mobile/useMobileShell'
 import { useShared } from '../../composables/useShared'
 import { COMPARE_CAP, compareKey, useCompare, type CompareEntry } from '../../stores/compare'
 
@@ -40,7 +41,13 @@ const HIDDEN_ROUTES = new Set(['vergleich.index', 'warenkorb.index', 'kasse.inde
 const store = useCompare()
 const shared = useShared()
 
-const phone = computed(() => shared.value.isMobile)
+/*
+ * The phone anatomy (thumbnails that open a sheet) needs the phone shell to provide the sheet.
+ * A phone UA on a page still rendered under the desktop layout gets the desktop anatomy, which
+ * needs no sheet — decided by the layout, not the device flag, so nothing can open into nothing.
+ */
+const underMobileShell = hasMobileShell()
+const phone = computed(() => underMobileShell)
 const visible = computed(
     () => store.hydrated && store.count > 0 && !props.hidden && !HIDDEN_ROUTES.has(shared.value.routeName ?? '')
 )

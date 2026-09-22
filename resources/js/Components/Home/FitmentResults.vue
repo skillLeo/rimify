@@ -26,8 +26,8 @@ const RANGE = `${pct('−2,5')} bis ${pct('+1,5')}`
 
 const LIGHT: Record<'ok' | 'smaller' | 'larger' | 'bad', string> = {
     ok: `Innerhalb der üblichen Toleranz von ${RANGE}.`,
-    smaller: `Kleiner als die übliche Toleranz (${RANGE}). Der Tacho zeigt dann mehr an als bisher – ob das passt, steht in der Freigabe.`,
-    larger: `Größer als die übliche Toleranz (${RANGE}). Der Tacho zeigt dann weniger an als bisher – zu wenig darf er nie anzeigen. Ob das noch passt, steht in der Freigabe.`,
+    smaller: `Kleiner als die übliche Toleranz (${RANGE}). Der Tacho zeigt dann mehr an als bisher – ob das erlaubt ist, steht in der Freigabe.`,
+    larger: `Größer als die übliche Toleranz (${RANGE}). Der Tacho zeigt dann weniger an als bisher – zu wenig darf er nie anzeigen. Ob das noch erlaubt ist, steht in der Freigabe.`,
     bad: `So viel kleiner darf der Abrollumfang nicht sein: Der Tacho würde mehr als ${pct('10')} + ${withUnit(4, 'km/h')} zu viel anzeigen.`,
 }
 

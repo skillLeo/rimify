@@ -52,7 +52,11 @@ it('ships the hero with a real product and its own values', function (): void {
 });
 
 it('shows the hero finish under its own cut-out once the catalogue has one', function (): void {
-    $hero = WheelModel::query()->where('status', 'published')->orderBy('id')->firstOrFail();
+    // The seeded setting names the hero; without one the first published model is.
+    $chosen = Setting::get('hero_product_id');
+    $hero = ($chosen === null
+        ? WheelModel::query()->where('status', 'published')->orderBy('id')
+        : WheelModel::query()->whereKey((int) $chosen))->firstOrFail();
     $photo = collect(DemoWheels::photos())->firstWhere('model', $hero->slug);
 
     expect($photo)->not->toBeNull('the hero product must have a photograph in wheel-photos.php');

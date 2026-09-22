@@ -56,12 +56,16 @@ if (cap > 0) {
     })
 }
 
-const master = await sharp(cropped).ensureAlpha().composite(layers).png().toBuffer()
-const widths = [480, 768, size].filter((w, i, a) => w <= size && a.indexOf(w) === i)
+// The largest export is capped: the hero renders at 540 CSS px, so 1080 px covers a 2× screen
+// and the AVIF stays under the 160 KB budget for the LCP asset.
+const largest = Math.min(size, 1080)
+const cut = await sharp(cropped).ensureAlpha().composite(layers).png().toBuffer()
+const master = largest < size ? await sharp(cut).resize({ width: largest }).png().toBuffer() : cut
+const widths = [480, 768, largest].filter((w, i, a) => w <= largest && a.indexOf(w) === i)
 
 for (const width of widths) {
     const resized = sharp(master).resize({ width })
-    await resized.clone().avif({ quality: 60 }).toFile(`${outDir}/${name}-${width}.avif`)
+    await resized.clone().avif({ quality: 55 }).toFile(`${outDir}/${name}-${width}.avif`)
     await resized.clone().webp({ quality: 82, alphaQuality: 90 }).toFile(`${outDir}/${name}-${width}.webp`)
     await resized.clone().png({ compressionLevel: 9 }).toFile(`${outDir}/${name}-${width}.png`)
 }
@@ -80,8 +84,8 @@ writeFileSync(
             ...previous,
             name,
             base: `/images/${name}/${name}`,
-            width: size,
-            height: size,
+            width: largest,
+            height: largest,
             widths,
             fallback: 'png',
             placeholder: `data:image/png;base64,${placeholder.toString('base64')}`,

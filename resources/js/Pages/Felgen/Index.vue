@@ -84,7 +84,11 @@ onBeforeUnmount(() => {
             </nav>
 
             <div class="plp__head">
-                <h1 class="t-h1">{{ heading }}</h1>
+                <h1 class="t-h1">
+                    {{ heading }}
+                    <!-- Seeded demonstration rows are on this page: it says so, once (OVERHAUL.md §2). -->
+                    <span v-if="demo" class="badge demo-note plp__demo">Demodaten</span>
+                </h1>
                 <p class="plp__count">
                     <template v-if="total !== null">
                         <strong class="tabular">{{ total }}</strong>
@@ -92,6 +96,7 @@ onBeforeUnmount(() => {
                     </template>
                     <template v-else>{{ cards.length }} Felgen im Sortiment</template>
                 </p>
+                <p v-if="demo" class="micro quiet">Beispielsortiment mit Fotos unter freier Lizenz – die Felgen sind nicht bestellbar.</p>
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->

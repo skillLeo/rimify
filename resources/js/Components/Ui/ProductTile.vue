@@ -133,7 +133,7 @@ function onCompareChange(event: Event): void {
         })
     } else if (result === 'full') {
         input.checked = false
-        toast.show({ text: COMPARE_CAP_TEXT })
+        toast.show({ text: COMPARE_CAP_TEXT, icon: 'info' })
     }
 }
 
@@ -141,7 +141,7 @@ function onCompareChange(event: Event): void {
 function onCompareLabelClick(event: MouseEvent): void {
     if (capped.value) {
         event.preventDefault()
-        toast.show({ text: COMPARE_CAP_TEXT })
+        toast.show({ text: COMPARE_CAP_TEXT, icon: 'info' })
     }
 }
 </script>

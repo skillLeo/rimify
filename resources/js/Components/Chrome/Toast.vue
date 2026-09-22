@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
     <div class="toast-viewport" role="status" aria-live="polite">
         <Transition name="toast">
             <div v-if="message" class="toast" @mouseenter="pause" @mouseleave="arm" @focusin="pause" @focusout="onFocusOut">
-                <Icon name="check-circle" :size="20" />
+                <Icon :name="message.icon ?? 'check-circle'" :size="20" />
                 <span class="toast__text">{{ message.text }}</span>
                 <button v-if="message.action" ref="actionButton" class="btn btn--outline-light btn--sm toast__action" type="button" @click="act">
                     {{ message.action.label }}

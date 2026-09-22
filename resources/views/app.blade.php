@@ -24,7 +24,7 @@
             $heroManifest = $page['props']['hero']['product']['imageManifest'] ?? null;
             $heroSet = is_array($heroManifest) && isset($heroManifest['base'], $heroManifest['widths'])
                 ? implode(', ', array_map(fn ($w) => $heroManifest['base'].'-'.$w.'.avif '.$w.'w', $heroManifest['widths']))
-                : '/images/hero-wheel/hero-wheel-480.avif 480w, /images/hero-wheel/hero-wheel-768.avif 768w, /images/hero-wheel/hero-wheel-1136.avif 1136w';
+                : '/images/hero-wheel/hero-wheel-480.avif 480w, /images/hero-wheel/hero-wheel-768.avif 768w, /images/hero-wheel/hero-wheel-1080.avif 1080w';
         @endphp
         <link rel="preload" as="image" fetchpriority="high" type="image/avif"
               imagesrcset="{{ $heroSet }}"

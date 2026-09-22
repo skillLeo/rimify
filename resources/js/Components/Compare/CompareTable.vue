@@ -402,7 +402,8 @@ onBeforeUnmount(() => {
                 <!-- The groups. -->
                 <template v-for="group in groups" :key="group.id">
                     <div class="compare__row" role="row">
-                        <div class="compare__label compare__group label" role="rowheader" :aria-colspan="count + 1">{{ group.label }}</div>
+                        <!-- The text sits in the sticky `.label`, so a group heading survives a row scroll. -->
+                        <div class="compare__label compare__group" role="rowheader" :aria-colspan="count + 1"><span class="label">{{ group.label }}</span></div>
                     </div>
 
                     <div v-for="r in group.rows" :key="r.id" class="compare__row compare__row--data" :class="{ 'compare__row--same': r.same }" role="row">

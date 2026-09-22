@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\Setting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -44,6 +45,25 @@ class ContentSeeder extends Seeder
         $this->seedContactPage();
         $this->seedLegalPages();
         $this->seedGuides();
+        $this->seedSettings();
+    }
+
+    /**
+     * The hero product: the demo finish whose cut-out has clean windows and no third-party mark
+     * (docs/reviews/home-r2.md, 3). Only set when the catalogue has been seeded; the admin can
+     * change it, and a re-seed does not move a choice an admin has made.
+     */
+    private function seedSettings(): void
+    {
+        if (Setting::get('hero_product_id') !== null) {
+            return;
+        }
+
+        $hero = DB::table('wheel_models')->where('slug', 'dezent-tz')->value('id');
+
+        if ($hero !== null) {
+            Setting::set('hero_product_id', (int) $hero);
+        }
     }
 
     /**

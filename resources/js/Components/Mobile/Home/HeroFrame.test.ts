@@ -5,6 +5,7 @@ import { NNBSP } from '../../../format'
 import type { HeroProduct } from '../../../types/pages'
 
 vi.mock('@inertiajs/vue3', () => ({
+    usePage: () => ({ props: { demo: false } }),
     Link: defineComponent({
         props: { href: { type: String, required: true } },
         setup(props, { slots, attrs }) {

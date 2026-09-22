@@ -195,14 +195,18 @@ describe('FitmentTeaser (H8 v2)', () => {
         expect(wrapper.find('.cd__label--et').text()).toBe('ET 25')
     })
 
-    it('starts on the vehicle’s size with an honest "nothing changes", says so, marks the Aktuell fields, and withdraws the note on the first edit', async () => {
+    it('starts on the vehicle’s size against the next plausible step, says so, marks the Aktuell fields, and withdraws the note on the first edit', async () => {
         const wrapper = mountTeaser({
             prefill: { widthIn: 8, diameterIn: 18, etMm: 40, tyreWidth: 235, aspect: 40 },
             vehicle,
         })
 
-        expect(values(wrapper)).toEqual([pct('±0,0'), kmh('100,0'), `außen ${mm('±0,0')}`])
-        expect(wrapper.find('.light').classes()).toContain('light--ok')
+        // Aktuell is the car's own size; Neu is one inch up, ten points less profile, half an inch
+        // wider — so the first paint answers the heading with a real change, never "±0,0".
+        expect(control<HTMLSelectElement>(wrapper, 'current', 'diameterIn').value).toBe('18')
+        expect(control<HTMLSelectElement>(wrapper, 'next', 'diameterIn').value).toBe('19')
+        const results = wrapper.findAll('.calc-result').map((r) => r.text()).join(' ')
+        expect(results).not.toContain('±0,0')
         expect(wrapper.find('.teaser__prefill').text()).toBe('Vorbelegt mit der Serienbereifung deines BMW 3er.')
         expect(wrapper.findAll('[data-prefilled="true"]')).toHaveLength(5)
         // The note stands under the row, before the drawing.
@@ -243,13 +247,17 @@ describe('FitmentTeaser (H8 v2)', () => {
         expect(wrapper.find('a').attributes('href')).toBe(`/felgenrechner?rechner=${EXAMPLE_PARAM}`)
     })
 
-    it('writes every valid change to the address, debounced, so the address bar is a share link', async () => {
+    it('writes the address on mount and every valid change after, debounced, so the address bar is always a share link', async () => {
         vi.useFakeTimers()
         const wrapper = mountTeaser()
 
+        // The canonical link from the first paint, not from the first change.
+        const atMount = window.location.search
+        expect(atMount).toMatch(/^\?rechner=7\.5x17-45-225-45_/)
+
         change(control(wrapper, 'next', 'diameterIn'), '18')
         await nextTick()
-        expect(window.location.search).toBe('')
+        expect(window.location.search).toBe(atMount)
 
         vi.advanceTimersByTime(250)
         expect(window.location.search).toBe('?rechner=7.5x17-45-225-45_8.5x18-35-225-35')

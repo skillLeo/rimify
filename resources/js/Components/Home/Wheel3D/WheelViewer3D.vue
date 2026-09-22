@@ -40,6 +40,12 @@ const props = withDefaults(
         hdri?: string
         /** The hero's cursor roll target in degrees; ignored by the band. */
         roll?: number
+        /**
+         * Whether a render may ever take the photograph's place. False until the model is a
+         * licensed one of the pictured finish: a parametric wheel under a product's name is a
+         * different wheel, and the photograph is the content (docs/reviews/home-r2.md, 7).
+         */
+        replacePoster?: boolean
     }>(),
     {
         sizes: '100vw',
@@ -51,6 +57,7 @@ const props = withDefaults(
         finish: 'Silber',
         hdri: '/3d/studio_small_09_1k.hdr',
         roll: 0,
+        replacePoster: false,
     },
 )
 
@@ -93,7 +100,7 @@ const isBand = computed(() => props.mode === 'band')
  * on the server and the client.
  */
 const posterInset = computed(() => {
-    if (!isBand.value || props.model === null || props.tyre === null) {
+    if (!isBand.value || !props.replacePoster || props.model === null || props.tyre === null) {
         return null
     }
 
@@ -230,6 +237,11 @@ function watchProgress(): void {
 }
 
 onMounted(() => {
+    // The photograph stays unless a render is allowed to replace it; nothing is probed otherwise.
+    if (!props.replacePoster) {
+        return
+    }
+
     const env = probe(page.props.isMobile === true, props.model !== null, props.sequence !== null)
     const decided = decideStage(env)
 
@@ -443,7 +455,9 @@ onBeforeUnmount(() => {
 /* ── Reduced motion: the poster, at rest, and nothing else ever mounts ─────── */
 
 @media (prefers-reduced-motion: reduce) {
-    .viewer__poster {
+    /* The band selector above outranks a bare class; it is repeated here so the turn never runs. */
+    .viewer__poster,
+    .viewer--band:not(.viewer--3d, .viewer--seq) .viewer__poster {
         animation: none;
         transform: none;
         transition: none;

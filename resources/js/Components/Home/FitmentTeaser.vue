@@ -135,5 +135,11 @@ const { state, shown, href, prefillNote, fromVehicle, update, setValid } = useRe
         padding-left: 0;
         border-left: 0;
     }
+
+    /* The foot sits under the drawing, in its columns, so the results column sets the height. */
+    .teaser--desktop .teaser__foot {
+        grid-column: 1 / span 6;
+        margin-top: calc(var(--sp-24) - var(--sp-40));
+    }
 }
 </style>

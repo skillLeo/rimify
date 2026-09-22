@@ -123,7 +123,7 @@ function boxesAt(top: number, height: number): void {
 
 function mountViewer(props: Record<string, unknown> = {}): VueWrapper {
     const wrapper = mount(WheelViewer3D, {
-        props: { poster, alt: 'Symbolbild', model, ...props },
+        props: { poster, alt: 'Symbolbild', model, replacePoster: true, ...props },
         attachTo: document.body,
     })
     mounted.push(wrapper)
@@ -169,7 +169,7 @@ describe('WheelViewer3D on the server', () => {
 
     it('renders the band the same way, with the poster inset for the tyre and the roll at 0', async () => {
         const html = await renderToString(
-            createSSRApp({ render: () => h(WheelViewer3D, { poster, alt: 'Komplettrad', model, mode: 'band', tyre: { widthMm: 225, aspect: 45 } }) }),
+            createSSRApp({ render: () => h(WheelViewer3D, { poster, alt: 'Komplettrad', model, mode: 'band', tyre: { widthMm: 225, aspect: 45 }, replacePoster: true }) }),
         )
 
         expect(html).toContain('data-stage="poster"')

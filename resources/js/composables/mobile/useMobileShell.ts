@@ -73,6 +73,15 @@ export function isNavigationVisit(visit: { prefetch?: boolean; only?: string[]; 
     return (visit.only?.length ?? 0) === 0 && (visit.except?.length ?? 0) === 0
 }
 
+/**
+ * Whether the phone shell is providing — i.e. the page renders under `MobileLayout`. A shared
+ * component chooses its phone anatomy by this, not by the device flag: a phone UA on a page that
+ * still uses the desktop layout has no sheet to open. Setup-time only (it injects).
+ */
+export function hasMobileShell(): boolean {
+    return inject(KEY, null) !== null
+}
+
 export function useMobileShell(): MobileShell {
     const store = inject(KEY)
 

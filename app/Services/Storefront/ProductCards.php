@@ -174,10 +174,12 @@ final readonly class ProductCards
      * `newest` (the model's creation date) or `coverage` (the number of document rows behind the
      * model, which is the closest thing to popularity this catalogue can measure honestly);
      * `maxPriceCents` — only models whose cheapest configuration is at or under it; `modelIds` —
-     * only these models, in the order given.
+     * only these models, in the order given; `withImageOnly` — only finishes with a cut-out (the
+     * homepage's shop window while the demo set is incomplete). Finishes with a photograph come
+     * first in every order: a drawing is a fallback, never the front row.
      *
      * @param  int|null  $limit  null for the whole range
-     * @param  array{order?: string, maxPriceCents?: int|null, modelIds?: list<int>}  $options
+     * @param  array{order?: string, maxPriceCents?: int|null, modelIds?: list<int>, withImageOnly?: bool}  $options
      * @return list<array<string, mixed>>
      */
     public function catalogue(?int $limit = 24, ?string $brand = null, array $options = []): array
@@ -185,6 +187,7 @@ final readonly class ProductCards
         $order = $options['order'] ?? 'price';
         $maxPriceCents = $options['maxPriceCents'] ?? null;
         $modelIds = $options['modelIds'] ?? null;
+        $withImageOnly = ($options['withImageOnly'] ?? false) === true;
 
         if ($modelIds === []) {
             return [];
@@ -199,6 +202,7 @@ final readonly class ProductCards
             ->where('wm.status', CatalogueStatus::Published->value)
             ->when($brand !== null, fn ($q) => $q->where('br.slug', $brand))
             ->when($modelIds !== null, fn ($q) => $q->whereIn('wm.id', $modelIds))
+            ->when($withImageOnly, fn ($q) => $q->whereNotNull('wf.image_manifest'))
             ->groupBy(
                 'wm.id', 'wm.name', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
                 'wm.is_demo', 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish', 'wf.image_manifest',
@@ -208,6 +212,7 @@ final readonly class ProductCards
                 'FIELD(wm.id, '.implode(', ', array_fill(0, count($modelIds), '?')).')',
                 $modelIds,
             ))
+            ->orderByRaw('(wf.image_manifest IS NOT NULL) DESC')
             ->when($order === 'newest', fn ($q) => $q->orderBy('wm.created_at', 'desc'))
             ->when($order === 'coverage', fn ($q) => $q->orderByRaw(
                 '(SELECT COUNT(*) FROM fitments f JOIN wheel_configs c ON c.id = f.wheel_config_id WHERE c.wheel_model_id = wm.id) DESC',

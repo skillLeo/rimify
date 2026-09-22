@@ -22,6 +22,9 @@ const props = defineProps<{
     vehicle: VehicleProp | null
 }>()
 
+/** How many empty cells close the last row of the six-column brand grid. */
+const padding = computed(() => (6 - (props.brands.length % 6)) % 6)
+
 /** `1 passende Felge` · `9 passende Felgen` — `felgen()` with the adjective between the number and the noun. */
 function passende(count: number): string {
     return felgen(count).replace(NNBSP, `${NNBSP}passende `)
@@ -72,11 +75,14 @@ const tiles = computed(() =>
                 <h2 :id="tiles.length > 0 ? 'h6-brands' : 'h6-heading'" class="h2">Nach Marke</h2>
                 <ul class="brands" aria-label="Felgen nach Marke">
                     <li v-for="brand in brands" :key="brand.slug" class="brands__item">
-                        <Link :href="brand.href" class="brand-cell" :aria-label="brand.logo ? brand.name : undefined" prefetch>
+                        <Link :href="brand.href" class="brand-cell" :aria-label="brand.logo ? `${brand.name}: ${felgen(brand.count)}` : undefined" prefetch>
                             <span v-if="brand.logo" class="brand-mark" :style="{ maskImage: `url(${brand.logo})`, WebkitMaskImage: `url(${brand.logo})` }" />
                             <span v-else class="h4 brand-cell__name">{{ brand.name }}</span>
+                            <span class="micro quiet num brand-cell__count">{{ felgen(brand.count) }}</span>
                         </Link>
                     </li>
+                    <!-- Empty cells close the hairline grid's last row. -->
+                    <li v-for="n in padding" :key="`pad-${n}`" class="brands__item brands__item--empty" aria-hidden="true" />
                 </ul>
             </div>
         </div>
@@ -182,6 +188,18 @@ a.size-tile:active .size-tile__number {
 .brand-cell__name {
     overflow-wrap: anywhere;
     transition: color var(--d-1) var(--ease-std);
+}
+
+.brand-cell__count {
+    margin-top: var(--sp-4);
+}
+
+/* An empty cell keeps the hairlines and the band, so the grid's last row closes. */
+.brands__item--empty {
+    min-height: 96px;
+    border-right: 1px solid var(--c-line);
+    border-bottom: 1px solid var(--c-line);
+    background: var(--c-band);
 }
 
 .brand-mark {

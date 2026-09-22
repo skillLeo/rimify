@@ -1125,6 +1125,8 @@
 
     .calc-result {
         display: grid;
+        /* Rows pack to the top: three results beside each other keep their values level. */
+        align-content: start;
         gap: var(--sp-4);
         min-width: 0;
         padding: var(--sp-16) 0;
@@ -1517,6 +1519,38 @@
         cursor: pointer;
     }
 
+    /* The desktop anatomy on a narrow window (or a phone UA on a page without the phone shell):
+       the thumbnails take the first line and scroll sideways, the actions the second, full width. */
+    @media (max-width: 767px) {
+        .tray:not(.tray--phone) {
+            height: auto;
+        }
+
+        .tray:not(.tray--phone) .tray__row {
+            flex-wrap: wrap;
+            row-gap: var(--sp-12);
+            height: auto;
+            padding-block: var(--sp-12);
+        }
+
+        .tray:not(.tray--phone) .tray__thumbs {
+            flex: 1 1 100%;
+            overflow-x: auto;
+        }
+
+        .tray:not(.tray--phone) .tray__count {
+            display: none;
+        }
+
+        .tray:not(.tray--phone) .tray__actions {
+            flex: 1 1 100%;
+        }
+
+        .tray:not(.tray--phone) .tray__actions .tray__go {
+            flex: 1;
+        }
+    }
+
     .tray--phone .tray__row {
         gap: var(--sp-12);
     }
@@ -1650,6 +1684,8 @@
     .compare__img {
         display: grid;
         aspect-ratio: 1;
+        /* Never wider than a tile: two wheels side by side must not be a screen of photograph. */
+        max-width: 306px;
         margin-bottom: var(--sp-8);
         overflow: hidden;
         border-radius: var(--r-tile);
@@ -1726,9 +1762,22 @@
         font-weight: 600;
     }
 
+    /* A name keeps its words: it ellipsises rather than breaking into letters beside a badge. */
+    .compare__stick-name > span {
+        overflow: hidden;
+        overflow-wrap: normal;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    /* With a vehicle the verdict takes its own line under the name at every width. */
+    .compare__stick .compare__cell {
+        flex-wrap: wrap;
+    }
+
     .compare__stick .verdict {
-        flex: none;
-        margin-left: auto;
+        flex: 0 0 100%;
+        margin-top: var(--sp-8);
     }
 
     /* The actions row: no hairline; a full-width button per column. */

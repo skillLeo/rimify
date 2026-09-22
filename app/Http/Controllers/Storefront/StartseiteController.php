@@ -36,10 +36,11 @@ use Inertia\Response;
 class StartseiteController extends Controller
 {
     /** The three tabs of the popular row, each a real query. */
+    /* `withImageOnly`: the shop window shows photographed finishes while the demo set is incomplete. */
     private const TABS = [
-        'beliebt' => ['label' => 'Beliebt', 'options' => ['order' => 'coverage']],
-        'neu' => ['label' => 'Neu', 'options' => ['order' => 'newest']],
-        'bis200' => ['label' => 'Bis 200 €', 'options' => ['order' => 'price', 'maxPriceCents' => 20_000]],
+        'beliebt' => ['label' => 'Beliebt', 'options' => ['order' => 'coverage', 'withImageOnly' => true]],
+        'neu' => ['label' => 'Neu', 'options' => ['order' => 'newest', 'withImageOnly' => true]],
+        'bis200' => ['label' => 'Bis 200 €', 'options' => ['order' => 'price', 'maxPriceCents' => 20_000, 'withImageOnly' => true]],
     ];
 
     public function __construct(
@@ -233,11 +234,19 @@ class StartseiteController extends Controller
             ];
         }
 
+        // The shop window prefers photographed finishes — but only where any exist: a catalogue
+        // whose cut-outs have not been rendered yet still gets its eight tiles, drawn.
+        $options = self::TABS[$tab]['options'];
+
+        if (! DB::table('wheel_finishes')->whereNotNull('image_manifest')->exists()) {
+            unset($options['withImageOnly']);
+        }
+
         return [
             'title' => 'Beliebte Felgen',
             'tabs' => $tabs,
             'active' => $tab,
-            'cards' => $this->cards->catalogue(limit: 8, options: self::TABS[$tab]['options']),
+            'cards' => $this->cards->catalogue(limit: 8, options: $options),
             'total' => null,
         ];
     }

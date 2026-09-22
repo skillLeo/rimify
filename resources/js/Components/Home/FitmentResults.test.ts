@@ -68,7 +68,7 @@ describe('FitmentResults', () => {
         expect(abroll.attributes('data-status')).toBe('warn')
         expect(abroll.find('.light').classes()).toContain('light--warn')
         expect(abroll.find('.light').text()).toBe(
-            `Größer als die übliche Toleranz (${pct('−2,5')} bis ${pct('+1,5')}). Der Tacho zeigt dann weniger an als bisher – zu wenig darf er nie anzeigen. Ob das noch passt, steht in der Freigabe.`
+            `Größer als die übliche Toleranz (${pct('−2,5')} bis ${pct('+1,5')}). Der Tacho zeigt dann weniger an als bisher – zu wenig darf er nie anzeigen. Ob das noch erlaubt ist, steht in der Freigabe.`
         )
         expect(block(wrapper, 'tacho').text()).toContain('weniger an, als du fährst')
     })
@@ -79,7 +79,7 @@ describe('FitmentResults', () => {
 
         expect(abroll.attributes('data-status')).toBe('warn')
         expect(abroll.find('.light').text()).toBe(
-            `Kleiner als die übliche Toleranz (${pct('−2,5')} bis ${pct('+1,5')}). Der Tacho zeigt dann mehr an als bisher – ob das passt, steht in der Freigabe.`
+            `Kleiner als die übliche Toleranz (${pct('−2,5')} bis ${pct('+1,5')}). Der Tacho zeigt dann mehr an als bisher – ob das erlaubt ist, steht in der Freigabe.`
         )
         expect(block(wrapper, 'tacho').text()).toContain('mehr an, als du fährst')
     })

@@ -55,12 +55,13 @@ final readonly class ListingQuery
                     MIN(wc.price_cents)  OVER (PARTITION BY wm.id, wf.id) AS from_price_cents,
                     MAX(wc.stock_qty)    OVER (PARTITION BY wm.id, wf.id) AS best_stock_qty,
                     MAX(f.requires_entry) OVER (PARTITION BY wm.id, wf.id) AS any_entry_required,
+                    (wf.image_manifest IS NOT NULL) AS has_image,
                     ROW_NUMBER()         OVER (PARTITION BY wm.id, wf.id ORDER BY wc.price_cents ASC, wc.id ASC) AS rn
                 {$this->fromAndJoins()}
                 WHERE {$where}
             ) t
             WHERE t.rn = 1
-            ORDER BY t.from_price_cents ASC, t.model_id ASC, t.finish_id ASC
+            ORDER BY t.has_image DESC, t.from_price_cents ASC, t.model_id ASC, t.finish_id ASC
             LIMIT ? OFFSET ?
         ";
 

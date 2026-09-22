@@ -17,14 +17,8 @@ declare(strict_types=1);
 // leave a sliver of tyre on one side. Licences: Unsplash License (free for commercial use, no
 // attribution required) and Pexels License (the same). Attribution is given anyway.
 return [
-    'unsplash-h82zfDTFUP0.jpg' => [
-        'slug' => 'borbet-havanna-silber',
-        'model' => 'borbet-havanna',
-        'finish' => 'Silber',
-        'circle' => [800, 1250, 568],
-        'cap' => 120,
-        'credit' => ['source' => 'Unsplash', 'photographer' => 'Mathias Reding', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/h82zfDTFUP0'],
-    ],
+    // unsplash-h82zfDTFUP0.jpg (Mathias Reding, Unsplash License) is retired: a wall shows through
+    // every spoke window and the circular mask cannot cut windows. Its finish draws the outline.
     'unsplash-60ZSTXNgXgM.jpg' => [
         'slug' => 'oz-racing-superturismo-gt-matt-race-silber',
         'model' => 'oz-racing-superturismo-gt',
@@ -70,7 +64,8 @@ return [
         'model' => 'mam-rs4',
         'finish' => 'Silber',
         'circle' => [1341, 1650, 400],
-        'cap' => 45,
+        // 0,2 r: the roundel on the hub is a third-party mark and must be covered whole.
+        'cap' => 80,
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Dillon Kydd', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/ej_FX2MqClQ'],
     ],
     'unsplash-4gxI7gj0l2s.jpg' => [
@@ -78,7 +73,8 @@ return [
         'model' => 'borbet-lv5',
         'finish' => 'Schwarz matt',
         'circle' => [1062, 2642, 540],
-        'cap' => 75,
+        // 0,22 r: the four rings on the hub are a third-party mark and must be covered whole.
+        'cap' => 120,
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Volodymyr Dobrovolskyy', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/4gxI7gj0l2s'],
     ],
     'unsplash-Z9jNN_F2PwU.jpg' => [

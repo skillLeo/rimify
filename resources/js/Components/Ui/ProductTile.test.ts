@@ -241,7 +241,7 @@ describe('ProductTile', () => {
         expect(fifth.find('.tile__compare').classes()).toContain('tile__compare--full')
 
         await fifth.find('.tile__compare').trigger('click')
-        expect(show).toHaveBeenCalledWith({ text: 'Höchstens 4 Felgen im Vergleich – entferne eine, um eine andere hinzuzufügen.' })
+        expect(show).toHaveBeenCalledWith({ text: 'Höchstens 4 Felgen im Vergleich – entferne eine, um eine andere hinzuzufügen.', icon: 'info' })
 
         // A ticked card at the cap stays enabled: it can still be unticked.
         const ticked = mountTile({ compare: true, card: card(10, { finishId: 1 }) })

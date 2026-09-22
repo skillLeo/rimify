@@ -362,8 +362,11 @@ const setup = (side: Side): WheelSetup => local[side]
     border: 0;
 }
 
+/* A rank above its field labels: the group name is ink, and a beat of space sits under it. */
 .calc-form__legend {
     padding: 0;
+    margin-bottom: var(--sp-12);
+    color: var(--c-ink);
 }
 
 .calc-form__fields {
