@@ -3,29 +3,25 @@
  * H7 · Kompletträder — the one dark band on the page, signature moment 3.
  *
  * What a Komplettrad is, in one sentence; the one regulated fact about a tyre, its EU label, from
- * the featured tyre's own record; and a complete wheel that turns with the scroll. Where 3D runs
- * (desktop document, fine pointer, motion allowed) the wheel is the hero's rim model with a
- * parametric tyre in the featured tyre's section, rolled 0 → −120° by the box's progress through
- * the viewport — no scroll listener, an IntersectionObserver reads the range. Everywhere else the
- * poster turns by a CSS `view()` timeline where the browser has one, and stands still where it
- * has none. Under reduced motion nothing turns.
+ * the featured tyre's own record (only with a verified EPREL entry); and a complete wheel that
+ * turns with the scroll.
  *
- * One picture, and it is the subject: the cut-out that turns. The poster is the hero's rim until
- * the client's own complete-wheel cut-out — rim with tyre, front-facing — arrives
- * (docs/phase0/ASSET-REQUEST.md §5) and replaces it in `resources/js/images/`. No lifestyle
- * photograph beside it (spec H7 "Never"), and no scrim: a scrim would be a second gradient.
+ * The wheel is an illustration, and the page says so: the parametric rim with a parametric tyre,
+ * rendered offline by scripts/3d/render-komplettrad.mjs — generated, no brand, no car, no brake,
+ * no lettering (docs/phase0/ACCURACY.md §3.1). It is never a photograph of somebody's wheel on a
+ * car, and it claims no size: the label beside it is the featured tyre's, not the picture's. No 3D
+ * mounts here (nothing ever did: the viewer's `replacePoster` was never switched on); the picture
+ * turns 0 → −720° (two full turns) by a CSS `view()` timeline where the browser has one and stands still where it
+ * has none — no scroll listener. Under reduced motion nothing turns. No lifestyle photograph beside
+ * it (spec H7 "Never"), and no scrim: a scrim would be a second gradient.
  */
 
 import { Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import Picture from '../Ui/Picture.vue'
 import TyreLabel, { type TyreClass } from '../Ui/TyreLabel.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
-import WheelViewer3D from './Wheel3D/WheelViewer3D.vue'
-import { HERO_MODEL_3D } from './Wheel3D/model'
-import { HERO_SEQUENCE } from './Wheel3D/sequence'
-import { tyreSectionFromTitle } from './Wheel3D/targets'
-import type { TyreSection } from './Wheel3D/types'
-import heroWheel from '../../images/hero-wheel.json'
+import illustration from '../../images/komplettrad-illustration.json'
 import type { EuTyreLabel } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -61,13 +57,9 @@ const label = computed(() => {
 /* With a vehicle the listing already knows the car; without one the selector comes first. */
 const href = computed(() => (props.vehicle === null ? '/felgen-suchen?ziel=komplettraeder' : '/felgen'))
 
-/* The cut-out: AVIF, WebP, then the PNG the manifest names as its fallback (it has an alpha channel). */
+/* The illustration: AVIF, WebP, then the PNG the manifest names as its fallback (it has an alpha channel). */
 const WHEEL_SIZES = '(min-width: 1280px) 416px, (min-width: 1024px) 30vw, (min-width: 768px) 45vw, 240px'
-
-/* The rim model the hero already fetched — the band downloads no second GLB — plus a tyre in the featured section. */
-const MODEL_3D = HERO_MODEL_3D
-const DEFAULT_SECTION: TyreSection = { widthMm: 225, aspect: 45 }
-const tyreSection = computed<TyreSection>(() => tyreSectionFromTitle(props.tyre?.title) ?? DEFAULT_SECTION)
+const WHEEL_ALT = 'Illustration eines Komplettrads aus Felge und Reifen, Ansicht von vorn'
 
 const wheelFailed = ref(false)
 </script>
@@ -77,29 +69,23 @@ const wheelFailed = ref(false)
         <div class="container grid komplett__grid">
             <div class="komplett__text">
                 <h2 id="h7-heading" class="h2">Kompletträder – montiert und gewuchtet.</h2>
-                <p class="body-l komplett__lead">
-                    Felge und Reifen kommen fertig montiert und gewuchtet bei dir an – mit dem Gutachten für dein Fahrzeug.
-                </p>
+                <!-- No promise that the Gutachten is delivered: nothing delivers it yet (ACCURACY D7). -->
+                <p class="body-l komplett__lead">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
                 <Link :href="href" class="btn btn--light komplett__button">Kompletträder für mein Fahrzeug</Link>
             </div>
 
-            <div class="komplett__stage">
-                <div v-if="!wheelFailed" class="komplett__wheel">
-                    <WheelViewer3D
-                        :poster="heroWheel"
-                        alt="Komplettrad, Ansicht von vorn"
-                        :sizes="WHEEL_SIZES"
-                        :model="MODEL_3D"
-                        :sequence="HERO_SEQUENCE"
-                        :tyre="tyreSection"
-                        mode="band"
-                        @error="wheelFailed = true"
-                    />
+            <figure class="komplett__stage">
+                <!-- `error` does not bubble, but it does pass this wrapper in the capture phase. -->
+                <div v-if="!wheelFailed" class="komplett__wheel" @error.capture="wheelFailed = true">
+                    <span class="komplett__turn">
+                        <Picture :image="illustration" :alt="WHEEL_ALT" :sizes="WHEEL_SIZES" />
+                    </span>
                 </div>
-                <div v-else class="komplett__fallback">
-                    <WheelOutline />
+                <div v-else class="komplett__fallback" aria-hidden="true">
+                    <WheelOutline size="60%" />
                 </div>
-            </div>
+                <figcaption class="micro quiet komplett__caption">Illustration</figcaption>
+            </figure>
 
             <div class="komplett__label">
                 <TyreLabel v-if="label" v-bind="label" />
@@ -130,17 +116,34 @@ const wheelFailed = ref(false)
     margin-top: var(--sp-32);
 }
 
-/* The stage is square and centred, so the turn never changes the layout box. */
+/* The wheel's box is square and centred, so the turn never changes the layout box. */
 .komplett__stage {
     width: 100%;
     max-width: 240px;
-    margin-inline: auto;
+    margin: 0 auto;
 }
 
 .komplett__wheel {
     position: relative;
     width: 100%;
     aspect-ratio: 1;
+}
+
+.komplett__turn {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.komplett__turn :deep(.picture) {
+    width: 100%;
+    height: 100%;
+}
+
+.komplett__caption {
+    display: block;
+    margin-top: var(--sp-8);
+    text-align: center;
 }
 
 .komplett__fallback {
@@ -151,8 +154,6 @@ const wheelFailed = ref(false)
 }
 
 .komplett__fallback :deep(.outline) {
-    width: 60%;
-    height: 60%;
     color: var(--c-on-dark-2);
 }
 
@@ -205,6 +206,33 @@ const wheelFailed = ref(false)
     .komplett__label {
         grid-column: 10 / span 3;
         justify-self: start;
+    }
+}
+
+/* ── Motion: the illustration turns with the scroll, and only there ─────────── */
+
+@supports (animation-timeline: view()) {
+    .komplett__turn {
+        animation: komplett-turn linear both;
+        animation-timeline: view();
+        animation-range: entry 0% exit 100%;
+    }
+}
+
+@keyframes komplett-turn {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(-720deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .komplett__turn {
+        animation: none;
+        transform: none;
     }
 }
 </style>

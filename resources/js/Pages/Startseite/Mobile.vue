@@ -356,7 +356,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     <section v-if="tyre" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
             <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br />montiert und gewuchtet.</h2>
-            <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an – mit dem Gutachten für dein Fahrzeug.</p>
+            <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
 
             <KomplettradWheel class="home-komplett__wheel" />
 
