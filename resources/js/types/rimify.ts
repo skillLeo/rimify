@@ -190,7 +190,8 @@ export type Facets = Record<string, FacetOption[]>
 
 export interface BasketLine {
     key: string
-    kind: 'WHEEL' | 'TYRE'
+    /** Only wheels: Felgen alone, or a Komplettrad that carries its tyre (ACCURACY D6). */
+    kind: 'WHEEL'
     title: string
     subtitle: string
     brandName: string

@@ -303,8 +303,14 @@ final readonly class Chrome
 
         $count = 0;
 
+        // Wheel lines only, like the basket itself: a TYRE line left in a session from before the
+        // shop stopped selling tyres alone is never shown, so it is never counted either.
         foreach ($cart as $line) {
-            $count += is_array($line) && isset($line['quantity']) ? (int) $line['quantity'] : 0;
+            if (! is_array($line) || ($line['kind'] ?? 'WHEEL') !== 'WHEEL') {
+                continue;
+            }
+
+            $count += isset($line['quantity']) ? (int) $line['quantity'] : 0;
         }
 
         return $count;

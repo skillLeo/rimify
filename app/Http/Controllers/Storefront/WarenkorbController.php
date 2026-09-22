@@ -37,20 +37,14 @@ class WarenkorbController extends Controller
 
     public function store(BasketLineRequest $request): RedirectResponse
     {
-        $refusal = $request->kind() === 'WHEEL'
-            ? $this->basket->refusalFor($request, $request->referenceId())
-            : null;
+        // Every line is a wheel (the request refuses anything else), and every wheel is checked.
+        $refusal = $this->basket->refusalFor($request, $request->wheelConfigId());
 
         if ($refusal !== null) {
             return back()->withErrors(['wheelConfigId' => $refusal]);
         }
 
-        $this->basket->add(
-            $request,
-            $request->kind(),
-            $request->referenceId(),
-            $request->quantity(),
-        );
+        $this->basket->add($request, $request->wheelConfigId(), $request->quantity());
 
         // Back rather than to the basket: the customer is on a product page configuring, and
         // taking them away from it after every add is what makes people buy one item instead of

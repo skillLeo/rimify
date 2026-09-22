@@ -7,7 +7,6 @@ namespace App\Services\Storefront;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Storefront\VehicleContext;
-use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
@@ -19,6 +18,9 @@ use Illuminate\Http\Request;
  * else. It never stores a price: a price in a session is a price that can be stale by the time it
  * is charged, and the one number a customer will check against their bank statement is not a
  * number worth caching.
+ *
+ * Every line is a WHEEL line. RIMIFY sells Felgen alone or Kompletträder, never a standalone tyre
+ * (ACCURACY.md D6); a Komplettrad, once it can be ordered, is a wheel line that carries its tyre.
  */
 final readonly class Basket
 {
@@ -84,17 +86,18 @@ final readonly class Basket
      * Keyed on the configuration, not on a generated line id: choosing the same wheel twice is one
      * line of eight, not two lines of four, and a basket that shows it twice reads as a bug.
      */
-    public function add(Request $request, string $kind, int $referenceId, int $quantity): void
+    public function add(Request $request, int $wheelConfigId, int $quantity): void
     {
-        $key = $this->key($kind, $referenceId);
+        $key = $this->key($wheelConfigId);
         $cart = $this->rawKeyed($request);
 
         $existing = (int) ($cart[$key]['quantity'] ?? 0);
 
         $cart[$key] = [
-            'kind' => $kind,
-            'wheelConfigId' => $kind === 'WHEEL' ? $referenceId : null,
-            'tyreVariantId' => $kind === 'TYRE' ? $referenceId : null,
+            'kind' => 'WHEEL',
+            'wheelConfigId' => $wheelConfigId,
+            // A Komplettrad's tyre, once one can be chosen and checked against the fitment.
+            'tyreVariantId' => null,
             'quantity' => min(99, $existing + $quantity),
         ];
 
@@ -163,9 +166,9 @@ final readonly class Basket
         $request->session()->forget(self::SESSION_KEY);
     }
 
-    public function key(string $kind, int $referenceId): string
+    public function key(int $wheelConfigId): string
     {
-        return ($kind === 'TYRE' ? 'tyre:' : 'wheel:').$referenceId;
+        return 'wheel:'.$wheelConfigId;
     }
 
     /**
@@ -219,49 +222,19 @@ final readonly class Basket
      * removing it leaves the customer with no idea why their basket changed, and the whole value
      * of this product is that it explains itself.
      *
+     * A standalone tyre line left in an older session is not a product RIMIFY sells, so it is not
+     * rendered, priced or counted.
+     *
      * @param  array<string, mixed>  $line
      * @return array<string, mixed>|null
      */
     private function render(array $line, ?int $vehicleId): ?array
     {
-        $kind = is_string($line['kind'] ?? null) ? $line['kind'] : 'WHEEL';
-        $quantity = max(1, (int) ($line['quantity'] ?? 1));
-
-        if ($kind === 'TYRE') {
-            $tyre = TyreVariant::query()->with('brand')->find($line['tyreVariantId'] ?? null);
-
-            if ($tyre === null) {
-                return null;
-            }
-
-            return [
-                'key' => 'tyre:'.$tyre->id,
-                'kind' => 'TYRE',
-                'tyreVariantId' => $tyre->id,
-                'brandName' => $tyre->brand->name,
-                'title' => $tyre->name,
-                'subtitle' => GermanFormat::tyreSize(
-                    (int) $tyre->width_mm,
-                    (int) $tyre->aspect,
-                    (float) $tyre->diameter_in,
-                    (int) $tyre->load_index,
-                    $tyre->speed_symbol,
-                ),
-                'art' => ['kind' => 'tyre', 'label' => GermanFormat::tyreSize(
-                    (int) $tyre->width_mm,
-                    (int) $tyre->aspect,
-                    (float) $tyre->diameter_in,
-                    (int) $tyre->load_index,
-                    $tyre->speed_symbol,
-                )],
-                'quantity' => $quantity,
-                'unitPriceCents' => (int) $tyre->price_cents,
-                'unitPrice' => GermanFormat::money((int) $tyre->price_cents),
-                'lineTotalCents' => (int) $tyre->price_cents * $quantity,
-                'lineTotal' => GermanFormat::money((int) $tyre->price_cents * $quantity),
-                'inStock' => $tyre->stock_qty >= $quantity,
-            ];
+        if (($line['kind'] ?? 'WHEEL') !== 'WHEEL') {
+            return null;
         }
+
+        $quantity = max(1, (int) ($line['quantity'] ?? 1));
 
         $config = WheelConfig::query()
             ->with(['wheelModel.brand', 'wheelFinish'])
@@ -274,7 +247,7 @@ final readonly class Basket
         $model = $config->wheelModel;
 
         return [
-            'key' => 'wheel:'.$config->id,
+            'key' => $this->key($config->id),
             'kind' => 'WHEEL',
             'wheelConfigId' => $config->id,
             'slug' => $model->slug,
