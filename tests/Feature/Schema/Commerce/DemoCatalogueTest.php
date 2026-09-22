@@ -90,8 +90,17 @@ it('maps every photograph to one existing finish and never one photograph to two
             ->and($photo['slug'])->toMatch('/^[a-z0-9][a-z0-9-]*$/')
             ->and($photo['circle'])->toHaveCount(3)
             ->and($photo['circle'][2])->toBeGreaterThan(0)
-            ->and($photo['cap'])->toBeGreaterThanOrEqual(0)
             ->and($photo['credit'])->toHaveKeys(['source', 'photographer', 'licence', 'url']);
+
+        // The hub, where there is a mark to paint over, lies inside the rim and is smaller than it.
+        if ($photo['hub'] !== null) {
+            [$cx, $cy, $r] = $photo['circle'];
+            [$hx, $hy, $hr] = $photo['hub'];
+
+            expect($hr)->toBeGreaterThan(0)
+                ->and($hr)->toBeLessThan($r * 0.3)
+                ->and(hypot($hx - $cx, $hy - $cy) + $hr)->toBeLessThan($r * 0.6);
+        }
 
         $model = WheelModel::query()->where('slug', $photo['model'])->first();
 

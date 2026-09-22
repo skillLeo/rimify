@@ -8,10 +8,13 @@ declare(strict_types=1);
 //
 // Keyed by the file in storage/app/public/placeholder/. `slug` names the output directory under
 // storage/app/public/demo/wheels/ and is `<model slug>-<finish>`. `circle` is the rim's outer lip
-// as cx, cy, r in source pixels — measured once on a grid, never guessed — and `cap` is the radius
-// of the plain disc that covers a branded centre cap (0 for none). `colour` may be `none` to skip
-// the daylight-cast curve. One photograph serves at most one model; a model may have two
-// photographs for two finishes.
+// as cx, cy, r in source pixels — measured once on a grid, never guessed. `hub` is the centre cap
+// as cx, cy, r in source pixels, measured the same way and on its own: a photograph taken a little
+// off-axis puts the hub well away from the rim's centre. Where the cap carries another company's
+// mark (a car maker, another wheel brand) the pipeline paints a plain cap in the wheel's own finish
+// over it; `null` leaves the cap as photographed, for a mark that is the product brand's own.
+// `colour` may be `none` to skip the daylight-cast curve. One photograph serves at most one model;
+// a model may have two photographs for two finishes.
 //
 // Every photograph is face-on: the sharp path cuts along a circle, and a three-quarter view would
 // leave a sliver of tyre on one side. Licences: Unsplash License (free for commercial use, no
@@ -24,7 +27,7 @@ return [
         'model' => 'oz-racing-superturismo-gt',
         'finish' => 'Matt Race Silber',
         'circle' => [810, 553, 440],
-        'cap' => 55,
+        'hub' => [810, 551, 70],
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Luca Nicoletti', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/60ZSTXNgXgM'],
     ],
     'unsplash-7eCBiZgyr4E.jpg' => [
@@ -32,7 +35,7 @@ return [
         'model' => 'oz-racing-formula-hlt',
         'finish' => 'Grigio Corsa',
         'circle' => [2938, 1352, 955],
-        'cap' => 80,
+        'hub' => [2938, 1318, 176],
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Vlad Grebenyev', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/7eCBiZgyr4E'],
     ],
     'unsplash-OgIik_VHAmU.jpg' => [
@@ -40,7 +43,7 @@ return [
         'model' => 'bbs-sr',
         'finish' => 'Himalaya Grau',
         'circle' => [1795, 2935, 1165],
-        'cap' => 175,
+        'hub' => null,
         'credit' => ['source' => 'Unsplash', 'photographer' => 'serjan midili', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/OgIik_VHAmU'],
     ],
     'unsplash-RUacGu7OvXs.jpg' => [
@@ -48,7 +51,7 @@ return [
         'model' => 'alutec-monstr',
         'finish' => 'Racing Schwarz',
         'circle' => [1520, 900, 665],
-        'cap' => 80,
+        'hub' => [1570, 1022, 124],
         'credit' => ['source' => 'Unsplash', 'photographer' => 'J Z', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/RUacGu7OvXs'],
     ],
     'unsplash-Y_251QYX55Y.jpg' => [
@@ -56,7 +59,7 @@ return [
         'model' => 'mam-a5',
         'finish' => 'Palladium',
         'circle' => [1290, 1320, 528],
-        'cap' => 70,
+        'hub' => [1287, 1345, 70],
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Erik Mclean', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/Y_251QYX55Y'],
     ],
     'unsplash-ej_FX2MqClQ.jpg' => [
@@ -64,8 +67,7 @@ return [
         'model' => 'mam-rs4',
         'finish' => 'Silber',
         'circle' => [1341, 1650, 400],
-        // 0,2 r: the roundel on the hub is a third-party mark and must be covered whole.
-        'cap' => 80,
+        'hub' => [1369, 1745, 62],
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Dillon Kydd', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/ej_FX2MqClQ'],
     ],
     'unsplash-4gxI7gj0l2s.jpg' => [
@@ -73,8 +75,7 @@ return [
         'model' => 'borbet-lv5',
         'finish' => 'Schwarz matt',
         'circle' => [1062, 2642, 540],
-        // 0,22 r: the four rings on the hub are a third-party mark and must be covered whole.
-        'cap' => 120,
+        'hub' => [987, 2725, 72],
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Volodymyr Dobrovolskyy', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/4gxI7gj0l2s'],
     ],
     'unsplash-Z9jNN_F2PwU.jpg' => [
@@ -82,7 +83,7 @@ return [
         'model' => 'brock-b40',
         'finish' => 'Silber',
         'circle' => [1111, 1623, 1025],
-        'cap' => 150,
+        'hub' => [1111, 1666, 190],
         'credit' => ['source' => 'Unsplash', 'photographer' => 'Toby Hall', 'licence' => 'Unsplash License', 'url' => 'https://unsplash.com/photos/Z9jNN_F2PwU'],
     ],
     'pexels-12174717.jpg' => [
@@ -90,7 +91,7 @@ return [
         'model' => 'aez-leipzig',
         'finish' => 'Dark',
         'circle' => [2712, 2082, 962],
-        'cap' => 100,
+        'hub' => [2712, 2058, 170],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Mike Bird', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/close-up-of-the-wheel-of-a-blue-car-12174717/'],
     ],
     'pexels-13387441.jpg' => [
@@ -98,7 +99,7 @@ return [
         'model' => 'bbs-ci-r',
         'finish' => 'Bronze matt',
         'circle' => [3480, 2495, 1290],
-        'cap' => 230,
+        'hub' => null,
         'credit' => ['source' => 'Pexels', 'photographer' => 'Malcolm Garret', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/gold-and-silver-mag-wheel-of-a-car-13387441/'],
     ],
     'pexels-14649125.jpg' => [
@@ -106,7 +107,7 @@ return [
         'model' => 'dezent-tz',
         'finish' => 'Silber',
         'circle' => [2365, 2642, 785],
-        'cap' => 100,
+        'hub' => [2373, 2602, 94],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Ambady Kolazhikkaran', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/a-close-up-shot-of-a-wheel-of-a-white-car-14649125/'],
     ],
     'pexels-20303843.jpg' => [
@@ -114,7 +115,7 @@ return [
         'model' => 'dezent-tn',
         'finish' => 'Silber',
         'circle' => [3040, 1858, 1245],
-        'cap' => 190,
+        'hub' => [3005, 1810, 172],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Mike Bird', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/wheel-of-vauxhall-corsa-vxr-20303843/'],
     ],
     'pexels-244553.jpg' => [
@@ -122,7 +123,7 @@ return [
         'model' => 'yido-performance-1',
         'finish' => 'Silber',
         'circle' => [2975, 1895, 1275],
-        'cap' => 220,
+        'hub' => [2929, 1828, 176],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Mike Bird', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/close-up-photograph-of-chrome-vehicle-wheel-244553/'],
     ],
     'pexels-30169820.jpg' => [
@@ -130,7 +131,7 @@ return [
         'model' => 'rotiform-kps',
         'finish' => 'Bronze matt',
         'circle' => [1794, 1541, 1025],
-        'cap' => 130,
+        'hub' => [1630, 1566, 130],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Vinod Kumar', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/stylish-volkswagen-wheel-on-dark-background-30169820/'],
     ],
     'pexels-31999237.jpg' => [
@@ -138,7 +139,7 @@ return [
         'model' => 'oz-racing-ultraleggera',
         'finish' => 'Graphite matt',
         'circle' => [955, 1300, 905],
-        'cap' => 110,
+        'hub' => [950, 1320, 110],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Yahya Gopalani', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/close-up-of-stylish-car-alloy-wheel-with-red-brake-31999237/'],
     ],
     'pexels-4002394.jpg' => [
@@ -146,7 +147,7 @@ return [
         'model' => 'brock-b32',
         'finish' => 'Kristallsilber',
         'circle' => [2595, 1815, 1015],
-        'cap' => 160,
+        'hub' => [2482, 1775, 158],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Mike Bird', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/silver-mercedes-benz-wheel-with-tire-4002394/'],
     ],
     'pexels-4056596.jpg' => [
@@ -154,7 +155,7 @@ return [
         'model' => 'rotiform-blq',
         'finish' => 'Schwarz matt',
         'circle' => [2225, 1426, 1050],
-        'cap' => 165,
+        'hub' => [2225, 1470, 185],
         'credit' => ['source' => 'Pexels', 'photographer' => 'Mike Bird', 'licence' => 'Pexels License', 'url' => 'https://www.pexels.com/photo/silver-mercedes-benz-wheel-with-tire-4056596/'],
     ],
 ];

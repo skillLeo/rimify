@@ -1,27 +1,32 @@
 // A front-facing wheel cut-out from a photograph, as a development step (never at runtime).
 //
-//   node scripts/cutout.mjs <source> <name> --circle cx,cy,r [--cap r]
+//   node scripts/cutout.mjs <source> <name> --circle cx,cy,r [--hub cx,cy,r]
 //
 // The wheel is round, so its silhouette is a circle: the photograph is cropped to the wheel's
 // bounding square and everything outside the circle is made transparent, with a soft edge of a
-// few pixels. `--cap` draws a plain centre cap over the hub, for a photo whose hub carries a
-// third-party mark. Output: transparent AVIF, WebP and PNG at 480, 768 and the crop's own width,
-// plus a manifest for the Picture component.
+// few pixels. `--hub` paints a plain cap in the wheel's own finish over a centre cap that carries
+// another company's mark (scripts/lib/plain-cap.mjs; the same values as the photograph's entry in
+// database/seeders/content/wheel-photos.php). Output: transparent AVIF, WebP and PNG at 480, 768
+// and the crop's own width, plus a manifest for the Picture component.
+//
+//   node scripts/cutout.mjs storage/app/public/placeholder/pexels-14649125.jpg hero-wheel \
+//        --circle 2365,2642,785 --hub 2373,2602,94
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import sharp from 'sharp'
+import { plainCap } from './lib/plain-cap.mjs'
 
 const [source, name, ...rest] = process.argv.slice(2)
 const circleArg = rest.indexOf('--circle')
-const capArg = rest.indexOf('--cap')
+const hubArg = rest.indexOf('--hub')
 
 if (!source || !name || circleArg < 0) {
-    console.error('usage: node scripts/cutout.mjs <source> <name> --circle cx,cy,r [--cap r]')
+    console.error('usage: node scripts/cutout.mjs <source> <name> --circle cx,cy,r [--hub cx,cy,r]')
     process.exit(1)
 }
 
 const [cx, cy, r] = rest[circleArg + 1].split(',').map(Number)
-const cap = capArg >= 0 ? Number(rest[capArg + 1]) : 0
+const hub = hubArg >= 0 ? rest[hubArg + 1].split(',').map(Number) : null
 const size = r * 2
 
 const outDir = `public/images/${name}`
@@ -44,16 +49,9 @@ const mask = Buffer.from(
 
 const layers = [{ input: mask, blend: 'dest-in' }]
 
-if (cap > 0) {
-    layers.push({
-        input: Buffer.from(
-            `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-                <circle cx="${r}" cy="${r}" r="${cap}" fill="#161B22"/>
-                <circle cx="${r}" cy="${r}" r="${cap - 3}" fill="none" stroke="#2A313B" stroke-width="1.5"/>
-            </svg>`,
-        ),
-        blend: 'over',
-    })
+if (hub !== null) {
+    // The crop's top-left corner is (cx − r, cy − r) in the photograph.
+    layers.push(await plainCap(cropped, { x: hub[0] - Math.round(cx - r), y: hub[1] - Math.round(cy - r), r: hub[2] }))
 }
 
 // The largest export is capped: the hero renders at 540 CSS px, so 1080 px covers a 2× screen

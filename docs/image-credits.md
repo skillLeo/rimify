@@ -4,9 +4,11 @@ Free-licence photography stands in until the client's own material arrives (see
 `docs/phase0/ASSET-REQUEST.md`). Every file below is licensed under the Unsplash License or the
 Pexels License, both of which permit commercial use without attribution; the attribution is given
 anyway. Free-licence photographs clear copyright, not trademarks: the wheels pictured are other
-manufacturers' designs and are shown as *Demodaten* only (`wheel_models.is_demo`), with branded
-centre caps covered by the pipeline's plain cap. The client's legal review of imagery is listed
-under "Before launch" in `docs/phase0/OVERHAUL.md`.
+manufacturers' designs and are shown as *Demodaten* only (`wheel_models.is_demo`). A centre cap
+that carries another company's mark (a car maker, another wheel brand) is painted over with a plain
+cap in the wheel's own finish (`scripts/lib/plain-cap.mjs`); a cap with the product brand's own
+mark (the two BBS photographs) is left as photographed. The client's legal review of imagery is
+listed under "Before launch" in `docs/phase0/OVERHAUL.md`.
 
 Sources live in `storage/app/public/placeholder/`. No image on the site is AI-generated.
 
@@ -18,7 +20,8 @@ Sources live in `storage/app/public/placeholder/`. No image on the site is AI-ge
 | `pexels-17110820.jpg` | Dark band, Kompletträder (`public/images/komplettrad/`) | FBO Media | Pexels License | https://www.pexels.com/photo/close-up-of-a-black-rim-in-a-modern-car-17110820/ |
 | `pexels-16124157.jpg` | Not used (prominent third-party branding) | Jacob Moore | Pexels License | https://www.pexels.com/photo/close-up-of-a-car-wheel-16124157/ |
 | `pexels-31574041.jpg` | Not used | Borta | Pexels License | https://www.pexels.com/photo/close-up-of-car-tire-and-wheel-rim-on-road-31574041/ |
-| `unsplash-h82zfDTFUP0.jpg` | Hero cut-out (`public/images/hero-wheel/`, `scripts/cutout.mjs`) and demo wheel below | Mathias Reding | Unsplash License | https://unsplash.com/photos/h82zfDTFUP0 |
+| `pexels-14649125.jpg` | Hero cut-out, the bundled stand-in (`public/images/hero-wheel/`, `scripts/cutout.mjs`) and demo wheel below | Ambady Kolazhikkaran | Pexels License | https://www.pexels.com/photo/a-close-up-shot-of-a-wheel-of-a-white-car-14649125/ |
+| `unsplash-h82zfDTFUP0.jpg` | Not used any more (a wall shows through the spoke windows) | Mathias Reding | Unsplash License | https://unsplash.com/photos/h82zfDTFUP0 |
 | `unsplash-Psw4AAhjHrY.jpg` | Not used (Porsche crest and lettering) | Jorge Segura | Unsplash License | https://unsplash.com/photos/Psw4AAhjHrY |
 | `unsplash-xAfVHWAV3EQ.jpg` | Not used (Aston Martin caliper lettering) | Cloud Prod | Unsplash License | https://unsplash.com/photos/xAfVHWAV3EQ |
 | `unsplash-yeMpSqF8Z-8.jpg` | Not used (three-quarter view of a wheel on a shelf) | José Pinto | Unsplash License | https://unsplash.com/photos/yeMpSqF8Z-8 |
@@ -27,13 +30,12 @@ Sources live in `storage/app/public/placeholder/`. No image on the site is AI-ge
 ## Demo wheels (`php artisan wheels:process-images` → `storage/app/public/demo/wheels/<slug>/`)
 
 Face-on photographs only, one per model at most, cut along the rim's outer lip and stood on a
-contact shadow. The circle, the cap radius and the finish each one stands for are recorded in
+contact shadow. The rim circle, the hub circle and the finish each one stands for are recorded in
 `database/seeders/content/wheel-photos.php`; the credit below is copied from the same map into
 each manifest.
 
 | File | Stands for | Photographer | Licence | Source |
 |---|---|---|---|---|
-| `unsplash-h82zfDTFUP0.jpg` | BORBET Havanna · Silber (hero product) | Mathias Reding | Unsplash License | https://unsplash.com/photos/h82zfDTFUP0 |
 | `unsplash-60ZSTXNgXgM.jpg` | OZ Racing Superturismo GT · Matt Race Silber | Luca Nicoletti | Unsplash License | https://unsplash.com/photos/60ZSTXNgXgM |
 | `unsplash-7eCBiZgyr4E.jpg` | OZ Racing Formula HLT · Grigio Corsa | Vlad Grebenyev | Unsplash License | https://unsplash.com/photos/7eCBiZgyr4E |
 | `unsplash-OgIik_VHAmU.jpg` | BBS SR · Himalaya Grau | serjan midili | Unsplash License | https://unsplash.com/photos/OgIik_VHAmU |
@@ -44,7 +46,7 @@ each manifest.
 | `unsplash-Z9jNN_F2PwU.jpg` | Brock B40 · Silber | Toby Hall | Unsplash License | https://unsplash.com/photos/Z9jNN_F2PwU |
 | `pexels-12174717.jpg` | AEZ Leipzig · Dark | Mike Bird | Pexels License | https://www.pexels.com/photo/close-up-of-the-wheel-of-a-blue-car-12174717/ |
 | `pexels-13387441.jpg` | BBS CI-R · Bronze matt | Malcolm Garret | Pexels License | https://www.pexels.com/photo/gold-and-silver-mag-wheel-of-a-car-13387441/ |
-| `pexels-14649125.jpg` | Dezent TZ · Silber | Ambady Kolazhikkaran | Pexels License | https://www.pexels.com/photo/a-close-up-shot-of-a-wheel-of-a-white-car-14649125/ |
+| `pexels-14649125.jpg` | Dezent TZ · Silber (hero product) | Ambady Kolazhikkaran | Pexels License | https://www.pexels.com/photo/a-close-up-shot-of-a-wheel-of-a-white-car-14649125/ |
 | `pexels-20303843.jpg` | Dezent TN · Silber | Mike Bird | Pexels License | https://www.pexels.com/photo/wheel-of-vauxhall-corsa-vxr-20303843/ |
 | `pexels-244553.jpg` | YIDO Performance 1 · Silber | Mike Bird | Pexels License | https://www.pexels.com/photo/close-up-photograph-of-chrome-vehicle-wheel-244553/ |
 | `pexels-30169820.jpg` | Rotiform KPS · Bronze matt | Vinod Kumar | Pexels License | https://www.pexels.com/photo/stylish-volkswagen-wheel-on-dark-background-30169820/ |
@@ -52,7 +54,7 @@ each manifest.
 | `pexels-4002394.jpg` | Brock B32 · Kristallsilber | Mike Bird | Pexels License | https://www.pexels.com/photo/silver-mercedes-benz-wheel-with-tire-4002394/ |
 | `pexels-4056596.jpg` | Rotiform BLQ · Schwarz matt | Mike Bird | Pexels License | https://www.pexels.com/photo/silver-mercedes-benz-wheel-with-tire-4056596/ |
 
-Not pictured (outline drawing on the card): ALUTEC Grip, YIDO Performance 2.
+Not pictured (outline drawing on the card): ALUTEC Grip, YIDO Performance 2, BORBET Havanna.
 
 Considered and rejected during sourcing, not kept on disk: every Unsplash+ result (not free),
 photographs with prominent third-party marks (Lamborghini, Bugatti, AMG and Aston Martin caliper

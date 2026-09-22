@@ -31,7 +31,7 @@ final class DemoWheels
         return rtrim((string) config('rimify.demo.public_base', '/storage/demo/wheels'), '/');
     }
 
-    /** The photograph map: file → slug, circle, cap, credit, and the finish it stands for. */
+    /** The photograph map: file → slug, rim circle, hub circle, credit, and the finish it stands for. */
     public static function photosFile(): string
     {
         return database_path('seeders/content/wheel-photos.php');
@@ -43,7 +43,7 @@ final class DemoWheels
      *     model: string,
      *     finish: string,
      *     circle: array{0: int, 1: int, 2: int},
-     *     cap: int,
+     *     hub: array{0: int, 1: int, 2: int}|null,
      *     colour?: string,
      *     credit: array{source: string, photographer: string, licence: string, url: string}
      * }>

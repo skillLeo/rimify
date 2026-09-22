@@ -33,12 +33,12 @@ final class ProcessWheelImages extends Command
         {source? : One photograph — a file name in the sources directory or a path; every mapped photograph when omitted}
         {--slug= : Output name, overriding the map}
         {--circle= : The wheel as cx,cy,r in source pixels, overriding the map}
-        {--cap= : Radius of the plain centre cap in source pixels, overriding the map (0 = none)}
+        {--hub= : The centre cap to paint over as cx,cy,r in source pixels, overriding the map}
         {--force : Re-render even when the output is up to date}';
 
     protected $description = 'Cut the demo wheels out of their photographs and export the responsive images the catalogue serves';
 
-    private const PIPELINE_VERSION = 2;
+    private const PIPELINE_VERSION = 3;
 
     public function handle(): int
     {
@@ -85,7 +85,7 @@ final class ProcessWheelImages extends Command
      * What to render: every mapped photograph, or the one named — from the map when it is there,
      * from the options otherwise.
      *
-     * @return list<array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, cap: int, colour: string, credit: array<string, string>|null}>|null
+     * @return list<array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}>|null
      */
     private function jobs(): ?array
     {
@@ -116,17 +116,17 @@ final class ProcessWheelImages extends Command
 
     /**
      * @param  array<string, mixed>  $entry
-     * @return array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, cap: int, colour: string, credit: array<string, string>|null}|null
+     * @return array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}|null
      */
     private function job(string $file, array $entry, bool $fromOptions, ?string $path = null): ?array
     {
         $slugOption = $this->option('slug');
         $circleOption = $this->option('circle');
-        $capOption = $this->option('cap');
+        $hubOption = $this->option('hub');
 
         $slug = $fromOptions && is_string($slugOption) && $slugOption !== '' ? $slugOption : ($entry['slug'] ?? null);
         $circle = $fromOptions && is_string($circleOption) && $circleOption !== '' ? $this->parseCircle($circleOption) : ($entry['circle'] ?? null);
-        $cap = $fromOptions && is_string($capOption) && $capOption !== '' ? (int) $capOption : (int) ($entry['cap'] ?? 0);
+        $hub = $fromOptions && is_string($hubOption) && $hubOption !== '' ? $this->parseCircle($hubOption) : ($entry['hub'] ?? null);
 
         if (! is_string($slug) || preg_match('/^[a-z0-9][a-z0-9-]*$/', $slug) !== 1) {
             $this->error(sprintf('%s: a slug is needed (--slug, lower-case letters, digits and hyphens).', $file));
@@ -136,6 +136,12 @@ final class ProcessWheelImages extends Command
 
         if (! is_array($circle) || count($circle) !== 3) {
             $this->error(sprintf('%s: the wheel circle is needed (--circle cx,cy,r in source pixels).', $file));
+
+            return null;
+        }
+
+        if ($hub !== null && (! is_array($hub) || count($hub) !== 3 || (int) $hub[2] <= 0)) {
+            $this->error(sprintf('%s: the hub must be cx,cy,r in source pixels with r > 0.', $file));
 
             return null;
         }
@@ -155,7 +161,7 @@ final class ProcessWheelImages extends Command
             'path' => $path,
             'slug' => $slug,
             'circle' => [(int) $circle[0], (int) $circle[1], (int) $circle[2]],
-            'cap' => max(0, $cap),
+            'hub' => $hub === null ? null : [(int) $hub[0], (int) $hub[1], (int) $hub[2]],
             'colour' => (string) ($entry['colour'] ?? 'cool'),
             'credit' => is_array($credit) ? array_map('strval', $credit) : null,
         ];
@@ -172,7 +178,7 @@ final class ProcessWheelImages extends Command
     }
 
     /**
-     * @param  array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, cap: int, colour: string, credit: array<string, string>|null}  $job
+     * @param  array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
      */
     private function process(array $job, string $node, ?string $rembg): bool
     {
@@ -209,10 +215,14 @@ final class ProcessWheelImages extends Command
             '--slug', $job['slug'],
             '--public-base', DemoWheels::publicBase(),
             '--circle', implode(',', $job['circle']),
-            '--cap', (string) $job['cap'],
             '--colour', $job['colour'],
             '--fingerprint', $fingerprint,
         ];
+
+        if ($job['hub'] !== null) {
+            $arguments[] = '--hub';
+            $arguments[] = implode(',', $job['hub']);
+        }
 
         if ($job['credit'] !== null) {
             $arguments[] = '--credit-json';
@@ -273,7 +283,7 @@ final class ProcessWheelImages extends Command
     }
 
     /**
-     * @param  array{path: string, slug: string, circle: array{0: int, 1: int, 2: int}, cap: int, colour: string, credit: array<string, string>|null}  $job
+     * @param  array{path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
      */
     private function fingerprint(array $job, bool $withRembg): string
     {
@@ -281,7 +291,7 @@ final class ProcessWheelImages extends Command
             (string) sha1_file($job['path']),
             $job['slug'],
             implode(',', $job['circle']),
-            (string) $job['cap'],
+            $job['hub'] === null ? 'no-hub' : implode(',', $job['hub']),
             $job['colour'],
             (string) json_encode($job['credit']),
             DemoWheels::publicBase(),

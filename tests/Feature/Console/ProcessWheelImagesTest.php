@@ -68,7 +68,7 @@ it('cuts a wheel out along its circle and exports both frames at three widths wi
         'source' => $this->fixture,
         '--slug' => 'test-wheel',
         '--circle' => '450,450,400',
-        '--cap' => '60',
+        '--hub' => '450,450,60',
     ])->assertSuccessful();
 
     $out = $this->dir.DIRECTORY_SEPARATOR.'test-wheel';
@@ -115,6 +115,37 @@ it('cuts a wheel out along its circle and exports both frames at three widths wi
         ->and($alpha['belowRim'])->toBeLessThan(255);
 });
 
+it('paints the plain cap in the wheel\'s own finish, never as a dark disc', function (): void {
+    // The fixture's hub face is light (#e8ebef); the cap painted over it must be light too.
+    $this->artisan('wheels:process-images', [
+        'source' => $this->fixture,
+        '--slug' => 'test-wheel',
+        '--circle' => '450,450,400',
+        '--hub' => '450,450,60',
+    ])->assertSuccessful();
+
+    $png = $this->dir.DIRECTORY_SEPARATOR.'test-wheel'.DIRECTORY_SEPARATOR.'test-wheel-480.png';
+    $script = 'const s=require("sharp");s(process.argv[1]).raw().toBuffer({resolveWithObject:true}).then(({data,info})=>{'
+        .'const p=(x,y)=>{const i=(y*info.width+x)*info.channels;return [data[i],data[i+1],data[i+2]]};'
+        .'console.log(JSON.stringify({cap:p(240,226)}))})';
+    $probe = new Process([$this->node, '-e', $script, $png], base_path(), timeout: 60);
+    $probe->run();
+
+    [$r, $g, $b] = json_decode(trim($probe->getOutput()), true)['cap'];
+    $luminance = 0.2126 * $r + 0.7152 * $g + 0.0722 * $b;
+
+    expect($luminance)->toBeGreaterThan(150);
+});
+
+it('refuses a hub without a radius', function (): void {
+    $this->artisan('wheels:process-images', [
+        'source' => $this->fixture,
+        '--slug' => 'test-wheel',
+        '--circle' => '450,450,400',
+        '--hub' => '450,450,0',
+    ])->assertFailed();
+});
+
 it('is idempotent: an unchanged photograph is skipped, --force renders it again', function (): void {
     $arguments = [
         'source' => $this->fixture,
@@ -134,7 +165,7 @@ it('is idempotent: an unchanged photograph is skipped, --force renders it again'
     expect(File::get($manifest))->toBe($first);
 
     // A changed parameter is a changed fingerprint, so the same photograph renders again.
-    $this->artisan('wheels:process-images', $arguments + ['--cap' => '40'])
+    $this->artisan('wheels:process-images', $arguments + ['--hub' => '450,450,40'])
         ->doesntExpectOutputToContain('unchanged, skipped')
         ->assertSuccessful();
 

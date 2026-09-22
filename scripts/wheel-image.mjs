@@ -1,7 +1,7 @@
 // A demo wheel's cut-out, from one photograph to the files the Picture component reads.
 //
 //   node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> --public-base </storage/demo/wheels>
-//                                --circle cx,cy,r [--cap r] [--cutout <transparent png>]
+//                                --circle cx,cy,r [--hub cx,cy,r] [--cutout <transparent png>]
 //                                [--colour cool|none] [--credit-json '{...}'] [--fingerprint <hash>]
 //
 // Called by `php artisan wheels:process-images` with an argument array (never a shell string); it
@@ -12,7 +12,9 @@
 //     transparent with a three-pixel soft edge. When rembg has produced a `--cutout`, its alpha is
 //     intersected with the circle: rembg separates the car from the background, the circle
 //     separates the wheel from the car.
-//  2. Cover the hub with a plain centre cap (`--cap`) where the photograph shows a brand mark.
+//  2. Where the centre cap carries another company's mark (`--hub`, the cap as cx,cy,r in source
+//     pixels, measured on its own because an off-axis photograph moves the hub away from the rim's
+//     centre), paint a plain cap in the wheel's own finish over it (scripts/lib/plain-cap.mjs).
 //  3. Neutralise the blue cast of daylight shade with a mild linear curve per channel
 //     (8-bit levels): R × 1.02 + 2 · G × 1.00 + 0 · B × 0.95 − 4. `--colour none` skips it.
 //  4. Stand the wheel on a contact shadow: two blurred ellipses tinted --c-ink-2 (#3a424d, the
@@ -30,13 +32,14 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import sharp from 'sharp'
+import { plainCap } from './lib/plain-cap.mjs'
 
 const WIDTHS = [480, 768, 1080]
 const FRAME = 1080
 // A darker --c-band: --c-ink-2 from resources/css/tokens.css, the same cool grey hue.
 const SHADOW_TINT = '#3a424d'
 const JPEG_BACKGROUND = '#f3f4f6'
-const PIPELINE_VERSION = 2
+const PIPELINE_VERSION = 3
 
 const args = parse(process.argv.slice(2))
 const source = args.source
@@ -45,7 +48,7 @@ const slug = args.slug
 const publicBase = (args['public-base'] || '/storage/demo/wheels').replace(/\/$/, '')
 
 if (!source || !outDir || !slug || !args.circle) {
-    console.error('usage: node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> --circle cx,cy,r [--cap r] [--cutout <png>] [--public-base <url>]')
+    console.error('usage: node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> --circle cx,cy,r [--hub cx,cy,r] [--cutout <png>] [--public-base <url>]')
     process.exit(1)
 }
 
@@ -55,11 +58,16 @@ if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
 }
 
 const [cx, cy, r] = args.circle.split(',').map(Number)
-const cap = args.cap ? Number(args.cap) : 0
+const hub = typeof args.hub === 'string' && args.hub !== '' ? args.hub.split(',').map(Number) : null
 const colour = args.colour || 'cool'
 
 if (![cx, cy, r].every(Number.isFinite) || r <= 0) {
     console.error(`--circle "${args.circle}" must be three numbers cx,cy,r with r > 0`)
+    process.exit(1)
+}
+
+if (hub !== null && (hub.length !== 3 || !hub.every(Number.isFinite) || hub[2] <= 0)) {
+    console.error(`--hub "${args.hub}" must be three numbers cx,cy,r with r > 0`)
     process.exit(1)
 }
 
@@ -91,18 +99,10 @@ if (args.cutout && existsSync(args.cutout)) {
     layers.push({ input: alphaAsMask, blend: 'dest-in' })
 }
 
-// ── 2 · A plain centre cap over a branded hub ──────────────────────────────────────────────────
-if (cap > 0) {
-    layers.push({
-        input: Buffer.from(
-            `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-                <defs><radialGradient id="c" cx="40%" cy="35%" r="70%"><stop offset="0%" stop-color="#2a313b"/><stop offset="100%" stop-color="#11151b"/></radialGradient></defs>
-                <circle cx="${size / 2}" cy="${size / 2}" r="${cap}" fill="url(#c)"/>
-                <circle cx="${size / 2}" cy="${size / 2}" r="${Math.max(1, cap - 3)}" fill="none" stroke="#3a424d" stroke-width="1.5"/>
-            </svg>`,
-        ),
-        blend: 'over',
-    })
+// ── 2 · A plain cap in the wheel's finish over a cap with someone else's mark ──────────────────
+if (hub !== null) {
+    // The square's top-left corner is (cx − r, cy − r) in the photograph, as extractSquare cut it.
+    layers.push(await plainCap(square, { x: hub[0] - Math.round(cx - r), y: hub[1] - Math.round(cy - r), r: hub[2] }))
 }
 
 let wheel = sharp(square).ensureAlpha().composite(layers)
