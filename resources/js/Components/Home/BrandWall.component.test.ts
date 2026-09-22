@@ -112,7 +112,7 @@ afterEach(() => {
 })
 
 describe('BrandWall — composition', () => {
-    it.each([1, 2, 6, 7, 13])('has no empty cell with %i brands: every item is a link, the closing cell completes the last row', (n) => {
+    it.each([1, 2, 3, 4, 6, 7, 13])('has no empty cell with %i brands: every item is a link, the closing cell completes the last row', (n) => {
         const wrapper = mountWall(range(n))
         const wall = wrapper.find('ul.brand-wall')
         const items = wall.findAll('li')
@@ -132,21 +132,27 @@ describe('BrandWall — composition', () => {
             const columns = Number(cssVar(wall, `--wall-cols-${tier}`))
             const span = Number(cssVar(wall, `--wall-span-${tier}`))
 
-            expect(columns, tier).toBeGreaterThanOrEqual(2)
-            expect(columns, tier).toBeLessThanOrEqual(max)
-            expect(span, tier).toBeGreaterThanOrEqual(1)
-            expect(span, tier).toBeLessThanOrEqual(columns)
+            if (n <= 3) {
+                // One row of brands, the closing link a full-width footer strip under it.
+                expect(columns, tier).toBe(n)
+                expect(span, tier).toBe(n)
+            } else {
+                expect(columns, tier).toBeGreaterThanOrEqual(2)
+                expect(columns, tier).toBeLessThanOrEqual(max)
+                expect(span, tier).toBeGreaterThanOrEqual(1)
+                expect(span, tier).toBeLessThanOrEqual(columns)
+            }
             expect((n + span) % columns, tier).toBe(0)
         }
     })
 
-    it('lays out today’s two brands as one row of three from 768 up and a footer strip on the phone', () => {
+    it('lays out today’s two brands as one row of two with the closing link as a footer strip at every tier', () => {
         const wall = mountWall([brand(), demo]).find('ul.brand-wall')
 
-        expect(cssVar(wall, '--wall-cols-s')).toBe('2')
-        expect(cssVar(wall, '--wall-span-s')).toBe('2')
-        expect(cssVar(wall, '--wall-cols-xl')).toBe('3')
-        expect(cssVar(wall, '--wall-span-xl')).toBe('1')
+        for (const tier of ['s', 'm', 'l', 'xl']) {
+            expect(cssVar(wall, `--wall-cols-${tier}`), tier).toBe('2')
+            expect(cssVar(wall, `--wall-span-${tier}`), tier).toBe('2')
+        }
     })
 
     it('marks nothing aria-hidden but the mark and the arrow, and puts an aria-label on no link', () => {
@@ -270,7 +276,7 @@ describe('BrandWall — the closing cell and the note', () => {
 
         expect(accessibleName(wrapper.find('a.brand-cell--all'))).toBe('Passende Felgen anzeigen')
         expect(wrapper.find('.brand-wall__note').text()).toBe(
-            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl nennt alle Felgen der Marke auf Lager; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
+            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
         )
         // Counts do not change with a vehicle.
         expect(wrapper.find('.brand-cell__count').text()).toBe(felgen(18))

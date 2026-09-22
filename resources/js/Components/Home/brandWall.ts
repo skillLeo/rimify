@@ -30,8 +30,21 @@ export interface WallLayout {
     closingSpan: number
 }
 
-/** Fewest rows first, then the most even rows (§2.2). `cells` counts the closing cell. */
+/** Up to this many brands share one row, with the closing link as a footer strip under them (§2.2). */
+const FOOTER_MAX_BRANDS = 3
+
+/**
+ * Fewest rows first, then the most even rows (§2.2). `cells` counts the closing cell. With one to
+ * three brands the closing link is never a peer cell as wide and tall as a brand: the brands share
+ * one row at every tier and the link is a full-width footer strip under them.
+ */
 export function wallLayout(cells: number, maxColumns: number): WallLayout {
+    const brands = Math.max(1, cells - 1)
+
+    if (brands <= FOOTER_MAX_BRANDS) {
+        return { rows: 2, columns: brands, closingSpan: brands }
+    }
+
     const rows = Math.ceil(cells / maxColumns)
     const columns = Math.ceil(cells / rows)
 
@@ -124,6 +137,6 @@ const RULE = 'Nur Marken, von denen gerade Felgen auf Lager sind.'
  */
 export function noteText(vehicle: VehicleProp | null): string {
     return vehicle
-        ? `${RULE} Die Zahl nennt alle Felgen der Marke auf Lager; welche davon an deinen ${vehicle.short} passen, zeigt dir die Liste.`
+        ? `${RULE} Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen ${vehicle.short} passen, zeigt dir die Liste.`
         : RULE
 }

@@ -130,7 +130,8 @@ onMounted(() => {
     --wall-span: var(--wall-span-s);
     --cell-pad: var(--sp-16);
     --cell-stage: var(--sp-48);
-    --cell-gap: var(--sp-8);
+    /* Mark → count: the gap the size tiles above use between their lines, at every tier. */
+    --cell-gap: var(--sp-4);
 
     display: grid;
     grid-template-columns: repeat(var(--wall-cols), minmax(0, 1fr));
@@ -150,7 +151,6 @@ onMounted(() => {
         --wall-span: var(--wall-span-m);
         --cell-pad: var(--sp-20);
         --cell-stage: var(--sp-64);
-        --cell-gap: var(--sp-12);
     }
 }
 
@@ -181,7 +181,8 @@ onMounted(() => {
     grid-column: span var(--wall-span);
 }
 
-/* ── The cell: the stage (the mark, centred), then the foot (the count, on the row's baseline) ── */
+/* ── The cell: the stage (the mark, bottom-left), then the foot (the count, directly under it, on the
+   row's baseline) — one axis per cell, like the size tiles above ── */
 
 .brand-cell {
     position: relative;
@@ -208,9 +209,9 @@ onMounted(() => {
     position: relative;
     z-index: var(--z-base);
     display: grid;
-    place-items: center;
+    place-items: end start;
     min-width: 0;
-    text-align: center;
+    text-align: left;
 }
 
 .brand-cell__foot {
@@ -242,10 +243,10 @@ onMounted(() => {
     mask-position: center;
 }
 
-/* The name is the mark: sized by its longest word so its ink comes close to a logo's (§3.3). */
+/* The name is the mark: one step under the section heading, stepped down by its longest word (§3.3). */
 .brand-cell__name {
-    font-size: var(--fs-h2);
-    line-height: var(--lh-h2);
+    font-size: var(--fs-h3);
+    line-height: var(--lh-h3);
     font-weight: 700;
     font-stretch: var(--wdth-heading);
     letter-spacing: -0.01em;
@@ -256,13 +257,13 @@ onMounted(() => {
 }
 
 .brand-cell__name[data-len='m'] {
-    font-size: var(--fs-h3);
-    line-height: var(--lh-h3);
+    font-size: var(--fs-h4);
+    line-height: var(--lh-h4);
 }
 
 .brand-cell__name[data-len='l'] {
-    font-size: var(--fs-h4);
-    line-height: var(--lh-h4);
+    font-size: var(--fs-body-l);
+    line-height: var(--lh-body-l);
 }
 
 /* The sample range is labelled, never branded. */

@@ -42,12 +42,13 @@ const TIERS = ['s', 'm', 'l', 'xl'] as const
 
 /*
  * home-brands.md §2.2, the whole table: for b brands, [columns, closing span] at S · M · L · XL.
- * A span equal to the columns is the footer strip.
+ * A span equal to the columns is the footer strip; with one to three brands it is a footer at
+ * every tier, and the brands share one row.
  */
 const LAYOUT_TABLE: Record<number, [number, number][]> = {
-    1: [[2, 1], [2, 1], [2, 1], [2, 1]],
-    2: [[2, 2], [3, 1], [3, 1], [3, 1]],
-    3: [[2, 1], [4, 1], [4, 1], [4, 1]],
+    1: [[1, 1], [1, 1], [1, 1], [1, 1]],
+    2: [[2, 2], [2, 2], [2, 2], [2, 2]],
+    3: [[3, 3], [3, 3], [3, 3], [3, 3]],
     4: [[2, 2], [3, 2], [5, 1], [5, 1]],
     5: [[2, 1], [3, 1], [3, 1], [6, 1]],
     6: [[2, 2], [4, 2], [4, 2], [4, 2]],
@@ -81,7 +82,12 @@ describe('wallLayout — the wall always closes on its own link cell (§2.2)', (
 
                 expect(closingSpan).toBeGreaterThanOrEqual(1)
                 expect(closingSpan).toBeLessThanOrEqual(columns)
-                expect(columns).toBeLessThanOrEqual(max)
+                if (cells <= 4) {
+                    // One to three brands: one row of brands, the closing link a footer strip under it.
+                    expect({ rows, columns, closingSpan }).toEqual({ rows: 2, columns: cells - 1, closingSpan: cells - 1 })
+                } else {
+                    expect(columns).toBeLessThanOrEqual(max)
+                }
                 expect((rows - 1) * columns).toBeLessThan(cells)
                 // The brands plus the closing cell's span cover every column of every row.
                 expect(cells - 1 + closingSpan).toBe(columns * rows)
@@ -93,13 +99,16 @@ describe('wallLayout — the wall always closes on its own link cell (§2.2)', (
         expect(wallStyle(2)).toEqual({
             '--wall-cols-s': '2',
             '--wall-span-s': '2',
-            '--wall-cols-m': '3',
-            '--wall-span-m': '1',
-            '--wall-cols-l': '3',
-            '--wall-span-l': '1',
-            '--wall-cols-xl': '3',
-            '--wall-span-xl': '1',
+            '--wall-cols-m': '2',
+            '--wall-span-m': '2',
+            '--wall-cols-l': '2',
+            '--wall-span-l': '2',
+            '--wall-cols-xl': '2',
+            '--wall-span-xl': '2',
         })
+        // From four brands on, the closing cell is a peer again where the row has room.
+        expect(wallStyle(4)['--wall-cols-xl']).toBe('5')
+        expect(wallStyle(4)['--wall-span-xl']).toBe('1')
         expect(wallStyle(13)['--wall-cols-xl']).toBe('5')
         expect(wallStyle(13)['--wall-span-xl']).toBe('2')
         expect(wallStyle(13)['--wall-cols-m']).toBe('4')
@@ -133,19 +142,19 @@ function drawnBox(style: Record<string, string>, tier: number): { width: number;
 
 /* §3.4 reference results, px: [width, height] at S · M · L · XL. */
 const REFERENCE: [number, [number, number][]][] = [
-    [1, [[32, 32], [36, 36], [40, 40], [44, 44]]],
-    [1.5, [[48, 32], [53.9, 35.9], [58.8, 39.2], [63.7, 42.5]]],
-    [2.5, [[63.2, 25.3], [69.6, 27.8], [75.9, 30.4], [82.2, 32.9]]],
-    [4.2, [[82, 19.5], [90.2, 21.5], [98.4, 23.4], [106.6, 25.4]]],
-    [6, [[98, 16.3], [107.8, 18], [117.6, 19.6], [127.4, 21.2]]],
+    [1, [[36, 36], [40, 40], [44, 44], [48, 48]]],
+    [1.5, [[53.9, 35.9], [58.8, 39.2], [66, 44], [72, 48]]],
+    [2.5, [[69.6, 27.8], [75.9, 30.4], [88.5, 35.4], [101.2, 40.5]]],
+    [4.2, [[90.2, 21.5], [98.4, 23.4], [114.8, 27.3], [131.2, 31.2]]],
+    [6, [[104, 17.3], [117.6, 19.6], [128, 21.3], [144, 24]]],
     [9, [[104, 11.6], [120, 13.3], [128, 14.2], [144, 16]]],
 ]
 
 describe('the logo box — constant area, two caps, proportions kept (§3.4)', () => {
     it('reads the tier tokens the spec names', () => {
-        expect(K).toEqual([40, 44, 48, 52])
+        expect(K).toEqual([44, 48, 56, 64])
         expect(W_MAX).toEqual([104, 120, 128, 144])
-        expect(H_MAX).toEqual([32, 36, 40, 44])
+        expect(H_MAX).toEqual([36, 40, 44, 48])
     })
 
     it('draws the reference table from the inline aspect and its square root', () => {
@@ -251,7 +260,7 @@ describe('the wordmark, the order and the copy', () => {
     it('states the rule, and with a vehicle that the counts are the whole stock (§4.1)', () => {
         expect(noteText(null)).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
         expect(noteText(vehicle)).toBe(
-            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl nennt alle Felgen der Marke auf Lager; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
+            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
         )
     })
 })
