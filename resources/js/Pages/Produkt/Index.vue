@@ -16,10 +16,11 @@
  */
 
 import { Head, Link, useForm } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
+import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
 import { useShared } from '../../composables/useShared'
 import type { ProduktProps } from '../../types/pages'
@@ -33,6 +34,30 @@ const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
+
+/* The finish's photographs: the front view (the manifest itself), then its other angles. */
+const shots = computed<ImageView[]>(() => {
+    const image = finish.value?.image ?? null
+
+    if (image === null) {
+        return []
+    }
+
+    const { views = [], ...front } = image
+
+    return [{ ...front, label: 'Ansicht von vorn' }, ...views]
+})
+const shotIndex = ref(0)
+const shot = computed(() => shots.value[shotIndex.value] ?? null)
+const shotAlt = computed(() => `${props.product.brandName} ${props.product.modelName} in ${finish.value?.name ?? ''}, ${shot.value?.label ?? ''}`)
+
+// Another finish starts on its own front view.
+watch(
+    () => config.finishId.value,
+    () => {
+        shotIndex.value = 0
+    }
+)
 
 const basket = useForm({
     kind: 'WHEEL' as const,
@@ -115,16 +140,41 @@ onBeforeUnmount(() => observer?.disconnect())
             </nav>
 
             <div class="pdp">
-                <!-- Gallery: one frame, the finish that is selected. No thumbnail strip until
-                     three real photographs exist — three drawings would claim three shots. The
-                     finish is chosen once, with the swatches in the purchase panel. -->
+                <!-- Gallery: the selected finish's own studio photograph, with a thumbnail per
+                     further angle — only real shots, never drawings posing as three views. A
+                     finish without a photograph is drawn, alone. The finish is chosen once, with
+                     the swatches in the purchase panel. -->
                 <div class="pdp__gallery">
                     <div class="well pdp__well">
+                        <Picture
+                            v-if="shot"
+                            :key="shot.name"
+                            :image="shot"
+                            :alt="shotAlt"
+                            sizes="(min-width: 900px) 56vw, 100vw"
+                            eager
+                            class="pdp__picture"
+                        />
                         <ProductPhoto
+                            v-else
                             :spokes="product.spokes"
                             :finish="finish?.artFinish ?? 'graphite'"
                             :size="560"
                         />
+                    </div>
+
+                    <div v-if="shots.length > 1" class="pdp__thumbs" role="group" aria-label="Ansichten">
+                        <button
+                            v-for="(view, i) in shots"
+                            :key="view.name"
+                            type="button"
+                            class="pdp__thumb"
+                            :aria-pressed="i === shotIndex"
+                            :aria-label="view.label"
+                            @click="shotIndex = i"
+                        >
+                            <Picture :image="view" alt="" sizes="72px" class="pdp__thumb-picture" />
+                        </button>
                     </div>
                 </div>
 
@@ -298,6 +348,50 @@ onBeforeUnmount(() => observer?.disconnect())
 .pdp__well {
     max-width: min(100%, 56vh);
     margin-inline: auto;
+}
+
+/* The photograph fills the square well; the cut-out is framed in the pipeline, so no padding. */
+.pdp__picture {
+    position: absolute;
+    inset: 0;
+}
+
+.pdp__picture :deep(img),
+.pdp__thumb-picture :deep(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.pdp__thumbs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-8);
+    margin-top: var(--sp-12);
+}
+
+.pdp__thumb {
+    display: grid;
+    width: 72px;
+    height: 72px;
+    padding: var(--sp-4);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-tile);
+    background: var(--c-band);
+    cursor: pointer;
+}
+
+.pdp__thumb[aria-pressed='true'] {
+    border-color: var(--c-ink);
+    outline: 1px solid var(--c-ink);
+    outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .pdp__thumb:hover {
+        border-color: var(--c-ink-3);
+    }
 }
 
 .pdp__type {

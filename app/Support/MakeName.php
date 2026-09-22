@@ -50,6 +50,7 @@ final class MakeName
         'mam' => 'MAM',
         'dezent' => 'Dezent',
         'aez' => 'AEZ',
+        'motec' => 'MOTEC',
     ];
 
     public static function normalise(string $name): string

@@ -60,6 +60,8 @@ watch(
 )
 const photo = computed(() => (props.card.image && !failed.value ? props.card.image : null))
 const alt = computed(() => `${props.card.brandName} ${props.card.modelName} in ${props.card.finishName}, Ansicht von vorn`)
+/* A second studio angle, when the finish has one, fades in on hover — decoration: the front view carries the alt text. */
+const hoverView = computed(() => photo.value?.views?.[0] ?? null)
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
@@ -153,6 +155,8 @@ function onCompareLabelClick(event: MouseEvent): void {
             <!-- Until the cut-out exists the drawing stands alone; a caption would make the
                  missing photograph the tile's message. -->
             <WheelOutline v-else :spokes="card.art.spokes" size="60%" />
+            <!-- After the v-if/v-else pair, never between: there it would take the v-else. -->
+            <Picture v-if="hoverView" :image="hoverView" alt="" :sizes="sizes" class="tile__picture tile__media--alt" aria-hidden="true" />
 
             <VerdictBadge v-if="verdict" :status="verdict.status" class="tile__badge" />
         </div>

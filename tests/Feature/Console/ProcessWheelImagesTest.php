@@ -137,6 +137,37 @@ it('paints the plain cap in the wheel\'s own finish, never as a dark disc', func
     expect($luminance)->toBeGreaterThan(150);
 });
 
+it('cuts an angled studio shot along its mask, not a circle, and frames it by its longer side', function (): void {
+    // The mask: a wide ellipse at half the photograph's size — a mask is scaled to its photograph.
+    $mask = $this->dir.DIRECTORY_SEPARATOR.'fixture-wheel.mask.png';
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="450" height="450"><rect width="450" height="450" fill="#000"/>'
+        .'<ellipse cx="225" cy="225" rx="200" ry="150" fill="#fff"/></svg>';
+    $script = 'const s=require("sharp");s(Buffer.from(process.argv[1])).extractChannel(0).png().toFile(process.argv[2]).then(()=>process.exit(0),e=>{console.error(e);process.exit(1)})';
+    $make = new Process([$this->node, '-e', $script, $svg, $mask], base_path(), timeout: 120);
+    $make->run();
+    expect($make->isSuccessful())->toBeTrue($make->getErrorOutput());
+
+    $this->artisan('wheels:process-images', [
+        'source' => $this->fixture,
+        '--slug' => 'test-masked',
+        '--mask' => $mask,
+    ])->assertSuccessful();
+
+    // 480 frame: the ellipse is 82 % of the frame wide (394 px) and three quarters of that high,
+    // standing on the baseline at 0,47 × 480 + 197. Above it is air — where a circle cut would
+    // still have had wheel — and its middle is solid.
+    $png = $this->dir.DIRECTORY_SEPARATOR.'test-masked'.DIRECTORY_SEPARATOR.'test-masked-480.png';
+    $probe = new Process([$this->node, '-e', 'const s=require("sharp");s(process.argv[1]).raw().toBuffer({resolveWithObject:true}).then(({data,info})=>{'
+        .'const a=(x,y)=>data[(y*info.width+x)*info.channels+info.channels-1];'
+        .'console.log(JSON.stringify({corner:a(2,2),aboveEllipse:a(240,60),middle:a(240,275)}))})', $png], base_path(), timeout: 60);
+    $probe->run();
+    $alpha = json_decode(trim($probe->getOutput()), true);
+
+    expect($alpha['corner'])->toBe(0)
+        ->and($alpha['aboveEllipse'])->toBe(0)
+        ->and($alpha['middle'])->toBe(255);
+});
+
 it('refuses a hub without a radius', function (): void {
     $this->artisan('wheels:process-images', [
         'source' => $this->fixture,

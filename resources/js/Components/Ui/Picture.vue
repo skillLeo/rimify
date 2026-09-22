@@ -17,6 +17,16 @@ export interface ImageManifest {
     placeholder: string
     /** The format of the `<img>` fallback: `jpg` (the default) or `png` for a transparent cut-out. */
     fallback?: string
+    /**
+     * Further photographs of the same finish from other angles, in the order they were shot
+     * (front view first is the manifest itself). Only real studio shots: never a drawing.
+     */
+    views?: ImageView[]
+}
+
+/** One more angle of the same finish, and how to name it (`Schräg von vorn`). */
+export interface ImageView extends ImageManifest {
+    label: string
 }
 
 const props = withDefaults(

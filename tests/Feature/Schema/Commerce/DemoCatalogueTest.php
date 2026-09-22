@@ -61,14 +61,14 @@ it('names the ranges the brief asks for, in one spelling per brand', function ()
     foreach ([
         'bbs-ci-r', 'bbs-sr', 'oz-racing-ultraleggera', 'oz-racing-superturismo-gt', 'borbet-havanna',
         'borbet-lv5', 'alutec-monstr', 'alutec-grip', 'rotiform-kps', 'rotiform-blq', 'brock-b32',
-        'brock-b40', 'mam-a5', 'mam-rs4', 'dezent-tz', 'dezent-tn', 'aez-leipzig',
+        'brock-b40', 'mam-a5', 'mam-rs4', 'dezent-tz', 'dezent-tn', 'aez-leipzig', 'motec-mcr4-ultimate',
     ] as $slug) {
         expect($slugs)->toContain($slug);
     }
 
     $brands = Brand::query()->pluck('name')->all();
 
-    expect($brands)->toContain('BBS', 'OZ Racing', 'BORBET', 'ALUTEC', 'Rotiform', 'Brock', 'MAM', 'Dezent', 'AEZ');
+    expect($brands)->toContain('BBS', 'OZ Racing', 'BORBET', 'ALUTEC', 'Rotiform', 'Brock', 'MAM', 'Dezent', 'AEZ', 'MOTEC');
 
     // Never the same brand twice under two spellings.
     $lower = array_map(static fn (string $n): string => mb_strtolower($n), $brands);
@@ -86,14 +86,31 @@ it('maps every photograph to one existing finish and never one photograph to two
     $slugs = [];
 
     foreach ($photos as $file => $photo) {
-        expect($file)->toMatch('/^(unsplash|pexels|commons)-[A-Za-z0-9_-]+\.jpg$/')
+        expect($file)->toMatch('/^(unsplash|pexels|commons|client)-[A-Za-z0-9_-]+\.jpg$/')
             ->and($photo['slug'])->toMatch('/^[a-z0-9][a-z0-9-]*$/')
-            ->and($photo['circle'])->toHaveCount(3)
-            ->and($photo['circle'][2])->toBeGreaterThan(0)
             ->and($photo['credit'])->toHaveKeys(['source', 'photographer', 'licence', 'url']);
 
+        // A client studio shot lives in the repository with its mask; a free-licence photograph
+        // is cut along its measured circle.
+        if (DemoWheels::isClientPhoto($file)) {
+            expect(DemoWheels::clientPhotosDir().'/'.$file)->toBeFile()
+                ->and(DemoWheels::clientPhotosDir().'/'.($photo['mask'] ?? ''))->toBeFile()
+                ->and($photo['hub'])->toBeNull()
+                ->and($photo['credit']['source'])->toBe('Kunde');
+        } else {
+            expect($photo['circle'] ?? null)->toHaveCount(3)
+                ->and($photo['circle'][2] ?? 0)->toBeGreaterThan(0);
+        }
+
+        // A further angle belongs to a finish whose front view is in the map too.
+        if (isset($photo['view'])) {
+            $fronts = array_filter($photos, static fn (array $p): bool => ! isset($p['view']) && $p['model'] === $photo['model'] && $p['finish'] === $photo['finish']);
+
+            expect($fronts)->toHaveCount(1, "{$file} is a view of a finish with no front view");
+        }
+
         // The hub, where there is a mark to paint over, lies inside the rim and is smaller than it.
-        if ($photo['hub'] !== null) {
+        if ($photo['hub'] !== null && isset($photo['circle'])) {
             [$cx, $cy, $r] = $photo['circle'];
             [$hx, $hy, $hr] = $photo['hub'];
 
@@ -129,7 +146,9 @@ it('attaches a well-formed manifest to every pictured finish and none to the res
 
     $this->seed(CatalogueSeeder::class);
 
-    foreach ($photos as $photo) {
+    $fronts = array_filter($photos, static fn (array $p): bool => ! isset($p['view']));
+
+    foreach ($fronts as $photo) {
         $finish = WheelFinish::query()
             ->whereHas('wheelModel', fn ($q) => $q->where('slug', $photo['model']))
             ->where('name_de', $photo['finish'])
@@ -141,9 +160,37 @@ it('attaches a well-formed manifest to every pictured finish and none to the res
             ->and($finish->image_manifest['fallback'])->toBe('png')
             ->and($finish->image_manifest['widths'])->toBe([480, 768, 1080])
             ->and($finish->image_manifest['wide']['height'])->toBe(810);
+
+        // Further angles ride along as labelled thumbnails, in map order, each one a picture.
+        $expected = array_values(array_filter($photos, static fn (array $p): bool => isset($p['view']) && $p['model'] === $photo['model'] && $p['finish'] === $photo['finish']));
+        $views = $finish->image_manifest['views'] ?? [];
+
+        expect($views)->toHaveCount(count($expected));
+
+        foreach ($expected as $i => $view) {
+            expect(DemoWheels::wellFormed($views[$i]))->toBeTrue()
+                ->and($views[$i]['name'])->toBe($view['slug'])
+                ->and($views[$i]['label'])->toBe($view['view'])
+                ->and($views[$i])->not->toHaveKey('wide');
+        }
     }
 
-    expect(WheelFinish::query()->whereNotNull('image_manifest')->count())->toBe(count($photos));
+    expect(WheelFinish::query()->whereNotNull('image_manifest')->count())->toBe(count($fronts));
+});
+
+it('shows a further angle only beside its front view, never alone', function (): void {
+    $photos = DemoWheels::photos();
+    // Every cut-out rendered except the MCR4's front view.
+    DemoWheelFixtures::write($this->dir, array_values(array_filter(array_column($photos, 'slug'), static fn (string $s): bool => $s !== 'motec-mcr4-ultimate-light-grey')));
+
+    $this->seed(CatalogueSeeder::class);
+
+    $finish = WheelFinish::query()
+        ->whereHas('wheelModel', fn ($q) => $q->where('slug', 'motec-mcr4-ultimate'))
+        ->where('name_de', 'Light Grey')
+        ->firstOrFail();
+
+    expect($finish->image_manifest)->toBeNull();
 });
 
 it('leaves a finish whose cut-out has not been rendered at null', function (): void {

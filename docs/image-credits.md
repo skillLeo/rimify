@@ -56,6 +56,23 @@ each manifest.
 
 Not pictured (outline drawing on the card): ALUTEC Grip, YIDO Performance 2, BORBET Havanna.
 
+## Client-supplied studio shots (`database/seeders/content/client-photos/`)
+
+Manufacturer renders the client sent as example photographs (2026-09-22). They have no public URL,
+so they live in the repository; `wheels:fetch-photos` copies them into place. Each comes with a
+grey mask — the alpha of the client's own background removal (removal.ai), 600 px — which the
+pipeline scales onto the 1080 px original: the photograph's own pixels, the service's edge. The cap
+shows the product brand's own mark and is left as photographed.
+
+| File | Stands for | Source | Use |
+|---|---|---|---|
+| `client-motec-mcr4-ultimate-front.jpg` | MOTEC MCR4 Ultimate · Light Grey, front view | MOTEC (Herstellerbild), vom Kunden bereitgestellt | Card, product page |
+| `client-motec-mcr4-ultimate-angle.jpg` | the same, *Schräg von vorn* | as above | Card on hover, product page thumbnail |
+| `client-motec-mcr4-ultimate-rear.jpg` | the same, *Schräg von hinten* | as above | Product page thumbnail |
+
+Received but not used: a three-quarter view with no mask (a local background-removal model left
+its bright barrel semi-transparent) and a fourth angle only as a 600 px cut-out without its original.
+
 Considered and rejected during sourcing, not kept on disk: every Unsplash+ result (not free),
 photographs with prominent third-party marks (Lamborghini, Bugatti, AMG and Aston Martin caliper
 lettering, an "M Performance" rim print), three-quarter views a circular mask cannot cut cleanly,

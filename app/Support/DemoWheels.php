@@ -25,13 +25,31 @@ final class DemoWheels
         return self::absolute((string) config('rimify.demo.sources_dir', 'storage/app/public/placeholder'));
     }
 
+    /**
+     * The studio shots the client supplied, with their masks. Kept in the repository: unlike the
+     * free-licence photographs they have no public URL `wheels:fetch-photos` could fetch them from.
+     */
+    public static function clientPhotosDir(): string
+    {
+        return database_path('seeders/content/client-photos');
+    }
+
+    /** Whether a map entry is a client-supplied shot rather than a free-licence photograph. */
+    public static function isClientPhoto(string $file): bool
+    {
+        return str_starts_with($file, 'client-');
+    }
+
     /** The URL every manifest's `base` starts with. */
     public static function publicBase(): string
     {
         return rtrim((string) config('rimify.demo.public_base', '/storage/demo/wheels'), '/');
     }
 
-    /** The photograph map: file → slug, rim circle, hub circle, credit, and the finish it stands for. */
+    /**
+     * The photograph map: file → slug, rim circle or mask, hub circle, credit, the finish it
+     * stands for, and — for a further angle — the view's label.
+     */
     public static function photosFile(): string
     {
         return database_path('seeders/content/wheel-photos.php');
@@ -42,7 +60,9 @@ final class DemoWheels
      *     slug: string,
      *     model: string,
      *     finish: string,
-     *     circle: array{0: int, 1: int, 2: int},
+     *     circle?: array{0: int, 1: int, 2: int},
+     *     mask?: string,
+     *     view?: string,
      *     hub: array{0: int, 1: int, 2: int}|null,
      *     colour?: string,
      *     credit: array{source: string, photographer: string, licence: string, url: string}

@@ -16,10 +16,46 @@ declare(strict_types=1);
 // `colour` may be `none` to skip the daylight-cast curve. One photograph serves at most one model;
 // a model may have two photographs for two finishes.
 //
-// Every photograph is face-on: the sharp path cuts along a circle, and a three-quarter view would
-// leave a sliver of tyre on one side. Licences: Unsplash License (free for commercial use, no
-// attribution required) and Pexels License (the same). Attribution is given anyway.
+// Every free-licence photograph is face-on: the sharp path cuts along a circle, and a
+// three-quarter view would leave a sliver of tyre on one side. Licences: Unsplash License (free
+// for commercial use, no attribution required) and Pexels License (the same). Attribution is
+// given anyway.
+//
+// Studio shots the client supplies (`credit.source` = `Kunde`, files named `client-…`) live in
+// database/seeders/content/client-photos/ — they have no public URL to fetch them from — and come
+// with a `mask` instead of a circle: a grey image of the background-removal service's alpha, next
+// to the photograph. They may be angled. An entry with a `view` is a further angle of a finish
+// that already has its front view, and is attached to it as a labelled thumbnail.
 return [
+    'client-motec-mcr4-ultimate-front.jpg' => [
+        'slug' => 'motec-mcr4-ultimate-light-grey',
+        'model' => 'motec-mcr4-ultimate',
+        'finish' => 'Light Grey',
+        'mask' => 'client-motec-mcr4-ultimate-front.mask.png',
+        'hub' => null,
+        'colour' => 'none',
+        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
+    ],
+    'client-motec-mcr4-ultimate-angle.jpg' => [
+        'slug' => 'motec-mcr4-ultimate-light-grey-schraeg',
+        'model' => 'motec-mcr4-ultimate',
+        'finish' => 'Light Grey',
+        'view' => 'Schräg von vorn',
+        'mask' => 'client-motec-mcr4-ultimate-angle.mask.png',
+        'hub' => null,
+        'colour' => 'none',
+        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
+    ],
+    'client-motec-mcr4-ultimate-rear.jpg' => [
+        'slug' => 'motec-mcr4-ultimate-light-grey-hinten',
+        'model' => 'motec-mcr4-ultimate',
+        'finish' => 'Light Grey',
+        'view' => 'Schräg von hinten',
+        'mask' => 'client-motec-mcr4-ultimate-rear.mask.png',
+        'hub' => null,
+        'colour' => 'none',
+        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
+    ],
     // unsplash-h82zfDTFUP0.jpg (Mathias Reding, Unsplash License) is retired: a wall shows through
     // every spoke window and the circular mask cannot cut windows. Its finish draws the outline.
     'unsplash-60ZSTXNgXgM.jpg' => [

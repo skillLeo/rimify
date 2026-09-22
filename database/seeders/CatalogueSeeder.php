@@ -281,6 +281,18 @@ class CatalogueSeeder extends Seeder
             'bolt' => [5, 112.0, 66.60],
             'stock' => 7,
         ],
+        [
+            // The first model photographed from the client's own supplier material: MOTEC's
+            // studio renders, front and two angles. Sizes and prices are demonstration values.
+            'brand' => 'MOTEC', 'name' => 'MCR4 Ultimate', 'type' => 'MO-MCR4',
+            'spokes' => 10, 'rating' => 4.7, 'ratings' => 64,
+            'finishes' => [
+                ['Light Grey', '#B9BEC5', 'silver'],
+            ],
+            'sizes' => [[8.0, 18.0, 45, 796.00], [8.5, 19.0, 45, 876.00], [9.5, 19.0, 40, 916.00], [8.5, 20.0, 45, 996.00]],
+            'bolt' => [5, 112.0, 66.60],
+            'stock' => 16,
+        ],
     ];
 
     public function run(): void
@@ -304,7 +316,7 @@ class CatalogueSeeder extends Seeder
     {
         $names = [
             'BORBET', 'OZ RACING', 'ALUTEC', 'BBS', 'YIDO', 'Rotiform',
-            'Brock', 'MAM', 'Dezent', 'AEZ',
+            'Brock', 'MAM', 'Dezent', 'AEZ', 'MOTEC',
             'Bridgestone', 'Continental', 'Michelin',
         ];
 
@@ -402,6 +414,10 @@ class CatalogueSeeder extends Seeder
      * The cut-outs, finish by finish, from the photograph map. A demo finish that is not in the
      * map — or whose cut-out has not been rendered on this machine — carries NULL and draws the
      * outline: missing data fails closed, it never borrows another finish's picture.
+     *
+     * An entry with a `view` is a further angle of a finish: it joins that finish's manifest under
+     * `views`, labelled, in map order — and only when the finish has its front view, because the
+     * gallery opens on the front.
      */
     private function attachPhotographs(): void
     {
@@ -411,6 +427,9 @@ class CatalogueSeeder extends Seeder
             ->whereIn('wheel_model_id', $demoModelIds)
             ->whereNotNull('image_manifest')
             ->update(['image_manifest' => null]);
+
+        /** @var array<int, list<array<string, mixed>>> $views */
+        $views = [];
 
         foreach (DemoWheels::photos() as $photo) {
             $model = WheelModel::query()->where('slug', $photo['model'])->first();
@@ -428,9 +447,42 @@ class CatalogueSeeder extends Seeder
                 continue;
             }
 
-            $finish->image_manifest = DemoWheels::manifest($photo['slug']);
+            $manifest = DemoWheels::manifest($photo['slug']);
+
+            if (isset($photo['view'])) {
+                if ($manifest !== null) {
+                    $views[$finish->id][] = [...self::pictureFields($manifest), 'label' => $photo['view']];
+                }
+
+                continue;
+            }
+
+            $finish->image_manifest = $manifest;
             $finish->save();
         }
+
+        foreach ($views as $finishId => $list) {
+            $finish = WheelFinish::query()->find($finishId);
+
+            if ($finish === null || $finish->image_manifest === null) {
+                continue;
+            }
+
+            $finish->image_manifest = [...$finish->image_manifest, 'views' => $list];
+            $finish->save();
+        }
+    }
+
+    /**
+     * What a thumbnail needs of a manifest — the picture, not the 4:3 frame, the credit or the
+     * fingerprint.
+     *
+     * @param  array<string, mixed>  $manifest
+     * @return array<string, mixed>
+     */
+    private static function pictureFields(array $manifest): array
+    {
+        return array_intersect_key($manifest, array_flip(['name', 'base', 'width', 'height', 'widths', 'fallback', 'placeholder']));
     }
 
     /**

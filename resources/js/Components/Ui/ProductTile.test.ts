@@ -131,6 +131,22 @@ describe('ProductTile', () => {
         expect(photographed.find('svg').exists()).toBe(false)
     })
 
+    it('lays a second studio angle over the front view for the hover, hidden from assistive tech', () => {
+        const single = mountTile({ card: card(2, { image }) })
+        expect(single.findAll('picture')).toHaveLength(1)
+
+        const angled = { ...image, name: 'schraeg', base: '/storage/demo/wheels/x-schraeg/x-schraeg', label: 'Schräg von vorn' }
+        const withView = mountTile({ card: card(2, { image: { ...image, views: [angled] } }) })
+        const pictures = withView.findAll('picture')
+
+        expect(pictures).toHaveLength(2)
+        expect(pictures[0]!.find('img').attributes('alt')).toBe('BBS CI-R 2 in Platinum Silber, Ansicht von vorn')
+        expect(pictures[1]!.classes()).toContain('tile__media--alt')
+        expect(pictures[1]!.attributes('aria-hidden')).toBe('true')
+        expect(pictures[1]!.find('img').attributes('alt')).toBe('')
+        expect(pictures[1]!.find('img').attributes('src')).toContain('x-schraeg')
+    })
+
     it('falls back to the drawing when the picture fails', async () => {
         const wrapper = mountTile({ card: card(2, { image }) })
 

@@ -1,7 +1,7 @@
 // A demo wheel's cut-out, from one photograph to the files the Picture component reads.
 //
 //   node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> --public-base </storage/demo/wheels>
-//                                --circle cx,cy,r [--hub cx,cy,r] [--cutout <transparent png>]
+//                                (--circle cx,cy,r [--hub cx,cy,r] [--cutout <transparent png>] | --mask <grey png>)
 //                                [--colour cool|none] [--credit-json '{...}'] [--fingerprint <hash>]
 //
 // Called by `php artisan wheels:process-images` with an argument array (never a shell string); it
@@ -12,6 +12,10 @@
 //     transparent with a three-pixel soft edge. When rembg has produced a `--cutout`, its alpha is
 //     intersected with the circle: rembg separates the car from the background, the circle
 //     separates the wheel from the car.
+//     A studio shot from an angle is not a circle — the barrel shows — so it comes with a `--mask`
+//     instead: a grey image whose value is the alpha (a background-removal service's result, at
+//     any size; it is scaled to the photograph). The cut is the photograph's own pixels under that
+//     mask, cropped to the mask's bounding box, and it is framed by its longer side.
 //  2. Where the centre cap carries another company's mark (`--hub`, the cap as cx,cy,r in source
 //     pixels, measured on its own because an off-axis photograph moves the hub away from the rim's
 //     centre), paint a plain cap in the wheel's own finish over it (scripts/lib/plain-cap.mjs).
@@ -39,7 +43,7 @@ const FRAME = 1080
 // A darker --c-band: --c-ink-2 from resources/css/tokens.css, the same cool grey hue.
 const SHADOW_TINT = '#3a424d'
 const JPEG_BACKGROUND = '#f3f4f6'
-const PIPELINE_VERSION = 3
+const PIPELINE_VERSION = 4
 
 const args = parse(process.argv.slice(2))
 const source = args.source
@@ -47,8 +51,10 @@ const outDir = args.out
 const slug = args.slug
 const publicBase = (args['public-base'] || '/storage/demo/wheels').replace(/\/$/, '')
 
-if (!source || !outDir || !slug || !args.circle) {
-    console.error('usage: node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> --circle cx,cy,r [--hub cx,cy,r] [--cutout <png>] [--public-base <url>]')
+const maskPath = typeof args.mask === 'string' && args.mask !== '' ? args.mask : null
+
+if (!source || !outDir || !slug || (!args.circle && maskPath === null)) {
+    console.error('usage: node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> (--circle cx,cy,r [--hub cx,cy,r] [--cutout <png>] | --mask <png>) [--public-base <url>]')
     process.exit(1)
 }
 
@@ -57,12 +63,22 @@ if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
     process.exit(1)
 }
 
-const [cx, cy, r] = args.circle.split(',').map(Number)
+if (maskPath !== null && !existsSync(maskPath)) {
+    console.error(`--mask "${maskPath}" does not exist`)
+    process.exit(1)
+}
+
+const [cx, cy, r] = maskPath !== null ? [0, 0, 1] : args.circle.split(',').map(Number)
 const hub = typeof args.hub === 'string' && args.hub !== '' ? args.hub.split(',').map(Number) : null
 const colour = args.colour || 'cool'
 
-if (![cx, cy, r].every(Number.isFinite) || r <= 0) {
+if (maskPath === null && (![cx, cy, r].every(Number.isFinite) || r <= 0)) {
     console.error(`--circle "${args.circle}" must be three numbers cx,cy,r with r > 0`)
+    process.exit(1)
+}
+
+if (maskPath !== null && hub !== null) {
+    console.error('--hub is measured against --circle; a masked photograph takes neither')
     process.exit(1)
 }
 
@@ -73,39 +89,45 @@ if (hub !== null && (hub.length !== 3 || !hub.every(Number.isFinite) || hub[2] <
 
 mkdirSync(outDir, { recursive: true })
 
-// ── 1 · The wheel's bounding square, transparent outside the circle ────────────────────────────
+// ── 1 · The cut: a circle around the wheel, or the photograph under its mask ──────────────────
 const rotated = sharp(source).rotate()
 const meta = await rotated.metadata()
 const photo = await rotated.toBuffer()
 const size = Math.round(r * 2)
 
-const square = await extractSquare(photo, meta.width, meta.height, cx, cy, r)
+let wheel
 
-const circleMask = Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-        <defs><radialGradient id="e"><stop offset="${((r - 3) / r) * 100}%" stop-color="#fff" stop-opacity="1"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
-        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="url(#e)"/>
-    </svg>`,
-)
+if (maskPath !== null) {
+    wheel = sharp(await maskedCut(photo, meta.width, meta.height, maskPath))
+} else {
+    const square = await extractSquare(photo, meta.width, meta.height, cx, cy, r)
 
-const layers = [{ input: circleMask, blend: 'dest-in' }]
+    const circleMask = Buffer.from(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
+            <defs><radialGradient id="e"><stop offset="${((r - 3) / r) * 100}%" stop-color="#fff" stop-opacity="1"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+            <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="url(#e)"/>
+        </svg>`,
+    )
 
-// rembg's alpha, inside the circle: the model's edge where the wheel meets air, the circle's edge
-// where the wheel meets the car.
-if (args.cutout && existsSync(args.cutout)) {
-    const cutoutSquare = await extractSquare(await sharp(args.cutout).ensureAlpha().toBuffer(), meta.width, meta.height, cx, cy, r)
-    const alpha = await sharp(cutoutSquare).ensureAlpha().extractChannel(3).toBuffer()
-    const alphaAsMask = await sharp(alpha).joinChannel([alpha, alpha, alpha]).png().toBuffer()
-    layers.push({ input: alphaAsMask, blend: 'dest-in' })
+    const layers = [{ input: circleMask, blend: 'dest-in' }]
+
+    // rembg's alpha, inside the circle: the model's edge where the wheel meets air, the circle's
+    // edge where the wheel meets the car.
+    if (args.cutout && existsSync(args.cutout)) {
+        const cutoutSquare = await extractSquare(await sharp(args.cutout).ensureAlpha().toBuffer(), meta.width, meta.height, cx, cy, r)
+        const alpha = await sharp(cutoutSquare).ensureAlpha().extractChannel(3).toBuffer()
+        const alphaAsMask = await sharp(alpha).joinChannel([alpha, alpha, alpha]).png().toBuffer()
+        layers.push({ input: alphaAsMask, blend: 'dest-in' })
+    }
+
+    // ── 2 · A plain cap in the wheel's finish over a cap with someone else's mark ──────────────
+    if (hub !== null) {
+        // The square's top-left corner is (cx − r, cy − r) in the photograph, as extractSquare cut it.
+        layers.push(await plainCap(square, { x: hub[0] - Math.round(cx - r), y: hub[1] - Math.round(cy - r), r: hub[2] }))
+    }
+
+    wheel = sharp(square).ensureAlpha().composite(layers)
 }
-
-// ── 2 · A plain cap in the wheel's finish over a cap with someone else's mark ──────────────────
-if (hub !== null) {
-    // The square's top-left corner is (cx − r, cy − r) in the photograph, as extractSquare cut it.
-    layers.push(await plainCap(square, { x: hub[0] - Math.round(cx - r), y: hub[1] - Math.round(cy - r), r: hub[2] }))
-}
-
-let wheel = sharp(square).ensureAlpha().composite(layers)
 
 // ── 3 · The colour curve ───────────────────────────────────────────────────────────────────────
 if (colour === 'cool') {
@@ -113,6 +135,7 @@ if (colour === 'cool') {
 }
 
 const wheelPng = await wheel.png().toBuffer()
+const wheelMeta = await sharp(wheelPng).metadata()
 
 // ── 4 + 5 · Two frames, each on its own contact shadow, each at three widths ──────────────────
 const manifests = {}
@@ -121,15 +144,20 @@ for (const [key, frameWidth, frameHeight, share] of [
     ['square', FRAME, FRAME, 0.82],
     ['wide', FRAME, Math.round((FRAME * 3) / 4), 0.78],
 ]) {
+    // The box the wheel fills: a circle cut is square; a masked angle shot keeps its proportions
+    // and fills the box by its longer side, standing on the same baseline.
     const diameter = Math.round(Math.min(frameWidth, frameHeight) * share)
+    const scale = diameter / Math.max(wheelMeta.width, wheelMeta.height)
+    const wheelWidth = Math.round(wheelMeta.width * scale)
+    const wheelHeight = Math.round(wheelMeta.height * scale)
     const centreY = Math.round(frameHeight * 0.47)
-    const left = Math.round((frameWidth - diameter) / 2)
-    const top = Math.round(centreY - diameter / 2)
-    const bottom = top + diameter
+    const left = Math.round((frameWidth - wheelWidth) / 2)
+    const bottom = Math.round(centreY + diameter / 2)
+    const top = bottom - wheelHeight
 
-    const resizedWheel = await sharp(wheelPng).resize({ width: diameter, height: diameter, fit: 'fill' }).png().toBuffer()
+    const resizedWheel = await sharp(wheelPng).resize({ width: wheelWidth, height: wheelHeight, fit: 'fill' }).png().toBuffer()
 
-    const shadow = await contactShadow(frameWidth, frameHeight, diameter, bottom)
+    const shadow = await contactShadow(frameWidth, frameHeight, wheelWidth, bottom)
 
     const frame = await sharp({
         create: { width: frameWidth, height: frameHeight, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
@@ -181,7 +209,7 @@ const manifest = {
 }
 
 writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-console.log(`${slug}: ${size}×${size} from ${basename(source)} → ${outDir} (${WIDTHS.length} widths × 2 frames)`)
+console.log(`${slug}: ${wheelMeta.width}×${wheelMeta.height} from ${basename(source)}${maskPath !== null ? ' (masked)' : ''} → ${outDir} (${WIDTHS.length} widths × 2 frames)`)
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -229,6 +257,50 @@ async function extractSquare(buffer, width, height, cx, cy, r) {
             bottom: wantTop + size - bottom,
             background: { r: 0, g: 0, b: 0, alpha: 0 },
         })
+        .png()
+        .toBuffer()
+}
+
+/**
+ * The photograph's own pixels under a grey mask scaled to it, cropped to the mask's bounding box
+ * (alpha above 16) with a two-pixel margin so the soft edge is kept whole.
+ */
+async function maskedCut(buffer, width, height, mask) {
+    const alpha = await sharp(mask).extractChannel(0).resize(width, height, { kernel: 'lanczos3' }).extractChannel(0).raw().toBuffer()
+
+    let minX = width
+    let minY = height
+    let maxX = -1
+    let maxY = -1
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (alpha[y * width + x] > 16) {
+                if (x < minX) minX = x
+                if (x > maxX) maxX = x
+                if (y < minY) minY = y
+                if (y > maxY) maxY = y
+            }
+        }
+    }
+
+    if (maxX < 0) {
+        throw new Error(`the mask ${mask} is empty`)
+    }
+
+    const left = Math.max(0, minX - 2)
+    const top = Math.max(0, minY - 2)
+    const right = Math.min(width, maxX + 3)
+    const bottom = Math.min(height, maxY + 3)
+
+    // Two pipelines, not one: sharp orders its operations itself, and in one chain `removeAlpha`
+    // runs after `joinChannel` and strips the mask that was just added.
+    const alphaImage = await sharp(alpha, { raw: { width, height, channels: 1 } }).png().toBuffer()
+    const rgb = await sharp(buffer).removeAlpha().png().toBuffer()
+    const cut = await sharp(rgb).joinChannel(alphaImage).png().toBuffer()
+
+    return sharp(cut)
+        .extract({ left, top, width: right - left, height: bottom - top })
         .png()
         .toBuffer()
 }

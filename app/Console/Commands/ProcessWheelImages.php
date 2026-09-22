@@ -34,11 +34,12 @@ final class ProcessWheelImages extends Command
         {--slug= : Output name, overriding the map}
         {--circle= : The wheel as cx,cy,r in source pixels, overriding the map}
         {--hub= : The centre cap to paint over as cx,cy,r in source pixels, overriding the map}
+        {--mask= : A grey alpha mask for an angled studio shot, used instead of the circle}
         {--force : Re-render even when the output is up to date}';
 
     protected $description = 'Cut the demo wheels out of their photographs and export the responsive images the catalogue serves';
 
-    private const PIPELINE_VERSION = 3;
+    private const PIPELINE_VERSION = 4;
 
     public function handle(): int
     {
@@ -85,7 +86,7 @@ final class ProcessWheelImages extends Command
      * What to render: every mapped photograph, or the one named — from the map when it is there,
      * from the options otherwise.
      *
-     * @return list<array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}>|null
+     * @return list<array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}>|null
      */
     private function jobs(): ?array
     {
@@ -116,17 +117,25 @@ final class ProcessWheelImages extends Command
 
     /**
      * @param  array<string, mixed>  $entry
-     * @return array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}|null
+     * @return array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}|null
      */
     private function job(string $file, array $entry, bool $fromOptions, ?string $path = null): ?array
     {
         $slugOption = $this->option('slug');
         $circleOption = $this->option('circle');
         $hubOption = $this->option('hub');
+        $maskOption = $this->option('mask');
 
         $slug = $fromOptions && is_string($slugOption) && $slugOption !== '' ? $slugOption : ($entry['slug'] ?? null);
         $circle = $fromOptions && is_string($circleOption) && $circleOption !== '' ? $this->parseCircle($circleOption) : ($entry['circle'] ?? null);
         $hub = $fromOptions && is_string($hubOption) && $hubOption !== '' ? $this->parseCircle($hubOption) : ($entry['hub'] ?? null);
+
+        // A client studio shot names its mask beside it in the repository; a one-off run may pass a path.
+        $mask = match (true) {
+            $fromOptions && is_string($maskOption) && $maskOption !== '' => $maskOption,
+            isset($entry['mask']) && is_string($entry['mask']) => DemoWheels::clientPhotosDir().DIRECTORY_SEPARATOR.$entry['mask'],
+            default => null,
+        };
 
         if (! is_string($slug) || preg_match('/^[a-z0-9][a-z0-9-]*$/', $slug) !== 1) {
             $this->error(sprintf('%s: a slug is needed (--slug, lower-case letters, digits and hyphens).', $file));
@@ -134,8 +143,14 @@ final class ProcessWheelImages extends Command
             return null;
         }
 
-        if (! is_array($circle) || count($circle) !== 3) {
-            $this->error(sprintf('%s: the wheel circle is needed (--circle cx,cy,r in source pixels).', $file));
+        if ($mask !== null && ! is_file($mask)) {
+            $this->error(sprintf('%s: the mask %s does not exist.', $file, $mask));
+
+            return null;
+        }
+
+        if ($mask === null && (! is_array($circle) || count($circle) !== 3)) {
+            $this->error(sprintf('%s: the wheel circle is needed (--circle cx,cy,r in source pixels), or a --mask.', $file));
 
             return null;
         }
@@ -160,8 +175,10 @@ final class ProcessWheelImages extends Command
             'file' => $file,
             'path' => $path,
             'slug' => $slug,
-            'circle' => [(int) $circle[0], (int) $circle[1], (int) $circle[2]],
-            'hub' => $hub === null ? null : [(int) $hub[0], (int) $hub[1], (int) $hub[2]],
+            'circle' => is_array($circle) && count($circle) === 3 ? [(int) $circle[0], (int) $circle[1], (int) $circle[2]] : null,
+            'mask' => $mask,
+            // A hub is measured against the circle; a masked shot shows the product brand's own cap.
+            'hub' => $hub === null || $mask !== null ? null : [(int) $hub[0], (int) $hub[1], (int) $hub[2]],
             'colour' => (string) ($entry['colour'] ?? 'cool'),
             'credit' => is_array($credit) ? array_map('strval', $credit) : null,
         ];
@@ -178,7 +195,7 @@ final class ProcessWheelImages extends Command
     }
 
     /**
-     * @param  array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
+     * @param  array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
      */
     private function process(array $job, string $node, ?string $rembg): bool
     {
@@ -203,7 +220,8 @@ final class ProcessWheelImages extends Command
 
         $cutout = null;
 
-        if ($rembg !== null) {
+        // A masked shot is already cut; rembg only helps a circle separate the wheel from its car.
+        if ($rembg !== null && $job['mask'] === null) {
             $cutout = $this->rembg($rembg, $job, $outDir);
         }
 
@@ -214,10 +232,17 @@ final class ProcessWheelImages extends Command
             '--out', $outDir,
             '--slug', $job['slug'],
             '--public-base', DemoWheels::publicBase(),
-            '--circle', implode(',', $job['circle']),
             '--colour', $job['colour'],
             '--fingerprint', $fingerprint,
         ];
+
+        if ($job['mask'] !== null) {
+            $arguments[] = '--mask';
+            $arguments[] = $job['mask'];
+        } elseif ($job['circle'] !== null) {
+            $arguments[] = '--circle';
+            $arguments[] = implode(',', $job['circle']);
+        }
 
         if ($job['hub'] !== null) {
             $arguments[] = '--hub';
@@ -283,14 +308,15 @@ final class ProcessWheelImages extends Command
     }
 
     /**
-     * @param  array{path: string, slug: string, circle: array{0: int, 1: int, 2: int}, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
+     * @param  array{path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
      */
     private function fingerprint(array $job, bool $withRembg): string
     {
         return sha1(implode('|', [
             (string) sha1_file($job['path']),
             $job['slug'],
-            implode(',', $job['circle']),
+            $job['circle'] === null ? 'no-circle' : implode(',', $job['circle']),
+            $job['mask'] === null ? 'no-mask' : 'mask:'.sha1_file($job['mask']),
             $job['hub'] === null ? 'no-hub' : implode(',', $job['hub']),
             $job['colour'],
             (string) json_encode($job['credit']),

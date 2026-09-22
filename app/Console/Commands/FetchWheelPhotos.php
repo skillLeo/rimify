@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Support\DemoWheels;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
 /**
  * Fetches the demo wheels' source photographs from the free-licence sites named in
  * database/seeders/content/wheel-photos.php, so a build machine can regenerate the cut-outs
- * without the photographs living in the repository. Idempotent: a file that exists is kept.
+ * without the photographs living in the repository. The client's own studio shots, which have no
+ * public URL, are copied from database/seeders/content/client-photos instead. Idempotent: a file
+ * that exists is kept.
  */
 class FetchWheelPhotos extends Command
 {
@@ -35,6 +38,22 @@ class FetchWheelPhotos extends Command
 
             if (is_file($target) && filesize($target) > 0 && ! $this->option('force')) {
                 $this->line("kept    {$file}");
+
+                continue;
+            }
+
+            // A studio shot the client supplied has no public URL: it is copied from the repository.
+            if (DemoWheels::isClientPhoto((string) $file)) {
+                $bundled = DemoWheels::clientPhotosDir().DIRECTORY_SEPARATOR.$file;
+
+                if (! is_file($bundled) || ! copy($bundled, $target)) {
+                    $this->warn("missing {$file}: not in ".DemoWheels::clientPhotosDir());
+                    $failed++;
+
+                    continue;
+                }
+
+                $this->info("copied  {$file} (client photograph)");
 
                 continue;
             }

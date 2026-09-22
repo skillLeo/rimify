@@ -202,6 +202,9 @@ class FelgenController extends Controller
                 'name' => $finish->name_de,
                 'hex' => $finish->hex,
                 'artFinish' => $finish->art_finish,
+                // The finish's own studio photograph with its other angles, or null: the page then
+                // draws the wheel rather than borrow another finish's picture.
+                'image' => $finish->image_manifest,
             ];
         }
 
@@ -237,9 +240,9 @@ class FelgenController extends Controller
      * Graphite matt, "Nicht freigegeben für BMW 3er" and a disabled basket button: two answers
      * about one wheel, one click apart. The order of the rest is kept (usort is stable).
      *
-     * @param  list<array{id: int, name: string, hex: string|null, artFinish: string}>  $finishes
+     * @param  list<array{id: int, name: string, hex: string|null, artFinish: string, image: array<string, mixed>|null}>  $finishes
      * @param  list<array<string, mixed>>  $configs
-     * @return list<array{id: int, name: string, hex: string|null, artFinish: string}>
+     * @return list<array{id: int, name: string, hex: string|null, artFinish: string, image: array<string, mixed>|null}>
      */
     private function openingFinishFirst(array $finishes, array $configs, int $requested): array
     {
