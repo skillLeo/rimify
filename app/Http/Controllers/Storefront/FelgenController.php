@@ -186,6 +186,9 @@ class FelgenController extends Controller
                 'inStock' => $config->stock_qty > 0,
                 'kbaNumber' => $config->kba_number,
                 'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
+                // The load rating per wheel, from the approval document; null when nobody has
+                // verified one, and the page then shows no row (ACCURACY.md D2).
+                'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
             ];
         }
 
@@ -234,7 +237,17 @@ class FelgenController extends Controller
             'finishes' => $finishes,
             'configs' => $configs,
             'hasVehicle' => $vehicleId !== null,
+            // A seeded demonstration model: the page shows "Beispielbestand" rather than "Auf
+            // Lager" and says it cannot be ordered yet. The basket stays walkable; the checkout
+            // refuses the order on the server (ACCURACY.md D4).
+            'demo' => (bool) $wheel->is_demo,
         ]);
+    }
+
+    /** A positive whole number of kilograms, or null. */
+    private function maxLoadKg(mixed $value): ?int
+    {
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
     }
 
     /**

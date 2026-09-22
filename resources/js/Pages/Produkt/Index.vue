@@ -13,21 +13,34 @@
  *
  * On a phone the price and the button follow the customer down the page once the main button has
  * scrolled away — the one persistent bar the storefront uses, because it is the page's next action.
+ *
+ * A seeded demonstration model (`demo`) shows "Beispielbestand" rather than "Auf Lager" and says it
+ * cannot be ordered yet. Its basket button stays usable, so the flow can be reviewed; the server
+ * refuses the order at the checkout (ACCURACY.md D4).
+ *
+ * The main photograph opens large in a dialog: a button around the image, focus trapped while it
+ * is open, Escape or the close button to leave, focus back on the photograph after.
  */
 
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
+import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
 import { useShared } from '../../composables/useShared'
-import type { ProduktProps } from '../../types/pages'
+import { decimal, withUnit } from '../../format'
+import type { ProduktConfig, ProduktProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
 
-const props = defineProps<ProduktProps>()
+/** The load rating per wheel travels with each configuration; null where none is verified. */
+type RatedConfig = ProduktConfig & { maxLoadKg?: number | null }
+
+const props = defineProps<ProduktProps & { demo?: boolean }>()
 
 const shared = useShared()
 const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
@@ -59,11 +72,42 @@ watch(
     }
 )
 
+/* The large view of the photograph on screen. */
+const zoomOpen = ref(false)
+
 const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
-    tyreVariantId: null as number | null,
     quantity: 4,
+})
+
+/*
+ * The stock tag. Demo stock is example data, so it never reads as "Auf Lager" — and never in the
+ * colour that means a positive answer.
+ */
+const stockLabel = computed(() => {
+    const inStock = selected.value?.inStock === true
+
+    if (props.demo === true) {
+        return inStock ? 'Beispielbestand' : 'Beispielbestand · ausverkauft'
+    }
+
+    return inStock ? 'Auf Lager' : 'Ausverkauft'
+})
+
+const stockTone = computed(() => {
+    if (props.demo === true) {
+        return 'tag--unknown'
+    }
+
+    return selected.value?.inStock === true ? 'tag--ok' : 'tag--danger'
+})
+
+/* `620 kg` — shown only for a load rating somebody has verified. */
+const maxLoad = computed(() => {
+    const kg = (selected.value as RatedConfig | null)?.maxLoadKg
+
+    return typeof kg === 'number' && kg > 0 ? withUnit(decimal(kg, 0), 'kg') : null
 })
 
 const canBuy = computed(() => {
@@ -146,15 +190,24 @@ onBeforeUnmount(() => observer?.disconnect())
                      the swatches in the purchase panel. -->
                 <div class="pdp__gallery">
                     <div class="well pdp__well">
-                        <Picture
+                        <!-- The photograph is its own button: it opens the large view. -->
+                        <button
                             v-if="shot"
-                            :key="shot.name"
-                            :image="shot"
-                            :alt="shotAlt"
-                            sizes="(min-width: 900px) 56vw, 100vw"
-                            eager
-                            class="pdp__picture"
-                        />
+                            type="button"
+                            class="pdp__zoom"
+                            aria-haspopup="dialog"
+                            :aria-label="`Foto vergrößern: ${shotAlt}`"
+                            @click="zoomOpen = true"
+                        >
+                            <Picture
+                                :key="shot.name"
+                                :image="shot"
+                                :alt="shotAlt"
+                                sizes="(min-width: 900px) 56vw, 100vw"
+                                eager
+                                class="pdp__picture"
+                            />
+                        </button>
                         <ProductPhoto
                             v-else
                             :spokes="product.spokes"
@@ -176,6 +229,33 @@ onBeforeUnmount(() => observer?.disconnect())
                             <Picture :image="view" alt="" sizes="72px" class="pdp__thumb-picture" />
                         </button>
                     </div>
+
+                    <!-- The large view. Reka traps the focus, closes on Escape and on the scrim,
+                         and hands the focus back to the photograph. -->
+                    <DialogRoot v-model:open="zoomOpen">
+                        <DialogPortal>
+                            <DialogOverlay class="overlay" />
+                            <DialogContent class="dialog pdp-zoom" aria-describedby="">
+                                <div class="dialog__head">
+                                    <DialogTitle class="pdp-zoom__title">{{ shotAlt }}</DialogTitle>
+                                    <DialogClose class="icon-btn dialog__close" aria-label="Schließen">
+                                        <Icon name="close" :size="24" />
+                                    </DialogClose>
+                                </div>
+                                <div class="pdp-zoom__frame">
+                                    <Picture
+                                        v-if="shot"
+                                        :key="`zoom-${shot.name}`"
+                                        :image="shot"
+                                        :alt="shotAlt"
+                                        sizes="(min-width: 900px) 80vw, 100vw"
+                                        eager
+                                        class="pdp-zoom__picture"
+                                    />
+                                </div>
+                            </DialogContent>
+                        </DialogPortal>
+                    </DialogRoot>
                 </div>
 
                 <!-- The purchase panel. The H1 names the brand; no eyebrow repeats it above. -->
@@ -244,9 +324,11 @@ onBeforeUnmount(() => observer?.disconnect())
                     <div class="pdp__price">
                         <p class="price price--lg">{{ selected?.price ?? config.fromPrice.value }}</p>
                         <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
-                        <span class="tag pdp__stock" :class="selected?.inStock ? 'tag--ok' : 'tag--danger'">
-                            {{ selected?.inStock ? 'Auf Lager' : 'Ausverkauft' }}
-                        </span>
+                        <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
+                        <p v-if="demo" class="t-small pdp__demo">
+                            Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
+                            legen, bestellen kannst du sie noch nicht.
+                        </p>
                     </div>
 
                     <div ref="buyButton">
@@ -287,6 +369,10 @@ onBeforeUnmount(() => observer?.disconnect())
                     <div v-if="weight" class="spec__row">
                         <dt>Gewicht pro Felge</dt>
                         <dd class="t-mono">{{ weight }}</dd>
+                    </div>
+                    <div v-if="maxLoad" class="spec__row">
+                        <dt>Traglast</dt>
+                        <dd class="t-mono">{{ maxLoad }}</dd>
                     </div>
                     <div v-if="selected.kbaNumber" class="spec__row">
                         <dt>KBA-Nummer</dt>
@@ -357,10 +443,51 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 
 .pdp__picture :deep(img),
-.pdp__thumb-picture :deep(img) {
+.pdp__thumb-picture :deep(img),
+.pdp-zoom__picture :deep(img) {
     width: 100%;
     height: 100%;
     object-fit: contain;
+}
+
+/* The photograph as a button: it fills the well and shows it can be enlarged. */
+.pdp__zoom {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+
+.pdp__zoom:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: -4px;
+}
+
+/* The large view: the dialog surface, as wide as the screen allows, the photograph square inside. */
+.pdp-zoom {
+    width: calc(100vw - 2 * var(--sp-20));
+    max-width: 1080px;
+    padding: var(--sp-16);
+}
+
+.pdp-zoom__title {
+    font-size: var(--fs-small);
+    font-weight: 500;
+    color: var(--c-ink-2);
+}
+
+.pdp-zoom__frame {
+    position: relative;
+    width: min(100%, calc(100dvh - 2 * var(--sp-20) - 2 * var(--sp-16) - 64px));
+    aspect-ratio: 1 / 1;
+    margin-inline: auto;
+}
+
+.pdp-zoom__picture {
+    position: absolute;
+    inset: 0;
 }
 
 .pdp__thumbs {
@@ -464,6 +591,11 @@ onBeforeUnmount(() => observer?.disconnect())
 
 .pdp__stock {
     margin-top: var(--space-2);
+}
+
+.pdp__demo {
+    margin-top: var(--space-2);
+    color: var(--ink2);
 }
 
 .pdp__add {
