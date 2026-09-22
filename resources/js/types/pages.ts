@@ -43,7 +43,10 @@ export interface VariantOption {
     [key: string]: unknown
 }
 
-/** The wheel the hero shows: an admin-chosen product and its cheapest configuration's own values. */
+/**
+ * The wheel the hero shows: an admin-chosen product and one configuration's own values
+ * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4).
+ */
 export interface HeroProduct {
     slug: string
     name: string
@@ -51,15 +54,14 @@ export interface HeroProduct {
     finish: string
     fromPriceCents: number
     fromPrice: string
-    /** Name of a bundled cut-out manifest in `resources/js/images/` (`hero-wheel`): the stand-in the page can always render. */
-    image: string
     /**
-     * The hero finish's own cut-out (`wheel_finishes.image_manifest`, with the 4:3 frame under
-     * `wide`) when the catalogue has one. Takes precedence over `image`; null (the server always
-     * sends the key) or absent (a fixture) means the stand-in.
+     * The hero finish's own cut-out (`wheel_finishes.image_manifest`): the square frame with its
+     * `anchors`, the shadowless `bare` frame, the `stamp` read off the wheel, and the 4:3 frame
+     * under `wide`. Null (the server always sends the key) or absent (a fixture): no photograph,
+     * and the hero draws the outline.
      */
-    imageManifest?: (ImageManifest & { wide?: ImageManifest }) | null
-    /** True while the stand-in photograph is shown — i.e. whenever `imageManifest` is null. */
+    imageManifest?: ImageManifest | null
+    /** True when there is no photograph of this product: the outline is drawn and no product is named. */
     symbolic: boolean
     config: {
         widthIn: number
@@ -69,8 +71,25 @@ export interface HeroProduct {
         boltCircleMm: number
         centreBoreMm: number
     }
-    /** The four callout values, already formatted on the server. */
-    spec: { label: string; value: string }[]
+    /** The configuration's facts, formatted on the server by GermanFormat (R-10). */
+    facts: {
+        /** `8,5J` */
+        width: string
+        /** `19` */
+        diameter: string
+        /** `ET 45` */
+        et: string
+        /** `5 × 112` */
+        boltPattern: string
+        /** `66,6 mm` */
+        centreBore: string
+        /** `53810` — only when the photographed stamp belongs to this configuration. */
+        kba: string | null
+        /** `620 kg` — only when verified. */
+        maxLoad: string | null
+        /** `8,5J × 19 · ET 45 · LK 5 × 112 · MLB 66,6 mm · Traglast 620 kg` */
+        specLine: string
+    }
 }
 
 export interface HomeStats {

@@ -36,13 +36,18 @@ it('ships the hero with a real product and its own values', function (): void {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('hero.title', 'Felgen, die an dein Auto dürfen.')
             ->has('hero.product.slug')
-            ->has('hero.product.spec', 4)
-            ->where('hero.product.spec.0.label', 'Breite × Durchmesser')
+            // The configuration's own values, formatted on the server (R-10, ACCURACY §4).
+            ->has('hero.product.facts.width')
+            ->has('hero.product.facts.diameter')
+            ->has('hero.product.facts.et')
+            ->has('hero.product.facts.boltPattern')
+            ->has('hero.product.facts.centreBore')
+            ->has('hero.product.facts.specLine')
             ->has('hero.product.config.widthIn')
-            // No cut-out rendered: the bundled stand-in, named as such.
-            ->where('hero.product.image', 'hero-wheel')
+            // No cut-out rendered: no photograph, the outline is drawn and no product is named.
             ->where('hero.product.imageManifest', null)
             ->where('hero.product.symbolic', true)
+            ->where('hero.product.facts.kba', null)
             ->has('hero.stats.gutachten')
             ->has('selector.makes')
             ->has('promises', 4)
@@ -68,7 +73,6 @@ it('shows the hero finish under its own cut-out once the catalogue has one', fun
         ->where('hero.product.slug', $hero->slug)
         // The finish shown is the one with the picture, not merely the cheapest.
         ->where('hero.product.finish', $photo['finish'])
-        ->where('hero.product.image', 'hero-wheel')
         ->where('hero.product.imageManifest.name', $photo['slug'])
         ->where('hero.product.imageManifest.fallback', 'png')
         ->has('hero.product.imageManifest.wide.height')

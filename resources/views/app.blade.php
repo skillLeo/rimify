@@ -17,18 +17,27 @@
     {{-- The typeface used above the fold, fetched before the stylesheet asks for it. --}}
     <link rel="preload" href="/fonts/archivo-latin-wdth.woff2" as="font" type="font/woff2" crossorigin>
 
-    {{-- The homepage's LCP image on both documents: the hero cut-out, fetched before the bundle
-         asks for it. `imagesizes` must match the `sizes` on the picture (HomeHero, HeroFrame). --}}
+    {{-- The homepage's LCP image on both documents: the picture the hero shows — the shadowless
+         `bare` frame, else the square one — fetched before the bundle asks for it. With no
+         photograph the hero draws an outline and nothing is preloaded. `imagesizes` must equal the
+         picture's `sizes` (HERO_SIZES_DESKTOP / HERO_SIZES_PHONE in
+         Components/Mobile/Home/calloutSlots.ts; calloutSlots.test.ts holds them equal). --}}
     @if (in_array($page['component'] ?? '', ['Startseite/Desktop', 'Startseite/Mobile'], true))
         @php
             $heroManifest = $page['props']['hero']['product']['imageManifest'] ?? null;
-            $heroSet = is_array($heroManifest) && isset($heroManifest['base'], $heroManifest['widths'])
-                ? implode(', ', array_map(fn ($w) => $heroManifest['base'].'-'.$w.'.avif '.$w.'w', $heroManifest['widths']))
-                : '/images/hero-wheel/hero-wheel-480.avif 480w, /images/hero-wheel/hero-wheel-768.avif 768w, /images/hero-wheel/hero-wheel-1080.avif 1080w';
+            $heroPicture = is_array($heroManifest) && is_array($heroManifest['bare'] ?? null) ? $heroManifest['bare'] : $heroManifest;
+            $heroSet = is_array($heroPicture) && isset($heroPicture['base'], $heroPicture['widths']) && is_array($heroPicture['widths'])
+                ? implode(', ', array_map(fn ($w) => $heroPicture['base'].'-'.$w.'.avif '.$w.'w', $heroPicture['widths']))
+                : null;
+            $heroSizes = ($page['component'] ?? '') === 'Startseite/Mobile'
+                ? '(min-width: 768px) calc(77vw - 49px), calc(77vw - 31px)'
+                : '(min-width: 1280px) 500px, (min-width: 1024px) 33vw, (min-width: 768px) 373px, calc(67vw - 27px)';
         @endphp
-        <link rel="preload" as="image" fetchpriority="high" type="image/avif"
-              imagesrcset="{{ $heroSet }}"
-              imagesizes="(min-width: 1280px) 540px, (min-width: 1024px) 40vw, (min-width: 768px) 336px, calc(70vw - 22px)">
+        @if ($heroSet !== null)
+            <link rel="preload" as="image" fetchpriority="high" type="image/avif"
+                  imagesrcset="{{ $heroSet }}"
+                  imagesizes="{{ $heroSizes }}">
+        @endif
     @endif
 
     @vite(['resources/css/app.css', 'resources/js/app.ts'])

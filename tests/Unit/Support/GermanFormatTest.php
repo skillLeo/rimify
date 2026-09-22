@@ -69,6 +69,16 @@ it('formats bolt patterns and centre bores', function (): void {
         ->and(GermanFormat::millimetres(72.0))->toBe("72\u{00A0}mm");
 });
 
+it('formats a rim size, an offset and a load the way the hero states them', function (): void {
+    // No-break spaces inside each value: a line of facts wraps between values, never inside one.
+    expect(GermanFormat::rimSize(8.5, 19.0))->toBe("8,5J\u{00A0}\u{00D7}\u{00A0}19")
+        ->and(GermanFormat::rimSize('8.00', '18.0'))->toBe("8J\u{00A0}\u{00D7}\u{00A0}18")
+        ->and(GermanFormat::offset(45))->toBe("ET\u{00A0}45")
+        ->and(GermanFormat::offset(-12))->toBe("ET\u{00A0}-12")
+        ->and(GermanFormat::kilograms(620))->toBe("620\u{00A0}kg")
+        ->and(GermanFormat::kilograms(1020))->toBe("1.020\u{00A0}kg");
+});
+
 it('formats tyre sizes with and without the indices', function (): void {
     expect(GermanFormat::tyreSize(245, 45, 18.0, 92, 'Y'))->toBe('245/45 R18 92Y')
         ->and(GermanFormat::tyreSize(225, 35, 18.0))->toBe('225/35 R18')

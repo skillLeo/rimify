@@ -9,6 +9,7 @@ use App\Domain\Fitment\Resolver\VehicleResolver;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Fitment;
 use App\Models\Setting;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
@@ -23,6 +24,7 @@ use App\Services\Storefront\VehicleTree;
 use App\Support\DemoWheels;
 use App\Support\DevicePage;
 use App\Support\GermanFormat;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -101,11 +103,15 @@ class StartseiteController extends Controller
 
     /**
      * The wheel the hero shows, chosen by the admin (`settings.hero_product_id`); until one is
-     * chosen, the first published model. Its callout values are the cheapest configuration's own.
+     * chosen, the first published model.
      *
-     * The finish shown is the one the catalogue has a photograph of: among the model's finishes
-     * with a cut-out, the cheapest configuration; without any cut-out, the cheapest of all, under
-     * the bundled stand-in photograph — which the page then names as a stand-in.
+     * The picture is the photographed finish's own cut-out (its manifest, with `anchors`, `bare`
+     * and `stamp` passed through when they are well-formed). A model with no photograph at all is
+     * drawn as line art, and the page then names no product (`symbolic`): no stand-in photograph
+     * is ever shown in its place (ACCURACY.md D1, D10).
+     *
+     * `facts` are one configuration's values, formatted here (R-10) and nowhere else. Which one is
+     * `heroConfig()`'s choice: a photograph proves the size its stamp names, never the bolt pattern.
      *
      * @return array<string, mixed>|null
      */
@@ -124,28 +130,25 @@ class StartseiteController extends Controller
             return null;
         }
 
-        $pictured = WheelFinish::query()
-            ->where('wheel_model_id', $model->id)
-            ->whereNotNull('image_manifest')
-            ->pluck('id');
+        // The model's photographed finishes, each with its cut-out; a malformed one counts as none.
+        $manifests = [];
 
-        $config = WheelConfig::query()
-            ->where('wheel_model_id', $model->id)
-            ->when($pictured->isNotEmpty(), fn ($q) => $q->whereIn('wheel_finish_id', $pictured))
-            ->orderBy('price_cents')
-            ->orderBy('id')
-            ->first();
+        foreach (WheelFinish::query()->where('wheel_model_id', $model->id)->whereNotNull('image_manifest')->orderBy('id')->get() as $pictured) {
+            $raw = $pictured->image_manifest;
+
+            if (DemoWheels::wellFormed($raw)) {
+                $manifests[(int) $pictured->id] = DemoWheels::withoutMalformedExtras($raw);
+            }
+        }
+
+        [$config, $kba] = $this->heroConfig((int) $model->id, $manifests);
 
         if ($config === null) {
             return null;
         }
 
         $finish = WheelFinish::query()->find($config->wheel_finish_id);
-        $manifest = $finish === null ? null : $finish->image_manifest;
-
-        if (! DemoWheels::wellFormed($manifest)) {
-            $manifest = null;
-        }
+        $manifest = $manifests[(int) $config->wheel_finish_id] ?? null;
 
         return [
             'slug' => (string) $model->slug,
@@ -154,12 +157,8 @@ class StartseiteController extends Controller
             'finish' => $finish === null ? '' : (string) $finish->name_de,
             'fromPriceCents' => (int) $config->price_cents,
             'fromPrice' => GermanFormat::money((int) $config->price_cents),
-            // The bundled stand-in the page can always render (resources/js/images/hero-wheel.json)
-            // and, when the catalogue has one, the finish's own cut-out, which takes precedence.
-            // Two keys rather than one union: the hero components index a record with `image`.
-            'image' => 'hero-wheel',
             'imageManifest' => $manifest,
-            // The configuration's own numbers, for the callouts and the calculator.
+            // The configuration's own numbers; the client draws the outline's bolt holes from them.
             'config' => [
                 'widthIn' => (float) $config->width_in,
                 'diameterIn' => (float) $config->diameter_in,
@@ -168,17 +167,110 @@ class StartseiteController extends Controller
                 'boltCircleMm' => (float) $config->bolt_circle_mm,
                 'centreBoreMm' => (float) $config->centre_bore_mm,
             ],
-            // With no cut-out of its own, a free-licence photograph stands in for the supplier's
-            // packshot; the values are the product's own, and the page says the picture is not
-            // (docs/phase0/ASSET-REQUEST.md).
+            // No photograph of this product: the hero draws the outline and names no product.
             'symbolic' => $manifest === null,
-            'spec' => [
-                // Width × diameter without the ET: the ET has its own callout.
-                ['label' => 'Breite × Durchmesser', 'value' => GermanFormat::trimmedDecimal((float) $config->width_in, 2).' J × '.GermanFormat::trimmedDecimal((float) $config->diameter_in, 1)],
-                ['label' => 'Lochkreis', 'value' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm)],
-                ['label' => 'Mittenlochbohrung', 'value' => GermanFormat::millimetres((float) $config->centre_bore_mm)],
-                ['label' => 'Einpresstiefe', 'value' => 'ET '.(int) $config->et_mm],
-            ],
+            'facts' => $this->heroFacts($config, $kba),
+        ];
+    }
+
+    /**
+     * The configuration whose values the hero states (ACCURACY.md §3.0).
+     *
+     * A cut-out that carries the approval number read off the wheel (`stamp`, e.g. KBA 53810)
+     * proves the size that number approves — not the bolt pattern, which the same ABE covers in
+     * several executions. So among the photographed finish's configurations with exactly that KBA
+     * number: the one with the most fitments a customer can see, then the cheapest, then the
+     * lowest id; and the number is stated. Otherwise the cheapest configuration of a photographed
+     * finish (of the whole model when none is photographed), and no KBA number: the photograph's
+     * stamp is never put next to a configuration it does not belong to.
+     *
+     * @param  array<int, array<string, mixed>>  $manifests  finish id → its cut-out
+     * @return array{0: WheelConfig|null, 1: string|null}
+     */
+    private function heroConfig(int $modelId, array $manifests): array
+    {
+        $stamps = [];
+
+        foreach ($manifests as $finishId => $manifest) {
+            if (isset($manifest['stamp']) && is_string($manifest['stamp']) && $manifest['stamp'] !== '') {
+                $stamps[$finishId] = $manifest['stamp'];
+            }
+        }
+
+        if ($stamps !== []) {
+            $stamped = WheelConfig::query()
+                ->where('wheel_model_id', $modelId)
+                ->where(function (Builder $any) use ($stamps): void {
+                    foreach ($stamps as $finishId => $stamp) {
+                        $any->orWhere(fn (Builder $one) => $one->where('wheel_finish_id', $finishId)->where('kba_number', $stamp));
+                    }
+                })
+                ->withCount(['fitments as published_fitments' => self::visibleFitments(...)])
+                ->orderByDesc('published_fitments')
+                ->orderBy('price_cents')
+                ->orderBy('id')
+                ->first();
+
+            if ($stamped !== null) {
+                return [$stamped, $stamps[(int) $stamped->wheel_finish_id]];
+            }
+        }
+
+        $cheapest = WheelConfig::query()
+            ->where('wheel_model_id', $modelId)
+            ->when($manifests !== [], fn ($q) => $q->whereIn('wheel_finish_id', array_keys($manifests)))
+            ->orderBy('price_cents')
+            ->orderBy('id')
+            ->first();
+
+        return [$cheapest, null];
+    }
+
+    /**
+     * The rows a customer could be shown, for counting how many cars a stamped configuration fits.
+     *
+     * @param  Builder<Fitment>  $fitments
+     * @return Builder<Fitment>
+     */
+    private static function visibleFitments(Builder $fitments): Builder
+    {
+        return $fitments->visibleToCustomers();
+    }
+
+    /**
+     * The hero's facts, each one formatted once, here (ACCURACY.md §4): the explainer and both
+     * hero documents print these strings and never build a value themselves. `kba` only when the
+     * photographed stamp belongs to this configuration; `maxLoad` only when it is verified.
+     *
+     * @return array{width: string, diameter: string, et: string, boltPattern: string, centreBore: string, kba: string|null, maxLoad: string|null, specLine: string}
+     */
+    private function heroFacts(WheelConfig $config, ?string $kba): array
+    {
+        $boltPattern = GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm);
+        $centreBore = GermanFormat::millimetres((float) $config->centre_bore_mm);
+        $maxLoad = $config->max_load_kg === null ? null : GermanFormat::kilograms((int) $config->max_load_kg);
+
+        $line = [
+            GermanFormat::rimSize((float) $config->width_in, (float) $config->diameter_in),
+            GermanFormat::offset((int) $config->et_mm),
+            'LK'.GermanFormat::NBSP.$boltPattern,
+            'MLB'.GermanFormat::NBSP.$centreBore,
+        ];
+
+        if ($maxLoad !== null) {
+            $line[] = 'Traglast'.GermanFormat::NBSP.$maxLoad;
+        }
+
+        return [
+            'width' => GermanFormat::rimWidth((float) $config->width_in),
+            'diameter' => GermanFormat::trimmedDecimal((float) $config->diameter_in, 1),
+            'et' => GermanFormat::offset((int) $config->et_mm),
+            'boltPattern' => $boltPattern,
+            'centreBore' => $centreBore,
+            'kba' => $kba,
+            'maxLoad' => $maxLoad,
+            // Plain spaces around the separators: the line wraps between values, never inside one.
+            'specLine' => implode(' '.GermanFormat::MIDDOT.' ', $line),
         ];
     }
 

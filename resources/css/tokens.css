@@ -111,6 +111,10 @@
     --d-2: 200ms;
     --d-3: 320ms;
     --d-4: 600ms;
+    /* The hero's roll-in only: a wheel coasting in from the edge and rolling to rest. The curve is
+       ease-out-quad, i.e. constant deceleration — what rolling resistance does to a real wheel. */
+    --d-roll: 1600ms;
+    --ease-roll: cubic-bezier(0.5, 1, 0.89, 1);
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
     --ease-in: cubic-bezier(0.4, 0, 1, 1);
     --ease-std: cubic-bezier(0.4, 0, 0.2, 1);

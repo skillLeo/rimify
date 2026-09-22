@@ -42,7 +42,7 @@ async function lcpEntry(page: Page): Promise<{ url: string; tag: string | null; 
 }
 
 test.describe('hero stage', () => {
-    test('on a cold load the hero photograph is painted and is the LCP element', async ({ page }, testInfo) => {
+    test('on a cold load the hero photograph is loaded first-class and the largest paint is the hero itself', async ({ page }, testInfo) => {
         test.skip(testInfo.project.name !== 'desktop-1440', 'the phone document is measured by the device lab');
 
         await open(page, '/');
@@ -56,14 +56,44 @@ test.describe('hero stage', () => {
         const lcp = await lcpEntry(page);
         expect(lcp, 'an LCP entry').not.toBeNull();
 
-        // The LCP is the very file the hero picture chose, not a heading or another image.
+        // The wheel rolls in from past the viewport's edge, fading in, so the browser may rank the
+        // headline as the largest paint rather than the photograph. Either way it is the hero: the
+        // hero's own picture (by its file) or text in #h2, never something further down the page.
         const src = await poster.evaluate((img: HTMLImageElement) => img.currentSrc);
-        expect(lcp?.url).toBe(src);
 
-        if (lcp?.tag !== null) {
-            expect(lcp?.tag).toBe('img');
-            expect(lcp?.inHero).toBe(true);
+        if (lcp?.url !== '') {
+            expect(lcp?.url).toBe(src);
+        } else {
+            expect(lcp?.inHero, `the largest paint is in the hero (${lcp?.tag})`).toBe(true);
         }
+    });
+
+    test('the wheel rolls in once, from past the right edge, and comes to rest without the page scrolling sideways', async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name !== 'desktop-1440', 'the phone frame clips the roll; measured by the device lab');
+
+        await page.addInitScript(() => {
+            const w = window as Window & { __rolls?: number }
+            w.__rolls = 0
+            document.addEventListener('animationstart', (e) => {
+                if (e.animationName.startsWith('hero-travel')) {
+                    w.__rolls = (w.__rolls ?? 0) + 1
+                }
+            }, true)
+        });
+        await open(page, '/');
+        await page.waitForTimeout(2000);
+
+        const result = await page.evaluate(() => ({
+            rolls: (window as Window & { __rolls?: number }).__rolls,
+            sideScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+            // At rest the turn is none and the roll box sits where the layout put it.
+            turn: getComputedStyle(document.querySelector('#h2 .hero__spin') as Element).transform,
+        }));
+
+        // Once: the server's page is hydrated, not thrown away and drawn again (app.ts, createSSRApp).
+        expect(result.rolls).toBe(1);
+        expect(result.sideScroll).toBe(false);
+        expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(result.turn);
     });
 
     test('under reduced motion there is no WebGL, only the static poster', async ({ page }) => {

@@ -8,6 +8,25 @@
 
 import { computed, ref } from 'vue'
 
+/**
+ * Anchor points measured on the photograph, normalised to this frame: x and y are fractions of the
+ * frame's width and height, r is a fraction of its width (for `kba`, w is a fraction of the width
+ * and h of the height). Written by scripts/wheel-image.mjs; absent unless measured
+ * (docs/phase0/ACCURACY.md §4).
+ */
+export interface WheelAnchors {
+    centre: { x: number; y: number }
+    /** The rim's outer lip, derived from the cut-out, never typed in. */
+    wheel?: { x: number; y: number; r: number }
+    /** The circle through the bolt-hole centres (Lochkreis). */
+    pcd?: { x: number; y: number; r: number }
+    /** The cap over the centre bore (Mittenlochbohrung). */
+    bore?: { x: number; y: number; r: number }
+    valve?: { x: number; y: number }
+    /** The stamped approval mark: its centre, width and height. */
+    kba?: { x: number; y: number; w: number; h: number }
+}
+
 export interface ImageManifest {
     name: string
     base: string
@@ -22,6 +41,14 @@ export interface ImageManifest {
      * (front view first is the manifest itself). Only real studio shots: never a drawing.
      */
     views?: ImageView[]
+    /** The 4:3 frame, with its own anchors. */
+    wide?: ImageManifest
+    /** This frame's anchors; `bare` shares the square frame's geometry, so the same ones apply. */
+    anchors?: WheelAnchors
+    /** The square frame without the baked contact shadow. */
+    bare?: ImageManifest
+    /** The approval number the photograph shows (`53810`), when one was read off it. */
+    stamp?: string
 }
 
 /** One more angle of the same finish, and how to name it (`Schräg von vorn`). */

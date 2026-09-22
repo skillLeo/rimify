@@ -1,77 +1,93 @@
 <script setup lang="ts">
 /**
- * A measured value pointed at the real thing in a photograph: the label and the value in a small
- * white box, and a thin leader line from the box to the point on the wheel.
+ * A measured value pointed at the real thing in a photograph: the label and the value (and, where
+ * it needs saying, a note) in a small white box, and a thin leader from the box to the feature.
  *
- * Positions are percentages of the frame, so the callout keeps pointing at the same spoke at every
- * width. The line is drawn in the frame's own pixel space, measured after mount, so it is never
- * stretched and its dash can be animated by length; the box and its text are in the server-rendered
- * HTML from the first paint. The line draws in once the frame gains `is-ready` (after the image
- * has painted) — signature moment 1.
+ * Everything is in the server-rendered HTML and nothing is measured: positions are percentages of
+ * the frame, and the leader is drawn in the frame's own units (`ratio` × 100 wide, 100 tall), so a
+ * frame of that ratio scales the drawing evenly and a ring stays round. With `side`, the box hugs
+ * that edge of the frame, `x` % in and vertically centred on `y`, and the leader starts at that
+ * edge, under the box: the opaque box covers the start, so the visible line leaves it wherever its
+ * inner edge falls, however wide the text makes it. `elbow` bends the line to run level into the
+ * box. Without `side`, the box's top-left corner is at (`x`, `y`) and the line starts there.
+ *
+ * The final drawing is the default: without JavaScript and under reduced motion the leader, its
+ * dot and the ring are simply there. Otherwise the box fades in and the leader draws in once, after
+ * `--callout-delay` (the host sets it — the hero waits for its wheel to stop), and the dot and ring
+ * appear after it.
  */
 
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 
-const props = defineProps<{
-    label: string
-    value: string
-    /** Where the box sits, as a percentage of the frame. */
-    x: number
-    y: number
-    /** The point the line ends at, as a percentage of the frame. */
-    tx: number
-    ty: number
-}>()
+const props = withDefaults(
+    defineProps<{
+        label: string
+        value: string
+        /** A third line under the value (`hinter der Nabenkappe`). */
+        note?: string
+        /** Where the box sits, as a percentage of the frame (see above). */
+        x: number
+        y: number
+        /** The point the leader ends at, as a percentage of the frame. */
+        tx: number
+        ty: number
+        side?: 'left' | 'right'
+        /** Where the leader bends to run level into the box, as a percentage of the frame's width. */
+        elbow?: number
+        /** The frame's width / height: the drawing is `ratio` × 100 units wide and 100 tall. */
+        ratio?: number
+        /** The stroke, in the drawing's units. */
+        weight?: number
+        /** A dashed circle the leader ends on: centre in percent of the frame's width and height, radius in percent of its height. */
+        ring?: { cx: number; cy: number; r: number }
+    }>(),
+    { note: undefined, side: undefined, elbow: undefined, ratio: 1, weight: 0.35, ring: undefined }
+)
 
-const root = ref<HTMLElement | null>(null)
-const box = ref<HTMLElement | null>(null)
-const size = ref<{ w: number; h: number } | null>(null)
-const boxSize = ref<{ w: number; h: number }>({ w: 0, h: 0 })
-let observer: ResizeObserver | undefined
+const width = computed(() => props.ratio * 100)
 
-onMounted(() => {
-    observer = new ResizeObserver(() => {
-        if (root.value) {
-            size.value = { w: root.value.clientWidth, h: root.value.clientHeight }
-        }
+/** A percentage of the frame's width in the drawing's units. */
+function ux(percent: number): number {
+    return Math.round(((percent / 100) * width.value) * 100) / 100
+}
 
-        if (box.value) {
-            boxSize.value = { w: box.value.offsetWidth, h: box.value.offsetHeight }
-        }
-    })
-    observer.observe(root.value as HTMLElement)
-    observer.observe(box.value as HTMLElement)
+const start = computed(() => ({ x: props.side === 'right' ? ux(100 - props.x) : ux(props.x), y: props.y }))
+const end = computed(() => ({ x: ux(props.tx), y: props.ty }))
+
+const d = computed(() => {
+    const bend = props.elbow === undefined ? '' : ` L ${ux(props.elbow)} ${start.value.y}`
+
+    return `M ${start.value.x} ${start.value.y}${bend} L ${end.value.x} ${end.value.y}`
 })
 
-onBeforeUnmount(() => observer?.disconnect())
+const dot = computed(() => Math.round(props.weight * 2.2 * 100) / 100)
 
-/* The line leaves the box from the edge that faces the target, at its vertical middle. */
-const line = computed(() => {
-    if (size.value === null) {
-        return null
+const boxStyle = computed(() => {
+    if (props.side === 'right') {
+        return { right: `${props.x}%`, top: `${props.y}%` }
     }
 
-    const { w, h } = size.value
-    const boxLeft = (props.x / 100) * w
-    const boxTop = (props.y / 100) * h
-    const tx = (props.tx / 100) * w
-    const ty = (props.ty / 100) * h
-    const fromX = tx > boxLeft + boxSize.value.w / 2 ? boxLeft + boxSize.value.w : boxLeft
-    const fromY = boxTop + boxSize.value.h / 2
-
-    return { w, h, d: `M ${fromX} ${fromY} L ${tx} ${ty}`, tx, ty }
+    return { left: `${props.x}%`, top: `${props.y}%` }
 })
 </script>
 
 <template>
-    <div ref="root" class="callout-anchor" aria-hidden="true">
-        <svg v-if="line" class="callout__line" :viewBox="`0 0 ${line.w} ${line.h}`" :width="line.w" :height="line.h">
-            <path :d="line.d" pathLength="1" />
-            <circle :cx="line.tx" :cy="line.ty" r="3" />
+    <div class="callout-anchor" aria-hidden="true">
+        <svg
+            class="callout__line"
+            :viewBox="`0 0 ${width} 100`"
+            preserveAspectRatio="none"
+            focusable="false"
+            :style="{ '--callout-weight': weight }"
+        >
+            <circle v-if="ring" class="callout__ring" :cx="ux(ring.cx)" :cy="ring.cy" :r="ring.r" pathLength="60" />
+            <path class="callout__leader" :d="d" pathLength="1" />
+            <circle class="callout__dot" :cx="end.x" :cy="end.y" :r="dot" />
         </svg>
-        <div ref="box" class="callout" :style="{ left: `${x}%`, top: `${y}%` }">
+        <div class="callout" :class="side ? `callout--${side}` : undefined" :style="boxStyle">
             <span class="callout__label">{{ label }}</span>
             <span class="callout__value">{{ value }}</span>
+            <span v-if="note" class="callout__note">{{ note }}</span>
         </div>
     </div>
 </template>
@@ -83,64 +99,74 @@ const line = computed(() => {
     pointer-events: none;
 }
 
-.callout {
-    pointer-events: auto;
+/* The leaders under every box: a later callout's line never crosses an earlier callout's box. */
+.callout__line {
+    z-index: var(--z-base);
 }
 
-.callout__line path {
+/* The box waits for the same `--callout-delay` as its leader: nothing is labelled while it turns. */
+.callout {
+    z-index: var(--z-raised);
+    pointer-events: auto;
+    animation: callout-appear var(--d-2) var(--ease-out) var(--callout-delay, 0ms) both;
+}
+
+.callout--left,
+.callout--right {
+    transform: translateY(-50%);
+}
+
+.callout__note {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+/* The host picks the ink (`--callout-ink`); white on a dark photograph is the default. */
+.callout__leader {
+    fill: none;
+    stroke: var(--callout-ink, var(--c-surface));
+    stroke-width: var(--callout-weight);
+    vector-effect: none;
     stroke-dasharray: 1;
     stroke-dashoffset: 0;
+    animation: callout-draw var(--d-4) var(--ease-out) var(--callout-delay, 0ms) both;
 }
 
-/*
- * Signature moment 1: the leader lines draw in once the photograph has painted.
- *
- * The whole selector sits inside `:global()`. In a scoped block `:global(.frame) .callout__line`
- * compiles to `.frame` alone — the rest is dropped — which hid the entire frame, photograph
- * included, until the lines were ready: no LCP, and nothing at all without JavaScript.
- */
-:global(.frame:not(.is-ready) .callout__line) {
-    opacity: 0;
+.callout__ring {
+    fill: none;
+    stroke: var(--callout-ink, var(--c-surface));
+    stroke-width: var(--callout-weight);
+    /* Thirty dashes round the circle, whatever its size (`pathLength` 60). */
+    stroke-dasharray: 1;
+    animation: callout-appear var(--d-2) var(--ease-out) calc(var(--callout-delay, 0ms) + var(--d-4)) both;
 }
 
-:global(.frame.is-ready .callout__line path) {
-    animation: draw var(--d-4) var(--ease-out) both;
+.callout__dot {
+    fill: var(--callout-ink, var(--c-surface));
+    stroke: none;
+    animation: callout-appear var(--d-2) var(--ease-out) calc(var(--callout-delay, 0ms) + var(--d-4)) both;
 }
 
-:global(.frame.is-ready .callout__line circle) {
-    animation: appear var(--d-2) var(--ease-out) both;
-    animation-delay: var(--d-4);
-}
-
-@keyframes draw {
+@keyframes callout-draw {
     from {
         stroke-dashoffset: 1;
     }
-
-    to {
-        stroke-dashoffset: 0;
-    }
 }
 
-@keyframes appear {
+@keyframes callout-appear {
     from {
         opacity: 0;
     }
 }
 
-/* Motion off: the line and its dot rest in their end state from the first paint — nothing draws, nothing appears. */
+/* Motion off: the box, the leader, its dot and the ring rest in their end state from the first paint. */
 @media (prefers-reduced-motion: reduce) {
-    :global(.frame:not(.is-ready) .callout__line) {
-        opacity: 1;
-    }
-
-    :global(.frame .callout__line path),
-    :global(.frame .callout__line circle),
-    :global(.frame.is-ready .callout__line path),
-    :global(.frame.is-ready .callout__line circle) {
+    .callout,
+    .callout__leader,
+    .callout__ring,
+    .callout__dot {
         animation: none;
-        opacity: 1;
-        stroke-dashoffset: 0;
     }
 }
 </style>
