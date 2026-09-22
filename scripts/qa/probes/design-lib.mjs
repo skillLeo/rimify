@@ -60,7 +60,7 @@ export async function open(page, path = ROUTE, { consent = false } = {}) {
 
 /** What a customer does first: answers the cookie sheet, so it no longer covers the page. */
 export async function acceptConsent(page) {
-    const button = page.locator('.consent').getByRole('button', { name: 'Nur notwendige' })
+    const button = page.locator('.consent').getByRole('button', { name: 'Verstanden' })
     if (await button.count()) {
         await button.click()
         await page.locator('.consent').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {})

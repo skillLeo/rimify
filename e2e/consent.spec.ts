@@ -2,34 +2,34 @@ import { expect, test } from '@playwright/test';
 import { CONSENT_COOKIE, expectNoHorizontalOverflow, open } from './support';
 
 /*
- * H0 — the cookie sheet. First thing the client sees: two equal buttons and a settings link, no
- * scroll lock, no dark pattern, the choice kept for twelve months, and reopenable from the footer.
+ * H0 — the cookie sheet. The shop sets only necessary cookies and no statistics service is
+ * configured (ACCURACY D7), so the sheet asks for nothing: one sentence, the Datenschutz link and
+ * one "Verstanden". No scroll lock, the note kept for twelve months, reopenable from the footer.
  */
 
 test.describe('cookie consent', () => {
-    test('offers two equal choices and keeps the decision for twelve months', async ({ page, context }) => {
+    test('offers no statistics choice and keeps the note for twelve months', async ({ page, context }) => {
         await open(page, '/');
 
         // A region, not a dialog: it must not trap focus or lock the page behind it.
         const sheet = page.getByRole('region', { name: /Cookies/ });
         await expect(sheet).toBeVisible();
 
-        const accept = sheet.getByRole('button', { name: 'Alle akzeptieren' });
-        const necessary = sheet.getByRole('button', { name: 'Nur notwendige' });
-        await expect(accept).toBeVisible();
-        await expect(necessary).toBeVisible();
-        await expect(sheet.getByRole('button', { name: 'Einstellungen' }).or(sheet.getByRole('link', { name: 'Einstellungen' }))).toBeVisible();
+        const understood = sheet.getByRole('button', { name: 'Verstanden' });
+        await expect(understood).toBeVisible();
+        await expect(sheet.getByRole('link', { name: /Datenschutzerklärung/ })).toHaveAttribute('href', '/rechtliches/datenschutz');
 
-        // Equal weight: the same height, neither one styled as the "right" answer.
-        const [a, n] = await Promise.all([accept.boundingBox(), necessary.boundingBox()]);
-        expect(a?.height).toBe(n?.height);
+        // Nothing to consent to while no statistics service exists.
+        await expect(sheet.getByRole('button')).toHaveCount(1);
+        await expect(sheet).not.toContainText('Statistik');
+        await expect(sheet).not.toContainText('Alle akzeptieren');
 
         // No scroll lock while the sheet is open.
         await page.mouse.wheel(0, 400);
         await page.waitForTimeout(100);
         expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
-        await necessary.click();
+        await understood.click();
         await expect(sheet).toBeHidden();
 
         const cookie = (await context.cookies()).find((c) => c.name === CONSENT_COOKIE);
@@ -47,13 +47,17 @@ test.describe('cookie consent', () => {
 
     test('can be reopened from the footer', async ({ page }) => {
         await open(page, '/');
-        await page.getByRole('region', { name: /Cookies/ }).getByRole('button', { name: 'Alle akzeptieren' }).click();
+        await page.getByRole('region', { name: /Cookies/ }).getByRole('button', { name: 'Verstanden' }).click();
 
         const reopen = page.getByRole('contentinfo').getByRole('button', { name: 'Cookie-Einstellungen' });
         await reopen.scrollIntoViewIfNeeded();
         await reopen.click();
 
-        await expect(page.getByRole('dialog', { name: /Cookie-Einstellungen/ })).toBeVisible();
+        const dialog = page.getByRole('dialog', { name: /Cookie-Einstellungen/ });
+        await expect(dialog).toBeVisible();
+        // Only the necessary cookies, always on: no switch for a service that does not exist.
+        await expect(dialog.getByRole('checkbox')).toHaveCount(0);
+        await expect(dialog).not.toContainText('Statistik');
         await expectNoHorizontalOverflow(page);
     });
 });
