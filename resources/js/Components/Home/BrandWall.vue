@@ -139,7 +139,9 @@ onMounted(() => {
                         <span v-else class="brand-cell__name" :data-len="wordmarkSize(brand.name)">{{ brand.name }}</span>
                     </span>
                     <span v-if="href !== null" class="brand-cell__foot brand-cell__count small num">{{ felgen(brand.count) }}</span>
-                    <span v-else class="brand-cell__foot brand-cell__none small">{{ NO_STOCK_LINE }}</span>
+                    <!-- Greyed says it for the eye and the note under the wall explains it once; the
+                         sentence is read out per cell, and the foot keeps its line so the marks align. -->
+                    <span v-else class="brand-cell__foot brand-cell__none small"><span class="visually-hidden">{{ NO_STOCK_LINE }}</span></span>
                 </component>
             </li>
             <li class="brand-wall__item brand-wall__item--all">
@@ -324,6 +326,7 @@ onMounted(() => {
 
 .brand-cell__none {
     color: var(--c-ink-3);
+    min-height: var(--lh-small);
 }
 
 /* The closing cell has no stage: alone in a row it is a slim strip, beside brands it stretches. */
