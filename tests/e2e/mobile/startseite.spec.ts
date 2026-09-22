@@ -231,7 +231,7 @@ test.describe('Startseite/Mobile', () => {
         await expect(size).toHaveAttribute('href', /\/felgen\?zoll=\d+/)
         // `felgen()` joins the number and the noun with a narrow no-break space; one wheel is *1 Felge*.
         await expect(size).toContainText(/\d+\sFelgen?\b/)
-        const brand = page.locator('#h6 .brand-grid__link').first()
+        const brand = page.locator('#h6 .brand-cell:not(.brand-cell--all)').first()
         await expect(brand).toHaveAttribute('href', /\/felgen\?marke=/)
         // Named by its content, not an aria-label, so the visible count is part of the name (WCAG 2.5.3).
         await expect(brand).not.toHaveAttribute('aria-label')

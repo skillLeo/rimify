@@ -6,12 +6,13 @@
  * typography, not icons: the number is the tile. A diameter with nothing in stock is not a tile at
  * all; with a vehicle chosen, a diameter that no document permits on that car is greyed with its
  * count and is not a link — shown, never hidden, never struck (home-overhaul.md §0.6), so the
- * range reads as a range. Brands sit in a hairline grid as monochrome marks; until the admin has
- * uploaded a logo, the name is the mark.
+ * range reads as a range. The brands are the shared brand wall (BrandWall, home-brands.md): a
+ * hairline grid that always closes on its own link cell, never on an empty one.
  */
 
 import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import BrandWall from './BrandWall.vue'
 import { felgen, NNBSP } from '../../format'
 import type { StartseiteProps } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
@@ -21,9 +22,6 @@ const props = defineProps<{
     brands: StartseiteProps['brands']
     vehicle: VehicleProp | null
 }>()
-
-/** How many empty cells close the last row of the six-column brand grid. */
-const padding = computed(() => (6 - (props.brands.length % 6)) % 6)
 
 /** `1 passende Felge` · `9 passende Felgen` — `felgen()` with the adjective between the number and the noun. */
 function passende(count: number): string {
@@ -73,17 +71,7 @@ const tiles = computed(() =>
 
             <div v-if="brands.length > 0" class="find__row">
                 <h2 :id="tiles.length > 0 ? 'h6-brands' : 'h6-heading'" class="h2">Nach Marke</h2>
-                <ul class="brands" aria-label="Felgen nach Marke">
-                    <li v-for="brand in brands" :key="brand.slug" class="brands__item">
-                        <Link :href="brand.href" class="brand-cell" :aria-label="brand.logo ? `${brand.name}: ${felgen(brand.count)}` : undefined" prefetch>
-                            <span v-if="brand.logo" class="brand-mark" :style="{ maskImage: `url(${brand.logo})`, WebkitMaskImage: `url(${brand.logo})` }" />
-                            <span v-else class="h4 brand-cell__name">{{ brand.name }}</span>
-                            <span class="micro quiet num brand-cell__count">{{ felgen(brand.count) }}</span>
-                        </Link>
-                    </li>
-                    <!-- Empty cells close the hairline grid's last row. -->
-                    <li v-for="n in padding" :key="`pad-${n}`" class="brands__item brands__item--empty" aria-hidden="true" />
-                </ul>
+                <BrandWall :brands="brands" :vehicle="vehicle" />
             </div>
         </div>
     </section>
@@ -155,83 +143,6 @@ a.size-tile:active .size-tile__number {
     .size-tile {
         min-height: 128px;
         padding: var(--sp-20) var(--sp-16);
-    }
-}
-
-/* ── Brands: a hairline grid, the cells the band's own colour ──────────────── */
-
-.brands {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: var(--sp-24);
-    border-top: 1px solid var(--c-line);
-    border-left: 1px solid var(--c-line);
-}
-
-.brands__item {
-    min-width: 0;
-}
-
-.brand-cell {
-    display: grid;
-    place-items: center;
-    min-height: 96px;
-    padding: var(--sp-12);
-    border-right: 1px solid var(--c-line);
-    border-bottom: 1px solid var(--c-line);
-    background: var(--c-band);
-    color: var(--c-ink-2);
-    text-decoration: none;
-    text-align: center;
-}
-
-.brand-cell__name {
-    overflow-wrap: anywhere;
-    transition: color var(--d-1) var(--ease-std);
-}
-
-.brand-cell__count {
-    margin-top: var(--sp-4);
-}
-
-/* An empty cell keeps the hairlines and the band, so the grid's last row closes. */
-.brands__item--empty {
-    min-height: 96px;
-    border-right: 1px solid var(--c-line);
-    border-bottom: 1px solid var(--c-line);
-    background: var(--c-band);
-}
-
-.brand-mark {
-    width: 120px;
-    max-width: 100%;
-    height: 32px;
-    background-color: var(--c-ink-2);
-    mask-position: center;
-    mask-size: contain;
-    mask-repeat: no-repeat;
-    transition: background-color var(--d-1) var(--ease-std);
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .brand-cell:hover .brand-cell__name {
-        color: var(--c-ink);
-    }
-
-    .brand-cell:hover .brand-mark {
-        background-color: var(--c-ink);
-    }
-}
-
-@media (min-width: 768px) {
-    .brands {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
-@media (min-width: 1024px) {
-    .brands {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 }
 </style>

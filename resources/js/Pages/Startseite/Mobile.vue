@@ -13,6 +13,7 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
+import BrandWall from '../../Components/Home/BrandWall.vue'
 import RimCode from '../../Components/Home/RimCode.vue'
 import { rimFactsOf } from '../../Components/Home/rimCode'
 import GutachtenStory from '../../Components/Mobile/Home/GutachtenStory.vue'
@@ -122,21 +123,11 @@ const sizes = computed(() =>
             }
         })
 )
+
 /*
- * The seeded sample range sits in the grid under the brand name `Demo`. It stays in the grid (the
- * wheels are real rows of the listing) and says what it is — never dressed up as a manufacturer.
+ * The brands are the shared brand wall (BrandWall, home-brands.md), the same component as on the
+ * desktop document: the sample range labelled and last, the wall closed by its own link cell.
  */
-const isSampleRange = (brand: StartseiteProps['brands'][number]): boolean => brand.slug === 'demo'
-
-const brandRows = computed(() => {
-    const cells: (StartseiteProps['brands'][number] | null)[] = [...props.brands]
-
-    while (cells.length % 3 !== 0) {
-        cells.push(null)
-    }
-
-    return cells
-})
 
 /* ── H7 ─────────────────────────────────────────────────────────────────────── */
 
@@ -338,20 +329,9 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
             </li>
         </Shelf>
 
-        <div v-if="brands.length" class="container home-brands">
+        <div v-if="brands.length" class="container home-brands" :class="{ 'home-brands--after-sizes': sizes.length > 0 }">
             <h2 v-if="sizes.length" class="h2 home-h2">Nach Marke</h2>
-            <ul class="brand-grid" aria-label="Felgenmarken">
-                <li v-for="(brand, i) in brandRows" :key="brand ? brand.slug : `empty-${i}`" class="brand-grid__cell">
-                    <!-- Named by content, "BORBET 1 Felge": the logo's brand from a hidden span, so the visible count is part of the name. -->
-                    <Link v-if="brand" :href="brand.href" class="brand-grid__link m-press">
-                        <span v-if="brand.logo" class="brand-mark" :style="{ maskImage: `url(${brand.logo})` }" aria-hidden="true" />
-                        <span v-if="brand.logo" class="visually-hidden">{{ brand.name }}</span>
-                        <span v-else class="h4 brand-grid__name">{{ brand.name }}</span>
-                        <span v-if="isSampleRange(brand)" class="micro quiet" data-sample-range>Beispielsortiment</span>
-                        <span class="micro quiet num">{{ felgen(brand.count) }}</span>
-                    </Link>
-                </li>
-            </ul>
+            <BrandWall :brands="brands" :vehicle="vehicle" flush />
         </div>
     </section>
 
@@ -586,54 +566,10 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     color: var(--c-ink-3);
 }
 
-.home-brands {
+/* Space after the size shelf only; without sizes the section heading *is* "Nach Marke" and its own
+   margin is the gap to the wall (home-brands.md §2.1). */
+.home-brands--after-sizes {
     margin-top: var(--sp-40);
-}
-
-.brand-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1px;
-    background: var(--c-line);
-}
-
-.brand-grid__cell {
-    display: grid;
-    min-height: 96px;
-    background: var(--c-band);
-}
-
-.brand-grid__link {
-    display: grid;
-    place-items: center;
-    gap: var(--sp-4);
-    padding: var(--sp-12);
-    color: var(--c-ink-2);
-    text-decoration: none;
-    text-align: center;
-}
-
-.brand-grid__name {
-    overflow-wrap: anywhere;
-}
-
-.brand-mark {
-    width: 96px;
-    height: 32px;
-    background-color: var(--c-ink-2);
-    mask-position: center;
-    mask-size: contain;
-    mask-repeat: no-repeat;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .brand-grid__link:hover {
-        color: var(--c-ink);
-    }
-
-    .brand-grid__link:hover .brand-mark {
-        background-color: var(--c-ink);
-    }
 }
 
 /* ── H7 ─────────────────────────────────────────────────────────────────────── */
