@@ -222,7 +222,7 @@ test.describe('Startseite/Mobile', () => {
         const tiles = await page.locator('#h5 .tile').count()
         expect(tiles).toBeGreaterThan(0)
         expect(await page.locator('#h5 .tile .verdict').count()).toBe(tiles)
-        await expect(page.locator('#h5 h2')).toContainText('Beliebt für deinen BMW')
+        await expect(page.locator('#h5 h2')).toContainText('Passend für deinen BMW')
     })
 
     test('size shelf and brand grid lead into the listing', async ({ page }) => {

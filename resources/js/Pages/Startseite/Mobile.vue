@@ -67,7 +67,10 @@ const promiseIcon = (name: string): IconName => (isIconName(name) ? name : 'chec
 
 /* ── H5 ─────────────────────────────────────────────────────────────────────── */
 
-const popularTitle = computed(() => (vehicle.value ? `Beliebt für deinen ${vehicle.value.short}` : props.popular.title ?? 'Beliebte Felgen'))
+// Coverage is a count of approvals, not of sales: no "Beliebt" without data behind it (D7).
+const popularTitle = computed(() =>
+    vehicle.value ? `Passend für deinen ${vehicle.value.short}` : (props.popular.title ?? 'Felgen mit den meisten Freigaben')
+)
 const popularLoading = ref(false)
 const popularFailed = ref(false)
 
@@ -276,7 +279,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
         </div>
 
         <div :aria-busy="popularLoading ? 'true' : undefined">
-            <Shelf v-if="popularLoading && popular.cards.length === 0" bare hide-head title="Beliebte Felgen" width="62vw" list-label="Felgen werden geladen">
+            <Shelf v-if="popularLoading && popular.cards.length === 0" bare hide-head :title="popularTitle" width="62vw" list-label="Felgen werden geladen">
                 <li v-for="n in 4" :key="n"><ProductTileSkeleton /></li>
             </Shelf>
 
@@ -288,7 +291,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 
             <div v-else class="container empty">
                 <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                <p class="empty__text">Schau bei Beliebt oder Neu, oder sieh dir alle Felgen an.</p>
+                <p class="empty__text">Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
             </div>
         </div>
 

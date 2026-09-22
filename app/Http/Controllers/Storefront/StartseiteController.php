@@ -37,12 +37,20 @@ use Inertia\Response;
  */
 class StartseiteController extends Controller
 {
-    /** The three tabs of the popular row, each a real query. */
-    /* `withImageOnly`: the shop window shows photographed finishes while the demo set is incomplete. */
+    /**
+     * The three tabs of the row, each a real query. The first orders by coverage — the number of
+     * approvals (fitment rows) a model has — so it is labelled for what it counts: there is no
+     * sales or view data behind a "Beliebt". The `beliebt` query key stays, because links carry it.
+     */
+    /*
+     * Every tab shows up to eight wheels, photographed or drawn: the catalogue orders photographed
+     * finishes first. (It once showed photographed finishes only; with one photographed model left
+     * that made a row of one tile, and nothing to compare.)
+     */
     private const TABS = [
-        'beliebt' => ['label' => 'Beliebt', 'options' => ['order' => 'coverage', 'withImageOnly' => true]],
-        'neu' => ['label' => 'Neu', 'options' => ['order' => 'newest', 'withImageOnly' => true]],
-        'bis200' => ['label' => 'Bis 200 €', 'options' => ['order' => 'price', 'maxPriceCents' => 20_000, 'withImageOnly' => true]],
+        'beliebt' => ['label' => 'Meiste Freigaben', 'options' => ['order' => 'coverage']],
+        'neu' => ['label' => 'Neu', 'options' => ['order' => 'newest']],
+        'bis200' => ['label' => 'Bis 200 €', 'options' => ['order' => 'price', 'maxPriceCents' => 20_000]],
     ];
 
     public function __construct(
@@ -326,16 +334,10 @@ class StartseiteController extends Controller
             ];
         }
 
-        // The shop window prefers photographed finishes — but only where any exist: a catalogue
-        // whose cut-outs have not been rendered yet still gets its eight tiles, drawn.
         $options = self::TABS[$tab]['options'];
 
-        if (! DB::table('wheel_finishes')->whereNotNull('image_manifest')->exists()) {
-            unset($options['withImageOnly']);
-        }
-
         return [
-            'title' => 'Beliebte Felgen',
+            'title' => 'Felgen mit den meisten Freigaben',
             'tabs' => $tabs,
             'active' => $tab,
             'cards' => $this->cards->catalogue(limit: 8, options: $options),
@@ -443,7 +445,8 @@ class StartseiteController extends Controller
 
     /**
      * The tyre whose EU label the Kompletträder band shows: the first in-stock tyre carrying a
-     * complete label. No label data, no label — never a drawn one.
+     * complete label that is verified against its EPREL entry. No verified label data, no label —
+     * never a drawn one, and never values typed in from memory (ACCURACY.md D7).
      *
      * @return array<string, mixed>|null
      */
@@ -453,6 +456,8 @@ class StartseiteController extends Controller
             ->join('brands as br', 'br.id', '=', 't.brand_id')
             ->whereNull('t.deleted_at')
             ->where('t.stock_qty', '>', 0)
+            ->whereNotNull('t.eprel_id')
+            ->where('t.eprel_id', '<>', '')
             ->whereNotNull('t.eu_fuel_class')
             ->whereNotNull('t.eu_wet_grip_class')
             ->whereNotNull('t.eu_noise_db')

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * H5 · Beliebte Felgen, and H5b · Zuletzt angesehen.
+ * H5 · Felgen mit den meisten Freigaben, and H5b · Zuletzt angesehen.
  *
  * Eight real wheels from the catalogue in one of three real orders; with a vehicle chosen the
  * heading names the car, every tile carries its verdict, and the button carries the count. The
- * tabs are the server's: they render whenever it sends them, with a vehicle or without (spec H5
- * keeps *Beliebt · Neu · Bis 200 €* in both states); an empty list renders the row alone.
+ * tabs are the server's: they render whenever it sends them, with a vehicle or without (*Meiste
+ * Freigaben · Neu · Bis 200 €* in both states); an empty list renders the row alone. Nothing says
+ * "beliebt": there is no sales or view data behind such a claim (ACCURACY.md D7).
  * Changing a tab is a partial reload of `popular` only: the page keeps its scroll position and its
  * state, the grid shows skeletons while the request runs, and a failed request says so above the
  * last tiles that loaded rather than in place of them.
@@ -47,7 +48,7 @@ const title = computed(() => {
         return props.popular.title
     }
 
-    return props.vehicle === null ? 'Beliebte Felgen' : `Beliebt für deinen ${props.vehicle.short}`
+    return props.vehicle === null ? 'Felgen mit den meisten Freigaben' : `Passend für deinen ${props.vehicle.short}`
 })
 
 /* The button says what happens: the count when the listing has one, never a vague "mehr". */
@@ -141,7 +142,7 @@ function keyOf(card: ProductCardProp): string {
                     </div>
                     <div v-else class="empty">
                         <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                        <p class="empty__text">Schau bei Beliebt oder Neu, oder sieh dir alle Felgen an.</p>
+                        <p class="empty__text">Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
                     </div>
                 </TabsContent>
             </TabsRoot>
@@ -153,7 +154,7 @@ function keyOf(card: ProductCardProp): string {
                 </div>
                 <div v-else class="empty">
                     <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                    <p class="empty__text">Schau bei Beliebt oder Neu, oder sieh dir alle Felgen an.</p>
+                    <p class="empty__text">Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
                 </div>
             </template>
 

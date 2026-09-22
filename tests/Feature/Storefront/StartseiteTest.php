@@ -98,7 +98,7 @@ it('shows the admin-chosen hero product', function (): void {
 
 it('offers three real orders of the catalogue and never a bestseller claim', function (): void {
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('popular.title', 'Beliebte Felgen')
+        ->where('popular.title', 'Felgen mit den meisten Freigaben')
         ->has('popular.tabs', 3)
         ->where('popular.active', 'beliebt')
         ->where('popular.total', null)
