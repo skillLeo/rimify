@@ -96,7 +96,7 @@ onBeforeUnmount(() => {
                     </template>
                     <template v-else>{{ cards.length }} Felgen im Sortiment</template>
                 </p>
-                <p v-if="demo" class="micro quiet">Beispielsortiment mit Fotos unter freier Lizenz – die Felgen sind nicht bestellbar.</p>
+                <p v-if="demo" class="micro quiet">Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->

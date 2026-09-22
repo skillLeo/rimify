@@ -318,7 +318,7 @@ onBeforeUnmount(() => {
                     <span class="small num muted">{{ count }} von {{ cap }} Felgen</span>
                     <Link href="/felgen" class="link small" prefetch>Weitere Felgen hinzufügen</Link>
                 </div>
-                <p v-if="demo" class="micro quiet">Beispielsortiment mit Fotos unter freier Lizenz. Preise und Bestände sind Beispielwerte.</p>
+                <p v-if="demo" class="micro quiet">Beispielsortiment – Preise und Bestände sind Beispielwerte.</p>
             </div>
 
             <label v-if="count > 0" class="check compare-head__toggle">

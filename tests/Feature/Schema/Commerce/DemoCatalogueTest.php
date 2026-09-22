@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Brand;
+use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
@@ -11,9 +12,10 @@ use Database\Seeders\CatalogueSeeder;
 use Tests\Support\DemoWheelFixtures;
 
 /*
- * The demo catalogue: real ranges with plausible specifications, every row flagged as a
- * demonstration, and a photograph per finish only where one has actually been rendered. Missing
- * imagery fails closed to NULL — a finish never borrows another finish's picture.
+ * The demo catalogue: neutral demonstration wheels with plausible specifications, the one real
+ * product (the MOTEC MCR4 Ultimate) only with the values its own documents verify, every row
+ * flagged as a demonstration, and a photograph per finish only where one has actually been
+ * rendered. Missing imagery fails closed to NULL — a finish never borrows another finish's picture.
  */
 
 beforeEach(function (): void {
@@ -53,26 +55,120 @@ it('seeds sixteen to twenty-four published demo models with plausible specificat
     }
 });
 
-it('names the ranges the brief asks for, in one spelling per brand', function (): void {
+it('names only the photographed product for real and every other wheel neutrally, under Demo', function (): void {
     $this->seed(CatalogueSeeder::class);
 
-    $slugs = WheelModel::query()->pluck('slug')->all();
+    $models = WheelModel::query()->with('brand')->orderBy('id')->get();
 
-    foreach ([
-        'bbs-ci-r', 'bbs-sr', 'oz-racing-ultraleggera', 'oz-racing-superturismo-gt', 'borbet-havanna',
-        'borbet-lv5', 'alutec-monstr', 'alutec-grip', 'rotiform-kps', 'rotiform-blq', 'brock-b32',
-        'brock-b40', 'mam-a5', 'mam-rs4', 'dezent-tz', 'dezent-tn', 'aez-leipzig', 'motec-mcr4-ultimate',
-    ] as $slug) {
-        expect($slugs)->toContain($slug);
+    expect($models->pluck('slug')->all())->toContain('motec-mcr4-ultimate', 'demo-fuenfspeiche-f-01', 'demo-zehnspeiche-z-02');
+
+    foreach ($models as $position => $model) {
+        if ($model->slug === 'motec-mcr4-ultimate') {
+            expect($model->brand->name)->toBe('MOTEC')
+                ->and($model->name)->toBe('MCR4 Ultimate');
+
+            continue;
+        }
+
+        // Named for its spoke pattern and numbered in model order: "Fünfspeiche F-01".
+        $number = sprintf('%02d', $position + 1);
+        $pattern = match ($model->spoke_count) {
+            5 => 'Fünfspeiche F-',
+            7 => 'Siebenspeiche S-',
+            10 => 'Zehnspeiche Z-',
+            20 => 'Vielspeiche V-',
+        };
+
+        expect($model->brand->name)->toBe('Demo')
+            ->and($model->name)->toBe($pattern.$number)
+            ->and($model->slug)->toBe(CatalogueSeeder::slugFor('Demo', $pattern.$number))
+            ->and($model->slug)->toMatch('/^demo-(fuenf|sieben|zehn|viel)speiche-[fszv]-\d{2}$/');
     }
 
-    $brands = Brand::query()->pluck('name')->all();
+    // The live brands: the two the wheels carry and the three whose tyres have a verified label.
+    $brands = Brand::query()->orderBy('sort_order')->pluck('name')->all();
 
-    expect($brands)->toContain('BBS', 'OZ Racing', 'BORBET', 'ALUTEC', 'Rotiform', 'Brock', 'MAM', 'Dezent', 'AEZ', 'MOTEC');
+    expect($brands)->toBe(['MOTEC', 'Demo', 'Bridgestone', 'Continental', 'Michelin']);
 
     // Never the same brand twice under two spellings.
     $lower = array_map(static fn (string $n): string => mb_strtolower($n), $brands);
     expect(count($lower))->toBe(count(array_unique($lower)));
+});
+
+it('claims no type designation, no rating and no KBA number for a demo wheel', function (): void {
+    $this->seed(CatalogueSeeder::class);
+
+    foreach (WheelModel::query()->with('configs')->get() as $model) {
+        expect($model->type_designation)->toBeNull()
+            ->and($model->rating)->toBeNull()
+            ->and($model->rating_count)->toBe(0);
+
+        if ($model->slug !== 'motec-mcr4-ultimate') {
+            foreach ($model->configs as $config) {
+                expect($config->kba_number)->toBeNull()
+                    ->and($config->max_load_kg)->toBeNull();
+            }
+        }
+    }
+});
+
+it('seeds the MCR4 Ultimate only in the Light Grey D5 sizes its ABEs cover, with their own numbers', function (): void {
+    $this->seed(CatalogueSeeder::class);
+
+    $model = WheelModel::query()->where('slug', 'motec-mcr4-ultimate')->with(['finishes', 'configs'])->firstOrFail();
+
+    expect($model->finishes->pluck('name_de')->all())->toBe(['Light Grey D5']);
+
+    // docs/reviews/accuracy-research-motec.md §2.3: size, ET, Lochkreis, bore, KBA, Radlast, weight.
+    $expected = [
+        '8.0x18.0 ET45 5x112.0' => [66.6, '53811', 620, 7_800],
+        '8.5x19.0 ET45 5x112.0' => [66.6, '53810', 620, 8_600],
+        '8.0x18.0 ET45 5x108.0' => [72.6, '53811', 620, 7_800],
+        '8.0x18.0 ET50 5x114.3' => [72.6, '53811', 620, 7_700],
+        '8.0x19.0 ET48 5x112.0' => [66.6, '53809', 620, 8_300],
+        '8.5x19.0 ET30 5x112.0' => [66.6, '53810', 620, 8_800],
+        '8.5x19.0 ET45 5x114.3' => [72.6, '53810', 620, 8_700],
+        '8.5x19.0 ET35 5x120.0' => [72.6, '53810', 640, 9_100],
+        '9.5x19.0 ET20 5x112.0' => [66.6, '55070', 690, 10_400],
+        '8.5x20.0 ET35 5x120.0' => [72.6, '54949', 730, null],
+        '9.5x20.0 ET37 5x114.3' => [72.6, '54950', 760, 10_600],
+    ];
+
+    $actual = [];
+
+    foreach ($model->configs as $config) {
+        $key = sprintf('%.1fx%.1f ET%d %dx%.1f', $config->width_in, $config->diameter_in, $config->et_mm, $config->bolt_holes, $config->bolt_circle_mm);
+        $actual[$key] = [(float) $config->centre_bore_mm, $config->kba_number, $config->max_load_kg, $config->weight_g];
+    }
+
+    ksort($expected);
+    ksort($actual);
+
+    expect($actual)->toBe($expected);
+});
+
+it('labels each tyre only with the values its verified EPREL entry gives', function (): void {
+    $this->seed(CatalogueSeeder::class);
+
+    // docs/reviews/accuracy-research-guides-tyres.md, "Corrected seed rows".
+    $expected = [
+        'Potenza Sport' => [245, 45, 18.0, 100, 'Y', 'C', 'A', 72, 'B', '2402971'],
+        'PremiumContact 7' => [245, 45, 18.0, 96, 'Y', 'C', 'A', 71, 'B', '834095'],
+        'Pilot Sport 5' => [245, 45, 18.0, 100, 'Y', 'C', 'A', 72, 'B', '909785'],
+        'Blizzak LM005' => [245, 45, 18.0, 100, 'V', 'C', 'A', 72, 'B', '381960'],
+        'AllSeasonContact 2' => [255, 40, 19.0, 100, 'Y', 'B', 'B', 72, 'B', '1226698'],
+        'Pilot Sport 4 S' => [255, 40, 19.0, 100, 'Y', 'D', 'B', 71, 'B', '409928'],
+    ];
+
+    $actual = TyreVariant::query()->get()->mapWithKeys(fn (TyreVariant $t): array => [$t->name => [
+        (int) $t->width_mm, (int) $t->aspect, (float) $t->diameter_in, (int) $t->load_index, $t->speed_symbol,
+        $t->eu_fuel_class, $t->eu_wet_grip_class, $t->eu_noise_db === null ? null : (int) $t->eu_noise_db, $t->eu_noise_class, $t->eprel_id,
+    ]])->all();
+
+    expect($actual)->toEqual($expected);
+
+    // A label never travels without its register entry.
+    expect(TyreVariant::query()->whereNull('eprel_id')->whereNotNull('eu_fuel_class')->exists())->toBeFalse();
 });
 
 it('maps every photograph to one existing finish and never one photograph to two models', function (): void {
@@ -80,8 +176,10 @@ it('maps every photograph to one existing finish and never one photograph to two
 
     $photos = DemoWheels::photos();
 
-    expect(count($photos))->toBeGreaterThanOrEqual(16)
-        ->and(count($photos))->toBeLessThanOrEqual(24);
+    // Only the client's own studio shots of the MCR4 remain; every free-licence photograph showed
+    // another maker's wheel on a car and is retired (docs/phase0/ACCURACY.md D1).
+    expect($photos)->toHaveCount(3)
+        ->and(array_unique(array_column($photos, 'model')))->toBe(['motec-mcr4-ultimate']);
 
     $slugs = [];
 
@@ -187,10 +285,70 @@ it('shows a further angle only beside its front view, never alone', function ():
 
     $finish = WheelFinish::query()
         ->whereHas('wheelModel', fn ($q) => $q->where('slug', 'motec-mcr4-ultimate'))
-        ->where('name_de', 'Light Grey')
+        ->where('name_de', 'Light Grey D5')
         ->firstOrFail();
 
     expect($finish->image_manifest)->toBeNull();
+});
+
+it('measures the front shot for the hero and keeps its anchors and stamp through the seed', function (): void {
+    $front = DemoWheels::photos()['client-motec-mcr4-ultimate-front.jpg'];
+
+    // docs/phase0/ACCURACY.md §3, in source pixels on the 1080 × 1080 front shot.
+    expect($front['anchors'])->toBe([
+        'centre' => [539, 534],
+        'pcd' => [539, 534, 108],
+        'bore' => [540, 537, 70],
+        'valve' => [537, 972],
+        'kba' => [540, 1013, 88, 18],
+    ])->and($front['stamp'])->toBe('53810')
+        ->and($front['anchors'])->not->toHaveKey('wheel');
+
+    $anchors = ['centre' => ['x' => 0.4992, 'y' => 0.4681], 'wheel' => ['x' => 0.5, 'y' => 0.4708, 'r' => 0.4086]];
+    $manifest = DemoWheelFixtures::manifest($front['slug']) + ['anchors' => $anchors, 'stamp' => '53810'];
+    $manifest['bare'] = DemoWheelFixtures::manifest($front['slug'].'-bare');
+    unset($manifest['bare']['wide']);
+    $manifest['wide']['anchors'] = $anchors;
+
+    File::ensureDirectoryExists($this->dir.'/'.$front['slug']);
+    File::put($this->dir.'/'.$front['slug'].'/manifest.json', (string) json_encode($manifest));
+
+    $this->seed(CatalogueSeeder::class);
+
+    $stored = WheelFinish::query()->whereHas('wheelModel', fn ($q) => $q->where('slug', 'motec-mcr4-ultimate'))->firstOrFail()->image_manifest;
+
+    // A JSON column keeps the values, not the key order.
+    expect($stored['anchors'])->toEqual($anchors)
+        ->and($stored['stamp'])->toBe('53810')
+        ->and($stored['bare']['name'])->toBe($front['slug'].'-bare')
+        ->and($stored['wide']['anchors'])->toEqual($anchors);
+});
+
+it('drops malformed anchors, a malformed bare frame and a malformed stamp, and keeps the picture', function (): void {
+    $slug = DemoWheels::photos()['client-motec-mcr4-ultimate-front.jpg']['slug'];
+
+    $manifest = DemoWheelFixtures::manifest($slug) + [
+        // A point outside the frame, and no centre.
+        'anchors' => ['pcd' => ['x' => 1.4, 'y' => 0.5, 'r' => 0.1]],
+        'bare' => ['name' => 'x'],
+        'stamp' => 'KBA 53810',
+    ];
+    $manifest['wide']['anchors'] = ['centre' => ['x' => 0.5]];
+
+    File::ensureDirectoryExists($this->dir.'/'.$slug);
+    File::put($this->dir.'/'.$slug.'/manifest.json', (string) json_encode($manifest));
+
+    $read = DemoWheels::manifest($slug);
+
+    expect($read)->not->toBeNull()
+        ->and($read)->not->toHaveKeys(['anchors', 'bare', 'stamp'])
+        ->and($read['wide'])->not->toHaveKey('anchors')
+        ->and($read['name'])->toBe($slug);
+
+    expect(DemoWheels::anchorsWellFormed(['centre' => ['x' => 0.5, 'y' => 0.5], 'kba' => ['x' => 0.5, 'y' => 0.9, 'w' => 0.07, 'h' => 0.01]]))->toBeTrue()
+        ->and(DemoWheels::anchorsWellFormed(['centre' => ['x' => 0.5, 'y' => 0.5], 'valve' => ['x' => 0.5, 'y' => 0.5, 'r' => 0.1]]))->toBeFalse()
+        ->and(DemoWheels::anchorsWellFormed(['centre' => ['x' => 0.5, 'y' => 0.5], 'bore' => ['x' => 0.5, 'y' => 0.5, 'r' => 0]]))->toBeFalse()
+        ->and(DemoWheels::anchorsWellFormed(['centre' => ['x' => '0.5', 'y' => 0.5]]))->toBeFalse();
 });
 
 it('leaves a finish whose cut-out has not been rendered at null', function (): void {
@@ -225,8 +383,11 @@ it('is safe to run twice and keeps the first twelve models where the fitment see
     $first = WheelModel::query()->orderBy('id')->limit(12)->pluck('slug')->all();
 
     expect($first)->toBe([
-        'borbet-havanna', 'borbet-lv5', 'oz-racing-superturismo-gt', 'oz-racing-ultraleggera',
-        'alutec-monstr', 'alutec-grip', 'bbs-ci-r', 'bbs-sr', 'yido-performance-1',
-        'yido-performance-2', 'rotiform-kps', 'rotiform-blq',
+        'demo-fuenfspeiche-f-01', 'demo-zehnspeiche-z-02', 'demo-zehnspeiche-z-03', 'demo-siebenspeiche-s-04',
+        'demo-fuenfspeiche-f-05', 'demo-fuenfspeiche-f-06', 'demo-zehnspeiche-z-07', 'demo-zehnspeiche-z-08',
+        'demo-vielspeiche-v-09', 'demo-vielspeiche-v-10', 'demo-fuenfspeiche-f-11', 'demo-siebenspeiche-s-12',
     ]);
+
+    // Their SKUs run in sequence from the first, as they always have.
+    expect(WheelConfig::query()->orderBy('id')->limit(3)->pluck('sku')->all())->toBe(['RMF-000001', 'RMF-000002', 'RMF-000003']);
 });

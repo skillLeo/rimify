@@ -122,7 +122,8 @@ it('keeps the order asked for and ignores a repeated pair', function (): void {
 });
 
 it('carries the four-state verdict and the decided action per column with a vehicle', function (): void {
-    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+    // The BMW 330i G20 (5 × 112), a car the demo documents cover well.
+    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
     $cookies = vergleichCookie($vehicle->id);
 
     // The listing with a vehicle shows only wheels a document permits on it.

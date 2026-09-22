@@ -65,6 +65,8 @@ final class DemoWheels
      *     view?: string,
      *     hub: array{0: int, 1: int, 2: int}|null,
      *     colour?: string,
+     *     anchors?: array<string, list<int>>,
+     *     stamp?: string,
      *     credit: array{source: string, photographer: string, licence: string, url: string}
      * }>
      */
@@ -99,7 +101,100 @@ final class DemoWheels
         $raw = file_get_contents($file);
         $decoded = is_string($raw) ? json_decode($raw, true) : null;
 
-        return self::wellFormed($decoded) ? $decoded : null;
+        return self::wellFormed($decoded) ? self::withoutMalformedExtras($decoded) : null;
+    }
+
+    /**
+     * The optional parts of the manifest contract (docs/phase0/ACCURACY.md §4) — `anchors`, `bare`,
+     * `stamp`, and the 4:3 frame's own `anchors` — kept only when they are well-formed and dropped
+     * otherwise. A page without anchors draws no photo highlight; a page with wrong ones would point
+     * a leader at the wrong part of the wheel.
+     *
+     * @param  array<string, mixed>  $manifest
+     * @return array<string, mixed>
+     */
+    public static function withoutMalformedExtras(array $manifest): array
+    {
+        if (array_key_exists('anchors', $manifest) && ! self::anchorsWellFormed($manifest['anchors'])) {
+            unset($manifest['anchors']);
+        }
+
+        if (array_key_exists('bare', $manifest)) {
+            $bare = $manifest['bare'];
+
+            if (self::wellFormed($bare)) {
+                $manifest['bare'] = self::withoutMalformedExtras($bare);
+            } else {
+                unset($manifest['bare']);
+            }
+        }
+
+        if (array_key_exists('stamp', $manifest) && (! is_string($manifest['stamp']) || preg_match('/^\d{5,6}$/', $manifest['stamp']) !== 1)) {
+            unset($manifest['stamp']);
+        }
+
+        if (isset($manifest['wide']) && is_array($manifest['wide'])) {
+            $wide = $manifest['wide'];
+
+            if (array_key_exists('anchors', $wide) && ! self::anchorsWellFormed($wide['anchors'])) {
+                unset($wide['anchors']);
+            }
+
+            $manifest['wide'] = $wide;
+        }
+
+        return $manifest;
+    }
+
+    /**
+     * Whether a value is a `WheelAnchors`: a `centre` {x, y}, and optionally `wheel`, `pcd` and
+     * `bore` {x, y, r}, `valve` {x, y} and `kba` {x, y, w, h} — every number a fraction of the
+     * frame, a point inside it, and nothing else.
+     */
+    public static function anchorsWellFormed(mixed $anchors): bool
+    {
+        if (! is_array($anchors) || ! isset($anchors['centre'])) {
+            return false;
+        }
+
+        $shapes = [
+            'centre' => ['x', 'y'],
+            'wheel' => ['x', 'y', 'r'],
+            'pcd' => ['x', 'y', 'r'],
+            'bore' => ['x', 'y', 'r'],
+            'valve' => ['x', 'y'],
+            'kba' => ['x', 'y', 'w', 'h'],
+        ];
+
+        foreach ($anchors as $name => $point) {
+            if (! is_string($name) || ! isset($shapes[$name]) || ! is_array($point)) {
+                return false;
+            }
+
+            $keys = array_keys($point);
+            $expected = $shapes[$name];
+            sort($keys);
+            sort($expected);
+
+            if ($keys !== $expected) {
+                return false;
+            }
+
+            foreach ($point as $axis => $value) {
+                if (! is_int($value) && ! is_float($value)) {
+                    return false;
+                }
+
+                // A point lies inside the frame; a radius or a size is positive and at most the frame.
+                $inside = in_array($axis, ['x', 'y'], true) ? $value >= 0 && $value <= 1 : $value > 0 && $value <= 1;
+
+                if (! $inside) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /**

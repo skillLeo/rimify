@@ -54,7 +54,7 @@ final class VehicleFixtures
     public static function needsReview(): VehicleRecord
     {
         return new VehicleRecord(
-            id: 8, hsn: '0035', tsn: 'AKJ', vsn: '00008',
+            id: 8, hsn: '1313', tsn: 'AKJ', vsn: '00008',
             make: 'Mercedes-Benz', model: 'C-Klasse', variant: 'C 43 AMG', typeDesignation: 'W205',
             buildWindow: new BuildWindow(new DateTimeImmutable('2016-06-01'), null),
             axleLoadFrontKg: null, axleLoadRearKg: null, maxSpeedKmh: null,

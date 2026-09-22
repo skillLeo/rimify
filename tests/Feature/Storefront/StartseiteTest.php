@@ -122,7 +122,8 @@ it('lists seven size tiles and only brands with stock', function (): void {
 });
 
 it('answers for the chosen vehicle in the first paint', function (): void {
-    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+    // The BMW 330i G20 (5 × 112), a car the demo documents cover well.
+    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
 
     $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($vehicle->id, true))->encode()])
         ->get('/')

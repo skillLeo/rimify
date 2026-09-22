@@ -62,7 +62,8 @@ it('emits the same image field on the vehicle path', function (): void {
 
     $this->seed(ApprovalSeeder::class);
 
-    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+    // The BMW 330i G20 (5 × 112): the photographed MCR4 is among its permitted wheels.
+    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
     $result = app(ProductCards::class)->forVehicle($vehicle->id, [], 100, 1);
 
     expect($result['total'])->toBeGreaterThan(0);

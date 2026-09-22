@@ -13,7 +13,8 @@ beforeEach(function (): void {
 });
 
 it('counts the wheels a document permits on a vehicle', function (): void {
-    $vehicleId = (int) $this->getJson('/api/v1/fitment/count?hsn=0005&tsn=582')
+    // The BMW 330i G20 (5 × 112), a car the demo documents cover well.
+    $vehicleId = (int) $this->getJson('/api/v1/fitment/count?hsn=0005&tsn=CKT')
         ->assertOk()
         ->json('vehicle.id');
 
@@ -42,7 +43,7 @@ it('answers zero for key numbers nobody has', function (): void {
 });
 
 it('accepts pasted key numbers with spaces and lower case', function (): void {
-    $this->getJson('/api/v1/fitment/count?hsn=%200005%20&tsn=%20582')
+    $this->getJson('/api/v1/fitment/count?hsn=%200005%20&tsn=%20ckt')
         ->assertOk()
         ->assertJsonPath('vehicle.short', 'BMW 3er');
 });

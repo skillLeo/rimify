@@ -64,6 +64,20 @@ it('keeps leading zeros across the whole seeded tree', function (): void {
     }
 });
 
+it('gives every car its own maker\'s HSN and its real generation', function (): void {
+    // 0035 is Opel's and 1313 Mercedes-Benz's; they were once seeded the wrong way round.
+    expect(Vehicle::where('make', 'Opel')->where('model', 'Astra')->value('hsn'))->toBe('0035')
+        ->and(Vehicle::where('variant', 'C 43 AMG')->value('hsn'))->toBe('1313')
+        ->and(Vehicle::where('make', 'Mercedes-Benz')->pluck('hsn')->unique()->values()->all())->toBe(['1313'])
+        ->and(Vehicle::where('hsn', '0035')->pluck('make')->unique()->values()->all())->toBe(['Opel']);
+
+    // The 4,2-litre RS 4 of 2005–2008 is the B7, with a 4.2 FSI.
+    $rs4 = Vehicle::where('hsn', '7967')->where('tsn', 'AAE')->firstOrFail();
+
+    expect($rs4->type_designation)->toBe('B7')
+        ->and($rs4->variant)->toBe('RS4 4.2 FSI Quattro');
+});
+
 it('seeds both a still-built and a discontinued model', function (): void {
     expect(Vehicle::whereNull('build_to')->count())->toBeGreaterThan(0)
         ->and(Vehicle::whereNotNull('build_to')->count())->toBeGreaterThan(0);

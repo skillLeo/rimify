@@ -294,9 +294,10 @@ class VehicleSeeder extends Seeder
             'power_kw' => 279, 'power_ps' => 380, 'displacement_ccm' => 2671, 'doors' => 5, 'seats' => 5,
         ],
         [
+            // The 4.2 RS4 of 2005–2008 is the B7, with the naturally aspirated 4.2 FSI.
             'source_vehicle_id' => 6, 'hsn' => '7967', 'tsn' => 'AAE', 'vsn' => '00006',
-            'make' => 'Audi', 'model' => 'RS 4', 'variant' => 'RS4 4.2 TFSI Quattro',
-            'type_designation' => 'B6', 'eg_nummer_raw' => 'C640*',
+            'make' => 'Audi', 'model' => 'RS 4', 'variant' => 'RS4 4.2 FSI Quattro',
+            'type_designation' => 'B7', 'eg_nummer_raw' => 'C640*',
             'body_form' => 'Limousine', 'drive_axle' => 'Allrad',
             'build_from' => '2005-06-01', 'build_to' => '2008-06-30',
             'axle_load_front_kg' => 1230, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => 280,
@@ -318,7 +319,8 @@ class VehicleSeeder extends Seeder
         // Present on purpose: it must never produce a positive verdict anywhere, and the
         // asymmetry suite and the admin "needs review" queue both need a real example.
         [
-            'source_vehicle_id' => 8, 'hsn' => '0035', 'tsn' => 'AKJ', 'vsn' => '00008',
+            // 1313 is Mercedes-Benz's HSN, as in the fleet below; 0035 is Opel's.
+            'source_vehicle_id' => 8, 'hsn' => '1313', 'tsn' => 'AKJ', 'vsn' => '00008',
             'make' => 'Mercedes-Benz', 'model' => 'C-Klasse', 'variant' => 'C 43 AMG',
             'type_designation' => 'W205', 'eg_nummer_raw' => ' e1**2007/46*0123 ',
             'body_form' => 'Limousine', 'drive_axle' => 'Allrad',
@@ -348,7 +350,7 @@ class VehicleSeeder extends Seeder
             'power_kw' => 331, 'power_ps' => 450, 'displacement_ccm' => 2981, 'doors' => 2, 'seats' => 4,
         ],
         [
-            'source_vehicle_id' => 11, 'hsn' => '1313', 'tsn' => 'CJA', 'vsn' => '00011',
+            'source_vehicle_id' => 11, 'hsn' => '0035', 'tsn' => 'CJA', 'vsn' => '00011',
             'make' => 'Opel', 'model' => 'Astra', 'variant' => 'Astra 1.4 Turbo',
             'type_designation' => 'K', 'eg_nummer_raw' => 'e1*2007/46*0777*02',
             'body_form' => 'Schrägheck', 'drive_axle' => 'Vorderachse',
