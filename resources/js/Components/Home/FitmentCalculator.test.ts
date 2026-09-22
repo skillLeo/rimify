@@ -184,8 +184,36 @@ describe('FitmentCalculator (the form)', () => {
         expect(options(neu.aspect).at(-1)).toBe('85')
         expect(neu.et.getAttribute('min')).toBe('-30')
         expect(neu.et.getAttribute('max')).toBe('70')
-        // The option text carries the unit, German-formatted.
-        expect(neu.width.options[neu.width.selectedIndex]?.text.trim()).toBe('8,5 J')
+        // The option text carries the unit, German-formatted as R-10 writes a rim width.
+        expect(neu.width.options[neu.width.selectedIndex]?.text.trim()).toBe('8,5J')
+    })
+
+    it('keeps the page translator off every control in every layout: the options are figures ("5,5J" is no "5.5 years")', () => {
+        for (const layout of ['row', 'table', 'tabs'] as const) {
+            const wrapper = mountForm({ layout })
+            const controls = wrapper.findAll('select, input[type="number"]')
+
+            expect(controls.length).toBeGreaterThanOrEqual(5)
+
+            for (const c of controls) {
+                expect(c.attributes('translate'), `${layout}: ${c.attributes('id')}`).toBe('no')
+            }
+
+            for (const suffix of wrapper.findAll('.input-group__suffix')) {
+                expect(suffix.attributes('translate')).toBe('no')
+            }
+        }
+    })
+
+    it('keeps the figures of an error message away from the translator', async () => {
+        const wrapper = mountForm()
+        const neu = column(wrapper, 'next')
+
+        change(neu.et, '80')
+        await nextTick()
+
+        const error = wrapper.find(`#${CSS.escape(neu.et.getAttribute('aria-describedby') ?? '')}`)
+        expect(error.findAll('[translate="no"]').map((v) => v.text())).toEqual(['−30', '70 mm'])
     })
 
     it('hands a changed comparison up — and only when every figure is one it offers', async () => {

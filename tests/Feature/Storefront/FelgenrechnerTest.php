@@ -3,16 +3,23 @@
 declare(strict_types=1);
 
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\CatalogueStatus;
+use App\Enums\DocumentStatus;
+use App\Enums\FitmentStatus;
+use App\Models\Fitment;
+use App\Models\FitmentTyreSize;
 use App\Models\Vehicle;
+use App\Services\Storefront\CalculatorPrefill;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 
 /**
- * /felgenrechner (home-overhaul §3.3): one document per device, the vehicle's size as prefill,
- * a shared comparison parsed on the server — and never an error page for a link that does not
- * parse.
+ * /felgenrechner (home-overhaul §3.3, ACCURACY.md §6): one document per device, the smallest size
+ * a visible Gutachten names for the car as prefill, a shared comparison parsed on the server — and
+ * never an error page for a link that does not parse.
  */
 beforeEach(function (): void {
     $this->seed(CommerceSeeder::class);
@@ -43,7 +50,8 @@ it('renders the phone document for a phone', function (): void {
 });
 
 it('prefills Aktuell from the vehicle cookie, with the same size the homepage teaser gets', function (): void {
-    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+    // A car with a visible fitment that names a tyre size — whichever one the demo seed covers.
+    $vehicle = Vehicle::query()->findOrFail(felgenrechnerPrefillVehicle());
     $cookies = [VehicleContext::COOKIE => (new VehicleContext($vehicle->id, true))->encode()];
 
     $prefill = $this->withCookies($cookies)
@@ -114,3 +122,88 @@ it('keeps the header mode of a plain page', function (): void {
     $this->get('/felgenrechner')
         ->assertInertia(fn (AssertableInertia $page) => $page->where('headerMode', 'PLAIN')->where('vehicle', null));
 });
+
+/*
+ * The prefill (finding C3 and the calculator map §1.6): the smallest size that a Gutachten a
+ * customer could be shown names for the car — never a draft, retired, withdrawn, expired or
+ * not-yet-valid row, never a withdrawn wheel. The vehicle is the seeded car with the most visible
+ * fitments that name a tyre size (a fitment without one cannot prefill the calculator), so the
+ * test does not depend on which demo fitments the catalogue seeds.
+ */
+function felgenrechnerPrefillVehicle(): int
+{
+    $id = Fitment::query()
+        ->visibleToCustomers()
+        ->whereHas('tyreSizes')
+        ->select('vehicle_id')
+        ->groupBy('vehicle_id')
+        ->orderByRaw('COUNT(*) DESC')
+        ->orderBy('vehicle_id')
+        ->value('vehicle_id');
+
+    expect($id)->not->toBeNull();
+
+    return (int) $id;
+}
+
+it('prefills the smallest size a visible Gutachten names for the car, read against the model scope', function (): void {
+    $vehicleId = felgenrechnerPrefillVehicle();
+    $prefill = app(CalculatorPrefill::class)->forVehicle($vehicleId);
+
+    expect($prefill)->not->toBeNull();
+
+    // Every size a customer could be shown, read through Fitment::visibleToCustomers (another code path).
+    $sizes = Fitment::query()
+        ->visibleToCustomers()
+        ->where('vehicle_id', $vehicleId)
+        ->whereHas('wheelConfig.wheelModel', fn ($q) => $q->where('status', CatalogueStatus::Published->value))
+        ->with(['wheelConfig', 'tyreSizes'])
+        ->get()
+        ->flatMap(fn (Fitment $f) => $f->tyreSizes->map(fn (FitmentTyreSize $ts): array => [
+            'widthIn' => (float) $f->wheelConfig->width_in,
+            'diameterIn' => (float) $f->wheelConfig->diameter_in,
+            'etMm' => (int) $f->wheelConfig->et_mm,
+            'tyreWidth' => (int) $ts->width_mm,
+            'aspect' => (int) $ts->aspect,
+        ]));
+
+    expect($sizes->contains(fn (array $size): bool => $size == $prefill))->toBeTrue()
+        ->and($prefill['diameterIn'])->toBe((float) $sizes->min('diameterIn'))
+        ->and($prefill['widthIn'])->toBe((float) $sizes->where('diameterIn', $prefill['diameterIn'])->min('widthIn'));
+});
+
+it('prefills nothing when no row of the car is one a customer could be shown', function (string $hide): void {
+    $vehicleId = felgenrechnerPrefillVehicle();
+    $fitments = DB::table('fitments')->where('vehicle_id', $vehicleId);
+    $documents = DB::table('approval_documents')->whereIn('id', (clone $fitments)->select('approval_document_id'));
+    $configs = DB::table('wheel_configs')->whereIn('id', (clone $fitments)->select('wheel_config_id'));
+
+    match ($hide) {
+        'draft fitments' => $fitments->update(['status' => FitmentStatus::Draft->value]),
+        'retired fitments' => $fitments->update(['status' => FitmentStatus::Retired->value]),
+        'withdrawn documents' => $documents->update(['status' => DocumentStatus::Withdrawn->value]),
+        'expired documents' => $documents->update(['valid_to' => now()->subDay()->toDateString()]),
+        'documents not yet valid' => $documents->update(['valid_from' => now()->addDay()->toDateString(), 'valid_to' => null]),
+        'archived wheel models' => DB::table('wheel_models')
+            ->whereIn('id', (clone $configs)->select('wheel_model_id'))
+            ->update(['status' => CatalogueStatus::Archived->value]),
+        'deleted wheel models' => DB::table('wheel_models')
+            ->whereIn('id', (clone $configs)->select('wheel_model_id'))
+            ->update(['deleted_at' => now()]),
+        'deleted wheel configs' => $configs->update(['deleted_at' => now()]),
+        'no tyre sizes named' => DB::table('fitment_tyre_sizes')->whereIn('fitment_id', (clone $fitments)->select('id'))->delete(),
+        default => throw new LogicException("No such case: {$hide}"),
+    };
+
+    expect(app(CalculatorPrefill::class)->forVehicle($vehicleId))->toBeNull();
+})->with([
+    'draft fitments',
+    'retired fitments',
+    'withdrawn documents',
+    'expired documents',
+    'documents not yet valid',
+    'archived wheel models',
+    'deleted wheel models',
+    'deleted wheel configs',
+    'no tyre sizes named',
+]);

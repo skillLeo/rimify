@@ -13,8 +13,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * /felgenrechner — the full fitment tool (home-overhaul §3.3). Public, no state written. Two
- * props: the vehicle's original size for *Aktuell*, exactly as the homepage teaser gets it, and
+ * /felgenrechner — the size calculator (ACCURACY.md §6). Public, no state written, and it judges
+ * nothing: it computes. Two props: the prefill for *Aktuell* — the smallest size a published
+ * Gutachten names for the chosen car, not its factory size — exactly as the homepage gets it, and
  * the comparison a shared link carried, parsed here so the first paint already shows it.
  */
 class FelgenrechnerController extends Controller

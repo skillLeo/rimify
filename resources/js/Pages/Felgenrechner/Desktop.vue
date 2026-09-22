@@ -1,14 +1,18 @@
 <script setup lang="ts">
 /**
  * /felgenrechner, desktop document (home-overhaul §3.3): the full tool. The compact table of
- * controls with the two summary lines and the share block in the left columns; the clearance
- * drawing, the three results, the full figures and the disclaimer on the right. Between 768 and
- * 1023 the blocks stack in reading order: form, drawing, results as three columns, figures,
- * share block, disclaimer.
+ * controls with the two summary lines and the share block in the left columns; the results on the
+ * right — each answer in a plain sentence first, the rear-view drawing under the position sentence
+ * it shows — then the full figures and the disclaimer. Below 1024 the blocks stack in reading
+ * order: form, results, figures, share block, disclaimer.
  *
  * The comparison arrives from the server: `state` when the address carried `?rechner=`, else the
- * vehicle's original size, else the worked example — so the first paint already shows it. Every
- * valid change is written back to the address, which is what the share field shows.
+ * prefill (the smallest size a Gutachten names for the chosen car, and the note says exactly that),
+ * else the worked example — so the first paint already shows it. Every valid change is written
+ * back to the address, which is what the share field shows.
+ *
+ * Everything printed is arithmetic from `lib/felgenGeometry`; nothing on this page judges a size
+ * (ACCURACY.md §6). The line under the results points at the papers that do.
  */
 
 import { Head, Link } from '@inertiajs/vue3'
@@ -18,6 +22,7 @@ import ClearanceDrawing from '../../Components/Ui/ClearanceDrawing.vue'
 import FitmentCalculator from '../../Components/Home/FitmentCalculator.vue'
 import FitmentResults from '../../Components/Home/FitmentResults.vue'
 import RechnerShare from '../../Components/Home/RechnerShare.vue'
+import ValueText from '../../Components/Ui/ValueText.vue'
 import { useRechner } from '../../composables/useRechner'
 import { useShared } from '../../composables/useShared'
 import { DISCLAIMER, SIDES } from '../../lib/rechner'
@@ -30,9 +35,9 @@ const props = defineProps<FelgenrechnerProps>()
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle)
 
-const LEAD = 'Rechne aus, wie sich eine neue Felgen- und Reifengröße auf Abrollumfang, Tacho und Freigängigkeit auswirkt.'
+const LEAD = 'Rechne aus, wie sich eine andere Felgen- und Reifengröße rechnerisch auf Abrollumfang, Tacho und die Lage der Felgenkanten auswirkt.'
 
-const { state, shown, shareParam, prefillNote, fromVehicle, summaries, specs, update, setValid } = useRechner({
+const { state, shown, shareParam, prefillLine, fromVehicle, summaries, specs, update, setValid } = useRechner({
     prefill: () => props.prefill,
     vehicle: () => vehicle.value,
     state: props.state,
@@ -60,13 +65,13 @@ const { state, shown, shareParam, prefillNote, fromVehicle, summaries, specs, up
             <div class="grid rechner__grid">
                 <div class="rechner__left">
                     <div class="rechner__form">
-                        <p v-if="prefillNote" class="small quiet rechner__prefill">Vorbelegt mit der Serienbereifung deines {{ prefillNote }}.</p>
+                        <p v-if="prefillLine" class="small quiet rechner__prefill">{{ prefillLine }}</p>
                         <FitmentCalculator :model-value="state" layout="table" :prefilled="fromVehicle" @update:model-value="update" @update:valid="setValid" />
 
                         <!-- Each setup in one line, as a tyre shop would write it. -->
                         <ul class="rechner__summaries" aria-label="Die beiden Größen">
                             <li v-for="side in SIDES" :key="side.key" class="small muted num rechner__summary">
-                                <span class="rechner__summary-side">{{ side.label }}:</span> {{ summaries[side.key] }}
+                                <span class="rechner__summary-side">{{ side.label }}:</span> <ValueText :text="summaries[side.key]" />
                             </li>
                         </ul>
                     </div>
@@ -75,18 +80,21 @@ const { state, shown, shareParam, prefillNote, fromVehicle, summaries, specs, up
                 </div>
 
                 <div class="rechner__right">
-                    <ClearanceDrawing class="calc-drawing rechner__drawing" :current="state.current" :next="state.next" />
+                    <!-- The answer in words first; the drawing sits under the position sentence it shows. -->
+                    <FitmentResults class="rechner__results" :result="shown">
+                        <template #drawing>
+                            <ClearanceDrawing class="calc-drawing" :current="state.current" :next="state.next" />
+                        </template>
+                    </FitmentResults>
 
-                    <FitmentResults class="rechner__results" :result="shown" />
-
-                    <dl class="specs small rechner__specs" aria-label="Alle Werte">
+                    <dl v-if="specs.length > 0" class="specs small rechner__specs" aria-label="Alle Werte">
                         <template v-for="row in specs" :key="row.key">
                             <dt>{{ row.label }}</dt>
-                            <dd class="num">{{ row.value }}</dd>
+                            <dd class="num"><ValueText :text="row.value" /></dd>
                         </template>
                     </dl>
 
-                    <p class="small muted rechner__disclaimer">{{ DISCLAIMER }}</p>
+                    <p class="small muted rechner__disclaimer"><ValueText :text="DISCLAIMER" /></p>
                 </div>
             </div>
         </div>
@@ -145,7 +153,6 @@ const { state, shown, shareParam, prefillNote, fromVehicle, summaries, specs, up
 
 .rechner__form,
 .rechner__share,
-.rechner__drawing,
 .rechner__results,
 .rechner__specs,
 .rechner__disclaimer {
@@ -159,24 +166,20 @@ const { state, shown, shareParam, prefillNote, fromVehicle, summaries, specs, up
     gap: var(--sp-16);
 }
 
-.rechner__drawing {
+.rechner__results {
     order: 2;
 }
 
-.rechner__results {
+.rechner__specs {
     order: 3;
 }
 
-.rechner__specs {
+.rechner__share {
     order: 4;
 }
 
-.rechner__share {
-    order: 5;
-}
-
 .rechner__disclaimer {
-    order: 6;
+    order: 5;
     max-width: 54ch;
     hyphens: auto;
 }
@@ -198,25 +201,6 @@ const { state, shown, shareParam, prefillNote, fromVehicle, summaries, specs, up
     font-weight: 500;
 }
 
-/* ── 768–1023: the results as three columns under the drawing ───────────────── */
-
-@media (min-width: 768px) and (max-width: 1023px) {
-    .rechner__results {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: var(--gutter);
-    }
-
-    .rechner__results :deep(.calc-result + .calc-result) {
-        padding-left: var(--sp-16);
-        border-left: 1px solid var(--c-line);
-    }
-
-    .rechner__results,
-    .rechner__specs {
-        margin-top: calc(var(--sp-24) - var(--sp-40));
-    }
-}
-
 /* ── ≥ 1024: form and share in columns 1–5, everything else in 7–12 ─────────── */
 
 @media (min-width: 1024px) {
@@ -235,10 +219,6 @@ const { state, shown, shareParam, prefillNote, fromVehicle, summaries, specs, up
     .rechner__right {
         grid-column: 7 / span 6;
         gap: var(--sp-16);
-    }
-
-    .rechner__drawing {
-        margin-bottom: var(--sp-8);
     }
 }
 </style>

@@ -2,8 +2,9 @@
 /**
  * /felgenrechner as an app screen (home-overhaul §3.3, 390). The bar carries the large title —
  * it is the page's h1 — and the back arrow to the homepage. Then one column: Aktuell · Neu as
- * tabs with the five fields two abreast, the clearance drawing, the three results, the full
- * figures, the share block with a full-width button, the disclaimer. No sticky bar.
+ * tabs with the five fields two abreast, the three results — each answer in a plain sentence, the
+ * rear-view drawing under the position sentence — the full figures, the share block with a
+ * full-width button, the disclaimer. No sticky bar.
  *
  * Same props as the desktop document; the split is presentation only.
  */
@@ -15,6 +16,7 @@ import ClearanceDrawing from '../../Components/Ui/ClearanceDrawing.vue'
 import FitmentCalculator from '../../Components/Home/FitmentCalculator.vue'
 import FitmentResults from '../../Components/Home/FitmentResults.vue'
 import RechnerShare from '../../Components/Home/RechnerShare.vue'
+import ValueText from '../../Components/Ui/ValueText.vue'
 import { useRechner } from '../../composables/useRechner'
 import { useShared } from '../../composables/useShared'
 import { DISCLAIMER } from '../../lib/rechner'
@@ -31,9 +33,9 @@ const props = defineProps<FelgenrechnerProps>()
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle)
 
-const LEAD = 'Rechne aus, wie sich eine neue Felgen- und Reifengröße auf Abrollumfang, Tacho und Freigängigkeit auswirkt.'
+const LEAD = 'Rechne aus, wie sich eine andere Felgen- und Reifengröße rechnerisch auf Abrollumfang, Tacho und die Lage der Felgenkanten auswirkt.'
 
-const { state, shown, shareParam, prefillNote, fromVehicle, specs, update, setValid } = useRechner({
+const { state, shown, shareParam, prefillLine, fromVehicle, specs, update, setValid } = useRechner({
     prefill: () => props.prefill,
     vehicle: () => vehicle.value,
     state: props.state,
@@ -50,24 +52,27 @@ const { state, shown, shareParam, prefillNote, fromVehicle, specs, update, setVa
         <p class="body muted rechner__lead">{{ LEAD }}</p>
 
         <div class="rechner__form">
-            <p v-if="prefillNote" class="small quiet">Vorbelegt mit der Serienbereifung deines {{ prefillNote }}.</p>
+            <p v-if="prefillLine" class="small quiet rechner__prefill">{{ prefillLine }}</p>
             <FitmentCalculator :model-value="state" layout="tabs" :prefilled="fromVehicle" @update:model-value="update" @update:valid="setValid" />
         </div>
 
-        <ClearanceDrawing class="calc-drawing" :current="state.current" :next="state.next" />
+        <!-- The answer in words first; the drawing sits under the position sentence it shows. -->
+        <FitmentResults :result="shown">
+            <template #drawing>
+                <ClearanceDrawing class="calc-drawing" :current="state.current" :next="state.next" />
+            </template>
+        </FitmentResults>
 
-        <FitmentResults :result="shown" />
-
-        <dl class="specs small" aria-label="Alle Werte">
+        <dl v-if="specs.length > 0" class="specs small" aria-label="Alle Werte">
             <template v-for="row in specs" :key="row.key">
                 <dt>{{ row.label }}</dt>
-                <dd class="num">{{ row.value }}</dd>
+                <dd class="num"><ValueText :text="row.value" /></dd>
             </template>
         </dl>
 
         <RechnerShare :param="shareParam" block />
 
-        <p class="small muted rechner__disclaimer">{{ DISCLAIMER }}</p>
+        <p class="small muted rechner__disclaimer"><ValueText :text="DISCLAIMER" /></p>
     </div>
 </template>
 

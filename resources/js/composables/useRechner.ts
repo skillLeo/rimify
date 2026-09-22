@@ -3,20 +3,20 @@
  *
  * Owns the two setups (always valid — the form only hands over figures it offers), whether the
  * form currently holds something it could not commit (an impossible ET: the results then read
- * a dash and the drawing keeps the last valid comparison), the comparison from `lib/fitmentMath`,
+ * a dash and the drawing keeps the last valid comparison), the model from `lib/felgenGeometry`,
  * the prefill note, and the URL: every valid change is written to `?rechner=` with
  * `history.replaceState`, debounced by `--d-2`, so the address bar is always a share link.
  *
  * Starting values, in order of precedence: a comparison the server parsed from `?rechner=`
- * (the full page), then the vehicle's original size on both sides (an honest "nothing changes
- * yet"), then the specification's worked example. On the homepage the parameter is read on
- * mount instead, because the page does not carry it as a prop. Nothing here touches `window`
- * outside `onMounted`.
+ * (the full page), then the prefill — the smallest size a Gutachten names for the chosen car —
+ * against the next plausible step, then the specification's worked example. On the homepage the
+ * parameter is read on mount instead, because the page does not carry it as a prop. Nothing here
+ * touches `window` outside `onMounted`.
  */
 
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type ComputedRef, type Ref } from 'vue'
-import { decimal, NNBSP, withUnit } from '../format'
-import { compare, signedDecimal, type Comparison, type WheelSetup } from '../lib/fitmentMath'
+import { NNBSP } from '../format'
+import { felgenModel, percentText, rimSuitsTyre, wholeMmText, type FelgenModel, type WheelSetup } from '../lib/felgenGeometry'
 import {
     cloneState,
     decodeState,
@@ -26,6 +26,7 @@ import {
     felgenrechnerHref,
     fromPrefill,
     isState,
+    jLabel,
     sameState,
     setupLine,
     type CalculatorPrefill,
@@ -35,7 +36,7 @@ import {
 import type { VehicleProp } from '../types/rimify'
 
 export interface UseRechnerOptions {
-    /** A getter, so a vehicle chosen later (new props) re-applies its size. */
+    /** A getter, so a vehicle chosen later (new props) re-applies its prefill. */
     prefill: () => CalculatorPrefill | null | undefined
     vehicle: () => VehicleProp | null | undefined
     /** The comparison the server parsed from `?rechner=`; outranks the prefill. */
@@ -59,19 +60,30 @@ export interface Rechner {
     setValid: (valid: boolean) => void
     /** A change from the form: applied, the URL updated, the prefill note withdrawn. */
     update: (next: RechnerState) => void
-    result: ComputedRef<Comparison>
-    /** The comparison to show: null while the form is invalid. */
-    shown: ComputedRef<Comparison | null>
+    /** The model of the current comparison: the drawing and every printed figure come from it. */
+    result: ComputedRef<FelgenModel>
+    /** The model to print: null while the form is invalid. */
+    shown: ComputedRef<FelgenModel | null>
+    /**
+     * True when a side's tyre and rim do not belong together (`rimSuitsTyre`): then nothing is drawn
+     * and no figure is printed for the comparison — the results say so in one sentence.
+     */
+    implausible: ComputedRef<boolean>
     shareParam: ComputedRef<string>
     /** The full page, carrying the current comparison. */
     href: ComputedRef<string>
-    /** True while the figures are the vehicle's own; the *Aktuell* fields then carry `data-prefilled`. */
+    /** True while *Aktuell* holds the prefill; its fields then carry `data-prefilled`. */
     fromVehicle: Ref<boolean>
-    /** The vehicle's short name for the prefill note, or null when the note would be untrue. */
+    /**
+     * Always null, kept for compatibility only. The old homepage teaser wrapped it in "Serienbereifung",
+     * which the prefill is not (finding C3); that teaser is gone (W5). Use `prefillLine`.
+     */
     prefillNote: ComputedRef<string | null>
-    /** `Aktuell: 7,5 J × 17 · ET 45 · 225/45 R17 · Ø 634,3 mm` per side. */
+    /** The sentence that says what *Aktuell* was prefilled with, or null when it was not (C3). */
+    prefillLine: ComputedRef<string | null>
+    /** `7,5J × 17 · ET 45 · 225/45 R17 · Ø rechnerisch 634 mm` per side; without the Ø when implausible. */
     summaries: ComputedRef<Record<Side, string>>
-    /** The full figures for the `.specs` list on /felgenrechner. */
+    /** The full figures for the `.specs` list on /felgenrechner; empty when implausible. */
     specs: ComputedRef<SpecRow[]>
 }
 
@@ -87,23 +99,28 @@ function parseMs(value: string): number | null {
     return Number.isFinite(n) ? (match[2] === 's' ? n * 1000 : n) : null
 }
 
-function mm(value: number): string {
-    return Number.isFinite(value) ? withUnit(decimal(value, 1), 'mm') : '–'
-}
-
 /**
  * The next plausible step up from a size: one inch more, ten points less profile, half an inch
  * wider, the ET unchanged — so a page opened with a vehicle shows a real change at first paint
  * instead of "nothing changes" under a heading that asks what changes. Every value stays on the
- * grid the form offers.
+ * grid the form offers. It is a comparison to look at, not a recommendation. The width stays put
+ * where half an inch more would no longer suit the tyre (`rimSuitsTyre`), so a page opened with a
+ * vehicle never greets the customer with a pairing it flags itself.
  */
 export function nextStep(s: WheelSetup): WheelSetup {
+    const wider = { ...s, widthIn: Math.min(12, s.widthIn + 0.5) }
+
     return {
         ...s,
-        widthIn: Math.min(12, s.widthIn + 0.5),
+        widthIn: rimSuitsTyre(s) && !rimSuitsTyre(wider) ? s.widthIn : wider.widthIn,
         diameterIn: Math.min(24, s.diameterIn + 1),
         aspect: Math.max(25, s.aspect - 10),
     }
+}
+
+/** What the prefill is, said plainly (C3): not the factory size, the smallest size a Gutachten names. */
+export function prefillSentence(vehicleShort: string): string {
+    return `Aktuell ist vorbelegt mit der kleinsten Größe, die ein Gutachten für deinen ${vehicleShort} nennt – nicht unbedingt mit deiner heutigen Bereifung.`
 }
 
 export function useRechner(options: UseRechnerOptions): Rechner {
@@ -115,27 +132,42 @@ export function useRechner(options: UseRechnerOptions): Rechner {
     const valid = ref(true)
     const fromVehicle = ref(shared === null && prefilled !== null)
 
-    const result = computed(() => compare(state.current, state.next))
+    const result = computed(() => felgenModel(state.current, state.next))
     const shown = computed(() => (valid.value ? result.value : null))
+    const implausible = computed(() => result.value.implausible.length > 0)
     const shareParam = computed(() => encodeState(state))
     const href = computed(() => felgenrechnerHref(state))
-    const prefillNote = computed(() => (fromVehicle.value ? (options.vehicle()?.short ?? null) : null))
+    const prefillNote = computed<string | null>(() => null)
+    const prefillLine = computed(() => {
+        const short = options.vehicle()?.short
+
+        return fromVehicle.value && short !== undefined && short !== '' ? prefillSentence(short) : null
+    })
+
+    // The setup lines echo the customer's own figures; the computed Ø is left out when implausible.
+    const summary = (s: WheelSetup, diameterMm: number): string =>
+        implausible.value ? setupLine(s) : `${setupLine(s)} · Ø${NNBSP}rechnerisch ${wholeMmText(diameterMm)}`
 
     const summaries = computed<Record<Side, string>>(() => ({
-        current: `${setupLine(state.current)} · Ø${NNBSP}${mm(result.value.current.diameterMm)}`,
-        next: `${setupLine(state.next)} · Ø${NNBSP}${mm(result.value.next.diameterMm)}`,
+        current: summary(state.current, result.value.current.diameterMm),
+        next: summary(state.next, result.value.next.diameterMm),
     }))
 
     const specs = computed<SpecRow[]>(() => {
         const r = result.value
 
+        if (implausible.value) {
+            return []
+        }
+
         return [
-            { key: 'diameter', label: 'Ø Rad', value: `${mm(r.current.diameterMm)} → ${mm(r.next.diameterMm)}` },
-            { key: 'circumference', label: 'Umfang', value: `${mm(r.current.circumferenceMm)} → ${mm(r.next.circumferenceMm)}` },
-            { key: 'abroll', label: 'Abrollumfang', value: `${mm(r.current.abrollumfangMm)} → ${mm(r.next.abrollumfangMm)}` },
-            { key: 'outer', label: 'Außenkante', value: withUnit(signedDecimal(r.outerEdgeMm, 1), 'mm') },
-            { key: 'inner', label: 'Innenkante', value: withUnit(signedDecimal(r.innerEdgeMm, 1), 'mm') },
-            { key: 'et', label: 'Einpresstiefe wirksam', value: `${etLabel(state.current.etMm)} → ${etLabel(state.next.etMm)}` },
+            { key: 'rim', label: 'Felge', value: `${jLabel(state.current.widthIn)} × ${state.current.diameterIn} → ${jLabel(state.next.widthIn)} × ${state.next.diameterIn}` },
+            { key: 'et', label: 'Einpresstiefe', value: `${etLabel(state.current.etMm)} → ${etLabel(state.next.etMm)}` },
+            { key: 'diameter', label: 'Außendurchmesser, rechnerisch', value: `${wholeMmText(r.current.diameterMm)} → ${wholeMmText(r.next.diameterMm)}` },
+            { key: 'circumference', label: 'Umfang (π × Ø), rechnerisch', value: `${wholeMmText(r.current.circumferenceMm)} → ${wholeMmText(r.next.circumferenceMm)}` },
+            { key: 'abroll', label: 'Abrollumfang, Änderung', value: percentText(r.circumferenceDeltaPercent) },
+            { key: 'outer', label: 'Außenkante, rechnerisch', value: r.outer.phrase },
+            { key: 'inner', label: 'Innenkante, rechnerisch', value: r.inner.phrase },
         ]
     })
 
@@ -214,5 +246,5 @@ export function useRechner(options: UseRechnerOptions): Rechner {
         }
     })
 
-    return { state, valid, setValid, update, result, shown, shareParam, href, fromVehicle, prefillNote, summaries, specs }
+    return { state, valid, setValid, update, result, shown, implausible, shareParam, href, fromVehicle, prefillNote, prefillLine, summaries, specs }
 }

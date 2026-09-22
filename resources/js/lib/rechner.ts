@@ -9,8 +9,8 @@
  * and the defaults stand (CLAUDE.md §2: fail closed).
  */
 
-import { decimal, NNBSP, withUnit } from '../format'
-import type { WheelSetup } from './fitmentMath'
+import { decimal, NNBSP } from '../format'
+import type { WheelSetup } from './felgenGeometry'
 import type { CalculatorPrefill } from '../types/pages'
 
 export type { CalculatorPrefill }
@@ -53,10 +53,17 @@ export const DEFAULT_STATE: RechnerState = {
     next: { widthIn: 8.5, diameterIn: 19, etMm: 35, tyreWidthMm: 225, aspect: 35 },
 }
 
-/** The one sentence under every result, on every surface (home-overhaul §3.2). */
+/**
+ * The line under every result, on every surface: the figures are arithmetic, and it points at the
+ * papers that decide (ACCURACY.md §6). No liability wording of our own (finding #52): that comes
+ * from the Kanzlei or not at all. It names no verdict — the calculator never judges a size. The
+ * field numbers are the KBA's for the Zulassungsbescheinigung Teil I (accuracy-research-motec §3e);
+ * the CoC's item numbers are left out because older CoC formats could not be verified.
+ */
 export const DISCLAIMER =
-    'Rechenwerte ersetzen kein Gutachten – ob eine Kombination zulässig ist, steht im Gutachten. ' +
-    'Alle Angaben ohne Gewähr; verbindlich sind Fahrzeugschein bzw. CoC und die Reifenfreigabe.'
+    'Rechenwerte ersetzen kein Gutachten. Welche Rad- und Reifengrößen für dein Auto gelten, steht in der ' +
+    'Zulassungsbescheinigung Teil I (Felder 15.1 und 15.2), im CoC-Papier, in der Reifenfreigabe und im ' +
+    'Gutachten oder in der ABE der Felge.'
 
 export function isEt(value: number): boolean {
     return Number.isInteger(value) && value >= ET_MIN && value <= ET_MAX
@@ -94,7 +101,10 @@ export function sameState(a: RechnerState, b: RechnerState): boolean {
     return sameSetup(a.current, b.current) && sameSetup(a.next, b.next)
 }
 
-/** The vehicle's original size as a setup — or null when it is not one the form offers. */
+/**
+ * The server's prefill as a setup — the smallest size a published Gutachten names for the chosen
+ * vehicle, not its factory size (finding C3) — or null when it is not one the form offers.
+ */
 export function fromPrefill(p: CalculatorPrefill | null | undefined): WheelSetup | null {
     if (p === null || p === undefined) {
         return null
@@ -168,9 +178,9 @@ export function felgenrechnerHref(state: RechnerState): string {
 
 /* ── How a size is written (R-10, through format.ts) ─────────────────────────── */
 
-/** `7,5 J` · `8 J` — the width figure as a tyre shop writes it. */
+/** `7,5J` · `8J` — the width figure as R-10 and the server's `GermanFormat::rimWidth()` write it. */
 export function jLabel(widthIn: number): string {
-    return withUnit(decimal(widthIn, Number.isInteger(widthIn) ? 0 : 1), 'J')
+    return `${decimal(widthIn, Number.isInteger(widthIn) ? 0 : 1)}J`
 }
 
 /** `ET 45` · `ET −10` — a real minus sign, a narrow no-break space. */
@@ -183,7 +193,7 @@ export function tyreLabel(s: WheelSetup): string {
     return `${s.tyreWidthMm}/${s.aspect} R${s.diameterIn}`
 }
 
-/** `7,5 J × 17 · ET 45 · 225/45 R17` — one setup in one line. */
+/** `7,5J × 17 · ET 45 · 225/45 R17` — one setup in one line. */
 export function setupLine(s: WheelSetup): string {
     return `${jLabel(s.widthIn)} × ${s.diameterIn} · ${etLabel(s.etMm)} · ${tyreLabel(s)}`
 }

@@ -1,8 +1,8 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import { withUnit } from '../../format'
-import type { WheelSetup } from '../../lib/fitmentMath'
+import { NNBSP, withUnit } from '../../format'
+import { felgenModel, REAR, rearFrame, rearScene, type WheelSetup } from '../../lib/felgenGeometry'
 import ClearanceDrawing from './ClearanceDrawing.vue'
 
 const mm = (value: string) => withUnit(value, 'mm')
@@ -39,12 +39,69 @@ function reducedMotion(matches: boolean): void {
     })
 }
 
-function rectX(wrapper: VueWrapper, group: 'old' | 'new'): number {
-    return Number(wrapper.find(`g.${group} rect`).attributes('x'))
+function rimRect(wrapper: VueWrapper, wheel: 'current' | 'next'): { x: number; width: number } {
+    const el = wrapper.find(`g[data-wheel="${wheel}"] rect.cd__rim`)
+
+    return { x: Number(el.attributes('x')), width: Number(el.attributes('width')) }
 }
 
-function rectWidth(wrapper: VueWrapper, group: 'old' | 'new'): number {
-    return Number(wrapper.find(`g.${group} rect`).attributes('width'))
+function tyreRect(wrapper: VueWrapper, wheel: 'current' | 'next'): { x: number; width: number; height: number } {
+    const el = wrapper.find(`g[data-wheel="${wheel}"] rect.cd__tyre`)
+
+    return { x: Number(el.attributes('x')), width: Number(el.attributes('width')), height: Number(el.attributes('height')) }
+}
+
+/** The x extent of an arrow's shaft, read from its path `M x1 y H x2`. */
+function shaft(wrapper: VueWrapper, dim: 'inner' | 'outer'): { from: number; to: number } | null {
+    const path = wrapper.find(`path.cd__dim[data-dim="${dim}"]`)
+
+    if (!path.exists()) {
+        return null
+    }
+
+    const match = /M(-?[\d.]+) (-?[\d.]+) H(-?[\d.]+)/.exec(path.attributes('d') ?? '')
+
+    return match === null ? null : { from: Number(match[1]), to: Number(match[3]) }
+}
+
+/** The x of an arrowhead's base and tip: `M base y L tip y L base y Z`. */
+function head(wrapper: VueWrapper, dim: 'inner' | 'outer'): { base: number; tip: number } | null {
+    const path = wrapper.find(`path.cd__head[data-dim="${dim}"]`)
+
+    if (!path.exists()) {
+        return null
+    }
+
+    const numbers = (path.attributes('d') ?? '').match(/-?[\d.]+/g)?.map(Number) ?? []
+
+    return { base: numbers[0] as number, tip: numbers[2] as number }
+}
+
+function label(wrapper: VueWrapper, dim: 'inner' | 'outer'): string {
+    return wrapper.find(`.cd__label[data-dim="${dim}"]`).text()
+}
+
+/** Every text node that carries a digit but no `translate="no"` around it. */
+function unprotectedFigures(root: Element): string[] {
+    const out: string[] = []
+
+    const walk = (node: Node): void => {
+        if (node.nodeType === 3) {
+            const text = node.textContent ?? ''
+
+            if (/\d/.test(text) && node.parentElement?.closest('[translate="no"]') === null) {
+                out.push(text)
+            }
+
+            return
+        }
+
+        node.childNodes.forEach(walk)
+    }
+
+    walk(root)
+
+    return out
 }
 
 beforeEach(() => {
@@ -57,128 +114,221 @@ afterEach(() => {
     document.body.innerHTML = ''
 })
 
-describe('ClearanceDrawing', () => {
-    it('is a plan view on a 480 × 200 sheet that names the two figures in German', () => {
+describe('ClearanceDrawing (the rear view)', () => {
+    it('is one image, described in German, on a 320 × 380 sheet that carries its one scale', () => {
         const wrapper = mountDrawing()
         const figure = wrapper.find('.cd')
+        const svg = wrapper.find('.cd__sheet svg')
+        const model = felgenModel(current, next)
 
-        expect(figure.element.tagName).toBe('DIV')
         expect(figure.attributes('role')).toBe('img')
         expect(figure.attributes('aria-label')).toBe(
-            `Draufsicht: die neue Felge steht ${mm('+22,7')} weiter außen und ${mm('+2,7')} näher am Federbein als die aktuelle.`
+            `Blick von hinten auf ein Rad im Radhaus, rechnerisch. Außenkante: ${mm('23')} weiter außen. Innenkante: ${mm('3')} näher am Federbein. Federbein und Kotflügel schematisch.`
         )
-        expect(wrapper.find('svg').attributes('viewBox')).toBe('0 0 480 200')
-        expect(wrapper.find('svg').attributes('aria-hidden')).toBe('true')
+        expect(svg.attributes('viewBox')).toBe(`0 0 ${REAR.width} ${REAR.height}`)
+        expect(svg.attributes('aria-hidden')).toBe('true')
+        expect(Number(svg.attributes('data-units-per-mm'))).toBeCloseTo(rearScene(rearFrame(model), model).unitsPerMm, 12)
     })
 
-    it('places the bands by ET and tyre width: centreline at 260 − ET, width = section width', () => {
+    it('draws both wheels where their ET puts them against the one mounting face, the tyre centred on the rim', () => {
+        const wrapper = mountDrawing()
+        const model = felgenModel(current, next)
+        const scene = rearScene(rearFrame(model), model)
+
+        // One mounting face in the sheet, the car's, for both wheels.
+        expect(wrapper.findAll('.cd__sheet .cd__face')).toHaveLength(1)
+        expect(wrapper.find('.cd__sheet .cd__face').attributes('d')).toBe(scene.face)
+
+        for (const wheel of ['current', 'next'] as const) {
+            const rim = rimRect(wrapper, wheel)
+            const tyre = tyreRect(wrapper, wheel)
+
+            expect(rim).toEqual({ x: scene[wheel].rim.x, width: scene[wheel].rim.width })
+            // The tyre is centred on the rim's centre plane.
+            expect(tyre.x + tyre.width / 2).toBeCloseTo(rim.x + rim.width / 2, 1)
+        }
+
+        // Bigger tyre, bigger drawing: 640,1 against 634,3 mm on one scale.
+        expect(tyreRect(wrapper, 'next').height).toBeGreaterThan(tyreRect(wrapper, 'current').height)
+    })
+
+    it('makes each arrow exactly as long as the edge moved, on the one scale, with its label', () => {
+        const wrapper = mountDrawing()
+        const k = Number(wrapper.find('.cd__sheet svg').attributes('data-units-per-mm'))
+
+        expect(label(wrapper, 'outer')).toBe(`Außenkante: ${mm('23')} weiter außen`)
+        expect(label(wrapper, 'inner')).toBe(`Innenkante: ${mm('3')} näher am Federbein`)
+
+        const outer = shaft(wrapper, 'outer')
+        const inner = shaft(wrapper, 'inner')
+        expect(outer).not.toBeNull()
+        expect(inner).not.toBeNull()
+        // 22,7 and 2,7 mm, drawn to scale — each within half a millimetre of the printed 23 and 3.
+        expect(Math.abs((outer?.to ?? 0) - (outer?.from ?? 0)) - 22.7 * k).toBeCloseTo(0, 1)
+        expect(Math.abs((inner?.to ?? 0) - (inner?.from ?? 0)) - 2.7 * k).toBeCloseTo(0, 1)
+    })
+
+    it('moves the inner edge towards the strut, and points its arrow there, exactly when the inner value says so', () => {
         const wrapper = mountDrawing()
 
-        // Aktuell: x_c = 215, 225 wide → 102,5 … 327,5. Neu: x_c = 225 → 112,5 … 337,5.
-        expect(rectX(wrapper, 'old')).toBe(102.5)
-        expect(rectWidth(wrapper, 'old')).toBe(225)
-        expect(rectX(wrapper, 'new')).toBe(112.5)
-        expect(rectWidth(wrapper, 'new')).toBe(225)
-        expect(wrapper.find('g.new .cd__centre').attributes('d')).toBe('M225 50 V150')
-        // The mounting face never moves.
-        expect(wrapper.find('.cd__face').attributes('d')).toBe('M260 20 V180')
-        // The rim bracket under the band: 8,5 J = 215,9 mm around x_c 225.
-        expect(wrapper.find('g.new path.cd__new').attributes('d')).toContain('M117.1 148 V152 M117.1 150 H333')
+        // Inner +2,7 mm: the new inner edge is left of the old one, the head points left.
+        expect(rimRect(wrapper, 'next').x).toBeLessThan(rimRect(wrapper, 'current').x)
+        expect((head(wrapper, 'inner')?.tip ?? 0) < (head(wrapper, 'inner')?.base ?? 0)).toBe(true)
+        expect((head(wrapper, 'outer')?.tip ?? 0) > (head(wrapper, 'outer')?.base ?? 0)).toBe(true)
+
+        // 8J ET 45 → 8J ET 30: 15 mm outboard, away from the strut.
+        const away = mountDrawing({ current: { ...current, widthIn: 8 }, next: { ...current, widthIn: 8, etMm: 30 } })
+        expect(label(away, 'inner')).toBe(`Innenkante: ${mm('15')} weiter weg vom Federbein`)
+        expect(rimRect(away, 'next').x).toBeGreaterThan(rimRect(away, 'current').x)
+        expect((head(away, 'inner')?.tip ?? 0) > (head(away, 'inner')?.base ?? 0)).toBe(true)
+
+        // 8J ET 45 → 8J ET 60: 15 mm inboard, both edges.
+        const inboard = mountDrawing({ current: { ...current, widthIn: 8 }, next: { ...current, widthIn: 8, etMm: 60 } })
+        expect(label(inboard, 'outer')).toBe(`Außenkante: ${mm('15')} weiter innen`)
+        expect((head(inboard, 'outer')?.tip ?? 0) < (head(inboard, 'outer')?.base ?? 0)).toBe(true)
     })
 
-    it('draws the three dimensions with square ticks and no arrowheads, and labels them', () => {
-        const wrapper = mountDrawing()
-        const dims = wrapper.find('.cd__dim').attributes('d') ?? ''
+    it('draws no arrow and says unverändert when an edge moves by no whole millimetre', () => {
+        const same = mountDrawing({ next: { ...current } })
 
-        // ET between the new centreline (225) and the face (260) at y 40.
-        expect(dims).toContain('M225 38 V42 M225 40 H260 M260 38 V42')
-        // Außen between the old and new outer edges (327,5 → 337,5) at y 170; innen between 102,5 and 112,5.
-        expect(dims).toContain('M327.5 168 V172 M327.5 170 H337.5 M337.5 168 V172')
-        expect(dims).toContain('M102.5 168 V172 M102.5 170 H112.5 M112.5 168 V172')
-        expect(wrapper.html()).not.toMatch(/marker|arrow/)
+        expect(same.find('.cd__dim').exists()).toBe(false)
+        expect(same.find('.cd__head').exists()).toBe(false)
+        expect(same.find('.cd__ext').exists()).toBe(false)
+        expect(label(same, 'outer')).toBe('Außenkante: unverändert')
+        expect(label(same, 'inner')).toBe('Innenkante: unverändert')
+        expect(rimRect(same, 'next')).toEqual(rimRect(same, 'current'))
 
-        expect(wrapper.find('.cd__label--et').text()).toBe('ET 35')
-        expect(wrapper.find('.cd__label--outer').text()).toBe(`außen ${mm('+22,7')}`)
-        expect(wrapper.find('.cd__label--inner').text()).toBe(`innen ${mm('+2,7')}`)
-        expect(wrapper.find('.cd__label--face').text()).toBe('Anlagefläche')
-        expect(wrapper.findAll('.cd__label--side').map((l) => l.text())).toEqual(['innen (Federbein)', 'außen (Kotflügel)'])
-        expect(wrapper.findAll('.cd__key').map((k) => k.text())).toEqual(['Aktuell', 'Neu'])
+        // 0,05 mm on the outside: no outer arrow; 38 mm on the inside: an arrow.
+        const hair = mountDrawing({ current: { ...current, widthIn: 7, etMm: 30 }, next: { ...current, widthIn: 8.5, etMm: 49 } })
+        expect(label(hair, 'outer')).toBe('Außenkante: unverändert')
+        expect(hair.find('path.cd__dim[data-dim="outer"]').exists()).toBe(false)
+        expect(hair.find('path.cd__dim[data-dim="inner"]').exists()).toBe(true)
     })
 
-    it('writes a negative ET with a real minus sign', () => {
-        const wrapper = mountDrawing({ next: { ...next, etMm: -10 } })
+    it('prints the same edge texts as the model the results read', () => {
+        const pairs: [WheelSetup, WheelSetup][] = [
+            [current, next],
+            [next, current],
+            [current, { ...current, widthIn: 9, etMm: -30 }],
+        ]
 
-        expect(wrapper.find('.cd__label--et').text()).toBe('ET −10')
-        expect(rectX(wrapper, 'new')).toBe(157.5)
-    })
+        for (const [a, b] of pairs) {
+            const wrapper = mountDrawing({ current: a, next: b })
+            const model = felgenModel(a, b)
 
-    it('omits the edge dimensions and reads ±0,0 mm when nothing moved', () => {
-        const wrapper = mountDrawing({ next: { ...current } })
-
-        expect(wrapper.find('.cd__dim').attributes('d')).toBe('M215 38 V42 M215 40 H260 M260 38 V42')
-        expect(wrapper.find('.cd__ext').attributes('d')).toBe('M215 48 V38')
-        expect(wrapper.find('.cd__label--outer').text()).toBe(`außen ${mm('±0,0')}`)
-        expect(wrapper.find('.cd__label--inner').text()).toBe(`innen ${mm('±0,0')}`)
-        expect(wrapper.find('.cd').attributes('aria-label')).toContain(`steht ${mm('±0,0')} weiter außen`)
-        // The dashed band lies exactly under the solid one.
-        expect(rectX(wrapper, 'old')).toBe(rectX(wrapper, 'new'))
-    })
-
-    it('keeps the band inside the sheet over the whole input range', () => {
-        for (const etMm of [-30, 0, 70]) {
-            for (const tyreWidthMm of [135, 225, 355]) {
-                const setup: WheelSetup = { widthIn: 12, diameterIn: 24, etMm, tyreWidthMm, aspect: 85 }
-                const wrapper = mountDrawing({ current: setup, next: setup })
-                const x = rectX(wrapper, 'new')
-                const right = x + rectWidth(wrapper, 'new')
-
-                expect(x, `ET ${etMm}, ${tyreWidthMm} mm`).toBeGreaterThanOrEqual(12)
-                expect(right, `ET ${etMm}, ${tyreWidthMm} mm`).toBeLessThanOrEqual(468)
-            }
+            expect(label(wrapper, 'outer')).toBe(model.outer.text)
+            expect(label(wrapper, 'inner')).toBe(model.inner.text)
         }
     })
 
-    it('uses ink strokes only — nothing in the drawing is blue', () => {
+    it('names the parts and says that the strut and the fender are schematic', () => {
         const wrapper = mountDrawing()
-        const shapes = wrapper.findAll('svg path, svg rect')
 
-        expect(shapes.length).toBeGreaterThan(5)
+        expect(wrapper.findAll('.cd__part').map((p) => p.text())).toEqual(['← innen · Federbein', 'Kotflügel · außen →'])
+        expect(wrapper.find('.cd__note').text()).toBe('Federbein und Kotflügel: Lage schematisch – je nach Fahrzeug')
+        expect(wrapper.findAll('.cd__key').map((k) => k.text())).toEqual([
+            `bisher 7,5J × 17 · ET${NNBSP}45 · 225/45 R17`,
+            `neu 8,5J × 19 · ET${NNBSP}35 · 225/35 R19`,
+            'Anlagefläche: hier wird die Felge angeschraubt',
+        ])
+        // The viewpoint comes first, before anything in the picture.
+        expect(wrapper.find('.cd__stage > :first-child').text()).toBe('Blick von hinten auf ein Rad im Radhaus')
+        expect(wrapper.find('.cd__caption').text()).toBe('Rad und Reifen maßstäblich, beide im selben Maßstab. Werte rechnerisch, auf ganze Millimeter gerundet.')
+        // Both schematic parts are drawn, once, for both wheels.
+        expect(wrapper.findAll('.cd__sheet [data-part="strut"]')).toHaveLength(1)
+        expect(wrapper.findAll('.cd__sheet [data-part="fender"]')).toHaveLength(1)
+    })
+
+    it('keeps every label inside its row: left and shift are the same fraction', () => {
+        const wrapper = mountDrawing()
+
+        for (const selector of ['.cd__label[data-dim="inner"]', '.cd__label[data-dim="outer"]', '.cd__part[data-part="strut"]', '.cd__part[data-part="fender"]']) {
+            const style = wrapper.find(selector).attributes('style') ?? ''
+            const left = /left: ([\d.]+)%/.exec(style)?.[1]
+            const shift = /translateX\(-([\d.]+)%\)/.exec(style)?.[1]
+
+            expect(left, `${selector}: ${style}`).toBeDefined()
+            expect(shift).toBe(left)
+            expect(Number(left)).toBeGreaterThanOrEqual(0)
+            expect(Number(left)).toBeLessThanOrEqual(100)
+        }
+
+        // The two part names share a row split between them, so they cannot meet.
+        expect(wrapper.find('.cd__parts').attributes('style')).toMatch(/grid-template-columns: [\d.]+% minmax\(0, 1fr\)/)
+    })
+
+    it('keeps the translator off every figure: each value sits in translate="no"', () => {
+        const wrapper = mountDrawing()
+        const values = wrapper.findAll('[translate="no"]').map((v) => v.text())
+
+        expect(unprotectedFigures(wrapper.element)).toEqual([])
+        expect(values).toContain(mm('23'))
+        expect(values).toContain(mm('3'))
+        expect(values).toContain('7,5J')
+        expect(values).toContain(`ET${NNBSP}35`)
+        expect(values).toContain('225/35 R19')
+    })
+
+    it('draws nothing for a tyre and a rim that do not belong together', () => {
+        // 5,5J (139,7 mm) inside a 305 tyre: 0,46 × its width.
+        const wrapper = mountDrawing({ next: { widthIn: 5.5, diameterIn: 19, etMm: 35, tyreWidthMm: 305, aspect: 30 } })
+
+        expect(wrapper.find('.cd').exists()).toBe(false)
+        expect(wrapper.find('svg').exists()).toBe(false)
+        expect(wrapper.text()).toBe('')
+    })
+
+    it('never borrows a verdict word or a verdict colour: ink and line only', () => {
+        const wrapper = mountDrawing()
+        const text = `${wrapper.text()} ${wrapper.find('.cd').attributes('aria-label')}`
+
+        expect(text).not.toMatch(/zulässig|passt|legal|eintragungsfrei|toleranz|freigegeben|erlaubt|\bok\b/i)
+
+        const shapes = wrapper.findAll('.cd__sheet svg path, .cd__sheet svg rect')
+        expect(shapes.length).toBeGreaterThan(8)
 
         for (const shape of shapes) {
-            expect(shape.classes()).toContain('cd__line')
             expect(shape.attributes('stroke')).toBeUndefined()
             expect(shape.attributes('fill')).toBeUndefined()
             expect(shape.attributes('style')).toBeUndefined()
         }
 
         expect(wrapper.html()).not.toContain('blue')
+        expect(wrapper.html()).not.toMatch(/--c-(ok|warn|bad)/)
     })
 
     it('rests in its end state under reduced motion: a change is drawn instantly', async () => {
         reducedMotion(true)
         const wrapper = mountDrawing()
+        const target = { ...next, etMm: 10 }
 
-        await wrapper.setProps({ next: { ...next, etMm: 10 } })
+        await wrapper.setProps({ next: target })
         await nextTick()
 
-        expect(rectX(wrapper, 'new')).toBe(137.5)
-        expect(wrapper.find('.cd__label--et').text()).toBe('ET 10')
+        const model = felgenModel(current, target)
+        const scene = rearScene(rearFrame(model), model)
+        expect(rimRect(wrapper, 'next').x).toBe(scene.next.rim.x)
+        // ET 45 → 10 on 7,5 → 8,5J: outer +47,7 → 48 mm, inner −22,3 → 22 mm away from the strut.
+        expect(label(wrapper, 'inner')).toBe(`Innenkante: ${mm('22')} weiter weg vom Federbein`)
     })
 
-    it('tweens the band towards the new value over --d-2 when motion is allowed, while the label changes at once', async () => {
+    it('tweens the wheels towards the new value over --d-2 when motion is allowed, while the labels change at once', async () => {
         reducedMotion(false)
         const wrapper = mountDrawing()
+        const target = { ...next, etMm: 10 }
+        const model = felgenModel(current, target)
+        const end = rearScene(rearFrame(model), model).next.rim.x
 
-        await wrapper.setProps({ next: { ...next, etMm: 10 } })
+        await wrapper.setProps({ next: target })
         await nextTick()
 
-        // The label reads the target straight away; the band is still on its way.
-        expect(wrapper.find('.cd__label--et').text()).toBe('ET 10')
-        expect(rectX(wrapper, 'new')).toBeLessThan(137.5)
+        // The label reads the target straight away; the rim is still on its way.
+        expect(label(wrapper, 'inner')).toBe(`Innenkante: ${mm('22')} weiter weg vom Federbein`)
+        expect(rimRect(wrapper, 'next').x).not.toBe(end)
 
         await new Promise((resolve) => setTimeout(resolve, 450))
         await nextTick()
 
-        expect(rectX(wrapper, 'new')).toBe(137.5)
+        expect(rimRect(wrapper, 'next').x).toBe(end)
     })
 })

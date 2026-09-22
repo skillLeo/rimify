@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * The Felgenrechner's form: two setups, Aktuell and Neu, five figures each. It owns nothing but
- * the controls — the state lives in `useRechner`, the arithmetic in `lib/fitmentMath`, the
+ * the controls — the state lives in `useRechner`, the geometry in `lib/felgenGeometry`, the
  * drawing and the results in their own components — and it hands a comparison up only when every
  * figure is one it offers itself. An ET outside −30 … 70 is explained under its field and never
  * computed with: the parent keeps the last valid comparison and shows a dash meanwhile.
@@ -13,13 +13,15 @@
  * - `tabs` (both phone documents): Aktuell · Neu as tabs, the five fields two abreast.
  *
  * Every control is at least 16 px (`.input`), has a visible label or a row-and-column name, and
- * validates on blur.
+ * validates on blur. Every control is `translate="no"`: its options are figures (`8,5J`,
+ * `17 Zoll`, `225 mm`), and a page translator once turned "5,5 J" into "5.5 years".
  */
 
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 import { computed, reactive, ref, useId, watch } from 'vue'
+import ValueText from '../Ui/ValueText.vue'
 import { withUnit } from '../../format'
-import type { WheelSetup } from '../../lib/fitmentMath'
+import type { WheelSetup } from '../../lib/felgenGeometry'
 import {
     cloneState,
     ET_MAX,
@@ -42,7 +44,7 @@ const props = withDefaults(
     defineProps<{
         modelValue: RechnerState
         layout?: CalculatorLayout
-        /** True while *Aktuell* is the vehicle's own size; its controls then carry `data-prefilled`. */
+        /** True while *Aktuell* holds the server's prefill; its controls then carry `data-prefilled`. */
         prefilled?: boolean
     }>(),
     { layout: 'row', prefilled: false }
@@ -203,6 +205,7 @@ const setup = (side: Side): WheelSetup => local[side]
                         v-if="field.key === 'etMm'"
                         :id="fid(side.key, field.key)"
                         class="input num calc-form__et"
+                        translate="no"
                         type="number"
                         :min="ET_MIN"
                         :max="ET_MAX"
@@ -221,6 +224,7 @@ const setup = (side: Side): WheelSetup => local[side]
                         :id="fid(side.key, field.key)"
                         v-model="setup(side.key)[field.key]"
                         class="input num"
+                        translate="no"
                         :aria-labelledby="`${rid(field.key)} ${hid(side.key)}`"
                         :aria-invalid="isInvalid(side.key, field.key)"
                         :aria-describedby="eid(side.key, field.key)"
@@ -231,12 +235,12 @@ const setup = (side: Side): WheelSetup => local[side]
                             {{ field.option(option) }}
                         </option>
                     </select>
-                    <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true">mm</span>
+                    <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true" translate="no">mm</span>
                 </span>
 
                 <div class="calc-form__errors">
                     <p v-for="side in SIDES" :id="eid(side.key, field.key)" :key="side.key" class="form-field__error">
-                        {{ errors[side.key][field.key] ?? '' }}
+                        <ValueText :text="errors[side.key][field.key] ?? ''" />
                     </p>
                 </div>
             </template>
@@ -256,6 +260,7 @@ const setup = (side: Side): WheelSetup => local[side]
                                 v-if="field.key === 'etMm'"
                                 :id="fid(side.key, field.key)"
                                 class="input num calc-form__et"
+                                translate="no"
                                 type="number"
                                 :min="ET_MIN"
                                 :max="ET_MAX"
@@ -273,6 +278,7 @@ const setup = (side: Side): WheelSetup => local[side]
                                 :id="fid(side.key, field.key)"
                                 v-model="setup(side.key)[field.key]"
                                 class="input num"
+                                translate="no"
                                 :aria-invalid="isInvalid(side.key, field.key)"
                                 :aria-describedby="eid(side.key, field.key)"
                                 :data-prefilled="prefilledAttr(side.key)"
@@ -282,11 +288,11 @@ const setup = (side: Side): WheelSetup => local[side]
                                     {{ field.option(option) }}
                                 </option>
                             </select>
-                            <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true">mm</span>
+                            <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true" translate="no">mm</span>
                         </span>
 
                         <p :id="eid(side.key, field.key)" class="form-field__error">
-                            {{ errors[side.key][field.key] ?? '' }}
+                            <ValueText :text="errors[side.key][field.key] ?? ''" />
                         </p>
                     </div>
                 </div>
@@ -308,6 +314,7 @@ const setup = (side: Side): WheelSetup => local[side]
                             v-if="field.key === 'etMm'"
                             :id="fid(side.key, field.key)"
                             class="input num calc-form__et"
+                            translate="no"
                             type="number"
                             :min="ET_MIN"
                             :max="ET_MAX"
@@ -325,6 +332,7 @@ const setup = (side: Side): WheelSetup => local[side]
                             :id="fid(side.key, field.key)"
                             v-model="setup(side.key)[field.key]"
                             class="input num"
+                            translate="no"
                             :aria-invalid="isInvalid(side.key, field.key)"
                             :aria-describedby="eid(side.key, field.key)"
                             :data-prefilled="prefilledAttr(side.key)"
@@ -334,11 +342,11 @@ const setup = (side: Side): WheelSetup => local[side]
                                 {{ field.option(option) }}
                             </option>
                         </select>
-                        <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true">mm</span>
+                        <span v-if="field.key === 'etMm'" class="input-group__suffix" aria-hidden="true" translate="no">mm</span>
                     </span>
 
                     <p :id="eid(side.key, field.key)" class="form-field__error">
-                        {{ errors[side.key][field.key] ?? '' }}
+                        <ValueText :text="errors[side.key][field.key] ?? ''" />
                     </p>
                 </div>
             </TabsContent>

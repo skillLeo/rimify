@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { NNBSP } from '../format'
 import {
     ASPECTS,
     DEFAULT_STATE,
@@ -6,12 +7,15 @@ import {
     DISCLAIMER,
     decodeState,
     encodeState,
+    etLabel,
     felgenrechnerHref,
     fromPrefill,
     isSetup,
     isState,
+    jLabel,
     RIM_WIDTHS_IN,
     sameState,
+    setupLine,
     SHARE_PATTERN,
     TYRE_WIDTHS_MM,
 } from './rechner'
@@ -104,10 +108,28 @@ describe('the share parameter', () => {
     })
 })
 
-describe('the disclaimer', () => {
-    it('is the specification’s sentence, verbatim', () => {
+describe('the line under every result', () => {
+    it('says the figures are arithmetic and points at the papers that decide, verbatim', () => {
         expect(DISCLAIMER).toBe(
-            'Rechenwerte ersetzen kein Gutachten – ob eine Kombination zulässig ist, steht im Gutachten. Alle Angaben ohne Gewähr; verbindlich sind Fahrzeugschein bzw. CoC und die Reifenfreigabe.'
+            'Rechenwerte ersetzen kein Gutachten. Welche Rad- und Reifengrößen für dein Auto gelten, steht in der Zulassungsbescheinigung Teil I (Felder 15.1 und 15.2), im CoC-Papier, in der Reifenfreigabe und im Gutachten oder in der ABE der Felge.'
         )
+    })
+
+    it('carries no liability wording of our own and no verdict (finding #52, ACCURACY.md D8)', () => {
+        const text = DISCLAIMER.toLowerCase()
+
+        for (const word of ['ohne gewähr', 'verbindlich', 'zulässig', 'passt', 'legal', 'eintragungsfrei', 'toleranz']) {
+            expect(text, word).not.toContain(word)
+        }
+    })
+})
+
+describe('how a size is written (R-10)', () => {
+    it('writes a rim width as 8,5J, an ET with a real minus and a tyre as 225/45 R17', () => {
+        expect(jLabel(8.5)).toBe('8,5J')
+        expect(jLabel(8)).toBe('8J')
+        expect(etLabel(35)).toBe(`ET${NNBSP}35`)
+        expect(etLabel(-10)).toBe(`ET${NNBSP}−10`)
+        expect(setupLine(DEFAULT_STATE.current)).toBe(`7,5J × 17 · ET${NNBSP}45 · 225/45 R17`)
     })
 })
