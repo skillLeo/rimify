@@ -164,4 +164,20 @@ describe('Startseite (phone) — Nach Marke', () => {
         expect(wrapper.find('#h6 a.brand-cell--all').text()).toBe('Passende Felgen anzeigen')
         expect(wrapper.find('#h6 .brand-wall__note').text()).toContain('an deinen Audi RS 4 passen')
     })
+
+    it('greys a brand without stock instead of linking it, and the note says so', () => {
+        // Server order: the sample range first, then MOTEC, then a brand without stock.
+        const wrapper = mountPage({ brands: [demo, brand(), brand({ name: 'BBS', slug: 'bbs', count: 0, href: null })] })
+        const cells = wrapper.findAll('#h6 .brand-cell:not(.brand-cell--all)')
+
+        // MOTEC, BBS, then the sample range last: the greyed brand keeps its place in the order.
+        expect(cells.map((cell) => cell.element.tagName.toLowerCase())).toEqual(['a', 'span', 'a'])
+        expect(cells[0]?.attributes('data-kind')).toBe('name')
+        expect(cells[1]?.classes()).toContain('brand-cell--none')
+        expect(cells[1]?.attributes('href')).toBeUndefined()
+        expect(cells[1]?.find('.brand-cell__count').exists()).toBe(false)
+        expect(cells[1]?.text()).toContain('Noch keine Felgen auf Lager')
+        expect(cells[2]?.attributes('data-kind')).toBe('sample')
+        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
+    })
 })

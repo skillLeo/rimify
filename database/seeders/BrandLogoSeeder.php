@@ -13,10 +13,12 @@ use Illuminate\Support\Facades\Log;
 /**
  * The wheel brands RIMIFY researched, as brand rows with their own logos — and nothing else.
  *
- * This seeder creates no wheel model, no configuration and no stock, so it moves nothing on the
- * storefront: the homepage, the Felgen menu, the counters and the search all list a brand only
- * when it has a published model with an in-stock configuration, and that gate is untouched. A row
- * here is the place a brand's catalogue will land in, with its logo and its order already right.
+ * This seeder creates no wheel model, no configuration and no stock. Each row is marked a wheel
+ * brand (`is_wheel_brand`), which is what puts it on the homepage brand wall: greyed, with the
+ * sentence that it has no wheels on stock yet, and not a link — never a tile into an empty listing
+ * (CLAUDE.md §2). The Felgen menu, the counters and the search list a brand only when it has a
+ * published model with an in-stock configuration, and that gate is untouched. A row here is the
+ * place a brand's catalogue will land in, with its logo and its order already right.
  *
  * Order: MOTEC first — the client's own supplier, and the same place CatalogueSeeder gives it —
  * then the researched brands by rank (BBS, BORBET, OZ Racing, RONAL, AEZ, RIAL, DEZENT, DOTZ,
@@ -127,6 +129,7 @@ final class BrandLogoSeeder extends Seeder
             'name' => MakeName::normalise($spec['name']),
             'sort_order' => self::sortOrder($spec['rank']),
             'logo_path' => $this->logoPath($spec['slug'], is_string($current) ? $current : null),
+            'is_wheel_brand' => true,
         ]);
         $brand->deleted_at = null;
         $brand->save();

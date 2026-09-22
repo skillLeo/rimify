@@ -7,8 +7,14 @@
  * the sample range last, then one closing link. The column count per tier is computed from the
  * number of cells so the closing cell always completes the last row — there is never an empty
  * cell. Logos are one-colour masks filled with the ink token, sized by constant area; a brand
- * without a usable logo is set as its name. The note under the wall states the wall's own rule and,
- * with a vehicle, that the counts are the brand's whole stock rather than what fits the car.
+ * without a usable logo is set as its name.
+ *
+ * Every wheel brand is on the wall, stock or not. A brand with nothing on stock is greyed — its
+ * mark or name in the tertiary ink, the sentence *Noch keine Felgen auf Lager* where its count
+ * would be — and is not a link, the way the size tiles above grey a size nothing fits: shown,
+ * never hidden, never struck, never a tile into an empty listing (CLAUDE.md §2). The note under
+ * the wall states the wall's own rule — which sentence depends on whether a greyed brand is on it —
+ * and, with a vehicle, that the counts are the brand's whole stock rather than what fits the car.
  */
 
 import { Link } from '@inertiajs/vue3'
@@ -20,8 +26,10 @@ import type { VehicleProp } from '../../types/rimify'
 import {
     closingLabel,
     hasMark,
+    isLinked,
     isSampleRange,
     markStyle,
+    NO_STOCK_LINE,
     noteText,
     orderedBrands,
     wallStyle,
@@ -57,8 +65,19 @@ function kindOf(brand: Brand): CellKind {
     return hasMark(brand) && brand.logo !== null && !failed.value.has(brand.logo) ? 'mark' : 'name'
 }
 
-const cells = computed(() => orderedBrands(props.brands).map((brand) => ({ brand, kind: kindOf(brand) })))
+/*
+ * `href` is the listing link only when there is something to list; null greys the cell and takes
+ * the link away (isLinked, fail closed).
+ */
+const cells = computed(() =>
+    orderedBrands(props.brands).map((brand) => ({
+        brand,
+        kind: kindOf(brand),
+        href: isLinked(brand) ? brand.href : null,
+    }))
+)
 const layout = computed(() => wallStyle(cells.value.length))
+const someWithoutStock = computed(() => cells.value.some((cell) => cell.href === null))
 
 function probe(list: readonly Brand[]): void {
     for (const brand of list) {
@@ -95,9 +114,19 @@ onMounted(() => {
 <template>
     <template v-if="cells.length > 0">
         <ul class="brand-wall" :class="{ 'brand-wall--flush': flush }" :style="layout" aria-label="Felgen nach Marke" :data-brands="cells.length">
-            <li v-for="{ brand, kind } in cells" :key="brand.slug" class="brand-wall__item">
-                <!-- Named by content, never an aria-label: the visible count is part of the name (WCAG 2.5.3). -->
-                <Link :href="brand.href" class="brand-cell" :data-kind="kind" prefetch>
+            <li v-for="{ brand, kind, href } in cells" :key="brand.slug" class="brand-wall__item">
+                <!--
+                    A link, named by content and never by an aria-label: the visible count is part of
+                    the name (WCAG 2.5.3). Without stock the same cell is a plain span — greyed, in
+                    place, not a link — and its foot says so instead of counting.
+                -->
+                <component
+                    :is="href === null ? 'span' : Link"
+                    class="brand-cell"
+                    :class="{ 'brand-cell--none': href === null }"
+                    :data-kind="kind"
+                    v-bind="href === null ? { 'aria-disabled': 'true' } : { href, prefetch: true }"
+                >
                     <span class="brand-cell__stage">
                         <template v-if="kind === 'mark'">
                             <span class="brand-cell__mark" aria-hidden="true" :style="markStyle(brand)" />
@@ -109,8 +138,9 @@ onMounted(() => {
                         </template>
                         <span v-else class="brand-cell__name" :data-len="wordmarkSize(brand.name)">{{ brand.name }}</span>
                     </span>
-                    <span class="brand-cell__foot brand-cell__count small num">{{ felgen(brand.count) }}</span>
-                </Link>
+                    <span v-if="href !== null" class="brand-cell__foot brand-cell__count small num">{{ felgen(brand.count) }}</span>
+                    <span v-else class="brand-cell__foot brand-cell__none small">{{ NO_STOCK_LINE }}</span>
+                </component>
             </li>
             <li class="brand-wall__item brand-wall__item--all">
                 <Link href="/felgen" class="brand-cell brand-cell--all" data-kind="all" prefetch>
@@ -118,7 +148,7 @@ onMounted(() => {
                 </Link>
             </li>
         </ul>
-        <p class="small brand-wall__note">{{ noteText(vehicle) }}</p>
+        <p class="small brand-wall__note">{{ noteText(vehicle, someWithoutStock) }}</p>
     </template>
 </template>
 
@@ -275,6 +305,27 @@ onMounted(() => {
     hyphens: manual;
 }
 
+/* ── Nothing on stock: the mark or the name in the tertiary ink, the sentence where the count would
+   be, no light, no link. Greyed, never hidden, never struck — the size tiles' "none" state ── */
+
+.brand-cell--none {
+    cursor: not-allowed;
+}
+
+.brand-cell--none::before {
+    content: none;
+}
+
+.brand-cell--none .brand-cell__mark,
+.brand-cell--none .brand-cell__name,
+.brand-cell--none .brand-cell__sample {
+    color: var(--c-ink-3);
+}
+
+.brand-cell__none {
+    color: var(--c-ink-3);
+}
+
 /* The closing cell has no stage: alone in a row it is a slim strip, beside brands it stretches. */
 .brand-cell--all {
     grid-template-rows: 1fr auto;
@@ -297,7 +348,8 @@ onMounted(() => {
     color: var(--c-ink-3);
 }
 
-/* ── States: colours switch instantly; only the light fades (§7) ── */
+/* ── States: colours switch instantly; only the light fades (§7). A greyed cell has no light and
+   nothing to colour: the rules below reach only what a link contains ── */
 
 @media (hover: hover) and (pointer: fine) {
     .brand-cell:hover::before {

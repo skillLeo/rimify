@@ -11,7 +11,9 @@ import type { VehicleProp } from '../../types/rimify'
 import {
     closingLabel,
     hasMark,
+    isLinked,
     markStyle,
+    NO_STOCK_LINE,
     noteText,
     orderedBrands,
     WALL_MAX_COLUMNS,
@@ -259,8 +261,40 @@ describe('the wordmark, the order and the copy', () => {
 
     it('states the rule, and with a vehicle that the counts are the whole stock (§4.1)', () => {
         expect(noteText(null)).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
+        expect(noteText(null, false)).toBe(noteText(null))
         expect(noteText(vehicle)).toBe(
             'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
         )
+    })
+
+    it('changes the rule once a greyed brand is on the wall, and keeps the vehicle sentence after it', () => {
+        expect(noteText(null, true)).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
+        expect(noteText(vehicle, true)).toBe(
+            'Ausgegraute Marken haben gerade keine Felgen auf Lager. Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
+        )
+    })
+})
+
+describe('isLinked — a cell is a link only when there is something to list (fail closed)', () => {
+    it('links a brand with stock and the server’s link to it', () => {
+        expect(isLinked(brand({ count: 1, href: '/felgen?marke=motec' }))).toBe(true)
+        expect(isLinked(brand({ count: 1234, href: '/felgen?marke=motec' }))).toBe(true)
+    })
+
+    it('greys a brand without stock, with or without a link', () => {
+        expect(isLinked(brand({ count: 0, href: null }))).toBe(false)
+        expect(isLinked(brand({ count: 0, href: '/felgen?marke=motec' }))).toBe(false)
+    })
+
+    it('greys a brand whose link is missing, whatever its count says', () => {
+        expect(isLinked(brand({ count: 5, href: null }))).toBe(false)
+        expect(isLinked(brand({ count: 5, href: '' }))).toBe(false)
+        // A count that is not a number claims nothing.
+        expect(isLinked({ ...brand(), count: '5' as unknown as number })).toBe(false)
+        expect(isLinked({ ...brand(), count: Number.NaN })).toBe(false)
+    })
+
+    it('says, where the count would be, that there is nothing yet', () => {
+        expect(NO_STOCK_LINE).toBe('Noch keine Felgen auf Lager')
     })
 })

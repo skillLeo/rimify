@@ -203,7 +203,7 @@ test.describe('Startseite/Mobile', () => {
         expect(scrolls).toBe(true)
         expect(await page.locator('#h5 .tile').count()).toBeGreaterThanOrEqual(4)
         // A narrow no-break space joins the number and the €, as format.ts writes it.
-        await expect(page.locator('#h5 .tile__price').first()).toHaveText(/^ab \d{1,3}(\.\d{3})*,\d{2}[\s ]€\s?pro Felge$/)
+        await expect(page.locator('#h5 .tile__price').first()).toHaveText(/^ab \d{1,3}(\.\d{3})*,\d{2}[\s\u202F]€\s?pro Felge$/)
 
         // Scoped to the row: the calculator teaser has a tab named "Neu" as well.
         const neu = page.locator('#h5').getByRole('tab', { name: 'Neu' })
@@ -231,7 +231,8 @@ test.describe('Startseite/Mobile', () => {
         await expect(size).toHaveAttribute('href', /\/felgen\?zoll=\d+/)
         // `felgen()` joins the number and the noun with a narrow no-break space; one wheel is *1 Felge*.
         await expect(size).toContainText(/\d+\sFelgen?\b/)
-        const brand = page.locator('#h6 .brand-cell:not(.brand-cell--all)').first()
+        // A linked cell: a brand without stock is on the wall too, greyed as a span that goes nowhere.
+        const brand = page.locator('#h6 a.brand-cell:not(.brand-cell--all)').first()
         await expect(brand).toHaveAttribute('href', /\/felgen\?marke=/)
         // Named by its content, not an aria-label, so the visible count is part of the name (WCAG 2.5.3).
         await expect(brand).not.toHaveAttribute('aria-label')

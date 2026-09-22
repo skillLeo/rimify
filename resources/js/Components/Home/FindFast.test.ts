@@ -125,6 +125,18 @@ describe('FindFast — Nach Marke on the desktop document', () => {
         expect(wrapper.find('.brand-wall__note').text()).toContain('an deinen Audi RS 4 passen')
     })
 
+    it('greys a brand without stock instead of linking it, and the note says so', () => {
+        const wrapper = mountFind({ brands: [brand(), brand({ name: 'BBS', slug: 'bbs', count: 0, href: null }), demo] })
+        const cells = wrapper.findAll('#h6 .brand-cell:not(.brand-cell--all)')
+
+        expect(cells.map((cell) => cell.element.tagName.toLowerCase())).toEqual(['a', 'span', 'a'])
+        expect(cells[1]?.classes()).toContain('brand-cell--none')
+        expect(cells[1]?.attributes('href')).toBeUndefined()
+        expect(cells[1]?.find('.brand-cell__count').exists()).toBe(false)
+        expect(cells[1]?.text()).toContain('Noch keine Felgen auf Lager')
+        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
+    })
+
     it('renders no brand row at all without brands', () => {
         const wrapper = mountFind({ sizes, brands: [] })
 

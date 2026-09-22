@@ -188,12 +188,15 @@ export interface StartseiteProps {
     /** `fitting`: how many of the size's models a document permits on the vehicle; null without one. */
     sizes: { inch: number; count: number; fitting: number | null; href: string }[]
     /**
-     * Only brands with a published model that has an in-stock configuration (the server's gate).
+     * Every wheel brand (`brands.is_wheel_brand`), stock or not, plus any brand with a published
+     * model that has an in-stock configuration. `count`: published models with stock, 0 allowed;
+     * `href`: the listing link, null when there is nothing to list — a brand without stock is
+     * greyed and is never a link (CLAUDE.md §2).
      * `logo`: absolute path to a one-colour, transparent, tight-bounds file used as a CSS mask;
      * `logoAspect`: its width / height, 3 decimals — both null when there is no usable logo. The
      * sample range (`slug` `demo`) never has one (docs/design/sections/home-brands.md §4.2).
      */
-    brands: { name: string; slug: string; logo: string | null; logoAspect: number | null; count: number; href: string }[]
+    brands: { name: string; slug: string; logo: string | null; logoAspect: number | null; count: number; href: string | null }[]
     komplettrad: { tyre: EuTyreLabel | null }
     calculator: { prefill: CalculatorPrefill | null }
     partners: { enabled: boolean; demo: boolean }

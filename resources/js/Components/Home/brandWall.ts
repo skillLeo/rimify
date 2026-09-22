@@ -8,6 +8,9 @@
  *   logo is never drawn, the brand's name is the mark instead.
  * - The logo box is constant area with two caps (§3.4). The tier values are tokens in tokens.css;
  *   this file only supplies the logo's own aspect and its square root, because CSS has no sqrt().
+ * - A brand without stock stays in the wall but is not a link (`isLinked`): a tile that opens an
+ *   empty listing is a dead end (CLAUDE.md §2). The cell is greyed and says so where its count
+ *   would be, and the note under the wall changes to describe the greyed cells.
  */
 
 import type { StartseiteProps } from '../../types/pages'
@@ -123,6 +126,18 @@ export const orderedBrands = (list: readonly Brand[]): Brand[] => [
     ...list.filter(isSampleRange),
 ]
 
+/**
+ * A cell is a link only when there is something to list: a count above zero AND the server's link
+ * to it. Either missing, the cell is greyed and goes nowhere — fail closed, never a tile into an
+ * empty listing (CLAUDE.md §2).
+ */
+export function isLinked(brand: Brand): boolean {
+    return typeof brand.count === 'number' && brand.count > 0 && typeof brand.href === 'string' && brand.href !== ''
+}
+
+/** What a greyed cell says where its count would be. */
+export const NO_STOCK_LINE = 'Noch keine Felgen auf Lager'
+
 /** The closing cell's link text (§4.1). */
 export function closingLabel(vehicle: VehicleProp | null): string {
     return vehicle ? 'Passende Felgen anzeigen' : 'Alle Felgen ansehen'
@@ -130,13 +145,20 @@ export function closingLabel(vehicle: VehicleProp | null): string {
 
 const RULE = 'Nur Marken, von denen gerade Felgen auf Lager sind.'
 
+/** The rule once the wall holds a greyed brand: the old sentence would no longer be true. */
+const RULE_WITH_GREYED = 'Ausgegraute Marken haben gerade keine Felgen auf Lager.'
+
 /**
- * The note under the wall (§4.1). With a vehicle it says that the counts are the brand's catalogue
- * counts, because the size tiles right above count only what fits — RIMIFY may not let a bare
- * `18 Felgen` read as "18 fit my car" (CLAUDE.md §2).
+ * The note under the wall (§4.1). It states the wall's own rule — which sentence depends on
+ * whether a greyed brand is on the wall (`someWithoutStock`), so the note is always true. With a
+ * vehicle it adds that the counts are the brand's catalogue counts, because the size tiles right
+ * above count only what fits — RIMIFY may not let a bare `18 Felgen` read as "18 fit my car"
+ * (CLAUDE.md §2).
  */
-export function noteText(vehicle: VehicleProp | null): string {
+export function noteText(vehicle: VehicleProp | null, someWithoutStock = false): string {
+    const rule = someWithoutStock ? RULE_WITH_GREYED : RULE
+
     return vehicle
-        ? `${RULE} Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen ${vehicle.short} passen, zeigt dir die Liste.`
-        : RULE
+        ? `${rule} Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen ${vehicle.short} passen, zeigt dir die Liste.`
+        : rule
 }

@@ -112,7 +112,7 @@ it('offers three real orders of the catalogue and never a bestseller claim', fun
     $this->get('/?beliebt=unsinn')->assertInertia(fn (AssertableInertia $page) => $page->where('popular.active', 'beliebt'));
 });
 
-it('lists seven size tiles and only brands with stock', function (): void {
+it('lists seven size tiles, and links a brand exactly when it has wheels on stock', function (): void {
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->has('sizes', 7)
         ->where('sizes.0.inch', 16)
@@ -121,7 +121,10 @@ it('lists seven size tiles and only brands with stock', function (): void {
         ->where('sizes.0.fitting', null)
         ->where('fitmentCount', null)
         ->has('brands')
-        ->where('brands', fn ($brands) => collect($brands)->every(fn (array $b): bool => $b['href'] === '/felgen?marke='.$b['slug'] && $b['count'] >= 1))
+        // A brand without stock is on the wall greyed and goes nowhere: never a link into an empty listing.
+        ->where('brands', fn ($brands) => collect($brands)->every(fn (array $b): bool => $b['count'] > 0
+            ? $b['href'] === '/felgen?marke='.$b['slug']
+            : $b['count'] === 0 && $b['href'] === null))
     );
 });
 

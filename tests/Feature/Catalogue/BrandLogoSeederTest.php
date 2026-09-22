@@ -64,6 +64,8 @@ it('creates every researched brand once, MOTEC first, with the processed logo wh
 
         expect($brand)->not->toBeNull("{$spec['name']} was not created")
             ->and($brand?->name)->toBe($spec['name'])
+            // A wheel brand: on the homepage wall with its logo, stock or not.
+            ->and($brand?->is_wheel_brand)->toBeTrue()
             ->and((int) $brand?->sort_order)->toBe(BrandLogoSeeder::sortOrder($spec['rank']))
             ->and(Brand::withTrashed()->whereRaw('LOWER(name) = ?', [mb_strtolower($spec['name'])])->count())->toBe(1);
     }

@@ -26,6 +26,7 @@ use App\Support\DemoWheels;
 use App\Support\DevicePage;
 use App\Support\GermanFormat;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -410,44 +411,59 @@ class StartseiteController extends Controller
     }
 
     /**
-     * Brands with at least one published, in-stock configuration. A brand tile leading to an
-     * empty listing reads as a broken site, so a brand without stock is not a tile. A brand row
-     * without a wheel — a researched manufacturer waiting for its catalogue — is not one either:
-     * the gate below is the only thing that decides, and it is unchanged.
+     * The brand wall: every wheel brand (`brands.is_wheel_brand`) — with its logo, stock or not —
+     * and, besides, any brand that has a published model with an in-stock configuration, so a
+     * database whose flags were never set lists nothing less. A tyre brand without a wheel is not
+     * on the wall.
+     *
+     * `count` is the number of published models with an in-stock configuration and may be 0.
+     * `href` is the listing link only when there is something to list: a brand tile leading to an
+     * empty listing reads as a broken site, so a brand without stock is not a link (null), and the
+     * wall greys it and says so. The menu, the counters and the search keep their own gate — a
+     * published model with stock — and are unchanged.
      *
      * `logo` is the processed one-colour mask and `logoAspect` its own width / height, both from
      * BrandLogos: either the file is there and could be measured, or both are null and the wall
      * sets the name instead (home-brands.md §4.2).
      *
-     * @return list<array{name: string, slug: string, logo: string|null, logoAspect: float|null, count: int, href: string}>
+     * @return list<array{name: string, slug: string, logo: string|null, logoAspect: float|null, count: int, href: string|null}>
      */
     private function brands(): array
     {
-        $rows = DB::table('brands as br')
-            ->join('wheel_models as wm', 'wm.brand_id', '=', 'br.id')
+        // Per brand, its published models that a customer can buy right now.
+        $stocked = DB::table('wheel_models as wm')
             ->join('wheel_configs as wc', 'wc.wheel_model_id', '=', 'wm.id')
-            ->whereNull('br.deleted_at')
             ->whereNull('wm.deleted_at')
             ->whereNull('wc.deleted_at')
             ->where('wm.status', CatalogueStatus::Published->value)
             ->where('wc.stock_qty', '>', 0)
-            ->groupBy('br.id', 'br.name', 'br.slug', 'br.logo_path', 'br.sort_order')
+            ->groupBy('wm.brand_id')
+            ->select(['wm.brand_id', DB::raw('COUNT(DISTINCT wm.id) as models')]);
+
+        $rows = DB::table('brands as br')
+            ->leftJoinSub($stocked, 'st', 'st.brand_id', '=', 'br.id')
+            ->whereNull('br.deleted_at')
+            ->where(function (QueryBuilder $listed): void {
+                $listed->where('br.is_wheel_brand', true)->orWhereNotNull('st.brand_id');
+            })
             ->orderBy('br.sort_order')
-            ->get(['br.name', 'br.slug', 'br.logo_path', DB::raw('COUNT(DISTINCT wm.id) as models')]);
+            ->orderBy('br.id')
+            ->get(['br.name', 'br.slug', 'br.logo_path', DB::raw('COALESCE(st.models, 0) as models')]);
 
         $out = [];
 
         foreach ($rows as $row) {
             $slug = (string) $row->slug;
             $logo = BrandLogos::resolve($slug, is_string($row->logo_path) ? $row->logo_path : null);
+            $count = (int) $row->models;
 
             $out[] = [
                 'name' => (string) $row->name,
                 'slug' => $slug,
                 'logo' => $logo === null ? null : $logo['url'],
                 'logoAspect' => $logo === null ? null : $logo['aspect'],
-                'count' => (int) $row->models,
-                'href' => '/felgen?marke='.rawurlencode($slug),
+                'count' => $count,
+                'href' => $count > 0 ? '/felgen?marke='.rawurlencode($slug) : null,
             ];
         }
 
