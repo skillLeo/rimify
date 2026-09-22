@@ -1,0 +1,110 @@
+{
+    "generator": "scripts/brand-logo.mjs",
+    "logos": {
+        "motec": {
+            "file": "motec.svg",
+            "format": "svg",
+            "width": 1030.912,
+            "height": 762.534,
+            "aspect": 1.352,
+            "hash": "0cc884d330cd"
+        },
+        "bbs": {
+            "file": "bbs.svg",
+            "format": "svg",
+            "width": 159.691,
+            "height": 59.152,
+            "aspect": 2.7,
+            "hash": "0594d0746777"
+        },
+        "borbet": {
+            "file": "borbet.svg",
+            "format": "svg",
+            "width": 240.229,
+            "height": 32.009,
+            "aspect": 7.505,
+            "hash": "9d733be9f749"
+        },
+        "oz-racing": {
+            "file": "oz-racing.png",
+            "format": "png",
+            "width": 960,
+            "height": 298,
+            "aspect": 3.221,
+            "hash": "2fcf0d4643d3"
+        },
+        "ronal": {
+            "file": "ronal.svg",
+            "format": "svg",
+            "width": 120.065,
+            "height": 22.613,
+            "aspect": 5.31,
+            "hash": "27eff24328f3"
+        },
+        "aez": {
+            "file": "aez.png",
+            "format": "png",
+            "width": 960,
+            "height": 332,
+            "aspect": 2.892,
+            "hash": "256214029c8c"
+        },
+        "rial": {
+            "file": "rial.png",
+            "format": "png",
+            "width": 1091,
+            "height": 490,
+            "aspect": 2.227,
+            "hash": "d31e43f7c8a8"
+        },
+        "dezent": {
+            "file": "dezent.svg",
+            "format": "svg",
+            "width": 502.537,
+            "height": 130.242,
+            "aspect": 3.858,
+            "hash": "5d83ef3b0eaf"
+        },
+        "dotz": {
+            "file": "dotz.svg",
+            "format": "svg",
+            "width": 237.168,
+            "height": 62.216,
+            "aspect": 3.812,
+            "hash": "2480108c4a84"
+        },
+        "alutec": {
+            "file": "alutec.png",
+            "format": "png",
+            "width": 1600,
+            "height": 385,
+            "aspect": 4.156,
+            "hash": "4013e80a5053"
+        },
+        "ats": {
+            "file": "ats.png",
+            "format": "png",
+            "width": 960,
+            "height": 264,
+            "aspect": 3.636,
+            "hash": "7dd7f7dc7fe2"
+        },
+        "brock": {
+            "file": "brock.png",
+            "format": "png",
+            "width": 1600,
+            "height": 499,
+            "aspect": 3.206,
+            "hash": "21ac0b82f717"
+        },
+        "cms": {
+            "file": "cms.svg",
+            "format": "svg",
+            "width": 383.628,
+            "height": 130.244,
+            "aspect": 2.945,
+            "hash": "654ba4da50e0"
+        }
+    },
+    "missing": {}
+}

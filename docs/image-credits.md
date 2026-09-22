@@ -89,6 +89,42 @@ lettering, an "M Performance" rim print), three-quarter views a circular mask ca
 and pictures showing only part of a wheel. Wikimedia Commons could not be reached from this
 machine (DNS) and contributed nothing.
 
+## Markenlogos (`database/seeders/content/brand-logos/source/` → `public/images/brands/`)
+
+Every logo below is a trademark of its owner; RIMIFY shows one only for a brand whose wheels it
+offers, as a neutral one-colour mark, and claims no association, endorsement or licence.
+
+Each file was downloaded from the brand's own site or its official logo kit — never redrawn,
+traced, re-typeset or completed — and is processed by `node scripts/brand-logo.mjs` into a
+one-colour mask with a transparent background and bounds cropped to the ink
+(`docs/design/sections/home-brands.md` §5). The wall fills that mask with an ink token, so the
+file's own colour never shows. Wikimedia Commons contributed nothing usable: every wheel-brand
+file found there is a third-party redraw or another company's mark, and all were rejected. Full
+per-file provenance, including what was rejected and why, is in `sources-1.json` and
+`sources-2.json` next to the sources.
+
+| Marke | Quelldatei | Quelle (URL) | Seite | Abgerufen | Verarbeitung |
+|---|---|---|---|---|---|
+| MOTEC | `motec.svg` | `https://motec-shop.de/static/version1789385274/frontend/Medienagenten/motec/de_DE/images/motec_logo-neu_weiss.svg` | https://motec-shop.de/ | 2026-09-22 | white → ink, viewBox trimmed |
+| BBS | `bbs.svg` | `https://www.bbs.com/de/static/version1782818341/frontend/Fwd/fwd-bbs-de-theme/de_DE/images/header/BBS-Logo-2025.svg` | https://www.bbs.com/de/home | 2026-09-22 | plate → ink, the white BBS lettering cut out as holes |
+| BORBET | `borbet.svg` | `https://www.borbet.de/template/borbet.de/logo.svg` | https://www.borbet.de/ | 2026-09-22 | #004F91 → ink, viewBox trimmed |
+| OZ Racing | `oz-racing.png` | `https://www.ozracing.com/images/products/brands/logo/oz-racing.png` | https://www.ozracing.com/alloy-wheels-brands | 2026-09-22 | alpha mask; source only 251 × 78, scaled up |
+| RONAL | `ronal.svg` | `https://www.ronal-wheels.com/themes/custom/ronal/logo.svg` | https://www.ronal-wheels.com/ | 2026-09-22 | white lettering + red speed bars → ink (the site's own mobile rendering is one-colour too) |
+| AEZ | `aez.png` | `https://www.aez-wheels.com/static/aez/logo-black-larger@2x.png` | https://www.aez-wheels.com/DE/press | 2026-09-22 | alpha mask; source 660 × 228, scaled up |
+| RIAL | `rial.png` | `RIAL_Logokit.zip` → `RIAL_Logo_schwarz.png`, `https://wheels-manufacture.de/wheelsmanufacture/wp-content/uploads/2025/09/RIAL_Logokit.zip` | https://wheels-manufacture.de/services/downloads/ | 2026-09-22 | alpha mask |
+| DEZENT | `dezent.svg` | inline SVG sprite of the homepage (no standalone file is published), `https://www.dezent-wheels.com/` + the four fill rules from `/less/main.css` | https://www.dezent-wheels.com/ | 2026-09-22 | letters, separator and the red bar → ink |
+| DOTZ | `dotz.svg` | `https://www.dotz-wheels.com/DE/repos/files/www.dotz-wheels.com/icons/DOTZ.svg` | https://www.dotz-wheels.com/ | 2026-09-22 | white → ink, viewBox trimmed |
+| ALUTEC | `alutec.png` | `ALUTEC_Logokit.zip` → `alutec-logo_minimal-white-bg.png`, `https://wheels-manufacture.de/wheelsmanufacture/wp-content/uploads/2025/09/ALUTEC_Logokit.zip` | https://wheels-manufacture.de/en/alutec-neues-logo-neue-farben-gleiche-leidenschaft/ | 2026-09-22 | alpha mask; the white lightning veins inside the letters become holes (2025 logo) |
+| ATS | `ats.png` | `ATS_Logokit.zip` → `ATS_Logo_schwarz.png`, `https://wheels-manufacture.de/wheelsmanufacture/wp-content/uploads/2025/09/ATS_Logokit.zip` | https://wheels-manufacture.de/services/downloads/ | 2026-09-22 | alpha mask; source 606 × 166, scaled up |
+| Brock | `brock.png` | `Logos.zip` → `Brock/PNG/Brock-Alloy-Wheels-b.png`, `https://www.brock.de/downloads/Logos.zip` | https://www.brock.de/service/download/ | 2026-09-22 | alpha mask |
+| CMS | `cms.svg` | `https://www.cms.com.tr/assets/default/images/cms-logo.svg` | https://www.cms.com.tr/en/corporate/group-companies/cms-gmbh-1 | 2026-09-22 | badge → ink, the gold CMS lettering cut out as holes |
+
+State on 2026-09-22: `public/images/brands/manifest.json` carries MOTEC, BBS, BORBET, DOTZ and CMS.
+The eight remaining sources are processed by running `node scripts/brand-logo.mjs`; until then
+those brands have no `logo_path` and their name is their mark, which is also what happens for any
+brand whose logo cannot be processed. Only MOTEC has wheels in the catalogue, so only MOTEC's mark
+is on a page at all.
+
 ## The pipeline
 
 `scripts/wheel-image.mjs` (pipeline version 5), run through `php artisan wheels:process-images`,

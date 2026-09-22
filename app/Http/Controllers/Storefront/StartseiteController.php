@@ -21,6 +21,7 @@ use App\Services\Storefront\MegaMenu;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
+use App\Support\BrandLogos;
 use App\Support\DemoWheels;
 use App\Support\DevicePage;
 use App\Support\GermanFormat;
@@ -410,9 +411,15 @@ class StartseiteController extends Controller
 
     /**
      * Brands with at least one published, in-stock configuration. A brand tile leading to an
-     * empty listing reads as a broken site, so a brand without stock is not a tile.
+     * empty listing reads as a broken site, so a brand without stock is not a tile. A brand row
+     * without a wheel — a researched manufacturer waiting for its catalogue — is not one either:
+     * the gate below is the only thing that decides, and it is unchanged.
      *
-     * @return list<array{name: string, slug: string, logo: string|null, count: int, href: string}>
+     * `logo` is the processed one-colour mask and `logoAspect` its own width / height, both from
+     * BrandLogos: either the file is there and could be measured, or both are null and the wall
+     * sets the name instead (home-brands.md §4.2).
+     *
+     * @return list<array{name: string, slug: string, logo: string|null, logoAspect: float|null, count: int, href: string}>
      */
     private function brands(): array
     {
@@ -431,12 +438,16 @@ class StartseiteController extends Controller
         $out = [];
 
         foreach ($rows as $row) {
+            $slug = (string) $row->slug;
+            $logo = BrandLogos::resolve($slug, is_string($row->logo_path) ? $row->logo_path : null);
+
             $out[] = [
                 'name' => (string) $row->name,
-                'slug' => (string) $row->slug,
-                'logo' => is_string($row->logo_path) && $row->logo_path !== '' ? '/storage/'.ltrim($row->logo_path, '/') : null,
+                'slug' => $slug,
+                'logo' => $logo === null ? null : $logo['url'],
+                'logoAspect' => $logo === null ? null : $logo['aspect'],
                 'count' => (int) $row->models,
-                'href' => '/felgen?marke='.rawurlencode((string) $row->slug),
+                'href' => '/felgen?marke='.rawurlencode($slug),
             ];
         }
 

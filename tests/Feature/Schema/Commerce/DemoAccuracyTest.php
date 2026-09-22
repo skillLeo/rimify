@@ -13,6 +13,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use Database\Seeders\ApprovalSeeder;
+use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -295,9 +296,18 @@ it('renames a catalogue seeded before the accuracy pass in place, retires rather
         ->and(ApprovalDocument::query()->where('issuer', '!=', ApprovalSeeder::ISSUER)->exists())->toBeFalse()
         ->and(ApprovalDocument::query()->whereNotNull('kba_number')->exists())->toBeFalse();
 
-    // The former brands are gone from every page, and still in the table.
-    expect(Brand::query()->whereIn('name', CatalogueSeeder::FORMER_BRANDS)->exists())->toBeFalse()
-        ->and(Brand::onlyTrashed()->whereIn('name', CatalogueSeeder::FORMER_BRANDS)->count())->toBe(count($former));
+    // The former brands are gone from every page, and still in the table. The ones BrandLogoSeeder
+    // now maintains as researched manufacturers stay as live rows without a single product, which
+    // no storefront gate lists (a brand needs a published model with stock); the rest are retired.
+    $kept = array_values(array_filter(CatalogueSeeder::FORMER_BRANDS, BrandLogoSeeder::maintains(...)));
+    $retired = array_values(array_diff(CatalogueSeeder::FORMER_BRANDS, $kept));
+
+    expect($retired)->not->toBeEmpty()
+        ->and(Brand::query()->whereIn('name', $retired)->exists())->toBeFalse()
+        ->and(Brand::onlyTrashed()->whereIn('name', $retired)->count())->toBe(count($retired))
+        ->and(Brand::withTrashed()->whereIn('name', CatalogueSeeder::FORMER_BRANDS)->count())->toBe(count($former))
+        ->and(Brand::query()->whereIn('name', $kept)->whereHas('wheelModels')->exists())->toBeFalse()
+        ->and(Brand::query()->whereIn('name', $kept)->whereHas('tyreVariants')->exists())->toBeFalse();
 
     // Retired, never deleted: the size no document covers and the fitment on the wrong car.
     expect(WheelConfig::withTrashed()->find($ghost->id)?->trashed())->toBeTrue()

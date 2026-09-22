@@ -58,6 +58,11 @@ class CatalogueSeeder extends Seeder
     /**
      * Brand names this catalogue used before the accuracy pass. None of them has a product here
      * any more: once no model and no tyre refers to one it is soft-deleted, so it can never render.
+     *
+     * Except the ones BrandLogoSeeder now maintains as researched manufacturers with their own
+     * logos (BORBET, OZ Racing, ALUTEC, BBS, Brock, Dezent, AEZ). Those stay as rows without a
+     * product, which no storefront gate lists — a brand needs a published model with an in-stock
+     * configuration to appear anywhere — and retiring them here would only undo that seeder.
      */
     public const FORMER_BRANDS = [
         'BORBET', 'OZ Racing', 'ALUTEC', 'BBS', 'YIDO', 'Rotiform', 'Brock', 'MAM', 'Dezent', 'AEZ',
@@ -651,7 +656,9 @@ class CatalogueSeeder extends Seeder
     /**
      * A wheel brand this catalogue no longer sells under must not render anywhere — not in the
      * menu, the brand tiles, the search or its suggestions. Soft-deleted once nothing refers to
-     * it; a brand that still carries a model or a tyre (a client's own row) is left alone.
+     * it; a brand that still carries a model or a tyre (a client's own row) is left alone, and so
+     * is one BrandLogoSeeder maintains: that row is a researched manufacturer without a catalogue
+     * yet, which every gate already leaves out.
      */
     private function retireFormerBrands(): void
     {
@@ -660,6 +667,7 @@ class CatalogueSeeder extends Seeder
             ->whereDoesntHave('wheelModels')
             ->whereDoesntHave('tyreVariants')
             ->get()
+            ->reject(static fn (Brand $brand): bool => BrandLogoSeeder::maintains((string) $brand->name))
             ->each(static fn (Brand $brand): ?bool => $brand->delete());
     }
 }

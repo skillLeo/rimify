@@ -138,6 +138,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Brand logos
+    |--------------------------------------------------------------------------
+    |
+    | Where `scripts/brand-logo.mjs` writes the processed one-colour logos and the manifest the
+    | brand wall reads their aspect from (app/Support/BrandLogos.php). They live under public/ and
+    | are committed, so a deploy carries them with no extra step. A relative path is taken from the
+    | project root; a test points this at a directory of its own.
+    */
+    'brand_logos' => [
+        'dir' => env('RIMIFY_BRAND_LOGOS_DIR', 'public/images/brands'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Demo catalogue imagery
     |--------------------------------------------------------------------------
     |

@@ -187,7 +187,13 @@ export interface StartseiteProps {
     recentlyViewed: ProductCardProp[]
     /** `fitting`: how many of the size's models a document permits on the vehicle; null without one. */
     sizes: { inch: number; count: number; fitting: number | null; href: string }[]
-    brands: { name: string; slug: string; logo: string | null; count: number; href: string }[]
+    /**
+     * Only brands with a published model that has an in-stock configuration (the server's gate).
+     * `logo`: absolute path to a one-colour, transparent, tight-bounds file used as a CSS mask;
+     * `logoAspect`: its width / height, 3 decimals — both null when there is no usable logo. The
+     * sample range (`slug` `demo`) never has one (docs/design/sections/home-brands.md §4.2).
+     */
+    brands: { name: string; slug: string; logo: string | null; logoAspect: number | null; count: number; href: string }[]
     komplettrad: { tyre: EuTyreLabel | null }
     calculator: { prefill: CalculatorPrefill | null }
     partners: { enabled: boolean; demo: boolean }

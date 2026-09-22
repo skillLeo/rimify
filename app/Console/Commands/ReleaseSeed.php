@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\Setting;
 use Database\Seeders\ApprovalSeeder;
+use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\ContentSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -27,14 +28,20 @@ use Illuminate\Console\Command;
  */
 final class ReleaseSeed extends Command
 {
-    /** Bump when a release changes seeded data that must reach an existing database. */
-    public const VERSION = 1;
+    /**
+     * Bump when a release changes seeded data that must reach an existing database.
+     *
+     * v2: the researched wheel brands and their one-colour logos (BrandLogoSeeder). Brand rows
+     * only — no product, so no page shows anything new until a catalogue lands behind one.
+     */
+    public const VERSION = 2;
 
     /** The idempotent seeders a release may re-apply, in dependency order. */
     public const SEEDERS = [
         ReferenceDataSeeder::class,
         VehicleSeeder::class,
         CatalogueSeeder::class,
+        BrandLogoSeeder::class,
         ApprovalSeeder::class,
         ContentSeeder::class,
     ];

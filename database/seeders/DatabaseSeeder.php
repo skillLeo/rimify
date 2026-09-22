@@ -33,6 +33,8 @@ class DatabaseSeeder extends Seeder
             ReferenceDataSeeder::class,
             VehicleSeeder::class,
             CatalogueSeeder::class,
+            // Brand rows and their logos only — no product, so nothing new reaches the storefront.
+            BrandLogoSeeder::class,
             ApprovalSeeder::class,
         ]);
 

@@ -48,9 +48,15 @@ final class MakeName
         'rotiform' => 'Rotiform',
         'brock' => 'Brock',
         'mam' => 'MAM',
-        'dezent' => 'Dezent',
+        // The wheel brands write themselves in capitals, and their own logos do too.
+        'dezent' => 'DEZENT',
         'aez' => 'AEZ',
         'motec' => 'MOTEC',
+        'ronal' => 'RONAL',
+        'rial' => 'RIAL',
+        'dotz' => 'DOTZ',
+        'ats' => 'ATS',
+        'cms' => 'CMS',
     ];
 
     public static function normalise(string $name): string
