@@ -16,10 +16,10 @@ const AFTER = 'docs/reviews/shots'
 const OUT_DIR = 'docs/phase0/before-after'
 const OUT_HTML = 'docs/phase0/before-after.html'
 
-/** Page slug → the archived baseline name and the review-shot folder. */
+/** Page slug → the archived baseline name, the review-shot folder and an optional shot suffix. */
 const PAGES = [
     ['Startseite', 'startseite', 'home'],
-    ['Startseite mit Fahrzeug', 'startseite@vehicle', 'home-vehicle'],
+    ['Startseite mit Fahrzeug', 'startseite@vehicle', 'home', '-vehicle'],
     ['Fahrzeug wählen', 'felgen-suchen', 'felgen-suchen'],
     ['Felgen', 'felgen', 'felgen'],
     ['Produkt', 'produkt', 'produkt'],
@@ -63,11 +63,11 @@ function figure(src, caption) {
 let rows = ''
 let done = 0
 
-for (const [title, before, after] of PAGES) {
-    const b390 = copy(join(BEFORE, 'mobile', `${before}.png`), `${after}-before-390.png`)
-    const b1440 = copy(join(BEFORE, 'desktop', `${before}.png`), `${after}-before-1440.png`)
-    const a390 = copy(join(AFTER, after, '390-full.png'), `${after}-after-390.png`)
-    const a1440 = copy(join(AFTER, after, '1440-full.png'), `${after}-after-1440.png`)
+for (const [title, before, after, suffix = ''] of PAGES) {
+    const b390 = copy(join(BEFORE, 'mobile', `${before}.png`), `${after}${suffix}-before-390.png`)
+    const b1440 = copy(join(BEFORE, 'desktop', `${before}.png`), `${after}${suffix}-before-1440.png`)
+    const a390 = copy(join(AFTER, after, `390${suffix}-full.png`), `${after}${suffix}-after-390.png`)
+    const a1440 = copy(join(AFTER, after, `1440${suffix}-full.png`), `${after}${suffix}-after-1440.png`)
 
     if (a390 !== null && a1440 !== null) {
         done++
