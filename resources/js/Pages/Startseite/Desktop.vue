@@ -14,7 +14,6 @@
 import { Head } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
-import CalculatorSection from '../../Components/Home/CalculatorSection.vue'
 import FindFast from '../../Components/Home/FindFast.vue'
 import GuidesSection from '../../Components/Home/GuidesSection.vue'
 import GutachtenStory from '../../Components/Home/GutachtenStory.vue'
@@ -23,7 +22,9 @@ import KomplettradBand from '../../Components/Home/KomplettradBand.vue'
 import PartnersSection from '../../Components/Home/PartnersSection.vue'
 import PopularWheels from '../../Components/Home/PopularWheels.vue'
 import PromiseRow from '../../Components/Home/PromiseRow.vue'
+import RimCodeSection from '../../Components/Home/RimCodeSection.vue'
 import ServiceFaq from '../../Components/Home/ServiceFaq.vue'
+import { rimFactsOf } from '../../Components/Home/rimCode'
 import { useShared } from '../../composables/useShared'
 import type { StartseiteProps } from '../../types/pages'
 import { DESCRIPTION, TITLE } from './meta'
@@ -38,6 +39,8 @@ const vehicle = computed(() => shared.value.vehicle)
 /* Which sections the data switches on. H5b lives inside H5 and has no slot of its own. */
 const showPromises = computed(() => props.promises.length > 0)
 const showFindFast = computed(() => props.sizes.length > 0 || props.brands.length > 0)
+/* H8 explains the hero wheel's own values: without them there is nothing to explain (ACCURACY §4). */
+const showRimCode = computed(() => rimFactsOf(props.hero.product) !== null)
 const showPartners = computed(() => props.partners.enabled)
 const showGuides = computed(() => props.guides.length > 0)
 
@@ -51,7 +54,8 @@ const rhythm = computed<Partial<Record<SectionKey, string>>>(() => {
     const order: SectionKey[] = ['h4', 'h5']
 
     if (showFindFast.value) order.push('h6')
-    order.push('h7', 'h8')
+    order.push('h7')
+    if (showRimCode.value) order.push('h8')
     if (showPartners.value) order.push('h9')
     if (showGuides.value) order.push('h10')
     order.push('h11')
@@ -92,7 +96,7 @@ const rhythm = computed<Partial<Record<SectionKey, string>>>(() => {
 
     <KomplettradBand :class="rhythm.h7" :tyre="komplettrad.tyre" :vehicle="vehicle" />
 
-    <CalculatorSection :class="rhythm.h8" :prefill="calculator.prefill" :vehicle="vehicle" />
+    <RimCodeSection v-if="showRimCode" :class="rhythm.h8" :product="hero.product" />
 
     <PartnersSection v-if="showPartners" :class="rhythm.h9" :demo="partners.demo" />
 

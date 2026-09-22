@@ -4,7 +4,7 @@
  *
  * One column of blocks: the question and the panel that answers it, then evidence — the promise
  * row, the Gutachten story, the real catalogue as shelves, two shortcuts into it, the tyre label,
- * the calculator, the guides, a person to ask. Sections alternate surface and band by position
+ * what the numbers on a wheel mean, the guides, a person to ask. Sections alternate surface and band by position
  * over the sections actually rendered (§0.3), so an absent block never leaves two bands touching.
  *
  * Same props as the desktop document; the split is presentation only.
@@ -13,7 +13,8 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
-import FitmentTeaser from '../../Components/Home/FitmentTeaser.vue'
+import RimCode from '../../Components/Home/RimCode.vue'
+import { rimFactsOf } from '../../Components/Home/rimCode'
 import GutachtenStory from '../../Components/Mobile/Home/GutachtenStory.vue'
 import HeroFrame from '../../Components/Mobile/Home/HeroFrame.vue'
 import KomplettradWheel from '../../Components/Mobile/Home/KomplettradWheel.vue'
@@ -175,7 +176,8 @@ const rendered = computed(() => {
         { id: 'h5', on: true },
         { id: 'h6', on: sizes.value.length > 0 || props.brands.length > 0 },
         { id: 'h7', on: tyre.value !== null, dark: true },
-        { id: 'h8', on: true },
+        // H8 explains the hero wheel's own values; without them there is no section (ACCURACY §4).
+        { id: 'h8', on: rimFactsOf(props.hero.product) !== null },
         { id: 'h9', on: props.partners.enabled },
         { id: 'h10', on: props.guides.length > 0 },
         { id: 'h11', on: true },
@@ -372,12 +374,12 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
         </div>
     </section>
 
-    <!-- H8 · The calculator, and the line that says it is arithmetic, not approval. -->
-    <section id="h8" data-section="H8" :class="cls('h8')" aria-labelledby="h8-title">
+    <!-- H8 · What the numbers on a wheel mean, and the way to the Felgenrechner. -->
+    <section v-if="rendered.h8" id="h8" data-section="H8" :class="cls('h8')" aria-labelledby="h8-title">
         <div class="container">
-            <h2 id="h8-title" class="h2 home-h2">Was ändert sich mit der neuen Größe?</h2>
-            <p class="body muted home-lead">Vergleiche deine aktuelle Größe mit einer neuen. Die Zeichnung zeigt von oben, wie weit die Felge wandert.</p>
-            <FitmentTeaser :prefill="calculator.prefill" :vehicle="vehicle" layout="phone" />
+            <h2 id="h8-title" class="h2 home-h2">Was die Zahlen auf einer Felge bedeuten</h2>
+            <p class="body muted home-lead">Tippe auf einen Wert – das Foto oder die Schnittzeichnung zeigt, wo er an der Felge liegt.</p>
+            <RimCode :product="hero.product" layout="phone" />
         </div>
     </section>
 
