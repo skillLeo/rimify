@@ -130,6 +130,14 @@
     --vbar-h: 40px;
     --bottomnav-h: 56px;
     --stickybar-h: 64px;
+
+    /* ── Brand marks · the constant-area logo box (sections/home-brands.md §3.4) ───
+       A one-colour logo whose width / height is a is drawn k·√a wide and k/√a tall, so every
+       mark covers the same area k²; it is then capped at the two maxima with its proportions
+       kept. Phone values here; the three wider steps follow in the media blocks below. */
+    --logo-k: 40px;
+    --logo-w-max: 104px;
+    --logo-h-max: 32px;
 }
 
 @media (min-width: 768px) {
@@ -137,6 +145,9 @@
         --page-margin: 32px;
         --gutter: 20px;
         --cols: 8;
+        --logo-k: 44px;
+        --logo-w-max: 120px;
+        --logo-h-max: 36px;
     }
 }
 
@@ -145,6 +156,18 @@
         --page-margin: 40px;
         --gutter: 24px;
         --cols: 12;
+        --logo-k: 48px;
+        --logo-w-max: 128px;
+        --logo-h-max: 40px;
+    }
+}
+
+/* From 1280px the content is centred at its maximum: the brand wall's cells are widest here. */
+@media (min-width: 1280px) {
+    :root {
+        --logo-k: 52px;
+        --logo-w-max: 144px;
+        --logo-h-max: 44px;
     }
 }
 

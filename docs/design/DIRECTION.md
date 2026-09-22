@@ -153,7 +153,9 @@ stretched link). No other z-index exists.
   image tile gaining `--e-2` and the image inside it scaling to 1.03 (`sections/home-overhaul.md`
   §1), and nothing more.
 - **Focus-visible:** `2px solid var(--c-blue)` outline, `2px` offset; `--c-surface` on dark bands.
-  Never `outline: none` without a replacement of equal visibility.
+  Inside a hairline grid or a tab list, where an outer ring would cross into the neighbour, the
+  offset is `-2px` (inset) and nothing else changes. Never `outline: none` without a replacement of
+  equal visibility.
 - **Active:** the pressed colour; a button may move 1 px down, nothing more.
   `-webkit-tap-highlight-color: transparent`, with a designed `:active` state for touch.
 - **Disabled:** `--c-band` fill, `--c-ink-3` text; `aria-disabled` plus a sentence saying why when
