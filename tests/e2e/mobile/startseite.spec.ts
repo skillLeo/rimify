@@ -97,7 +97,8 @@ test.describe('Startseite/Mobile', () => {
 
         await hsn.fill('0005')
         await expect(tsn).toBeFocused()
-        await tsn.fill('582')
+        // The BMW 330i G20: 5 × 112, a car the demo documents cover well.
+        await tsn.fill('CKT')
 
         await expect(page.locator('#h2')).toContainText(/Felgen mit Gutachten für/)
         const button = page.locator('[data-primary]')

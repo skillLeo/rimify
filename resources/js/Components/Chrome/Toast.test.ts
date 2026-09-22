@@ -120,10 +120,10 @@ describe('Toast', () => {
         const wrapper = mount(Toast)
         const run = vi.fn()
 
-        toast.show({ text: 'BBS CI-R zum Vergleich hinzugefügt.', action: { label: 'Rückgängig', run } })
+        toast.show({ text: 'Demo Zehnspeiche Z-07 zum Vergleich hinzugefügt.', action: { label: 'Rückgängig', run } })
         await nextTick()
 
-        expect(wrapper.find('.toast__text').text()).toBe('BBS CI-R zum Vergleich hinzugefügt.')
+        expect(wrapper.find('.toast__text').text()).toBe('Demo Zehnspeiche Z-07 zum Vergleich hinzugefügt.')
         const action = wrapper.find('.toast__action')
         expect(action.text()).toBe('Rückgängig')
         expect(action.attributes('type')).toBe('button')

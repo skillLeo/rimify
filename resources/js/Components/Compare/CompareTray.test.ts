@@ -18,7 +18,7 @@ vi.mock('@inertiajs/vue3', () => ({
 const { default: CompareTray } = await import('./CompareTray.vue')
 
 function entry(n: number): CompareEntry {
-    return { modelId: n, finishId: 1, slug: `m-${n}`, brandName: 'BBS', modelName: `CI-R ${n}`, finishName: 'Silber', image: null, fromPriceCents: 68900 }
+    return { modelId: n, finishId: 1, slug: `m-${n}`, brandName: 'Demo', modelName: `Zehnspeiche Z-0${n}`, finishName: 'Silber', image: null, fromPriceCents: 68900 }
 }
 
 let wrappers: VueWrapper[] = []
@@ -104,7 +104,7 @@ describe('CompareTray', () => {
         await nextTick()
 
         const remove = wrapper.findAll('.tray__remove')
-        expect(remove.map((b) => b.attributes('aria-label'))).toEqual(['BBS CI-R 1 aus dem Vergleich entfernen', 'BBS CI-R 2 aus dem Vergleich entfernen'])
+        expect(remove.map((b) => b.attributes('aria-label'))).toEqual(['Demo Zehnspeiche Z-01 aus dem Vergleich entfernen', 'Demo Zehnspeiche Z-02 aus dem Vergleich entfernen'])
         expect(remove[0]!.attributes('type')).toBe('button')
 
         await remove[0]!.trigger('click')

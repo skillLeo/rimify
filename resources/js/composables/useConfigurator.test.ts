@@ -100,7 +100,7 @@ describe('useConfigurator', () => {
     })
 
     it('strikes a diameter through only when none of its configurations is permitted', () => {
-        // BBS SR "Volcano Grau" on the BMW: two 18" rows, one refused, one permitted.
+        // Demo Zehnspeiche Z-08 "Volcano Grau" on the BMW: two 18" rows, one refused, one permitted.
         const configs = [
             config({ id: 44, widthIn: 8.5, etMm: 40, priceCents: 94900, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false }) }),
             config({ id: 43, widthIn: 8, etMm: 45, priceCents: 89900 }),
@@ -128,7 +128,7 @@ describe('useConfigurator', () => {
     })
 
     it('offers every width and ET inside the chosen diameter, refused ones disabled', () => {
-        // BBS SR "Himalaya Grau": 8J ET45 carries an Auflage, 8,5J ET40 is permitted outright.
+        // Demo Zehnspeiche Z-08 "Himalaya Grau": 8J ET45 carries an Auflage, 8,5J ET40 is permitted outright.
         const configs = [
             config({ id: 41, widthIn: 8, etMm: 45, sizeLabel: '8J × 18 · ET 45', priceCents: 89900, verdict: verdict({ status: 'CONDITIONAL' }) }),
             config({ id: 42, widthIn: 8.5, etMm: 40, sizeLabel: '8,5J × 18 · ET 40', priceCents: 94900 }),

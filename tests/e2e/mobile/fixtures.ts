@@ -39,8 +39,11 @@ export function isLandscape(page: Page): boolean {
     return vp !== null && vp.width > vp.height
 }
 
-/** Choose the seeded BMW from the homepage's HSN/TSN fields; lands on /felgen. */
-export async function chooseVehicleFromHome(page: Page, hsn = '0005', tsn = '582'): Promise<void> {
+/**
+ * Choose the seeded BMW 330i G20 (5 × 112, well covered by the demo documents) from the homepage's
+ * HSN/TSN fields; lands on /felgen.
+ */
+export async function chooseVehicleFromHome(page: Page, hsn = '0005', tsn = 'CKT'): Promise<void> {
     await open(page, '/')
     await page.getByRole('tab', { name: 'HSN/TSN' }).click()
     await page.getByLabel('HSN (Feld 2.1)').fill(hsn)

@@ -17,8 +17,8 @@ const { default: ProductTile } = await import('./ProductTile.vue')
 const { toast } = await import('../Chrome/toast')
 
 const image: ImageManifest = {
-    name: 'bbs-ci-r',
-    base: '/storage/demo/wheels/bbs-ci-r/tile',
+    name: 'demo-zehnspeiche-z-07',
+    base: '/storage/demo/wheels/demo-zehnspeiche-z-07/tile',
     width: 1200,
     height: 1200,
     widths: [320, 640, 1200],
@@ -29,9 +29,9 @@ const image: ImageManifest = {
 function card(n = 1, overrides: Partial<ProductCardProp> = {}): ProductCardProp {
     return {
         modelId: n,
-        modelName: `CI-R ${n}`,
-        slug: `bbs-ci-r-${n}`,
-        brandName: 'BBS',
+        modelName: `Zehnspeiche Z-0${n}`,
+        slug: `demo-zehnspeiche-z-0${n}`,
+        brandName: 'Demo',
         finishId: 2,
         finishName: 'Platinum Silber',
         art: { finish: 'silver', spokes: 5 },
@@ -95,19 +95,19 @@ describe('ProductTile', () => {
         const cta = links[0]!
         expect(cta.classes()).toEqual(expect.arrayContaining(['tile__cta', 'btn', 'btn--primary', 'btn--sm']))
         expect(cta.text()).toBe('Details ansehen')
-        expect(cta.attributes('href')).toBe('/felgen/bbs-ci-r-1?ausfuehrung=2')
-        expect(cta.attributes('aria-label')).toBe('BBS CI-R 1 Platinum Silber: Details ansehen')
+        expect(cta.attributes('href')).toBe('/felgen/demo-zehnspeiche-z-01?ausfuehrung=2')
+        expect(cta.attributes('aria-label')).toBe('Demo Zehnspeiche Z-01 Platinum Silber: Details ansehen')
 
         // The name is text, not a link, in v2.
         expect(wrapper.find('.tile__name').element.tagName).toBe('SPAN')
-        expect(wrapper.find('.tile__name').text()).toBe('CI-R 1')
+        expect(wrapper.find('.tile__name').text()).toBe('Zehnspeiche Z-01')
         expect(wrapper.text()).not.toContain('Passt')
     })
 
     it('prices per wheel with the legal line, lists the sizes and the finish', () => {
         const wrapper = mountTile()
 
-        expect(wrapper.find('.tile__brand').text()).toBe('BBS')
+        expect(wrapper.find('.tile__brand').text()).toBe('Demo')
         expect(wrapper.find('.tile__finish').text()).toBe('Platinum Silber')
         expect(wrapper.find('.tile__sizes').text()).toBe(`18 · 19 · 20${NNBSP}Zoll`)
         expect(wrapper.find('.tile__price').text()).toBe(`ab ${euro(17225)} pro Felge`)
@@ -125,7 +125,7 @@ describe('ProductTile', () => {
 
         const photographed = mountTile({ card: card(2, { image }) })
         expect(photographed.find('picture').exists()).toBe(true)
-        expect(photographed.find('picture img').attributes('alt')).toBe('BBS CI-R 2 in Platinum Silber, Ansicht von vorn')
+        expect(photographed.find('picture img').attributes('alt')).toBe('Demo Zehnspeiche Z-02 in Platinum Silber, Ansicht von vorn')
         expect(photographed.find('picture img').attributes('loading')).toBe('lazy')
         expect(photographed.attributes('data-fallback')).toBeUndefined()
         expect(photographed.find('svg').exists()).toBe(false)
@@ -140,7 +140,7 @@ describe('ProductTile', () => {
         const pictures = withView.findAll('picture')
 
         expect(pictures).toHaveLength(2)
-        expect(pictures[0]!.find('img').attributes('alt')).toBe('BBS CI-R 2 in Platinum Silber, Ansicht von vorn')
+        expect(pictures[0]!.find('img').attributes('alt')).toBe('Demo Zehnspeiche Z-02 in Platinum Silber, Ansicht von vorn')
         expect(pictures[1]!.classes()).toContain('tile__media--alt')
         expect(pictures[1]!.attributes('aria-hidden')).toBe('true')
         expect(pictures[1]!.find('img').attributes('alt')).toBe('')
@@ -208,7 +208,7 @@ describe('ProductTile', () => {
         const wrapper = mountTile({ compare: true })
         const input = wrapper.find('input.tile__compare-input')
         expect(input.attributes('type')).toBe('checkbox')
-        expect(input.attributes('aria-label')).toBe('BBS CI-R 1 Platinum Silber vergleichen')
+        expect(input.attributes('aria-label')).toBe('Demo Zehnspeiche Z-01 Platinum Silber vergleichen')
         expect(wrapper.find('.tile__compare').text()).toBe('Vergleichen')
 
         const cta = wrapper.find('.tile__cta').element
@@ -227,7 +227,7 @@ describe('ProductTile', () => {
         expect(store.keys).toEqual(['1:2'])
         expect(show).toHaveBeenCalledTimes(1)
         const message = show.mock.calls[0]![0]
-        expect(message.text).toBe('BBS CI-R 1 zum Vergleich hinzugefügt.')
+        expect(message.text).toBe('Demo Zehnspeiche Z-01 zum Vergleich hinzugefügt.')
         expect(message.action?.label).toBe('Rückgängig')
 
         message.action?.run()
@@ -248,7 +248,7 @@ describe('ProductTile', () => {
         const store = useCompare()
 
         for (let n = 10; n < 14; n++) {
-            store.add({ modelId: n, finishId: 1, slug: `m-${n}`, brandName: 'OZ', modelName: `M ${n}`, finishName: 'Matt', image: null, fromPriceCents: 1 })
+            store.add({ modelId: n, finishId: 1, slug: `m-${n}`, brandName: 'Demo', modelName: `M ${n}`, finishName: 'Matt', image: null, fromPriceCents: 1 })
         }
 
         const fifth = mountTile({ compare: true })
@@ -269,6 +269,8 @@ describe('ProductTile', () => {
         const wrapper = mountTile({ card: card(1, { isDemo: true }) })
 
         expect(wrapper.attributes('data-demo')).toBe('true')
-        expect(wrapper.text()).not.toContain('Demo')
+        // The demo wheels' brand is literally "Demo"; beyond the brand line the card says nothing.
+        expect(wrapper.find('.tile__brand').text()).toBe('Demo')
+        expect(wrapper.text().replace(wrapper.find('.tile__brand').text(), '')).not.toContain('Demo')
     })
 })

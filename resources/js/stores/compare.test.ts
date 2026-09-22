@@ -7,7 +7,7 @@ function entry(n: number, finish = 1): CompareEntry {
         modelId: n,
         finishId: finish,
         slug: `modell-${n}`,
-        brandName: 'BBS',
+        brandName: 'Demo',
         modelName: `Modell ${n}`,
         finishName: 'Silber',
         image: null,

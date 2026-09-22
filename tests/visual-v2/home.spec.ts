@@ -23,7 +23,8 @@ test('homepage with a vehicle', async ({ page }) => {
     await page.goto('/felgen-suchen', { waitUntil: 'networkidle' });
     await settle(page);
     await page.fill('input[id^=hsn]', '0005');
-    await page.fill('input[id^=tsn]', '582');
+    // The BMW 330i G20 (5 × 112), the car the demo documents cover well; the same as case-routes.json.
+    await page.fill('input[id^=tsn]', 'CKT');
     await page.locator('form:has(input[id^=hsn]) button[type=submit]').first().click();
     await page.waitForURL('**/felgen', { timeout: 20_000 });
 
