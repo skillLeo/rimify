@@ -11,9 +11,13 @@
  *
  * One page for every width: the positions and the totals stack on a phone and sit side by side
  * from 1200px.
+ *
+ * A seeded order (`demo`) says so at the top: nobody placed it, and its frozen verdicts are seed
+ * data, not a statement about the car it names (ACCURACY.md §3.1 F3). The snapshots themselves
+ * are never rewritten (R-12). No carrier is named and no confirmation mail is promised (D7).
  */
 
-import { Head, Link } from '@inertiajs/vue3'
+import { Head } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
@@ -21,7 +25,7 @@ import type { BestellungProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
-const props = defineProps<BestellungProps>()
+const props = defineProps<BestellungProps & { demo?: boolean }>()
 
 const VERDICT_LABEL: Record<string, string> = {
     PERMITTED: 'Freigegeben',
@@ -89,11 +93,23 @@ const questionHref = computed(() =>
 
     <section class="section-dense">
         <div class="wrap">
-            <header class="ord__head">
+            <header v-if="demo" class="ord__head">
+                <span class="ord__tick ord__tick--demo"><Icon name="info" :size="24" /></span>
+                <div>
+                    <h1 class="t-h1">Beispielbestellung</h1>
+                    <p class="t-lead ord__lead">
+                        <span class="tag tag--unknown ord__demo-tag">Demodaten</span>
+                        Diese Bestellung stammt aus unseren Beispieldaten – niemand hat sie aufgegeben.
+                        Auch die Freigaben unten sind Beispieldaten: Sie sagen nichts darüber aus, ob
+                        eine Felge an das genannte Fahrzeug darf.
+                    </p>
+                </div>
+            </header>
+            <header v-else class="ord__head">
                 <span class="ord__tick"><Icon name="check-circle" :size="24" /></span>
                 <div>
                     <h1 class="t-h1">Vielen Dank für deine Bestellung.</h1>
-                    <p class="t-lead ord__lead">Eine Bestätigung ist unterwegs.</p>
+                    <p class="t-lead ord__lead">Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.</p>
                 </div>
             </header>
 
@@ -189,10 +205,10 @@ const questionHref = computed(() =>
                             <div>
                                 <p class="ord__next-title">Bestellung verfolgen</p>
                                 <p v-if="order.trackingCode" class="ord__next-text">
-                                    DHL-Sendungsnummer <span class="data">{{ order.trackingCode }}</span>
+                                    Sendungsnummer <span class="data">{{ order.trackingCode }}</span>
                                 </p>
                                 <p v-else class="ord__next-text">
-                                    Die Sendungsnummer steht hier, sobald das Paket an DHL übergeben ist.
+                                    Die Sendungsnummer steht hier, sobald dein Paket unterwegs ist.
                                 </p>
                             </div>
                         </li>
@@ -208,16 +224,6 @@ const questionHref = computed(() =>
                                 </div>
                                 <Icon name="chevron-right" :size="20" />
                             </a>
-                        </li>
-                        <li>
-                            <Link class="ord__next-row ord__next-link" href="/kontakt">
-                                <Icon name="mail" :size="20" />
-                                <div>
-                                    <p class="ord__next-title">Schreib uns</p>
-                                    <p class="ord__next-text">Nenne die Bestellnummer {{ order.number }}.</p>
-                                </div>
-                                <Icon name="chevron-right" :size="20" />
-                            </Link>
                         </li>
                     </ul>
                 </aside>
@@ -240,9 +246,19 @@ const questionHref = computed(() =>
     color: var(--ok);
 }
 
+.ord__tick--demo {
+    color: var(--ink2);
+}
+
 .ord__lead {
     margin-top: var(--space-2);
     color: var(--ink2);
+    max-width: 65ch;
+}
+
+.ord__demo-tag {
+    margin-right: var(--space-2);
+    vertical-align: middle;
 }
 
 .ord__facts {

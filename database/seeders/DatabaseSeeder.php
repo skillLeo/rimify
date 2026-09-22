@@ -15,6 +15,10 @@ use Illuminate\Database\Seeder;
  * approvals that relate the two, then the orders that freeze a verdict against them. Content and
  * access hang off nothing and go last.
  *
+ * The orders are demonstration data and are seeded only in the local and testing environments:
+ * on any other database an invented order with an invented tracking number would read as a real
+ * one (ACCURACY.md §7).
+ *
  * Every seeder below is idempotent, so this can be re-run against a populated database without
  * duplicating a row — which matters because the one table that must never be rewritten,
  * `order_line_fitments`, would refuse anyway.
@@ -30,7 +34,13 @@ class DatabaseSeeder extends Seeder
             VehicleSeeder::class,
             CatalogueSeeder::class,
             ApprovalSeeder::class,
-            CommerceSeeder::class,
+        ]);
+
+        if (app()->environment(['local', 'testing'])) {
+            $this->call(CommerceSeeder::class);
+        }
+
+        $this->call([
             AccessSeeder::class,
             ContentSeeder::class,
         ]);
