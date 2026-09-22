@@ -5,6 +5,14 @@
 # host is shared, and a build there once exhausted the account's process limit for every site on it.
 #
 # Idempotent: safe to run twice, and it creates .env on the very first run.
+#
+# Order, and why: the site is in maintenance mode before this starts (the workflow's SSH step runs
+# `artisan down` with the old code, before checking out the new). This script then migrates, applies
+# the release's seeded data once (`rimify:release-seed`), rebuilds the caches and restarts SSR, and
+# brings the site back with `artisan up` as its LAST step. `set -e` means any failure stops here with
+# the site still in maintenance: a maintenance page, never new code on an unmigrated schema.
+#
+# By hand: `php artisan down`, then pull, then `bash deploy/remote.sh`.
 
 set -euo pipefail
 
@@ -15,6 +23,10 @@ SSR_PORT="${SSR_PORT:-13714}"
 
 cd "$APP"
 echo "== code: $(git log -1 --format='%h %s')"
+
+# A manual run may not have taken the site down first. This covers that case; it is a no-op when
+# the workflow already did. It may fail before composer has run, hence `|| true`.
+"$PHP" artisan down --retry=60 > /dev/null 2>&1 || true
 
 # ── Environment ────────────────────────────────────────────────────────────────
 if [ ! -f .env ]; then
@@ -58,6 +70,13 @@ if [ "$VEHICLES" = "0" ]; then
     "$PHP" artisan db:seed --force --no-interaction
 fi
 
+# The seeded data this release changes (renamed demo catalogue, retired fitments, corrected
+# content), applied once per release and recorded. A no-op on every later deploy.
+"$PHP" artisan rimify:release-seed --no-interaction
+
+# The demo imagery is served from storage/app/public through the public/storage link.
+[ -L public/storage ] || "$PHP" artisan storage:link --no-interaction
+
 # ── Caches ─────────────────────────────────────────────────────────────────────
 "$PHP" artisan optimize:clear > /dev/null
 "$PHP" artisan optimize > /dev/null
@@ -74,6 +93,11 @@ sleep 1
 INERTIA_SSR_PORT="$SSR_PORT" nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" > storage/logs/ssr.log 2>&1 < /dev/null &
 sleep 3
 grep -q 'started' storage/logs/ssr.log && echo "== renderer running on $SSR_PORT" || { echo "== renderer did not start"; tail -5 storage/logs/ssr.log; }
+
+# ── Live ───────────────────────────────────────────────────────────────────────
+# Last, and only when everything above succeeded (set -e).
+"$PHP" artisan up
+echo "== site is up"
 
 # ── Smoke ──────────────────────────────────────────────────────────────────────
 for path in / /felgen /faq /rechtliches/impressum; do

@@ -125,9 +125,15 @@ jobs:
           command_timeout: 15m
           # Fetched by URL rather than through a named remote: the host's own Git integration made
           # the clone and may have named its remote differently. The repository is public.
+          # Maintenance mode FIRST, with the code that is still running, so no request ever reaches
+          # new code before its migrations have run. remote.sh brings the site back up as its last
+          # step; if any step fails the site stays in maintenance rather than serving half a release.
+          # A first install has no vendor/ yet and nothing to take down.
           script: |
             set -e
             cd "$HOME/domains/rimify.skillleo.com/public_html"
+            PHP=/opt/alt/php84/usr/bin/php
+            if [ -f artisan ] && [ -f vendor/autoload.php ]; then "$PHP" artisan down --retry=60; fi
             git fetch --quiet https://github.com/${{ github.repository }}.git deploy
             git checkout -q -B deploy FETCH_HEAD
             git reset -q --hard FETCH_HEAD
