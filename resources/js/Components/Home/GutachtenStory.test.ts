@@ -74,7 +74,8 @@ describe('GutachtenStory', () => {
     it('is a document with a marked example row, three marker strokes in the marker ink, and a stamp', () => {
         const wrapper = mountStory()
 
-        const figure = wrapper.find('figure.doc')
+        const figure = wrapper.find('.doc')
+        expect(figure.element.tagName).toBe('DIV')
         expect(figure.attributes('role')).toBe('img')
         expect(figure.attributes('aria-label')).toBe('Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert')
         expect(figure.text()).toContain('Teilegutachten Nr. 12-3456 (Beispiel)')
@@ -112,7 +113,7 @@ describe('GutachtenStory', () => {
         expect(rows[3]!.classes()).toContain('doc__row--target')
         expect(rows[3]!.text()).toContain('346C')
         expect(rows[3]!.findAll('.doc__cell').map((c) => c.text())).not.toContain('')
-        expect(wrapper.find('figure.doc').text()).toContain('Golf VII')
+        expect(wrapper.find('.doc').text()).toContain('Golf VII')
         expect(wrapper.text()).not.toContain('– · –')
     })
 
@@ -125,7 +126,7 @@ describe('GutachtenStory', () => {
         expect(steps.find('.verdict--warn').text()).toBe('Mit Auflagen')
         expect(steps.text()).not.toMatch(/\bA02\b|\bA11\b|\bK1a\b/)
 
-        expect(wrapper.find('figure.doc').text()).toContain('A02')
+        expect(wrapper.find('.doc').text()).toContain('A02')
         expect(wrapper.findAll('.story__step')).toHaveLength(3)
     })
 

@@ -104,7 +104,8 @@ const STROKES: Record<number, string> = {
             <li v-for="step in STEPS" :key="step.n" class="story__step">
                 <h3 class="h3 story__title"><span class="story__n num">{{ step.n }}</span> {{ step.title }}</h3>
 
-                <figure class="doc doc--crop" role="img" aria-label="Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert">
+                <!-- One image to assistive tech, not a table of cells; a figure may not carry role="img". -->
+                <div class="doc doc--crop" role="img" aria-label="Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert">
                     <div class="doc__head">
                         <span class="doc__title">Teilegutachten Nr. 12-3456 (Beispiel)</span>
                         <span class="doc__page">Seite 4 von 12</span>
@@ -152,8 +153,8 @@ const STROKES: Record<number, string> = {
                         </span>
                     </div>
 
-                    <figcaption class="micro quiet doc__caption">Gutachten-Auszug (Beispiel)</figcaption>
-                </figure>
+                    <p class="micro quiet doc__caption">Gutachten-Auszug (Beispiel)</p>
+                </div>
 
                 <p class="body muted story__text">{{ step.text }}</p>
 

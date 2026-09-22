@@ -108,7 +108,7 @@ describe('FitmentTeaser (H8 v2)', () => {
 
         expect(wrapper.find('.calc-row').exists()).toBe(true)
         expect(wrapper.findAll('fieldset')).toHaveLength(2)
-        expect(wrapper.find('figure.calc-drawing[role="img"]').exists()).toBe(true)
+        expect(wrapper.find('.calc-drawing[role="img"]').exists()).toBe(true)
         expect(wrapper.findAll('.calc-result')).toHaveLength(3)
         expect(at('class="calc-row')).toBeLessThan(at('role="img"'))
         expect(at('role="img"')).toBeLessThan(at('class="calc-results'))

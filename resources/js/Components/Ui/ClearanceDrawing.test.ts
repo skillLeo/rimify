@@ -60,8 +60,9 @@ afterEach(() => {
 describe('ClearanceDrawing', () => {
     it('is a plan view on a 480 × 200 sheet that names the two figures in German', () => {
         const wrapper = mountDrawing()
-        const figure = wrapper.find('figure')
+        const figure = wrapper.find('.cd')
 
+        expect(figure.element.tagName).toBe('DIV')
         expect(figure.attributes('role')).toBe('img')
         expect(figure.attributes('aria-label')).toBe(
             `Draufsicht: die neue Felge steht ${mm('+22,7')} weiter außen und ${mm('+2,7')} näher am Federbein als die aktuelle.`
@@ -118,7 +119,7 @@ describe('ClearanceDrawing', () => {
         expect(wrapper.find('.cd__ext').attributes('d')).toBe('M215 48 V38')
         expect(wrapper.find('.cd__label--outer').text()).toBe(`außen ${mm('±0,0')}`)
         expect(wrapper.find('.cd__label--inner').text()).toBe(`innen ${mm('±0,0')}`)
-        expect(wrapper.find('figure').attributes('aria-label')).toContain(`steht ${mm('±0,0')} weiter außen`)
+        expect(wrapper.find('.cd').attributes('aria-label')).toContain(`steht ${mm('±0,0')} weiter außen`)
         // The dashed band lies exactly under the solid one.
         expect(rectX(wrapper, 'old')).toBe(rectX(wrapper, 'new'))
     })

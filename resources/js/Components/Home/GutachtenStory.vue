@@ -218,7 +218,8 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
 
             <div class="grid story__grid">
                 <div class="story__doc">
-                    <figure
+                    <!-- One image to assistive tech, not a table of cells; a figure may not carry role="img". -->
+                    <div
                         class="doc"
                         role="img"
                         aria-label="Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert"
@@ -272,7 +273,7 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
                         <span class="doc__stamp">
                             <VerdictBadge status="PERMITTED" size="lg" />
                         </span>
-                    </figure>
+                    </div>
                 </div>
 
                 <ol class="story__steps">

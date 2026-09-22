@@ -310,7 +310,8 @@ const description = computed(
 </script>
 
 <template>
-    <figure ref="root" class="cd" role="img" :aria-label="description">
+    <!-- One image to assistive tech (the sentence says what it shows); a figure may not carry role="img". -->
+    <div ref="root" class="cd" role="img" :aria-label="description">
         <div class="cd__sheet">
             <svg class="cd__svg" :viewBox="`0 0 ${VB_W} ${VB_H}`" aria-hidden="true" focusable="false">
                 <path class="cd__line cd__face" :d="`M${FACE_X} ${FACE.top} V${FACE.bottom}`" />
@@ -341,7 +342,7 @@ const description = computed(
             <span class="cd__label cd__label--side cd__label--right micro quiet" :style="{ right: labels.side.right, top: labels.side.top }">außen (Kotflügel)</span>
         </div>
 
-        <figcaption class="cd__legend micro muted" aria-hidden="true">
+        <div class="cd__legend micro muted" aria-hidden="true">
             <span class="cd__key">
                 <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" focusable="false">
                     <path class="cd__line cd__old" d="M0 4 H32" />
@@ -354,8 +355,8 @@ const description = computed(
                 </svg>
                 Neu
             </span>
-        </figcaption>
-    </figure>
+        </div>
+    </div>
 </template>
 
 <style scoped>

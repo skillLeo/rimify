@@ -229,7 +229,9 @@ test.describe('Startseite/Mobile', () => {
         await expect(size).toContainText(/\d+\sFelgen?\b/)
         const brand = page.locator('#h6 .brand-grid__link').first()
         await expect(brand).toHaveAttribute('href', /\/felgen\?marke=/)
-        await expect(brand).toHaveAttribute('aria-label', /: \d+\sFelgen?$/)
+        // Named by its content, not an aria-label, so the visible count is part of the name (WCAG 2.5.3).
+        await expect(brand).not.toHaveAttribute('aria-label')
+        await expect(brand).toHaveAccessibleName(/^\S.* \d+\sFelgen?$/)
     })
 
     test('hero frame: two callouts over the wheel, the key line beneath, no placeholder in the code fields', async ({ page }) => {
@@ -261,7 +263,7 @@ test.describe('Startseite/Mobile', () => {
     test('Gutachten crops: three, whole headings, one tyre size per row, the marked row in the middle', async ({ page }) => {
         await open(page, '/')
 
-        const crops = page.locator('#h4 figure.doc--crop')
+        const crops = page.locator('#h4 .doc--crop')
         await expect(crops).toHaveCount(3)
         await crops.first().scrollIntoViewIfNeeded()
 

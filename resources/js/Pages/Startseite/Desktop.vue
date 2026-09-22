@@ -26,6 +26,7 @@ import PromiseRow from '../../Components/Home/PromiseRow.vue'
 import ServiceFaq from '../../Components/Home/ServiceFaq.vue'
 import { useShared } from '../../composables/useShared'
 import type { StartseiteProps } from '../../types/pages'
+import { DESCRIPTION, TITLE } from './meta'
 
 defineOptions({ layout: AppLayout })
 
@@ -33,9 +34,6 @@ const props = defineProps<StartseiteProps>()
 
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle)
-
-const DESCRIPTION =
-    'RIMIFY zeigt dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen, allen Auflagen und dem Gutachten als PDF zu jeder Bestellung.'
 
 /* Which sections the data switches on. H5b lives inside H5 and has no slot of its own. */
 const showPromises = computed(() => props.promises.length > 0)
@@ -78,7 +76,7 @@ const rhythm = computed<Partial<Record<SectionKey, string>>>(() => {
 </script>
 
 <template>
-    <Head title="Felgen mit Gutachten für dein Auto">
+    <Head :title="TITLE">
         <meta name="description" :content="DESCRIPTION" head-key="description" />
     </Head>
 

@@ -29,6 +29,7 @@ import { felgen, NNBSP } from '../../format'
 import { isIconName, type IconName } from '../../icons'
 import { useShared } from '../../composables/useShared'
 import type { StartseiteProps } from '../../types/pages'
+import { DESCRIPTION, TITLE } from './meta'
 
 defineOptions({ layout: MobileLayout })
 
@@ -205,7 +206,9 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 </script>
 
 <template>
-    <Head title="Felgen mit geprüfter Freigabe" />
+    <Head :title="TITLE">
+        <meta name="description" :content="DESCRIPTION" head-key="description" />
+    </Head>
 
     <!-- H2 · The question, and the panel that answers it. -->
     <section id="h2" data-section="H2" class="home-hero band" aria-labelledby="h2-title">
@@ -327,8 +330,10 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
             <h2 v-if="sizes.length" class="h2 home-h2">Nach Marke</h2>
             <ul class="brand-grid" aria-label="Felgenmarken">
                 <li v-for="(brand, i) in brandRows" :key="brand ? brand.slug : `empty-${i}`" class="brand-grid__cell">
-                    <Link v-if="brand" :href="brand.href" class="brand-grid__link m-press" :aria-label="`${brand.name}: ${felgen(brand.count)}`">
+                    <!-- Named by content, "BORBET 1 Felge": the logo's brand from a hidden span, so the visible count is part of the name. -->
+                    <Link v-if="brand" :href="brand.href" class="brand-grid__link m-press">
                         <span v-if="brand.logo" class="brand-mark" :style="{ maskImage: `url(${brand.logo})` }" aria-hidden="true" />
+                        <span v-if="brand.logo" class="visually-hidden">{{ brand.name }}</span>
                         <span v-else class="h4 brand-grid__name">{{ brand.name }}</span>
                         <span class="micro quiet num">{{ felgen(brand.count) }}</span>
                     </Link>
@@ -340,7 +345,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     <!-- H7 · The one dark band: what a Komplettrad is, and its tyre's regulated facts. -->
     <section v-if="tyre" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
-            <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;–<br />montiert und gewuchtet.</h2>
+            <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br />montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an – mit dem Gutachten für dein Fahrzeug.</p>
 
             <KomplettradWheel class="home-komplett__wheel" />

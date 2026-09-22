@@ -23,10 +23,11 @@ describe('GutachtenStory (phone)', () => {
     it('is three crops of the same document, rows 3–5 with one tyre size each and the marked row in the middle', () => {
         const wrapper = mountStory()
 
-        const crops = wrapper.findAll('figure.doc.doc--crop')
+        const crops = wrapper.findAll('.doc.doc--crop')
         expect(crops).toHaveLength(3)
 
         for (const crop of crops) {
+            expect(crop.element.tagName).toBe('DIV')
             expect(crop.attributes('role')).toBe('img')
             expect(crop.attributes('aria-label')).toBe('Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert')
             expect(crop.findAll('th').map((th) => th.text())).toEqual(['Hersteller', 'Typ', 'Genehmigungsnr.', 'Reifengrößen', 'Auflagen'])
@@ -42,7 +43,7 @@ describe('GutachtenStory (phone)', () => {
 
     it('marks more of the row with every step and stamps only the last crop', () => {
         const wrapper = mountStory()
-        const crops = wrapper.findAll('figure.doc--crop')
+        const crops = wrapper.findAll('.doc--crop')
 
         // Two paths per stroke: the stroke and its echo.
         expect(crops[0]?.findAll('svg.marker path')).toHaveLength(2)

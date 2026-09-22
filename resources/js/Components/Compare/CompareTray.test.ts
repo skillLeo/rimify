@@ -1,7 +1,8 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
+import { provideMobileShell } from '../../composables/mobile/useMobileShell'
 import { useCompare, type CompareEntry } from '../../stores/compare'
 
 const shared: { props: Record<string, unknown> } = { props: { isMobile: false, routeName: 'startseite' } }
@@ -22,8 +23,18 @@ function entry(n: number): CompareEntry {
 
 let wrappers: VueWrapper[] = []
 
-function mountTray(props: { hidden?: boolean; bottomNav?: boolean } = {}): VueWrapper {
-    const wrapper = mount(CompareTray, { props, attachTo: document.body, global: { stubs: { BottomSheet: true } } })
+/* The tray chooses its phone anatomy by the phone shell providing (MobileLayout), not by the device flag. */
+const UnderPhoneShell = defineComponent({
+    props: { hidden: Boolean, bottomNav: Boolean },
+    setup(props) {
+        provideMobileShell({ tabBar: ref(true) })
+
+        return () => h(CompareTray, props)
+    },
+})
+
+function mountTray(props: { hidden?: boolean; bottomNav?: boolean } = {}, phoneShell = false): VueWrapper {
+    const wrapper = mount(phoneShell ? UnderPhoneShell : CompareTray, { props, attachTo: document.body, global: { stubs: { BottomSheet: true } } })
     wrappers.push(wrapper)
 
     return wrapper
@@ -123,9 +134,9 @@ describe('CompareTray', () => {
         expect(store.keys).toEqual(['1:1'])
     })
 
-    it('renders the phone anatomy on the phone document', async () => {
+    it('renders the phone anatomy under the phone shell', async () => {
         shared.props = { isMobile: true, routeName: 'startseite' }
-        const wrapper = mountTray({ bottomNav: true })
+        const wrapper = mountTray({ bottomNav: true }, true)
         const store = useCompare()
         store.add(entry(1))
         store.add(entry(2))
