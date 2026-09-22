@@ -12,24 +12,30 @@ test.beforeEach(async ({ context, baseURL }) => {
     await consentGiven(context, baseURL ?? 'http://127.0.0.1:8000');
 });
 
-/** The element behind the last largest-contentful-paint entry, described. */
-async function lcpElement(page: Page): Promise<{ tag: string; inHero: boolean; src: string } | null> {
+/**
+ * The last largest-contentful-paint entry: its resource URL (empty for text) and, when Chrome
+ * still exposes it, its element. Chrome sometimes reports `element` as null for an image that is
+ * plainly in the document, so the URL is what identifies an image candidate.
+ */
+async function lcpEntry(page: Page): Promise<{ url: string; tag: string | null; inHero: boolean | null } | null> {
     return page.evaluate(
         () =>
             new Promise((resolve) => {
                 new PerformanceObserver((list) => {
-                    const entries = list.getEntries() as (PerformanceEntry & { element?: Element | null })[];
-                    const element = entries.at(-1)?.element ?? null;
+                    const entry = list.getEntries().at(-1) as (PerformanceEntry & { url?: string; element?: Element | null }) | undefined;
 
-                    resolve(
-                        element === null
-                            ? null
-                            : {
-                                  tag: element.tagName.toLowerCase(),
-                                  inHero: element.closest('#h2') !== null,
-                                  src: (element as HTMLImageElement).currentSrc ?? '',
-                              },
-                    );
+                    if (entry === undefined) {
+                        resolve(null);
+                        return;
+                    }
+
+                    const element = entry.element ?? null;
+
+                    resolve({
+                        url: entry.url ?? '',
+                        tag: element === null ? null : element.tagName.toLowerCase(),
+                        inHero: element === null ? null : element.closest('#h2') !== null,
+                    });
                 }).observe({ type: 'largest-contentful-paint', buffered: true });
             }),
     );
@@ -47,10 +53,17 @@ test.describe('hero stage', () => {
         await expect(poster).toHaveAttribute('fetchpriority', 'high');
         expect(await poster.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
 
-        const lcp = await lcpElement(page);
-        expect(lcp, 'an LCP entry with an element').not.toBeNull();
-        expect(lcp?.tag).toBe('img');
-        expect(lcp?.inHero).toBe(true);
+        const lcp = await lcpEntry(page);
+        expect(lcp, 'an LCP entry').not.toBeNull();
+
+        // The LCP is the very file the hero picture chose, not a heading or another image.
+        const src = await poster.evaluate((img: HTMLImageElement) => img.currentSrc);
+        expect(lcp?.url).toBe(src);
+
+        if (lcp?.tag !== null) {
+            expect(lcp?.tag).toBe('img');
+            expect(lcp?.inHero).toBe(true);
+        }
     });
 
     test('under reduced motion there is no WebGL, only the static poster', async ({ page }) => {
