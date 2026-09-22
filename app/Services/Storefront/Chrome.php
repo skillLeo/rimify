@@ -8,7 +8,9 @@ use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\HeaderMode;
 use App\Domain\Storefront\HeaderModeResolver;
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\CatalogueStatus;
 use App\Models\Vehicle;
+use App\Models\WheelModel;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -82,7 +84,23 @@ final readonly class Chrome
             'garage' => $this->garage($request),
             // Whether someone answers right now (F9); the client re-asks every minute.
             'serviceStatus' => $this->service->now(),
+            // Whether the shop shows demonstration rows: the site-wide Demodaten badge (ACCURACY D4).
+            // Its own key: pages pass a `demo` of their own (a demo product, a seeded order), and a
+            // page prop would replace a shared one of the same name, hiding the badge on that page.
+            'demoBadge' => self::demo(),
         ];
+    }
+
+    /**
+     * True while any published wheel model is a demonstration row. Every page then carries the
+     * Demodaten badge in its header, so no page can present seeded data as the shop's own stock.
+     */
+    public static function demo(): bool
+    {
+        return WheelModel::query()
+            ->where('is_demo', true)
+            ->where('status', CatalogueStatus::Published->value)
+            ->exists();
     }
 
     /**

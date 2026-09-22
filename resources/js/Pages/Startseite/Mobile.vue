@@ -118,6 +118,12 @@ const sizes = computed(() =>
             }
         })
 )
+/*
+ * The seeded sample range sits in the grid under the brand name `Demo`. It stays in the grid (the
+ * wheels are real rows of the listing) and says what it is — never dressed up as a manufacturer.
+ */
+const isSampleRange = (brand: StartseiteProps['brands'][number]): boolean => brand.slug === 'demo'
+
 const brandRows = computed(() => {
     const cells: (StartseiteProps['brands'][number] | null)[] = [...props.brands]
 
@@ -336,6 +342,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
                         <span v-if="brand.logo" class="brand-mark" :style="{ maskImage: `url(${brand.logo})` }" aria-hidden="true" />
                         <span v-if="brand.logo" class="visually-hidden">{{ brand.name }}</span>
                         <span v-else class="h4 brand-grid__name">{{ brand.name }}</span>
+                        <span v-if="isSampleRange(brand)" class="micro quiet" data-sample-range>Beispielsortiment</span>
                         <span class="micro quiet num">{{ felgen(brand.count) }}</span>
                     </Link>
                 </li>

@@ -111,6 +111,8 @@ export interface SharedProps {
     garage: GarageVehicle[]
     /** Whether someone answers right now, computed on the server (F9). */
     serviceStatus: ServiceStatusProp
+    /** Demonstration rows are on show: the header carries the Demodaten badge (ACCURACY D4). A page's own `demo` prop is a different thing. */
+    demoBadge: boolean
     isMobile: boolean
     locale: string
     /** Remote photography layered over the drawn art — a temporary client-review flag. */

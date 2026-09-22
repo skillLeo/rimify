@@ -7,12 +7,17 @@
  *
  * Two rules it never breaks: the navigation is never removed, and the chosen vehicle is one
  * element in one place on every route (the vehicle bar beneath, decided by the server — R-08).
+ *
+ * While the shop shows demonstration rows, the *Demodaten* badge (ACCURACY D4) opens the utility
+ * line on a desktop and follows the wordmark below 1024 px, where that line is gone. Both sit in
+ * the flow of their row, so neither can cover content at any width.
  */
 
 import { Link, router } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import DemoBadge from './DemoBadge.vue'
 import MegaMenu from './MegaMenu.vue'
 import SearchBox from './SearchBox.vue'
 import VehicleBar from './VehicleBar.vue'
@@ -53,6 +58,7 @@ function removeVehicle(): void {
 <template>
     <div class="utility from-lg">
         <div class="container utility__row">
+            <DemoBadge />
             <span>Versand aus Deutschland</span>
             <span>Gutachten zu jeder Felge als PDF</span>
             <span class="utility__help">
@@ -70,6 +76,9 @@ function removeVehicle(): void {
     <header class="site-header" :class="{ 'site-header--scrolled': scrolled }">
         <div class="container sh__bar">
             <Link href="/" class="brand" aria-label="RIMIFY – Startseite" prefetch>RIMIFY</Link>
+
+            <!-- On a phone and a tablet the utility strip is gone, so the badge sits beside the wordmark. -->
+            <DemoBadge class="until-lg sh__demo" />
 
             <MegaMenu class="from-lg sh__nav" />
 
@@ -212,6 +221,11 @@ function removeVehicle(): void {
 
 .sh__nav {
     margin-left: var(--sp-8);
+}
+
+/* Close to the wordmark it qualifies: half the row's gap, which also keeps 320px clear. */
+.sh__demo {
+    margin-left: calc(-1 * var(--sp-8));
 }
 
 .sh__tools {

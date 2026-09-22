@@ -9,11 +9,16 @@
  * can, an IntersectionObserver everywhere else.
  *
  * The bar gains `--e-1` once the page has scrolled under it, and nothing else.
+ *
+ * While the shop shows demonstration rows, the *Demodaten* badge sits after the wordmark or the
+ * title (ACCURACY D4). The title is the one element that shrinks, so the badge never covers it
+ * and never pushes an action off the row.
  */
 
 import { Link } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import DemoBadge from '../Chrome/DemoBadge.vue'
 import { useShared } from '../../composables/useShared'
 import { useMobileShell } from '../../composables/mobile/useMobileShell'
 import { goBack } from '../../composables/mobile/useNavigationDirection'
@@ -77,6 +82,7 @@ onBeforeUnmount(() => {
             <template v-if="top">
                 <Link v-if="showBrand" href="/" class="mbar__brand" aria-label="RIMIFY – Startseite">RIMIFY</Link>
                 <p v-else class="mbar__title" :aria-hidden="large ? 'true' : undefined">{{ title }}</p>
+                <DemoBadge />
 
                 <div class="mbar__tools">
                     <button class="icon-btn m-press" type="button" aria-label="Suche" @click="shell.searchOpen.value = true">
@@ -103,6 +109,7 @@ onBeforeUnmount(() => {
                     <Icon name="arrow-left" :size="24" />
                 </button>
                 <p class="mbar__title" :aria-hidden="large ? 'true' : undefined">{{ title }}</p>
+                <DemoBadge />
                 <div class="mbar__tools">
                     <slot name="actions" />
                 </div>
