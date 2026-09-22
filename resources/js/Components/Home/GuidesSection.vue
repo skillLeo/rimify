@@ -2,9 +2,13 @@
 /**
  * H10 · Ratgeber — "Wissen, bevor du kaufst".
  *
- * Three real articles that answer the questions the selector raises: one large, two small, each
- * a single link stretched over its block. Without a cover photograph the title steps into its
- * place — no placeholder, no drawn illustration. Reading time is what the article record says.
+ * Up to three real articles that answer the questions the selector raises: one large, the others
+ * small, each a single link stretched over its block and each with its own teaser. Without a
+ * cover photograph the title steps into its place — no placeholder, no drawn illustration.
+ * Reading time is what the article record says.
+ *
+ * With exactly two articles (the third guide is a draft until its legal wording is signed off)
+ * the two share the row as equals, so the section does not read as a lead with a hole beside it.
  */
 
 import { Link } from '@inertiajs/vue3'
@@ -15,6 +19,7 @@ const props = defineProps<{ guides: GuideTeaser[] }>()
 
 const lead = computed(() => props.guides[0] ?? null)
 const rest = computed(() => props.guides.slice(1, 3))
+const pair = computed(() => props.guides.length === 2)
 
 function readingTime(minutes: number): string {
     return `${minutes} Min. Lesezeit`
@@ -26,7 +31,7 @@ function readingTime(minutes: number): string {
         <div class="container">
             <h2 id="h10-heading" class="h2">Wissen, bevor du kaufst</h2>
 
-            <div class="grid guides__grid">
+            <div class="grid guides__grid" :class="{ 'guides__grid--pair': pair }">
                 <article v-if="lead" class="guide guide--lead">
                     <h3 class="h3">
                         <Link :href="`/ratgeber/${lead.slug}`" class="guide__link" prefetch>{{ lead.title }}</Link>
@@ -37,9 +42,10 @@ function readingTime(minutes: number): string {
 
                 <div v-if="rest.length > 0" class="guides__aside">
                     <article v-for="guide in rest" :key="guide.slug" class="guide">
-                        <h3 class="h4">
+                        <h3 :class="pair ? 'h3' : 'h4'">
                             <Link :href="`/ratgeber/${guide.slug}`" class="guide__link" prefetch>{{ guide.title }}</Link>
                         </h3>
+                        <p v-if="guide.teaser" :class="pair ? 'body muted guide__teaser' : 'small muted guide__teaser'">{{ guide.teaser }}</p>
                         <p class="small quiet num guide__meta">{{ readingTime(guide.minutes) }}</p>
                     </article>
                 </div>
@@ -116,6 +122,15 @@ function readingTime(minutes: number): string {
     .guides__aside {
         grid-column: 9 / span 4;
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Two articles: equals across the row, the gutter column between them. */
+    .guides__grid--pair .guide--lead {
+        grid-column: 1 / span 6;
+    }
+
+    .guides__grid--pair .guides__aside {
+        grid-column: 7 / span 6;
     }
 }
 </style>
