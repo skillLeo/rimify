@@ -9,9 +9,17 @@ declare(strict_types=1);
 //
 // Every sentence that touches law or approval procedure is listed in docs/client-questions.md
 // under "Ratgeber – Aussagen zum Recht, bitte prüfen" and must be confirmed before launch.
+//
+// `status` is the result of docs/reviews/accuracy-research-guides-tyres.md (Task A):
+// - hsn-und-tsn-finden: published, with corrections H10 and H12 applied;
+// - einpresstiefe-et-erklaert: published, with correction E11 (and the optional E4) applied;
+// - abe-teilegutachten-ece: DRAFT. It predates the Teiletypgenehmigung and says the Eintragung is
+//   what makes the wheel legal (A13, wrong). It stays a draft until it is rewritten and the
+//   client's lawyer has signed it off; the seeder does not publish it, and neither may anyone else.
 return [
     [
         'slug' => 'hsn-und-tsn-finden',
+        'status' => 'published',
         'title' => 'HSN und TSN finden',
         'teaser' => 'Mit zwei kurzen Nummern aus der Zulassungsbescheinigung Teil I findest du dein Fahrzeug bei uns. Wo sie stehen und was sie bedeuten.',
         'minutes' => 3,
@@ -35,16 +43,18 @@ return [
             ],
             [
                 'heading' => 'Wenn mehrere Fahrzeuge angezeigt werden',
-                'text' => "Das kommt vor und ist kein Fehler. Eine Kombination aus HSN und TSN kann mehrere Varianten umfassen, die sich zum Beispiel im Bauzeitraum, in der Leistung oder in der zulässigen Achslast unterscheiden.\n\nFür Felgen und Reifen sind genau diese Unterschiede wichtig. Achslast und Höchstgeschwindigkeit entscheiden mit darüber, welche Tragfähigkeit und welches Geschwindigkeitssymbol die Reifen brauchen und was das Gutachten für dein Fahrzeug freigibt. Deshalb fragen wir in diesem Fall nach, statt zu raten. Wähl die Variante, die zu deinen Papieren passt. Hilfreich sind dabei das Datum der Erstzulassung und die Leistung in kW; beides steht ebenfalls in der Zulassungsbescheinigung.",
+                'text' => "Das kommt vor und ist kein Fehler. Eine Kombination aus HSN und TSN kann mehrere Varianten umfassen, die sich zum Beispiel im Bauzeitraum, in der Höchstgeschwindigkeit oder in der zulässigen Achslast unterscheiden.\n\nFür Felgen und Reifen sind genau diese Unterschiede wichtig. Achslast und Höchstgeschwindigkeit entscheiden mit darüber, welche Tragfähigkeit und welches Geschwindigkeitssymbol die Reifen brauchen und was das Gutachten für dein Fahrzeug freigibt. Deshalb fragen wir in diesem Fall nach, statt zu raten. Wähl die Variante, die zu deinen Papieren passt. Hilfreich sind dabei das Datum der Erstzulassung, die Höchstgeschwindigkeit und die zulässigen Achslasten; alles steht ebenfalls in der Zulassungsbescheinigung.",
             ],
             [
                 'heading' => 'Wenn wir dein Fahrzeug nicht finden',
-                'text' => "Oft ist es nur ein Tippfehler oder eine verwechselte Zeile. Prüf zuerst, ob du wirklich Feld 2.1 und die ersten drei Zeichen aus Feld 2.2 genommen hast, ob eine führende Null fehlt und ob du den Buchstaben O und die Ziffer 0 auseinandergehalten hast.\n\nFindest du das Fahrzeug trotzdem nicht, kannst du es über Marke und Modell auswählen. Oder du schreibst uns über das Kontaktformular, am besten mit HSN, TSN und Modell. Wir sagen dir dann, was wir zu deinem Fahrzeug haben. Und wenn wir nichts haben, sagen wir dir auch das – lieber eine ehrliche Auskunft als eine Felge, die nicht freigegeben ist.",
+                'text' => "Oft ist es nur ein Tippfehler oder eine verwechselte Zeile. Prüf zuerst, ob du wirklich Feld 2.1 und die ersten drei Zeichen aus Feld 2.2 genommen hast, ob eine führende Null fehlt und ob du den Buchstaben O und die Ziffer 0 auseinandergehalten hast.\n\nFindest du das Fahrzeug trotzdem nicht, kannst du es über Marke und Modell auswählen. Oder du schreibst uns eine E-Mail, am besten mit HSN, TSN und Modell. Die Adresse findest du auf der Kontaktseite. Wir sagen dir dann, was wir zu deinem Fahrzeug haben. Und wenn wir nichts haben, sagen wir dir auch das – lieber eine ehrliche Auskunft als eine Felge, die nicht freigegeben ist.",
             ],
         ],
     ],
     [
         'slug' => 'abe-teilegutachten-ece',
+        // Draft: outdated since the Teiletypgenehmigung, and A13 is wrong (see the note above).
+        'status' => 'draft',
         'title' => 'ABE, Teilegutachten, ECE – der Unterschied',
         'teaser' => 'Ob eine Felge an dein Auto darf, steht in einem Dokument. Wie sich ABE, Teilegutachten und ECE-Genehmigung unterscheiden.',
         'minutes' => 3,
@@ -72,12 +82,13 @@ return [
             ],
             [
                 'heading' => 'Was das beim Kauf für dich heißt',
-                'text' => "Bei RIMIFY wählst du zuerst dein Fahrzeug. Danach zeigen wir dir nur Felgen, für die ein Dokument die Freigabe für genau dieses Fahrzeug nennt. Welches Dokument das ist, siehst du bei der Felge, ebenso die Auflagen und ob eine Eintragung nötig ist. Das Dokument selbst kannst du auf der Produktseite herunterladen.\n\nUnd wenn wir es nicht sicher wissen, sagen wir dir das. Eine Felge, für die uns kein Dokument zu deinem Fahrzeug vorliegt, zeigen wir dir für dieses Fahrzeug nicht an. Lieber ein Kauf weniger als eine falsche Auskunft.",
+                'text' => "Bei RIMIFY wählst du zuerst dein Fahrzeug. Danach zeigen wir dir nur Felgen, für die ein Dokument die Freigabe für genau dieses Fahrzeug nennt. Welches Dokument das ist, siehst du bei der Felge, ebenso die Auflagen und ob eine Eintragung nötig ist.\n\nUnd wenn wir es nicht sicher wissen, sagen wir dir das. Eine Felge, für die uns kein Dokument zu deinem Fahrzeug vorliegt, zeigen wir dir für dieses Fahrzeug nicht an. Lieber ein Kauf weniger als eine falsche Auskunft.",
             ],
         ],
     ],
     [
         'slug' => 'einpresstiefe-et-erklaert',
+        'status' => 'published',
         'title' => 'Einpresstiefe (ET) verständlich erklärt',
         'teaser' => 'Die Einpresstiefe legt fest, wie weit die Felge im Radhaus sitzt. Was der Wert bedeutet, wie du ihn liest und was das Gutachten dazu sagt.',
         'minutes' => 3,
@@ -89,7 +100,7 @@ return [
             ],
             [
                 'heading' => 'Wo du den Wert findest',
-                'text' => "Die ET ist auf der Felge selbst angegeben, meist eingegossen oder eingeprägt auf der Rückseite oder innen an den Speichen. Die Schreibweise ist „ET 35“ oder kurz „ET35“.\n\nIn der vollständigen Größenangabe steht die ET hinter Breite und Durchmesser, zum Beispiel 8,5J × 18 · ET 35. Das bedeutet: 8,5\u{202F}Zoll breit, 18\u{202F}Zoll Durchmesser, Einpresstiefe 35\u{202F}mm. Bei uns steht diese Angabe bei jeder Felge, und im Gutachten steht sie bei jeder freigegebenen Kombination.",
+                'text' => "Die ET ist auf der Felge selbst angegeben, meist eingegossen oder eingeprägt auf der Rückseite oder innen an den Speichen. Die Schreibweise ist „ET 35“ oder kurz „ET35“.\n\nIn der vollständigen Größenangabe steht die ET hinter Breite und Durchmesser, zum Beispiel 8,5J × 18 · ET 35. Das bedeutet: 8,5\u{202F}Zoll Maulweite (die Breite zwischen den Felgenhörnern), 18\u{202F}Zoll Durchmesser, Einpresstiefe 35\u{202F}mm. Bei uns steht diese Angabe bei jeder Felge, und im Gutachten steht sie bei jeder freigegebenen Kombination.",
             ],
             [
                 'heading' => 'Was eine kleinere oder größere ET bewirkt',
@@ -101,7 +112,7 @@ return [
             ],
             [
                 'heading' => 'Was das Gutachten dazu sagt',
-                'text' => "Ein Gutachten nennt für jedes Fahrzeug, welche Felgenbreite mit welcher ET und welcher Reifengröße freigegeben ist, manchmal mit Auflagen. Eine ET, die dort nicht steht, ist für dieses Fahrzeug nicht freigegeben, auch wenn sie nur wenige Millimeter abweicht. Einen Toleranzbereich, den du selbst festlegen könntest, gibt es nicht.\n\nDas gilt auch für Distanzscheiben. Sie verändern die wirksame ET, und ob sie zusammen mit einer bestimmten Felge verwendet werden dürfen, muss ebenfalls in einem Dokument stehen. Was das Dokument sagt, gilt – nicht die Erfahrung mit einem ähnlichen Fahrzeug.",
+                'text' => "Mit Gutachten meinen wir hier jedes dieser Dokumente: ABE, Teiletypgenehmigung, Teilegutachten oder ECE-Genehmigung.\n\nEin Gutachten nennt für jedes Fahrzeug, welche Felgenbreite mit welcher ET und welcher Reifengröße freigegeben ist, manchmal mit Auflagen. Eine ET, die dort nicht steht, ist für dieses Fahrzeug nicht freigegeben, auch wenn sie nur wenige Millimeter abweicht. Einen Toleranzbereich, den du selbst festlegen könntest, gibt es nicht.\n\nDas gilt auch für Distanzscheiben. Sie verändern die wirksame ET, und ob sie zusammen mit einer bestimmten Felge verwendet werden dürfen, muss ebenfalls in einem Dokument stehen. Was das Dokument sagt, gilt – nicht die Erfahrung mit einem ähnlichen Fahrzeug.",
             ],
             [
                 'heading' => 'Wie wir die ET bei RIMIFY prüfen',
