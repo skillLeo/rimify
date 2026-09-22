@@ -2,6 +2,7 @@
 //
 //   node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> --public-base </storage/demo/wheels>
 //                                (--circle cx,cy,r [--hub cx,cy,r] [--cutout <transparent png>] | --mask <grey png>)
+//                                [--anchors '{"centre":[x,y],"pcd":[x,y,r],…}'] [--stamp 53810]
 //                                [--colour cool|none] [--credit-json '{...}'] [--fingerprint <hash>]
 //
 // Called by `php artisan wheels:process-images` with an argument array (never a shell string); it
@@ -29,13 +30,27 @@
 //     at every width.
 //  5. Export two frames — 1:1 (1080 × 1080, wheel diameter 82 % of the frame) and 4:3
 //     (1080 × 810, wheel 78 % of the height) — each as AVIF, WebP, PNG and JPEG at 480, 768 and
-//     1080 px plus a 24 px placeholder. The JPEG is flattened on --c-band (#f3f4f6) for the places
-//     that cannot take transparency; the manifest names PNG as the `<img>` fallback.
-//  6. Write manifest.json: the ImageManifest of the 1:1 frame at the top level, the 4:3 frame
-//     under `wide`, the credit and the fingerprint the command uses to skip unchanged work.
+//     1080 px plus a 24 px placeholder, and the 1:1 frame once more as `bare`: the same geometry
+//     with no baked shadow, for a page that draws its own (the hero's one CSS contact shadow). The
+//     JPEG is flattened on --c-band (#f3f4f6) for the places that cannot take transparency; the
+//     manifest names PNG as the `<img>` fallback.
+//  6. Carry the anchors (`--anchors`, measured on the photograph in source pixels) into every
+//     frame: the same affine map that placed the wheel places each point, normalised to the frame
+//     — x and y as fractions of its width and height, a radius or a stamp's width as a fraction
+//     of its width, a stamp's height as a fraction of its height (docs/phase0/ACCURACY.md §4). The
+//     `wheel` anchor, the outer lip, is never typed in: a circle cut is the circle, a masked cut is
+//     the mask's bounding box (centre, half its longer side). No anchors given, none written.
+//  7. Write manifest.json: the ImageManifest of the 1:1 frame at the top level with its anchors,
+//     the 4:3 frame under `wide` with its own, the shadowless frame under `bare`, the approval
+//     number the photograph shows under `stamp`, the credit and the fingerprint the command uses
+//     to skip unchanged work.
+import { Buffer } from 'node:buffer'
+import console from 'node:console'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import process from 'node:process'
 import sharp from 'sharp'
+import { frameAnchors, parseAnchors } from './lib/anchors.mjs'
 import { plainCap } from './lib/plain-cap.mjs'
 
 const WIDTHS = [480, 768, 1080]
@@ -43,7 +58,7 @@ const FRAME = 1080
 // A darker --c-band: --c-ink-2 from resources/css/tokens.css, the same cool grey hue.
 const SHADOW_TINT = '#3a424d'
 const JPEG_BACKGROUND = '#f3f4f6'
-const PIPELINE_VERSION = 4
+const PIPELINE_VERSION = 5
 
 const args = parse(process.argv.slice(2))
 const source = args.source
@@ -54,7 +69,7 @@ const publicBase = (args['public-base'] || '/storage/demo/wheels').replace(/\/$/
 const maskPath = typeof args.mask === 'string' && args.mask !== '' ? args.mask : null
 
 if (!source || !outDir || !slug || (!args.circle && maskPath === null)) {
-    console.error('usage: node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> (--circle cx,cy,r [--hub cx,cy,r] [--cutout <png>] | --mask <png>) [--public-base <url>]')
+    console.error('usage: node scripts/wheel-image.mjs --source <photo> --out <dir> --slug <slug> (--circle cx,cy,r [--hub cx,cy,r] [--cutout <png>] | --mask <png>) [--anchors <json>] [--stamp <number>] [--public-base <url>]')
     process.exit(1)
 }
 
@@ -87,6 +102,24 @@ if (hub !== null && (hub.length !== 3 || !hub.every(Number.isFinite) || hub[2] <
     process.exit(1)
 }
 
+let anchors = null
+
+if (typeof args.anchors === 'string' && args.anchors !== '') {
+    try {
+        anchors = parseAnchors(JSON.parse(args.anchors))
+    } catch (error) {
+        console.error(`--anchors: ${error.message}`)
+        process.exit(1)
+    }
+}
+
+const stamp = typeof args.stamp === 'string' && args.stamp !== '' ? args.stamp : null
+
+if (stamp !== null && !/^\d{5,6}$/.test(stamp)) {
+    console.error(`--stamp "${stamp}" must be the five- or six-digit approval number`)
+    process.exit(1)
+}
+
 mkdirSync(outDir, { recursive: true })
 
 // ── 1 · The cut: a circle around the wheel, or the photograph under its mask ──────────────────
@@ -96,10 +129,20 @@ const photo = await rotated.toBuffer()
 const size = Math.round(r * 2)
 
 let wheel
+// Where the cut sits in the photograph (its top-left corner, source pixels) and the wheel's outer
+// lip in the photograph — what the anchors are carried through.
+let cutOrigin
+let wheelInSource
 
 if (maskPath !== null) {
-    wheel = sharp(await maskedCut(photo, meta.width, meta.height, maskPath))
+    const cut = await maskedCut(photo, meta.width, meta.height, maskPath)
+    wheel = sharp(cut.buffer)
+    cutOrigin = { x: cut.left, y: cut.top }
+    wheelInSource = cut.wheel
 } else {
+    cutOrigin = { x: Math.round(cx - r), y: Math.round(cy - r) }
+    // The circle is drawn about the square's middle; as a pixel index that is half a pixel less.
+    wheelInSource = [cutOrigin.x + size / 2 - 0.5, cutOrigin.y + size / 2 - 0.5, r]
     const square = await extractSquare(photo, meta.width, meta.height, cx, cy, r)
 
     const circleMask = Buffer.from(
@@ -137,12 +180,16 @@ if (colour === 'cool') {
 const wheelPng = await wheel.png().toBuffer()
 const wheelMeta = await sharp(wheelPng).metadata()
 
-// ── 4 + 5 · Two frames, each on its own contact shadow, each at three widths ──────────────────
+// The measured anchors plus the derived outer lip, in source pixels. A `wheel` typed in wins.
+const sourceAnchors = anchors === null ? null : { ...anchors, wheel: anchors.wheel ?? wheelInSource }
+
+// ── 4 + 5 · Two frames on their own contact shadow and one without, each at three widths ─────
 const manifests = {}
 
-for (const [key, frameWidth, frameHeight, share] of [
-    ['square', FRAME, FRAME, 0.82],
-    ['wide', FRAME, Math.round((FRAME * 3) / 4), 0.78],
+for (const [key, frameWidth, frameHeight, share, shadowed] of [
+    ['square', FRAME, FRAME, 0.82, true],
+    ['wide', FRAME, Math.round((FRAME * 3) / 4), 0.78, true],
+    ['bare', FRAME, FRAME, 0.82, false],
 ]) {
     // The box the wheel fills: a circle cut is square; a masked angle shot keeps its proportions
     // and fills the box by its longer side, standing on the same baseline.
@@ -157,19 +204,20 @@ for (const [key, frameWidth, frameHeight, share] of [
 
     const resizedWheel = await sharp(wheelPng).resize({ width: wheelWidth, height: wheelHeight, fit: 'fill' }).png().toBuffer()
 
-    const shadow = await contactShadow(frameWidth, frameHeight, wheelWidth, bottom)
+    const layers = [{ input: resizedWheel, left, top }]
+
+    if (shadowed) {
+        layers.unshift({ input: await contactShadow(frameWidth, frameHeight, wheelWidth, bottom), left: 0, top: 0 })
+    }
 
     const frame = await sharp({
         create: { width: frameWidth, height: frameHeight, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
     })
-        .composite([
-            { input: shadow, left: 0, top: 0 },
-            { input: resizedWheel, left, top },
-        ])
+        .composite(layers)
         .png()
         .toBuffer()
 
-    const name = key === 'square' ? slug : `${slug}-4x3`
+    const name = { square: slug, wide: `${slug}-4x3`, bare: `${slug}-bare` }[key]
     const widths = []
 
     for (const width of WIDTHS) {
@@ -196,12 +244,24 @@ for (const [key, frameWidth, frameHeight, share] of [
         fallback: 'png',
         placeholder: `data:image/png;base64,${placeholder.toString('base64')}`,
     }
+
+    // ── 6 · The anchors, carried by the same map that placed the wheel in this frame ──────────
+    if (sourceAnchors !== null) {
+        manifests[key].anchors = frameAnchors(sourceAnchors, {
+            origin: cutOrigin,
+            cut: { width: wheelMeta.width, height: wheelMeta.height },
+            placed: { left, top, width: wheelWidth, height: wheelHeight },
+            frame: { width: frameWidth, height: frameHeight },
+        })
+    }
 }
 
-// ── 6 · The manifest ───────────────────────────────────────────────────────────────────────────
+// ── 7 · The manifest ───────────────────────────────────────────────────────────────────────────
 const manifest = {
     ...manifests.square,
     wide: manifests.wide,
+    bare: manifests.bare,
+    ...(stamp !== null ? { stamp } : {}),
     source: basename(source),
     credit: args['credit-json'] ? JSON.parse(args['credit-json']) : null,
     pipeline: PIPELINE_VERSION,
@@ -209,7 +269,7 @@ const manifest = {
 }
 
 writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-console.log(`${slug}: ${wheelMeta.width}×${wheelMeta.height} from ${basename(source)}${maskPath !== null ? ' (masked)' : ''} → ${outDir} (${WIDTHS.length} widths × 2 frames)`)
+console.log(`${slug}: ${wheelMeta.width}×${wheelMeta.height} from ${basename(source)}${maskPath !== null ? ' (masked)' : ''} → ${outDir} (${WIDTHS.length} widths × 3 frames${sourceAnchors !== null ? ', anchored' : ''})`)
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -263,7 +323,9 @@ async function extractSquare(buffer, width, height, cx, cy, r) {
 
 /**
  * The photograph's own pixels under a grey mask scaled to it, cropped to the mask's bounding box
- * (alpha above 16) with a two-pixel margin so the soft edge is kept whole.
+ * (alpha above 16) with a two-pixel margin so the soft edge is kept whole. Returns the cut, where
+ * its top-left corner sits in the photograph, and the wheel's outer lip read off the bounding box:
+ * its centre, and half its longer side (a shot not quite face-on foreshortens the shorter one).
  */
 async function maskedCut(buffer, width, height, mask) {
     const alpha = await sharp(mask).extractChannel(0).resize(width, height, { kernel: 'lanczos3' }).extractChannel(0).raw().toBuffer()
@@ -299,10 +361,16 @@ async function maskedCut(buffer, width, height, mask) {
     const rgb = await sharp(buffer).removeAlpha().png().toBuffer()
     const cut = await sharp(rgb).joinChannel(alphaImage).png().toBuffer()
 
-    return sharp(cut)
-        .extract({ left, top, width: right - left, height: bottom - top })
-        .png()
-        .toBuffer()
+    return {
+        buffer: await sharp(cut)
+            .extract({ left, top, width: right - left, height: bottom - top })
+            .png()
+            .toBuffer(),
+        left,
+        top,
+        // In pixel indices like every measured anchor: the middle pixel, and a radius in pixels.
+        wheel: [(minX + maxX) / 2, (minY + maxY) / 2, Math.max(maxX - minX + 1, maxY - minY + 1) / 2],
+    }
 }
 
 /**

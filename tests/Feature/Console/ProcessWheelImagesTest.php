@@ -203,6 +203,190 @@ it('is idempotent: an unchanged photograph is skipped, --force renders it again'
     expect(json_decode(File::get($manifest), true)['fingerprint'])->not->toBe(json_decode($first, true)['fingerprint']);
 });
 
+/**
+ * Where a colour lands in a rendered PNG: the centroid of the pixels that are clearly that colour,
+ * as pixel positions (a pixel's centre is its index plus a half).
+ *
+ * @return array{x: float, y: float, n: int}
+ */
+function colourCentroid(string $node, string $png, string $channel): array
+{
+    $script = 'const s=require("sharp");s(process.argv[1]).raw().toBuffer({resolveWithObject:true}).then(({data,info})=>{'
+        .'const c=process.argv[2];let sx=0,sy=0,n=0;'
+        .'for(let y=0;y<info.height;y++)for(let x=0;x<info.width;x++){const i=(y*info.width+x)*info.channels;'
+        .'const r=data[i],g=data[i+1],b=data[i+2],a=data[i+3];'
+        .'const hit=a>200&&(c==="red"?(r>190&&g<70&&b<70):(b>190&&r<70&&g<90));'
+        .'if(hit){sx+=x+0.5;sy+=y+0.5;n++}}'
+        .'console.log(JSON.stringify({x:n?sx/n:-1,y:n?sy/n:-1,n}))})';
+
+    $probe = new Process([$node, '-e', $script, $png, $channel], base_path(), timeout: 60);
+    $probe->run();
+
+    return json_decode(trim($probe->getOutput()), true);
+}
+
+it('carries measured anchors into every frame, normalised to it, and writes the stamp', function (): void {
+    // The same wheel, with a red valve at (450, 800) and a blue mark at (300, 450) — pixel indices.
+    $marked = $this->dir.DIRECTORY_SEPARATOR.'marked-wheel.png';
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900">'
+        .'<rect width="900" height="900" fill="#6d7a8c"/><circle cx="450" cy="450" r="400" fill="#c3c8cf"/>'
+        .'<circle cx="450.5" cy="800.5" r="12" fill="#ff0000"/><circle cx="300.5" cy="450.5" r="12" fill="#0000ff"/></svg>';
+    $make = new Process([$this->node, '-e', 'const s=require("sharp");s(Buffer.from(process.argv[1])).png().toFile(process.argv[2]).then(()=>process.exit(0),e=>{console.error(e);process.exit(1)})', $svg, $marked], base_path(), timeout: 120);
+    $make->run();
+    expect($make->isSuccessful())->toBeTrue($make->getErrorOutput());
+
+    $this->artisan('wheels:process-images', [
+        'source' => $marked,
+        '--slug' => 'test-anchored',
+        '--circle' => '450,450,400',
+        '--anchors' => (string) json_encode(['centre' => [450, 450], 'valve' => [450, 800], 'bore' => [300, 450, 12], 'kba' => [450, 850, 80, 16]]),
+        '--stamp' => '53810',
+    ])->assertSuccessful();
+
+    $manifest = DemoWheels::manifest('test-anchored');
+    $out = $this->dir.DIRECTORY_SEPARATOR.'test-anchored'.DIRECTORY_SEPARATOR;
+
+    expect($manifest)->not->toBeNull()
+        ->and($manifest['stamp'])->toBe('53810')
+        ->and($manifest['pipeline'])->toBe(5)
+        ->and(DemoWheels::anchorsWellFormed($manifest['anchors']))->toBeTrue()
+        ->and(DemoWheels::anchorsWellFormed($manifest['wide']['anchors']))->toBeTrue()
+        // `bare` has the square frame's geometry, so its anchors are the square frame's.
+        ->and($manifest['bare']['anchors'])->toBe($manifest['anchors']);
+
+    // Worked by hand for the square frame: the 800 px cut fills 886 px (82 %), placed at x 97 and
+    // y 65 (standing on 0,47 × 1080 + 443). The valve's centre, 750,5 px into the cut, lands at
+    // 65 + 750,5 × 886/800 = 896,2 px, which is 0,8298 of the frame.
+    expect($manifest['anchors']['valve']['x'])->toEqualWithDelta(0.5005, 0.001)
+        ->and($manifest['anchors']['valve']['y'])->toEqualWithDelta(0.8298, 0.001)
+        // The outer lip is the circle itself: 82 % of the frame across, centred.
+        ->and($manifest['anchors']['wheel']['r'])->toEqualWithDelta(0.41, 0.001)
+        ->and($manifest['anchors']['wheel']['x'])->toEqualWithDelta(0.5, 0.001)
+        ->and($manifest['anchors']['kba']['w'])->toEqualWithDelta(80 * 886 / 800 / 1080, 0.001)
+        ->and($manifest['anchors']['kba']['h'])->toEqualWithDelta(16 * 886 / 800 / 1080, 0.001);
+
+    // And what the manifest says is where the pixels are, in both frames.
+    foreach ([
+        ['test-anchored-1080.png', $manifest['anchors'], 1080, 1080],
+        ['test-anchored-4x3-1080.png', $manifest['wide']['anchors'], 1080, 810],
+        ['test-anchored-bare-1080.png', $manifest['bare']['anchors'], 1080, 1080],
+    ] as [$file, $anchors, $width, $height]) {
+        $red = colourCentroid($this->node, $out.$file, 'red');
+        $blue = colourCentroid($this->node, $out.$file, 'blue');
+
+        expect($red['n'])->toBeGreaterThan(50)
+            ->and($red['x'])->toEqualWithDelta($anchors['valve']['x'] * $width, 1.5)
+            ->and($red['y'])->toEqualWithDelta($anchors['valve']['y'] * $height, 1.5)
+            ->and($blue['n'])->toBeGreaterThan(50)
+            ->and($blue['x'])->toEqualWithDelta($anchors['bore']['x'] * $width, 1.5)
+            ->and($blue['y'])->toEqualWithDelta($anchors['bore']['y'] * $height, 1.5);
+    }
+
+    // The 4:3 frame is smaller in the wheel (78 % of its height), so its own numbers differ.
+    expect($manifest['wide']['anchors']['wheel']['r'])->toEqualWithDelta(0.78 * 810 / 2 / 1080, 0.001)
+        ->and($manifest['wide']['anchors']['valve']['y'])->not->toBe($manifest['anchors']['valve']['y']);
+});
+
+it('exports a bare frame with the square frame\'s geometry and no shadow under the wheel', function (): void {
+    $this->artisan('wheels:process-images', [
+        'source' => $this->fixture,
+        '--slug' => 'test-wheel',
+        '--circle' => '450,450,400',
+    ])->assertSuccessful();
+
+    $manifest = DemoWheels::manifest('test-wheel');
+    $out = $this->dir.DIRECTORY_SEPARATOR.'test-wheel'.DIRECTORY_SEPARATOR;
+
+    expect($manifest['bare']['name'])->toBe('test-wheel-bare')
+        ->and($manifest['bare']['base'])->toBe(DemoWheels::publicBase().'/test-wheel/test-wheel-bare')
+        ->and($manifest['bare']['width'])->toBe(1080)
+        ->and($manifest['bare']['height'])->toBe(1080)
+        ->and($manifest['bare']['widths'])->toBe([480, 768, 1080])
+        ->and($manifest['bare']['fallback'])->toBe('png')
+        // No anchors measured, none written: a page draws no highlight it cannot place.
+        ->and($manifest)->not->toHaveKeys(['anchors', 'stamp']);
+
+    foreach ([480, 768, 1080] as $width) {
+        foreach (['avif', 'webp', 'png', 'jpg'] as $ext) {
+            expect(is_file($out.'test-wheel-bare-'.$width.'.'.$ext))->toBeTrue("missing test-wheel-bare-{$width}.{$ext}");
+        }
+    }
+
+    // In the 480 frame the wheel stands on y = 0,47 × 480 + 0,82 × 480 / 2 = 422,4. Below it the
+    // square frame carries the baked shadow; the bare frame carries nothing at all.
+    $script = 'const s=require("sharp");Promise.all([process.argv[1],process.argv[2]].map(f=>s(f).raw().toBuffer({resolveWithObject:true}))).then(([sq,bare])=>{'
+        .'const a=(img,x,y)=>img.data[(y*img.info.width+x)*img.info.channels+img.info.channels-1];'
+        .'let maxBelow=0;for(let y=426;y<480;y++)for(let x=0;x<480;x++)maxBelow=Math.max(maxBelow,a(bare,x,y));'
+        .'console.log(JSON.stringify({maxBelow,squareBelow:a(sq,240,462),bareCentre:a(bare,240,226),squareCentre:a(sq,240,226)}))})';
+    $probe = new Process([$this->node, '-e', $script, $out.'test-wheel-480.png', $out.'test-wheel-bare-480.png'], base_path(), timeout: 60);
+    $probe->run();
+    $alpha = json_decode(trim($probe->getOutput()), true);
+
+    expect($alpha['squareBelow'])->toBeGreaterThan(0)
+        ->and($alpha['maxBelow'])->toBe(0)
+        ->and($alpha['bareCentre'])->toBe(255)
+        ->and($alpha['squareCentre'])->toBe(255);
+});
+
+it('derives the outer lip of a masked shot from the mask, not from anything typed in', function (): void {
+    // A wide ellipse at half the photograph's size: 800 × 600 px once scaled to the photograph.
+    $mask = $this->dir.DIRECTORY_SEPARATOR.'fixture-wheel.mask.png';
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="450" height="450"><rect width="450" height="450" fill="#000"/>'
+        .'<ellipse cx="225" cy="225" rx="200" ry="150" fill="#fff"/></svg>';
+    $make = new Process([$this->node, '-e', 'const s=require("sharp");s(Buffer.from(process.argv[1])).extractChannel(0).png().toFile(process.argv[2]).then(()=>process.exit(0),e=>{console.error(e);process.exit(1)})', $svg, $mask], base_path(), timeout: 120);
+    $make->run();
+    expect($make->isSuccessful())->toBeTrue($make->getErrorOutput());
+
+    $this->artisan('wheels:process-images', [
+        'source' => $this->fixture,
+        '--slug' => 'test-masked',
+        '--mask' => $mask,
+        '--anchors' => '{"centre":[450,450]}',
+    ])->assertSuccessful();
+
+    $anchors = DemoWheels::manifest('test-masked')['anchors'];
+
+    // Half the box's longer side, which fills 82 % of the square frame.
+    expect($anchors['wheel']['r'])->toEqualWithDelta(0.41, 0.003)
+        ->and($anchors['wheel']['x'])->toEqualWithDelta(0.5, 0.002)
+        ->and($anchors['centre']['x'])->toEqualWithDelta(0.5, 0.003);
+});
+
+it('refuses anchors without a centre, an unknown anchor and a stamp that is not a number', function (): void {
+    foreach ([
+        ['--anchors' => '{"pcd":[450,450,100]}'],
+        ['--anchors' => '{"centre":[450,450],"hub":[1,2,3]}'],
+        ['--anchors' => '{"centre":[450]}'],
+        ['--anchors' => 'not json'],
+        ['--stamp' => 'KBA 53810'],
+    ] as $option) {
+        $this->artisan('wheels:process-images', ['source' => $this->fixture, '--slug' => 'test-wheel', '--circle' => '450,450,400'] + $option)
+            ->assertFailed();
+    }
+
+    expect(File::exists($this->dir.DIRECTORY_SEPARATOR.'test-wheel'))->toBeFalse();
+});
+
+it('renders again when the anchors or the stamp change', function (): void {
+    $arguments = ['source' => $this->fixture, '--slug' => 'test-wheel', '--circle' => '450,450,400', '--anchors' => '{"centre":[450,450]}'];
+
+    $this->artisan('wheels:process-images', $arguments)->assertSuccessful();
+    $first = DemoWheels::manifest('test-wheel')['fingerprint'];
+
+    $this->artisan('wheels:process-images', $arguments + ['--stamp' => '53810'])
+        ->doesntExpectOutputToContain('unchanged, skipped')
+        ->assertSuccessful();
+
+    $second = DemoWheels::manifest('test-wheel')['fingerprint'];
+
+    $this->artisan('wheels:process-images', ['--anchors' => '{"centre":[451,450]}'] + $arguments + ['--stamp' => '53810'])
+        ->doesntExpectOutputToContain('unchanged, skipped')
+        ->assertSuccessful();
+
+    expect($second)->not->toBe($first)
+        ->and(DemoWheels::manifest('test-wheel')['fingerprint'])->not->toBe($second);
+});
+
 it('refuses a photograph it cannot place', function (): void {
     $this->artisan('wheels:process-images', ['source' => $this->fixture, '--slug' => 'test-wheel'])
         ->assertFailed();

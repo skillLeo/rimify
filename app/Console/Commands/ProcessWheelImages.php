@@ -14,8 +14,9 @@ use Symfony\Component\Process\Process;
  *
  * For every photograph in database/seeders/content/wheel-photos.php (or one named photograph) the
  * command produces a transparent cut-out, colour-corrects it, stands it on a contact shadow and
- * exports responsive AVIF, WebP, PNG and JPEG at two aspect ratios with a manifest the `Picture`
- * component reads — into `rimify.demo.wheels_dir`, one directory per slug.
+ * exports responsive AVIF, WebP, PNG and JPEG at two aspect ratios, plus the square frame once
+ * more without the shadow (`bare`), with a manifest the `Picture` component reads — into
+ * `rimify.demo.wheels_dir`, one directory per slug.
  *
  * Two ways to the cut-out. When a `rembg` executable is on the PATH it separates the subject from
  * the background (`birefnet-general`, `-dc` colour decontamination, never `-ppm`) and its alpha is
@@ -23,6 +24,11 @@ use Symfony\Component\Process\Process;
  * developer machines here — the circle alone does the work, which for a face-on wheel is exact:
  * a wheel's silhouette is a circle. Either way the rest of the pipeline is scripts/wheel-image.mjs,
  * invoked with an argument array and never a shell string (R-14 in spirit: no string-built input).
+ *
+ * A photograph measured for the hero (`anchors` in the map: centre, Lochkreis, bore cap, valve and
+ * approval stamp, in source pixels) has them carried into every frame of the manifest, normalised
+ * to that frame, together with the approval number it shows (`stamp`) and a `bare` frame without
+ * the baked shadow (docs/phase0/ACCURACY.md §4).
  *
  * Idempotent: a manifest carries a fingerprint of the source bytes, the parameters and the
  * pipeline version, and an unchanged photograph is skipped unless `--force`.
@@ -35,11 +41,16 @@ final class ProcessWheelImages extends Command
         {--circle= : The wheel as cx,cy,r in source pixels, overriding the map}
         {--hub= : The centre cap to paint over as cx,cy,r in source pixels, overriding the map}
         {--mask= : A grey alpha mask for an angled studio shot, used instead of the circle}
+        {--anchors= : Anchor points in source pixels as JSON ({"centre":[x,y],"pcd":[x,y,r],…}), overriding the map}
+        {--stamp= : The approval number the photograph shows, overriding the map}
         {--force : Re-render even when the output is up to date}';
 
     protected $description = 'Cut the demo wheels out of their photographs and export the responsive images the catalogue serves';
 
-    private const PIPELINE_VERSION = 4;
+    private const PIPELINE_VERSION = 5;
+
+    /** Each anchor a photograph may be measured with, and how many numbers it takes. */
+    private const ANCHOR_SHAPES = ['centre' => 2, 'wheel' => 3, 'pcd' => 3, 'bore' => 3, 'valve' => 2, 'kba' => 4];
 
     public function handle(): int
     {
@@ -86,7 +97,7 @@ final class ProcessWheelImages extends Command
      * What to render: every mapped photograph, or the one named — from the map when it is there,
      * from the options otherwise.
      *
-     * @return list<array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}>|null
+     * @return list<array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, anchors: array<string, list<float>>|null, stamp: string|null, credit: array<string, string>|null}>|null
      */
     private function jobs(): ?array
     {
@@ -117,7 +128,7 @@ final class ProcessWheelImages extends Command
 
     /**
      * @param  array<string, mixed>  $entry
-     * @return array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}|null
+     * @return array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, anchors: array<string, list<float>>|null, stamp: string|null, credit: array<string, string>|null}|null
      */
     private function job(string $file, array $entry, bool $fromOptions, ?string $path = null): ?array
     {
@@ -125,6 +136,27 @@ final class ProcessWheelImages extends Command
         $circleOption = $this->option('circle');
         $hubOption = $this->option('hub');
         $maskOption = $this->option('mask');
+        $anchorsOption = $this->option('anchors');
+        $stampOption = $this->option('stamp');
+
+        // Text that is not JSON is a malformed value, never "no anchors".
+        $rawAnchors = $fromOptions && is_string($anchorsOption) && $anchorsOption !== ''
+            ? (json_decode($anchorsOption, true) ?? false)
+            : ($entry['anchors'] ?? null);
+        $stamp = $fromOptions && is_string($stampOption) && $stampOption !== '' ? $stampOption : ($entry['stamp'] ?? null);
+        $anchors = $rawAnchors === null ? null : $this->parseAnchors($rawAnchors);
+
+        if ($rawAnchors !== null && $anchors === null) {
+            $this->error(sprintf('%s: anchors must be {"centre":[x,y],"pcd":[x,y,r],"bore":[x,y,r],"valve":[x,y],"kba":[x,y,w,h]} in source pixels, with a centre.', $file));
+
+            return null;
+        }
+
+        if ($stamp !== null && (! is_string($stamp) || preg_match('/^\d{5,6}$/', $stamp) !== 1)) {
+            $this->error(sprintf('%s: the stamp must be the five- or six-digit approval number the photograph shows.', $file));
+
+            return null;
+        }
 
         $slug = $fromOptions && is_string($slugOption) && $slugOption !== '' ? $slugOption : ($entry['slug'] ?? null);
         $circle = $fromOptions && is_string($circleOption) && $circleOption !== '' ? $this->parseCircle($circleOption) : ($entry['circle'] ?? null);
@@ -180,6 +212,8 @@ final class ProcessWheelImages extends Command
             // A hub is measured against the circle; a masked shot shows the product brand's own cap.
             'hub' => $hub === null || $mask !== null ? null : [(int) $hub[0], (int) $hub[1], (int) $hub[2]],
             'colour' => (string) ($entry['colour'] ?? 'cool'),
+            'anchors' => $anchors,
+            'stamp' => $stamp,
             'credit' => is_array($credit) ? array_map('strval', $credit) : null,
         ];
     }
@@ -195,7 +229,42 @@ final class ProcessWheelImages extends Command
     }
 
     /**
-     * @param  array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
+     * Anchor points as measured: a name the contract knows, the right count of finite, non-negative
+     * numbers, and a centre. Anything else is refused, never half-used.
+     *
+     * @return array<string, list<float>>|null
+     */
+    private function parseAnchors(mixed $raw): ?array
+    {
+        if (! is_array($raw) || ! isset($raw['centre'])) {
+            return null;
+        }
+
+        $out = [];
+
+        foreach ($raw as $name => $values) {
+            if (! is_string($name) || ! isset(self::ANCHOR_SHAPES[$name]) || ! is_array($values) || ! array_is_list($values) || count($values) !== self::ANCHOR_SHAPES[$name]) {
+                return null;
+            }
+
+            $numbers = [];
+
+            foreach ($values as $value) {
+                if ((! is_int($value) && ! is_float($value)) || ! is_finite((float) $value) || $value < 0) {
+                    return null;
+                }
+
+                $numbers[] = (float) $value;
+            }
+
+            $out[$name] = $numbers;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array{file: string, path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, anchors: array<string, list<float>>|null, stamp: string|null, credit: array<string, string>|null}  $job
      */
     private function process(array $job, string $node, ?string $rembg): bool
     {
@@ -247,6 +316,16 @@ final class ProcessWheelImages extends Command
         if ($job['hub'] !== null) {
             $arguments[] = '--hub';
             $arguments[] = implode(',', $job['hub']);
+        }
+
+        if ($job['anchors'] !== null) {
+            $arguments[] = '--anchors';
+            $arguments[] = (string) json_encode($job['anchors']);
+        }
+
+        if ($job['stamp'] !== null) {
+            $arguments[] = '--stamp';
+            $arguments[] = $job['stamp'];
         }
 
         if ($job['credit'] !== null) {
@@ -308,7 +387,7 @@ final class ProcessWheelImages extends Command
     }
 
     /**
-     * @param  array{path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, credit: array<string, string>|null}  $job
+     * @param  array{path: string, slug: string, circle: array{0: int, 1: int, 2: int}|null, mask: string|null, hub: array{0: int, 1: int, 2: int}|null, colour: string, anchors: array<string, list<float>>|null, stamp: string|null, credit: array<string, string>|null}  $job
      */
     private function fingerprint(array $job, bool $withRembg): string
     {
@@ -319,6 +398,8 @@ final class ProcessWheelImages extends Command
             $job['mask'] === null ? 'no-mask' : 'mask:'.sha1_file($job['mask']),
             $job['hub'] === null ? 'no-hub' : implode(',', $job['hub']),
             $job['colour'],
+            $job['anchors'] === null ? 'no-anchors' : 'anchors:'.json_encode($job['anchors']),
+            $job['stamp'] === null ? 'no-stamp' : 'stamp:'.$job['stamp'],
             (string) json_encode($job['credit']),
             DemoWheels::publicBase(),
             $withRembg ? 'rembg' : 'mask',
