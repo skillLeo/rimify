@@ -17,13 +17,13 @@ describe('useSearch', () => {
     })
 
     it('waits for the visitor to stop typing before it asks the server', async () => {
-        const fetchMock = vi.fn(async () => new Response(JSON.stringify(result('havanna')), { status: 200 }))
+        const fetchMock = vi.fn(async () => new Response(JSON.stringify(result('ultimate')), { status: 200 }))
         vi.stubGlobal('fetch', fetchMock)
 
         const search = useSearch()
-        search.run('h')
-        search.run('ha')
-        search.run('havanna')
+        search.run('u')
+        search.run('ul')
+        search.run('ultimate')
 
         vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 1)
         expect(fetchMock).not.toHaveBeenCalled()
@@ -34,8 +34,8 @@ describe('useSearch', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1)
         const [firstCall] = fetchMock.mock.calls as unknown as [unknown[]]
-        expect(String(firstCall[0])).toContain('q=havanna')
-        expect(search.result.value?.query).toBe('havanna')
+        expect(String(firstCall[0])).toContain('q=ultimate')
+        expect(search.result.value?.query).toBe('ultimate')
     })
 
     it('keeps the answer to the latest query when an earlier one arrives late', async () => {
@@ -43,28 +43,28 @@ describe('useSearch', () => {
         const fetchMock = vi
             .fn()
             .mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveFirst = resolve)))
-            .mockImplementationOnce(async () => new Response(JSON.stringify(result('bbs')), { status: 200 }))
+            .mockImplementationOnce(async () => new Response(JSON.stringify(result('mcr4')), { status: 200 }))
         vi.stubGlobal('fetch', fetchMock)
 
         const search = useSearch()
-        search.run('borbet')
+        search.run('motec')
         await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
-        search.run('bbs')
+        search.run('mcr4')
         await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
         await vi.runAllTimersAsync()
 
-        resolveFirst?.(new Response(JSON.stringify(result('borbet')), { status: 200 }))
+        resolveFirst?.(new Response(JSON.stringify(result('motec')), { status: 200 }))
         await vi.runAllTimersAsync()
         await nextTick()
 
-        expect(search.result.value?.query).toBe('bbs')
+        expect(search.result.value?.query).toBe('mcr4')
     })
 
     it('clears everything when the field is emptied', async () => {
-        vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(result('oz')), { status: 200 })))
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(result('demo')), { status: 200 })))
 
         const search = useSearch()
-        search.run('oz')
+        search.run('demo')
         await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
         await vi.runAllTimersAsync()
         expect(search.result.value).not.toBeNull()
@@ -78,7 +78,7 @@ describe('useSearch', () => {
         vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
 
         const search = useSearch()
-        search.run('oz')
+        search.run('demo')
         await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS)
         await vi.runAllTimersAsync()
 

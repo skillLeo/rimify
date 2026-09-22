@@ -206,7 +206,7 @@ function useSuggestion(): void {
                 <button v-if="search.result.value?.suggestion" class="link" type="button" @click="useSuggestion">
                     Meintest du „{{ search.result.value?.suggestion }}“?
                 </button>
-                <template v-else>Versuch es mit einer Marke oder einer Größe, zum Beispiel „BBS“ oder „19 Zoll“.</template>
+                <template v-else>Versuch es mit einer Marke oder einer Größe, zum Beispiel „MOTEC“ oder „19 Zoll“.</template>
             </p>
             <p v-if="search.failed.value" class="sbox__empty">Die Suche ist gerade nicht erreichbar.</p>
         </div>

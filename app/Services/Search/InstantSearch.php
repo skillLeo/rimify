@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Search;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -148,15 +149,20 @@ final readonly class InstantSearch
         ])->all();
     }
 
-    /** @return list<array{label: string, sub: string|null, href: string}> */
+    /**
+     * Wheel brands only: a brand with no published wheel model is not a brand RIMIFY sells Felgen
+     * of — a tyre maker listed here would lead to a listing that ignores it. Linked by name,
+     * because the listing's `marke` filter matches the brand's name.
+     *
+     * @return list<array{label: string, sub: string|null, href: string}>
+     */
     private function brands(string $q): array
     {
-        $rows = DB::table('brands')
-            ->whereNull('deleted_at')
-            ->where('name', 'like', '%'.$q.'%')
-            ->orderBy('sort_order')
+        $rows = $this->wheelBrands()
+            ->where('br.name', 'like', '%'.$q.'%')
+            ->orderBy('br.sort_order')
             ->limit(self::LIMIT)
-            ->get(['name']);
+            ->get(['br.name']);
 
         $out = [];
 
@@ -213,10 +219,24 @@ final readonly class InstantSearch
         return array_slice($out, 0, self::LIMIT);
     }
 
-    /** The nearest brand or model name, when one is within two edits — "Meintest du „BBS“?". */
+    /** Brands with at least one published, non-deleted wheel model — the same rule the homepage uses. */
+    private function wheelBrands(): Builder
+    {
+        return DB::table('brands as br')
+            ->whereNull('br.deleted_at')
+            ->whereExists(function (Builder $models): void {
+                $models->select(DB::raw(1))
+                    ->from('wheel_models as wm')
+                    ->whereColumn('wm.brand_id', 'br.id')
+                    ->whereNull('wm.deleted_at')
+                    ->where('wm.status', 'published');
+            });
+    }
+
+    /** The nearest wheel brand or model name, when one is within two edits — "Meintest du „BBS“?". */
     private function suggestion(string $q): ?string
     {
-        $names = DB::table('brands')->whereNull('deleted_at')->pluck('name')
+        $names = $this->wheelBrands()->pluck('br.name')
             ->merge(DB::table('wheel_models')->whereNull('deleted_at')->where('status', 'published')->pluck('name'));
 
         $best = null;

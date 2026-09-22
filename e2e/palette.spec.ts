@@ -21,14 +21,14 @@ test.describe('command palette', () => {
 
         const field = palette.getByRole('combobox');
         await expect(field).toBeFocused();
-        await field.fill('superturis');
+        await field.fill('ultimat');
 
-        const hit = palette.getByRole('option', { name: /Superturismo GT/ });
+        const hit = palette.getByRole('option', { name: /MCR4 Ultimate/ });
         await expect(hit).toBeVisible();
         await hit.click();
 
-        await page.waitForURL('**/felgen/oz-racing-superturismo-gt', { timeout: 15_000 });
-        await expect(page.getByRole('heading', { level: 1 })).toContainText('Superturismo GT');
+        await page.waitForURL('**/felgen/motec-mcr4-ultimate', { timeout: 15_000 });
+        await expect(page.getByRole('heading', { level: 1 })).toContainText('MCR4 Ultimate');
     });
 
     test('closes on Escape and returns focus', async ({ page }, testInfo) => {
