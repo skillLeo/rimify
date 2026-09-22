@@ -60,7 +60,8 @@ function removeVehicle(): void {
         <div class="container utility__row">
             <DemoBadge />
             <span>Versand aus Deutschland</span>
-            <span>Gutachten zu jeder Felge als PDF</span>
+            <!-- The client's own words. "als PDF" returns only once a download exists (ACCURACY D7). -->
+            <span>Gutachten zu jeder Felge</span>
             <span class="utility__help">
                 Hilfe:
                 <a v-if="contact.phone" :href="telHref" class="utility__contact num">{{ contact.phone }}</a>

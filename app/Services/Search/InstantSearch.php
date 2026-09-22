@@ -42,7 +42,8 @@ final readonly class InstantSearch
         ['label' => 'Fragen und Antworten', 'href' => '/faq', 'keys' => 'faq fragen hilfe antworten'],
         ['label' => 'Kontakt', 'href' => '/kontakt', 'keys' => 'kontakt telefon whatsapp mail anrufen'],
         ['label' => 'Warenkorb', 'href' => '/warenkorb', 'keys' => 'warenkorb bestellung kasse'],
-        ['label' => 'Versand', 'href' => '/rechtliches/versand', 'keys' => 'versand lieferung lieferzeit dhl'],
+        // No carrier among the keys: none is confirmed (ACCURACY.md D7).
+        ['label' => 'Versand', 'href' => '/rechtliches/versand', 'keys' => 'versand lieferung lieferzeit paket'],
         ['label' => 'Widerrufsbelehrung', 'href' => '/rechtliches/widerrufsbelehrung', 'keys' => 'widerruf rückgabe zurückschicken'],
         ['label' => 'Impressum', 'href' => '/rechtliches/impressum', 'keys' => 'impressum anbieter'],
         ['label' => 'Datenschutz', 'href' => '/rechtliches/datenschutz', 'keys' => 'datenschutz dsgvo cookies'],

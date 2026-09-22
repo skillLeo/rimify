@@ -72,7 +72,8 @@ const STATES = [
         <div class="wrap chk">
             <h1 class="t-h1">Passt diese Felge auf dein Auto?</h1>
             <p class="t-lead chk__lead">
-                In zwei Schritten zur verbindlichen Antwort – mit dem Gutachten als Beleg.
+                In zwei Schritten zur Antwort: Wir sagen dir, was das Gutachten erlaubt – und wenn uns
+                keins vorliegt, sagen wir auch das.
             </p>
 
             <!-- The stepper mirrors what is rendered below it, and nothing else. -->
