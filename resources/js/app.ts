@@ -6,7 +6,8 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
 import { ZiggyVue } from 'ziggy-js';
 
-const appName = import.meta.env.VITE_APP_NAME ?? 'RIMIFY';
+// `||`, not `??`: an empty VITE_APP_NAME would otherwise leave every tab title ending in " ·".
+const appName = import.meta.env.VITE_APP_NAME || 'RIMIFY';
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ${appName}` : appName),

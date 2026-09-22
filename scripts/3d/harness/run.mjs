@@ -1,14 +1,14 @@
 // Build the harness, serve it with the project's public/3d, drive it in headless Chromium and
 // write review shots + a JSON summary (ready time, canvas sizes, idle rAF count, requests).
 //
-//   node scripts/3d/harness/run.mjs
+//   node scripts/3d/harness/run.mjs [--browser chromium|firefox|webkit]
 import { execSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { chromium } from '@playwright/test'
+import { chromium, firefox, webkit } from '@playwright/test'
 import sharp from 'sharp'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -16,6 +16,14 @@ const project = resolve(here, '../../..')
 const dist = join(tmpdir(), 'rimify-3d-harness')
 const SHOTS = join(project, 'docs/reviews/shots/hero-3d')
 mkdirSync(SHOTS, { recursive: true })
+
+const browserName = process.argv[process.argv.indexOf('--browser') + 1] ?? 'chromium'
+const engines = { chromium, firefox, webkit }
+const engine = engines[browserName]
+if (!engine) throw new Error(`unknown browser ${browserName}`)
+// Chromium headless needs SwiftShader to have any WebGL; Firefox and WebKit use ANGLE/D3D as shipped.
+const launchArgs = browserName === 'chromium' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : []
+const shot = (name) => join(SHOTS, browserName === 'chromium' ? `${name}.png` : `${name}-${browserName}.png`)
 
 execSync(`npx vite build --config "${join(here, 'vite.config.ts')}"`, { cwd: project, stdio: 'inherit', env: { ...process.env, HARNESS_OUT: dist } })
 
@@ -41,10 +49,10 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r))
 const port = server.address().port
 
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+const browser = await engine.launch({ args: launchArgs })
 const page = await browser.newPage({ viewport: { width: 640, height: 1040 }, deviceScaleFactor: 1 })
 const logs = []
-page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`))
+page.on('console', (m) => logs.push(`[${m.type()}] ${m.text().slice(0, 400)}`))
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`))
 page.on('requestfailed', (r) => logs.push(`[requestfailed] ${r.url()}`))
 const requests = []
@@ -59,13 +67,13 @@ const HERO = { x: 0, y: 0, width: 560, height: 560 }
 const BAND = { x: 0, y: 584, width: 416, height: 416 }
 const restHero = await page.screenshot({ clip: HERO })
 const restBand = await page.screenshot({ clip: BAND })
-await page.screenshot({ path: join(SHOTS, 'harness-rest.png') })
+await page.screenshot({ path: shot('harness-rest') })
 
 // Cursor roll: ease to +8° and back; then count the viewer's own frames while idle (DEV builds only).
 await page.evaluate(() => window.__harness.setRoll(8))
 await page.waitForTimeout(350)
 const rolledHero = await page.screenshot({ clip: HERO })
-await page.screenshot({ path: join(SHOTS, 'harness-roll-plus8.png') })
+await page.screenshot({ path: shot('harness-roll-plus8') })
 await page.evaluate(() => window.__harness.setRoll(0))
 await page.waitForTimeout(350)
 const backHero = await page.screenshot({ clip: HERO })
@@ -77,7 +85,7 @@ const after = await page.evaluate(() => window.__rimifyViewerRaf ?? 0)
 await page.evaluate(() => window.__harness.setBandRoll(-60))
 await page.waitForTimeout(200)
 const rolledBand = await page.screenshot({ clip: BAND })
-await page.screenshot({ path: join(SHOTS, 'harness-band-roll-60.png') })
+await page.screenshot({ path: shot('harness-band-roll-60') })
 
 /** How many pixels differ between two shots of the same box — proves a re-render happened (or did not). */
 async function differing(a, b) {
@@ -99,6 +107,7 @@ const canvases = await page.evaluate(() =>
     Array.from(document.querySelectorAll('canvas')).map((c) => ({ width: c.width, height: c.height, clientWidth: c.clientWidth, clientHeight: c.clientHeight })),
 )
 const summary = {
+    browser: browserName,
     readyMs,
     failed: await page.evaluate(() => window.__harness.failed),
     canvases,
@@ -108,7 +117,7 @@ const summary = {
     requests: requests.filter((u) => /\.(glb|hdr)$/.test(u)).map((u) => u.replace(/^http:\/\/127\.0\.0\.1:\d+/, '')),
     logs,
 }
-writeFileSync(join(SHOTS, 'harness-summary.json'), JSON.stringify(summary, null, 2) + '\n')
+writeFileSync(join(SHOTS, browserName === 'chromium' ? 'harness-summary.json' : `harness-summary-${browserName}.json`), JSON.stringify(summary, null, 2) + '\n')
 console.log(JSON.stringify(summary, null, 2))
 await browser.close()
 server.close()

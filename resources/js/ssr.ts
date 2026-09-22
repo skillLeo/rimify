@@ -6,7 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
 import { ZiggyVue, type Config } from 'ziggy-js';
 
-const appName = process.env.VITE_APP_NAME ?? 'RIMIFY';
+const appName = process.env.VITE_APP_NAME || 'RIMIFY';
 
 // SSR is a requirement, not an option (CONTRIBUTING.md §4). The device split and the header mode
 // arrive in the page props, so the first frame the server renders is the frame the client
