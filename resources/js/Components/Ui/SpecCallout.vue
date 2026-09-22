@@ -92,16 +92,22 @@ const line = computed(() => {
     stroke-dashoffset: 0;
 }
 
-/* Signature moment 1: the leader lines draw in once the photograph has painted. */
-:global(.frame:not(.is-ready)) .callout__line {
+/*
+ * Signature moment 1: the leader lines draw in once the photograph has painted.
+ *
+ * The whole selector sits inside `:global()`. In a scoped block `:global(.frame) .callout__line`
+ * compiles to `.frame` alone — the rest is dropped — which hid the entire frame, photograph
+ * included, until the lines were ready: no LCP, and nothing at all without JavaScript.
+ */
+:global(.frame:not(.is-ready) .callout__line) {
     opacity: 0;
 }
 
-:global(.frame.is-ready) .callout__line path {
+:global(.frame.is-ready .callout__line path) {
     animation: draw var(--d-4) var(--ease-out) both;
 }
 
-:global(.frame.is-ready) .callout__line circle {
+:global(.frame.is-ready .callout__line circle) {
     animation: appear var(--d-2) var(--ease-out) both;
     animation-delay: var(--d-4);
 }
@@ -124,14 +130,14 @@ const line = computed(() => {
 
 /* Motion off: the line and its dot rest in their end state from the first paint — nothing draws, nothing appears. */
 @media (prefers-reduced-motion: reduce) {
-    :global(.frame:not(.is-ready)) .callout__line {
+    :global(.frame:not(.is-ready) .callout__line) {
         opacity: 1;
     }
 
-    :global(.frame) .callout__line path,
-    :global(.frame) .callout__line circle,
-    :global(.frame.is-ready) .callout__line path,
-    :global(.frame.is-ready) .callout__line circle {
+    :global(.frame .callout__line path),
+    :global(.frame .callout__line circle),
+    :global(.frame.is-ready .callout__line path),
+    :global(.frame.is-ready .callout__line circle) {
         animation: none;
         opacity: 1;
         stroke-dashoffset: 0;
