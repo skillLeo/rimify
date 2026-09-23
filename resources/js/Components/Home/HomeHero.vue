@@ -29,6 +29,7 @@ import { usePage } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import Picture from '../Ui/Picture.vue'
 import SpecCallout from '../Ui/SpecCallout.vue'
+import ValueText from '../Ui/ValueText.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
 import { DESKTOP_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
@@ -144,13 +145,18 @@ onMounted(() => {
                     </div>
 
                     <span v-if="linked && product" class="hero__caption">
-                        <span class="small hero__caption-name">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
-                        <span class="small num muted">ab {{ perWheel }} · pro Felge</span>
+                        <!-- Brand, model and finish are names, the price is a figure: neither is
+                             translated. *ab* and *pro Felge* are German and stay translatable. -->
+                        <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
+                        <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
                     </span>
                 </component>
 
                 <div v-if="product" class="hero__notes">
-                    <p class="small num hero__spec">
+                    <!-- The spec line is nothing but tokens and figures — `8,5J × 19 · ET 45 ·
+                         LK 5 × 112 · MLB 66,6 mm · Traglast 620 kg` — so the whole line, the
+                         stamp's number with it, is kept from the translator. -->
+                    <p class="small num hero__spec" translate="no">
                         {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
                     </p>
                     <span v-if="photo" class="micro quiet hero__shown">{{ CAPTION }}</span>

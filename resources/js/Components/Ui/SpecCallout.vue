@@ -86,7 +86,9 @@ const boxStyle = computed(() => {
         </svg>
         <div class="callout" :class="side ? `callout--${side}` : undefined" :style="boxStyle">
             <span class="callout__label">{{ label }}</span>
-            <span class="callout__value">{{ value }}</span>
+            <!-- The value is measured data (`5 × 112`, `66,6 mm`, `53810 (ABE)`): the translator
+                 leaves it alone. The label and the note are German and stay translatable. -->
+            <span class="callout__value" translate="no">{{ value }}</span>
             <span v-if="note" class="callout__note">{{ note }}</span>
         </div>
     </div>

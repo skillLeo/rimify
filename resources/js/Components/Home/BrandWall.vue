@@ -128,17 +128,20 @@ onMounted(() => {
                     v-bind="href === null ? { 'aria-disabled': 'true' } : { href, prefetch: true }"
                 >
                     <span class="brand-cell__stage">
+                        <!-- A brand is a name, wherever it stands: the wordmark, the text behind a
+                             logo, the one beside the sample range. A translator would turn it into
+                             a word. The count is a figure and *Felgen* a term of art (§6). -->
                         <template v-if="kind === 'mark'">
                             <span class="brand-cell__mark" aria-hidden="true" :style="markStyle(brand)" />
-                            <span class="visually-hidden">{{ `${brand.name} ` }}</span>
+                            <span class="visually-hidden" translate="no">{{ `${brand.name} ` }}</span>
                         </template>
                         <template v-else-if="kind === 'sample'">
                             <span class="brand-cell__sample">Beispiel&shy;sortiment</span>
-                            <span class="visually-hidden">{{ ` (${brand.name}) ` }}</span>
+                            <span class="visually-hidden" translate="no">{{ ` (${brand.name}) ` }}</span>
                         </template>
-                        <span v-else class="brand-cell__name" :data-len="wordmarkSize(brand.name)">{{ brand.name }}</span>
+                        <span v-else class="brand-cell__name" :data-len="wordmarkSize(brand.name)" translate="no">{{ brand.name }}</span>
                     </span>
-                    <span v-if="href !== null" class="brand-cell__foot brand-cell__count small num">{{ felgen(brand.count) }}</span>
+                    <span v-if="href !== null" class="brand-cell__foot brand-cell__count small num" translate="no">{{ felgen(brand.count) }}</span>
                     <!-- Greyed says it for the eye and the note under the wall explains it once; the
                          sentence is read out per cell, and the foot keeps its line so the marks align. -->
                     <span v-else class="brand-cell__foot brand-cell__none small"><span class="visually-hidden">{{ NO_STOCK_LINE }}</span></span>

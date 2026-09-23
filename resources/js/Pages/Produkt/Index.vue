@@ -35,6 +35,7 @@ import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
+import ValueText from '../../Components/Ui/ValueText.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
 import { useShared } from '../../composables/useShared'
 import { decimal, withUnit } from '../../format'
@@ -185,7 +186,7 @@ onBeforeUnmount(() => observer?.disconnect())
                 <span aria-hidden="true">/</span>
                 <Link href="/felgen">Felgen</Link>
                 <span aria-hidden="true">/</span>
-                <span aria-current="page">{{ product.brandName }} {{ product.modelName }}</span>
+                <span aria-current="page" translate="no">{{ product.brandName }} {{ product.modelName }}</span>
             </nav>
 
             <div class="pdp">
@@ -265,15 +266,17 @@ onBeforeUnmount(() => observer?.disconnect())
 
                 <!-- The purchase panel. The H1 names the brand; no eyebrow repeats it above. -->
                 <div class="pdp__buy">
-                    <h1 class="t-h1">{{ product.brandName }} {{ product.modelName }}</h1>
-                    <p v-if="product.typeDesignation" class="data pdp__type">Typ {{ product.typeDesignation }}</p>
+                    <!-- The brand, the model and the type designation are names and codes, never
+                         words: a page translator would turn them into English. -->
+                    <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
+                    <p v-if="product.typeDesignation" class="data pdp__type">Typ <ValueText :text="product.typeDesignation" whole /></p>
                     <p v-if="product.rating !== null && product.ratingCount > 0" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>
-                        <span class="tabular">{{ product.ratingLabel }}</span>
+                        <span class="tabular"><ValueText :text="product.ratingLabel ?? ''" /></span>
                     </p>
 
                     <div class="pdp__block">
-                        <span class="micro">Farbe · {{ finish?.name }}</span>
+                        <span class="micro">Farbe · <span translate="no">{{ finish?.name }}</span></span>
                         <div class="pdp__swatches">
                             <button
                                 v-for="item in finishes"
@@ -287,14 +290,14 @@ onBeforeUnmount(() => observer?.disconnect())
                                 <!-- The finish's real colour is catalogue data, not a design
                                      value, so it arrives as a custom property from the row. -->
                                 <span class="pdp__dot" :style="item.hex ? { '--swatch': item.hex } : undefined" />
-                                {{ item.name }}
+                                <span translate="no">{{ item.name }}</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- `#groessen`: where the compare page's "Größe wählen" lands. -->
                     <div id="groessen" class="pdp__block">
-                        <span class="micro">Durchmesser (Zoll)</span>
+                        <span class="micro">Durchmesser (<span translate="no">Zoll</span>)</span>
                         <div class="chip-row pdp__chips">
                             <button
                                 v-for="size in config.sizes.value"
@@ -310,7 +313,9 @@ onBeforeUnmount(() => observer?.disconnect())
                                 :title="size.reason ?? undefined"
                                 @click="config.selectSize(size)"
                             >
-                                {{ size.label }}
+                                <!-- The number only: `title` carries the German reason a size is
+                                     blocked, and a marked button would keep that untranslated too. -->
+                                <span translate="no">{{ size.label }}</span>
                             </button>
                         </div>
 
@@ -327,7 +332,7 @@ onBeforeUnmount(() => observer?.disconnect())
                     </FitmentPanel>
 
                     <div class="pdp__price">
-                        <p class="price price--lg">{{ selected?.price ?? config.fromPrice.value }}</p>
+                        <p class="price price--lg" translate="no">{{ selected?.price ?? config.fromPrice.value }}</p>
                         <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
                         <p v-if="demo" class="t-small pdp__demo">
@@ -363,40 +368,44 @@ onBeforeUnmount(() => observer?.disconnect())
             <!-- Felgendetails: the measured values, mono and right-aligned, for the size chosen above. -->
             <section v-if="selected" class="pdp__specs" aria-labelledby="pdp-specs">
                 <h2 id="pdp-specs" class="t-h2">Felgendetails</h2>
-                <p class="t-small quiet pdp__specs-for">Für {{ selected.fullLabel }}</p>
+                <!-- Four figures joined by separators: each is marked and unbreakable on its own,
+                     so the line still wraps between them on a phone. -->
+                <p class="t-small quiet pdp__specs-for">Für <ValueText :text="selected.fullLabel" /></p>
 
+                <!-- Every `dd` is a measured value with its unit, a token or a number. The `dt`
+                     beside it is the German term and stays translatable. -->
                 <dl class="spec">
                     <div class="spec__row">
                         <dt>Größe</dt>
-                        <dd class="t-mono">{{ selected.sizeLabel }}</dd>
+                        <dd class="t-mono" translate="no">{{ selected.sizeLabel }}</dd>
                     </div>
                     <div class="spec__row">
                         <dt>Lochkreis</dt>
-                        <dd class="t-mono">{{ selected.boltPattern }}</dd>
+                        <dd class="t-mono" translate="no">{{ selected.boltPattern }}</dd>
                     </div>
                     <div class="spec__row">
                         <dt>Mittenlochbohrung</dt>
-                        <dd class="t-mono">{{ selected.centreBore }}</dd>
+                        <dd class="t-mono" translate="no">{{ selected.centreBore }}</dd>
                     </div>
                     <div class="spec__row">
                         <dt>Einpresstiefe (ET)</dt>
-                        <dd class="t-mono">{{ selected.etMm }} mm</dd>
+                        <dd class="t-mono" translate="no">{{ selected.etMm }} mm</dd>
                     </div>
                     <div v-if="weight" class="spec__row">
                         <dt>Gewicht pro Felge</dt>
-                        <dd class="t-mono">{{ weight }}</dd>
+                        <dd class="t-mono" translate="no">{{ weight }}</dd>
                     </div>
                     <div v-if="maxLoad" class="spec__row">
                         <dt>Traglast</dt>
-                        <dd class="t-mono">{{ maxLoad }}</dd>
+                        <dd class="t-mono" translate="no">{{ maxLoad }}</dd>
                     </div>
                     <div v-if="selected.kbaNumber" class="spec__row">
                         <dt>KBA-Nummer</dt>
-                        <dd class="t-mono">{{ selected.kbaNumber }}</dd>
+                        <dd class="t-mono" translate="no">{{ selected.kbaNumber }}</dd>
                     </div>
                     <div class="spec__row">
                         <dt>Artikelnummer</dt>
-                        <dd class="t-mono">{{ selected.sku }}</dd>
+                        <dd class="t-mono" translate="no">{{ selected.sku }}</dd>
                     </div>
                 </dl>
 
@@ -408,7 +417,7 @@ onBeforeUnmount(() => observer?.disconnect())
     <!-- The phone's sticky bar: price and the one action, once the main button is off screen. -->
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div class="pdp__sticky-price">
-            <p class="price">{{ selected.price }}</p>
+            <p class="price" translate="no">{{ selected.price }}</p>
             <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
         </div>
         <button

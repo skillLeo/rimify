@@ -20,6 +20,7 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import Picture from '../Ui/Picture.vue'
+import ValueText from '../Ui/ValueText.vue'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import { useShared } from '../../composables/useShared'
@@ -87,8 +88,18 @@ interface Row {
     kind: 'text' | 'lines' | 'muted' | 'verdict'
     cells: Cell[]
     same: boolean
+    /** The cells are figures, tokens and names only: the browser's translator skips them. */
+    values: boolean
     link?: { href: string; label: string }
 }
+
+/**
+ * The rows whose cells hold nothing but data — sizes, ET, Lochkreis, Mittenlochbohrung, the finish
+ * name, the price, the document's number, the permitted tyre sizes with their load index and speed
+ * symbol. The Auflagen, the Eintragung, the verdict's reason and the legal note are German
+ * sentences and stay translatable, so the list is named here and never guessed from the content.
+ */
+const VALUE_ROWS = new Set(['sizes', 'et', 'lk', 'mlb', 'finish', 'price', 'docs', 'tyres'])
 
 interface Group {
     id: string
@@ -99,7 +110,7 @@ interface Group {
 function row(id: string, label: string, kind: Row['kind'], cells: Cell[], link?: Row['link']): Row {
     const first = cells[0]?.text ?? ''
 
-    return { id, label, kind, cells, same: cells.every((cell) => cell.text === first), link }
+    return { id, label, kind, cells, same: cells.every((cell) => cell.text === first), values: VALUE_ROWS.has(id), link }
 }
 
 function lines(list: string[]): Cell {
@@ -371,10 +382,12 @@ onBeforeUnmount(() => {
                             <Picture v-if="item.image" :image="item.image" :alt="`${item.brandName} ${item.modelName} in ${item.finishName}, Ansicht von vorn`" sizes="(min-width: 1024px) 26vw, 45vw" :eager="i < 2" />
                             <WheelOutline v-else :spokes="item.art.spokes" size="60%" />
                         </span>
-                        <span class="small quiet">{{ item.brandName }}</span>
-                        <span class="h4">{{ item.modelName }}</span>
-                        <span class="small muted">{{ item.finishName }}</span>
-                        <span class="body num compare__price">ab {{ perWheel(item) }} pro Felge</span>
+                        <!-- Brand, model and finish are names; the price is a figure. *ab* and
+                             *pro Felge* are German and stay translatable. -->
+                        <span class="small quiet" translate="no">{{ item.brandName }}</span>
+                        <span class="h4" translate="no">{{ item.modelName }}</span>
+                        <span class="small muted" translate="no">{{ item.finishName }}</span>
+                        <span class="body num compare__price">ab <ValueText :text="perWheel(item)" whole /> pro Felge</span>
                         <span class="micro quiet">inkl. MwSt., zzgl. Versand</span>
                         <VerdictBadge v-if="vehicle && item.verdict" :status="item.verdict.status" class="compare__badge" />
                         <button class="icon-btn compare__remove" type="button" :aria-label="`${item.brandName} ${item.modelName} aus dem Vergleich entfernen`" @click="remove(item, i)">
@@ -391,7 +404,7 @@ onBeforeUnmount(() => {
                             <Picture v-if="item.image" :image="item.image" alt="" sizes="48px" />
                             <WheelOutline v-else :spokes="item.art.spokes" />
                         </span>
-                        <span class="compare__stick-name">
+                        <span class="compare__stick-name" translate="no">
                             <span class="micro quiet">{{ item.brandName }}</span>
                             <span>{{ item.modelName }}</span>
                         </span>
@@ -418,6 +431,7 @@ onBeforeUnmount(() => {
                             :class="{ 'compare__diff': !r.same, 'compare__cell--muted': r.kind === 'muted' }"
                             role="cell"
                             :aria-describedby="headerIds[i]"
+                            :translate="r.values ? 'no' : undefined"
                         >
                             <template v-if="r.kind === 'verdict'">
                                 <VerdictBadge v-if="cell.verdict" :status="cell.verdict.status" />
@@ -440,7 +454,9 @@ onBeforeUnmount(() => {
                             <form class="compare__buy" @submit.prevent="addToBasket(item.buy.configId)">
                                 <button class="btn btn--primary btn--block" type="submit" :aria-busy="adding === item.buy.configId ? 'true' : undefined">In den Warenkorb</button>
                             </form>
-                            <span class="small muted">{{ item.buy.sizeLabel }} · für deinen {{ vehicle?.short }}</span>
+                            <!-- The size label is several figures joined by separators: each one
+                                 is marked and held together, the line still breaks between them. -->
+                            <span class="small muted"><ValueText :text="item.buy.sizeLabel" /> · für deinen {{ vehicle?.short }}</span>
                         </template>
                         <template v-else-if="item.buy.kind === 'choose'">
                             <Link :href="item.buy.href" class="btn btn--secondary btn--block">Größe wählen</Link>
