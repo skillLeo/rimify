@@ -23,6 +23,7 @@ import { computed, onMounted, ref } from 'vue'
 import RimCodePhoto from './RimCodePhoto.vue'
 import RimCodeSchematic from './RimCodeSchematic.vue'
 import RimCodeTeaser from './RimCodeTeaser.vue'
+import ValueText from '../Ui/ValueText.vue'
 import { etSide, kbaNumber, photoFrame, rimFactsOf, rimTokens, schematicKey, type RimCodeProduct, type RimKey } from './rimCode'
 
 const props = withDefaults(
@@ -141,7 +142,9 @@ const sizes = computed(() =>
                 @keydown="move(i, $event)"
             >
                 <span class="visually-hidden">{{ token.term }}: </span>
-                <span class="rc-token__value num">{{ token.text }}</span>
+                <!-- The value as it is written on the wheel (`8,5J`, `LK 5 × 112`): never
+                     translated — a page translator once read "5,5 J" as "5.5 years". -->
+                <span class="rc-token__value num" translate="no">{{ token.text }}</span>
             </button>
         </div>
 
@@ -151,14 +154,24 @@ const sizes = computed(() =>
             :frame="frame"
             :active="shownToken.key"
             :kba="kba"
+            :show-et="showEt"
             :alt="alt"
             :credit="credit"
             :sizes="sizes"
         />
 
+        <!-- `:key` on both paragraphs, on purpose: a page translator (Chrome's included) replaces
+             the text node it translated with one of its own, and Vue then writes the new sentence
+             into a node that is no longer in the document — the reader sees the previous value's
+             explanation under the chip they just pressed. Keyed by the value, Vue replaces the
+             whole element instead of patching its text, and the translator translates it afresh. -->
         <div class="rc__def" aria-live="polite">
-            <p class="label rc__term">{{ shownToken.term }}</p>
-            <p class="body-l rc__sentence" data-role="definition">{{ shownToken.sentence }}</p>
+            <p :key="`term-${shownToken.key}`" class="label rc__term">{{ shownToken.term }}</p>
+            <!-- One German sentence with the value in it: the sentence stays translatable, the
+                 figure inside it does not (ValueText). -->
+            <p :key="`sentence-${shownToken.key}`" class="body-l rc__sentence" data-role="definition">
+                <ValueText :text="shownToken.sentence" />
+            </p>
         </div>
 
         <RimCodeSchematic class="rc__schematic" :active="traced" :show-et="showEt" />

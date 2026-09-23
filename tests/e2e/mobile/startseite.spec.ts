@@ -321,12 +321,79 @@ test.describe('Startseite/Mobile', () => {
         expect(response.ok(), href as string).toBe(true)
     })
 
-    test('calculator renders the worked example and the honest line', async ({ page }) => {
+    test('the explainer: every value changes the sentence and what is highlighted', async ({ page }) => {
         await open(page, '/')
         const section = page.locator('#h8')
-        await expect(section).toContainText('Was ändert sich mit der neuen Größe?')
-        await expect(section).toContainText('Rechenwerte ersetzen kein Gutachten')
-        await expect(section.locator('svg').first()).toBeVisible()
+        await expect(section).toContainText('Was die Zahlen auf einer Felge bedeuten')
+        await expect(section.locator('.rc-sch__svg')).toBeVisible()
+
+        const chips = section.locator('[data-token]')
+        const keys = await chips.evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.token ?? ''))
+        expect(keys.length).toBeGreaterThan(0)
+
+        // What a reader has in front of them: the term, the sentence, the marker on the
+        // photograph and the dimension traced on the drawing. No two values may read alike.
+        const seen = new Set<string>()
+
+        for (const key of keys) {
+            await section.locator(`[data-token="${key}"]`).click()
+            await expect(section.locator(`[data-token="${key}"]`)).toHaveAttribute('aria-pressed', 'true')
+
+            const state = await section.evaluate((el) => {
+                const shape = el.querySelector('.rc-photo__shape')
+                const dim = el.querySelector('.rc-sch__dim.is-active')
+
+                return {
+                    term: el.querySelector('.rc__term')?.textContent?.trim() ?? '',
+                    sentence: el.querySelector('[data-role="definition"]')?.textContent?.trim() ?? '',
+                    marker: shape === null ? '' : `${shape.tagName.toLowerCase()}/${shape.getAttribute('data-shape')}`,
+                    dim: dim?.getAttribute('data-dim') ?? '',
+                }
+            })
+
+            expect(state.term, `${key} term`).not.toBe('')
+            expect(state.sentence, `${key} sentence`).not.toBe('')
+            // A value is either marked on the photograph or traced on the drawing — never neither,
+            // except the KBA number, which is a marking the cross-section cannot carry.
+            if (key !== 'kba') {
+                expect(`${state.marker}${state.dim}`, `${key} highlight`).not.toBe('')
+            }
+
+            const signature = [state.term, state.sentence, state.marker, state.dim].join('|')
+            expect(seen.has(signature), `${key} repeats another value`).toBe(false)
+            seen.add(signature)
+        }
+
+        // The KBA number is boxed on the stamp, and the drawing traces nothing for it.
+        if (keys.includes('kba')) {
+            await section.locator('[data-token="kba"]').click()
+            await expect(section.locator('rect.rc-photo__shape[data-shape="kba"]')).toHaveCount(1)
+            await expect(section.locator('.rc-sch__dim.is-active')).toHaveCount(0)
+        }
+    })
+
+    test('no label in the cross-section runs into another', async ({ page }) => {
+        await open(page, '/')
+        const svg = page.locator('#h8 .rc-sch__svg')
+        await svg.scrollIntoViewIfNeeded()
+        await expect(svg).toBeVisible()
+
+        const boxes = await svg.evaluate((el) =>
+            [...el.querySelectorAll('text')].map((t) => {
+                const b = t.getBoundingClientRect()
+
+                return { text: t.textContent?.trim() ?? '', x: b.x, y: b.y, right: b.right, bottom: b.bottom }
+            })
+        )
+
+        expect(boxes.length).toBeGreaterThan(0)
+
+        boxes.forEach((a, i) => {
+            for (const b of boxes.slice(i + 1)) {
+                const hit = a.x < b.right && b.x < a.right && a.y < b.bottom && b.y < a.bottom
+                expect(hit, `${a.text} runs into ${b.text}`).toBe(false)
+            }
+        })
     })
 
     test('service block: real contact data and five questions', async ({ page }) => {

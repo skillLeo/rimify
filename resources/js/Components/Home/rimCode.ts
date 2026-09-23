@@ -313,15 +313,23 @@ export function photoLabel(shape: PhotoShape, frame: PhotoFrame): PhotoLabel {
     return { text: shape.label, x: (shape.x + shape.width / 2) / w, y: (shape.y + shape.height) / h }
 }
 
-/** The line under the photograph: what is marked, or where to look instead. */
-export function photoHint(key: RimKey, marked: boolean): string {
+/**
+ * The line under the photograph: what is marked, or where to look instead.
+ *
+ * `etDrawn` is the cross-section's own answer (`RimCode`'s `showEt`): it draws the ET dimension for
+ * a positive ET only. For any other ET the line may not send the reader to a dimension that is not
+ * there, so it says only that the photograph does not show it (CLAUDE.md §2 — silent, never
+ * confidently wrong). The Maulweite, the Felgendurchmesser, the Lochkreis and the
+ * Mittenlochbohrung are always drawn, so their lines point at the drawing unconditionally.
+ */
+export function photoHint(key: RimKey, marked: boolean, etDrawn = true): string {
     switch (key) {
         case 'width':
             return 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Maulweite.'
         case 'diameter':
             return 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt den Felgendurchmesser.'
         case 'et':
-            return 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Einpresstiefe.'
+            return etDrawn ? 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Einpresstiefe.' : 'Auf dem Foto nicht zu sehen.'
         case 'lk':
             return marked ? 'Gestrichelt: der Kreis durch die Mitten der Schraubenlöcher.' : 'Auf dem Foto nicht markiert – die Schnittzeichnung zeigt den Lochkreis.'
         case 'mlb':
@@ -329,7 +337,9 @@ export function photoHint(key: RimKey, marked: boolean): string {
                 ? 'Markiert: die Nabenkappe – die Mittenlochbohrung liegt dahinter.'
                 : 'Auf dem Foto nicht markiert – die Schnittzeichnung zeigt die Mittenlochbohrung.'
         case 'kba':
-            return marked ? 'Markiert: die KBA-Nummer auf dem Rad.' : 'Auf dem Foto nicht markiert.'
+            // The cross-section has no KBA number, so the unmarked line names the wheel itself
+            // rather than sending the reader to a drawing that cannot show it.
+            return marked ? 'Markiert: die KBA-Nummer auf dem Rad.' : 'Auf dem Foto nicht markiert – die KBA-Nummer steht auf dem Rad selbst.'
     }
 }
 

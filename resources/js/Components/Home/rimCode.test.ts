@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { etSide, kbaNumber, photoFrame, photoHint, photoLabel, photoShape, rimFactsOf, rimTokens, schematicKey } from './rimCode'
-import { ANCHORS, FACTS, frame, MANIFEST } from './rimCode.fixtures'
+import { mount, type VueWrapper } from '@vue/test-utils'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
+import type { WheelAnchors } from '../Ui/Picture.vue'
+import RimCode from './RimCode.vue'
+import { etSide, kbaNumber, photoFrame, photoHint, photoLabel, photoShape, rimFactsOf, rimTokens, schematicKey, type RimCodeProduct, type RimKey } from './rimCode'
+import { ANCHORS, FACTS, frame, MANIFEST, PRODUCT } from './rimCode.fixtures'
 
 const NBSP = ' '
 
@@ -195,5 +199,304 @@ describe('photoHint and schematicKey', () => {
         expect(photoHint('lk', false)).toContain('nicht markiert')
         expect(schematicKey('kba')).toBeNull()
         expect(schematicKey('lk')).toBe('lk')
+    })
+
+    it('tells the reader where to look for the KBA number, and claims nothing when it is not marked', () => {
+        expect(photoHint('kba', true)).toBe('Markiert: die KBA-Nummer auf dem Rad.')
+        expect(photoHint('kba', false)).toBe('Auf dem Foto nicht markiert – die KBA-Nummer steht auf dem Rad selbst.')
+        // The cross-section has no KBA number: the reader is never sent to a drawing that cannot show it.
+        expect(photoHint('kba', false)).not.toContain('Schnittzeichnung')
+    })
+
+    it('stops pointing at the ET dimension when the cross-section does not draw one', () => {
+        // The drawing carries the ET for a positive ET only; for any other value there is nothing
+        // to point at, so the line says only that the photograph does not show it (CLAUDE.md §2).
+        expect(photoHint('et', false, false)).toBe('Auf dem Foto nicht zu sehen.')
+        expect(photoHint('et', false, false)).not.toContain('Schnittzeichnung')
+
+        // The four the drawing always carries keep their pointer whatever the ET is.
+        expect(photoHint('width', false, false)).toContain('Schnittzeichnung zeigt die Maulweite')
+        expect(photoHint('diameter', false, false)).toContain('Schnittzeichnung zeigt den Felgendurchmesser')
+        expect(photoHint('lk', false, false)).toContain('Schnittzeichnung zeigt den Lochkreis')
+        expect(photoHint('mlb', false, false)).toContain('Schnittzeichnung zeigt die Mittenlochbohrung')
+    })
+})
+
+/* ── The section itself: what choosing a value changes on the page ──────────────── */
+
+/** The values in the order the row shows them. */
+const KEYS: RimKey[] = ['width', 'diameter', 'et', 'lk', 'mlb', 'kba']
+
+/** What a reader has in front of them for the value on show. */
+interface Shown {
+    /** Every value the row reports as chosen — one, ever. */
+    pressed: (string | undefined)[]
+    term: string
+    sentence: string
+    /** The line under the photograph; null when there is no photograph. */
+    hint: string | null
+    /** The marker on the photograph as `tag/value`; null when nothing is marked. */
+    marker: string | null
+    /** The dimension traced on the cross-section; null when none is. */
+    dim: string | null
+}
+
+let mounted: VueWrapper[] = []
+
+/** A pointer that hovers, or none: RimCode reads this once, on mount. */
+function media(fine: boolean): void {
+    vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({
+            matches: fine && query.includes('hover: hover'),
+            media: query,
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            dispatchEvent: () => false,
+        }))
+    )
+}
+
+function mountSection(product: RimCodeProduct = PRODUCT): VueWrapper {
+    // The teaser is a link into the calculator and needs Inertia; it is not what this tests.
+    const wrapper = mount(RimCode, { props: { product }, global: { stubs: { RimCodeTeaser: true } } })
+    mounted.push(wrapper)
+
+    return wrapper
+}
+
+function shownIn(w: VueWrapper): Shown {
+    const shape = w.find('.rc-photo__shape')
+    const dim = w.find('.rc-sch__dim.is-active')
+    const hint = w.find('.rc-photo__hint')
+
+    return {
+        pressed: w.findAll('[data-token][aria-pressed="true"]').map((b) => b.attributes('data-token')),
+        term: w.get('.rc__term').text(),
+        sentence: w.get('[data-role="definition"]').text(),
+        hint: hint.exists() ? hint.text() : null,
+        marker: shape.exists() ? `${shape.element.tagName.toLowerCase()}/${shape.attributes('data-shape') ?? ''}` : null,
+        dim: dim.exists() ? (dim.attributes('data-dim') ?? null) : null,
+    }
+}
+
+async function choose(w: VueWrapper, key: RimKey): Promise<Shown> {
+    await w.get(`[data-token="${key}"]`).trigger('click')
+
+    return shownIn(w)
+}
+
+/** A pointer event as the listener sees it; happy-dom has no PointerEvent constructor to rely on. */
+function pointer(el: Element, type: string): void {
+    const event = new Event(type, { bubbles: true })
+    Object.defineProperty(event, 'pointerType', { value: 'mouse' })
+    el.dispatchEvent(event)
+}
+
+describe('RimCode', () => {
+    beforeEach(() => {
+        media(false)
+    })
+
+    afterEach(() => {
+        mounted.forEach((w) => w.unmount())
+        mounted = []
+        vi.unstubAllGlobals()
+    })
+
+    it('shows the six values, with the first one already on show before anything is clicked', () => {
+        const first = shownIn(mountSection())
+
+        expect(mounted[0]?.findAll('[data-token]').map((b) => b.attributes('data-token'))).toEqual(KEYS)
+        expect(first.pressed).toEqual(['width'])
+        expect(first.term).toBe('Maulweite')
+    })
+
+    it('changes the term, the sentence and the highlighted element on every value', async () => {
+        const w = mountSection()
+        const tokens = rimTokens(FACTS)
+        const seen: Shown[] = []
+
+        for (const key of KEYS) {
+            const state = await choose(w, key)
+            const token = tokens.find((t) => t.key === key)
+            const before = seen[seen.length - 1]
+
+            expect(state.pressed).toEqual([key])
+            expect(state.term).toBe(token?.term)
+            expect(state.sentence).toBe(token?.sentence)
+
+            // The value before this one said something else, and highlighted something else.
+            if (before !== undefined) {
+                expect(state.term).not.toBe(before.term)
+                expect(state.sentence).not.toBe(before.sentence)
+                expect(`${state.marker}|${state.dim}`).not.toBe(`${before.marker}|${before.dim}`)
+            }
+
+            seen.push(state)
+        }
+
+        // Six values, six sentences, six highlights: no value is a repeat of another.
+        expect(new Set(seen.map((s) => s.term)).size).toBe(KEYS.length)
+        expect(new Set(seen.map((s) => s.sentence)).size).toBe(KEYS.length)
+        expect(new Set(seen.map((s) => `${s.marker}|${s.dim}`)).size).toBe(KEYS.length)
+    })
+
+    it('highlights each value on the picture that shows it, and the line says which', async () => {
+        const w = mountSection()
+        const f = photoFrame(MANIFEST)
+
+        for (const key of KEYS) {
+            const state = await choose(w, key)
+            const shape = photoShape(key, f, '53810')
+
+            expect(state.marker).toBe(shape === null ? null : `${shape.kind}/${key}`)
+            expect(state.dim).toBe(schematicKey(key))
+            expect(state.hint).toBe(photoHint(key, shape !== null))
+        }
+
+        await choose(w, 'lk')
+        expect(w.get('.rc-photo__shape').classes()).toContain('rc-photo__shape--dashed')
+        await choose(w, 'mlb')
+        expect(w.get('.rc-photo__shape').classes()).not.toContain('rc-photo__shape--dashed')
+    })
+
+    it('boxes the stamp on the anchor the pipeline measured, labels it and traces no dimension', async () => {
+        const w = mountSection()
+        const state = await choose(w, 'kba')
+        const stamp = ANCHORS.kba
+        const box = photoShape('kba', photoFrame(MANIFEST), '53810')
+
+        if (stamp === undefined || box === null || box.kind !== 'rect') {
+            throw new Error('no measured stamp')
+        }
+
+        expect(state.term).toBe('KBA-Nummer')
+        expect(state.sentence).toContain('Genehmigungszeichen')
+        expect(state.sentence).toContain('Auflagen')
+
+        const rect = w.get('rect.rc-photo__shape[data-shape="kba"]')
+        const x = Number(rect.attributes('x'))
+        const y = Number(rect.attributes('y'))
+        const width = Number(rect.attributes('width'))
+        const height = Number(rect.attributes('height'))
+
+        // The box sits on the measured stamp, in the frame's own pixels, and stands off it on every side.
+        expect(x + width / 2).toBeCloseTo(stamp.x * MANIFEST.width, 6)
+        expect(y + height / 2).toBeCloseTo(stamp.y * MANIFEST.height, 6)
+        expect(width).toBeGreaterThan(stamp.w * MANIFEST.width)
+        expect(height).toBeGreaterThan(stamp.h * MANIFEST.height)
+        expect(x).toBeCloseTo(box.x, 6)
+        expect(y).toBeCloseTo(box.y, 6)
+        expect(width).toBeCloseTo(box.width, 6)
+        expect(height).toBeCloseTo(box.height, 6)
+
+        expect(w.get('.rc-photo__label').text()).toBe(`KBA${NBSP}53810`)
+        expect(state.hint).toBe('Markiert: die KBA-Nummer auf dem Rad.')
+
+        // A marking, not a dimension: the cross-section traces nothing for it.
+        expect(state.dim).toBeNull()
+        expect(w.findAll('.rc-sch__dim.is-active')).toHaveLength(0)
+    })
+
+    it('marks nothing and claims nothing when the shown finish has no measured stamp', async () => {
+        const anchors: WheelAnchors = { ...ANCHORS }
+        delete anchors.kba
+
+        const w = mountSection({ ...PRODUCT, imageManifest: { ...frame('motec', anchors), bare: frame('motec-bare', anchors), stamp: '53810' } })
+        const state = await choose(w, 'kba')
+
+        expect(state.pressed).toEqual(['kba'])
+        expect(state.term).toBe('KBA-Nummer')
+        expect(state.sentence).toContain('Genehmigungszeichen')
+        expect(state.marker).toBeNull()
+        expect(state.dim).toBeNull()
+        expect(w.find('.rc-photo__label').exists()).toBe(false)
+        // The photograph stays; only the claim about it goes.
+        expect(w.find('figure.rc-photo').exists()).toBe(true)
+        expect(state.hint).toBe('Auf dem Foto nicht markiert – die KBA-Nummer steht auf dem Rad selbst.')
+    })
+
+    it('does not box a stamp that is not the number the value explains', async () => {
+        const w = mountSection({ ...PRODUCT, imageManifest: { ...MANIFEST, stamp: '53811' } })
+        const state = await choose(w, 'kba')
+
+        expect(state.marker).toBeNull()
+        expect(state.hint).toBe('Auf dem Foto nicht markiert – die KBA-Nummer steht auf dem Rad selbst.')
+    })
+
+    it('shows the cross-section alone when nothing was measured on the photograph', async () => {
+        const w = mountSection({ ...PRODUCT, imageManifest: frame('motec') })
+        const state = await choose(w, 'kba')
+
+        expect(w.find('.rc-photo').exists()).toBe(false)
+        expect(state.pressed).toEqual(['kba'])
+        expect(state.term).toBe('KBA-Nummer')
+        expect(state.hint).toBeNull()
+        expect(w.findAll('[data-token]')).toHaveLength(KEYS.length)
+    })
+
+    it.each([
+        ['an ET of zero', `ET${NBSP}0`],
+        ['a negative ET', `ET${NBSP}−12`],
+        ['an ET that cannot be read', 'ET k. A.'],
+    ])('never sends the reader to an ET dimension the drawing leaves out — %s', async (_case, et) => {
+        const w = mountSection({ ...PRODUCT, facts: { ...FACTS, et } })
+        const state = await choose(w, 'et')
+
+        // The value keeps its chip and its sentence: only the pointer to the drawing goes.
+        expect(state.pressed).toEqual(['et'])
+        expect(state.term).toBe('Einpresstiefe (ET)')
+        expect(state.sentence).toContain(et)
+
+        // The drawing carries no ET dimension at all, so nothing may point at one.
+        expect(w.findAll('.rc-sch__dim[data-dim="et"]')).toHaveLength(0)
+        expect(state.dim).toBeNull()
+        expect(state.hint).toBe('Auf dem Foto nicht zu sehen.')
+        expect(state.hint).not.toContain('Schnittzeichnung')
+        expect(w.get('.rc-sch__svg').attributes('aria-label')).not.toContain('Einpresstiefe')
+    })
+
+    it('keeps the pointer to the drawing for a positive ET, which it does draw', async () => {
+        const w = mountSection()
+        const state = await choose(w, 'et')
+
+        expect(w.findAll('.rc-sch__dim[data-dim="et"]')).toHaveLength(1)
+        expect(state.dim).toBe('et')
+        expect(state.hint).toBe('Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Einpresstiefe.')
+    })
+
+    it('drops the value entirely when the server sends no KBA number', () => {
+        const w = mountSection({ ...PRODUCT, facts: { ...FACTS, kba: null } })
+
+        expect(w.findAll('[data-token]').map((b) => b.attributes('data-token'))).toEqual(['width', 'diameter', 'et', 'lk', 'mlb'])
+        expect(w.text()).not.toContain('KBA')
+    })
+
+    it('previews a value under a mouse without choosing it, and returns to the chosen one', async () => {
+        media(true)
+
+        const w = mountSection()
+        await choose(w, 'mlb')
+
+        pointer(w.get('[data-token="kba"]').element, 'pointerenter')
+        await nextTick()
+
+        const previewing = shownIn(w)
+        expect(previewing.term).toBe('KBA-Nummer')
+        expect(previewing.marker).toBe('rect/kba')
+        expect(previewing.hint).toBe('Markiert: die KBA-Nummer auf dem Rad.')
+        // Hovering shows a value; it does not choose it.
+        expect(previewing.pressed).toEqual(['mlb'])
+
+        pointer(w.get('.rc__tokens').element, 'pointerleave')
+        await nextTick()
+
+        const back = shownIn(w)
+        expect(back.term).toBe('Mittenlochbohrung')
+        expect(back.marker).toBe('circle/mlb')
     })
 })
