@@ -59,6 +59,58 @@ final class MakeName
         'cms' => 'CMS',
     ];
 
+    /**
+     * Synonyms unified onto one join key, keyed by their lower-cased, whitespace-collapsed
+     * spelling. `normalise()` deliberately keeps `VW` and `Volkswagen` apart as labels; a price
+     * keyed on the label would therefore miss half the fleet, which is what this table prevents.
+     */
+    private const KEY_ALIASES = [
+        'vw' => 'volkswagen',
+        'volkswagen' => 'volkswagen',
+        'mercedes' => 'mercedes-benz',
+        'mercedes-benz' => 'mercedes-benz',
+        'mercedes benz' => 'mercedes-benz',
+        'mb' => 'mercedes-benz',
+        'skoda' => 'skoda',
+        'škoda' => 'skoda',
+        'citroen' => 'citroen',
+        'citroën' => 'citroen',
+        'vauxhall' => 'opel',
+        'opel' => 'opel',
+    ];
+
+    /** ASCII folding for the letters German and French make names actually use. */
+    private const KEY_TRANSLITERATION = [
+        'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss', 'é' => 'e', 'ë' => 'e',
+    ];
+
+    /**
+     * The join key for a car make: lower case, ASCII-folded, hyphenated, with synonyms unified.
+     *
+     * `VW`, `vw` and `Volkswagen` all key to `volkswagen`; `Mercedes` and `Mercedes-Benz` to
+     * `mercedes-benz`; `Skoda` and `Škoda` to `skoda`. It is the only key a per-make price may
+     * use. `''` for an empty or unusable name, and the caller must treat `''` as "no make"
+     * (fail closed).
+     */
+    public static function key(string $name): string
+    {
+        $lower = mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $name)));
+
+        if ($lower === '') {
+            return '';
+        }
+
+        $aliased = self::KEY_ALIASES[$lower] ?? $lower;
+        $folded = strtr($aliased, self::KEY_TRANSLITERATION);
+        // Every remaining non-alphanumeric run becomes one hyphen; invalid UTF-8 yields '' here,
+        // which the caller treats as "no make".
+        $slug = trim((string) preg_replace('/[^a-z0-9]+/u', '-', $folded), '-');
+        // A second pass, so a synonym that only became canonical after folding still unifies.
+        $slug = self::KEY_ALIASES[$slug] ?? $slug;
+
+        return rtrim(substr($slug, 0, 64), '-');
+    }
+
     public static function normalise(string $name): string
     {
         $trimmed = trim((string) preg_replace('/\s+/u', ' ', $name));
