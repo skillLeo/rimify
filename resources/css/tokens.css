@@ -1,369 +1,257 @@
 /*
  * RIMIFY — design tokens
  *
- * The single source of every value the interface uses. A component may reference a token; it may
- * never write a literal colour, size, radius, shadow or duration (docs/design/direction.md P1).
+ * The single source of every value the interface uses; docs/design/DIRECTION.md explains each
+ * decision. A component references a token and never writes a colour, size, radius, shadow,
+ * z-index or duration of its own — stylelint refuses the literal, and the style inventory
+ * (scripts/qa/style-inventory.mjs) refuses any computed value that does not resolve to one of these.
  *
- * The scale is deliberately short. One type ramp of eight sizes, three radii, two shadows, two
- * border colours: a system a reader can hold in their head is a system that stays consistent.
+ * Naming carries the role: --c- colour, --fs-/--lh- type, --sp- space, --r- radius, --e-
+ * elevation, --z- layer, --d- duration.
  */
 
 :root {
-    /* ── Brand · one accent, and it only ever means "act here" ──────────────────
-       Blue is for buttons, links, focus and the currently selected thing. It is never
-       decoration: no blue rules, no blue icon that does nothing, no blue tint for mood. */
-    --blue: #1a44d4;
-    --blue-h: #1f4ee8;
-    --blue-p: #1536ae;
-    --wash: #eaeefa;
-    --bline: #c9d4f5;
+    color-scheme: light;
 
-    /* ── Status · fitment verdict and stock, nowhere else ──────────────────────
-       The moment red also means "reduziert", red stops meaning "not permitted" (R-07). */
-    --ok: #2e8b22;
-    --ok-w: #e8f4e5;
-    --warn: #9a6400;
-    --warn-w: #fbf1dc;
-    --danger: #b01018;
-    --danger-w: #fbe8e8;
+    /* ── Colour · neutral first, blue for action, colour only for meaning ─────── */
+    --c-ink: #0b0f14;
+    --c-ink-2: #3a424d;
+    --c-ink-3: #5f6875;
+    --c-line: #e2e5e9;
+    --c-line-2: #c9ced5;
+    --c-surface: #ffffff;
+    --c-band: #f3f4f6;
+    --c-dark: #0b0f14;
+    --c-dark-2: #161b22;
+    --c-on-dark-2: #a9b1bc;
+    --c-blue: #1a44d4;
+    --c-blue-hover: #1638b4;
+    --c-blue-press: #122e94;
+    --c-blue-tint: #e8edfb;
+    --c-ok: #1d7a35;
+    --c-ok-tint: #e6f3e9;
+    --c-warn: #8a5700;
+    --c-warn-tint: #fbf0d9;
+    --c-bad: #b3261e;
+    --c-bad-tint: #fbe9e7;
+    --c-unk: #5f6875;
+    --c-unk-tint: #eef0f3;
+    --c-star: #e9a800;
+    /* Ink at 40 %: the one translucent colour, for the layer behind a dialog. */
+    --c-scrim: rgb(11 15 20 / 0.4);
+    /* Document illustration only: the highlighter strokes on the Gutachten excerpt (homepage H4,
+       gradient allowlisted as `marker`). Never a background, text, badge or chart colour. */
+    --c-marker: #ffe45c;
 
-    /* ── Ink · text, in three weights of attention. Never pure black. ────────── */
-    --ink: #0e1116;
-    --ink2: #4a5160;
-    --ink3: #7b8394;
-    --on-dark: #f7f8fd;
-    /* One alpha for secondary text on a dark surface. One, not four. */
-    --on-dark-2: rgba(247, 248, 253, 0.7);
+    /* ── Type · one family, one scale ────────────────────────────────────────────
+       Sizes below are the desktop scale; the phone scale follows under a media query. */
+    --font-sans: 'Archivo Variable', 'Archivo Variable fallback', Arial, sans-serif;
+    --wdth-display: 112%;
+    --wdth-heading: 110%;
+    --wdth-text: 100%;
 
-    /* ── Surface · hierarchy by tone, never by shadow ─────────────────────────── */
-    --ground: #f7f8fd;
-    --band: #f2f5fc;
-    --field: #f5f5f5;
-    --surface: #ffffff;
+    --fs-display: 64px;
+    --lh-display: 68px;
+    --fs-h1: 48px;
+    --lh-h1: 54px;
+    --fs-h2: 36px;
+    --lh-h2: 42px;
+    --fs-h3: 24px;
+    --lh-h3: 30px;
+    --fs-h4: 20px;
+    --lh-h4: 28px;
+    --fs-body-l: 18px;
+    --lh-body-l: 28px;
+    --fs-body: 16px;
+    --lh-body: 24px;
+    --fs-small: 14px;
+    --lh-small: 20px;
+    --fs-micro: 12px;
+    --lh-micro: 16px;
 
-    /* ── Borders · one hairline, one quiet hairline, one strong ───────────────── */
-    --line: #e5e5e5;
-    --line-s: #eef0f5;
-    --border-strong: #0e1116;
+    /* ── Space ──────────────────────────────────────────────────────────────────── */
+    --sp-4: 4px;
+    --sp-8: 8px;
+    --sp-12: 12px;
+    --sp-16: 16px;
+    --sp-20: 20px;
+    --sp-24: 24px;
+    --sp-32: 32px;
+    --sp-40: 40px;
+    --sp-48: 48px;
+    --sp-64: 64px;
+    --sp-80: 80px;
+    --sp-96: 96px;
+    --sp-128: 128px;
 
-    /* ── Type ──────────────────────────────────────────────────────────────────
-       Lato for language, IBM Plex Mono for measured values only — sizes, ET, load indices,
-       key numbers. Fluid between 375px and 1440px so nothing jumps at a breakpoint. */
-    --sans: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* ── Radius · controls, tiles, and the few things that are genuinely round ─── */
+    --r-control: 4px;
+    --r-tile: 8px;
+    --r-round: 999px;
 
-    --text-display: clamp(2rem, 1.55rem + 2.19vw, 3rem);
-    --text-h1: clamp(1.625rem, 1.41rem + 1.03vw, 2.125rem);
-    --text-h2: clamp(1.25rem, 1.13rem + 0.56vw, 1.625rem);
-    --text-h3: clamp(1.0625rem, 1.02rem + 0.19vw, 1.1875rem);
-    --text-lead: clamp(1rem, 0.96rem + 0.19vw, 1.125rem);
-    --text-body: clamp(0.9375rem, 0.91rem + 0.09vw, 1rem);
-    --text-small: 13px;
-    --text-micro: 11px;
+    /* ── Elevation · three, and nothing else casts a shadow ─────────────────────── */
+    --e-1: 0 1px 0 var(--c-line);
+    --e-2: 0 2px 4px rgb(11 15 20 / 0.06), 0 8px 24px rgb(11 15 20 / 0.1);
+    --e-3: 0 16px 48px rgb(11 15 20 / 0.22);
 
-    /* ── Space · 4-based. More space around a group than within it. ───────────── */
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 24px;
-    --space-6: 32px;
-    --space-7: 48px;
-    --space-8: 64px;
-    --space-9: 96px;
+    /* ── Layers ─────────────────────────────────────────────────────────────────
+       Two values order overlapping children inside one component; the rest are page layers. */
+    --z-base: 1;
+    --z-raised: 2;
+    --z-sticky: 100;
+    --z-header: 200;
+    --z-dropdown: 300;
+    --z-overlay: 400;
+    --z-dialog: 500;
+    --z-toast: 600;
+    --z-skip: 700;
 
-    /* Section rhythm. Two densities, so a page never repeats one padding down its whole length. */
-    --section: clamp(2rem, 1.2rem + 3vw, 4rem);
-    --section-dense: clamp(1.5rem, 1rem + 2vw, 3rem);
+    /* ── Motion · only where it explains something ─────────────────────────────── */
+    --d-1: 120ms;
+    --d-2: 200ms;
+    --d-3: 320ms;
+    --d-4: 600ms;
+    /* The hero's roll-in only: a wheel coasting in from the edge and rolling to rest. The curve is
+       ease-out-quad, i.e. constant deceleration — what rolling resistance does to a real wheel. */
+    --d-roll: 1600ms;
+    --ease-roll: cubic-bezier(0.5, 1, 0.89, 1);
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-std: cubic-bezier(0.4, 0, 0.2, 1);
 
-    /* ── Radius · three, one role each ─────────────────────────────────────────
-       sm  controls: buttons, inputs, chips, badges
-       md  containers: cards, panels, dropdowns, sheets, tables
-       lg  imagery: the product frame and other media
-       999px is reserved for things that are genuinely circular — a radio, a toggle track. */
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
-    --radius-round: 999px;
-
-    /* ── Elevation · overlays only ─────────────────────────────────────────────
-       Static content separates itself with tone and a hairline. Anything that floats above the
-       page — a dropdown, a sheet, a toast, the header once it has scrolled — may lift. */
-    --shadow-raised: 0 1px 2px rgba(14, 17, 22, 0.06), 0 2px 8px rgba(14, 17, 22, 0.08);
-    --shadow-overlay: 0 8px 16px rgba(14, 17, 22, 0.1), 0 24px 48px rgba(14, 17, 22, 0.16);
-
-    /* ── Motion · it explains a state change; it never performs ────────────────── */
-    --duration-instant: 120ms;
-    --duration-fast: 180ms;
-    --duration-base: 220ms;
-    --duration-moderate: 320ms;
-    --duration-exit: 200ms;
-
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-standard: ease;
-
-    /* ── Layout ───────────────────────────────────────────────────────────────── */
-    --container: 1440px;
-    --container-text: 1200px;
-    --gutter: clamp(16px, 4vw, 64px);
+    /* ── Layout · one page grid ─────────────────────────────────────────────────── */
+    --content-max: 1296px;
+    --page-margin: 20px;
+    --gutter: 16px;
+    --cols: 4;
+    --utility-h: 32px;
     --header-h: 64px;
     --header-h-m: 56px;
+    --vbar-h: 40px;
+    --bottomnav-h: 56px;
+    --stickybar-h: 64px;
+
+    /* ── Brand marks · the constant-area logo box (sections/home-brands.md §3.4) ───
+       A one-colour logo whose width / height is a is drawn k·√a wide and k/√a tall, so every
+       mark covers the same area k²; it is then capped at the two maxima with its proportions
+       kept. Phone values here; the three wider steps follow in the media blocks below. */
+    --logo-k: 44px;
+    --logo-w-max: 104px;
+    --logo-h-max: 36px;
 }
 
-/* ── Reset ─────────────────────────────────────────────────────────────────── */
-
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
-html {
-    -webkit-text-size-adjust: 100%;
-}
-
-body {
-    margin: 0;
-    background: var(--ground);
-    color: var(--ink);
-    font-family: var(--sans);
-    font-size: var(--text-body);
-    line-height: 1.45;
-    -webkit-font-smoothing: antialiased;
-    /* German compounds are long; a heading must wrap rather than clip. */
-    overflow-wrap: break-word;
-}
-
-img,
-svg {
-    max-width: 100%;
-    display: block;
-}
-
-button,
-input,
-select,
-textarea {
-    font: inherit;
-    color: inherit;
-}
-
-a {
-    color: var(--blue);
-}
-
-h1,
-h2,
-h3,
-h4 {
-    margin: 0;
-    font-weight: 700;
-}
-
-p {
-    margin: 0;
-}
-
-/* ── Type scale ─────────────────────────────────────────────────────────────
-   Eight sizes site-wide, at most three visible in any one view. Headings stop at 700:
-   900 reads as unconsidered emphasis rather than confidence. */
-
-.t-display {
-    font-size: var(--text-display);
-    font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: -0.01em;
-    text-wrap: balance;
-}
-
-.t-h1 {
-    font-size: var(--text-h1);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.005em;
-    text-wrap: balance;
-}
-
-.t-h2 {
-    font-size: var(--text-h2);
-    font-weight: 700;
-    line-height: 1.25;
-}
-
-.t-h3 {
-    font-size: var(--text-h3);
-    font-weight: 700;
-    line-height: 1.3;
-}
-
-.t-lead {
-    font-size: var(--text-lead);
-    font-weight: 400;
-    line-height: 1.5;
-    max-width: 65ch;
-}
-
-.t-body {
-    font-size: var(--text-body);
-    font-weight: 400;
-    line-height: 1.45;
-    max-width: 65ch;
-}
-
-.t-small {
-    font-size: var(--text-small);
-    line-height: 1.4;
-}
-
-/*
- * The micro-label: uppercase, +0.10em, above a measured value or as a column header. That is its
- * one job. It never sits above a headline or a section as a decorative eyebrow.
- */
-.t-micro,
-.micro {
-    display: block;
-    font-size: var(--text-micro);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink3);
-}
-
-/* Measured values. Tabular figures so digits line up in a column. */
-.t-mono,
-.data {
-    font-family: var(--mono);
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-}
-
-.data {
-    font-size: var(--text-small);
-    color: var(--ink2);
-}
-
-/* Every price, size, dimension and quantity (R-10). */
-.tabular {
-    font-variant-numeric: tabular-nums;
-}
-
-.muted {
-    color: var(--ink2);
-}
-
-.quiet {
-    color: var(--ink3);
-}
-
-/* ── Layout utilities ──────────────────────────────────────────────────────── */
-
-.wrap {
-    max-width: var(--container);
-    margin-inline: auto;
-    padding-inline: var(--gutter);
-}
-
-.wrap-text {
-    max-width: var(--container-text);
-    margin-inline: auto;
-    padding-inline: var(--gutter);
-}
-
-.section {
-    padding-block: var(--section);
-}
-
-.section-dense {
-    padding-block: var(--section-dense);
-}
-
-.band {
-    background: var(--band);
-}
-
-.surface {
-    background: var(--surface);
-}
-
-.stack {
-    display: grid;
-    gap: var(--space-3);
-}
-
-.stack-4 {
-    display: grid;
-    gap: var(--space-4);
-}
-
-.stack-5 {
-    display: grid;
-    gap: var(--space-5);
-}
-
-.cluster {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-3);
-}
-
-.between {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-}
-
-/* ── Accessibility ─────────────────────────────────────────────────────────── */
-
-:focus-visible {
-    outline: 2px solid var(--blue);
-    outline-offset: 2px;
-    border-radius: var(--radius-sm);
-}
-
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-}
-
-.skip-link {
-    position: absolute;
-    left: var(--space-4);
-    top: -100px;
-    z-index: 100;
-    padding: var(--space-3) var(--space-4);
-    background: var(--surface);
-    color: var(--ink);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-overlay);
-    transition: top var(--duration-fast) var(--ease-out);
-}
-
-.skip-link:focus {
-    top: var(--space-4);
-}
-
-/*
- * Motion off is not "no feedback": transforms and slides go, colour and opacity stay, so every
- * state change is still legible.
- */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
+@media (min-width: 768px) {
+    :root {
+        --page-margin: 32px;
+        --gutter: 20px;
+        --cols: 8;
+        --logo-k: 48px;
+        --logo-w-max: 120px;
+        --logo-h-max: 40px;
     }
+}
+
+@media (min-width: 1024px) {
+    :root {
+        --page-margin: 40px;
+        --gutter: 24px;
+        --cols: 12;
+        --logo-k: 56px;
+        --logo-w-max: 128px;
+        --logo-h-max: 44px;
+    }
+}
+
+/* From 1280px the content is centred at its maximum: the brand wall's cells are widest here. */
+@media (min-width: 1280px) {
+    :root {
+        --logo-k: 64px;
+        --logo-w-max: 144px;
+        --logo-h-max: 48px;
+    }
+}
+
+/* The phone scale. Below 1024px a 64px headline is a wall, not a title. */
+@media (max-width: 1023px) {
+    :root {
+        --fs-display: 40px;
+        --lh-display: 44px;
+        --fs-h1: 34px;
+        --lh-h1: 40px;
+        --fs-h2: 28px;
+        --lh-h2: 34px;
+        --fs-h3: 21px;
+        --lh-h3: 28px;
+        --fs-h4: 18px;
+        --lh-h4: 26px;
+        --fs-body-l: 17px;
+        --lh-body-l: 26px;
+    }
+}
+
+/*
+ * ── Compatibility aliases ────────────────────────────────────────────────────────
+ * The names the previous system used, resolved to the tokens above so pages that have not moved
+ * yet render in the current palette and type. Deleted with legacy.css when the last page moves.
+ */
+:root {
+    --blue: var(--c-blue);
+    --blue-h: var(--c-blue-hover);
+    --blue-p: var(--c-blue-press);
+    --wash: var(--c-blue-tint);
+    --bline: var(--c-line-2);
+    --ok: var(--c-ok);
+    --ok-w: var(--c-ok-tint);
+    --warn: var(--c-warn);
+    --warn-w: var(--c-warn-tint);
+    --danger: var(--c-bad);
+    --danger-w: var(--c-bad-tint);
+    --ink: var(--c-ink);
+    --ink2: var(--c-ink-2);
+    --ink3: var(--c-ink-3);
+    --on-dark: var(--c-surface);
+    --on-dark-2: var(--c-on-dark-2);
+    --ground: var(--c-surface);
+    --band: var(--c-band);
+    --field: var(--c-band);
+    --surface: var(--c-surface);
+    --line: var(--c-line);
+    --line-s: var(--c-line);
+    --border-strong: var(--c-ink);
+    --sans: var(--font-sans);
+    --mono: var(--font-sans);
+    --text-display: var(--fs-display);
+    --text-h1: var(--fs-h1);
+    --text-h2: var(--fs-h2);
+    --text-h3: var(--fs-h3);
+    --text-lead: var(--fs-body-l);
+    --text-body: var(--fs-body);
+    --text-small: var(--fs-small);
+    --text-micro: var(--fs-micro);
+    --space-1: var(--sp-4);
+    --space-2: var(--sp-8);
+    --space-3: var(--sp-12);
+    --space-4: var(--sp-16);
+    --space-5: var(--sp-24);
+    --space-6: var(--sp-32);
+    --space-7: var(--sp-48);
+    --space-8: var(--sp-64);
+    --space-9: var(--sp-96);
+    --section: var(--sp-64);
+    --section-dense: var(--sp-48);
+    --radius-sm: var(--r-control);
+    --radius-md: var(--r-tile);
+    --radius-lg: var(--r-tile);
+    --radius-round: var(--r-round);
+    --shadow-raised: var(--e-1);
+    --shadow-overlay: var(--e-3);
+    --duration-instant: var(--d-1);
+    --duration-fast: var(--d-1);
+    --duration-base: var(--d-2);
+    --duration-moderate: var(--d-3);
+    --duration-exit: var(--d-2);
+    --ease-in-out: var(--ease-std);
+    --ease-standard: var(--ease-std);
+    --container: var(--content-max);
+    --container-text: var(--content-max);
 }

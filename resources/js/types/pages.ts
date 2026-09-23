@@ -10,7 +10,9 @@
 import type {
     BasketLine,
     BasketTotals,
+    ContactProp,
     Facets,
+    ImageManifest,
     ProductCardProp,
     VerdictStatus,
 } from './rimify'
@@ -41,12 +43,170 @@ export interface VariantOption {
     [key: string]: unknown
 }
 
+/**
+ * The wheel the hero shows: an admin-chosen product and one configuration's own values
+ * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4).
+ */
+export interface HeroProduct {
+    slug: string
+    name: string
+    brand: string
+    finish: string
+    fromPriceCents: number
+    fromPrice: string
+    /**
+     * The hero finish's own cut-out (`wheel_finishes.image_manifest`): the square frame with its
+     * `anchors`, the shadowless `bare` frame, the `stamp` read off the wheel, and the 4:3 frame
+     * under `wide`. Null (the server always sends the key) or absent (a fixture): no photograph,
+     * and the hero draws the outline.
+     */
+    imageManifest?: ImageManifest | null
+    /** True when there is no photograph of this product: the outline is drawn and no product is named. */
+    symbolic: boolean
+    config: {
+        widthIn: number
+        diameterIn: number
+        etMm: number
+        boltHoles: number
+        boltCircleMm: number
+        centreBoreMm: number
+    }
+    /** The configuration's facts, formatted on the server by GermanFormat (R-10). */
+    facts: {
+        /** `8,5J` */
+        width: string
+        /** `19` */
+        diameter: string
+        /** `ET 45` */
+        et: string
+        /** `5 × 112` */
+        boltPattern: string
+        /** `66,6 mm` */
+        centreBore: string
+        /** `53810` — only when the photographed stamp belongs to this configuration. */
+        kba: string | null
+        /** `620 kg` — only when verified. */
+        maxLoad: string | null
+        /** `8,5J × 19 · ET 45 · LK 5 × 112 · MLB 66,6 mm · Traglast 620 kg` */
+        specLine: string
+    }
+}
+
+export interface HomeStats {
+    gutachten: number
+    variants: number
+    wheels: number
+    brands: number
+}
+
+export interface PopularTab {
+    key: 'beliebt' | 'neu' | 'bis200'
+    label: string
+}
+
+export type TyreClass = 'A' | 'B' | 'C' | 'D' | 'E'
+
+export interface EuTyreLabel {
+    title: string
+    fuel: TyreClass
+    wet: TyreClass
+    noiseDb: number
+    noiseClass: 'A' | 'B' | 'C'
+    eprelId: string | null
+}
+
+/** The vehicle's original size, the calculator's *Aktuell* — real data from the documents, or null. */
+export interface CalculatorPrefill {
+    widthIn: number
+    diameterIn: number
+    etMm: number
+    tyreWidth: number
+    aspect: number
+}
+
+/** One side of the calculator, as `lib/fitmentMath`'s `WheelSetup` writes it. */
+export interface RechnerSetup {
+    widthIn: number
+    diameterIn: number
+    etMm: number
+    tyreWidthMm: number
+    aspect: number
+}
+
+/**
+ * /felgenrechner: the vehicle's prefill as the homepage has it, and the comparison a shared link
+ * carried in `?rechner=` — parsed on the server so the first paint already shows it; null when
+ * the parameter is absent or not something the form offers (never an error page).
+ */
+export interface FelgenrechnerProps {
+    prefill: CalculatorPrefill | null
+    state: { current: RechnerSetup; next: RechnerSetup } | null
+}
+
+export interface GuideTeaser {
+    slug: string
+    title: string
+    teaser: string
+    minutes: number
+}
+
+export interface FaqPreview {
+    id: number
+    question: string
+    answer: string
+}
+
+/**
+ * The homepage. `garage`, `vehicle`, `serviceStatus` and `contact` come from the shared props;
+ * everything here is data from the database or the configuration — nothing on the page is typed
+ * into a template (docs/design/sections/home.md §0.7).
+ */
 export interface StartseiteProps {
-    bestsellers: ProductCardProp[]
-    makes: MakeOption[]
-    brands: { name: string; slug: string; spokes: number }[]
-    month: string
-    faq: { id: number; question: string; answer: string }[]
+    hero: {
+        title: string
+        subline: string
+        /** The phone document's shorter sentence; the desktop one when absent. */
+        sublineMobile?: string
+        product: HeroProduct | null
+        stats: HomeStats
+    }
+    selector: { makes: MakeOption[] }
+    /** F1 for the shared vehicle, in the first paint; null without a vehicle. */
+    fitmentCount: { count: number; permitted: number; conditional: number } | null
+    promises: { title: string; text: string; icon: string }[]
+    popular: {
+        /** Null with a vehicle: the heading then names the vehicle. */
+        title: string | null
+        /** Empty with a vehicle: the row is that car's answer, not a catalogue order. */
+        tabs: PopularTab[]
+        active: string
+        cards: ProductCardProp[]
+        /** The listing's count for the vehicle; null without one. */
+        total: number | null
+    }
+    recentlyViewed: ProductCardProp[]
+    /** `fitting`: how many of the size's models a document permits on the vehicle; null without one. */
+    sizes: { inch: number; count: number; fitting: number | null; href: string }[]
+    /**
+     * Every wheel brand (`brands.is_wheel_brand`), stock or not, plus any brand with a published
+     * model that has an in-stock configuration. `count`: published models with stock, 0 allowed;
+     * `href`: the listing link, null when there is nothing to list — a brand without stock is
+     * greyed and is never a link (CLAUDE.md §2).
+     * `logo`: absolute path to a one-colour, transparent, tight-bounds file used as a CSS mask;
+     * `logoAspect`: its width / height, 3 decimals — both null when there is no usable logo. The
+     * sample range (`slug` `demo`) never has one (docs/design/sections/home-brands.md §4.2).
+     */
+    brands: { name: string; slug: string; logo: string | null; logoAspect: number | null; count: number; href: string | null }[]
+    komplettrad: { tyre: EuTyreLabel | null }
+    calculator: { prefill: CalculatorPrefill | null }
+    partners: { enabled: boolean; demo: boolean }
+    guides: GuideTeaser[]
+    faq: FaqPreview[]
+    /**
+     * True while any published wheel model is seeded demo data (`wheel_models.is_demo`). The page
+     * then shows the *Demodaten* note; the flag disappears with the rows before launch.
+     */
+    demo: boolean
 }
 
 export interface SelectorProps {
@@ -90,6 +250,8 @@ export interface FelgenProps {
     facets: Facets
     filters: Record<string, unknown>
     page?: number
+    /** True while any published wheel model is seeded demo data; the listing shows the *Demodaten* note. */
+    demo: boolean
 }
 
 export interface ProduktProps {
@@ -105,7 +267,8 @@ export interface ProduktProps {
         ratingCount: number
         ratingLabel: string | null
     }
-    finishes: { id: number; name: string; hex: string | null; artFinish: string }[]
+    /** `image`: the finish's own studio photograph and its other angles, or null — then it is drawn. */
+    finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
     configs: ProduktConfig[]
     hasVehicle: boolean
 }
@@ -129,6 +292,12 @@ export interface ProduktConfig {
     weightG: number | null
     /** Null when no vehicle is chosen. Price, stock and verdict travel together, by design. */
     verdict: ConfigVerdict | null
+    /**
+     * The Komplettrad offer for this configuration, decided and priced on the server, travelling
+     * with the price and the verdict so a size change swaps all of them in one commit. Absent only
+     * in fixtures written before it existed; the server always sends it.
+     */
+    komplettrad?: KomplettradOfferProp | null
 }
 
 export interface ConfigVerdict {
@@ -143,6 +312,110 @@ export interface ConfigVerdict {
     reasonCode: string | null
     document: { number: string | null; issuer: string | null; kind: string } | null
     tyreSizes: string[]
+    /* docs/specs/komplettrad.md §3.4 — the tyre side of the verdict, additive and optional. */
+    /** `245/45 R18` per axle; `tyreSizes` above stays the front list. */
+    tyreSizesFront?: string[]
+    tyreSizesRear?: string[]
+    tyreLayout?: 'SAME' | 'MIXED'
+    /** The stricter axle's minimum; null while the engine could not derive one (R-03). */
+    minLoadIndex?: number | null
+    minSpeedSymbol?: string | null
+    /** Which side of R-06 governed — combined, and per half, because a document may state only one. */
+    minSource?: 'DOCUMENT' | 'DERIVED'
+    minLoadSource?: 'DOCUMENT' | 'DERIVED'
+    minSpeedSource?: 'DOCUMENT' | 'DERIVED'
+    /** `Für dein Fahrzeug brauchen die Reifen mindestens …` — a full sentence, never a bare number pair. */
+    minSentence?: string | null
+}
+
+/**
+ * Why no Komplettrad is offered: the engine's thirteen cases (`KomplettradRefusal`) plus the one
+ * arm the storefront raises itself when no active Wuchtgewichte colour exists. The code picks the
+ * route forward; the customer only ever reads the sentence beside it (R-15).
+ */
+export type KomplettradRefusalCode =
+    | 'NO_VEHICLE'
+    | 'VERDICT_NOT_PERMITTED'
+    | 'VERDICT_UNKNOWN'
+    | 'VERDICT_RESTORED'
+    | 'NO_PERMITTED_SIZES'
+    | 'NO_USABLE_MINIMUM'
+    | 'STAGGERED_LAYOUT'
+    | 'TYRE_CHOICE_RESTRICTED'
+    | 'DIAMETER_MISMATCH'
+    | 'SIZE_NOT_PERMITTED'
+    | 'BELOW_MINIMUM'
+    | 'OUT_OF_STOCK'
+    | 'NO_TYRE_AVAILABLE'
+    | 'NO_WEIGHT_COLOUR'
+
+/** One tyre the verdict permits on the chosen configuration, priced per wheel on the server. */
+export interface KomplettradTyreProp {
+    id: number
+    brandName: string
+    name: string
+    season: 'sommer' | 'winter' | 'ganzjahres'
+    /** `Sommerreifen` */
+    seasonLabel: string
+    /** `245/45 R18 100Y` */
+    sizeLabel: string
+    stockQty: number
+    /** The tyre alone, per tyre. */
+    tyrePriceCents: number
+    tyrePrice: string
+    /** Rim + tyre + mounting + weights for ONE wheel: the known components, an unpriced one left out. */
+    perWheelCents: number
+    perWheel: string
+    /** `perWheel` × 4, formatted on the server (R-10); the page never multiplies cents. */
+    forFourCents: number
+    forFour: string
+    /** The EU label, only where the tyre carries a verified EPREL id (ACCURACY D7). */
+    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
+    isDemo: boolean
+}
+
+/**
+ * The Komplettrad offer for one configuration (docs/specs/komplettrad.md §4.11). Either `tyres`
+ * is non-empty or `refusal` carries the one German sentence saying why — never both empty, so no
+ * surface can render an empty panel.
+ */
+export interface KomplettradOfferProp {
+    refusal: string | null
+    refusalCode: KomplettradRefusalCode | null
+    minSentence: string | null
+    /** A component of the price is not configured yet: the figure is the known sum and the page says so. */
+    priceOpen: boolean
+    /** What one click adds — a set. */
+    quantity: number
+    tyres: KomplettradTyreProp[]
+}
+
+/** One column of `/vergleich`: the card plus the figures the table lines up (home-overhaul.md §2.6). */
+export interface CompareItem extends ProductCardProp {
+    specs: {
+        /** `8 J × 18 · 8,5 J × 19` — one entry per distinct width × diameter. */
+        sizes: string[]
+        /** `ET 35 – ET 45`, or one value. */
+        etRange: string
+        /** `LK 5 × 112` */
+        boltPattern: string
+        /** `66,6 mm` */
+        centreBore: string
+        documents: { kind: 'ABE' | 'Teilegutachten' | 'ECE' | 'EG-Genehmigung'; number: string | null }[]
+    }
+    /** Merged toward caution across the model's configurations; null without a vehicle. */
+    verdict: ConfigVerdict | null
+    /** Decided on the server: the page never picks a size. */
+    buy: { kind: 'basket'; configId: number; sizeLabel: string } | { kind: 'choose'; href: string } | { kind: 'none' }
+}
+
+export interface VergleichProps {
+    items: CompareItem[]
+    /** Keys that were asked for and are no longer in the range. */
+    missing: number
+    cap: 4
+    /** Any product on the page is seeded demo data: the page carries the note once. */
+    demo: boolean
 }
 
 export interface CheckErgebnisProps {
@@ -155,8 +428,14 @@ export interface BasketProps {
     totals: BasketTotals
 }
 
+/*
+ * A page that passes `contact` passes the shared shape whole: the page prop replaces the shared
+ * one, and the header and the footer read it too. Phone and WhatsApp are null until the client
+ * gives them.
+ */
+
 export interface KasseProps extends BasketProps {
-    contact: { email: string; phone: string }
+    contact: ContactProp
 }
 
 export interface BestellungProps {
@@ -188,22 +467,16 @@ export interface BestellungProps {
             detail: Record<string, unknown>
         } | null
     }[]
-    contact: { email: string; phone: string; hours: string }
+    contact: ContactProp
 }
 
 export interface FaqProps {
     groups: { key: string; entries: { id: number; question: string; answer: string }[] }[]
-    contact: { phone: string; email: string; hours: string }
+    contact: ContactProp
 }
 
 export interface KontaktProps {
-    contact: {
-        email: string
-        phone: string
-        phoneIntl: string
-        whatsapp: string
-        hours: string
-    }
+    contact: ContactProp
 }
 
 export interface RechtlichesProps {
@@ -244,6 +517,19 @@ export interface AdminGutachtenProps {
     }[]
 }
 
+export interface AdminBenachrichtigungenProps {
+    subscriptions: {
+        id: number
+        email: string
+        vehicle: string
+        keyNumbers: string
+        status: string
+        requestedAt: string
+        notifiedAt: string | null
+    }[]
+    demand: { vehicle: string; keyNumbers: string; waiting: number }[]
+}
+
 export interface AdminRollenProps {
     roles: {
         id: number
@@ -258,4 +544,47 @@ export interface AdminRollenProps {
         label: string
         actions: { action: string; label: string; roles: Record<number, boolean> }[]
     }[]
+}
+
+/**
+ * Wuchtgewichte-Farben (docs/specs/komplettrad.md §6.5). Prices arrive formatted by GermanFormat
+ * beside their raw cents: the table prints the string, the form edits it, and nothing on the page
+ * multiplies cents.
+ */
+export interface AdminWuchtgewichteProps {
+    colours: {
+        id: number
+        nameDe: string
+        /** Derived from the name on the server; never posted. */
+        slug: string
+        /** `#C8CCD2`, or null — then a neutral chip is drawn rather than a wrong colour. */
+        swatchHex: string | null
+        /** Per wheel, never per set. */
+        surchargeCents: number
+        /** `2,50 €` */
+        surcharge: string
+        isDefault: boolean
+        active: boolean
+        sortOrder: number
+    }[]
+    /** What the page may offer. The server refuses regardless (R-11); this only hides. */
+    can: { create: boolean; update: boolean; delete: boolean }
+}
+
+/** RDKS-Sensorpreise je Marke (docs/specs/komplettrad.md §6.5): one price per car make, per sensor. */
+export interface AdminRdksProps {
+    prices: {
+        id: number
+        /** `volkswagen` — MakeName::key(), the only key a per-make price may use. */
+        makeKey: string
+        /** `Volkswagen` — what a human reads. */
+        makeLabelDe: string
+        priceCents: number
+        /** `49,00 €` */
+        price: string
+        active: boolean
+    }[]
+    /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
+    makes: string[]
+    can: { create: boolean; update: boolean; delete: boolean }
 }

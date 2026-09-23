@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="512" height="512">
+    <!--
+        The RIMIFY app mark: the wheel glyph from the product's own icon set, drawn on its 24 grid,
+        white on ink. No third-party mark, no typeface to embed. The generator (docs/mobile/tools/
+        make-icons.mjs) scales it into the PNG sizes the manifest lists.
+    -->
+    <rect width="24" height="24" fill="#0b0f14"/>
+    <g fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+        <circle cx="12" cy="12" r="7"/>
+        <circle cx="12" cy="12" r="2.4"/>
+        <path d="M12 5v4.6M12 14.4V19M5 12h4.6M14.4 12H19"/>
+    </g>
+</svg>

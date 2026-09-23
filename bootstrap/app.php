@@ -7,6 +7,7 @@ use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
+use App\Services\Storefront\Chrome;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -34,9 +35,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Stripe posts a signed raw body; it can carry no CSRF token and must not be touched.
         $middleware->validateCsrfTokens(except: ['webhooks/stripe']);
 
-        // rmf_view is a harmless layout preference for client demos;
-        // rmf_vehicle stays encrypted and authenticated.
-        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE]);
+        // rmf_view is a harmless layout preference for client demos and rmf_consent is the cookie
+        // choice, written by the browser itself; rmf_vehicle stays encrypted and authenticated.
+        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE]);
 
         $middleware->redirectGuestsTo(fn (): string => '/admin/anmelden');
     })

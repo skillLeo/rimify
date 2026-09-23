@@ -1,0 +1,1 @@
+import{g as e,k as t,mt as n,v as r}from"./runtime-core.esm-bundler-B8D2lM98.js";import{r as i,t as a}from"./Svg-CLq5HtI_.js";var o=t({__name:`DocFacsimile`,props:{variant:{default:`neu`},width:{default:560},title:{default:void 0}},setup(t){let o=t,s=e(()=>i(o.variant,{width:o.width,title:o.title}));return(e,t)=>(n(),r(a,{markup:s.value},null,8,[`markup`]))}});export{o as t};

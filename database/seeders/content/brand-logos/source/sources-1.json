@@ -1,0 +1,79 @@
+[
+  {
+    "slug": "motec",
+    "name": "MOTEC",
+    "file": "motec.svg",
+    "sourceUrl": "https://motec-shop.de/static/version1789385274/frontend/Medienagenten/motec/de_DE/images/motec_logo-neu_weiss.svg",
+    "pageUrl": "https://motec-shop.de/",
+    "retrieved": "2026-09-22",
+    "format": "svg",
+    "monochromeVariant": true,
+    "notes": "Current (new) MOTEC logo, taken from the header of motec-shop.de. That shop belongs to AVO Fahrzeugtechnik: its markup uses avoCarHsnTsn* queries and avo_red classes, and the img alt text is 'Logo Motec-Wheels'. One colour, white #FFFFFF only, for dark backgrounds. viewBox 0 0 1030.9 762.2 (Illustrator 27.6): wing emblem above the MOTEC wordmark, no tagline. Alternates on the same site, not kept: (a) .../images/logo.svg, the same new mark with black letters and wings and red rgb(201,38,39) keylines, viewBox 0 0 200 149; (b) .../images/motec_logo-alt.svg, the old logo (alt text 'altes Logo'). motec-wheels.de offers only opaque RGB PNGs (logo-main.png 265x44, logo-footer.png 200x33) with a black background built in, so those were rejected."
+  },
+  {
+    "slug": "borbet",
+    "name": "BORBET",
+    "file": "borbet.svg",
+    "sourceUrl": "https://www.borbet.de/template/borbet.de/logo.svg",
+    "pageUrl": "https://www.borbet.de/",
+    "retrieved": "2026-09-22",
+    "format": "svg",
+    "monochromeVariant": true,
+    "notes": "The site's own header logo (img#Logo, alt 'BORBET - Zur Startseite'). The regular BORBET wordmark is one colour by design: a single fill, #004F91 blue, on a transparent background. viewBox 0 0 242.45 33.3 (Illustrator 24.2). No tagline, no ®. The site also references template/borbet.de/Logo.png; the SVG is preferred."
+  },
+  {
+    "slug": "ronal",
+    "name": "RONAL",
+    "file": "ronal.svg",
+    "sourceUrl": "https://www.ronal-wheels.com/themes/custom/ronal/logo.svg",
+    "pageUrl": "https://www.ronal-wheels.com/",
+    "retrieved": "2026-09-22",
+    "format": "svg",
+    "monochromeVariant": false,
+    "notes": "Header logo of the official RONAL wheels site. Two colours: white #FFFFFF RONAL lettering with ®, plus four red #D6232F speed bars. Drawn for DARK backgrounds, so the white lettering is invisible on white. viewBox 0 0 120 23. The same design is also at /sites/default/files/vocabulary_brands/logo-ronal.svg (Sketch export, 416x79); that duplicate was not kept. No dark-lettering or one-colour black version is published: themes/custom/ronal/logo-dark.svg, logo-black.svg, logo_black.svg and logo-ronal-black.svg all return 404. The RONAL GROUP press portal (media.ronalgroup.com) sends logos to mediabank.ch/ronal2, which needs a login. Wikimedia Commons has only the RONAL GROUP corporate logo, which is a different mark."
+  },
+  {
+    "slug": "rial",
+    "name": "RIAL",
+    "file": "rial.png",
+    "sourceUrl": "https://wheels-manufacture.de/wheelsmanufacture/wp-content/uploads/2025/09/RIAL_Logokit.zip",
+    "pageUrl": "https://wheels-manufacture.de/services/downloads/",
+    "retrieved": "2026-09-22",
+    "format": "png",
+    "monochromeVariant": true,
+    "notes": "Official logo kit of WHEELS Manufacture, the current home of ATS, RIAL and ALUTEC. rial.de links to its catalogues on wheels-manufacture.de. The file is RIAL_Logokit/RIAL_Logo_schwarz.png from inside the zip, saved unchanged: 1091x490 RGBA, one-colour black (~#1A1A1A) on a transparent background. It includes the ® and the 'LEICHTMETALLFELGEN' tagline under the 'rial' wordmark; kept as is. The kit also holds RIAL_Logo_blau.png (blue) and RIAL_Logo_weiss.png (white), same size. No SVG exists. Rejected: rial.de RIAL_Logo_blau_80.png (only 178x80); supind.com RIAL_Logo_blau.jpg (669x300, white background); supind.com RIAL_Logo_blau.png (669x300, opaque BLACK background); rial.de RIAL_Logofahne_blau_2018.jpg (a blue flag block). Wikimedia Commons File:Rial-logo.svg and File:Logo_Rial.svg are fan-made Inkscape traces of an older design (yellow 'rial' in a blue parallelogram); they are not the current logo."
+  },
+  {
+    "slug": "dotz",
+    "name": "DOTZ",
+    "file": "dotz.svg",
+    "sourceUrl": "https://www.dotz-wheels.com/DE/repos/files/www%2edotz-wheels%2ecom/icons/DOTZ%2esvg",
+    "pageUrl": "https://www.dotz-wheels.com/",
+    "retrieved": "2026-09-22",
+    "format": "svg",
+    "monochromeVariant": true,
+    "notes": "Header logo of the official DOTZ site (a.navbar-brand img, alt 'DOTZ.svg'). One colour, white #fff only, for dark backgrounds. viewBox 0 0 297.72 62.71. It contains the DOTZ wordmark (group 'Dotz') and a small 'WHEELS' line underneath (group 'Wheels'); kept as is. No dark version was found on the site."
+  },
+  {
+    "slug": "ats",
+    "name": "ATS",
+    "file": "ats.png",
+    "sourceUrl": "https://wheels-manufacture.de/wheelsmanufacture/wp-content/uploads/2025/09/ATS_Logokit.zip",
+    "pageUrl": "https://wheels-manufacture.de/services/downloads/",
+    "retrieved": "2026-09-22",
+    "format": "png",
+    "monochromeVariant": true,
+    "notes": "Official logo kit of WHEELS Manufacture (ATS / RIAL / ALUTEC). The file is ATS_Logokit/ATS_Logo_schwarz.png from inside the zip, saved unchanged: 606x166 RGBA, one-colour black on a transparent background. It includes the ® and the 'Leichtmetallräder' tagline with its bar block; kept as is. It is below the 800 px target, but it is the brand's own black version. The same kit has a larger two-colour 'ATS Logo_4c_negativ.png': 2524x690 RGBA, yellow ATS with white ® and tagline, for dark backgrounds, also at https://atswheels.com/ats22/wp-content/uploads/2022/06/ATS-Logo_4c_negativ.png. Its alpha channel is the complete silhouette of the mark. The kit also has 'ATS Logo_4c.png' (607x167, black plus yellow bars) and 'ATS Logo_4c_weiss.png' (white). No SVG exists: the ats22/wp-content .svg guesses return 404. Rejected: supind.com ATS_Logo_4c.png (607x167, opaque white background, no alpha)."
+  },
+  {
+    "slug": "cms",
+    "name": "CMS",
+    "file": "cms.svg",
+    "sourceUrl": "https://www.cms.com.tr/assets/default/images/cms-logo.svg",
+    "pageUrl": "https://www.cms.com.tr/en/corporate/group-companies/cms-gmbh-1",
+    "retrieved": "2026-09-22",
+    "format": "svg",
+    "monochromeVariant": false,
+    "notes": "Official CMS Group logo (Illustrator 15). It is shown on the group's own page for CMS Automotive Trading GmbH ('one of the sales companies of CMS Group', which distributes CMS wheels to the European aftermarket). Colours: gold #F7B618 'CMS' letters on a charcoal #231F20 badge, a hidden white under-layer, and a charcoal ®. viewBox 0 0 383.545 130.144. VERIFIED as the wheel brand's mark. cms-wheels.com, cmswheels.de, www.cms-wheels.de and cms-wheels.ch all return HTTP 403 from this network. However, the Wayback Machine capture of https://cms-wheels.com/assets/img/logo1.png (2024-10-06) is the header logo in the site's own markup (a.logo1 img) and shows the same yellow 'CMS' with black outline and ®. The CMS GmbH page photo cms-gmbh1.jpg also shows the same mark on the CMS race car next to 'cms-wheels.com'. Alternate, not kept: https://www.cms.com.tr/assets/frontend/img/logo-footer.svg, a greyscale version (#BDBEC0 letters on the #231F20 badge). No one-colour black version was found. Note: in this design the letters are knocked out of the badge, so a solid single-colour fill of the whole file would lose the letters."
+  }
+]

@@ -7,7 +7,9 @@ namespace App\Models;
 use App\Domain\Approval\SupersedeChain;
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
+use App\Events\ApprovalDocumentPublished;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\ApprovalDocumentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -94,6 +96,21 @@ class ApprovalDocument extends Model
             ->where('status', DocumentStatus::Published->value)
             ->where(fn (Builder $q) => $q->whereNull('valid_from')->orWhere('valid_from', '<=', $today))
             ->where(fn (Builder $q) => $q->whereNull('valid_to')->orWhere('valid_to', '>=', $today));
+    }
+
+    /**
+     * Make this revision the published one. The single entry point for a publish: every cache
+     * that depends on published documents is forgotten and every subscriber whose vehicle this
+     * document names is told, through the event — never by a caller that remembers to.
+     */
+    public function publish(?CarbonInterface $from = null): void
+    {
+        $this->forceFill([
+            'status' => DocumentStatus::Published->value,
+            'valid_from' => ($from ?? now())->toDateString(),
+        ])->save();
+
+        ApprovalDocumentPublished::dispatch($this);
     }
 
     /** The human-readable identifier, whichever kind of document this is. */

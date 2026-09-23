@@ -11,22 +11,41 @@
  * The verdict sits directly above the basket button, never beside or below it: the legal status is
  * never separated from the control that acts on it.
  *
+ * Beneath the purchase panel the page offers the same size as a Komplettrad — only the tyres the
+ * verdict permits, priced on the server, or the one sentence saying why there are none. The offer
+ * travels inside the configuration, so a size change swaps it in the same commit as the price.
+ *
  * On a phone the price and the button follow the customer down the page once the main button has
  * scrolled away — the one persistent bar the storefront uses, because it is the page's next action.
+ *
+ * A seeded demonstration model (`demo`) shows "Beispielbestand" rather than "Auf Lager" and says it
+ * cannot be ordered yet. Its basket button stays usable, so the flow can be reviewed; the server
+ * refuses the order at the checkout (ACCURACY.md D4).
+ *
+ * The main photograph opens large in a dialog: a button around the image, focus trapped while it
+ * is open, Escape or the close button to leave, focus back on the photograph after.
  */
 
 import { Head, Link, useForm } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
+import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
+import Icon from '../../Components/Ui/Icon.vue'
+import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
 import { useShared } from '../../composables/useShared'
-import type { ProduktProps } from '../../types/pages'
+import { decimal, withUnit } from '../../format'
+import type { ProduktConfig, ProduktProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
 
-const props = defineProps<ProduktProps>()
+/** The load rating per wheel travels with each configuration; null where none is verified. */
+type RatedConfig = ProduktConfig & { maxLoadKg?: number | null }
+
+const props = defineProps<ProduktProps & { demo?: boolean }>()
 
 const shared = useShared()
 const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
@@ -34,11 +53,66 @@ const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
 
+/* The finish's photographs: the front view (the manifest itself), then its other angles. */
+const shots = computed<ImageView[]>(() => {
+    const image = finish.value?.image ?? null
+
+    if (image === null) {
+        return []
+    }
+
+    const { views = [], ...front } = image
+
+    return [{ ...front, label: 'Ansicht von vorn' }, ...views]
+})
+const shotIndex = ref(0)
+const shot = computed(() => shots.value[shotIndex.value] ?? null)
+const shotAlt = computed(() => `${props.product.brandName} ${props.product.modelName} in ${finish.value?.name ?? ''}, ${shot.value?.label ?? ''}`)
+
+// Another finish starts on its own front view.
+watch(
+    () => config.finishId.value,
+    () => {
+        shotIndex.value = 0
+    }
+)
+
+/* The large view of the photograph on screen. */
+const zoomOpen = ref(false)
+
 const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
-    tyreVariantId: null as number | null,
     quantity: 4,
+})
+
+/*
+ * The stock tag. Demo stock is example data, so it never reads as "Auf Lager" — and never in the
+ * colour that means a positive answer.
+ */
+const stockLabel = computed(() => {
+    const inStock = selected.value?.inStock === true
+
+    if (props.demo === true) {
+        return inStock ? 'Beispielbestand' : 'Beispielbestand · ausverkauft'
+    }
+
+    return inStock ? 'Auf Lager' : 'Ausverkauft'
+})
+
+const stockTone = computed(() => {
+    if (props.demo === true) {
+        return 'tag--unknown'
+    }
+
+    return selected.value?.inStock === true ? 'tag--ok' : 'tag--danger'
+})
+
+/* `620 kg` — shown only for a load rating somebody has verified. */
+const maxLoad = computed(() => {
+    const kg = (selected.value as RatedConfig | null)?.maxLoadKg
+
+    return typeof kg === 'number' && kg > 0 ? withUnit(decimal(kg, 0), 'kg') : null
 })
 
 const canBuy = computed(() => {
@@ -115,37 +189,84 @@ onBeforeUnmount(() => observer?.disconnect())
             </nav>
 
             <div class="pdp">
-                <!-- Gallery: one frame per finish, same drawing, the finish that is selected. -->
+                <!-- Gallery: the selected finish's own studio photograph, with a thumbnail per
+                     further angle — only real shots, never drawings posing as three views. A
+                     finish without a photograph is drawn, alone. The finish is chosen once, with
+                     the swatches in the purchase panel. -->
                 <div class="pdp__gallery">
                     <div class="well pdp__well">
+                        <!-- The photograph is its own button: it opens the large view. -->
+                        <button
+                            v-if="shot"
+                            type="button"
+                            class="pdp__zoom"
+                            aria-haspopup="dialog"
+                            :aria-label="`Foto vergrößern: ${shotAlt}`"
+                            @click="zoomOpen = true"
+                        >
+                            <Picture
+                                :key="shot.name"
+                                :image="shot"
+                                :alt="shotAlt"
+                                sizes="(min-width: 900px) 56vw, 100vw"
+                                eager
+                                class="pdp__picture"
+                            />
+                        </button>
                         <ProductPhoto
+                            v-else
                             :spokes="product.spokes"
                             :finish="finish?.artFinish ?? 'graphite'"
                             :size="560"
                         />
                     </div>
 
-                    <div v-if="finishes.length > 1" class="pdp__thumbs" role="group" aria-label="Ausführung">
+                    <div v-if="shots.length > 1" class="pdp__thumbs" role="group" aria-label="Ansichten">
                         <button
-                            v-for="item in finishes"
-                            :key="item.id"
-                            class="pdp__thumb"
-                            :class="{ 'pdp__thumb--on': item.id === config.finishId.value }"
+                            v-for="(view, i) in shots"
+                            :key="view.name"
                             type="button"
-                            :aria-pressed="item.id === config.finishId.value"
-                            :aria-label="item.name"
-                            @click="config.selectFinish(item.id)"
+                            class="pdp__thumb"
+                            :aria-pressed="i === shotIndex"
+                            :aria-label="view.label"
+                            @click="shotIndex = i"
                         >
-                            <ProductPhoto :spokes="product.spokes" :finish="item.artFinish" :size="96" :note="false" />
+                            <Picture :image="view" alt="" sizes="72px" class="pdp__thumb-picture" />
                         </button>
                     </div>
+
+                    <!-- The large view. Reka traps the focus, closes on Escape and on the scrim,
+                         and hands the focus back to the photograph. -->
+                    <DialogRoot v-model:open="zoomOpen">
+                        <DialogPortal>
+                            <DialogOverlay class="overlay" />
+                            <DialogContent class="dialog pdp-zoom" aria-describedby="">
+                                <div class="dialog__head">
+                                    <DialogTitle class="pdp-zoom__title">{{ shotAlt }}</DialogTitle>
+                                    <DialogClose class="icon-btn dialog__close" aria-label="Schließen">
+                                        <Icon name="close" :size="24" />
+                                    </DialogClose>
+                                </div>
+                                <div class="pdp-zoom__frame">
+                                    <Picture
+                                        v-if="shot"
+                                        :key="`zoom-${shot.name}`"
+                                        :image="shot"
+                                        :alt="shotAlt"
+                                        sizes="(min-width: 900px) 80vw, 100vw"
+                                        eager
+                                        class="pdp-zoom__picture"
+                                    />
+                                </div>
+                            </DialogContent>
+                        </DialogPortal>
+                    </DialogRoot>
                 </div>
 
-                <!-- The purchase panel. -->
+                <!-- The purchase panel. The H1 names the brand; no eyebrow repeats it above. -->
                 <div class="pdp__buy">
-                    <span class="micro">{{ product.brandName }}</span>
-                    <h1 class="t-h1 pdp__title">{{ product.brandName }} {{ product.modelName }}</h1>
-                    <p v-if="product.typeDesignation" class="data">Typ {{ product.typeDesignation }}</p>
+                    <h1 class="t-h1">{{ product.brandName }} {{ product.modelName }}</h1>
+                    <p v-if="product.typeDesignation" class="data pdp__type">Typ {{ product.typeDesignation }}</p>
                     <p v-if="product.rating !== null && product.ratingCount > 0" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>
                         <span class="tabular">{{ product.ratingLabel }}</span>
@@ -171,7 +292,8 @@ onBeforeUnmount(() => observer?.disconnect())
                         </div>
                     </div>
 
-                    <div class="pdp__block">
+                    <!-- `#groessen`: where the compare page's "Größe wählen" lands. -->
+                    <div id="groessen" class="pdp__block">
                         <span class="micro">Durchmesser (Zoll)</span>
                         <div class="chip-row pdp__chips">
                             <button
@@ -207,12 +329,15 @@ onBeforeUnmount(() => observer?.disconnect())
                     <div class="pdp__price">
                         <p class="price price--lg">{{ selected?.price ?? config.fromPrice.value }}</p>
                         <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
-                        <span class="tag pdp__stock" :class="selected?.inStock ? 'tag--ok' : 'tag--danger'">
-                            {{ selected?.inStock ? 'Auf Lager' : 'Ausverkauft' }}
-                        </span>
+                        <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
+                        <p v-if="demo" class="t-small pdp__demo">
+                            Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
+                            legen, bestellen kannst du sie noch nicht.
+                        </p>
                     </div>
 
-                    <div ref="buyButton">
+                    <!-- `#felgen-kaufen`: where the Komplettrad section's "Nur die Felgen bestellen" lands. -->
+                    <div id="felgen-kaufen" ref="buyButton">
                         <button
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
@@ -224,6 +349,16 @@ onBeforeUnmount(() => observer?.disconnect())
                     </div>
                 </div>
             </div>
+
+            <!-- The same size as a Komplettrad: only what the verdict permits, priced on the
+                 server, or one sentence and a way forward. Absent only in fixtures. -->
+            <KomplettradOffer
+                v-if="selected && selected.komplettrad"
+                class="pdp__komplettrad"
+                :offer="selected.komplettrad"
+                :wheel-config-id="selected.id"
+                :contact-email="shared.contact.email"
+            />
 
             <!-- Felgendetails: the measured values, mono and right-aligned, for the size chosen above. -->
             <section v-if="selected" class="pdp__specs" aria-labelledby="pdp-specs">
@@ -251,6 +386,10 @@ onBeforeUnmount(() => observer?.disconnect())
                         <dt>Gewicht pro Felge</dt>
                         <dd class="t-mono">{{ weight }}</dd>
                     </div>
+                    <div v-if="maxLoad" class="spec__row">
+                        <dt>Traglast</dt>
+                        <dd class="t-mono">{{ maxLoad }}</dd>
+                    </div>
                     <div v-if="selected.kbaNumber" class="spec__row">
                         <dt>KBA-Nummer</dt>
                         <dd class="t-mono">{{ selected.kbaNumber }}</dd>
@@ -270,7 +409,7 @@ onBeforeUnmount(() => observer?.disconnect())
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div class="pdp__sticky-price">
             <p class="price">{{ selected.price }}</p>
-            <p class="price-note">für 4 Felgen, inkl. MwSt.</p>
+            <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"
@@ -313,29 +452,92 @@ onBeforeUnmount(() => observer?.disconnect())
     margin-inline: auto;
 }
 
+/* The photograph fills the square well; the cut-out is framed in the pipeline, so no padding. */
+.pdp__picture {
+    position: absolute;
+    inset: 0;
+}
+
+.pdp__picture :deep(img),
+.pdp__thumb-picture :deep(img),
+.pdp-zoom__picture :deep(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* The photograph as a button: it fills the well and shows it can be enlarged. */
+.pdp__zoom {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+
+.pdp__zoom:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: -4px;
+}
+
+/* The large view: the dialog surface, as wide as the screen allows, the photograph square inside. */
+.pdp-zoom {
+    width: calc(100vw - 2 * var(--sp-20));
+    max-width: 1080px;
+    padding: var(--sp-16);
+}
+
+.pdp-zoom__title {
+    font-size: var(--fs-small);
+    font-weight: 500;
+    color: var(--c-ink-2);
+}
+
+.pdp-zoom__frame {
+    position: relative;
+    width: min(100%, calc(100dvh - 2 * var(--sp-20) - 2 * var(--sp-16) - 64px));
+    aspect-ratio: 1 / 1;
+    margin-inline: auto;
+}
+
+.pdp-zoom__picture {
+    position: absolute;
+    inset: 0;
+}
+
 .pdp__thumbs {
     display: flex;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-8);
+    margin-top: var(--sp-12);
 }
 
 .pdp__thumb {
     display: grid;
-    place-items: center;
     width: 72px;
     height: 72px;
-    padding: var(--space-1);
-    background: var(--field);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
+    padding: var(--sp-4);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-tile);
+    background: var(--c-band);
     cursor: pointer;
 }
 
-.pdp__thumb--on {
-    border: 2px solid var(--border-strong);
+.pdp__thumb[aria-pressed='true'] {
+    border-color: var(--c-ink);
+    outline: 1px solid var(--c-ink);
+    outline-offset: -2px;
 }
 
-.pdp__title {
+@media (hover: hover) and (pointer: fine) {
+    .pdp__thumb:hover {
+        border-color: var(--c-ink-3);
+    }
+}
+
+.pdp__type {
     margin-top: var(--space-1);
 }
 
@@ -407,8 +609,17 @@ onBeforeUnmount(() => observer?.disconnect())
     margin-top: var(--space-2);
 }
 
+.pdp__demo {
+    margin-top: var(--space-2);
+    color: var(--ink2);
+}
+
 .pdp__add {
     margin-top: var(--space-4);
+}
+
+.pdp__komplettrad {
+    margin-top: var(--space-8);
 }
 
 .pdp__specs {

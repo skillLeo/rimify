@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
+use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\HeaderMode;
 use App\Domain\Storefront\HeaderModeResolver;
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\CatalogueStatus;
 use App\Models\Vehicle;
+use App\Models\WheelModel;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -32,7 +35,17 @@ final readonly class Chrome
 
     private const MENU_CACHE_TTL = 300;
 
-    public function __construct(private HeaderModeResolver $headerMode) {}
+    /**
+     * The cookie choice, written by the browser as plain JSON and read here so the first frame
+     * already knows whether to show the consent sheet — no banner that appears a beat late.
+     */
+    public const CONSENT_COOKIE = 'rmf_consent';
+
+    public function __construct(
+        private HeaderModeResolver $headerMode,
+        private MegaMenu $mega,
+        private ServiceStatus $service,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -64,13 +77,124 @@ final readonly class Chrome
              * rather than passed per controller, because the footer renders on every route and a
              * page that forgot to pass them would quietly show nothing.
              */
-            'contact' => [
-                'email' => (string) config('rimify.contact.email'),
-                'phone' => (string) config('rimify.contact.phone'),
-                'phoneIntl' => (string) config('rimify.contact.phone_intl'),
-                'whatsapp' => (string) config('rimify.contact.whatsapp'),
-                'hours' => (string) config('rimify.contact.hours'),
-            ],
+            'contact' => self::contact(),
+            'mega' => $this->mega->share(),
+            'consent' => $this->consent($request),
+            // The last five vehicles, for the hero chips, the header chip and the palette (F7).
+            'garage' => $this->garage($request),
+            // Whether someone answers right now (F9); the client re-asks every minute.
+            'serviceStatus' => $this->service->now(),
+            // Whether the shop shows demonstration rows: the site-wide Demodaten badge (ACCURACY D4).
+            // Its own key: pages pass a `demo` of their own (a demo product, a seeded order), and a
+            // page prop would replace a shared one of the same name, hiding the badge on that page.
+            'demoBadge' => self::demo(),
+            // Whether "Sag mir Bescheid" can work: only where outgoing mail is configured (F2).
+            'notifyByMail' => (bool) config('rimify.features.notify_by_mail'),
+        ];
+    }
+
+    /**
+     * True while any published wheel model is a demonstration row. Every page then carries the
+     * Demodaten badge in its header, so no page can present seeded data as the shop's own stock.
+     */
+    public static function demo(): bool
+    {
+        return WheelModel::query()
+            ->where('is_demo', true)
+            ->where('status', CatalogueStatus::Published->value)
+            ->exists();
+    }
+
+    /**
+     * The contact details as every surface receives them — the shared prop and the pages that pass
+     * their own (D-023).
+     *
+     * A detail the client has not given is null: never an empty string, never a placeholder. The
+     * components hide what is null and offer the e-mail in its place, so a missing phone number
+     * costs a phone call and never shows a number nobody answers.
+     *
+     * @return array{email: string, phone: string|null, phoneIntl: string|null, whatsapp: string|null, hours: string}
+     */
+    public static function contact(): array
+    {
+        return [
+            'email' => (string) config('rimify.contact.email'),
+            'phone' => self::given(config('rimify.contact.phone')),
+            'phoneIntl' => self::given(config('rimify.contact.phone_intl')),
+            'whatsapp' => self::given(config('rimify.contact.whatsapp')),
+            'hours' => (string) config('rimify.contact.hours'),
+        ];
+    }
+
+    /** A configured value, or null when it is absent, not a string, or only whitespace. */
+    private static function given(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
+    }
+
+    /**
+     * @return list<array{id: int, label: string, short: string}>
+     */
+    private function garage(Request $request): array
+    {
+        $raw = $request->cookie(Garage::COOKIE);
+        $garage = Garage::decode(is_string($raw) ? $raw : null);
+
+        if ($garage->isEmpty()) {
+            return [];
+        }
+
+        // A soft-deleted vehicle silently leaves the garage; the ids keep the cookie's order.
+        $rows = Vehicle::query()->whereIn('id', $garage->vehicleIds)->get()->keyBy('id');
+        $out = [];
+
+        foreach ($garage->vehicleIds as $id) {
+            $vehicle = $rows->get($id);
+
+            if ($vehicle === null) {
+                continue;
+            }
+
+            $out[] = [
+                'id' => (int) $vehicle->id,
+                'label' => trim($vehicle->make.' '.$vehicle->variant),
+                'short' => trim($vehicle->make.' '.$vehicle->model),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * The visitor's cookie choice, or null while none has been made. Anything unparseable is no
+     * choice: the sheet shows again rather than assuming a consent that was never given.
+     *
+     * @return array{necessary: true, statistics: bool, decidedAt: string}|null
+     */
+    private function consent(Request $request): ?array
+    {
+        $raw = $request->cookie(self::CONSENT_COOKIE);
+
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        if (! is_array($decoded) || ! isset($decoded['decidedAt']) || ! is_string($decoded['decidedAt'])) {
+            return null;
+        }
+
+        return [
+            'necessary' => true,
+            'statistics' => ($decoded['statistics'] ?? false) === true,
+            'decidedAt' => $decoded['decidedAt'],
         ];
     }
 
@@ -101,6 +225,8 @@ final readonly class Chrome
             'make' => $vehicle->make,
             'model' => $vehicle->model,
             'variant' => $vehicle->variant,
+            // How a Gutachten names the car; the story's marked row shows it.
+            'typeDesignation' => $vehicle->type_designation,
             'label' => trim($vehicle->make.' '.$vehicle->variant),
             'short' => trim($vehicle->make.' '.$vehicle->model),
             'hsn' => $vehicle->hsn,
@@ -125,7 +251,8 @@ final readonly class Chrome
         $menus = Cache::remember(self::MENU_CACHE_KEY, self::MENU_CACHE_TTL, function (): array {
             $grouped = [
                 'header' => [],
-                'footer_pages' => [],
+                'footer_shop' => [],
+                'footer_service' => [],
                 'footer_legal' => [],
                 'mobile_bottom' => [],
             ];
@@ -178,8 +305,14 @@ final readonly class Chrome
 
         $count = 0;
 
+        // Wheel lines only, like the basket itself: a TYRE line left in a session from before the
+        // shop stopped selling tyres alone is never shown, so it is never counted either.
         foreach ($cart as $line) {
-            $count += is_array($line) && isset($line['quantity']) ? (int) $line['quantity'] : 0;
+            if (! is_array($line) || ($line['kind'] ?? 'WHEEL') !== 'WHEEL') {
+                continue;
+            }
+
+            $count += isset($line['quantity']) ? (int) $line['quantity'] : 0;
         }
 
         return $count;

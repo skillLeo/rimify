@@ -1,0 +1,68 @@
+[
+  {
+    "slug": "bbs",
+    "name": "BBS",
+    "file": "bbs.svg",
+    "sourceUrl": "https://www.bbs.com/de/static/version1782818341/frontend/Fwd/fwd-bbs-de-theme/de_DE/images/header/BBS-Logo-2025.svg",
+    "pageUrl": "https://www.bbs.com/de/home",
+    "retrieved": "2026-09-22",
+    "format": "svg",
+    "monochromeVariant": false,
+    "notes": "Header logo of the official BBS site (img.b-header2__logo), file name BBS-Logo-2025.svg, saved byte for byte. White BBS letters on the red #d70012 extruded plate. viewBox 0 0 164 64, including a transparent padding rect. No tagline. The white letters are drawn on top of the red plate, so if the whole file is filled with one colour the letters disappear. bbs.com does not resolve through this machine's DNS. It was fetched by pinning its public A record (3.66.237.188, looked up via 1.1.1.1) with curl --resolve; the response was HTTP 200 image/svg+xml. No one-colour or black version is published. Alternate on the same site, not kept: .../images/footer/logo_bbs.svg (Illustrator 25, viewBox 0 0 124 40), an older drawing with white letters and a #D90000 outline for the dark footer, where the background shows through gaps in the outline. Rejected: Wikimedia Commons File:BBS_logo.svg (a third-party vector from vectorseek.com, red #c60a1b; the official file is now available); bbs-usa.com logo_flat_red_black.png (201x72, opaque, includes the tagline 'Technik aus dem Motorsport') and logo_bbsusa.png (213x49), both too small."
+  },
+  {
+    "slug": "oz-racing",
+    "name": "OZ Racing",
+    "file": "oz-racing.png",
+    "sourceUrl": "https://www.ozracing.com/images/products/brands/logo/oz-racing.png",
+    "pageUrl": "https://www.ozracing.com/alloy-wheels-brands",
+    "retrieved": "2026-09-22",
+    "format": "png",
+    "monochromeVariant": true,
+    "notes": "The OZ Racing product-brand mark: O·Z with ® above the spaced word RACING. One colour, black, on a transparent background. 251x78 RGBA. SMALL: well below the 800 px target, but no larger or vector file exists on any official OZ site. This file sits in the official brand-logo folder on ozracing.com, but no page I fetched links to it; I found it by trying the file name. The brands page links the matching white version, '/images/products/brands/logo/OZ-racing - neg.png' (251x95, white on transparent, not kept). Rejected: /images/template/oz_logo--negative.png (227x88). Despite its name, it is NOT transparent: it has a built-in white slanted plate, and it shows the corporate 'Italian Company' mark. /images/template/oz_logo.png (227x88): the same mark in white on a red plate. /images/oz_italiancompany.png (the og:image): an opaque 800x800 red square. fr.wikipedia 'Fichier:OZ_Racing_Logo.svg': a local non-free file credited 'Reproduction : Kilyann Le Hen', which is a user redraw and not on Commons. Commons has no OZ logo file, only photos of wheels. oz-racing.de (OZ Deutschland GmbH) timed out on connect, even with its IP pinned. No press or media kit was found on ozracing.com: /press returns 404, and the download area holds only policy PDFs."
+  },
+  {
+    "slug": "aez",
+    "name": "AEZ",
+    "file": "aez.png",
+    "sourceUrl": "https://www.aez-wheels.com/static/aez/logo-black-larger@2x.png",
+    "pageUrl": "https://www.aez-wheels.com/DE/press",
+    "retrieved": "2026-09-22",
+    "format": "png",
+    "monochromeVariant": true,
+    "notes": "The brand's own black version, referenced (as logo-black-larger.png, @2x listed in the page's srcsets) on aez-wheels.com and its press page. One colour, near-black (#111), on a transparent background. 660x228 RGBA. The AEZ wordmark sits above 'LEICHTMETALLRÄDER', kept as is. It is below the 800 px target; no larger or vector official file was found. Alternates, not kept: /static/aez/logo-black@2x.png (240x84, black) and /static/aez/logo@2x.png (240x84, white; used in the dark site header). Rejected: ALCAR group brand slider https://alcar-cdn.azureedge.net/media/ya4a4hlh/cs_4_aez_logo_new_2010_sw.png. It is 895x442, but the mark is only about 530 px wide inside heavy padding and has no anti-aliasing. Every /static/aez/*.svg and @3x guess returns 404. The page's inline SVG sprite holds only UI icons. The press page's per-model press packs sit behind a CrushFTP web login. Commons has no AEZ logo."
+  },
+  {
+    "slug": "dezent",
+    "name": "DEZENT",
+    "file": "dezent.svg",
+    "sourceUrl": "https://www.dezent-wheels.com/",
+    "pageUrl": "https://www.dezent-wheels.com/",
+    "retrieved": "2026-09-22",
+    "format": "svg",
+    "monochromeVariant": false,
+    "notes": "Built from the inline SVG sprite on the official homepage, because DEZENT publishes no standalone vector file. The <g id=\"logo-dezent\"> group (the site draws it with <svg viewBox=\"0 0 500 200\"><use xlink:href=\"#logo-dezent\"/></svg>) is copied verbatim. The site paints it through CSS classes, so the four class rules .svg-logo-separator, .svg-logo-letters, .no-fill and .fill-red are copied verbatim, in their original order, from https://www.dezent-wheels.com/less/main.css into a <style> element. Additions: the wrapper <svg xmlns>, a provenance comment and that <style>. The viewBox is tightened to -1 -1 504 131 because the separator bar runs to x=502.1, which the site's 0 0 500 200 clips. Colours: black #000 letters with a 0.8521 black stroke, a warm-grey #9C9A88 separator bar, and a red #D51130 bar across the Z. It includes the 'LEICHTMETALLRÄDER' line, kept. The site's own raster copy, /DE/repos/files/dezent/images/logos/dezent-logo.png (176x52), matches the rendered SVG exactly. On mobile the site recolours the same markup to all-white (.is-mobile rules). No SVG file exists: logos/dezent-logo.svg returns 404. Rejected: ALCAR group CDN dezent.png (300x148)."
+  },
+  {
+    "slug": "alutec",
+    "name": "ALUTEC",
+    "file": "alutec.png",
+    "sourceUrl": "https://wheels-manufacture.de/wheelsmanufacture/wp-content/uploads/2025/09/ALUTEC_Logokit.zip",
+    "pageUrl": "https://wheels-manufacture.de/en/alutec-neues-logo-neue-farben-gleiche-leidenschaft/",
+    "retrieved": "2026-09-22",
+    "format": "png",
+    "monochromeVariant": true,
+    "notes": "CURRENT 2025 LOGO. The brief called the green lightning mark a campaign variant; it is not. ALUTEC rebranded in 2025. The announcement is WHEELS Manufacture's article 'ALUTEC – New logo. New colors. Same passion.', which links the official ALUTEC_Logokit.zip. On alutec.de, the intro markup labels the black/red image '<!-- Altes Logo -->' and the green one '<!-- Neues Logo -->', and animates from the old to the new. Its schema.org Organization logo and og:image are the green logo, and its og:description reads 'Neuer Look, gleiche Leidenschaft – ALUTEC zeigt Profil'. The saved file is ALUTEC_Logokit/alutec-logo_minimal-white-bg.png from inside the zip, unchanged: 3000x722 RGBA, the 'minimal' one-colour version for light backgrounds. Black letters on a transparent background, with fine OPAQUE WHITE lightning veins inside the letters (about 0.8% of pixels). The veins disappear on white but show as white lines on any other background colour. No tagline. Also in the kit, not kept: alutec-logo_minimal-black-bg.png (white letters, black veins), alutec-logo_color-white-bg.png and alutec-logo_color-black-bg.png (3000x902, green gradient with lens-flare glints), and JPG copies. Superseded, not kept: the old black/red logo with the 'Leichtmetallfelgen' tagline, https://www.alutec.de/alutecwheels/wp-content/uploads/2021/01/ALUTEC_Logo_schwarz-rot.png (3052x631), plus the weiss-rot version and supind.com's JPG. Rejected: Wikimedia Commons File:Alutec_logo.svg is a BLUE recolour of the old logo, sourced from a Belarusian retailer (bagoria.by). File:Alutec.png is the old logo at 200x43. No SVG exists."
+  },
+  {
+    "slug": "brock",
+    "name": "Brock",
+    "file": "brock.png",
+    "sourceUrl": "https://www.brock.de/downloads/Logos.zip",
+    "pageUrl": "https://www.brock.de/service/download/",
+    "retrieved": "2026-09-22",
+    "format": "png",
+    "monochromeVariant": true,
+    "notes": "Official logo package from the 'Logos' section of brock.de's download page. Logos.zip contains Brock.zip and RC-Design.zip. The saved file is Brock.zip > Brock/PNG/Brock-Alloy-Wheels-b.png, unchanged: 3152x1005 RGBA. One colour, black, on a transparent background: the flame 'Brock' wordmark above 'Alloy Wheels', with the tagline kept. Also in the package, not kept: Brock-Alloy-Wheels.png (same size; dark-red 'Brock' with black 'Alloy Wheels'), JPG versions and EPS vectors (Illustrator 22.1, 2018; BoundingBox 842x321). The EPS was not converted, because no converter is available here and a conversion would be a derived file. The site header uses Brock_Logo_weiss_sml-2.png (314x100), the same mark. Rejected: Wikimedia Commons File:Brock-Logo.png, which belongs to Brock Solutions (Canada), a different company; and brock.de Brock-RC.webp / Brock-RC.png, which combine Brock and RC-Design. Brock_Logo.jpg (1200x383) has an opaque white background."
+  }
+]

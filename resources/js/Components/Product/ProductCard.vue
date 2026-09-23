@@ -39,15 +39,31 @@ const stock = computed(() =>
         : { label: 'Ausverkauft', cls: 'tag--danger' }
 )
 
-/** With a vehicle: named, and honest about whether the papers need an entry. */
+/**
+ * With a vehicle: named, and honest. The engine's status decides the line; an entry requirement or
+ * an Auflage makes it "Mit Auflagen", and the Auflagen travel with it as full sentences (R-15).
+ * A card whose status is not positive makes no positive claim — UNKNOWN is not "Passend" (R-07).
+ */
 const fitment = computed(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }
 
-    return props.card.fitment.requiresEntry
-        ? { label: `Mit Auflagen für ${props.vehicle.short}`, cls: 'is-warn', icon: 'warning' as const }
-        : { label: `Passend für ${props.vehicle.short}`, cls: 'is-ok', icon: 'check' as const }
+    const { status = 'PERMITTED', requiresEntry, conditions = [] } = props.card.fitment
+
+    if (status === 'NOT_PERMITTED') {
+        return { label: `Nicht freigegeben für ${props.vehicle.short}`, cls: 'is-bad', icon: 'close' as const, conditions: [] }
+    }
+
+    if (status === 'UNKNOWN') {
+        return { label: `Für ${props.vehicle.short} nicht geprüft`, cls: 'is-unknown', icon: 'info' as const, conditions: [] }
+    }
+
+    if (status === 'CONDITIONAL' || requiresEntry) {
+        return { label: `Mit Auflagen für ${props.vehicle.short}`, cls: 'is-warn', icon: 'warning' as const, conditions }
+    }
+
+    return { label: `Passend für ${props.vehicle.short}`, cls: 'is-ok', icon: 'check' as const, conditions: [] }
 })
 
 /*
@@ -82,7 +98,8 @@ const rating = computed(() => {
         </h3>
         <p class="pcard__finish">{{ card.finishName }}</p>
 
-        <p v-if="rating" class="stars pcard__rating" :aria-label="rating.spoken">
+        <p v-if="rating" class="stars pcard__rating">
+            <span class="visually-hidden">{{ rating.spoken }}</span>
             <span class="stars__glyph" aria-hidden="true">★</span>
             <span class="tabular" aria-hidden="true">{{ rating.short }}</span>
         </p>
@@ -107,6 +124,10 @@ const rating = computed(() => {
             <Icon :name="fitment.icon" :size="20" />
             {{ fitment.label }}
         </p>
+        <!-- An Auflage is never a badge on its own: the sentence renders wherever the badge does. -->
+        <ul v-if="fitment && fitment.conditions.length" class="pcard__conditions">
+            <li v-for="condition in fitment.conditions" :key="condition">{{ condition }}</li>
+        </ul>
 
         <Link :href="href" class="btn btn--secondary btn--block btn--sm pcard__action">
             Details
@@ -148,6 +169,21 @@ const rating = computed(() => {
 
 .pcard__fitment.is-warn {
     color: var(--warn);
+}
+
+.pcard__fitment.is-bad {
+    color: var(--danger);
+}
+
+.pcard__fitment.is-unknown {
+    color: var(--ink2);
+}
+
+.pcard__conditions {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+    font-size: var(--text-small);
+    color: var(--ink2);
 }
 
 .pcard__action {

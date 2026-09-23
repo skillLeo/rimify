@@ -59,7 +59,28 @@ final class Constraints
         self::assertIdentifier($table);
         self::assertIdentifier($name);
 
-        DB::statement(sprintf('ALTER TABLE `%s` DROP CHECK `%s`', $table, $name));
+        // DROP CONSTRAINT is the spelling both MySQL (8.0.19+) and MariaDB accept; DROP CHECK is MySQL's alone.
+        DB::statement(sprintf('ALTER TABLE `%s` DROP CONSTRAINT `%s`', $table, $name));
+    }
+
+    /**
+     * Drop a constraint that may already be gone. DDL is not transactional, so a migration that
+     * failed halfway leaves the constraint dropped; its retry must not fail on that.
+     */
+    public static function dropIfExists(string $table, string $name): void
+    {
+        self::assertIdentifier($table);
+        self::assertIdentifier($name);
+
+        $exists = DB::selectOne(
+            'SELECT 1 AS present FROM information_schema.TABLE_CONSTRAINTS
+             WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?',
+            [$table, $name],
+        );
+
+        if ($exists !== null) {
+            self::drop($table, $name);
+        }
     }
 
     /**

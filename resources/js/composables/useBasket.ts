@@ -5,6 +5,10 @@
  * re-priced and every line re-verified on render, so a quantity change is also the moment a
  * superseded document or a stock movement becomes visible. Optimistic local arithmetic would show
  * a total the server does not agree with.
+ *
+ * A Komplettrad line has two more actions (docs/specs/komplettrad.md §4.10): its Wuchtgewichte
+ * colour, which the server re-checks for `active`, and `Reifen entfernen`, which converts the
+ * line to Felgen only. Both are server round trips for the same reason.
  */
 
 import { router } from '@inertiajs/vue3'
@@ -12,6 +16,8 @@ import { router } from '@inertiajs/vue3'
 export interface BasketActions {
     setQuantity(key: string, quantity: number): void
     remove(key: string): void
+    setWeightColour(key: string, colourId: number): void
+    removeTyre(key: string): void
 }
 
 export function useBasket(): BasketActions {
@@ -33,5 +39,17 @@ export function useBasket(): BasketActions {
         router.delete(`/warenkorb/${encodeURIComponent(key)}`, { preserveScroll: true })
     }
 
-    return { setQuantity, remove }
+    function setWeightColour(key: string, colourId: number): void {
+        router.patch(
+            `/warenkorb/${encodeURIComponent(key)}/gewichte`,
+            { colourId },
+            { preserveScroll: true, preserveState: true }
+        )
+    }
+
+    function removeTyre(key: string): void {
+        router.delete(`/warenkorb/${encodeURIComponent(key)}/reifen`, { preserveScroll: true })
+    }
+
+    return { setQuantity, remove, setWeightColour, removeTyre }
 }

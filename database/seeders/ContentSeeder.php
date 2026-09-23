@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\Setting;
+use App\Models\WheelModel;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -12,29 +14,31 @@ use Illuminate\Support\Facades\DB;
  *
  * Every string below is copy the client owns and will want to change: the homepage sections, the
  * four menus, the questions. Hard-coding them into a Blade template or a Vue SFC would mean that
- * renaming a menu item or swapping a bestseller heading needs a developer, a review and a deploy.
- * Holding them in `pages` / `page_blocks` / `nav_items` means marketing edits them in the admin
- * panel and the change is live. That is the whole point of the block CMS, and the reason
- * `nav_items.behaviour` carries the conditional *Felgen suchen* rule instead of a branch inside a
- * component.
+ * renaming a menu item or swapping a heading needs a developer, a review and a deploy. Holding them
+ * in `pages` / `page_blocks` / `nav_items` means the change is data. That is the whole point of the
+ * block CMS, and the reason `nav_items.behaviour` carries the conditional *Felgen suchen* rule
+ * instead of a branch inside a component.
  *
- * Two things deliberately do NOT live here:
+ * Three things deliberately do NOT live here:
  *
  * - **Legal body text.** Impressum, Datenschutz, AGB, Widerrufsbelehrung and Versand ship with the
  *   real heading and a visibly marked placeholder (D-024). Drafting German legal text is a Kanzlei's
  *   job; a plausible-looking invented Impressum is the constitution's "confidently wrong" in its
- *   most expensive form.
- * - **Contact details.** Phone, e-mail and opening hours are read from `config('rimify.contact')`
- *   (D-023) — the sources carried two different numbers, so there is now exactly one place to fix.
+ *   most expensive form. The FAQ therefore points to the Widerrufsbelehrung and states no law.
+ * - **Contact details.** E-mail and service hours are read from `config('rimify.contact')`
+ *   (D-023) when a page renders, never copied into a content row, where they would go stale.
+ * - **Unconfirmed promises.** No delivery time, no carrier, no "als PDF", no in-house mounting and
+ *   no stock figure until the client confirms it (docs/phase0/ACCURACY.md D7). The blocks that
+ *   carried such lines and that no page rendered are retired, not kept "for later".
  *
- * Copy is transcribed character for character from the approved German copy, including `·`, `–`,
- * `→` and the mixed quote pair in Q3. Where the two copy sources disagreed on an answer, D-022
- * applies and the Copy Pack's longer wording wins (Q2, Q3, Q6, Q7, Q8).
- *
- * Re-runnable: every row is matched on its natural key, so a second run updates and never doubles.
+ * Re-runnable: every row is matched on its natural key, so a second run updates and never doubles,
+ * and the retired blocks are removed by page and type, so a database seeded before loses them too.
  */
 class ContentSeeder extends Seeder
 {
+    /** The hero wheel: the one model whose photographs are the client's own (ACCURACY D10). */
+    public const HERO_SLUG = 'motec-mcr4-ultimate';
+
     public function run(): void
     {
         $this->seedNavItems();
@@ -43,6 +47,84 @@ class ContentSeeder extends Seeder
         $this->seedFaqPage();
         $this->seedContactPage();
         $this->seedLegalPages();
+        $this->seedGuides();
+        $this->retireBlocks();
+        $this->seedSettings();
+    }
+
+    /**
+     * The hero product is the MOTEC MCR4 Ultimate, the only wheel photographed as itself.
+     *
+     * The setting is written when it is unset, when it names no model any more, or when it names a
+     * demonstration model — a demo pick is ours, never the client's. A real product the client has
+     * chosen stays chosen. Nothing happens before the catalogue has been seeded.
+     */
+    private function seedSettings(): void
+    {
+        $hero = WheelModel::query()->where('slug', self::HERO_SLUG)->value('id');
+
+        if ($hero === null) {
+            return;
+        }
+
+        $chosen = Setting::get('hero_product_id');
+
+        if (is_int($chosen) || (is_string($chosen) && ctype_digit($chosen))) {
+            $current = WheelModel::query()->find((int) $chosen);
+
+            if ($current !== null && ! $current->is_demo) {
+                return;
+            }
+        }
+
+        Setting::set('hero_product_id', (int) $hero);
+    }
+
+    /**
+     * The guides the homepage links to (H10). The articles live in
+     * database/seeders/content/ratgeber.php as data, each with its own status: a guide that the
+     * legal review has not cleared is seeded as a draft, which the Ratgeber route answers with a
+     * 404 and the homepage leaves out. A lead block carries the teaser and the reading time, and
+     * each section is one `prose` block of a heading and its paragraphs.
+     */
+    private function seedGuides(): void
+    {
+        $file = __DIR__.'/content/ratgeber.php';
+
+        if (! is_file($file)) {
+            return;
+        }
+
+        /** @var list<array{slug: string, status: 'published'|'draft', title: string, teaser: string, minutes: int, meta_description?: string, blocks: list<array{heading: string, text: string}>}> $guides */
+        $guides = require $file;
+
+        foreach ($guides as $guide) {
+            $page = $this->page($guide['slug'], 'guide', $guide['title'], $guide['status']);
+
+            if (isset($guide['meta_description'])) {
+                DB::table('pages')->where('id', $page)->update(['meta_description' => $guide['meta_description']]);
+            }
+
+            $this->block($page, 'guide_lead', 0, [
+                'teaser' => $guide['teaser'],
+                'minutes' => $guide['minutes'],
+            ]);
+
+            // Prose blocks are keyed by their position: `block()` upserts by type, and an article
+            // has several of the same type.
+            DB::table('page_blocks')->where('page_id', $page)->where('type', 'prose')->delete();
+
+            foreach ($guide['blocks'] as $index => $block) {
+                DB::table('page_blocks')->insert([
+                    'page_id' => $page,
+                    'type' => 'prose',
+                    'sort_order' => 10 + $index * 10,
+                    'data' => json_encode(['heading' => $block['heading'], 'text' => $block['text']], JSON_THROW_ON_ERROR),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -58,18 +140,23 @@ class ContentSeeder extends Seeder
          * component nor a second nav row knows anything about it.
          */
         $this->menu('header', [
-            ['label' => 'Felgen suchen', 'route_name' => 'felgen.suchen', 'behaviour' => 'vehicle_aware'],
+            ['label' => 'Felgen', 'route_name' => 'felgen.index'],
+            ['label' => 'RIMIFY-Check', 'route_name' => 'check.index'],
             ['label' => 'FAQ', 'route_name' => 'faq'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt'],
-            ['label' => 'RIMIFY-CHECK', 'route_name' => 'check.index'],
         ]);
 
-        // Footer column 2, beneath the `SEITEN` micro-label.
-        $this->menu('footer_pages', [
-            ['label' => 'Felgen suchen', 'route_name' => 'felgen.suchen'],
-            ['label' => 'RIMIFY-CHECK', 'route_name' => 'check.index'],
-            ['label' => 'FAQ', 'route_name' => 'faq'],
+        // The footer's first two columns: the shop, and the help around it.
+        $this->menu('footer_shop', [
+            ['label' => 'Alle Felgen', 'route_name' => 'felgen.index'],
+            ['label' => 'Fahrzeug wählen', 'route_name' => 'felgen.suchen'],
+            ['label' => 'RIMIFY-Check', 'route_name' => 'check.index'],
+        ]);
+
+        $this->menu('footer_service', [
+            ['label' => 'Fragen und Antworten', 'route_name' => 'faq'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt'],
+            ['label' => 'Versand', 'href' => '/rechtliches/versand'],
         ]);
 
         /*
@@ -83,19 +170,18 @@ class ContentSeeder extends Seeder
             ['label' => 'Datenschutz', 'href' => '/rechtliches/datenschutz'],
             ['label' => 'AGB', 'href' => '/rechtliches/agb'],
             ['label' => 'Widerrufsbelehrung', 'href' => '/rechtliches/widerrufsbelehrung'],
-            ['label' => 'Versand', 'href' => '/rechtliches/versand'],
         ]);
 
         /*
-         * The mobile bar is exactly five items and the middle one is the raised blue circle, so the
-         * order is load-bearing rather than editorial. Icons are keys from the agreed icon set — the
-         * design spec names the five labels but never says which glyph each one carries.
+         * The phone's bottom bar is exactly five items, so the order is load-bearing rather than
+         * editorial. Icons are keys from the icon set. Kontakt carries the envelope: e-mail is the
+         * shop's one channel, and a handset would promise a phone line it does not have (D5).
          */
         $this->menu('mobile_bottom', [
             ['label' => 'Start', 'route_name' => 'startseite', 'icon' => 'home'],
             ['label' => 'Felgen', 'route_name' => 'felgen.index', 'icon' => 'wheel'],
-            ['label' => 'RIMIFY-CHECK', 'route_name' => 'check.index', 'icon' => 'check-circle'],
-            ['label' => 'Kontakt', 'route_name' => 'kontakt', 'icon' => 'phone'],
+            ['label' => 'Check', 'route_name' => 'check.index', 'icon' => 'check-circle'],
+            ['label' => 'Kontakt', 'route_name' => 'kontakt', 'icon' => 'mail'],
             ['label' => 'Warenkorb', 'route_name' => 'warenkorb.index', 'icon' => 'cart'],
         ]);
     }
@@ -104,16 +190,20 @@ class ContentSeeder extends Seeder
     // FAQ
     // ------------------------------------------------------------------
 
+    /**
+     * Each entry carries its own `published` flag, written on every run: an answer that must not be
+     * shown yet stays unpublished even after a re-seed, instead of being switched back on by it.
+     */
     private function seedFaqEntries(): void
     {
         $sort = 0;
 
-        foreach (self::FAQ as [$group, $question, $answer]) {
-            $this->upsert('faq_entries', ['question_de' => $question], [
-                'group_key' => $group,
-                'answer_de' => $answer,
+        foreach (self::FAQ as $entry) {
+            $this->upsert('faq_entries', ['question_de' => $entry['question']], [
+                'group_key' => $entry['group'],
+                'answer_de' => $entry['answer'],
                 'sort_order' => $sort += 10,
-                'published' => true,
+                'published' => $entry['published'],
             ]);
         }
     }
@@ -131,121 +221,25 @@ class ContentSeeder extends Seeder
         // `hero`: eyebrow, two-part headline, sub. The selector card inside the hero is a component,
         // not content — its labels are shared with felgen-suchen and are not marketing's to edit.
         $this->block($page, 'hero', 10, [
-            'eyebrow' => 'RIMIFY-CHECK · FREIGABE GEPRÜFT',
-            'headline' => 'Felgen, die zu deinem Auto passen.',
-            // Rendered on its own line in #8FA6FF. Kept as a second field because the accent colour
-            // applies to this half only; concatenating would lose that.
-            'headline_accent' => 'Garantiert.',
-            'sub' => 'Wähle dein Fahrzeug – wir zeigen dir nur Felgen, die dafür freigegeben sind.',
-        ]);
-
-        // `trust_strip`: ordered short promises pinned inside the hero's bottom edge.
-        $this->block($page, 'trust_strip', 20, [
-            'items' => [
-                'Über 150 Modelle auf Lager',
-                'Gutachten zu jeder Felge',
-                'Versand aus Deutschland',
-                'Komplettrad montiert & gewuchtet',
-            ],
-        ]);
-
-        // `brand_strip`: wordmarks only, in display order.
-        $this->block($page, 'brand_strip', 30, [
-            'items' => ['BBS', 'YIDO', 'BORBET', 'OZ RACING', 'ALUTEC', 'rotiform'],
-        ]);
-
-        // `brand_showcase`: heading plus the two strings every brand card repeats. The brands
-        // themselves come from the catalogue, so only the chrome is content.
-        $this->block($page, 'brand_showcase', 40, [
-            'heading' => 'Entdecke die beliebtesten Felgenmarken',
-            'stock_line' => 'Über 150 Modelle auf Lager und sofort lieferbar',
-            'cta_label' => 'Felgen ansehen →',
-        ]);
-
-        // `make_grid`: heading and the quiet link under the manufacturer tiles.
-        $this->block($page, 'make_grid', 50, [
-            'heading' => 'Auto wählen, garantiert passende Felge finden',
-            'link_label' => 'Alle Marken anzeigen →',
-        ]);
-
-        // `product_rail`: heading and link for a row of product cards; the products are queried.
-        $this->block($page, 'product_rail', 60, [
-            'heading' => 'Bestseller aus Mai 2026',
-            'link_label' => 'Alle Felgen ansehen →',
+            'headline' => 'Felgen, die an dein Auto dürfen.',
+            'sub' => 'Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen. Du gibst dein Auto an, wir prüfen den Rest.',
+            // The phone document has room for one sentence.
+            'sub_mobile' => 'Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.',
         ]);
 
         /*
-         * `check_promo`: the RIMIFY-CHECK explainer. `example` is the illustrative verdict drawn in
-         * the Figma — it is a picture of a result, never a live query, which is why it is copy.
+         * `promise_row`: the client's four titles with one line each. The lines are ours, so they
+         * add nothing the title does not already say: no PDF, no dispatch time, no in-house
+         * workshop (docs/client-questions.md items 7–9, ACCURACY D7). A line changes when the
+         * client confirms more, not before.
          */
-        $this->block($page, 'check_promo', 70, [
-            'heading' => 'Dein Vorteil:',
-            'heading_accent' => 'RIMIFY-CHECK',
-            'body' => 'Mit RIMIFY CHECK prüfen wir die Kompatibilität zwischen Fahrzeug und Felge. So kannst du sicher sein, dass deine Wunschfelge zu deinem Fahrzeug passt und zugelassen ist.',
-            'example' => [
-                'rows' => [
-                    ['micro_label' => 'FAHRZEUG', 'value' => 'BMW M4 F82'],
-                    ['micro_label' => 'FELGE', 'value' => 'Wheelforce CF.3'],
-                ],
-                'verdict_line' => 'Freigegeben – keine Eintragung erforderlich',
-            ],
-            'cta_label' => 'RIMIFY-CHECK',
-        ]);
-
-        // `feature_panels`: heading plus a list of {heading, body} — three today, editable to more.
-        $this->block($page, 'feature_panels', 80, [
-            'heading' => 'Warum RIMIFY?',
+        $this->block($page, 'promise_row', 15, [
             'items' => [
-                [
-                    'heading' => 'Geprüfte Freigabe, kein Risiko',
-                    'body' => 'Jede Felge, die wir dir zeigen, ist für dein Fahrzeug durch ein Gutachten freigegeben. Auflagen nennen wir im Klartext – vor dem Kauf, nicht danach. Das Gutachten kannst du auf jeder Produktseite herunterladen.',
-                ],
-                [
-                    'heading' => 'Komplettrad, fertig montiert',
-                    'body' => 'Auf Wunsch ziehen wir die Reifen auf und wuchten die Räder bei uns im Haus. Du bekommst fertige Räder inklusive Ventilen, Anbauset und ABE – auspacken, anschrauben, losfahren.',
-                ],
-                [
-                    'heading' => 'Versand aus Deutschland',
-                    'body' => 'Über 150 Modelle liegen bei uns auf Lager. Bestellungen bis 14 Uhr gehen am selben Werktag raus, versichert mit DHL. Fragen beantworten wir am Telefon, nicht per Formularbrief.',
-                ],
+                ['icon' => 'check', 'title' => 'Garantierte Passgenauigkeit', 'text' => 'Jede Felge, die wir dir zeigen, steht mit deinem Fahrzeug im Gutachten.'],
+                ['icon' => 'document', 'title' => 'Gutachten zu jeder Felge', 'text' => 'Bei jeder Felge siehst du, welches Gutachten sie für dein Fahrzeug freigibt.'],
+                ['icon' => 'wrench', 'title' => 'Montiert und gewuchtet', 'text' => 'Kompletträder kommen fertig montiert und gewuchtet bei dir an.'],
+                ['icon' => 'truck', 'title' => 'Express-Versand aus Deutschland', 'text' => 'Wir versenden direkt aus Deutschland.'],
             ],
-        ]);
-
-        // `package_compare`: two option blocks of check rows; `recommended` drives the EMPFOHLEN
-        // pill, the --wash fill and the blue border, so exactly one option should carry it.
-        $this->block($page, 'package_compare', 90, [
-            'heading' => 'Dein Felgenpaket',
-            'options' => [
-                [
-                    'micro_label' => 'LIEFERUNG',
-                    'heading' => null,
-                    'recommended' => false,
-                    'items' => ['Felgen', 'inkl. Anbauset & ABE'],
-                ],
-                [
-                    'micro_label' => 'EMPFOHLEN',
-                    'heading' => 'Komplettrad',
-                    'recommended' => true,
-                    'items' => [
-                        'inkl. Montage der Reifen auf die Felgen',
-                        'inkl. Wuchten',
-                        'inkl. Ventile & Gewichte',
-                    ],
-                ],
-            ],
-            'cta_label' => 'Jetzt Auto wählen und passende Felgen finden',
-        ]);
-
-        // `faq_teaser`: pulls the first `limit` published entries rather than duplicating them, so
-        // an answer edited in the FAQ panel changes on the homepage too.
-        $this->block($page, 'faq_teaser', 100, [
-            'heading' => 'Meistgestellte Fragen',
-            'limit' => 5,
-            'help_card' => $this->helpCard(
-                'Weitere Fragen oder Unterstützung benötigt?',
-                null,
-                'Zum Kontaktformular',
-            ) + ['closing_line' => 'Wir freuen uns von dir zu hören.'],
         ]);
     }
 
@@ -260,57 +254,17 @@ class ContentSeeder extends Seeder
             'search_placeholder' => 'Suchen',
             'groups' => ['KOMPATIBILITÄT & FREIGABE', 'BESTELLUNG & VERSAND'],
         ]);
-
-        // `help_card`: the sticky contact card that replaces the Figma's stock illustration.
-        $this->block($page, 'help_card', 20, $this->helpCard(
-            'Nicht gefunden, was du suchst?',
-            'Schreib uns – wir antworten meist am selben Werktag.',
-            'RIMIFY-CHECK öffnen',
-        ) + ['promo_heading' => 'Kompatibilität sofort prüfen']);
     }
 
+    /**
+     * The Kontakt page is a page row and nothing more: its e-mail block renders from config (D-023)
+     * and there is no form to describe (ACCURACY D5).
+     */
     private function seedContactPage(): void
     {
         // The spec gives the two column headings but no page title; the nav label is the only name
         // the page has.
-        $page = $this->page('kontakt', 'marketing', 'Kontakt');
-
-        // `contact_form`: labels and the post-submit state. Field *names* are the Form Request's
-        // business; only what the customer reads is content.
-        $this->block($page, 'contact_form', 10, [
-            'heading' => 'Sende uns eine Nachricht',
-            'fields' => [
-                'Vollständiger Name*',
-                'Firma',
-                'E-Mail*',
-                'Telefon',
-                'Nachricht*',
-            ],
-            'required_note' => 'Pflichtfelder mit * markiert.',
-            'security_micro_label' => 'SICHERHEITSPRÜFUNG',
-            'submit_label' => 'Senden',
-            'success' => [
-                'heading' => 'Danke – deine Nachricht ist bei uns.',
-                'sub' => 'Wir melden uns meist am selben Werktag.',
-                'action_label' => 'Weitere Nachricht senden',
-            ],
-        ]);
-
-        // `contact_info`: the right-hand column. The values come from config (D-023) so that this
-        // page, the footer, the help cards and the order mails can never drift apart again.
-        $this->block($page, 'contact_info', 20, [
-            'heading' => 'Kontaktiere uns',
-            'intro' => 'Fragen zur Passgenauigkeit, zu einer Bestellung oder zu einem Gutachten? Schreib uns oder ruf einfach an – wir antworten in der Regel noch am selben Werktag.',
-            'email' => config('rimify.contact.email'),
-            'phone' => config('rimify.contact.phone'),
-            'hours' => config('rimify.contact.hours'),
-            'closing_line' => 'Wir freuen uns von dir zu hören.',
-            'links' => [
-                ['label' => 'Impressum', 'href' => '/impressum'],
-                ['label' => 'Datenschutz', 'href' => '/datenschutz'],
-                ['label' => 'Versandinformationen', 'href' => '/versand'],
-            ],
-        ]);
+        $this->page('kontakt', 'marketing', 'Kontakt');
     }
 
     /**
@@ -337,37 +291,31 @@ class ContentSeeder extends Seeder
         }
     }
 
+    /**
+     * Remove the blocks this seeder no longer writes (ACCURACY #25).
+     *
+     * No page rendered them, and they held what must not come back by accident: the old phone and
+     * WhatsApp numbers and 18:00 hours, a reply-time promise, the "Danke – deine Nachricht ist bei
+     * uns" of a form that sent nothing, a dispatch time and a carrier, "Anbauset und ABE", a
+     * download that does not exist, a stock figure, a dated bestseller claim and real brand
+     * wordmarks. Only these page/type pairs are removed; any other block an editor adds stays.
+     */
+    private function retireBlocks(): void
+    {
+        foreach (self::RETIRED_BLOCKS as $slug => $types) {
+            $page = DB::table('pages')->where('slug', $slug)->value('id');
+
+            if ($page === null) {
+                continue;
+            }
+
+            DB::table('page_blocks')->where('page_id', $page)->whereIn('type', $types)->delete();
+        }
+    }
+
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
-
-    /**
-     * The contact card shared by the homepage FAQ section and the FAQ page.
-     *
-     * Same shape, same source: never a literal number in a seeder, a Blade file or an SFC.
-     *
-     * @return array<string, mixed>
-     */
-    private function helpCard(string $heading, ?string $sub, string $ctaLabel): array
-    {
-        return [
-            'heading' => $heading,
-            'sub' => $sub,
-            'rows' => [
-                [
-                    'icon' => 'phone',
-                    'value' => config('rimify.contact.phone_intl'),
-                    'label' => config('rimify.contact.hours'),
-                ],
-                [
-                    'icon' => 'whatsapp',
-                    'value' => config('rimify.contact.whatsapp'),
-                    'label' => 'WhatsApp',
-                ],
-            ],
-            'cta_label' => $ctaLabel,
-        ];
-    }
 
     /**
      * @param  list<array{label: string, href?: string, route_name?: string, behaviour?: string, icon?: string}>  $items
@@ -396,14 +344,16 @@ class ContentSeeder extends Seeder
 
     /**
      * Upsert a page on its slug and return its id.
+     *
+     * @param  'published'|'draft'  $status
      */
-    private function page(string $slug, string $kind, string $title): int
+    private function page(string $slug, string $kind, string $title, string $status = 'published'): int
     {
         $this->upsert('pages', ['slug' => $slug], [
             'locale' => 'de',
             'kind' => $kind,
             'title' => $title,
-            'status' => 'published',
+            'status' => $status,
             // `meta_title` and `meta_description` are deliberately absent: the spec carries no SEO
             // copy, an invented one would become the search-result snippet, and writing NULL here
             // would erase whatever an editor has since put there.
@@ -464,51 +414,84 @@ class ContentSeeder extends Seeder
     ];
 
     /**
-     * [group, question, answer] in display order.
+     * Page slug => the block types this seeder once wrote there and has retired (see retireBlocks).
+     *
+     * @var array<string, list<string>>
+     */
+    public const RETIRED_BLOCKS = [
+        'startseite' => [
+            'trust_strip', 'brand_strip', 'brand_showcase', 'make_grid', 'product_rail',
+            'check_promo', 'feature_panels', 'package_compare', 'faq_teaser',
+        ],
+        'faq' => ['help_card'],
+        'kontakt' => ['contact_form', 'contact_info'],
+    ];
+
+    /**
+     * The questions in display order, each with its own `published` flag.
      *
      * Q3's quotes are `„` U+201E opening and a straight `"` U+0022 closing — that is what both
      * artifacts contain, and "fixing" it to a typographic `"` would be a change to client copy.
+     *
+     * What changed in the accuracy pass (docs/reviews/client-answers-audit.json):
+     * - the range is the client's two categories, Felgen without tyres or Kompletträder (#16/#65);
+     * - several variants under one key number differ in top speed, not in power (research H10);
+     * - the Komplettrad answer promises no Ventile, Anbauset or ABE (#20);
+     * - the delivery answer is unpublished until the client confirms lead times (#31/#69), and its
+     *   text promises no time and no delivery date in the Warenkorb;
+     * - the return answer states no law and only points to the Widerrufsbelehrung (#26/#63).
+     *
+     * @var list<array{group: string, question: string, answer: string, published: bool}>
      */
-    private const FAQ = [
+    public const FAQ = [
         [
-            'KOMPATIBILITÄT & FREIGABE',
-            'Was ist RIMIFY?',
-            'RIMIFY ist ein Felgenshop für den deutschen Markt. Du gibst dein Fahrzeug an, wir zeigen dir ausschließlich Felgen, die für genau dieses Fahrzeug eine gültige Freigabe haben. Reifen und fertig montierte Kompletträder bekommst du auf Wunsch dazu.',
+            'group' => 'KOMPATIBILITÄT & FREIGABE',
+            'question' => 'Was ist RIMIFY?',
+            'answer' => 'RIMIFY ist ein Felgenshop für den deutschen Markt. Du gibst dein Fahrzeug an, wir zeigen dir ausschließlich Felgen, die für genau dieses Fahrzeug eine gültige Freigabe haben. Du bekommst sie ohne Reifen oder als Komplettrad – mit Reifen, fertig montiert und gewuchtet.',
+            'published' => true,
         ],
         [
-            'KOMPATIBILITÄT & FREIGABE',
-            'Woher weiß ich, ob eine Felge zu meinem Auto passt?',
-            'Sobald du dein Fahrzeug gewählt hast, prüfen wir jede Felge gegen das zugehörige Gutachten – Felgenbreite, Einpresstiefe, zulässige Reifengrößen und Auflagen. Was dir angezeigt wird, ist freigegeben. Einzelne Kombinationen kannst du jederzeit über RIMIFY-CHECK nachprüfen.',
+            'group' => 'KOMPATIBILITÄT & FREIGABE',
+            'question' => 'Woher weiß ich, ob eine Felge zu meinem Auto passt?',
+            'answer' => 'Sobald du dein Fahrzeug gewählt hast, prüfen wir jede Felge gegen das zugehörige Gutachten – Felgenbreite, Einpresstiefe, zulässige Reifengrößen und Auflagen. Was dir angezeigt wird, ist freigegeben. Einzelne Kombinationen kannst du jederzeit über RIMIFY-CHECK nachprüfen.',
+            'published' => true,
         ],
         [
-            'KOMPATIBILITÄT & FREIGABE',
-            'Was bedeutet „Eintragung erforderlich"?',
-            'Bei manchen Felgen verlangt das Gutachten, dass die Änderung von einer amtlich anerkannten Prüfstelle abgenommen und in die Fahrzeugpapiere eingetragen wird. Wir weisen darauf hin, bevor du die Felge in den Warenkorb legst – und du kannst gezielt nach Felgen ohne Eintragungspflicht filtern.',
+            'group' => 'KOMPATIBILITÄT & FREIGABE',
+            'question' => 'Was bedeutet „Eintragung erforderlich"?',
+            'answer' => 'Bei manchen Felgen verlangt das Gutachten, dass die Änderung von einer amtlich anerkannten Prüfstelle abgenommen und in die Fahrzeugpapiere eingetragen wird. Wir weisen darauf hin, bevor du die Felge in den Warenkorb legst – und du kannst gezielt nach Felgen ohne Eintragungspflicht filtern.',
+            'published' => true,
         ],
         [
-            'KOMPATIBILITÄT & FREIGABE',
-            'Wo finde ich HSN und TSN in meinen Fahrzeugpapieren?',
-            'In der Zulassungsbescheinigung Teil I stehen sie in den Feldern 2.1 (HSN, vierstellig) und 2.2 (TSN, dreistellig). Im älteren Fahrzeugschein stehen dieselben Nummern an anderer Stelle – beide Varianten zeigen wir dir in der Fahrzeugauswahl.',
+            'group' => 'KOMPATIBILITÄT & FREIGABE',
+            'question' => 'Wo finde ich HSN und TSN in meinen Fahrzeugpapieren?',
+            'answer' => 'In der Zulassungsbescheinigung Teil I stehen sie in den Feldern 2.1 (HSN, vierstellig) und 2.2 (TSN, dreistellig). Im älteren Fahrzeugschein stehen dieselben Nummern an anderer Stelle – beide Varianten zeigen wir dir in der Fahrzeugauswahl.',
+            'published' => true,
         ],
         [
-            'KOMPATIBILITÄT & FREIGABE',
-            'Was ist, wenn zu meiner Schlüsselnummer mehrere Fahrzeuge angezeigt werden?',
-            'Das ist normal. Eine Kombination aus HSN und TSN kann mehrere Varianten umfassen, die sich in Bauzeitraum, Leistung oder Achslast unterscheiden. Wir fragen dann kurz nach, weil genau diese Unterschiede darüber entscheiden, welche Reifen zulässig sind.',
+            'group' => 'KOMPATIBILITÄT & FREIGABE',
+            'question' => 'Was ist, wenn zu meiner Schlüsselnummer mehrere Fahrzeuge angezeigt werden?',
+            'answer' => 'Das ist normal. Eine Kombination aus HSN und TSN kann mehrere Varianten umfassen, die sich in Bauzeitraum, Höchstgeschwindigkeit oder Achslast unterscheiden. Wir fragen dann kurz nach, weil genau diese Unterschiede darüber entscheiden, welche Reifen zulässig sind.',
+            'published' => true,
         ],
         [
-            'BESTELLUNG & VERSAND',
-            'Was ist ein Komplettrad und was ist enthalten?',
-            'Ein Komplettrad ist eine Felge mit bereits aufgezogenem und gewuchtetem Reifen. Enthalten sind Montage, Wuchten, Ventile, Anbauset und ABE. Du musst die Räder nur noch anschrauben.',
+            'group' => 'BESTELLUNG & VERSAND',
+            'question' => 'Was ist ein Komplettrad und was ist enthalten?',
+            'answer' => 'Ein Komplettrad ist eine Felge mit aufgezogenem und gewuchtetem Reifen. Welches Gutachten dazugehört und ob eine Eintragung nötig ist, steht bei jeder Felge.',
+            'published' => true,
         ],
         [
-            'BESTELLUNG & VERSAND',
-            'Wie lange dauert die Lieferung?',
-            'Lagerware verlässt unser Haus in der Regel innerhalb von ein bis zwei Werktagen, Kompletträder innerhalb von zwei bis vier Werktagen, da sie montiert und gewuchtet werden. Das voraussichtliche Lieferdatum siehst du im Warenkorb.',
+            'group' => 'BESTELLUNG & VERSAND',
+            'question' => 'Wie lange dauert die Lieferung?',
+            'answer' => 'Die Lieferzeit hängt von Felge und Ausführung ab. Frag uns gern vorher per E-Mail.',
+            // Unpublished until the client confirms the lead times (docs/client-questions.md item 9).
+            'published' => false,
         ],
         [
-            'BESTELLUNG & VERSAND',
-            'Kann ich Felgen zurückgeben?',
-            'Ja. Es gilt das gesetzliche Widerrufsrecht von 14 Tagen. Montierte und gefahrene Kompletträder können wir nur zurücknehmen, wenn sie unbeschädigt und unbenutzt sind. Melde dich einfach vorher kurz bei uns.',
+            'group' => 'BESTELLUNG & VERSAND',
+            'question' => 'Kann ich Felgen zurückgeben?',
+            'answer' => 'Was bei Widerruf und Rückgabe gilt, steht in unserer Widerrufsbelehrung – der Link steht unten auf jeder Seite.',
+            'published' => true,
         ],
     ];
 }

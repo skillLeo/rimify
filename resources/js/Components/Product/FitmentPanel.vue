@@ -38,6 +38,37 @@ const tone = computed<{ cls: string; icon: IconName }>(() => {
     }
 })
 
+/*
+ * Whether the papers need an entry is only a meaningful sentence about a wheel that may be fitted
+ * at all. "Keine Eintragung erforderlich." under "Nicht freigegeben" read as reassurance about a
+ * wheel that cannot legally go on the car, entry or not.
+ */
+const entryLine = computed(() => {
+    const verdict = props.verdict
+
+    if (verdict === null || (verdict.status !== 'PERMITTED' && verdict.status !== 'CONDITIONAL')) {
+        return null
+    }
+
+    return verdict.requiresEntry
+        ? 'Eintragung in die Fahrzeugpapiere erforderlich.'
+        : 'Keine Eintragung erforderlich.'
+})
+
+const documentLine = computed(() => {
+    const document = props.verdict?.document
+
+    if (!document) {
+        return null
+    }
+
+    const parts = [document.issuer, document.number].filter(
+        (part): part is string => typeof part === 'string' && part.trim() !== ''
+    )
+
+    return parts.length > 0 ? parts.join(' · ') : null
+})
+
 const headline = computed(() => {
     if (props.vehicle === null) {
         return 'Noch kein Fahrzeug gewählt.'
@@ -69,15 +100,9 @@ const headline = computed(() => {
         <p class="rcheck-panel__vehicle">{{ headline }}</p>
 
         <template v-if="verdict">
-            <p class="fit__entry">
-                {{
-                    verdict.requiresEntry
-                        ? 'Eintragung in die Fahrzeugpapiere erforderlich.'
-                        : 'Keine Eintragung erforderlich.'
-                }}
-            </p>
+            <p v-if="entryLine" class="fit__entry">{{ entryLine }}</p>
 
-            <p v-if="verdict.entryNoteDe" class="quiet fit__note">{{ verdict.entryNoteDe }}</p>
+            <p v-if="entryLine && verdict.entryNoteDe" class="quiet fit__note">{{ verdict.entryNoteDe }}</p>
 
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. -->
@@ -92,11 +117,9 @@ const headline = computed(() => {
 
             <p v-if="verdict.reason" class="fit__reason">{{ verdict.reason }}</p>
 
-            <p v-if="verdict.document" class="fit__doc">
+            <p v-if="documentLine" class="fit__doc">
                 <Icon name="document" :size="20" />
-                <span class="data">
-                    {{ verdict.document.issuer }} · {{ verdict.document.number }}
-                </span>
+                <span class="data">{{ documentLine }}</span>
             </p>
         </template>
 
@@ -111,22 +134,23 @@ const headline = computed(() => {
 <style scoped>
 .fit__entry {
     margin: var(--space-2) 0 0;
-    font-size: 14px;
+    font-size: var(--text-small);
     font-weight: 700;
 }
 
 .fit__note {
     margin: var(--space-2) 0 0;
-    font-size: 13px;
+    font-size: var(--text-small);
 }
 
+/* An Auflage is a sentence the customer must act on: body size, full ink. */
 .fit__conditions {
     display: grid;
-    gap: 6px;
+    gap: var(--space-2);
     margin: var(--space-3) 0 0;
     padding-left: var(--space-4);
-    font-size: 14px;
-    color: var(--ink2);
+    font-size: var(--text-body);
+    color: var(--ink);
 }
 
 .fit__tyres {
@@ -139,7 +163,7 @@ const headline = computed(() => {
 
 .fit__reason {
     margin: var(--space-3) 0 0;
-    font-size: 14px;
+    font-size: var(--text-body);
     color: var(--ink2);
 }
 

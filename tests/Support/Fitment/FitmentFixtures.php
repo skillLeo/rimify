@@ -18,8 +18,9 @@ use App\Domain\Fitment\Verdict\Severity;
 use DateTimeImmutable;
 
 /**
- * The worked example the spec uses throughout: an Audi RS 4 Avant B9 with a BORBET Havanna
- * 8,5J × 18 ET 35, under a Teilegutachten that requires entry in the papers.
+ * The worked example the spec uses throughout: an Audi RS 4 Avant B9 with a demonstration
+ * five-spoke wheel (Demo Fünfspeiche F-01) 8,5J × 18 ET 35, under a Teilegutachten that requires
+ * entry in the papers.
  */
 final class FitmentFixtures
 {
@@ -39,9 +40,9 @@ final class FitmentFixtures
             centreBoreMm: 66.60,
             priceCents: 75_029,
             stockQty: 12,
-            sku: 'RMF-000884-HV18',
-            modelName: 'Havanna',
-            brandName: 'BORBET',
+            sku: 'RMF-000884',
+            modelName: 'Fünfspeiche F-01',
+            brandName: 'Demo',
             finishNameDe: 'Graphite matt',
         );
     }

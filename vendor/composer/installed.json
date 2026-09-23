@@ -4790,6 +4790,79 @@
             "install-path": "../spatie/db-dumper"
         },
         {
+            "name": "spatie/holidays",
+            "version": "2.5.1",
+            "version_normalized": "2.5.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/spatie/holidays.git",
+                "reference": "2aa5f5b889f7efa6a078f456d5c10e7c16fae0a8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/spatie/holidays/zipball/2aa5f5b889f7efa6a078f456d5c10e7c16fae0a8",
+                "reference": "2aa5f5b889f7efa6a078f456d5c10e7c16fae0a8",
+                "shasum": ""
+            },
+            "require": {
+                "ext-calendar": "*",
+                "ext-intl": "*",
+                "nesbot/carbon": "^3.0",
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.0",
+                "laravel/prompts": "^0.3.0",
+                "pestphp/pest": "^5.0",
+                "phpstan/phpstan": "^2.0",
+                "rector/rector": "^2.0",
+                "spatie/invade": "^2.0",
+                "spatie/ray": "^1.40.1",
+                "symfony/var-dumper": "^8.0"
+            },
+            "time": "2026-09-08T12:15:26+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Spatie\\Holidays\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Niels Vanpachtenbeke",
+                    "email": "niels@spatie.be",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Freek Van der Herten",
+                    "email": "freek@spatie.be",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Calculate public holidays",
+            "homepage": "https://github.com/spatie/holidays",
+            "keywords": [
+                "holidays",
+                "spatie"
+            ],
+            "support": {
+                "issues": "https://github.com/spatie/holidays/issues",
+                "source": "https://github.com/spatie/holidays/tree/2.5.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/spatie",
+                    "type": "github"
+                }
+            ],
+            "install-path": "../spatie/holidays"
+        },
+        {
             "name": "spatie/image",
             "version": "3.9.6",
             "version_normalized": "3.9.6.0",

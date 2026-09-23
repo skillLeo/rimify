@@ -34,7 +34,8 @@ function rimifyVehicleCookie(int $vehicleId, bool $booking = true): array
 }
 
 it('walks from an empty session to a checkout with the vehicle intact', function (): void {
-    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+    // The BMW 330i G20 (5 × 112), a car the demo documents cover well.
+    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
 
     // ── The visitor arrives with nothing ────────────────────────────────────────────────
     $this->get('/')
@@ -212,16 +213,19 @@ it('upper-cases a lower-case TSN rather than refusing it', function (): void {
 });
 
 it('merges a repeated add into one line instead of two', function (): void {
-    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', '582')->firstOrFail();
+    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
     $cookies = rimifyVehicleCookie($vehicle->id);
 
-    $model = WheelModel::query()->firstOrFail();
-    $config = $model->configs()->firstOrFail();
+    // A configuration the engine permits on this car: the basket refuses any other on the server,
+    // whatever the page showed, so the first row of the catalogue is not necessarily addable.
+    $card = $this->withCookies($cookies)->get('/felgen')->viewData('page')['props']['cards'][0];
+    $configs = $this->withCookies($cookies)->get('/felgen/'.$card['slug'])->viewData('page')['props']['configs'];
+    $config = collect($configs)->firstOrFail(fn (array $c): bool => $c['verdict']['sellable'] === true);
 
     foreach ([4, 4] as $quantity) {
         $this->withCookies($cookies)->post('/warenkorb', [
             'kind' => 'WHEEL',
-            'wheelConfigId' => $config->id,
+            'wheelConfigId' => $config['id'],
             'quantity' => $quantity,
         ]);
     }
@@ -244,11 +248,16 @@ it('removes a line when the stepper reaches zero', function (): void {
 });
 
 it('clears the vehicle without clearing the basket', function (): void {
-    $vehicle = Vehicle::query()->whereNotNull('max_speed_kmh')->firstOrFail();
-    $config = WheelModel::query()->firstOrFail()->configs()->firstOrFail();
+    $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
+    $cookies = rimifyVehicleCookie($vehicle->id);
 
-    $this->withCookies(rimifyVehicleCookie($vehicle->id))
-        ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $config->id, 'quantity' => 4]);
+    // A configuration the engine permits on this car, so the basket takes it.
+    $card = $this->withCookies($cookies)->get('/felgen')->viewData('page')['props']['cards'][0];
+    $configs = $this->withCookies($cookies)->get('/felgen/'.$card['slug'])->viewData('page')['props']['configs'];
+    $config = collect($configs)->firstOrFail(fn (array $c): bool => $c['verdict']['sellable'] === true);
+
+    $this->withCookies($cookies)
+        ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $config['id'], 'quantity' => 4]);
 
     $this->delete('/fahrzeug')
         ->assertRedirect('/felgen-suchen')

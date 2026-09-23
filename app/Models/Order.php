@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property OrderStatus $status
  * @property string $order_number
  * @property string|null $vehicle_label
+ * @property string|null $vehicle_make
  * @property string|null $vehicle_hsn
  * @property string|null $vehicle_tsn
  * @property string|null $vehicle_vsn
@@ -44,7 +45,7 @@ class Order extends Model
 
     protected $fillable = [
         'order_number', 'customer_id', 'delivery_address_id', 'billing_address_id', 'status',
-        'vehicle_id', 'vehicle_label', 'vehicle_hsn', 'vehicle_tsn', 'vehicle_vsn',
+        'vehicle_id', 'vehicle_label', 'vehicle_make', 'vehicle_hsn', 'vehicle_tsn', 'vehicle_vsn',
         'subtotal_cents', 'shipping_cents', 'tax_cents', 'total_cents', 'currency',
         'stripe_session_id', 'stripe_payment_intent_id',
         'note', 'placed_at', 'paid_at', 'shipped_at', 'tracking_code',

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\AdminUserStatus;
+use App\Enums\PermissionAction;
+use App\Enums\PermissionModule;
+use App\Services\Admin\PermissionMatrix;
 use Carbon\CarbonImmutable;
 use Database\Factories\AdminUserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +19,8 @@ use Spatie\Permission\Traits\HasRoles;
  * The only account type in the application. There are no customer accounts — checkout is guest
  * only, per the PRD.
  *
+ * @property string $name
+ * @property string $email
  * @property AdminUserStatus $status
  * @property string|null $totp_secret
  * @property CarbonImmutable|null $totp_confirmed_at
@@ -69,5 +74,14 @@ class AdminUser extends Authenticatable
     public function canSignIn(): bool
     {
         return $this->status->canSignIn() && ! $this->isLockedOut();
+    }
+
+    /**
+     * Whether any role this account holds allows the action on the module. Policies ask this and
+     * never a role name (R-11): what a role may do is data, and the panel edits it.
+     */
+    public function may(PermissionModule $module, PermissionAction $action): bool
+    {
+        return app(PermissionMatrix::class)->allows($this, $module, $action);
     }
 }

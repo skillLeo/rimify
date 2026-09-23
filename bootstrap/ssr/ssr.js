@@ -30209,6 +30209,8 @@ var require_server_renderer_cjs_prod = /* @__PURE__ */ __commonJSMin(((exports) 
 	exports.ssrIncludeBooleanAttr = shared.includeBooleanAttr;
 	exports.renderToString = renderToString;
 	exports.ssrInterpolate = ssrInterpolate;
+	exports.ssrLooseContain = ssrLooseContain;
+	exports.ssrLooseEqual = ssrLooseEqual;
 	exports.ssrRenderAttr = ssrRenderAttr;
 	exports.ssrRenderAttrs = ssrRenderAttrs;
 	exports.ssrRenderClass = ssrRenderClass;
@@ -30324,7 +30326,7 @@ function debounce$2(func, debounceMs, { signal, edges } = {}) {
 *
 * @returns This function does not return anything.
 */
-function noop$2() {}
+function noop$3() {}
 //#endregion
 //#region node_modules/es-toolkit/dist/predicate/isPrimitive.mjs
 /**
@@ -30449,7 +30451,7 @@ function clone(obj) {
 * const notBuffer = "not a buffer";
 * console.log(isBuffer(notBuffer)); // false
 */
-function isBuffer$1(x) {
+function isBuffer(x) {
 	return typeof globalThis_.Buffer !== "undefined" && globalThis_.Buffer.isBuffer(x);
 }
 //#endregion
@@ -30576,7 +30578,7 @@ function cloneDeepWithImpl(valueToClone, keyToClone, objectToClone, stack = /* @
 		for (const value of valueToClone) result.add(cloneDeepWithImpl(value, void 0, objectToClone, stack, cloneValue));
 		return result;
 	}
-	if (isBuffer$1(valueToClone)) return valueToClone.subarray();
+	if (isBuffer(valueToClone)) return valueToClone.subarray();
 	if (isTypedArray$1(valueToClone)) {
 		const result = new (Object.getPrototypeOf(valueToClone)).constructor(valueToClone.length);
 		stack.set(valueToClone, result);
@@ -30769,7 +30771,7 @@ function cloneDeep$1(obj) {
 * isPlainObject(globalThis);          // ❌,
 * ```
 */
-function isPlainObject$2(value) {
+function isPlainObject$3(value) {
 	if (!value || typeof value !== "object") return false;
 	const proto = Object.getPrototypeOf(value);
 	if (!(proto === null || proto === Object.prototype || Object.getPrototypeOf(proto) === null)) return false;
@@ -30817,7 +30819,7 @@ function isUnsafeProperty(key) {
 * console.log(isPlainObject(Object.create(null))); // true
 * console.log(isPlainObject(new Map())); // false
 */
-function isPlainObject$1(object) {
+function isPlainObject$2(object) {
 	if (typeof object !== "object") return false;
 	if (object == null) return false;
 	if (Object.getPrototypeOf(object) === null) return true;
@@ -30958,7 +30960,7 @@ function areObjectsEqual(a, b, stack, areValuesEqual) {
 			case bigInt64ArrayTag:
 			case float32ArrayTag:
 			case float64ArrayTag:
-				if (isBuffer$1(a) !== isBuffer$1(b)) return false;
+				if (isBuffer(a) !== isBuffer(b)) return false;
 				if (a.length !== b.length) return false;
 				for (let i = 0; i < a.length; i++) if (!isEqualWithImpl(a[i], b[i], i, a, b, stack, areValuesEqual)) return false;
 				return true;
@@ -30970,7 +30972,7 @@ function areObjectsEqual(a, b, stack, areValuesEqual) {
 				return areObjectsEqual(new Uint8Array(a), new Uint8Array(b), stack, areValuesEqual);
 			case errorTag: return a.name === b.name && a.message === b.message;
 			case objectTag: {
-				if (!(areObjectsEqual(a.constructor, b.constructor, stack, areValuesEqual) || isPlainObject$2(a) && isPlainObject$2(b))) return false;
+				if (!(areObjectsEqual(a.constructor, b.constructor, stack, areValuesEqual) || isPlainObject$3(a) && isPlainObject$3(b))) return false;
 				const aKeys = [...Object.keys(a), ...getSymbols(a)];
 				const bKeys = [...Object.keys(b), ...getSymbols(b)];
 				if (aKeys.length !== bKeys.length) return false;
@@ -31007,7 +31009,7 @@ function areObjectsEqual(a, b, stack, areValuesEqual) {
 * isEqual([1, 2, 3], [1, 2, 3]); // true
 */
 function isEqual(a, b) {
-	return isEqualWith(a, b, noop$2);
+	return isEqualWith(a, b, noop$3);
 }
 //#endregion
 //#region node_modules/es-toolkit/dist/predicate/isLength.mjs
@@ -31057,7 +31059,7 @@ var htmlEscapes = {
 * escape("This is a 'quote'"); // returns 'This is a &#39;quote&#39;'
 * escape('This is a & symbol'); // returns 'This is a &amp; symbol'
 */
-function escape$2(str) {
+function escape$1(str) {
 	return str.replace(/[&<>"']/g, (match) => htmlEscapes[match]);
 }
 //#endregion
@@ -31526,7 +31528,7 @@ function isIndex(value, length = Number.MAX_SAFE_INTEGER) {
 * has([1, 2, 3], 2); // true
 * has([1, 2, 3], 5); // false
 */
-function has$3(object, path) {
+function has(object, path) {
 	let resolvedPath;
 	if (Array.isArray(path)) resolvedPath = path;
 	else if (typeof path === "string" && isDeepKey(path) && !(path in Object(object))) resolvedPath = toPath(path);
@@ -31843,7 +31845,7 @@ function mergeWithDeep(target, source, merge, stack) {
 		let targetValue = target[key];
 		if (isArguments(sourceValue)) sourceValue = { ...sourceValue };
 		if (isArguments(targetValue)) targetValue = { ...targetValue };
-		if (isBuffer$1(sourceValue)) sourceValue = cloneDeep(sourceValue);
+		if (isBuffer(sourceValue)) sourceValue = cloneDeep(sourceValue);
 		if (Array.isArray(sourceValue)) if (Array.isArray(targetValue)) {
 			const cloned = [];
 			const targetKeys = Reflect.ownKeys(targetValue);
@@ -31860,8 +31862,8 @@ function mergeWithDeep(target, source, merge, stack) {
 		const merged = merge(targetValue, sourceValue, key, target, source, stack);
 		if (merged !== void 0) target[key] = merged;
 		else if (Array.isArray(sourceValue)) target[key] = mergeWithDeep(targetValue, sourceValue, merge, stack);
-		else if (isObjectLike(targetValue) && isObjectLike(sourceValue) && (isPlainObject$1(targetValue) || isPlainObject$1(sourceValue) || isTypedArray(targetValue) || isTypedArray(sourceValue))) target[key] = mergeWithDeep(targetValue, sourceValue, merge, stack);
-		else if (targetValue == null && isPlainObject$1(sourceValue)) target[key] = mergeWithDeep({}, sourceValue, merge, stack);
+		else if (isObjectLike(targetValue) && isObjectLike(sourceValue) && (isPlainObject$2(targetValue) || isPlainObject$2(sourceValue) || isTypedArray(targetValue) || isTypedArray(sourceValue))) target[key] = mergeWithDeep(targetValue, sourceValue, merge, stack);
+		else if (targetValue == null && isPlainObject$2(sourceValue)) target[key] = mergeWithDeep({}, sourceValue, merge, stack);
 		else if (targetValue == null && isTypedArray(sourceValue)) target[key] = cloneDeep(sourceValue);
 		else if (targetValue === void 0 || sourceValue !== void 0) target[key] = sourceValue;
 	}
@@ -31906,8 +31908,8 @@ function mergeWithDeep(target, source, merge, stack) {
 * console.log(result);
 * // Output: { a: [1, 2, 3] }
 */
-function merge$1(object, ...sources) {
-	return mergeWith(object, ...sources, noop$2);
+function merge(object, ...sources) {
+	return mergeWith(object, ...sources, noop$3);
 }
 //#endregion
 //#region node_modules/es-toolkit/dist/compat/string/escape.mjs
@@ -31924,8 +31926,8 @@ function merge$1(object, ...sources) {
 * escape("This is a 'quote'"); // returns 'This is a &#39;quote&#39;'
 * escape('This is a & symbol'); // returns 'This is a &amp; symbol'
 */
-function escape$1(string) {
-	return escape$2(toString(string));
+function escape(string) {
+	return escape$1(toString(string));
 }
 //#endregion
 //#region node_modules/laravel-precognition/dist/form.js
@@ -32205,7 +32207,7 @@ var mergeConfig = (method, url, data, config) => ({
 	url,
 	method,
 	...config,
-	...["get", "delete"].includes(method) ? { params: merge$1({}, data, config?.params) } : { data: merge$1({}, data, config?.data) }
+	...["get", "delete"].includes(method) ? { params: merge({}, data, config?.params) } : { data: merge({}, data, config?.data) }
 });
 /**
 * Send and handle a new request.
@@ -32515,11 +32517,11 @@ var createValidator = (callback, initialData = {}) => {
 		const only = Array.from(config.only ?? config.validate ?? touched);
 		return {
 			...instanceConfig,
-			...merge$1({}, globalConfig, instanceConfig),
+			...merge({}, globalConfig, instanceConfig),
 			only,
 			timeout: config.timeout ?? 5e3,
 			onValidationError: (response, error) => {
-				[...setValidated([...validated, ...only]), ...setErrors(merge$1(omitByPattern({ ...errors }, only), response.data.errors))].forEach((listener) => listener());
+				[...setValidated([...validated, ...only]), ...setErrors(merge(omitByPattern({ ...errors }, only), response.data.errors))].forEach((listener) => listener());
 				return config.onValidationError ? config.onValidationError(response, error) : Promise.reject(error);
 			},
 			onSuccess: (response) => {
@@ -32715,7 +32717,7 @@ var Config = class {
 		this.config = newConfig;
 	}
 	get(key) {
-		return has$3(this.config, key) ? get(this.config, key) : get(this.defaults, key);
+		return has(this.config, key) ? get(this.config, key) : get(this.defaults, key);
 	}
 	set(keyOrValues, value) {
 		if (typeof keyOrValues === "string") set(this.config, keyOrValues, value);
@@ -33382,16 +33384,16 @@ function append(form, key, value, format) {
 function hasIndices(url) {
 	return /\[\d+\]/.test(decodeURIComponent(url.search));
 }
-function parse$2(query) {
+function parse$1(query) {
 	if (!query || query === "?") return {};
 	const result = {};
 	query.replace(/^\?/, "").split("&").filter(Boolean).forEach((segment) => {
 		const [rawKey, rawValue] = splitPair(segment);
-		set2(result, decode$2(rawKey), decode$2(rawValue));
+		set2(result, decode$1(rawKey), decode$1(rawValue));
 	});
 	return result;
 }
-function stringify$1(data, arrayFormat) {
+function stringify(data, arrayFormat) {
 	const pairs = [];
 	build(data, "", pairs, arrayFormat);
 	return pairs.length ? "?" + pairs.join("&") : "";
@@ -33400,7 +33402,7 @@ function splitPair(pair) {
 	const index = pair.indexOf("=");
 	return index === -1 ? [pair, ""] : [pair.substring(0, index), pair.substring(index + 1)];
 }
-function decode$2(value) {
+function decode$1(value) {
 	return decodeURIComponent(value.replace(/\+/g, " "));
 }
 function set2(target, key, value) {
@@ -33470,8 +33472,8 @@ function mergeDataIntoQueryString(method, href, data, qsArrayFormat = "brackets"
 	const url = new URL(href.toString(), typeof window === "undefined" ? "http://localhost" : window.location.toString());
 	if (hasDataForQueryString) {
 		const arrayFormat = hasIndices(url) ? "indices" : qsArrayFormat;
-		url.search = stringify$1({
-			...parse$2(url.search),
+		url.search = stringify({
+			...parse$1(url.search),
 			...data
 		}, arrayFormat);
 	}
@@ -35180,7 +35182,7 @@ var RequestStream = class {
 		return this.requests.some((request) => request.isPendingOptimistic());
 	}
 };
-var noop$1 = () => {};
+var noop$2 = () => {};
 var Router = class {
 	syncRequestStream = new RequestStream({
 		maxConcurrent: 1,
@@ -35628,20 +35630,20 @@ var Router = class {
 	}
 	getVisitEvents(options) {
 		return {
-			onCancelToken: options.onCancelToken || noop$1,
-			onBefore: options.onBefore || noop$1,
-			onBeforeUpdate: options.onBeforeUpdate || noop$1,
-			onStart: options.onStart || noop$1,
-			onProgress: options.onProgress || noop$1,
-			onFinish: options.onFinish || noop$1,
-			onCancel: options.onCancel || noop$1,
-			onSuccess: options.onSuccess || noop$1,
-			onError: options.onError || noop$1,
-			onHttpException: options.onHttpException || noop$1,
-			onNetworkError: options.onNetworkError || noop$1,
-			onFlash: options.onFlash || noop$1,
-			onPrefetched: options.onPrefetched || noop$1,
-			onPrefetching: options.onPrefetching || noop$1
+			onCancelToken: options.onCancelToken || noop$2,
+			onBefore: options.onBefore || noop$2,
+			onBeforeUpdate: options.onBeforeUpdate || noop$2,
+			onStart: options.onStart || noop$2,
+			onProgress: options.onProgress || noop$2,
+			onFinish: options.onFinish || noop$2,
+			onCancel: options.onCancel || noop$2,
+			onSuccess: options.onSuccess || noop$2,
+			onError: options.onError || noop$2,
+			onHttpException: options.onHttpException || noop$2,
+			onNetworkError: options.onNetworkError || noop$2,
+			onFlash: options.onFlash || noop$2,
+			onPrefetched: options.onPrefetched || noop$2,
+			onPrefetching: options.onPrefetching || noop$2
 		};
 	}
 	applyOptimisticUpdate(optimistic, events) {
@@ -36450,30 +36452,30 @@ function createLayoutPropsStore() {
 		get: () => snapshot
 	};
 }
-function isPlainObject(value) {
+function isPlainObject$1(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function hasComponentKey(value) {
-	return isPlainObject(value) && "component" in value;
+	return isPlainObject$1(value) && "component" in value;
 }
 function hasComponentEntry(value, isComponent) {
 	return "component" in value && isComponent(value.component);
 }
 function isNamedLayouts(value, isComponent) {
-	if (!isPlainObject(value) || isComponent(value) || hasComponentEntry(value, isComponent)) return false;
+	if (!isPlainObject$1(value) || isComponent(value) || hasComponentEntry(value, isComponent)) return false;
 	return Object.values(value).every((v) => isComponent(v) || Array.isArray(v) && isComponent(v[0]) || hasComponentKey(v) && isComponent(v.component));
 }
 function isPropsObject(value, isComponent) {
-	return isPlainObject(value) && !isComponent(value) && !hasComponentEntry(value, isComponent) && !isNamedLayouts(value, isComponent);
+	return isPlainObject$1(value) && !isComponent(value) && !hasComponentEntry(value, isComponent) && !isNamedLayouts(value, isComponent);
 }
 function isPropsObjectOrCallback(value, isComponent) {
 	if (isPropsObject(value, isComponent)) return true;
-	if (!isPlainObject(value) || isComponent(value) || hasComponentEntry(value, isComponent)) return false;
+	if (!isPlainObject$1(value) || isComponent(value) || hasComponentEntry(value, isComponent)) return false;
 	const values = Object.values(value);
 	return values.length > 0 && values.every((v) => typeof v === "function");
 }
 function isTuple(value, isComponent) {
-	return Array.isArray(value) && value.length === 2 && isComponent(value[0]) && isPlainObject(value[1]) && !isComponent(value[1]);
+	return Array.isArray(value) && value.length === 2 && isComponent(value[0]) && isPlainObject$1(value[1]) && !isComponent(value[1]);
 }
 function extract(item, isComponent) {
 	if (Array.isArray(item) && isComponent(item[0])) return {
@@ -37118,7 +37120,7 @@ function useFormState(options) {
 			if (fields.length === 0) {
 				if (isDataFunction) defaults = clonedData;
 				Object.assign(this, clonedData);
-			} else fields.filter((key2) => has$3(clonedData, key2)).forEach((key2) => {
+			} else fields.filter((key2) => has(clonedData, key2)).forEach((key2) => {
 				if (isDataFunction) set(defaults, key2, get(clonedData, key2));
 				set(this, key2, get(clonedData, key2));
 			});
@@ -37633,7 +37635,7 @@ async function createInertiaApp({ id = "app", resolve, setup, title, progress: p
 		};
 	}
 });
-var noop = () => void 0;
+var noop$1 = () => void 0;
 var FormContextKey = /* @__PURE__ */ Symbol("InertiaFormContext");
 (0, vue_exports.defineComponent)({
 	name: "Form",
@@ -37685,39 +37687,39 @@ var FormContextKey = /* @__PURE__ */ Symbol("InertiaFormContext");
 		},
 		onCancelToken: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onBefore: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onStart: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onProgress: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onFinish: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onCancel: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onSuccess: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onError: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		onSubmitComplete: {
 			type: Function,
-			default: noop
+			default: noop$1
 		},
 		disableWhileProcessing: {
 			type: Boolean,
@@ -37938,7 +37940,7 @@ function renderTagStart(node) {
 		const value = String(node.props[name]);
 		if (["key", "head-key"].includes(name)) return carry;
 		else if (value === "") return carry + ` ${name}`;
-		else return carry + ` ${name}="${escape$1(value)}"`;
+		else return carry + ` ${name}="${escape(value)}"`;
 	}, "");
 	return `<${String(node.type)}${attrs}>`;
 }
@@ -37975,7 +37977,7 @@ function renderTag(node) {
 	return html;
 }
 function addTitleElement(elements, title) {
-	if (title && !elements.find((tag) => tag.startsWith("<title"))) elements.push(`<title data-inertia="">${escape$1(title)}</title>`);
+	if (title && !elements.find((tag) => tag.startsWith("<title"))) elements.push(`<title data-inertia="">${escape(title)}</title>`);
 	return elements;
 }
 function renderNodes(nodes, title) {
@@ -38623,7 +38625,7 @@ var StringReader = class {
 		return idx === -1 ? buffer.length : idx;
 	}
 };
-function decode$1(mappings) {
+function decode(mappings) {
 	const { length } = mappings;
 	const reader = new StringReader(mappings);
 	const decoded = [];
@@ -38927,7 +38929,7 @@ function memoizedBinarySearch(haystack, needle, state, key) {
 	state.lastNeedle = needle;
 	return state.lastIndex = binarySearch(haystack, needle, low, high);
 }
-function parse$1(map) {
+function parse(map) {
 	return typeof map === "string" ? JSON.parse(map) : map;
 }
 var LINE_GTR_ZERO = "`line` must be greater than 0 (lines start at line 1)";
@@ -38936,7 +38938,7 @@ var TraceMap = class {
 	constructor(map, mapUrl) {
 		const isString = typeof map === "string";
 		if (!isString && map._decodedMemo) return map;
-		const parsed = parse$1(map);
+		const parsed = parse(map);
 		const { version, file, names, sourceRoot, sources, sourcesContent } = parsed;
 		this.version = version;
 		this.file = file;
@@ -38966,7 +38968,7 @@ function cast(map) {
 }
 function decodedMappings(map) {
 	var _a;
-	return (_a = cast(map))._decoded || (_a._decoded = decode$1(cast(map)._encoded));
+	return (_a = cast(map))._decoded || (_a._decoded = decode(cast(map)._encoded));
 }
 function originalPositionFor(map, needle) {
 	let { line, column, bias } = needle;
@@ -39264,7 +39266,147 @@ async function resolvePageComponent(path, pages) {
 	}
 	throw new Error(`Page not found: ${path}`);
 }
-Error.captureStackTrace;
+//#endregion
+//#region node_modules/nostics/dist/index.mjs
+/**
+* Renders a diagnostic into a multi-line, unicode-decorated string suitable
+* for terminal output. The first line is `[<name>] <message>`; optional
+* details (`fix`, `sources`, `docs`) follow with `├▶`/`╰▶` connectors.
+*/
+function formatDiagnostic(diagnostic) {
+	const header = `[${diagnostic.name}] ${diagnostic.message}`;
+	const details = [];
+	if (diagnostic.fix) details.push(`fix: ${diagnostic.fix}`);
+	if (diagnostic.sources?.length) details.push(`sources: ${diagnostic.sources.join(", ")}`);
+	if (diagnostic.docs) details.push(`see: ${diagnostic.docs}`);
+	if (details.length === 0) return header;
+	return [header, ...details.map((detail, i) => {
+		return `${i < details.length - 1 ? "├▶" : "╰▶"} ${detail}`;
+	})].join("\n");
+}
+/**
+* Transforms a value or a function that returns a value to a value.
+*
+* @param valFn either a value or a function that returns a value
+* @param args  arguments to pass to the function if `valFn` is a function
+*
+* @internal
+*/
+function toValueWithArgs(valFn, ...args) {
+	return typeof valFn === "function" ? valFn(...args) : valFn;
+}
+/**
+* Creates a console reporter that renders each diagnostic with `formatter` and
+* prints the result via `console[method]`. Both default sensibly (`'warn'` and
+* {@link formatDiagnostic}); `method` can also be overridden per call through
+* the reporter options.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function createConsoleReporter({ method: defaultMethod = "warn", formatter = formatDiagnostic } = {}) {
+	return (diagnostic, { method = defaultMethod } = {}) => {
+		console[method](formatter(diagnostic));
+	};
+}
+var captureStackTrace = Error.captureStackTrace;
+var Diagnostic = class Diagnostic extends Error {
+	name;
+	/**
+	* The diagnostic code, e.g. `MATH_E001`.
+	* Also appears as the `name` property.
+	*/
+	code;
+	/**
+	* URL to extended documentation for this diagnostic code.
+	* Auto-generated from {@link DefineDiagnosticsOptions.docsBase}.
+	*/
+	docs;
+	/**
+	* Optional actionable instructions on how to resolve the problem.
+	*/
+	fix;
+	/**
+	* Locations in user code that contributed to this diagnostic, in
+	* `file:line:column` format. Relevant when the stack trace doesn't reflect
+	* the user's source (e.g. compilers, bundlers), otherwise redundant with the
+	* stack and should be omitted.
+	*/
+	sources;
+	/**
+	* Alias for {@link Error.message}: the reason this diagnostic was raised.
+	*/
+	get why() {
+		return this.message;
+	}
+	/**
+	* @param init        structured initializer; `why` is required
+	* @param captureFrom V8 stack-cutoff frame. Defaults to {@link Diagnostic}
+	* so the top of the trace is the `new Diagnostic(...)` call site.
+	* `defineDiagnostics` passes its action method to strip its own frames too.
+	* Ignored on engines without `Error.captureStackTrace`.
+	*/
+	constructor(init, captureFrom = Diagnostic) {
+		super(init.why, { cause: init.cause });
+		this.code = this.name = init.code;
+		this.fix = init.fix;
+		this.docs = init.docs;
+		this.sources = init.sources;
+		captureStackTrace?.(this, captureFrom);
+	}
+	/**
+	* Converts the diagnostic into a serializable structured object.
+	*/
+	toJSON() {
+		return {
+			name: this.name,
+			why: this.why,
+			fix: this.fix,
+			docs: this.docs,
+			sources: this.sources,
+			cause: this.cause,
+			stack: this.stack
+		};
+	}
+};
+/**
+* Resolves the docs URL for a code from a `docsBase` (string template or
+* resolver function). Shared by {@link defineDiagnostics} and
+* {@link defineProdDiagnostics}. Per-code `docs` overrides are handled by the
+* caller; this only covers the `docsBase`-derived case.
+*
+* @internal
+*/
+function deriveDocs(docsBase, code) {
+	return typeof docsBase === "string" ? `${docsBase}/${code.toLowerCase()}` : docsBase?.(code);
+}
+/**
+* Creates a typed diagnostics object from a set of code definitions. Each
+* code becomes a callable {@link DiagnosticHandle}: invoke to report, or
+* `throw` the result to raise. No `new` required, no proxy.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function defineDiagnostics(options) {
+	const reporters = options.reporters ?? [];
+	const result = {};
+	const { docsBase } = options;
+	for (const code of Object.keys(options.codes)) {
+		const def = options.codes[code];
+		const docs = def.docs === false ? void 0 : def.docs || deriveDocs(docsBase, code);
+		const handle = (params = {}, reporterOptions = {}) => {
+			const diagnostic = new Diagnostic({
+				code,
+				why: toValueWithArgs(def.why, params),
+				fix: toValueWithArgs(def.fix, params),
+				docs,
+				cause: params.cause,
+				sources: params.sources
+			}, handle);
+			for (const reporter of reporters) reporter(diagnostic, reporterOptions);
+			return diagnostic;
+		};
+		result[code] = handle;
+	}
+	return result;
+}
 //#endregion
 //#region node_modules/pinia/dist/pinia.js
 /*!
@@ -39273,6 +39415,62 @@ Error.captureStackTrace;
 * @license MIT
 */
 var IS_CLIENT = typeof window !== "undefined";
+/**
+* Catalog of user-facing Pinia diagnostics. Each handle builds a diagnostic
+* and runs the reporters. All call sites are dev-only (`__DEV__` guarded or
+* HMR), so production builds drop the calls and tree-shake this catalog.
+*/
+var diagnostics = /*#__PURE__*/ defineDiagnostics({
+	reporters: [/*#__PURE__*/ createConsoleReporter()],
+	codes: {
+		PINIA_R1001: {
+			why: "Directly pass all stores to \"mapStores()\" without putting them in an array. This will fail in production.",
+			fix: "Replace mapStores([useAuthStore, useCartStore]) with mapStores(useAuthStore, useCartStore).",
+			docs: "https://pinia.vuejs.org/cookbook/options-api.html#Giving-access-to-the-whole-store"
+		},
+		PINIA_R1002: {
+			why: (p) => `A getter cannot have the same name as another state property. Found "${p.name}" in store "${p.id}".`,
+			fix: "Rename either the getter or the state property.",
+			docs: "https://pinia.vuejs.org/core-concepts/getters.html#Accessing-other-getters"
+		},
+		PINIA_R1003: {
+			why: (p) => `The "state" must be a plain object. Found in store "${p.id}".`,
+			fix: "Return a plain object, e.g. avoid state: () => new MyClass().",
+			docs: "https://pinia.vuejs.org/core-concepts/state.html#State"
+		},
+		PINIA_R1004: {
+			why: "Pinia instance not found in context. This falls back to the global activePinia, which exposes you to cross-request pollution on the server.",
+			fix: "\"useStore()\" is a composable and follows the same rules: call it at the top of setup() (or another composable), or pass the pinia instance explicitly when used outside of a component.",
+			docs: "https://pinia.vuejs.org/ssr/#Using-the-store-outside-of-setup-"
+		},
+		PINIA_R1005: {
+			why: (p) => `The store id changed from "${p.from}" to "${p.to}", forcing a reload.`,
+			docs: "https://pinia.vuejs.org/cookbook/hot-module-replacement.html#HMR-Hot-Module-Replacement-"
+		},
+		PINIA_R1006: {
+			why: (p) => `Property "${p.key}" of store "${p.id}" is not reactive (not a ref, reactive object, or shallowRef), so storeToRefs() ignores it.`,
+			fix: "If it should be reactive state, wrap it with ref(), reactive(), or shallowRef(). If it is an intentional non-reactive property, wrap it with markRaw() so storeToRefs() skips it explicitly.",
+			docs: "https://pinia.vuejs.org/core-concepts/plugins.html#Adding-new-external-properties"
+		},
+		PINIA_R1007: {
+			why: (p) => `The same callback was passed to "$subscribe()" of store "${p.id}" more than once. Subscriptions are deduplicated, so the duplicate is ignored.`,
+			fix: "Subscribe each callback only once. If you need to resubscribe, call the returned function to remove the previous subscription first, or create a new function.",
+			docs: "https://pinia.vuejs.org/core-concepts/state.html#Subscribing-to-the-state"
+		}
+	}
+});
+/**
+* setActivePinia must be called to handle SSR at the top of functions like
+* `fetch`, `setup`, `serverPrefetch` and others
+*/
+var activePinia;
+/**
+* Sets or unsets the active pinia. Used in SSR and internally when calling
+* actions and getters
+*
+* @param pinia - Pinia instance
+*/
+var setActivePinia = (pinia) => activePinia = pinia;
 process.env.NODE_ENV;
 /**
 * Symbol used to provide/inject the pinia instance in the app. Used internally
@@ -39286,6 +39484,9 @@ process.env.NODE_ENV;
 * @internal
 */
 var piniaSymbol = process.env.NODE_ENV !== "production" ? Symbol("pinia") : /* istanbul ignore next */ Symbol();
+function isPlainObject(o) {
+	return o && typeof o === "object" && Object.prototype.toString.call(o) === "[object Object]" && typeof o.toJSON !== "function";
+}
 var _global = /*#__PURE__*/ (() => typeof window === "object" && window.window === window ? window : typeof self === "object" && self.self === self ? self : typeof global === "object" && global.global === global ? global : typeof globalThis === "object" ? globalThis : { HTMLElement: null })();
 function bom(blob, { autoBom = false } = {}) {
 	if (autoBom && /^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)) return new Blob([String.fromCharCode(65279), blob], { type: blob.type });
@@ -39465,6 +39666,7 @@ function createPinia() {
 	let toBeInstalled = [];
 	const pinia = (0, vue_exports.markRaw)({
 		install(app) {
+			setActivePinia(pinia);
 			pinia._a = app;
 			app.provide(piniaSymbol, pinia);
 			app.config.globalProperties.$pinia = pinia;
@@ -39487,765 +39689,453 @@ function createPinia() {
 	if ((process.env.NODE_ENV !== "production" || false) && !(process.env.NODE_ENV === "test") && IS_CLIENT && typeof Proxy !== "undefined") pinia.use(devtoolsPlugin);
 	return pinia;
 }
-process.env.NODE_ENV;
+/**
+* Mutates in place `newState` with `oldState` to _hot update_ it. It will
+* remove any key not existing in `newState` and recursively merge plain
+* objects.
+*
+* @param newState - new state object to be patched
+* @param oldState - old state that should be used to patch newState
+* @returns - newState
+*/
+function patchObject(newState, oldState) {
+	for (const key in oldState) {
+		const subPatch = oldState[key];
+		if (!(key in newState)) continue;
+		const targetValue = newState[key];
+		if (isPlainObject(targetValue) && isPlainObject(subPatch) && !(0, vue_exports.isRef)(subPatch) && !(0, vue_exports.isReactive)(subPatch)) newState[key] = patchObject(targetValue, subPatch);
+		else newState[key] = subPatch;
+	}
+	return newState;
+}
+var noop = () => {};
+function addSubscription(subscriptions, callback, detached, onCleanup = noop) {
+	subscriptions.add(callback);
+	const removeSubscription = () => {
+		subscriptions.delete(callback) && onCleanup();
+	};
+	if (!detached && (0, vue_exports.getCurrentScope)()) (0, vue_exports.onScopeDispose)(removeSubscription);
+	return removeSubscription;
+}
+function triggerSubscriptions(subscriptions, ...args) {
+	subscriptions.forEach((callback) => {
+		callback(...args);
+	});
+}
+var fallbackRunWithContext = (fn) => fn();
+/**
+* Marks a function as an action for `$onAction`
+* @internal
+*/
+var ACTION_MARKER = Symbol();
+/**
+* Action name symbol. Allows to add a name to an action after defining it
+* @internal
+*/
+var ACTION_NAME = Symbol();
+function mergeReactiveObjects(target, patchToApply) {
+	if (target instanceof Map && patchToApply instanceof Map) patchToApply.forEach((value, key) => target.set(key, value));
+	else if (target instanceof Set && patchToApply instanceof Set) patchToApply.forEach(target.add, target);
+	for (const key in patchToApply) {
+		if (!Object.hasOwn(patchToApply, key)) continue;
+		const subPatch = patchToApply[key];
+		const targetValue = target[key];
+		if (isPlainObject(targetValue) && isPlainObject(subPatch) && Object.hasOwn(target, key) && !(0, vue_exports.isRef)(subPatch) && !(0, vue_exports.isReactive)(subPatch)) target[key] = mergeReactiveObjects(targetValue, subPatch);
+		else target[key] = subPatch;
+	}
+	return target;
+}
+var skipHydrateSymbol = process.env.NODE_ENV !== "production" ? Symbol("pinia:skipHydration") : /* istanbul ignore next */ Symbol();
+/**
+* Returns whether a value should be hydrated
+*
+* @param obj - target variable
+* @returns true if `obj` should be hydrated
+*/
+function shouldHydrate(obj) {
+	return !obj || typeof obj !== "object" || !Object.hasOwn(obj, skipHydrateSymbol);
+}
 var { assign } = Object;
-/*! #__NO_SIDE_EFFECTS__ */
-//#endregion
-//#region node_modules/qs-esm/lib/formats.js
-var replace = String.prototype.replace;
-var percentTwenties = /%20/g;
-var Format = {
-	RFC1738: "RFC1738",
-	RFC3986: "RFC3986"
-};
-var formatters = {
-	RFC1738: function(value) {
-		return replace.call(value, percentTwenties, "+");
-	},
-	RFC3986: function(value) {
-		return String(value);
-	}
-};
-var RFC1738 = Format.RFC1738;
-Format.RFC3986;
-var formats_default = Format.RFC3986;
-//#endregion
-//#region node_modules/qs-esm/lib/utils.js
-var has$2 = Object.prototype.hasOwnProperty;
-var isArray$2 = Array.isArray;
-var overflowChannel = /* @__PURE__ */ new WeakMap();
-var markOverflow = function markOverflow(obj, maxIndex) {
-	overflowChannel.set(obj, maxIndex);
-	return obj;
-};
-function isOverflow(obj) {
-	return overflowChannel.has(obj);
+function isComputed(o) {
+	return !!((0, vue_exports.isRef)(o) && o.effect);
 }
-var getMaxIndex = function getMaxIndex(obj) {
-	return overflowChannel.get(obj);
-};
-var setMaxIndex = function setMaxIndex(obj, maxIndex) {
-	overflowChannel.set(obj, maxIndex);
-};
-var hexTable = (function() {
-	const array = [];
-	for (let i = 0; i < 256; ++i) array.push("%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase());
-	return array;
-})();
-var compactQueue = function compactQueue(queue) {
-	while (queue.length > 1) {
-		const item = queue.pop();
-		const obj = item.obj[item.prop];
-		if (isArray$2(obj)) {
-			const compacted = [];
-			for (let j = 0; j < obj.length; ++j) if (typeof obj[j] !== "undefined") compacted.push(obj[j]);
-			item.obj[item.prop] = compacted;
-		}
-	}
-};
-var arrayToObject = function arrayToObject(source, options) {
-	const obj = options && options.plainObjects ? Object.create(null) : {};
-	for (let i = 0; i < source.length; ++i) if (typeof source[i] !== "undefined") obj[i] = source[i];
-	return obj;
-};
-var merge = function merge(target, source, options) {
-	if (!source) return target;
-	if (typeof source !== "object") {
-		if (isArray$2(target)) target.push(source);
-		else if (target && typeof target === "object") {
-			if (isOverflow(target)) {
-				var newIndex = getMaxIndex(target) + 1;
-				target[newIndex] = source;
-				setMaxIndex(target, newIndex);
-			} else if (options && (options.plainObjects || options.allowPrototypes) || !has$2.call(Object.prototype, source)) target[source] = true;
-		} else return [target, source];
-		return target;
-	}
-	if (!target || typeof target !== "object") {
-		if (isOverflow(source)) {
-			var sourceKeys = Object.keys(source);
-			var result = options && options.plainObjects ? {
-				__proto__: null,
-				0: target
-			} : { 0: target };
-			for (var m = 0; m < sourceKeys.length; m++) {
-				var oldKey = parseInt(sourceKeys[m], 10);
-				result[oldKey + 1] = source[sourceKeys[m]];
-			}
-			return markOverflow(result, getMaxIndex(source) + 1);
-		}
-		return [target].concat(source);
-	}
-	let mergeTarget = target;
-	if (isArray$2(target) && !isArray$2(source)) mergeTarget = arrayToObject(target, options);
-	if (isArray$2(target) && isArray$2(source)) {
-		source.forEach(function(item, i) {
-			if (has$2.call(target, i)) {
-				const targetItem = target[i];
-				if (targetItem && typeof targetItem === "object" && item && typeof item === "object") target[i] = merge(targetItem, item, options);
-				else target.push(item);
-			} else target[i] = item;
-		});
-		return target;
-	}
-	return Object.keys(source).reduce(function(acc, key) {
-		const value = source[key];
-		if (has$2.call(acc, key)) acc[key] = merge(acc[key], value, options);
-		else acc[key] = value;
-		return acc;
-	}, mergeTarget);
-};
-var decode = function(str, decoder, charset) {
-	const strWithoutPlus = str.replace(/\+/g, " ");
-	if (charset === "iso-8859-1") return strWithoutPlus.replace(/%[0-9a-f]{2}/gi, unescape);
-	try {
-		return decodeURIComponent(strWithoutPlus);
-	} catch (e) {
-		return strWithoutPlus;
-	}
-};
-var limit = 1024;
-var encode = function encode(str, defaultEncoder, charset, kind, format) {
-	if (str.length === 0) return str;
-	let string = str;
-	if (typeof str === "symbol") string = Symbol.prototype.toString.call(str);
-	else if (typeof str !== "string") string = String(str);
-	if (charset === "iso-8859-1") return escape(string).replace(/%u[0-9a-f]{4}/gi, function($0) {
-		return "%26%23" + parseInt($0.slice(2), 16) + "%3B";
-	});
-	let out = "";
-	for (let j = 0; j < string.length; j += limit) {
-		const segment = string.length >= limit ? string.slice(j, j + limit) : string;
-		const arr = [];
-		for (let i = 0; i < segment.length; ++i) {
-			let c = segment.charCodeAt(i);
-			if (c === 45 || c === 46 || c === 95 || c === 126 || c >= 48 && c <= 57 || c >= 65 && c <= 90 || c >= 97 && c <= 122 || format === RFC1738 && (c === 40 || c === 41)) {
-				arr[arr.length] = segment.charAt(i);
-				continue;
-			}
-			if (c < 128) {
-				arr[arr.length] = hexTable[c];
-				continue;
-			}
-			if (c < 2048) {
-				arr[arr.length] = hexTable[192 | c >> 6] + hexTable[128 | c & 63];
-				continue;
-			}
-			if (c < 55296 || c >= 57344) {
-				arr[arr.length] = hexTable[224 | c >> 12] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
-				continue;
-			}
-			i += 1;
-			c = 65536 + ((c & 1023) << 10 | segment.charCodeAt(i) & 1023);
-			arr[arr.length] = hexTable[240 | c >> 18] + hexTable[128 | c >> 12 & 63] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
-		}
-		out += arr.join("");
-	}
-	return out;
-};
-var compact = function compact(value) {
-	const queue = [{
-		obj: { o: value },
-		prop: "o"
-	}];
-	const refs = [];
-	for (let i = 0; i < queue.length; ++i) {
-		const item = queue[i];
-		const obj = item.obj[item.prop];
-		const keys = Object.keys(obj);
-		for (let j = 0; j < keys.length; ++j) {
-			const key = keys[j];
-			const val = obj[key];
-			if (typeof val === "object" && val !== null && refs.indexOf(val) === -1) {
-				queue.push({
-					obj,
-					prop: key
-				});
-				refs.push(val);
-			}
-		}
-	}
-	compactQueue(queue);
-	return value;
-};
-var isRegExp = function isRegExp(obj) {
-	return Object.prototype.toString.call(obj) === "[object RegExp]";
-};
-var isBuffer = function isBuffer(obj) {
-	if (!obj || typeof obj !== "object") return false;
-	return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
-};
-var combine = function combine(a, b, arrayLimit, plainObjects) {
-	if (isOverflow(a)) {
-		var newIndex = getMaxIndex(a) + 1;
-		a[newIndex] = b;
-		setMaxIndex(a, newIndex);
-		return a;
-	}
-	var result = [].concat(a, b);
-	if (result.length > arrayLimit) return markOverflow(arrayToObject(result, { plainObjects }), result.length - 1);
-	return result;
-};
-var maybeMap = function maybeMap(val, fn) {
-	if (isArray$2(val)) {
-		const mapped = [];
-		for (let i = 0; i < val.length; i += 1) mapped.push(fn(val[i]));
-		return mapped;
-	}
-	return fn(val);
-};
-//#endregion
-//#region node_modules/qs-esm/lib/stringify.js
-var has$1 = Object.prototype.hasOwnProperty;
-var arrayPrefixGenerators = {
-	brackets: function brackets(prefix) {
-		return prefix + "[]";
-	},
-	comma: "comma",
-	indices: function indices(prefix, key) {
-		return prefix + "[" + key + "]";
-	},
-	repeat: function repeat(prefix) {
-		return prefix;
-	}
-};
-var isArray$1 = Array.isArray;
-var push = Array.prototype.push;
-var pushToArray = function(arr, valueOrArray) {
-	push.apply(arr, isArray$1(valueOrArray) ? valueOrArray : [valueOrArray]);
-};
-var toISO = Date.prototype.toISOString;
-var defaultFormat = formats_default;
-var defaults$1 = {
-	addQueryPrefix: false,
-	allowDots: false,
-	allowEmptyArrays: false,
-	arrayFormat: "indices",
-	charset: "utf-8",
-	charsetSentinel: false,
-	delimiter: "&",
-	encode: true,
-	encodeDotInKeys: false,
-	encoder: encode,
-	encodeValuesOnly: false,
-	format: defaultFormat,
-	formatter: formatters[defaultFormat],
-	indices: false,
-	serializeDate: function serializeDate(date) {
-		return toISO.call(date);
-	},
-	skipNulls: false,
-	strictNullHandling: false
-};
-var isNonNullishPrimitive = function isNonNullishPrimitive(v) {
-	return typeof v === "string" || typeof v === "number" || typeof v === "boolean" || typeof v === "symbol" || typeof v === "bigint";
-};
-var sentinel = {};
-var _stringify = function stringify(object, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder, filter, sort, allowDots, serializeDate, format, formatter, encodeValuesOnly, charset, sideChannel) {
-	let obj = object;
-	let tmpSc = sideChannel;
-	let step = 0;
-	let findFlag = false;
-	while ((tmpSc = tmpSc.get(sentinel)) !== void 0 && !findFlag) {
-		const pos = tmpSc.get(object);
-		step += 1;
-		if (typeof pos !== "undefined") {
-			if (pos === step) throw new RangeError("Cyclic object value");
-			else findFlag = true;
-		}
-		if (typeof tmpSc.get(sentinel) === "undefined") step = 0;
-	}
-	if (typeof filter === "function") obj = filter(prefix, obj);
-	else if (obj instanceof Date) obj = serializeDate(obj);
-	else if (generateArrayPrefix === "comma" && isArray$1(obj)) obj = maybeMap(obj, function(value) {
-		if (value instanceof Date) return serializeDate(value);
-		return value;
-	});
-	if (obj === null) {
-		if (strictNullHandling) return encoder && !encodeValuesOnly ? encoder(prefix, defaults$1.encoder, charset, "key", format) : prefix;
-		obj = "";
-	}
-	if (isNonNullishPrimitive(obj) || isBuffer(obj)) {
-		if (encoder) return [formatter(encodeValuesOnly ? prefix : encoder(prefix, defaults$1.encoder, charset, "key", format)) + "=" + formatter(encoder(obj, defaults$1.encoder, charset, "value", format))];
-		return [formatter(prefix) + "=" + formatter(String(obj))];
-	}
-	const values = [];
-	if (typeof obj === "undefined") return values;
-	let objKeys;
-	if (generateArrayPrefix === "comma" && isArray$1(obj)) {
-		if (encodeValuesOnly && encoder) obj = maybeMap(obj, encoder);
-		objKeys = [{ value: obj.length > 0 ? obj.join(",") || null : void 0 }];
-	} else if (isArray$1(filter)) objKeys = filter;
-	else {
-		const keys = Object.keys(obj);
-		objKeys = sort ? keys.sort(sort) : keys;
-	}
-	const encodedPrefix = encodeDotInKeys ? prefix.replace(/\./g, "%2E") : prefix;
-	const adjustedPrefix = commaRoundTrip && isArray$1(obj) && obj.length === 1 ? encodedPrefix + "[]" : encodedPrefix;
-	if (allowEmptyArrays && isArray$1(obj) && obj.length === 0) return adjustedPrefix + "[]";
-	for (let j = 0; j < objKeys.length; ++j) {
-		const key = objKeys[j];
-		const value = typeof key === "object" && typeof key.value !== "undefined" ? key.value : obj[key];
-		if (skipNulls && value === null) continue;
-		const encodedKey = allowDots && encodeDotInKeys ? key.replace(/\./g, "%2E") : key;
-		const keyPrefix = isArray$1(obj) ? typeof generateArrayPrefix === "function" ? generateArrayPrefix(adjustedPrefix, encodedKey) : adjustedPrefix : adjustedPrefix + (allowDots ? "." + encodedKey : "[" + encodedKey + "]");
-		sideChannel.set(object, step);
-		const valueSideChannel = /* @__PURE__ */ new WeakMap();
-		valueSideChannel.set(sentinel, sideChannel);
-		pushToArray(values, _stringify(value, keyPrefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, generateArrayPrefix === "comma" && encodeValuesOnly && isArray$1(obj) ? null : encoder, filter, sort, allowDots, serializeDate, format, formatter, encodeValuesOnly, charset, valueSideChannel));
-	}
-	return values;
-};
-var normalizeStringifyOptions = function normalizeStringifyOptions(opts) {
-	if (!opts) return defaults$1;
-	if (typeof opts.allowEmptyArrays !== "undefined" && typeof opts.allowEmptyArrays !== "boolean") throw new TypeError("`allowEmptyArrays` option can only be `true` or `false`, when provided");
-	if (typeof opts.encodeDotInKeys !== "undefined" && typeof opts.encodeDotInKeys !== "boolean") throw new TypeError("`encodeDotInKeys` option can only be `true` or `false`, when provided");
-	if (opts.encoder !== null && typeof opts.encoder !== "undefined" && typeof opts.encoder !== "function") throw new TypeError("Encoder has to be a function.");
-	const charset = opts.charset || defaults$1.charset;
-	if (typeof opts.charset !== "undefined" && opts.charset !== "utf-8" && opts.charset !== "iso-8859-1") throw new TypeError("The charset option must be either utf-8, iso-8859-1, or undefined");
-	let format = formats_default;
-	if (typeof opts.format !== "undefined") {
-		if (!has$1.call(formatters, opts.format)) throw new TypeError("Unknown format option provided.");
-		format = opts.format;
-	}
-	const formatter = formatters[format];
-	let filter = defaults$1.filter;
-	if (typeof opts.filter === "function" || isArray$1(opts.filter)) filter = opts.filter;
-	let arrayFormat;
-	if (opts.arrayFormat in arrayPrefixGenerators) arrayFormat = opts.arrayFormat;
-	else if ("indices" in opts) arrayFormat = opts.indices ? "indices" : "repeat";
-	else arrayFormat = defaults$1.arrayFormat;
-	if ("commaRoundTrip" in opts && typeof opts.commaRoundTrip !== "boolean") throw new TypeError("`commaRoundTrip` must be a boolean, or absent");
-	const allowDots = typeof opts.allowDots === "undefined" ? opts.encodeDotInKeys === true ? true : defaults$1.allowDots : !!opts.allowDots;
-	return {
-		addQueryPrefix: typeof opts.addQueryPrefix === "boolean" ? opts.addQueryPrefix : defaults$1.addQueryPrefix,
-		allowDots,
-		allowEmptyArrays: typeof opts.allowEmptyArrays === "boolean" ? !!opts.allowEmptyArrays : defaults$1.allowEmptyArrays,
-		arrayFormat,
-		charset,
-		charsetSentinel: typeof opts.charsetSentinel === "boolean" ? opts.charsetSentinel : defaults$1.charsetSentinel,
-		commaRoundTrip: opts.commaRoundTrip,
-		delimiter: typeof opts.delimiter === "undefined" ? defaults$1.delimiter : opts.delimiter,
-		encode: typeof opts.encode === "boolean" ? opts.encode : defaults$1.encode,
-		encodeDotInKeys: typeof opts.encodeDotInKeys === "boolean" ? opts.encodeDotInKeys : defaults$1.encodeDotInKeys,
-		encoder: typeof opts.encoder === "function" ? opts.encoder : defaults$1.encoder,
-		encodeValuesOnly: typeof opts.encodeValuesOnly === "boolean" ? opts.encodeValuesOnly : defaults$1.encodeValuesOnly,
-		filter,
-		format,
-		formatter,
-		serializeDate: typeof opts.serializeDate === "function" ? opts.serializeDate : defaults$1.serializeDate,
-		skipNulls: typeof opts.skipNulls === "boolean" ? opts.skipNulls : defaults$1.skipNulls,
-		sort: typeof opts.sort === "function" ? opts.sort : null,
-		strictNullHandling: typeof opts.strictNullHandling === "boolean" ? opts.strictNullHandling : defaults$1.strictNullHandling
-	};
-};
-function stringify(object, opts) {
-	let obj = object;
-	const options = normalizeStringifyOptions(opts);
-	let objKeys;
-	let filter;
-	if (typeof options.filter === "function") {
-		filter = options.filter;
-		obj = filter("", obj);
-	} else if (isArray$1(options.filter)) {
-		filter = options.filter;
-		objKeys = filter;
-	}
-	const keys = [];
-	if (typeof obj !== "object" || obj === null) return "";
-	const generateArrayPrefix = arrayPrefixGenerators[options.arrayFormat];
-	const commaRoundTrip = generateArrayPrefix === "comma" && options.commaRoundTrip;
-	if (!objKeys) objKeys = Object.keys(obj);
-	if (options.sort) objKeys.sort(options.sort);
-	const sideChannel = /* @__PURE__ */ new WeakMap();
-	for (let i = 0; i < objKeys.length; ++i) {
-		const key = objKeys[i];
-		if (options.skipNulls && obj[key] === null) continue;
-		pushToArray(keys, _stringify(obj[key], key, generateArrayPrefix, commaRoundTrip, options.allowEmptyArrays, options.strictNullHandling, options.skipNulls, options.encodeDotInKeys, options.encode ? options.encoder : null, options.filter, options.sort, options.allowDots, options.serializeDate, options.format, options.formatter, options.encodeValuesOnly, options.charset, sideChannel));
-	}
-	const joined = keys.join(options.delimiter);
-	let prefix = options.addQueryPrefix === true ? "?" : "";
-	if (options.charsetSentinel) {
-		if (options.charset === "iso-8859-1") prefix += "utf8=%26%2310003%3B&";
-		else prefix += "utf8=%E2%9C%93&";
-	}
-	return joined.length > 0 ? prefix + joined : "";
-}
-//#endregion
-//#region node_modules/qs-esm/lib/parse.js
-var has = Object.prototype.hasOwnProperty;
-var isArray = Array.isArray;
-var defaults = {
-	allowDots: false,
-	allowEmptyArrays: false,
-	allowPrototypes: false,
-	allowSparse: false,
-	arrayLimit: 20,
-	charset: "utf-8",
-	charsetSentinel: false,
-	comma: false,
-	decodeDotInKeys: false,
-	decoder: decode,
-	delimiter: "&",
-	depth: 5,
-	duplicates: "combine",
-	ignoreQueryPrefix: false,
-	interpretNumericEntities: false,
-	parameterLimit: 1e3,
-	parseArrays: true,
-	plainObjects: false,
-	strictNullHandling: false
-};
-var interpretNumericEntities = function(str) {
-	return str.replace(/&#(\d+);/g, function($0, numberStr) {
-		return String.fromCharCode(parseInt(numberStr, 10));
-	});
-};
-var parseArrayValue = function(val, options) {
-	if (val && typeof val === "string" && options.comma && val.indexOf(",") > -1) return val.split(",");
-	return val;
-};
-var isoSentinel = "utf8=%26%2310003%3B";
-var charsetSentinel = "utf8=%E2%9C%93";
-var parseValues = function parseQueryStringValues(str, options) {
-	const obj = { __proto__: null };
-	const cleanStr = options.ignoreQueryPrefix ? str.replace(/^\?/, "") : str;
-	const limit = options.parameterLimit === Infinity ? void 0 : options.parameterLimit;
-	const parts = cleanStr.split(options.delimiter, limit);
-	let skipIndex = -1;
-	let i;
-	let charset = options.charset;
-	if (options.charsetSentinel) {
-		for (i = 0; i < parts.length; ++i) if (parts[i].indexOf("utf8=") === 0) {
-			if (parts[i] === charsetSentinel) charset = "utf-8";
-			else if (parts[i] === isoSentinel) charset = "iso-8859-1";
-			skipIndex = i;
-			i = parts.length;
-		}
-	}
-	for (i = 0; i < parts.length; ++i) {
-		if (i === skipIndex) continue;
-		const part = parts[i];
-		const bracketEqualsPos = part.indexOf("]=");
-		const pos = bracketEqualsPos === -1 ? part.indexOf("=") : bracketEqualsPos + 1;
-		let key, val;
-		if (pos === -1) {
-			key = options.decoder(part, defaults.decoder, charset, "key");
-			val = options.strictNullHandling ? null : "";
-		} else {
-			key = options.decoder(part.slice(0, pos), defaults.decoder, charset, "key");
-			val = maybeMap(parseArrayValue(part.slice(pos + 1), options), function(encodedVal) {
-				return options.decoder(encodedVal, defaults.decoder, charset, "value");
+function createOptionsStore(id, options, pinia, hot) {
+	const { state, actions, getters } = options;
+	const initialState = pinia.state.value[id];
+	let store;
+	function setup() {
+		if (!initialState && (!(process.env.NODE_ENV !== "production") || !hot))
+ /* istanbul ignore if */
+		pinia.state.value[id] = state ? state() : {};
+		const localState = process.env.NODE_ENV !== "production" && hot ? (0, vue_exports.toRefs)((0, vue_exports.ref)(state ? state() : {}).value) : (0, vue_exports.toRefs)(pinia.state.value[id]);
+		return assign(localState, actions, Object.keys(getters || {}).reduce((computedGetters, name) => {
+			if (process.env.NODE_ENV !== "production" && name in localState) diagnostics.PINIA_R1002({
+				name,
+				id
 			});
-		}
-		if (val && options.interpretNumericEntities && charset === "iso-8859-1") val = interpretNumericEntities(val);
-		if (part.indexOf("[]=") > -1) val = isArray(val) ? [val] : val;
-		const existing = has.call(obj, key);
-		if (existing && options.duplicates === "combine") obj[key] = combine(obj[key], val, options.arrayLimit, options.plainObjects);
-		else if (!existing || options.duplicates === "last") obj[key] = val;
+			computedGetters[name] = (0, vue_exports.markRaw)((0, vue_exports.computed)(() => {
+				setActivePinia(pinia);
+				const store = pinia._s.get(id);
+				return getters[name].call(store, store);
+			}));
+			return computedGetters;
+		}, {}));
 	}
-	return obj;
-};
-var parseObject = function(chain, val, options, valuesParsed) {
-	let leaf = valuesParsed ? val : parseArrayValue(val, options);
-	for (let i = chain.length - 1; i >= 0; --i) {
-		let obj;
-		const root = chain[i];
-		if (root === "[]" && options.parseArrays) {
-			if (isOverflow(leaf)) obj = leaf;
-			else obj = options.allowEmptyArrays && (leaf === "" || options.strictNullHandling && leaf === null) ? [] : combine([], leaf, options.arrayLimit, options.plainObjects);
-		} else {
-			obj = options.plainObjects ? Object.create(null) : {};
-			const cleanRoot = root.charAt(0) === "[" && root.charAt(root.length - 1) === "]" ? root.slice(1, -1) : root;
-			const decodedRoot = options.decodeDotInKeys ? cleanRoot.replace(/%2E/g, ".") : cleanRoot;
-			const index = parseInt(decodedRoot, 10);
-			if (!options.parseArrays && decodedRoot === "") obj = { 0: leaf };
-			else if (!isNaN(index) && root !== decodedRoot && String(index) === decodedRoot && index >= 0 && options.parseArrays && index <= options.arrayLimit) {
-				obj = [];
-				obj[index] = leaf;
-			} else if (decodedRoot !== "__proto__") obj[decodedRoot] = leaf;
-		}
-		leaf = obj;
-	}
-	return leaf;
-};
-var parseKeys = function parseQueryStringKeys(givenKey, val, options, valuesParsed) {
-	if (!givenKey) return;
-	const key = options.allowDots ? givenKey.replace(/\.([^.[]+)/g, "[$1]") : givenKey;
-	const brackets = /(\[[^[\]]*])/;
-	const child = /(\[[^[\]]*])/g;
-	let segment = options.depth > 0 && brackets.exec(key);
-	const parent = segment ? key.slice(0, segment.index) : key;
-	const keys = [];
-	if (parent) {
-		if (!options.plainObjects && has.call(Object.prototype, parent)) {
-			if (!options.allowPrototypes) return;
-		}
-		keys.push(parent);
-	}
-	let i = 0;
-	while (options.depth > 0 && (segment = child.exec(key)) !== null && i < options.depth) {
-		i += 1;
-		if (!options.plainObjects && has.call(Object.prototype, segment[1].slice(1, -1))) {
-			if (!options.allowPrototypes) return;
-		}
-		keys.push(segment[1]);
-	}
-	if (segment) keys.push("[" + key.slice(segment.index) + "]");
-	return parseObject(keys, val, options, valuesParsed);
-};
-var normalizeParseOptions = function normalizeParseOptions(opts) {
-	if (!opts) return defaults;
-	if (typeof opts.allowEmptyArrays !== "undefined" && typeof opts.allowEmptyArrays !== "boolean") throw new TypeError("`allowEmptyArrays` option can only be `true` or `false`, when provided");
-	if (typeof opts.decodeDotInKeys !== "undefined" && typeof opts.decodeDotInKeys !== "boolean") throw new TypeError("`decodeDotInKeys` option can only be `true` or `false`, when provided");
-	if (opts.decoder !== null && typeof opts.decoder !== "undefined" && typeof opts.decoder !== "function") throw new TypeError("Decoder has to be a function.");
-	if (typeof opts.charset !== "undefined" && opts.charset !== "utf-8" && opts.charset !== "iso-8859-1") throw new TypeError("The charset option must be either utf-8, iso-8859-1, or undefined");
-	const charset = typeof opts.charset === "undefined" ? defaults.charset : opts.charset;
-	const duplicates = typeof opts.duplicates === "undefined" ? defaults.duplicates : opts.duplicates;
-	if (duplicates !== "combine" && duplicates !== "first" && duplicates !== "last") throw new TypeError("The duplicates option must be either combine, first, or last");
-	return {
-		allowDots: typeof opts.allowDots === "undefined" ? opts.decodeDotInKeys === true ? true : defaults.allowDots : !!opts.allowDots,
-		allowEmptyArrays: typeof opts.allowEmptyArrays === "boolean" ? !!opts.allowEmptyArrays : defaults.allowEmptyArrays,
-		allowPrototypes: typeof opts.allowPrototypes === "boolean" ? opts.allowPrototypes : defaults.allowPrototypes,
-		allowSparse: typeof opts.allowSparse === "boolean" ? opts.allowSparse : defaults.allowSparse,
-		arrayLimit: typeof opts.arrayLimit === "number" ? opts.arrayLimit : defaults.arrayLimit,
-		charset,
-		charsetSentinel: typeof opts.charsetSentinel === "boolean" ? opts.charsetSentinel : defaults.charsetSentinel,
-		comma: typeof opts.comma === "boolean" ? opts.comma : defaults.comma,
-		decodeDotInKeys: typeof opts.decodeDotInKeys === "boolean" ? opts.decodeDotInKeys : defaults.decodeDotInKeys,
-		decoder: typeof opts.decoder === "function" ? opts.decoder : defaults.decoder,
-		delimiter: typeof opts.delimiter === "string" || isRegExp(opts.delimiter) ? opts.delimiter : defaults.delimiter,
-		depth: typeof opts.depth === "number" || opts.depth === false ? +opts.depth : defaults.depth,
-		duplicates,
-		ignoreQueryPrefix: opts.ignoreQueryPrefix === true,
-		interpretNumericEntities: typeof opts.interpretNumericEntities === "boolean" ? opts.interpretNumericEntities : defaults.interpretNumericEntities,
-		parameterLimit: typeof opts.parameterLimit === "number" ? opts.parameterLimit : defaults.parameterLimit,
-		parseArrays: opts.parseArrays !== false,
-		plainObjects: typeof opts.plainObjects === "boolean" ? opts.plainObjects : defaults.plainObjects,
-		strictNullHandling: typeof opts.strictNullHandling === "boolean" ? opts.strictNullHandling : defaults.strictNullHandling
+	store = createSetupStore(id, setup, options, pinia, hot, true);
+	return store;
+}
+function createSetupStore($id, setup, options = {}, pinia, hot, isOptionsStore) {
+	let scope;
+	const optionsForPlugin = assign({ actions: {} }, options);
+	/* istanbul ignore if */
+	if (process.env.NODE_ENV !== "production" && !pinia._e.active) throw new Error("Pinia destroyed");
+	const $subscribeOptions = { deep: true };
+	/* istanbul ignore else */
+	if (process.env.NODE_ENV !== "production") $subscribeOptions.onTrigger = (event) => {
+		/* istanbul ignore else */
+		if (isListening) debuggerEvents = event;
+		else if (isListening === false && !store._hotUpdating)
+ /* istanbul ignore else */
+		if (Array.isArray(debuggerEvents)) debuggerEvents.push(event);
+		else console.error("🍍 debuggerEvents should be an array. This is most likely an internal Pinia bug.");
 	};
-};
-function parse(str, opts) {
-	const options = normalizeParseOptions(opts);
-	if (str === "" || str === null || typeof str === "undefined") return options.plainObjects ? Object.create(null) : {};
-	const tempObj = typeof str === "string" ? parseValues(str, options) : str;
-	let obj = options.plainObjects ? Object.create(null) : {};
-	const keys = Object.keys(tempObj);
-	for (let i = 0; i < keys.length; ++i) {
-		const key = keys[i];
-		const newObj = parseKeys(key, tempObj[key], options, typeof str === "string");
-		obj = merge(obj, newObj, options);
-	}
-	if (options.allowSparse === true) return obj;
-	return compact(obj);
-}
-//#endregion
-//#region node_modules/ziggy-js/dist/index.js
-function r() {
-	return r = Object.assign ? Object.assign.bind() : function(t) {
-		for (var e = 1; e < arguments.length; e++) {
-			var r = arguments[e];
-			for (var n in r) ({}).hasOwnProperty.call(r, n) && (t[n] = r[n]);
-		}
-		return t;
-	}, r.apply(null, arguments);
-}
-var n = class {
-	constructor(t, e, r) {
-		var n, i;
-		this.name = t, this.definition = e, this.bindings = null != (n = e.bindings) ? n : {}, this.wheres = null != (i = e.wheres) ? i : {}, this.config = r;
-	}
-	get template() {
-		const t = `${this.origin}/${this.definition.uri}`.replace(/\/+$/, "");
-		return "" === t ? "/" : t;
-	}
-	get origin() {
-		return this.config.absolute ? this.definition.domain ? `${this.config.url.match(/^\w+:\/\//)[0]}${this.definition.domain}${this.config.port ? `:${this.config.port}` : ""}` : this.config.url : "";
-	}
-	get parameterSegments() {
-		var t, e;
-		return null != (t = null == (e = this.template.match(/{[^}?]+\??}/g)) ? void 0 : e.map((t) => ({
-			name: t.replace(/{|\??}/g, ""),
-			required: !/\?}$/.test(t)
-		}))) ? t : [];
-	}
-	matchesUrl(e) {
-		var r;
-		if (!this.definition.methods.includes("GET")) return !1;
-		const n = this.template.replace(/[.*+$()[\]]/g, "\\$&").replace(/(\/?){([^}?]*)(\??)}/g, (t, e, r, n) => {
-			var i;
-			const s = `(?<${r}>${(null == (i = this.wheres[r]) ? void 0 : i.replace(/(^\^)|(\$$)/g, "")) || "[^/?]+"})`;
-			return n ? `(${e}${s})?` : `${e}${s}`;
-		}).replace(/^\w+:\/\//, ""), [i, s] = e.replace(/^\w+:\/\//, "").split("?"), o = null != (r = new RegExp(`^${n}/?$`).exec(i)) ? r : new RegExp(`^${n}/?$`).exec(decodeURI(i));
-		if (o) {
-			for (const t in o.groups) o.groups[t] = "string" == typeof o.groups[t] ? decodeURIComponent(o.groups[t]) : o.groups[t];
-			return {
-				params: o.groups,
-				query: parse(s)
+	let isListening;
+	let isSyncListening;
+	let subscriptions = /* @__PURE__ */ new Set();
+	let actionSubscriptions = /* @__PURE__ */ new Set();
+	let debuggerEvents;
+	const initialState = pinia.state.value[$id];
+	if (!isOptionsStore && !initialState && (!(process.env.NODE_ENV !== "production") || !hot))
+ /* istanbul ignore if */
+	pinia.state.value[$id] = {};
+	const hotState = /*#__PURE__*/ (0, vue_exports.ref)({});
+	let activeListener;
+	function $patch(partialStateOrMutator) {
+		let subscriptionMutation;
+		isListening = isSyncListening = false;
+		/* istanbul ignore else */
+		if (process.env.NODE_ENV !== "production") debuggerEvents = [];
+		if (typeof partialStateOrMutator === "function") {
+			partialStateOrMutator(pinia.state.value[$id]);
+			subscriptionMutation = {
+				type: "patch function",
+				storeId: $id,
+				events: debuggerEvents
+			};
+		} else {
+			mergeReactiveObjects(pinia.state.value[$id], partialStateOrMutator);
+			subscriptionMutation = {
+				type: "patch object",
+				payload: partialStateOrMutator,
+				storeId: $id,
+				events: debuggerEvents
 			};
 		}
-		return !1;
+		const myListenerId = activeListener = Symbol();
+		(0, vue_exports.nextTick)().then(() => {
+			if (activeListener === myListenerId) isListening = true;
+		});
+		isSyncListening = true;
+		triggerSubscriptions(subscriptions, subscriptionMutation, pinia.state.value[$id]);
 	}
-	compile(t) {
-		return this.parameterSegments.length ? this.template.replace(/{([^}?]+)(\??)}/g, (e, r, n) => {
-			var i, s;
-			if (!n && [null, void 0].includes(t[r])) throw new Error(`Ziggy error: '${r}' parameter is required for route '${this.name}'.`);
-			if (this.wheres[r] && !new RegExp(`^${n ? `(${this.wheres[r]})?` : this.wheres[r]}$`).test(null != (s = t[r]) ? s : "")) throw new Error(`Ziggy error: '${r}' parameter '${t[r]}' does not match required format '${this.wheres[r]}' for route '${this.name}'.`);
-			return encodeURI(null != (i = t[r]) ? i : "").replace(/%7C/g, "|").replace(/%25/g, "%").replace(/\$/g, "%24");
-		}).replace(this.config.absolute ? /(\.[^/]+?)(\/\/)/ : /(^)(\/\/)/, "$1/").replace(/\/+$/, "") : this.template;
+	const $reset = isOptionsStore ? function $reset() {
+		const { state } = options;
+		const newState = state ? state() : {};
+		this.$patch(($state) => {
+			assign($state, newState);
+		});
+	} : process.env.NODE_ENV !== "production" ? () => {
+		throw new Error(`🍍: Store "${$id}" is built using the setup syntax and does not implement $reset().`);
+	} : noop;
+	function $dispose() {
+		scope.stop();
+		subscriptions.clear();
+		actionSubscriptions.clear();
+		pinia._s.delete($id);
 	}
-};
-var i = class extends String {
-	constructor(t, e, i = !0, s) {
-		if (super(), this.t = null != s ? s : "undefined" != typeof Ziggy ? Ziggy : null == globalThis ? void 0 : globalThis.Ziggy, !this.t && "undefined" != typeof document && document.getElementById("ziggy-routes-json") && (globalThis.Ziggy = JSON.parse(document.getElementById("ziggy-routes-json").textContent), this.t = globalThis.Ziggy), this.t = r({}, this.t, { absolute: i }), t) {
-			if (!this.t.routes[t]) throw new Error(`Ziggy error: route '${t}' is not in the route list.`);
-			this.i = new n(t, this.t.routes[t], this.t), this.o = this.u(e);
+	/**
+	* Helper that wraps function so it can be tracked with $onAction
+	* @param fn - action to wrap
+	* @param name - name of the action
+	*/
+	const action = (fn, name = "") => {
+		if (ACTION_MARKER in fn) {
+			fn[ACTION_NAME] = name;
+			return fn;
+		}
+		const wrappedAction = function() {
+			setActivePinia(pinia);
+			const args = Array.from(arguments);
+			const afterCallbackSet = /* @__PURE__ */ new Set();
+			const onErrorCallbackSet = /* @__PURE__ */ new Set();
+			function after(callback) {
+				afterCallbackSet.add(callback);
+			}
+			function onError(callback) {
+				onErrorCallbackSet.add(callback);
+			}
+			triggerSubscriptions(actionSubscriptions, {
+				args,
+				name: wrappedAction[ACTION_NAME],
+				store,
+				after,
+				onError
+			});
+			let ret;
+			try {
+				ret = fn.apply(this && this.$id === $id ? this : store, args);
+			} catch (error) {
+				triggerSubscriptions(onErrorCallbackSet, error);
+				throw error;
+			}
+			if (ret instanceof Promise) return ret.then((value) => {
+				triggerSubscriptions(afterCallbackSet, value);
+				return value;
+			}).catch((error) => {
+				triggerSubscriptions(onErrorCallbackSet, error);
+				return Promise.reject(error);
+			});
+			triggerSubscriptions(afterCallbackSet, ret);
+			return ret;
+		};
+		wrappedAction[ACTION_MARKER] = true;
+		wrappedAction[ACTION_NAME] = name;
+		return wrappedAction;
+	};
+	const _hmrPayload = /*#__PURE__*/ (0, vue_exports.markRaw)({
+		actions: {},
+		getters: {},
+		state: [],
+		hotState
+	});
+	const partialStore = {
+		_p: pinia,
+		$id,
+		$onAction: addSubscription.bind(null, actionSubscriptions),
+		$patch,
+		$reset,
+		$subscribe(callback, options = {}) {
+			if (subscriptions.has(callback)) {
+				if (process.env.NODE_ENV !== "production") diagnostics.PINIA_R1007({ id: $id });
+				return noop;
+			}
+			const removeSubscription = addSubscription(subscriptions, callback, options.detached, () => stopWatcher());
+			const stopWatcher = scope.run(() => (0, vue_exports.watch)(() => pinia.state.value[$id], (state) => {
+				if (options.flush === "sync" ? isSyncListening : isListening) callback({
+					storeId: $id,
+					type: "direct",
+					events: debuggerEvents
+				}, state);
+			}, assign({}, $subscribeOptions, options)));
+			return removeSubscription;
+		},
+		$dispose
+	};
+	const store = (0, vue_exports.reactive)(process.env.NODE_ENV !== "production" || (process.env.NODE_ENV !== "production" || false) && !(process.env.NODE_ENV === "test") && IS_CLIENT ? assign({
+		_hmrPayload,
+		_customProperties: (0, vue_exports.markRaw)(/* @__PURE__ */ new Set())
+	}, partialStore) : partialStore);
+	pinia._s.set($id, store);
+	const setupStore = (pinia._a && pinia._a.runWithContext || fallbackRunWithContext)(() => pinia._e.run(() => (scope = (0, vue_exports.effectScope)()).run(() => setup({ action }))));
+	for (const key in setupStore) {
+		const prop = setupStore[key];
+		if ((0, vue_exports.isRef)(prop) && !isComputed(prop) || (0, vue_exports.isReactive)(prop)) {
+			if (process.env.NODE_ENV !== "production" && hot) hotState.value[key] = (0, vue_exports.toRef)(setupStore, key);
+			else if (!isOptionsStore) {
+				if (initialState && shouldHydrate(prop)) if ((0, vue_exports.isRef)(prop)) prop.value = initialState[key];
+				else {
+					if (prop instanceof Set || prop instanceof Map) prop.clear();
+					mergeReactiveObjects(prop, initialState[key]);
+				}
+				pinia.state.value[$id][key] = prop;
+			}
+			/* istanbul ignore else */
+			if (process.env.NODE_ENV !== "production") _hmrPayload.state.push(key);
+		} else if (typeof prop === "function") {
+			setupStore[key] = process.env.NODE_ENV !== "production" && hot ? prop : action(prop, key);
+			/* istanbul ignore else */
+			if (process.env.NODE_ENV !== "production") _hmrPayload.actions[key] = prop;
+			optionsForPlugin.actions[key] = prop;
+		} else if (process.env.NODE_ENV !== "production") {
+			if (isComputed(prop)) {
+				_hmrPayload.getters[key] = isOptionsStore ? options.getters[key] : prop;
+				if (IS_CLIENT) (setupStore._getters || (setupStore._getters = (0, vue_exports.markRaw)([]))).push(key);
+			}
 		}
 	}
-	toString() {
-		const t = Object.keys(this.o).filter((t) => !this.i.parameterSegments.some(({ name: e }) => e === t)).filter((t) => "_query" !== t).reduce((t, e) => r({}, t, { [e]: this.o[e] }), {});
-		return this.i.compile(this.o) + stringify(r({}, t, this.o._query), {
-			addQueryPrefix: !0,
-			arrayFormat: "indices",
-			encodeValuesOnly: !0,
-			skipNulls: !0,
-			encoder: (t, e) => "boolean" == typeof t ? Number(t) : e(t)
+	/* istanbul ignore if */
+	assign(store, setupStore);
+	assign((0, vue_exports.toRaw)(store), setupStore);
+	Object.defineProperty(store, "$state", {
+		get: () => process.env.NODE_ENV !== "production" && hot ? hotState.value : pinia.state.value[$id],
+		set: (state) => {
+			/* istanbul ignore if */
+			if (process.env.NODE_ENV !== "production" && hot) throw new Error("cannot set hotState");
+			$patch(($state) => {
+				assign($state, state);
+			});
+		}
+	});
+	/* istanbul ignore else */
+	if (process.env.NODE_ENV !== "production") store._hotUpdate = (0, vue_exports.markRaw)((newStore) => {
+		store._hotUpdating = true;
+		newStore._hmrPayload.state.forEach((stateKey) => {
+			if (stateKey in store.$state) {
+				const newStateTarget = newStore.$state[stateKey];
+				const oldStateSource = store.$state[stateKey];
+				if (isOptionsStore && typeof newStateTarget === "object" && isPlainObject(newStateTarget) && isPlainObject(oldStateSource)) patchObject(newStateTarget, oldStateSource);
+				else newStore.$state[stateKey] = oldStateSource;
+			}
+			store[stateKey] = (0, vue_exports.toRef)(newStore.$state, stateKey);
+		});
+		Object.keys(store.$state).forEach((stateKey) => {
+			if (!(stateKey in newStore.$state)) delete store[stateKey];
+		});
+		isListening = false;
+		isSyncListening = false;
+		pinia.state.value[$id] = (0, vue_exports.toRef)(newStore._hmrPayload, "hotState");
+		isSyncListening = true;
+		(0, vue_exports.nextTick)().then(() => {
+			isListening = true;
+		});
+		for (const actionName in newStore._hmrPayload.actions) {
+			const actionFn = newStore[actionName];
+			store[actionName] = action(actionFn, actionName);
+		}
+		for (const getterName in newStore._hmrPayload.getters) {
+			const getter = newStore._hmrPayload.getters[getterName];
+			const getterValue = isOptionsStore ? (0, vue_exports.computed)(() => {
+				setActivePinia(pinia);
+				return getter.call(store, store);
+			}) : getter;
+			store[getterName] = getterValue;
+		}
+		Object.keys(store._hmrPayload.getters).forEach((key) => {
+			if (!(key in newStore._hmrPayload.getters)) delete store[key];
+		});
+		Object.keys(store._hmrPayload.actions).forEach((key) => {
+			if (!(key in newStore._hmrPayload.actions)) delete store[key];
+		});
+		store._hmrPayload = newStore._hmrPayload;
+		store._getters = newStore._getters;
+		store._hotUpdating = false;
+	});
+	if ((process.env.NODE_ENV !== "production" || false) && !(process.env.NODE_ENV === "test") && IS_CLIENT) {
+		const nonEnumerable = {
+			writable: true,
+			configurable: true,
+			enumerable: false
+		};
+		[
+			"_p",
+			"_hmrPayload",
+			"_getters",
+			"_customProperties"
+		].forEach((p) => {
+			Object.defineProperty(store, p, assign({ value: store[p] }, nonEnumerable));
 		});
 	}
-	h(t) {
-		t ? this.t.absolute && t.startsWith("/") && (t = this.l().host + t) : t = this.m();
-		let e = {};
-		const [i, s] = Object.entries(this.t.routes).find(([r, i]) => e = new n(r, i, this.t).matchesUrl(t)) || [void 0, void 0];
-		return r({ name: i }, e, { route: s });
-	}
-	m() {
-		const { host: t, pathname: e, search: r } = this.l();
-		return (this.t.absolute ? t + e : e.replace(this.t.url.replace(/^\w*:\/\/[^/]+/, ""), "").replace(/^\/+/, "/")) + r;
-	}
-	current(t, e) {
-		const { name: i, params: s, query: o, route: u } = this.h();
-		if (!t) return i;
-		const h = new RegExp(`^${t.replace(/\./g, "\\.").replace(/\*/g, ".*")}$`).test(i);
-		if ([null, void 0].includes(e) || !h) return h;
-		const a = new n(i, u, this.t);
-		e = this.u(e, a);
-		const l = r({}, s, o);
-		if (Object.values(e).every((t) => !t) && !Object.values(l).some((t) => void 0 !== t)) return !0;
-		const c = (t, e) => Object.entries(t).every(([t, r]) => Array.isArray(r) && Array.isArray(e[t]) ? r.every((r) => e[t].includes(r) || e[t].includes(decodeURIComponent(r))) : "object" == typeof r && "object" == typeof e[t] && null !== r && null !== e[t] ? c(r, e[t]) : e[t] == r || e[t] == decodeURIComponent(r));
-		return c(e, l);
-	}
-	l() {
-		var t, e, r, n, i, s;
-		const { host: o = "", pathname: u = "", search: h = "" } = "undefined" != typeof window ? window.location : {};
-		return {
-			host: null != (t = null == (e = this.t.location) ? void 0 : e.host) ? t : o,
-			pathname: null != (r = null == (n = this.t.location) ? void 0 : n.pathname) ? r : u,
-			search: null != (i = null == (s = this.t.location) ? void 0 : s.search) ? i : h
-		};
-	}
-	get params() {
-		const { params: t, query: e } = this.h();
-		return r({}, t, e);
-	}
-	get routeParams() {
-		return this.h().params;
-	}
-	get queryParams() {
-		return this.h().query;
-	}
-	has(t) {
-		return this.t.routes.hasOwnProperty(t);
-	}
-	u(t = {}, e = this.i) {
-		t ??= {}, t = ["string", "number"].includes(typeof t) ? [t] : t;
-		const n = e.parameterSegments.filter(({ name: t }) => !this.t.defaults[t]);
-		return Array.isArray(t) ? t = t.reduce((t, e, i) => r({}, t, n[i] ? { [n[i].name]: e } : "object" == typeof e ? e : { [e]: "" }), {}) : 1 !== n.length || t.hasOwnProperty(n[0].name) || !t.hasOwnProperty(Object.values(e.bindings)[0]) && !t.hasOwnProperty("id") || (t = { [n[0].name]: t }), r({}, this.p(e), this.$(t, e));
-	}
-	p(t) {
-		return t.parameterSegments.filter(({ name: t }) => this.t.defaults[t]).reduce((t, { name: e }, n) => r({}, t, { [e]: this.t.defaults[e] }), {});
-	}
-	$(t, { bindings: e, parameterSegments: n }) {
-		return Object.entries(t).reduce((t, [i, s]) => {
-			if (!s || "object" != typeof s || Array.isArray(s) || !n.some(({ name: t }) => t === i)) return r({}, t, { [i]: s });
-			const o = s.hasOwnProperty(e[i]) ? e[i] : s.hasOwnProperty("id") ? "id" : void 0;
-			if (void 0 === o) throw new Error(`Ziggy error: object passed as '${i}' parameter is missing route model binding key '${e[i]}'.`);
-			return r({}, t, { [i]: s[o] });
-		}, {});
-	}
-	valueOf() {
-		return this.toString();
-	}
-};
-function s(t, e, r, n) {
-	const s = new i(t, e, r, n);
-	return t ? s.toString() : s;
+	pinia._p.forEach((extender) => {
+		const extensions = scope.run(() => extender({
+			store,
+			app: pinia._a,
+			pinia,
+			options: optionsForPlugin
+		}));
+		/* istanbul ignore else */
+		if ((process.env.NODE_ENV !== "production" || false) && !(process.env.NODE_ENV === "test") && IS_CLIENT) Object.keys(extensions || {}).forEach((key) => store._customProperties.add(key));
+		if (process.env.NODE_ENV !== "production") for (const key in extensions) {
+			const value = extensions[key];
+			if (typeof value === "object" && !(0, vue_exports.isRef)(value) && !(0, vue_exports.isReactive)(value) && !value?.__v_skip) diagnostics.PINIA_R1006({
+				key,
+				id: $id
+			});
+		}
+		assign(store, extensions);
+	});
+	if (process.env.NODE_ENV !== "production" && store.$state && typeof store.$state === "object" && typeof store.$state.constructor === "function" && !store.$state.constructor.toString().includes("[native code]")) diagnostics.PINIA_R1003({ id: store.$id });
+	if (initialState && isOptionsStore && options.hydrate) options.hydrate(store.$state, initialState);
+	isListening = true;
+	isSyncListening = true;
+	return store;
 }
-var o = { install(t, e) {
-	const r = (t, r, n, i = e) => s(t, r, n, i);
-	parseInt(t.version) > 2 ? (t.config.globalProperties.route = r, t.provide("route", r)) : t.mixin({ methods: { route: r } });
-} };
+/*! #__NO_SIDE_EFFECTS__ */
+function defineStore(id, setup, setupOptions) {
+	let options;
+	const isSetupStore = typeof setup === "function";
+	options = isSetupStore ? setupOptions : setup;
+	function useStore(pinia, hot) {
+		const hasContext = (0, vue_exports.hasInjectionContext)();
+		pinia = (process.env.NODE_ENV === "test" && activePinia && activePinia._testing ? null : pinia) || (hasContext ? (0, vue_exports.inject)(piniaSymbol, null) : null);
+		if (pinia) setActivePinia(pinia);
+		if (process.env.NODE_ENV !== "production" && !activePinia) throw new Error("[🍍]: \"getActivePinia()\" was called but there was no active Pinia. Are you trying to use a store before calling \"app.use(pinia)\"?\nSee https://pinia.vuejs.org/core-concepts/outside-component-usage.html for help.\nThis will fail in production.");
+		pinia = activePinia;
+		if (!pinia._s.has(id)) {
+			if (isSetupStore) createSetupStore(id, setup, options, pinia);
+			else createOptionsStore(id, options, pinia);
+			/* istanbul ignore else */
+			if (process.env.NODE_ENV !== "production") useStore._pinia = pinia;
+		}
+		const store = pinia._s.get(id);
+		if (process.env.NODE_ENV !== "production" && hot) {
+			const hotId = "__hot:" + id;
+			const newStore = isSetupStore ? createSetupStore(hotId, setup, options, pinia, true) : createOptionsStore(hotId, assign({}, options), pinia, true);
+			hot._hotUpdate(newStore);
+			delete pinia.state.value[hotId];
+			pinia._s.delete(hotId);
+		}
+		if (process.env.NODE_ENV !== "production" && IS_CLIENT) {
+			const currentInstance = (0, vue_exports.getCurrentInstance)();
+			if (currentInstance && currentInstance.proxy && !hot) {
+				const vm = currentInstance.proxy;
+				const cache = "_pStores" in vm ? vm._pStores : vm._pStores = {};
+				cache[id] = store;
+			}
+		}
+		return store;
+	}
+	useStore.$id = id;
+	return useStore;
+}
 //#endregion
 //#region resources/js/ssr.ts
-var appName = process.env.VITE_APP_NAME ?? "RIMIFY";
+var appName = process.env.VITE_APP_NAME || "RIMIFY";
 server_default((page) => createInertiaApp({
 	page,
 	render: import_server_renderer_cjs_prod.renderToString,
 	title: (title) => title ? `${title} · ${appName}` : appName,
 	resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, /* #__PURE__ */ Object.assign({
-		"./Pages/Admin/Anmelden/Desktop.vue": () => import("./assets/Desktop-BhyzN5iQ.js").then((n) => n.n),
-		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-CYc8Qt0P.js"),
-		"./Pages/Admin/Anmelden/Mobile.vue": () => import("./assets/Mobile-3THdygPC.js").then((n) => n.n),
-		"./Pages/Admin/Dashboard/Desktop.vue": () => import("./assets/Desktop-cv3xTsSq.js").then((n) => n.n),
-		"./Pages/Admin/Dashboard/Index.vue": () => import("./assets/Index-BKz32CxI.js"),
-		"./Pages/Admin/Dashboard/Mobile.vue": () => import("./assets/Mobile-LZ5iwc7S.js").then((n) => n.n),
-		"./Pages/Admin/Gutachten/Desktop.vue": () => import("./assets/Desktop-DkiOlLNv.js").then((n) => n.n),
-		"./Pages/Admin/Gutachten/Index.vue": () => import("./assets/Index-B7FehymD.js"),
-		"./Pages/Admin/Gutachten/Mobile.vue": () => import("./assets/Mobile-BG_WgCA1.js").then((n) => n.n),
-		"./Pages/Admin/Rollen/Desktop.vue": () => import("./assets/Desktop-Bv1YFhws.js").then((n) => n.n),
-		"./Pages/Admin/Rollen/Index.vue": () => import("./assets/Index-BDEUVSBS.js"),
-		"./Pages/Admin/Rollen/Mobile.vue": () => import("./assets/Mobile-D54W-6Z8.js").then((n) => n.n),
-		"./Pages/Bestellung/Desktop.vue": () => import("./assets/Desktop-BU9gmpcO.js").then((n) => n.n),
-		"./Pages/Bestellung/Index.vue": () => import("./assets/Index-slLHuepw.js"),
-		"./Pages/Bestellung/Mobile.vue": () => import("./assets/Mobile-D53e_YYn.js").then((n) => n.n),
-		"./Pages/Check/Desktop.vue": () => import("./assets/Desktop-CMv-TlTA.js").then((n) => n.n),
-		"./Pages/Check/Index.vue": () => import("./assets/Index-BpGdJlaf.js"),
-		"./Pages/Check/Mobile.vue": () => import("./assets/Mobile-ClL1e28V.js").then((n) => n.n),
-		"./Pages/CheckErgebnis/Desktop.vue": () => import("./assets/Desktop-2AizjPk1.js").then((n) => n.n),
-		"./Pages/CheckErgebnis/Index.vue": () => import("./assets/Index-C8lfJ2Cj.js"),
-		"./Pages/CheckErgebnis/Mobile.vue": () => import("./assets/Mobile-EA7NOoBI.js").then((n) => n.n),
-		"./Pages/Faq/Desktop.vue": () => import("./assets/Desktop-xv1CH-wf.js").then((n) => n.n),
-		"./Pages/Faq/Index.vue": () => import("./assets/Index-DTEAcGX5.js"),
-		"./Pages/Faq/Mobile.vue": () => import("./assets/Mobile-nLTo3I3I.js").then((n) => n.n),
-		"./Pages/Fehler/Desktop.vue": () => import("./assets/Desktop-wZIaJL94.js").then((n) => n.n),
-		"./Pages/Fehler/Index.vue": () => import("./assets/Index-cdI28WhD.js"),
-		"./Pages/Fehler/Mobile.vue": () => import("./assets/Mobile-fxqGnw9_.js").then((n) => n.n),
-		"./Pages/Felgen/Index.vue": () => import("./assets/Index-G2yUtxq8.js"),
-		"./Pages/FelgenSuchen/Desktop.vue": () => import("./assets/Desktop-BdX3bKVF.js").then((n) => n.n),
-		"./Pages/FelgenSuchen/Index.vue": () => import("./assets/Index-Cb3nj747.js"),
-		"./Pages/FelgenSuchen/Mobile.vue": () => import("./assets/Mobile-CJY2uAST.js").then((n) => n.n),
-		"./Pages/Kasse/Desktop.vue": () => import("./assets/Desktop-BJga0nav.js").then((n) => n.n),
-		"./Pages/Kasse/Index.vue": () => import("./assets/Index-B7MIhWLC.js"),
-		"./Pages/Kasse/Mobile.vue": () => import("./assets/Mobile-1hkeBKfc.js").then((n) => n.n),
-		"./Pages/Kontakt/Desktop.vue": () => import("./assets/Desktop-D2yqazU7.js").then((n) => n.n),
-		"./Pages/Kontakt/Index.vue": () => import("./assets/Index-lGMNCrEz.js"),
-		"./Pages/Kontakt/Mobile.vue": () => import("./assets/Mobile-DP9e5cHm.js").then((n) => n.n),
-		"./Pages/Produkt/Index.vue": () => import("./assets/Index-C_NhFi8G.js"),
-		"./Pages/Rechtliches/Desktop.vue": () => import("./assets/Desktop-Ck4tAcS_.js").then((n) => n.n),
-		"./Pages/Rechtliches/Index.vue": () => import("./assets/Index-BMhkSIDN.js"),
-		"./Pages/Rechtliches/Mobile.vue": () => import("./assets/Mobile-D_6GBSXa.js").then((n) => n.n),
-		"./Pages/Startseite/Index.vue": () => import("./assets/Index-CBsDTz8R.js"),
-		"./Pages/Warenkorb/Desktop.vue": () => import("./assets/Desktop-BrE8sRDh.js").then((n) => n.n),
-		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-DwMMhGm3.js"),
-		"./Pages/Warenkorb/Mobile.vue": () => import("./assets/Mobile-XiXX_IVs.js").then((n) => n.n)
+		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-CXEhMEbi.js"),
+		"./Pages/Admin/Benachrichtigungen/Index.vue": () => import("./assets/Index-ByQ_eTTc.js"),
+		"./Pages/Admin/Dashboard/Index.vue": () => import("./assets/Index-BfOCHx7Q.js"),
+		"./Pages/Admin/Gutachten/Index.vue": () => import("./assets/Index-CLn1wnos.js"),
+		"./Pages/Admin/Rdks/Index.vue": () => import("./assets/Index-B60thl5Q.js"),
+		"./Pages/Admin/Rollen/Index.vue": () => import("./assets/Index-BCeQZ635.js"),
+		"./Pages/Admin/Wuchtgewichte/Index.vue": () => import("./assets/Index-B32U4Mwq.js"),
+		"./Pages/Bestellung/Index.vue": () => import("./assets/Index-CDCE5hRI.js"),
+		"./Pages/Check/Index.vue": () => import("./assets/Index-DHMmayNo.js"),
+		"./Pages/CheckErgebnis/Index.vue": () => import("./assets/Index-BpNhHNU4.js"),
+		"./Pages/Design/Index.vue": () => import("./assets/Index-B-YToaBW.js"),
+		"./Pages/Faq/Index.vue": () => import("./assets/Index-BtPLcBfK.js"),
+		"./Pages/Fehler/Index.vue": () => import("./assets/Index-DbbQ61Tm.js"),
+		"./Pages/Felgen/Index.vue": () => import("./assets/Index-BMZ8D0uk.js"),
+		"./Pages/FelgenSuchen/Index.vue": () => import("./assets/Index-DfuagLIz.js"),
+		"./Pages/Felgenrechner/Desktop.vue": () => import("./assets/Desktop-DswqYsMf.js"),
+		"./Pages/Felgenrechner/Mobile.vue": () => import("./assets/Mobile-CgursDsp.js"),
+		"./Pages/Kasse/Index.vue": () => import("./assets/Index-k0zsGDSf.js"),
+		"./Pages/Kontakt/Index.vue": () => import("./assets/Index-Gzjf2EJa.js"),
+		"./Pages/Produkt/Index.vue": () => import("./assets/Index-UDzz4m0N.js"),
+		"./Pages/Ratgeber/Desktop.vue": () => import("./assets/Desktop-DSvF5IsC.js"),
+		"./Pages/Rechtliches/Index.vue": () => import("./assets/Index-B3XZdH7E.js"),
+		"./Pages/Startseite/Desktop.vue": () => import("./assets/Desktop-DPP95xaH.js"),
+		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-DvrdDDh8.js"),
+		"./Pages/Vergleich/Desktop.vue": () => import("./assets/Desktop-IEi2U59n.js"),
+		"./Pages/Vergleich/Mobile.vue": () => import("./assets/Mobile-CQtRniSa.js"),
+		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-DORq4fMX.js")
 	})),
 	setup({ App, props, plugin }) {
-		const ziggy = page.props.ziggy;
-		const app = (0, vue_exports.createSSRApp)({ render: () => (0, vue_exports.h)(App, props) }).use(plugin).use(createPinia());
-		return ziggy ? app.use(o, {
-			...ziggy,
-			location: new URL(ziggy.location)
-		}) : app;
+		return (0, vue_exports.createSSRApp)({ render: () => (0, vue_exports.h)(App, props) }).use(plugin).use(createPinia());
 	}
 }), { port: Number(process.env.INERTIA_SSR_PORT ?? 13714) });
 //#endregion
-export { router as a, __exportAll as c, usePage as i, __reExport as l, link_default as n, require_server_renderer_cjs_prod as o, useForm as r, vue_exports as s, head_default as t, __toESM as u };
+export { usePage as a, vue_exports as c, __toESM as d, useForm as i, __exportAll as l, head_default as n, router as o, link_default as r, require_server_renderer_cjs_prod as s, defineStore as t, __reExport as u };

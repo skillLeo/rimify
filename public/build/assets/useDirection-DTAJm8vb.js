@@ -1,0 +1,1 @@
+import{O as e}from"./Dialog-C8LY0aUj.js";import{g as t,vn as n}from"./runtime-core.esm-bundler-B8D2lM98.js";function r(r){let i=e({dir:n(`ltr`)});return t(()=>r?.value||i.dir?.value||`ltr`)}export{r as t};

@@ -32,37 +32,77 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final readonly class EloquentFitmentRepository implements FitmentRepository
 {
-    /** @return list<FitmentRow> */
-    public function publishedRowsFor(int $vehicleId, int $wheelConfigId): array
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, list<FitmentRow>>
+     */
+    public function publishedRowsFor(int $vehicleId, array $wheelConfigIds): array
     {
+        $byConfig = array_fill_keys($wheelConfigIds, []);
+
+        if ($wheelConfigIds === []) {
+            return $byConfig;
+        }
+
         $rows = Fitment::query()
             ->with(['approvalDocument', 'tyreSizes', 'conditions'])
             ->where('fitments.vehicle_id', $vehicleId)
             ->where('fitments.status', FitmentStatus::Published->value)
-            ->where('fitments.wheel_config_id', $wheelConfigId)
+            ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             ->whereHas('approvalDocument', $this->currentlyValid(...))
             ->orderBy('fitments.id')
             ->get();
 
-        return $rows->map($this->toRow(...))->values()->all();
+        foreach ($rows as $row) {
+            $byConfig[$row->wheel_config_id][] = $this->toRow($row);
+        }
+
+        return $byConfig;
     }
 
-    public function hasPublishedDocumentForConfig(int $wheelConfigId): bool
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return list<int>
+     */
+    public function configsWithPublishedDocument(array $wheelConfigIds): array
     {
+        if ($wheelConfigIds === []) {
+            return [];
+        }
+
         return Fitment::query()
-            ->where('fitments.wheel_config_id', $wheelConfigId)
+            ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             ->where('fitments.status', FitmentStatus::Published->value)
             ->whereHas('approvalDocument', $this->currentlyValid(...))
-            ->exists();
+            ->distinct()
+            ->pluck('fitments.wheel_config_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
     }
 
-    public function findWheelConfig(int $wheelConfigId): ?WheelConfigRecord
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, WheelConfigRecord>
+     */
+    public function findWheelConfigs(array $wheelConfigIds): array
     {
-        $config = WheelConfig::query()
-            ->with(['wheelModel.brand', 'wheelFinish'])
-            ->find($wheelConfigId);
+        if ($wheelConfigIds === []) {
+            return [];
+        }
 
-        return $config === null ? null : self::toWheelConfig($config);
+        $records = [];
+
+        $configs = WheelConfig::query()
+            ->with(['wheelModel.brand', 'wheelFinish'])
+            ->whereIn('id', $wheelConfigIds)
+            ->get();
+
+        foreach ($configs as $config) {
+            $records[$config->id] = self::toWheelConfig($config);
+        }
+
+        return $records;
     }
 
     /**
@@ -117,6 +157,9 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                     diameterIn: $size->diameter_in,
                     documentMinLoadIndex: $size->min_load_index,
                     documentMinSpeedSymbol: $size->min_speed_symbol,
+                    // The axle the document scoped this size to. Dropping it here is how a
+                    // rear-only 275/35 would be offered as a four-wheel set.
+                    axle: $size->axle->value,
                 ))
                 ->values()
                 ->all(),

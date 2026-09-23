@@ -148,13 +148,13 @@ const VERDICT_TONE: Record<string, string> = {
 
 .bl__title {
     margin: 2px 0 0;
-    font-size: 16px;
+    font-size: var(--fs-body);
     font-weight: 700;
 }
 
 .bl__sub {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--fs-small);
     color: var(--ink2);
 }
 
@@ -168,7 +168,7 @@ const VERDICT_TONE: Record<string, string> = {
 .bl__conditions {
     margin: var(--space-2) 0 0;
     padding-left: var(--space-4);
-    font-size: 13px;
+    font-size: var(--fs-small);
     color: var(--ink2);
 }
 
@@ -184,7 +184,7 @@ const VERDICT_TONE: Record<string, string> = {
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     background: var(--surface);
-    font-size: 18px;
+    font-size: var(--fs-h4);
     font-weight: 700;
     color: var(--ink);
     cursor: pointer;

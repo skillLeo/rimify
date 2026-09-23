@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $spoke_count
  * @property float|null $rating
  * @property int $rating_count
+ * @property bool $is_demo
  */
 class WheelModel extends Model
 {
@@ -35,7 +36,7 @@ class WheelModel extends Model
 
     protected $fillable = [
         'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'status',
-        'spoke_count', 'rating', 'rating_count',
+        'spoke_count', 'rating', 'rating_count', 'is_demo',
     ];
 
     /** @return array<string, string> */
@@ -44,6 +45,8 @@ class WheelModel extends Model
         return [
             'status' => CatalogueStatus::class,
             'spoke_count' => 'integer',
+            // A seeded demonstration row. Never real stock, and said so on the page.
+            'is_demo' => 'boolean',
             // Displayed, never compared as money — a float is the honest type for a star figure.
             'rating' => 'float',
             'rating_count' => 'integer',

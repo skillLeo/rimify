@@ -1,0 +1,65 @@
+{
+    "name": "spatie/holidays",
+    "description": "Calculate public holidays",
+    "keywords": [
+        "spatie",
+        "holidays"
+    ],
+    "homepage": "https://github.com/spatie/holidays",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Niels Vanpachtenbeke",
+            "email": "niels@spatie.be",
+            "role": "Developer"
+        },
+        {
+            "name": "Freek Van der Herten",
+            "email": "freek@spatie.be",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-intl": "*",
+        "ext-calendar": "*",
+        "nesbot/carbon": "^3.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "laravel/prompts": "^0.3.0",
+        "pestphp/pest": "^5.0",
+        "phpstan/phpstan": "^2.0",
+        "rector/rector": "^2.0",
+        "spatie/invade": "^2.0",
+        "spatie/ray": "^1.40.1",
+        "symfony/var-dumper": "^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Spatie\\Holidays\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Spatie\\Holidays\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "analyse": "vendor/bin/phpstan analyse",
+        "baseline": "vendor/bin/phpstan analyse --generate-baseline",
+        "test": "vendor/bin/pest --compact",
+        "rector": "vendor/bin/rector process --dry-run",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

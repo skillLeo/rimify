@@ -29,16 +29,49 @@ it('renders the homepage with real catalogue cards', function (): void {
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page
-                ->component('Startseite/Index')
-                ->has('bestsellers', 8)
-                ->has('makes')
+                ->component('Startseite/Desktop')
+                ->has('popular.cards', 8)
+                ->has('selector.makes')
                 ->has('brands')
                 // Without these two the card draws the same grey five-spoke wheel twelve times.
-                ->has('bestsellers.0.art.finish')
-                ->has('bestsellers.0.art.spokes')
-                ->where('bestsellers.0.fitment', null)
+                ->has('popular.cards.0.art.finish')
+                ->has('popular.cards.0.art.spokes')
+                // No vehicle, no claim: the catalogue row carries no fitment line at all.
+                ->where('popular.cards.0.fitment', null)
         );
 });
+
+it('renders the phone homepage for a phone and the desktop one for everything else', function (): void {
+    $mobile = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36';
+
+    // The desktop request first: `withHeaders()` keeps its headers for the rest of the test.
+    $this->get('/')
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Startseite/Desktop')->where('isMobile', false));
+
+    $this->withHeaders(['User-Agent' => $mobile])
+        ->get('/')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Startseite/Mobile')->where('isMobile', true));
+});
+
+it('ships no route table to the browser: no Ziggy, no admin or tooling paths in a storefront page', function (): void {
+    $response = $this->get('/')->assertOk();
+
+    $response->assertInertia(fn (AssertableInertia $page) => $page->missing('ziggy'));
+
+    expect($response->getContent())
+        ->not->toContain('const Ziggy')
+        ->not->toContain('/admin/benachrichtigungen')
+        ->not->toContain('telescope');
+});
+
+it('puts the page component\'s own stylesheet in the head, so the server-rendered page never paints unstyled', function (): void {
+    $html = (string) $this->get('/')->assertOk()->getContent();
+    $head = substr($html, 0, (int) strpos($html, '</head>'));
+
+    // app.css plus at least the page's and its layout's own stylesheets.
+    expect(substr_count($head, 'rel="stylesheet"'))->toBeGreaterThanOrEqual(3);
+})->skip(fn (): bool => ! is_file(public_path('build/manifest.json')), 'needs the production build');
 
 it('ships the header mode and the menus on every page', function (): void {
     $this->get('/faq')

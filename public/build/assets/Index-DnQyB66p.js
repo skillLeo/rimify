@@ -1,1 +1,0 @@
-import{A as e,M as t,S as n,T as r,f as i,v as a,y as o}from"./app-C-ynDaOw.js";import{t as s}from"./Desktop-BGawKpV_.js";import{t as c}from"./Mobile-fTtNH1bE.js";import{r as l}from"./useShared-B6EtPgA3.js";var u=a({__name:`Index`,props:{stage:{}},setup(a){let u=a,d=l();return(a,l)=>(n(),i(r(e(d).isMobile?c:s),t(o(u)),null,16))}});export{u as default};

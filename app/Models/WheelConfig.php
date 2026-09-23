@@ -24,6 +24,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $et_mm
  * @property int $price_cents
  * @property int $stock_qty
+ * @property int|null $weight_g
+ * @property int|null $max_load_kg Radlast from the wheel's own approval; NULL when not verified
+ * @property string|null $kba_number
  */
 class WheelConfig extends Model
 {
@@ -35,7 +38,7 @@ class WheelConfig extends Model
     protected $fillable = [
         'wheel_model_id', 'wheel_finish_id', 'diameter_in', 'width_in', 'et_mm',
         'bolt_holes', 'bolt_circle_mm', 'centre_bore_mm', 'hump', 'bead_profile',
-        'kba_number', 'ean', 'sku', 'price_cents', 'currency', 'stock_qty', 'weight_g',
+        'kba_number', 'ean', 'sku', 'price_cents', 'currency', 'stock_qty', 'weight_g', 'max_load_kg',
     ];
 
     /** @return array<string, string> */
@@ -51,6 +54,7 @@ class WheelConfig extends Model
             'price_cents' => 'integer',
             'stock_qty' => 'integer',
             'weight_g' => 'integer',
+            'max_load_kg' => 'integer',
         ];
     }
 

@@ -27,6 +27,9 @@ arch('the pure engine never touches Eloquent models or the database')
         'App\Domain\Fitment\Resolver',
         'App\Domain\Fitment\Conflict',
         'App\Domain\Fitment\Contracts',
+        // The tyre rules answer "may this tyre go on this wheel on this car"; a query written
+        // straight into them is the drift R-13 exists to prevent.
+        'App\Domain\Fitment\Tyres',
     ])
     ->not->toUse([
         'App\Models',

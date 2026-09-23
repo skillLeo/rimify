@@ -17,12 +17,16 @@ class Brand extends Model
 
     use SoftDeletes;
 
-    protected $fillable = ['name', 'slug', 'logo_path', 'sort_order'];
+    protected $fillable = ['name', 'slug', 'logo_path', 'is_wheel_brand', 'sort_order'];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['sort_order' => 'integer'];
+        return [
+            // On the homepage brand wall whether or not a wheel is in stock; a tyre brand is not.
+            'is_wheel_brand' => 'boolean',
+            'sort_order' => 'integer',
+        ];
     }
 
     /** @return HasMany<WheelModel, $this> */

@@ -17,7 +17,8 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FilterBar from '../../Components/Listing/FilterBar.vue'
 import Icon from '../../Components/Art/Icon.vue'
-import ProductCard from '../../Components/Product/ProductCard.vue'
+import ProductTile from '../../Components/Ui/ProductTile.vue'
+import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
 import type { FelgenProps } from '../../types/pages'
@@ -84,7 +85,11 @@ onBeforeUnmount(() => {
             </nav>
 
             <div class="plp__head">
-                <h1 class="t-h1">{{ heading }}</h1>
+                <h1 class="t-h1">
+                    {{ heading }}
+                    <!-- Seeded demonstration rows are on this page: it says so, once (OVERHAUL.md §2). -->
+                    <span v-if="demo" class="badge demo-note plp__demo">Demodaten</span>
+                </h1>
                 <p class="plp__count">
                     <template v-if="total !== null">
                         <strong class="tabular">{{ total }}</strong>
@@ -92,6 +97,7 @@ onBeforeUnmount(() => {
                     </template>
                     <template v-else>{{ cards.length }} Felgen im Sortiment</template>
                 </p>
+                <p v-if="demo" class="micro quiet">Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->
@@ -125,12 +131,16 @@ onBeforeUnmount(() => {
                 </aside>
 
                 <div class="plp__results">
-                    <div v-if="cards.length > 0" class="plp__grid">
-                        <ProductCard
-                            v-for="card in cards"
+                    <!-- The same card as the homepage (home-overhaul.md §1): one CTA, one checkbox. -->
+                    <div v-if="cards.length > 0" class="tile-grid plp__grid">
+                        <ProductTile
+                            v-for="(card, i) in cards"
                             :key="`${card.modelId}-${card.finishId}`"
                             :card="card"
                             :vehicle="vehicle"
+                            :eager="i < 4"
+                            sizes="(min-width: 1280px) 240px, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 45vw"
+                            compare
                         />
                     </div>
 
@@ -147,6 +157,12 @@ onBeforeUnmount(() => {
                         <p class="t-body">
                             RIMIFY zeigt ausschließlich Felgen, für die ein gültiges Gutachten vorliegt.
                         </p>
+                        <!-- F2's real endpoint, never the old contact form, which sent nothing (ACCURACY D5). -->
+                        <VehicleNotify
+                            v-if="appliedCount === 0 && vehicle"
+                            :vehicle-id="vehicle.id"
+                            :vehicle-label="vehicle.short"
+                        />
                         <div class="cluster">
                             <button
                                 v-if="appliedCount > 0"
@@ -156,9 +172,6 @@ onBeforeUnmount(() => {
                             >
                                 Filter zurücksetzen
                             </button>
-                            <Link v-else href="/kontakt" class="btn btn--primary">
-                                Benachrichtigen, sobald verfügbar
-                            </Link>
                             <Link href="/felgen-suchen" class="btn btn--secondary">Anderes Fahrzeug wählen</Link>
                         </div>
                     </div>
@@ -250,7 +263,7 @@ onBeforeUnmount(() => {
 .plp__bar {
     position: sticky;
     top: var(--header-h-m);
-    z-index: 5;
+    z-index: var(--z-sticky);
     margin: 0 calc(var(--gutter) * -1) var(--space-4);
     padding: var(--space-2) var(--gutter);
     background: var(--ground);
@@ -269,18 +282,12 @@ onBeforeUnmount(() => {
     padding-inline: var(--space-1);
     border-radius: var(--radius-round);
     background: var(--blue);
-    color: #fff;
+    color: var(--c-surface);
     font-size: var(--text-micro);
 }
 
 .plp__side {
     display: none;
-}
-
-.plp__grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
 }
 
 .plp__pager {
@@ -303,10 +310,6 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 640px) {
-    .plp__grid {
-        gap: var(--space-4);
-    }
-
     .plp__bar-btn {
         width: auto;
     }
@@ -315,10 +318,6 @@ onBeforeUnmount(() => {
 @media (min-width: 900px) {
     .plp__bar {
         top: var(--header-h);
-    }
-
-    .plp__grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
@@ -346,8 +345,9 @@ onBeforeUnmount(() => {
         border-radius: var(--radius-md);
     }
 
-    .plp__layout:not(.plp__layout--filters) .plp__grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+    /* Beside the filters there is room for three columns, not four. */
+    .plp__layout--filters .plp__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 </style>

@@ -46,6 +46,14 @@ final readonly class FitmentVerdict
         public ?string $vehicleLabel = null,
         public ?string $buildWindowLabel = null,
         public ?string $wheelLabel = null,
+        /**
+         * True only when this object was rebuilt from a frozen snapshot by `fromArray()`.
+         *
+         * It describes how the object was built, not what the document said, so `toArray()`
+         * never emits it. A restored verdict is evidence of what was decided; it is never the
+         * input to a fresh decision, and `TyreEligibility` refuses it outright.
+         */
+        public bool $restored = false,
     ) {}
 
     /** `SAME` unless the permitted sizes actually differ between the axles. */
@@ -165,7 +173,12 @@ final readonly class FitmentVerdict
             stockQty: 0,
         );
 
-        /** @var list<array{code: string, severity: string, textDe: string, textEn?: string|null}> $conditions */
+        /**
+         * @var list<array{
+         *     code: string, severity: string, textDe: string, textEn?: string|null,
+         *     affectsTyreChoice?: bool, affectsPurchase?: bool, requiresAcknowledgement?: bool
+         * }> $conditions
+         */
         $conditions = $data['conditions'] ?? [];
 
         return new self(
@@ -189,6 +202,8 @@ final readonly class FitmentVerdict
             vehicleLabel: (string) $vehicleData['label'],
             buildWindowLabel: (string) $vehicleData['buildWindow'],
             wheelLabel: $wheelData === null ? null : (string) $wheelData['label'],
+            // The only construction site that passes true.
+            restored: true,
         );
     }
 

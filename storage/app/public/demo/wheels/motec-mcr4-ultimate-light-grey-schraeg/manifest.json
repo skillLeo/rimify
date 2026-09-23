@@ -1,0 +1,48 @@
+{
+  "name": "motec-mcr4-ultimate-light-grey-schraeg",
+  "base": "/storage/demo/wheels/motec-mcr4-ultimate-light-grey-schraeg/motec-mcr4-ultimate-light-grey-schraeg",
+  "width": 1080,
+  "height": 1080,
+  "widths": [
+    480,
+    768,
+    1080
+  ],
+  "fallback": "png",
+  "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAGZElEQVRIiYVWe3AT5xGXebSZgX9CaOIkw6tJO0RuHDdC2KZ1BHEgDGTyaEeZSTJ5m8Q1FAcIGEGts2SCIlm2bN9J57MedyfpTpZOD0s+622DGaLaYFPTOjW0lBAo8ZDMQB+ZgGWszZzweeIwwM5o7vv22++3u7/d25NEcncp8Pl88wGg4E4G9zqX3O0igiDzhDUAzHe73U+6XK7X3G739q4uXxXD+BQYhi2eOS8AgLztPUUwFsCF9fDw8EKPx/OOzeb43GRqA6fTnevujkBXly+H4wRQFH2R56PaeDy+RAzqXvgFYtQcF1rHsp4Bj8cLKtXBf9fV7R9nWY+/tzcaZxhPVq1GwIxZpnt6eoHnY+dSqVT5XZ2IPB45cuQ+j8dr9nEBoGnXDQzDEEGv0+macBx/S1gfPXq8HEUtf3E4KCAI63WG8UAikfxvf3+/YgbrNroKxAO/389yXABaWtq+DAaDa0UDjUbjxTB8l7hvamq2c1zwSiTCZy0WIusgaUgm019kMplHfxjwbEGFZzwe3xOLxsBgaAKd7tOwVqv/hVKpzBdSrW4IoSiqFe+gKHY6EOh+9/jxz+hQKAy1tbtuGI0mCARCFuFcpHrWE8/zhYl4/FJvbwza2lDW6XT+3mLBMyZT67nWVrS6sfFQCMPMccE2EAjINRrtpNls/thiwQM+r1+gagpFMYhEeq4NDg6umnWCIMgCYeN2s9uSybRgmMOwjkpBNzY29hOvl3vVZneM07Qry7Jd/6+pqQmqVPtHSIr+1u8PAkU5TSeHRz7LZAaFu5M8H4X+/oEPZ+q5QKJUKvP00DTtSKf7oLHx8DhBEAtnIlgwQ6Fsx44/XnWQ1JRKdeDyoU8OT0djCSCdzu232nlEd+bsP8Fqs39nt5MCTZ2CXsTOC4ZZEpw/AEiD5ozNZtuk1+sfEXlkGOblqqptF/bV7c+aLZZcpIf/T/Ufar6trq5+Ox/pwED1yeFTgKLm6/X1CBBEZ+y2NtVoNCk7ScHBevVJq9WO2+3kKbyDOMUwXV0NWm3/+1XbbuBE502GZXIRvuemsdl002hs7lOrEb9ebzzv9XKA451ZDDOD3U72zQKLUeK4xdXF+eCAWj2Q35P4Stbrfc/NMGwy1QfNza3X6g4c/LonGoUOgriCIJr/hULdVwmi8x9DQyf48fGzQJL0JM/3gsvF+GbbP18IiUTi9Xp3dUfCYGg2foWRWKEYgM1BEYFQ+Ayi0bS8X7XtyofVNbBjx85v9u6t0yKI5iO9vuni0ImRL4dODANNOSczmT8DRVGa2RqKGQSDwcc4jrvaabNCC9b2pqAztrTUsj7fxYmJiQeFfUNDQ/POnbXTBkPTFwiC5OcP62Z3cv4gJBKpbCqVnh4cHAKXy7N+ztgQnfh8vk+j0Sjs27dvQKlUrmrDzKPRZLJMzMZgMBpaW9uvU5TzG55PyATduXPnj4XDPNhs9snLly/D6OhoRiKRiN1TMOdl27Nnz6JYLHYU78ChTqU6GwzzSjFVnU53fygcnsgMDb+qOljfwPq40IWLlyz/On8B4vHElMFgnDp27DiMjIy8OCd6UUQnmUxmSSwWjbkZBrhAUA8wsUjQE1armgsGGWF9IpN5zs16vhs6OQL+QCjbHenJnv7r34CP8KY5Y+LHIk7BsbGxxfF4PJJIpsBOkqd37/54t52i/t7d29seS6Z7Eum+qTYUu6n6U32WdjHTqfQRiCUSduHDNEvLnWTm7Z2Xy8FP0/39jZw/cMPqIMFO0tO0i8kRVhs0NbfkUNSca21tB5Kir3i5wHYx8jt9PguKi4sXSeWKwqKiimVrKrasKymrfGuFtPTd19+pIeq1us9RS8c1DO/Mmjs6c6ilY8poar+6V4WMvvDKG4dXrJa/Il/3fLnsN88tl8rlhQ8VFwu0znE07/GS3/7sKfmGoqfkG0tKSjdtlFc8X1X6zAu7Vz9d8dHjReW1axVbVZVblQ2bX35du37z79RPl23cu6qotObJNetrSp/Z+oFs3eZNxWsqf12y9lmpgCVgzs1BJlsolSoWS6VlS1bLKx/4pUyxdNWvSh8qK9v6aPmGLStWPlG+4uGfy5bf/7B0+SOPrVkmZFpR8dIyqXxL4S172VJpWdkSAUPAumsdxKwkSuV8pUQ5X6FQLJDJZAtv/T7IPwVdfloq8z1/x38U3wNPTpWSkkGauQAAAABJRU5ErkJggg==",
+  "wide": {
+    "name": "motec-mcr4-ultimate-light-grey-schraeg-4x3",
+    "base": "/storage/demo/wheels/motec-mcr4-ultimate-light-grey-schraeg/motec-mcr4-ultimate-light-grey-schraeg-4x3",
+    "width": 1080,
+    "height": 810,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAYAAABB7B6eAAAACXBIWXMAAAPoAAAD6AG1e1JrAAADy0lEQVQ4jZVUb0gbZxg/p6W2g2GXD27aCrKyyprGQXBFsmGpZc2GhbERBqv7UAZrrw5c1GjJUqNLM2M0/+9yl7tckjN/LnmTGDOT2CTKNS6h07mN1VIZDMo62Yeyug+lOLfOdwRMkaE1feDh3vce3t+f53l5EWSPUKvVzxVzpxqEcNdaOVEBAKgsbQAAJ3CcuEzTzBW/338BAHBsi6SimM+MXlRX/Mbj8eMUxeQ0Gu0/JEmtJxKpTbebhQRB/pVIJH35fKau5PSZ1C8tLe0LBoGWZb3QiuF+FEU7SZLsWV//s9FstoZdLg8Mh6Pw6+nUz8vLy6+UTVKyG4lEiBAIQwzDFMX9wMDAKYPBZC2uTSbTh6EQ+Ckcjt6naQYGAsEbRUElcbuCl3qeTqfPZbJZOD5uSmJW7KrRbL46NKS5aDKZIsX66OiYHcOwr2Kx+A9GoxkSBAXn5uY+3o6xY5QsTsXjMS4YglqtXsTf5atZlr2M2Yk7Hta71tWFhnA78cDr9d+Ox6ctN3LzGwBEYTKZij61TaXW9Pb2Ph8Mgl8NBvPvXV1XBCXLfX39OpVqcNNkNj90UDRUqdWdEMKam98urpEkBW027A6E8OB2rB0JUBQ9ZLba7mtHdPdIklJTFD3h5zhNv6J/cVCtfpy8PvM34XBsDGuuxfQ6vZELhh/aCRJaLLZVnudr9iTgeb6K8bhW9AbDXblcfoBgiObp6YTL6wtsKvoHHhAU/Wh4+Mt7NO38JRqN3V5cXFqLxaZgOBy5pVa7q3cl2D6gyalJq3uChTqd7nh3d3cN42Fnkum0BEVRbU+vAiqVKkVzc1uN2+P9bnaOh4VCAWYyWe8W+O5XtTQgAMBRLsg9Vg2qCO3IiHJiwn+++J+inJdwnNigGeYLCKEgn7+5yjBuuLKyAguFhY49b9F2BbOzs+85GSfEcXvoyfAj0VCa54UuN+v9/sdbv81/k/83mZqBmWwWbB0v78koqcjlcmcj0egjD8v6RscM17zBEEhlMnpfgPvDbLHByVgc5ubz/MLCguCpvf9fVIjF4n1SqfQFBEH2j5nw9+0O5yrjmYA+LrjpC3DQQTvh2Lhxw2jBA3K5sh5BkCqpVLq/LPWITFYpPHmyViRqf7X1zXc6jjVLLr7eeqbvowso+blCNdmnHIp/+lkPd+6DTv1RkeQTUcups+LWt5sahadrkba2qnIdHGxqaRcIhadrxZKOBtEbbzUi1XVHEOTlBgQ5dAQ5UH/4xfoThyVnOhpea3n3pbqmdkHxTNkz2IlUJpNVymTgSZb7PP8Hx/UMpYY+LrcAAAAASUVORK5CYII="
+  },
+  "bare": {
+    "name": "motec-mcr4-ultimate-light-grey-schraeg-bare",
+    "base": "/storage/demo/wheels/motec-mcr4-ultimate-light-grey-schraeg/motec-mcr4-ultimate-light-grey-schraeg-bare",
+    "width": 1080,
+    "height": 1080,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFgklEQVRIiZ1VXWzbVBROWQdIAwl4gIm9MCF442kCMV6GBOIRIaFM4oHftVrpSssoa5uWxk06liVNmnZx4rqJYzuJncRO4iZx89um69Rl/cvIYFM3KPvpKKFM6oBN65quPcghrtZN69COZPnec8895zvfufcehWJzqeA4bgsAVDzI4GHris02IgjymDQGgC0ej+c1t9v9kcfjOeDzcVUMw+1BUfSp8noFAJRsHyqSseRcGk9PT2/1er2fORzOc2ZzL7hcnrWBgQj4fNwahuFAUfScKMa0iUTiORnUw/xXyKh5XniLZb2jXq8fVKq235qbW2ZY1hsYHIwlGMZbVKsRsKK21Wh0EEQxPptOp3dvGkTmcWRk5Emv12/l+CDQtPs2iqKIpNfpdF0Yhn0ijY8fH9ttsdh+cDopwHH7EsN4IZlM/Z3JZPaUfd1HV4W8EAgEWJ4PQnd375VQKPSGbKDRaPwoih2U511dJoLnQwuRiFi02fCik6QhlRq6lM1md9wNeL2g0j+RSDTGY3EwGLpApzsa1mr1ryiVylIh1eoOwWKxaOU9Fgt6Jhgc+Hxs7CQtCGFoaDh422g0QzAo2KR1mer1SKIobk8mElcHB+PQ22thXS7XhzYbljWbe2Z7eiw1nZ2HBRS1JiTbYDD4ukajXbZard/abFiQ8wckqlYsFhQikej18fHxnetBEASplCYeD1udSg1Jhmso2veOpDt79uzjfj+/10E4Z2jaXWRZ343a2tqQStWSIyn6ZiAQAopymaemcyez2XFp77IoxiCTGd1frmelQqlUluihado5NDQMnZ1HZnAc31pGUFmmcFdd3VeLTpJaUala5w9/f2Q1Fk8C6XId+O8453TnL/wCdgdxiyBIiaZ+SS/7LgmK2pJ8IAhIh+a8w+F4T6/XvyjzyDDMB1VV1ZebmluKVpttLRIV/6r5svZmTU3NpyWko6M1U9OnwWKxLrW3I4Dj/fH7jqlGo0kTJAVt7eopu53ACII8jfXhpxnG5+vQajP7qqpvY3j/HYZl1iJi9I7RZL5jNJqG1WokoNcbL/r9PGBYfxFFrUAQ5PC6YxklhtncPp6DVrV6tDQnsZdYv/8LD8OwqfQwmEw915tb2/6MxmLQh+MLCKL5RxAGFnG8/+eJiUlxZuYCkCS9LIqD4HYz3PrxLxVCoVD4/f6DA5EwGEzG31ES3S4DcDgpPCiEzyMaTfe+quqF/TW1UFdXf+3QoWYtgmi+1uu75iYmc1cmJqeBplzL2ewpoChKs15DOYNQKPQyz/OL/Q47dKO9H0s6Y3d3A8txc4VC4Xlp3tHRYaqvb1g1GLouIQhSen9YD1vPB0KQTKaL6fTQ6vj4BLjd3rc3PBtyEI7jjsZiMWhqahpVKpU7e1FrPpZKvSlnYzAYDT09x5YoynVNFJO7JN3s7MUT4bAIDgexPD8/D/l8PqtQKOTTU7HhsjU2Nm6Lx+PHsT4MmlWqC6GwqJRT1el0zwrhcCE7Mb1X1dbewXK8cHnuqu3Xi5chkUiuGAzGlRMnxiCXy72/Ab0scpBsNvtcPB6LexgG+GBID1DYJulxu13Nh0KMNJ7MZt/1sN5bE1M5CASFYiQqLp/58SeIRETzhmfiXpFfwUKhsC2ZTIaTqTQ4KSr/zaHmBgdFnwsPxnrjQ0PR5HCmeAy1rrR+p16i3cxqeigD8WSSkBrTOi0PknIQqUM9kclkOoPCwLLT5QaSdq+5GS/YCSeYzD1gtfWtoagNCJJa5EKhunJXK32bBpDpktPM5/Ov8kHhMOvnThEktWAnyBsOkvqDZtgRhvG2cBy345F6892tU1HOTBCEZ8Lh8AuOgYGn73ZWsnuUxi87RsqX8R6Rsqx8YEEfQdY5LqP/X4j/BVd8nQEYSBfaAAAAAElFTkSuQmCC"
+  },
+  "source": "client-motec-mcr4-ultimate-angle.jpg",
+  "credit": {
+    "source": "Kunde",
+    "photographer": "MOTEC (Herstellerbild)",
+    "licence": "Vom Kunden bereitgestellt",
+    "url": ""
+  },
+  "pipeline": 5,
+  "fingerprint": "770cf8326aab8e5af6fb3d67c4b746674b435853"
+}

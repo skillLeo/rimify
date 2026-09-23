@@ -1,0 +1,2 @@
+function e(e,t={}){let n=[`subject`,`body`].map(e=>[e,t[e]]).filter(e=>typeof e[1]==`string`&&e[1]!==``).map(([e,t])=>`${e}=${encodeURIComponent(t.replace(/\r?\n/g,`\r
+`))}`).join(`&`);return`mailto:${e.trim()}${n===``?``:`?${n}`}`}export{e as t};

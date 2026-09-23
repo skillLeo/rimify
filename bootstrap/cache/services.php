@@ -41,7 +41,8 @@
     37 => 'Spatie\\Sitemap\\SitemapServiceProvider',
     38 => 'Tighten\\Ziggy\\ZiggyServiceProvider',
     39 => 'App\\Providers\\AppServiceProvider',
-    40 => 'App\\Providers\\FitmentServiceProvider',
+    40 => 'App\\Providers\\AuthServiceProvider',
+    41 => 'App\\Providers\\FitmentServiceProvider',
   ),
   'eager' => 
   array (
@@ -70,6 +71,7 @@
     22 => 'Spatie\\Sitemap\\SitemapServiceProvider',
     23 => 'Tighten\\Ziggy\\ZiggyServiceProvider',
     24 => 'App\\Providers\\AppServiceProvider',
+    25 => 'App\\Providers\\AuthServiceProvider',
   ),
   'deferred' => 
   array (
@@ -236,6 +238,8 @@
     'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
     'App\\Domain\\Fitment\\Contracts\\VehicleRepository' => 'App\\Providers\\FitmentServiceProvider',
     'App\\Domain\\Fitment\\Contracts\\FitmentRepository' => 'App\\Providers\\FitmentServiceProvider',
+    'App\\Domain\\Fitment\\Contracts\\TyreCatalogue' => 'App\\Providers\\FitmentServiceProvider',
+    'App\\Domain\\Fitment\\Tyres\\TyreEligibility' => 'App\\Providers\\FitmentServiceProvider',
     'App\\Domain\\Fitment\\Resolver\\FitmentResolver' => 'App\\Providers\\FitmentServiceProvider',
     'App\\Domain\\Fitment\\Contracts\\Clock' => 'App\\Providers\\FitmentServiceProvider',
     'App\\Domain\\Fitment\\Derivation\\IndexTables' => 'App\\Providers\\FitmentServiceProvider',

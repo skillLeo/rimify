@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\FitmentRepository;
+use App\Domain\Fitment\Contracts\TyreCatalogue;
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Derivation\IndexTables;
 use App\Domain\Fitment\Derivation\LoadIndex;
@@ -13,9 +14,11 @@ use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbol;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
+use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Infrastructure\EloquentVehicleRepository;
 use App\Domain\Fitment\Infrastructure\SystemClock;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Models\LoadIndexEntry;
 use App\Models\SpeedSymbolEntry;
 use Illuminate\Contracts\Support\DeferrableProvider;
@@ -33,6 +36,14 @@ final class FitmentServiceProvider extends ServiceProvider implements Deferrable
     {
         $this->app->singleton(VehicleRepository::class, EloquentVehicleRepository::class);
         $this->app->singleton(FitmentRepository::class, EloquentFitmentRepository::class);
+        $this->app->singleton(TyreCatalogue::class, EloquentTyreCatalogue::class);
+
+        // The one place "may this tyre go on this wheel on this car" is answered, for every
+        // surface: the product page, the basket, the checkout and the seeder all call this.
+        $this->app->singleton(TyreEligibility::class, static fn ($app): TyreEligibility => new TyreEligibility(
+            catalogue: $app->make(TyreCatalogue::class),
+            speedSymbol: $app->make(SpeedSymbolDeriver::class),
+        ));
 
         $this->app->singleton(FitmentResolver::class, static fn ($app): FitmentResolver => new FitmentResolver(
             vehicles: $app->make(VehicleRepository::class),
@@ -82,6 +93,8 @@ final class FitmentServiceProvider extends ServiceProvider implements Deferrable
         return [
             VehicleRepository::class,
             FitmentRepository::class,
+            TyreCatalogue::class,
+            TyreEligibility::class,
             FitmentResolver::class,
             Clock::class,
             IndexTables::class,

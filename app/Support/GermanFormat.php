@@ -86,6 +86,24 @@ final class GermanFormat
         return self::trimmedDecimal($value, $maxDecimals).self::NBSP.'mm';
     }
 
+    /** `8,5J × 19` — width and diameter, held together by no-break spaces so they never wrap apart. */
+    public static function rimSize(float|int|string $widthIn, float|int|string $diameterIn): string
+    {
+        return self::rimWidth($widthIn).self::NBSP.self::TIMES.self::NBSP.self::trimmedDecimal($diameterIn, 1);
+    }
+
+    /** `ET 45` — the Einpresstiefe, written as `wheelSize()` writes it, with a no-break space. */
+    public static function offset(int $etMm): string
+    {
+        return 'ET'.self::NBSP.$etMm;
+    }
+
+    /** `620 kg`, `1.020 kg` — whole kilograms, a thousands point, a no-break space before the unit. */
+    public static function kilograms(int $kg): string
+    {
+        return self::integer($kg).self::NBSP.'kg';
+    }
+
     /** `8,5J × 18 · ET 35` */
     public static function wheelSize(float|int|string $widthIn, float|int|string $diameterIn, int $etMm): string
     {
@@ -115,10 +133,10 @@ final class GermanFormat
         ]);
     }
 
-    /** `5/112`, and `5/114,3` where the circle is fractional. */
+    /** `5 × 112`, and `5 × 114,3` where the circle is fractional — the way a Gutachten writes it. */
     public static function boltPattern(int $holes, float|int|string $circleMm): string
     {
-        return $holes.'/'.self::trimmedDecimal($circleMm, 1);
+        return $holes.self::NBSP.self::TIMES.self::NBSP.self::trimmedDecimal($circleMm, 1);
     }
 
     /** `245/45 R18 92Y`, or `245/45 R18` when the indices are not given. */

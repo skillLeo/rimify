@@ -1,1 +1,0 @@
-import{i as e,u as t}from"./app-C-ynDaOw.js";function n(){let n=e();return t(()=>n.props)}function r(){let e=n();return t(()=>e.value.menus??{header:[],footer_pages:[],footer_legal:[],mobile_bottom:[]})}function i(e,t,n,r){return t===`vehicle_aware`&&n?r:e}export{r as n,n as r,i as t};

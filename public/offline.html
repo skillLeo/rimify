@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0f14">
+    <title>Du bist offline · RIMIFY</title>
+    <!--
+        Served by the service worker from its cache, so nothing here may depend on the network:
+        the stylesheet is inline and the values are the tokens from resources/css/tokens.css.
+    -->
+    <style>
+        :root {
+            color-scheme: light;
+            --c-ink: #0b0f14;
+            --c-ink-2: #3a424d;
+            --c-line: #e2e5e9;
+            --c-surface: #ffffff;
+            --c-blue: #1a44d4;
+            --r-control: 4px;
+            --sp-8: 8px;
+            --sp-16: 16px;
+            --sp-20: 20px;
+            --sp-24: 24px;
+            --sp-48: 48px;
+            --fs-h2: 28px;
+            --lh-h2: 34px;
+            --fs-body: 16px;
+            --lh-body: 24px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100dvh;
+            display: grid;
+            align-content: center;
+            gap: var(--sp-16);
+            padding: var(--sp-48) var(--sp-20) calc(var(--sp-48) + env(safe-area-inset-bottom));
+            background: var(--c-surface);
+            color: var(--c-ink);
+            font-family: 'Archivo Variable', Arial, sans-serif;
+            font-size: var(--fs-body);
+            line-height: var(--lh-body);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .brand {
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: var(--fs-h2);
+            line-height: var(--lh-h2);
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        p {
+            margin: 0;
+            max-width: 40ch;
+            color: var(--c-ink-2);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            margin-top: var(--sp-8);
+            padding: 0 var(--sp-24);
+            border: 0;
+            border-radius: var(--r-control);
+            background: var(--c-blue);
+            color: var(--c-surface);
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            justify-self: start;
+        }
+
+        .btn:focus-visible {
+            outline: 2px solid var(--c-blue);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <span class="brand">RIMIFY</span>
+    <h1>Du bist offline.</h1>
+    <p>Ohne Verbindung können wir keine Gutachten prüfen. Sobald du wieder online bist, geht es hier weiter.</p>
+    <button class="btn" type="button" onclick="location.reload()">Noch einmal versuchen</button>
+</body>
+</html>

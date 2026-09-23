@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
+use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -44,11 +45,10 @@ class FaqController extends Controller
 
         return Inertia::render('Faq/Index', [
             'groups' => array_values($groups),
-            'contact' => [
-                'phone' => config('rimify.contact.phone_intl'),
-                'email' => config('rimify.contact.email'),
-                'hours' => config('rimify.contact.hours'),
-            ],
+            // The shared shape, whole: a page prop named `contact` replaces the shared one for the
+            // header and the footer too. The phone is null until the client gives one, and the help
+            // card then offers the e-mail.
+            'contact' => Chrome::contact(),
         ]);
     }
 }

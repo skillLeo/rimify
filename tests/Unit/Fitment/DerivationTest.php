@@ -30,9 +30,9 @@ it('derives the load index of every worked example in the spec', function (int $
     // Audi RS4 2.7 Avant B5 (7967/307)
     'RS4 B5 front 1145kg → 572.5' => [1145, 89],
     'RS4 B5 rear 1140kg → 570.0' => [1140, 89],
-    // Audi RS4 4.2 TFSI B6 (7967/AAE) — front and rear differ by three steps on one car.
-    'RS4 B6 front 1230kg → 615.0' => [1230, 91],
-    'RS4 B6 rear 1100kg → 550.0' => [1100, 88],
+    // Audi RS4 4.2 FSI B7 (7967/AAE) — front and rear differ by three steps on one car.
+    'RS4 B7 front 1230kg → 615.0' => [1230, 91],
+    'RS4 B7 rear 1100kg → 550.0' => [1100, 88],
     // BMW Z8 4.9 E52 (0005/674)
     'Z8 front 920kg → 460.0' => [920, 81],
     'Z8 rear 1070kg → 535.0' => [1070, 87],

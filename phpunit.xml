@@ -41,5 +41,8 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="STRIPE_WEBHOOK_SECRET" value="whsec_test_secret"/>
+        <!-- Demo cut-outs rendered on a developer's machine must never leak into a test: the
+             suite starts from an empty directory and writes its own fixtures where it needs them. -->
+        <env name="RIMIFY_DEMO_WHEELS_DIR" value="storage/framework/testing/demo-wheels"/>
     </php>
 </phpunit>

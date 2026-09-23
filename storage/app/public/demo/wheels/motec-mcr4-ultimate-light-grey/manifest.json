@@ -1,0 +1,142 @@
+{
+  "name": "motec-mcr4-ultimate-light-grey",
+  "base": "/storage/demo/wheels/motec-mcr4-ultimate-light-grey/motec-mcr4-ultimate-light-grey",
+  "width": 1080,
+  "height": 1080,
+  "widths": [
+    480,
+    768,
+    1080
+  ],
+  "fallback": "png",
+  "placeholder": "data:image/png;base64,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",
+  "anchors": {
+    "centre": {
+      "x": 0.4992,
+      "y": 0.4681
+    },
+    "wheel": {
+      "x": 0.5,
+      "y": 0.4708,
+      "r": 0.4086
+    },
+    "pcd": {
+      "x": 0.4992,
+      "y": 0.4681,
+      "r": 0.0854
+    },
+    "bore": {
+      "x": 0.5,
+      "y": 0.4704,
+      "r": 0.0554
+    },
+    "valve": {
+      "x": 0.4976,
+      "y": 0.8145
+    },
+    "kba": {
+      "x": 0.5,
+      "y": 0.8469,
+      "w": 0.0696,
+      "h": 0.0142
+    }
+  },
+  "wide": {
+    "name": "motec-mcr4-ultimate-light-grey-4x3",
+    "base": "/storage/demo/wheels/motec-mcr4-ultimate-light-grey/motec-mcr4-ultimate-light-grey-4x3",
+    "width": 1080,
+    "height": 810,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAYAAABB7B6eAAAACXBIWXMAAAPoAAAD6AG1e1JrAAADuklEQVQ4jZVUb0gbZxi/ztquldGKHxy26mRjK1XaD8GN4Qdhli4sMigjY1+1K0g/ZG4p7dRZLSZpWqvJXS5/LrnL3SV3ucvpXZJbEhI1CW6s0hLmGIptoaWuBtd+mvsy68B3vN0CYcxb+vv08vye3/PjfZ7nfRFEAwCAfZIk1ezFQw7maNXQLD42NvYKPG9sbDSI4oyRZcNXKYq+SlHUp4qiNEAO5ry0SVlQKpUOz80t2AQhuo3j7l1RjG4JQvR3FMV2KSr4PBIR7ZIkHarUVF18fX29fm5uflFVkyAYpKenp50eAMABAMD+69dvugMByqkocSDL8UKhUDj6MiYvkgRBmmEYdieTyZyGMRTFGIIgjkxOTtZZrTcYo9FYI8vyaZIM7pAkPVOVQXmgipLoZdgwcOG46nQ6R30+nz4YpL91uVxvoyj65q1bU6rXi39ks9lGJyasKkXRIJXK9FbW0DTgeVEWRakEAKij6bAhFOKUXC7/ZHh4JGU2X0olEuqGz0coBEEYNjc36zhOKMmyMgu15cXYs/crKysHvF7ivt8fSJY5s9ncarFY75FU8I8ph3P78uUrayaTqaXM2+03kxiGPwQA1O7ZqnIwFosdxXHPrz4fsUwzjJsIUBjLhhLj1yZ+S2cyO6IU/fPLry49tdvt1NSUA0NRl9tms/9ot994tra29tr/GqTT6YOCID7OZucKk6FQXTKZvpjPF55aLLYHmNu9hbk9W9cmLA8igvjM5XIPwKIYhhdQFHsMt0xz2OUZxGKxaC6XB6urq62En/SEw5H+vr6+k8Mjoz8Nj4z+PDg42B4Kcee9XsKzvLz8hs/nB34/KWrOoNIgn180LCzkAcOE75MkfeEfri0SEb7nOP4HeIYxr9d/gWVD9zguAmRZNlTW0MKL6ynxBB+VZkE2O++AV6Zp1srzolEUZz+hKMoKYw8fPXIszOdAOMzzlVpNlPsHX6eqJlPwtQZI6heGDS1ls9lzd+4Uz8Xj6tLt20tPSqUSyBcKqWKxeESz9/+GXq8/iCC6WtPQUKMDxQmH0/UctiGbnd+9e7cIFhe/A2GO32ZYnjCZhhoRna72b0016O7e39bxXqPu/bMnTnWe+fCtjq7+sx9/Zv18YDB8ZWQ88fU34+r5gS+4HoPR0vrOu/2nOnv0MLet44NGqK3GYp9Opzt8orOn4WRn9+tdXb0t9U3tzcihY8cR5NVmBKlvRpBjx5ua2pu7zhhbYA7MhZqqZvBfgKsHPzfJKNXALTEapRrNdazAX21AHgd9e66wAAAAAElFTkSuQmCC",
+    "anchors": {
+      "centre": {
+        "x": 0.4994,
+        "y": 0.4684
+      },
+      "wheel": {
+        "x": 0.5,
+        "y": 0.471,
+        "r": 0.2915
+      },
+      "pcd": {
+        "x": 0.4994,
+        "y": 0.4684,
+        "r": 0.0609
+      },
+      "bore": {
+        "x": 0.5,
+        "y": 0.4706,
+        "r": 0.0395
+      },
+      "valve": {
+        "x": 0.4983,
+        "y": 0.7977
+      },
+      "kba": {
+        "x": 0.5,
+        "y": 0.8285,
+        "w": 0.0497,
+        "h": 0.0135
+      }
+    }
+  },
+  "bare": {
+    "name": "motec-mcr4-ultimate-light-grey-bare",
+    "base": "/storage/demo/wheels/motec-mcr4-ultimate-light-grey/motec-mcr4-ultimate-light-grey-bare",
+    "width": 1080,
+    "height": 1080,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFP0lEQVRIiZ1V3W/TVhTv+BJsD5vgYWMwidftD+ANuml7GnsDbYMNyoSWdVAJJFQ21kJatDZpPprUjWPny/FXHMex48ZxYsdpKS1pKBA2kFoFChlVK8ZLJaaCxodG73RL3QVaoNqRjux7fM7v3HN+9x7X1b1EAABvCIKwGj5f51NXV/dSn2XFarWugroAssowjA81zdgriuJRjuOOsSy7j2GYjxbAn/NfETjcEQBgzejo6F5dz5dQFJuLxeJA1w2gawaA7x6PF9pGGYb71mKxrK2JfS143dTU1JZCoV/XNAMkEsknbW1nHpMkJSuK2qyqWnM4HOlraWl9xPPCk3Q6A1gurmMYtsWs+JXglUplW6HQX1HVHIjH+aqqap95vT09NE1/bfp6PJ69TqcbURTl01iMq2YyOSCKqXEMw7YtW4lJZKlU2pDPG8McFweCkMhVq9V3ob2ry0FEItETpr/L1X3CZrOR8H1sbOw9iqJzXDwBUil5KBqNrl9w+494kyxBEE8GAiFgs9lneZ7faX7v7u6OBINB1FzbbHa0o8NGmGscx3e2tp6aRZBewHH8yVrMxd1TFLVJFOVpimJAPJ5A/DieRZDeCQzDmpJJEfVj2AgkHmpXl2MEx4MojuNH7HbHhMPhUgOBABIOE0BR1OlUKrVpEdvMlEgkv5SkPiAI0jUIIgjCOknq20MQ0Wvnhs7fy2a1CYvlh8zBg9+poihdV7O5ez7Uf5VhuD3lcnktjGFZ7iokXdf1rxarsFqta+CCpVk3x/FAkiTHAlHz9kKh8Lbd7pDlPgX82tF553Rb+x2SYkBr6+mUPDj4Tq1vIBBy0DQLkpLkWkxgtigQCid9KAYikSjucrk+gBVAuyRJmw8caBjucrr+lNNpECYI0Hzip8ndu/eclSRt8wLR6+x2+1av14t3dtqBz+eXlhAdiRD5CEGCCEEVCYLsD0eIig9BDVGSrre0nPonTEQfGQVjjuf5OQ+CPDxypOk+giB5p9OVt9u7Km63t9Db21vs6OgEoRCRX3L+GYaN9/efBRcuXOywWuvXyJnM57mc4b4wevExSdIzzT+fnM4a+dmMpt1v/qVl2u/HZ2Kx+GMMC7gQBN0FAFgdjVKd6HwXiPhiBYODg/P943n+zMAATHDpMnR+1h6ZjEbJy+3t7Y2Wxh+LTUeP3Yfa2NR0vtvrbQyFIpeDwfD8fYAkL6zhUW1f5MY8RZqmfZxWFHBuaAhUq9UdXi9ynI1xNwVB2Pjssrk/8fnQP7zenmoP2lMPbbqub2QY9iaC+I6Pj9/YAcH9fgxArCUkwxkyMHCuODg4BHdQxbCATpLk/HyB4na6D7Ex7i5Ns3ecTuch0w59fD4sz/NClWU5wHGJYs08ekayWUW5fPULRVGfurs9IJfTdQDABmhvaGhYLyTF2319fd8oSnZfMpmarK+vX2+Ol3K5rOGBEKAo+unIyMiu527yi2TL6YwtKaYAw8SAmtXG787MbI9STBvFxKKmL8vGSJIkrVPVqe03Jm6NVSrXARyOkizblh12psB2QdX1gjeZTAE/igPUjz/EA6EH6XTGd+nSFUu5/Pv3xWLJx7DcgytXfvt7cnISDA8PQ/WY8cuCmwnM7Jph7Kfp2DSGBQGGB+dkOQ00LQ+KxRKAoIZRmEsIIujvH5gaHhnZPx9vBatemcAkxuxfqVTaKAjSYSEpZWMx/hYX5/+K84lZnk/cVlQ1K0nyYXiSanq+8n/ziyRZrdY3e3vD7weDzFaazr9VW/USQlcqMBhexOXKftW3/52sVlfajn8BAjymdfVop/0AAAAASUVORK5CYII=",
+    "anchors": {
+      "centre": {
+        "x": 0.4992,
+        "y": 0.4681
+      },
+      "wheel": {
+        "x": 0.5,
+        "y": 0.4708,
+        "r": 0.4086
+      },
+      "pcd": {
+        "x": 0.4992,
+        "y": 0.4681,
+        "r": 0.0854
+      },
+      "bore": {
+        "x": 0.5,
+        "y": 0.4704,
+        "r": 0.0554
+      },
+      "valve": {
+        "x": 0.4976,
+        "y": 0.8145
+      },
+      "kba": {
+        "x": 0.5,
+        "y": 0.8469,
+        "w": 0.0696,
+        "h": 0.0142
+      }
+    }
+  },
+  "stamp": "53810",
+  "source": "client-motec-mcr4-ultimate-front.jpg",
+  "credit": {
+    "source": "Kunde",
+    "photographer": "MOTEC (Herstellerbild)",
+    "licence": "Vom Kunden bereitgestellt",
+    "url": ""
+  },
+  "pipeline": 5,
+  "fingerprint": "87959084cc38415d515b0f267cf4a793992699fd"
+}

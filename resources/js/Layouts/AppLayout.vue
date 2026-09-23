@@ -1,127 +1,105 @@
 <script setup lang="ts">
 /**
- * The storefront frame: header, page, footer, and the two overlays the header can open.
+ * The storefront frame: header, page, footer, the phone's bottom bar, and the overlays the shell
+ * owns — the palette, the shortcut list, the vehicle sheet, the cookie choice, the toast.
  *
- * There is no bottom tab bar. Navigation on a phone lives in a drawer behind the menu button:
- * a fixed bar would spend a fifth of an 844px screen on chrome that is used occasionally, and the
- * product page needs the bottom edge for its price and its one real action.
- *
- * Both overlays live here rather than in the header so that Esc has one owner and focus returns
- * to one place.
+ * Everything the shell shares between its parts is provided here, so the footer's
+ * "Cookie-Einstellungen" and the header's search icon open the very same dialogs. Every
+ * navigation closes whatever is open, and so does the back button.
  */
 
-import { Link } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import Icon from '../Components/Art/Icon.vue'
+import { Link, router } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
+import BottomNav from '../Components/Chrome/BottomNav.vue'
+import CommandPalette from '../Components/Chrome/CommandPalette.vue'
+import CookieConsent from '../Components/Chrome/CookieConsent.vue'
+import ShortcutsDialog from '../Components/Chrome/ShortcutsDialog.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
 import SiteHeader from '../Components/Chrome/SiteHeader.vue'
 import Toast from '../Components/Chrome/Toast.vue'
-import { resolveHref, useMenus, useShared } from '../composables/useShared'
+import CompareTray from '../Components/Compare/CompareTray.vue'
+import Dialog from '../Components/Ui/Dialog.vue'
+import { provideConsent } from '../composables/useConsent'
+import { provideShell } from '../composables/useShell'
+import { useShortcuts } from '../composables/useShortcuts'
+import { useShared } from '../composables/useShared'
 
 withDefaults(defineProps<{ title?: string }>(), { title: undefined })
 
 const shared = useShared()
-const menus = useMenus()
+const shell = provideShell()
+provideConsent(shared.value.consent ?? null)
 
-const menuOpen = ref(false)
-const vehicleOpen = ref(false)
-const anyOpen = computed(() => menuOpen.value || vehicleOpen.value)
+const vehicle = computed(() => shared.value.vehicle)
+const vehicleSheet = computed({
+    get: () => shell.vehicleOpen.value && vehicle.value !== null,
+    set: (open: boolean) => {
+        shell.vehicleOpen.value = open
+    },
+})
 
-const sheetItems = computed(() =>
-    menus.value.header.map((item) => ({
-        ...item,
-        target: resolveHref(item.href, item.behaviour, shared.value.vehicle !== null, '/felgen'),
-    }))
-)
+useShortcuts({
+    onSearch: () => shell.focusSearch(),
+    onPalette: () => {
+        shell.paletteOpen.value = !shell.paletteOpen.value
+    },
+    onHelp: () => {
+        shell.helpOpen.value = true
+    },
+})
 
 function closeAll(): void {
-    menuOpen.value = false
-    vehicleOpen.value = false
+    shell.paletteOpen.value = false
+    shell.helpOpen.value = false
+    shell.vehicleOpen.value = false
 }
 
-function onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-        closeAll()
-    }
+let stopNavigate: (() => void) | undefined
+
+onMounted(() => {
+    stopNavigate = router.on('navigate', closeAll)
+})
+
+onBeforeUnmount(() => stopNavigate?.())
+
+function removeVehicle(): void {
+    router.delete('/fahrzeug', { preserveScroll: true })
 }
-
-// Attached on mount, never at module scope: the SSR pass has no `document`, and a layout that
-// reaches for one there takes the whole first render down.
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => {
-    document.removeEventListener('keydown', onKeydown)
-    document.body.style.removeProperty('overflow')
-})
-
-// The page behind an overlay does not scroll; otherwise a flick on the scrim moves the page under
-// the drawer and the customer loses their place.
-watch(anyOpen, (open) => {
-    document.body.style.overflow = open ? 'hidden' : ''
-})
-
-// Any navigation closes whatever is open — otherwise a drawer survives the page beneath it.
-watch(() => shared.value.routeName, closeAll)
 </script>
 
 <template>
-    <div class="shell">
+    <!-- The bar's height is a token; when the server shows no bar, the offsets that add it
+         (sticky elements, anchor margins) must add nothing. Decided by the server-side header
+         mode, so the SSR frame and the client agree (R-08). -->
+    <div class="shell" :class="{ 'shell--vbar': vehicle !== null && (shared.headerMode === 'WHITE_BOX' || shared.headerMode === 'BLUE_BAR') }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
-        <SiteHeader @open-menu="menuOpen = true" @open-vehicle="vehicleOpen = true" />
+        <SiteHeader />
 
         <main id="inhalt" class="shell__main">
             <slot />
         </main>
 
+        <!-- After the page, before the footer: Tab reaches it after the content. -->
+        <CompareTray />
+
         <SiteFooter />
+        <BottomNav />
 
-        <!-- Navigation: a drawer from the edge, full height, the same items as the desktop nav. -->
-        <template v-if="menuOpen">
-            <div class="scrim" @click="closeAll" />
-            <div class="drawer" role="dialog" aria-modal="true" aria-label="Menü">
-                <div class="between">
-                    <span class="t-h3">Menü</span>
-                    <button class="hdr__icon" type="button" aria-label="Schließen" @click="closeAll">
-                        <Icon name="close" :size="24" />
-                    </button>
-                </div>
-                <nav class="drawer__nav">
-                    <Link
-                        v-for="item in sheetItems"
-                        :key="item.label"
-                        :href="item.target"
-                        class="drawer__link"
-                    >
-                        {{ item.label }}
-                        <Icon name="chevron-right" :size="20" />
-                    </Link>
-                </nav>
+        <!-- The vehicle on a phone: a sheet with the three things one does with it. -->
+        <Dialog v-if="vehicle" v-model:open="vehicleSheet" variant="sheet" title="Dein Fahrzeug">
+            <p class="h4">{{ vehicle.label }}</p>
+            <p class="small muted num">{{ vehicle.buildWindow }} · {{ vehicle.keyNumbers }}</p>
+            <div class="shell__vehicle-actions">
+                <Link href="/felgen" class="btn btn--primary btn--block" prefetch>Passende Felgen anzeigen</Link>
+                <Link href="/felgen-suchen" class="btn btn--secondary btn--block">Fahrzeug ändern</Link>
+                <button class="btn btn--ghost btn--block" type="button" @click="removeVehicle">Fahrzeug entfernen</button>
             </div>
-        </template>
+        </Dialog>
 
-        <!-- The vehicle: a transient choice, so a sheet rather than a drawer. Two actions, both
-             reversible. -->
-        <template v-if="vehicleOpen && shared.vehicle">
-            <div class="scrim" @click="closeAll" />
-            <div class="sheet" role="dialog" aria-modal="true" aria-label="Fahrzeug">
-                <div class="sheet__grab" />
-                <span class="micro">Gewähltes Fahrzeug</span>
-                <p class="t-h3 sheet__vehicle">{{ shared.vehicle.label }}</p>
-                <p class="data">{{ shared.vehicle.keyNumbers }} · {{ shared.vehicle.buildWindow }}</p>
-                <div class="sheet__actions">
-                    <Link href="/felgen-suchen" class="btn btn--primary btn--block">Fahrzeug ändern</Link>
-                    <Link
-                        href="/fahrzeug"
-                        method="delete"
-                        as="button"
-                        class="btn btn--secondary btn--block"
-                    >
-                        Fahrzeug entfernen
-                    </Link>
-                </div>
-            </div>
-        </template>
-
+        <CommandPalette />
+        <ShortcutsDialog />
+        <CookieConsent />
         <Toast />
     </div>
 </template>
@@ -130,7 +108,12 @@ watch(() => shared.value.routeName, closeAll)
 .shell {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* No bar, no offset: sticky elements and anchor margins read the token below the shell. */
+.shell:not(.shell--vbar) {
+    --vbar-h: 0px;
 }
 
 .shell__main {
@@ -138,30 +121,16 @@ watch(() => shared.value.routeName, closeAll)
     min-width: 0;
 }
 
-.drawer__nav {
+/* The phone's bottom bar takes the bottom edge; the page keeps clear of it. */
+@media (max-width: 1023px) {
+    .shell__main {
+        padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+    }
+}
+
+.shell__vehicle-actions {
     display: grid;
-    margin-top: var(--space-4);
-}
-
-.drawer__link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 56px;
-    color: var(--ink);
-    font-size: var(--text-lead);
-    font-weight: 700;
-    text-decoration: none;
-    border-bottom: 1px solid var(--line-s);
-}
-
-.sheet__vehicle {
-    margin: var(--space-2) 0 var(--space-1);
-}
-
-.sheet__actions {
-    display: grid;
-    gap: var(--space-2);
-    margin-top: var(--space-5);
+    gap: var(--sp-8);
+    margin-top: var(--sp-20);
 }
 </style>

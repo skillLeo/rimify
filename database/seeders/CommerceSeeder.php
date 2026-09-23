@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Enums\OrderLineKind;
 use App\Enums\OrderStatus;
 use App\Models\Address;
@@ -31,6 +32,11 @@ use Illuminate\Support\Facades\DB;
  * calls. That matters: the admin order view's whole purpose is to answer, eleven months later,
  * what the customer was actually shown — and a snapshot invented by a seeder would teach the panel
  * to render a shape the engine never produces.
+ *
+ * These are demonstration orders. They are written only in the local and testing environments
+ * (DatabaseSeeder, and the guard in run()), and /bestellung marks them as Demodaten: their frozen
+ * verdicts are seed data, not a statement about any car. Order-line snapshots already written are
+ * never updated or deleted (R-12).
  */
 class CommerceSeeder extends Seeder
 {
@@ -81,6 +87,11 @@ class CommerceSeeder extends Seeder
 
     public function run(): void
     {
+        // Demo orders never reach a live database (ACCURACY.md §7), whoever calls this seeder.
+        if (! app()->environment(['local', 'testing'])) {
+            return;
+        }
+
         // Guarded on the data rather than on `callOnce`: Laravel's callOnce register is static for
         // the whole process, so under RefreshDatabase it reports a seeder as already run after its
         // rows have been rolled back.
@@ -88,9 +99,12 @@ class CommerceSeeder extends Seeder
             $this->call(ApprovalSeeder::class);
         }
 
-        // Only published fitments, because only those could ever have been sold.
+        // Only published fitments, because only those could ever have been sold — and only those
+        // naming a tyre size: a demo fitment whose sizes were left out as implausible for the car
+        // (ApprovalSeeder) permits nothing mountable, so no order could have been placed on it.
         $fitments = Fitment::query()
             ->visibleToCustomers()
+            ->whereHas('tyreSizes')
             ->with('wheelConfig')
             ->orderBy('id')
             ->limit(60)
@@ -100,24 +114,21 @@ class CommerceSeeder extends Seeder
             return;
         }
 
-        $tyres = TyreVariant::query()->orderBy('id')->get();
         $resolver = app(FitmentResolver::class);
+        $eligibility = app(TyreEligibility::class);
 
         foreach (self::STATUSES as $index => $status) {
-            $this->seedOrder($index, $status, $fitments, $tyres, $resolver);
+            $this->seedOrder($index, $status, $fitments, $resolver, $eligibility);
         }
     }
 
-    /**
-     * @param  Collection<int, Fitment>  $fitments
-     * @param  Collection<int, TyreVariant>  $tyres
-     */
+    /** @param  Collection<int, Fitment>  $fitments */
     private function seedOrder(
         int $index,
         OrderStatus $status,
         Collection $fitments,
-        Collection $tyres,
         FitmentResolver $resolver,
+        TyreEligibility $eligibility,
     ): void {
         $fitment = $fitments[$index % $fitments->count()];
         $config = $fitment->wheelConfig;
@@ -135,8 +146,21 @@ class CommerceSeeder extends Seeder
         [$firstname, $lastname, $street, $houseNumber, $city] = self::PEOPLE[$index % count(self::PEOPLE)];
         $orderNumber = sprintf('RMF-2026-%04d', 1001 + $index);
 
+        // A Komplettrad every third order, so the package-group behaviour — lines that move
+        // together — is present in seeded data rather than only in a test. Its tyre is one the
+        // verdict permits on this car, decided by the same TyreEligibility the storefront calls
+        // (R-13) and taken cheapest first; where none qualifies, the order is Felgen only.
+        $tyre = null;
+
+        if ($index % 3 === 0) {
+            $offer = $eligibility->offerFor($resolver->resolve($fitment->vehicle_id, $fitment->wheel_config_id));
+            $tyre = $offer->tyres === []
+                ? null
+                : TyreVariant::query()->with('brand')->find($offer->tyres[0]->id);
+        }
+
         DB::transaction(function () use (
-            $index, $status, $fitment, $config, $vehicle, $tyres, $resolver,
+            $index, $status, $fitment, $config, $vehicle, $tyre, $resolver,
             $firstname, $lastname, $street, $houseNumber, $city, $orderNumber
         ): void {
             $customer = Customer::updateOrCreate(
@@ -158,18 +182,17 @@ class CommerceSeeder extends Seeder
                 ],
             );
 
-            // A Komplettrad every third order, so the package-group behaviour — lines that move
-            // together — is present in seeded data rather than only in a test.
-            $withTyres = $index % 3 === 0 && $tyres->isNotEmpty();
+            $withTyres = $tyre !== null;
             $quantity = 4;
 
             $wheelTotal = $config->price_cents * $quantity;
-            $tyre = $withTyres ? $tyres[$index % $tyres->count()] : null;
             $tyreTotal = $tyre === null ? 0 : $tyre->price_cents * $quantity;
             $serviceTotal = $withTyres ? 4 * 1_900 : 0;
 
             $subtotal = $wheelTotal + $tyreTotal + $serviceTotal;
-            // Free shipping over 500 €, which is the threshold the storefront advertises.
+            // Demonstration figures only. The client has confirmed no shipping price and no
+            // free-shipping threshold (config/rimify.php `shipping` stays null), and these orders
+            // are marked as Demodaten wherever they are shown.
             $shipping = $subtotal >= 50_000 ? 0 : 990;
             $total = $subtotal + $shipping;
             // German VAT is included in the displayed price, so the tax figure is extracted from

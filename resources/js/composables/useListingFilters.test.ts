@@ -32,9 +32,9 @@ describe('useListingFilters', () => {
     })
 
     it('removes the facet key entirely when its last value is deselected', () => {
-        const filters = useListingFilters(() => ({ marke: ['BBS'] }))
+        const filters = useListingFilters(() => ({ marke: ['MOTEC'] }))
 
-        filters.toggle('marke', 'BBS')
+        filters.toggle('marke', 'MOTEC')
         expect(visits[0]?.data).toEqual({})
     })
 
@@ -59,7 +59,7 @@ describe('useListingFilters', () => {
     })
 
     it('resets to an empty query on the listing path', () => {
-        const filters = useListingFilters(() => ({ zoll: ['18'], marke: ['BBS'] }), '/felgen')
+        const filters = useListingFilters(() => ({ zoll: ['18'], marke: ['MOTEC'] }), '/felgen')
 
         filters.reset()
         expect(visits[0]).toEqual({ path: '/felgen', data: {} })

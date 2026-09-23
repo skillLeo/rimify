@@ -1,1 +1,0 @@
-import{S as e,f as t,u as n,v as r}from"./app-C-ynDaOw.js";import{c as i,i as a}from"./art-U8LumNI1.js";var o=r({__name:`RevenueChart`,props:{points:{},width:{default:720},height:{default:220}},setup(r){let o=r,s=n(()=>a(o.points,o.width,o.height));return(n,r)=>(e(),t(i,{markup:s.value},null,8,[`markup`]))}});export{o as t};

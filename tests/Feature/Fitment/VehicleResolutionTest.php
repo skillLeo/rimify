@@ -135,7 +135,7 @@ it('refuses to derive anything when the reference tables are empty', function ()
 });
 
 it('reports the needs_review vehicle as unusable', function (): void {
-    $vehicle = $this->resolver->byKeyNumbers('0035', 'AKJ')->firstOrFail();
+    $vehicle = $this->resolver->byKeyNumbers('1313', 'AKJ')->firstOrFail();
 
     expect($vehicle->needsReview)->toBeTrue()
         ->and($vehicle->hasCompleteLegalData())->toBeFalse()
