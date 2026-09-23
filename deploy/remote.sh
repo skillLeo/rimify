@@ -74,8 +74,10 @@ fi
 # content), applied once per release and recorded. A no-op on every later deploy.
 "$PHP" artisan rimify:release-seed --no-interaction
 
-# The demo imagery is served from storage/app/public through the public/storage link.
-[ -L public/storage ] || "$PHP" artisan storage:link --no-interaction
+# The demo imagery is served from storage/app/public through the public/storage link. Made with
+# `ln`, not `artisan storage:link`: this shared host disables PHP's `exec()`, and Laravel's
+# Filesystem::link() reaches for it, so the artisan command aborts the whole release.
+[ -L public/storage ] || ln -s "$APP/storage/app/public" public/storage
 
 # ── Caches ─────────────────────────────────────────────────────────────────────
 "$PHP" artisan optimize:clear > /dev/null
