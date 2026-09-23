@@ -20,6 +20,39 @@ is confirmed, the site either shows nothing in its place or shows the neutral wo
 (`RIMIFY_FEATURE_PARTNERS`) until the client names real fitting partners, or confirms there are none
 at launch.
 
+## Kompletträder — answered 2026-09-23
+
+The client's team answered in their group; every point below is a decision, not an assumption, and
+supersedes the defaults recorded in `docs/specs/komplettrad.md` §11 where the two differ.
+
+- **A set is** rim + tyre + balance weights + optionally an RDKS sensor. Nobody can tell from vehicle
+  data which car has RDKS, so **the checkout asks the customer** — no data source is to be invented.
+- **RDKS price: a default per sensor plus exceptions per make.** Their example: `15,00 €` default,
+  `50,00 €` Porsche. This replaces D-030's fail-closed "no price, no offer" for unknown makes: the
+  default is the answer, and only the default being unset leaves the shop silent. Real figures are
+  explicitly *not* final ("the real values are not important right now").
+- **Shipping: methods the admin creates**, each `{ name, price, description }` — their example:
+  Standard `10,00 €`, Premium `30,00 €`. This replaces the single `RIMIFY_SHIPPING_COST_CENTS`
+  environment value, and with it the shipping half of the order refusal.
+- **Assembly and repacking (Montage und Wuchten): one fixed price, configurable in the admin.**
+  This answers D-032, which had it blocking every set; the value moves from config to the database.
+- **Balance-weight colours: Silber and Schwarz to start, configurable, no surcharge** (confirms
+  D-031 and D-037).
+- **Customer-supplied sensors: not accepted.** No "I send my own" path is to be built.
+- **Valves belong to the rim** and are never billed separately (confirms D-041). One team member
+  still owes an explicit yes; until then nothing in the shop mentions valves.
+- **Mixed sizes front and rear must be orderable online.** This **reverses D-035**, which refused a
+  staggered set and pointed the customer at e-mail. It becomes its own step: per-axle sizes through
+  offer, basket and order, each axle checked against the document separately.
+- **Legal texts: placeholders for now**, explicitly approved. The five `/rechtliches/*` pages already
+  say which text is outstanding (D-024); nothing else changes until the Kanzlei delivers.
+- **Pace: iteration by iteration, no rush**, and they want to see the plan before the next step.
+  Roadmap for review: <https://claude.ai/artifact/2zaBfDWb8Us9rRnceeJFdC>.
+
+Still open from this round: winter tyres (a speed symbol below the car's top speed with the sticker
+in the car — the engine refuses such a tyre today), and what "Premium" shipping promises, since the
+description is the client's own text.
+
 ## Navigation
 
 4. **Bottom navigation on phones.** The design foresees *Start · Felgen · Check · Warenkorb · Konto*.
