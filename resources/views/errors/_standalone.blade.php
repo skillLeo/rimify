@@ -157,14 +157,15 @@
             text-decoration: none;
         }
 
+        /* `Fehler 503`, set like the label it is — a word in small, weight 500, not a tracked-out
+           capital (DIRECTION §3). The Inertia error page has always set it this way; this one had
+           drifted, and the two are seen by the same person on the same bad day. */
         .code {
             display: block;
             margin: 0 0 var(--sp-8);
-            font-size: var(--fs-micro);
-            line-height: var(--lh-micro);
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
+            font-size: var(--fs-small);
+            line-height: var(--lh-small);
+            font-weight: 500;
             color: var(--c-ink-3);
             font-variant-numeric: tabular-nums;
         }

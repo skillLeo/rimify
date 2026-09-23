@@ -123,6 +123,35 @@ export async function open(page, route) {
     await page.evaluate(() => document.fonts.ready)
 }
 
+/**
+ * Every section actually rendered, before anything reads a style off the page.
+ *
+ * Sections below the fold carry `content-visibility: auto` so a phone does not lay out five
+ * screens it cannot see. The browser skips their styles until they come near the viewport — and a
+ * skipped element answers `getComputedStyle` with values it was never painted with, typically the
+ * browser's own defaults. A gate that reads those is measuring nothing: it reported an unstyled
+ * `#0000ee` link on a dark band, and would have missed a real fault in the same section for the
+ * same reason.
+ *
+ * So the page is scrolled to the end and back, a screen at a time, the way a reader goes through
+ * it. Every section is laid out once, and what is measured afterwards is what is on the screen.
+ */
+export async function render(page) {
+    await page.evaluate(async () => {
+        const step = window.innerHeight
+        const end = document.documentElement.scrollHeight
+        const settle = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+        for (let y = 0; y < end + step; y += step) {
+            window.scrollTo(0, y)
+            await settle()
+        }
+
+        window.scrollTo(0, 0)
+        await settle()
+    })
+}
+
 /** Choose the seeded BMW by its key numbers, so the vehicle-aware states can be captured. */
 export async function chooseVehicle(context, hsn = '0005', tsn = '582') {
     const page = await context.newPage()

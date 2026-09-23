@@ -396,6 +396,14 @@
         transition: background-color var(--d-1) var(--ease-std), border-color var(--d-1) var(--ease-std), color var(--d-1) var(--ease-std);
     }
 
+    /* On the phone document a chip is tapped, and a two-character size (`18`) came out 42px wide.
+       Two pixels short of a thumb is still short (DIRECTION §6), and nothing moves visibly. */
+    @media (max-width: 767px) {
+        .chip {
+            min-width: 44px;
+        }
+    }
+
     @media (hover: hover) and (pointer: fine) {
         .chip:hover:not(:disabled):not([aria-disabled='true']) {
             border-color: var(--c-ink-3);
@@ -2182,6 +2190,15 @@
         font-size: var(--fs-micro);
         line-height: var(--lh-micro);
         color: var(--c-ink-3);
+    }
+
+    /* The EPREL link stands alone under the label, so it is a target, not a word in a sentence:
+       it was 14px tall in micro type. The padding grows the hit area and the negative margin gives
+       the space back, so the line the reader sees does not move (DIRECTION §6). */
+    .tyre-label__foot a {
+        display: inline-block;
+        padding-block: var(--sp-16);
+        margin-block: calc(-1 * var(--sp-16));
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════

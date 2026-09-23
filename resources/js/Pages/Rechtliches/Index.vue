@@ -97,6 +97,9 @@ const blocks = computed(() =>
 .rec__link {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    /* Both ways: `AGB` is three letters and came out 36px wide, short of a thumb (DIRECTION §6). */
+    min-width: 44px;
     min-height: 44px;
     color: var(--ink2);
     font-weight: 700;

@@ -3,7 +3,7 @@
 //   node scripts/qa/axe.mjs [--routes /,/felgen] [--vehicle]
 import AxeBuilder from '@axe-core/playwright'
 import { chromium } from '@playwright/test'
-import { BASE, VIEWPORTS, chooseVehicle, newContext, parseArgs, resolveRoutes, routesFrom } from './lib.mjs'
+import { BASE, VIEWPORTS, chooseVehicle, newContext, parseArgs, render, resolveRoutes, routesFrom } from './lib.mjs'
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']
 
@@ -26,6 +26,7 @@ for (const width of widths) {
     for (const route of resolved) {
         const page = await context.newPage()
         await page.goto(BASE + route, { waitUntil: 'networkidle', timeout: 60_000 }).catch(() => {})
+        await render(page)
 
         const results = await new AxeBuilder({ page }).withTags(TAGS).analyze()
 

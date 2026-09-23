@@ -37,8 +37,19 @@ for (const name of browsers) {
             const page = await context.newPage()
             const messages = []
 
+            /*
+             * The 404 route is meant to answer 404, and Chromium logs the document's own status
+             * as a console error — "Failed to load resource: the server responded with a status
+             * of 404" — with no URL to tell it apart from a broken asset. On that one route that
+             * one line is the expected answer, not a defect; every other message still counts,
+             * including a genuinely missing asset, which names its own URL.
+             */
+            const expectedStatusLine = (text) => route === '/gibt-es-nicht' && /Failed to load resource.*404/i.test(text)
+
             page.on('console', (m) => {
-                if (m.type() === 'error' || m.type() === 'warning') messages.push(`${m.type()}: ${m.text().slice(0, 160)}`)
+                if ((m.type() === 'error' || m.type() === 'warning') && !expectedStatusLine(m.text())) {
+                    messages.push(`${m.type()}: ${m.text().slice(0, 160)}`)
+                }
             })
             page.on('pageerror', (e) => messages.push(`pageerror: ${String(e.message).slice(0, 160)}`))
             page.on('requestfailed', (r) => messages.push(`requestfailed: ${r.url()} (${r.failure()?.errorText})`))

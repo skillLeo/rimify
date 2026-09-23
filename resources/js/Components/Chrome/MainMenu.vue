@@ -21,6 +21,15 @@ import Icon from '../Ui/Icon.vue'
 import { isIconName, type IconName } from '../../icons'
 import { useMenus, useShared } from '../../composables/useShared'
 
+/*
+ * DropdownMenuRoot renders no element of its own, so an attribute passed to this component has
+ * nothing to land on and Vue drops it silently. `<MainMenu class="until-lg" />` therefore did
+ * nothing, and the menu button stood in the desktop header beside the navigation it duplicates,
+ * pushing the tools row 30px past the page at 1024. Attributes go to the trigger, which is the
+ * element a caller means when it positions or hides "the menu".
+ */
+defineOptions({ inheritAttrs: false })
+
 const shared = useShared()
 const menus = useMenus()
 
@@ -68,6 +77,7 @@ const cartCount = computed(() => shared.value.cartCount)
 <template>
     <DropdownMenuRoot>
         <DropdownMenuTrigger
+            v-bind="$attrs"
             class="icon-btn m-press mainmenu__trigger"
             :aria-label="cartCount > 0 ? `Menü, ${cartCount} Artikel im Warenkorb` : 'Menü'"
         >

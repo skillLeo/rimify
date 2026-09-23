@@ -309,8 +309,9 @@ onBeforeUnmount(() => observer?.disconnect())
                                 @click="config.selectFinish(item.id)"
                             >
                                 <!-- The finish's real colour is catalogue data, not a design
-                                     value, so it arrives as a custom property from the row. -->
-                                <span class="pdp__dot" :style="item.hex ? { '--swatch': item.hex } : undefined" />
+                                     value, so it arrives as a custom property from the row — and
+                                     the style inventory is told not to hold it to the palette. -->
+                                <span class="pdp__dot" data-qa-ignore :style="item.hex ? { '--swatch': item.hex } : undefined" />
                                 <span translate="no">{{ item.name }}</span>
                             </button>
                         </div>
@@ -494,6 +495,9 @@ onBeforeUnmount(() => observer?.disconnect())
 .pdp__crumbs a {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    /* `Felgen` came out 42px wide — two short of a thumb, which is still short (DIRECTION §6). */
+    min-width: 44px;
     min-height: 44px;
     color: var(--ink2);
     text-decoration: none;

@@ -226,6 +226,10 @@ onMounted(() => {
     grid-template-rows: minmax(var(--cell-stage), 1fr) auto;
     row-gap: var(--cell-gap);
     padding: var(--cell-pad);
+    /* The band's own colour, stated rather than inherited from the row behind it. Identical to
+       look at, and it puts the ground under the text on the cell itself, where anything reading
+       this wall — a contrast checker included — will find it without walking the grid. */
+    background: var(--c-band);
     color: var(--c-ink);
     text-decoration: none;
 }
