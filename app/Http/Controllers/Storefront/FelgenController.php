@@ -4,17 +4,29 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Storefront;
 
+use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Data\TyreSize;
+use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Tyres\KomplettradRefusal;
+use App\Domain\Fitment\Tyres\TyreEligibility;
+use App\Domain\Fitment\Verdict\AxleRequirement;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\TyreSeason;
 use App\Http\Controllers\Controller;
+use App\Models\BalanceWeightColour;
 use App\Models\CatalogueGapEvent;
+use App\Models\TyreVariant;
+use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Commerce\KomplettradPricer;
+use App\Services\Storefront\Basket;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
@@ -33,12 +45,18 @@ use Inertia\Response;
  */
 class FelgenController extends Controller
 {
+    /** What one click on `Als Komplettrad in den Warenkorb` adds: a set of four. */
+    private const SET_OF = 4;
+
     public function __construct(
         private readonly ProductCards $cards,
         private readonly VehicleTree $tree,
         private readonly ListingQuery $listing,
         private readonly FitmentResolver $resolver,
         private readonly RecentlyViewed $recentlyViewed,
+        private readonly TyreEligibility $eligibility,
+        private readonly KomplettradPricer $pricer,
+        private readonly SpeedSymbolDeriver $speedSymbol,
     ) {}
 
     /** The vehicle selector: make → model → variant, or the two key numbers. */
@@ -147,8 +165,13 @@ class FelgenController extends Controller
             ? []
             : $this->resolver->resolveMany($vehicleId, $wheel->configs->pluck('id')->map(static fn (mixed $id): int => (int) $id)->values()->all());
 
+        // Adding a Komplettrad from this page assigns the admin's default Wuchtgewichte colour
+        // (§4.1); read once for the whole page, and only where an offer could be made at all.
+        $colour = $vehicleId === null ? null : BalanceWeightColour::default();
+
         foreach ($wheel->configs as $config) {
-            $verdict = isset($verdicts[$config->id]) ? $this->verdictFor($verdicts[$config->id]) : null;
+            $live = $verdicts[$config->id] ?? null;
+            $verdict = $live === null ? null : $this->verdictFor($live);
 
             if ($verdict !== null && $verdict['status'] === VerdictStatus::Unknown->value) {
                 $anyUnknown = true;
@@ -189,6 +212,9 @@ class FelgenController extends Controller
                 // The load rating per wheel, from the approval document; null when nobody has
                 // verified one, and the page then shows no row (ACCURACY.md D2).
                 'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
+                // The Komplettrad offer travels with the verdict it depends on, for the same
+                // reason: a size change swaps the tyres and the legal answer in one commit.
+                'komplettrad' => $this->komplettradFor($config, $live, $colour),
             ];
         }
 
@@ -251,6 +277,111 @@ class FelgenController extends Controller
     }
 
     /**
+     * The Komplettrad offer for one configuration: every tyre the verdict permits as a set of four,
+     * priced by the one pricer the basket and the order writer use — or the one sentence saying
+     * why there is none, so the page can never show an empty panel (§4.11).
+     *
+     * Nothing here decides whether a tyre may be fitted. `TyreEligibility` does, and the basket
+     * asks it again on every add and on every render (R-13, R-11). What this method adds are the
+     * storefront's own two arms — no vehicle, no active weight colour — and the prices.
+     *
+     * @return array<string, mixed>
+     */
+    private function komplettradFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour): array
+    {
+        // Without a vehicle there is no verdict, so there is no permitted-size list (D-033).
+        if ($verdict === null) {
+            return $this->komplettradRefused(KomplettradRefusal::NoVehicle->value, KomplettradRefusal::NoVehicle->sentenceDe(), null);
+        }
+
+        $offer = $this->eligibility->offerFor($verdict);
+
+        if ($offer->refusal !== null) {
+            return $this->komplettradRefused($offer->refusal->value, $offer->refusal->sentenceDe(), $offer->minimumSentenceDe);
+        }
+
+        // No active colour means no Komplettrad can be added at all (§4.1): say so here rather
+        // than let the click fail.
+        if ($colour === null) {
+            return $this->komplettradRefused(Basket::NO_WEIGHT_COLOUR_CODE, Basket::NO_WEIGHT_COLOUR_REFUSAL, $offer->minimumSentenceDe);
+        }
+
+        $variants = TyreVariant::query()
+            ->with('brand')
+            ->whereIn('id', array_map(static fn (TyreRecord $tyre): int => $tyre->id, $offer->tyres))
+            ->get()
+            ->keyBy('id');
+
+        $tyres = [];
+        $priceOpen = false;
+
+        foreach ($offer->tyres as $record) {
+            $variant = $variants->get($record->id);
+
+            // The page sells sets of four, so the engine is asked for exactly that quantity: a
+            // tyre with one on the shelf is not offered and then refused at the click.
+            if (! $variant instanceof TyreVariant || $this->eligibility->permits($verdict, $record, self::SET_OF) !== null) {
+                continue;
+            }
+
+            $price = $this->pricer->perWheel($config, $variant, $colour);
+            $priceOpen = $priceOpen || ! $price->complete();
+            $perWheel = $price->knownPerWheelCents();
+
+            $tyres[] = [
+                'id' => (int) $variant->id,
+                'brandName' => (string) $variant->brand?->name,
+                'name' => (string) $variant->name,
+                'season' => (string) $variant->season,
+                'seasonLabel' => TyreSeason::from((string) $variant->season)->longLabelDe(),
+                'sizeLabel' => $variant->label(),
+                'stockQty' => (int) $variant->stock_qty,
+                'tyrePriceCents' => (int) $variant->price_cents,
+                'tyrePrice' => GermanFormat::money((int) $variant->price_cents, $price->currency),
+                // The known components per wheel; an unconfigured mounting fee is left out and
+                // `priceOpen` says so — never a guessed number, never a silent 0,00 € (D-032).
+                'perWheelCents' => $perWheel,
+                'perWheel' => GermanFormat::money($perWheel, $price->currency),
+                'forFourCents' => $perWheel * self::SET_OF,
+                'forFour' => GermanFormat::money($perWheel * self::SET_OF, $price->currency),
+                'label' => Basket::euLabel($variant),
+                'isDemo' => (bool) $variant->is_demo,
+            ];
+        }
+
+        if ($tyres === []) {
+            return $this->komplettradRefused(KomplettradRefusal::NoTyreAvailable->value, KomplettradRefusal::NoTyreAvailable->sentenceDe(), $offer->minimumSentenceDe);
+        }
+
+        return [
+            'refusal' => null,
+            'refusalCode' => null,
+            'minSentence' => $offer->minimumSentenceDe,
+            'priceOpen' => $priceOpen,
+            'quantity' => self::SET_OF,
+            'tyres' => $tyres,
+        ];
+    }
+
+    /**
+     * No offer, one sentence, and the code the page picks its route forward from. The code is
+     * never rendered (R-15).
+     *
+     * @return array<string, mixed>
+     */
+    private function komplettradRefused(string $code, string $sentence, ?string $minSentence): array
+    {
+        return [
+            'refusal' => $sentence,
+            'refusalCode' => $code,
+            'minSentence' => $minSentence,
+            'priceOpen' => false,
+            'quantity' => self::SET_OF,
+            'tyres' => [],
+        ];
+    }
+
+    /**
      * The product page opens on its first finish, so the first finish is the one the customer
      * came for: the finish named in the link (a listing card is one model in one finish), or else
      * one that is permitted on their car.
@@ -305,6 +436,8 @@ class FelgenController extends Controller
      */
     private function verdictFor(FitmentVerdict $verdict): array
     {
+        $minimum = $this->minimum($verdict);
+
         return [
             'status' => $verdict->status->value,
             'label' => $verdict->status->labelDe(),
@@ -325,11 +458,76 @@ class FelgenController extends Controller
                 'issuer' => $verdict->document->issuer,
                 'kind' => $verdict->document->kind,
             ],
-            'tyreSizes' => array_map(
-                static fn (TyreSize $size): string => $size->labelDe(),
-                $verdict->front->sizes,
-            ),
+            'tyreSizes' => $this->sizeLabels($verdict->front),
+            // The tyre side of the verdict (§3.4): both axles, the layout, and the minimum four
+            // identical tyres must meet — with the source that governed each half (R-06), because
+            // a Gutachten that states only a speed symbol must not be credited with the load index.
+            'tyreSizesFront' => $this->sizeLabels($verdict->front),
+            'tyreSizesRear' => $this->sizeLabels($verdict->rear),
+            'tyreLayout' => $verdict->tyreLayout(),
+            'minLoadIndex' => $minimum['loadIndex'] ?? null,
+            'minSpeedSymbol' => $minimum['speedSymbol'] ?? null,
+            'minSource' => $this->either($verdict->front->minSource, $verdict->rear->minSource),
+            'minLoadSource' => $minimum['loadSource'] ?? $this->either($verdict->front->minLoadSource, $verdict->rear->minLoadSource),
+            'minSpeedSource' => $minimum['speedSource'] ?? $this->either($verdict->front->minSpeedSource, $verdict->rear->minSpeedSource),
+            'minSentence' => $this->eligibility->minimumSentenceDe($verdict),
         ];
+    }
+
+    /** @return list<string> `245/45 R18` per permitted size on this axle. */
+    private function sizeLabels(AxleRequirement $axle): array
+    {
+        return array_map(static fn (TyreSize $size): string => $size->labelDe(), $axle->sizes);
+    }
+
+    /**
+     * The minimum four identical tyres must meet, for the payload: the stricter axle for each
+     * half, credited to the source that governed THAT half. Null as soon as either axle has no
+     * usable minimum or carries a symbol the table does not know — never a partial pair (R-03).
+     *
+     * Display only. It mirrors what `TyreEligibility::minimumSentenceDe()` says in words, using
+     * the engine's own comparator for symbols (H sits between U and V, so letters are never
+     * compared); the decision whether a tyre may be sold is made there, never here (R-13).
+     *
+     * @return array{loadIndex: int, loadSource: string, speedSymbol: string, speedSource: string}|null
+     */
+    private function minimum(FitmentVerdict $verdict): ?array
+    {
+        $front = $verdict->front;
+        $rear = $verdict->rear;
+        $frontRank = $this->speedSymbol->rankOf($front->minSpeedSymbol);
+        $rearRank = $this->speedSymbol->rankOf($rear->minSpeedSymbol);
+
+        if ($front->minLoadIndex === null || $rear->minLoadIndex === null
+            || $front->minSpeedSymbol === null || $rear->minSpeedSymbol === null
+            || $frontRank === null || $rearRank === null) {
+            return null;
+        }
+
+        return [
+            'loadIndex' => max($front->minLoadIndex, $rear->minLoadIndex),
+            'loadSource' => $this->stricterSource($front->minLoadIndex, $front->minLoadSource, $rear->minLoadIndex, $rear->minLoadSource),
+            'speedSymbol' => $frontRank >= $rearRank ? $front->minSpeedSymbol : $rear->minSpeedSymbol,
+            'speedSource' => $this->stricterSource($frontRank, $front->minSpeedSource, $rearRank, $rear->minSpeedSource),
+        ];
+    }
+
+    /** The source of the stricter half; on a tie the document is credited when either axle wrote it down. */
+    private function stricterSource(int $frontOrder, MinSource $frontSource, int $rearOrder, MinSource $rearSource): string
+    {
+        return match (true) {
+            $frontOrder > $rearOrder => $frontSource->value,
+            $rearOrder > $frontOrder => $rearSource->value,
+            default => $this->either($frontSource, $rearSource),
+        };
+    }
+
+    /** `DOCUMENT` when either half came from the Gutachten — the combined bit `AxleRequirement::$minSource` carries. */
+    private function either(MinSource $a, MinSource $b): string
+    {
+        return ($a === MinSource::Document || $b === MinSource::Document)
+            ? MinSource::Document->value
+            : MinSource::Derived->value;
     }
 
     /**

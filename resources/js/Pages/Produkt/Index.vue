@@ -11,6 +11,10 @@
  * The verdict sits directly above the basket button, never beside or below it: the legal status is
  * never separated from the control that acts on it.
  *
+ * Beneath the purchase panel the page offers the same size as a Komplettrad — only the tyres the
+ * verdict permits, priced on the server, or the one sentence saying why there are none. The offer
+ * travels inside the configuration, so a size change swaps it in the same commit as the price.
+ *
  * On a phone the price and the button follow the customer down the page once the main button has
  * scrolled away — the one persistent bar the storefront uses, because it is the page's next action.
  *
@@ -27,6 +31,7 @@ import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, Di
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
+import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
@@ -331,7 +336,8 @@ onBeforeUnmount(() => observer?.disconnect())
                         </p>
                     </div>
 
-                    <div ref="buyButton">
+                    <!-- `#felgen-kaufen`: where the Komplettrad section's "Nur die Felgen bestellen" lands. -->
+                    <div id="felgen-kaufen" ref="buyButton">
                         <button
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
@@ -343,6 +349,16 @@ onBeforeUnmount(() => observer?.disconnect())
                     </div>
                 </div>
             </div>
+
+            <!-- The same size as a Komplettrad: only what the verdict permits, priced on the
+                 server, or one sentence and a way forward. Absent only in fixtures. -->
+            <KomplettradOffer
+                v-if="selected && selected.komplettrad"
+                class="pdp__komplettrad"
+                :offer="selected.komplettrad"
+                :wheel-config-id="selected.id"
+                :contact-email="shared.contact.email"
+            />
 
             <!-- Felgendetails: the measured values, mono and right-aligned, for the size chosen above. -->
             <section v-if="selected" class="pdp__specs" aria-labelledby="pdp-specs">
@@ -600,6 +616,10 @@ onBeforeUnmount(() => observer?.disconnect())
 
 .pdp__add {
     margin-top: var(--space-4);
+}
+
+.pdp__komplettrad {
+    margin-top: var(--space-8);
 }
 
 .pdp__specs {
