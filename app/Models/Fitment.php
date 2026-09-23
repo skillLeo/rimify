@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float|null $permitted_width_max
  * @property int|null $permitted_et_min
  * @property int|null $permitted_et_max
+ * @property float|null $centre_bore_mm the bore this document states for THIS vehicle; NULL = none stated
  * @property int $vehicle_id
  * @property int $wheel_config_id
  * @property int|null $source_page
@@ -48,6 +49,7 @@ class Fitment extends Model
         'approval_document_id', 'vehicle_id', 'wheel_config_id', 'axle',
         'build_from', 'build_to',
         'permitted_width_min', 'permitted_width_max', 'permitted_et_min', 'permitted_et_max',
+        'centre_bore_mm',
         'requires_entry', 'entry_note_de', 'source_page', 'status', 'created_by',
     ];
 
@@ -63,6 +65,8 @@ class Fitment extends Model
             'permitted_width_max' => 'float',
             'permitted_et_min' => 'integer',
             'permitted_et_max' => 'integer',
+            // MySQL hands DECIMAL back as a string; the engine compares bores as numbers.
+            'centre_bore_mm' => 'float',
             'requires_entry' => 'boolean',
             'source_page' => 'integer',
         ];

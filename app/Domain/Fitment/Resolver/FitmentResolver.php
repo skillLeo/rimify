@@ -18,6 +18,7 @@ use App\Domain\Fitment\EngineVersion;
 use App\Domain\Fitment\Exceptions\ReferenceDataMissing;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Verdict\AxleRequirement;
+use App\Domain\Fitment\Verdict\CentreBoreSource;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
@@ -42,7 +43,8 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
  *
  * Where several published rows cover the same combination the engine merges TOWARD CAUTION:
  * `requiresEntry` is OR, conditions are the union, tyre sizes are the intersection, and minima
- * take the maximum. Every one of those choices is the one that fails to a missed sale rather than
+ * take the maximum. The per-vehicle centre bore has no stricter side, so disagreeing rows produce
+ * no bore at all. Every one of those choices is the one that fails to a missed sale rather than
  * to a wrong answer.
  */
 final readonly class FitmentResolver
@@ -252,6 +254,8 @@ final readonly class FitmentResolver
         // the covering rows, so a reissue is what the customer is shown.
         $document = $this->governingDocument($covering);
 
+        [$centreBoreMm, $centreBoreSource] = $this->documentCentreBore($covering);
+
         return new FitmentVerdict(
             status: $status,
             vehicle: $vehicle,
@@ -269,7 +273,47 @@ final readonly class FitmentResolver
                 computedAt: $this->clock->now(),
                 engineVersion: EngineVersion::CURRENT,
             ),
+            documentCentreBoreMm: $centreBoreMm,
+            centreBoreSource: $centreBoreSource,
         );
+    }
+
+    /**
+     * The Mittenlochbohrung the covering rows state for this vehicle, merged toward caution.
+     *
+     * The bore is stated per vehicle row, not per rim, so this is the one figure on the verdict
+     * that the customer's car decides. Merging it is unlike the minima: there is no "stricter" of
+     * two bores — a smaller one will not seat on the hub and a larger one needs a Zentrierring, so
+     * neither direction is the safe one. Where two covering documents disagree the engine
+     * therefore states nothing and says so, rather than picking a number that is wrong for one of
+     * them (§2: be silent rather than confidently wrong). The governing row is NOT used as a
+     * tie-break: a newer revision is the better source for what a document says, not evidence that
+     * an older, still-valid document's measurement was withdrawn.
+     *
+     * @param  list<FitmentRow>  $covering
+     * @return array{0: float|null, 1: CentreBoreSource}
+     */
+    private function documentCentreBore(array $covering): array
+    {
+        $stated = [];
+
+        foreach ($covering as $row) {
+            if ($row->centreBoreMm !== null) {
+                // Keyed at the column's own precision, so 66.6 and 66.60 are one statement rather
+                // than two disagreeing ones.
+                $stated[number_format($row->centreBoreMm, 2, '.', '')] = $row->centreBoreMm;
+            }
+        }
+
+        if ($stated === []) {
+            return [null, CentreBoreSource::Unstated];
+        }
+
+        if (count($stated) > 1) {
+            return [null, CentreBoreSource::Conflicting];
+        }
+
+        return [array_values($stated)[0], CentreBoreSource::Document];
     }
 
     /**

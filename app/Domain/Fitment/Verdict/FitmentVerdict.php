@@ -36,6 +36,19 @@ final readonly class FitmentVerdict
         public ?VerdictReason $reason,
         public VerdictSnapshot $snapshot,
         /**
+         * The Mittenlochbohrung the covering documents state FOR THIS VEHICLE, in millimetres.
+         *
+         * Not `$wheel->centreBoreMm`, which is the rim's own figure: the same casting is measured
+         * against the car it was tested on, so a customer with a chosen vehicle must be shown the
+         * document's number for that car (R-06 — where the document states a value, it wins).
+         *
+         * Null whenever the engine cannot state one, and `$centreBoreSource` says why. The engine
+         * never substitutes the rim's figure here; falling back to it is a presentation decision,
+         * and one that must be labelled as the rim's own.
+         */
+        public ?float $documentCentreBoreMm = null,
+        public CentreBoreSource $centreBoreSource = CentreBoreSource::Unstated,
+        /**
          * The presentation strings AS SHOWN, carried rather than recomputed.
          *
          * A frozen verdict is evidence of what the customer read, so its labels are data. Left
@@ -117,6 +130,10 @@ final readonly class FitmentVerdict
             'document' => $this->document?->toArray(),
             'requiresEntry' => $this->requiresEntry,
             'entryNoteDe' => $this->entryNoteDe,
+            // Additive, like the tyre-size keys before them: a snapshot written without these two
+            // still reads, and one written now evidences which bore the customer was shown.
+            'documentCentreBoreMm' => $this->documentCentreBoreMm,
+            'centreBoreSource' => $this->centreBoreSource->value,
             'conditions' => array_map(static fn (Condition $c): array => $c->toArray(), $this->conditions),
             'tyres' => [
                 'perAxle' => $this->tyreLayout(),
@@ -197,6 +214,10 @@ final readonly class FitmentVerdict
                 ? VerdictReason::fromArray($data['reason'])
                 : null,
             snapshot: VerdictSnapshot::fromArray($data['snapshot']),
+            // A snapshot written before the bore was carried says nothing about it, and nothing is
+            // what it reads back as — never the rim's figure, which that order never showed.
+            documentCentreBoreMm: isset($data['documentCentreBoreMm']) ? (float) $data['documentCentreBoreMm'] : null,
+            centreBoreSource: CentreBoreSource::from((string) ($data['centreBoreSource'] ?? CentreBoreSource::Unstated->value)),
             // Carried, not recomputed: the stored record is thinner than the live one, so
             // re-deriving these would silently change what the order says it showed.
             vehicleLabel: (string) $vehicleData['label'],
@@ -225,7 +246,8 @@ final readonly class FitmentVerdict
             vehicle: $vehicle,
             wheel: $wheel,
             document: $document,
-            // A negative verdict never claims to know whether entry would be required.
+            // A negative verdict never claims to know whether entry would be required — nor what
+            // bore a document states for this car, which is why the two new fields stay defaulted.
             requiresEntry: false,
             entryNoteDe: null,
             conditions: [],

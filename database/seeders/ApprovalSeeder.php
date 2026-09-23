@@ -43,6 +43,12 @@ use Illuminate\Support\Facades\DB;
  * the filter, a demo fitment that fails it is set to `retired`, never deleted: fitments are RESTRICT
  * (R-05) and frozen order snapshots name some of them (R-12).
  *
+ * A fitment row also carries the Mittenlochbohrung its document states for that vehicle, because
+ * the bore is a relationship and not a rim attribute (CLAUDE.md §1): the MOTEC's 5 × 112 executions
+ * are catalogued at 66,5 mm and its ABE prints 66,6 mm for the cars it covers without a centring
+ * ring, and a customer with such a car must read the document's figure. Every other demo document
+ * states none, and NULL is exactly that statement (documentCentreBore()).
+ *
  * Tyre sizes are no longer taken from the rim diameter alone (a 205/55 R16 "approved" on a
  * Cayenne). A size is seeded only when the rim is at least the car's smallest factory rim, the
  * tyre suits the rim's width, and its diameter is close to the car's factory size (TYRES,
@@ -226,6 +232,29 @@ class ApprovalSeeder extends Seeder
     ];
 
     /**
+     * The makes whose annexes use an MCR4 5 × 112 execution WITHOUT a centring ring. For those cars
+     * the ABE prints its own Mittenloch-ø in the marking `5/112/66,6`, and that figure — not the
+     * 66,5 mm of Motec's catalogue — is what the document states about this wheel on that car
+     * (accuracy-research-motec.md §2.4, "Executions covered" and the annex table: annexes 4, 5, 6
+     * and 7 read "no ring"; §2.5.1 records the two figures and their sources).
+     *
+     * Audi is deliberately absent although two no-ring annexes name it: the same make also appears
+     * in the ringed annexes (2, 3 and 14), so the document does not say which of the two applies to
+     * a given Audi. Where a document is ambiguous the row states no bore at all, and the storefront
+     * shows the rim's own figure labelled as the rim's (CLAUDE.md §2).
+     *
+     * A ringed annex is never a bore. "Ø66,45 → Ø57,1" is the centring ring's diameter, not the
+     * wheel's Mittenlochbohrung, and seeding it as one would print a figure on the product page
+     * that no document states about the rim.
+     *
+     * @var list<string>
+     */
+    public const MOTEC_NO_RING_MAKES = ['BMW', 'Infiniti', 'Mercedes-Benz', 'MINI', 'Ssangyong', 'Toyota'];
+
+    /** The bore those annexes print for the 5 × 112 executions, in millimetres. */
+    public const MOTEC_NO_RING_BORE_MM = 66.60;
+
+    /**
      * Common car tyre sizes per rim diameter, [width, aspect]: the pool a demo fitment's sizes are
      * chosen from, per car, by the rules in tyreSizes().
      *
@@ -304,8 +333,10 @@ class ApprovalSeeder extends Seeder
         }
 
         // The hub must go through the bore; a centring ring can close a larger bore, nothing can
-        // open a smaller one.
-        if ($centreBoreMm + 0.005 < $hub) {
+        // open a smaller one. The bore compared is the one the document states for THIS car where
+        // it states one: the rim's catalogue figure is not the document's claim, and where the two
+        // differ the document wins (R-06).
+        if ((self::documentCentreBore($make, $boltCircleMm, $motec) ?? $centreBoreMm) + 0.005 < $hub) {
             return false;
         }
 
@@ -320,6 +351,31 @@ class ApprovalSeeder extends Seeder
         }
 
         return false;
+    }
+
+    /**
+     * The Mittenlochbohrung this demo document states for THIS vehicle, or null where it states
+     * none — which is the common case and the honest one.
+     *
+     * The bore is a relationship, not a rim attribute (CLAUDE.md §1): the same casting is measured
+     * against the car it was tested on, so the figure belongs on the fitment row. Only the MOTEC
+     * document states one here, and only for the makes its 5 × 112 annexes cover without a centring
+     * ring; every other demo document is silent, and silence is what `fitments.centre_bore_mm`
+     * records as NULL.
+     */
+    public static function documentCentreBore(string $make, float $boltCircleMm, bool $motec = false): ?float
+    {
+        if (! $motec || abs($boltCircleMm - 112.0) > 0.05) {
+            return null;
+        }
+
+        foreach (self::MOTEC_NO_RING_MAKES as $allowed) {
+            if (MakeName::same(MakeName::normalise($allowed), MakeName::normalise($make))) {
+                return self::MOTEC_NO_RING_BORE_MM;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -542,6 +598,10 @@ class ApprovalSeeder extends Seeder
                     'permitted_width_max' => 9.5,
                     'permitted_et_min' => 30,
                     'permitted_et_max' => 48,
+                    // What THIS document says the bore is on THIS car, or NULL where it says
+                    // nothing. Never the rim's own figure copied across: that would turn a
+                    // catalogue number into a document's statement.
+                    'centre_bore_mm' => self::documentCentreBore($vehicle->make, (float) $config->bolt_circle_mm, $motec),
                     'requires_entry' => $requiresEntry,
                     'entry_note_de' => $requiresEntry
                         ? 'Eintragung durch eine amtlich anerkannte Prüfstelle erforderlich.'
@@ -586,7 +646,7 @@ class ApprovalSeeder extends Seeder
             ->where('f.approval_document_id', $document->id)
             ->orderBy('f.id')
             ->get([
-                'f.id', 'f.status',
+                'f.id', 'f.status', 'f.centre_bore_mm as stated_bore_mm',
                 'v.make', 'v.model', 'v.variant', 'v.type_designation', 'v.deleted_at as vehicle_deleted_at',
                 'wc.bolt_holes', 'wc.bolt_circle_mm', 'wc.centre_bore_mm', 'wc.diameter_in', 'wc.width_in', 'wc.deleted_at as config_deleted_at',
             ]);
@@ -595,6 +655,8 @@ class ApprovalSeeder extends Seeder
         $restore = [];
         /** @var array<int, list<array{0: int, 1: int, 2: float}>> $sizes */
         $sizes = [];
+        /** @var array<string, list<int>> $bores the stated bore ('' for none) => the rows to set it on */
+        $bores = [];
 
         foreach ($rows as $row) {
             $ok = $row->vehicle_deleted_at === null
@@ -621,6 +683,16 @@ class ApprovalSeeder extends Seeder
                 $restore[] = (int) $row->id;
             }
 
+            // A database seeded before the column existed carries NULL on every row; the document's
+            // own bore for this car is written here, once, and cleared again where the document
+            // turns out to state none.
+            $stated = self::documentCentreBore((string) $row->make, (float) $row->bolt_circle_mm, $motec);
+            $current = $row->stated_bore_mm === null ? null : (float) $row->stated_bore_mm;
+
+            if ($stated !== $current) {
+                $bores[$stated === null ? '' : number_format($stated, 2, '.', '')][] = (int) $row->id;
+            }
+
             $diameter = (float) $row->diameter_in;
             $sizes[(int) $row->id] = array_map(
                 static fn (array $size): array => [$size[0], $size[1], $diameter],
@@ -634,6 +706,15 @@ class ApprovalSeeder extends Seeder
 
         foreach (array_chunk($restore, 500) as $chunk) {
             DB::table('fitments')->whereIn('id', $chunk)->update(['status' => $live, 'updated_at' => $now]);
+        }
+
+        foreach ($bores as $value => $ids) {
+            foreach (array_chunk($ids, 500) as $chunk) {
+                DB::table('fitments')->whereIn('id', $chunk)->update([
+                    'centre_bore_mm' => $value === '' ? null : (float) $value,
+                    'updated_at' => $now,
+                ]);
+            }
         }
 
         $this->syncTyreSizes($sizes, $now);

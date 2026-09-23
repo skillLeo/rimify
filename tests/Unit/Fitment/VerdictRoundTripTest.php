@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Fitment\Data\TyreSize;
+use App\Domain\Fitment\Verdict\CentreBoreSource;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
@@ -35,6 +36,8 @@ function verdictWithEverything(): FitmentVerdict
                 ),
                 FitmentFixtures::archRolling(),
             ],
+            // The bore this document states for THIS car — 66,5 on a rim cast 66,60.
+            centreBoreMm: 66.5,
         ),
     ])->resolve(1, FitmentFixtures::WHEEL_CONFIG_ID);
 }
@@ -61,6 +64,10 @@ it('preserves the tyre-choice flag, the document minima, the axle and both sourc
         ->and($restored->front->minSpeedSource)->toBe(MinSource::Document)
         ->and($restored->rear->minLoadSource)->toBe(MinSource::Derived)
         ->and($restored->rear->minSpeedSource)->toBe(MinSource::Derived)
+        // The per-vehicle bore survives too: an order has to be able to show which number the
+        // customer was given, for the car they gave it for.
+        ->and($restored->documentCentreBoreMm)->toBe(66.5)
+        ->and($restored->centreBoreSource)->toBe(CentreBoreSource::Document)
         // Lossless both ways: what was written is what is read, and what is read writes the same.
         ->and($restored->toArray())->toBe($verdict->toArray());
 });
@@ -79,7 +86,9 @@ it('reads a snapshot written before the fields were carried with the documented 
     $payload = verdictWithEverything()->toArray();
 
     // The shape a pre-§3.4 writer produced: four keys per condition, three per size, one source
-    // per axle.
+    // per axle, and no per-vehicle bore at all.
+    unset($payload['documentCentreBoreMm'], $payload['centreBoreSource']);
+
     foreach ($payload['conditions'] as &$condition) {
         unset($condition['affectsTyreChoice'], $condition['affectsPurchase'], $condition['requiresAcknowledgement']);
     }
@@ -108,14 +117,21 @@ it('reads a snapshot written before the fields were carried with the documented 
         ->and($restored->front->minLoadSource)->toBe(MinSource::Document)
         ->and($restored->front->minSpeedSource)->toBe(MinSource::Document)
         ->and($restored->rear->minLoadSource)->toBe(MinSource::Derived)
-        ->and($restored->rear->minSpeedSource)->toBe(MinSource::Derived);
+        ->and($restored->rear->minSpeedSource)->toBe(MinSource::Derived)
+        // An old order said nothing about the bore, so it reads back as nothing — never as the
+        // rim's own figure, which that order never showed.
+        ->and($restored->documentCentreBoreMm)->toBeNull()
+        ->and($restored->centreBoreSource)->toBe(CentreBoreSource::Unstated);
 });
 
 it('keeps every key the snapshot shape had before — nothing removed, nothing renamed', function (): void {
     $payload = verdictWithEverything()->toArray();
 
     expect(array_keys($payload))->toBe([
-        'status', 'vehicle', 'wheel', 'document', 'requiresEntry', 'entryNoteDe', 'conditions', 'tyres', 'reason', 'snapshot',
+        'status', 'vehicle', 'wheel', 'document', 'requiresEntry', 'entryNoteDe',
+        // Added with the per-vehicle bore; everything around them is untouched.
+        'documentCentreBoreMm', 'centreBoreSource',
+        'conditions', 'tyres', 'reason', 'snapshot',
     ])
         ->and(array_keys($payload['tyres']))->toBe(['perAxle', 'front', 'rear'])
         ->and(array_slice(array_keys($payload['tyres']['front']), 0, 4))->toBe(['sizes', 'minLoadIndex', 'minSpeedSymbol', 'minSource'])

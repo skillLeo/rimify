@@ -31,6 +31,9 @@ class FitmentFactory extends Factory
             'permitted_width_max' => null,
             'permitted_et_min' => null,
             'permitted_et_max' => null,
+            // NULL: the document states no bore of its own for this vehicle. Defaulting it to the
+            // rim's figure would put a number in the record that no document ever stated.
+            'centre_bore_mm' => null,
             'requires_entry' => false,
             'status' => FitmentStatus::Published->value,
         ];
@@ -64,6 +67,12 @@ class FitmentFactory extends Factory
     public function scopedTo(?string $from, ?string $to): static
     {
         return $this->state(fn (): array => ['build_from' => $from, 'build_to' => $to]);
+    }
+
+    /** The Mittenlochbohrung this document states for the vehicle this row covers. */
+    public function statingCentreBore(?float $mm): static
+    {
+        return $this->state(fn (): array => ['centre_bore_mm' => $mm]);
     }
 
     public function forAxle(Axle $axle): static
