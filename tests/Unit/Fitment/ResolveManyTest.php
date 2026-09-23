@@ -63,6 +63,7 @@ function batchRow(int $configId, FitmentRow $row): FitmentRow
         entryNoteDe: $row->entryNoteDe,
         tyreSizes: $row->tyreSizes,
         conditions: $row->conditions,
+        centreBoreMm: $row->centreBoreMm,
     );
 }
 

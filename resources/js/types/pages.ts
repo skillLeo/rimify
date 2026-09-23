@@ -283,7 +283,10 @@ export interface ProduktConfig {
     sizeLabel: string
     fullLabel: string
     boltPattern: string
+    /** The rim's own bore, `66,5 mm`. The bore a document states for the chosen car is in the verdict. */
     centreBore: string
+    /** `H2` — the hump designation the wheel's approval prints; null where the record holds none. */
+    hump?: string | null
     priceCents: number
     price: string
     stockQty: number
@@ -308,6 +311,14 @@ export interface ConfigVerdict {
     entryNoteDe: string | null
     /** Full German sentences, never codes such as A02 (R-15). */
     conditions: string[]
+    /**
+     * `66,6 mm` — the Mittenlochbohrung the covering documents state for THIS car, additive and
+     * optional. Null where they state none (`UNSTATED`) or name different ones (`CONFLICTING`):
+     * the page then shows the rim's own figure, labelled as the rim's, and never silently
+     * substitutes it for the document's.
+     */
+    centreBore?: string | null
+    centreBoreSource?: 'DOCUMENT' | 'UNSTATED' | 'CONFLICTING'
     reason: string | null
     reasonCode: string | null
     document: { number: string | null; issuer: string | null; kind: string } | null
@@ -567,6 +578,11 @@ export interface AdminWuchtgewichteProps {
         active: boolean
         sortOrder: number
     }[]
+    /**
+     * `Montage und Auswuchten` per wheel — one shop-wide fee, edited on this page (§13, D-032).
+     * `cents` is null while nobody has named one, and then no Komplettrad can be ordered at all.
+     */
+    mounting: { cents: number | null; typed: string }
     /** What the page may offer. The server refuses regardless (R-11); this only hides. */
     can: { create: boolean; update: boolean; delete: boolean }
 }
@@ -586,5 +602,10 @@ export interface AdminRdksProps {
     }[]
     /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
     makes: string[]
+    /**
+     * What a make with no row above is charged per sensor (§13, D-030). `cents` is null while there
+     * is no default, and then only the makes listed above can have sensors at all.
+     */
+    default: { cents: number | null; typed: string }
     can: { create: boolean; update: boolean; delete: boolean }
 }

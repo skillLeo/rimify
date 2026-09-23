@@ -106,15 +106,24 @@ return [
     | Komplettrad
     |--------------------------------------------------------------------------
     |
-    | What mounting and balancing one wheel costs, in integer cents. The client has not given a
-    | figure, so it is null until an environment variable names a real one — exactly as `shipping`
-    | is handled. While it is null the basket shows "wird noch festgelegt" for that component,
-    | leaves it out of the total, and the server refuses an order containing a Komplettrad.
-    | The Felgen-only purchase is unaffected.
+    | Two prices in integer cents: what mounting and balancing one wheel costs, and what one RDKS
+    | sensor costs for a car make with no row of its own.
+    |
+    | These are DEPLOYMENT DEFAULTS ONLY. Both are set in the admin (docs/specs/komplettrad.md §13),
+    | and a value stored there wins — including a deliberately cleared one, which is why
+    | KomplettradSettings distinguishes "no row" from "a row holding null" rather than reading these
+    | keys directly. They answer on a fresh install, where no row exists yet.
+    |
+    | Null everywhere is the shipped state: the basket then shows "wird noch festgelegt" for that
+    | component, leaves it out of the total, and the server refuses an order containing a
+    | Komplettrad. The Felgen-only purchase is unaffected.
     */
     'komplettrad' => [
         'mounting_per_wheel_cents' => is_numeric(env('RIMIFY_MOUNTING_PER_WHEEL_CENTS'))
             ? (int) env('RIMIFY_MOUNTING_PER_WHEEL_CENTS')
+            : null,
+        'tpms_default_price_cents' => is_numeric(env('RIMIFY_TPMS_DEFAULT_PRICE_CENTS'))
+            ? (int) env('RIMIFY_TPMS_DEFAULT_PRICE_CENTS')
             : null,
     ],
 

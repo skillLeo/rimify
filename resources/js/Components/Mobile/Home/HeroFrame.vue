@@ -21,6 +21,7 @@ import { Link, usePage } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import Picture from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
+import ValueText from '../../Ui/ValueText.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
 import { euro } from '../../../format'
 import type { HeroProduct } from '../../../types/pages'
@@ -112,13 +113,14 @@ onMounted(() => {
             />
         </component>
 
-        <p class="small num muted hero-mobile__spec">
+        <!-- Tokens and figures throughout, the stamp's number with them: never translated. -->
+        <p class="small num muted hero-mobile__spec" translate="no">
             {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
         </p>
 
         <Link v-if="named" :href="href" class="hero-mobile__caption" prefetch>
-            <span class="small hero-mobile__name">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
-            <span class="small num muted">ab {{ perWheel }} · pro Felge</span>
+            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
+            <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
         </Link>
         <p v-if="photo" class="micro quiet hero-mobile__shown">{{ CAPTION }}</p>
         <p v-else class="micro quiet hero-mobile__symbolic">{{ SYMBOLIC }}</p>

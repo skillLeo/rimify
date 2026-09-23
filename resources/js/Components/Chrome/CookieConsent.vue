@@ -69,13 +69,6 @@ const sheetVisible = computed(() => consent.decided.value === null)
     box-shadow: var(--e-3);
 }
 
-/* The bottom bar is shown by width, so the clearance above it is decided by width too. */
-@media (max-width: 1023px) {
-    .consent {
-        bottom: calc(var(--bottomnav-h) + var(--sp-12) + env(safe-area-inset-bottom));
-    }
-}
-
 .consent__text {
     max-width: 52ch;
     color: var(--c-ink-2);

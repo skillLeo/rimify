@@ -37,6 +37,13 @@ export const SCHEMATIC = {
     xPadOut: 226,
     yLip: 46,
     yBeadSeat: 74,
+    /** Each hump — the ridge at the well side of a bead seat: its centre and half its width. */
+    xHumpIn: 131,
+    xHumpOut: 225,
+    humpHalf: 3,
+    /** The control point of the hump's curve; a quadratic reaches half as far, so the ridge peaks at 70. */
+    yHumpControl: 66,
+    yHumpPeak: (74 + 2 * 66 + 74) / 4,
     yUnderside: 80,
     yWell: 106,
     yPadTop: 174,
@@ -54,9 +61,14 @@ const S = SCHEMATIC
 
 /**
  * The section's outline, one closed path: the flange on the vehicle side, its bead seat with the
- * hump (H2), the barrel, the well (Tiefbett), the outer bead seat and flange; underneath, the
- * barrel's inside, the disc (Radschüssel) down to the hub pad whose inboard face is the
- * Anlagefläche, cut through the bolt hole.
+ * hump, the barrel, the well (Tiefbett), the outer bead seat and flange; underneath, the barrel's
+ * inside, the disc (Radschüssel) down to the hub pad whose inboard face is the Anlagefläche, cut
+ * through the bolt hole.
+ *
+ * Both humps are drawn and both are labelled *Hump*. The drawing names the feature, never a rim's
+ * hump designation: which designation a wheel carries is the Gutachten's statement about that wheel,
+ * and `wheel_configs.hump` holds the same constant for every demo row, so no such designation may be
+ * read off this drawing (CLAUDE.md §2).
  */
 export const PROFILE = [
     `M ${S.xFlangeIn} ${S.yBeadSeat}`,
@@ -69,12 +81,16 @@ export const PROFILE = [
     // The disc's outboard face up to the outer flange, its back face, the lip, its inner face.
     `L 264 90 L 264 60 Q 264 52 272 52 L 272 ${S.yLip} L 266 ${S.yLip} Q ${S.xFlangeOut} ${S.yLip} ${S.xFlangeOut} 54 L ${S.xFlangeOut} ${S.yBeadSeat}`,
     // The tyre side, right to left: outer bead seat, hump, barrel, the well, barrel, hump, inner bead seat.
-    `L 228 ${S.yBeadSeat} Q 225 66 222 ${S.yBeadSeat} L 214 ${S.yBeadSeat} L 204 ${S.yWell} L 172 ${S.yWell} L 162 ${S.yBeadSeat}`,
-    `L 134 ${S.yBeadSeat} Q 131 66 128 ${S.yBeadSeat} Z`,
+    `L ${S.xHumpOut + S.humpHalf} ${S.yBeadSeat} Q ${S.xHumpOut} ${S.yHumpControl} ${S.xHumpOut - S.humpHalf} ${S.yBeadSeat}`,
+    `L 214 ${S.yBeadSeat} L 204 ${S.yWell} L 172 ${S.yWell} L 162 ${S.yBeadSeat}`,
+    `L ${S.xHumpIn + S.humpHalf} ${S.yBeadSeat} Q ${S.xHumpIn} ${S.yHumpControl} ${S.xHumpIn - S.humpHalf} ${S.yBeadSeat} Z`,
 ].join(' ')
 
 /** The hub pad below the bolt hole, down to the edge of the Mittenlochbohrung (a separate island in the cut). */
 export const PAD_BELOW = `M ${S.xAnlage} ${S.yBoltBottom} L ${S.xPadOut} ${S.yBoltBottom} L ${S.xPadOut} ${S.yBore} L ${S.xAnlage} ${S.yBore} Z`
+
+/** How far short of the feature a leader stops, so the line points at it without touching it. */
+const LEAD_GAP = 3
 
 /** Oblique tick marks (Schrägstriche) at both ends of a dimension line, no arrowheads. */
 function ticks(x1: number, y1: number, x2: number, y2: number): string {
@@ -167,16 +183,23 @@ export interface SchematicPart {
 export const PARTS: SchematicPart[] = [
     { id: 'flange-in', label: { text: 'Felgenhorn', x: 82, y: 40, anchor: 'end' }, for: ['width'] },
     { id: 'flange-out', label: { text: 'Felgenhorn', x: 274, y: 40, anchor: 'start' }, for: ['width'] },
-    { id: 'bead-seat', label: { text: 'Wulstsitz', x: 102, y: 64, anchor: 'start' }, for: ['diameter'] },
-    { id: 'well', label: { text: 'Tiefbett', x: 184, y: 64, anchor: 'start' }, leader: 'M 190 67 L 190 103', for: [] },
-    { id: 'centre-plane', label: { text: 'Felgenmitte', x: 196, y: 186, anchor: 'end' }, for: ['et'] },
-    { id: 'anlage', label: { text: 'Anlagefläche', x: 206, y: 212, anchor: 'end' }, for: ['et'] },
+    // The bead seats and the well are named from the upper row, the humps from the row beneath it, so
+    // that every leader reaches its feature through open space.
+    { id: 'bead-seat', label: { text: 'Wulstsitz', x: 102, y: 48, anchor: 'start' }, leader: `M 106 52 L 106 ${S.yBeadSeat - LEAD_GAP}`, for: ['diameter'] },
+    { id: 'well', label: { text: 'Tiefbett', x: 186, y: 48, anchor: 'start' }, leader: `M 190 52 L 190 ${S.yWell - LEAD_GAP}`, for: [] },
+    { id: 'hump-in', label: { text: 'Hump', x: S.xHumpIn, y: 64, anchor: 'middle' }, for: [] },
+    { id: 'hump-out', label: { text: 'Hump', x: S.xHumpOut, y: 64, anchor: 'middle' }, for: [] },
+    { id: 'centre-plane', label: { text: 'Felgenmitte', x: 148, y: 182, anchor: 'end' }, leader: `M 152 178 L ${S.xCentre - LEAD_GAP} 178`, for: ['et'] },
+    { id: 'anlage', label: { text: 'Anlagefläche', x: 180, y: 212, anchor: 'end' }, leader: `M 184 208 L ${S.xAnlage - LEAD_GAP} 208`, for: ['et'] },
     { id: 'disc', label: { text: 'Radschüssel', x: 272, y: 144, anchor: 'start' }, leader: 'M 268 140 L 248 140', for: [] },
     { id: 'axis', label: { text: 'Radachse', x: 276, y: 278, anchor: 'start' }, for: [] },
 ]
 
-/** The rim centre plane: a dashed line through the whole section, down to the ET dimension. */
-export const CENTRE_PLANE = { x: S.xCentre, y1: 38, y2: 170 } as const
+/**
+ * The rim centre plane: a dashed line through the whole section, past the ET dimension and far enough
+ * below it for the *Felgenmitte* leader to end on the line rather than on its tip.
+ */
+export const CENTRE_PLANE = { x: S.xCentre, y1: 38, y2: 186 } as const
 
 /** The bolt hole's own centre line, and the wheel axis — both dash-dot, as a drawing office draws an axis. */
 export const BOLT_AXIS = `M 204 ${S.yBolt} L 234 ${S.yBolt}`

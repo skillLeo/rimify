@@ -40,6 +40,8 @@ const BASE = '/admin/wuchtgewichte'
 const EMPTY_TEXT = 'Noch keine Farbe angelegt. Solange können Kundinnen und Kunden kein Komplettrad bestellen.'
 const CONFIRM_TEXT = 'Farbe wirklich löschen? Bestellungen behalten die Farbe, die sie hatten.'
 const MONEY_HINT = 'Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.'
+const MOUNTING_HINT = 'Preis je Rad, deutsch geschrieben – zum Beispiel 19,90. Leer lassen heißt: noch nicht festgelegt.'
+const MOUNTING_OPEN = 'Solange hier nichts steht, können Kundinnen und Kunden keine Kompletträder bestellen. Felgen allein sind davon nicht betroffen.'
 
 function blank(): ColourForm {
     return { nameDe: '', swatchHex: '', surcharge: '0,00', isDefault: false, active: true, sortOrder: 0 }
@@ -55,12 +57,42 @@ const sent = ref(false)
 const busy = ref(false)
 const confirming = ref<Colour | null>(null)
 
-/** The server's validation messages, keyed by field. */
-const errors = computed<Record<string, string>>(() => {
-    const bag: unknown = page.props.errors
+/** Everything the server said about the last request, whichever form sent it. */
+const bag = computed<Record<string, string>>(() => {
+    const raw: unknown = page.props.errors
 
-    return sent.value && bag !== null && typeof bag === 'object' ? (bag as Record<string, string>) : {}
+    return raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {}
 })
+
+/** The server's validation messages, keyed by field. */
+const errors = computed<Record<string, string>>(() => (sent.value ? bag.value : {}))
+
+/* ── Montage und Auswuchten: one fee, its own small form (§13, D-032) ───────────── */
+
+const mounting = reactive({ typed: props.mounting.typed })
+const mountingSent = ref(false)
+const mountingBusy = ref(false)
+
+/** Two forms share one error bag, so each only shows messages for a request it sent itself. */
+const mountingError = computed(() =>
+    mountingSent.value ? (bag.value.mountingCents ?? bag.value.mounting ?? '') : ''
+)
+
+function saveMounting(): void {
+    mountingSent.value = true
+    mountingBusy.value = true
+
+    router.put(
+        `${BASE}/montage`,
+        { mounting: mounting.typed },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                mountingBusy.value = false
+            },
+        }
+    )
+}
 
 const editingColour = computed(() => props.colours.find((c) => c.id === editing.value) ?? null)
 const canWrite = computed(() => props.can.create || props.can.update)
@@ -155,6 +187,41 @@ function remove(): void {
             Standardfarbe bekommt jedes Komplettrad, solange nichts anderes gewählt ist.
         </p>
     </div>
+
+    <!-- The one fee every Komplettrad carries. Its own form, so saving a price never depends on
+         the colour form being filled in, and clearing it is a save like any other. -->
+    <form
+        v-if="can.update"
+        class="wg__form wg__form--fee"
+        :aria-busy="mountingBusy ? 'true' : undefined"
+        @submit.prevent="saveMounting"
+    >
+        <h2 class="t-h3 wg__form-title">Montage und Auswuchten</h2>
+
+        <div class="wg__fee">
+            <div class="wg__field wg__field--narrow">
+                <label class="field-label" for="wg-mounting">Preis je Rad</label>
+                <input
+                    id="wg-mounting"
+                    v-model="mounting.typed"
+                    class="field tabular"
+                    :class="{ 'field--error': mountingError }"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    maxlength="32"
+                    aria-describedby="wg-mounting-help wg-mounting-err"
+                    :aria-invalid="mountingError ? 'true' : undefined"
+                />
+                <p id="wg-mounting-help" class="field-help">{{ MOUNTING_HINT }}</p>
+                <span id="wg-mounting-err" class="field-error">{{ mountingError }}</span>
+            </div>
+
+            <button class="btn btn--primary" type="submit" :disabled="mountingBusy">Speichern</button>
+        </div>
+
+        <p v-if="props.mounting.cents === null" class="wg__fee-open small">{{ MOUNTING_OPEN }}</p>
+    </form>
 
     <form v-if="canWrite" class="wg__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
         <h2 class="t-h3 wg__form-title">{{ formTitle }}</h2>
@@ -345,6 +412,24 @@ function remove(): void {
     margin-bottom: var(--sp-16);
 }
 
+/* One field and its button on a line, the button aligned to the field rather than to its help text. */
+.wg__fee {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: var(--sp-16);
+}
+
+.wg__fee .btn {
+    margin-top: calc(var(--lh-small) + var(--sp-4));
+}
+
+.wg__fee-open {
+    max-width: 62ch;
+    margin-top: var(--sp-12);
+    color: var(--c-ink-2);
+}
+
 .wg__fields {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -354,6 +439,11 @@ function remove(): void {
 
 .wg__field {
     min-width: 0;
+}
+
+/* A price or a sort order is a few characters wide; a full-width field invites a sentence. */
+.wg__field--narrow {
+    max-width: 22ch;
 }
 
 .wg__hex {

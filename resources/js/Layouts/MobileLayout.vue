@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * The phone frame: app bar, page, footer, tab bar, and the overlays the shell owns — the vehicle
- * sheet, the search sheet, the cookie choice, the toast.
+ * The phone frame: app bar, page, footer, and the overlays the shell owns — the vehicle sheet,
+ * the search sheet, the cookie choice, the toast. The destinations live in the app bar's menu;
+ * nothing crosses the bottom of the screen but a page's own sticky action bar.
  *
  * A page applies it with `defineOptions({ layout: MobileLayout })` and, when it needs the bar to
  * say something, passes props through the layout function:
@@ -17,13 +18,12 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, toRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import AppBar from '../Components/Mobile/AppBar.vue'
 import BottomSheet from '../Components/Mobile/BottomSheet.vue'
 import ListRow from '../Components/Mobile/ListRow.vue'
 import MobileFooter from '../Components/Mobile/MobileFooter.vue'
 import SearchSheet from '../Components/Mobile/SearchSheet.vue'
-import TabBar from '../Components/Mobile/TabBar.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import Toast from '../Components/Chrome/Toast.vue'
 import CompareTray from '../Components/Compare/CompareTray.vue'
@@ -42,10 +42,9 @@ const props = withDefaults(
         large?: boolean
         /** The back arrow's destination when the session has no history; null hides it. */
         back?: string | null
-        tabBar?: boolean
         footer?: boolean
     }>(),
-    { title: undefined, large: false, back: '/', tabBar: true, footer: true }
+    { title: undefined, large: false, back: '/', footer: true }
 )
 
 /** Routes whose screens are tabs: no back arrow, search and vehicle in the bar. */
@@ -66,7 +65,7 @@ const ROUTE_TITLES: Record<string, string> = {
 const shared = useShared()
 provideShell()
 provideConsent(shared.value.consent ?? null)
-const shell = provideMobileShell({ tabBar: toRef(props, 'tabBar') })
+const shell = provideMobileShell()
 
 const vehicle = computed(() => shared.value.vehicle)
 
@@ -156,7 +155,7 @@ function fromVehicleSheet(href: string | undefined): void {
 </script>
 
 <template>
-    <div class="mshell" :class="{ 'mshell--tabbar': tabBar && !shell.stickyBar.value, 'mshell--sticky': shell.stickyBar.value }">
+    <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
         <AppBar :top="bar.top" :title="bar.title" :large="bar.large" :back="bar.back">
@@ -169,11 +168,10 @@ function fromVehicleSheet(href: string | undefined): void {
             <slot />
         </main>
 
-        <!-- After the page, before the footer; above the tab bar, never while a sticky bar owns the edge. -->
-        <CompareTray :hidden="shell.stickyBar.value" :bottom-nav="tabBar" />
+        <!-- After the page, before the footer; never while a sticky bar owns the bottom edge. -->
+        <CompareTray :hidden="shell.stickyBar.value" />
 
         <MobileFooter v-if="footer" />
-        <TabBar v-if="tabBar" />
 
         <!-- The vehicle: its name and key numbers, then the three things one does with it. -->
         <BottomSheet v-if="vehicle" id="fahrzeug" v-model:open="vehicleSheet" title="Dein Fahrzeug">
@@ -205,13 +203,7 @@ function fromVehicleSheet(href: string | undefined): void {
     padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* The page keeps room for whichever bar owns the bottom edge; the last item scrolls clear of it.
-   The keyboard hiding the tab bar changes nothing here — a layout shift under the thumb is worse
-   than a few pixels of padding behind the keyboard. */
-.mshell--tabbar .mshell__main {
-    padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
-}
-
+/* A sticky action bar is the only thing that owns the bottom edge; the page keeps clear of it. */
 .mshell--sticky .mshell__main {
     padding-bottom: calc(var(--stickybar-h) + var(--sp-16) + env(safe-area-inset-bottom));
 }

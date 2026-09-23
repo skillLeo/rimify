@@ -53,6 +53,22 @@ Still open from this round: winter tyres (a speed symbol below the car's top spe
 in the car — the engine refuses such a tyre today), and what "Premium" shipping promises, since the
 description is the client's own text.
 
+## The wheel's own figures — answered 2026-09-23
+
+- **Mittenlochbohrung is per vehicle, not per rim.** The client: *"The Mittenlochbohrung can
+  differentiate between cars, even for the same rim. So the number e.g. 66,5 depends on which car in
+  the ABE or Teilegutachten the rim was tested on. For website preview you can just use 66,5.
+  Important is that the correct data is shown in product details in relation to the chosen car."*
+  This settles the 66,6-versus-66,5 conflict recorded in the accuracy research: neither number is
+  "the" bore. The approval row states the bore for the vehicle it covers, and that is what a
+  customer with a chosen car is shown; the rim's own figure is what the shop shows when no car is
+  chosen, labelled as such so the two can never be read as the same claim. `fitments` gains a
+  nullable `centre_bore_mm`; the demo MOTEC's own value becomes **66,5**.
+- **The hump belongs in the product details.** The client: *"The hump H2 info should also be in
+  product details. We want as much information shown there as possible."* `wheel_configs.hump`
+  already exists and was unused. It is filled from the approval data, never typed in, and the
+  product details carry every figure the record actually holds — and no row for one it does not.
+
 ## Navigation
 
 4. **Bottom navigation on phones.** The design foresees *Start · Felgen · Check · Warenkorb · Konto*.

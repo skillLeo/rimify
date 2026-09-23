@@ -55,12 +55,33 @@ for (const width of WIDTHS) {
                     return el
                 }
 
+                // WCAG 2.5.8's inline exception, as DIRECTION §6 records it: a link inside a run of
+                // text takes its height from the sentence around it, and padding it out to 44px
+                // would break that paragraph. Narrow on purpose — the parent must hold text of its
+                // own beside the link. A link that is the only thing in its container is a target.
+                const inlineInSentence = (el) => {
+                    const parent = el.parentElement
+
+                    if (parent === null || getComputedStyle(el).display !== 'inline') {
+                        return false
+                    }
+
+                    return [...parent.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() !== '')
+                }
+
                 const small = phone
                     ? [...document.querySelectorAll('main a, main button, main input, main select, header a, header button, nav a, nav button')]
                           .filter((el) => {
                               const b = targetOf(el).getBoundingClientRect()
                               const cs = getComputedStyle(el)
-                              return b.width > 0 && b.height > 0 && cs.visibility !== 'hidden' && (b.height < 43.5 || b.width < 43.5) && !el.closest('.visually-hidden')
+                              return (
+                                  b.width > 0 &&
+                                  b.height > 0 &&
+                                  cs.visibility !== 'hidden' &&
+                                  (b.height < 43.5 || b.width < 43.5) &&
+                                  !el.closest('.visually-hidden') &&
+                                  !inlineInSentence(el)
+                              )
                           })
                           .map((el) => `${describeNode(el)} ${Math.round(targetOf(el).getBoundingClientRect().width)}×${Math.round(targetOf(el).getBoundingClientRect().height)}`)
                     : []

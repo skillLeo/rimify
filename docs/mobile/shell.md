@@ -14,12 +14,12 @@ defineOptions({ layout: MobileLayout })
 // an inner page: back arrow, a truncated title, up to two actions in the #bar-actions slot
 defineOptions({ layout: (h, page) => h(MobileLayout, { title: 'Warenkorb', large: true, back: '/felgen' }, () => page) })
 
-// a page with a sticky action bar: mount <StickyActionBar>; the tab bar steps aside by itself
+// a page with a sticky action bar: mount <StickyActionBar>; it owns the bottom edge by itself
 ```
 
 Layout props: `title`, `large` (28 px title under the bar that collapses into it — it is the
 page's `h1`), `back` (fallback href when the session has no history; `null` hides the arrow),
-`tabBar` (default true), `footer` (default true). The layout decides "top-level" from the shared
+`footer` (default true). The layout decides "top-level" from the shared
 `routeName` (`startseite`, `felgen.index`, `check.index`, `warenkorb.index`) and has a title for
 every other route, so a page that passes nothing still gets a correct bar in the server's first
 frame. The props travel through the layout function, so they are in the SSR output — nothing is
@@ -29,10 +29,10 @@ corrected after hydration.
 
 | Part | File | What it does |
 |---|---|---|
-| App bar | `Components/Mobile/AppBar.vue` | 56 px + `env(safe-area-inset-top)`, sticky, `--e-1` once scrolled (IntersectionObserver sentinel, as the desktop header). Top-level: wordmark · search · vehicle (blue dot when set, opens the vehicle sheet). Inner: back (44 px, `goBack()`), title (`text-overflow: ellipsis`), `#actions` slot capped at two by CSS. Large title: scroll-driven `animation-timeline: scroll(root)` behind `@supports` and `prefers-reduced-motion: no-preference`, IntersectionObserver otherwise. `view-transition-name: m-appbar` so page transitions never move it. |
-| Tab bar | `Components/Mobile/TabBar.vue` + `TabIcon.vue` | Four tabs (Start · Felgen · Check · Warenkorb; Konto waits for its route), 56 px + safe area, 24 px icons with a filled state, 12 px/500 labels, `aria-current="page"`, count badge (`.badge--count`) on Warenkorb. Tapping the current tab scrolls to top (smooth unless reduced motion). Prefetch on `pointerdown` (Inertia's `click` mode prefetches on `mousedown`, which on touch fires with the tap). Hidden by transform + `visibility` while the keyboard is up or a sticky bar is mounted (`shell.tabBarVisible`). |
+| App bar | `Components/Mobile/AppBar.vue` | 56 px + `env(safe-area-inset-top)`, sticky, `--e-1` once scrolled (IntersectionObserver sentinel, as the desktop header). Top-level: wordmark · search · vehicle (blue dot when set, opens the vehicle sheet) · menu. Inner: back (44 px, `goBack()`), title (`text-overflow: ellipsis`), `#actions` slot and the menu, three targets in total, capped by CSS so the menu is never pushed off the row. Large title: scroll-driven `animation-timeline: scroll(root)` behind `@supports` and `prefers-reduced-motion: no-preference`, IntersectionObserver otherwise. `view-transition-name: m-appbar` so page transitions never move it. |
+| Menu | `Components/Chrome/MainMenu.vue` | The phone's navigation, in the corner of the app bar and of the desktop header below 1024 px — a shop is not an app, and a bar fixed across the bottom of every page costs a row of content and reads as one. Reka `DropdownMenu`; rows are the admin's phone list in its own order, then anything the header menu adds; ≥ 44 px each, `aria-current="page"` on the page you are on, the basket's count on its row and on the button (`aria-label` carries it for a screen reader). Icons come from the nav data, with a fallback per known route. |
 | Bottom sheet | `Components/Mobile/BottomSheet.vue` | Reka `Dialog` for focus trap, scroll lock, Esc, backdrop, focus return, announcement. On top: a 36 × 4 handle; touch drag with `preventDefault` on the first downward `touchmove` (so the browser never starts a scroll and never fires `pointercancel`), starting from the body only at `scrollTop === 0`; close on velocity > 0,6 px/ms or > 30 % of the height; `snap="half"` rests at 50 % and expands to 92 % as a **transform** (the sheet is always 92 dvh tall) — never a height animation; `overscroll-behavior: contain`; `msheet-in`/`msheet-out` over `--d-3`/`--d-2`. One history entry per open sheet (below). |
-| Sticky action bar | `Components/Mobile/StickyActionBar.vue` | Fixed to `bottom: var(--kb-inset)`, so it rides above the keyboard; `--stickybar-h`; sets `shell.stickyBar` on mount, which hides the tab bar and switches the page's bottom padding. |
+| Sticky action bar | `Components/Mobile/StickyActionBar.vue` | Fixed to `bottom: var(--kb-inset)`, so it rides above the keyboard; `--stickybar-h`; sets `shell.stickyBar` on mount, which switches the page's bottom padding. |
 | Shelf | `Components/Mobile/Shelf.vue` | Scroll-snap row, 2.2 tiles by default (`--shelf-w`, overridable per use: `62vw`, `96px`, `78vw` on the homepage per home.md §0.5), gutter gaps, scroll padding = page margin, last child snaps `end`, no scrollbar, `aria-label` on the list, optional `tabindex="0"` for a shelf of static cards (axe `scrollable-region-focusable`). Header with "Alle ansehen" or `hide-head`. |
 | Search sheet | `Components/Mobile/SearchSheet.vue` | Full-screen, `height: var(--vv-h)` (visual viewport, so results are never under the keyboard), field autofocused with `inputmode="search"`/`enterkeyhint="search"`, "Abbrechen", recent searches (`useSearch` storage), "Direkt zu" actions, grouped results as rows, skeleton rows while loading, empty state with the suggestion or the next step, failure sentence. A result closes the sheet (giving its history entry back) **before** `router.visit`, so the history has no dead entry. |
 | List row | `Components/Mobile/ListRow.vue` | ≥ 56 px, page margin at the sides, inset divider that starts where the text starts, chevron when it navigates, leading icon slot, `meta` at the right edge, whole row tappable, `.m-press`. With `href` it is a real `<a>` that navigates through the router (prefetch on press); `external` for `tel:`/`mailto:`/`wa.me`; `static` for plain content. |
@@ -46,14 +46,13 @@ manipulation`, transparent tap highlight) and the view transitions.
 
 `composables/mobile/useNavigationDirection.ts` hooks Inertia's `before` event, sets
 `<html data-nav="forward|tab|back">` and turns `visit.viewTransition` on for every plain GET visit
-(not partial reloads, not prefetches, not under reduced motion). The tab bar calls `markNext('tab')`
-before its visit. CSS in `MobileLayout.vue`:
+(not partial reloads, not prefetches, not under reduced motion). CSS in `MobileLayout.vue`:
 
 - forward: `::view-transition-new(root)` slides in from `translateX(100%)` over `--d-3`;
   `::view-transition-old(root)` moves to `translateX(-30%)` and dims to 0,7;
 - tab: the default cross-fade at `--d-2`;
 - back: `animation: none` — and Inertia restores popstate pages quietly anyway, without a transition;
-- the app bar, tab bar and sticky bar are their own named groups with `animation: none` and the old
+- the app bar and the sticky bar are their own named groups with `animation: none` and the old
   snapshot hidden, so the chrome stands still while the page moves.
 
 A session depth counter (sessionStorage) tells the back arrow whether `history.back()` has
@@ -82,7 +81,7 @@ lets prefetches and partial reloads through untouched.
 ## Keyboard
 
 `composables/mobile/useVisualViewport.ts` writes `--vv-h`, `--kb-inset` and `html.is-keyboard`
-from `window.visualViewport` (inset > 150 px = keyboard). The tab bar hides while the keyboard is
+from `window.visualViewport` (inset > 150 px = keyboard). The sticky action bar rides above the keyboard while it is
 up; the sticky bar and the search sheet follow it. The page's bottom padding does **not** change
 with the keyboard — a layout shift under the thumb is worse than padding behind the keyboard.
 

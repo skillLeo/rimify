@@ -1675,3 +1675,35 @@ Two things they have **not** decided, and the build must keep asking rather than
 **Order of work from here:** finish the simple set (§10 commits 11–18) → the admin-priced money
 above → staggered. Splitting it that way keeps each step reviewable on its own, which is the pace
 the client asked for.
+
+### 13.1 · Built: the admin-priced money (D-030, D-032)
+
+`App\Services\Commerce\KomplettradSettings` holds both figures in `settings`, and both distinguish
+three states, which is the whole point of it existing:
+
+| State | Row | Answer |
+|---|---|---|
+| Nobody has ever touched the field | absent | the deployment default in `config/rimify.php` |
+| An admin cleared it on purpose | `{"cents": null}` | **unset** — the config does *not* come back |
+| An admin named a figure | `{"cents": 1990}` | that figure |
+
+The second row is the one that matters: clearing a price in the admin has to actually clear it,
+or an environment variable set months ago would quietly start billing again. Unset is never 0 —
+an unset mounting fee stops every Komplettrad order and an unset sensor price stops every `ja`,
+each with a sentence that says so.
+
+Nothing in that class is memoised. An instance outlives its request — the router keeps the
+controller it was injected into, and Octane keeps the container — so a remembered figure would go
+on being served after an admin had changed it.
+
+The RDKS answer is now a `SensorQuote`, not a row: the make's own `tpms_sensor_prices` row where
+there is one, the default otherwise, and `priceId` says which. `Basket::tpmsQuoteChanged()` compares
+it, so a customer quoted the default and then billed from a freshly-entered Porsche row is caught
+exactly like a changed number is.
+
+Editing: *Montage und Auswuchten* on `/admin/wuchtgewichte`, the default sensor price on
+`/admin/rdks-preise`, each its own form above the rows it governs, each authorised by its Policy
+(`updateMountingFee`, `updateDefaultPrice`) and each leaving a subject-less audit entry — the
+figures are shop-wide and have no row of their own to point at.
+
+**Still open from the table above:** shipping methods and staggered sets.

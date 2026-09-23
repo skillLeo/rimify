@@ -19,6 +19,7 @@
 import { Link } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import Picture from './Picture.vue'
+import ValueText from './ValueText.vue'
 import VerdictBadge from './VerdictBadge.vue'
 import WheelOutline from './WheelOutline.vue'
 import { toast } from '../Chrome/toast'
@@ -161,16 +162,19 @@ function onCompareLabelClick(event: MouseEvent): void {
             <VerdictBadge v-if="verdict" :status="verdict.status" class="tile__badge" />
         </div>
 
-        <span class="tile__brand">{{ card.brandName }}</span>
-        <h3 class="tile__title"><span class="tile__name">{{ card.modelName }}</span></h3>
+        <!-- Names and sizes are never translated: a page translator turns a brand into a word and
+             "19 Zoll" into "19 Customs". The sentence for assistive technology stays German, so it
+             opts back in. -->
+        <span class="tile__brand" translate="no">{{ card.brandName }}</span>
+        <h3 class="tile__title"><span class="tile__name" translate="no">{{ card.modelName }}</span></h3>
         <span class="tile__meta">
-            <span class="tile__finish">{{ card.finishName }}</span>
+            <span class="tile__finish" translate="no">{{ card.finishName }}</span>
             <span v-if="card.diameters.length" class="tile__sep" aria-hidden="true"> · </span>
-            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden"> (keine Freigabe für dein Fahrzeug)</span></span></template>{{ NNBSP }}Zoll</span>
-            <span v-else-if="sizesPlain" class="tile__sizes num">{{ sizesPlain }}</span>
+            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num" translate="no"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden" translate="yes"> (keine Freigabe für dein Fahrzeug)</span></span></template>{{ NNBSP }}Zoll</span>
+            <span v-else-if="sizesPlain" class="tile__sizes num" translate="no">{{ sizesPlain }}</span>
         </span>
 
-        <p class="tile__price">ab {{ perWheel }} <small>pro Felge</small></p>
+        <p class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
         <span class="tile__legal">inkl. MwSt., zzgl. Versand</span>
 
         <ul v-if="verdict && verdict.conditions.length" class="tile__conditions">

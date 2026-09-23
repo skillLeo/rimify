@@ -36,6 +36,15 @@ final readonly class FitmentRow
         public ?string $entryNoteDe = null,
         public array $tyreSizes = [],
         public array $conditions = [],
+        /**
+         * The Mittenlochbohrung THIS document states for THIS vehicle, where it states one.
+         *
+         * The same casting is measured against the car it was tested on, so the bore belongs to
+         * the row, not to the rim: `WheelConfigRecord::centreBoreMm` is the rim's own figure and
+         * this is the document's statement about it on this vehicle. Null means the document is
+         * silent — never "the same as the rim's", which is a claim no document made.
+         */
+        public ?float $centreBoreMm = null,
     ) {}
 
     public function coversFront(): bool

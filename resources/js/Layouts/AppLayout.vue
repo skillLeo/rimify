@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The storefront frame: header, page, footer, the phone's bottom bar, and the overlays the shell
+ * The storefront frame: header, page, footer, and the overlays the shell
  * owns — the palette, the shortcut list, the vehicle sheet, the cookie choice, the toast.
  *
  * Everything the shell shares between its parts is provided here, so the footer's
@@ -10,7 +10,6 @@
 
 import { Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
-import BottomNav from '../Components/Chrome/BottomNav.vue'
 import CommandPalette from '../Components/Chrome/CommandPalette.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import ShortcutsDialog from '../Components/Chrome/ShortcutsDialog.vue'
@@ -84,7 +83,6 @@ function removeVehicle(): void {
         <CompareTray />
 
         <SiteFooter />
-        <BottomNav />
 
         <!-- The vehicle on a phone: a sheet with the three things one does with it. -->
         <Dialog v-if="vehicle" v-model:open="vehicleSheet" variant="sheet" title="Dein Fahrzeug">
@@ -119,13 +117,6 @@ function removeVehicle(): void {
 .shell__main {
     flex: 1;
     min-width: 0;
-}
-
-/* The phone's bottom bar takes the bottom edge; the page keeps clear of it. */
-@media (max-width: 1023px) {
-    .shell__main {
-        padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
-    }
 }
 
 .shell__vehicle-actions {

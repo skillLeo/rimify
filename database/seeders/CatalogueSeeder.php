@@ -70,8 +70,9 @@ class CatalogueSeeder extends Seeder
 
     /**
      * brand, name, the slug it had before the rename, spokes, [finish, hex, palette, former
-     * finish name?], sizes as [width, diameter, ET, euro, optional per-size facts], stock, and an
-     * optional [bolt holes, bolt circle mm, centre bore mm] for the whole model.
+     * finish name?], sizes as [width, diameter, ET, euro, optional per-size facts], stock, an
+     * optional [bolt holes, bolt circle mm, centre bore mm] for the whole model, and — only where a
+     * document states them — the `hump` and `bead` designations its approval prints.
      *
      * Per-size facts are used by the MCR4 only, each one read from the wheel's own ABE: `bolt`
      * (the execution's pattern and bore), `kba` (the ABE number stamped on that size), `load`
@@ -85,7 +86,9 @@ class CatalogueSeeder extends Seeder
      *     finishes: list<array{0: string, 1: string, 2: string, 3?: string}>,
      *     sizes: list<array{0: float, 1: float, 2: int, 3: float, 4?: array{bolt: array{0: int, 1: float, 2: float}, kba: string, load: int, weight: int|null, sku: int}}>,
      *     stock: int,
-     *     bolt?: array{0: int, 1: float, 2: float}
+     *     bolt?: array{0: int, 1: float, 2: float},
+     *     hump?: string,
+     *     bead?: string
      * }>
      */
     private const MODELS = [
@@ -308,27 +311,39 @@ class CatalogueSeeder extends Seeder
             // The client's own supplier, photographed in MOTEC's studio. Finish and sizes are the
             // Light Grey D5 combinations Motec offers that an ABE covers (the research report's
             // verified-official rows 3, 12, 1, 4, 7, 10, 13, 15, 17, 25 and 29, in that order);
-            // bore 66,6 mm in 5 × 112 as the ABE states it, 72,6 mm in the other executions. Prices
-            // and stock are demonstration values.
+            // 72,6 mm bore in the 5 × 108, 5 × 114,3 and 5 × 120 executions. Prices and stock are
+            // demonstration values.
+            //
+            // The 5 × 112 executions carry 66,5 mm — the figure Motec's own catalogue, every dealer
+            // and the TÜV Teilegutachten RZ-066569-A0-402 ("Mittenlochdurchmesser: 66,50 mm") give
+            // (accuracy-research-motec.md §2.5.1), and the one the client settled on for the shop on
+            // 2026-09-23. The ABE's own 66,6 mm is not lost: it is what that document states for the
+            // cars it covers without a centring ring, and it is seeded per vehicle on the fitment
+            // row, where a bore belongs (ApprovalSeeder::MOTEC_NO_RING_MAKES).
+            //
+            // Hump and Felgenhorn come from each size's own ABE title — "Sonderräder für Pkw
+            // 8½ J x 19 H2" and its siblings (§2.1) — so the MCR4 is the one model here that holds
+            // a designation at all. The demo models have no Gutachten and therefore none.
             'brand' => 'MOTEC', 'name' => 'MCR4 Ultimate', 'formerSlug' => null,
+            'hump' => 'H2', 'bead' => 'J',
             'spokes' => 10,
             'finishes' => [
                 ['Light Grey D5', '#B9BEC5', 'silver', 'Light Grey'],
             ],
             'sizes' => [
-                [8.0, 18.0, 45, 796.00, ['bolt' => [5, 112.0, 66.60], 'kba' => '53811', 'load' => 620, 'weight' => 7_800, 'sku' => 95]],
-                [8.5, 19.0, 45, 876.00, ['bolt' => [5, 112.0, 66.60], 'kba' => '53810', 'load' => 620, 'weight' => 8_600, 'sku' => 96]],
+                [8.0, 18.0, 45, 796.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53811', 'load' => 620, 'weight' => 7_800, 'sku' => 95]],
+                [8.5, 19.0, 45, 876.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53810', 'load' => 620, 'weight' => 8_600, 'sku' => 96]],
                 [8.0, 18.0, 45, 796.00, ['bolt' => [5, 108.0, 72.60], 'kba' => '53811', 'load' => 620, 'weight' => 7_800, 'sku' => 99]],
                 [8.0, 18.0, 50, 796.00, ['bolt' => [5, 114.3, 72.60], 'kba' => '53811', 'load' => 620, 'weight' => 7_700, 'sku' => 100]],
-                [8.0, 19.0, 48, 836.00, ['bolt' => [5, 112.0, 66.60], 'kba' => '53809', 'load' => 620, 'weight' => 8_300, 'sku' => 101]],
-                [8.5, 19.0, 30, 876.00, ['bolt' => [5, 112.0, 66.60], 'kba' => '53810', 'load' => 620, 'weight' => 8_800, 'sku' => 102]],
+                [8.0, 19.0, 48, 836.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53809', 'load' => 620, 'weight' => 8_300, 'sku' => 101]],
+                [8.5, 19.0, 30, 876.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53810', 'load' => 620, 'weight' => 8_800, 'sku' => 102]],
                 [8.5, 19.0, 45, 876.00, ['bolt' => [5, 114.3, 72.60], 'kba' => '53810', 'load' => 620, 'weight' => 8_700, 'sku' => 103]],
                 [8.5, 19.0, 35, 876.00, ['bolt' => [5, 120.0, 72.60], 'kba' => '53810', 'load' => 640, 'weight' => 9_100, 'sku' => 104]],
-                [9.5, 19.0, 20, 916.00, ['bolt' => [5, 112.0, 66.60], 'kba' => '55070', 'load' => 690, 'weight' => 10_400, 'sku' => 105]],
+                [9.5, 19.0, 20, 916.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '55070', 'load' => 690, 'weight' => 10_400, 'sku' => 105]],
                 [8.5, 20.0, 35, 996.00, ['bolt' => [5, 120.0, 72.60], 'kba' => '54949', 'load' => 730, 'weight' => null, 'sku' => 106]],
                 [9.5, 20.0, 37, 1036.00, ['bolt' => [5, 114.3, 72.60], 'kba' => '54950', 'load' => 760, 'weight' => 10_600, 'sku' => 107]],
             ],
-            'bolt' => [5, 112.0, 66.60],
+            'bolt' => [5, 112.0, 66.50],
             'stock' => 16,
         ],
     ];
@@ -482,8 +497,12 @@ class CatalogueSeeder extends Seeder
                     $config->fill([
                         'bolt_holes' => $boltHoles,
                         'centre_bore_mm' => $centreBore,
-                        'hump' => 'H2',
-                        'bead_profile' => 'J',
+                        // Only what a document prints. Every row used to carry a literal H2/J,
+                        // which was a constant and not approval data — and the product details now
+                        // show the hump, so a typed-in designation would reach a customer as a
+                        // fact about their wheel. A model without a Gutachten holds neither.
+                        'hump' => $spec['hump'] ?? null,
+                        'bead_profile' => $spec['bead'] ?? null,
                         // Only a number read in the wheel's own ABE; a demo wheel has none.
                         'kba_number' => $facts['kba'] ?? null,
                         'sku' => sprintf('RMF-%06d', $facts['sku'] ?? $sku),

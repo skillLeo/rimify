@@ -150,6 +150,9 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             permittedEtMax: $fitment->permitted_et_max,
             requiresEntry: $fitment->requires_entry,
             entryNoteDe: $fitment->entry_note_de,
+            // The document's own bore for this vehicle, read off the row and never off the wheel:
+            // `toWheelConfig()` below keeps the rim's figure, and the two are different claims.
+            centreBoreMm: $fitment->centre_bore_mm,
             tyreSizes: $fitment->tyreSizes
                 ->map(static fn (FitmentTyreSize $size): TyreSize => new TyreSize(
                     widthMm: $size->width_mm,

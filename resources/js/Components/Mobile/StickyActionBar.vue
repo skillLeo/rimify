@@ -2,7 +2,7 @@
 /**
  * The sticky action bar: the screen's one primary action, pinned to the bottom edge where the
  * thumb is — price plus "In den Warenkorb" on a product, "Zur Kasse · 1.234,00 €" in the cart,
- * "Weiter" in the checkout. It takes the tab bar's place while it is mounted and rides up with
+ * "Weiter" in the checkout. It owns the bottom edge while it is mounted and rides up with
  * the keyboard (`--kb-inset` from useVisualViewport), so the button is never under it.
  */
 

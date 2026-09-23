@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Domain\Storefront\DeviceDetector;
 use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
 use App\Services\Storefront\Chrome;
+use App\Services\Storefront\ErrorPage;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -25,10 +24,17 @@ return Application::configure(basePath: dirname(__DIR__))
         // Global stack: its response phase runs outermost, after Inertia has set its own Vary.
         $middleware->append(VaryByDevice::class);
 
-        // Order matters: the device split and the CSP nonce must exist before Inertia renders.
+        /*
+         * First in, last out: the security headers are written on the way back, so they are
+         * written on EVERY web response — including the ones an exception produced before the rest
+         * of the group ran. A 419 thrown by the CSRF check used to leave the page with no CSP, no
+         * X-Frame-Options and no Referrer-Policy at all.
+         */
+        $middleware->web(prepend: [SecurityHeaders::class]);
+
+        // The device split reads a cookie, so it can only run once the cookies are decrypted.
         $middleware->web(append: [
             DetectDevice::class,
-            SecurityHeaders::class,
             HandleInertiaRequests::class,
         ]);
 
@@ -47,44 +53,21 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         /*
-         * Error pages are Inertia pages, not Blade fallbacks: a 404 rendered outside the app shell
-         * loses the header, the basket count and the chosen vehicle, and reads as a different site.
-         * A visitor who followed a dead link to a wheel still wants a wheel.
-         *
-         * Only the statuses we have designed are handled here. Anything else keeps Laravel's own
-         * page, which is the right answer for a failure this application did not anticipate.
+         * Every failure state is built in one place — App\Services\Storefront\ErrorPage — which
+         * decides between the Inertia page inside the storefront frame and the standalone Blade
+         * page that needs neither the built bundle nor the database. A status the shop wrote no
+         * sentences for is answered by the page that says so: German, three ways forward, and no
+         * guess at what went wrong, rather than Symfony's English "Oops! An Error Occurred".
          */
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return $response;
             }
 
-            if (! in_array($response->getStatusCode(), [403, 404, 419, 500, 503], true)) {
-                return $response;
-            }
+            $pages = app(ErrorPage::class);
 
-            /*
-             * An error page has to carry its own device split.
-             *
-             * A 404 is thrown during routing, before the `web` group runs — so DetectDevice never
-             * set `isMobile` and HandleInertiaRequests never shared it. Without it every phone
-             * would be served the desktop chrome.
-             */
-            $isMobile = $request->attributes->get(DetectDevice::ATTRIBUTE);
-
-            if ($isMobile === null) {
-                $isMobile = app(DeviceDetector::class)->isMobile(
-                    $request->userAgent(),
-                    $request->headers->get('Sec-CH-UA-Mobile'),
-                    DeviceDetector::normaliseOverride($request->cookie(DetectDevice::OVERRIDE_COOKIE)),
-                );
-            }
-
-            return Inertia::render('Fehler/Index', [
-                'status' => $response->getStatusCode(),
-                'isMobile' => (bool) $isMobile,
-            ])
-                ->toResponse($request)
-                ->setStatusCode($response->getStatusCode());
+            return $pages->handles($response->getStatusCode())
+                ? $pages->render($request, $response)
+                : $response;
         });
     })->create();

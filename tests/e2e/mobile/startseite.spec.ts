@@ -34,9 +34,9 @@ test.describe('Startseite/Mobile', () => {
         }
 
         const box = await button.boundingBox()
-        const bar = await page.locator('.mtab').boundingBox()
         expect(box, 'button box').not.toBeNull()
-        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual((bar?.y ?? vp?.height ?? 0) + 0.5)
+        // Nothing is fixed to the bottom edge any more, so the whole viewport is the button's room.
+        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual((vp?.height ?? 0) + 0.5)
         // Thumb zone: the button's centre sits in the bottom 40 % of the viewport.
         expect((box?.y ?? 0) + (box?.height ?? 0) / 2).toBeGreaterThanOrEqual((vp?.height ?? 0) * 0.6)
     })
@@ -207,6 +207,10 @@ test.describe('Startseite/Mobile', () => {
 
         // Scoped to the row: the calculator teaser has a tab named "Neu" as well.
         const neu = page.locator('#h5').getByRole('tab', { name: 'Neu' })
+        // Scrolled to, then tapped, the way a person does it. Tapping in the same instant as the
+        // scroll is a gesture no reader makes, and on the taller phones it was being swallowed.
+        await neu.scrollIntoViewIfNeeded()
+        await page.waitForTimeout(150)
         await neu.click()
         await expect.poll(() => new URL(page.url()).searchParams.get('beliebt')).toBe('neu')
         await expect(neu).toHaveAttribute('aria-selected', 'true')
@@ -245,9 +249,19 @@ test.describe('Startseite/Mobile', () => {
         const frame = page.locator('#h2 .hero-frame')
         await expect(frame).toHaveCount(1)
         await expect(frame.locator('.callout')).toHaveCount(2)
-        await expect(frame.locator('.callout__label').nth(0)).toContainText(/größe|breite|durchmesser/i)
-        await expect(frame.locator('.callout__label').nth(1)).toContainText(/einpress/i)
-        await expect(page.locator('#h2 .hero-mobile__rest')).toContainText(/LK .+ · MLB .+mm$/)
+
+        /*
+         * The two figures a buyer checks against their papers: the Lochkreis, drawn through the
+         * bolt-hole centres, and the KBA number at the stamp (HeroFrame.vue). Asserted by the
+         * callout's own key rather than by its German label, which is copy and may be reworded.
+         * Each value is kept from a page translator — `5 × 112` is not a phrase (R-10, §6).
+         */
+        await expect(frame.locator('[data-callout="boltCircle"]')).toHaveCount(1)
+        await expect(frame.locator('[data-callout="kba"]')).toHaveCount(1)
+
+        for (const value of await frame.locator('.callout__value').all()) {
+            await expect(value).toHaveAttribute('translate', 'no')
+        }
 
         // A symbolic picture names no product: no brand, no price, no link; the sentence says what it is.
         const symbolic = page.locator('#h2 .hero-mobile__symbolic')
@@ -300,7 +314,14 @@ test.describe('Startseite/Mobile', () => {
         const box = await wheel.boundingBox()
         expect(Math.round(box?.width ?? 0)).toBeLessThanOrEqual(240)
         expect(Math.round(box?.width ?? 0)).toBe(Math.round(box?.height ?? 0))
-        await expect(wheel.locator('img')).toHaveAttribute('src', /hero-wheel/)
+        /*
+         * A cut-out, never a lifestyle photograph — the band sells Kompletträder, so it shows one:
+         * a rim with a tyre on it, drawn, on the band's own ground. The check is that it is one of
+         * the shop's own cut-outs and that it carries a German alt text; which cut-out is a design
+         * decision, and naming one file here only breaks the test when that decision is revisited.
+         */
+        await expect(wheel.locator('img')).toHaveAttribute('src', /^\/images\/(komplettrad-illustration|hero-wheel)\//)
+        await expect(wheel.locator('img')).toHaveAttribute('alt', /\S/)
     })
 
     test('guides are one link each, into the Ratgeber', async ({ page }) => {
@@ -321,12 +342,79 @@ test.describe('Startseite/Mobile', () => {
         expect(response.ok(), href as string).toBe(true)
     })
 
-    test('calculator renders the worked example and the honest line', async ({ page }) => {
+    test('the explainer: every value changes the sentence and what is highlighted', async ({ page }) => {
         await open(page, '/')
         const section = page.locator('#h8')
-        await expect(section).toContainText('Was ändert sich mit der neuen Größe?')
-        await expect(section).toContainText('Rechenwerte ersetzen kein Gutachten')
-        await expect(section.locator('svg').first()).toBeVisible()
+        await expect(section).toContainText('Was die Zahlen auf einer Felge bedeuten')
+        await expect(section.locator('.rc-sch__svg')).toBeVisible()
+
+        const chips = section.locator('[data-token]')
+        const keys = await chips.evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.token ?? ''))
+        expect(keys.length).toBeGreaterThan(0)
+
+        // What a reader has in front of them: the term, the sentence, the marker on the
+        // photograph and the dimension traced on the drawing. No two values may read alike.
+        const seen = new Set<string>()
+
+        for (const key of keys) {
+            await section.locator(`[data-token="${key}"]`).click()
+            await expect(section.locator(`[data-token="${key}"]`)).toHaveAttribute('aria-pressed', 'true')
+
+            const state = await section.evaluate((el) => {
+                const shape = el.querySelector('.rc-photo__shape')
+                const dim = el.querySelector('.rc-sch__dim.is-active')
+
+                return {
+                    term: el.querySelector('.rc__term')?.textContent?.trim() ?? '',
+                    sentence: el.querySelector('[data-role="definition"]')?.textContent?.trim() ?? '',
+                    marker: shape === null ? '' : `${shape.tagName.toLowerCase()}/${shape.getAttribute('data-shape')}`,
+                    dim: dim?.getAttribute('data-dim') ?? '',
+                }
+            })
+
+            expect(state.term, `${key} term`).not.toBe('')
+            expect(state.sentence, `${key} sentence`).not.toBe('')
+            // A value is either marked on the photograph or traced on the drawing — never neither,
+            // except the KBA number, which is a marking the cross-section cannot carry.
+            if (key !== 'kba') {
+                expect(`${state.marker}${state.dim}`, `${key} highlight`).not.toBe('')
+            }
+
+            const signature = [state.term, state.sentence, state.marker, state.dim].join('|')
+            expect(seen.has(signature), `${key} repeats another value`).toBe(false)
+            seen.add(signature)
+        }
+
+        // The KBA number is boxed on the stamp, and the drawing traces nothing for it.
+        if (keys.includes('kba')) {
+            await section.locator('[data-token="kba"]').click()
+            await expect(section.locator('rect.rc-photo__shape[data-shape="kba"]')).toHaveCount(1)
+            await expect(section.locator('.rc-sch__dim.is-active')).toHaveCount(0)
+        }
+    })
+
+    test('no label in the cross-section runs into another', async ({ page }) => {
+        await open(page, '/')
+        const svg = page.locator('#h8 .rc-sch__svg')
+        await svg.scrollIntoViewIfNeeded()
+        await expect(svg).toBeVisible()
+
+        const boxes = await svg.evaluate((el) =>
+            [...el.querySelectorAll('text')].map((t) => {
+                const b = t.getBoundingClientRect()
+
+                return { text: t.textContent?.trim() ?? '', x: b.x, y: b.y, right: b.right, bottom: b.bottom }
+            })
+        )
+
+        expect(boxes.length).toBeGreaterThan(0)
+
+        boxes.forEach((a, i) => {
+            for (const b of boxes.slice(i + 1)) {
+                const hit = a.x < b.right && b.x < a.right && a.y < b.bottom && b.y < a.bottom
+                expect(hit, `${a.text} runs into ${b.text}`).toBe(false)
+            }
+        })
     })
 
     test('service block: real contact data and five questions', async ({ page }) => {
@@ -338,6 +426,11 @@ test.describe('Startseite/Mobile', () => {
         await expect(page.locator('#h11 .accordion__item')).toHaveCount(5)
 
         const first = page.locator('#h11 .accordion__trigger').first()
+        // Scrolled clear of the sticky app bar before it is tapped: on the taller phones the
+        // question ended up under the bar, and the tap went to the bar rather than the question.
+        await first.scrollIntoViewIfNeeded()
+        await page.waitForTimeout(150)
+        await expect(first).toHaveAttribute('aria-expanded', 'false')
         await first.click()
         await expect(first).toHaveAttribute('aria-expanded', 'true')
         await expect(page.getByRole('link', { name: 'Alle Fragen ansehen' })).toHaveAttribute('href', '/faq')

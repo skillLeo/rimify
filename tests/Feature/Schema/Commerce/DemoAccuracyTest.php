@@ -50,6 +50,9 @@ function liveDemoFitments(): Collection
         ->where('f.status', '!=', FitmentStatus::Retired->value)
         ->get([
             'f.id', 'f.status', 'd.report_number', 'wm.slug',
+            // The bore the document states for THIS car, beside the rim's own: two different
+            // claims, and the filter below is about the one that governs (R-06).
+            'f.centre_bore_mm as stated_bore_mm',
             'v.make', 'v.model', 'v.variant', 'v.type_designation',
             'wc.bolt_holes', 'wc.bolt_circle_mm', 'wc.centre_bore_mm', 'wc.diameter_in', 'wc.width_in',
         ]);
@@ -89,11 +92,16 @@ it('never pairs a wheel with a car of another bolt pattern, or with a hub its bo
     foreach ($live as $row) {
         $factory = ApprovalSeeder::VEHICLES[$row->make.'|'.$row->model.'|'.$row->type_designation] ?? null;
 
+        // Where the document states its own bore for this car that figure governs, and the rim's
+        // catalogue number is not the claim being tested: the MOTEC is catalogued at 66,5 mm in
+        // 5 × 112 and its ABE prints 66,6 mm for the cars it covers without a centring ring.
+        $bore = $row->stated_bore_mm === null ? (float) $row->centre_bore_mm : (float) $row->stated_bore_mm;
+
         expect($factory)->not->toBeNull("{$row->make} {$row->variant} has no asserted bolt pattern, so no fitment")
             ->and($factory[2])->not->toBeNull()
             ->and((int) $row->bolt_holes)->toBe($factory[0], "fitment {$row->id}: {$row->make} {$row->variant}")
             ->and((float) $row->bolt_circle_mm)->toBe($factory[1], "fitment {$row->id}: {$row->make} {$row->variant}")
-            ->and((float) $row->centre_bore_mm)->toBeGreaterThanOrEqual($factory[2], "fitment {$row->id}: bore smaller than the hub");
+            ->and($bore)->toBeGreaterThanOrEqual($factory[2], "fitment {$row->id}: bore smaller than the hub");
     }
 
     // The cars no demo wheel fits keep no demo fitment at all: 5 × 130, 5 × 100, 4 × 100,
@@ -123,6 +131,46 @@ it('limits the MCR4 to the makes its ABE names for each bolt pattern', function 
     // execution is BMW and MINI only, so the Opel Insignia gets none of it.
     expect($motec->where('make', 'Porsche'))->toBeEmpty()
         ->and($motec->where('make', 'Opel'))->toBeEmpty();
+});
+
+it('states a bore on a fitment row only where the document states one for that car', function (): void {
+    $this->seed(ApprovalSeeder::class);
+
+    $live = liveDemoFitments();
+
+    // Only the MOTEC document states a bore, and only in its 5 × 112 executions for the makes its
+    // annexes cover without a centring ring. Every other demo document is silent, and silence is
+    // NULL — never the rim's own figure copied onto the row.
+    foreach ($live as $row) {
+        if ($row->stated_bore_mm === null) {
+            continue;
+        }
+
+        expect($row->slug)->toBe('motec-mcr4-ultimate')
+            ->and((float) $row->bolt_circle_mm)->toBe(112.0)
+            ->and((float) $row->stated_bore_mm)->toBe(ApprovalSeeder::MOTEC_NO_RING_BORE_MM)
+            ->and(ApprovalSeeder::MOTEC_NO_RING_MAKES)->toContain($row->make);
+    }
+
+    $mercedes = $live
+        ->where('slug', 'motec-mcr4-ultimate')
+        ->where('make', 'Mercedes-Benz')
+        ->filter(static fn (object $row): bool => (float) $row->bolt_circle_mm === 112.0);
+
+    // The case the client named (2026-09-23): one casting, 66,5 mm in the catalogue and 66,6 mm in
+    // the document for a car whose hub is 66,6 — and the pairing stands because the document wins.
+    expect($mercedes)->not->toBeEmpty();
+
+    foreach ($mercedes as $row) {
+        expect((float) $row->centre_bore_mm)->toBe(66.5)
+            ->and((float) $row->stated_bore_mm)->toBe(66.6);
+    }
+
+    // Audi is named in the ringed annexes as well as the unringed ones, so the document does not
+    // say which applies to a given Audi and the row states nothing at all.
+    foreach ($live->where('make', 'Audi') as $row) {
+        expect($row->stated_bore_mm)->toBeNull("fitment {$row->id}: Audi is ambiguous in the annexes");
+    }
 });
 
 it('names a tyre size only where it is plausible for the car, and otherwise none', function (): void {

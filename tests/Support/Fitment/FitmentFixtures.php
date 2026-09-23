@@ -121,6 +121,7 @@ final class FitmentFixtures
         int $id = 20431,
         ?DocumentRecord $document = null,
         string $axle = 'ALL',
+        ?float $centreBoreMm = null,
     ): FitmentRow {
         return new FitmentRow(
             id: $id,
@@ -137,6 +138,9 @@ final class FitmentFixtures
             entryNoteDe: $requiresEntry ? 'Eintragung durch eine amtlich anerkannte Prüfstelle.' : null,
             tyreSizes: $sizes ?? [new TyreSize(245, 45, 18.0)],
             conditions: $conditions,
+            // Null by default: most rows state no bore of their own, which is the shape every
+            // other test in this suite was written against.
+            centreBoreMm: $centreBoreMm,
         );
     }
 

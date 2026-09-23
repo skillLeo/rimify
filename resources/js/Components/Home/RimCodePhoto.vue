@@ -12,6 +12,7 @@
 
 import { computed } from 'vue'
 import Picture from '../Ui/Picture.vue'
+import ValueText from '../Ui/ValueText.vue'
 import { photoHint, photoLabel, photoShape, type PhotoFrame, type RimKey } from './rimCode'
 
 const props = withDefaults(
@@ -21,17 +22,19 @@ const props = withDefaults(
         active: RimKey
         /** The KBA number the token explains; the stamp is boxed only when it is the same number. */
         kba?: string | null
+        /** Whether the cross-section draws the ET at all; false keeps the line from pointing at it. */
+        showEt?: boolean
         alt: string
         /** One line naming what the photograph is, and what the values belong to. */
         credit?: string | null
         sizes?: string
     }>(),
-    { kba: null, credit: null, sizes: '100vw' }
+    { kba: null, showEt: true, credit: null, sizes: '100vw' }
 )
 
 const shape = computed(() => photoShape(props.active, props.frame, props.kba))
 const label = computed(() => (shape.value === null ? null : photoLabel(shape.value, props.frame)))
-const hint = computed(() => photoHint(props.active, shape.value !== null))
+const hint = computed(() => photoHint(props.active, shape.value !== null, props.showEt))
 
 const box = computed(() => `0 0 ${props.frame.image.width} ${props.frame.image.height}`)
 const ratio = computed(() => `${props.frame.image.width} / ${props.frame.image.height}`)
@@ -66,11 +69,16 @@ const labelStyle = computed(() =>
                 />
             </svg>
 
-            <span v-if="label" class="rc-photo__label small num" :style="labelStyle" aria-hidden="true">{{ label.text }}</span>
+            <!-- The overlay label is a term (`Lochkreis`, `hinter der Nabenkappe`) or a number
+                 (`KBA 53810`): ValueText keeps the translator off the figure and leaves the
+                 German words to it. -->
+            <span v-if="label" class="rc-photo__label small num" :style="labelStyle" aria-hidden="true"><ValueText :text="label.text" /></span>
         </div>
 
         <figcaption class="rc-photo__caption">
-            <span class="small muted rc-photo__hint">{{ hint }}</span>
+            <!-- Keyed by the value it describes: a page translator replaces the text node it
+                 translated, and an unkeyed update would leave the previous value's line here. -->
+            <span :key="`hint-${active}`" class="small muted rc-photo__hint">{{ hint }}</span>
             <span v-if="credit" class="micro quiet">{{ credit }}</span>
         </figcaption>
     </figure>

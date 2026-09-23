@@ -1,6 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h } from 'vue'
 import { provideMobileShell } from '../../composables/mobile/useMobileShell'
 import { provideShell } from '../../composables/useShell'
 import type { ContactProp } from '../../types/rimify'
@@ -46,7 +46,7 @@ const UnderShell = defineComponent({
 const UnderPhoneShell = defineComponent({
     props: { top: Boolean, title: { type: String, default: undefined } },
     setup(props) {
-        provideMobileShell({ tabBar: ref(true) })
+        provideMobileShell()
 
         return () => h(AppBar, props)
     },

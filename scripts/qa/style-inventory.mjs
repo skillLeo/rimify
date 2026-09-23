@@ -11,7 +11,7 @@
 //   node scripts/qa/style-inventory.mjs --routes /,/felgen --report   # never fails, just lists
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { chromium } from '@playwright/test'
-import { BASE, VIEWPORTS, newContext, describeNode, parseArgs, resolveRoutes, routesFrom } from './lib.mjs'
+import { BASE, VIEWPORTS, newContext, describeNode, parseArgs, render, resolveRoutes, routesFrom } from './lib.mjs'
 
 const args = parseArgs()
 const routes = routesFrom(args)
@@ -46,6 +46,8 @@ for (const width of widths) {
     for (const route of resolved) {
         const page = await context.newPage()
         await page.goto(BASE + route, { waitUntil: 'networkidle' }).catch(() => {})
+        // Below-the-fold sections are style-skipped until they are scrolled to; see render().
+        await render(page)
         await page.evaluate(() => document.fonts.ready)
 
         const result = await page.evaluate(
@@ -122,7 +124,15 @@ for (const width of widths) {
                     if (backdrop && backdrop !== 'none') note('backdrop-filter', el, backdrop)
                     if ((cs.webkitBackgroundClip || cs.backgroundClip) === 'text') note('background-clip', el, 'text')
 
-                    if (cs.textTransform === 'uppercase' && parseFloat(cs.letterSpacing) > 0.02 * parseFloat(cs.fontSize)) {
+                    /*
+                     * DIRECTION §3 bans the tracked-out capital LABEL. A field the visitor types a
+                     * code into is not a label: HSN and TSN are set in the Zulassungsbescheinigung
+                     * as spaced mono capitals, and a field that matches the paper is a field people
+                     * copy correctly. So form controls are exempt, and nothing else is.
+                     */
+                    const control = ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
+
+                    if (!control && cs.textTransform === 'uppercase' && parseFloat(cs.letterSpacing) > 0.02 * parseFloat(cs.fontSize)) {
                         note('spaced-capitals', el, `${cs.letterSpacing} at ${cs.fontSize}`)
                     }
                 }

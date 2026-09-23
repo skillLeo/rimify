@@ -95,7 +95,7 @@ it('names only the photographed product for real and every other wheel neutrally
     expect(count($lower))->toBe(count(array_unique($lower)));
 });
 
-it('claims no type designation, no rating and no KBA number for a demo wheel', function (): void {
+it('claims no type designation, no rating, no KBA number and no hump for a demo wheel', function (): void {
     $this->seed(CatalogueSeeder::class);
 
     foreach (WheelModel::query()->with('configs')->get() as $model) {
@@ -105,8 +105,12 @@ it('claims no type designation, no rating and no KBA number for a demo wheel', f
 
         if ($model->slug !== 'motec-mcr4-ultimate') {
             foreach ($model->configs as $config) {
+                // A designation only a Gutachten can state. These wheels have none, and the
+                // product details show a Hump row only for a record that really holds one.
                 expect($config->kba_number)->toBeNull()
-                    ->and($config->max_load_kg)->toBeNull();
+                    ->and($config->max_load_kg)->toBeNull()
+                    ->and($config->hump)->toBeNull()
+                    ->and($config->bead_profile)->toBeNull();
             }
         }
     }
@@ -119,17 +123,29 @@ it('seeds the MCR4 Ultimate only in the Light Grey D5 sizes its ABEs cover, with
 
     expect($model->finishes->pluck('name_de')->all())->toBe(['Light Grey D5']);
 
+    // Every MCR4 ABE names the hump in its own title — "Sonderräder für Pkw 8½ J x 19 H2" and its
+    // siblings (§2.1) — so this is the one model in the range that holds a designation.
+    foreach ($model->configs as $config) {
+        expect($config->hump)->toBe('H2')
+            ->and($config->bead_profile)->toBe('J');
+    }
+
     // docs/reviews/accuracy-research-motec.md §2.3: size, ET, Lochkreis, bore, KBA, Radlast, weight.
+    //
+    // The 5 × 112 executions carry the 66,5 mm of Motec's catalogue, every dealer and the TÜV
+    // Teilegutachten (§2.5.1), which the client settled on for the shop on 2026-09-23. The ABE's
+    // own 66,6 mm belongs to the cars it covers without a centring ring and is seeded there — on
+    // the fitment row, not on the rim (DemoAccuracyTest, "states a bore on a fitment row only …").
     $expected = [
-        '8.0x18.0 ET45 5x112.0' => [66.6, '53811', 620, 7_800],
-        '8.5x19.0 ET45 5x112.0' => [66.6, '53810', 620, 8_600],
+        '8.0x18.0 ET45 5x112.0' => [66.5, '53811', 620, 7_800],
+        '8.5x19.0 ET45 5x112.0' => [66.5, '53810', 620, 8_600],
         '8.0x18.0 ET45 5x108.0' => [72.6, '53811', 620, 7_800],
         '8.0x18.0 ET50 5x114.3' => [72.6, '53811', 620, 7_700],
-        '8.0x19.0 ET48 5x112.0' => [66.6, '53809', 620, 8_300],
-        '8.5x19.0 ET30 5x112.0' => [66.6, '53810', 620, 8_800],
+        '8.0x19.0 ET48 5x112.0' => [66.5, '53809', 620, 8_300],
+        '8.5x19.0 ET30 5x112.0' => [66.5, '53810', 620, 8_800],
         '8.5x19.0 ET45 5x114.3' => [72.6, '53810', 620, 8_700],
         '8.5x19.0 ET35 5x120.0' => [72.6, '53810', 640, 9_100],
-        '9.5x19.0 ET20 5x112.0' => [66.6, '55070', 690, 10_400],
+        '9.5x19.0 ET20 5x112.0' => [66.5, '55070', 690, 10_400],
         '8.5x20.0 ET35 5x120.0' => [72.6, '54949', 730, null],
         '9.5x20.0 ET37 5x114.3' => [72.6, '54950', 760, 10_600],
     ];

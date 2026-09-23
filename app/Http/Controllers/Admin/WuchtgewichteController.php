@@ -8,9 +8,11 @@ use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BalanceWeightColourRequest;
+use App\Http\Requests\Admin\MountingFeeRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Services\Commerce\KomplettradSettings;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,6 +35,8 @@ class WuchtgewichteController extends Controller
 
     public const DELETED_TOAST = 'Gelöscht.';
 
+    public function __construct(private readonly KomplettradSettings $settings) {}
+
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', BalanceWeightColour::class);
@@ -43,10 +47,46 @@ class WuchtgewichteController extends Controller
             $rows[] = self::row($colour);
         }
 
+        $mounting = $this->settings->mountingPerWheelCents();
+
         return Inertia::render('Admin/Wuchtgewichte/Index', [
             'colours' => $rows,
+            /*
+             * The fee every Komplettrad carries, edited on this page because it is the same money
+             * as the weights (§13, D-032). An empty string is "noch nicht festgelegt" — a real
+             * answer, and the one the shop ships with, so the field is never pre-filled with a
+             * figure nobody chose.
+             */
+            'mounting' => [
+                'cents' => $mounting,
+                'typed' => $mounting === null ? '' : GermanFormat::money($mounting),
+            ],
             'can' => self::can(self::admin($request)),
         ]);
+    }
+
+    /**
+     * Saves *Montage und Auswuchten je Rad*. Clearing the field is a legitimate save: the fee goes
+     * back to unset, the basket prints `wird noch festgelegt` beside the set, and no Komplettrad
+     * can be ordered until a human names a price again (§4.9).
+     */
+    public function updateMountingFee(MountingFeeRequest $request): RedirectResponse
+    {
+        $cents = $request->mountingCents();
+        $admin = $request->admin();
+
+        DB::transaction(function () use ($cents, $admin): void {
+            $before = $this->settings->mountingPerWheelCents();
+
+            $this->settings->setMountingPerWheelCents($cents);
+
+            self::auditSetting($admin, 'mounting_fee.updated', [
+                'old_cents' => $before,
+                'cents' => $cents,
+            ]);
+        });
+
+        return back()->with('toast', self::SAVED_TOAST);
     }
 
     public function store(BalanceWeightColourRequest $request): RedirectResponse
@@ -172,6 +212,26 @@ class WuchtgewichteController extends Controller
             'update' => $admin->may(PermissionModule::Catalogue, PermissionAction::Edit),
             'delete' => $admin->may(PermissionModule::Catalogue, PermissionAction::Delete),
         ];
+    }
+
+    /**
+     * The same append-only entry as a colour change, without a subject: the mounting fee is a
+     * shop-wide figure with no row of its own, and an entry that named one would be a lie.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    private static function auditSetting(AdminUser $admin, string $event, array $properties): void
+    {
+        activity('admin')
+            ->causedBy($admin)
+            ->withProperties($properties)
+            ->tap(static function (AuditLog $entry) use ($admin): void {
+                $entry->forceFill([
+                    'actor_email' => $admin->email,
+                    'ip_address' => request()->ip(),
+                ]);
+            })
+            ->log($event);
     }
 
     private static function admin(Request $request): AdminUser

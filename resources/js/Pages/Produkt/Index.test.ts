@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, reactive } from 'vue'
 import { NNBSP } from '../../format'
 import type { ImageManifest } from '../../Components/Ui/Picture.vue'
-import type { KomplettradOfferProp, ProduktConfig, ProduktProps } from '../../types/pages'
+import type { ConfigVerdict, KomplettradOfferProp, ProduktConfig, ProduktProps } from '../../types/pages'
 
 /*
  * The product page's own states (ACCURACY.md D4, finding #48/#59): a demo model shows
@@ -64,9 +64,12 @@ function config(overrides: Partial<RatedConfig> = {}): RatedConfig {
         widthIn: 8.5,
         etMm: 45,
         sizeLabel: '8,5J × 19 · ET 45',
-        fullLabel: '8,5J × 19 · ET 45 · LK 5 × 112 · 66,6 mm',
+        // The rim's own bore: 66,5 mm, the figure Motec's catalogue and the Teilegutachten give.
+        // What an ABE states for one particular car travels inside the verdict, never here.
+        fullLabel: '8,5J × 19 · ET 45 · LK 5 × 112 · 66,5 mm',
         boltPattern: '5 × 112',
-        centreBore: '66,6 mm',
+        centreBore: '66,5 mm',
+        hump: 'H2',
         priceCents: 79_600,
         price: '796,00 €',
         stockQty: 8,
@@ -77,6 +80,40 @@ function config(overrides: Partial<RatedConfig> = {}): RatedConfig {
         maxLoadKg: null,
         ...overrides,
     }
+}
+
+/** A permitted verdict, as the server ships it; `centreBore` is what the document states for the car. */
+function verdict(overrides: Partial<ConfigVerdict> = {}): ConfigVerdict {
+    return {
+        status: 'PERMITTED',
+        label: 'Für dein Fahrzeug freigegeben',
+        sellable: true,
+        requiresEntry: false,
+        entryNoteDe: null,
+        conditions: [],
+        centreBore: null,
+        centreBoreSource: 'UNSTATED',
+        reason: null,
+        reasonCode: null,
+        document: null,
+        tyreSizes: [],
+        ...overrides,
+    }
+}
+
+/** The Felgendetails list as a reader sees it: the German term against the value beside it. */
+function specs(wrapper: VueWrapper): Record<string, string> {
+    return Object.fromEntries(
+        wrapper.findAll('.spec__row').map((row) => {
+            const term = row.find('dt')
+            const hint = row.find('dt .spec__hint')
+
+            return [
+                hint.exists() ? term.text().replace(hint.text(), '').trim() : term.text(),
+                row.find('dd').text(),
+            ]
+        })
+    )
 }
 
 const MIN_SENTENCE =
@@ -199,6 +236,85 @@ describe('Produkt page', () => {
 
         expect(row).toBeDefined()
         expect(row?.find('dd').text()).toBe(`620${NNBSP}kg`)
+    })
+
+    it('names the bore plainly until a car is chosen, and as the rim\'s own once one is', () => {
+        const alone = specs(mountPage())
+
+        expect(alone['Mittenlochbohrung']).toBe('66,5 mm')
+        expect(alone['Mittenlochbohrung der Felge']).toBeUndefined()
+        expect(alone['Mittenlochbohrung für dein Fahrzeug']).toBeUndefined()
+
+        // A verdict that states no bore leaves the rim's figure as the only one — and renames it,
+        // so it can never be read as something the document said about this car.
+        const chosen = specs(mountPage({ hasVehicle: true, configs: [config({ verdict: verdict() })] }))
+
+        expect(chosen['Mittenlochbohrung der Felge']).toBe('66,5 mm')
+        expect(chosen['Mittenlochbohrung']).toBeUndefined()
+        expect(chosen['Mittenlochbohrung für dein Fahrzeug']).toBeUndefined()
+    })
+
+    it('shows the bore the document states for the chosen car above the rim\'s own, and says which is which', () => {
+        const wrapper = mountPage({
+            hasVehicle: true,
+            configs: [config({ verdict: verdict({ centreBore: '66,6 mm', centreBoreSource: 'DOCUMENT' }) })],
+        })
+        const rows = specs(wrapper)
+
+        expect(rows['Mittenlochbohrung für dein Fahrzeug']).toBe('66,6 mm')
+        expect(rows['Mittenlochbohrung der Felge']).toBe('66,5 mm')
+
+        // The document's figure comes first, is credited to the document, and is marked so a
+        // page translator cannot rewrite it.
+        const doc = wrapper.find('.spec__row--doc')
+        expect(doc.find('.spec__hint').text()).toBe('laut Gutachten')
+        expect(doc.find('dd').attributes('translate')).toBe('no')
+        expect(wrapper.findAll('.spec__row').indexOf(doc)).toBeLessThan(
+            wrapper.findAll('.spec__row').findIndex((r) => r.find('dt').text() === 'Mittenlochbohrung der Felge')
+        )
+    })
+
+    it('names no bore for the car where the documents disagree, and says so', () => {
+        const wrapper = mountPage({
+            hasVehicle: true,
+            configs: [config({ verdict: verdict({ centreBore: null, centreBoreSource: 'CONFLICTING' }) })],
+        })
+
+        expect(wrapper.find('.spec__row--doc').exists()).toBe(false)
+        expect(specs(wrapper)['Mittenlochbohrung der Felge']).toBe('66,5 mm')
+        expect(wrapper.find('.pdp__specs-note').text()).toContain(
+            'Für dein Fahrzeug nennen die Gutachten unterschiedliche Mittenlochbohrungen.'
+        )
+    })
+
+    it('adds a Hump row only for a record that holds a designation', () => {
+        expect(specs(mountPage())['Hump']).toBe('H2')
+        expect(specs(mountPage({ configs: [config({ hump: null })] }))['Hump']).toBeUndefined()
+        expect(specs(mountPage({ configs: [config({ hump: undefined })] }))['Hump']).toBeUndefined()
+    })
+
+    it('fills the details with the rest of what the record holds, and nothing it does not', () => {
+        const rows = specs(mountPage({ configs: [config({ weightG: 8_600, maxLoadKg: 620 })] }))
+
+        expect(rows).toMatchObject({
+            'Größe': '8,5J × 19 · ET 45',
+            'Lochkreis': '5 × 112',
+            'Einpresstiefe (ET)': '45 mm',
+            'Hump': 'H2',
+            'Farbe': 'Light Grey D5',
+            'Speichen': '5',
+            'Gewicht pro Felge': '8,6 kg',
+            'Traglast': `620${NNBSP}kg`,
+            'KBA-Nummer': '53810',
+            'Artikelnummer': 'MO-MCR4-8519-45',
+        })
+
+        // A record that holds no weight, no load rating and no KBA number shows none of the three.
+        const bare = specs(mountPage({ configs: [config({ weightG: null, maxLoadKg: null, kbaNumber: null })] }))
+
+        expect(bare['Gewicht pro Felge']).toBeUndefined()
+        expect(bare['Traglast']).toBeUndefined()
+        expect(bare['KBA-Nummer']).toBeUndefined()
     })
 
     it('opens the main photograph large in a dialog, and Escape closes it', async () => {

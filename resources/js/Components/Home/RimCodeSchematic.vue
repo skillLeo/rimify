@@ -14,6 +14,9 @@
  *
  * The labels are SVG text in `--fs-small`: set at its own width of 360 px the drawing prints them at
  * 14 px, and because they scale with the lines, no label can ever run into another one.
+ *
+ * Every named part either sits on its feature (the flanges, the two humps) or carries one thin
+ * leader to it, all of them in the same line — `rc-sch__leader`, the tertiary ink at 1 px.
  */
 
 import { computed, useId } from 'vue'

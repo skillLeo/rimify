@@ -29,10 +29,8 @@ const props = withDefaults(
     defineProps<{
         /** A sticky action bar owns the bottom edge: the tray steps aside, its state kept. */
         hidden?: boolean
-        /** Whether the phone's tab bar is under it (the phone layout passes its own flag). */
-        bottomNav?: boolean
     }>(),
-    { hidden: false, bottomNav: true }
+    { hidden: false }
 )
 
 /** Routes where the tray would be in the way, or is the page itself. */
@@ -95,7 +93,7 @@ function remove(item: CompareEntry): void {
 
 <template>
     <Transition name="tray">
-        <section v-if="visible" class="tray" :class="{ 'tray--flush': !bottomNav, 'tray--phone': phone }" role="region" aria-label="Vergleich">
+        <section v-if="visible" class="tray" :class="{ 'tray--phone': phone }" role="region" aria-label="Vergleich">
             <div class="container tray__row">
                 <!-- The desktop document: the rows are the bar. -->
                 <template v-if="!phone">
@@ -182,7 +180,7 @@ html[data-tray='open'] main#inhalt {
 
 @media (max-width: 1023px) {
     html[data-tray='open'] main#inhalt {
-        padding-bottom: calc(var(--bottomnav-h) + var(--stickybar-h) + var(--sp-16) + env(safe-area-inset-bottom));
+        padding-bottom: calc(var(--stickybar-h) + var(--sp-16) + env(safe-area-inset-bottom));
     }
 }
 </style>

@@ -1,7 +1,7 @@
 import { chooseVehicleFromHome, expect, open, screenChecks, test } from './fixtures'
 
 test.describe('mobile shell', () => {
-    test('app bar is 56 px, sticky, and carries the wordmark, search and vehicle', async ({ page }) => {
+    test('app bar is 56 px, sticky, and carries the wordmark, search, vehicle and menu', async ({ page }) => {
         await open(page, '/')
 
         const bar = page.locator('header.mbar')
@@ -12,6 +12,7 @@ test.describe('mobile shell', () => {
         await expect(bar.getByRole('link', { name: 'RIMIFY – Startseite' })).toBeVisible()
         await expect(bar.getByRole('button', { name: 'Suche' })).toBeVisible()
         await expect(bar.getByRole('link', { name: 'Fahrzeug wählen' })).toBeVisible()
+        await expect(bar.getByRole('button', { name: 'Menü' })).toBeVisible()
 
         // Mobile WebKit has no mouse wheel; the page scrolls the way a script would.
         await page.evaluate(() => window.scrollTo(0, 600))
@@ -22,41 +23,36 @@ test.describe('mobile shell', () => {
         await expect(bar).toHaveClass(/mbar--scrolled/)
     })
 
-    test('tab bar: four tabs, 44 px targets, current tab marked, active tab scrolls to top', async ({ page }) => {
+    test('menu: every destination, 44 px targets, the current page marked', async ({ page }) => {
         await open(page, '/')
+        await page.getByRole('button', { name: 'Menü' }).click()
 
-        const nav = page.getByRole('navigation', { name: 'Hauptnavigation' })
-        const tabs = nav.locator('a')
-        await expect(tabs).toHaveCount(4)
-        await expect(tabs.nth(0)).toHaveAttribute('aria-current', 'page')
+        const menu = page.getByRole('menu')
+        await expect(menu).toBeVisible()
 
-        for (let i = 0; i < 4; i++) {
-            const box = await tabs.nth(i).boundingBox()
-            expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
-            expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+        const rows = menu.locator('a')
+        const count = await rows.count()
+        expect(count).toBeGreaterThanOrEqual(5)
+
+        for (let i = 0; i < count; i++) {
+            const box = await rows.nth(i).boundingBox()
+            // 43.5, not 44: a 44px row on a device with a fractional pixel ratio measures
+            // 43.99999237 — a rounding artefact of the ruler, not a row anybody can mis-tap.
+            expect(box?.height ?? 0, `row ${i}`).toBeGreaterThanOrEqual(43.5)
         }
 
-        const labelSize = await nav.locator('.mtab__label').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
-        expect(labelSize).toBeGreaterThanOrEqual(12)
-
-        const navBox = await nav.boundingBox()
-        const vp = page.viewportSize()
-        expect(Math.round((navBox?.y ?? 0) + (navBox?.height ?? 0))).toBe(vp?.height)
-
-        await page.evaluate(() => window.scrollTo(0, 800))
-        await page.waitForTimeout(300)
-        expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(300)
-        await tabs.nth(0).click()
-        await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 5000 }).toBeLessThan(2)
+        // The page you are on is shown and marked, never dropped from the list.
+        await expect(menu.locator('a[aria-current="page"]')).toHaveCount(1)
     })
 
-    test('a tab switch navigates to the destination', async ({ page }) => {
+    test('a menu row navigates to the destination', async ({ page }) => {
         await open(page, '/')
-        await page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Check' }).click()
+        await page.getByRole('button', { name: 'Menü' }).click()
+        await page.getByRole('menu').getByRole('menuitem', { name: 'Check' }).click()
         await page.waitForURL('**/rimify-check')
     })
 
-    test('no overflow, no target under 44 px, no text under 12 px, nothing under the bars', async ({ page }) => {
+    test('no overflow, no target under 44 px, no text under 12 px, and nothing fixed to the bottom edge', async ({ page }) => {
         await open(page, '/')
         const checks = await screenChecks(page)
 
@@ -64,25 +60,21 @@ test.describe('mobile shell', () => {
         expect(checks.smallTargets, 'targets under 44 px').toEqual([])
         expect(checks.tinyText, 'text under 12 px').toEqual([])
 
-        // At the end of the page, the last control of the document sits above the tab bar, not
-        // under it: the page keeps room for the bar.
-        const clear = await page.evaluate(() => {
+        // The destinations moved into the header's menu: no bar crosses the bottom of the screen,
+        // so the end of the page is the end of the page.
+        const fixedAtBottom = await page.evaluate(() => {
             window.scrollTo(0, document.documentElement.scrollHeight)
-            const controls = [...document.querySelectorAll('main a, main button, footer a, footer button')].filter(
-                (el) => (el as HTMLElement).offsetParent !== null
-            )
-            const last = controls[controls.length - 1] as HTMLElement | undefined
-            const bar = document.querySelector('.mtab')?.getBoundingClientRect()
 
-            if (!last || !bar) {
-                return { ok: true, detail: '' }
-            }
+            return [...document.querySelectorAll('body *')]
+                .filter((el) => {
+                    const style = getComputedStyle(el)
+                    const rect = el.getBoundingClientRect()
 
-            const rect = last.getBoundingClientRect()
-
-            return { ok: rect.bottom <= bar.top + 0.5, detail: `${last.textContent?.trim()} bottom ${Math.round(rect.bottom)} vs bar ${Math.round(bar.top)}` }
+                    return style.position === 'fixed' && style.display !== 'none' && rect.height > 0 && rect.bottom >= window.innerHeight - 1 && rect.width > window.innerWidth * 0.8
+                })
+                .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`)
         })
-        expect(clear.ok, `last control clears the tab bar (${clear.detail})`).toBe(true)
+        expect(fixedAtBottom, 'a bar fixed across the bottom edge').toEqual([])
     })
 
     test('search sheet: opens full screen with focus in the field, shows results, closes on back', async ({ page }) => {
@@ -172,9 +164,16 @@ test.describe('mobile shell', () => {
             expect((await request.get(icon.src)).ok(), icon.src).toBe(true)
         }
 
+        /*
+         * The worker must arrive as a script. A server that answers `/sw.js` with an HTML error
+         * page registers nothing and takes the whole offline story with it — this used to be
+         * checked by looking for `text/html` in the body, which now matches the worker's own
+         * last-resort offline response. The header is what actually decides it.
+         */
         const sw = await request.get('/sw.js')
         expect(sw.ok()).toBe(true)
-        expect(await sw.text()).not.toContain('text/html')
+        expect(sw.headers()['content-type']).toContain('javascript')
+        expect(await sw.text()).not.toContain('<!doctype html')
 
         const offline = await request.get('/offline.html')
         expect(offline.ok()).toBe(true)
