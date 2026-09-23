@@ -2,9 +2,17 @@
 /**
  * Checkout. Guest only — there are no customer accounts in this product.
  *
- * Three steps — Adresse, Versand, Zahlung — and only the current one is on screen. The stepper
- * says which, and it never marks a step current while another step's fields are showing. Every
- * value typed survives going back and forth: the fields live in one object, not in the step.
+ * Three steps — Adresse, Optionen & Versand, Zahlung — and only the current one is on screen. The
+ * stepper says which, and it never marks a step current while another step's fields are showing.
+ * Every value typed survives going back and forth: the fields live in one object, not in the step.
+ *
+ * „Brauchst du RDKS-Sensoren?" opens the second step, and only when the basket holds a
+ * Komplettrad (docs/specs/komplettrad.md §5, D-034). The answer is a server round trip: the
+ * server stores it with the price it quoted and re-renders the totals with the sensor line. This
+ * page prints the strings it is given — `4 × 49,00 €`, `196,00 €` — and never multiplies cents.
+ * Where the make has no price, the `Ja` tile does not exist and the card says why; `Nein` and the
+ * order stay open. Without an answer, `Weiter` is refused here and the order is refused on the
+ * server, with the same sentence.
  *
  * `Zahlungspflichtig bestellen` is the exact wording of the final button, and it is not a style
  * choice: §312j BGB requires the button to state that the order carries an obligation to pay.
@@ -42,9 +50,18 @@ type Step = 1 | 2 | 3
 
 const STEPS: { n: Step; label: string }[] = [
     { n: 1, label: 'Adresse' },
-    { n: 2, label: 'Versand' },
+    { n: 2, label: 'Optionen & Versand' },
     { n: 3, label: 'Zahlung' },
 ]
+
+/** The RDKS block of the totals; null in fixtures written before it existed. */
+const tpms = computed(() => props.totals.tpms ?? null)
+
+/** The question is asked only of a basket with a Komplettrad (D-034). */
+const tpmsApplicable = computed(() => tpms.value?.applicable === true)
+
+/** The server's own sentence for an unanswered question — the same one it refuses the order with. */
+const TPMS_UNANSWERED = 'Bitte sag uns noch, ob du RDKS-Sensoren brauchst.'
 
 const step = ref<Step>(1)
 const summaryOpen = ref(false)
@@ -128,8 +145,33 @@ function goTo(target: Step): void {
     void nextTick(() => formEl.value?.querySelector<HTMLElement>('[data-step-title]')?.focus())
 }
 
+/** Refuses the step without an RDKS answer, in the server's words, and puts the question in focus. */
+function validateOptions(): boolean {
+    delete errors.rdks
+
+    if (tpmsApplicable.value && tpms.value?.choice === null) {
+        errors.rdks = TPMS_UNANSWERED
+        void nextTick(() => formEl.value?.querySelector<HTMLElement>('[data-key="rdks"]')?.focus())
+
+        return false
+    }
+
+    return true
+}
+
+/** The answer goes to the server, which quotes the sensor and re-renders the totals (§5.3). */
+function chooseTpms(choice: 'ja' | 'nein'): void {
+    delete errors.rdks
+
+    router.patch('/kasse/rdks', { choice }, { preserveScroll: true, preserveState: true })
+}
+
 function next(): void {
     if (step.value === 1 && !validateAddress()) {
+        return
+    }
+
+    if (step.value === 2 && !validateOptions()) {
         return
     }
 
@@ -152,11 +194,23 @@ function submit(): void {
         return
     }
 
+    if (!validateOptions()) {
+        goTo(2)
+
+        return
+    }
+
     if (props.orderRefusal) {
         return
     }
 
-    router.post('/kasse', { ...form }, {
+    // The RDKS answer travels with the submission, so the server has one source of truth at
+    // submit time (§5.3) — and only where the question was asked at all.
+    const payload = tpmsApplicable.value
+        ? { ...form, rdks: tpms.value?.choice ?? null }
+        : { ...form }
+
+    router.post('/kasse', payload, {
         preserveScroll: true,
         preserveState: true,
         onError: (failed: Record<string, string>) => {
@@ -167,14 +221,22 @@ function submit(): void {
                     errors[key] = message
                 }
             }
+
+            // The question is on step 2: show the sentence where the answer is given.
+            if (failed.rdks) {
+                goTo(2)
+            }
         },
     })
 }
 
-/** A line that is sold out or not sellable for the chosen car stops the checkout here too. */
+/** A line that is sold out, not sellable for the chosen car, or marked by the server stops the checkout here too. */
 const blocked = computed(() =>
     props.lines.some(
-        (line) => !line.inStock || (line.verdict !== null && line.verdict !== undefined && !line.verdict.sellable)
+        (line) =>
+            !line.inStock ||
+            (line.verdict !== null && line.verdict !== undefined && !line.verdict.sellable) ||
+            (line.blockReasons?.length ?? 0) > 0
     )
 )
 
@@ -306,6 +368,26 @@ const VERDICT_TONE: Record<string, string> = {
                                             {{ condition }}
                                         </li>
                                     </ul>
+                                    <!-- A Komplettrad repeats its components here: the last reading before paying. -->
+                                    <dl
+                                        v-if="line.isSet && line.components && line.components.length > 1"
+                                        class="ko__parts"
+                                        aria-label="Bestandteile des Komplettrads"
+                                    >
+                                        <div v-for="part in line.components" :key="part.key" class="ko__part">
+                                            <dt>{{ part.label }}</dt>
+                                            <dd :class="{ 'ko__part--open': part.open }">
+                                                <span class="tabular">{{ part.quantity }} × {{ part.unitPrice }}</span>
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </li>
+                                <!-- The sensors, as the server priced them (§5.4): printed, never computed here. -->
+                                <li v-if="tpms && tpms.choice === 'ja'" class="ko__line ko__line--tpms">
+                                    <div class="ko__line-top">
+                                        <span class="ko__line-name">RDKS-Sensoren ({{ tpms.line }})</span>
+                                        <span class="ko__line-price tabular">{{ tpms.total }}</span>
+                                    </div>
                                 </li>
                             </ul>
 
@@ -554,7 +636,7 @@ const VERDICT_TONE: Record<string, string> = {
                             </fieldset>
 
                             <div class="ko__actions">
-                                <button class="btn btn--primary btn--lg" type="submit">Weiter zum Versand</button>
+                                <button class="btn btn--primary btn--lg" type="submit">Weiter zu Optionen &amp; Versand</button>
                             </div>
                         </template>
 
@@ -573,17 +655,91 @@ const VERDICT_TONE: Record<string, string> = {
                                     </button>
                                 </div>
                                 <div v-if="step === 3" class="ko__recap-row">
-                                    <dt class="micro">Versand</dt>
-                                    <dd>Standardversand · <span :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</span></dd>
+                                    <dt class="micro">Optionen &amp; Versand</dt>
+                                    <dd>
+                                        Standardversand · <span :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</span>
+                                        <template v-if="tpmsApplicable && tpms">
+                                            <span class="ko__recap-line">
+                                                <template v-if="tpms.choice === 'ja'">
+                                                    RDKS-Sensoren · <span class="tabular">{{ tpms.line }}</span>
+                                                </template>
+                                                <template v-else>Ohne RDKS-Sensoren</template>
+                                            </span>
+                                        </template>
+                                    </dd>
                                     <button class="btn btn--quiet ko__change" type="button" @click="goTo(2)">
-                                        Ändern<span class="visually-hidden"> (Versand)</span>
+                                        Ändern<span class="visually-hidden"> (Optionen &amp; Versand)</span>
                                     </button>
                                 </div>
                             </dl>
 
-                            <!-- Step 2 · Versand -->
+                            <!-- Step 2 · Optionen & Versand -->
                             <template v-if="step === 2">
-                                <h2 class="t-h2 ko__step-title" tabindex="-1" data-step-title>Versand</h2>
+                                <h2 class="t-h2 ko__step-title" tabindex="-1" data-step-title>Optionen &amp; Versand</h2>
+
+                                <!-- Reifendruck-Sensoren: asked here because the client asked for exactly that (D-039). -->
+                                <fieldset v-if="tpmsApplicable && tpms" class="ko__group ko__rdks">
+                                    <legend class="t-h3">Reifendruck-Sensoren (RDKS)</legend>
+                                    <p id="ko-rdks-q" class="ko__rdks-q">Brauchst du RDKS-Sensoren?</p>
+                                    <p class="t-small ko__rdks-help">
+                                        Viele Autos zeigen den Reifendruck im Display an. Dafür sitzt in jedem Rad ein
+                                        Sensor. Ob dein Auto das hat, steht in der Betriebsanleitung – oder du siehst es
+                                        daran, ob dein Display dir den Reifendruck anzeigt.
+                                    </p>
+
+                                    <!-- No price for this make: no Ja tile at all, and the sentence says why (§5.2). -->
+                                    <p v-if="!tpms.available" class="ko__rdks-notice" role="status">
+                                        {{ tpms.notice }}
+                                        <a :href="`mailto:${contact.email}`" class="ko__rdks-mail">{{ contact.email }}</a>
+                                    </p>
+
+                                    <div
+                                        class="opt"
+                                        role="radiogroup"
+                                        aria-labelledby="ko-rdks-q"
+                                        aria-describedby="ko-rdks-err"
+                                        data-key="rdks"
+                                        tabindex="-1"
+                                    >
+                                        <label
+                                            v-if="tpms.available"
+                                            class="opt__tile"
+                                            :class="{ 'opt__tile--on': tpms.choice === 'ja' }"
+                                        >
+                                            <input
+                                                class="visually-hidden opt__input"
+                                                type="radio"
+                                                name="rdks"
+                                                value="ja"
+                                                :checked="tpms.choice === 'ja'"
+                                                @change="chooseTpms('ja')"
+                                            />
+                                            <span class="opt__name">Ja, bitte mit RDKS-Sensoren</span>
+                                            <span class="opt__price tabular">{{ tpms.line }}</span>
+                                            <span class="opt__sub">Wir setzen die Sensoren gleich mit ein.</span>
+                                            <span class="opt__check" aria-hidden="true">
+                                                <Icon name="check" :size="20" />
+                                            </span>
+                                        </label>
+                                        <label class="opt__tile" :class="{ 'opt__tile--on': tpms.choice === 'nein' }">
+                                            <input
+                                                class="visually-hidden opt__input"
+                                                type="radio"
+                                                name="rdks"
+                                                value="nein"
+                                                :checked="tpms.choice === 'nein'"
+                                                @change="chooseTpms('nein')"
+                                            />
+                                            <span class="opt__name">Nein, ich brauche keine</span>
+                                            <span class="opt__price tabular">0,00&nbsp;€</span>
+                                            <span class="opt__check" aria-hidden="true">
+                                                <Icon name="check" :size="20" />
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <span id="ko-rdks-err" class="field-error" role="alert">{{ errors.rdks ?? '' }}</span>
+                                </fieldset>
+
                                 <fieldset class="ko__group">
                                     <legend class="visually-hidden">Versandart</legend>
                                     <label class="ko__option">
@@ -785,6 +941,37 @@ const VERDICT_TONE: Record<string, string> = {
     color: var(--ink);
 }
 
+/* A Komplettrad's components, repeated in the summary. */
+.ko__parts {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-small);
+}
+
+.ko__part {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.ko__part dt {
+    color: var(--ink2);
+}
+
+.ko__part dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.ko__part dd.ko__part--open {
+    font-family: var(--sans);
+    color: var(--ink3);
+}
+
 .sum {
     margin: var(--space-3) 0 var(--space-2);
 }
@@ -930,6 +1117,113 @@ const VERDICT_TONE: Record<string, string> = {
     font-weight: 500;
 }
 
+/* ── RDKS ─────────────────────────────────────────────────────────────────── */
+
+.ko__rdks-q {
+    font-weight: 700;
+}
+
+.ko__rdks-help {
+    margin-top: var(--space-1);
+    color: var(--ink2);
+    max-width: 60ch;
+}
+
+/* Fails closed, in words: readable, not an error colour. */
+.ko__rdks-notice {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--border-strong);
+    background: var(--band);
+    color: var(--ink);
+    max-width: 60ch;
+}
+
+.ko__rdks-mail {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 700;
+}
+
+.opt {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+.opt:focus {
+    outline: none;
+}
+
+/* The whole tile is the control; the radio stays for the keyboard and the screen reader. */
+.opt__tile {
+    position: relative;
+    display: grid;
+    gap: var(--space-1);
+    min-height: 64px;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    cursor: pointer;
+    transition:
+        border-color var(--duration-instant) var(--ease-standard),
+        background-color var(--duration-instant) var(--ease-standard);
+}
+
+.opt__tile--on {
+    padding: calc(var(--space-3) - 1px) calc(var(--space-4) - 1px);
+    border: 2px solid var(--blue);
+    background: var(--wash);
+}
+
+.opt__tile:focus-within {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .opt__tile:hover {
+        border-color: var(--border-strong);
+    }
+
+    .opt__tile--on:hover {
+        border-color: var(--blue);
+    }
+}
+
+.opt__name {
+    padding-right: var(--space-5);
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.opt__price {
+    font-family: var(--mono);
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.opt__sub {
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
+.opt__check {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    display: none;
+    color: var(--blue);
+}
+
+.opt__tile--on .opt__check {
+    display: inline-flex;
+}
+
 .ko__recap {
     margin: 0 0 var(--space-5);
     border-top: 1px solid var(--line);
@@ -962,6 +1256,10 @@ const VERDICT_TONE: Record<string, string> = {
     display: block;
     font-size: var(--text-small);
     color: var(--ink2);
+}
+
+.ko__recap-line {
+    display: block;
 }
 
 /* Why no order can be placed: a quiet, readable statement, not an error colour. */
