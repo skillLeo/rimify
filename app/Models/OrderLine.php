@@ -24,6 +24,9 @@ class OrderLine extends Model
 
     protected $fillable = [
         'order_id', 'kind', 'wheel_config_id', 'tyre_variant_id', 'package_group',
+        // Which Wuchtgewicht colour and which RDKS price the line was frozen from — for reporting,
+        // never for re-reading a price: unit_price_cents and label are what was charged.
+        'balance_weight_colour_id', 'tpms_sensor_price_id',
         'label', 'quantity', 'unit_price_cents', 'line_total_cents', 'tax_rate_bp', 'currency',
     ];
 

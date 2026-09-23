@@ -24,6 +24,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $load_index
  * @property int $speed_rank
  * @property string $speed_symbol
+ * @property string|null $eu_noise_class
+ * @property string|null $eprel_id
+ * @property bool $is_demo
  */
 class TyreVariant extends Model
 {
@@ -35,8 +38,8 @@ class TyreVariant extends Model
     protected $fillable = [
         'brand_id', 'name', 'season', 'width_mm', 'aspect', 'diameter_in',
         'load_index', 'speed_symbol', 'speed_rank',
-        'eu_fuel_class', 'eu_wet_grip_class', 'eu_noise_db',
-        'price_cents', 'currency', 'stock_qty',
+        'eu_fuel_class', 'eu_wet_grip_class', 'eu_noise_db', 'eu_noise_class', 'eprel_id',
+        'price_cents', 'currency', 'stock_qty', 'is_demo',
     ];
 
     /** @return array<string, string> */
@@ -51,6 +54,8 @@ class TyreVariant extends Model
             'eu_noise_db' => 'integer',
             'price_cents' => 'integer',
             'stock_qty' => 'integer',
+            // A seeded demonstration row. Never real stock, and the demo gate refuses to sell it.
+            'is_demo' => 'boolean',
         ];
     }
 

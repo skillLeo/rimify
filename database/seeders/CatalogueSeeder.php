@@ -648,6 +648,10 @@ class CatalogueSeeder extends Seeder
                     'price_cents' => 14_900 + $load * 90,
                     'currency' => 'EUR',
                     'stock_qty' => 24,
+                    // Demonstration data, like every wheel this seeder writes: the demo gate has
+                    // to catch a Komplettrad built from this tyre too, and a re-run must not clear
+                    // what the migration backfilled.
+                    'is_demo' => true,
                 ],
             );
         }
