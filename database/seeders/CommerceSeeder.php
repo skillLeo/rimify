@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Resolver\FitmentResolver;
-use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Enums\OrderLineKind;
 use App\Enums\OrderStatus;
 use App\Models\Address;
@@ -15,7 +14,6 @@ use App\Models\Fitment;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
-use App\Models\SpeedSymbolEntry;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Support\GermanFormat;
@@ -116,28 +114,21 @@ class CommerceSeeder extends Seeder
             return;
         }
 
-        $tyres = TyreVariant::query()->with('brand')->whereNull('deleted_at')->orderBy('id')->get();
         $resolver = app(FitmentResolver::class);
-        /** @var array<string, int> $speedRanks */
-        $speedRanks = SpeedSymbolEntry::query()->pluck('speed_rank', 'symbol')->map(static fn (mixed $rank): int => (int) $rank)->all();
+        $eligibility = app(TyreEligibility::class);
 
         foreach (self::STATUSES as $index => $status) {
-            $this->seedOrder($index, $status, $fitments, $tyres, $resolver, $speedRanks);
+            $this->seedOrder($index, $status, $fitments, $resolver, $eligibility);
         }
     }
 
-    /**
-     * @param  Collection<int, Fitment>  $fitments
-     * @param  Collection<int, TyreVariant>  $tyres
-     * @param  array<string, int>  $speedRanks
-     */
+    /** @param  Collection<int, Fitment>  $fitments */
     private function seedOrder(
         int $index,
         OrderStatus $status,
         Collection $fitments,
-        Collection $tyres,
         FitmentResolver $resolver,
-        array $speedRanks,
+        TyreEligibility $eligibility,
     ): void {
         $fitment = $fitments[$index % $fitments->count()];
         $config = $fitment->wheelConfig;
@@ -157,10 +148,16 @@ class CommerceSeeder extends Seeder
 
         // A Komplettrad every third order, so the package-group behaviour — lines that move
         // together — is present in seeded data rather than only in a test. Its tyre is one the
-        // fitment permits on this car; where none qualifies, the order is Felgen only.
-        $tyre = $index % 3 === 0
-            ? $this->komplettradTyre($resolver->resolve($fitment->vehicle_id, $fitment->wheel_config_id), $config, $tyres, $speedRanks)
-            : null;
+        // verdict permits on this car, decided by the same TyreEligibility the storefront calls
+        // (R-13) and taken cheapest first; where none qualifies, the order is Felgen only.
+        $tyre = null;
+
+        if ($index % 3 === 0) {
+            $offer = $eligibility->offerFor($resolver->resolve($fitment->vehicle_id, $fitment->wheel_config_id));
+            $tyre = $offer->tyres === []
+                ? null
+                : TyreVariant::query()->with('brand')->find($offer->tyres[0]->id);
+        }
 
         DB::transaction(function () use (
             $index, $status, $fitment, $config, $vehicle, $tyre, $resolver,
@@ -281,72 +278,6 @@ class CommerceSeeder extends Seeder
                 );
             }
         });
-    }
-
-    /**
-     * The tyre of a seeded Komplettrad, or null for a Felgen-only order.
-     *
-     * Only a tyre the verdict permits: the wheel's own diameter, a size the document lists for
-     * every axle, and at least the minimum load index and speed symbol the engine requires there
-     * (R-06, the stricter of document and derivation). A Komplettrad of a 17-inch wheel and an
-     * 18-inch tyre is a physically impossible thing to show as fact.
-     *
-     * Public so the rule can be tested on its own, whatever tyres the demo catalogue holds.
-     *
-     * @param  Collection<int, TyreVariant>  $tyres
-     * @param  array<string, int>  $speedRanks
-     */
-    public function komplettradTyre(FitmentVerdict $verdict, WheelConfig $config, Collection $tyres, array $speedRanks): ?TyreVariant
-    {
-        if (! $verdict->isSellable()) {
-            return null;
-        }
-
-        $axles = [$verdict->front, $verdict->rear];
-
-        foreach ($axles as $axle) {
-            if (! $axle->hasPermittedSizes() || ! $axle->hasUsableMinimum()) {
-                return null;
-            }
-        }
-
-        foreach ($tyres as $tyre) {
-            if (abs((float) $tyre->diameter_in - (float) $config->diameter_in) > 0.01) {
-                continue;
-            }
-
-            $size = new TyreSize((int) $tyre->width_mm, (int) $tyre->aspect, (float) $tyre->diameter_in);
-            $fits = true;
-
-            foreach ($axles as $axle) {
-                $listed = array_values(array_filter($axle->sizes, static fn (TyreSize $s): bool => $s->matches($size)));
-
-                if ($listed === []) {
-                    $fits = false;
-
-                    break;
-                }
-
-                $minLoad = max((int) $axle->minLoadIndex, (int) ($listed[0]->documentMinLoadIndex ?? 0));
-                $minRank = max(
-                    $speedRanks[(string) $axle->minSpeedSymbol] ?? PHP_INT_MAX,
-                    $listed[0]->documentMinSpeedSymbol === null ? 0 : ($speedRanks[$listed[0]->documentMinSpeedSymbol] ?? PHP_INT_MAX),
-                );
-                $tyreRank = $speedRanks[(string) $tyre->speed_symbol] ?? 0;
-
-                if ((int) $tyre->load_index < $minLoad || $tyreRank < $minRank) {
-                    $fits = false;
-
-                    break;
-                }
-            }
-
-            if ($fits) {
-                return $tyre;
-            }
-        }
-
-        return null;
     }
 
     /**

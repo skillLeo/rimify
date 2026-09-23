@@ -292,10 +292,10 @@ final readonly class FitmentResolver
                 continue;
             }
 
-            $rowSizes = array_values(array_filter(
-                $row->tyreSizes,
-                static fn (TyreSize $size): bool => true,
-            ));
+            // Only the sizes the document permits on THIS axle: a size scoped to `FRONT` never
+            // lands on the rear, so a staggered line reads as MIXED rather than as four identical
+            // wheels the document does not permit.
+            $rowSizes = $row->tyreSizesForAxle($axle);
 
             // Intersection across documents: a size only one of them permits is not offered.
             $sizes = $sizes === null ? $rowSizes : TyreSize::intersect($sizes, $rowSizes);
@@ -329,10 +329,14 @@ final readonly class FitmentResolver
             sizes: $sizes ?? [],
             minLoadIndex: $minLoadIndex,
             minSpeedSymbol: $minSpeedSymbol,
-            // If either half came from the document, the reasoning is "the document said so".
+            // If either half came from the document, the reasoning is "the document said so" —
+            // and each half records its own source, so a sentence about the load index can never
+            // credit a Gutachten that only stated a speed symbol.
             minSource: ($loadSource === MinSource::Document || $speedSource === MinSource::Document)
                 ? MinSource::Document
                 : MinSource::Derived,
+            minLoadSource: $loadSource,
+            minSpeedSource: $speedSource,
         );
     }
 

@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Data\TyreSize;
+use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Tyres\KomplettradRefusal;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Enums\OrderLineKind;
 use App\Enums\OrderStatus;
@@ -87,57 +91,70 @@ it('pairs a seeded Komplettrad only with a tyre its fitment permits', function (
     }
 });
 
-it('chooses a Komplettrad tyre by diameter, listed size and the required minimum', function (): void {
+it('pairs a seeded Komplettrad through TyreEligibility, the rule every surface applies', function (): void {
     $resolver = app(FitmentResolver::class);
+    $eligibility = app(TyreEligibility::class);
 
-    // A permitted verdict with a size both axles share and a usable minimum on each.
+    // A sellable verdict with a size both axles share, a usable minimum on each, and nothing
+    // that refuses a Komplettrad before a tyre is even looked at.
     $found = Fitment::query()->visibleToCustomers()->with('wheelConfig')->lazyById(50)
         ->map(fn (Fitment $f): array => [$f, $resolver->resolve($f->vehicle_id, $f->wheel_config_id)])
         ->first(function (array $pair): bool {
             [, $verdict] = $pair;
 
             return $verdict->isSellable()
+                && $verdict->tyreLayout() === 'SAME'
+                && $verdict->front->hasPermittedSizes()
                 && $verdict->front->hasUsableMinimum() && $verdict->rear->hasUsableMinimum()
-                && collect($verdict->front->sizes)->contains(fn (TyreSize $s): bool => collect($verdict->rear->sizes)->contains(fn (TyreSize $r): bool => $r->matches($s)));
+                && collect($verdict->conditions)->doesntContain(fn ($condition): bool => $condition->affectsTyreChoice);
         });
 
     expect($found)->not->toBeNull('the demo approvals must permit at least one wheel with tyre sizes');
 
     /** @var FitmentVerdict $verdict */
-    [$fitment, $verdict] = $found;
-    $config = $fitment->wheelConfig;
-    $size = collect($verdict->front->sizes)->first(fn (TyreSize $s): bool => collect($verdict->rear->sizes)->contains(fn (TyreSize $r): bool => $r->matches($s)));
+    [, $verdict] = $found;
+    $size = $verdict->front->sizes[0];
     $ranks = SpeedSymbolEntry::query()->pluck('speed_rank', 'symbol')->map(fn (mixed $r): int => (int) $r)->all();
-    $minLoad = max($verdict->front->minLoadIndex, $verdict->rear->minLoadIndex, $size->documentMinLoadIndex ?? 0);
-    $minSymbol = $ranks[$verdict->front->minSpeedSymbol] >= $ranks[$verdict->rear->minSpeedSymbol]
-        ? $verdict->front->minSpeedSymbol
-        : $verdict->rear->minSpeedSymbol;
-    $slower = collect($ranks)->filter(fn (int $rank): bool => $rank < $ranks[$minSymbol])->sortDesc()->keys()->first();
 
-    $tyre = fn (array $attributes): TyreVariant => TyreVariant::factory()
-        ->size($size->widthMm, $size->aspect, $size->diameterIn)
-        ->withSpeedSymbol($minSymbol)
-        ->make(['load_index' => $minLoad, ...$attributes]);
+    // The minimum four identical tyres must meet: the stricter axle, raised by anything the
+    // listed size itself states (R-06, spec §3.3 rule 8).
+    $rankOf = fn (?string $symbol): int => $symbol === null ? 0 : ($ranks[$symbol] ?? 0);
+    $listed = [$size, collect($verdict->rear->sizes)->first(fn (TyreSize $r): bool => $r->matches($size))];
+    $minLoad = max(
+        (int) $verdict->front->minLoadIndex,
+        (int) $verdict->rear->minLoadIndex,
+        ...array_map(fn (?TyreSize $s): int => $s?->documentMinLoadIndex ?? 0, $listed),
+    );
+    $minRank = max(
+        $rankOf($verdict->front->minSpeedSymbol),
+        $rankOf($verdict->rear->minSpeedSymbol),
+        ...array_map(fn (?TyreSize $s): int => $rankOf($s?->documentMinSpeedSymbol), $listed),
+    );
+    $minSymbol = (string) array_search($minRank, $ranks, true);
+    $slower = collect($ranks)->filter(fn (int $rank): bool => $rank < $minRank)->sortDesc()->keys()->first();
 
-    $good = $tyre([]);
-    $wrongDiameter = $tyre(['diameter_in' => $size->diameterIn + 1]);
-    $unlisted = $tyre(['width_mm' => $size->widthMm + 100]);
-    $tooWeak = $tyre(['load_index' => $minLoad - 1]);
-    $candidates = collect([$wrongDiameter, $unlisted, $tooWeak]);
+    $tyre = fn (array $attributes): TyreRecord => EloquentTyreCatalogue::toRecord(
+        TyreVariant::factory()
+            ->size($size->widthMm, $size->aspect, $size->diameterIn)
+            ->withSpeedSymbol($minSymbol)
+            ->make(['load_index' => $minLoad, 'stock_qty' => 4, ...$attributes]),
+    );
+
+    expect($eligibility->permits($verdict, $tyre([]), 4))->toBeNull()
+        ->and($eligibility->permits($verdict, $tyre(['diameter_in' => $size->diameterIn + 1])))->toBe(KomplettradRefusal::DiameterMismatch)
+        ->and($eligibility->permits($verdict, $tyre(['width_mm' => $size->widthMm + 100])))->toBe(KomplettradRefusal::SizeNotPermitted)
+        ->and($eligibility->permits($verdict, $tyre(['load_index' => $minLoad - 1])))->toBe(KomplettradRefusal::BelowMinimum)
+        ->and($eligibility->permits($verdict, $tyre(['stock_qty' => 3]), 4))->toBe(KomplettradRefusal::OutOfStock);
 
     if ($slower !== null) {
-        $candidates->push($tyre(['speed_symbol' => $slower, 'speed_rank' => $ranks[$slower]]));
+        expect($eligibility->permits($verdict, $tyre(['speed_symbol' => $slower, 'speed_rank' => $ranks[$slower]])))
+            ->toBe(KomplettradRefusal::BelowMinimum);
     }
 
-    $seeder = new CommerceSeeder;
-
-    expect($seeder->komplettradTyre($verdict, $config, $candidates, $ranks))->toBeNull()
-        ->and($seeder->komplettradTyre($verdict, $config, $candidates->push($good), $ranks))->toBe($good);
-
-    // A verdict that permits nothing takes no tyre at all.
-    $refused = FitmentVerdict::fromArray([...$verdict->toArray(), 'status' => 'NOT_PERMITTED']);
-
-    expect($seeder->komplettradTyre($refused, $config, collect([$good]), $ranks))->toBeNull();
+    // A verdict restored from a frozen snapshot is evidence of what was decided, never the input
+    // to a fresh decision: it is refused outright, whatever it says.
+    expect($eligibility->permits(FitmentVerdict::fromArray($verdict->toArray()), $tyre([])))
+        ->toBe(KomplettradRefusal::VerdictRestored);
 });
 
 it('leaves every frozen snapshot untouched when it runs again', function (): void {

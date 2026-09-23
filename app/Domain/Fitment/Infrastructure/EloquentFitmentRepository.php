@@ -157,6 +157,9 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                     diameterIn: $size->diameter_in,
                     documentMinLoadIndex: $size->min_load_index,
                     documentMinSpeedSymbol: $size->min_speed_symbol,
+                    // The axle the document scoped this size to. Dropping it here is how a
+                    // rear-only 275/35 would be offered as a four-wheel set.
+                    axle: $size->axle->value,
                 ))
                 ->values()
                 ->all(),

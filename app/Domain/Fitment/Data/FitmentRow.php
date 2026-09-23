@@ -71,12 +71,17 @@ final readonly class FitmentRow
         return $widthOk && $etOk;
     }
 
-    /** @return list<TyreSize> the sizes this row permits on the named axle */
+    /**
+     * The sizes this row permits on the named axle: the row must cover the axle AND the size
+     * itself must not be scoped to the other one.
+     *
+     * @return list<TyreSize>
+     */
     public function tyreSizesForAxle(string $axle): array
     {
         return array_values(array_filter(
             $this->tyreSizes,
-            fn (TyreSize $size): bool => $this->coversAxle($axle),
+            fn (TyreSize $size): bool => $this->coversAxle($axle) && $size->coversAxle($axle),
         ));
     }
 

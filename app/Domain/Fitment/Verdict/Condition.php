@@ -54,7 +54,16 @@ final readonly class Condition
         return $this->affectsPurchase || $this->severity->affectsPurchaseByDefault();
     }
 
-    /** @return array{code: string, severity: string, textDe: string, textEn: string|null} */
+    /**
+     * The three flags travel with the sentence: a frozen verdict that rebuilt every condition
+     * with `affectsTyreChoice: false` could not show, eleven months on, that the Gutachten did
+     * restrict which tyres were allowed — and would answer more permissively than the live one.
+     *
+     * @return array{
+     *     code: string, severity: string, textDe: string, textEn: string|null,
+     *     affectsTyreChoice: bool, affectsPurchase: bool, requiresAcknowledgement: bool
+     * }
+     */
     public function toArray(): array
     {
         return [
@@ -62,10 +71,18 @@ final readonly class Condition
             'severity' => $this->severity->value,
             'textDe' => $this->sentenceDe(),
             'textEn' => $this->textEn,
+            'affectsTyreChoice' => $this->affectsTyreChoice,
+            'affectsPurchase' => $this->affectsPurchase,
+            'requiresAcknowledgement' => $this->requiresAcknowledgement,
         ];
     }
 
-    /** @param array{code: string, severity: string, textDe: string, textEn?: string|null} $data */
+    /**
+     * @param array{
+     *     code: string, severity: string, textDe: string, textEn?: string|null,
+     *     affectsTyreChoice?: bool, affectsPurchase?: bool, requiresAcknowledgement?: bool
+     * } $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(
@@ -73,6 +90,10 @@ final readonly class Condition
             severity: Severity::from($data['severity']),
             textDe: $data['textDe'],
             textEn: $data['textEn'] ?? null,
+            // Snapshots written before the flags were carried read as the constructor defaults.
+            affectsTyreChoice: (bool) ($data['affectsTyreChoice'] ?? false),
+            affectsPurchase: (bool) ($data['affectsPurchase'] ?? false),
+            requiresAcknowledgement: (bool) ($data['requiresAcknowledgement'] ?? false),
         );
     }
 
