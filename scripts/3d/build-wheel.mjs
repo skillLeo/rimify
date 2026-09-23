@@ -11,8 +11,8 @@
 // Compression is meshopt, not Draco: three's DRACOLoader decodes in a Worker built from a blob:
 // URL, which the site's `worker-src 'self'` refuses; MeshoptDecoder runs on the main thread under
 // `'wasm-unsafe-eval'`, which the CSP already grants for the OCR core. Budget: ≤ 1,5 MB (OVERHAUL §3).
-import { mkdirSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Document, NodeIO } from '@gltf-transform/core'
 import { EXTMeshoptCompression, KHRMeshQuantization } from '@gltf-transform/extensions'
@@ -110,7 +110,8 @@ if (bytes > BUDGET_BYTES) {
 
 /* ── Poster calibration ─────────────────────────────────────────────────────── */
 
-const poster = await measurePoster(POSTER)
+const manifestPath = join(root, 'resources/js/Components/Home/Wheel3D/hero-wheel-3d.json')
+const poster = await posterCalibration(POSTER, manifestPath)
 
 /* ── The manifest ───────────────────────────────────────────────────────────── */
 
@@ -140,7 +141,6 @@ const manifest = {
     stats: { vertices, triangles },
 }
 
-const manifestPath = join(root, 'resources/js/Components/Home/Wheel3D/hero-wheel-3d.json')
 mkdirSync(dirname(manifestPath), { recursive: true })
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
 
@@ -165,6 +165,31 @@ function parseArgs(argv) {
 
 function round(v) {
     return Math.round(v * 10) / 10
+}
+
+/**
+ * The calibration the viewer places its camera by.
+ *
+ * The photograph is the hero again (ACCURACY.md D10) and the rendered poster ladder it was
+ * measured from is retired, so the file is usually gone. The numbers it produced are already in
+ * the committed manifest, and they describe this same parametric wheel, so they are kept rather
+ * than failing a release over a picture nobody ships any more. Only a missing poster AND a
+ * manifest without a calibration is an error: the camera cannot be placed by guesswork.
+ */
+async function posterCalibration(path, manifest) {
+    if (existsSync(path)) {
+        return measurePoster(path)
+    }
+
+    const previous = existsSync(manifest) ? JSON.parse(readFileSync(manifest, 'utf8')).poster : null
+
+    if (previous !== null && typeof previous === 'object' && typeof previous.fraction === 'number') {
+        console.log(`poster: ${relative(root, path)} is retired — calibration kept from ${relative(root, manifest)}`)
+
+        return previous
+    }
+
+    throw new Error(`no poster at ${relative(root, path)} and no calibration in ${relative(root, manifest)}`)
 }
 
 /** Where the wheel sits in the poster: the alpha bounding box as fractions of the canvas. */
