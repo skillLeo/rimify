@@ -103,6 +103,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Komplettrad
+    |--------------------------------------------------------------------------
+    |
+    | What mounting and balancing one wheel costs, in integer cents. The client has not given a
+    | figure, so it is null until an environment variable names a real one — exactly as `shipping`
+    | is handled. While it is null the basket shows "wird noch festgelegt" for that component,
+    | leaves it out of the total, and the server refuses an order containing a Komplettrad.
+    | The Felgen-only purchase is unaffected.
+    */
+    'komplettrad' => [
+        'mounting_per_wheel_cents' => is_numeric(env('RIMIFY_MOUNTING_PER_WHEEL_CENTS'))
+            ? (int) env('RIMIFY_MOUNTING_PER_WHEEL_CENTS')
+            : null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature flags
     |--------------------------------------------------------------------------
     */
