@@ -13,14 +13,21 @@
  * The quantity stepper floors at 1. Taking a line out is its own, labelled action, so a tap on
  * "−" can never make a line disappear.
  *
- * Every line is a wheel (D6). A line from the demo range says so and stays in the basket, and the
- * way to the Kasse stays open so the flow can be reviewed: the server refuses the order there
- * (ACCURACY.md D4). While no shipping price is configured, shipping is named, not priced, and it
- * is not in the total.
+ * Every line is a wheel (D6). A Komplettrad is a wheel line that carries its tyre
+ * (docs/specs/komplettrad.md §4.11): it prints the rim, then its components — Felge, Reifen,
+ * Montage und Auswuchten, Wuchtgewichte — each with `Anzahl × Einzelpreis`, and beneath them the
+ * Wuchtgewichte tiles, one whole-tile radio per colour. A component with no price yet reads
+ * `wird noch festgelegt` and is left out of every figure. `Reifen entfernen` turns the line into
+ * Felgen only. Everything the server refused about the line (`blockReasons`) is printed in full,
+ * with `Entfernen` and `Anderes Fahrzeug wählen` as the ways out.
+ *
+ * A line from the demo range says so and stays in the basket, and the way to the Kasse stays open
+ * so the flow can be reviewed: the server refuses the order there (ACCURACY.md D4). While no
+ * shipping price is configured, shipping is named, not priced, and it is not in the total.
  */
 
 import { Head, Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
@@ -39,9 +46,37 @@ const basket = useBasket()
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle)
 
-/** A line that is sold out or no longer sellable for the chosen car blocks the way to the Kasse. */
+/** The server's validation answers, shared by Inertia; `{}` in fixtures that carry none. */
+const errors = computed<Record<string, string>>(() => {
+    const raw = shared.value.errors
+
+    return raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {}
+})
+
+/** The checkout sent the customer back here with a sentence (a sensor price moved, §5.3). */
+const orderError = computed(() => (typeof errors.value.order === 'string' ? errors.value.order : null))
+
+/** The line whose Wuchtgewichte tiles were last touched: a refusal is shown there, not on every set. */
+const touched = ref<string | null>(null)
+
+function chooseColour(key: string, colourId: number): void {
+    touched.value = key
+    basket.setWeightColour(key, colourId)
+}
+
+/** The server's reasons why this line cannot be ordered as it stands — full sentences, empty when none. */
+function reasonsOf(line: BasketLine): string[] {
+    return line.blockReasons ?? []
+}
+
+/** A line that is sold out, no longer sellable for the chosen car, or marked by the server blocks the way to the Kasse. */
 const blocked = computed(() =>
-    props.lines.some((line) => !line.inStock || (line.verdict !== null && line.verdict !== undefined && !line.verdict.sellable))
+    props.lines.some(
+        (line) =>
+            !line.inStock ||
+            (line.verdict !== null && line.verdict !== undefined && !line.verdict.sellable) ||
+            reasonsOf(line).length > 0
+    )
 )
 
 /** Any line from the demo range: the summary says the order cannot be placed yet. */
@@ -49,6 +84,14 @@ const hasDemo = computed(() => props.lines.some((line) => line.demo !== false))
 
 /** No shipping price has been given yet: fails closed, the figure is left out rather than guessed. */
 const shippingOpen = computed(() => props.totals.shippingConfigured !== true)
+
+/** The sensors, once answered with `ja` at the checkout: in the subtotal, so they are named beside it. */
+const tpmsRow = computed(() => (props.totals.tpms?.choice === 'ja' ? props.totals.tpms : null))
+
+/** The admin's swatch, or the neutral chip where none is set — never a wrong colour. */
+function swatchStyle(hex: string | null): Record<string, string> {
+    return { background: hex ?? 'var(--band)' }
+}
 
 const VERDICT_TONE: Record<string, string> = {
     PERMITTED: 'tag--ok',
@@ -73,6 +116,9 @@ const VERDICT_TONE: Record<string, string> = {
                 </p>
             </div>
 
+            <!-- What the checkout sent the customer back with: read it before the figures. -->
+            <p v-if="orderError" class="cart__alert" role="alert">{{ orderError }}</p>
+
             <div v-if="lines.length > 0" class="cart">
                 <div class="cart__lines">
                     <ul class="bl" aria-label="Artikel im Warenkorb">
@@ -87,7 +133,10 @@ const VERDICT_TONE: Record<string, string> = {
                             </div>
 
                             <div class="bl__main">
-                                <p class="bl__brand">{{ line.brandName }}</p>
+                                <p class="bl__brand">
+                                    {{ line.brandName }}
+                                    <span v-if="line.isSet" class="tag tag--ok bl__set-tag">{{ line.setLabel }}</span>
+                                </p>
                                 <p class="bl__title">
                                     <Link v-if="line.slug" :href="`/felgen/${line.slug}`" class="bl__link">
                                         {{ line.title }}
@@ -96,6 +145,14 @@ const VERDICT_TONE: Record<string, string> = {
                                 </p>
                                 <p class="bl__sub">{{ line.subtitle }}</p>
                                 <p v-if="line.sizeLabel" class="data bl__size">{{ line.sizeLabel }}</p>
+
+                                <!-- The tyre of a Komplettrad, read from the catalogue on every render. -->
+                                <p v-if="line.tyre" class="bl__tyre">
+                                    <span class="bl__tyre-name">{{ line.tyre.brandName }} {{ line.tyre.name }}</span>
+                                    <span class="bl__tyre-meta">
+                                        {{ line.tyre.seasonLabel }} · <span class="data">{{ line.tyre.sizeLabel }}</span>
+                                    </span>
+                                </p>
 
                                 <p v-if="!line.inStock || line.verdict || line.demo !== false" class="bl__flags">
                                     <span v-if="line.demo !== false" class="tag tag--unknown">Beispielsortiment</span>
@@ -121,7 +178,7 @@ const VERDICT_TONE: Record<string, string> = {
 
                                 <!-- Marked, not dropped: say what changed and offer both ways out. -->
                                 <div
-                                    v-if="line.verdict && !line.verdict.sellable"
+                                    v-if="line.verdict && !line.verdict.sellable && reasonsOf(line).length === 0"
                                     class="bl__blocked"
                                     :class="{ 'bl__blocked--unknown': line.verdict.status !== 'NOT_PERMITTED' }"
                                 >
@@ -132,6 +189,75 @@ const VERDICT_TONE: Record<string, string> = {
                                     <p v-else>Für diese Kombination liegt uns kein Gutachten vor.</p>
                                     <Link href="/felgen-suchen" class="bl__blocked-link">Anderes Fahrzeug wählen</Link>
                                 </div>
+
+                                <!-- What the server refused about a Komplettrad, in its own words (R-15). -->
+                                <div v-if="reasonsOf(line).length > 0" class="bl__reasons" role="status">
+                                    <p v-for="reason in reasonsOf(line)" :key="reason" class="bl__reason">{{ reason }}</p>
+                                    <div class="bl__reasons-actions">
+                                        <button class="bl__blocked-link bl__reasons-remove" type="button" @click="basket.remove(line.key)">
+                                            Entfernen
+                                        </button>
+                                        <Link href="/felgen-suchen" class="bl__blocked-link">Anderes Fahrzeug wählen</Link>
+                                    </div>
+                                </div>
+
+                                <!-- The Komplettrad, itemised: every component with its quantity and unit price. -->
+                                <template v-if="line.isSet && line.components && line.components.length > 1">
+                                    <dl class="bl__parts" aria-label="Bestandteile des Komplettrads">
+                                        <div
+                                            v-for="part in line.components"
+                                            :key="part.key"
+                                            class="bl__part"
+                                            :class="{ 'bl__part--open': part.open }"
+                                        >
+                                            <dt class="bl__part-label">{{ part.label }}</dt>
+                                            <dd class="bl__part-unit">
+                                                <span class="tabular">{{ part.quantity }} × {{ part.unitPrice }}</span>
+                                            </dd>
+                                            <dd class="bl__part-total">
+                                                <span v-if="part.lineTotal !== null" class="tabular">{{ part.lineTotal }}</span>
+                                                <span v-else class="bl__part-open">{{ part.unitPrice }}</span>
+                                            </dd>
+                                        </div>
+                                    </dl>
+
+                                    <!-- The colour of the Wuchtgewichte: the whole tile is the control. -->
+                                    <fieldset v-if="line.weightOptions && line.weightOptions.length > 0" class="bl__weights">
+                                        <legend class="bl__weights-title">Wuchtgewichte</legend>
+                                        <p class="bl__weights-hint">
+                                            Die Gewichte sitzen innen an der Felge. Such dir die Farbe aus, die dir besser gefällt.
+                                        </p>
+                                        <div class="opt">
+                                            <label
+                                                v-for="option in line.weightOptions"
+                                                :key="option.id"
+                                                class="opt__tile"
+                                                :class="{ 'opt__tile--on': line.weights?.colourId === option.id }"
+                                            >
+                                                <input
+                                                    class="visually-hidden opt__input"
+                                                    type="radio"
+                                                    :name="`weights-${line.key}`"
+                                                    :value="option.id"
+                                                    :checked="line.weights?.colourId === option.id"
+                                                    @change="chooseColour(line.key, option.id)"
+                                                />
+                                                <span class="opt__swatch" :style="swatchStyle(option.swatchHex)" aria-hidden="true" />
+                                                <span class="opt__name">{{ option.name }}</span>
+                                                <span class="opt__price tabular">
+                                                    {{ option.surcharge
+                                                    }}<span v-if="option.surchargeCents === 0" class="visually-hidden"> ohne Aufpreis</span>
+                                                </span>
+                                                <span class="opt__check" aria-hidden="true">
+                                                    <Icon name="check" :size="20" />
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <p v-if="touched === line.key && errors.colourId" class="field-error bl__weights-error" role="alert">
+                                            {{ errors.colourId }}
+                                        </p>
+                                    </fieldset>
+                                </template>
                             </div>
 
                             <div class="bl__qty">
@@ -157,10 +283,21 @@ const VERDICT_TONE: Record<string, string> = {
                                         <Icon name="plus" :size="20" />
                                     </button>
                                 </div>
-                                <button class="btn btn--quiet bl__remove" type="button" @click="basket.remove(line.key)">
-                                    <Icon name="trash" :size="20" />
-                                    Entfernen
-                                </button>
+                                <div class="bl__actions">
+                                    <button class="btn btn--quiet bl__remove" type="button" @click="basket.remove(line.key)">
+                                        <Icon name="trash" :size="20" />
+                                        Entfernen
+                                    </button>
+                                    <!-- Package integrity: the rims stay, the tyre goes, the price changes visibly. -->
+                                    <button
+                                        v-if="line.isSet"
+                                        class="btn btn--quiet bl__remove-tyre"
+                                        type="button"
+                                        @click="basket.removeTyre(line.key)"
+                                    >
+                                        Reifen entfernen
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="bl__price">
@@ -168,6 +305,8 @@ const VERDICT_TONE: Record<string, string> = {
                                 <p class="bl__unit">
                                     <span class="tabular">{{ line.quantity }} × {{ line.unitPrice }}</span>
                                 </p>
+                                <!-- A component has no price yet: the figure above is the known part, and says so. -->
+                                <p v-if="line.priceOpen" class="bl__open">ohne Montage und Auswuchten – wird noch festgelegt</p>
                             </div>
                         </li>
                     </ul>
@@ -179,6 +318,10 @@ const VERDICT_TONE: Record<string, string> = {
                     <h2 id="cart-sum" class="t-h3">Deine Bestellung</h2>
 
                     <dl class="sum">
+                        <div v-if="tpmsRow" class="sum__row sum__row--item">
+                            <dt>RDKS-Sensoren ({{ tpmsRow.line }})</dt>
+                            <dd class="tabular">{{ tpmsRow.total }}</dd>
+                        </div>
                         <div class="sum__row">
                             <dt>Zwischensumme</dt>
                             <dd class="tabular">{{ totals.subtotal }}</dd>
@@ -246,6 +389,15 @@ const VERDICT_TONE: Record<string, string> = {
     color: var(--ink2);
 }
 
+/* Why the checkout sent the customer back: readable, not an error colour. */
+.cart__alert {
+    margin-bottom: var(--space-5);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--border-strong);
+    background: var(--band);
+    color: var(--ink);
+}
+
 .cart {
     display: grid;
     gap: var(--space-6);
@@ -299,6 +451,10 @@ const VERDICT_TONE: Record<string, string> = {
 }
 
 .bl__brand {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
     font-size: var(--text-small);
     font-weight: 700;
     color: var(--ink2);
@@ -331,6 +487,21 @@ const VERDICT_TONE: Record<string, string> = {
     margin-top: var(--space-1);
 }
 
+.bl__tyre {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+}
+
+.bl__tyre-name {
+    font-weight: 700;
+}
+
+.bl__tyre-meta {
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
 .bl__flags {
     display: flex;
     flex-wrap: wrap;
@@ -346,6 +517,159 @@ const VERDICT_TONE: Record<string, string> = {
     color: var(--ink);
     max-width: 60ch;
 }
+
+/* ── Komplettrad: components ──────────────────────────────────────────────── */
+
+.bl__parts {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3) 0 0;
+    border-top: 1px solid var(--line-s);
+}
+
+.bl__part {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        'label total'
+        'unit  unit';
+    gap: 0 var(--space-3);
+    align-items: baseline;
+    font-size: var(--text-small);
+}
+
+.bl__part-label {
+    grid-area: label;
+    color: var(--ink);
+}
+
+.bl__part-unit {
+    grid-area: unit;
+    margin: 0;
+    color: var(--ink2);
+}
+
+.bl__part-total {
+    grid-area: total;
+    margin: 0;
+    font-family: var(--mono);
+    font-weight: 500;
+    text-align: right;
+}
+
+.bl__part--open .bl__part-label,
+.bl__part--open .bl__part-unit {
+    color: var(--ink3);
+}
+
+.bl__part-open {
+    font-family: var(--sans);
+    font-weight: 500;
+    color: var(--ink3);
+}
+
+/* ── Komplettrad: the Wuchtgewichte tiles ─────────────────────────────────── */
+
+.bl__weights {
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+
+.bl__weights-title {
+    padding: 0;
+    font-weight: 700;
+}
+
+.bl__weights-hint {
+    margin-top: var(--space-1);
+    font-size: var(--text-small);
+    color: var(--ink2);
+    max-width: 60ch;
+}
+
+.bl__weights-error {
+    display: block;
+    margin-top: var(--space-2);
+}
+
+.opt {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+/* The whole tile is the control; the radio stays for the keyboard and the screen reader. */
+.opt__tile {
+    position: relative;
+    display: grid;
+    gap: var(--space-1);
+    min-height: 64px;
+    padding: var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    cursor: pointer;
+    transition:
+        border-color var(--duration-instant) var(--ease-standard),
+        background-color var(--duration-instant) var(--ease-standard);
+}
+
+.opt__tile--on {
+    padding: calc(var(--space-3) - 1px);
+    border: 2px solid var(--blue);
+    background: var(--wash);
+}
+
+.opt__tile:focus-within {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .opt__tile:hover {
+        border-color: var(--border-strong);
+    }
+
+    .opt__tile--on:hover {
+        border-color: var(--blue);
+    }
+}
+
+.opt__swatch {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-round);
+}
+
+.opt__name {
+    font-size: var(--text-small);
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.opt__price {
+    font-size: var(--text-small);
+    color: var(--ink3);
+}
+
+.opt__check {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    display: none;
+    color: var(--blue);
+}
+
+.opt__tile--on .opt__check {
+    display: inline-flex;
+}
+
+/* ── Quantity, actions, price ─────────────────────────────────────────────── */
 
 .bl__qty {
     grid-area: qty;
@@ -393,13 +717,22 @@ const VERDICT_TONE: Record<string, string> = {
     text-align: center;
 }
 
-.bl__remove {
+.bl__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.bl__remove,
+.bl__remove-tyre {
     color: var(--ink2);
 }
 
 .bl__price {
     grid-area: price;
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-3);
@@ -417,6 +750,13 @@ const VERDICT_TONE: Record<string, string> = {
     font-size: var(--text-small);
     color: var(--ink2);
     order: 1;
+}
+
+.bl__open {
+    flex: 1 1 100%;
+    order: 3;
+    font-size: var(--text-small);
+    color: var(--ink3);
 }
 
 .cart__legal {
@@ -458,6 +798,10 @@ const VERDICT_TONE: Record<string, string> = {
     color: var(--ink2);
 }
 
+.sum__row--item dt {
+    font-size: var(--text-small);
+}
+
 .cart__demo {
     margin-top: var(--space-4);
     font-size: var(--text-small);
@@ -479,6 +823,39 @@ const VERDICT_TONE: Record<string, string> = {
     align-items: center;
     min-height: 44px;
     font-weight: 700;
+}
+
+/* What the server refused about a Komplettrad: a strip on the row, with both ways out. */
+.bl__reasons {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--danger-w);
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+}
+
+.bl__reason {
+    font-weight: 700;
+    max-width: 60ch;
+}
+
+.bl__reason + .bl__reason {
+    margin-top: var(--space-1);
+}
+
+.bl__reasons-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    margin-top: var(--space-1);
+}
+
+.bl__reasons-remove {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: var(--blue);
+    cursor: pointer;
 }
 
 .cart__stop {
@@ -524,6 +901,11 @@ const VERDICT_TONE: Record<string, string> = {
         gap: var(--space-2);
     }
 
+    .bl__actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .bl__price {
         display: block;
         padding-top: 0;
@@ -533,6 +915,10 @@ const VERDICT_TONE: Record<string, string> = {
 
     .bl__unit {
         margin-top: var(--space-1);
+    }
+
+    .bl__open {
+        margin-top: var(--space-2);
     }
 }
 

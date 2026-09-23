@@ -190,20 +190,75 @@ export interface FacetOption {
 
 export type Facets = Record<string, FacetOption[]>
 
+/** The tyre a Komplettrad line carries, re-read from the catalogue on every render (§4.7). */
+export interface BasketTyre {
+    id: number
+    brandName: string
+    name: string
+    season: 'sommer' | 'winter' | 'ganzjahres'
+    /** `Sommerreifen` */
+    seasonLabel: string
+    /** `245/45 R18 100Y` */
+    sizeLabel: string
+    unitPriceCents: number
+    unitPrice: string
+    /** Enough of this tyre for the line's quantity. */
+    inStock: boolean
+    /** Shipped only when the tyre carries a verified EPREL id (ACCURACY D7). */
+    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
+}
+
+/** The Wuchtgewichte colour on a Komplettrad line: per wheel, surcharge 0 unless the admin set one. */
+export interface BasketWeights {
+    colourId: number
+    name: string
+    swatchHex: string | null
+    surchargeCents: number
+    surcharge: string
+}
+
+/** One tile of the colour choice — every active colour, in the admin's order. */
+export interface BasketWeightOption {
+    id: number
+    name: string
+    swatchHex: string | null
+    surchargeCents: number
+    surcharge: string
+    isDefault: boolean
+}
+
+/**
+ * One row of a Komplettrad's price: `Felge`, `Reifen`, `Montage und Auswuchten`, `Wuchtgewichte`.
+ * An unpriced component reads `wird noch festgelegt`, has no line total and is `open`.
+ */
+export interface BasketComponent {
+    key: string
+    label: string
+    quantity: number
+    unitPrice: string
+    lineTotal: string | null
+    open: boolean
+}
+
 export interface BasketLine {
     key: string
     /** Only wheels: Felgen alone, or a Komplettrad that carries its tyre (ACCURACY D6). */
     kind: 'WHEEL'
+    wheelConfigId?: number
     title: string
     subtitle: string
     brandName: string
     sizeLabel?: string
     art: { kind: 'wheel' | 'tyre'; finish?: string; spokes?: number; label?: string }
     quantity: number
+    /** Per wheel: the rim, or for a Komplettrad the KNOWN components summed (§4.7). */
+    unitPriceCents?: number
     unitPrice: string
     lineTotal: string
     lineTotalCents: number
     inStock: boolean
+    /** A seeded demonstration row on the line — the wheel model or, for a Komplettrad, its tyre. */
+    demo?: boolean
     slug?: string
     /**
      * Re-computed on every render, never trusted from the session: a document may have been
@@ -217,6 +272,46 @@ export interface BasketLine {
         requiresEntry: boolean
         conditions: string[]
     } | null
+    /* docs/specs/komplettrad.md §4.7 — a Komplettrad is a wheel line that carries its tyre. */
+    isSet?: boolean
+    setLabel?: 'Felge' | 'Komplettrad'
+    /** Null on a Felgen-only line, and on a Komplettrad whose tyre has gone (then `blockReasons` says so). */
+    tyre?: BasketTyre | null
+    /** Null until a colour is chosen or while the chosen one has gone; the line is then marked. */
+    weights?: BasketWeights | null
+    weightOptions?: BasketWeightOption[]
+    /** Null on a Felgen-only line; `configured: false` reads `wird noch festgelegt` (D-032). */
+    mounting?: { configured: boolean; unitPriceCents: number | null; unitPrice: string } | null
+    components?: BasketComponent[]
+    /** A component of this line has no price yet: the totals leave it out and the order is refused. */
+    priceOpen?: boolean
+    /** Full German sentences, never codes; empty when nothing is wrong (R-15). */
+    blockReasons?: string[]
+}
+
+/**
+ * The RDKS block of the totals (docs/specs/komplettrad.md §4.8). Recomputed from the CURRENT
+ * vehicle's make on every render; `choice` is null whenever the stored answer was given for another
+ * make. Every figure arrives formatted: the page prints `line` and `total` and never multiplies.
+ */
+export interface BasketTpms {
+    /** At least one Komplettrad line — the question is asked only then (D-034). */
+    applicable: boolean
+    /** Komplettrad wheels in the basket, which is how many sensors `ja` means. */
+    quantity: number
+    /** An active price exists for the current vehicle's make. */
+    available: boolean
+    makeLabel: string | null
+    unitPriceCents: number | null
+    unitPrice: string | null
+    /** `4 × 49,00 €` */
+    line: string | null
+    choice: 'ja' | 'nein' | null
+    /** 0 unless `choice === 'ja'`. */
+    totalCents: number
+    total: string
+    /** The fail-closed sentence while `available` is false. */
+    notice: string | null
 }
 
 export interface BasketTotals {
@@ -232,4 +327,8 @@ export interface BasketTotals {
     total: string
     totalCents: number
     count: number
+    /** False while `rimify.komplettrad.mounting_per_wheel_cents` is unset: no Komplettrad can be ordered (D-032). */
+    mountingConfigured?: boolean
+    /** The RDKS question and its answer; absent only from fixtures written before §4.8. */
+    tpms?: BasketTpms
 }
