@@ -292,6 +292,12 @@ export interface ProduktConfig {
     weightG: number | null
     /** Null when no vehicle is chosen. Price, stock and verdict travel together, by design. */
     verdict: ConfigVerdict | null
+    /**
+     * The Komplettrad offer for this configuration, decided and priced on the server, travelling
+     * with the price and the verdict so a size change swaps all of them in one commit. Absent only
+     * in fixtures written before it existed; the server always sends it.
+     */
+    komplettrad?: KomplettradOfferProp | null
 }
 
 export interface ConfigVerdict {
@@ -306,6 +312,82 @@ export interface ConfigVerdict {
     reasonCode: string | null
     document: { number: string | null; issuer: string | null; kind: string } | null
     tyreSizes: string[]
+    /* docs/specs/komplettrad.md §3.4 — the tyre side of the verdict, additive and optional. */
+    /** `245/45 R18` per axle; `tyreSizes` above stays the front list. */
+    tyreSizesFront?: string[]
+    tyreSizesRear?: string[]
+    tyreLayout?: 'SAME' | 'MIXED'
+    /** The stricter axle's minimum; null while the engine could not derive one (R-03). */
+    minLoadIndex?: number | null
+    minSpeedSymbol?: string | null
+    /** Which side of R-06 governed — combined, and per half, because a document may state only one. */
+    minSource?: 'DOCUMENT' | 'DERIVED'
+    minLoadSource?: 'DOCUMENT' | 'DERIVED'
+    minSpeedSource?: 'DOCUMENT' | 'DERIVED'
+    /** `Für dein Fahrzeug brauchen die Reifen mindestens …` — a full sentence, never a bare number pair. */
+    minSentence?: string | null
+}
+
+/**
+ * Why no Komplettrad is offered: the engine's thirteen cases (`KomplettradRefusal`) plus the one
+ * arm the storefront raises itself when no active Wuchtgewichte colour exists. The code picks the
+ * route forward; the customer only ever reads the sentence beside it (R-15).
+ */
+export type KomplettradRefusalCode =
+    | 'NO_VEHICLE'
+    | 'VERDICT_NOT_PERMITTED'
+    | 'VERDICT_UNKNOWN'
+    | 'VERDICT_RESTORED'
+    | 'NO_PERMITTED_SIZES'
+    | 'NO_USABLE_MINIMUM'
+    | 'STAGGERED_LAYOUT'
+    | 'TYRE_CHOICE_RESTRICTED'
+    | 'DIAMETER_MISMATCH'
+    | 'SIZE_NOT_PERMITTED'
+    | 'BELOW_MINIMUM'
+    | 'OUT_OF_STOCK'
+    | 'NO_TYRE_AVAILABLE'
+    | 'NO_WEIGHT_COLOUR'
+
+/** One tyre the verdict permits on the chosen configuration, priced per wheel on the server. */
+export interface KomplettradTyreProp {
+    id: number
+    brandName: string
+    name: string
+    season: 'sommer' | 'winter' | 'ganzjahres'
+    /** `Sommerreifen` */
+    seasonLabel: string
+    /** `245/45 R18 100Y` */
+    sizeLabel: string
+    stockQty: number
+    /** The tyre alone, per tyre. */
+    tyrePriceCents: number
+    tyrePrice: string
+    /** Rim + tyre + mounting + weights for ONE wheel: the known components, an unpriced one left out. */
+    perWheelCents: number
+    perWheel: string
+    /** `perWheel` × 4, formatted on the server (R-10); the page never multiplies cents. */
+    forFourCents: number
+    forFour: string
+    /** The EU label, only where the tyre carries a verified EPREL id (ACCURACY D7). */
+    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
+    isDemo: boolean
+}
+
+/**
+ * The Komplettrad offer for one configuration (docs/specs/komplettrad.md §4.11). Either `tyres`
+ * is non-empty or `refusal` carries the one German sentence saying why — never both empty, so no
+ * surface can render an empty panel.
+ */
+export interface KomplettradOfferProp {
+    refusal: string | null
+    refusalCode: KomplettradRefusalCode | null
+    minSentence: string | null
+    /** A component of the price is not configured yet: the figure is the known sum and the page says so. */
+    priceOpen: boolean
+    /** What one click adds — a set. */
+    quantity: number
+    tyres: KomplettradTyreProp[]
 }
 
 /** One column of `/vergleich`: the card plus the figures the table lines up (home-overhaul.md §2.6). */
@@ -462,4 +544,47 @@ export interface AdminRollenProps {
         label: string
         actions: { action: string; label: string; roles: Record<number, boolean> }[]
     }[]
+}
+
+/**
+ * Wuchtgewichte-Farben (docs/specs/komplettrad.md §6.5). Prices arrive formatted by GermanFormat
+ * beside their raw cents: the table prints the string, the form edits it, and nothing on the page
+ * multiplies cents.
+ */
+export interface AdminWuchtgewichteProps {
+    colours: {
+        id: number
+        nameDe: string
+        /** Derived from the name on the server; never posted. */
+        slug: string
+        /** `#C8CCD2`, or null — then a neutral chip is drawn rather than a wrong colour. */
+        swatchHex: string | null
+        /** Per wheel, never per set. */
+        surchargeCents: number
+        /** `2,50 €` */
+        surcharge: string
+        isDefault: boolean
+        active: boolean
+        sortOrder: number
+    }[]
+    /** What the page may offer. The server refuses regardless (R-11); this only hides. */
+    can: { create: boolean; update: boolean; delete: boolean }
+}
+
+/** RDKS-Sensorpreise je Marke (docs/specs/komplettrad.md §6.5): one price per car make, per sensor. */
+export interface AdminRdksProps {
+    prices: {
+        id: number
+        /** `volkswagen` — MakeName::key(), the only key a per-make price may use. */
+        makeKey: string
+        /** `Volkswagen` — what a human reads. */
+        makeLabelDe: string
+        priceCents: number
+        /** `49,00 €` */
+        price: string
+        active: boolean
+    }[]
+    /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
+    makes: string[]
+    can: { create: boolean; update: boolean; delete: boolean }
 }

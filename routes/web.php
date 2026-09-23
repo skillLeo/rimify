@@ -6,7 +6,9 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
 use App\Http\Controllers\Api\SearchController;
@@ -65,7 +67,12 @@ Route::get('/warenkorb', [WarenkorbController::class, 'index'])->name('warenkorb
 Route::post('/warenkorb', [WarenkorbController::class, 'store'])->name('warenkorb.store');
 Route::patch('/warenkorb/{line}', [WarenkorbController::class, 'update'])->name('warenkorb.update');
 Route::delete('/warenkorb/{line}', [WarenkorbController::class, 'destroy'])->name('warenkorb.destroy');
+// A Komplettrad line: its Wuchtgewichte colour, and the way back to Felgen only (docs/specs/komplettrad.md §4.10).
+Route::patch('/warenkorb/{line}/gewichte', [WarenkorbController::class, 'weights'])->name('warenkorb.gewichte');
+Route::delete('/warenkorb/{line}/reifen', [WarenkorbController::class, 'destroyTyre'])->name('warenkorb.reifen.destroy');
 Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
+// The RDKS answer (§5.3): the server stores it with the quote and re-renders the totals itself.
+Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:30,1')->name('kasse.rdks');
 // Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
 Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:10,1')->name('kasse.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
@@ -123,5 +130,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/gutachten', [GutachtenController::class, 'index'])->name('gutachten.index');
         Route::get('/rollen', [RollenController::class, 'index'])->name('rollen.index');
         Route::get('/benachrichtigungen', [BenachrichtigungenController::class, 'index'])->name('benachrichtigungen.index');
+
+        // Komplettrad options (docs/specs/komplettrad.md §6.2). Every write is authorised by a
+        // Policy on the server; the page only hides what a role may not do (R-11).
+        Route::get('/wuchtgewichte', [WuchtgewichteController::class, 'index'])->name('wuchtgewichte.index');
+        Route::post('/wuchtgewichte', [WuchtgewichteController::class, 'store'])->name('wuchtgewichte.store');
+        Route::patch('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'update'])->name('wuchtgewichte.update');
+        Route::delete('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'destroy'])->name('wuchtgewichte.destroy');
+
+        Route::get('/rdks-preise', [RdksPreiseController::class, 'index'])->name('rdks.index');
+        Route::post('/rdks-preise', [RdksPreiseController::class, 'store'])->name('rdks.store');
+        Route::patch('/rdks-preise/{price}', [RdksPreiseController::class, 'update'])->name('rdks.update');
+        Route::delete('/rdks-preise/{price}', [RdksPreiseController::class, 'destroy'])->name('rdks.destroy');
     });
 });

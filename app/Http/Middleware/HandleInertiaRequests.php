@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\PermissionAction;
+use App\Enums\PermissionModule;
+use App\Models\AdminUser;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -54,6 +58,32 @@ class HandleInertiaRequests extends Middleware
              * Null on every ordinary request, so it costs nothing to carry.
              */
             'lookup' => $request->session()->get('lookup'),
+            ...$this->admin($request),
         ];
+    }
+
+    /**
+     * Which modules the signed-in admin may see, for the rail — and only on `admin.*` routes, so no
+     * admin module name ever reaches a storefront page (RoutesRenderTest). Presentation only: an
+     * item the rail leaves out is a route the server refuses regardless (R-11).
+     *
+     * @return array{admin?: array{can: array<string, bool>}}
+     */
+    private function admin(Request $request): array
+    {
+        $routeName = Route::currentRouteName();
+
+        if (! is_string($routeName) || ! str_starts_with($routeName, 'admin.')) {
+            return [];
+        }
+
+        $user = $request->user('admin');
+        $can = [];
+
+        foreach (PermissionModule::cases() as $module) {
+            $can[$module->value] = $user instanceof AdminUser && $user->may($module, PermissionAction::View);
+        }
+
+        return ['admin' => ['can' => $can]];
     }
 }

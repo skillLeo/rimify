@@ -11,8 +11,9 @@
  */
 
 import { Link } from '@inertiajs/vue3'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Components/Art/Icon.vue'
+import Toast from '../Components/Chrome/Toast.vue'
 import type { IconName } from '../art'
 import { useShared } from '../composables/useShared'
 
@@ -26,16 +27,44 @@ interface RailItem {
     href: string
     routeName: string
     icon: IconName
+    /** The permission module that has to be viewable, or null for an item every signed-in admin gets. */
+    module: string | null
 }
 
-// The rail as V1 can honestly render it: the three admin screens that exist. It is filtered by
-// permission from the server in V3 rather than grown into a list of dead links now.
+// Every admin screen that exists, each behind the module the server shares as `admin.can`
+// (HandleInertiaRequests, admin routes only). An item whose module is not allowed is not rendered.
 const rail: RailItem[] = [
-    { label: 'Dashboard', href: '/admin', routeName: 'admin.dashboard', icon: 'grid' },
-    { label: 'Gutachten', href: '/admin/gutachten', routeName: 'admin.gutachten.index', icon: 'document' },
-    { label: 'Rollen & Rechte', href: '/admin/rollen', routeName: 'admin.rollen.index', icon: 'lock' },
-    { label: 'Benachrichtigungen', href: '/admin/benachrichtigungen', routeName: 'admin.benachrichtigungen.index', icon: 'mail' },
+    { label: 'Dashboard', href: '/admin', routeName: 'admin.dashboard', icon: 'grid', module: null },
+    { label: 'Gutachten', href: '/admin/gutachten', routeName: 'admin.gutachten.index', icon: 'document', module: 'approvals' },
+    { label: 'Wuchtgewichte-Farben', href: '/admin/wuchtgewichte', routeName: 'admin.wuchtgewichte.index', icon: 'box', module: 'catalogue' },
+    { label: 'RDKS-Sensorpreise', href: '/admin/rdks-preise', routeName: 'admin.rdks.index', icon: 'settings', module: 'catalogue' },
+    { label: 'Rollen & Rechte', href: '/admin/rollen', routeName: 'admin.rollen.index', icon: 'lock', module: 'roles' },
+    { label: 'Benachrichtigungen', href: '/admin/benachrichtigungen', routeName: 'admin.benachrichtigungen.index', icon: 'mail', module: 'approvals' },
 ]
+
+/** `admin.can` as the server shares it. Anything else — absent, malformed — reads as nothing allowed. */
+function canFrom(admin: unknown): Record<string, boolean> {
+    if (admin === null || typeof admin !== 'object') {
+        return {}
+    }
+
+    const can = (admin as { can?: unknown }).can
+
+    if (can === null || typeof can !== 'object') {
+        return {}
+    }
+
+    const out: Record<string, boolean> = {}
+
+    for (const [module, allowed] of Object.entries(can as Record<string, unknown>)) {
+        out[module] = allowed === true
+    }
+
+    return out
+}
+
+const can = computed(() => canFrom(shared.value.admin))
+const items = computed(() => rail.filter((item) => item.module === null || can.value[item.module] === true))
 
 function toggleTheme(): void {
     theme.value = theme.value === 'dark' ? 'light' : 'dark'
@@ -79,7 +108,7 @@ onBeforeUnmount(() => {
             <Link href="/admin" class="wordmark adm__mark">RIMIFY</Link>
 
             <Link
-                v-for="item in rail"
+                v-for="item in items"
                 :key="item.routeName"
                 :href="item.href"
                 class="adm__link"
@@ -104,6 +133,9 @@ onBeforeUnmount(() => {
 
             <slot />
         </main>
+
+        <!-- The confirmation a mutation flashed (`flash.toast`), announced once per response. -->
+        <Toast />
     </div>
 </template>
 
