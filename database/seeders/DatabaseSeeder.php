@@ -40,6 +40,9 @@ class DatabaseSeeder extends Seeder
 
         if (app()->environment(['local', 'testing'])) {
             $this->call(CommerceSeeder::class);
+            // Two Wuchtgewicht colours and no RDKS price, so the local Komplettrad flow can be
+            // walked and the fail-closed checkout can be seen (docs/specs/komplettrad.md D-037).
+            $this->call(KomplettradOptionsSeeder::class);
         }
 
         $this->call([
