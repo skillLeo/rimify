@@ -28,27 +28,41 @@ use Throwable;
  *      vehicle all survive a dead link;
  *   2. the standalone Blade page, which carries its own styles and needs neither the built bundle
  *      nor the database — this is what a release window and a failed boot get;
- *   3. Laravel's own page, for a status this application never designed an answer for, because
- *      inventing a reassuring sentence for a failure we do not understand is precisely the
- *      confidently wrong answer CLAUDE.md §2 forbids.
+ *   3. the same Inertia page with the copy that admits it does not know, for a status this shop
+ *      never wrote sentences for. It names the code, says plainly that it will not guess at what is
+ *      behind it — inventing a reassuring sentence for a failure we do not understand is precisely
+ *      the confidently wrong answer CLAUDE.md §2 forbids — and still offers three ways on.
  */
 final readonly class ErrorPage
 {
     /**
-     * The statuses with a designed answer. Anything else keeps Laravel's own page.
+     * The statuses this shop has sentences of its own for.
+     *
+     * Every other failure is answered too — by the page that says, in German, that it does not know
+     * what happened. It is not a list of what is answered; it is a list of what is answered
+     * SPECIFICALLY.
      *
      * @var list<int>
      */
-    public const HANDLED = [403, 404, 419, 429, 500, 503];
+    public const DESIGNED = [403, 404, 419, 429, 500, 503];
 
     public function __construct(
         private DeviceDetector $devices,
         private HandleInertiaRequests $inertia,
     ) {}
 
+    /**
+     * Every failure a browser can be shown.
+     *
+     * The list above used to be the whole of it, and a status outside it — a 405, a 410, a 502 —
+     * fell through to Symfony's own page: "Oops! An Error Occurred … We will fix it as soon as
+     * possible", in English, on a German shop, with not one way forward on it and a promise nobody
+     * here can keep. Saying "wir wissen es nicht" is allowed (CLAUDE.md §2); a dead end is not
+     * (R-09), and neither is English.
+     */
     public function handles(int $status): bool
     {
-        return in_array($status, self::HANDLED, true);
+        return $status >= 400 && $status < 600;
     }
 
     public function render(Request $request, Response $original): Response

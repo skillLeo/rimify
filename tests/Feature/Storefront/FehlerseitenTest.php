@@ -167,12 +167,58 @@ it('reads the contact address from configuration and never from a literal', func
     expect(view('errors.503')->render())->toContain('wf3@example.test');
 });
 
-it('keeps Laravel\'s own page for a status the shop never designed an answer for', function (): void {
-    // Borrowing a reassuring sentence from a failure this is not would be a confident wrong
-    // answer, and that is the one thing RIMIFY may never give (CLAUDE.md §2).
-    $html = (string) $this->get(wf3Route('/__fehler/418', 418))->assertStatus(418)->getContent();
+/*
+ * A status the shop wrote no sentences for used to fall through to Symfony's own page: "Oops! An
+ * Error Occurred … We will fix it as soon as possible", in English, on a German-only shop, with no
+ * way forward on it at all and a promise nobody here can keep. The designed page answers instead —
+ * it names the code, says it will not guess at what is behind it, and still offers three routes.
+ */
+it('answers a status it was never designed for, rather than handing over an English dead end', function (int $status): void {
+    $this->get(wf3Route('/__fehler/'.$status, $status), ['Accept' => 'text/html'])
+        ->assertStatus($status)
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->component('Fehler/Index')
+                ->where('status', $status)
+        );
+})->with([405, 410, 418, 502]);
 
-    expect($html)->not->toContain('Fehler/Index');
+it('never shows the framework page, in English, to a customer', function (): void {
+    $html = (string) $this->get(wf3Route('/__fehler/englisch', 410))->assertStatus(410)->getContent();
+
+    expect($html)
+        ->not->toContain('Oops! An Error Occurred')
+        ->not->toContain('We will fix it as soon as possible');
+});
+
+/*
+ * The one page that has to hold its nerve was arriving without its stylesheet.
+ *
+ * `style-src` is `'self' 'nonce-…'` with no `'unsafe-inline'`, so the browser refused the <style>
+ * this page carries and drew it in Times New Roman with a black cartwheel across the screen. The
+ * nonce is what makes the designed page reach the customer.
+ */
+it('lets the browser apply the stylesheet the standalone page ships with', function (): void {
+    $response = $this->get(wf3Route('/__fehler/nonce', 503))->assertStatus(503);
+
+    $policy = (string) $response->headers->get('Content-Security-Policy');
+
+    expect($policy)->toContain("style-src 'self' 'nonce-");
+
+    preg_match("/style-src 'self' 'nonce-([^']+)'/", $policy, $found);
+
+    expect((string) $response->getContent())->toContain('<style nonce="'.($found[1] ?? 'keine').'"');
+});
+
+it('sets the standalone pages in the shop\'s own typeface', function (): void {
+    // /fonts is a plain directory under the document root: the build never writes it and never
+    // renames it, so naming the file breaks no rule this page lives by. Without it the maintenance
+    // page is Arial while every other page of the shop is Archivo.
+    foreach (['errors.503', 'errors.500'] as $view) {
+        expect(view($view)->render())
+            ->toContain("src: url('/fonts/archivo-latin-wdth.woff2') format('woff2-variations')")
+            ->toContain('Archivo Variable');
+    }
 });
 
 it('answers an API request with JSON, never with a page', function (): void {

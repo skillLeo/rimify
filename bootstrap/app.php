@@ -53,12 +53,11 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         /*
-         * Every failure state the shop has a designed answer for is built in one place —
-         * App\Services\Storefront\ErrorPage — which decides between the Inertia page inside the
-         * storefront frame and the standalone Blade page that needs neither the built bundle nor
-         * the database. A status this application never designed an answer for keeps Laravel's
-         * own page: a reassuring sentence about a failure we do not understand would be exactly
-         * the confidently wrong answer CLAUDE.md §2 forbids.
+         * Every failure state is built in one place — App\Services\Storefront\ErrorPage — which
+         * decides between the Inertia page inside the storefront frame and the standalone Blade
+         * page that needs neither the built bundle nor the database. A status the shop wrote no
+         * sentences for is answered by the page that says so: German, three ways forward, and no
+         * guess at what went wrong, rather than Symfony's English "Oops! An Error Occurred".
          */
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {

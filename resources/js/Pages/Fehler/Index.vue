@@ -114,7 +114,13 @@ const ask = (tone: Tone): Route => ({
     plain: contact.value !== null,
 })
 
-/** Only ever the figure the server named, phrased as a wait and never as a promise. */
+/**
+ * Only ever the figure the server named, phrased as a wait and never as a promise.
+ *
+ * Declined, because the commonest wait of all is the one the throttler names: `throttle:60,1` sends
+ * `Retry-After: 60`, and "In etwa 1 Minuten kannst du es noch einmal versuchen" is the sentence a
+ * German customer would then have read.
+ */
 const wait = computed<string | null>(() => {
     const seconds = props.retryAfter
 
@@ -122,7 +128,13 @@ const wait = computed<string | null>(() => {
         return null
     }
 
-    return seconds < 60 ? `${seconds} Sekunden` : `${Math.ceil(seconds / 60)} Minuten`
+    if (seconds < 60) {
+        return seconds === 1 ? 'einer Sekunde' : `${seconds} Sekunden`
+    }
+
+    const minutes = Math.ceil(seconds / 60)
+
+    return minutes === 1 ? 'einer Minute' : `${minutes} Minuten`
 })
 
 const view = computed<View>(() => {

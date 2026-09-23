@@ -149,6 +149,17 @@ it('falls back to the Kontakt page rather than dropping the third route', () => 
     expect(wrapper.find('.err__note').exists()).toBe(false)
 })
 
+it('declines the wait, so the commonest 429 of all reads as German', () => {
+    // `throttle:60,1` — the shop's own vehicle-lookup limit — answers with `Retry-After: 60`, and
+    // the page said "In etwa 1 Minuten kannst du es noch einmal versuchen."
+    expect(page(429, { retryAfter: 60 }).text()).toContain('einer Minute')
+    expect(page(429, { retryAfter: 60 }).text()).not.toContain('1 Minuten')
+    expect(page(429, { retryAfter: 1 }).text()).toContain('einer Sekunde')
+    expect(page(429, { retryAfter: 1 }).text()).not.toContain('1 Sekunden')
+    // And everything above one keeps its numeral.
+    expect(page(429, { retryAfter: 120 }).text()).toContain('2 Minuten')
+})
+
 it('names the wait the server named, and otherwise names none at all', () => {
     expect(page(429, { retryAfter: 45 }).text()).toContain('45 Sekunden')
     expect(page(429, { retryAfter: 90 }).text()).toContain('2 Minuten')

@@ -13,10 +13,19 @@
      *
      * Three ways on, like every other failure state (R-09): try this page again, go to the shop,
      * write to us. Two of the three are plain links, so they work with no JavaScript at all.
+     *
+     * The stylesheet carries the CSP nonce. `style-src` is `'self' 'nonce-…'` with no
+     * `'unsafe-inline'` (SecurityHeaders), so without it the browser refuses this <style> outright
+     * and the page arrives as unstyled Times New Roman with a black cartwheel — the one page that
+     * has to hold its nerve, looking like a crash. `Vite::cspNonce()` only reads back what
+     * SecurityHeaders generated; it never touches the manifest, so the page still needs no build.
+     * When there is no nonce — `php artisan down` pre-renders this view from the console, and that
+     * static file is served before any middleware runs — there is no CSP either, and no attribute.
      */
     $contact = $contact ?? \App\Services\Storefront\Chrome::contact();
     $status = $status ?? 503;
     $detail = $detail ?? null;
+    $nonce = \Illuminate\Support\Facades\Vite::cspNonce();
 
     $mailto = 'mailto:'.$contact['email']
         .'?subject='.rawurlencode('RIMIFY ist nicht erreichbar ('.$status.')')
@@ -30,7 +39,38 @@
     <meta name="theme-color" content="#0b0f14">
     <meta name="robots" content="noindex">
     <title>{{ $title }} · RIMIFY</title>
-    <style>
+    <style{!! $nonce === null ? '' : ' nonce="'.e($nonce).'"' !!}>
+        /*
+         * The shop's own typeface, from /fonts — a plain directory under the document root that the
+         * build never writes and never renames, so naming it breaks no rule this page lives by. If
+         * the file cannot be fetched (a half-copied deploy), `font-display: swap` leaves the Arial
+         * below it standing, which is exactly where this page was before.
+         */
+        @font-face {
+            font-family: 'Archivo Variable';
+            font-style: normal;
+            font-display: swap;
+            font-weight: 100 900;
+            font-stretch: 62% 125%;
+            src: url('/fonts/archivo-latin-wdth.woff2') format('woff2-variations');
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+                U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+                U+FEFF, U+FFFD;
+        }
+
+        /* latin-ext carries the Š of Škoda, which is a make in the vehicle table. */
+        @font-face {
+            font-family: 'Archivo Variable';
+            font-style: normal;
+            font-display: swap;
+            font-weight: 100 900;
+            font-stretch: 62% 125%;
+            src: url('/fonts/archivo-latin-ext-wdth.woff2') format('woff2-variations');
+            unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+                U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+                U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        }
+
         :root {
             color-scheme: light;
             --c-ink: #0b0f14;
@@ -256,9 +296,11 @@
             </p>
         </div>
 
-        {{-- The shop's own drawn wheel, quietly: a designed page, not a stack of text. --}}
+        {{-- The shop's own drawn wheel, quietly: a designed page, not a stack of text. The size is
+             on the element as well as in the stylesheet, so that a refused stylesheet leaves a
+             small mark rather than a wheel the height of the screen. --}}
         <div class="mark" aria-hidden="true">
-            <svg viewBox="0 0 160 160" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 160 160" width="156" height="156" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="80" cy="80" r="72"/>
                 <circle cx="80" cy="80" r="58"/>
                 <circle cx="80" cy="80" r="17"/>
