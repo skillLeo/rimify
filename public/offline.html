@@ -65,21 +65,47 @@
             color: var(--c-ink-2);
         }
 
+        /* Three ways on, like every other failure state (R-09) — and all three are plain links,
+           so the page needs no JavaScript to work. An empty href is the current document. */
+        .routes {
+            display: grid;
+            gap: var(--sp-8);
+            margin-top: var(--sp-8);
+        }
+
+        @media (min-width: 560px) {
+            .routes {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             min-height: 44px;
-            margin-top: var(--sp-8);
-            padding: 0 var(--sp-24);
-            border: 0;
+            padding: 0 var(--sp-20);
+            border: 1px solid transparent;
             border-radius: var(--r-control);
             background: var(--c-blue);
             color: var(--c-surface);
             font: inherit;
             font-weight: 600;
-            cursor: pointer;
-            justify-self: start;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .btn--secondary {
+            background: var(--c-surface);
+            border-color: var(--c-line);
+            color: var(--c-ink);
+        }
+
+        .btn--ghost {
+            background: transparent;
+            color: var(--c-blue);
         }
 
         .btn:focus-visible {
@@ -91,7 +117,11 @@
 <body>
     <span class="brand">RIMIFY</span>
     <h1>Du bist offline.</h1>
-    <p>Ohne Verbindung können wir keine Gutachten prüfen. Sobald du wieder online bist, geht es hier weiter.</p>
-    <button class="btn" type="button" onclick="location.reload()">Noch einmal versuchen</button>
+    <p>Ohne Verbindung können wir keine Gutachten prüfen. Prüf kurz dein WLAN oder die mobilen Daten – sobald dein Gerät wieder online ist, funktionieren diese drei Wege sofort.</p>
+    <nav class="routes" aria-label="Wie es weitergeht">
+        <a class="btn" href="">Noch einmal versuchen</a>
+        <a class="btn btn--secondary" href="/">Zur Startseite</a>
+        <a class="btn btn--ghost" href="/felgen-suchen">Zur Felgensuche</a>
+    </nav>
 </body>
 </html>

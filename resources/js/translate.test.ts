@@ -291,6 +291,7 @@ const ROSTER: Record<string, string> = {
     './Components/Compare/CompareTable.vue': 'the comparison: the head, and the rows that are data',
     './Components/Home/BrandWall.vue': 'the brand wall: the wordmarks and the counts',
     './Pages/Produkt/Index.vue': 'the product page: the size chips and the Felgendetails rows',
+    './Pages/Fehler/Index.vue': 'the failure states: the status code, the vehicle, the address and the service hours',
     './Components/Home/FitmentCalculator.vue': "the calculator's inputs and their units",
     './Components/Home/FitmentResults.vue': "the calculator's sentences",
     './Components/Ui/ClearanceDrawing.vue': "the calculator's drawing labels",

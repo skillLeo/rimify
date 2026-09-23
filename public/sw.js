@@ -78,6 +78,31 @@ async function staleWhileRevalidate(request) {
     return hit ?? (await refresh) ?? Response.error()
 }
 
+/*
+ * The offline page, and an answer even when it is not in the cache.
+ *
+ * `caches.match` resolves to `undefined` for a miss — after the site data was cleared, say — and
+ * `respondWith(undefined)` is a network error, which is the browser's own dead end. So the last
+ * resort is a page of our own: same words, same three ways on.
+ */
+async function offlinePage() {
+    const cached = await caches.match(OFFLINE_URL)
+
+    if (cached) {
+        return cached
+    }
+
+    return new Response(
+        '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+            '<title>Du bist offline · RIMIFY</title></head><body><h1>Du bist offline.</h1>' +
+            '<p>Ohne Verbindung können wir keine Gutachten prüfen. Sobald du wieder online bist, geht es hier weiter.</p>' +
+            '<p><a href="">Noch einmal versuchen</a> · <a href="/">Zur Startseite</a> · <a href="/felgen-suchen">Zur Felgensuche</a></p>' +
+            '</body></html>',
+        { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    )
+}
+
 async function trim(cache, limit) {
     const keys = await cache.keys()
 
@@ -101,9 +126,15 @@ self.addEventListener('fetch', (event) => {
         return
     }
 
-    // A page load: straight to the network; the offline page only when the network is gone.
+    /*
+     * A page load: straight to the network; the offline page only when the network is GONE.
+     *
+     * A 500 or a 502 is a resolved fetch, so it never lands here — and it must not: the server's
+     * own failure page says what happened, and "du bist offline" would be a confident wrong answer
+     * to a customer whose connection is fine.
+     */
     if (request.mode === 'navigate') {
-        event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)))
+        event.respondWith(fetch(request).catch(() => offlinePage()))
 
         return
     }
