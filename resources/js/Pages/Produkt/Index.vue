@@ -109,6 +109,27 @@ const stockTone = computed(() => {
     return selected.value?.inStock === true ? 'tag--ok' : 'tag--danger'
 })
 
+/*
+ * The Mittenlochbohrung is not a property of the rim alone (client, 2026-09-23): the approval
+ * states its own bore for the vehicle it covers, and that is the number a customer with a chosen
+ * car must read. So the details carry up to two rows, each named after what it is — the document's
+ * figure for this car, and the rim's own — and never one row that could be taken for both.
+ *
+ * `centreBore` on the verdict is null when the covering documents state no bore (`UNSTATED`) or
+ * state different ones (`CONFLICTING`). Neither case borrows the rim's figure: the page says what
+ * it knows and leaves the gap open (CLAUDE.md §2).
+ */
+const documentBore = computed(() => selected.value?.verdict?.centreBore ?? null)
+const boreConflict = computed(() => selected.value?.verdict?.centreBoreSource === 'CONFLICTING')
+
+/* With a car chosen, the rim's own figure is named as the rim's, so it cannot read as the car's. */
+const rimBoreLabel = computed(() =>
+    selected.value?.verdict ? 'Mittenlochbohrung der Felge' : 'Mittenlochbohrung'
+)
+
+/* `H2` — the hump designation the wheel's approval prints, where the record holds one. */
+const hump = computed(() => selected.value?.hump ?? null)
+
 /* `620 kg` — shown only for a load rating somebody has verified. */
 const maxLoad = computed(() => {
     const kg = (selected.value as RatedConfig | null)?.maxLoadKg
@@ -383,13 +404,34 @@ onBeforeUnmount(() => observer?.disconnect())
                         <dt>Lochkreis</dt>
                         <dd class="t-mono" translate="no">{{ selected.boltPattern }}</dd>
                     </div>
+                    <!-- The bore the document states for the chosen car comes first: it is the
+                         one that decides whether the wheel centres on this hub. -->
+                    <div v-if="documentBore" class="spec__row spec__row--doc">
+                        <dt>
+                            Mittenlochbohrung für dein Fahrzeug
+                            <span class="spec__hint">laut Gutachten</span>
+                        </dt>
+                        <dd class="t-mono" translate="no">{{ documentBore }}</dd>
+                    </div>
                     <div class="spec__row">
-                        <dt>Mittenlochbohrung</dt>
+                        <dt>{{ rimBoreLabel }}</dt>
                         <dd class="t-mono" translate="no">{{ selected.centreBore }}</dd>
                     </div>
                     <div class="spec__row">
                         <dt>Einpresstiefe (ET)</dt>
                         <dd class="t-mono" translate="no">{{ selected.etMm }} mm</dd>
+                    </div>
+                    <div v-if="hump" class="spec__row">
+                        <dt>Hump</dt>
+                        <dd class="t-mono" translate="no">{{ hump }}</dd>
+                    </div>
+                    <div v-if="finish" class="spec__row">
+                        <dt>Farbe</dt>
+                        <dd class="t-mono" translate="no">{{ finish.name }}</dd>
+                    </div>
+                    <div v-if="product.spokes > 0" class="spec__row">
+                        <dt>Speichen</dt>
+                        <dd class="t-mono" translate="no">{{ product.spokes }}</dd>
                     </div>
                     <div v-if="weight" class="spec__row">
                         <dt>Gewicht pro Felge</dt>
@@ -408,6 +450,14 @@ onBeforeUnmount(() => observer?.disconnect())
                         <dd class="t-mono" translate="no">{{ selected.sku }}</dd>
                     </div>
                 </dl>
+
+                <!-- Two covering documents that state different bores for this car: the page names
+                     neither of them, because picking one would be a guess about the figure that
+                     decides whether the wheel centres on the hub (CLAUDE.md §2). -->
+                <p v-if="boreConflict" class="t-small quiet pdp__specs-note">
+                    Für dein Fahrzeug nennen die Gutachten unterschiedliche Mittenlochbohrungen.
+                    Wir zeigen dir deshalb nur das Maß der Felge.
+                </p>
 
                 <p v-if="product.descriptionDe" class="t-body pdp__desc">{{ product.descriptionDe }}</p>
             </section>
@@ -657,6 +707,27 @@ onBeforeUnmount(() => observer?.disconnect())
 
 .spec__row dt {
     color: var(--ink2);
+}
+
+/* Which source a figure comes from, under the term it belongs to — never beside the value, where
+   it would read as part of the measurement. */
+.spec__hint {
+    display: block;
+    color: var(--ink3);
+    font-size: var(--text-small);
+    font-weight: 400;
+}
+
+/* The document's own figure is the row that answers the customer's question, so it carries the
+   weight the rim's row does not. */
+.spec__row--doc dt,
+.spec__row--doc dd {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.pdp__specs-note {
+    margin-top: var(--space-3);
 }
 
 .spec__row dd {

@@ -173,6 +173,11 @@ class FelgenController extends Controller
             $live = $verdicts[$config->id] ?? null;
             $verdict = $live === null ? null : $this->verdictFor($live);
 
+            // The hump designation the wheel's own approval prints in its size line ("8½ J x 19
+            // H2"). Empty is the same as absent: the details then show no Hump row rather than a
+            // blank one, because a record that holds no designation makes no claim about one.
+            $hump = is_string($config->hump) ? trim($config->hump) : '';
+
             if ($verdict !== null && $verdict['status'] === VerdictStatus::Unknown->value) {
                 $anyUnknown = true;
             }
@@ -202,7 +207,10 @@ class FelgenController extends Controller
                     (float) $config->centre_bore_mm,
                 ),
                 'boltPattern' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm),
+                // The rim's own bore, and it is labelled as the rim's own on the page: the bore a
+                // document states for the chosen car travels inside the verdict instead (§1, R-06).
                 'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
+                'hump' => $hump === '' ? null : $hump,
                 'priceCents' => (int) $config->price_cents,
                 'price' => GermanFormat::money((int) $config->price_cents),
                 'stockQty' => (int) $config->stock_qty,
@@ -444,6 +452,14 @@ class FelgenController extends Controller
             'sellable' => $verdict->isSellable(),
             'requiresEntry' => $verdict->requiresEntry,
             'entryNoteDe' => $verdict->entryNoteDe,
+            // The Mittenlochbohrung the covering documents state for THIS car, formatted by the
+            // one helper (R-10), or null where they state none or disagree. Never the rim's own
+            // figure: that arrives beside it as `centreBore` and is labelled as the rim's, so the
+            // two claims can never be read as one.
+            'centreBore' => $verdict->documentCentreBoreMm === null
+                ? null
+                : GermanFormat::millimetres($verdict->documentCentreBoreMm),
+            'centreBoreSource' => $verdict->centreBoreSource->value,
             // Full German sentences, never codes such as A02 (R-15).
             'conditions' => array_map(
                 static fn (Condition $condition): string => $condition->sentenceDe(),

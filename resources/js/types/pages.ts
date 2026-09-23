@@ -283,7 +283,10 @@ export interface ProduktConfig {
     sizeLabel: string
     fullLabel: string
     boltPattern: string
+    /** The rim's own bore, `66,5 mm`. The bore a document states for the chosen car is in the verdict. */
     centreBore: string
+    /** `H2` — the hump designation the wheel's approval prints; null where the record holds none. */
+    hump?: string | null
     priceCents: number
     price: string
     stockQty: number
@@ -308,6 +311,14 @@ export interface ConfigVerdict {
     entryNoteDe: string | null
     /** Full German sentences, never codes such as A02 (R-15). */
     conditions: string[]
+    /**
+     * `66,6 mm` — the Mittenlochbohrung the covering documents state for THIS car, additive and
+     * optional. Null where they state none (`UNSTATED`) or name different ones (`CONFLICTING`):
+     * the page then shows the rim's own figure, labelled as the rim's, and never silently
+     * substitutes it for the document's.
+     */
+    centreBore?: string | null
+    centreBoreSource?: 'DOCUMENT' | 'UNSTATED' | 'CONFLICTING'
     reason: string | null
     reasonCode: string | null
     document: { number: string | null; issuer: string | null; kind: string } | null
