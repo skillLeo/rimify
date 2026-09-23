@@ -2,8 +2,8 @@
 /**
  * The header. Above it, on a desktop, a utility line that scrolls away; the header itself is 64px,
  * sticky, and never changes height — once the page has scrolled under it, it gains a hairline and
- * nothing else. On a phone it is 56px: the wordmark, the search, the vehicle, and the bottom bar
- * carries the rest.
+ * nothing else. On a phone it is 56px: the wordmark, then the search, the vehicle and the menu,
+ * which carries the destinations a desktop shows in the navigation, and the basket with its count.
  *
  * Two rules it never breaks: the navigation is never removed, and the chosen vehicle is one
  * element in one place on every route (the vehicle bar beneath, decided by the server — R-08).
@@ -18,6 +18,7 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import DemoBadge from './DemoBadge.vue'
+import MainMenu from './MainMenu.vue'
 import MegaMenu from './MegaMenu.vue'
 import SearchBox from './SearchBox.vue'
 import VehicleBar from './VehicleBar.vue'
@@ -114,7 +115,7 @@ function removeVehicle(): void {
                     Fahrzeug wählen
                 </Link>
 
-                <!-- On a phone: the search and the vehicle as icons; the basket lives in the bottom bar. -->
+                <!-- On a phone: the search and the vehicle as icons. -->
                 <button class="icon-btn until-lg" type="button" aria-label="Suche" @click="shell.paletteOpen.value = true">
                     <Icon name="search" :size="24" />
                 </button>
@@ -131,6 +132,10 @@ function removeVehicle(): void {
                 <Link v-else href="/felgen-suchen" class="icon-btn until-lg" aria-label="Fahrzeug wählen">
                     <Icon name="car" :size="24" />
                 </Link>
+
+                <!-- The menu: on a phone the destinations and the basket live in it rather than in
+                     a bar across the bottom of every page. -->
+                <MainMenu class="until-lg" />
 
                 <Link
                     href="/warenkorb"

@@ -3,8 +3,10 @@
  * The top app bar: 56 px plus the status-bar inset, sticky, never changing height.
  *
  * On a top-level page it carries the wordmark (the homepage) or nothing on the left, and the
- * search and the vehicle on the right. On an inner page: the back arrow (44 px), a truncated
- * title, and at most two actions. A page may ask for a large title: 28 px under the bar, in the
+ * search, the vehicle and the menu on the right — three targets, which is what fits beside the
+ * wordmark at 390 px. On an inner page: the back arrow (44 px), a truncated title, the page's own
+ * actions, and the menu — which is where the destinations and the basket live now that no bar
+ * crosses the bottom of the screen. A page may ask for a large title: 28 px under the bar, in the
  * flow, which collapses into the bar as it scrolls under it — scroll-driven where the browser
  * can, an IntersectionObserver everywhere else.
  *
@@ -19,6 +21,7 @@ import { Link } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import DemoBadge from '../Chrome/DemoBadge.vue'
+import MainMenu from '../Chrome/MainMenu.vue'
 import { useShared } from '../../composables/useShared'
 import { useMobileShell } from '../../composables/mobile/useMobileShell'
 import { goBack } from '../../composables/mobile/useNavigationDirection'
@@ -101,6 +104,7 @@ onBeforeUnmount(() => {
                     <Link v-else href="/felgen-suchen" class="icon-btn m-press" aria-label="Fahrzeug wählen">
                         <Icon name="car" :size="24" />
                     </Link>
+                    <MainMenu />
                 </div>
             </template>
 
@@ -112,6 +116,7 @@ onBeforeUnmount(() => {
                 <DemoBadge />
                 <div class="mbar__tools">
                     <slot name="actions" />
+                    <MainMenu />
                 </div>
             </template>
         </div>
@@ -178,7 +183,8 @@ onBeforeUnmount(() => {
     font-weight: 600;
 }
 
-/* Two actions at most; a third never renders. */
+/* Three targets at most, and the menu is always the last of them: a page may contribute two of its
+   own actions, and anything beyond that never renders rather than pushing the menu off the row. */
 .mbar__tools {
     display: flex;
     align-items: center;
@@ -186,7 +192,7 @@ onBeforeUnmount(() => {
     margin-left: auto;
 }
 
-.mbar__tools > :nth-child(n + 3) {
+.mbar__tools > :nth-child(n + 4) {
     display: none;
 }
 

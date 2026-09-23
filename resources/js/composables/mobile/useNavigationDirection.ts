@@ -44,7 +44,7 @@ function reducedMotion(): boolean {
     return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-/** Announce the direction of the very next visit (the tab bar calls this before it navigates). */
+/** Announce the direction of the very next visit (a navigation calls this before it moves). */
 export function markNext(direction: NavDirection): void {
     pendingDirection = direction
 }

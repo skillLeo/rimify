@@ -1396,7 +1396,7 @@
     .tray {
         position: fixed;
         inset-inline: 0;
-        bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+        bottom: env(safe-area-inset-bottom);
         z-index: var(--z-sticky);
         height: var(--stickybar-h);
         background: var(--c-surface);
@@ -1404,14 +1404,8 @@
         border-top: 1px solid var(--c-line);
     }
 
-    /* A phone document without the tab bar: the tray takes the bottom edge itself. */
-    .tray--flush {
-        bottom: env(safe-area-inset-bottom);
-    }
-
     @media (min-width: 1024px) {
-        .tray,
-        .tray--flush {
+        .tray {
             bottom: 0;
         }
     }
@@ -1959,10 +1953,10 @@
         }
     }
 
-    /* Clears the bottom bar wherever the bar is shown — by width, like the bar itself. */
+    /* Nothing crosses the bottom edge any more, so the toast only clears the safe area. */
     @media (max-width: 1023px) {
         .toast-viewport {
-            bottom: calc(var(--bottomnav-h) + var(--sp-12) + env(safe-area-inset-bottom));
+            bottom: calc(var(--sp-12) + env(safe-area-inset-bottom));
         }
     }
 
@@ -2006,7 +2000,7 @@
 
     /* With the tray open the toast clears it. */
     html[data-tray='open'] .toast-viewport {
-        bottom: calc(var(--bottomnav-h) + var(--stickybar-h) + var(--sp-12) + env(safe-area-inset-bottom));
+        bottom: calc(var(--stickybar-h) + var(--sp-12) + env(safe-area-inset-bottom));
     }
 
     @media (min-width: 1024px) {

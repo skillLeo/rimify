@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The phone's footer: short, because the tab bar already holds the destinations. Service and
+ * The phone's footer: short, because the header's menu already holds the destinations. Service and
  * legal links as rows, the cookie settings, the price note the law wants next to every price
  * list, and the copyright. It sits on the band, not the dark tone — the page's one dark band
  * belongs to the content (DIRECTION §2).

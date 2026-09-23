@@ -34,9 +34,9 @@ test.describe('Startseite/Mobile', () => {
         }
 
         const box = await button.boundingBox()
-        const bar = await page.locator('.mtab').boundingBox()
         expect(box, 'button box').not.toBeNull()
-        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual((bar?.y ?? vp?.height ?? 0) + 0.5)
+        // Nothing is fixed to the bottom edge any more, so the whole viewport is the button's room.
+        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual((vp?.height ?? 0) + 0.5)
         // Thumb zone: the button's centre sits in the bottom 40 % of the viewport.
         expect((box?.y ?? 0) + (box?.height ?? 0) / 2).toBeGreaterThanOrEqual((vp?.height ?? 0) * 0.6)
     })

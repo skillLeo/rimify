@@ -1,21 +1,20 @@
 /**
  * The phone shell's own state, provided by MobileLayout and read by its parts: which overlay is
- * open, whether a sticky action bar has taken the tab bar's place, whether the page runs as an
+ * open, whether a page has put a sticky action bar on the bottom edge, whether the page runs as an
  * installed app. Every open sheet registers a closer here, so one call closes them all before a
  * navigation.
  */
 
-import { computed, inject, provide, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
+import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
 import { useVisualViewport } from './useVisualViewport'
 
 export interface MobileShell {
     readonly searchOpen: Ref<boolean>
     readonly vehicleOpen: Ref<boolean>
-    /** A page that mounts a StickyActionBar sets this; the tab bar steps aside. */
+    /** A page that mounts a StickyActionBar sets this; whatever else sits at the edge steps aside. */
     readonly stickyBar: Ref<boolean>
     readonly keyboardOpen: Readonly<Ref<boolean>>
     readonly standalone: Ref<boolean>
-    readonly tabBarVisible: ComputedRef<boolean>
     /** Feature-detected, 8 ms, add-to-cart only. Never more. */
     haptic(): void
     registerSheet(close: () => void): () => void
@@ -24,7 +23,7 @@ export interface MobileShell {
 
 const KEY: InjectionKey<MobileShell> = Symbol('mobile-shell')
 
-export function provideMobileShell(options: { tabBar: Ref<boolean> }): MobileShell {
+export function provideMobileShell(): MobileShell {
     const viewport = useVisualViewport()
     const closers = new Set<() => void>()
 
@@ -34,7 +33,6 @@ export function provideMobileShell(options: { tabBar: Ref<boolean> }): MobileShe
         stickyBar: ref(false),
         keyboardOpen: viewport.keyboardOpen,
         standalone: ref(false),
-        tabBarVisible: computed(() => options.tabBar.value && !store.stickyBar.value && !viewport.keyboardOpen.value),
         haptic: () => {
             if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
                 navigator.vibrate(8)

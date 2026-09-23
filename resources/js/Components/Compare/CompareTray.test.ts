@@ -1,7 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick, ref } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { provideMobileShell } from '../../composables/mobile/useMobileShell'
 import { useCompare, type CompareEntry } from '../../stores/compare'
 
@@ -27,7 +27,7 @@ let wrappers: VueWrapper[] = []
 const UnderPhoneShell = defineComponent({
     props: { hidden: Boolean, bottomNav: Boolean },
     setup(props) {
-        provideMobileShell({ tabBar: ref(true) })
+        provideMobileShell()
 
         return () => h(CompareTray, props)
     },
