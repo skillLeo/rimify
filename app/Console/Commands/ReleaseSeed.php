@@ -33,8 +33,13 @@ final class ReleaseSeed extends Command
      *
      * v2: the researched wheel brands and their one-colour logos (BrandLogoSeeder). Brand rows
      * only — no product, so no page shows anything new until a catalogue lands behind one.
+     *
+     * v3: `fitments.centre_bore_mm`. The migration adds the column nullable, which is right — a
+     * document that states no bore must leave it empty — but it means an existing database keeps
+     * NULL everywhere and the product page goes on showing only the rim's own figure. The bore the
+     * documents state is seeded data, so ApprovalSeeder has to run once more to write it.
      */
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     /** The idempotent seeders a release may re-apply, in dependency order. */
     public const SEEDERS = [
