@@ -23,9 +23,21 @@ export const test = base.extend<{ consent: void }>({
 export { expect }
 
 /** Open a route and wait until the phone shell has mounted. */
+/**
+ * Open a page and wait until it can actually be used.
+ *
+ * `.mshell` is in the server-rendered HTML, so waiting for it proved only that the response
+ * arrived — every tap after it was racing hydration. A tab that had not been given its handler
+ * yet swallowed the tap and the row never reloaded; on another device the same tap landed twice
+ * and the accordion opened and shut. Both looked like device-specific faults and were neither.
+ *
+ * So we wait for Vue to have taken the markup over. After that a tap does what a person's tap
+ * does, and a failure here is the shop's, not the harness's.
+ */
 export async function open(page: Page, route = '/'): Promise<void> {
     await page.goto(route, { waitUntil: 'networkidle' })
     await page.locator('.mshell').first().waitFor({ state: 'attached' })
+    await page.waitForFunction(() => document.querySelector('#app')?.__vue_app__ !== undefined, null, { timeout: 15_000 })
     await page.evaluate(() => document.fonts.ready)
 }
 

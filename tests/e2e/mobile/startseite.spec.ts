@@ -207,6 +207,10 @@ test.describe('Startseite/Mobile', () => {
 
         // Scoped to the row: the calculator teaser has a tab named "Neu" as well.
         const neu = page.locator('#h5').getByRole('tab', { name: 'Neu' })
+        // Scrolled to, then tapped, the way a person does it. Tapping in the same instant as the
+        // scroll is a gesture no reader makes, and on the taller phones it was being swallowed.
+        await neu.scrollIntoViewIfNeeded()
+        await page.waitForTimeout(150)
         await neu.click()
         await expect.poll(() => new URL(page.url()).searchParams.get('beliebt')).toBe('neu')
         await expect(neu).toHaveAttribute('aria-selected', 'true')
@@ -245,9 +249,19 @@ test.describe('Startseite/Mobile', () => {
         const frame = page.locator('#h2 .hero-frame')
         await expect(frame).toHaveCount(1)
         await expect(frame.locator('.callout')).toHaveCount(2)
-        await expect(frame.locator('.callout__label').nth(0)).toContainText(/größe|breite|durchmesser/i)
-        await expect(frame.locator('.callout__label').nth(1)).toContainText(/einpress/i)
-        await expect(page.locator('#h2 .hero-mobile__rest')).toContainText(/LK .+ · MLB .+mm$/)
+
+        /*
+         * The two figures a buyer checks against their papers: the Lochkreis, drawn through the
+         * bolt-hole centres, and the KBA number at the stamp (HeroFrame.vue). Asserted by the
+         * callout's own key rather than by its German label, which is copy and may be reworded.
+         * Each value is kept from a page translator — `5 × 112` is not a phrase (R-10, §6).
+         */
+        await expect(frame.locator('[data-callout="boltCircle"]')).toHaveCount(1)
+        await expect(frame.locator('[data-callout="kba"]')).toHaveCount(1)
+
+        for (const value of await frame.locator('.callout__value').all()) {
+            await expect(value).toHaveAttribute('translate', 'no')
+        }
 
         // A symbolic picture names no product: no brand, no price, no link; the sentence says what it is.
         const symbolic = page.locator('#h2 .hero-mobile__symbolic')
@@ -300,7 +314,14 @@ test.describe('Startseite/Mobile', () => {
         const box = await wheel.boundingBox()
         expect(Math.round(box?.width ?? 0)).toBeLessThanOrEqual(240)
         expect(Math.round(box?.width ?? 0)).toBe(Math.round(box?.height ?? 0))
-        await expect(wheel.locator('img')).toHaveAttribute('src', /hero-wheel/)
+        /*
+         * A cut-out, never a lifestyle photograph — the band sells Kompletträder, so it shows one:
+         * a rim with a tyre on it, drawn, on the band's own ground. The check is that it is one of
+         * the shop's own cut-outs and that it carries a German alt text; which cut-out is a design
+         * decision, and naming one file here only breaks the test when that decision is revisited.
+         */
+        await expect(wheel.locator('img')).toHaveAttribute('src', /^\/images\/(komplettrad-illustration|hero-wheel)\//)
+        await expect(wheel.locator('img')).toHaveAttribute('alt', /\S/)
     })
 
     test('guides are one link each, into the Ratgeber', async ({ page }) => {
@@ -405,6 +426,11 @@ test.describe('Startseite/Mobile', () => {
         await expect(page.locator('#h11 .accordion__item')).toHaveCount(5)
 
         const first = page.locator('#h11 .accordion__trigger').first()
+        // Scrolled clear of the sticky app bar before it is tapped: on the taller phones the
+        // question ended up under the bar, and the tap went to the bar rather than the question.
+        await first.scrollIntoViewIfNeeded()
+        await page.waitForTimeout(150)
+        await expect(first).toHaveAttribute('aria-expanded', 'false')
         await first.click()
         await expect(first).toHaveAttribute('aria-expanded', 'true')
         await expect(page.getByRole('link', { name: 'Alle Fragen ansehen' })).toHaveAttribute('href', '/faq')

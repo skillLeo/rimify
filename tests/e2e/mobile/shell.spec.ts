@@ -36,7 +36,9 @@ test.describe('mobile shell', () => {
 
         for (let i = 0; i < count; i++) {
             const box = await rows.nth(i).boundingBox()
-            expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+            // 43.5, not 44: a 44px row on a device with a fractional pixel ratio measures
+            // 43.99999237 — a rounding artefact of the ruler, not a row anybody can mis-tap.
+            expect(box?.height ?? 0, `row ${i}`).toBeGreaterThanOrEqual(43.5)
         }
 
         // The page you are on is shown and marked, never dropped from the list.
@@ -162,9 +164,16 @@ test.describe('mobile shell', () => {
             expect((await request.get(icon.src)).ok(), icon.src).toBe(true)
         }
 
+        /*
+         * The worker must arrive as a script. A server that answers `/sw.js` with an HTML error
+         * page registers nothing and takes the whole offline story with it — this used to be
+         * checked by looking for `text/html` in the body, which now matches the worker's own
+         * last-resort offline response. The header is what actually decides it.
+         */
         const sw = await request.get('/sw.js')
         expect(sw.ok()).toBe(true)
-        expect(await sw.text()).not.toContain('text/html')
+        expect(sw.headers()['content-type']).toContain('javascript')
+        expect(await sw.text()).not.toContain('<!doctype html')
 
         const offline = await request.get('/offline.html')
         expect(offline.ok()).toBe(true)
