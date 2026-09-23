@@ -39,6 +39,9 @@ const EMPTY_TEXT =
 const CONFIRM_TEXT =
     'Preis wirklich löschen? An der Kasse können wir für diese Marke dann keine Sensoren mehr berechnen.'
 const MONEY_HINT = 'Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.'
+const DEFAULT_HINT = 'Preis je Sensor, deutsch geschrieben – zum Beispiel 15,00. Leer lassen heißt: kein Standardpreis.'
+const DEFAULT_OPEN =
+    'Ohne Standardpreis bieten wir RDKS-Sensoren nur für die Marken unten an. Allen anderen sagen wir an der Kasse, dass wir den Preis noch nicht haben.'
 
 function blank(): PriceForm {
     return { make: '', price: '', active: true }
@@ -59,11 +62,39 @@ const busy = ref(false)
 const confirming = ref<Price | null>(null)
 
 /** The server's validation messages, keyed by field. */
-const errors = computed<Record<string, string>>(() => {
-    const bag: unknown = page.props.errors
+/** Everything the server said about the last request, whichever form sent it. */
+const bag = computed<Record<string, string>>(() => {
+    const raw: unknown = page.props.errors
 
-    return sent.value && bag !== null && typeof bag === 'object' ? (bag as Record<string, string>) : {}
+    return raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {}
 })
+
+const errors = computed<Record<string, string>>(() => (sent.value ? bag.value : {}))
+
+/* ── The default price: the rule, with the rows above as its exceptions (§13, D-030) ── */
+
+const fallback = reactive({ typed: props.default.typed })
+const defaultSent = ref(false)
+const defaultBusy = ref(false)
+
+/** Two forms share one error bag, so each only shows messages for a request it sent itself. */
+const defaultError = computed(() => (defaultSent.value ? (bag.value.priceCents ?? bag.value.price ?? '') : ''))
+
+function saveDefault(): void {
+    defaultSent.value = true
+    defaultBusy.value = true
+
+    router.put(
+        `${BASE}/standard`,
+        { price: fallback.typed },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                defaultBusy.value = false
+            },
+        }
+    )
+}
 
 const editingPrice = computed(() => props.prices.find((p) => p.id === editing.value) ?? null)
 const canWrite = computed(() => props.can.create || props.can.update)
@@ -151,6 +182,40 @@ function remove(): void {
             Marke ohne Preis bieten wir keine Sensoren an.
         </p>
     </div>
+
+    <!-- The rule, above its exceptions: what a make with no row of its own is charged. -->
+    <form
+        v-if="can.update"
+        class="rd__form rd__form--default"
+        :aria-busy="defaultBusy ? 'true' : undefined"
+        @submit.prevent="saveDefault"
+    >
+        <h2 class="t-h3 rd__form-title">Standardpreis je Sensor</h2>
+
+        <div class="rd__default">
+            <div class="rd__field rd__field--narrow">
+                <label class="field-label" for="rd-default">Gilt für jede Marke ohne eigenen Preis</label>
+                <input
+                    id="rd-default"
+                    v-model="fallback.typed"
+                    class="field tabular"
+                    :class="{ 'field--error': defaultError }"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    maxlength="32"
+                    aria-describedby="rd-default-help rd-default-err"
+                    :aria-invalid="defaultError ? 'true' : undefined"
+                />
+                <p id="rd-default-help" class="field-help">{{ DEFAULT_HINT }}</p>
+                <span id="rd-default-err" class="field-error">{{ defaultError }}</span>
+            </div>
+
+            <button class="btn btn--primary" type="submit" :disabled="defaultBusy">Speichern</button>
+        </div>
+
+        <p v-if="props.default.cents === null" class="rd__default-open small">{{ DEFAULT_OPEN }}</p>
+    </form>
 
     <form v-if="canWrite" class="rd__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
         <h2 class="t-h3 rd__form-title">{{ formTitle }}</h2>
@@ -292,6 +357,29 @@ function remove(): void {
 
 .rd__field {
     min-width: 0;
+}
+
+/* A price is four characters wide; a field the width of the screen invites a sentence. */
+.rd__field--narrow {
+    max-width: 22ch;
+}
+
+/* One field and its button on a line, the button aligned to the field rather than its help text. */
+.rd__default {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: var(--sp-16);
+}
+
+.rd__default .btn {
+    margin-top: calc(var(--lh-small) + var(--sp-4));
+}
+
+.rd__default-open {
+    max-width: 62ch;
+    margin-top: var(--sp-12);
+    color: var(--c-ink-2);
 }
 
 .rd__checks {

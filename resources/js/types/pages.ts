@@ -578,6 +578,11 @@ export interface AdminWuchtgewichteProps {
         active: boolean
         sortOrder: number
     }[]
+    /**
+     * `Montage und Auswuchten` per wheel — one shop-wide fee, edited on this page (§13, D-032).
+     * `cents` is null while nobody has named one, and then no Komplettrad can be ordered at all.
+     */
+    mounting: { cents: number | null; typed: string }
     /** What the page may offer. The server refuses regardless (R-11); this only hides. */
     can: { create: boolean; update: boolean; delete: boolean }
 }
@@ -597,5 +602,10 @@ export interface AdminRdksProps {
     }[]
     /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
     makes: string[]
+    /**
+     * What a make with no row above is charged per sensor (§13, D-030). `cents` is null while there
+     * is no default, and then only the makes listed above can have sensors at all.
+     */
+    default: { cents: number | null; typed: string }
     can: { create: boolean; update: boolean; delete: boolean }
 }

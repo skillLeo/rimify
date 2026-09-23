@@ -18,7 +18,7 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
-    router: { post: vi.fn(), patch: vi.fn(), delete: vi.fn(), on: vi.fn(() => () => undefined) },
+    router: { post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), on: vi.fn(() => () => undefined) },
 }))
 
 const { default: Page } = await import('./Index.vue')
@@ -67,7 +67,13 @@ function mountPage(props: Partial<AdminRdksProps> = {}): VueWrapper {
     current.props = {}
 
     const wrapper = mount(Page, {
-        props: { prices: [price()], makes: ['Audi', 'Porsche', 'VW'], can: WRITE, ...props },
+        props: {
+            prices: [price()],
+            makes: ['Audi', 'Porsche', 'VW'],
+            default: { cents: 1500, typed: '15,00 €' },
+            can: WRITE,
+            ...props,
+        },
         attachTo: document.body,
         global: { stubs: { Dialog: DialogStub } },
     })
@@ -78,6 +84,11 @@ function mountPage(props: Partial<AdminRdksProps> = {}): VueWrapper {
 
 function button(wrapper: VueWrapper, text: string) {
     return wrapper.findAll('button').find((b) => b.text().startsWith(text))
+}
+
+/** The per-make form, not the default price above it: the page carries two, and they post differently. */
+function priceForm(wrapper: VueWrapper) {
+    return wrapper.find('form.rd__form:not(.rd__form--default)')
 }
 
 afterEach(() => {
@@ -134,7 +145,7 @@ describe('RDKS-Sensorpreise je Marke', () => {
 
         await wrapper.find('#rd-make').setValue('Porsche')
         await wrapper.find('#rd-price').setValue('189,00')
-        await wrapper.find('form').trigger('submit')
+        await priceForm(wrapper).trigger('submit')
 
         expect(router.post).toHaveBeenCalledWith(
             '/admin/rdks-preise',
@@ -155,7 +166,7 @@ describe('RDKS-Sensorpreise je Marke', () => {
         expect(wrapper.find('tbody tr').attributes('aria-current')).toBe('true')
 
         await wrapper.find('#rd-price').setValue('59,00')
-        await wrapper.find('form').trigger('submit')
+        await priceForm(wrapper).trigger('submit')
 
         expect(router.patch).toHaveBeenCalledWith(
             '/admin/rdks-preise/7',
@@ -192,7 +203,7 @@ describe('RDKS-Sensorpreise je Marke', () => {
 
         await wrapper.find('#rd-make').setValue('Volkswagen')
         await wrapper.find('#rd-price').setValue('49,00')
-        await wrapper.find('form').trigger('submit')
+        await priceForm(wrapper).trigger('submit')
 
         current.props = { errors: { makeKey: 'Für diese Marke ist schon ein Preis hinterlegt – bearbeite ihn dort.' } }
         await nextTick()

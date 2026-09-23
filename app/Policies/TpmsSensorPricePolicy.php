@@ -43,4 +43,13 @@ final class TpmsSensorPricePolicy
     {
         return $user->may(PermissionModule::Catalogue, PermissionAction::Delete);
     }
+
+    /**
+     * The default price every make without a row of its own is charged (D-030, §13). It is not a
+     * row, so it has no model to pass — but it ends up on the same bills, so it is the same cell.
+     */
+    public function updateDefaultPrice(AdminUser $user): bool
+    {
+        return $user->may(PermissionModule::Catalogue, PermissionAction::Edit);
+    }
 }

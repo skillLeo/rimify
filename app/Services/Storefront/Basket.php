@@ -19,6 +19,7 @@ use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Services\Commerce\KomplettradPrice;
 use App\Services\Commerce\KomplettradPricer;
+use App\Services\Commerce\KomplettradSettings;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
 use Illuminate\Database\Eloquent\Collection;
@@ -113,6 +114,7 @@ final readonly class Basket
         private FitmentResolver $resolver,
         private TyreEligibility $eligibility,
         private KomplettradPricer $pricer,
+        private KomplettradSettings $settings,
     ) {}
 
     /**
@@ -466,8 +468,8 @@ final readonly class Basket
         $request->session()->put(self::SESSION_TPMS, [
             'choice' => $choice,
             'makeKey' => $make === null ? '' : MakeName::key($make),
-            'unitPriceCents' => $price?->price_cents,
-            'priceId' => $price === null ? null : (int) $price->id,
+            'unitPriceCents' => $price?->priceCents,
+            'priceId' => $price?->priceId,
         ]);
     }
 
@@ -496,9 +498,14 @@ final readonly class Basket
 
         $fresh = $this->pricer->sensorFor($make);
 
+        /*
+         * A quote from the default carries no row id, so `priceId` is null on both sides while
+         * nothing has changed — and stops matching the moment the admin enters a row for this make,
+         * which is exactly when the customer would otherwise be billed a figure they never saw.
+         */
         return $fresh === null
-            || (int) $fresh->id !== $stored['priceId']
-            || $fresh->price_cents !== $stored['unitPriceCents'];
+            || $fresh->priceId !== $stored['priceId']
+            || $fresh->priceCents !== $stored['unitPriceCents'];
     }
 
     /** Drops the RDKS answer, so the question is asked again — at whatever the price now is. */
@@ -554,12 +561,10 @@ final readonly class Basket
         return is_int(config('rimify.shipping.cost_cents'));
     }
 
-    /** Whether the client has named the mounting fee (config/rimify.php `komplettrad.mounting_per_wheel_cents`), as the pricer reads it. */
+    /** Whether the admin has named the mounting fee (D-032), read exactly as the pricer reads it. */
     private function mountingConfigured(): bool
     {
-        $fee = config('rimify.komplettrad.mounting_per_wheel_cents');
-
-        return is_int($fee) && $fee >= 0;
+        return $this->settings->mountingPerWheelCents() !== null;
     }
 
     /** The shipping for a subtotal in cents, or null while no shipping price is configured. */
@@ -915,11 +920,11 @@ final readonly class Basket
         $price = $makeKey === '' ? null : $this->pricer->sensorFor($make);
         $choice = $applicable ? $this->boundChoice($this->storedTpms($request), $makeKey) : null;
 
-        $unit = $price?->price_cents;
+        $unit = $price?->priceCents;
         $currency = $price === null ? 'EUR' : $price->currency;
         $total = $choice === 'ja' && $unit !== null ? $unit * $quantity : 0;
-        // The admin's spelling where a price exists (it is what the order line will say), else the vehicle's.
-        $makeLabel = $price !== null ? $price->make_label_de : ($make === null ? null : MakeName::normalise($make));
+        // The quote's spelling where there is one (it is what the order line will say), else the vehicle's.
+        $makeLabel = $price !== null ? $price->makeLabelDe : ($make === null ? null : MakeName::normalise($make));
 
         $notice = null;
 

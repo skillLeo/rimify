@@ -43,4 +43,13 @@ final class BalanceWeightColourPolicy
     {
         return $user->may(PermissionModule::Catalogue, PermissionAction::Delete);
     }
+
+    /**
+     * *Montage und Auswuchten je Rad* — a shop-wide fee, not a colour, but it is edited on this
+     * page and it is the same catalogue money, so it is the same cell (D-032, §13).
+     */
+    public function updateMountingFee(AdminUser $user): bool
+    {
+        return $user->may(PermissionModule::Catalogue, PermissionAction::Edit);
+    }
 }

@@ -8,20 +8,23 @@ use App\Models\BalanceWeightColour;
 use App\Models\TpmsSensorPrice;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
+use App\Support\MakeName;
 use UnexpectedValueException;
 
 /**
  * The one place a Komplettrad is priced from its components, so the basket and the order writer
  * can never disagree (docs/specs/komplettrad.md §4.6).
  *
- * Every figure is integer cents read from the catalogue and the configuration on every call —
- * nothing here is cached and nothing is read from a session. Where a component has no confirmed
- * price the answer is null, never 0: an unconfigured mounting fee (D-032) and a make without an
- * RDKS sensor price both fail closed, and the caller says so in a sentence rather than charging
- * a number nobody confirmed (CLAUDE.md §2).
+ * Every figure is integer cents read from the catalogue and the admin's own settings on every call
+ * — nothing here is read from a session. Where a component has no confirmed price the answer is
+ * null, never 0: an unset mounting fee (D-032) and a make with neither its own sensor row nor a
+ * default (D-030) both fail closed, and the caller says so in a sentence rather than charging a
+ * number nobody confirmed (CLAUDE.md §2).
  */
 final readonly class KomplettradPricer
 {
+    public function __construct(private KomplettradSettings $settings) {}
+
     /**
      * What one wheel of this line costs. A null tyre is a Felgen-only line: the rim alone, with
      * no mounting and no weights. A Komplettrad without a colour is priced for display but is
@@ -62,25 +65,51 @@ final readonly class KomplettradPricer
     }
 
     /**
-     * The active RDKS sensor price for this car make, per sensor (D-030), or null when the make is
-     * empty, unknown or has no active row. Null is the whole answer: the checkout offers no sensor
-     * for that make and says why. Both the basket total and the order writer read the row through
-     * here, so a price change between the two is one they can see (§5.3).
+     * What one RDKS sensor costs for this car make (D-030): the make's own row where the admin
+     * entered one, the default price otherwise, and null when there is neither — or when there is
+     * no usable make at all. Null is the whole answer: the checkout offers no sensor and says why.
+     *
+     * Both the basket total and the order writer read it through here, so a price that moves
+     * between the quote and the submission is one they can see (§5.3).
      */
-    public function sensorFor(?string $make): ?TpmsSensorPrice
+    public function sensorFor(?string $make): ?SensorQuote
     {
-        return TpmsSensorPrice::forMake($make);
+        $row = TpmsSensorPrice::forMake($make);
+
+        if ($row !== null) {
+            return new SensorQuote(
+                priceCents: $row->price_cents,
+                currency: $this->currencyOf($row->getAttribute('currency')),
+                makeLabelDe: $row->make_label_de,
+                priceId: (int) $row->getKey(),
+            );
+        }
+
+        $default = $this->settings->tpmsDefaultCents();
+
+        // A default of zero would say the sensors are free, which is not a price anybody set; it is
+        // refused at the admin field and read as unset here too.
+        if ($default === null || $default < 1 || $make === null || MakeName::key($make) === '') {
+            return null;
+        }
+
+        return new SensorQuote(
+            priceCents: $default,
+            // The default is stated in the shop's own currency; there is no row to carry another.
+            currency: 'EUR',
+            // No admin spelling exists for this make, so the vehicle's own is what the bill says.
+            makeLabelDe: MakeName::normalise($make),
+            priceId: null,
+        );
     }
 
     /**
-     * The configured mounting-and-balancing fee per wheel, or null while the client has not named
-     * one (D-032). Anything but a non-negative integer is unconfigured, never a guess.
+     * The mounting-and-balancing fee per wheel the admin set, or null while nobody has named one
+     * (D-032). Anything but a non-negative integer is unset, never a guess.
      */
     private function mountingPerWheelCents(): ?int
     {
-        $fee = config('rimify.komplettrad.mounting_per_wheel_cents');
-
-        return is_int($fee) && $fee >= 0 ? $fee : null;
+        return $this->settings->mountingPerWheelCents();
     }
 
     private function currencyOf(mixed $value): string

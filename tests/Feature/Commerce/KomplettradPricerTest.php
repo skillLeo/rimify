@@ -8,6 +8,8 @@ use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Services\Commerce\KomplettradPrice;
 use App\Services\Commerce\KomplettradPricer;
+use App\Services\Commerce\KomplettradSettings;
+use App\Services\Commerce\SensorQuote;
 
 /*
  * One helper prices a Komplettrad from its components, for the basket and the order writer alike
@@ -18,7 +20,11 @@ use App\Services\Commerce\KomplettradPricer;
  */
 
 beforeEach(function (): void {
-    config(['rimify.komplettrad.mounting_per_wheel_cents' => null]);
+    config([
+        'rimify.komplettrad.mounting_per_wheel_cents' => null,
+        // No default sensor price unless a case sets one: every answer below has to come from a row.
+        'rimify.komplettrad.tpms_default_price_cents' => null,
+    ]);
 });
 
 function pricer(): KomplettradPricer
@@ -193,6 +199,11 @@ describe('a Komplettrad without a Wuchtgewichte colour', function (): void {
     });
 });
 
+/*
+ * The quote is a SensorQuote, not the row: with a default price in play the answer may come from
+ * the make's own row or from the default, and `priceId` is what says which (§13, D-030). These
+ * cases have no default set, so every answer here must come from a row or not at all.
+ */
 describe('the RDKS sensor price per make', function (): void {
     it('prices a sensor for a make the admin has entered, whatever the spelling of the make', function (): void {
         $vw = TpmsSensorPrice::factory()->ofMake('volkswagen', 'Volkswagen')->create(['price_cents' => 4_900]);
@@ -201,15 +212,16 @@ describe('the RDKS sensor price per make', function (): void {
         foreach (['VW', 'vw', 'Volkswagen', 'VOLKSWAGEN', ' volkswagen '] as $spelling) {
             $price = pricer()->sensorFor($spelling);
 
-            expect($price)->toBeInstanceOf(TpmsSensorPrice::class, $spelling)
-                ->and($price?->id)->toBe($vw->id, $spelling)
-                ->and($price?->price_cents)->toBe(4_900, $spelling)
-                ->and($price?->make_label_de)->toBe('Volkswagen', $spelling)
+            expect($price)->toBeInstanceOf(SensorQuote::class, $spelling)
+                ->and($price?->priceId)->toBe($vw->id, $spelling)
+                ->and($price?->fromDefault())->toBeFalse($spelling)
+                ->and($price?->priceCents)->toBe(4_900, $spelling)
+                ->and($price?->makeLabelDe)->toBe('Volkswagen', $spelling)
                 ->and($price?->currency)->toBe('EUR', $spelling);
         }
 
         // Porsche ≫ Volkswagen: the make decides the row, never the other way round.
-        expect(pricer()->sensorFor('Porsche')?->price_cents)->toBe(18_900);
+        expect(pricer()->sensorFor('Porsche')?->priceCents)->toBe(18_900);
     });
 
     it('fails closed for a make with no sensor price: null, never a guess and never another make', function (): void {
@@ -237,7 +249,7 @@ describe('the RDKS sensor price per make', function (): void {
         expect(pricer()->sensorFor('VW'))->toBeNull();
 
         $vw->update(['active' => true]);
-        expect(pricer()->sensorFor('VW')?->id)->toBe($vw->id);
+        expect(pricer()->sensorFor('VW')?->priceId)->toBe($vw->id);
 
         $vw->delete();
         expect(pricer()->sensorFor('VW'))->toBeNull();
@@ -246,13 +258,32 @@ describe('the RDKS sensor price per make', function (): void {
     it('reads the table on every call, so a changed price is the price the next reader sees', function (): void {
         $vw = TpmsSensorPrice::factory()->ofMake('volkswagen', 'Volkswagen')->create(['price_cents' => 4_900]);
 
-        expect(pricer()->sensorFor('VW')?->price_cents)->toBe(4_900);
+        expect(pricer()->sensorFor('VW')?->priceCents)->toBe(4_900);
 
         $vw->update(['price_cents' => 18_900]);
 
         // §5.3 compares this against the quote the customer was shown; a difference refuses the order.
-        expect(pricer()->sensorFor('VW')?->price_cents)->toBe(18_900)
-            ->and(pricer()->sensorFor('VW')?->id)->toBe($vw->id);
+        expect(pricer()->sensorFor('VW')?->priceCents)->toBe(18_900)
+            ->and(pricer()->sensorFor('VW')?->priceId)->toBe($vw->id);
+    });
+
+    it('answers from the default for a make with no row, and from the row where there is one', function (): void {
+        app(KomplettradSettings::class)->setTpmsDefaultCents(1_500);
+
+        $porsche = TpmsSensorPrice::factory()->ofMake('porsche', 'Porsche')->create(['price_cents' => 5_000]);
+
+        $default = pricer()->sensorFor('VW');
+        $row = pricer()->sensorFor('Porsche');
+
+        expect($default?->priceCents)->toBe(1_500)
+            ->and($default?->priceId)->toBeNull()
+            ->and($default?->fromDefault())->toBeTrue()
+            // No admin spelling exists for a make nobody entered, so the vehicle's own is used —
+            // normalised, not invented: `VW` stays `VW`, because that is what the catalogue says.
+            ->and($default?->makeLabelDe)->toBe('VW')
+            ->and(pricer()->sensorFor('volkswagen')?->makeLabelDe)->toBe('Volkswagen')
+            ->and($row?->priceCents)->toBe(5_000)
+            ->and($row?->priceId)->toBe($porsche->id);
     });
 });
 

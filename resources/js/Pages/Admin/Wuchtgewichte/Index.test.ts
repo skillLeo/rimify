@@ -18,7 +18,7 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
-    router: { post: vi.fn(), patch: vi.fn(), delete: vi.fn(), on: vi.fn(() => () => undefined) },
+    router: { post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), on: vi.fn(() => () => undefined) },
 }))
 
 const { default: Page } = await import('./Index.vue')
@@ -71,7 +71,7 @@ function mountPage(props: Partial<AdminWuchtgewichteProps> = {}): VueWrapper {
     current.props = {}
 
     const wrapper = mount(Page, {
-        props: { colours: [colour()], can: WRITE, ...props },
+        props: { colours: [colour()], mounting: { cents: 1900, typed: '19,00 €' }, can: WRITE, ...props },
         attachTo: document.body,
         global: { stubs: { Dialog: DialogStub } },
     })
@@ -82,6 +82,11 @@ function mountPage(props: Partial<AdminWuchtgewichteProps> = {}): VueWrapper {
 
 function button(wrapper: VueWrapper, text: string) {
     return wrapper.findAll('button').find((b) => b.text().startsWith(text))
+}
+
+/** The colour form, not the Montage fee above it: the page carries two, and they post different things. */
+function colourForm(wrapper: VueWrapper) {
+    return wrapper.find('form.wg__form:not(.wg__form--fee)')
 }
 
 afterEach(() => {
@@ -145,7 +150,7 @@ describe('Wuchtgewichte-Farben', () => {
         const checks = wrapper.findAll('input[type="checkbox"]')
         await checks[0]!.setValue(false)
         await checks[1]!.setValue(true)
-        await wrapper.find('form').trigger('submit')
+        await colourForm(wrapper).trigger('submit')
 
         expect(router.post).toHaveBeenCalledWith(
             '/admin/wuchtgewichte',
@@ -166,7 +171,7 @@ describe('Wuchtgewichte-Farben', () => {
         expect(wrapper.find('tbody tr').attributes('aria-current')).toBe('true')
 
         await wrapper.find('#wg-surcharge').setValue('1,00')
-        await wrapper.find('form').trigger('submit')
+        await colourForm(wrapper).trigger('submit')
 
         expect(router.patch).toHaveBeenCalledWith(
             '/admin/wuchtgewichte/1',
@@ -202,7 +207,7 @@ describe('Wuchtgewichte-Farben', () => {
         const wrapper = mountPage()
 
         await wrapper.find('#wg-surcharge').setValue('49.00')
-        await wrapper.find('form').trigger('submit')
+        await colourForm(wrapper).trigger('submit')
 
         current.props = { errors: { surchargeCents: 'Bitte schreib den Aufpreis deutsch, zum Beispiel 0,00 oder 2,50.' } }
         await nextTick()

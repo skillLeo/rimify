@@ -7,10 +7,12 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\TpmsDefaultPriceRequest;
 use App\Http\Requests\Admin\TpmsSensorPriceRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\TpmsSensorPrice;
+use App\Services\Commerce\KomplettradSettings;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
@@ -34,6 +36,8 @@ class RdksPreiseController extends Controller
 
     public const DELETED_TOAST = 'Gelöscht.';
 
+    public function __construct(private readonly KomplettradSettings $settings) {}
+
     public function index(Request $request, VehicleTree $tree): Response
     {
         $this->authorize('viewAny', TpmsSensorPrice::class);
@@ -52,11 +56,46 @@ class RdksPreiseController extends Controller
             $makes[] = $make['make'];
         }
 
+        $default = $this->settings->tpmsDefaultCents();
+
         return Inertia::render('Admin/Rdks/Index', [
             'prices' => $rows,
             'makes' => $makes,
+            /*
+             * What every make without a row above is charged (§13, D-030). The client's example was
+             * 15 € as the default with 50 € entered for Porsche: the rows are the exceptions, this
+             * is the rule. Empty means there is no rule, and then only the makes listed above can
+             * have sensors at all.
+             */
+            'default' => [
+                'cents' => $default,
+                'typed' => $default === null ? '' : GermanFormat::money($default),
+            ],
             'can' => self::can(self::admin($request)),
         ]);
+    }
+
+    /**
+     * Saves the default sensor price. Clearing it is a legitimate save: the checkout then offers
+     * sensors only for the makes with their own row, and tells everyone else why it cannot.
+     */
+    public function updateDefaultPrice(TpmsDefaultPriceRequest $request): RedirectResponse
+    {
+        $cents = $request->priceCents();
+        $admin = $request->admin();
+
+        DB::transaction(function () use ($cents, $admin): void {
+            $before = $this->settings->tpmsDefaultCents();
+
+            $this->settings->setTpmsDefaultCents($cents);
+
+            self::auditSetting($admin, 'tpms_default_price.updated', [
+                'old_cents' => $before,
+                'cents' => $cents,
+            ]);
+        });
+
+        return back()->with('toast', self::SAVED_TOAST);
     }
 
     public function store(TpmsSensorPriceRequest $request): RedirectResponse
@@ -175,6 +214,26 @@ class RdksPreiseController extends Controller
         activity('admin')
             ->causedBy($admin)
             ->performedOn($price)
+            ->withProperties($properties)
+            ->tap(static function (AuditLog $entry) use ($admin): void {
+                $entry->forceFill([
+                    'actor_email' => $admin->email,
+                    'ip_address' => request()->ip(),
+                ]);
+            })
+            ->log($event);
+    }
+
+    /**
+     * The same append-only entry without a subject: the default price is a shop-wide figure with no
+     * row of its own, and an entry that named one would be a lie.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    private static function auditSetting(AdminUser $admin, string $event, array $properties): void
+    {
+        activity('admin')
+            ->causedBy($admin)
             ->withProperties($properties)
             ->tap(static function (AuditLog $entry) use ($admin): void {
                 $entry->forceFill([

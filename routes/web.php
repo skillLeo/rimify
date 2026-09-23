@@ -138,8 +138,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'update'])->name('wuchtgewichte.update');
         Route::delete('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'destroy'])->name('wuchtgewichte.destroy');
 
+        // Shop-wide money, edited beside the rows it applies to (§13). `/montage` and `/standard`
+        // are fixed segments, so neither can ever be read as a `{colour}` or a `{price}`.
+        Route::put('/wuchtgewichte/montage', [WuchtgewichteController::class, 'updateMountingFee'])->name('wuchtgewichte.montage');
+
         Route::get('/rdks-preise', [RdksPreiseController::class, 'index'])->name('rdks.index');
         Route::post('/rdks-preise', [RdksPreiseController::class, 'store'])->name('rdks.store');
+        Route::put('/rdks-preise/standard', [RdksPreiseController::class, 'updateDefaultPrice'])->name('rdks.standard');
         Route::patch('/rdks-preise/{price}', [RdksPreiseController::class, 'update'])->name('rdks.update');
         Route::delete('/rdks-preise/{price}', [RdksPreiseController::class, 'destroy'])->name('rdks.destroy');
     });
