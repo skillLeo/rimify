@@ -196,6 +196,23 @@ onBeforeUnmount(() => {
     display: none;
 }
 
+/*
+ * The smallest phones still sold (320px). Three 44px targets, the wordmark and the Demodaten badge
+ * came to 349px and the menu was pushed off the right edge. Nothing is dropped — the row simply
+ * stops paying for air it does not have: the page margin, the wordmark's own padding and the gaps
+ * come down, which buys the 30px back. Every target keeps its 44px (DIRECTION §6).
+ */
+@media (max-width: 359px) {
+    .mbar__row {
+        gap: var(--sp-4);
+        padding-inline: var(--sp-8);
+    }
+
+    .mbar__brand {
+        padding-inline: 0;
+    }
+}
+
 .mbar__vicon {
     position: relative;
 }

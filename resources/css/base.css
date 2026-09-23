@@ -247,6 +247,18 @@
         padding-block: var(--sp-48);
     }
 
+    /* On a phone the rhythm comes down with the type it separates: 64px between two sections is a
+       third of the screen spent on nothing, and it pushes the next section entirely out of view. */
+    @media (max-width: 767px) {
+        .section {
+            padding-block: var(--sp-48);
+        }
+
+        .section--tight {
+            padding-block: var(--sp-32);
+        }
+    }
+
     @media (min-width: 1024px) {
         .section {
             padding-block: var(--sp-96);

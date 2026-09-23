@@ -63,17 +63,25 @@ widths 62–125 %). Self-hosting is a legal point in Germany, not a preference (
 swap causes no layout shift. No second family: measured values are set in the same face with
 tabular figures.
 
-| Token | ≥ 1024 px | < 1024 px | Weight / width |
-|---|---|---|---|
-| `--fs-display` / `--lh-display` | 64 / 68 | 40 / 44 | 700 / 112 %, tracking −0.02em |
-| `--fs-h1` / `--lh-h1` | 48 / 54 | 34 / 40 | 700 / 110 % |
-| `--fs-h2` / `--lh-h2` | 36 / 42 | 28 / 34 | 700 / 110 % |
-| `--fs-h3` / `--lh-h3` | 24 / 30 | 21 / 28 | 600 / 100 % |
-| `--fs-h4` / `--lh-h4` | 20 / 28 | 18 / 26 | 600 / 100 % |
-| `--fs-body-l` / `--lh-body-l` | 18 / 28 | 17 / 26 | 400 |
-| `--fs-body` / `--lh-body` | 16 / 24 | 16 / 24 | 400 |
-| `--fs-small` / `--lh-small` | 14 / 20 | 14 / 20 | 400; 500 for labels |
-| `--fs-micro` / `--lh-micro` | 12 / 16 | 12 / 16 | legal and captions only |
+| Token | ≥ 1024 px | 768–1023 px | < 768 px | Weight / width |
+|---|---|---|---|---|
+| `--fs-display` / `--lh-display` | 64 / 68 | 40 / 44 | 32 / 36 | 700 / 112 %, tracking −0.02em |
+| `--fs-h1` / `--lh-h1` | 48 / 54 | 34 / 40 | 28 / 34 | 700 / 110 % |
+| `--fs-h2` / `--lh-h2` | 36 / 42 | 28 / 34 | 24 / 30 | 700 / 110 % |
+| `--fs-h3` / `--lh-h3` | 24 / 30 | 21 / 28 | 19 / 26 | 600 / 100 % |
+| `--fs-h4` / `--lh-h4` | 20 / 28 | 18 / 26 | 17 / 24 | 600 / 100 % |
+| `--fs-body-l` / `--lh-body-l` | 18 / 28 | 17 / 26 | 16 / 24 | 400 |
+| `--fs-body` / `--lh-body` | 16 / 24 | 16 / 24 | 16 / 24 | 400 |
+| `--fs-small` / `--lh-small` | 14 / 20 | 14 / 20 | 14 / 20 | 400; 500 for labels |
+| `--fs-micro` / `--lh-micro` | 12 / 16 | 12 / 16 | 12 / 16 | legal and captions only |
+
+Three steps, not two. The middle one was written for a tablet and used to reach the phone unchanged:
+a 34 px headline over a 360 px screen is two lines of wall before the visitor reaches the vehicle
+selector, which is the one thing the page exists for. The phone step comes down one notch across the
+board and shares its boundary with the four-column phone grid below, so there is one phone document,
+not two. `--fs-body` does not move: 16 px is the floor for an input on iOS, below which Safari zooms
+the page on focus, and body text has no business being smaller than the controls beside it. Section
+rhythm follows the type down — `.section` is `--sp-48` under 768 px, `.section--tight` is `--sp-32`.
 
 - Sentence case everywhere. No uppercase letter-spaced labels — a label is a word in `--fs-small`
   weight 500, `--c-ink-2`, above its value.
