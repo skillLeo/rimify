@@ -841,6 +841,7 @@ class ComposerStaticInitb3f69a3a4adc41e8b8e6cf84b4cbcb39
         'App\\Http\\Middleware\\HandleInertiaRequests' => __DIR__ . '/../..' . '/app/Http/Middleware/HandleInertiaRequests.php',
         'App\\Http\\Middleware\\SecurityHeaders' => __DIR__ . '/../..' . '/app/Http/Middleware/SecurityHeaders.php',
         'App\\Http\\Middleware\\VaryByDevice' => __DIR__ . '/../..' . '/app/Http/Middleware/VaryByDevice.php',
+        'App\\Http\\Requests\\Admin\\AdminLoginRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/AdminLoginRequest.php',
         'App\\Http\\Requests\\Admin\\BalanceWeightColourRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/BalanceWeightColourRequest.php',
         'App\\Http\\Requests\\Admin\\MountingFeeRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/MountingFeeRequest.php',
         'App\\Http\\Requests\\Admin\\TpmsDefaultPriceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TpmsDefaultPriceRequest.php',

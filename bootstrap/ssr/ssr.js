@@ -40105,7 +40105,7 @@ server_default((page) => createInertiaApp({
 	render: import_server_renderer_cjs_prod.renderToString,
 	title: (title) => title ? `${title} · ${appName}` : appName,
 	resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, /* #__PURE__ */ Object.assign({
-		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-CXEhMEbi.js"),
+		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-DGfHBdSS.js"),
 		"./Pages/Admin/Benachrichtigungen/Index.vue": () => import("./assets/Index-CqL4luiF.js"),
 		"./Pages/Admin/Dashboard/Index.vue": () => import("./assets/Index-BQ0sQ7QO.js"),
 		"./Pages/Admin/Gutachten/Index.vue": () => import("./assets/Index-CWK_FqXb.js"),

@@ -125,7 +125,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         ->middleware('guest:admin')
         ->name('anmelden');
 
+    // The attempt itself. Throttled inside the Form Request per address AND per IP, so one person
+    // guessing at one account cannot lock every other admin out by using their address.
+    Route::post('/anmelden', [AdminLoginController::class, 'store'])
+        ->middleware('guest:admin')
+        ->name('anmelden.store');
+
     Route::middleware('auth:admin')->group(function (): void {
+        Route::post('/abmelden', [AdminLoginController::class, 'destroy'])->name('abmelden');
+
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/gutachten', [GutachtenController::class, 'index'])->name('gutachten.index');
         Route::get('/rollen', [RollenController::class, 'index'])->name('rollen.index');

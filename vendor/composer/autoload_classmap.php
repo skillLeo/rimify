@@ -103,6 +103,7 @@ return array(
     'App\\Http\\Middleware\\HandleInertiaRequests' => $baseDir . '/app/Http/Middleware/HandleInertiaRequests.php',
     'App\\Http\\Middleware\\SecurityHeaders' => $baseDir . '/app/Http/Middleware/SecurityHeaders.php',
     'App\\Http\\Middleware\\VaryByDevice' => $baseDir . '/app/Http/Middleware/VaryByDevice.php',
+    'App\\Http\\Requests\\Admin\\AdminLoginRequest' => $baseDir . '/app/Http/Requests/Admin/AdminLoginRequest.php',
     'App\\Http\\Requests\\Admin\\BalanceWeightColourRequest' => $baseDir . '/app/Http/Requests/Admin/BalanceWeightColourRequest.php',
     'App\\Http\\Requests\\Admin\\MountingFeeRequest' => $baseDir . '/app/Http/Requests/Admin/MountingFeeRequest.php',
     'App\\Http\\Requests\\Admin\\TpmsDefaultPriceRequest' => $baseDir . '/app/Http/Requests/Admin/TpmsDefaultPriceRequest.php',
