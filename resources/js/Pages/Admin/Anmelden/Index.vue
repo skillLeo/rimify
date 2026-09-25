@@ -15,16 +15,32 @@
  * One page for every width.
  */
 
-import { Head } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { Head, useForm } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import type { AdminAnmeldenProps } from '../../../types/pages'
 
 defineOptions({ inheritAttrs: false })
 
 defineProps<AdminAnmeldenProps>()
 
-const busy = ref(false)
-const remember = ref(false)
+const form = useForm({ email: '', password: '', remember: false })
+
+/*
+ * One sentence, under both fields rather than under the one we suspect: the server never says which
+ * half was wrong, because naming the address would turn a password guess into a way of finding out
+ * which addresses exist. The same line carries the lockout wait.
+ */
+const failure = computed(() => form.errors.email ?? form.errors.password ?? '')
+const busy = computed(() => form.processing)
+
+function submit(): void {
+    form.transform((data) => ({ ...data, password: data.password }))
+    form.post('/admin/anmelden', {
+        // The password never survives a failed attempt: the field is refilled by hand, so a shared
+        // screen does not keep it in the DOM while the error is read.
+        onFinish: () => form.reset('password'),
+    })
+}
 </script>
 
 <template>
@@ -65,24 +81,41 @@ const remember = ref(false)
                     <h1 class="t-h1">Anmelden</h1>
                     <p class="t-body login__sub">Melde dich mit deinem RIMIFY-Konto an.</p>
 
-                    <form class="login__fields" @submit.prevent>
+                    <form class="login__fields" @submit.prevent="submit">
+                        <!-- The failure sits above the fields, where it is read before the retry
+                             rather than after it, and is announced the moment it arrives. -->
+                        <p v-if="failure" class="login__error" role="alert">{{ failure }}</p>
+
                         <div>
                             <label class="field-label" for="lg-mail">E-Mail</label>
                             <input
                                 id="lg-mail"
+                                v-model="form.email"
                                 class="field"
+                                :class="{ 'field--error': failure }"
                                 type="email"
                                 inputmode="email"
                                 autocomplete="username"
+                                required
+                                :aria-invalid="failure ? 'true' : undefined"
                             />
                         </div>
                         <div>
                             <label class="field-label" for="lg-pass">Passwort</label>
-                            <input id="lg-pass" class="field" type="password" autocomplete="current-password" />
+                            <input
+                                id="lg-pass"
+                                v-model="form.password"
+                                class="field"
+                                :class="{ 'field--error': failure }"
+                                type="password"
+                                autocomplete="current-password"
+                                required
+                                :aria-invalid="failure ? 'true' : undefined"
+                            />
                         </div>
 
                         <label class="login__check">
-                            <input v-model="remember" type="checkbox" />
+                            <input v-model="form.remember" type="checkbox" />
                             <span>Angemeldet bleiben</span>
                         </label>
 
@@ -126,6 +159,17 @@ const remember = ref(false)
 .login__sub {
     margin-top: var(--space-2);
     color: var(--ink2);
+}
+
+/* The one failure sentence: the shop's own bad-news colour, on its wash, never a browser bubble. */
+.login__error {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+    background: var(--danger-w);
+    color: var(--ink);
+    font-size: var(--text-small);
+    line-height: var(--lh-small);
 }
 
 .login__fields {
