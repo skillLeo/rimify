@@ -7,12 +7,14 @@ namespace App\Http\Middleware;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Services\Admin\AdminAlerts;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Middleware;
+use Throwable;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -124,9 +126,26 @@ class HandleInertiaRequests extends Middleware
                 '/'.ltrim($request->path(), '/'),
                 is_string($request->attributes->get(AdminNavigation::RECORD)) ? $request->attributes->get(AdminNavigation::RECORD) : null,
             ),
+            // The bell's number, in the first frame like the rail's counts. Null when it could not be
+            // read: the bell then shows no number rather than a zero that may be false. `offered`
+            // is whether this role can receive any alert at all — a bell that can never ring is
+            // decoration, so it is not drawn unless something already sits in it.
+            'notifications' => fn (): array => [
+                'unread' => $user instanceof AdminUser ? self::unread($user) : null,
+                'offered' => $user instanceof AdminUser && app(AdminAlerts::class)->kindsFor($user) !== [],
+            ],
             // Not rendered when unset: the help menu never offers an address nobody reads.
             'supportEmail' => is_string(config('rimify.admin.support_email')) ? config('rimify.admin.support_email') : null,
         ]];
+    }
+
+    private static function unread(AdminUser $user): ?int
+    {
+        try {
+            return $user->unreadNotifications()->count();
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

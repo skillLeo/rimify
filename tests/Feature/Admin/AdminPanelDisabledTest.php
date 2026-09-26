@@ -32,9 +32,10 @@ it('answers every admin path with a 404, sign-in screen included', function (str
     '/admin/anmelden',
     '/admin/gutachten',
     '/admin/rollen',
-    '/admin/wuchtgewichte',
-    '/admin/rdks-preise',
+    '/admin/zubehoerpreise/wuchtgewichte',
+    '/admin/zubehoerpreise/rdks',
     '/admin/benachrichtigungen',
+    '/admin/anfragen',
 ]);
 
 it('closes it to an account that is already signed in, not only to the password', function (): void {

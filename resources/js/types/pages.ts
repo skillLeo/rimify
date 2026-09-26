@@ -502,7 +502,7 @@ export interface AdminAnmeldenProps {
 
 export interface AdminUebersichtProps {
     /** Only the figures of areas the viewer may open; `href` only where the list exists. */
-    tiles: { key: string; label: string; value: string; href: string | null }[]
+    tiles: { key: string; label: string; value: string; hint: string; href: string | null }[]
     /** `26.09.2026, 13:40 Uhr` in Europe/Berlin — when the figures were counted. */
     asOf: string
 }

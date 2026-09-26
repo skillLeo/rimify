@@ -93,7 +93,7 @@ it('counts the lock per address and per address only, so one admin cannot shut a
 
 it('refuses the panel to anyone who has not signed in, and says where to', function (): void {
     $this->get('/admin')->assertRedirect('/admin/anmelden');
-    $this->get('/admin/wuchtgewichte')->assertRedirect('/admin/anmelden');
+    $this->get('/admin/zubehoerpreise/wuchtgewichte')->assertRedirect('/admin/anmelden');
 });
 
 it('takes a signed-in admin away from the sign-in screen', function (): void {

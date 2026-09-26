@@ -7,6 +7,7 @@
  * a result that leads nowhere is the dead link the brief forbids, only slower (shell-build-plan.md).
  */
 
+import { SECTION_TABS } from '../../Components/Admin/sectionTabs'
 import type { IconName } from '../../icons'
 import type { AdminNavGroup } from '../../types/admin'
 
@@ -37,6 +38,7 @@ export const GROUP_LABEL: Record<PaletteGroup, string> = {
 /** Pages that are not in the rail but are the viewer's own, so they can be found and remembered. */
 export const OWN_PAGES: ReadonlyArray<{ label: string; href: string; icon: IconName; keywords: string }> = [
     { label: 'Profil', href: '/admin/profil', icon: 'user', keywords: 'konto account' },
+    { label: 'Benachrichtigungen', href: '/admin/benachrichtigungen', icon: 'bell', keywords: 'glocke hinweise meldungen ungelesen' },
 ]
 
 /** Lowercase, accents dropped, ß as ss — what a query is reduced to. */
@@ -74,6 +76,20 @@ export function pageEntries(nav: AdminNavGroup[], shortcuts: Record<string, stri
                 icon: page.icon,
                 href: page.href,
             })
+
+            // A rail item made of tabs: each tab is a page of its own, found by its own name.
+            for (const tab of SECTION_TABS[page.href] ?? []) {
+                entries.push({
+                    id: `goto:${tab.href}`,
+                    group: 'goto',
+                    label: tab.label,
+                    sub: `${group.label} › ${page.label}`,
+                    keys: null,
+                    icon: page.icon,
+                    href: tab.href,
+                    keywords: page.label,
+                })
+            }
         }
     }
 

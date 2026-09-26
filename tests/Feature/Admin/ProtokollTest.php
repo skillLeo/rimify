@@ -399,7 +399,7 @@ describe('putting every entry into words', function (): void {
             'admin.password_changed' => [[], 'Das eigene Passwort wurde geändert.', []],
             'permission.denied' => [
                 ['ability' => 'delete', 'route' => 'admin.wuchtgewichte.destroy'],
-                'Der Versuch, auf der Seite „Wuchtgewichte-Farben“ etwas zu löschen, wurde abgelehnt, weil die Berechtigung dafür fehlte.',
+                'Der Versuch, auf der Seite „Zubehörpreise › Wuchtgewichte“ etwas zu löschen, wurde abgelehnt, weil die Berechtigung dafür fehlte.',
                 [],
             ],
             'weight_colour.created' => [['id' => $colour->id, 'name_de' => 'Schwarz', 'surcharge_cents' => 250], 'Die Wuchtgewichte-Farbe „Schwarz“ wurde angelegt.', ['Aufpreis je Rad: – → '.$euro(250)]],

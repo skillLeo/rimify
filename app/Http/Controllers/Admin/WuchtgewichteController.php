@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\MountingFeeRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Services\Admin\AdminNavigation;
 use App\Services\Commerce\KomplettradSettings;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +49,10 @@ class WuchtgewichteController extends Controller
         }
 
         $mounting = $this->settings->mountingPerWheelCents();
+
+        // Einstellungen › Zubehörpreise › Wuchtgewichte: which of the two tabs this is, named as
+        // the tab row names it (sectionTabs.ts).
+        $request->attributes->set(AdminNavigation::RECORD, 'Wuchtgewichte');
 
         return Inertia::render('Admin/Wuchtgewichte/Index', [
             'colours' => $rows,

@@ -10,6 +10,7 @@ use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
+use App\Services\Admin\AdminNavigation;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,53 +46,91 @@ class UebersichtController extends Controller
     }
 
     /**
-     * @return list<array{key: string, label: string, value: string, href: string|null}>
+     * Each figure with the one sentence that says what it counts, and the list it comes from.
+     *
+     * The list is named here for every figure, built or not; tile() links it only once the page is
+     * in AdminNavigation::BUILT. So the day Bestellungen is built its figure links itself, and until
+     * then no figure points at a page that is not there.
+     *
+     * @return list<array{key: string, label: string, value: string, hint: string, href: string|null}>
      */
     private function tiles(AdminUser $admin): array
     {
         $tiles = [];
 
         if ($admin->may(PermissionModule::Reports, PermissionAction::View)) {
-            $tiles[] = $this->tile('revenue', 'Umsatz im Monat', GermanFormat::money($this->monthRevenue()));
+            $tiles[] = $this->tile(
+                'revenue',
+                'Umsatz im Monat',
+                GermanFormat::money($this->monthRevenue()),
+                'Gesamtbetrag aller bezahlten Bestellungen seit dem 1. des Monats.',
+                '/admin/verkaeufe',
+            );
         }
 
         if ($admin->may(PermissionModule::Orders, PermissionAction::View)) {
-            $tiles[] = $this->tile('orders', 'Offene Bestellungen', GermanFormat::integer(
-                DB::table('orders')->whereIn('status', [OrderStatus::Paid->value, OrderStatus::InFulfilment->value])->count(),
-            ));
+            $tiles[] = $this->tile(
+                'orders',
+                'Offene Bestellungen',
+                GermanFormat::integer(DB::table('orders')->whereIn('status', [OrderStatus::Paid->value, OrderStatus::InFulfilment->value])->count()),
+                'Bezahlt oder in Bearbeitung, aber noch nicht versendet.',
+                '/admin/bestellungen',
+            );
         }
 
         if ($admin->may(PermissionModule::Approvals, PermissionAction::View)) {
-            $tiles[] = $this->tile('documents', 'Veröffentlichte Gutachten', GermanFormat::integer(
-                DB::table('approval_documents')->where('status', 'published')->count(),
-            ), '/admin/gutachten');
+            $tiles[] = $this->tile(
+                'documents',
+                'Veröffentlichte Gutachten',
+                GermanFormat::integer(DB::table('approval_documents')->where('status', 'published')->count()),
+                'Gutachten, nach denen der Shop gerade Felgen zeigt. Entwürfe zählen nicht mit.',
+                '/admin/gutachten',
+            );
 
-            $tiles[] = $this->tile('fitments', 'Veröffentlichte Freigaben', GermanFormat::integer(
-                DB::table('fitments')->where('status', 'published')->count(),
-            ));
+            $tiles[] = $this->tile(
+                'fitments',
+                'Veröffentlichte Freigaben',
+                GermanFormat::integer(DB::table('fitments')->where('status', 'published')->count()),
+                'Eine Freigabe ist eine Zeile eines Gutachtens: diese Felge an diesem Fahrzeug.',
+                '/admin/abdeckung',
+            );
 
-            $tiles[] = $this->tile('conflicts', 'Offene Konflikte', GermanFormat::integer(
-                DB::table('fitment_conflicts')->where('status', ConflictStatus::Open->value)->count(),
-            ));
+            $tiles[] = $this->tile(
+                'conflicts',
+                'Offene Konflikte',
+                GermanFormat::integer(DB::table('fitment_conflicts')->where('status', ConflictStatus::Open->value)->count()),
+                'Zwei Gutachten sagen über dieselbe Felge am selben Fahrzeug Verschiedenes.',
+                '/admin/konflikte',
+            );
         }
 
         if ($admin->may(PermissionModule::Vehicles, PermissionAction::View)) {
             // A vehicle the importer could not characterise can never produce a positive verdict,
             // so this figure is the queue that turns silence back into sales (R-03).
-            $tiles[] = $this->tile('review', 'Fahrzeuge zur Prüfung', GermanFormat::integer(
-                DB::table('vehicles')->whereNull('deleted_at')->where('needs_review', true)->count(),
-            ));
+            $tiles[] = $this->tile(
+                'review',
+                'Fahrzeuge zur Prüfung',
+                GermanFormat::integer(DB::table('vehicles')->whereNull('deleted_at')->where('needs_review', true)->count()),
+                'Ohne lesbare Achslast oder Höchstgeschwindigkeit. Für sie zeigt der Shop keine Felgen.',
+                '/admin/fahrzeuge/pruefung',
+            );
         }
 
         return $tiles;
     }
 
     /**
-     * @return array{key: string, label: string, value: string, href: string|null}
+     * @return array{key: string, label: string, value: string, hint: string, href: string|null}
      */
-    private function tile(string $key, string $label, string $value, ?string $href = null): array
+    private function tile(string $key, string $label, string $value, string $hint, string $list): array
     {
-        return ['key' => $key, 'label' => $label, 'value' => $value, 'href' => $href];
+        return [
+            'key' => $key,
+            'label' => $label,
+            'value' => $value,
+            'hint' => $hint,
+            'href' => in_array($list, AdminNavigation::BUILT, true) ? $list : null,
+        ];
     }
 
     private function monthRevenue(): int

@@ -213,11 +213,12 @@ describe('Ansicht als Rolle', function (): void {
     it('follows the role\'s own cells: a view taken away is a group gone', function (): void {
         $manager = verwaltungRoleId('catalogue-manager');
 
-        expect(array_column(app(AdminNavigation::class)->forRole($manager), 'key'))->toContain('katalog');
+        // The catalogue manager's catalogue page today is Einstellungen › Zubehörpreise.
+        expect(array_column(app(AdminNavigation::class)->forRole($manager), 'key'))->toContain('einstellungen');
 
         verwaltungGrant('catalogue-manager', ['catalogue.view'], false);
 
-        expect(array_column(app(AdminNavigation::class)->forRole($manager), 'key'))->not->toContain('katalog')
+        expect(array_column(app(AdminNavigation::class)->forRole($manager), 'key'))->not->toContain('einstellungen')
             ->and(app(AdminNavigation::class)->forRole($manager)[0]['key'])->toBe('uebersicht');
     });
 });

@@ -27,12 +27,12 @@ function adminPageAccessRoutes(): array
 {
     return [
         'gutachten' => ['/admin/gutachten', PermissionModule::Approvals],
-        'benachrichtigungen' => ['/admin/benachrichtigungen', PermissionModule::Approvals],
+        'anfragen' => ['/admin/anfragen', PermissionModule::Approvals],
         'rollen' => ['/admin/rollen', PermissionModule::Roles],
         'benutzer' => ['/admin/benutzer', PermissionModule::Roles],
         'protokoll' => ['/admin/protokoll', PermissionModule::AuditLog],
-        'wuchtgewichte' => ['/admin/wuchtgewichte', PermissionModule::Catalogue],
-        'rdks-preise' => ['/admin/rdks-preise', PermissionModule::Catalogue],
+        'wuchtgewichte' => ['/admin/zubehoerpreise/wuchtgewichte', PermissionModule::Catalogue],
+        'rdks-preise' => ['/admin/zubehoerpreise/rdks', PermissionModule::Catalogue],
         'seiten' => ['/admin/seiten', PermissionModule::Content],
         'faq' => ['/admin/faq', PermissionModule::Content],
         'navigation' => ['/admin/navigation', PermissionModule::Content],
@@ -54,8 +54,14 @@ it('keeps the customer addresses from a role outside the Gutachten area', functi
 
     expect($editor->may(PermissionModule::Approvals, PermissionAction::View))->toBeFalse();
 
-    $this->actingAs($editor, 'admin')->get('/admin/benachrichtigungen')->assertForbidden();
+    $this->actingAs($editor, 'admin')->get('/admin/anfragen')->assertForbidden();
 });
+
+it('opens the notification centre for every role: it holds only the reader\'s own alerts', function (string $role): void {
+    $admin = AdminUser::query()->where('email', $role.'@rimify.test')->firstOrFail();
+
+    $this->actingAs($admin, 'admin')->get('/admin/benachrichtigungen')->assertOk();
+})->with(['super-admin', 'catalogue-manager', 'compliance-editor', 'order-manager', 'content-editor', 'support-agent', 'accountant']);
 
 it('records a refused page as evidence', function (): void {
     $editor = AdminUser::query()->where('email', 'content-editor@rimify.test')->firstOrFail();

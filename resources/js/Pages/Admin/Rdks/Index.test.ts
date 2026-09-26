@@ -170,7 +170,7 @@ describe('RDKS-Sensorpreise je Marke', () => {
         await priceForm(wrapper).trigger('submit')
 
         expect(router.post).toHaveBeenCalledWith(
-            '/admin/rdks-preise',
+            '/admin/zubehoerpreise/rdks',
             { make: 'Porsche', price: '189,00', active: true },
             expect.objectContaining({ preserveScroll: true })
         )
@@ -191,7 +191,7 @@ describe('RDKS-Sensorpreise je Marke', () => {
         await priceForm(wrapper).trigger('submit')
 
         expect(router.patch).toHaveBeenCalledWith(
-            '/admin/rdks-preise/7',
+            '/admin/zubehoerpreise/rdks/7',
             { make: 'Volkswagen', price: '59,00', active: true },
             expect.objectContaining({ preserveScroll: true })
         )
@@ -217,7 +217,7 @@ describe('RDKS-Sensorpreise je Marke', () => {
 
         await dialog.find('.adm-btn--danger').trigger('click')
 
-        expect(router.delete).toHaveBeenCalledWith('/admin/rdks-preise/7', expect.objectContaining({ preserveScroll: true }))
+        expect(router.delete).toHaveBeenCalledWith('/admin/zubehoerpreise/rdks/7', expect.objectContaining({ preserveScroll: true }))
     })
 
     it('says the default price takes over when one is set', async () => {

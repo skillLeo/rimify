@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Katalog › Wuchtgewichte-Farben.
+ * Einstellungen › Zubehörpreise › Wuchtgewichte-Farben.
  *
  * The colours a customer can pick for the balance weights of a Komplettrad, and what each costs per
  * wheel. One form serves a new colour and an existing one: `Bearbeiten` loads the row into it and
@@ -19,7 +19,9 @@ import { computed, reactive, ref } from 'vue'
 import Icon from '../../../Components/Art/Icon.vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminSectionTabs from '../../../Components/Admin/AdminSectionTabs.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import { ZUBEHOER_TABS } from '../../../Components/Admin/sectionTabs'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminWuchtgewichteProps } from '../../../types/pages'
 
@@ -38,7 +40,7 @@ interface ColourForm {
     sortOrder: number | ''
 }
 
-const BASE = '/admin/wuchtgewichte'
+const BASE = '/admin/zubehoerpreise/wuchtgewichte'
 
 const EMPTY_TEXT = 'Noch keine Farbe angelegt. Solange können Kundinnen und Kunden kein Komplettrad bestellen.'
 const MONEY_HINT = 'Preis in Euro, mit Komma – zum Beispiel 49,00.'
@@ -195,7 +197,9 @@ function remove(): void {
 </script>
 
 <template>
-    <AdminPage title="Wuchtgewichte-Farben" :context="context" :read-only="!canWrite">
+    <AdminPage title="Zubehörpreise" :context="context" :read-only="!canWrite">
+        <AdminSectionTabs label="Zubehörpreise" :items="ZUBEHOER_TABS" />
+
         <p class="adm-note wg__lead">
             Die Farbe wählen Kundinnen und Kunden im Warenkorb, je Komplettrad. Der Aufpreis gilt je Rad; die
             Standardfarbe bekommt jedes Komplettrad, solange nichts anderes gewählt ist.

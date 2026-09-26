@@ -553,6 +553,75 @@
     cursor: default;
 }
 
+/* Sibling pages under one rail item (AdminSectionTabs): a hairline row, the current one underlined
+   in ink. Links, not ARIA tabs — each is its own page.
+
+   The hairline is drawn inside the row, under the tabs, rather than as the row's border with the
+   tabs pulled over it: a row that scrolls sideways clips whatever reaches past its edge, and a tab
+   hanging 1 px below it made the row scroll up and down as well. */
+.adm-tabs {
+    position: relative;
+    display: flex;
+    gap: var(--sp-24);
+    margin-bottom: var(--sp-24);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.adm-tabs::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: var(--c-line);
+}
+
+.adm-tabs__item {
+    position: relative;
+    z-index: var(--z-raised);
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--adm-row-h);
+    border-bottom: 2px solid transparent;
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-tabs__item:hover {
+        color: var(--c-ink);
+    }
+}
+
+.adm-tabs__item:active {
+    color: var(--c-ink);
+}
+
+.adm-tabs__item[aria-current='page'] {
+    border-bottom-color: var(--c-ink);
+    color: var(--c-ink);
+}
+
+/* The row scrolls sideways on a phone, which clips anything drawn outside it: the ring goes inside. */
+.adm-tabs__item:focus-visible {
+    outline-offset: -2px;
+}
+
+/* A short word („Alle“) still makes a whole touch target. */
+@media (pointer: coarse) {
+    .adm-tabs__item {
+        min-width: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
 /* A row's up/down pair. Below 768 px there is no room beside the row's words: the pair steps aside
    in CSS — never by a script after hydration, which made the list jump — and the same moves stay in
    the row's menu, where they always are. */
@@ -692,8 +761,20 @@
         opacity: 1;
     }
 
-    .adm-appbar .adm-env {
+    /* The bell's glyph lines up with the page margin, as the wordmark does on the left: the button
+       around it reaches past the margin by the part of it that is only touch target. */
+    .adm-appbar__end {
         grid-column: 2;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-8);
+        margin-right: calc(-1 * var(--sp-8));
+    }
+
+    @media (pointer: coarse) {
+        .adm-appbar__end {
+            margin-right: calc(-1 * var(--sp-12));
+        }
     }
 
     .adm-tabbar {
@@ -879,6 +960,161 @@
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
     color: var(--c-ink-3);
+}
+
+/* ── The bell (AdminBell) ───────────────────────────────────────────────────────────
+ * The count wears the phone tab bar's badge, not red: an unread alert is news, not a failure, and
+ * red is kept for things that broke. Unread has one cue — a dot in ink — and read alerts stay in
+ * the list unchanged, so the menu is also the recent history. Each alert is two lines at most:
+ * the sentence with its time on the right, the facts beneath (§6.3). */
+
+.adm-bell {
+    position: relative;
+}
+
+/* Anchored at the bell's centre line and growing to the right, so `99+` covers the bell's shoulder,
+   never the bell. */
+.adm-bell__count {
+    position: absolute;
+    top: var(--sp-4);
+    left: 50%;
+    z-index: var(--z-raised);
+    min-width: var(--sp-16);
+    height: var(--sp-16);
+    padding-inline: var(--sp-4);
+    border-radius: var(--r-round);
+    background: var(--c-ink-2);
+    /* A ring in the bar's own colour, so the count sits clear of the bell's outline. */
+    outline: 2px solid var(--c-surface);
+    color: var(--c-surface);
+    font-size: var(--fs-micro);
+    line-height: var(--sp-16);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    pointer-events: none;
+}
+
+.adm-alerts {
+    width: min(400px, calc(100vw - 2 * var(--sp-16)));
+    max-height: min(640px, calc(100dvh - var(--sp-96)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.adm-alerts__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    margin: 0 calc(-1 * var(--sp-4)) var(--sp-4);
+    padding: var(--sp-8) var(--sp-16) var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+}
+
+.adm-alerts__title {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+}
+
+.adm-alerts__unread {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+}
+
+.adm-alerts__state {
+    display: grid;
+    gap: var(--sp-8);
+    padding: var(--sp-4) var(--sp-12) var(--sp-8);
+}
+
+/* A loading row is an alert's size, so nothing jumps when the alerts land. */
+.adm-alerts__skel {
+    display: grid;
+    align-content: center;
+    gap: var(--sp-8);
+    min-height: var(--adm-row-h-lg);
+    padding-left: var(--sp-20);
+}
+
+.adm-alerts__note {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-alerts__state .adm-menu__item {
+    margin-inline: calc(-1 * var(--sp-12));
+    width: calc(100% + 2 * var(--sp-12));
+}
+
+.adm-bellitem {
+    display: grid;
+    grid-template-columns: var(--sp-8) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--sp-12);
+    min-height: var(--adm-row-h-lg);
+    padding: var(--sp-8) var(--sp-12);
+    border-radius: var(--r-control);
+    color: var(--c-ink);
+    cursor: pointer;
+    outline: none;
+}
+
+.adm-bellitem[data-highlighted] {
+    background: var(--c-band);
+}
+
+/* Centred on the first line of the sentence. */
+.adm-bellitem__dot {
+    width: var(--sp-8);
+    height: var(--sp-8);
+    margin-top: calc((var(--lh-small) - var(--sp-8)) / 2);
+    border-radius: var(--r-round);
+}
+
+.adm-bellitem--unread .adm-bellitem__dot {
+    background: var(--c-ink);
+}
+
+.adm-bellitem__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sp-12);
+    min-width: 0;
+}
+
+.adm-bellitem__title {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-bellitem__detail {
+    grid-column: 1 / -1;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-2);
+    overflow-wrap: anywhere;
+}
+
+.adm-bellitem__time {
+    grid-row: 1;
+    grid-column: 2;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-small);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+    white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+    .adm-bellitem {
+        min-height: var(--adm-control-h-lg);
+    }
 }
 
 /* ── Dialogs: the storefront's surface, the admin's quicker motion (BRIEF-2 §4) ───── */
@@ -1953,6 +2189,13 @@
     white-space: nowrap;
 }
 
+.adm-stat__hint {
+    max-width: 40ch;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
 @container (max-width: 200px) {
     .adm-stat__value {
         font-size: var(--fs-h3);
@@ -1979,9 +2222,11 @@
     border-top-color: var(--c-ink);
 }
 
+/* One to a row on a phone: each figure carries a sentence, and at half the width it would break
+   over four lines. */
 @media (max-width: 767px) {
     .adm-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
         gap: var(--sp-16);
     }
 

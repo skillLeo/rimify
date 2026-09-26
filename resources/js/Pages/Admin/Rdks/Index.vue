@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Katalog › RDKS-Sensorpreise je Marke.
+ * Einstellungen › Zubehörpreise › RDKS-Sensorpreise je Marke.
  *
  * What one tyre-pressure sensor costs for one car make — per sensor, never per set: the checkout
  * multiplies by the number of Komplettrad wheels and shows `4 × 49,00 €`. The default price is the
@@ -18,7 +18,9 @@ import { router, usePage } from '@inertiajs/vue3'
 import { computed, reactive, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminSectionTabs from '../../../Components/Admin/AdminSectionTabs.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import { ZUBEHOER_TABS } from '../../../Components/Admin/sectionTabs'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminRdksProps } from '../../../types/pages'
 
@@ -34,7 +36,7 @@ interface PriceForm {
     active: boolean
 }
 
-const BASE = '/admin/rdks-preise'
+const BASE = '/admin/zubehoerpreise/rdks'
 
 const EMPTY_TEXT = 'Noch kein Preis hinterlegt. Wir fragen RDKS-Sensoren an der Kasse zwar ab, können sie aber für keine Marke berechnen.'
 const MONEY_HINT = 'Preis in Euro, mit Komma – zum Beispiel 49,00.'
@@ -186,7 +188,9 @@ function remove(): void {
 </script>
 
 <template>
-    <AdminPage title="RDKS-Sensorpreise" :context="context" :read-only="!canWrite">
+    <AdminPage title="Zubehörpreise" :context="context" :read-only="!canWrite">
+        <AdminSectionTabs label="Zubehörpreise" :items="ZUBEHOER_TABS" />
+
         <p class="adm-note rd__lead">
             Der Preis gilt je Sensor; an der Kasse rechnen wir ihn mit der Zahl der Kompletträder hoch. Für eine Marke
             ohne Preis bieten wir keine Sensoren an.

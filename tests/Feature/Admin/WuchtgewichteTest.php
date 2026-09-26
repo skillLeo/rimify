@@ -53,10 +53,10 @@ function wgAudit(string $event): Builder
 it('sends a guest to the sign-in screen for every route', function (): void {
     $colour = BalanceWeightColour::factory()->create();
 
-    $this->get('/admin/wuchtgewichte')->assertRedirect('/admin/anmelden');
-    $this->post('/admin/wuchtgewichte', wgPayload())->assertRedirect('/admin/anmelden');
-    $this->patch('/admin/wuchtgewichte/'.$colour->getKey(), wgPayload())->assertRedirect('/admin/anmelden');
-    $this->delete('/admin/wuchtgewichte/'.$colour->getKey())->assertRedirect('/admin/anmelden');
+    $this->get('/admin/zubehoerpreise/wuchtgewichte')->assertRedirect('/admin/anmelden');
+    $this->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload())->assertRedirect('/admin/anmelden');
+    $this->patch('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey(), wgPayload())->assertRedirect('/admin/anmelden');
+    $this->delete('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey())->assertRedirect('/admin/anmelden');
 
     expect(BalanceWeightColour::query()->count())->toBe(1);
 });
@@ -65,9 +65,9 @@ it('lets a writing role create, edit and delete a colour', function (string $rol
     $admin = wgAdmin($role);
 
     $this->actingAs($admin, 'admin')
-        ->from('/admin/wuchtgewichte')
-        ->post('/admin/wuchtgewichte', wgPayload(['surcharge' => '2,50']))
-        ->assertRedirect('/admin/wuchtgewichte')
+        ->from('/admin/zubehoerpreise/wuchtgewichte')
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['surcharge' => '2,50']))
+        ->assertRedirect('/admin/zubehoerpreise/wuchtgewichte')
         ->assertSessionHasNoErrors()
         ->assertSessionHas('toast', 'Gespeichert.');
 
@@ -83,11 +83,11 @@ it('lets a writing role create, edit and delete a colour', function (string $rol
         ->and($colour->sort_order)->toBe(10);
 
     $this->actingAs($admin, 'admin')
-        ->from('/admin/wuchtgewichte')
-        ->patch('/admin/wuchtgewichte/'.$colour->getKey(), wgPayload([
+        ->from('/admin/zubehoerpreise/wuchtgewichte')
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey(), wgPayload([
             'nameDe' => 'Silber matt', 'surcharge' => '3,00', 'sortOrder' => 20, 'active' => false,
         ]))
-        ->assertRedirect('/admin/wuchtgewichte')
+        ->assertRedirect('/admin/zubehoerpreise/wuchtgewichte')
         ->assertSessionHasNoErrors()
         ->assertSessionHas('toast', 'Gespeichert.');
 
@@ -100,9 +100,9 @@ it('lets a writing role create, edit and delete a colour', function (string $rol
         ->and($colour->active)->toBeFalse();
 
     $this->actingAs($admin, 'admin')
-        ->from('/admin/wuchtgewichte')
-        ->delete('/admin/wuchtgewichte/'.$colour->getKey())
-        ->assertRedirect('/admin/wuchtgewichte')
+        ->from('/admin/zubehoerpreise/wuchtgewichte')
+        ->delete('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey())
+        ->assertRedirect('/admin/zubehoerpreise/wuchtgewichte')
         ->assertSessionHas('toast', 'Gelöscht.');
 
     // Soft-deleted, never gone: an order line may still point at this id.
@@ -114,12 +114,12 @@ it('refuses the index and every mutation to a role without the catalogue module'
     $existing = BalanceWeightColour::factory()->create(['name_de' => 'Schwarz', 'slug' => 'schwarz']);
     $admin = wgAdmin($role);
 
-    $this->actingAs($admin, 'admin')->get('/admin/wuchtgewichte')->assertForbidden();
-    $this->actingAs($admin, 'admin')->post('/admin/wuchtgewichte', wgPayload())->assertForbidden();
+    $this->actingAs($admin, 'admin')->get('/admin/zubehoerpreise/wuchtgewichte')->assertForbidden();
+    $this->actingAs($admin, 'admin')->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload())->assertForbidden();
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/wuchtgewichte/'.$existing->getKey(), wgPayload(['nameDe' => 'Anders']))
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$existing->getKey(), wgPayload(['nameDe' => 'Anders']))
         ->assertForbidden();
-    $this->actingAs($admin, 'admin')->delete('/admin/wuchtgewichte/'.$existing->getKey())->assertForbidden();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/wuchtgewichte/'.$existing->getKey())->assertForbidden();
 
     $existing->refresh();
 
@@ -133,7 +133,7 @@ it('lets a reading role view the list and refuses every write', function (string
     $admin = wgAdmin($role);
 
     $this->actingAs($admin, 'admin')
-        ->get('/admin/wuchtgewichte')
+        ->get('/admin/zubehoerpreise/wuchtgewichte')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Wuchtgewichte/Index')
@@ -143,11 +143,11 @@ it('lets a reading role view the list and refuses every write', function (string
             ->where('can.delete', false)
         );
 
-    $this->actingAs($admin, 'admin')->post('/admin/wuchtgewichte', wgPayload())->assertForbidden();
+    $this->actingAs($admin, 'admin')->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload())->assertForbidden();
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/wuchtgewichte/'.$existing->getKey(), wgPayload(['nameDe' => 'Anders']))
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$existing->getKey(), wgPayload(['nameDe' => 'Anders']))
         ->assertForbidden();
-    $this->actingAs($admin, 'admin')->delete('/admin/wuchtgewichte/'.$existing->getKey())->assertForbidden();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/wuchtgewichte/'.$existing->getKey())->assertForbidden();
 
     $existing->refresh();
 
@@ -158,7 +158,7 @@ it('lets a reading role view the list and refuses every write', function (string
 
 it('parses German money input: 1.425,00 € becomes 142500 cents', function (): void {
     $this->actingAs(wgAdmin('super-admin'), 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['surcharge' => "1.425,00\u{00A0}€"]))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['surcharge' => "1.425,00\u{00A0}€"]))
         ->assertSessionHasNoErrors();
 
     expect(BalanceWeightColour::query()->sole()->surcharge_cents)->toBe(142500);
@@ -166,7 +166,7 @@ it('parses German money input: 1.425,00 € becomes 142500 cents', function (): 
 
 it('refuses an ambiguous price with the sentence that names the fix', function (string $input): void {
     $this->actingAs(wgAdmin('super-admin'), 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['surcharge' => $input]))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['surcharge' => $input]))
         ->assertSessionHasErrors([
             'surchargeCents' => 'Bitte schreib den Aufpreis deutsch, zum Beispiel 0,00 oder 2,50.',
         ]);
@@ -178,10 +178,10 @@ it('keeps exactly one default across a second isDefault save', function (): void
     $admin = wgAdmin('super-admin');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Silber', 'isDefault' => true]))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Silber', 'isDefault' => true]))
         ->assertSessionHasNoErrors();
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Schwarz', 'swatchHex' => '#1A1C20', 'isDefault' => true]))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Schwarz', 'swatchHex' => '#1A1C20', 'isDefault' => true]))
         ->assertSessionHasNoErrors();
 
     expect(BalanceWeightColour::query()->where('is_default', true)->count())->toBe(1)
@@ -191,7 +191,7 @@ it('keeps exactly one default across a second isDefault save', function (): void
     $silber = BalanceWeightColour::query()->where('slug', 'silber')->sole();
 
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/wuchtgewichte/'.$silber->getKey(), wgPayload(['nameDe' => 'Silber', 'isDefault' => true]))
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$silber->getKey(), wgPayload(['nameDe' => 'Silber', 'isDefault' => true]))
         ->assertSessionHasNoErrors();
 
     expect(BalanceWeightColour::query()->where('is_default', true)->count())->toBe(1)
@@ -200,7 +200,7 @@ it('keeps exactly one default across a second isDefault save', function (): void
 
 it('logs a denied write to audit_logs with its ability and route', function (): void {
     $this->actingAs(wgAdmin('content-editor'), 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload())
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload())
         ->assertForbidden();
 
     $entry = wgAudit('permission.denied')->sole();
@@ -215,10 +215,10 @@ it('derives the slug from the name and never reads a posted one', function (): v
     $admin = wgAdmin('super-admin');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => ' Silber ', 'slug' => 'gepostet']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => ' Silber ', 'slug' => 'gepostet']))
         ->assertSessionHasNoErrors();
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Schwarz matt', 'isDefault' => false]))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Schwarz matt', 'isDefault' => false]))
         ->assertSessionHasNoErrors();
 
     expect(BalanceWeightColour::query()->orderBy('id')->pluck('slug', 'name_de')->all())
@@ -227,7 +227,7 @@ it('derives the slug from the name and never reads a posted one', function (): v
 
 it('refuses a name that slugs to nothing', function (): void {
     $this->actingAs(wgAdmin('super-admin'), 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => '***']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => '***']))
         ->assertSessionHasErrors(['slug']);
 
     expect(BalanceWeightColour::query()->count())->toBe(0);
@@ -237,17 +237,17 @@ it('restores a deleted colour when it is created again instead of failing the un
     $admin = wgAdmin('super-admin');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Silber']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Silber']))
         ->assertSessionHasNoErrors();
 
     $silber = BalanceWeightColour::query()->sole();
 
-    $this->actingAs($admin, 'admin')->delete('/admin/wuchtgewichte/'.$silber->getKey())->assertRedirect();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/wuchtgewichte/'.$silber->getKey())->assertRedirect();
 
     expect(BalanceWeightColour::onlyTrashed()->count())->toBe(1);
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Silber', 'surcharge' => '1,00']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Silber', 'surcharge' => '1,00']))
         ->assertSessionHasNoErrors();
 
     $restored = BalanceWeightColour::query()->sole();
@@ -262,15 +262,15 @@ it('refuses a live duplicate name with the German sentence', function (): void {
     $admin = wgAdmin('super-admin');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Silber']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Silber']))
         ->assertSessionHasNoErrors();
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'silber']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'silber']))
         ->assertSessionHasErrors([
             'slug' => 'Diese Bezeichnung gibt es schon – bearbeite die vorhandene Farbe.',
         ]);
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Silber']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Silber']))
         ->assertSessionHasErrors([
             'nameDe' => 'Diese Bezeichnung gibt es schon – bearbeite die vorhandene Farbe.',
         ]);
@@ -283,10 +283,10 @@ it('refuses renaming a colour onto a deleted one and names the route forward', f
     $silber = BalanceWeightColour::factory()->create(['name_de' => 'Silber', 'slug' => 'silber']);
     $schwarz = BalanceWeightColour::factory()->create(['name_de' => 'Schwarz', 'slug' => 'schwarz']);
 
-    $this->actingAs($admin, 'admin')->delete('/admin/wuchtgewichte/'.$silber->getKey())->assertRedirect();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/wuchtgewichte/'.$silber->getKey())->assertRedirect();
 
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/wuchtgewichte/'.$schwarz->getKey(), wgPayload(['nameDe' => 'Silber', 'isDefault' => false]))
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$schwarz->getKey(), wgPayload(['nameDe' => 'Silber', 'isDefault' => false]))
         ->assertSessionHasErrors([
             'nameDe' => 'Diese Bezeichnung gehörte einer gelöschten Farbe. Leg sie als neue Farbe an – dann stellen wir die gelöschte wieder her.',
         ]);
@@ -300,7 +300,7 @@ it('promotes the next active colour when the default is deleted', function (): v
     $schwarz = BalanceWeightColour::factory()->create(['name_de' => 'Schwarz', 'slug' => 'schwarz', 'sort_order' => 20]);
 
     $this->actingAs(wgAdmin('super-admin'), 'admin')
-        ->delete('/admin/wuchtgewichte/'.$silber->getKey())
+        ->delete('/admin/zubehoerpreise/wuchtgewichte/'.$silber->getKey())
         ->assertRedirect();
 
     expect($schwarz->refresh()->is_default)->toBeTrue()
@@ -313,7 +313,7 @@ it('allows deleting the last active colour, after which there is no default at a
     $silber = BalanceWeightColour::factory()->asDefault()->create(['name_de' => 'Silber', 'slug' => 'silber']);
 
     $this->actingAs(wgAdmin('super-admin'), 'admin')
-        ->delete('/admin/wuchtgewichte/'.$silber->getKey())
+        ->delete('/admin/zubehoerpreise/wuchtgewichte/'.$silber->getKey())
         ->assertRedirect();
 
     // The storefront now refuses Kompletträder rather than inventing a colour (CLAUDE.md §2).
@@ -325,7 +325,7 @@ it('writes an audit entry for create, update and delete', function (): void {
     $admin = wgAdmin('catalogue-manager');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['surcharge' => '2,50']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['surcharge' => '2,50']))
         ->assertSessionHasNoErrors();
 
     $colour = BalanceWeightColour::query()->sole();
@@ -339,7 +339,7 @@ it('writes an audit entry for create, update and delete', function (): void {
         ->and($created->properties->get('surcharge_cents'))->toBe(250);
 
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/wuchtgewichte/'.$colour->getKey(), wgPayload(['surcharge' => '3,00']))
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey(), wgPayload(['surcharge' => '3,00']))
         ->assertSessionHasNoErrors();
 
     $updated = wgAudit('weight_colour.updated')->sole();
@@ -348,7 +348,7 @@ it('writes an audit entry for create, update and delete', function (): void {
         ->and($updated->properties->get('old'))->toMatchArray(['surcharge_cents' => 250])
         ->and($updated->properties->get('attributes'))->toMatchArray(['surcharge_cents' => 300]);
 
-    $this->actingAs($admin, 'admin')->delete('/admin/wuchtgewichte/'.$colour->getKey())->assertRedirect();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey())->assertRedirect();
 
     $deleted = wgAudit('weight_colour.deleted')->sole();
 
@@ -361,13 +361,13 @@ it('normalises the hex value and refuses a malformed one', function (): void {
     $admin = wgAdmin('super-admin');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Silber', 'swatchHex' => 'c8ccd2']))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Silber', 'swatchHex' => 'c8ccd2']))
         ->assertSessionHasNoErrors();
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Schwarz', 'swatchHex' => '', 'isDefault' => false]))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Schwarz', 'swatchHex' => '', 'isDefault' => false]))
         ->assertSessionHasNoErrors();
     $this->actingAs($admin, 'admin')
-        ->post('/admin/wuchtgewichte', wgPayload(['nameDe' => 'Grau', 'swatchHex' => '#zzzzzz', 'isDefault' => false]))
+        ->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload(['nameDe' => 'Grau', 'swatchHex' => '#zzzzzz', 'isDefault' => false]))
         ->assertSessionHasErrors([
             'swatchHex' => 'Bitte schreib den Farbwert als Hex-Code mit sechs Stellen, zum Beispiel #C8CCD2.',
         ]);
@@ -381,7 +381,7 @@ it('ships the colours with formatted prices beside their cents and the caller\'s
     BalanceWeightColour::factory()->create(['name_de' => 'Schwarz', 'slug' => 'schwarz', 'swatch_hex' => null, 'sort_order' => 20]);
 
     $this->actingAs(wgAdmin('super-admin'), 'admin')
-        ->get('/admin/wuchtgewichte')
+        ->get('/admin/zubehoerpreise/wuchtgewichte')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Wuchtgewichte/Index')
@@ -400,7 +400,7 @@ it('ships the colours with formatted prices beside their cents and the caller\'s
 
 it('shares admin.can on admin routes', function (): void {
     $this->actingAs(wgAdmin('catalogue-manager'), 'admin')
-        ->get('/admin/wuchtgewichte')
+        ->get('/admin/zubehoerpreise/wuchtgewichte')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('admin.can.catalogue', true)

@@ -7,8 +7,7 @@
  * like a field and opens the one palette that ⌘K, `/` and the phone's Suche tab also open — two
  * search affordances is how a panel ends up with two different result lists.
  *
- * The notification bell is not here yet. There is nothing behind it until notification rules land,
- * and a bell that can only ever say "nichts Neues" is decoration pretending to be a feature.
+ * The bell sits left of Hilfe: what happened that this person should know about (AdminBell).
  */
 
 import {
@@ -24,6 +23,7 @@ import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import Kbd from '../Ui/Kbd.vue'
+import AdminBell from './AdminBell.vue'
 import AdminUserMenu from './AdminUserMenu.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
@@ -72,6 +72,8 @@ const crumbs = computed(() => admin.value.breadcrumbs)
             >
                 <Icon name="search" :size="20" />
             </button>
+
+            <AdminBell />
 
             <DropdownMenuRoot>
                 <DropdownMenuTrigger class="adm-iconbtn" aria-label="Hilfe">

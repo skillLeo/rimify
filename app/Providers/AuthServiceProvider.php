@@ -11,6 +11,7 @@ use App\Models\FaqEntry;
 use App\Models\NavItem;
 use App\Models\Page;
 use App\Models\TpmsSensorPrice;
+use App\Policies\AdminNotificationPolicy;
 use App\Policies\BalanceWeightColourPolicy;
 use App\Policies\FaqEntryPolicy;
 use App\Policies\NavItemPolicy;
@@ -19,6 +20,7 @@ use App\Policies\TpmsSensorPricePolicy;
 use App\Services\Admin\PermissionMatrix;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +47,7 @@ final class AuthServiceProvider extends ServiceProvider
         Page::class => PagePolicy::class,
         FaqEntry::class => FaqEntryPolicy::class,
         NavItem::class => NavItemPolicy::class,
+        DatabaseNotification::class => AdminNotificationPolicy::class,
     ];
 
     public function register(): void

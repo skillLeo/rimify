@@ -4,7 +4,8 @@
  *
  * The page's own `<h1>` is the heading, directly beneath. So the bar starts with the wordmark and
  * takes the page's title only once that heading has scrolled away under it — the title is always
- * in view, and never twice. The environment badge stays at the right when this is not the live shop.
+ * in view, and never twice. At the right: the environment badge when this is not the live shop, and
+ * the bell — on a phone as on a desk, alerts are the one thing that should not wait for the Mehr sheet.
  *
  * No breadcrumbs and no back arrow yet: every admin page today is reached from the bottom bar or
  * the Mehr sheet. The arrow arrives with the first page that is opened from a record list.
@@ -12,6 +13,7 @@
 
 import { Link, usePage } from '@inertiajs/vue3'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import AdminBell from './AdminBell.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
 import { useAdmin } from '../../composables/admin/useAdmin'
 
@@ -60,6 +62,9 @@ onBeforeUnmount(() => observer?.disconnect())
         <Link href="/admin" class="adm-wordmark adm-appbar__brand" aria-label="RIMIFY – zur Übersicht">RIMIFY</Link>
         <!-- Presentation only: the page's h1 is the heading a screen reader lands on. -->
         <p v-if="title" class="adm-appbar__title" aria-hidden="true">{{ title }}</p>
-        <EnvironmentBadge />
+        <div class="adm-appbar__end">
+            <EnvironmentBadge />
+            <AdminBell />
+        </div>
     </header>
 </template>

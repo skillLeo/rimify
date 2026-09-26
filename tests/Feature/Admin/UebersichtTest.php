@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Services\Admin\AdminNavigation;
 use Database\Seeders\AccessSeeder;
 use Inertia\Testing\AssertableInertia;
 
@@ -66,6 +67,28 @@ it('links a figure only to a list that opens, for every role', function (string 
         }
     }
 })->with(['super-admin', 'catalogue-manager', 'compliance-editor', 'order-manager', 'content-editor', 'support-agent', 'accountant']);
+
+it('links every figure whose list is built, and says in one line what each counts', function (): void {
+    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+
+    // The lists each figure comes from. A figure whose list is built must link to it; the rest wait.
+    $lists = [
+        'revenue' => '/admin/verkaeufe',
+        'orders' => '/admin/bestellungen',
+        'documents' => '/admin/gutachten',
+        'fitments' => '/admin/abdeckung',
+        'conflicts' => '/admin/konflikte',
+        'review' => '/admin/fahrzeuge/pruefung',
+    ];
+
+    foreach (uebersichtProps($admin)['tiles'] as $tile) {
+        $built = in_array($lists[$tile['key']], AdminNavigation::BUILT, true);
+
+        expect($tile['href'])->toBe($built ? $lists[$tile['key']] : null)
+            ->and($tile['hint'])->toBeString()->not->toBe('')
+            ->and($tile['hint'])->toEndWith('.');
+    }
+});
 
 it('says when the figures were counted, in German and in Berlin time', function (): void {
     $this->travelTo(now()->setTimezone('UTC')->setDate(2026, 9, 26)->setTime(11, 40));

@@ -109,13 +109,14 @@ final class AuditDescriber
 
     /** Where a denied request was headed, by the first two parts of its route name. */
     private const PAGES = [
-        'admin.wuchtgewichte' => 'Wuchtgewichte-Farben',
-        'admin.rdks' => 'RDKS-Sensorpreise',
+        'admin.wuchtgewichte' => 'Zubehörpreise › Wuchtgewichte',
+        'admin.rdks' => 'Zubehörpreise › RDKS-Sensoren',
         'admin.rollen' => 'Rollen & Rechte',
         'admin.benutzer' => 'Benutzer',
         'admin.protokoll' => 'Protokoll',
         'admin.gutachten' => 'Gutachten',
-        'admin.benachrichtigungen' => 'Benachrichtigungswünsche',
+        'admin.anfragen' => 'Anfragen',
+        'admin.benachrichtigungen' => 'Benachrichtigungen',
         'admin.profil' => 'Profil',
         'admin.seiten' => 'Seiten',
         'admin.faq' => 'FAQ',

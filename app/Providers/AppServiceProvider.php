@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Listeners\FailedJobAlert;
 use App\Services\Content\PageContent;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -60,6 +63,10 @@ class AppServiceProvider extends ServiceProvider
         // of zero, and that permits every tyre. Fail loudly in every environment instead.
         Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event): void {
             $this->assertStrictMode($event->connection);
+        });
+
+        Queue::failing(static function (JobFailed $event): void {
+            app(FailedJobAlert::class)->handle($event);
         });
     }
 

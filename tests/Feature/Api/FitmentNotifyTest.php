@@ -122,13 +122,13 @@ it('lists the requests and the demand for the admin', function (): void {
     $admin = AdminUser::query()->firstOrFail();
 
     // A guest is sent to the sign-in; checked before signing in, because the session then persists.
-    $this->get('/admin/benachrichtigungen')->assertRedirect('/admin/anmelden');
+    $this->get('/admin/anfragen')->assertRedirect('/admin/anmelden');
 
     $this->actingAs($admin, 'admin')
-        ->get('/admin/benachrichtigungen')
+        ->get('/admin/anfragen')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Admin/Benachrichtigungen/Index')
+            ->component('Admin/Anfragen/Index')
             ->has('subscriptions', 1)
             ->where('subscriptions.0.status', 'Wartet')
             ->where('demand.0.waiting', 1)

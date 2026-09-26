@@ -180,6 +180,12 @@ final class GermanFormat
         return $at === null ? null : self::inBerlin($at)->format('d.m.Y, H:i').self::NBSP.'Uhr';
     }
 
+    /** `14:22 Uhr`, in Europe/Berlin — the time alone, under a day heading that already names the date. */
+    public static function time(?DateTimeInterface $at): ?string
+    {
+        return $at === null ? null : self::inBerlin($at)->format('H:i').self::NBSP.'Uhr';
+    }
+
     /** `03/2018` */
     public static function monthYear(?DateTimeInterface $date): ?string
     {

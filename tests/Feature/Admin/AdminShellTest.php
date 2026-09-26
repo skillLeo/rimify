@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\AdminUserStatus;
+use App\Enums\PermissionAction;
+use App\Enums\PermissionModule;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Vehicle;
@@ -57,10 +59,28 @@ describe('the tree', function (): void {
 
         foreach (sharedNav($admin) as $group) {
             foreach ($group['pages'] as $page) {
-                $this->actingAs($admin, 'admin')->get($page['href'])->assertOk();
+                // An item with tabs beneath it (Zubehörpreise) leads to its first tab.
+                $this->actingAs($admin, 'admin')->followingRedirects()->get($page['href'])->assertOk();
             }
         }
     })->with(fn (): array => shellRoles());
+
+    it('leads the old addresses of moved pages to their new place', function (): void {
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/wuchtgewichte')->assertRedirect('/admin/zubehoerpreise/wuchtgewichte')->assertStatus(301);
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/rdks-preise')->assertRedirect('/admin/zubehoerpreise/rdks')->assertStatus(301);
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/zubehoerpreise')->assertRedirect('/admin/zubehoerpreise/wuchtgewichte');
+        // A bookmark keeps the rest of its path and its query.
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/rdks-preise/7?seite=2')->assertRedirect('/admin/zubehoerpreise/rdks/7?seite=2');
+    });
+
+    it('keeps the accessory prices with the catalogue right, under Einstellungen', function (): void {
+        // The catalogue manager may not open the settings, and still finds the prices they keep.
+        $admin = shellAdmin('catalogue-manager');
+        $einstellungen = collect(sharedNav($admin))->firstWhere('key', 'einstellungen');
+
+        expect($admin->may(PermissionModule::Settings, PermissionAction::View))->toBeFalse()
+            ->and(array_column($einstellungen['pages'] ?? [], 'label'))->toBe(['Zubehörpreise']);
+    });
 
     it('never offers a page that has not been built', function (string $role): void {
         foreach (sharedNav(shellAdmin($role)) as $group) {
@@ -73,11 +93,12 @@ describe('the tree', function (): void {
     it('gives the super-admin every built page, grouped the way the team works', function (): void {
         $nav = sharedNav(shellAdmin());
 
-        expect(array_column($nav, 'label'))->toBe(['Übersicht', 'Katalog', 'Gutachten', 'Inhalte', 'Team'])
-            ->and(array_column($nav[1]['pages'], 'label'))->toBe(['Wuchtgewichte-Farben', 'RDKS-Sensorpreise'])
-            ->and(array_column($nav[2]['pages'], 'label'))->toBe(['Dokumente', 'Benachrichtigungswünsche'])
+        expect(array_column($nav, 'label'))->toBe(['Übersicht', 'Verkauf', 'Gutachten', 'Inhalte', 'Einstellungen', 'Team'])
+            ->and(array_column($nav[1]['pages'], 'label'))->toBe(['Anfragen'])
+            ->and(array_column($nav[2]['pages'], 'label'))->toBe(['Dokumente'])
             ->and(array_column($nav[3]['pages'], 'label'))->toBe(['Seiten', 'FAQ', 'Navigation'])
-            ->and(array_column($nav[4]['pages'], 'label'))->toBe(['Benutzer', 'Rollen & Rechte', 'Protokoll']);
+            ->and(array_column($nav[4]['pages'], 'label'))->toBe(['Zubehörpreise'])
+            ->and(array_column($nav[5]['pages'], 'label'))->toBe(['Benutzer', 'Rollen & Rechte', 'Protokoll']);
     });
 
     it('lets a page belong to another area than its group: the Protokoll needs the audit log, not the roles', function (): void {
@@ -104,9 +125,9 @@ describe('the tree', function (): void {
 
 describe('the counts', function (): void {
     it('shows no count at zero — not a 0, not an empty badge', function (): void {
-        $gutachten = collect(sharedNav(shellAdmin()))->firstWhere('key', 'gutachten');
+        $verkauf = collect(sharedNav(shellAdmin()))->firstWhere('key', 'verkauf');
 
-        expect(collect($gutachten['pages'])->firstWhere('label', 'Benachrichtigungswünsche')['count'])->toBeNull();
+        expect(collect($verkauf['pages'])->firstWhere('label', 'Anfragen')['count'])->toBeNull();
     });
 
     it('counts the customers still waiting on a document, and only them', function (): void {
@@ -133,8 +154,8 @@ describe('the counts', function (): void {
             $row(['notified_at' => now()]),          // already told
         ]);
 
-        $gutachten = collect(sharedNav(shellAdmin()))->firstWhere('key', 'gutachten');
-        $page = collect($gutachten['pages'])->firstWhere('label', 'Benachrichtigungswünsche');
+        $verkauf = collect(sharedNav(shellAdmin()))->firstWhere('key', 'verkauf');
+        $page = collect($verkauf['pages'])->firstWhere('label', 'Anfragen');
 
         expect($page['count'])->toBe(2)
             ->and($page['countTone'])->toBe('neutral');
@@ -143,10 +164,26 @@ describe('the counts', function (): void {
 
 describe('where the reader is', function (): void {
     it('names the group and the page, and links neither', function (): void {
-        $this->actingAs(shellAdmin(), 'admin')->get('/admin/wuchtgewichte')
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/rollen')
             ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.breadcrumbs', [
-                ['label' => 'Katalog', 'href' => null],
-                ['label' => 'Wuchtgewichte-Farben', 'href' => null],
+                ['label' => 'Team', 'href' => null],
+                ['label' => 'Rollen & Rechte', 'href' => null],
+            ]));
+    });
+
+    it('names the tab beneath a rail item, and does not link the item: it has no page but its tabs', function (): void {
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/zubehoerpreise/rdks')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.breadcrumbs', [
+                ['label' => 'Einstellungen', 'href' => null],
+                ['label' => 'Zubehörpreise', 'href' => null],
+                ['label' => 'RDKS-Sensoren', 'href' => null],
+            ]));
+    });
+
+    it('names the notification centre, which sits outside the rail', function (): void {
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/benachrichtigungen')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.breadcrumbs', [
+                ['label' => 'Benachrichtigungen', 'href' => null],
             ]));
     });
 

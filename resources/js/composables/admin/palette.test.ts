@@ -25,7 +25,7 @@ const NAV: AdminNavGroup[] = [
         icon: 'document',
         pages: [
             { label: 'Dokumente', href: '/admin/gutachten', icon: 'document', count: null, countTone: 'neutral' },
-            { label: 'Benachrichtigungswünsche', href: '/admin/benachrichtigungen', icon: 'mail', count: 4, countTone: 'neutral' },
+            { label: 'Benachrichtigungswünsche', href: '/admin/anfragen', icon: 'mail', count: 4, countTone: 'neutral' },
         ],
     },
 ]
@@ -38,9 +38,25 @@ describe('pageEntries', () => {
     it('lists every page with its group as the sub line, the profile last, and a g shortcut where one is bound', () => {
         const entries = pageEntries(NAV, { '/admin/gutachten': 'g' })
 
-        expect(labels(entries)).toEqual(['Übersicht', 'Wuchtgewichte-Farben', 'RDKS-Sensorpreise', 'Dokumente', 'Benachrichtigungswünsche', 'Profil'])
+        expect(labels(entries)).toEqual(['Übersicht', 'Wuchtgewichte-Farben', 'RDKS-Sensorpreise', 'Dokumente', 'Benachrichtigungswünsche', 'Profil', 'Benachrichtigungen'])
         expect(entries[0]?.sub).toBeNull()
         expect(entries[3]).toMatchObject({ sub: 'Gutachten', keys: ['G', 'G'], href: '/admin/gutachten' })
+    })
+
+    it('finds each tab behind a rail item by its own name, under the item it belongs to', () => {
+        const nav: AdminNavGroup[] = [
+            {
+                key: 'einstellungen',
+                label: 'Einstellungen',
+                icon: 'settings',
+                pages: [{ label: 'Zubehörpreise', href: '/admin/zubehoerpreise', icon: 'wrench', count: null, countTone: 'neutral' }],
+            },
+        ]
+        const found = search(pageEntries(nav), 'rdks')
+
+        expect(labels(found)).toEqual(['RDKS-Sensoren'])
+        expect(found[0]).toMatchObject({ sub: 'Einstellungen › Zubehörpreise', href: '/admin/zubehoerpreise/rdks' })
+        expect(labels(search(pageEntries(nav), 'wucht'))).toEqual(['Wuchtgewichte'])
     })
 })
 

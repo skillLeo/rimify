@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminPreferencesController;
 use App\Http\Controllers\Admin\AdminProfileController;
+use App\Http\Controllers\Admin\AnfragenController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\EinladungController;
@@ -38,6 +39,8 @@ use App\Http\Controllers\Storefront\VergleichController;
 use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
 use App\Http\Middleware\EnsureAdminMay;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -222,31 +225,54 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/protokoll/export', [ProtokollController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':audit_log,export')
             ->name('protokoll.export');
-        // Customer e-mail addresses: the Gutachten area's to read, nobody else's.
-        Route::get('/benachrichtigungen', [BenachrichtigungenController::class, 'index'])
+        // Verkauf › Anfragen — the „Sag mir Bescheid“ subscriptions. Customer e-mail addresses: the
+        // Gutachten area's to read, nobody else's (the team that answers them with a document).
+        Route::get('/anfragen', [AnfragenController::class, 'index'])
             ->middleware(EnsureAdminMay::class.':approvals,view')
-            ->name('benachrichtigungen.index');
+            ->name('anfragen.index');
 
-        // Komplettrad options (docs/specs/komplettrad.md §6.2). Every write is authorised by a
-        // Policy on the server; the page only hides what a role may not do (R-11).
-        Route::get('/wuchtgewichte', [WuchtgewichteController::class, 'index'])
-            ->middleware(EnsureAdminMay::class.':catalogue,view')
-            ->name('wuchtgewichte.index');
-        Route::post('/wuchtgewichte', [WuchtgewichteController::class, 'store'])->name('wuchtgewichte.store');
-        Route::patch('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'update'])->name('wuchtgewichte.update');
-        Route::delete('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'destroy'])->name('wuchtgewichte.destroy');
+        // The team's own notifications: every admin's, about their own account only.
+        Route::get('/benachrichtigungen', [BenachrichtigungenController::class, 'index'])->name('benachrichtigungen.index');
+        Route::get('/benachrichtigungen/neueste', [BenachrichtigungenController::class, 'latest'])->name('benachrichtigungen.neueste');
+        Route::post('/benachrichtigungen/gelesen', [BenachrichtigungenController::class, 'readAll'])->name('benachrichtigungen.alle-gelesen');
+        Route::post('/benachrichtigungen/{notification}/gelesen', [BenachrichtigungenController::class, 'read'])
+            ->whereUuid('notification')
+            ->name('benachrichtigungen.gelesen');
+        Route::put('/benachrichtigungen/einstellungen', [BenachrichtigungenController::class, 'preferences'])->name('benachrichtigungen.einstellungen');
 
-        // Shop-wide money, edited beside the rows it applies to (§13). `/montage` and `/standard`
-        // are fixed segments, so neither can ever be read as a `{colour}` or a `{price}`.
-        Route::put('/wuchtgewichte/montage', [WuchtgewichteController::class, 'updateMountingFee'])->name('wuchtgewichte.montage');
+        // Einstellungen › Zubehörpreise: the Komplettrad options (docs/specs/komplettrad.md §6.2),
+        // two tabs under one rail item. Every write is authorised by a Policy on the server; the
+        // page only hides what a role may not do (R-11). The old addresses lead to the new ones.
+        Route::redirect('/zubehoerpreise', '/admin/zubehoerpreise/wuchtgewichte')->name('zubehoerpreise');
+        // A bookmark keeps what it carried: the rest of its path and its query.
+        foreach (['/wuchtgewichte' => '/admin/zubehoerpreise/wuchtgewichte', '/rdks-preise' => '/admin/zubehoerpreise/rdks'] as $old => $new) {
+            Route::get($old.'/{rest?}', static function (Request $request, ?string $rest = null) use ($new): RedirectResponse {
+                $query = $request->getQueryString();
 
-        Route::get('/rdks-preise', [RdksPreiseController::class, 'index'])
-            ->middleware(EnsureAdminMay::class.':catalogue,view')
-            ->name('rdks.index');
-        Route::post('/rdks-preise', [RdksPreiseController::class, 'store'])->name('rdks.store');
-        Route::put('/rdks-preise/standard', [RdksPreiseController::class, 'updateDefaultPrice'])->name('rdks.standard');
-        Route::patch('/rdks-preise/{price}', [RdksPreiseController::class, 'update'])->name('rdks.update');
-        Route::delete('/rdks-preise/{price}', [RdksPreiseController::class, 'destroy'])->name('rdks.destroy');
+                return redirect()->to($new.($rest !== null ? '/'.$rest : '').($query !== null ? '?'.$query : ''), 301);
+            })->where('rest', '.*');
+        }
+
+        Route::prefix('/zubehoerpreise')->group(function (): void {
+            Route::get('/wuchtgewichte', [WuchtgewichteController::class, 'index'])
+                ->middleware(EnsureAdminMay::class.':catalogue,view')
+                ->name('wuchtgewichte.index');
+            Route::post('/wuchtgewichte', [WuchtgewichteController::class, 'store'])->name('wuchtgewichte.store');
+            Route::patch('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'update'])->name('wuchtgewichte.update');
+            Route::delete('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'destroy'])->name('wuchtgewichte.destroy');
+
+            // Shop-wide money, edited beside the rows it applies to (§13). `/montage` and `/standard`
+            // are fixed segments, so neither can ever be read as a `{colour}` or a `{price}`.
+            Route::put('/wuchtgewichte/montage', [WuchtgewichteController::class, 'updateMountingFee'])->name('wuchtgewichte.montage');
+
+            Route::get('/rdks', [RdksPreiseController::class, 'index'])
+                ->middleware(EnsureAdminMay::class.':catalogue,view')
+                ->name('rdks.index');
+            Route::post('/rdks', [RdksPreiseController::class, 'store'])->name('rdks.store');
+            Route::put('/rdks/standard', [RdksPreiseController::class, 'updateDefaultPrice'])->name('rdks.standard');
+            Route::patch('/rdks/{price}', [RdksPreiseController::class, 'update'])->name('rdks.update');
+            Route::delete('/rdks/{price}', [RdksPreiseController::class, 'destroy'])->name('rdks.destroy');
+        });
 
         // Inhalte › Seiten (docs/admin/inhalte-build-plan.md): a draft visitors never see, the
         // publish check, and every published state kept. Each write is refused by its Policy.

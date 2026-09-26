@@ -77,7 +77,7 @@ describe('the stored figure and the deployment default', function (): void {
 describe('Montage und Auswuchten in the admin', function (): void {
     it('saves a price typed the German way', function (): void {
         $this->actingAs(komplettradAdmin(), 'admin')
-            ->put('/admin/wuchtgewichte/montage', ['mounting' => '19,90'])
+            ->put('/admin/zubehoerpreise/wuchtgewichte/montage', ['mounting' => '19,90'])
             ->assertRedirect();
 
         expect(komplettradSettings()->mountingPerWheelCents())->toBe(1_990);
@@ -87,8 +87,8 @@ describe('Montage und Auswuchten in the admin', function (): void {
         komplettradSettings()->setMountingPerWheelCents(1_990);
 
         $this->actingAs(komplettradAdmin(), 'admin')
-            ->from('/admin/wuchtgewichte')
-            ->put('/admin/wuchtgewichte/montage', ['mounting' => '19.9.0'])
+            ->from('/admin/zubehoerpreise/wuchtgewichte')
+            ->put('/admin/zubehoerpreise/wuchtgewichte/montage', ['mounting' => '19.9.0'])
             ->assertSessionHasErrors('mountingCents');
 
         expect(komplettradSettings()->mountingPerWheelCents())->toBe(1_990);
@@ -98,7 +98,7 @@ describe('Montage und Auswuchten in the admin', function (): void {
         komplettradSettings()->setMountingPerWheelCents(1_990);
 
         $this->actingAs(komplettradAdmin(), 'admin')
-            ->put('/admin/wuchtgewichte/montage', ['mounting' => ''])
+            ->put('/admin/zubehoerpreise/wuchtgewichte/montage', ['mounting' => ''])
             ->assertRedirect();
 
         expect(komplettradSettings()->mountingPerWheelCents())->toBeNull();
@@ -106,7 +106,7 @@ describe('Montage und Auswuchten in the admin', function (): void {
 
     it('accepts nought, because mounting may genuinely be included in the rim price', function (): void {
         $this->actingAs(komplettradAdmin(), 'admin')
-            ->put('/admin/wuchtgewichte/montage', ['mounting' => '0,00'])
+            ->put('/admin/zubehoerpreise/wuchtgewichte/montage', ['mounting' => '0,00'])
             ->assertRedirect();
 
         expect(komplettradSettings()->mountingPerWheelCents())->toBe(0);
@@ -116,7 +116,7 @@ describe('Montage und Auswuchten in the admin', function (): void {
         komplettradSettings()->setMountingPerWheelCents(1_990);
 
         $this->actingAs(komplettradAdmin('accountant'), 'admin')
-            ->put('/admin/wuchtgewichte/montage', ['mounting' => '1,00'])
+            ->put('/admin/zubehoerpreise/wuchtgewichte/montage', ['mounting' => '1,00'])
             ->assertForbidden();
 
         expect(komplettradSettings()->mountingPerWheelCents())->toBe(1_990);
@@ -127,7 +127,7 @@ describe('Montage und Auswuchten in the admin', function (): void {
 
         $admin = komplettradAdmin();
 
-        $this->actingAs($admin, 'admin')->put('/admin/wuchtgewichte/montage', ['mounting' => '19,90']);
+        $this->actingAs($admin, 'admin')->put('/admin/zubehoerpreise/wuchtgewichte/montage', ['mounting' => '19,90']);
 
         $entry = AuditLog::query()->where('description', 'mounting_fee.updated')->latest('id')->first();
 
@@ -140,7 +140,7 @@ describe('Montage und Auswuchten in the admin', function (): void {
     it('ships the current figure to the page, and an empty field while there is none', function (): void {
         $admin = komplettradAdmin();
 
-        $this->actingAs($admin, 'admin')->get('/admin/wuchtgewichte')
+        $this->actingAs($admin, 'admin')->get('/admin/zubehoerpreise/wuchtgewichte')
             ->assertInertia(fn ($page) => $page
                 ->where('mounting.cents', null)
                 ->where('mounting.typed', '')
@@ -148,7 +148,7 @@ describe('Montage und Auswuchten in the admin', function (): void {
 
         komplettradSettings()->setMountingPerWheelCents(1_990);
 
-        $this->actingAs($admin, 'admin')->get('/admin/wuchtgewichte')
+        $this->actingAs($admin, 'admin')->get('/admin/zubehoerpreise/wuchtgewichte')
             ->assertInertia(fn ($page) => $page
                 ->where('mounting.cents', 1_990)
                 ->where('mounting.typed', GermanFormat::money(1_990))
@@ -159,7 +159,7 @@ describe('Montage und Auswuchten in the admin', function (): void {
 describe('the default RDKS price', function (): void {
     it('saves a default and answers for a make with no row of its own', function (): void {
         $this->actingAs(komplettradAdmin(), 'admin')
-            ->put('/admin/rdks-preise/standard', ['price' => '15,00'])
+            ->put('/admin/zubehoerpreise/rdks/standard', ['price' => '15,00'])
             ->assertRedirect();
 
         expect(komplettradSettings()->tpmsDefaultCents())->toBe(1_500);
@@ -167,8 +167,8 @@ describe('the default RDKS price', function (): void {
 
     it('refuses nought, because free sensors are not a price anybody set', function (): void {
         $this->actingAs(komplettradAdmin(), 'admin')
-            ->from('/admin/rdks-preise')
-            ->put('/admin/rdks-preise/standard', ['price' => '0,00'])
+            ->from('/admin/zubehoerpreise/rdks')
+            ->put('/admin/zubehoerpreise/rdks/standard', ['price' => '0,00'])
             ->assertSessionHasErrors('priceCents');
 
         expect(komplettradSettings()->tpmsDefaultCents())->toBeNull();
@@ -178,7 +178,7 @@ describe('the default RDKS price', function (): void {
         komplettradSettings()->setTpmsDefaultCents(1_500);
 
         $this->actingAs(komplettradAdmin(), 'admin')
-            ->put('/admin/rdks-preise/standard', ['price' => ''])
+            ->put('/admin/zubehoerpreise/rdks/standard', ['price' => ''])
             ->assertRedirect();
 
         expect(komplettradSettings()->tpmsDefaultCents())->toBeNull();
@@ -186,7 +186,7 @@ describe('the default RDKS price', function (): void {
 
     it('refuses a role that may not edit the catalogue', function (): void {
         $this->actingAs(komplettradAdmin('accountant'), 'admin')
-            ->put('/admin/rdks-preise/standard', ['price' => '15,00'])
+            ->put('/admin/zubehoerpreise/rdks/standard', ['price' => '15,00'])
             ->assertForbidden();
 
         expect(komplettradSettings()->tpmsDefaultCents())->toBeNull();
@@ -195,7 +195,7 @@ describe('the default RDKS price', function (): void {
     it('ships the current default to the page', function (): void {
         komplettradSettings()->setTpmsDefaultCents(1_500);
 
-        $this->actingAs(komplettradAdmin(), 'admin')->get('/admin/rdks-preise')
+        $this->actingAs(komplettradAdmin(), 'admin')->get('/admin/zubehoerpreise/rdks')
             ->assertInertia(fn ($page) => $page
                 ->where('default.cents', 1_500)
                 ->where('default.typed', GermanFormat::money(1_500))

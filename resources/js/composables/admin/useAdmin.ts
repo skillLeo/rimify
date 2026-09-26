@@ -23,6 +23,7 @@ const EMPTY: AdminShared = {
     preferences: { railCollapsed: false },
     breadcrumbs: [],
     supportEmail: null,
+    notifications: { unread: null, offered: false },
 }
 
 export function useAdmin(): ComputedRef<AdminShared> {
@@ -45,6 +46,10 @@ export function useAdmin(): ComputedRef<AdminShared> {
             preferences: { railCollapsed: admin.preferences?.railCollapsed === true },
             breadcrumbs: Array.isArray(admin.breadcrumbs) ? admin.breadcrumbs : [],
             supportEmail: typeof admin.supportEmail === 'string' ? admin.supportEmail : null,
+            notifications: {
+                unread: typeof admin.notifications?.unread === 'number' && admin.notifications.unread >= 0 ? admin.notifications.unread : null,
+                offered: admin.notifications?.offered === true,
+            },
         }
     })
 }

@@ -41,8 +41,11 @@ function inGroup(group: AdminNavGroup): boolean {
 
 const moreOpen = ref(false)
 
+/** Pages reached from the app bar rather than from Mehr: being on one is not being in Mehr. */
+const OUTSIDE_MORE = ['/admin', '/admin/benachrichtigungen']
+
 /** Mehr is where you are when the page is one of its own. */
-const inMore = computed(() => path.value !== '/admin' && !slots.value.some(inGroup))
+const inMore = computed(() => !OUTSIDE_MORE.includes(path.value) && !slots.value.some(inGroup))
 </script>
 
 <template>

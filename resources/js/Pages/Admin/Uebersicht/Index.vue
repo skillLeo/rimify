@@ -19,7 +19,7 @@ defineProps<AdminUebersichtProps>()
 <template>
     <AdminPage title="Übersicht" :context="`Stand ${asOf}`">
         <section v-if="tiles.length" class="adm-stats" aria-label="Kennzahlen">
-            <AdminStatTile v-for="tile in tiles" :key="tile.key" :label="tile.label" :value="tile.value" :href="tile.href" />
+            <AdminStatTile v-for="tile in tiles" :key="tile.key" :label="tile.label" :value="tile.value" :hint="tile.hint" :href="tile.href" />
         </section>
 
         <AdminState v-else kind="empty" text="Für deine Rolle gibt es hier noch keine Kennzahlen. Deine Bereiche findest du in der Navigation." />

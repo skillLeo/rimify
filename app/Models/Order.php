@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Observers\OrderAlertObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\OrderFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +40,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $shipped_at
  * @property-read Collection<int, OrderLine> $lines
  */
+#[ObservedBy(OrderAlertObserver::class)]
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */

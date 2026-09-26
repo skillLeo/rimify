@@ -59,7 +59,11 @@ final class AdminNavigation
             'pages' => [
                 ['label' => 'Bestellungen', 'href' => '/admin/bestellungen', 'icon' => 'cart', 'count' => 'orders_open'],
                 ['label' => 'Kunden', 'href' => '/admin/kunden', 'icon' => 'home'],
-                ['label' => 'Anfragen', 'href' => '/admin/anfragen', 'icon' => 'phone'],
+                // Customers asking to be told when a document for their car arrives. The goal of the
+                // team's work is to have told all of them, so it is a queue and earns a count. Not
+                // "Benachrichtigungen": that word belongs to the team's own bell. The list is
+                // Gutachten work, so it asks for the Gutachten right, not the orders one.
+                ['label' => 'Anfragen', 'href' => '/admin/anfragen', 'icon' => 'mail', 'count' => 'notify_open', 'module' => PermissionModule::Approvals->value],
             ],
         ],
         [
@@ -72,9 +76,6 @@ final class AdminNavigation
                 ['label' => 'Reifen', 'href' => '/admin/reifen', 'icon' => 'ruler'],
                 ['label' => 'Marken', 'href' => '/admin/marken', 'icon' => 'box'],
                 ['label' => 'Bestände', 'href' => '/admin/bestaende', 'icon' => 'truck'],
-                ['label' => 'Wuchtgewichte-Farben', 'href' => '/admin/wuchtgewichte', 'icon' => 'wrench'],
-                // A sensor that reports by radio: the waves, not a security shield.
-                ['label' => 'RDKS-Sensorpreise', 'href' => '/admin/rdks-preise', 'icon' => 'sound'],
             ],
         ],
         [
@@ -87,10 +88,6 @@ final class AdminNavigation
                 ['label' => 'Auflagen-Katalog', 'href' => '/admin/auflagen', 'icon' => 'check'],
                 ['label' => 'Abdeckung', 'href' => '/admin/abdeckung', 'icon' => 'check-circle'],
                 ['label' => 'Konflikte', 'href' => '/admin/konflikte', 'icon' => 'warning', 'count' => 'conflicts_open'],
-                // Customers asking to be told when a document for their car arrives. The goal of
-                // the team's work is to have told all of them, so it is a queue and earns a count.
-                // Not "Benachrichtigungen": that word belongs to the team's own notifications.
-                ['label' => 'Benachrichtigungswünsche', 'href' => '/admin/benachrichtigungen', 'icon' => 'bell', 'count' => 'notify_open'],
             ],
         ],
         [
@@ -134,6 +131,9 @@ final class AdminNavigation
             'module' => PermissionModule::Settings->value,
             'pages' => [
                 ['label' => 'Allgemein', 'href' => '/admin/einstellungen', 'icon' => 'settings'],
+                // What the extras on a Komplettrad cost: Wuchtgewicht colours and RDKS sensors, two
+                // pages behind one item. Prices of the catalogue, so the catalogue's right.
+                ['label' => 'Zubehörpreise', 'href' => '/admin/zubehoerpreise', 'icon' => 'wrench', 'module' => PermissionModule::Catalogue->value],
             ],
         ],
         [
@@ -166,9 +166,8 @@ final class AdminNavigation
     public const BUILT = [
         '/admin',
         '/admin/gutachten',
-        '/admin/benachrichtigungen',
-        '/admin/wuchtgewichte',
-        '/admin/rdks-preise',
+        '/admin/anfragen',
+        '/admin/zubehoerpreise',
         '/admin/benutzer',
         '/admin/rollen',
         '/admin/protokoll',
@@ -192,7 +191,16 @@ final class AdminNavigation
      */
     private const OFF_RAIL = [
         '/admin/profil' => 'Profil',
+        '/admin/benachrichtigungen' => 'Benachrichtigungen',
     ];
+
+    /**
+     * Rail items that are a row of tabs (AdminSectionTabs) rather than a page: their address leads
+     * to the first tab.
+     *
+     * @var list<string>
+     */
+    private const TABBED = ['/admin/zubehoerpreise'];
 
     /**
      * The request attribute a controller sets to name the record it shows — the last breadcrumb on
@@ -363,7 +371,9 @@ final class AdminNavigation
 
                 $crumbs = [
                     ['label' => (string) $group['label'], 'href' => null],
-                    ['label' => $page['label'], 'href' => $page['href']],
+                    // An item whose pages are tabs has no page of its own — its address only leads to
+                    // the first tab — so its crumb is a label, like the group's.
+                    ['label' => $page['label'], 'href' => in_array($page['href'], self::TABBED, true) ? null : $page['href']],
                 ];
 
                 if ($record !== null && $record !== '') {

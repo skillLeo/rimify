@@ -45,4 +45,37 @@ export interface AdminShared {
     preferences: { railCollapsed: boolean }
     breadcrumbs: AdminCrumb[]
     supportEmail: string | null
+    /**
+     * The bell's number — null when it could not be read, and then no number is shown — and whether
+     * this role can receive any alert at all. A bell that can never ring is not drawn.
+     */
+    notifications: { unread: number | null; offered: boolean }
+}
+
+/** One of the team's own alerts, as the bell and /admin/benachrichtigungen show it. */
+export interface AdminAlertItem {
+    id: string
+    kind: string
+    kindLabel: string
+    title: string
+    detail: string | null
+    /** Null while the page it is about does not exist yet — never a link to a 404. */
+    href: string | null
+    read: boolean
+    day: string
+    dayLabel: string
+    /** `14:22 Uhr` */
+    time: string | null
+    /** `21.11.2025, 14:22 Uhr` */
+    at: string | null
+    iso: string | null
+}
+
+/** One row of „Was du bekommst“. */
+export interface AdminAlertKind {
+    kind: string
+    label: string
+    description: string
+    inApp: boolean
+    email: boolean
 }

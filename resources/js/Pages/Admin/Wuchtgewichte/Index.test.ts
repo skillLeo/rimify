@@ -182,7 +182,7 @@ describe('Wuchtgewichte-Farben', () => {
         await colourForm(wrapper).trigger('submit')
 
         expect(router.post).toHaveBeenCalledWith(
-            '/admin/wuchtgewichte',
+            '/admin/zubehoerpreise/wuchtgewichte',
             { nameDe: 'Schwarz', swatchHex: '#1A1C20', surcharge: '2,50', isDefault: false, active: true, sortOrder: 20 },
             expect.objectContaining({ preserveScroll: true })
         )
@@ -203,7 +203,7 @@ describe('Wuchtgewichte-Farben', () => {
         await colourForm(wrapper).trigger('submit')
 
         expect(router.patch).toHaveBeenCalledWith(
-            '/admin/wuchtgewichte/1',
+            '/admin/zubehoerpreise/wuchtgewichte/1',
             expect.objectContaining({ nameDe: 'Silber', surcharge: '1,00', isDefault: true }),
             expect.objectContaining({ preserveScroll: true })
         )
@@ -233,7 +233,7 @@ describe('Wuchtgewichte-Farben', () => {
 
         await dialog.find('.adm-btn--danger').trigger('click')
 
-        expect(router.delete).toHaveBeenCalledWith('/admin/wuchtgewichte/1', expect.objectContaining({ preserveScroll: true }))
+        expect(router.delete).toHaveBeenCalledWith('/admin/zubehoerpreise/wuchtgewichte/1', expect.objectContaining({ preserveScroll: true }))
     })
 
     it('says so when deleting the last active colour would stop Komplettrad orders', async () => {
