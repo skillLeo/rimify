@@ -34,8 +34,13 @@ const props = withDefaults(
         more?: AdminPageAction[]
         /** The viewer may look but not change: said once, above the body. */
         readOnly?: boolean
+        /**
+         * The Übersicht and the pages beneath it: title and grid 1440 px wide at most and centred in the
+         * work area, so a wide screen never shows a half-empty band beside them (the brief).
+         */
+        dashboard?: boolean
     }>(),
-    { more: () => [], readOnly: false }
+    { more: () => [], readOnly: false, dashboard: false }
 )
 
 const safe = computed(() => props.more.filter((a) => !a.danger))
@@ -45,7 +50,7 @@ const danger = computed(() => props.more.filter((a) => a.danger))
 <template>
     <Head :title="title" />
 
-    <header class="adm-page__head">
+    <header class="adm-page__head" :class="{ 'adm-page__part--dash': dashboard }">
         <div class="adm-page__titles">
             <h1 class="adm-page__title">{{ title }}</h1>
             <p class="adm-page__context">{{ context }}</p>
@@ -91,12 +96,12 @@ const danger = computed(() => props.more.filter((a) => a.danger))
         </div>
     </header>
 
-    <p v-if="readOnly" class="adm-page__readonly">
+    <p v-if="readOnly" class="adm-page__readonly" :class="{ 'adm-page__part--dash': dashboard }">
         <Icon name="eye" :size="16" />
         Du kannst diese Seite ansehen, aber nicht ändern.
     </p>
 
-    <div class="adm-page__body">
+    <div class="adm-page__body" :class="{ 'adm-page__part--dash': dashboard }">
         <slot />
     </div>
 </template>

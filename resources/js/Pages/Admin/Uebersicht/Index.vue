@@ -8,8 +8,8 @@
  * are among the ones counted, the page says so once, above the figures.
  */
 
-import { Deferred, Link } from '@inertiajs/vue3'
-import { computed, reactive } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
@@ -24,9 +24,10 @@ import KpiTile from '../../../Components/Admin/Dashboard/KpiTile.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
 import QualityList from '../../../Components/Admin/Dashboard/QualityList.vue'
 import RecentOrders from '../../../Components/Admin/Dashboard/RecentOrders.vue'
+import TodayCard from '../../../Components/Admin/Dashboard/TodayCard.vue'
 import TodoList from '../../../Components/Admin/Dashboard/TodoList.vue'
 import { useHealth } from '../../../composables/admin/useHealth'
-import type { AdminUebersichtProps } from '../../../types/admin/uebersicht'
+import type { AdminUebersichtProps, ChartKey, VerdictChart } from '../../../types/admin/uebersicht'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -53,7 +54,7 @@ const revenueTable = computed(() => {
     const previous = props.period.compare && chart ? chart.previous : null
 
     return {
-        header: previous ? ['Tag', 'Umsatz', 'Vorperiode'] : ['Tag', 'Umsatz'],
+        header: previous ? ['Tag', 'Umsatz', 'Umsatz im Vorzeitraum'] : ['Tag', 'Umsatz'],
         rows: chart ? chart.points.map((p, i) => (previous ? [p.label, p.text, previous[i]?.text ?? ''] : [p.label, p.text])) : [],
     }
 })
@@ -72,12 +73,92 @@ const topTable = computed(() => ({
     rows: props.charts?.topWheels ? props.charts.topWheels.map((b) => [b.label, String(b.value)]) : [],
 }))
 
+/* ── The deferred charts: their boxes from the first frame, then the charts, or a retry ─── */
+
+const page = usePage()
+
+/** The charts' own request failed (no answer, a bare error): every chart widget offers a retry. */
+const loadFailed = ref(false)
+
+/** The server could not build the charts at all (Inertia's `rescue`): the same. */
+const rescued = computed(() => ((page as unknown as { rescuedProps?: string[] }).rescuedProps ?? []).includes('charts'))
+
+const chartsFailed = computed(() => props.charts === undefined && (loadFailed.value || rescued.value))
+const chartsLoading = computed(() => props.charts === undefined && !chartsFailed.value)
+
+const FAILED = 'Diese Auswertung konnte nicht geladen werden. Die übrigen Zahlen der Übersicht sind davon nicht betroffen.'
+
+function has(key: ChartKey): boolean {
+    return props.chartKeys.includes(key)
+}
+
+function failedOne(key: ChartKey): string | null {
+    return chartsFailed.value || props.charts?.failed.includes(key) ? FAILED : null
+}
+
+function isChartsVisit(visit: unknown): boolean {
+    const only = (visit as { only?: unknown }).only
+
+    return Array.isArray(only) && only.includes('charts')
+}
+
+let unbind: Array<() => void> = []
+
+onMounted(() => {
+    unbind = [
+        router.on('start', (event) => {
+            if (isChartsVisit(event.detail.visit)) {
+                loadFailed.value = false
+            }
+        }),
+        // Inertia marks every visit „completed“ when it ends, answered or not: what tells a failed
+        // load from a good one is whether the charts are on the page now (the page object, which is
+        // set before this event; the component's props follow a render later).
+        router.on('finish', (event) => {
+            if (isChartsVisit(event.detail.visit) && (page.props as { charts?: unknown }).charts === undefined) {
+                loadFailed.value = true
+            }
+        }),
+    ]
+})
+
+onBeforeUnmount(() => unbind.forEach((off) => off()))
+
+function retryCharts(): void {
+    loadFailed.value = false
+    router.reload({ only: ['charts'] })
+}
+
+/* Each chart's box, the same before, with and without its data (DashWidget's `bodyHeight`). */
+const REVENUE_HEIGHT = computed(() => 240 + (props.period.compare ? 24 : 0))
+/** Eight bars of 28 px with 8 px between them: the most the ranking shows. */
+const TOP_HEIGHT = 8 * 28 + 7 * 8
+
+/** The four verdicts, in the server's words (ChartData::VERDICTS), for the legend of the skeleton. */
+const VERDICT_SKELETON: VerdictChart = {
+    series: [
+        { key: 'PERMITTED', label: 'Freigegeben' },
+        { key: 'CONDITIONAL', label: 'Mit Auflagen' },
+        { key: 'NOT_PERMITTED', label: 'Nicht freigegeben' },
+        { key: 'UNKNOWN', label: 'Unbekannt' },
+    ],
+    weeks: [],
+    since: null,
+}
+
+/** The Übersicht's Zeitraum as a query: a list opened from a widget counts the same days. */
+const periodQuery = computed(() => {
+    const query: Record<string, string> = props.period.key === 'eigen' ? { zeitraum: 'eigen', von: props.period.von, bis: props.period.bis } : { zeitraum: props.period.key }
+
+    return `?${new URLSearchParams(query).toString()}`
+})
+
 /** Four tiles share a row as four, three as three: the row always fills its twelve columns. */
 const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(12 / props.kpis.length)) : 12))
 </script>
 
 <template>
-    <AdminPage title="Übersicht" :context="`Stand: ${asOf}`">
+    <AdminPage title="Übersicht" dashboard :context="`Stand: ${asOf}`">
         <template #primary>
             <PeriodSwitcher :period="period" :export-url="exportUrl" />
         </template>
@@ -86,7 +167,7 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
             <p class="dash__period">
                 <span class="dash__period-name">{{ period.label }}</span>
                 <span class="dash__period-range">{{ period.range }}</span>
-                <span v-if="period.compare" class="dash__period-compare">verglichen mit {{ period.previousRange }}</span>
+                <span v-if="period.compare" class="dash__period-compare">gegenüber dem Vorzeitraum {{ period.previousRange }}</span>
             </p>
 
             <p v-if="demo" class="dash__demo" role="note">
@@ -100,19 +181,29 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
 
             <AdminState v-else kind="empty" text="Für deine Rolle gibt es hier noch keine Kennzahlen. Deine Bereiche findest du in der Navigation." />
 
+            <!-- On a phone, Heute comes straight after the figures. -->
+            <TodayCard :items="today" class="dash__today dash__today--phone" />
+
             <!-- Documents, conflicts and demand are the Gutachten role's day: its coverage row comes first. -->
-            <CoverageRow v-if="charts?.coverage !== false && variant === 'gutachten'" :charts="charts" />
+            <CoverageRow v-if="variant === 'gutachten' && (has('coverage') || has('demand'))" :charts="charts" :keys="chartKeys" :rows="coverageRows" :failed="chartsFailed" :period-query="periodQuery" @retry="retryCharts" />
 
             <!-- Row 2: the trend, and beside it what to do now and whether the shop is all right. -->
             <div class="dash__row">
-                <Deferred v-if="charts?.revenue !== false" data="charts">
-                    <template #fallback>
-                        <DashWidget class="dash__col-8" title="Umsatz über die Zeit" loading :skeleton-rows="6" />
-                    </template>
+                <template v-if="has('revenue')">
                     <DashWidget
-                        v-if="charts"
+                        v-if="!charts || !charts.revenue && failedOne('revenue')"
                         class="dash__col-8"
                         title="Umsatz über die Zeit"
+                        :body-height="REVENUE_HEIGHT"
+                        :loading="chartsLoading"
+                        :error="failedOne('revenue')"
+                        @retry="retryCharts"
+                    />
+                    <DashWidget
+                        v-else
+                        class="dash__col-8"
+                        title="Umsatz über die Zeit"
+                        :body-height="REVENUE_HEIGHT"
                         :empty="charts.revenue ? null : 'Noch kein Umsatz in diesem Zeitraum. Die Linie beginnt mit der ersten bezahlten Bestellung.'"
                     >
                         <template v-if="charts.revenue" #tools>
@@ -135,24 +226,17 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
                             />
                             <p v-if="period.compare && charts.revenue.previous" class="chart-legend">
                                 <span class="chart-legend__line" aria-hidden="true" /> {{ period.range }}
-                                <span class="chart-legend__line chart-legend__line--previous" aria-hidden="true" /> Vorperiode {{ period.previousRange }}
+                                <span class="chart-legend__line chart-legend__line--previous" aria-hidden="true" /> Vorzeitraum {{ period.previousRange }}
                             </p>
                         </template>
                     </DashWidget>
-                </Deferred>
+                </template>
 
-                <div class="dash__stack" :class="charts?.revenue === false ? 'dash__col-12' : 'dash__col-4'">
-                    <!-- Heute: what this role should do now, each with the button that starts it. -->
-                    <DashWidget title="Heute" :empty="today.length ? null : 'Heute ist nichts offen. Neues erscheint hier, sobald es dich betrifft.'">
-                        <ul class="today">
-                            <li v-for="item in today" :key="item.key" class="today__row">
-                                <p class="today__sentence">{{ item.sentence }}</p>
-                                <Link :href="item.href" class="btn btn--secondary btn--sm">{{ item.action }}</Link>
-                            </li>
-                        </ul>
-                    </DashWidget>
+                <div class="dash__stack" :class="has('revenue') ? 'dash__col-4' : 'dash__col-12'">
+                    <!-- Heute beside the trend, from 1440 px (below, it moves to where it serves the width). -->
+                    <TodayCard :items="today" class="dash__today dash__today--wide" />
 
-                    <DashWidget v-if="health" title="Systemzustand" :href="health.href" href-label="Details">
+                    <DashWidget v-if="health" title="Systemzustand" :href="health.href" href-label="Alle Systemprüfungen">
                         <p class="health" :class="`health--${health.state}`">
                             <span class="adm-health__dot" :class="`adm-health__dot--${health.state}`" aria-hidden="true" />
                             {{ health.sentence }}
@@ -162,13 +246,17 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
                 </div>
             </div>
 
-            <!-- Row 3: the two tables this screen was missing most. -->
-            <div class="dash__row">
+            <!-- Below 1440 the two tables stack rather than squeeze, and Heute stands above them. -->
+            <TodayCard :items="today" class="dash__today dash__today--stacked" />
+
+            <!-- Row 3: the two tables this screen was missing most — side by side from 1440, stacked below. -->
+            <div class="dash__row dash__row--stack-below-wide">
                 <DashWidget
                     v-if="recentOrders"
                     class="dash__col-7"
                     title="Neueste Bestellungen"
                     href="/admin/bestellungen"
+                    href-label="Alle Bestellungen"
                     :empty="recentOrders.length ? null : 'Hier erscheinen die neuesten Bestellungen, sobald jemand im Shop bestellt.'"
                 >
                     <RecentOrders :orders="recentOrders" />
@@ -195,12 +283,24 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
 
             <!-- Row 4: what customers were told, what sells, and what the team changed. -->
             <div class="dash__row">
-                <Deferred v-if="charts?.verdicts !== false" data="charts">
-                    <template #fallback>
-                        <DashWidget class="dash__col-4" title="Verdikte der Prüfungen" loading :skeleton-rows="6" />
-                    </template>
+                <template v-if="has('verdicts')">
                     <DashWidget
-                        v-if="charts"
+                        v-if="!charts || !charts.verdicts && failedOne('verdicts')"
+                        class="dash__col-4"
+                        title="Verdikte der Prüfungen"
+                        :loading="chartsLoading"
+                        :error="failedOne('verdicts')"
+                        @retry="retryCharts"
+                    >
+                        <template #skeleton>
+                            <div class="chart-skeleton">
+                                <StackedBar :chart="VERDICT_SKELETON" label="" loading />
+                                <p class="chart-note" aria-hidden="true">&nbsp;</p>
+                            </div>
+                        </template>
+                    </DashWidget>
+                    <DashWidget
+                        v-else
                         class="dash__col-4"
                         title="Verdikte der Prüfungen"
                         :empty="charts.verdicts ? null : 'Der Shop zählt jede Prüfung einer Felge an einem Auto. Sobald Kundinnen und Kunden prüfen, zeigt sich hier je Woche, wie oft die Antwort freigegeben, mit Auflagen, nicht freigegeben oder unbekannt war.'"
@@ -217,19 +317,30 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
                         <template v-if="charts.verdicts">
                             <ChartTable v-if="tables.verdicts" caption="Verdikte je Woche" :header="verdictTable.header" :rows="verdictTable.rows" />
                             <StackedBar v-else :chart="charts.verdicts" :label="`Verdikte je Woche, ${period.range}`" />
-                            <p v-if="charts.verdicts.since" class="chart-note">Gezählt seit {{ charts.verdicts.since }}.</p>
+                            <!-- Always a line, so the box keeps its height whether or not counting has a start to name. -->
+                            <p class="chart-note">
+                                <template v-if="charts.verdicts.since">Gezählt seit {{ charts.verdicts.since }}.</template>
+                                <template v-else>&nbsp;</template>
+                            </p>
                         </template>
                     </DashWidget>
-                </Deferred>
+                </template>
 
-                <Deferred v-if="charts?.topWheels !== false" data="charts">
-                    <template #fallback>
-                        <DashWidget class="dash__col-4" title="Top-Felgen nach Bestellungen" loading :skeleton-rows="6" />
-                    </template>
+                <template v-if="has('topWheels')">
                     <DashWidget
-                        v-if="charts"
+                        v-if="!charts || !charts.topWheels"
                         class="dash__col-4"
                         title="Top-Felgen nach Bestellungen"
+                        :body-height="TOP_HEIGHT"
+                        :loading="chartsLoading"
+                        :error="failedOne('topWheels')"
+                        @retry="retryCharts"
+                    />
+                    <DashWidget
+                        v-else
+                        class="dash__col-4"
+                        title="Top-Felgen nach Bestellungen"
+                        :body-height="TOP_HEIGHT"
                         :empty="charts.topWheels.length ? null : 'Noch keine bezahlte Bestellung mit Felgen in diesem Zeitraum.'"
                     >
                         <template v-if="charts.topWheels.length" #tools>
@@ -244,13 +355,14 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
                         <ChartTable v-if="tables.topWheels" caption="Top-Felgen nach Bestellungen" :header="topTable.header" :rows="topTable.rows" />
                         <BarChart v-else :bars="charts.topWheels" :label="`Top-Felgen nach Bestellungen, ${period.range}`" />
                     </DashWidget>
-                </Deferred>
+                </template>
 
                 <DashWidget
                     v-if="activity"
                     class="dash__col-4"
                     title="Letzte Aktivität"
                     href="/admin/protokoll"
+                    href-label="Ganzes Protokoll"
                     :empty="activity.length ? null : 'Jede Änderung im Admin erscheint hier, sobald jemand aus dem Team sie speichert.'"
                 >
                     <ul class="activity">
@@ -265,7 +377,7 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
 
             <!-- Row 5: the client's core asset, made visible, and what customers asked for that it does
                  not cover yet. The Gutachten role has it straight under its figures instead. -->
-            <CoverageRow v-if="charts?.coverage !== false && variant !== 'gutachten'" :charts="charts" />
+            <CoverageRow v-if="variant !== 'gutachten' && (has('coverage') || has('demand'))" :charts="charts" :keys="chartKeys" :rows="coverageRows" :failed="chartsFailed" :period-query="periodQuery" @retry="retryCharts" />
         </div>
     </AdminPage>
 </template>
@@ -334,6 +446,33 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
     }
 }
 
+/* Heute, one card in three places, one of them shown: beside the trend from 1440 px, above the stacked
+   tables from 768 to 1439, under the figures on a phone. */
+.dash__today--phone,
+.dash__today--stacked {
+    display: none;
+}
+
+@media (max-width: 1439px) {
+    .dash__today--wide {
+        display: none;
+    }
+
+    .dash__today--stacked {
+        display: flex;
+    }
+}
+
+@media (max-width: 767px) {
+    .dash__today--stacked {
+        display: none;
+    }
+
+    .dash__today--phone {
+        display: flex;
+    }
+}
+
 /* Heute and Systemzustand, one above the other beside the trend; side by side where there is none. */
 .dash__stack {
     display: grid;
@@ -343,6 +482,13 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
 
 .dash__stack.dash__col-12 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Below 1440 Heute has left the stack, so what stays in it takes the whole width. */
+@media (max-width: 1439px) {
+    .dash__stack.dash__col-12 {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 @media (max-width: 767px) {
@@ -388,6 +534,10 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
 }
 
 
+.chart-skeleton {
+    display: grid;
+}
+
 .chart-note {
     margin: var(--sp-8) 0 0;
     font-size: var(--fs-micro);
@@ -396,34 +546,6 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
 }
 
 /* ── Heute, Systemzustand, Letzte Aktivität ─────────────────────────────────────── */
-
-.today {
-    display: grid;
-    gap: var(--sp-12);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.today__row {
-    display: grid;
-    justify-items: start;
-    gap: var(--sp-8);
-    padding-bottom: var(--sp-12);
-    border-bottom: 1px solid var(--c-line);
-}
-
-.today__row:last-child {
-    padding-bottom: 0;
-    border-bottom: 0;
-}
-
-.today__sentence {
-    margin: 0;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink);
-}
 
 .health {
     display: flex;

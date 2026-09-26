@@ -81,12 +81,13 @@
     }
 }
 
+/* Exactly the top bar's height, so the wordmark sits on the breadcrumbs' centre line. */
 .adm-rail__brand {
     display: flex;
     align-items: center;
     gap: var(--sp-8);
     min-height: var(--adm-topbar-h);
-    padding: var(--sp-20) var(--sp-8);
+    padding: 0 var(--sp-8);
 }
 
 /* The logo: black, a 20 px cap height, the storefront wordmark's own weight and tracking. */
@@ -131,29 +132,42 @@
     border-top: 1px solid var(--c-line);
 }
 
+/* One quiet line, 32 px, never wrapping: the dot carries the colour, the words stay the rail's own
+   grey, and a long label gives way with „…“ (the whole sentence is the tooltip). */
 .adm-foot__health {
     display: flex;
     align-items: center;
     gap: var(--sp-8);
-    min-height: var(--sp-32);
+    height: var(--sp-32);
     margin: 0;
     padding-inline: var(--sp-12);
     border-radius: var(--r-control);
     font-size: var(--fs-small);
     line-height: var(--lh-small);
-    font-weight: 500;
+    color: var(--c-ink-2);
     text-decoration: none;
+    white-space: nowrap;
 }
 
-.adm-foot__health--ok {
-    color: var(--c-ok);
+.adm-foot__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.adm-foot__health--warn {
+/* The count may take the state's colour — it is the one figure worth the eye. It follows the label
+   at a word's distance („Warteschlange stockt · 12 Std“), not the row's gap. */
+.adm-foot__count {
+    flex: none;
+    margin-left: calc(-1 * var(--sp-4));
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-foot__count--warn {
     color: var(--c-warn);
 }
 
-.adm-foot__health--bad {
+.adm-foot__count--bad {
     color: var(--c-bad);
 }
 
@@ -167,12 +181,7 @@ a.adm-foot__health {
     }
 }
 
-.adm-foot__sentence {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+
 
 /* The one dot of a state: 8 px, the state's own colour, never alone without its word. */
 .adm-health__dot {
@@ -200,9 +209,12 @@ a.adm-foot__health {
     gap: var(--sp-8);
 }
 
+/* „Neu“ gives way first, so the shortcut beside it is never pushed out of the rail, whatever the
+   font the browser ends up with. */
 .adm-foot__new {
     flex: 1 1 auto;
     justify-content: center;
+    min-width: 0;
 }
 
 .adm-foot__new svg {
@@ -318,7 +330,8 @@ a.adm-foot__health {
     display: flex;
 }
 
-.adm[data-rail='collapsed'] .adm-foot__sentence,
+.adm[data-rail='collapsed'] .adm-foot__label,
+.adm[data-rail='collapsed'] .adm-foot__count,
 .adm[data-rail='collapsed'] .adm-foot__new-label,
 .adm[data-rail='collapsed'] .adm-foot__who {
     position: absolute;
@@ -353,7 +366,8 @@ a.adm-foot__health {
         display: flex;
     }
 
-    .adm .adm-foot__sentence,
+    .adm .adm-foot__label,
+    .adm .adm-foot__count,
     .adm .adm-foot__new-label,
     .adm .adm-foot__who {
         position: absolute;
@@ -470,7 +484,7 @@ a.adm-foot__health {
 
 .adm[data-rail='collapsed'] .adm-rail__brand {
     flex-direction: column;
-    padding-inline: 0;
+    padding: var(--sp-12) 0;
 }
 
 .adm[data-rail='collapsed'] .adm-wordmark--full,
@@ -514,7 +528,7 @@ a.adm-foot__health {
 @media (min-width: 768px) and (max-width: 1023px) {
     .adm .adm-rail__brand {
         flex-direction: column;
-        padding-inline: 0;
+        padding: var(--sp-12) 0;
     }
 
     .adm .adm-wordmark--full,
@@ -1744,6 +1758,56 @@ a.adm-foot__health {
     }
 }
 
+/* A finger's target in the rail too: on a touch tablet (768–1023, the rail collapsed by the width)
+   every item and „Neu“ are 44 px, not the pointer's 36. */
+@media (pointer: coarse) {
+    .adm-rail__item,
+    .adm .adm-foot .adm-foot__new {
+        height: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
+    }
+}
+/* The banner for an urgent system problem (AdminHealthBanner): a strip across the top of the work
+   area, the state's tint behind ink words, its dot the one saturated mark. Never a gradient, never
+   a cross to close it. */
+.adm-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-8) var(--sp-12);
+    padding: var(--sp-12) var(--adm-page-pad, var(--sp-32));
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.adm-banner--warn {
+    background: var(--c-warn-tint);
+}
+
+.adm-banner--bad {
+    background: var(--c-bad-tint);
+}
+
+.adm-banner__text {
+    flex: 1 1 24ch;
+    margin: 0;
+}
+
+.adm-banner__actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+}
+/* The Übersicht and the pages beneath it: head and body 1440 px wide at most, centred in the work
+   area together, so a wide screen shows the grid in the middle, never beside a half-empty band. */
+.adm-page__part--dash {
+    width: 100%;
+    max-width: var(--adm-dash-max);
+    margin-inline: auto;
+}
+
 /* The header (§8.1): what this is, one fact about it, and what you can make here. */
 .adm-page__head {
     display: flex;
@@ -2443,6 +2507,14 @@ a.adm-foot__health {
     }
 
     .dash__col-4 {
+        grid-column: 1 / -1;
+    }
+}
+
+/* A row whose widgets do not fit side by side below 1440 stacks there rather than squeeze: every
+   column of both tables stays in view, nothing is cut to make room. */
+@media (max-width: 1439px) {
+    .dash__row--stack-below-wide > * {
         grid-column: 1 / -1;
     }
 }

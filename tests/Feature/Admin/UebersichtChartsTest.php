@@ -161,6 +161,43 @@ describe('on the page', function (): void {
                     ->where('charts.verdicts', false)
                     ->where('charts.topWheels', false)));
     });
+
+    it('names the charts a role gets before they arrive, so their boxes stand from the first frame', function (): void {
+        $this->actingAs(chartsAdmin(), 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('chartKeys', ['revenue', 'verdicts', 'topWheels', 'coverage', 'demand'])
+                ->where('coverageRows', DB::table('vehicles')->whereNull('deleted_at')->distinct()->count('make')));
+
+        // The order team reads the reports too, so the verdicts; without the Gutachten right, no matrix.
+        $this->actingAs(chartsAdmin('order-manager'), 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('chartKeys', ['revenue', 'verdicts', 'topWheels'])
+                ->where('coverageRows', 0));
+
+        $this->actingAs(chartsAdmin('content-editor'), 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('chartKeys', []));
+    });
+
+    it('lets one chart fail on its own: it is named, the others still arrive, the page stays', function (): void {
+        chartOrder(10_000, '2026-09-24 10:00:00');
+
+        // The verdicts' table is locked, say, for this one request: its query fails, nothing else does.
+        DB::connection()->beforeExecuting(function (string $sql): void {
+            if (str_contains($sql, 'verdict_tallies')) {
+                throw new RuntimeException('Lock wait timeout exceeded on verdict_tallies');
+            }
+        });
+
+        $this->actingAs(chartsAdmin(), 'admin')->get('/admin?zeitraum=7')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Admin/Uebersicht/Index')
+                ->loadDeferredProps(fn (AssertableInertia $reload) => $reload
+                    ->where('charts.failed', ['verdicts'])
+                    ->where('charts.verdicts', null)
+                    ->has('charts.revenue.points')
+                    ->has('charts.coverage.rows')));
+    });
 });
 
 it('uses Berlin days for the weeks as well', function (): void {

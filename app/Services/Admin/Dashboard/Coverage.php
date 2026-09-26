@@ -25,7 +25,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class Coverage
 {
-    public const CACHE_KEY = 'admin.coverage.v1';
+    /** Versioned: a change to what the matrix carries (its labels) must not wait an hour for the cache. */
+    public const CACHE_KEY = 'admin.coverage.v2';
 
     public const CACHE_SECONDS = 3600;
 
@@ -108,7 +109,7 @@ final class Coverage
         }
 
         return [
-            'sizes' => array_map(static fn (string $s): array => ['key' => $s, 'label' => "{$s}″"], $sizes),
+            'sizes' => array_map(static fn (string $s): array => ['key' => $s, 'label' => "{$s} Zoll"], $sizes),
             'rows' => $rows,
             'max' => $max,
             'summary' => [

@@ -31,11 +31,16 @@ class SystemController extends Controller
         ]);
     }
 
-    /** The rail's line: state and sentence only, never the checks behind it. */
+    /** The rail's line: state, its short form and the sentence — never the checks behind it. */
     public function pulse(SystemHealth $health): JsonResponse
     {
         $report = $health->report();
 
-        return response()->json(['state' => $report['state'], 'sentence' => $report['sentence']]);
+        return response()->json([
+            'state' => $report['state'],
+            'sentence' => $report['sentence'],
+            'label' => $report['label'],
+            'count' => $report['count'],
+        ]);
     }
 }

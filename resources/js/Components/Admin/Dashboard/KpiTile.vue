@@ -9,7 +9,7 @@
  * tile with nothing to count shows its sentence where the number would be — never a zero that reads
  * like a result.
  *
- * The change is a word and an arrow, never a colour alone: „+12,4 % vs. Vorperiode“.
+ * The change is a word and an arrow, never a colour alone: „+12,4 % zum Vorzeitraum“.
  */
 
 import { Link } from '@inertiajs/vue3'
@@ -22,7 +22,39 @@ import type { Kpi } from '../../../types/admin/uebersicht'
 const props = defineProps<{ kpi: Kpi; compare: boolean }>()
 
 const hintId = useId()
-const hintOpen = ref(false)
+
+/*
+ * The hint shows while the tile has the focus or a mouse is over its label or over the hint itself
+ * (WCAG 1.4.13: hoverable, persistent), and Esc puts it away until the next time. A finger's tap
+ * opens nothing: touch fakes a hover that would never leave.
+ */
+const hovered = ref(false)
+const hoveringHint = ref(false)
+const focused = ref(false)
+const dismissed = ref(false)
+
+const hintOpen = computed(() => (hovered.value || hoveringHint.value || focused.value) && !dismissed.value)
+
+function onPointer(event: PointerEvent, over: boolean): void {
+    if (event.pointerType !== 'mouse') {
+        return
+    }
+
+    hovered.value = over
+
+    if (!over && !focused.value) {
+        dismissed.value = false
+    }
+}
+
+function onFocus(on: boolean): void {
+    focused.value = on
+
+    if (!on) {
+        dismissed.value = false
+    }
+}
+
 
 const showsDelta = computed(() => props.compare && props.kpi.delta !== null)
 </script>
@@ -35,24 +67,36 @@ const showsDelta = computed(() => props.compare && props.kpi.delta !== null)
             class="kpi"
             :class="{ 'kpi--link': kpi.href, 'kpi--empty': kpi.value === null }"
             :aria-describedby="hintId"
-            @focus="hintOpen = true"
-            @blur="hintOpen = false"
+            @focus="onFocus(true)"
+            @blur="onFocus(false)"
+            @keydown.esc="dismissed = true"
         >
             <span class="kpi__head">
                 <TooltipRoot :open="hintOpen">
                     <TooltipTrigger as-child>
-                        <span class="kpi__label" @mouseenter="hintOpen = true" @mouseleave="hintOpen = false">
+                        <span class="kpi__label" @pointerenter="onPointer($event, true)" @pointerleave="onPointer($event, false)">
                             {{ kpi.label }}
                             <Icon class="kpi__info" name="info" :size="16" />
                         </span>
                     </TooltipTrigger>
                     <TooltipPortal>
-                        <TooltipContent class="adm-tooltip kpi__tooltip" side="top" align="start" :side-offset="6">{{ kpi.hint }}</TooltipContent>
+                        <TooltipContent
+                            class="adm-tooltip kpi__tooltip"
+                            side="top"
+                            align="start"
+                            :side-offset="6"
+                            @pointerenter="hoveringHint = true"
+                            @pointerleave="hoveringHint = false"
+                            @escape-key-down="dismissed = true"
+                        >
+                            {{ kpi.hint }}
+                        </TooltipContent>
                     </TooltipPortal>
                 </TooltipRoot>
                 <Icon v-if="kpi.href" class="kpi__go" name="arrow-right" :size="16" />
             </span>
-            <span :id="hintId" class="visually-hidden">{{ kpi.hint }}</span>
+            <!-- The tile's description, read once: hidden from the link's name, still named by aria-describedby. -->
+            <span :id="hintId" class="visually-hidden" aria-hidden="true">{{ kpi.hint }}</span>
 
             <template v-if="kpi.value !== null">
                 <span class="kpi__value">{{ kpi.value }}</span>

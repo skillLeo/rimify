@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Admin\Dashboard\SalesFigures;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -92,13 +93,13 @@ describe('the figures', function (): void {
         $tiles = dashTiles();
 
         expect($tiles['umsatz']['value'])->toBe("1.500,00\u{00A0}€")
-            ->and($tiles['umsatz']['delta']['label'])->toBe("+100\u{00A0}% vs. Vorperiode")
+            ->and($tiles['umsatz']['delta']['label'])->toBe("+100\u{00A0}% zum Vorzeitraum")
             ->and($tiles['umsatz']['delta']['direction'])->toBe('up')
             ->and($tiles['bestellungen']['value'])->toBe('2')
-            ->and($tiles['bestellungen']['delta']['label'])->toBe("+100\u{00A0}% vs. Vorperiode")
+            ->and($tiles['bestellungen']['delta']['label'])->toBe("+100\u{00A0}% zum Vorzeitraum")
             ->and($tiles['bestellwert']['value'])->toBe("750,00\u{00A0}€")
             // JSON carries 0.0 as 0: compared by value.
-            ->and($tiles['bestellwert']['delta'])->toEqual(['value' => 0, 'direction' => 'flat', 'label' => "0\u{00A0}% vs. Vorperiode"])
+            ->and($tiles['bestellwert']['delta'])->toEqual(['value' => 0, 'direction' => 'flat', 'label' => "0\u{00A0}% zum Vorzeitraum"])
             ->and($tiles['umsatz']['series'])->toHaveCount(30);
     });
 
@@ -140,7 +141,7 @@ describe('the figures', function (): void {
         $tiles = dashTiles();
 
         expect($tiles['umsatz']['delta'])->toBeNull()
-            ->and($tiles['umsatz']['deltaNote'])->toBe('Vorperiode ohne Bestellungen');
+            ->and($tiles['umsatz']['deltaNote'])->toBe('Im Vorzeitraum keine Bestellung');
     });
 
     it('computes no change at all when comparing is off', function (): void {
@@ -237,4 +238,10 @@ it('exports the period day by day for a role that may export reports, and only f
         ->and($csv)->toContain('24.09.2026;1425,5;1;1425,5');
 
     $this->actingAs(dashAdmin('support-agent'), 'admin')->get('/admin/uebersicht/export?zeitraum=7')->assertForbidden();
+});
+
+it('draws a short first week of the curve at a whole week’s rate, never as a dip the data does not have', function (): void {
+    // Nine days of one order each, folded into weeks: two days, then seven — both a week's worth.
+    expect(SalesFigures::fold(array_fill(0, 9, 1), 7))->toBe([7, 7])
+        ->and(SalesFigures::fold([3, 3, 3], 1))->toBe([3, 3, 3]);
 });

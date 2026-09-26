@@ -21,6 +21,10 @@ const brand = ref('')
 const subject = ref('')
 const body = ref('')
 const copied = ref(false)
+const copyFailed = ref(false)
+
+/** Sent once per opening: a double-click on the link — the dialog is still there while it fades — records one request and opens one e-mail. */
+const sentOnce = ref(false)
 
 watch(open, (value) => {
     if (value && props.gap) {
@@ -28,6 +32,8 @@ watch(open, (value) => {
         subject.value = props.gap.mail.subject
         body.value = props.gap.mail.body
         copied.value = false
+        copyFailed.value = false
+        sentOnce.value = false
     }
 })
 
@@ -39,18 +45,37 @@ async function copy(): Promise<void> {
     try {
         await navigator.clipboard.writeText(`${subject.value}\n\n${body.value}`)
         copied.value = true
+        copyFailed.value = false
         window.setTimeout(() => (copied.value = false), 2000)
     } catch {
+        // The browser refused (no permission, no secure context): say so, and say what still works.
         copied.value = false
+        copyFailed.value = true
     }
 }
 
-function sent(): void {
+function sent(event: MouseEvent): void {
+    if (sentOnce.value) {
+        event.preventDefault()
+
+        return
+    }
+
+    sentOnce.value = true
+
     if (props.gap) {
         emit('requested', props.gap, brand.value === '' ? null : Number(brand.value))
     }
 
     open.value = false
+}
+
+/* Once a request went out, its row may leave the list: the page moves the focus on (Index.vue), so
+   the dialog does not hand it back to a control that is about to disappear. */
+function onCloseFocus(event: Event): void {
+    if (sentOnce.value) {
+        event.preventDefault()
+    }
 }
 </script>
 
@@ -60,6 +85,7 @@ function sent(): void {
         title="Gutachten anfordern"
         :description="gap ? `Für ${gap.title}. Die E-Mail öffnet sich in deinem E-Mail-Programm, die Adresse der Marke trägst du dort ein.` : undefined"
         content-class="adm-dialog"
+        @close-auto-focus="onCloseFocus"
     >
         <div class="rq">
             <div class="form-field">
@@ -88,6 +114,7 @@ function sent(): void {
             </button>
             <a class="btn btn--primary" :href="mailto()" @click="sent">In E-Mail-Programm öffnen</a>
         </template>
+        <p v-if="copyFailed" class="form-field__error rq__error" role="alert">Betreff und Text konnten nicht kopiert werden. Kopier sie von Hand oder öffne die E-Mail mit „In E-Mail-Programm öffnen“.</p>
         <p class="visually-hidden" aria-live="polite">{{ copied ? 'Betreff und Text sind kopiert.' : '' }}</p>
     </Dialog>
 </template>
@@ -98,10 +125,22 @@ function sent(): void {
     gap: var(--sp-16);
 }
 
+.rq__error {
+    margin: var(--sp-12) 0 0;
+}
+
 .rq__body {
     min-height: 240px;
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     resize: vertical;
+}
+
+/* Never below 16 px on a phone: iOS zooms into a smaller field and never zooms back (components.css). */
+@media (max-width: 767px) {
+    .rq__body {
+        font-size: var(--fs-body);
+        line-height: var(--lh-body);
+    }
 }
 </style>

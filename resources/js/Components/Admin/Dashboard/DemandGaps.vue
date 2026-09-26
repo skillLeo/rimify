@@ -49,8 +49,10 @@ function anchor(key: string): string {
     grid-template-columns: 20px minmax(0, 1fr) 96px;
     align-items: center;
     gap: var(--sp-12);
-    min-height: var(--adm-control-h-lg);
-    padding: var(--sp-8) var(--sp-20);
+    /* Two lines — the car, then its key numbers — so the shell's two-line row, exactly: the figures
+       column (count, bar, who waits) fits inside it. */
+    min-height: var(--adm-row-h-lg);
+    padding: var(--sp-4) var(--sp-20);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--adm-fs-table);
     line-height: var(--adm-lh-table);
@@ -85,13 +87,12 @@ function anchor(key: string): string {
     min-width: 0;
 }
 
+/* The car is never cut: its name wraps if it must; only the key numbers under it give way. */
 .dg__link {
-    overflow: hidden;
     font-weight: 600;
     color: var(--c-ink);
     text-decoration: none;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
     outline: none;
 }
 

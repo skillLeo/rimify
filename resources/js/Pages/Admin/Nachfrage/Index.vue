@@ -11,7 +11,7 @@
 
 import { router } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
@@ -46,15 +46,21 @@ const summary = computed(() => {
     const gaps = d.counts.alle === 1 ? '1 Lücke' : `${decimal(d.counts.alle, 0)} Lücken`
     const waiting = d.waiting === 0 ? 'niemand wartet' : d.waiting === 1 ? '1 Person wartet' : `${decimal(d.waiting, 0)} Personen warten`
 
-    return `${gaps}, ${decimal(d.asks, 0)}-mal gefragt, ${waiting}`
+    return `${gaps} · ${decimal(d.asks, 0)}-mal gefragt · ${waiting}`
 })
 
 const busy = ref<string | null>(null)
 const requesting = ref<DemandGap | null>(null)
 const dialogOpen = ref(false)
 
-/** The row the Übersicht's widget opened, lit until the reader moves on. */
+/** The row the Übersicht's widget opened, lit until the reader moves on — the first click or key. */
 const target = ref<string | null>(null)
+
+function moveOn(): void {
+    target.value = null
+    window.removeEventListener('pointerdown', moveOn)
+    window.removeEventListener('keydown', moveOn)
+}
 
 onMounted(() => {
     const id = window.location.hash.slice(1)
@@ -62,31 +68,85 @@ onMounted(() => {
     if (id.startsWith('gap-')) {
         target.value = id
         document.getElementById(id)?.scrollIntoView({ block: 'center' })
+        window.addEventListener('pointerdown', moveOn, { once: true })
+        window.addEventListener('keydown', moveOn, { once: true })
     }
 })
+
+onBeforeUnmount(moveOn)
 
 function anchor(key: string): string {
     return `gap-${key.replace(':', '-')}`
 }
 
+/** The Zeitraum on screen, sent with every change of the list, so both always count the same days. */
+function shownPeriod(): Record<string, string> {
+    return props.period.key === 'eigen' ? { zeitraum: 'eigen', von: props.period.von, bis: props.period.bis } : { zeitraum: props.period.key }
+}
+
 function show(stand: DemandState): void {
     if (stand !== props.state) {
-        router.get('/admin/nachfrage', { stand }, { preserveScroll: true, preserveState: true })
+        router.get('/admin/nachfrage', { ...shownPeriod(), stand }, { preserveScroll: true, preserveState: true })
     }
 }
 
+/*
+ * After a mark the row may leave the list (it is no longer „Offen“), and with it the control the menu
+ * or the dialog would hand the focus back to. The focus then goes where the reader's work goes on: the
+ * row that took its place, else the row above it, else the Stand filter — never back to the top of
+ * the page.
+ */
+const table = ref<HTMLElement | null>(null)
+const filters = ref<HTMLElement | null>(null)
+
+function keepFocus(index: number): void {
+    void nextTick(() => {
+        const active = document.activeElement
+
+        // Still on a control of the page: nothing to do. On the dialog that is closing (its link keeps
+        // the focus while it fades), or nowhere: the list takes it.
+        if (active instanceof HTMLElement && active !== document.body && active.isConnected && !active.closest('[role="dialog"]')) {
+            return
+        }
+
+        const rows = table.value?.querySelectorAll<HTMLElement>('tbody tr') ?? []
+        const row = rows[Math.min(index, rows.length - 1)]
+        const control = row?.querySelector<HTMLElement>('button, a[href]')
+
+        ;(control ?? filters.value?.querySelector<HTMLElement>('[aria-pressed="true"]'))?.focus()
+    })
+}
+
+/** One mark at a time: a second press while the first is on its way (a double-click) does nothing. */
 function mark(gap: DemandGap, state: 'watched' | 'requested', brandId: number | null = null): void {
+    if (busy.value !== null) {
+        return
+    }
+
+    const index = props.demand.rows.findIndex((row) => row.key === gap.key)
+
     busy.value = gap.key
     router.post(
         '/admin/nachfrage/markierung',
         { key: gap.key, state, ...(brandId === null ? {} : { brand_id: brandId }) },
-        { preserveScroll: true, onFinish: () => (busy.value = null) }
+        { preserveScroll: true, onSuccess: () => keepFocus(index), onFinish: () => (busy.value = null) }
     )
 }
 
 function unmark(gap: DemandGap): void {
+    if (busy.value !== null) {
+        return
+    }
+
+    const index = props.demand.rows.findIndex((row) => row.key === gap.key)
+
     busy.value = gap.key
-    router.delete('/admin/nachfrage/markierung', { data: { key: gap.key }, preserveScroll: true, onFinish: () => (busy.value = null) })
+    router.delete('/admin/nachfrage/markierung', {
+        data: { key: gap.key },
+        preserveScroll: true,
+        onSuccess: () => keepFocus(index),
+        onFinish: () => (busy.value = null),
+    })
 }
 
 function request(gap: DemandGap): void {
@@ -94,17 +154,19 @@ function request(gap: DemandGap): void {
     dialogOpen.value = true
 }
 
-function chip(gap: DemandGap): { label: string; tone: 'plain' | 'warn' | 'neutral' } {
-    if (gap.mark?.state === 'requested') {
-        return { label: 'Angefordert', tone: 'plain' }
-    }
+/*
+ * A gap's state in a word, on a quiet chip: amber and green belong to the verdicts (Mit Auflagen,
+ * Freigegeben), and an open gap is neither — it is work, said by the word „Offen“.
+ */
+function chip(gap: DemandGap): { label: string; tone: 'neutral' } {
+    const label = gap.mark?.state === 'requested' ? 'Angefordert' : gap.mark?.state === 'watched' ? 'Beobachtet' : 'Offen'
 
-    return gap.mark?.state === 'watched' ? { label: 'Beobachtet', tone: 'neutral' } : { label: 'Offen', tone: 'warn' }
+    return { label, tone: 'neutral' }
 }
 </script>
 
 <template>
-    <AdminPage title="Nachfrage-Lücken" context="Autos, nach denen gefragt wurde und für die der Shop noch keine freigegebene Felge zeigen kann.">
+    <AdminPage title="Nachfrage-Lücken" dashboard :context="summary">
         <template #primary>
             <PeriodSwitcher :period="period" :export-url="null" base="/admin/nachfrage" :comparable="false" :keep="{ stand: state }" />
         </template>
@@ -113,11 +175,10 @@ function chip(gap: DemandGap): { label: string; tone: 'plain' | 'warn' | 'neutra
             <p class="nf__period">
                 <span class="nf__period-name">{{ period.label }}</span>
                 <span>{{ period.range }}</span>
-                <span class="nf__summary">{{ summary }}</span>
             </p>
 
             <div class="adm-filters">
-                <div class="adm-filter" role="group" aria-label="Stand">
+                <div ref="filters" class="adm-filter" role="group" aria-label="Stand">
                     <span class="adm-filter__label" aria-hidden="true">Stand</span>
                     <button v-for="f in FILTERS" :key="f.key" class="adm-chip" type="button" :aria-pressed="state === f.key" @click="show(f.key)">
                         {{ f.label }}
@@ -135,7 +196,7 @@ function chip(gap: DemandGap): { label: string; tone: 'plain' | 'warn' | 'neutra
             </p>
 
             <div v-if="demand.rows.length" class="adm-panel nf__panel">
-                <table class="adm-table nf__table">
+                <table ref="table" class="adm-table nf__table">
                     <thead>
                         <tr>
                             <th scope="col">Fahrzeug</th>
@@ -185,13 +246,13 @@ function chip(gap: DemandGap): { label: string; tone: 'plain' | 'warn' | 'neutra
                                         v-if="gap.mark?.state !== 'requested'"
                                         class="btn btn--secondary btn--sm"
                                         type="button"
-                                        :disabled="busy === gap.key"
-                                        @click="request(gap)"
+                                        :aria-disabled="busy === gap.key ? 'true' : undefined"
+                                        @click="busy === gap.key || request(gap)"
                                     >
                                         Gutachten anfordern
                                     </button>
                                     <DropdownMenuRoot>
-                                        <DropdownMenuTrigger class="adm-iconbtn" :aria-label="`Weitere Aktionen für ${gap.title}`" :disabled="busy === gap.key">
+                                        <DropdownMenuTrigger class="adm-iconbtn" :aria-label="`Weitere Aktionen für ${gap.title}`" :aria-disabled="busy === gap.key ? 'true' : undefined">
                                             <Icon name="more" :size="20" />
                                         </DropdownMenuTrigger>
                                         <DropdownMenuPortal>
@@ -312,6 +373,12 @@ function chip(gap: DemandGap): { label: string; tone: 'plain' | 'warn' | 'neutra
 .nf__table {
     font-size: var(--adm-fs-table);
     line-height: var(--adm-lh-table);
+}
+
+/* A gap is two lines — the car, then its key numbers and years — so the shell's two-line row; the
+   searches below are one line and keep the table's own. */
+.nf__panel .nf__table td {
+    height: var(--adm-row-h-lg);
 }
 
 .nf__vehicle {

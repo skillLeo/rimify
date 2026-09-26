@@ -163,7 +163,7 @@ final class RoleFigures
                 'value' => $asked > 0 ? GermanFormat::integer($asked) : null,
                 'empty' => $asked > 0 ? null : 'Im Zeitraum kam keine Anfrage.',
                 'delta' => $delta,
-                'deltaNote' => $compare && $asked > 0 && $delta === null ? 'Vorperiode ohne Anfragen' : null,
+                'deltaNote' => $compare && $asked > 0 && $delta === null ? 'Im Vorzeitraum keine Anfrage' : null,
                 'series' => $asked > 0 ? SalesFigures::fold($current, $period->days() > 31 ? 7 : 1) : [],
                 'note' => null,
                 'href' => self::built('/admin/anfragen'),

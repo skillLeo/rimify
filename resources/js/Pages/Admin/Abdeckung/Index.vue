@@ -6,7 +6,7 @@
  */
 
 import { Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import CoverageMatrix from '../../../Components/Admin/Dashboard/CoverageMatrix.vue'
@@ -18,56 +18,67 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminAbdeckungProps>()
 
+const result = ref<HTMLElement | null>(null)
+
+onMounted(() => {
+    if (props.selection && result.value) {
+        result.value.focus({ preventScroll: true })
+        result.value.scrollIntoView({ block: 'start' })
+    }
+})
+
 const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${props.matrix.computedAt}`)
 </script>
 
 <template>
-    <AdminPage title="Abdeckung" :context="context">
+    <AdminPage title="Abdeckung" dashboard :context="context">
         <div class="ab">
             <DashWidget title="Varianten mit freigegebener Felge, nach Marke und Größe" :empty="matrix.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import.'">
-                <CoverageMatrix :matrix="matrix" />
+                <CoverageMatrix :matrix="matrix" :selected="selection ? { make: selection.make, size: selection.size } : null" />
             </DashWidget>
 
-            <DashWidget
-                v-if="selection"
-                :title="`${selection.make}, ${selection.size} Zoll`"
-                href="/admin/abdeckung"
-                href-label="Auswahl aufheben"
-                :empty="selection.total ? null : `Von ${selection.make} ist kein Fahrzeug im Katalog.`"
-            >
-                <p class="ab__lead">
-                    {{ decimal(selection.covered, 0) }} von {{ decimal(selection.total, 0) }} Varianten haben mindestens eine freigegebene Felge in {{ selection.size }} Zoll.
-                    Die ohne stehen oben.
-                </p>
-                <div class="ab__scroll">
-                    <table class="adm-table ab__table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Fahrzeug</th>
-                                <th scope="col">Baujahre</th>
-                                <th scope="col">HSN / TSN</th>
-                                <th scope="col" class="num">Felgen in {{ selection.size }}″</th>
-                                <th scope="col" class="num">Gutachten</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in selection.rows" :key="row.id">
-                                <td data-label="Fahrzeug">{{ row.vehicle }}</td>
-                                <td data-label="Baujahre" class="num-plain">{{ row.period }}</td>
-                                <td data-label="HSN / TSN" class="num-plain">{{ row.keys }}</td>
-                                <td data-label="Felgen" class="num">
-                                    <span v-if="row.wheels">{{ decimal(row.wheels, 0) }}</span>
-                                    <span v-else class="adm-tag adm-tag--warn">keine</span>
-                                </td>
-                                <td data-label="Gutachten" class="num">{{ row.documents ? decimal(row.documents, 0) : '–' }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="ab__hint">
-                    Wer auf ein Gutachten für sein Auto wartet, steht unter <Link href="/admin/anfragen">Anfragen</Link>.
-                </p>
-            </DashWidget>
+            <!-- The list a cell asked for is what the reader came for: in view, and the focus on it. -->
+            <div v-if="selection" ref="result" class="ab__result" tabindex="-1" role="region" aria-label="Varianten zur gewählten Marke und Größe">
+                <DashWidget
+                    :title="`${selection.make}, ${selection.size} Zoll`"
+                    href="/admin/abdeckung"
+                    href-label="Auswahl aufheben"
+                    :empty="selection.total ? null : `Von ${selection.make} ist kein Fahrzeug im Katalog.`"
+                >
+                    <p class="ab__lead">
+                        {{ decimal(selection.covered, 0) }} von {{ decimal(selection.total, 0) }} Varianten haben mindestens eine freigegebene Felge in {{ selection.size }} Zoll.
+                        Die ohne stehen oben.
+                    </p>
+                    <div class="ab__scroll">
+                        <table class="adm-table ab__table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Fahrzeug</th>
+                                    <th scope="col">Baujahre</th>
+                                    <th scope="col">HSN / TSN</th>
+                                    <th scope="col" class="num">Felgen in {{ selection.size }} Zoll</th>
+                                    <th scope="col" class="num">Gutachten</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="row in selection.rows" :key="row.id">
+                                    <td data-label="Fahrzeug">{{ row.vehicle }}</td>
+                                    <td data-label="Baujahre" class="num-plain">{{ row.period }}</td>
+                                    <td data-label="HSN / TSN" class="num-plain">{{ row.keys }}</td>
+                                    <td data-label="Felgen" class="num">
+                                        <span v-if="row.wheels">{{ decimal(row.wheels, 0) }}</span>
+                                        <span v-else class="adm-tag adm-tag--warn">keine</span>
+                                    </td>
+                                    <td data-label="Gutachten" class="num">{{ row.documents ? decimal(row.documents, 0) : '–' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="ab__hint">
+                        Wer auf ein Gutachten für sein Auto wartet, steht unter <Link href="/admin/anfragen">Anfragen</Link>.
+                    </p>
+                </DashWidget>
+            </div>
         </div>
     </AdminPage>
 </template>
@@ -77,6 +88,12 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
     display: grid;
     gap: var(--sp-24);
     max-width: var(--adm-dash-max);
+}
+
+.ab__result {
+    display: grid;
+    scroll-margin-top: var(--sp-24);
+    outline: none;
 }
 
 .ab__lead,

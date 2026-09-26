@@ -37,7 +37,7 @@ function kpi(overrides: Partial<Kpi> = {}): Kpi {
         hint: 'Summe der bezahlten, nicht erstatteten Bestellungen, nach Bestelldatum.',
         value: '6.132,00 €',
         empty: null,
-        delta: { value: 12.4, direction: 'up', label: '+12,4 % vs. Vorperiode' },
+        delta: { value: 12.4, direction: 'up', label: '+12,4 % zum Vorzeitraum' },
         deltaNote: null,
         series: [1, 2, 3],
         note: null,
@@ -59,7 +59,7 @@ describe('KpiTile', () => {
         const wrapper = mount(KpiTile, { props: { kpi: kpi(), compare: true } })
 
         expect(wrapper.find('.kpi__value').text()).toBe('6.132,00 €')
-        expect(wrapper.find('.kpi__delta--up').text()).toBe('+12,4 % vs. Vorperiode')
+        expect(wrapper.find('.kpi__delta--up').text()).toBe('+12,4 % zum Vorzeitraum')
         expect(wrapper.find('.spark').exists()).toBe(true)
     })
 
@@ -68,9 +68,9 @@ describe('KpiTile', () => {
     })
 
     it('says why there is no change rather than leaving a gap', () => {
-        const wrapper = mount(KpiTile, { props: { kpi: kpi({ delta: null, deltaNote: 'Vorperiode ohne Bestellungen' }), compare: true } })
+        const wrapper = mount(KpiTile, { props: { kpi: kpi({ delta: null, deltaNote: 'Im Vorzeitraum keine Bestellung' }), compare: true } })
 
-        expect(wrapper.find('.kpi__meta').text()).toBe('Vorperiode ohne Bestellungen')
+        expect(wrapper.find('.kpi__meta').text()).toBe('Im Vorzeitraum keine Bestellung')
     })
 
     it('shows its sentence instead of a zero, and no curve', () => {

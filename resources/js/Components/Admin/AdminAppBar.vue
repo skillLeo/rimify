@@ -49,7 +49,9 @@ function observe(): void {
 onMounted(() => {
     observe()
     watch(
-        () => page.url,
+        // A new page, not a new query: a Zeitraum or filter change keeps the page and its heading, so
+        // the bar keeps its title instead of flipping to the wordmark and back.
+        () => page.url.split('?')[0],
         () => void nextTick(observe)
     )
 })

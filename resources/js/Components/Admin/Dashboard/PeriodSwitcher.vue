@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * The Übersicht's one Zeitraum, applied to every widget and remembered on the account: 7, 30 or 90
- * days, or an own range typed the German way (TT.MM.JJJJ) — plus "mit Vorperiode vergleichen", and
+ * days, or an own range typed the German way (TT.MM.JJJJ) — plus „Mit dem Vorzeitraum vergleichen“, and
  * the page's menu (CSV, print).
  *
  * The presets are a toggle group: one pressed at a time, arrows move between them (reka). An own
@@ -36,13 +36,16 @@ const props = withDefaults(
         exportUrl: string | null
         /** The page it steers: the Übersicht, or a page beneath it sharing its Zeitraum. */
         base?: string
-        /** Whether „mit Vorperiode vergleichen“ means anything on this page. */
+        /** Whether „Mit dem Vorzeitraum vergleichen“ means anything on this page. */
         comparable?: boolean
         /** Query that rides along with every change (the page's own filter). */
         keep?: Record<string, string>
     }>(),
     { base: '/admin', comparable: true, keep: () => ({}) }
 )
+
+/** Period::MAX_DAYS: a year and a day, so a year compares with the year before. */
+const MAX_DAYS = 366
 
 const PRESETS = [
     { key: '7', label: '7 Tage' },
@@ -65,9 +68,33 @@ const preset = computed({
     },
 })
 
-function go(query: Record<string, string>): void {
+/**
+ * The Zeitraum as it stands on screen. Every change sends all of it, so what the reader sees is what
+ * the next page counts — even after the browser's Back has shown an older page than the one the
+ * account last remembered.
+ */
+function shown(): Record<string, string> {
+    const days: Record<string, string> = props.period.key === 'eigen' ? { zeitraum: 'eigen', von: props.period.von, bis: props.period.bis } : { zeitraum: props.period.key }
+
+    return props.comparable ? { ...days, vergleich: props.period.compare ? '1' : '0' } : days
+}
+
+/* A second press while the first is on its way is ignored — the controls stay enabled, so the focus
+   never falls off a control that disabled itself under it. */
+function go(change: Record<string, string>): void {
+    if (busy.value) {
+        return
+    }
+
     busy.value = true
-    router.get(props.base, { ...props.keep, ...query }, { preserveScroll: true, preserveState: true, onFinish: () => (busy.value = false) })
+    const query = { ...props.keep, ...shown(), ...change }
+
+    if (query.zeitraum !== 'eigen') {
+        delete query.von
+        delete query.bis
+    }
+
+    router.get(props.base, query, { preserveScroll: true, preserveState: true, onFinish: () => (busy.value = false) })
 }
 
 function openCustom(open: boolean): void {
@@ -96,6 +123,20 @@ function applyCustom(): void {
         return
     }
 
+    // The server's own limits, said here before anything is sent — never a range that quietly does
+    // nothing (outside 2000–2099) or is quietly shortened (over a year).
+    if (from < '2000-01-01' || to > '2099-12-31') {
+        error.value = 'Bitte wähl ein Datum zwischen dem 01.01.2000 und dem 31.12.2099.'
+
+        return
+    }
+
+    if ((Date.parse(to) - Date.parse(from)) / 86_400_000 + 1 > MAX_DAYS) {
+        error.value = 'Der Zeitraum ist zu lang. Bitte kürz ihn auf höchstens 366 Tage.'
+
+        return
+    }
+
     customOpen.value = false
     go({ zeitraum: 'eigen', von: from, bis: to })
 }
@@ -111,7 +152,7 @@ function print(): void {
 
 <template>
     <div class="period">
-        <ToggleGroupRoot v-model="preset" type="single" class="period__group" aria-label="Zeitraum" :disabled="busy">
+        <ToggleGroupRoot v-model="preset" type="single" class="period__group" aria-label="Zeitraum" :aria-busy="busy ? 'true' : undefined">
             <ToggleGroupItem v-for="item in PRESETS" :key="item.key" :value="item.key" class="period__seg">{{ item.label }}</ToggleGroupItem>
         </ToggleGroupRoot>
 
@@ -141,10 +182,10 @@ function print(): void {
         </PopoverRoot>
 
         <label v-if="comparable" class="period__compare">
-            <SwitchRoot class="period__switch" :model-value="period.compare" :disabled="busy" @update:model-value="setCompare">
+            <SwitchRoot class="period__switch" :model-value="period.compare" @update:model-value="setCompare">
                 <SwitchThumb class="period__thumb" />
             </SwitchRoot>
-            mit Vorperiode vergleichen
+            Mit dem Vorzeitraum vergleichen
         </label>
 
         <DropdownMenuRoot>
@@ -224,6 +265,13 @@ function print(): void {
     background: var(--c-surface);
 }
 
+/* Chosen, the own range is pressed like any segment: ink, the words in the surface colour — its
+   frame's own white must not win over that, or it reads white on white. */
+.period__custom.period__seg--on {
+    background: var(--c-ink);
+    color: var(--c-surface);
+}
+
 .period__compare {
     display: inline-flex;
     align-items: center;
@@ -279,10 +327,26 @@ function print(): void {
     display: none;
 }
 
+/* A finger's targets: 44 px segments, the own range as tall as the group around them (its 2 px inset
+   and hairline on both sides), and the comparison's whole line a target, not just its switch. */
 @media (pointer: coarse) {
-    .period__seg,
-    .period__custom {
+    .period__seg {
         height: var(--adm-control-h-lg);
+    }
+
+    .period__custom {
+        height: calc(var(--adm-control-h-lg) + 6px);
+    }
+
+    /* Chosen, the own range is pressed like any segment: ink, the words in the surface colour — its
+   frame's own white must not win over that, or it reads white on white. */
+.period__custom.period__seg--on {
+    background: var(--c-ink);
+    color: var(--c-surface);
+}
+
+.period__compare {
+        min-height: var(--adm-control-h-lg);
     }
 }
 
@@ -333,7 +397,14 @@ function print(): void {
         display: inline;
     }
 
-    .period__compare {
+    /* Chosen, the own range is pressed like any segment: ink, the words in the surface colour — its
+   frame's own white must not win over that, or it reads white on white. */
+.period__custom.period__seg--on {
+    background: var(--c-ink);
+    color: var(--c-surface);
+}
+
+.period__compare {
         grid-area: 2 / 1;
     }
 

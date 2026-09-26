@@ -58,8 +58,15 @@ export interface AdminShared {
 
 export interface AdminHealth {
     state: 'ok' | 'warn' | 'bad'
+    /** The whole sentence: the tooltip, the Übersicht's Systemzustand, System › Zustand. */
     sentence: string
+    /** The rail's one line: `Warteschlange stockt`; empty when all is well. */
+    label: string
+    /** Beside it, where there is one: `12 Std`, `3`. */
+    count: string | null
     href: string | null
+    /** An urgent problem worth a banner above the page, unless this person snoozed it (8 hours). */
+    banner: { key: 'maintenance' | 'queue'; sentence: string } | null
 }
 
 export interface AdminQuickAction {

@@ -12,6 +12,7 @@ use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
 use App\Services\Storefront\Chrome;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
@@ -151,21 +152,36 @@ class HandleInertiaRequests extends Middleware
      * The health line, from a report at most 30 seconds old: every admin page asks for it, and five
      * checks per page view would be the dashboard's own load problem.
      *
-     * @return array{state: string, sentence: string, href: string|null}
+     * The rail shows its short form (`label`, `count`), the tooltip and the Übersicht the sentence.
+     * `banner` is the urgent problem — maintenance mode, a queue dead for an hour — unless this person
+     * asked to be reminded later (8 hours, AdminPreferencesController): decided here, so a snoozed
+     * banner never flashes up in the first frame.
+     *
+     * @return array{state: string, sentence: string, label: string, count: string|null, href: string|null, banner: array{key: string, sentence: string}|null}
      */
     private static function health(AdminUser $user): array
     {
         try {
-            /** @var array{state: string, sentence: string} $report */
+            /** @var array{state: string, sentence: string, label: string, count: string|null, urgent: array{key: string, sentence: string}|null} $report */
             $report = Cache::remember('admin.health', 30, static fn (): array => app(SystemHealth::class)->report());
         } catch (Throwable) {
-            $report = ['state' => 'warn', 'sentence' => 'Zustand unbekannt'];
+            $report = ['state' => 'warn', 'sentence' => 'Zustand unbekannt', 'label' => 'Zustand unbekannt', 'count' => null, 'urgent' => null];
         }
+
+        $urgent = $report['urgent'];
+        $snooze = is_array($user->preferences) && is_array($user->preferences['healthSnooze'] ?? null) ? $user->preferences['healthSnooze'] : null;
+        $snoozed = $urgent !== null && $snooze !== null
+            && ($snooze['key'] ?? null) === $urgent['key']
+            && is_string($snooze['until'] ?? null)
+            && CarbonImmutable::parse($snooze['until'])->isFuture();
 
         return [
             'state' => $report['state'],
             'sentence' => $report['sentence'],
+            'label' => $report['label'],
+            'count' => $report['count'],
             'href' => $user->may(PermissionModule::Settings, PermissionAction::View) ? '/admin/system' : null,
+            'banner' => $snoozed ? null : $urgent,
         ];
     }
 

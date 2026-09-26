@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, ref } from 'vue'
 
 /*
- * The rail's foot: the shop's health as a sentence (a link only for a role that may open System),
- * polled every minute; „Neu“ with exactly the server's quick actions; the account as a monogram with
+ * The rail's foot: the shop's health only when something is wrong, as one quiet line — dot, short
+ * label, count — (a link only for a role that may open System), polled every minute; „Neu“ with exactly the server's quick actions; the account as a monogram with
  * its menu — Profil, Benachrichtigungen, Tastenkürzel, and Abmelden last, sent once.
  */
 
@@ -56,7 +56,7 @@ function mountFoot(admin: Record<string, unknown> = {}): VueWrapper {
     current.props = {
         admin: {
             account: { name: 'Sabine Roth', email: 'sabine@example.test', role: 'Super-Admin' },
-            health: { state: 'ok', sentence: 'Alles in Ordnung', href: '/admin/system' },
+            health: { state: 'ok', sentence: 'Alles in Ordnung', label: '', count: null, href: '/admin/system', banner: null },
             quickActions: [{ key: 'ratgeber', label: 'Ratgeber-Artikel anlegen', href: '/admin/seiten?neu=1', icon: 'text' }],
             ...admin,
         },
@@ -91,27 +91,46 @@ afterEach(() => {
 })
 
 describe('AdminRailFoot', () => {
-    it('says how the shop is in words, and links to System only for a role that may open it', () => {
-        const link = mountFoot().find('a.adm-foot__health')
-        expect(link.attributes('href')).toBe('/admin/system')
-        expect(link.text()).toBe('Alles in Ordnung')
+    it('shows nothing while all is well: an empty foot is the healthy state', () => {
+        const foot = mountFoot()
 
-        const plain = mountFoot({ health: { state: 'warn', sentence: '3 Jobs fehlgeschlagen', href: null } })
-        expect(plain.find('a.adm-foot__health').exists()).toBe(false)
-        expect(plain.find('.adm-foot__health--warn').text()).toBe('3 Jobs fehlgeschlagen')
-        expect(plain.find('[role="status"]').text()).toBe('3 Jobs fehlgeschlagen')
+        expect(foot.find('.adm-foot__health').exists()).toBe(false)
+        expect(foot.text()).not.toContain('Alles in Ordnung')
+        expect(foot.find('[role="status"]').text()).toBe('')
     })
 
-    it('asks again every minute and shows the new sentence', async () => {
+    it('says a problem in one quiet line — dot, short label, count — and opens System for a role that may', () => {
+        const warn = { state: 'warn', sentence: 'Warteschlange steht seit 12 Stunden', label: 'Warteschlange stockt', count: '12 Std', href: '/admin/system', banner: null }
+        const row = mountFoot({ health: warn }).find('a.adm-foot__health')
+
+        expect(row.attributes('href')).toBe('/admin/system')
+        expect(row.attributes('aria-label')).toBe('Warteschlange steht seit 12 Stunden')
+        expect(row.find('.adm-foot__label').text()).toBe('Warteschlange stockt')
+        expect(row.find('.adm-foot__count').text()).toBe('· 12 Std')
+        // The dot and the count carry the colour; the words stay the rail's grey.
+        expect(row.find('.adm-health__dot--warn').exists()).toBe(true)
+        expect(row.find('.adm-foot__count--warn').exists()).toBe(true)
+        expect(row.classes().some((c) => c.startsWith('adm-foot__health--'))).toBe(false)
+        // Not dismissible: a problem hidden is a dead queue nobody noticed.
+        expect(row.find('button').exists()).toBe(false)
+
+        const plain = mountFoot({ health: { ...warn, href: null } })
+        expect(plain.find('a.adm-foot__health').exists()).toBe(false)
+        expect(plain.find('p.adm-foot__health').exists()).toBe(true)
+        expect(plain.find('[role="status"]').text()).toBe('Warteschlange steht seit 12 Stunden')
+    })
+
+    it('asks again every minute and shows the new line', async () => {
         vi.useFakeTimers()
-        vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ state: 'bad', sentence: 'Shop im Wartungsmodus' }) })))
+        vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ state: 'bad', sentence: 'Shop im Wartungsmodus', label: 'Wartungsmodus', count: null }) })))
         const wrapper = mountFoot()
 
         await vi.advanceTimersByTimeAsync(60_000)
         await flushPromises()
 
         expect(fetch).toHaveBeenCalledWith('/admin/system/puls', expect.anything())
-        expect(wrapper.find('.adm-foot__health--bad').text()).toBe('Shop im Wartungsmodus')
+        expect(wrapper.find('.adm-foot__label').text()).toBe('Wartungsmodus')
+        expect(wrapper.find('.adm-health__dot--bad').exists()).toBe(true)
     })
 
     it('offers under „Neu“ exactly what the server allows, and no button when it allows nothing', () => {

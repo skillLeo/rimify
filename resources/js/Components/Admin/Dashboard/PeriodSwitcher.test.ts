@@ -61,7 +61,8 @@ describe('PeriodSwitcher', () => {
         wrapper.findComponent({ name: 'ToggleGroupRoot' }).vm.$emit('update:modelValue', '7')
         await wrapper.vm.$nextTick()
 
-        expect(get).toHaveBeenCalledWith('/admin', { zeitraum: '7' }, expect.objectContaining({ preserveScroll: true }))
+        // The whole Zeitraum as shown goes with every change, so what is on screen is what is counted.
+        expect(get).toHaveBeenCalledWith('/admin', { zeitraum: '7', vergleich: '1' }, expect.objectContaining({ preserveScroll: true }))
     })
 
     it('checks an own range the German way before sending it', async () => {
@@ -75,13 +76,13 @@ describe('PeriodSwitcher', () => {
         await wrapper.find('#period-von').setValue('01.09.2026')
         await wrapper.find('#period-bis').setValue('10.09.2026')
         await wrapper.find('form').trigger('submit')
-        expect(get).toHaveBeenCalledWith('/admin', { zeitraum: 'eigen', von: '2026-09-01', bis: '2026-09-10' }, expect.anything())
+        expect(get).toHaveBeenCalledWith('/admin', { zeitraum: 'eigen', von: '2026-09-01', bis: '2026-09-10', vergleich: '1' }, expect.anything())
     })
 
     it('sends the comparison switch as it now stands', async () => {
         await mount(PeriodSwitcher, { props: { period: PERIOD, exportUrl: null } }).find('.switch').trigger('click')
 
-        expect(get).toHaveBeenCalledWith('/admin', { vergleich: '0' }, expect.anything())
+        expect(get).toHaveBeenCalledWith('/admin', { zeitraum: '30', vergleich: '0' }, expect.anything())
     })
 
     it('steers a page beneath the Übersicht with the same Zeitraum, keeping that page’s own filter', async () => {
@@ -101,6 +102,37 @@ describe('PeriodSwitcher', () => {
 
         expect(trigger.find('.period__custom-label').text()).toBe('Eigener Zeitraum')
         expect(trigger.find('.period__custom-short').attributes('aria-hidden')).toBe('true')
+    })
+
+    it('takes a date as the phone keypad types it, and says the server’s limits before sending', async () => {
+        const wrapper = mount(PeriodSwitcher, { props: { period: PERIOD, exportUrl: null } })
+
+        await wrapper.find('#period-von').setValue('01082026')
+        await wrapper.find('#period-bis').setValue('31082026')
+        await wrapper.find('form').trigger('submit')
+        expect(get).toHaveBeenCalledWith('/admin', { zeitraum: 'eigen', von: '2026-08-01', bis: '2026-08-31', vergleich: '1' }, expect.anything())
+
+        get.mockReset()
+        await wrapper.find('#period-von').setValue('01.01.1999')
+        await wrapper.find('#period-bis').setValue('31.01.1999')
+        await wrapper.find('form').trigger('submit')
+        expect(wrapper.find('#period-error').text()).toBe('Bitte wähl ein Datum zwischen dem 01.01.2000 und dem 31.12.2099.')
+
+        await wrapper.find('#period-von').setValue('01.01.2024')
+        await wrapper.find('#period-bis').setValue('30.09.2026')
+        await wrapper.find('form').trigger('submit')
+        expect(wrapper.find('#period-error').text()).toBe('Der Zeitraum ist zu lang. Bitte kürz ihn auf höchstens 366 Tage.')
+        expect(get).not.toHaveBeenCalled()
+    })
+
+    it('ignores a second press while the first is on its way', async () => {
+        const wrapper = mount(PeriodSwitcher, { props: { period: PERIOD, exportUrl: null } })
+
+        wrapper.findComponent({ name: 'ToggleGroupRoot' }).vm.$emit('update:modelValue', '7')
+        wrapper.findComponent({ name: 'ToggleGroupRoot' }).vm.$emit('update:modelValue', '90')
+        await wrapper.vm.$nextTick()
+
+        expect(get).toHaveBeenCalledTimes(1)
     })
 
     it('offers the CSV only with an address to download it from', () => {

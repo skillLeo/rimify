@@ -3,9 +3,11 @@
  * The rail's foot: how the shop is, what you can make, and who you are — fixed at the bottom of the
  * rail under a hairline, never scrolling with the navigation above it.
  *
- *   1. Systemzustand — a dot and a sentence („Alles in Ordnung“, „3 Jobs fehlgeschlagen“). The dot
- *      is never the only signal: the sentence carries the meaning, and in the collapsed rail it is
- *      the dot's name and tooltip. Opens System › Zustand for a role that may; polled every minute.
+ *   1. Systemzustand — only when something is wrong: an empty foot is the healthy state. One quiet
+ *      line of 32 px: the dot carries the colour, then a short label and a count in it („Warteschlange
+ *      stockt · 12 Std“), the whole sentence in the tooltip. No way to dismiss it — a problem hidden
+ *      is how a dead queue goes unnoticed — and it opens System › Zustand, which explains and retries.
+ *      Collapsed, it is the dot alone, named by its tooltip. Polled every minute.
  *   2. „Neu“ — the quick actions (QuickActions, the same list the palette offers), and the palette's
  *      shortcut beside it.
  *   3. The profile — monogram, name, role; its menu opens upward: Profil, Benachrichtigungen,
@@ -64,27 +66,30 @@ function signOut(event: Event): void {
     <!-- Collapsed or not is the stylesheet's call (the rail's own rule, first frame included); the
          prop only turns tooltips on and opens the menus to the side instead of upward. -->
     <div class="adm-foot">
-        <!-- 1 · Systemzustand -->
-        <template v-if="health">
-            <TooltipRoot :disabled="!collapsed">
-                <TooltipTrigger as-child>
-                    <component
-                        :is="health.href ? Link : 'p'"
-                        :href="health.href ?? undefined"
-                        class="adm-foot__health"
-                        :class="`adm-foot__health--${health.state}`"
-                    >
-                        <span class="adm-health__dot" :class="`adm-health__dot--${health.state}`" aria-hidden="true" />
-                        <span class="adm-foot__sentence">{{ health.sentence }}</span>
-                    </component>
-                </TooltipTrigger>
-                <TooltipPortal>
-                    <TooltipContent class="adm-tooltip" side="right" :side-offset="8">{{ health.sentence }}</TooltipContent>
-                </TooltipPortal>
-            </TooltipRoot>
-            <!-- A change in the shop's health is said aloud once, politely; the line above is its label. -->
-            <span class="visually-hidden" role="status">{{ health.state === 'ok' ? '' : health.sentence }}</span>
-        </template>
+        <!-- 1 · Systemzustand: nothing while all is well. -->
+        <TooltipRoot v-if="health && health.state !== 'ok'">
+            <TooltipTrigger as-child>
+                <component
+                    :is="health.href ? Link : 'p'"
+                    :href="health.href ?? undefined"
+                    class="adm-foot__health"
+                    :aria-label="health.sentence"
+                >
+                    <span class="adm-health__dot" :class="`adm-health__dot--${health.state}`" aria-hidden="true" />
+                    <span class="adm-foot__label" aria-hidden="true">{{ health.label }}</span>
+                    <span v-if="health.count" class="adm-foot__count" :class="`adm-foot__count--${health.state}`" aria-hidden="true">
+                        · {{ health.count }}
+                    </span>
+                </component>
+            </TooltipTrigger>
+            <TooltipPortal>
+                <TooltipContent class="adm-tooltip" side="right" :side-offset="8">
+                    {{ collapsed ? `${health.label}${health.count ? ` · ${health.count}` : ''}` : health.sentence }}
+                </TooltipContent>
+            </TooltipPortal>
+        </TooltipRoot>
+        <!-- A change in the shop's health is said aloud once, politely. Always there, so it can speak. -->
+        <span class="visually-hidden" role="status">{{ health && health.state !== 'ok' ? health.sentence : '' }}</span>
 
         <!-- 2 · Neu, and the way to everything -->
         <div class="adm-foot__actions">

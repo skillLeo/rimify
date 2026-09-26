@@ -28,7 +28,7 @@ function cell(make: string, size: string, count: number, level: number, total: n
 }
 
 const matrix: Matrix = {
-    sizes: [{ key: '18', label: '18″' }, { key: '19', label: '19″' }],
+    sizes: [{ key: '18', label: '18 Zoll' }, { key: '19', label: '19 Zoll' }],
     rows: [
         { make: 'BMW', variants: 1680, covered: 1420, cells: [cell('BMW', '18', 1420, 7, 1680), cell('BMW', '19', 210, 2, 1680)] },
         { make: 'Audi', variants: 13, covered: 0, cells: [cell('Audi', '18', 0, 0, 13), cell('Audi', '19', 0, 0, 13)] },
@@ -42,7 +42,7 @@ describe('CoverageMatrix', () => {
     it('reads as a table: makes as row headers, sizes as column headers', () => {
         const wrapper = mount(CoverageMatrix, { props: { matrix } })
 
-        expect(wrapper.findAll('thead th[scope="col"]').map((th) => th.find('.visually-hidden').exists() ? th.find('.visually-hidden').text() : th.text())).toEqual(['Marke', '18 Zoll', '19 Zoll'])
+        expect(wrapper.findAll('thead th[scope="col"]').map((th) => th.text())).toEqual(['Marke', '18 Zoll', '19 Zoll'])
         expect(wrapper.findAll('tbody th[scope="row"]').map((th) => th.find('.cm__make-name').text())).toEqual(['BMW', 'Audi'])
         expect(wrapper.find('.cm__make-count').text()).toBe('1.420 von 1.680')
     })
@@ -70,7 +70,8 @@ describe('CoverageMatrix', () => {
         const caption = wrapper.find('.cm__caption')
 
         expect(caption.text()).toBe('Abdeckung insgesamt: 2.224 Freigaben über 73 Varianten')
-        expect(caption.attributes('aria-live')).toBe('polite')
+        // For the eye only: a focused cell says its own sentence, so the caption announces nothing.
+        expect(caption.attributes('aria-live')).toBeUndefined()
 
         await wrapper.findAll('.cm__cell')[1]!.trigger('mouseenter')
         expect(caption.text()).toBe('BMW, 19 Zoll: 210 von 1680 Varianten')
@@ -80,6 +81,39 @@ describe('CoverageMatrix', () => {
 
         await wrapper.findAll('.cm__cell')[0]!.trigger('focus')
         expect(caption.text()).toBe('BMW, 18 Zoll: 1420 von 1680 Varianten')
+    })
+
+    it('is one tab stop, entered at the first cell, the arrows moving inside', async () => {
+        const wrapper = mount(CoverageMatrix, { props: { matrix }, attachTo: document.body })
+        const cells = wrapper.findAll('.cm__cell')
+
+        expect(cells.map((c) => c.attributes('tabindex'))).toEqual(['0', '-1', '-1', '-1'])
+
+        await cells[0]!.trigger('keydown', { key: 'ArrowRight' })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.findAll('.cm__cell').map((c) => c.attributes('tabindex'))).toEqual(['-1', '0', '-1', '-1'])
+
+        await wrapper.findAll('.cm__cell')[1]!.trigger('keydown', { key: 'ArrowDown' })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.findAll('.cm__cell')[3]!.attributes('tabindex')).toBe('0')
+
+        wrapper.unmount()
+    })
+
+    it('enters at the chosen cell, and marks it', () => {
+        const cells = mount(CoverageMatrix, { props: { matrix, selected: { make: 'Audi', size: '19' } } }).findAll('.cm__cell')
+
+        expect(cells[3]!.attributes('tabindex')).toBe('0')
+        expect(cells[3]!.attributes('aria-current')).toBe('true')
+        expect(cells[3]!.classes()).toContain('cm__cell--selected')
+    })
+
+    it('draws its own boxes as a placeholder: as many makes, no words, no links', () => {
+        const wrapper = mount(CoverageMatrix, { props: { matrix, placeholder: true } })
+
+        expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+        expect(wrapper.find('a').exists()).toBe(false)
+        expect(wrapper.find('.cm__caption').text()).toBe('')
     })
 
     it('opens the list of the variants a cell counts', () => {

@@ -36,7 +36,8 @@ function download(): void {
     document.body.appendChild(link)
     link.click()
     link.remove()
-    URL.revokeObjectURL(url)
+    // Revoked a moment later: Safari cancels a download whose address is revoked straight after the click.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 </script>
 

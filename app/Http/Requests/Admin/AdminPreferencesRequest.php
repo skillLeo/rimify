@@ -8,7 +8,8 @@ use App\Models\AdminUser;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * One person's choices about how the panel looks to them — today, whether the rail is collapsed.
+ * One person's choices about how the panel looks to them — whether the rail is collapsed, and „Später
+ * erinnern“ on the banner about an urgent system problem (for 8 hours; never for good).
  *
  * Every signed-in admin may set their own, and only their own: the controller writes to the
  * account the session belongs to, never to an id from the request, so there is nothing here to
@@ -26,7 +27,9 @@ class AdminPreferencesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'rail' => ['required', 'string', 'in:open,collapsed'],
+            'rail' => ['required_without:snooze', 'nullable', 'string', 'in:open,collapsed'],
+            // Which urgent problem to be reminded of later: only the two a banner is ever shown for.
+            'snooze' => ['required_without:rail', 'nullable', 'string', 'in:maintenance,queue'],
         ];
     }
 
@@ -41,8 +44,13 @@ class AdminPreferencesRequest extends FormRequest
         return $user;
     }
 
-    public function rail(): string
+    public function rail(): ?string
     {
-        return (string) $this->validated('rail');
+        return $this->filled('rail') ? (string) $this->validated('rail') : null;
+    }
+
+    public function snooze(): ?string
+    {
+        return $this->filled('snooze') ? (string) $this->validated('snooze') : null;
     }
 }

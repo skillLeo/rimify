@@ -8,7 +8,8 @@ defineProps<{ caption: string; header: string[]; rows: string[][] }>()
 </script>
 
 <template>
-    <div class="ct-wrap">
+    <!-- A scroll box the keyboard can reach and scroll (Safari scrolls nothing it cannot focus). -->
+    <div class="ct-wrap" tabindex="0" role="region" :aria-label="caption">
         <table class="ct">
             <caption class="visually-hidden">{{ caption }}</caption>
             <thead>
@@ -17,7 +18,7 @@ defineProps<{ caption: string; header: string[]; rows: string[][] }>()
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="row in rows" :key="row[0]">
+                <tr v-for="(row, r) in rows" :key="r">
                     <th scope="row">{{ row[0] }}</th>
                     <td v-for="(value, i) in row.slice(1)" :key="i" class="ct__num">{{ value }}</td>
                 </tr>
@@ -30,6 +31,11 @@ defineProps<{ caption: string; header: string[]; rows: string[][] }>()
 .ct-wrap {
     max-height: 320px;
     overflow: auto;
+}
+
+.ct-wrap:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
 }
 
 .ct {

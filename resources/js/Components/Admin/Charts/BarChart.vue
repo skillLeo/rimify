@@ -26,19 +26,19 @@ const rows = computed(() => {
     const max = Math.max(1, ...props.bars.map((b) => b.value))
     const x = scaleLinear().domain([0, max]).range([0, 100])
 
-    return props.bars.map((bar, i) => ({ ...bar, percent: x(bar.value), lead: i === 0 }))
+    return props.bars.map((bar, i) => ({ ...bar, share: x(bar.value) / 100, lead: i === 0 }))
 })
 </script>
 
 <template>
     <ol class="bc" :aria-label="label">
-        <li v-for="(row, i) in rows" :key="row.key" class="bc__row">
+        <li v-for="row in rows" :key="row.key" class="bc__row">
             <span class="bc__label" :title="row.label">{{ row.label }}</span>
             <span class="bc__track">
                 <span
                     class="bc__bar"
                     :class="{ 'bc__bar--lead': row.lead, 'bc__bar--grow': growIn }"
-                    :style="{ width: `${row.percent}%`, animationDelay: `${Math.min(i * 30, 240)}ms` }"
+                    :style="{ '--share': row.share }"
                     aria-hidden="true"
                 />
                 <span class="bc__value">{{ row.text }}</span>
@@ -80,11 +80,13 @@ const rows = computed(() => {
     min-width: 0;
 }
 
+/* Every bar is its share of the same length — the track less the room its figure needs at the tip —
+   so 5 is drawn half as long as 10, whatever the widget's width. */
 .bc__bar {
     flex: none;
+    width: calc((100% - 96px) * var(--share));
     min-width: 2px;
     height: 20px;
-    max-width: calc(100% - 96px);
     border-radius: 0 var(--r-control) var(--r-control) 0;
     background: var(--chart-muted);
 }
@@ -93,7 +95,7 @@ const rows = computed(() => {
     background: var(--chart-accent);
 }
 
-/* Bars grow from the baseline once, 240 ms, staggered by no more than 30 ms (BRIEF-2 §4). */
+/* Bars grow from the baseline once, 240 ms, all together: no staggered cascade (DIRECTION §5). */
 .bc__bar--grow {
     transform-origin: left;
     animation: bc-grow 240ms var(--ease-out) backwards;

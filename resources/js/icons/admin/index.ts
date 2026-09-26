@@ -49,7 +49,8 @@ const G = {
 
     // ── Auswertungen ────────────────────────────────────────────────────────────────────────────
     reports: '<path d="M2.75 2.75v14.5h14.5"/><path d="M6.75 14.25v-4M10.25 14.25v-8M13.75 14.25v-5.5"/>',
-    gap: '<circle cx="10" cy="10" r="6.75"/><path d="M4.5 15.5l11-11"/>',
+    // A rim drawn in dashes: the wheel that is not there. Never a prohibition sign — that reads as Nicht freigegeben.
+    gap: '<circle cx="10" cy="10" r="7.25" stroke-dasharray="2.5 2"/><circle cx="10" cy="10" r="2"/>',
 
     // ── Einstellungen ───────────────────────────────────────────────────────────────────────────
     settings: '<path d="M2.75 5.25h6.5M12.75 5.25h4.5M2.75 10h1.5M7.75 10h9.5M2.75 14.75h9.5M15.75 14.75h1.5"/><circle cx="11" cy="5.25" r="1.75"/><circle cx="6" cy="10" r="1.75"/><circle cx="14" cy="14.75" r="1.75"/>',

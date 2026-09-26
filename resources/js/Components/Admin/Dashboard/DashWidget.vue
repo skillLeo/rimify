@@ -5,15 +5,16 @@
  *
  * Every widget has the same four states, so none of them improvises one: the content; `empty`, one
  * sentence and at most one link, where the content would be; `loading`, a skeleton at the content's
- * own size; `error`, a sentence and "Erneut versuchen". The title's „Alle ansehen“ leads to the full
- * list the widget is a slice of.
+ * own size; `error`, a sentence and "Erneut versuchen". The link beside the title leads to the full
+ * list the widget is a slice of, and each call site names it („Alle Bestellungen“, „Ganzes
+ * Protokoll“); „Alle ansehen“ is only the fallback.
  */
 
 import { Link } from '@inertiajs/vue3'
-import { useId } from 'vue'
+import { computed, useId } from 'vue'
 import Icon from '../AdminIcon.vue'
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         title: string
         /** The full list behind this slice. */
@@ -23,14 +24,22 @@ withDefaults(
         empty?: string | null
         emptyLink?: { label: string; href: string } | null
         loading?: boolean
-        /** Rows the skeleton draws while loading. */
+        /** Rows the skeleton draws while loading, where no `bodyHeight` is given. */
         skeletonRows?: number
         error?: string | null
+        /**
+         * The body's height in px, the same in every state — skeleton, content, empty sentence, error.
+         * A chart's box is known before its data: giving it once means nothing on the page moves when
+         * the data lands, or when a new Zeitraum replaces it.
+         */
+        bodyHeight?: number | null
     }>(),
-    { href: null, hrefLabel: 'Alle ansehen', empty: null, emptyLink: null, loading: false, skeletonRows: 4, error: null }
+    { href: null, hrefLabel: 'Alle ansehen', empty: null, emptyLink: null, loading: false, skeletonRows: 4, error: null, bodyHeight: null }
 )
 
 const emit = defineEmits<{ retry: [] }>()
+
+const box = computed(() => (props.bodyHeight ? { minHeight: `${props.bodyHeight}px` } : undefined))
 
 const titleId = useId()
 </script>
@@ -48,21 +57,26 @@ const titleId = useId()
             </span>
         </header>
 
-        <div v-if="loading" class="widget__skeleton" aria-hidden="true">
-            <span v-for="n in skeletonRows" :key="n" class="skeleton widget__bar" />
+        <div v-if="loading" class="widget__skeleton" :style="box" aria-hidden="true">
+            <slot name="skeleton">
+                <span v-if="bodyHeight" class="skeleton widget__block" />
+                <template v-else>
+                    <span v-for="n in skeletonRows" :key="n" class="skeleton widget__bar" />
+                </template>
+            </slot>
         </div>
 
-        <div v-else-if="error" class="widget__state" role="alert">
+        <div v-else-if="error" class="widget__state" :style="box" role="alert">
             <p class="widget__sentence">{{ error }}</p>
             <button class="btn btn--secondary btn--sm" type="button" @click="emit('retry')">Erneut versuchen</button>
         </div>
 
-        <div v-else-if="empty" class="widget__state">
+        <div v-else-if="empty" class="widget__state" :style="box">
             <p class="widget__sentence">{{ empty }}</p>
             <Link v-if="emptyLink" :href="emptyLink.href" class="widget__link">{{ emptyLink.label }}</Link>
         </div>
 
-        <div v-else class="widget__body">
+        <div v-else class="widget__body" :style="box">
             <slot />
         </div>
     </section>
@@ -80,11 +94,13 @@ const titleId = useId()
     background: var(--c-surface);
 }
 
+/* One height for every head, with a chart's menu or without: the bodies of a row start level. */
 .widget__head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: var(--sp-12);
+    min-height: var(--adm-control-h);
 }
 
 .widget__title {
@@ -111,6 +127,13 @@ const titleId = useId()
     color: var(--c-ink-2);
     text-decoration: none;
     white-space: nowrap;
+}
+
+/* A finger's target: the link's line grows to 44 px, the text stays where it is. */
+@media (pointer: coarse) {
+    .widget__all {
+        min-height: var(--adm-control-h-lg);
+    }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -155,5 +178,14 @@ const titleId = useId()
 .widget__bar {
     display: block;
     height: var(--sp-20);
+}
+
+.widget__skeleton:has(> .widget__block) {
+    display: flex;
+}
+
+.widget__block {
+    display: block;
+    flex: 1;
 }
 </style>

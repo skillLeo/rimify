@@ -3,7 +3,7 @@
 export interface KpiDelta {
     value: number
     direction: 'up' | 'down' | 'flat'
-    /** `+12,4 % vs. Vorperiode` */
+    /** `+12,4 % zum Vorzeitraum` */
     label: string
 }
 
@@ -17,7 +17,7 @@ export interface Kpi {
     /** The sentence shown instead of a zero. */
     empty: string | null
     delta: KpiDelta | null
-    /** Why a change is missing although comparing is on („Vorperiode ohne Bestellungen“). */
+    /** Why a change is missing although comparing is on („Im Vorzeitraum keine Bestellung“). */
     deltaNote: string | null
     /** One value per day of the period; null where a day has no value (an average without orders). */
     series: (number | null)[]
@@ -178,13 +178,18 @@ export interface DemandList {
     waiting: number
 }
 
+/** The charts a role may get; which of them it does get is known before they arrive (`chartKeys`). */
+export type ChartKey = 'revenue' | 'verdicts' | 'topWheels' | 'coverage' | 'demand'
+
 export interface DashboardCharts {
-    /** false: not for this role; null: nothing to draw yet. */
+    /** false: not for this role; null: nothing to draw yet — or its query failed (then in `failed`). */
     revenue: RevenueChart | null | false
     verdicts: VerdictChart | null | false
-    topWheels: ChartPoint[] | false
-    coverage: CoverageMatrix | false
-    demand: DemandList | false
+    topWheels: ChartPoint[] | null | false
+    coverage: CoverageMatrix | null | false
+    demand: DemandList | null | false
+    /** The charts whose query failed: each widget says so and offers „Erneut versuchen“. */
+    failed: ChartKey[]
 }
 
 /** A Felge in the shop with something missing (RoleFigures::incomplete). */
@@ -219,5 +224,9 @@ export interface AdminUebersichtProps {
     activity: ActivityEntry[] | null
     /** Deferred: undefined until the charts arrive, a moment after the page. */
     charts?: DashboardCharts
+    /** The charts this role gets, known at once: their boxes are in place from the first frame. */
+    chartKeys: ChartKey[]
+    /** The Abdeckungs-Matrix's makes, counted at once: its skeleton has the matrix's height. */
+    coverageRows: number
     can: { export: boolean }
 }

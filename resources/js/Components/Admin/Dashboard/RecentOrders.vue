@@ -30,7 +30,7 @@ defineProps<{ orders: DashboardOrderRow[] }>()
                     <td>
                         <Link :href="order.href" class="dt__link">{{ order.number }}</Link>
                     </td>
-                    <td class="dt__text">{{ order.customer }}</td>
+                    <td class="dt__text"><span class="dt__clip" :title="order.customer">{{ order.customer }}</span></td>
                     <td class="dt__num">{{ order.total }}</td>
                     <td><StateChip :label="order.payment.label" :tone="order.payment.tone" /></td>
                     <td><StateChip :label="order.fulfilment.label" :tone="order.fulfilment.tone" /></td>
@@ -74,7 +74,7 @@ defineProps<{ orders: DashboardOrderRow[] }>()
 }
 
 .dt td {
-    height: var(--adm-control-h-lg);
+    height: var(--adm-row-h-dash);
     padding: 0 6px;
     border-bottom: 1px solid var(--c-line);
     color: var(--c-ink);
@@ -103,10 +103,14 @@ defineProps<{ orders: DashboardOrderRow[] }>()
     text-align: right;
 }
 
-.dt__text {
-    max-width: 16ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
+/* A long name — or the e-mail address an order without one shows — wraps onto a second line inside
+   its column; it is never cut, and never pushes the columns beside it out of view. (A table cell
+   ignores a max-width; the span inside it does not.) */
+.dt__clip {
+    display: block;
+    max-width: 18ch;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .dt__age {

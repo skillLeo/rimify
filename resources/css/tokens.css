@@ -142,6 +142,7 @@
     --adm-row-h: 40px;          /* --lh-body + 2 × --sp-8: single-line table row, menu row. The rail's
                                    36px item is a control height (--adm-control-h), not a row. */
     --adm-row-h-lg: 56px;       /* Two-line rows. */
+    --adm-row-h-dash: 44px;     /* A row of the Übersicht's tables (Neueste Bestellungen, Zu erledigen): 13 px type, one line. */
     --adm-control-h: 36px;      /* --lh-small + 2 × --sp-8. */
     --adm-control-h-lg: 44px;   /* The touch floor: every control below 768px. */
     --adm-wordmark-size: 28px;  /* The rail's wordmark: a 20 px cap height in Archivo (cap ≈ 0.72 em). */

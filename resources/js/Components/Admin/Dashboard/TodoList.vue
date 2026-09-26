@@ -15,7 +15,7 @@ defineProps<{ items: TodoItem[] }>()
 <template>
     <ul class="todo">
         <li v-for="item in items" :key="item.key" class="todo__row">
-            <span class="todo__type">{{ item.type }}</span>
+            <span class="todo__type adm-tag adm-tag--neutral">{{ item.type }}</span>
             <span class="todo__text">
                 <Link :href="item.href" class="todo__link">{{ item.title }}</Link>
                 <span v-if="item.detail" class="todo__detail">{{ item.detail }}</span>
@@ -39,8 +39,10 @@ defineProps<{ items: TodoItem[] }>()
     grid-template-columns: 88px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: var(--sp-12);
-    min-height: var(--adm-control-h-lg);
-    padding: var(--sp-8) var(--sp-20);
+    /* One line, 44 px, like the orders beside it (the brief's table row); a long title wraps rather
+       than being cut, and the phone stacks the row. */
+    min-height: var(--adm-row-h-dash);
+    padding: var(--sp-4) var(--sp-20);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--adm-fs-table);
     line-height: var(--adm-lh-table);
@@ -64,31 +66,37 @@ defineProps<{ items: TodoItem[] }>()
     box-shadow: var(--adm-row-focus);
 }
 
-/* The kind as a quiet text chip: the list is one list, the chip says which of its kinds a row is. */
+/* The kind as the admin's one quiet tag (.adm-tag): the list is one list, the tag says which of its
+   kinds a row is. */
 .todo__type {
     justify-self: start;
-    padding: 2px var(--sp-8);
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-round);
-    font-size: var(--fs-micro);
-    line-height: var(--lh-micro);
-    font-weight: 500;
-    color: var(--c-ink-2);
-    white-space: nowrap;
 }
 
+/* The title, then what it is about, on the one line: the detail gives way first. */
 .todo__text {
-    display: grid;
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    min-width: 0;
+}
+
+/* The title is never cut: it wraps if it must. Only the detail after it gives way. */
+.todo__link {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.todo__detail {
+    flex: 1 1 0;
     min-width: 0;
 }
 
 .todo__link {
-    overflow: hidden;
     font-weight: 600;
     color: var(--c-ink);
     text-decoration: none;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     outline: none;
 }
 
@@ -124,6 +132,8 @@ defineProps<{ items: TodoItem[] }>()
     .todo__row {
         grid-template-columns: minmax(0, 1fr) auto auto;
         gap: var(--sp-4) var(--sp-8);
+        height: auto;
+        padding-block: var(--sp-12);
     }
 
     .todo__type {
@@ -140,6 +150,7 @@ defineProps<{ items: TodoItem[] }>()
     }
 
     .todo__text {
+        display: grid;
         grid-area: 2 / 1 / 3 / 3;
     }
 }

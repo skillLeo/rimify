@@ -21,9 +21,14 @@ export function shiftDay(iso: string, days: number): string {
     return date.toISOString().slice(0, 10)
 }
 
-/** `01.09.2026` → `2026-09-01`; null for anything that is not a real day. */
+/**
+ * `01.09.2026` → `2026-09-01`; null for anything that is not a real day.
+ *
+ * Also as the phone's number pad can type it — it has no full stop: eight digits (`01092026`), or the
+ * comma the German decimal pad offers (`1,9,2026`).
+ */
 export function parseGermanDay(text: string): string | null {
-    const match = /^\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\s*$/.exec(text)
+    const match = /^\s*(\d{1,2})[.,](\d{1,2})[.,](\d{4})\s*$/.exec(text) ?? /^\s*(\d{2})(\d{2})(\d{4})\s*$/.exec(text)
 
     if (!match) {
         return null

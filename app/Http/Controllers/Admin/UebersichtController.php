@@ -21,9 +21,11 @@ use App\Services\Admin\ListExport;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 /**
  * Übersicht — the admin's first screen (docs/admin/rest-build-plan.md, „Übersicht und Shell“).
@@ -57,6 +59,21 @@ class UebersichtController extends Controller
         };
         $demo = $variant === Variant::Verkauf && ($sold['demo'] ?? false);
 
+        $approvals = $admin->may(PermissionModule::Approvals, PermissionAction::View);
+        $reports = $admin->may(PermissionModule::Reports, PermissionAction::View);
+
+        // Each chart only for a role that may see what it draws; `false` means "not for you".
+        $plan = [
+            // Revenue is the selling roles' curve; Katalog and Gutachten see their own figures instead.
+            'revenue' => $variant === Variant::Verkauf && $reports ? fn () => $charts->revenue($period, $compare) : false,
+            'verdicts' => $approvals || $reports ? fn () => $charts->verdicts($period) : false,
+            'topWheels' => $admin->may(PermissionModule::Orders, PermissionAction::View) || $reports ? fn () => $charts->topWheels($period) : false,
+            // What the shop may show, by make and rim size — not a period figure: coverage is now.
+            'coverage' => $approvals ? fn () => $coverage->matrix() : false,
+            // Beside it, the cars asked for that it does not cover yet: the open ones, the five most in demand.
+            'demand' => $approvals ? fn () => $demand->ranked($period, 'offen', null, 5) : false,
+        ];
+
         return Inertia::render('Admin/Uebersicht/Index', [
             'asOf' => GermanFormat::dateTime(now()),
             'period' => [...$period->toArray(), 'compare' => $compare],
@@ -71,23 +88,13 @@ class UebersichtController extends Controller
             'today' => $lists->today($admin),
             'activity' => $admin->may(PermissionModule::AuditLog, PermissionAction::View) ? $lists->activity() : null,
             // The charts come a moment after the figures, each in its own skeleton meanwhile: the
-            // page is never held up by its heaviest query. Each chart only for a role that may see
-            // what it draws; `false` means "not for you", `null` "nothing to draw yet".
-            'charts' => Inertia::defer(fn (): array => [
-                // Revenue is the selling roles' curve; Katalog and Gutachten see their own figures instead.
-                'revenue' => $variant === Variant::Verkauf && $admin->may(PermissionModule::Reports, PermissionAction::View) ? $charts->revenue($period, $compare) : false,
-                'verdicts' => $admin->may(PermissionModule::Approvals, PermissionAction::View) || $admin->may(PermissionModule::Reports, PermissionAction::View)
-                    ? $charts->verdicts($period)
-                    : false,
-                'topWheels' => $admin->may(PermissionModule::Orders, PermissionAction::View) || $admin->may(PermissionModule::Reports, PermissionAction::View)
-                    ? $charts->topWheels($period)
-                    : false,
-                // What the shop may show, by make and rim size — not a period figure: coverage is now.
-                'coverage' => $admin->may(PermissionModule::Approvals, PermissionAction::View) ? $coverage->matrix() : false,
-                // Beside it, the cars asked for that it does not cover yet: the open ones, the five
-                // most in demand.
-                'demand' => $admin->may(PermissionModule::Approvals, PermissionAction::View) ? $demand->ranked($period, 'offen', null, 5) : false,
-            ]),
+            // page is never held up by its heaviest query. Which charts this role gets is known at
+            // once (`chartKeys`), so the first frame already has the right boxes in the right places.
+            'chartKeys' => array_keys(array_filter($plan, static fn (mixed $chart): bool => $chart !== false)),
+            'charts' => Inertia::defer(fn (): array => self::each($plan), 'default', true),
+            // The matrix's size before it arrives: one row per make, so its skeleton is exactly as tall
+            // as the matrix that replaces it and nothing under it moves (a count, not the matrix).
+            'coverageRows' => $approvals ? DB::table('vehicles')->whereNull('deleted_at')->distinct()->count('make') : 0,
             'can' => [
                 'export' => $admin->may(PermissionModule::Reports, PermissionAction::Export),
             ],
@@ -123,6 +130,38 @@ class UebersichtController extends Controller
             ['Datum', 'Umsatz (EUR)', 'Bestellungen', 'Ø Bestellwert (EUR)'],
             $rows,
         );
+    }
+
+    /**
+     * Every chart on its own: one whose query fails is reported, left empty and named in `failed`, so
+     * its widget says so and offers „Erneut versuchen“ while the others still draw — a failing query
+     * never takes the Übersicht down with it (and `rescue` catches anything outside the charts).
+     * `false` stays `false`: not for this role.
+     *
+     * @param  array<string, (callable(): mixed)|false>  $charts
+     * @return array<string, mixed>
+     */
+    private static function each(array $charts): array
+    {
+        $out = ['failed' => []];
+
+        foreach ($charts as $key => $chart) {
+            if ($chart === false) {
+                $out[$key] = false;
+
+                continue;
+            }
+
+            try {
+                $out[$key] = $chart();
+            } catch (Throwable $e) {
+                report($e);
+                $out[$key] = null;
+                $out['failed'][] = $key;
+            }
+        }
+
+        return $out;
     }
 
     /**

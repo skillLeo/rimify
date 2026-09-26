@@ -79,16 +79,18 @@ function signOut(): void {
 <template>
     <BottomSheet id="admin-mehr" v-model:open="open" title="Mehr">
         <div class="adm-more">
-            <!-- The rail's foot, on a phone: the shop's health first, in words. -->
+            <!-- The rail's foot, on a phone: the shop's health first — only when something is wrong,
+                 one quiet line, the same words as the rail. -->
             <component
                 :is="health.href ? Link : 'p'"
-                v-if="health"
+                v-if="health && health.state !== 'ok'"
                 :href="health.href ?? undefined"
                 class="adm-foot__health adm-more__health"
-                :class="`adm-foot__health--${health.state}`"
+                :aria-label="health.sentence"
             >
                 <span class="adm-health__dot" :class="`adm-health__dot--${health.state}`" aria-hidden="true" />
-                <span class="adm-foot__sentence">{{ health.sentence }}</span>
+                <span class="adm-foot__label" aria-hidden="true">{{ health.label }}</span>
+                <span v-if="health.count" class="adm-foot__count" :class="`adm-foot__count--${health.state}`" aria-hidden="true">· {{ health.count }}</span>
             </component>
 
             <template v-for="item in groups" :key="item.key">

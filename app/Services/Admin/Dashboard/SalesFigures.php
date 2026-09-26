@@ -190,7 +190,7 @@ final class SalesFigures
         $note = null;
 
         if ($compare && $value !== null && $delta === null) {
-            $note = 'Vorperiode ohne Bestellungen';
+            $note = 'Im Vorzeitraum keine Bestellung';
         }
 
         return [
@@ -223,7 +223,13 @@ final class SalesFigures
         $folded = [];
 
         for ($end = count($values); $end > 0; $end -= $step) {
-            $folded[] = array_sum(array_slice($values, max(0, $end - $step), $end - max(0, $end - $step)));
+            $start = max(0, $end - $step);
+            $days = $end - $start;
+            $sum = array_sum(array_slice($values, $start, $days));
+
+            // The first run may be a few days short of a week (90 days are 12 weeks and 6 days): it is
+            // drawn at a whole week's rate, so a short run never shows as a dip the data does not have.
+            $folded[] = $days < $step ? (int) round($sum * $step / $days) : $sum;
         }
 
         return array_reverse($folded);
@@ -241,7 +247,7 @@ final class SalesFigures
         return [
             'value' => $change,
             'direction' => $change > 0 ? 'up' : ($change < 0 ? 'down' : 'flat'),
-            'label' => GermanFormat::percent($change).' vs. Vorperiode',
+            'label' => GermanFormat::percent($change).' zum Vorzeitraum',
         ];
     }
 

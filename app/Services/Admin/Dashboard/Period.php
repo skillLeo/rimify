@@ -9,7 +9,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * The Übersicht's Zeitraum: whole calendar days in Europe/Berlin, today included, and the period of
- * the same length right before it — the one every „vs. Vorperiode“ is measured against.
+ * the same length right before it — the Vorzeitraum every change („+12,4 % zum Vorzeitraum“) is measured against.
  *
  * Days, not instants: "the last 7 days" on a Monday morning in Berlin means Tuesday to Monday there,
  * whatever the server's clock says, and a day that lost an hour to the clock change is still one day.

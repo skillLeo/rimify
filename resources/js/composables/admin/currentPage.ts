@@ -5,5 +5,15 @@
  * current everywhere.
  */
 export function isCurrentPage(href: string, path: string): boolean {
-    return href === path || (href !== '/admin' && path.startsWith(`${href}/`))
+    if (href === '/admin') {
+        return path === '/admin' || BENEATH_UEBERSICHT.includes(path)
+    }
+
+    return href === path || path.startsWith(`${href}/`)
 }
+
+/**
+ * Pages beneath the Übersicht that are not on the rail (AdminNavigation::BENEATH_UEBERSICHT): while
+ * one is open, the Übersicht is where the reader is — its crumb says „Übersicht › Nachfrage“ too.
+ */
+export const BENEATH_UEBERSICHT = ['/admin/nachfrage']

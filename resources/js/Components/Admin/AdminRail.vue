@@ -74,8 +74,9 @@ const collapsed = computed(() => shell.railCollapsed.value || narrow.value)
         <aside class="adm-rail">
             <div class="adm-rail__brand">
                 <Link href="/admin" class="adm-wordmark adm-wordmark--full">RIMIFY</Link>
-                <Link href="/admin" class="adm-iconbtn adm-wordmark--mark" aria-label="RIMIFY – zur Übersicht">
-                    <Icon name="wheels" :size="24" />
+                <!-- The wordmark's own initial: the wheel is Felgen's glyph and means nothing else. -->
+                <Link href="/admin" class="adm-iconbtn adm-wordmark adm-wordmark--mark" aria-label="RIMIFY – zur Übersicht">
+                    <span aria-hidden="true">R</span>
                 </Link>
                 <EnvironmentBadge />
                 <button

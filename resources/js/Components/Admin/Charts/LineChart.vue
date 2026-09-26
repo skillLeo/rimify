@@ -12,7 +12,7 @@
 
 import { scaleLinear } from 'd3-scale'
 import { curveMonotoneX, line } from 'd3-shape'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { euro } from '../../../format'
 import type { ChartPoint } from '../../../types/admin/uebersicht'
 import { mayAnimate, useWidth } from './useWidth'
@@ -20,6 +20,9 @@ import { mayAnimate, useWidth } from './useWidth'
 const props = withDefaults(defineProps<{ points: ChartPoint[]; previous?: ChartPoint[] | null; height?: number; label: string }>(), { previous: null, height: 240 })
 
 const M = { top: 28, right: 20, bottom: 28, left: 72 }
+
+/** The room between the crosshair and its tip. */
+const TIP_GAP = 12
 
 const { el, width } = useWidth(720)
 const active = ref<number | null>(null)
@@ -88,13 +91,43 @@ const hovered = computed(() => {
         x: px,
         y: g.y(point.value),
         left: M.left + px,
-        flip: px > g.innerW * 0.6,
     }
 })
 
-const announcement = computed(() => (hovered.value ? `${hovered.value.point.label}: ${hovered.value.point.text}` : ''))
+/*
+ * The tip stands right of the crosshair where it fits, else left of it, and never past the chart's
+ * edge — on a 390 px phone as on a wide screen. Its width is measured, not guessed.
+ */
+const tip = ref<HTMLElement | null>(null)
+const tipWidth = ref(0)
+
+watch(hovered, () => void nextTick(() => (tipWidth.value = tip.value?.offsetWidth ?? 0)))
+
+const tipLeft = computed(() => {
+    const at = hovered.value?.left ?? 0
+    const right = at + TIP_GAP
+
+    if (right + tipWidth.value <= width.value) {
+        return right
+    }
+
+    return Math.max(0, Math.min(at - TIP_GAP - tipWidth.value, width.value - tipWidth.value))
+})
+
+/* Said aloud only when the keyboard moved it: a mouse crossing the chart is not something to read out. */
+const byKeyboard = ref(false)
+
+const announcement = computed(() => (byKeyboard.value && hovered.value ? `${hovered.value.point.label}: ${hovered.value.point.text}` : ''))
+
+/* A mouse leaving takes the crosshair with it; a finger lifting leaves it where it was read. */
+function onLeave(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+        active.value = null
+    }
+}
 
 function onMove(event: PointerEvent): void {
+    byKeyboard.value = false
     const svg = event.currentTarget as SVGElement
     const box = svg.getBoundingClientRect()
     const px = event.clientX - box.left - M.left
@@ -114,6 +147,7 @@ function onKey(event: KeyboardEvent): void {
     }
 
     event.preventDefault()
+    byKeyboard.value = true
     active.value = Math.min(n - 1, Math.max(0, current + step))
 }
 </script>
@@ -128,8 +162,9 @@ function onKey(event: KeyboardEvent): void {
             :aria-label="`${label}. Mit den Pfeiltasten von Tag zu Tag.`"
             tabindex="0"
             focusable="true"
+            @pointerdown="onMove"
             @pointermove="onMove"
-            @pointerleave="active = null"
+            @pointerleave="onLeave"
             @keydown="onKey"
             @blur="active = null"
         >
@@ -161,16 +196,10 @@ function onKey(event: KeyboardEvent): void {
             </g>
         </svg>
 
-        <div
-            v-if="hovered"
-            class="lc__tip"
-            :class="{ 'lc__tip--flip': hovered.flip }"
-            :style="{ left: `${hovered.left}px`, top: `${M.top}px` }"
-            aria-hidden="true"
-        >
+        <div v-if="hovered" ref="tip" class="lc__tip" :style="{ left: `${tipLeft}px`, top: `${M.top}px` }" aria-hidden="true">
             <span class="lc__tip-date">{{ hovered.point.label }}</span>
             <span class="lc__tip-value">{{ hovered.point.text }}</span>
-            <span v-if="hovered.previous" class="lc__tip-prev">Vorperiode: {{ hovered.previous.text }}</span>
+            <span v-if="hovered.previous" class="lc__tip-prev">Vorzeitraum: {{ hovered.previous.text }}</span>
         </div>
 
         <span class="visually-hidden" role="status">{{ announcement }}</span>
@@ -183,15 +212,18 @@ function onKey(event: KeyboardEvent): void {
     width: 100%;
 }
 
+/* A finger drawn sideways reads the line; drawn up or down it scrolls the page. */
 .lc__svg {
     display: block;
     overflow: visible;
     outline: none;
+    touch-action: pan-y;
 }
 
+/* The panel's one focus ring — not the row marker, which is for rows. */
 .lc__svg:focus-visible {
-    border-radius: var(--r-control);
-    box-shadow: var(--adm-row-focus);
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
 }
 
 .lc__grid line {
@@ -261,7 +293,6 @@ function onKey(event: KeyboardEvent): void {
     display: grid;
     gap: 2px;
     padding: var(--sp-8) var(--sp-12);
-    margin-left: var(--sp-12);
     border-radius: var(--r-control);
     background: var(--c-ink);
     color: var(--c-surface);
@@ -272,9 +303,6 @@ function onKey(event: KeyboardEvent): void {
     pointer-events: none;
 }
 
-.lc__tip--flip {
-    transform: translateX(calc(-100% - 2 * var(--sp-12)));
-}
 
 .lc__tip-value {
     font-size: var(--fs-small);

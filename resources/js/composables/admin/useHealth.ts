@@ -15,7 +15,7 @@ import type { AdminHealth } from '../../types/admin'
 export const PULSE_URL = '/admin/system/puls'
 export const PULSE_MS = 60_000
 
-const live = ref<Pick<AdminHealth, 'state' | 'sentence'> | null>(null)
+const live = ref<Pick<AdminHealth, 'state' | 'sentence' | 'label' | 'count'> | null>(null)
 let users = 0
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -34,10 +34,15 @@ async function pulse(): Promise<void> {
             return
         }
 
-        const body = (await response.json()) as { state?: unknown; sentence?: unknown }
+        const body = (await response.json()) as { state?: unknown; sentence?: unknown; label?: unknown; count?: unknown }
 
         if ((body.state === 'ok' || body.state === 'warn' || body.state === 'bad') && typeof body.sentence === 'string') {
-            live.value = { state: body.state, sentence: body.sentence }
+            live.value = {
+                state: body.state,
+                sentence: body.sentence,
+                label: typeof body.label === 'string' ? body.label : body.sentence,
+                count: typeof body.count === 'string' ? body.count : null,
+            }
         }
     } catch {
         // Keep the last answer: a network blip is not news about the shop.

@@ -36,7 +36,8 @@ defineProps<{ rows: QualityRow[] }>()
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--sp-12);
-    min-height: var(--adm-control-h-lg);
+    /* Two lines — the Felge, then its size — so the shell's two-line row. */
+    min-height: var(--adm-row-h-lg);
     padding: var(--sp-8) var(--sp-20);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--adm-fs-table);
@@ -52,21 +53,18 @@ defineProps<{ rows: QualityRow[] }>()
     min-width: 0;
 }
 
+/* Which Felge, and which size of it: both are the point of the row, so both wrap rather than cut. */
 .ql__title {
-    overflow: hidden;
     font-weight: 600;
     color: var(--c-ink);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .ql__detail {
-    overflow: hidden;
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
     color: var(--c-ink-3);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
     font-variant-numeric: tabular-nums;
 }
 

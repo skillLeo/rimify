@@ -19,6 +19,9 @@ use Illuminate\Http\Response;
  */
 class AdminPreferencesController extends Controller
 {
+    /** How long „Später erinnern“ keeps the banner away. */
+    public const SNOOZE_HOURS = 8;
+
     /**
      * The rail saves with a plain background request (JSON) and gets an empty answer: nothing on the
      * page is re-rendered by a preference, so a quick double-click cannot make the rail flip back and
@@ -31,7 +34,16 @@ class AdminPreferencesController extends Controller
         // Merged, not replaced: the column will hold other choices too, and setting one must never
         // quietly reset the rest.
         $preferences = is_array($admin->preferences) ? $admin->preferences : [];
-        $preferences['rail'] = $request->rail();
+
+        if ($request->rail() !== null) {
+            $preferences['rail'] = $request->rail();
+        }
+
+        // „Später erinnern“: the banner about this problem stays away for 8 hours — a reminder, not a
+        // dismissal. The rail's line keeps showing it all the while (HandleInertiaRequests::health).
+        if ($request->snooze() !== null) {
+            $preferences['healthSnooze'] = ['key' => $request->snooze(), 'until' => now()->addHours(self::SNOOZE_HOURS)->toIso8601String()];
+        }
 
         $admin->forceFill(['preferences' => $preferences])->save();
 

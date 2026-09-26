@@ -188,16 +188,31 @@ it('renders a designed 404 rather than a framework page', function (): void {
 });
 
 it('fills the Übersicht from real queries', function (): void {
-    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+    $owner = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+    $gutachten = AdminUser::query()->where('email', 'compliance-editor@rimify.test')->firstOrFail();
 
-    $this->actingAs($admin, 'admin')
+    // The owner's figures are the shop's sales, every one computed, none of them a placeholder.
+    $this->actingAs($owner, 'admin')
         ->get('/admin')
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page
-                ->has('tiles', 6)
-                // The seed plants one deliberate entry-requirement disagreement.
-                ->where('tiles.4.key', 'conflicts')
-                ->where('tiles.4.value', '1')
+                ->component('Admin/Uebersicht/Index')
+                ->where('variant', 'verkauf')
+                ->has('kpis', 4)
+                ->where('kpis.0.key', 'umsatz')
+                ->where('kpis.3.key', 'offen')
+        );
+
+    // The Gutachten role's figures are its documents: the seed plants one deliberate
+    // entry-requirement disagreement, and the Übersicht counts it.
+    $this->actingAs($gutachten, 'admin')
+        ->get('/admin')
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->where('variant', 'gutachten')
+                ->where('kpis.1.key', 'conflicts')
+                ->where('kpis.1.value', '1')
         );
 });

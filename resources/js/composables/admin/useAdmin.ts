@@ -13,7 +13,7 @@
 
 import { usePage } from '@inertiajs/vue3'
 import { computed, inject, provide, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
-import type { AdminShared } from '../../types/admin'
+import type { AdminHealth, AdminShared } from '../../types/admin'
 
 const EMPTY: AdminShared = {
     can: {},
@@ -26,6 +26,17 @@ const EMPTY: AdminShared = {
     notifications: { unread: null, offered: false },
     health: null,
     quickActions: [],
+}
+
+/** The urgent problem's banner, only in the shape the panel knows (maintenance, a dead queue). */
+function banner(raw: unknown): AdminHealth['banner'] {
+    if (raw === null || typeof raw !== 'object') {
+        return null
+    }
+
+    const { key, sentence } = raw as { key?: unknown; sentence?: unknown }
+
+    return (key === 'maintenance' || key === 'queue') && typeof sentence === 'string' ? { key, sentence } : null
 }
 
 export function useAdmin(): ComputedRef<AdminShared> {
@@ -54,7 +65,14 @@ export function useAdmin(): ComputedRef<AdminShared> {
             },
             health:
                 admin.health && (admin.health.state === 'ok' || admin.health.state === 'warn' || admin.health.state === 'bad') && typeof admin.health.sentence === 'string'
-                    ? { state: admin.health.state, sentence: admin.health.sentence, href: typeof admin.health.href === 'string' ? admin.health.href : null }
+                    ? {
+                          state: admin.health.state,
+                          sentence: admin.health.sentence,
+                          label: typeof admin.health.label === 'string' ? admin.health.label : admin.health.sentence,
+                          count: typeof admin.health.count === 'string' ? admin.health.count : null,
+                          href: typeof admin.health.href === 'string' ? admin.health.href : null,
+                          banner: banner(admin.health.banner),
+                      }
                     : null,
             quickActions: Array.isArray(admin.quickActions) ? admin.quickActions : [],
         }

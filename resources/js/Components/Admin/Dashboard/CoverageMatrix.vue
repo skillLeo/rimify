@@ -9,15 +9,32 @@
  * Varianten“); each cell opens the list of the variants it counts.
  *
  * It is a table, because it is one: a screen reader reads make, size and count as row, column and
- * cell.
+ * cell. From the keyboard it is one stop, not makes × sizes of them: Tab enters at the chosen cell
+ * (or the first), the arrow keys, Home and End move inside, Tab leaves. A focused cell says its own
+ * sentence, so the caption under the grid is for the eye and announces nothing.
+ *
+ * `placeholder` draws the same table with skeletons where the names and counts will be — the matrix's
+ * own height before it arrives, so nothing under it moves when it does.
  */
 
 import { Link } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { decimal } from '../../../format'
 import type { CoverageCell, CoverageMatrix } from '../../../types/admin/uebersicht'
 
-const props = defineProps<{ matrix: CoverageMatrix }>()
+const props = withDefaults(
+    defineProps<{
+        matrix: CoverageMatrix
+        /** The cell whose variants the page lists (Gutachten › Abdeckung). */
+        selected?: { make: string; size: string } | null
+        placeholder?: boolean
+    }>(),
+    { selected: null, placeholder: false }
+)
+
+function isSelected(make: string, cell: CoverageCell): boolean {
+    return props.selected?.make === make && props.selected.size === cell.size
+}
 
 const pointed = ref<CoverageCell | null>(null)
 
@@ -27,41 +44,106 @@ const caption = computed(() => pointed.value?.sentence ?? props.matrix.summary.s
 function onDark(level: number): boolean {
     return level >= 5
 }
+
+/* ── One tab stop, the arrows inside ─────────────────────────────────────────────── */
+
+/** The cell Tab lands on: the one last reached, else the chosen one, else the first. */
+const reached = ref<[number, number] | null>(null)
+
+const stop = computed<[number, number]>(() => {
+    if (reached.value) {
+        return reached.value
+    }
+
+    for (const [r, row] of props.matrix.rows.entries()) {
+        const c = row.cells.findIndex((cell) => isSelected(row.make, cell))
+
+        if (c >= 0) {
+            return [r, c]
+        }
+    }
+
+    return [0, 0]
+})
+
+const grid = ref<HTMLElement | null>(null)
+
+function cellAt(r: number, c: number): HTMLElement | null {
+    return grid.value?.querySelector<HTMLElement>(`[data-cell="${r}:${c}"]`) ?? null
+}
+
+function onFocus(cell: CoverageCell, r: number, c: number): void {
+    pointed.value = cell
+    reached.value = [r, c]
+}
+
+function onKey(event: KeyboardEvent, r: number, c: number): void {
+    const rows = props.matrix.rows.length
+    const cols = props.matrix.sizes.length
+    const moves: Record<string, [number, number]> = {
+        ArrowRight: [r, Math.min(cols - 1, c + 1)],
+        ArrowLeft: [r, Math.max(0, c - 1)],
+        ArrowDown: [Math.min(rows - 1, r + 1), c],
+        ArrowUp: [Math.max(0, r - 1), c],
+        Home: event.ctrlKey ? [0, 0] : [r, 0],
+        End: event.ctrlKey ? [rows - 1, cols - 1] : [r, cols - 1],
+    }
+    const next = moves[event.key]
+
+    if (!next) {
+        return
+    }
+
+    event.preventDefault()
+    reached.value = next
+    void nextTick(() => cellAt(next[0], next[1])?.focus())
+}
 </script>
 
 <template>
-    <div class="cm">
-        <div class="cm__scroll">
+    <div class="cm" :class="{ 'cm--placeholder': placeholder }">
+        <div ref="grid" class="cm__scroll">
             <table class="cm__table">
                 <caption class="visually-hidden">Abdeckung nach Marke und Felgengröße: Varianten mit mindestens einer freigegebenen Felge</caption>
                 <thead>
                     <tr>
                         <th scope="col" class="cm__corner">Marke</th>
                         <th v-for="size in matrix.sizes" :key="size.key" scope="col" class="cm__size">
-                            <span aria-hidden="true">{{ size.label }}</span>
-                            <span class="visually-hidden">{{ size.key }} Zoll</span>
+                            <span v-if="placeholder" class="skeleton cm__ph cm__ph--size" />
+                            <template v-else>{{ size.label }}</template>
                         </th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in matrix.rows" :key="row.make">
+                    <tr v-for="(row, r) in matrix.rows" :key="row.make">
                         <th scope="row" class="cm__make">
-                            <span class="cm__make-name">{{ row.make }}</span>
-                            <span class="cm__make-count">{{ decimal(row.covered, 0) }} von {{ decimal(row.variants, 0) }}</span>
+                            <template v-if="placeholder">
+                                <span class="cm__make-name"><span class="skeleton cm__ph cm__ph--name" /></span>
+                                <span class="cm__make-count"><span class="skeleton cm__ph cm__ph--count" /></span>
+                            </template>
+                            <template v-else>
+                                <span class="cm__make-name">{{ row.make }}</span>
+                                <span class="cm__make-count">{{ decimal(row.covered, 0) }} von {{ decimal(row.variants, 0) }}</span>
+                            </template>
                         </th>
-                        <td v-for="cell in row.cells" :key="cell.size" class="cm__cell-wrap">
+                        <td v-for="(cell, c) in row.cells" :key="cell.size" class="cm__cell-wrap">
+                            <span v-if="placeholder" class="skeleton cm__cell cm__cell--ph" />
                             <component
                                 :is="cell.href ? Link : 'span'"
+                                v-else
                                 :href="cell.href ?? undefined"
                                 class="cm__cell"
-                                :class="{ 'cm__cell--dark': onDark(cell.level), 'cm__cell--none': cell.level === 0 }"
+                                :class="{ 'cm__cell--dark': onDark(cell.level), 'cm__cell--none': cell.level === 0, 'cm__cell--selected': isSelected(row.make, cell) }"
+                                :data-cell="`${r}:${c}`"
+                                :aria-current="isSelected(row.make, cell) ? 'true' : undefined"
                                 :style="cell.level > 0 ? { background: `var(--chart-seq-${cell.level})` } : undefined"
                                 :aria-label="cell.sentence"
-                                :tabindex="cell.href ? undefined : 0"
+                                :tabindex="stop[0] === r && stop[1] === c ? 0 : -1"
                                 @mouseenter="pointed = cell"
                                 @mouseleave="pointed = null"
-                                @focus="pointed = cell"
+                                @focus="onFocus(cell, r, c)"
                                 @blur="pointed = null"
+                                @keydown="onKey($event, r, c)"
                             >
                                 {{ decimal(cell.count, 0) }}
                             </component>
@@ -72,16 +154,18 @@ function onDark(level: number): boolean {
         </div>
 
         <div class="cm__foot">
-            <p class="cm__caption" aria-live="polite">{{ caption }}</p>
+            <p class="cm__caption">
+                <span v-if="placeholder" class="skeleton cm__ph cm__ph--caption" />
+                <template v-else>{{ caption }}</template>
+            </p>
             <div class="cm__legend" aria-hidden="true">
                 <span>0</span>
                 <span v-for="step in 7" :key="step" class="cm__swatch" :style="{ background: `var(--chart-seq-${step})` }" />
-                <span>{{ decimal(matrix.max, 0) }}</span>
+                <span>{{ placeholder ? '' : decimal(matrix.max, 0) }}</span>
             </div>
         </div>
     </div>
 </template>
-
 <style scoped>
 .cm {
     display: grid;
@@ -176,8 +260,12 @@ function onDark(level: number): boolean {
     }
 }
 
-.cm__cell:focus-visible {
-    box-shadow: var(--chart-cell-hover);
+/* The panel's one focus ring, and the chosen cell ringed the same blue: this is the one the list below
+   counts. */
+.cm__cell:focus-visible,
+.cm__cell--selected {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
 }
 
 .cm__foot {
@@ -221,6 +309,47 @@ function onDark(level: number): boolean {
     width: 20px;
     height: 12px;
     border-radius: var(--r-control);
+}
+
+/* A phone: the sentence above the scale, and room for two lines of it whatever it says — the total,
+   a pointed cell, or its skeleton — so the matrix never changes height under the reader. */
+@media (max-width: 767px) {
+    .cm__foot {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .cm__caption {
+        min-height: calc(2 * var(--lh-small));
+    }
+}
+
+/* ── The placeholder: the matrix's own boxes, skeletons where its words will be ─────── */
+
+.cm__ph {
+    display: inline-block;
+    height: var(--sp-12);
+    vertical-align: middle;
+}
+
+.cm__ph--size {
+    width: var(--sp-24);
+}
+
+.cm__ph--name {
+    width: 72px;
+}
+
+.cm__ph--count {
+    width: 48px;
+}
+
+.cm__ph--caption {
+    width: 60%;
+}
+
+.cm__cell--ph {
+    box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

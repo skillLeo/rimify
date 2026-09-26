@@ -10,17 +10,23 @@
  */
 
 import { scaleBand, scaleLinear } from 'd3-scale'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { decimal } from '../../../format'
 import type { VerdictChart } from '../../../types/admin/uebersicht'
 import { mayAnimate, useWidth } from './useWidth'
 
-const props = withDefaults(defineProps<{ chart: VerdictChart; height?: number; label: string }>(), { height: 240 })
+/* loading: the legend as it will be — it wraps as the chart's will — above a skeleton of the plot's
+   height: the chart's own size before its weeks arrive. */
+const props = withDefaults(defineProps<{ chart: VerdictChart; height?: number; label: string; loading?: boolean }>(), { height: 240, loading: false })
 
 const M = { top: 12, right: 8, bottom: 28, left: 44 }
 const GAP = 2
 const RADIUS = 4
 const MAX_BAR = 24
+/** What one week label ("KW 38") needs on the axis, with air on either side. */
+const LABEL_ROOM = 44
+/** The room between the column and its tip. */
+const TIP_GAP = 16
 
 const { el, width } = useWidth(360)
 const active = ref<number | null>(null)
@@ -62,7 +68,7 @@ const geometry = computed(() => {
             segments.push({
                 key: series.key,
                 d: column(left, top, barW, Math.max(0, bottom - top), i === present.length - 1),
-                fill: `var(--chart-cat-${seriesIndex + 1})`,
+                fill: colour(series.key, seriesIndex),
             })
             base += value
         })
@@ -70,8 +76,8 @@ const geometry = computed(() => {
         return { key: week.key, index, left, center: left + barW / 2, segments, label: week.label }
     })
 
-    // Every other label when the weeks crowd their axis.
-    const every = x.bandwidth() < 36 ? 2 : 1
+    // A label every so many weeks that a week label never touches the next one (a year: about every fourth).
+    const every = Math.max(1, Math.ceil(LABEL_ROOM / Math.max(1, x.step())))
 
     return {
         innerW,
@@ -83,6 +89,22 @@ const geometry = computed(() => {
         band: x.bandwidth(),
     }
 })
+
+/*
+ * A verdict wears the verdict's own colour, the one the shop shows it in — Freigegeben green, Mit
+ * Auflagen amber, Nicht freigegeben red, Unbekannt grey — never a chart colour that means nothing
+ * there. Any other series takes the categorical palette.
+ */
+const VERDICT_COLOURS: Record<string, string> = {
+    PERMITTED: 'var(--c-ok)',
+    CONDITIONAL: 'var(--c-warn)',
+    NOT_PERMITTED: 'var(--c-bad)',
+    UNKNOWN: 'var(--c-unk)',
+}
+
+function colour(key: string, index: number): string {
+    return VERDICT_COLOURS[key] ?? `var(--chart-cat-${index + 1})`
+}
 
 const hovered = computed(() => {
     if (active.value === null) {
@@ -96,11 +118,37 @@ const hovered = computed(() => {
         return null
     }
 
-    return { week, left: M.left + col.center, flip: col.center > geometry.value.innerW * 0.6 }
+    return { week, left: M.left + col.center }
 })
 
+/* The tip right of the column where it fits, else left of it, never past the chart's edge. */
+const tip = ref<HTMLElement | null>(null)
+const tipWidth = ref(0)
+
+watch(hovered, () => void nextTick(() => (tipWidth.value = tip.value?.offsetWidth ?? 0)))
+
+const tipLeft = computed(() => {
+    const at = hovered.value?.left ?? 0
+    const right = at + TIP_GAP
+
+    if (right + tipWidth.value <= width.value) {
+        return right
+    }
+
+    return Math.max(0, Math.min(at - TIP_GAP - tipWidth.value, width.value - tipWidth.value))
+})
+
+/* Said aloud only when the keyboard moved it. */
+const byKeyboard = ref(false)
+
+function onLeave(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+        active.value = null
+    }
+}
+
 const announcement = computed(() => {
-    if (!hovered.value) {
+    if (!hovered.value || !byKeyboard.value) {
         return ''
     }
 
@@ -110,6 +158,7 @@ const announcement = computed(() => {
 })
 
 function onMove(event: PointerEvent): void {
+    byKeyboard.value = false
     const box = (event.currentTarget as SVGElement).getBoundingClientRect()
     const px = event.clientX - box.left - M.left
     let nearest = 0
@@ -136,6 +185,7 @@ function onKey(event: KeyboardEvent): void {
     }
 
     event.preventDefault()
+    byKeyboard.value = true
     active.value = Math.min(n - 1, Math.max(0, (active.value ?? n - 1) + step))
 }
 </script>
@@ -144,12 +194,14 @@ function onKey(event: KeyboardEvent): void {
     <div class="sb">
         <ul class="sb__legend">
             <li v-for="(series, i) in chart.series" :key="series.key" class="sb__key">
-                <span class="sb__swatch" :style="{ background: `var(--chart-cat-${i + 1})` }" aria-hidden="true" />
+                <span class="sb__swatch" :style="{ background: colour(series.key, i) }" aria-hidden="true" />
                 {{ series.label }}
             </li>
         </ul>
 
-        <div ref="el" class="sb__plot" :style="{ height: `${height}px` }">
+        <span v-if="loading" class="skeleton sb__skeleton" :style="{ height: `${height}px` }" aria-hidden="true" />
+
+        <div v-else ref="el" class="sb__plot" :style="{ height: `${height}px` }">
             <svg
                 class="sb__svg"
                 :width="width"
@@ -157,8 +209,9 @@ function onKey(event: KeyboardEvent): void {
                 role="group"
                 :aria-label="`${label}. Mit den Pfeiltasten von Woche zu Woche.`"
                 tabindex="0"
+                @pointerdown="onMove"
                 @pointermove="onMove"
-                @pointerleave="active = null"
+                @pointerleave="onLeave"
                 @keydown="onKey"
                 @blur="active = null"
             >
@@ -175,7 +228,6 @@ function onKey(event: KeyboardEvent): void {
                         :key="col.key"
                         class="sb__column"
                         :class="{ 'sb__column--grow': growIn, 'sb__column--dim': hovered && active !== i }"
-                        :style="{ animationDelay: `${Math.min(i * 30, 240)}ms` }"
                         aria-hidden="true"
                     >
                         <path v-for="segment in col.segments" :key="segment.key" :d="segment.d" :fill="segment.fill" />
@@ -184,10 +236,10 @@ function onKey(event: KeyboardEvent): void {
                 </g>
             </svg>
 
-            <div v-if="hovered" class="sb__tip" :class="{ 'sb__tip--flip': hovered.flip }" :style="{ left: `${hovered.left}px` }" aria-hidden="true">
+            <div v-if="hovered" ref="tip" class="sb__tip" :style="{ left: `${tipLeft}px` }" aria-hidden="true">
                 <span class="sb__tip-week">{{ hovered.week.label }} · {{ hovered.week.range }}</span>
                 <span v-for="(series, i) in chart.series" :key="series.key" class="sb__tip-row">
-                    <span class="sb__swatch" :style="{ background: `var(--chart-cat-${i + 1})` }" />
+                    <span class="sb__swatch" :style="{ background: colour(series.key, i) }" />
                     {{ series.label }}
                     <strong>{{ decimal(hovered.week.values[series.key] ?? 0, 0) }}</strong>
                 </span>
@@ -202,6 +254,10 @@ function onKey(event: KeyboardEvent): void {
 .sb {
     display: grid;
     gap: var(--sp-12);
+}
+
+.sb__skeleton {
+    display: block;
 }
 
 .sb__legend {
@@ -234,15 +290,18 @@ function onKey(event: KeyboardEvent): void {
     position: relative;
 }
 
+/* A finger drawn sideways reads the weeks; drawn up or down it scrolls the page. */
 .sb__svg {
     display: block;
     overflow: visible;
     outline: none;
+    touch-action: pan-y;
 }
 
+/* The panel's one focus ring — not the row marker, which is for rows. */
 .sb__svg:focus-visible {
-    border-radius: var(--r-control);
-    box-shadow: var(--adm-row-focus);
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
 }
 
 .sb__grid line {
@@ -265,12 +324,11 @@ function onKey(event: KeyboardEvent): void {
     opacity: 0.45;
 }
 
-/* Columns grow from the baseline once, 240 ms, staggered by no more than 30 ms (BRIEF-2 §4). */
+/* Columns grow from the baseline once, 240 ms, all together: no staggered cascade (DIRECTION §5). */
 .sb__column--grow path {
     transform-box: fill-box;
     transform-origin: bottom;
     animation: sb-grow 240ms var(--ease-out) backwards;
-    animation-delay: inherit;
 }
 
 @keyframes sb-grow {
@@ -285,7 +343,6 @@ function onKey(event: KeyboardEvent): void {
     z-index: var(--z-raised);
     display: grid;
     gap: 2px;
-    margin-left: var(--sp-16);
     padding: var(--sp-8) var(--sp-12);
     border-radius: var(--r-control);
     background: var(--c-ink);
@@ -297,9 +354,6 @@ function onKey(event: KeyboardEvent): void {
     pointer-events: none;
 }
 
-.sb__tip--flip {
-    transform: translateX(calc(-100% - 2 * var(--sp-16)));
-}
 
 .sb__tip-week {
     color: var(--c-line-2);

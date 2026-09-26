@@ -29,10 +29,11 @@ describe('BarChart', () => {
     it('draws each bar in proportion to the largest, the first in the accent', () => {
         const bars = mount(BarChart, { props: { label: 'Top', bars: [point(8, 0), point(4, 1), point(2, 2)] } }).findAll('.bc__bar')
 
+        // Each bar's share of one and the same length (the track less the room for its figure): 8 : 4 : 2.
         expect(bars.map((b) => b.attributes('style'))).toEqual([
-            expect.stringContaining('width: 100%'),
-            expect.stringContaining('width: 50%'),
-            expect.stringContaining('width: 25%'),
+            expect.stringContaining('--share: 1'),
+            expect.stringContaining('--share: 0.5'),
+            expect.stringContaining('--share: 0.25'),
         ])
         expect(bars[0]?.classes()).toContain('bc__bar--lead')
         expect(bars[1]?.classes()).not.toContain('bc__bar--lead')
@@ -64,11 +65,11 @@ describe('StackedBar', () => {
         expect(mount(StackedBar, { props: { chart, label: 'Verdikte' } }).findAll('.sb__key').map((k) => k.text())).toEqual(['Freigegeben', 'Mit Auflagen', 'Nicht freigegeben', 'Unbekannt'])
     })
 
-    it('stacks only the series a week has, in their fixed colours', () => {
+    it('stacks only the series a week has, each in its verdict’s own colour', () => {
         const columns = mount(StackedBar, { props: { chart, label: 'Verdikte' } }).findAll('.sb__column')
         const first = columns[0]!.findAll('path')
 
-        expect(first.map((p) => p.attributes('fill'))).toEqual(['var(--chart-cat-1)', 'var(--chart-cat-2)', 'var(--chart-cat-4)'])
+        expect(first.map((p) => p.attributes('fill'))).toEqual(['var(--c-ok)', 'var(--c-warn)', 'var(--c-unk)'])
         expect(columns[1]!.findAll('path')).toHaveLength(1)
     })
 

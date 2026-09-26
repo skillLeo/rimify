@@ -14,11 +14,12 @@
  * dark-mode toggle are gone, and the account moved from the rail to the topbar's user menu.
  */
 
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import '../../css/admin.css'
 import AdminAppBar from '../Components/Admin/AdminAppBar.vue'
 import AdminBottomBar from '../Components/Admin/AdminBottomBar.vue'
+import AdminHealthBanner from '../Components/Admin/AdminHealthBanner.vue'
 import AdminPalette from '../Components/Admin/AdminPalette.vue'
 import AdminRail from '../Components/Admin/AdminRail.vue'
 import AdminTopbar from '../Components/Admin/AdminTopbar.vue'
@@ -31,6 +32,7 @@ import { isNavigationVisit, provideMobileShell } from '../composables/mobile/use
 import { stripSheetState } from '../composables/mobile/useSheetHistory'
 
 const admin = useAdmin()
+const page = usePage()
 
 // The phone's parts are the product's own (BottomSheet, ListRow); they need the mobile shell, which
 // also publishes the visible viewport and the keyboard inset the save bar and palette ride on.
@@ -125,12 +127,22 @@ onMounted(() => {
          */
         router.on('start', (event) => {
             lastWrite = event.detail.visit.method !== 'get'
+            lastAsync = event.detail.visit.async === true
         }),
         router.on('httpException', (event) => {
             const headers = event.detail.response.headers as Record<string, string | undefined>
+            const answer = event.detail.response.data as { component?: unknown } | undefined
 
-            // A page is a page: the admin's own refusal or not-found (Admin/Fehler) renders as before.
             if (headers['x-inertia']) {
+                // A background reload — the Übersicht's charts, a list's counts — answered with another
+                // page (the shop's error page for a query that failed) must not replace the page the
+                // reader is on: the page keeps what it has and says, where it waited, that it failed.
+                if (lastAsync && typeof answer?.component === 'string' && answer.component !== page.component) {
+                    event.preventDefault()
+                    toast.show({ text: failureMessage(undefined), icon: 'info' })
+                }
+
+                // Otherwise a page is a page: the admin's own refusal or not-found (Admin/Fehler).
                 return
             }
 
@@ -146,6 +158,9 @@ onMounted(() => {
 
 /** Whether the last visit wrote something: its failure then says nothing was saved. */
 let lastWrite = false
+
+/** Whether the last visit was a background reload (deferred props, polling) rather than a navigation. */
+let lastAsync = false
 
 const OFFLINE_WRITE = 'Keine Verbindung zum Server. Es wurde nichts gespeichert, deine Eingaben sind noch da. Prüf die Verbindung und versuch es noch einmal.'
 
@@ -186,6 +201,8 @@ onBeforeUnmount(() => {
         <div class="adm-work">
             <AdminAppBar />
             <AdminTopbar />
+            <!-- Only for the shop closed or a queue dead for an hour; everything else is the rail's quiet line. -->
+            <AdminHealthBanner />
 
             <main id="inhalt" class="adm-page" tabindex="-1">
                 <slot />

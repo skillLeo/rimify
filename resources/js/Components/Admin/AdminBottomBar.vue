@@ -12,7 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Icon from './AdminIcon.vue'
 import AdminMoreSheet from './AdminMoreSheet.vue'
-import { isCurrentPage } from '../../composables/admin/currentPage'
+import { BENEATH_UEBERSICHT, isCurrentPage } from '../../composables/admin/currentPage'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 import type { AdminNavGroup } from '../../types/admin'
 
@@ -42,7 +42,7 @@ function inGroup(group: AdminNavGroup): boolean {
 const moreOpen = ref(false)
 
 /** Pages reached from the app bar rather than from Mehr: being on one is not being in Mehr. */
-const OUTSIDE_MORE = ['/admin', '/admin/benachrichtigungen']
+const OUTSIDE_MORE = ['/admin', ...BENEATH_UEBERSICHT, '/admin/benachrichtigungen']
 
 /** Mehr is where you are when the page is one of its own. */
 const inMore = computed(() => !OUTSIDE_MORE.includes(path.value) && !slots.value.some(inGroup))
