@@ -41,8 +41,8 @@ interface ColourForm {
 const BASE = '/admin/wuchtgewichte'
 
 const EMPTY_TEXT = 'Noch keine Farbe angelegt. Solange können Kundinnen und Kunden kein Komplettrad bestellen.'
-const MONEY_HINT = 'Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.'
-const MOUNTING_HINT = 'Preis je Rad, deutsch geschrieben – zum Beispiel 19,90. Leer lassen heißt: noch nicht festgelegt.'
+const MONEY_HINT = 'Preis in Euro, mit Komma – zum Beispiel 49,00.'
+const MOUNTING_HINT = 'Preis je Rad, mit Komma – zum Beispiel 19,90. Leer lassen heißt: noch nicht festgelegt.'
 const MOUNTING_OPEN = 'Solange hier nichts steht, können Kundinnen und Kunden keine Kompletträder bestellen. Felgen allein sind davon nicht betroffen.'
 
 function blank(): ColourForm {
@@ -98,6 +98,8 @@ const editingColour = computed(() => props.colours.find((c) => c.id === editing.
 const canWrite = computed(() => props.can.create || props.can.update)
 const canAct = computed(() => props.can.update || props.can.delete)
 const formTitle = computed(() => (editingColour.value === null ? 'Neue Farbe' : `Farbe bearbeiten: ${editingColour.value.nameDe}`))
+/** The page's one primary action says what it does: make a colour, or keep the edit. */
+const submitLabel = computed(() => (editing.value === null ? 'Farbe anlegen' : 'Änderungen speichern'))
 
 const context = computed(() => {
     const total = props.colours.length
@@ -202,7 +204,7 @@ function remove(): void {
         <!-- The one fee every Komplettrad carries. Its own form, so saving a price never depends on
              the colour form being filled in, and clearing it is a save like any other. -->
         <section v-if="can.update" class="adm-section" aria-labelledby="wg-fee-title">
-            <form class="adm-panel adm-panel--pad wg__form wg__form--fee" :aria-busy="mountingBusy ? 'true' : undefined" @submit.prevent="saveMounting">
+            <form class="wg__form wg__form--fee" :aria-busy="mountingBusy ? 'true' : undefined" @submit.prevent="saveMounting">
                 <h2 id="wg-fee-title" class="adm-section__title wg__form-title">Montage und Auswuchten</h2>
 
                 <div class="form-field">
@@ -220,7 +222,7 @@ function remove(): void {
                             aria-describedby="wg-mounting-help wg-mounting-err"
                             :aria-invalid="mountingError ? 'true' : undefined"
                         >
-                        <button class="btn btn--primary" type="submit" :disabled="mountingBusy">Speichern</button>
+                        <button class="btn btn--secondary" type="submit" :disabled="mountingBusy">Montagepreis speichern</button>
                     </div>
                     <p id="wg-mounting-help" class="form-field__help">{{ MOUNTING_HINT }}</p>
                     <p id="wg-mounting-err" class="form-field__error">{{ mountingError }}</p>
@@ -231,7 +233,7 @@ function remove(): void {
         </section>
 
         <section v-if="canWrite" class="adm-section" aria-labelledby="wg-form-title">
-            <form class="adm-panel adm-panel--pad wg__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
+            <form class="wg__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
                 <h2 id="wg-form-title" class="adm-section__title wg__form-title">{{ formTitle }}</h2>
 
                 <div class="adm-fields wg__fields">
@@ -279,7 +281,7 @@ function remove(): void {
                         <input
                             id="wg-surcharge"
                             v-model="form.surcharge"
-                            class="input wg__num"
+                            class="input wg__num wg__money"
                             :class="{ 'input--error': errors.surchargeCents }"
                             type="text"
                             inputmode="decimal"
@@ -322,7 +324,7 @@ function remove(): void {
                 </div>
 
                 <div class="adm-fields__actions">
-                    <button class="btn btn--primary" type="submit" :disabled="busy">Speichern</button>
+                    <button class="btn btn--primary" type="submit" :disabled="busy">{{ submitLabel }}</button>
                     <button v-if="editing !== null" class="btn btn--secondary" type="button" @click="reset">Abbrechen</button>
                 </div>
             </form>
@@ -357,7 +359,7 @@ function remove(): void {
                                     </span>
                                 </span>
                             </td>
-                            <td data-label="Farbwert (Hex)" class="wg__hexcell">{{ colour.swatchHex ?? '–' }}</td>
+                            <td data-label="Farbwert (Hex)" class="wg__hexcell" data-phone="hide">{{ colour.swatchHex ?? '–' }}</td>
                             <td data-label="Aufpreis je Rad" class="num">{{ colour.surcharge }}</td>
                             <td data-label="Standardfarbe">
                                 <span v-if="colour.isDefault" class="wg__yes">
@@ -369,8 +371,9 @@ function remove(): void {
                                     <span class="visually-hidden">keine Standardfarbe</span>
                                 </span>
                             </td>
-                            <td data-label="Aktiv">
-                                <span class="tag" :class="colour.active ? 'tag--ok' : 'tag--unknown'">{{ colour.active ? 'Aktiv' : 'Inaktiv' }}</span>
+                            <td data-label="Aktiv" data-phone="status">
+                                <template v-if="colour.active">Aktiv</template>
+                                <span v-else class="adm-tag adm-tag--neutral">Inaktiv</span>
                             </td>
                             <td data-label="Reihenfolge" class="num">{{ colour.sortOrder }}</td>
                             <td v-if="canAct" data-label="Aktionen">
@@ -406,13 +409,23 @@ function remove(): void {
     margin-bottom: var(--sp-24);
 }
 
+/* A form sits on the page under its heading, one column (§8.2), no card around it. */
+.wg__form {
+    max-width: var(--adm-form-max);
+}
+
 .wg__form-title {
     margin-bottom: var(--sp-16);
 }
 
 .wg__fee-open {
-    max-width: 62ch;
+    max-width: 54ch;
     margin-top: var(--sp-12);
+}
+
+/* A price is a few characters wide; a field the width of the form invites a sentence. */
+.wg__money {
+    max-width: 22ch;
 }
 
 .wg__num {
@@ -445,22 +458,13 @@ function remove(): void {
     color: var(--c-ink-2);
 }
 
+/* A fact, not a success: the tick is ink, like the text around it. */
 .wg__yes {
     display: inline-flex;
-    color: var(--c-ok);
+    color: var(--c-ink);
 }
 
 .wg__no {
     color: var(--c-ink-3);
-}
-
-@media (min-width: 1024px) {
-    .wg__fields {
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 0.8fr) auto;
-    }
-
-    .wg__checks {
-        padding-top: var(--sp-24);
-    }
 }
 </style>

@@ -129,7 +129,7 @@
 .adm-rail__list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--sp-4);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -211,9 +211,19 @@
 .adm[data-rail='collapsed'] .adm-wordmark--full,
 .adm[data-rail='collapsed'] .adm-rail__brand .adm-env,
 .adm[data-rail='collapsed'] .adm-rail__label,
-.adm[data-rail='collapsed'] .adm-rail__text,
 .adm[data-rail='collapsed'] .adm-rail__count {
     display: none;
+}
+
+/* The label leaves the screen but not the link: hidden with display it would leave an icon-only link
+   with no name at all, and a screen reader would announce only "Link". */
+.adm[data-rail='collapsed'] .adm-rail__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 .adm[data-rail='collapsed'] .adm-wordmark--mark {
@@ -245,10 +255,18 @@
     .adm .adm-wordmark--full,
     .adm .adm-rail__brand .adm-env,
     .adm .adm-rail__label,
-    .adm .adm-rail__text,
     .adm .adm-rail__count,
     .adm .adm-rail__toggle {
         display: none;
+    }
+
+    .adm .adm-rail__text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
     }
 
     .adm .adm-wordmark--mark {
@@ -295,14 +313,15 @@
     }
 }
 
+/* The collapsed rail's label, on the same surface as a menu — a light card, never a dark chip. */
 .adm-tooltip {
     z-index: var(--z-dropdown);
     padding: var(--sp-4) var(--sp-8);
-    border-radius: var(--r-control);
-    background: var(--c-ink);
-    color: var(--c-surface);
-    font-size: var(--fs-micro);
-    line-height: var(--lh-micro);
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
     box-shadow: var(--e-2);
 }
 
@@ -1418,7 +1437,7 @@
 
 /* A refusal the server made about the block it sits above: said once, read before the retry. */
 .adm-alert {
-    max-width: 72ch;
+    max-width: 54ch;
     margin: var(--sp-12) 0;
     padding: var(--sp-12) var(--sp-16);
     border: 1px solid var(--c-bad);
@@ -1429,26 +1448,21 @@
     line-height: var(--lh-small);
 }
 
-/* One bordered surface for a table or a small form — the only card a list page needs. */
+/* Not everything is a card: a table sits on the page under one hairline, the same rule its rows use.
+   Wider than the work area (768–1023 with many columns), it scrolls inside itself, never the page. */
 .adm-panel {
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-tile);
+    border-top: 1px solid var(--c-line);
     background: var(--c-surface);
-    overflow: hidden;
+    overflow-x: auto;
 }
 
+/* Kept for anything still wearing it: a little air under the hairline, no box, no inset. */
 .adm-panel--pad {
-    padding: var(--sp-20) var(--sp-24);
+    padding-top: var(--sp-16);
     overflow: visible;
 }
 
-@media (max-width: 767px) {
-    .adm-panel--pad {
-        padding: var(--sp-16);
-    }
-}
-
-/* A small form inside a panel: fields in a row from 1024 px, one column below. */
+/* A small form's fields: one column (§8.2), label above field, within the form's reading width. */
 .adm-fields {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1500,6 +1514,12 @@
     max-width: 54ch;
 }
 
+/* A checkbox label is a field's label, not body copy: the admin's one notch smaller. */
+.adm .check {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
 /* ── Filters (§8.1: at the top of the body, never in the header) ─────────────────────── */
 
 .adm-filters {
@@ -1549,8 +1569,9 @@
     }
 }
 
+/* Chosen: the tint alone, its edge in the same tint — one signal, not a blue ring around a fill. */
 .adm-chip[aria-pressed='true'] {
-    border-color: var(--c-blue);
+    border-color: var(--c-blue-tint);
     background: var(--c-blue-tint);
     color: var(--c-ink);
 }
@@ -1633,7 +1654,41 @@
     background: var(--c-blue-tint);
 }
 
-/* Below 768 each row is a card: the first cell is its key line, every other value labelled. */
+/* ── Status tags: only the exception is tagged; the normal state is plain text ─────── */
+
+.adm-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding-inline: var(--sp-8);
+    border-radius: var(--r-control);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Not yet, or not any more — a state to notice, not a fault. */
+.adm-tag--neutral {
+    background: var(--c-band);
+    color: var(--c-ink-2);
+}
+
+/* Still on file, but something newer governs. */
+.adm-tag--warn {
+    background: var(--c-warn-tint);
+    color: var(--c-ink);
+}
+
+/* Withdrawn or failed: the one tone that means something is wrong. */
+.adm-tag--bad {
+    background: var(--c-bad-tint);
+    color: var(--c-bad);
+}
+
+/* Below 768 each row is a card: the first cell is its key line, every other value labelled.
+   A cell marked `data-phone="status"` joins the key line on the right; one marked
+   `data-phone="hide"` is left out, so a card carries three facts at most. */
 @media (max-width: 767px) {
     .adm-table thead {
         position: absolute;
@@ -1650,8 +1705,13 @@
         display: block;
     }
 
+    /* The card: every cell a full-width line, except the key line and its status, which share the
+       first. */
     .adm-table tr {
-        padding: var(--sp-12) var(--sp-16);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: var(--sp-12);
+        padding: var(--sp-12) 0;
         border-bottom: 1px solid var(--c-line);
     }
 
@@ -1661,12 +1721,22 @@
 
     .adm-table td {
         display: grid;
+        grid-column: 1 / -1;
         grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
         gap: var(--sp-12);
         height: auto;
         padding: var(--sp-4) 0;
         border: 0;
         text-align: left;
+    }
+
+    /* A value is as wide as it is — a tag or a button row never stretches to the card's edge. */
+    .adm-table td > * {
+        justify-self: start;
+    }
+
+    .adm-table td[data-phone='hide'] {
+        display: none;
     }
 
     .adm-table td.num {
@@ -1681,12 +1751,29 @@
     /* The key line reads as the card's title, not as one more labelled value. */
     .adm-table td:first-child {
         display: block;
+        grid-row: 1;
+        grid-column: 1;
+        align-self: baseline;
         padding-bottom: var(--sp-8);
         font-size: var(--fs-body);
         line-height: var(--lh-body);
     }
 
     .adm-table td:first-child::before {
+        content: none;
+    }
+
+    /* The row's state sits at the end of its key line, where the eye lands after the name. */
+    .adm-table td[data-phone='status'] {
+        display: block;
+        grid-row: 1;
+        grid-column: 2;
+        align-self: baseline;
+        padding-bottom: var(--sp-8);
+        text-align: right;
+    }
+
+    .adm-table td[data-phone='status']::before {
         content: none;
     }
 
@@ -1709,17 +1796,25 @@
 .adm-stats {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: var(--sp-16);
+    gap: var(--sp-24);
 }
 
+/* From 1024 three to a row, so six figures read as two rows of three, never four and two. */
+@media (min-width: 1024px) {
+    .adm-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* A figure under a hairline, not a card: the number carries the tile. */
 .adm-stat {
     display: grid;
+    align-content: start;
     gap: var(--sp-8);
     /* So the figure answers to the tile's own width, not the viewport's. */
     container-type: inline-size;
-    padding: var(--sp-16) var(--sp-20);
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-tile);
+    padding-top: var(--sp-16);
+    border-top: 1px solid var(--c-line);
     background: var(--c-surface);
     color: var(--c-ink);
     text-decoration: none;
@@ -1739,7 +1834,7 @@
 .adm-stat__go {
     flex: none;
     color: var(--c-ink-3);
-    transition: transform var(--d-1) var(--ease-out), color var(--d-1) var(--ease-out);
+    transition: color var(--d-1) var(--ease-out);
 }
 
 /* A figure is one thing, so it stays on one line: `7.224,00 €` once wrapped after the last digit
@@ -1763,29 +1858,29 @@
     transition: border-color var(--d-1) var(--ease-out);
 }
 
+/* Pointing at a figure darkens its hairline and its arrow; nothing moves. */
 @media (hover: hover) and (pointer: fine) {
     .adm-stat--link:hover {
-        border-color: var(--c-line-2);
+        border-top-color: var(--c-ink-3);
     }
 
     .adm-stat--link:hover .adm-stat__go {
         color: var(--c-ink);
-        transform: translateX(2px);
     }
 }
 
 .adm-stat--link:active {
-    background: var(--c-band);
+    border-top-color: var(--c-ink);
 }
 
 @media (max-width: 767px) {
     .adm-stats {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--sp-12);
+        gap: var(--sp-16);
     }
 
     .adm-stat {
-        padding: var(--sp-12);
+        padding-top: var(--sp-12);
     }
 }
 

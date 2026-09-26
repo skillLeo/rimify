@@ -72,5 +72,5 @@ it('says when the figures were counted, in German and in Berlin time', function 
 
     $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
 
-    expect(uebersichtProps($admin)['asOf'])->toBe('26.09.2026, 13:40 Uhr');
+    expect(uebersichtProps($admin)['asOf'])->toBe("26.09.2026, 13:40\u{00A0}Uhr");
 });

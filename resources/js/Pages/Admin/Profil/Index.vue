@@ -61,7 +61,7 @@ onMounted(() => {
                     </div>
                 </dl>
 
-                <p class="adm-form__note">Name, E-Mail-Adresse und Rolle ändert eine Person, die im Admin die Benutzer verwaltet.</p>
+                <p class="adm-form__note">Das ändert, wer im Admin die Benutzer verwaltet.</p>
             </section>
 
             <section id="passwort" class="adm-form__group" aria-labelledby="profil-passwort">

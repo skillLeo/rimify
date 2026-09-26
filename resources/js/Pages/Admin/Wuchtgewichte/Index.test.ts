@@ -110,12 +110,41 @@ describe('Wuchtgewichte-Farben', () => {
         expect(rows[0]!.text()).toContain('silber')
         expect(rows[0]!.text()).toContain('0,00 €')
         expect(rows[0]!.find('.wg__yes').exists()).toBe(true)
-        expect(rows[0]!.find('.tag').text()).toBe('Aktiv')
+        // The normal state is plain text; only the exception wears a tag.
+        expect(rows[0]!.find('.adm-tag').exists()).toBe(false)
+        expect(rows[0]!.find('[data-label="Aktiv"]').text()).toBe('Aktiv')
         expect(rows[1]!.text()).toContain('2,50 €')
         expect(rows[1]!.find('.wg__yes').exists()).toBe(false)
-        expect(rows[1]!.find('.tag').text()).toBe('Inaktiv')
+        expect(rows[1]!.find('.adm-tag.adm-tag--neutral').text()).toBe('Inaktiv')
         // The cents travel as data and are never printed or multiplied here.
         expect(wrapper.text()).not.toContain('250')
+    })
+
+    it('has one primary action, and every save button says what it saves', async () => {
+        const wrapper = mountPage()
+        const primaries = wrapper.findAll('.btn--primary')
+
+        expect(primaries).toHaveLength(1)
+        expect(primaries[0]!.text()).toBe('Farbe anlegen')
+
+        const fee = wrapper.find('form.wg__form--fee button[type="submit"]')
+        expect(fee.text()).toBe('Montagepreis speichern')
+        expect(fee.classes()).toContain('btn--secondary')
+        expect(wrapper.text()).toContain('Preis je Rad, mit Komma – zum Beispiel 19,90.')
+
+        // The forms sit on the page, not in a card.
+        expect(wrapper.find('form.adm-panel').exists()).toBe(false)
+
+        await button(wrapper, 'Bearbeiten')!.trigger('click')
+
+        expect(wrapper.find('.btn--primary').text()).toBe('Änderungen speichern')
+    })
+
+    it('marks what a phone card leaves out and what joins its key line', () => {
+        const row = mountPage().find('tbody tr')
+
+        expect(row.find('[data-label="Farbwert (Hex)"]').attributes('data-phone')).toBe('hide')
+        expect(row.find('[data-label="Aktiv"]').attributes('data-phone')).toBe('status')
     })
 
     it('names the consequence when no colour exists and still offers the form to a writer', () => {
@@ -141,7 +170,7 @@ describe('Wuchtgewichte-Farben', () => {
     it('posts a new colour as typed, without touching the money string', async () => {
         const wrapper = mountPage()
 
-        expect(wrapper.text()).toContain('Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.')
+        expect(wrapper.text()).toContain('Preis in Euro, mit Komma – zum Beispiel 49,00.')
 
         await wrapper.find('#wg-name').setValue('Schwarz')
         await wrapper.find('#wg-hex').setValue('#1A1C20')

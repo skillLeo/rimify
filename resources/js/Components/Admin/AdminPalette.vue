@@ -92,7 +92,7 @@ const actions = computed<PaletteEntry[]>(() => {
     }
 
     list.push(
-        { id: 'action:password', group: 'actions', label: 'Passwort ändern', sub: 'Profil', keys: null, icon: 'lock', href: '/admin/profil#passwort', keywords: 'kennwort' },
+        { id: 'action:password', group: 'actions', label: 'Passwort ändern', sub: 'Profil', keys: null, icon: 'shield', href: '/admin/profil#passwort', keywords: 'kennwort' },
         { id: 'action:logout', group: 'actions', label: 'Abmelden', sub: null, keys: null, icon: 'logout', run: signOut, keywords: 'ausloggen' }
     )
 

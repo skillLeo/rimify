@@ -2,24 +2,29 @@
 /**
  * Gutachten › Dokumente: every approval document on file.
  *
- * The Freigaben column shows published against total on purpose: a document with twenty rows
+ * The Veröffentlicht column shows published against total on purpose: a document with twenty rows
  * entered and none published is the most common half-finished state in this workflow, and it is
  * invisible unless the list says so.
  *
- * Status and type narrow the list in place. A draft renders neutral, never red: "not yet checked"
- * is not "refused" (R-03, R-07). Nothing on file and nothing matching the filters are two different
- * states with two different sentences (admin-shell.md §9.3).
+ * Only the exception is tagged: a published document says so in plain text, a draft is neutral
+ * (never red — "not yet checked" is not "refused", R-03, R-07), a superseded one a warning and a
+ * withdrawn one the failure tone. Status and type narrow the list in place, and a filter appears only
+ * where there is something to choose between. Nothing on file and nothing matching the filters are two
+ * different states with two different sentences (admin-shell.md §9.3).
  */
 
 import { computed, ref } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import { decimal } from '../../../format'
 import type { AdminGutachtenProps } from '../../../types/pages'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminGutachtenProps>()
+
+type Document = AdminGutachtenProps['documents'][number]
 
 const KIND_LABEL: Record<string, string> = {
     ABE: 'ABE',
@@ -28,15 +33,16 @@ const KIND_LABEL: Record<string, string> = {
     EC: 'EG-Genehmigung',
 }
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-    published: { label: 'Veröffentlicht', cls: 'tag--ok' },
-    draft: { label: 'Entwurf', cls: 'tag--unknown' },
-    superseded: { label: 'Ersetzt', cls: 'tag--warn' },
-    withdrawn: { label: 'Zurückgezogen', cls: 'tag--danger' },
+/** `tag: null` is the normal state, printed as plain text. */
+const STATUS: Record<string, { label: string; tag: string | null }> = {
+    published: { label: 'Veröffentlicht', tag: null },
+    draft: { label: 'Entwurf', tag: 'adm-tag--neutral' },
+    superseded: { label: 'Ersetzt', tag: 'adm-tag--warn' },
+    withdrawn: { label: 'Zurückgezogen', tag: 'adm-tag--bad' },
 }
 
-function statusOf(status: string): { label: string; cls: string } {
-    return STATUS[status] ?? { label: status, cls: 'tag--unknown' }
+function statusOf(status: string): { label: string; tag: string | null } {
+    return STATUS[status] ?? { label: status, tag: 'adm-tag--neutral' }
 }
 
 const status = ref<string | null>(null)
@@ -46,7 +52,11 @@ const kind = ref<string | null>(null)
 const statusOptions = computed(() => countBy((d) => d.status))
 const kindOptions = computed(() => countBy((d) => d.kind))
 
-function countBy(key: (d: AdminGutachtenProps['documents'][number]) => string): { value: string; count: number }[] {
+/** A filter with one value filters nothing, so it is not drawn. */
+const showStatus = computed(() => statusOptions.value.length >= 2)
+const showKind = computed(() => kindOptions.value.length >= 2)
+
+function countBy(key: (d: Document) => string): { value: string; count: number }[] {
     const counts = new Map<string, number>()
 
     for (const doc of props.documents) {
@@ -76,14 +86,14 @@ const context = computed(() => {
 
     const published = props.documents.filter((d) => d.status === 'published').length
 
-    return `${total} ${total === 1 ? 'Dokument' : 'Dokumente'} · ${published} veröffentlicht`
+    return `${decimal(total, 0)} ${total === 1 ? 'Dokument' : 'Dokumente'} · ${decimal(published, 0)} veröffentlicht`
 })
 </script>
 
 <template>
     <AdminPage title="Dokumente" :context="context">
-        <div v-if="documents.length > 0" class="adm-filters">
-            <div class="adm-filter" role="group" aria-label="Status">
+        <div v-if="showStatus || showKind" class="adm-filters">
+            <div v-if="showStatus" class="adm-filter" role="group" aria-label="Status">
                 <span class="adm-filter__label" aria-hidden="true">Status</span>
                 <button class="adm-chip" type="button" :aria-pressed="status === null" @click="status = null">Alle</button>
                 <button
@@ -95,11 +105,11 @@ const context = computed(() => {
                     @click="status = status === option.value ? null : option.value"
                 >
                     {{ statusOf(option.value).label }}
-                    <span class="adm-chip__n">{{ option.count }}</span>
+                    <span class="adm-chip__n">{{ decimal(option.count, 0) }}</span>
                 </button>
             </div>
 
-            <div class="adm-filter" role="group" aria-label="Art">
+            <div v-if="showKind" class="adm-filter" role="group" aria-label="Art">
                 <span class="adm-filter__label" aria-hidden="true">Art</span>
                 <button class="adm-chip" type="button" :aria-pressed="kind === null" @click="kind = null">Alle</button>
                 <button
@@ -111,7 +121,7 @@ const context = computed(() => {
                     @click="kind = kind === option.value ? null : option.value"
                 >
                     {{ KIND_LABEL[option.value] ?? option.value }}
-                    <span class="adm-chip__n">{{ option.count }}</span>
+                    <span class="adm-chip__n">{{ decimal(option.count, 0) }}</span>
                 </button>
             </div>
         </div>
@@ -125,7 +135,7 @@ const context = computed(() => {
                         <th scope="col">Aussteller</th>
                         <th scope="col" class="num">Ausgestellt</th>
                         <th scope="col">Status</th>
-                        <th scope="col" class="num">Freigaben</th>
+                        <th scope="col" class="num">Veröffentlicht</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -134,16 +144,17 @@ const context = computed(() => {
                             <span class="adm-table__key">{{ doc.reportNumber }}</span>
                             <span v-if="doc.kbaNumber" class="adm-table__sub">KBA {{ doc.kbaNumber }}</span>
                         </td>
-                        <td data-label="Art">{{ KIND_LABEL[doc.kind] ?? doc.kind }}</td>
-                        <td data-label="Aussteller">{{ doc.issuer }}</td>
+                        <td data-label="Art" data-phone="hide">{{ KIND_LABEL[doc.kind] ?? doc.kind }}</td>
+                        <td data-label="Aussteller" data-phone="hide">{{ doc.issuer }}</td>
                         <td data-label="Ausgestellt" class="num">{{ doc.issuedOn ?? '–' }}</td>
-                        <td data-label="Status">
+                        <td data-label="Status" data-phone="status">
                             <span>
-                                <span class="tag" :class="statusOf(doc.status).cls">{{ statusOf(doc.status).label }}</span>
+                                <span v-if="statusOf(doc.status).tag" class="adm-tag" :class="statusOf(doc.status).tag">{{ statusOf(doc.status).label }}</span>
+                                <template v-else>{{ statusOf(doc.status).label }}</template>
                                 <span class="adm-table__sub">Fassung {{ doc.revision }}</span>
                             </span>
                         </td>
-                        <td data-label="Freigaben" class="num">{{ doc.publishedCount }} von {{ doc.fitmentCount }} veröffentlicht</td>
+                        <td data-label="Veröffentlicht" class="num">{{ decimal(doc.publishedCount, 0) }} von {{ decimal(doc.fitmentCount, 0) }}</td>
                     </tr>
                 </tbody>
             </table>

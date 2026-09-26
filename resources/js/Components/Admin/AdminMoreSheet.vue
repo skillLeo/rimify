@@ -81,7 +81,7 @@ function signOut(): void {
             </div>
 
             <ListRow icon="user" title="Profil" href="/admin/profil" />
-            <ListRow icon="lock" title="Passwort ändern" href="/admin/profil#passwort" />
+            <ListRow icon="shield" title="Passwort ändern" href="/admin/profil#passwort" />
             <ListRow icon="logout" :title="signingOut ? 'Wird abgemeldet …' : 'Abmelden'" :chevron="false" :disabled="signingOut" @activate="signOut" />
         </div>
     </BottomSheet>

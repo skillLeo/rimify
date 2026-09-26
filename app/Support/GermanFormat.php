@@ -174,10 +174,10 @@ final class GermanFormat
         return $date === null ? null : self::inBerlin($date)->format('d.m.Y');
     }
 
-    /** `21.11.2025, 14:22 Uhr` */
+    /** `21.11.2025, 14:22 Uhr` — a no-break space before `Uhr`, so the time never wraps from its unit. */
     public static function dateTime(?DateTimeInterface $at): ?string
     {
-        return $at === null ? null : self::inBerlin($at)->format('d.m.Y, H:i').' Uhr';
+        return $at === null ? null : self::inBerlin($at)->format('d.m.Y, H:i').self::NBSP.'Uhr';
     }
 
     /** `03/2018` */

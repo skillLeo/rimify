@@ -61,7 +61,7 @@ function signOut(event: Event): void {
                 </DropdownMenuItem>
                 <DropdownMenuItem as-child>
                     <Link href="/admin/profil#passwort" class="adm-menu__item">
-                        <Icon name="lock" :size="20" />
+                        <Icon name="shield" :size="20" />
                         Passwort ändern
                     </Link>
                 </DropdownMenuItem>

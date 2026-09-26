@@ -19,12 +19,11 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminBenachrichtigungenProps>()
 
-const STATUS: Record<string, string> = {
-    Wartet: 'tag--unknown',
-    Benachrichtigt: 'tag--ok',
-    Unbestätigt: 'tag--unknown',
-    Abgemeldet: 'tag--unknown',
-}
+/**
+ * Only the exception is tagged. Waiting and notified are the two normal outcomes and read as plain
+ * text; an address never confirmed or since unsubscribed is set apart, neutral — it is nobody's fault.
+ */
+const TAGGED: ReadonlySet<string> = new Set(['Unbestätigt', 'Abgemeldet'])
 
 const context = computed(() => {
     const { waiting, total } = props.summary
@@ -42,7 +41,7 @@ const context = computed(() => {
         <AdminState
             v-if="summary.total === 0"
             kind="empty"
-            text="Wer im Shop für sein Fahrzeug noch keine passende Felge findet, kann sich hier eintragen lassen."
+            text="Kundinnen und Kunden tragen sich im Shop ein, wenn für ihr Fahrzeug noch keine Felge freigegeben ist."
         />
 
         <template v-else>
@@ -67,7 +66,7 @@ const context = computed(() => {
                             <tr v-for="row in demand" :key="row.keyNumbers + row.vehicle">
                                 <td data-label="Fahrzeug"><span class="adm-table__key">{{ row.vehicle }}</span></td>
                                 <td data-label="HSN/TSN" class="num ben__keys">{{ row.keyNumbers }}</td>
-                                <td data-label="Wartende" class="num">{{ row.waiting }}</td>
+                                <td data-label="Wartende" class="num">{{ decimal(row.waiting, 0) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -102,7 +101,10 @@ const context = computed(() => {
                                         <span class="adm-table__sub">{{ row.keyNumbers }}</span>
                                     </span>
                                 </td>
-                                <td data-label="Status"><span class="tag" :class="STATUS[row.status] ?? 'tag--unknown'">{{ row.status }}</span></td>
+                                <td data-label="Status" data-phone="status">
+                                    <span v-if="TAGGED.has(row.status)" class="adm-tag adm-tag--neutral">{{ row.status }}</span>
+                                    <template v-else>{{ row.status }}</template>
+                                </td>
                                 <td data-label="Eingetragen" class="num">{{ row.requestedAt }}</td>
                                 <td data-label="Benachrichtigt" class="num">{{ row.notifiedAt ?? '–' }}</td>
                             </tr>

@@ -96,6 +96,14 @@ it('renders dates in Europe/Berlin from a UTC instant', function (): void {
     expect(GermanFormat::date(null))->toBeNull();
 });
 
+it('renders a time with a no-break space before Uhr, in Europe/Berlin', function (): void {
+    // 12:40 UTC in September is 14:40 summer time in Berlin; the time never wraps from its unit.
+    expect(GermanFormat::dateTime(new DateTimeImmutable('2026-09-26 12:40:00', new DateTimeZone('UTC'))))
+        ->toBe("26.09.2026, 14:40\u{00A0}Uhr")
+        ->not->toContain(' Uhr')
+        ->and(GermanFormat::dateTime(null))->toBeNull();
+});
+
 it('accepts any DateTimeInterface, including Carbon', function (): void {
     expect(GermanFormat::date(Carbon::parse('2025-11-21 12:00:00', 'UTC')))
         ->toBe('21.11.2025');

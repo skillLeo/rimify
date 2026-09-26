@@ -37,8 +37,8 @@ interface PriceForm {
 const BASE = '/admin/rdks-preise'
 
 const EMPTY_TEXT = 'Noch kein Preis hinterlegt. Wir fragen RDKS-Sensoren an der Kasse zwar ab, können sie aber für keine Marke berechnen.'
-const MONEY_HINT = 'Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.'
-const DEFAULT_HINT = 'Preis je Sensor, deutsch geschrieben – zum Beispiel 15,00. Leer lassen heißt: kein Standardpreis.'
+const MONEY_HINT = 'Preis in Euro, mit Komma – zum Beispiel 49,00.'
+const DEFAULT_HINT = 'Preis je Sensor, mit Komma – zum Beispiel 15,00. Leer lassen heißt: kein Standardpreis.'
 const DEFAULT_OPEN =
     'Ohne Standardpreis bieten wir RDKS-Sensoren nur für die Marken unten an. Allen anderen sagen wir an der Kasse, dass wir den Preis noch nicht haben.'
 
@@ -99,6 +99,8 @@ const editingPrice = computed(() => props.prices.find((p) => p.id === editing.va
 const canWrite = computed(() => props.can.create || props.can.update)
 const canAct = computed(() => props.can.update || props.can.delete)
 const formTitle = computed(() => (editingPrice.value === null ? 'Neuer Preis' : `Preis bearbeiten: ${editingPrice.value.makeLabelDe}`))
+/** The page's one primary action says what it does: add a make's price, or keep the edit. */
+const submitLabel = computed(() => (editing.value === null ? 'Preis anlegen' : 'Änderungen speichern'))
 const makeError = computed(() => errors.value.makeKey ?? errors.value.makeLabelDe ?? '')
 
 const context = computed(() => {
@@ -192,7 +194,7 @@ function remove(): void {
 
         <!-- The rule, above its exceptions: what a make with no row of its own is charged. -->
         <section v-if="can.update" class="adm-section" aria-labelledby="rd-default-title">
-            <form class="adm-panel adm-panel--pad rd__form rd__form--default" :aria-busy="defaultBusy ? 'true' : undefined" @submit.prevent="saveDefault">
+            <form class="rd__form rd__form--default" :aria-busy="defaultBusy ? 'true' : undefined" @submit.prevent="saveDefault">
                 <h2 id="rd-default-title" class="adm-section__title rd__form-title">Standardpreis je Sensor</h2>
 
                 <div class="form-field">
@@ -210,7 +212,7 @@ function remove(): void {
                             aria-describedby="rd-default-help rd-default-err"
                             :aria-invalid="defaultError ? 'true' : undefined"
                         >
-                        <button class="btn btn--primary" type="submit" :disabled="defaultBusy">Speichern</button>
+                        <button class="btn btn--secondary" type="submit" :disabled="defaultBusy">Standardpreis speichern</button>
                     </div>
                     <p id="rd-default-help" class="form-field__help">{{ DEFAULT_HINT }}</p>
                     <p id="rd-default-err" class="form-field__error">{{ defaultError }}</p>
@@ -221,7 +223,7 @@ function remove(): void {
         </section>
 
         <section v-if="canWrite" class="adm-section" aria-labelledby="rd-form-title">
-            <form class="adm-panel adm-panel--pad rd__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
+            <form class="rd__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
                 <h2 id="rd-form-title" class="adm-section__title rd__form-title">{{ formTitle }}</h2>
 
                 <div class="adm-fields rd__fields">
@@ -252,7 +254,7 @@ function remove(): void {
                         <input
                             id="rd-price"
                             v-model="form.price"
-                            class="input rd__num"
+                            class="input rd__num rd__money"
                             :class="{ 'input--error': errors.priceCents }"
                             type="text"
                             inputmode="decimal"
@@ -275,7 +277,7 @@ function remove(): void {
                 </div>
 
                 <div class="adm-fields__actions">
-                    <button class="btn btn--primary" type="submit" :disabled="busy">Speichern</button>
+                    <button class="btn btn--primary" type="submit" :disabled="busy">{{ submitLabel }}</button>
                     <button v-if="editing !== null" class="btn btn--secondary" type="button" @click="reset">Abbrechen</button>
                 </div>
             </form>
@@ -303,8 +305,9 @@ function remove(): void {
                                 <span class="adm-table__sub rd__key">{{ keyNote(price.makeKey) }}</span>
                             </td>
                             <td data-label="Preis je Sensor" class="num">{{ price.price }}</td>
-                            <td data-label="Aktiv">
-                                <span class="tag" :class="price.active ? 'tag--ok' : 'tag--unknown'">{{ price.active ? 'Aktiv' : 'Inaktiv' }}</span>
+                            <td data-label="Aktiv" data-phone="status">
+                                <template v-if="price.active">Aktiv</template>
+                                <span v-else class="adm-tag adm-tag--neutral">Inaktiv</span>
                             </td>
                             <td v-if="canAct" data-label="Aktionen">
                                 <div class="adm-table__actions">
@@ -339,13 +342,23 @@ function remove(): void {
     margin-bottom: var(--sp-24);
 }
 
+/* A form sits on the page under its heading, one column (§8.2), no card around it. */
+.rd__form {
+    max-width: var(--adm-form-max);
+}
+
 .rd__form-title {
     margin-bottom: var(--sp-16);
 }
 
 .rd__default-open {
-    max-width: 62ch;
+    max-width: 54ch;
     margin-top: var(--sp-12);
+}
+
+/* A price is a few characters wide; a field the width of the form invites a sentence. */
+.rd__money {
+    max-width: 22ch;
 }
 
 .rd__num {
@@ -354,15 +367,5 @@ function remove(): void {
 
 .rd__key {
     max-width: 54ch;
-}
-
-@media (min-width: 1024px) {
-    .rd__fields {
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) auto;
-    }
-
-    .rd__checks {
-        padding-top: var(--sp-24);
-    }
 }
 </style>
