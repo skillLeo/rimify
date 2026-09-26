@@ -100,6 +100,18 @@ function submit(): void {
                     </dl>
 
                     <form class="invite__fields" novalidate @submit.prevent="submit">
+                        <!-- The sign-in name a password manager stores with the new password; without it,
+                             it saves "Dein Name" as the login. Shown above as a fact, not typed. -->
+                        <input
+                            class="visually-hidden"
+                            type="email"
+                            name="username"
+                            autocomplete="username"
+                            :value="invitation.email"
+                            readonly
+                            tabindex="-1"
+                            aria-hidden="true"
+                        >
                         <div>
                             <label class="field-label" for="inv-name">Dein Name</label>
                             <input
@@ -160,7 +172,7 @@ function submit(): void {
 <style scoped>
 .invite {
     display: grid;
-    min-height: 100vh;
+    min-height: 100dvh;
     background: var(--surface);
 }
 

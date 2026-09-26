@@ -131,9 +131,17 @@ export interface RecentPage {
     label: string
 }
 
-export function readRecent(): RecentPage[] {
+/**
+ * The storage key for one person's recent pages. Keyed by account, so two people who share a browser
+ * never see where the other has been; without an account the shared key is used.
+ */
+export function recentKey(account: string | null): string {
+    return account ? `${RECENT_KEY}:${account.toLowerCase()}` : RECENT_KEY
+}
+
+export function readRecent(key: string = RECENT_KEY): RecentPage[] {
     try {
-        const raw: unknown = JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? '[]')
+        const raw: unknown = JSON.parse(window.localStorage.getItem(key) ?? '[]')
 
         if (!Array.isArray(raw)) {
             return []
@@ -148,11 +156,11 @@ export function readRecent(): RecentPage[] {
 }
 
 /** Puts a page at the front, once. */
-export function rememberRecent(page: RecentPage): void {
-    const next = [page, ...readRecent().filter((r) => r.href !== page.href)].slice(0, RECENT_MAX)
+export function rememberRecent(page: RecentPage, key: string = RECENT_KEY): void {
+    const next = [page, ...readRecent(key).filter((r) => r.href !== page.href)].slice(0, RECENT_MAX)
 
     try {
-        window.localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+        window.localStorage.setItem(key, JSON.stringify(next))
     } catch {
         // Nothing to do: remembering is a courtesy.
     }

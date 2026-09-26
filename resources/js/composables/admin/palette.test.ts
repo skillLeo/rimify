@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AdminNavGroup } from '../../types/admin'
-import { pageEntries, readRecent, recentEntries, rememberRecent, RECENT_KEY, search } from './palette'
+import { pageEntries, readRecent, recentEntries, recentKey, rememberRecent, RECENT_KEY, search } from './palette'
 
 /*
  * What the palette finds. The rules worth pinning: German words are found however the umlaut is
@@ -77,6 +77,15 @@ describe('recent pages', () => {
         }
 
         expect(readRecent().map((r) => r.href)).toEqual(['/b', '/f', '/e', '/d', '/c'])
+    })
+
+    it('keeps each account\'s recent pages apart', () => {
+        rememberRecent({ href: '/admin/rollen', label: 'Rollen & Rechte' }, recentKey('mara@example.test'))
+        rememberRecent({ href: '/admin/gutachten', label: 'Dokumente' }, recentKey('nils@example.test'))
+
+        expect(readRecent(recentKey('mara@example.test')).map((r) => r.href)).toEqual(['/admin/rollen'])
+        expect(readRecent(recentKey('NILS@example.test')).map((r) => r.href)).toEqual(['/admin/gutachten'])
+        expect(readRecent()).toEqual([])
     })
 
     it('reads garbage as nothing rather than throwing', () => {

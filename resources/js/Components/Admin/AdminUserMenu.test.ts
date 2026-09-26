@@ -28,6 +28,7 @@ vi.mock('reka-ui', () => ({
     DropdownMenuPortal: defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) }),
     DropdownMenuContent: defineComponent({ setup: (_, { slots, attrs }) => () => h('div', attrs, slots.default?.()) }),
     DropdownMenuSeparator: defineComponent({ setup: () => () => h('hr') }),
+    DropdownMenuLabel: defineComponent({ setup: (_, { slots, attrs }) => () => h('div', attrs, slots.default?.()) }),
     DropdownMenuItem: defineComponent({
         props: { asChild: Boolean, disabled: Boolean },
         emits: ['select'],

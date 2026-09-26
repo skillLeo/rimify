@@ -14,7 +14,7 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
@@ -24,12 +24,15 @@ import {
     pageEntries,
     readRecent,
     recentEntries,
+    recentKey,
     rememberRecent,
     search,
     type PaletteEntry,
     type PaletteGroup,
     type RecentPage,
 } from '../../composables/admin/palette'
+import { hasMobileShell, useMobileShell } from '../../composables/mobile/useMobileShell'
+import { useSheetHistory } from '../../composables/mobile/useSheetHistory'
 
 const admin = useAdmin()
 const shell = useAdminShell()
@@ -48,6 +51,9 @@ const path = computed(() => {
 
     return url.length > 1 ? url.replace(/\/$/, '') : url
 })
+
+/** Recent pages are the signed-in person's own: two people sharing a browser do not see each other's. */
+const accountKey = computed(() => recentKey(admin.value.account?.email ?? null))
 
 const pages = computed(() =>
     pageEntries(
@@ -135,14 +141,54 @@ watch(active, async (index) => {
     document.getElementById(optionId(index))?.scrollIntoView({ block: 'nearest' })
 })
 
+/*
+ * On a phone the palette is a full-screen sheet, and the phone's Back must close it rather than leave
+ * the page under it — the same history entry every BottomSheet takes (useSheetHistory). A close that
+ * came from Back, or from a navigation the layout is already cleaning up after, does not pop again.
+ */
+let closedByHistory = false
+let tookHistory = false
+
+const history = useSheetHistory('admin-palette', () => {
+    closedByHistory = true
+    paletteOpen.value = false
+})
+
+// Outside the admin layout (a component test) there is no mobile shell to register with.
+const unregister = hasMobileShell()
+    ? useMobileShell().registerSheet(() => {
+          if (paletteOpen.value) {
+              closedByHistory = true
+              paletteOpen.value = false
+          }
+      })
+    : () => undefined
+
+onBeforeUnmount(unregister)
+
 watch(paletteOpen, (open) => {
     if (open) {
         query.value = ''
         active.value = 0
-        recent.value = readRecent()
+        recent.value = readRecent(accountKey.value)
         wide.value = window.matchMedia('(min-width: 1024px)').matches
         keyboard.value = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+        tookHistory = window.matchMedia('(max-width: 767px)').matches
+
+        if (tookHistory) {
+            history.open()
+        }
+
+        return
     }
+
+    if (closedByHistory || !tookHistory) {
+        closedByHistory = false
+
+        return
+    }
+
+    void history.close()
 })
 
 function choose(entry: PaletteEntry, newTab = false): void {
@@ -152,13 +198,17 @@ function choose(entry: PaletteEntry, newTab = false): void {
         return
     }
 
-    paletteOpen.value = false
-
     if (entry.href) {
+        // The visit's own `before` strips the sheet's entry (AdminLayout); popping it as well would
+        // race the visit's push.
+        closedByHistory = true
+        paletteOpen.value = false
         router.visit(entry.href)
 
         return
     }
+
+    paletteOpen.value = false
 
     // After the palette has closed and handed focus back, so an action that opens something of its
     // own (the shortcuts dialog) is not fighting it for focus.
@@ -206,7 +256,7 @@ function remember(): void {
     const entry = pages.value.find((p) => p.href === path.value)
 
     if (entry?.href) {
-        rememberRecent({ href: entry.href, label: entry.label })
+        rememberRecent({ href: entry.href, label: entry.label }, accountKey.value)
     }
 }
 

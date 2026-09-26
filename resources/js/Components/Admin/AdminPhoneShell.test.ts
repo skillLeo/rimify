@@ -140,6 +140,8 @@ describe('AdminAppBar', () => {
         expect(wrapper.find('.adm-appbar__brand').attributes('href')).toBe('/admin')
         expect(wrapper.find('.adm-appbar__title').text()).toBe('Dokumente')
         expect(wrapper.find('.adm-appbar__title').attributes('aria-hidden')).toBe('true')
-        expect(wrapper.find('.adm-env').text()).toBe('Staging')
+        // "Umgebung:" is read out but not shown; a span may not carry an aria-label of its own.
+        expect(wrapper.find('.adm-env').text()).toBe('Umgebung: Staging')
+        expect(wrapper.find('.adm-env .visually-hidden').text()).toBe('Umgebung:')
     })
 })

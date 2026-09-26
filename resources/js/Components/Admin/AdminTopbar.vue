@@ -11,7 +11,15 @@
  * and a bell that can only ever say "nichts Neues" is decoration pretending to be a feature.
  */
 
-import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
+import {
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuPortal,
+    DropdownMenuRoot,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from 'reka-ui'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import Kbd from '../Ui/Kbd.vue'
@@ -82,7 +90,7 @@ const crumbs = computed(() => admin.value.breadcrumbs)
                             </a>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator class="adm-menu__sep" />
-                        <p class="adm-menu__caption">Zahlen im Menü sind so aktuell wie die Seite.</p>
+                        <DropdownMenuLabel class="adm-menu__caption">Zahlen im Menü sind so aktuell wie die Seite.</DropdownMenuLabel>
                     </DropdownMenuContent>
                 </DropdownMenuPortal>
             </DropdownMenuRoot>

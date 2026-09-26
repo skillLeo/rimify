@@ -13,7 +13,15 @@
  */
 
 import { Link, router } from '@inertiajs/vue3'
-import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
+import {
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuPortal,
+    DropdownMenuRoot,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from 'reka-ui'
 import { computed, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import { useAdmin } from '../../composables/admin/useAdmin'
@@ -47,8 +55,8 @@ function signOut(event: Event): void {
         <DropdownMenuPortal>
             <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
                 <div class="adm-menu__head">
-                    <p class="adm-menu__name">{{ account.name }}</p>
-                    <p class="adm-menu__meta">{{ account.role ?? account.email }}</p>
+                    <DropdownMenuLabel class="adm-menu__name">{{ account.name }}</DropdownMenuLabel>
+                    <DropdownMenuLabel class="adm-menu__meta">{{ account.role ?? account.email }}</DropdownMenuLabel>
                 </div>
 
                 <DropdownMenuSeparator class="adm-menu__sep" />

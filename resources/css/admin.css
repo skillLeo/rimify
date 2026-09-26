@@ -615,7 +615,11 @@
         transition: opacity var(--d-1) var(--ease-out);
     }
 
+    /* The wordmark is a link home, so it gets a full 44 px target, not the height of its letters. */
     .adm-appbar__brand {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--adm-control-h-lg);
         font-size: var(--fs-h4);
     }
 
@@ -850,6 +854,18 @@
     line-height: var(--lh-small);
 }
 
+/* In a dialog an error line takes room only when there is an error: a short form keeps one even
+   rhythm between its fields instead of a gap reserved under every one of them. */
+.adm-dialog .form-field__error:empty {
+    display: none;
+}
+
+/* A select still showing its "… wählen" prompt reads as a prompt, not as a choice already made. */
+.adm-dialog select.input:has(option[value=''][disabled]:checked),
+.adm select.input:has(option[value=''][disabled]:checked) {
+    color: var(--c-ink-3);
+}
+
 /* ── The palette (§7) ──────────────────────────────────────────────────────────────
  * Near the top of the screen, so the first result sits under the eye that pressed the shortcut.
  * Centred with auto margins rather than a translate, so the entrance can scale without fighting it. */
@@ -1056,12 +1072,34 @@
         box-shadow: none;
     }
 
+    /* A thumb's worth, at least (WCAG 2.5.8, and the 44 px the phone shell promises). */
     .adm-palette__cancel {
         display: inline-flex;
+        align-items: center;
+        min-height: var(--adm-control-h-lg);
+        padding-inline: var(--sp-8);
+        margin-right: calc(-1 * var(--sp-8));
+    }
+
+    .adm-palette__row {
+        min-height: var(--adm-control-h-lg);
     }
 
     .adm-palette__foot {
         display: none;
+    }
+
+    /* The toast rides above the bottom bar, never on it (and above the save bar on a form page). */
+    .adm ~ .toast-viewport {
+        bottom: calc(var(--bottomnav-h) + var(--sp-12) + env(safe-area-inset-bottom));
+    }
+
+    .adm:has(.adm-savebar) ~ .toast-viewport {
+        bottom: calc(var(--bottomnav-h) + var(--stickybar-h) + var(--sp-12) + env(safe-area-inset-bottom));
+    }
+
+    :root.is-keyboard .adm ~ .toast-viewport {
+        bottom: calc(var(--kb-inset, 0px) + var(--stickybar-h) + var(--sp-12));
     }
 }
 
@@ -1782,6 +1820,19 @@
         padding-top: var(--sp-8);
     }
 
+    /* A row's "…" menu sits beside the name, level with it, never alone on a line of its own. */
+    .adm-table td[data-phone='menu'] {
+        display: block;
+        grid-row: 1;
+        grid-column: 2;
+        align-self: start;
+        padding: 0;
+    }
+
+    .adm-table td[data-phone='menu']::before {
+        content: none;
+    }
+
     .adm-table td[data-label='Aktionen']::before {
         content: none;
     }
@@ -1987,6 +2038,30 @@
         min-height: var(--adm-control-h);
         font-size: var(--fs-small);
         line-height: var(--lh-small);
+    }
+}
+
+/* ── Touch: a thumb's target on every touch screen, whatever its width (WCAG 2.5.8) ──
+ * The workbench density above is for a mouse. A tablet held in the hand gets 44 px controls even
+ * where the layout is the desktop one.                                                          */
+
+@media (pointer: coarse) {
+    .adm .btn,
+    .adm-dialog .btn,
+    .adm .input,
+    .adm-dialog .input {
+        min-height: var(--adm-control-h-lg);
+    }
+
+    .adm .adm-iconbtn,
+    .adm-dialog .adm-iconbtn {
+        width: var(--adm-control-h-lg);
+        height: var(--adm-control-h-lg);
+    }
+
+    .adm-menu__item {
+        height: auto;
+        min-height: var(--adm-control-h-lg);
     }
 }
 

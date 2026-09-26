@@ -30,5 +30,6 @@ const label = computed(() => {
 </script>
 
 <template>
-    <span v-if="label" class="adm-env" :aria-label="`Umgebung: ${label}`">{{ label }}</span>
+    <!-- A plain span cannot carry aria-label; the words a screen reader needs are in the text itself. -->
+    <span v-if="label" class="adm-env"><span class="visually-hidden">Umgebung: </span>{{ label }}</span>
 </template>
