@@ -19,6 +19,8 @@ export interface AdminNavPage {
 export interface AdminNavGroup {
     key: string
     label: string
+    /** The label for a rail narrower than 248 px: a word of its own, never a label cut mid-word. */
+    short: string
     icon: AdminIconName
     pages: AdminNavPage[]
 }
@@ -42,7 +44,8 @@ export interface AdminShared {
     nav: AdminNavGroup[]
     /** `local` and `staging` are said out loud; production is null and shows nothing. */
     environment: 'local' | 'staging' | null
-    preferences: { railCollapsed: boolean }
+    /** The rail as this person left it: collapsed or not, and its width in px (232–400). */
+    preferences: { railCollapsed: boolean; railWidth: number }
     breadcrumbs: AdminCrumb[]
     supportEmail: string | null
     /**

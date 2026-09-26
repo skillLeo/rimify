@@ -13,14 +13,16 @@
 
 import { usePage } from '@inertiajs/vue3'
 import { computed, inject, provide, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
+import type { RailState } from './railResize'
 import type { AdminHealth, AdminShared } from '../../types/admin'
+import { RAIL, clampWidth } from './railResize'
 
 const EMPTY: AdminShared = {
     can: {},
     account: null,
     nav: [],
     environment: null,
-    preferences: { railCollapsed: false },
+    preferences: { railCollapsed: false, railWidth: RAIL.default },
     breadcrumbs: [],
     supportEmail: null,
     notifications: { unread: null, offered: false },
@@ -56,7 +58,7 @@ export function useAdmin(): ComputedRef<AdminShared> {
             account: admin.account ?? null,
             nav: Array.isArray(admin.nav) ? admin.nav : [],
             environment: admin.environment === 'local' || admin.environment === 'staging' ? admin.environment : null,
-            preferences: { railCollapsed: admin.preferences?.railCollapsed === true },
+            preferences: { railCollapsed: admin.preferences?.railCollapsed === true, railWidth: clampWidth(admin.preferences?.railWidth) },
             breadcrumbs: Array.isArray(admin.breadcrumbs) ? admin.breadcrumbs : [],
             supportEmail: typeof admin.supportEmail === 'string' ? admin.supportEmail : null,
             notifications: {
@@ -79,11 +81,27 @@ export function useAdmin(): ComputedRef<AdminShared> {
     })
 }
 
+/** The rail's width and state, as the layout keeps them (AdminLayout, AdminRailHandle). */
+export interface RailControl {
+    /** The width in px (232–400) — while collapsed, the width it opens to. */
+    width: Ref<number>
+    /** Collapsed as it is shown: by choice, or by a window without room beside 960 px of content. */
+    shown: ComputedRef<boolean>
+    /** Collapsed by the window, whatever was chosen: nothing to open. */
+    forced: ComputedRef<boolean>
+    /** A drag in progress: nothing animates, and charts wait to measure until it ends. */
+    resizing: Ref<boolean>
+    /** A new state: `animate` for collapse, expand and reset; `save` now, or within the next second. */
+    set: (state: RailState, options?: { animate?: boolean; save?: 'now' | 'soon' }) => void
+}
+
 export interface AdminShell {
     paletteOpen: Ref<boolean>
     shortcutsOpen: Ref<boolean>
     railCollapsed: Ref<boolean>
     toggleRail: () => void
+    /** Absent in a component test that mounts one part on its own. */
+    rail?: RailControl
 }
 
 const SHELL: InjectionKey<AdminShell> = Symbol('admin-shell')

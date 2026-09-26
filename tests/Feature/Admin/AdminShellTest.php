@@ -264,6 +264,48 @@ describe('the rail, remembered', function (): void {
     it('sends somebody who is not signed in to the sign-in screen', function (): void {
         $this->patch('/admin/ansicht', ['rail' => 'collapsed'])->assertRedirect('/admin/anmelden');
     });
+
+    it('starts at 260 px, and keeps the width it was dragged to for the next page, on any machine', function (): void {
+        $admin = shellAdmin();
+
+        $this->actingAs($admin, 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.preferences.railWidth', 260));
+
+        // What the handle sends while dragging and when it lets go: the state and the width together.
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['rail' => 'open', 'width' => 320])->assertNoContent();
+
+        expect($admin->fresh()?->railWidth())->toBe(320);
+
+        $this->actingAs($admin->fresh() ?? $admin, 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('admin.preferences.railWidth', 320)
+                ->where('admin.preferences.railCollapsed', false));
+    });
+
+    it('takes a width only in whole pixels between 232 and 400', function (mixed $width): void {
+        $admin = shellAdmin();
+
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['width' => $width])->assertUnprocessable();
+
+        expect($admin->fresh()?->railWidth())->toBe(260);
+    })->with([231, 401, 'breit', 300.5]);
+
+    it('reads a width that is not one (an old or hand-edited row) as the default', function (): void {
+        $admin = shellAdmin();
+        $admin->forceFill(['preferences' => ['railWidth' => 999]])->save();
+
+        expect($admin->fresh()?->railWidth())->toBe(260);
+    });
+});
+
+describe('the rail, narrow', function (): void {
+    it('gives every group a short word of its own for a rail narrower than 248 px', function (): void {
+        $groups = collect(sharedNav(shellAdmin()))->keyBy('key');
+
+        expect($groups->every(fn (array $group): bool => is_string($group['short']) && $group['short'] !== '' && ! str_contains($group['short'], '…')))->toBeTrue()
+            ->and($groups['einstellungen']['short'])->toBe('Optionen')
+            ->and($groups['verkauf']['short'])->toBe('Verkauf');
+    });
 });
 
 describe('the profile', function (): void {

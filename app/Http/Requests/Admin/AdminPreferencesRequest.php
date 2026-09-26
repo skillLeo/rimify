@@ -27,9 +27,11 @@ class AdminPreferencesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'rail' => ['required_without:snooze', 'nullable', 'string', 'in:open,collapsed'],
+            'rail' => ['required_without_all:snooze,width', 'nullable', 'string', 'in:open,collapsed'],
+            // The width the rail was dragged to: whole pixels inside the range the handle allows.
+            'width' => ['required_without_all:rail,snooze', 'nullable', 'integer', 'between:'.AdminUser::RAIL_WIDTH_MIN.','.AdminUser::RAIL_WIDTH_MAX],
             // Which urgent problem to be reminded of later: only the two a banner is ever shown for.
-            'snooze' => ['required_without:rail', 'nullable', 'string', 'in:maintenance,queue'],
+            'snooze' => ['required_without_all:rail,width', 'nullable', 'string', 'in:maintenance,queue'],
         ];
     }
 
@@ -47,6 +49,11 @@ class AdminPreferencesRequest extends FormRequest
     public function rail(): ?string
     {
         return $this->filled('rail') ? (string) $this->validated('rail') : null;
+    }
+
+    public function width(): ?int
+    {
+        return $this->filled('width') ? (int) $this->validated('width') : null;
     }
 
     public function snooze(): ?string

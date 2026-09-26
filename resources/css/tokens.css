@@ -199,6 +199,7 @@
     /* Admin motion, as the client set it (docs/admin/BRIEF-2.md §4). Transform and opacity only;
        prefers-reduced-motion sets every one of these to zero and keeps the end state. */
     --adm-d-sheet-in: 240ms;    /* Drawer, sheet, flyout arriving — with --ease-out. */
+    --adm-d-rail: 180ms;        /* The rail collapsing, opening, resetting — with --ease-out; never while dragged. */
     --adm-d-sheet-out: 180ms;   /* …and leaving. Out is faster than in: leaving is not news. */
     --adm-d-dialog: 180ms;      /* Dialog: a fade with a 2 % scale from 0.98. */
     --adm-d-toast: 160ms;       /* One toast at a time, sliding and fading. */

@@ -9,10 +9,11 @@ import { pageEntries, readRecent, recentEntries, recentKey, rememberRecent, RECE
  */
 
 const NAV: AdminNavGroup[] = [
-    { key: 'uebersicht', label: 'Übersicht', icon: 'overview', pages: [{ label: 'Übersicht', href: '/admin', icon: 'overview', count: null, countTone: 'neutral' }] },
+    { key: 'uebersicht', label: 'Übersicht', short: 'Übersicht', icon: 'overview', pages: [{ label: 'Übersicht', href: '/admin', icon: 'overview', count: null, countTone: 'neutral' }] },
     {
         key: 'katalog',
         label: 'Katalog',
+        short: 'Katalog',
         icon: 'wheels',
         pages: [
             { label: 'Wuchtgewichte-Farben', href: '/admin/wuchtgewichte', icon: 'prices', count: null, countTone: 'neutral' },
@@ -22,6 +23,7 @@ const NAV: AdminNavGroup[] = [
     {
         key: 'gutachten',
         label: 'Gutachten',
+        short: 'Gutachten',
         icon: 'documents',
         pages: [
             { label: 'Dokumente', href: '/admin/gutachten', icon: 'documents', count: null, countTone: 'neutral' },
@@ -48,6 +50,7 @@ describe('pageEntries', () => {
             {
                 key: 'einstellungen',
                 label: 'Einstellungen',
+                short: 'Einstellungen',
                 icon: 'settings',
                 pages: [{ label: 'Zubehörpreise', href: '/admin/zubehoerpreise', icon: 'prices', count: null, countTone: 'neutral' }],
             },

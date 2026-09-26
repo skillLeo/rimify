@@ -134,8 +134,8 @@ function signOut(event: Event): void {
             <DropdownMenuTrigger class="adm-foot__profile" :aria-label="`Konto: ${account.name}${account.role ? `, ${account.role}` : ''}`">
                 <span class="adm-avatar" aria-hidden="true">{{ initials }}</span>
                 <span class="adm-foot__who">
-                    <span class="adm-foot__name">{{ account.name }}</span>
-                    <span class="adm-foot__role">{{ account.role ?? account.email }}</span>
+                    <span class="adm-foot__name" :title="account.name">{{ account.name }}</span>
+                    <span class="adm-foot__role" :title="account.role ?? account.email">{{ account.role ?? account.email }}</span>
                 </span>
                 <Icon class="adm-foot__chevron" name="chevron-up" :size="16" />
             </DropdownMenuTrigger>

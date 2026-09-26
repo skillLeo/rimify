@@ -73,6 +73,20 @@ class AdminUser extends Authenticatable
         return ($this->preferences['rail'] ?? null) === 'collapsed';
     }
 
+    /** The rail's width as this person dragged it (232–400 px); the default until they do. */
+    public const RAIL_WIDTH_DEFAULT = 260;
+
+    public const RAIL_WIDTH_MIN = 232;
+
+    public const RAIL_WIDTH_MAX = 400;
+
+    public function railWidth(): int
+    {
+        $width = $this->preferences['railWidth'] ?? null;
+
+        return is_int($width) && $width >= self::RAIL_WIDTH_MIN && $width <= self::RAIL_WIDTH_MAX ? $width : self::RAIL_WIDTH_DEFAULT;
+    }
+
     /**
      * The German label of the first role this account holds — the hat the panel says this person is
      * wearing. Its bare name when the role has no label; null when the account holds no role at all,

@@ -123,7 +123,12 @@ class HandleInertiaRequests extends Middleware
             'environment' => self::environment(),
             // Read on the server and rendered into the first frame: a rail read after hydration
             // snaps from 260 to 64 px on every load (admin-shell.md §5.9).
-            'preferences' => ['railCollapsed' => $signedIn && $user->railCollapsed()],
+            // The rail as this person left it — collapsed or not, and how wide — so the first frame is
+            // already right and nothing jumps at hydration.
+            'preferences' => [
+                'railCollapsed' => $signedIn && $user->railCollapsed(),
+                'railWidth' => $signedIn ? $user->railWidth() : AdminUser::RAIL_WIDTH_DEFAULT,
+            ],
             // Resolved after the controller has run, so a page showing one record can name it.
             'breadcrumbs' => fn (): array => $navigation->breadcrumbs(
                 $nav,

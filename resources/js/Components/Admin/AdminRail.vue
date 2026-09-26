@@ -17,7 +17,7 @@
 
 import { Link, usePage } from '@inertiajs/vue3'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import Icon from './AdminIcon.vue'
 import AdminRailFoot from './AdminRailFoot.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
@@ -66,7 +66,25 @@ onMounted(() => {
 
 onBeforeUnmount(() => media?.removeEventListener('change', onMedia))
 
-const collapsed = computed(() => shell.railCollapsed.value || narrow.value)
+/* Collapsed as shown: by choice, by a window without room beside the content (the layout's rail
+   control), or by the tablet's width. */
+const collapsed = computed(() => (shell.rail?.shown.value ?? shell.railCollapsed.value) || narrow.value)
+
+/*
+ * An item whose label ends in „…“ at this width shows the whole of it in a tooltip, as the icon rail
+ * does. Measured when it is pointed at or reached, not on every frame of a drag.
+ */
+const cut = reactive(new Set<string>())
+
+function measure(event: Event, item: AdminNavPage): void {
+    const text = (event.currentTarget as HTMLElement).querySelector<HTMLElement>('.adm-rail__text')
+
+    if (text && text.scrollWidth > text.clientWidth) {
+        cut.add(item.href)
+    } else {
+        cut.delete(item.href)
+    }
+}
 </script>
 
 <template>
@@ -99,16 +117,21 @@ const collapsed = computed(() => shell.railCollapsed.value || narrow.value)
                     class="adm-rail__group"
                     :aria-labelledby="labelled(group) ? `adm-group-${group.key}` : undefined"
                 >
-                    <p v-if="labelled(group)" :id="`adm-group-${group.key}`" class="adm-rail__label">{{ group.label }}</p>
+                    <p v-if="labelled(group)" :id="`adm-group-${group.key}`" class="adm-rail__label">
+                        <span class="adm-rail__label-full">{{ group.label }}</span>
+                        <span class="adm-rail__label-short" aria-hidden="true">{{ group.short || group.label }}</span>
+                    </p>
                     <ul class="adm-rail__list">
                         <li v-for="item in group.pages" :key="item.href">
-                            <TooltipRoot :disabled="!collapsed">
+                            <TooltipRoot :disabled="!collapsed && !cut.has(item.href)">
                                 <TooltipTrigger as-child>
                                     <Link
                                         :href="item.href"
                                         class="adm-rail__item"
                                         :aria-current="current(item) ? 'page' : undefined"
                                         :aria-label="item.count ? `${item.label}, ${countName(item)}` : undefined"
+                                        @pointerenter="measure($event, item)"
+                                        @focus="measure($event, item)"
                                     >
                                         <Icon :name="item.icon" :size="20" />
                                         <span class="adm-rail__text">{{ item.label }}</span>

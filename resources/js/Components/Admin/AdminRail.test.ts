@@ -35,17 +35,18 @@ const { default: AdminRail } = await import('./AdminRail.vue')
 const { provideAdminShell } = await import('../../composables/admin/useAdmin')
 
 const NAV: AdminNavGroup[] = [
-    { key: 'uebersicht', label: 'Übersicht', icon: 'overview', pages: [{ label: 'Übersicht', href: '/admin', icon: 'overview', count: null, countTone: 'neutral' }] },
+    { key: 'uebersicht', label: 'Übersicht', short: 'Übersicht', icon: 'overview', pages: [{ label: 'Übersicht', href: '/admin', icon: 'overview', count: null, countTone: 'neutral' }] },
     {
         key: 'gutachten',
         label: 'Gutachten',
+        short: 'Gutachten',
         icon: 'documents',
         pages: [
             { label: 'Dokumente', href: '/admin/gutachten', icon: 'documents', count: null, countTone: 'neutral' },
             { label: 'Benachrichtigungswünsche', href: '/admin/benachrichtigungen', icon: 'inquiries', count: 140, countTone: 'neutral' },
         ],
     },
-    { key: 'system', label: 'System', icon: 'prices', pages: [{ label: 'Warteschlange', href: '/admin/warteschlange', icon: 'sort', count: 3, countTone: 'bad' }] },
+    { key: 'system', label: 'System', short: 'System', icon: 'prices', pages: [{ label: 'Warteschlange', href: '/admin/warteschlange', icon: 'sort', count: 3, countTone: 'bad' }] },
 ]
 
 let mounted: VueWrapper[] = []
@@ -78,7 +79,15 @@ describe('AdminRail', () => {
     it('labels groups, but not a group whose only page has the same name', () => {
         const { wrapper } = mountRail()
 
-        expect(wrapper.findAll('.adm-rail__label').map((l) => l.text())).toEqual(['Gutachten', 'System'])
+        expect(wrapper.findAll('.adm-rail__label-full').map((l) => l.text())).toEqual(['Gutachten', 'System'])
+    })
+
+    it('gives every labelled group a short word for a narrow rail — its own, or the label when that is short already', () => {
+        const { wrapper } = mountRail()
+
+        // Below 248 px the CSS shows these instead of the full labels: none may be missing.
+        expect(wrapper.findAll('.adm-rail__label-short').map((l) => l.text())).toEqual(['Gutachten', 'System'])
+        expect(wrapper.findAll('.adm-rail__label-short').every((l) => l.attributes('aria-hidden') === 'true')).toBe(true)
     })
 
     it('marks the page you are on, and ignores the query string doing it', () => {

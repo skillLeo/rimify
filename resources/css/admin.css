@@ -9,10 +9,13 @@
 
 /* ── The frame ─────────────────────────────────────────────────────────────────── */
 
+/* One custom property drives the rail's width: --rail-w, set on this element from the account's own
+   width (AdminLayout) and moved by the handle. Nothing else sets a width on the rail's children. */
 .adm {
     display: grid;
-    grid-template-columns: var(--adm-rail-w) minmax(0, 1fr);
+    grid-template-columns: var(--rail-w, var(--adm-rail-w)) minmax(0, 1fr);
     min-height: 100dvh;
+    overflow-x: clip;
     background: var(--c-surface);
     color: var(--c-ink);
 }
@@ -120,6 +123,94 @@
     overscroll-behavior: contain;
 }
 
+/* ── The rail's resize handle (AdminRailHandle) ─────────────────────────────────────
+   An 8 px grip over the rail's edge — the edge's 4 px, widened invisibly — that shows nothing at
+   rest, a 2 px blue line after 120 ms of hovering, and the line for as long as a drag lasts. */
+
+.adm-handle {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--rail-w, var(--adm-rail-w)) - 4px);
+    z-index: var(--z-sticky);
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+}
+
+.adm[data-rail='collapsed'] .adm-handle {
+    left: calc(var(--adm-rail-w-min) - 4px);
+}
+
+.adm-handle::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    background: var(--c-blue);
+    opacity: 0;
+    transition: opacity var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-handle:hover::after {
+        opacity: 1;
+        transition-delay: var(--d-1);
+    }
+}
+
+.adm-handle:focus-visible::after,
+.adm[data-resizing] .adm-handle::after {
+    opacity: 1;
+    transition-delay: 0s;
+}
+
+/* While dragging: the cursor is col-resize over the whole window, and nothing gets selected. */
+:root[data-rail-resizing],
+:root[data-rail-resizing] * {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+
+/* No resizing below 1024 px: a tablet's rail is the icon rail, a phone has the bottom bar. */
+@media (max-width: 1023px) {
+    .adm-handle {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-handle::after {
+        transition: none;
+    }
+}
+
+/* Collapsed by the window (no room for the rail beside 960 px of content): nothing to open. */
+.adm[data-rail-forced] .adm-rail__toggle {
+    display: none;
+}
+
+/* Below 248 px the group labels take their own short word (AdminNavigation's `short`), never a label
+   cut mid-word; a screen reader keeps hearing the full one. */
+.adm-rail__label-short {
+    display: none;
+}
+
+.adm[data-labels='short'] .adm-rail__label-full {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.adm[data-labels='short'] .adm-rail__label-short {
+    display: inline;
+}
 /* ── The rail's foot: health, Neu, the account ─────────────────────────────────────── */
 
 .adm-foot {
@@ -435,7 +526,10 @@ a.adm-foot__health {
     flex: none;
 }
 
+/* A label that does not fit ends in „…“ — never wraps — with the whole of it in the tooltip; the
+   count beside it keeps its place at the right edge and never gives way. */
 .adm-rail__text {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -466,6 +560,7 @@ a.adm-foot__health {
 
 /* A queue of work: a figure, not a pill. Neutral unless something broke. */
 .adm-rail__count {
+    flex: none;
     margin-left: auto;
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);

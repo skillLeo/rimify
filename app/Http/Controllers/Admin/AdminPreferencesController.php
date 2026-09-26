@@ -39,6 +39,12 @@ class AdminPreferencesController extends Controller
             $preferences['rail'] = $request->rail();
         }
 
+        // The rail's width, as the handle left it: written at most once a second while dragging and
+        // once more when the pointer lets go (AdminRailHandle).
+        if ($request->width() !== null) {
+            $preferences['railWidth'] = $request->width();
+        }
+
         // „Später erinnern“: the banner about this problem stays away for 8 hours — a reminder, not a
         // dismissal. The rail's line keeps showing it all the while (HandleInertiaRequests::health).
         if ($request->snooze() !== null) {

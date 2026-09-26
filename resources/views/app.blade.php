@@ -52,5 +52,22 @@
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}
 <body class="{{ ($page['props']['isMobile'] ?? false) ? 'is-mobile' : 'is-desktop' }}">
     @inertia
+    @if (str_starts_with($page['component'] ?? '', 'Admin/'))
+        {{-- The admin's content keeps 960 px: in a window without room for the rail at the width this
+             person gave it, the rail is collapsed before the first paint — the same answer the layout
+             then starts from — so it never opens and snaps shut (AdminLayout, railResize.ts). --}}
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+            (function () {
+                var shell = document.querySelector('.adm');
+                if (!shell || window.innerWidth < 1024) return;
+                var room = shell.clientWidth;
+                var width = parseInt(shell.style.getPropertyValue('--rail-w'), 10) || 260;
+                if (room - width < 960) {
+                    shell.setAttribute('data-rail', 'collapsed');
+                    shell.setAttribute('data-rail-forced', '');
+                }
+            })();
+        </script>
+    @endif
 </body>
 </html>

@@ -36,16 +36,18 @@ final class AdminNavigation
      * admin. A page may name its own `module` where it belongs to another area than its neighbours
      * (the Protokoll sits with the team but is the audit log's). `count` names a live figure the row
      * carries; only a queue of work whose goal is zero earns one (admin-shell.md §5.6). A group with
-     * exactly one visible page IS that page in the rail.
+     * exactly one visible page IS that page in the rail. `short` is the group's label for a rail
+     * dragged narrower than 248 px — a word of its own, never a label cut mid-word.
      *
      * Every page has its own glyph, so the collapsed rail — icons only — never shows two rows alike.
      *
-     * @var list<array{key: string, label: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string}>}>
+     * @var list<array{key: string, label: string, short: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string}>}>
      */
     private const GROUPS = [
         [
             'key' => 'uebersicht',
             'label' => 'Übersicht',
+            'short' => 'Übersicht',
             'icon' => 'overview',
             'module' => null,
             'pages' => [
@@ -55,6 +57,7 @@ final class AdminNavigation
         [
             'key' => 'verkauf',
             'label' => 'Verkauf',
+            'short' => 'Verkauf',
             'icon' => 'orders',
             'module' => PermissionModule::Orders->value,
             'pages' => [
@@ -70,6 +73,7 @@ final class AdminNavigation
         [
             'key' => 'katalog',
             'label' => 'Katalog',
+            'short' => 'Katalog',
             'icon' => 'wheels',
             'module' => PermissionModule::Catalogue->value,
             'pages' => [
@@ -82,6 +86,7 @@ final class AdminNavigation
         [
             'key' => 'gutachten',
             'label' => 'Gutachten',
+            'short' => 'Gutachten',
             'icon' => 'documents',
             'module' => PermissionModule::Approvals->value,
             'pages' => [
@@ -94,6 +99,7 @@ final class AdminNavigation
         [
             'key' => 'fahrzeuge',
             'label' => 'Fahrzeuge',
+            'short' => 'Fahrzeuge',
             'icon' => 'vehicles',
             'module' => PermissionModule::Vehicles->value,
             'pages' => [
@@ -104,6 +110,7 @@ final class AdminNavigation
         [
             'key' => 'inhalte',
             'label' => 'Inhalte',
+            'short' => 'Inhalte',
             'icon' => 'pages',
             'module' => PermissionModule::Content->value,
             'pages' => [
@@ -116,6 +123,7 @@ final class AdminNavigation
         [
             'key' => 'auswertungen',
             'label' => 'Auswertungen',
+            'short' => 'Zahlen',
             'icon' => 'reports',
             'module' => PermissionModule::Reports->value,
             'pages' => [
@@ -128,6 +136,7 @@ final class AdminNavigation
         [
             'key' => 'einstellungen',
             'label' => 'Einstellungen',
+            'short' => 'Optionen',
             'icon' => 'settings',
             'module' => PermissionModule::Settings->value,
             'pages' => [
@@ -140,6 +149,7 @@ final class AdminNavigation
         [
             'key' => 'team',
             'label' => 'Team',
+            'short' => 'Team',
             'icon' => 'users',
             'module' => PermissionModule::Roles->value,
             'pages' => [
@@ -151,6 +161,7 @@ final class AdminNavigation
         [
             'key' => 'system',
             'label' => 'System',
+            'short' => 'System',
             'icon' => 'system',
             'module' => PermissionModule::Settings->value,
             'pages' => [
@@ -229,7 +240,7 @@ final class AdminNavigation
      * A group whose every page is unbuilt or unpermitted is dropped rather than drawn empty. A count
      * is only queried when the page carrying it is actually in the tree.
      *
-     * @return list<array{key: string, label: string, icon: string, pages: list<array{label: string, href: string, icon: string, count: int|null, countTone: string}>}>
+     * @return list<array{key: string, label: string, short: string, icon: string, pages: list<array{label: string, href: string, icon: string, count: int|null, countTone: string}>}>
      */
     public function for(AdminUser $user): array
     {
@@ -271,6 +282,7 @@ final class AdminNavigation
             $tree[] = [
                 'key' => $group['key'],
                 'label' => $group['label'],
+                'short' => $group['short'],
                 'icon' => $group['icon'],
                 'pages' => $pages,
             ];
@@ -287,7 +299,7 @@ final class AdminNavigation
      * Read from the role's own cells rather than from an account, so the answer is about the role
      * alone and not about whatever other roles some account happens to hold beside it.
      *
-     * @return list<array{key: string, label: string, icon: string, pages: list<array{label: string, href: string, icon: string, count: null, countTone: string}>}>
+     * @return list<array{key: string, label: string, short: string, icon: string, pages: list<array{label: string, href: string, icon: string, count: null, countTone: string}>}>
      */
     public function forRole(int $roleId): array
     {
@@ -331,6 +343,7 @@ final class AdminNavigation
             $tree[] = [
                 'key' => $group['key'],
                 'label' => $group['label'],
+                'short' => $group['short'],
                 'icon' => $group['icon'],
                 'pages' => $pages,
             ];
