@@ -13,6 +13,7 @@ use Database\Factories\AdminUserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -27,6 +28,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property CarbonImmutable|null $locked_until
  * @property CarbonImmutable|null $last_login_at
  * @property int $failed_login_count
+ * @property array<string, mixed>|null $preferences
  */
 class AdminUser extends Authenticatable
 {
@@ -58,7 +60,35 @@ class AdminUser extends Authenticatable
             'locked_until' => 'immutable_datetime',
             'failed_login_count' => 'integer',
             'status' => AdminUserStatus::class,
+            'preferences' => 'array',
         ];
+    }
+
+    /**
+     * Whether this person has collapsed the admin rail. Absent, malformed or never set reads as
+     * open — the default the panel is designed around.
+     */
+    public function railCollapsed(): bool
+    {
+        return ($this->preferences['rail'] ?? null) === 'collapsed';
+    }
+
+    /**
+     * The German label of the first role this account holds — the hat the panel says this person is
+     * wearing. Its bare name when the role has no label; null when the account holds no role at all,
+     * in which case the caller shows the e-mail address rather than inventing a role.
+     */
+    public function roleLabel(): ?string
+    {
+        $name = $this->getRoleNames()->first();
+
+        if (! is_string($name)) {
+            return null;
+        }
+
+        $label = DB::table('roles')->where('name', $name)->where('guard_name', 'admin')->value('label_de');
+
+        return is_string($label) && $label !== '' ? $label : $name;
     }
 
     public function hasTwoFactorEnabled(): bool

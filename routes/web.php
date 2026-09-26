@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\AdminPreferencesController;
+use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\RdksPreiseController;
@@ -136,6 +138,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
     Route::middleware('auth:admin')->group(function (): void {
         Route::post('/abmelden', [AdminLoginController::class, 'destroy'])->name('abmelden');
+
+        // The signed-in person's own account and panel layout. Every admin may reach their own and
+        // nobody else's: nothing here takes an id, so there is nothing to point at another row.
+        Route::get('/profil', [AdminProfileController::class, 'show'])->name('profil');
+        Route::put('/profil/passwort', [AdminProfileController::class, 'updatePassword'])
+            ->middleware('throttle:6,1')
+            ->name('profil.passwort');
+        Route::patch('/ansicht', [AdminPreferencesController::class, 'update'])->name('ansicht');
 
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/gutachten', [GutachtenController::class, 'index'])->name('gutachten.index');

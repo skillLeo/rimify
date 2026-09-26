@@ -142,6 +142,9 @@ return [
     */
     'admin' => [
         'enabled' => filter_var(env('RIMIFY_ADMIN_ENABLED', true), FILTER_VALIDATE_BOOL),
+        // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody
+        // was asked to read is not offered (docs/design/sections/admin-shell.md §6.4).
+        'support_email' => env('RIMIFY_ADMIN_SUPPORT_EMAIL'),
     ],
 
     /*

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\AdminUser;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,25 @@ class AdminLoginRequest extends FormRequest
                 'email' => 'E-Mail-Adresse oder Passwort stimmt nicht.',
             ]);
         }
+
+        /*
+         * The password was right; the account still has to be one that may sign in. A deactivated
+         * account and one under a lock are refused here, AFTER the password check — checking the
+         * status first would mean looking the address up, and the answer would tell whoever is
+         * guessing which addresses exist. Anyone who reaches this line already knew the password.
+         */
+        $user = Auth::guard('admin')->user();
+
+        if (! $user instanceof AdminUser || ! $user->canSignIn()) {
+            Auth::guard('admin')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Mit diesem Konto kannst du dich gerade nicht anmelden. '
+                    .'Bitte wende dich an eine Person, die im Admin die Benutzer verwaltet.',
+            ]);
+        }
+
+        $user->forceFill(['last_login_at' => now()])->save();
 
         RateLimiter::clear($this->throttleKey());
         $this->session()->regenerate();
