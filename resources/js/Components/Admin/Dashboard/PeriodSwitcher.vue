@@ -30,9 +30,20 @@ import Icon from '../../Ui/Icon.vue'
 import { formatGermanDay, parseGermanDay } from '../../../composables/admin/days'
 import type { DashboardPeriod } from '../../../types/admin/uebersicht'
 
-const props = defineProps<{ period: DashboardPeriod; exportUrl: string | null }>()
+const props = withDefaults(
+    defineProps<{
+        period: DashboardPeriod
+        exportUrl: string | null
+        /** The page it steers: the Übersicht, or a page beneath it sharing its Zeitraum. */
+        base?: string
+        /** Whether „mit Vorperiode vergleichen“ means anything on this page. */
+        comparable?: boolean
+        /** Query that rides along with every change (the page's own filter). */
+        keep?: Record<string, string>
+    }>(),
+    { base: '/admin', comparable: true, keep: () => ({}) }
+)
 
-const BASE = '/admin'
 const PRESETS = [
     { key: '7', label: '7 Tage' },
     { key: '30', label: '30 Tage' },
@@ -56,7 +67,7 @@ const preset = computed({
 
 function go(query: Record<string, string>): void {
     busy.value = true
-    router.get(BASE, query, { preserveScroll: true, preserveState: true, onFinish: () => (busy.value = false) })
+    router.get(props.base, { ...props.keep, ...query }, { preserveScroll: true, preserveState: true, onFinish: () => (busy.value = false) })
 }
 
 function openCustom(open: boolean): void {
@@ -127,7 +138,7 @@ function print(): void {
             </PopoverPortal>
         </PopoverRoot>
 
-        <label class="period__compare">
+        <label v-if="comparable" class="period__compare">
             <SwitchRoot class="period__switch" :model-value="period.compare" :disabled="busy" @update:model-value="setCompare">
                 <SwitchThumb class="period__thumb" />
             </SwitchRoot>

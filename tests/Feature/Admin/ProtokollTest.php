@@ -424,6 +424,8 @@ describe('putting every entry into words', function (): void {
                 'Bestellungen wurden als Excel-Datei exportiert (Status „Bezahlt“, Zeitraum 01.09.2026 bis 26.09.2026) – 12 Bestellungen.',
                 [],
             ],
+            'demand.marked' => [['gap' => 'BMW X3 M40i', 'state' => 'watched', 'brand' => null], 'Die Nachfrage-Lücke „BMW X3 M40i“ wurde als beobachtet markiert.', []],
+            'demand.unmarked' => [['gap' => 'HSN 0005 · TSN ABC'], 'Die Markierung der Nachfrage-Lücke „HSN 0005 · TSN ABC“ wurde aufgehoben. Sie ist wieder offen.', []],
             'page.created' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Ratgeber-Artikel „ET richtig lesen“ wurde angelegt. Er ist noch nicht veröffentlicht.', []],
             'page.draft_saved' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Für die Seite „Impressum“ wurde ein Entwurf gespeichert.', []],
             'page.draft_discarded' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Der Entwurf der Seite „Impressum“ wurde verworfen.', []],

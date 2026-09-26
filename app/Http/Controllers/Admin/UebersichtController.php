@@ -13,6 +13,7 @@ use App\Models\AdminUser;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Dashboard\ChartData;
 use App\Services\Admin\Dashboard\Coverage;
+use App\Services\Admin\Dashboard\Demand;
 use App\Services\Admin\Dashboard\Period;
 use App\Services\Admin\Dashboard\SalesFigures;
 use App\Services\Admin\Dashboard\WorkLists;
@@ -37,7 +38,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class UebersichtController extends Controller
 {
-    public function __invoke(UebersichtRequest $request, SalesFigures $sales, WorkLists $lists, ChartData $charts, Coverage $coverage): Response|RedirectResponse
+    public function __invoke(UebersichtRequest $request, SalesFigures $sales, WorkLists $lists, ChartData $charts, Coverage $coverage, Demand $demand): Response|RedirectResponse
     {
         $admin = $request->admin();
         ['period' => $period, 'compare' => $compare] = $request->choice();
@@ -78,6 +79,9 @@ class UebersichtController extends Controller
                     : false,
                 // What the shop may show, by make and rim size — not a period figure: coverage is now.
                 'coverage' => $admin->may(PermissionModule::Approvals, PermissionAction::View) ? $coverage->matrix() : false,
+                // Beside it, the cars asked for that it does not cover yet: the open ones, the five
+                // most in demand.
+                'demand' => $admin->may(PermissionModule::Approvals, PermissionAction::View) ? $demand->ranked($period, 'offen', null, 5) : false,
             ]),
             'can' => [
                 'export' => $admin->may(PermissionModule::Reports, PermissionAction::Export),

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\BestellungenController;
 use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
@@ -235,6 +236,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/abdeckung', [AbdeckungController::class, 'index'])
             ->middleware(EnsureAdminMay::class.':approvals,view')
             ->name('abdeckung.index');
+        // Übersicht › Nachfrage: cars asked for without an approved wheel, and the team's answer to
+        // each. Marking is refused on the server without the Gutachten edit right (its Form Request).
+        Route::get('/nachfrage', [NachfrageController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':approvals,view')
+            ->name('nachfrage.index');
+        Route::post('/nachfrage/markierung', [NachfrageController::class, 'mark'])->name('nachfrage.markieren');
+        Route::delete('/nachfrage/markierung', [NachfrageController::class, 'unmark'])->name('nachfrage.entmarkieren');
 
         // Verkauf › Bestellungen (docs/admin/rest-build-plan.md, step 2): the filters ride in the URL;
         // the export needs the right to take customer data away as well as to read it.

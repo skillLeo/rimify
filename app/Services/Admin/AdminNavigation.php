@@ -200,6 +200,16 @@ final class AdminNavigation
     ];
 
     /**
+     * Pages beneath the Übersicht rather than on the rail — reached from its widgets — whose crumb
+     * leads back to it: Übersicht › Nachfrage.
+     *
+     * @var array<string, string>
+     */
+    private const BENEATH_UEBERSICHT = [
+        '/admin/nachfrage' => 'Nachfrage',
+    ];
+
+    /**
      * Rail items that are a row of tabs (AdminSectionTabs) rather than a page: their address leads
      * to the first tab.
      *
@@ -391,6 +401,10 @@ final class AdminNavigation
 
         if (isset(self::OFF_RAIL[$path])) {
             return [['label' => self::OFF_RAIL[$path], 'href' => null]];
+        }
+
+        if (isset(self::BENEATH_UEBERSICHT[$path])) {
+            return [['label' => 'Übersicht', 'href' => '/admin'], ['label' => self::BENEATH_UEBERSICHT[$path], 'href' => null]];
         }
 
         return [];

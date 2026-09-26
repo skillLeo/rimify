@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Models\DemandMark;
 use App\Models\FaqEntry;
 use App\Models\NavItem;
 use App\Models\Order;
@@ -14,6 +15,7 @@ use App\Models\Page;
 use App\Models\TpmsSensorPrice;
 use App\Policies\AdminNotificationPolicy;
 use App\Policies\BalanceWeightColourPolicy;
+use App\Policies\DemandMarkPolicy;
 use App\Policies\FaqEntryPolicy;
 use App\Policies\NavItemPolicy;
 use App\Policies\OrderPolicy;
@@ -51,6 +53,7 @@ final class AuthServiceProvider extends ServiceProvider
         NavItem::class => NavItemPolicy::class,
         DatabaseNotification::class => AdminNotificationPolicy::class,
         Order::class => OrderPolicy::class,
+        DemandMark::class => DemandMarkPolicy::class,
     ];
 
     public function register(): void

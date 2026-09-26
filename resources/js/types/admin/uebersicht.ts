@@ -141,12 +141,50 @@ export interface CoverageMatrix {
     computedAt: string
 }
 
+/** One Nachfrage-Lücke: a car asked for that the shop has no approved wheel for yet (Demand). */
+export interface DemandGap {
+    /** `v:123` a variant in the catalogue, `k:0005-ABC` key numbers it does not know. */
+    key: string
+    kind: 'vehicle' | 'keys'
+    /** `BMW X3 M40i`, or `HSN 0005 · TSN ABC` for a car the catalogue does not know. */
+    title: string
+    /** `HSN 0005 · TSN ABC · 11/2017–heute`, `Nicht im Fahrzeugkatalog` */
+    detail: string
+    /** Asks in the Zeitraum. */
+    asked: number
+    /** People waiting now for a message. */
+    waiting: number
+    lastAgo: string | null
+    lastIso: string | null
+    score: number
+    /** 1–100: this gap's demand against the largest in the list. */
+    weight: number
+    mark: { state: 'watched' | 'requested'; label: string; by: string | null } | null
+    /** The request to a wheel brand, ready to send. */
+    mail: { subject: string; body: string }
+}
+
+export interface DemandCounts {
+    offen: number
+    beobachtet: number
+    angefordert: number
+    alle: number
+}
+
+export interface DemandList {
+    rows: DemandGap[]
+    counts: DemandCounts
+    asks: number
+    waiting: number
+}
+
 export interface DashboardCharts {
     /** false: not for this role; null: nothing to draw yet. */
     revenue: RevenueChart | null | false
     verdicts: VerdictChart | null | false
     topWheels: ChartPoint[] | false
     coverage: CoverageMatrix | false
+    demand: DemandList | false
 }
 
 export interface AdminUebersichtProps {

@@ -39,6 +39,7 @@ final class AuditDescriber
         'verkauf' => 'Verkauf',
         'team' => 'Team',
         'katalog' => 'Katalog',
+        'gutachten' => 'Gutachten',
         'inhalte' => 'Inhalte',
         'konto' => 'Konto',
         'zugriff' => 'Zugriff',
@@ -74,6 +75,8 @@ final class AuditDescriber
         'tpms_default_price.updated' => 'katalog',
         'audit_log.exported' => 'protokoll',
         'orders.exported' => 'verkauf',
+        'demand.marked' => 'gutachten',
+        'demand.unmarked' => 'gutachten',
         'page.created' => 'inhalte',
         'page.draft_saved' => 'inhalte',
         'page.draft_discarded' => 'inhalte',
@@ -123,6 +126,7 @@ final class AuditDescriber
         'admin.bestellungen' => 'Bestellungen',
         'admin.system' => 'Systemzustand',
         'admin.abdeckung' => 'Abdeckung',
+        'admin.nachfrage' => 'Nachfrage',
         'admin.benachrichtigungen' => 'Benachrichtigungen',
         'admin.profil' => 'Profil',
         'admin.seiten' => 'Seiten',
@@ -271,6 +275,8 @@ final class AuditDescriber
             ],
             'audit_log.exported' => [self::exported($p), []],
             'orders.exported' => [self::ordersExported($p), []],
+            'demand.marked' => [self::demandMarked($p), []],
+            'demand.unmarked' => ['Die Markierung der Nachfrage-Lücke '.self::q(self::text($p, 'gap') ?? 'ohne Namen').' wurde aufgehoben. Sie ist wieder offen.', []],
             'page.created' => ['Der Ratgeber-Artikel '.self::page($p).' wurde angelegt. Er ist noch nicht veröffentlicht.', []],
             'page.draft_saved' => ['Für die Seite '.self::page($p).' wurde ein Entwurf gespeichert.', []],
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
@@ -297,6 +303,21 @@ final class AuditDescriber
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
             ],
         };
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function demandMarked(array $p): string
+    {
+        $gap = self::q(self::text($p, 'gap') ?? 'ohne Namen');
+        $brand = self::text($p, 'brand');
+
+        if (($p['state'] ?? null) === 'requested') {
+            return $brand === null
+                ? "Für {$gap} wurde ein Gutachten angefordert."
+                : "Für {$gap} wurde das Gutachten bei {$brand} angefordert.";
+        }
+
+        return "Die Nachfrage-Lücke {$gap} wurde als beobachtet markiert.";
     }
 
     /** @param  array<array-key, mixed>  $p */

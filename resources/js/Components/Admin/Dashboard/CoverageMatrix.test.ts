@@ -50,15 +50,15 @@ describe('CoverageMatrix', () => {
     it('shades a cell by its level on the sequential ramp, and prints its count in German', () => {
         const cells = mount(CoverageMatrix, { props: { matrix } }).findAll('.cm__cell')
 
-        expect(cells[0].attributes('style')).toContain('var(--chart-seq-7)')
-        expect(cells[0].classes()).toContain('cm__cell--dark')
-        expect(cells[0].text()).toBe('1.420')
-        expect(cells[1].attributes('style')).toContain('var(--chart-seq-2)')
-        expect(cells[1].classes()).not.toContain('cm__cell--dark')
+        expect(cells[0]!.attributes('style')).toContain('var(--chart-seq-7)')
+        expect(cells[0]!.classes()).toContain('cm__cell--dark')
+        expect(cells[0]!.text()).toBe('1.420')
+        expect(cells[1]!.attributes('style')).toContain('var(--chart-seq-2)')
+        expect(cells[1]!.classes()).not.toContain('cm__cell--dark')
     })
 
     it('leaves a cell without an approved variant unshaded', () => {
-        const empty = mount(CoverageMatrix, { props: { matrix } }).findAll('.cm__cell')[2]
+        const empty = mount(CoverageMatrix, { props: { matrix } }).findAll('.cm__cell')[2]!
 
         expect(empty.attributes('style')).toBeUndefined()
         expect(empty.classes()).toContain('cm__cell--none')
@@ -72,13 +72,13 @@ describe('CoverageMatrix', () => {
         expect(caption.text()).toBe('Abdeckung insgesamt: 2.224 Freigaben über 73 Varianten')
         expect(caption.attributes('aria-live')).toBe('polite')
 
-        await wrapper.findAll('.cm__cell')[1].trigger('mouseenter')
+        await wrapper.findAll('.cm__cell')[1]!.trigger('mouseenter')
         expect(caption.text()).toBe('BMW, 19 Zoll: 210 von 1680 Varianten')
 
-        await wrapper.findAll('.cm__cell')[1].trigger('mouseleave')
+        await wrapper.findAll('.cm__cell')[1]!.trigger('mouseleave')
         expect(caption.text()).toContain('Abdeckung insgesamt')
 
-        await wrapper.findAll('.cm__cell')[0].trigger('focus')
+        await wrapper.findAll('.cm__cell')[0]!.trigger('focus')
         expect(caption.text()).toBe('BMW, 18 Zoll: 1420 von 1680 Varianten')
     })
 
@@ -93,7 +93,7 @@ describe('CoverageMatrix', () => {
         const legend = mount(CoverageMatrix, { props: { matrix } }).find('.cm__legend')
 
         expect(legend.findAll('.cm__swatch')).toHaveLength(7)
-        expect(legend.findAll('.cm__swatch')[6].attributes('style')).toContain('var(--chart-seq-7)')
+        expect(legend.findAll('.cm__swatch')[6]!.attributes('style')).toContain('var(--chart-seq-7)')
         expect(legend.text()).toContain('1.420')
     })
 })
