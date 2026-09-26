@@ -17,8 +17,10 @@ withDefaults(
         wide?: boolean
         /** The title is rendered for assistive technology only, when the content carries its own heading. */
         hideTitle?: boolean
+        /** A class for the surface itself — it is portalled, so a surrounding class cannot reach it. */
+        contentClass?: string
     }>(),
-    { description: undefined, variant: 'dialog', wide: false, hideTitle: false }
+    { description: undefined, variant: 'dialog', wide: false, hideTitle: false, contentClass: undefined }
 )
 
 const open = defineModel<boolean>('open', { default: false })
@@ -29,7 +31,7 @@ const open = defineModel<boolean>('open', { default: false })
         <DialogPortal>
             <DialogOverlay class="overlay" />
             <DialogContent
-                :class="[variant === 'dialog' ? 'dialog' : variant, { 'dialog--wide': wide }]"
+                :class="[variant === 'dialog' ? 'dialog' : variant, { 'dialog--wide': wide }, contentClass]"
                 :aria-describedby="description ? undefined : ''"
             >
                 <div v-if="variant === 'sheet'" class="sheet__grab" aria-hidden="true" />

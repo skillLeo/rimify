@@ -1,0 +1,758 @@
+/*
+ * The admin shell — loaded only by AdminLayout, so nothing here reaches a storefront page.
+ *
+ * The same system as the shop, one notch tighter (docs/design/sections/admin-shell.md §2): every
+ * value is a token, every selector starts with `.adm`, and nothing here redefines a :root token or a
+ * storefront class's own definition. The rail follows the client's decisions in DIRECTION §8a: light,
+ * a hairline on its right edge, labelled groups, 36 px items with a tint and a 2 px indicator.
+ */
+
+/* ── The frame ─────────────────────────────────────────────────────────────────── */
+
+.adm {
+    display: grid;
+    grid-template-columns: var(--adm-rail-w) minmax(0, 1fr);
+    min-height: 100dvh;
+    background: var(--c-surface);
+    color: var(--c-ink);
+}
+
+.adm[data-rail='collapsed'] {
+    grid-template-columns: var(--adm-rail-w-min) minmax(0, 1fr);
+}
+
+/* 768–1023: the rail is always collapsed — there is no room to honour a choice to open it. */
+@media (max-width: 1023px) {
+    .adm {
+        grid-template-columns: var(--adm-rail-w-min) minmax(0, 1fr);
+    }
+}
+
+/* Below 768 there is no rail at all; the phone has its bottom bar. */
+@media (max-width: 767px) {
+    .adm,
+    .adm[data-rail='collapsed'] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.adm-skip {
+    position: absolute;
+    top: var(--sp-8);
+    left: var(--sp-8);
+    z-index: var(--z-skip);
+    padding: var(--sp-8) var(--sp-12);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    transform: translateY(-200%);
+}
+
+.adm-skip:focus-visible {
+    transform: none;
+}
+
+.adm-work {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* ── The rail ──────────────────────────────────────────────────────────────────── */
+
+.adm-rail {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 var(--sp-12) var(--sp-12);
+    background: var(--c-surface);
+    border-right: 1px solid var(--c-line);
+}
+
+@media (max-width: 767px) {
+    .adm-rail {
+        display: none;
+    }
+}
+
+.adm-rail__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-height: var(--adm-topbar-h);
+    padding: var(--sp-20) var(--sp-8);
+}
+
+/* The logo: black, a 20 px cap height, the storefront wordmark's own weight and tracking. */
+.adm-wordmark {
+    font-size: var(--adm-wordmark-size);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    color: var(--c-ink);
+    text-decoration: none;
+}
+
+/* Scoped so it outranks `.adm-iconbtn`'s own display, which the mark also wears. */
+.adm-rail .adm-wordmark--mark {
+    display: none;
+}
+
+.adm-rail__toggle {
+    margin-left: auto;
+}
+
+.adm-rail__nav {
+    display: flex;
+    flex-direction: column;
+}
+
+.adm-rail__group + .adm-rail__group {
+    margin-top: var(--sp-16);
+}
+
+/* 12 px, --c-ink-3, sentence case — and never uppercase, never tracked (DIRECTION §3). */
+.adm-rail__label {
+    margin: 0 0 var(--sp-4);
+    padding-inline: var(--sp-12);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-rail__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.adm-rail__item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-12);
+    border-radius: var(--r-tile);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    text-decoration: none;
+    transition:
+        background-color var(--d-1) var(--ease-out),
+        color var(--d-1) var(--ease-out);
+}
+
+.adm-rail__item .icon {
+    flex: none;
+}
+
+.adm-rail__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-rail__item:hover {
+        background: var(--c-band);
+    }
+}
+
+/* Where you are: the tint, ink text, and a 2 px indicator inset 8 px top and bottom. */
+.adm-rail__item[aria-current='page'] {
+    background: var(--c-blue-tint);
+    color: var(--c-ink);
+}
+
+.adm-rail__item[aria-current='page']::before {
+    content: '';
+    position: absolute;
+    top: var(--sp-8);
+    bottom: var(--sp-8);
+    left: 0;
+    width: 2px;
+    background: var(--c-blue);
+}
+
+/* A queue of work: a figure, not a pill. Neutral unless something broke. */
+.adm-rail__count {
+    margin-left: auto;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+}
+
+.adm-rail__count--bad {
+    color: var(--c-bad);
+    font-weight: 500;
+}
+
+/* ── The collapsed rail: icons with tooltips ───────────────────────────────────────
+ * Written twice on purpose — once for the viewer's own choice, once for 768–1023 where the rail is
+ * forced collapsed — because CSS has no way to say "either".                                  */
+
+.adm[data-rail='collapsed'] .adm-rail__brand {
+    flex-direction: column;
+    padding-inline: 0;
+}
+
+.adm[data-rail='collapsed'] .adm-wordmark--full,
+.adm[data-rail='collapsed'] .adm-rail__brand .adm-env,
+.adm[data-rail='collapsed'] .adm-rail__label,
+.adm[data-rail='collapsed'] .adm-rail__text,
+.adm[data-rail='collapsed'] .adm-rail__count {
+    display: none;
+}
+
+.adm[data-rail='collapsed'] .adm-wordmark--mark {
+    display: inline-flex;
+}
+
+.adm[data-rail='collapsed'] .adm-rail__toggle {
+    margin-left: 0;
+}
+
+.adm[data-rail='collapsed'] .adm-rail__group + .adm-rail__group {
+    margin-top: var(--sp-8);
+}
+
+.adm[data-rail='collapsed'] .adm-rail__item {
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin-inline: auto;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .adm .adm-rail__brand {
+        flex-direction: column;
+        padding-inline: 0;
+    }
+
+    .adm .adm-wordmark--full,
+    .adm .adm-rail__brand .adm-env,
+    .adm .adm-rail__label,
+    .adm .adm-rail__text,
+    .adm .adm-rail__count,
+    .adm .adm-rail__toggle {
+        display: none;
+    }
+
+    .adm .adm-wordmark--mark {
+        display: inline-flex;
+    }
+
+    .adm .adm-rail__group + .adm-rail__group {
+        margin-top: var(--sp-8);
+    }
+
+    .adm .adm-rail__item {
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        margin-inline: auto;
+    }
+}
+
+/* A count, collapsed: a 6 px dot at the icon's top-right. The number stays in the tooltip and in
+   the link's accessible name. */
+.adm-rail__dot {
+    display: none;
+    position: absolute;
+    top: var(--sp-4);
+    right: var(--sp-4);
+    width: 6px;
+    height: 6px;
+    border-radius: var(--r-round);
+    background: var(--c-ink-2);
+}
+
+.adm-rail__dot--bad {
+    background: var(--c-bad);
+}
+
+.adm[data-rail='collapsed'] .adm-rail__dot {
+    display: block;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .adm .adm-rail__dot {
+        display: block;
+    }
+}
+
+.adm-tooltip {
+    z-index: var(--z-dropdown);
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--r-control);
+    background: var(--c-ink);
+    color: var(--c-surface);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    box-shadow: var(--e-2);
+}
+
+/* ── The environment badge ─────────────────────────────────────────────────────── */
+
+.adm-env {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding-inline: var(--sp-8);
+    border-radius: var(--r-control);
+    background: var(--c-warn-tint);
+    color: var(--c-ink);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* The topbar's copy of the badge shows only when the rail's copy is hidden. */
+.adm-topbar .adm-env {
+    display: none;
+}
+
+.adm[data-rail='collapsed'] .adm-topbar .adm-env {
+    display: inline-flex;
+}
+
+@media (max-width: 1023px) {
+    .adm .adm-topbar .adm-env {
+        display: inline-flex;
+    }
+}
+
+/* ── The topbar ────────────────────────────────────────────────────────────────── */
+
+.adm-topbar {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 480px) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--sp-16);
+    height: var(--adm-topbar-h);
+    padding-inline: var(--sp-32);
+    background: var(--c-surface);
+    border-bottom: 1px solid var(--c-line);
+}
+
+/* A visit longer than 300 ms turns the topbar's own hairline blue. Nothing moves (§6.6). */
+.adm[data-busy] .adm-topbar {
+    border-bottom-color: var(--c-blue);
+}
+
+.adm-topbar__start {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    min-width: 0;
+}
+
+.adm-topbar__end {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    gap: var(--sp-4);
+}
+
+@media (max-width: 1279px) {
+    .adm-topbar {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 320px) minmax(0, 1fr);
+        padding-inline: var(--sp-24);
+    }
+}
+
+@media (max-width: 1023px) {
+    .adm-topbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding-inline: var(--sp-20);
+    }
+}
+
+@media (max-width: 767px) {
+    .adm-topbar {
+        display: none;
+    }
+}
+
+/* Breadcrumbs: ancestors quiet, the current page named, nothing a link that goes nowhere. */
+.adm-crumbs {
+    min-width: 0;
+}
+
+.adm-crumbs ol {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-crumbs li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    min-width: 0;
+    color: var(--c-ink-3);
+}
+
+.adm-crumbs li > span,
+.adm-crumbs li > a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-crumbs a {
+    color: var(--c-ink-3);
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-crumbs a:hover {
+        color: var(--c-ink);
+        text-decoration: underline;
+    }
+}
+
+.adm-crumbs [aria-current='page'] {
+    color: var(--c-ink-2);
+    font-weight: 500;
+}
+
+.adm-crumbs__sep {
+    flex: none;
+    color: var(--c-line-2);
+}
+
+/* The search is a button that looks like a field: one search, one focus model (§6.2). */
+.adm-search {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    width: 100%;
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-12);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    color: var(--c-ink-3);
+    font: inherit;
+    font-size: var(--fs-small);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--d-1) var(--ease-out);
+}
+
+.adm-search__label {
+    flex: 1;
+}
+
+.adm-search__kbd {
+    min-width: 56px;
+    text-align: right;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-search:hover {
+        border-color: var(--c-line-2);
+    }
+}
+
+.adm-search:active {
+    background: var(--c-band);
+}
+
+/* Scoped so it outranks `.adm-iconbtn`'s own display, which the icon also wears. */
+.adm-topbar .adm-search--icon {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    .adm-search--field {
+        display: none;
+    }
+
+    .adm-topbar .adm-search--icon {
+        display: inline-flex;
+    }
+}
+
+.adm-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: var(--adm-control-h);
+    height: var(--adm-control-h);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink-2);
+    cursor: pointer;
+    transition:
+        background-color var(--d-1) var(--ease-out),
+        color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-iconbtn:hover {
+        background: var(--c-band);
+        color: var(--c-ink);
+    }
+}
+
+.adm-iconbtn:active {
+    background: var(--c-line);
+}
+
+.adm-usermenu {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-8);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink);
+    font: inherit;
+    font-size: var(--fs-small);
+    cursor: pointer;
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+.adm-usermenu__name {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-usermenu:hover {
+        background: var(--c-band);
+    }
+}
+
+@media (max-width: 1023px) {
+    .adm-usermenu__name,
+    .adm-usermenu__chevron {
+        display: none;
+    }
+}
+
+/* ── Menus (portalled, so they carry their own prefix rather than sitting under .adm) ─ */
+
+.adm-menu {
+    z-index: var(--z-dropdown);
+    min-width: 240px;
+    padding: var(--sp-4);
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    box-shadow: var(--e-2);
+}
+
+.adm-menu__head {
+    padding: var(--sp-8) var(--sp-12) var(--sp-12);
+}
+
+.adm-menu__name {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-menu__meta {
+    margin: 0;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+    overflow-wrap: anywhere;
+}
+
+.adm-menu__item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    width: 100%;
+    height: var(--adm-row-h);
+    padding-inline: var(--sp-12);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink);
+    font: inherit;
+    font-size: var(--fs-small);
+    text-decoration: none;
+    text-align: left;
+    cursor: pointer;
+    outline: none;
+}
+
+.adm-menu__item[data-highlighted] {
+    background: var(--c-band);
+}
+
+.adm-menu__item[data-disabled] {
+    color: var(--c-ink-3);
+    cursor: progress;
+}
+
+.adm-menu__sep {
+    height: 1px;
+    margin: var(--sp-4) calc(-1 * var(--sp-4));
+    background: var(--c-line);
+}
+
+.adm-menu__caption {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+/* ── Dialogs: the storefront's surface, the admin's quicker motion (BRIEF-2 §4) ───── */
+
+.adm-dialog,
+.adm-dialog[data-state='closed'] {
+    animation-duration: var(--adm-d-dialog);
+}
+
+/* ── Tastenkürzel ──────────────────────────────────────────────────────────────── */
+
+.adm-keys + .adm-keys {
+    margin-top: var(--sp-24);
+}
+
+.adm-keys__title {
+    margin: 0 0 var(--sp-8);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-keys__list {
+    margin: 0;
+}
+
+.adm-keys__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    min-height: var(--adm-row-h);
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-keys__row dt {
+    color: var(--c-ink-2);
+}
+
+.adm-keys__row dd {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    flex: none;
+    margin: 0;
+}
+
+.adm-keys__or {
+    font-size: var(--fs-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-keys__note {
+    margin: var(--sp-16) 0 0;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+/* ── The work area ─────────────────────────────────────────────────────────────── */
+
+.adm-page {
+    flex: 1;
+    width: 100%;
+    max-width: var(--adm-work-max);
+    padding: var(--sp-32);
+}
+
+.adm-page:focus {
+    outline: none;
+}
+
+@media (max-width: 1279px) {
+    .adm-page {
+        padding: var(--sp-24);
+    }
+}
+
+@media (max-width: 1023px) {
+    .adm-page {
+        padding: var(--sp-20);
+    }
+}
+
+@media (max-width: 767px) {
+    .adm-page {
+        padding: var(--sp-16);
+    }
+}
+
+/* ── Density: the workbench, one notch tighter than the showroom (§2) ─────────────── */
+
+@media (min-width: 768px) {
+    .adm .btn {
+        min-height: var(--adm-control-h);
+        padding-inline: var(--sp-16);
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+    }
+
+    .adm .field {
+        min-height: var(--adm-control-h);
+        font-size: var(--fs-small);
+    }
+}
+
+/* ── Reduced motion: every duration to zero, the end state kept ────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .adm *,
+    .adm-menu,
+    .adm-tooltip,
+    .adm-dialog {
+        transition-duration: 0ms !important;
+        animation-duration: 0ms !important;
+    }
+}

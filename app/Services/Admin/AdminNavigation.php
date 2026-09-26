@@ -35,7 +35,7 @@ final class AdminNavigation
      * `count` names a live figure the row carries; only a queue of work whose goal is zero earns one
      * (admin-shell.md §5.6). A group with exactly one visible page IS that page in the rail.
      *
-     * @var list<array{key: string, label: string, icon: string, module: string|null, pages: list<array{label: string, href: string, count?: string}>}>
+     * @var list<array{key: string, label: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string}>}>
      */
     private const GROUPS = [
         [
@@ -44,7 +44,7 @@ final class AdminNavigation
             'icon' => 'grid',
             'module' => null,
             'pages' => [
-                ['label' => 'Übersicht', 'href' => '/admin'],
+                ['label' => 'Übersicht', 'href' => '/admin', 'icon' => 'grid'],
             ],
         ],
         [
@@ -53,9 +53,9 @@ final class AdminNavigation
             'icon' => 'cart',
             'module' => PermissionModule::Orders->value,
             'pages' => [
-                ['label' => 'Bestellungen', 'href' => '/admin/bestellungen', 'count' => 'orders_open'],
-                ['label' => 'Kunden', 'href' => '/admin/kunden'],
-                ['label' => 'Anfragen', 'href' => '/admin/anfragen'],
+                ['label' => 'Bestellungen', 'href' => '/admin/bestellungen', 'icon' => 'cart', 'count' => 'orders_open'],
+                ['label' => 'Kunden', 'href' => '/admin/kunden', 'icon' => 'user'],
+                ['label' => 'Anfragen', 'href' => '/admin/anfragen', 'icon' => 'mail'],
             ],
         ],
         [
@@ -64,12 +64,12 @@ final class AdminNavigation
             'icon' => 'box',
             'module' => PermissionModule::Catalogue->value,
             'pages' => [
-                ['label' => 'Felgen', 'href' => '/admin/felgen'],
-                ['label' => 'Reifen', 'href' => '/admin/reifen'],
-                ['label' => 'Marken', 'href' => '/admin/marken'],
-                ['label' => 'Bestände', 'href' => '/admin/bestaende'],
-                ['label' => 'Wuchtgewichte-Farben', 'href' => '/admin/wuchtgewichte'],
-                ['label' => 'RDKS-Sensorpreise', 'href' => '/admin/rdks-preise'],
+                ['label' => 'Felgen', 'href' => '/admin/felgen', 'icon' => 'box'],
+                ['label' => 'Reifen', 'href' => '/admin/reifen', 'icon' => 'ruler'],
+                ['label' => 'Marken', 'href' => '/admin/marken', 'icon' => 'star'],
+                ['label' => 'Bestände', 'href' => '/admin/bestaende', 'icon' => 'grid'],
+                ['label' => 'Wuchtgewichte-Farben', 'href' => '/admin/wuchtgewichte', 'icon' => 'wrench'],
+                ['label' => 'RDKS-Sensorpreise', 'href' => '/admin/rdks-preise', 'icon' => 'shield'],
             ],
         ],
         [
@@ -78,14 +78,14 @@ final class AdminNavigation
             'icon' => 'document',
             'module' => PermissionModule::Approvals->value,
             'pages' => [
-                ['label' => 'Dokumente', 'href' => '/admin/gutachten'],
-                ['label' => 'Auflagen-Katalog', 'href' => '/admin/auflagen'],
-                ['label' => 'Abdeckung', 'href' => '/admin/abdeckung'],
-                ['label' => 'Konflikte', 'href' => '/admin/konflikte', 'count' => 'conflicts_open'],
+                ['label' => 'Dokumente', 'href' => '/admin/gutachten', 'icon' => 'document'],
+                ['label' => 'Auflagen-Katalog', 'href' => '/admin/auflagen', 'icon' => 'text'],
+                ['label' => 'Abdeckung', 'href' => '/admin/abdeckung', 'icon' => 'check-circle'],
+                ['label' => 'Konflikte', 'href' => '/admin/konflikte', 'icon' => 'warning', 'count' => 'conflicts_open'],
                 // Customers asking to be told when a document for their car arrives. The goal of
                 // the team's work is to have told all of them, so it is a queue and earns a count.
                 // Not "Benachrichtigungen": that word belongs to the team's own notifications.
-                ['label' => 'Benachrichtigungswünsche', 'href' => '/admin/benachrichtigungen', 'count' => 'notify_open'],
+                ['label' => 'Benachrichtigungswünsche', 'href' => '/admin/benachrichtigungen', 'icon' => 'mail', 'count' => 'notify_open'],
             ],
         ],
         [
@@ -94,8 +94,8 @@ final class AdminNavigation
             'icon' => 'car',
             'module' => PermissionModule::Vehicles->value,
             'pages' => [
-                ['label' => 'Fahrzeuge', 'href' => '/admin/fahrzeuge'],
-                ['label' => 'Zur Prüfung', 'href' => '/admin/fahrzeuge/pruefung', 'count' => 'vehicles_review'],
+                ['label' => 'Fahrzeuge', 'href' => '/admin/fahrzeuge', 'icon' => 'car'],
+                ['label' => 'Zur Prüfung', 'href' => '/admin/fahrzeuge/pruefung', 'icon' => 'eye', 'count' => 'vehicles_review'],
             ],
         ],
         [
@@ -104,10 +104,10 @@ final class AdminNavigation
             'icon' => 'text',
             'module' => PermissionModule::Content->value,
             'pages' => [
-                ['label' => 'Seiten', 'href' => '/admin/seiten'],
-                ['label' => 'FAQ', 'href' => '/admin/faq'],
-                ['label' => 'Navigation', 'href' => '/admin/navigation'],
-                ['label' => 'Medien', 'href' => '/admin/medien'],
+                ['label' => 'Seiten', 'href' => '/admin/seiten', 'icon' => 'text'],
+                ['label' => 'FAQ', 'href' => '/admin/faq', 'icon' => 'info'],
+                ['label' => 'Navigation', 'href' => '/admin/navigation', 'icon' => 'menu'],
+                ['label' => 'Medien', 'href' => '/admin/medien', 'icon' => 'camera'],
             ],
         ],
         [
@@ -116,10 +116,10 @@ final class AdminNavigation
             'icon' => 'chart',
             'module' => PermissionModule::Reports->value,
             'pages' => [
-                ['label' => 'Verkäufe', 'href' => '/admin/verkaeufe'],
-                ['label' => 'Suchen ohne Treffer', 'href' => '/admin/suchen-ohne-treffer'],
-                ['label' => 'Fahrzeuge ohne Felgen', 'href' => '/admin/fahrzeuge-ohne-felgen'],
-                ['label' => 'Gutachten-Lücken', 'href' => '/admin/gutachten-luecken'],
+                ['label' => 'Verkäufe', 'href' => '/admin/verkaeufe', 'icon' => 'chart'],
+                ['label' => 'Suchen ohne Treffer', 'href' => '/admin/suchen-ohne-treffer', 'icon' => 'search'],
+                ['label' => 'Fahrzeuge ohne Felgen', 'href' => '/admin/fahrzeuge-ohne-felgen', 'icon' => 'car'],
+                ['label' => 'Gutachten-Lücken', 'href' => '/admin/gutachten-luecken', 'icon' => 'document'],
             ],
         ],
         [
@@ -128,7 +128,7 @@ final class AdminNavigation
             'icon' => 'settings',
             'module' => PermissionModule::Settings->value,
             'pages' => [
-                ['label' => 'Allgemein', 'href' => '/admin/einstellungen'],
+                ['label' => 'Allgemein', 'href' => '/admin/einstellungen', 'icon' => 'settings'],
             ],
         ],
         [
@@ -137,9 +137,9 @@ final class AdminNavigation
             'icon' => 'user',
             'module' => PermissionModule::Roles->value,
             'pages' => [
-                ['label' => 'Benutzer', 'href' => '/admin/benutzer'],
-                ['label' => 'Rollen & Rechte', 'href' => '/admin/rollen'],
-                ['label' => 'Protokoll', 'href' => '/admin/protokoll'],
+                ['label' => 'Benutzer', 'href' => '/admin/benutzer', 'icon' => 'user'],
+                ['label' => 'Rollen & Rechte', 'href' => '/admin/rollen', 'icon' => 'lock'],
+                ['label' => 'Protokoll', 'href' => '/admin/protokoll', 'icon' => 'clock'],
             ],
         ],
         [
@@ -148,7 +148,7 @@ final class AdminNavigation
             'icon' => 'wrench',
             'module' => PermissionModule::Settings->value,
             'pages' => [
-                ['label' => 'Warteschlange', 'href' => '/admin/warteschlange', 'count' => 'jobs_failed'],
+                ['label' => 'Warteschlange', 'href' => '/admin/warteschlange', 'icon' => 'sort', 'count' => 'jobs_failed'],
             ],
         ],
     ];
@@ -190,7 +190,7 @@ final class AdminNavigation
      * A group whose every page is unbuilt or unpermitted is dropped rather than drawn empty. A count
      * is only queried when the page carrying it is actually in the tree.
      *
-     * @return list<array{key: string, label: string, icon: string, pages: list<array{label: string, href: string, count: int|null, countTone: string}>}>
+     * @return list<array{key: string, label: string, icon: string, pages: list<array{label: string, href: string, icon: string, count: int|null, countTone: string}>}>
      */
     public function for(AdminUser $user): array
     {
@@ -214,6 +214,9 @@ final class AdminNavigation
                 $pages[] = [
                     'label' => $page['label'],
                     'href' => $page['href'],
+                    // Every item carries its own icon: the collapsed rail is icons with tooltips, one
+                    // per page, so a page without one could not be reached with the rail collapsed.
+                    'icon' => $page['icon'],
                     // Zero is not a count: a rail that shows `0` is asking to be read as a problem.
                     'count' => $count !== null && $count > 0 ? $count : null,
                     'countTone' => $key !== null && in_array($key, self::FAILURES, true) ? 'bad' : 'neutral',

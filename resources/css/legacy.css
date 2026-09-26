@@ -1597,89 +1597,8 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
-       ADMIN · the same tokens, a denser frame
+       ADMIN · the frame lives in admin.css; these are the dashboard's figures until Übersicht moves
        ═══════════════════════════════════════════════════════════════════════════ */
-
-    .adm {
-        display: grid;
-        grid-template-columns: 248px minmax(0, 1fr);
-        min-height: 100vh;
-        background: var(--ground);
-    }
-
-    .adm__side {
-        background: var(--ink);
-        color: var(--on-dark-2);
-        padding: var(--space-5) var(--space-3);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-    }
-
-    /*
-     * The rail is the height of the SCREEN, not of the page.
-     *
-     * Without this it is a plain grid item: it stretches to the row, the row is as tall as whatever
-     * the page happens to hold, and on a long page — the permission matrix runs to twelve modules —
-     * the navigation scrolls away with the content and the theme button ends up pinned to the
-     * bottom of the document, a screen and a half below the fold. Sticky at `top: 0` with the
-     * viewport's own height is what every dashboard rail does, and `--spacer`'s `flex: 1` then
-     * pushes the last item to the bottom of the SCREEN, which is where it was always meant to sit.
-     *
-     * `overflow-y: auto` and not `scroll`: the rail scrolls only when its own items are taller than
-     * the screen, so on an ordinary laptop there is no second scrollbar beside the page's. And
-     * `overscroll-behavior: contain`, so reaching the end of a scrolling rail does not then start
-     * scrolling the page behind it.
-     *
-     * Only from 1200px. Below that the rail is a horizontal strip across the top (further down this
-     * file) and must keep scrolling with the page.
-     */
-    @media (min-width: 1200px) {
-        .adm__side {
-            position: sticky;
-            top: 0;
-            height: 100dvh;
-            overflow-y: auto;
-            overscroll-behavior: contain;
-        }
-    }
-
-    .adm__link {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        min-height: 44px;
-        padding-inline: var(--space-3);
-        border-radius: var(--radius-sm);
-        color: var(--on-dark-2);
-        font-size: var(--text-body);
-        font-weight: 700;
-        text-decoration: none;
-    }
-
-    @media (hover: hover) and (pointer: fine) {
-        .adm__link:hover {
-            background: rgba(247, 248, 253, 0.1);
-            color: var(--on-dark);
-        }
-    }
-
-    .adm__link[aria-current='page'] {
-        background: var(--blue);
-        color: #fff;
-    }
-
-    .adm__main {
-        min-width: 0;
-        padding: var(--space-6) var(--gutter);
-    }
-
-    .adm__topbar {
-        display: flex;
-        align-items: center;
-        gap: var(--space-4);
-        margin-bottom: var(--space-5);
-    }
 
     /* Operational metrics: a label and a real number that links to the list behind it. */
     .metrics {
@@ -1716,18 +1635,6 @@
     @container (max-width: 240px) {
         .metric__value {
             font-size: var(--text-h3);
-        }
-    }
-
-    @media (max-width: 1199px) {
-        .adm {
-            grid-template-columns: 1fr;
-        }
-
-        .adm__side {
-            flex-direction: row;
-            overflow-x: auto;
-            padding: var(--space-3);
         }
     }
 

@@ -1,232 +1,117 @@
 <script setup lang="ts">
 /**
- * The admin frame: a black rail, a topbar, and the page.
+ * The admin frame: the rail, the topbar, and the page — the one layout every admin screen shares.
  *
- * Items a role cannot reach are NOT rendered at all rather than rendered and disabled — a disabled
- * link still tells someone a capability exists, and the permission model says nothing here is
- * merely hidden. The rail is filtered from the server's list, and the server refuses the route
- * regardless (R-11); this is presentation, never enforcement.
+ * Everything that decides what the frame shows is decided on the server and present in the first
+ * frame (R-08 in spirit): the tree the rail draws, the breadcrumbs, whether the rail is collapsed,
+ * which environment this is. Nothing here fetches, and nothing after hydration changes the frame's
+ * shape except the viewer's own toggle.
  *
- * The dark layer is a token redefinition on `data-theme`, not a second stylesheet.
+ * Items a role cannot reach are not in the tree at all; the server refuses the route regardless
+ * (R-11). This is presentation, never enforcement.
+ *
+ * The frame is light, and only light (DIRECTION §8a): the dark rail, its white wordmark and the
+ * dark-mode toggle are gone, and the account moved from the rail to the topbar's user menu.
  */
 
-import { Link, router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import Icon from '../Components/Art/Icon.vue'
+import { router } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import '../../css/admin.css'
+import AdminRail from '../Components/Admin/AdminRail.vue'
+import AdminTopbar from '../Components/Admin/AdminTopbar.vue'
+import ShortcutsDialog from '../Components/Admin/ShortcutsDialog.vue'
 import Toast from '../Components/Chrome/Toast.vue'
-import type { IconName } from '../art'
-import { useShared } from '../composables/useShared'
+import { provideAdminShell, useAdmin } from '../composables/admin/useAdmin'
+import { useAdminShortcuts } from '../composables/admin/useAdminShortcuts'
 
-withDefaults(defineProps<{ title?: string }>(), { title: undefined })
+const admin = useAdmin()
 
-const shared = useShared()
-const theme = ref<'light' | 'dark'>('light')
+const paletteOpen = ref(false)
+const shortcutsOpen = ref(false)
+const railCollapsed = ref(admin.value.preferences.railCollapsed)
 
-interface RailItem {
-    label: string
-    href: string
-    routeName: string
-    icon: IconName
-    /** The permission module that has to be viewable, or null for an item every signed-in admin gets. */
-    module: string | null
-}
-
-// Every admin screen that exists, each behind the module the server shares as `admin.can`
-// (HandleInertiaRequests, admin routes only). An item whose module is not allowed is not rendered.
-const rail: RailItem[] = [
-    { label: 'Dashboard', href: '/admin', routeName: 'admin.dashboard', icon: 'grid', module: null },
-    { label: 'Gutachten', href: '/admin/gutachten', routeName: 'admin.gutachten.index', icon: 'document', module: 'approvals' },
-    { label: 'Wuchtgewichte-Farben', href: '/admin/wuchtgewichte', routeName: 'admin.wuchtgewichte.index', icon: 'box', module: 'catalogue' },
-    { label: 'RDKS-Sensorpreise', href: '/admin/rdks-preise', routeName: 'admin.rdks.index', icon: 'settings', module: 'catalogue' },
-    { label: 'Rollen & Rechte', href: '/admin/rollen', routeName: 'admin.rollen.index', icon: 'lock', module: 'roles' },
-    { label: 'Benachrichtigungen', href: '/admin/benachrichtigungen', routeName: 'admin.benachrichtigungen.index', icon: 'mail', module: 'approvals' },
-]
-
-/** `admin.can` as the server shares it. Anything else — absent, malformed — reads as nothing allowed. */
-function canFrom(admin: unknown): Record<string, boolean> {
-    if (admin === null || typeof admin !== 'object') {
-        return {}
-    }
-
-    const can = (admin as { can?: unknown }).can
-
-    if (can === null || typeof can !== 'object') {
-        return {}
-    }
-
-    const out: Record<string, boolean> = {}
-
-    for (const [module, allowed] of Object.entries(can as Record<string, unknown>)) {
-        out[module] = allowed === true
-    }
-
-    return out
-}
-
-const can = computed(() => canFrom(shared.value.admin))
-const items = computed(() => rail.filter((item) => item.module === null || can.value[item.module] === true))
+// The server's answer wins whenever it arrives — another tab may have changed it.
+watch(
+    () => admin.value.preferences.railCollapsed,
+    (value) => (railCollapsed.value = value)
+)
 
 /**
- * Who is signed in, as the server shares it — the name and the role they are wearing.
- *
- * The rail says it out loud rather than hiding it behind an avatar: on a panel where the same
- * screen shows different things to different roles, "which account am I?" is the question behind
- * half of all confusion, and it costs one line to answer permanently.
+ * The rail moves at once; the choice is saved behind it. The save is a quiet visit — no progress,
+ * no history entry, only the `admin` prop back — and a failure costs the preference, not the page.
  */
-const account = computed(() => {
-    const admin: unknown = shared.value.admin
+function toggleRail(): void {
+    railCollapsed.value = !railCollapsed.value
 
-    if (admin === null || typeof admin !== 'object') {
-        return null
-    }
-
-    const value = (admin as { account?: unknown }).account
-
-    return value !== null && typeof value === 'object' ? (value as { name: string; email: string; role: string | null }) : null
-})
-
-const signingOut = ref(false)
-
-function signOut(): void {
-    signingOut.value = true
-    router.post('/admin/abmelden', {}, { onFinish: () => (signingOut.value = false) })
+    router.patch(
+        '/admin/ansicht',
+        { rail: railCollapsed.value ? 'collapsed' : 'open' },
+        { async: true, showProgress: false, preserveScroll: true, preserveState: true, replace: true, only: ['admin'] }
+    )
 }
 
-function toggleTheme(): void {
-    theme.value = theme.value === 'dark' ? 'light' : 'dark'
-    apply()
-}
+const shell = { paletteOpen, shortcutsOpen, railCollapsed, toggleRail }
 
-function apply(): void {
-    document.documentElement.setAttribute('data-theme', theme.value)
-}
+provideAdminShell(shell)
+useAdminShortcuts(
+    shell,
+    computed(() => admin.value.nav)
+)
 
-// Remembered per viewer, and only as a convenience: a throwing or empty read must still render a
-// working panel, which is why the default is set before the stored value is consulted.
+/*
+ * A visit that takes longer than 300 ms turns the topbar's hairline blue (admin-shell.md §6.6).
+ * Faster than that, nothing is shown — a flash of "busy" on every click reads as a slow panel.
+ */
+const busy = ref(false)
+let busyTimer: ReturnType<typeof setTimeout> | undefined
+const unbind: Array<() => void> = []
+
 onMounted(() => {
-    try {
-        const stored = window.localStorage.getItem('rmf_admin_theme')
+    unbind.push(
+        router.on('start', (event) => {
+            const visit = event.detail.visit
 
-        if (stored === 'dark' || stored === 'light') {
-            theme.value = stored
-        }
-    } catch {
-        // Private windows and blocked site data both land here. Light is a fine answer.
-    }
+            if (visit.async || !visit.showProgress) {
+                return
+            }
 
-    apply()
+            clearTimeout(busyTimer)
+            busyTimer = setTimeout(() => (busy.value = true), 300)
+        }),
+        router.on('finish', (event) => {
+            if (event.detail.visit.async) {
+                return
+            }
+
+            clearTimeout(busyTimer)
+            busy.value = false
+        })
+    )
 })
 
 onBeforeUnmount(() => {
-    try {
-        window.localStorage.setItem('rmf_admin_theme', theme.value)
-    } catch {
-        // Nothing to do: the theme is a preference, not state the panel depends on.
-    }
-
-    document.documentElement.removeAttribute('data-theme')
+    clearTimeout(busyTimer)
+    unbind.forEach((off) => off())
 })
 </script>
 
 <template>
-    <div class="adm">
-        <aside class="adm__side">
-            <!-- `--light` because this rail is `--ink`: the plain wordmark is `--ink` too, so it
-                 was being set in near-black on near-black and simply was not there. -->
-            <Link href="/admin" class="wordmark wordmark--light adm__mark">RIMIFY</Link>
+    <a class="adm-skip" href="#inhalt">Zum Inhalt springen</a>
 
-            <Link
-                v-for="item in items"
-                :key="item.routeName"
-                :href="item.href"
-                class="adm__link"
-                :aria-current="shared.routeName === item.routeName ? 'page' : undefined"
-            >
-                <Icon :name="item.icon" :size="20" />
-                {{ item.label }}
-            </Link>
+    <div class="adm" :data-rail="railCollapsed ? 'collapsed' : 'open'" :data-busy="busy ? '' : undefined">
+        <AdminRail />
 
-            <div class="adm__spacer" />
+        <div class="adm-work">
+            <AdminTopbar />
 
-            <!-- Who is signed in, then the two things you do with that: change how it looks, leave. -->
-            <div v-if="account" class="adm__account">
-                <p class="adm__account-name">{{ account.name }}</p>
-                <p class="adm__account-role">{{ account.role ?? account.email }}</p>
-            </div>
-
-            <button class="adm__link adm__link--button" type="button" @click="toggleTheme">
-                <Icon name="settings" :size="20" />
-                {{ theme === 'dark' ? 'Helles Design' : 'Dunkles Design' }}
-            </button>
-
-            <button
-                class="adm__link adm__link--button"
-                type="button"
-                :disabled="signingOut"
-                @click="signOut"
-            >
-                <Icon name="close" :size="20" />
-                {{ signingOut ? 'Wird abgemeldet …' : 'Abmelden' }}
-            </button>
-        </aside>
-
-        <main class="adm__main">
-            <div class="adm__topbar">
-                <h1 v-if="title" class="t-h2 adm__title">{{ title }}</h1>
-            </div>
-
-            <slot />
-        </main>
-
-        <!-- The confirmation a mutation flashed (`flash.toast`), announced once per response. -->
-        <Toast />
+            <main id="inhalt" class="adm-page" tabindex="-1">
+                <slot />
+            </main>
+        </div>
     </div>
+
+    <ShortcutsDialog />
+
+    <!-- The confirmation a mutation flashed (`flash.toast`), announced once per response. -->
+    <Toast />
 </template>
-
-<style scoped>
-.adm__mark {
-    font-size: var(--fs-h4);
-    margin: 0 var(--space-3) var(--space-5);
-}
-
-.adm__spacer {
-    flex: 1;
-}
-
-.adm__account {
-    padding: var(--space-3);
-    border-top: 1px solid rgba(247, 248, 253, 0.16);
-}
-
-.adm__account-name {
-    color: var(--on-dark);
-    font-size: var(--text-small);
-    font-weight: 700;
-}
-
-.adm__account-role {
-    margin-top: 2px;
-    color: var(--on-dark-2);
-    font-size: var(--text-micro);
-    /* An address can be longer than the rail; it wraps rather than pushing the rail wider. */
-    overflow-wrap: anywhere;
-}
-
-.adm__link--button {
-    background: transparent;
-    border: 0;
-    text-align: left;
-    cursor: pointer;
-    width: 100%;
-}
-
-.adm__title {
-    margin: 0;
-}
-
-@media (max-width: 1000px) {
-    .adm__spacer {
-        display: none;
-    }
-}
-</style>

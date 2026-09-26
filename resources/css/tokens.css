@@ -144,6 +144,7 @@
     --adm-row-h-lg: 56px;       /* Two-line rows. */
     --adm-control-h: 36px;      /* --lh-small + 2 × --sp-8. */
     --adm-control-h-lg: 44px;   /* The touch floor: every control below 768px. */
+    --adm-wordmark-size: 28px;  /* The rail's wordmark: a 20 px cap height in Archivo (cap ≈ 0.72 em). */
     --adm-form-max: 720px;      /* One-column forms and prose. */
     --adm-work-max: 1600px;     /* The widest a data table stays scannable. */
 
