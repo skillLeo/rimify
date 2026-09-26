@@ -189,10 +189,10 @@ final class GermanFormat
 
     /**
      * How long ago, the way a colleague says it: `gerade eben`, `vor 5 Min.`, `vor 2 Std.`, `gestern`,
-     * `vor 3 Tagen`, and past a month the date itself. Days are Berlin calendar days, so "gestern"
+     * `vor 3 Tagen`, and past `maxDays` (a month) the date itself. Days are Berlin calendar days, so "gestern"
      * at 00:30 means the day before, not 24 hours before.
      */
-    public static function ago(?DateTimeInterface $at, ?DateTimeInterface $now = null): ?string
+    public static function ago(?DateTimeInterface $at, ?DateTimeInterface $now = null, int $maxDays = 30): ?string
     {
         if ($at === null) {
             return null;
@@ -216,7 +216,7 @@ final class GermanFormat
         return match (true) {
             $days === 0 => 'vor '.intdiv($minutes, 60).self::NBSP.'Std.',
             $days === 1 => 'gestern',
-            $days <= 30 => "vor {$days} Tagen",
+            $days <= $maxDays => "vor {$days} Tagen",
             default => (string) self::date($at),
         };
     }

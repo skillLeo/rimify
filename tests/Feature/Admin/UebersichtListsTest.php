@@ -87,10 +87,10 @@ describe('Zu erledigen', function (): void {
         $todo = listsProps()['todo'];
 
         expect(array_column($todo, 'title'))->toBe([
-            'Bestellung RMF-OLD versenden',
-            'Gutachten TG-77 prüfen',
+            'RMF-OLD versenden',
+            'TG-77 prüfen',
             'BMW 3er 320d',
-            'Bestellung RMF-NEW versenden',
+            'RMF-NEW versenden',
         ])
             ->and(array_column($todo, 'type'))->toBe(['Versand', 'Gutachten', 'Anfrage', 'Versand'])
             ->and($todo[2]['detail'])->toBe('2 Personen warten auf ein Gutachten')

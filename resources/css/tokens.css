@@ -161,6 +161,32 @@
     --chart-text: var(--c-ink-3);
     --chart-marker-ring: 0 0 0 2px var(--c-surface);
 
+    /* Eight categorical hues in a fixed order — colour follows the entity, never the rank. Proven
+       by resources/js/Components/Admin/Charts/palette.test.ts: every adjacent pair apart under
+       normal vision and under deuteranopia and protanopia, every hue visible on the surface. */
+    --chart-cat-1: #1a44d4;
+    --chart-cat-2: #c46a00;
+    --chart-cat-3: #0b8a7a;
+    --chart-cat-4: #9b2c6f;
+    --chart-cat-5: #6b7280;
+    --chart-cat-6: #7c4dde;
+    --chart-cat-7: #8a6a10;
+    --chart-cat-8: #1b8fd6;
+
+    /* One sequential ramp on the accent's hue, light to dark, for magnitudes (the coverage matrix). */
+    --chart-seq-1: #eef2fd;
+    --chart-seq-2: #cfdbfa;
+    --chart-seq-3: #a8bdf4;
+    --chart-seq-4: #7b99ec;
+    --chart-seq-5: #4d72e1;
+    --chart-seq-6: #1a44d4;
+    --chart-seq-7: #10308f;
+
+    /* A diverging pair with a neutral midpoint, for above and below a reference. */
+    --chart-div-neg: #9b2c6f;
+    --chart-div-mid: #e2e5e9;
+    --chart-div-pos: #1a44d4;
+
     /* A table row that holds the keyboard's focus: a 2 px bar in the accent at its start. */
     --adm-row-focus: inset 2px 0 0 var(--c-blue);
 

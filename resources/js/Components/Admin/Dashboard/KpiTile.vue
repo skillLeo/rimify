@@ -75,7 +75,7 @@ const showsDelta = computed(() => props.compare && props.kpi.delta !== null)
     grid-template-rows: auto auto auto 1fr;
     align-content: start;
     gap: var(--sp-8);
-    min-height: 168px;
+    min-height: 152px;
     padding: var(--sp-20);
     border: 1px solid var(--c-line);
     border-radius: var(--r-tile);

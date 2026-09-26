@@ -81,6 +81,47 @@ export interface ActivityEntry {
     iso: string | null
 }
 
+export interface ChartPoint {
+    key: string
+    /** `24.09.2026` */
+    label: string
+    /** For the scale: cents, or a count. */
+    value: number
+    /** For the tooltip and the table: `1.425,00 €`. */
+    text: string
+}
+
+export interface RevenueChart {
+    points: ChartPoint[]
+    /** The previous period, day for day; null with comparing off. */
+    previous: ChartPoint[] | null
+    total: string
+}
+
+export interface VerdictWeek {
+    key: string
+    /** `KW 38` */
+    label: string
+    /** `15.09.–21.09.2026` */
+    range: string
+    values: Record<string, number>
+    total: number
+}
+
+export interface VerdictChart {
+    series: { key: string; label: string }[]
+    weeks: VerdictWeek[]
+    /** The first day counted: `27.09.2026`. */
+    since: string | null
+}
+
+export interface DashboardCharts {
+    /** false: not for this role; null: nothing to draw yet. */
+    revenue: RevenueChart | null | false
+    verdicts: VerdictChart | null | false
+    topWheels: ChartPoint[] | false
+}
+
 export interface AdminUebersichtProps {
     /** `26.09.2026, 20:10 Uhr` */
     asOf: string
@@ -94,5 +135,7 @@ export interface AdminUebersichtProps {
     today: TodaySentence[]
     /** Null for a role that may not read the Protokoll. */
     activity: ActivityEntry[] | null
+    /** Deferred: undefined until the charts arrive, a moment after the page. */
+    charts?: DashboardCharts
     can: { export: boolean }
 }

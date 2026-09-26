@@ -23,6 +23,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BalanceWeightColour;
 use App\Models\CatalogueGapEvent;
 use App\Models\TyreVariant;
+use App\Models\VerdictTally;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Commerce\KomplettradPricer;
@@ -164,6 +165,10 @@ class FelgenController extends Controller
         $verdicts = $vehicleId === null
             ? []
             : $this->resolver->resolveMany($vehicleId, $wheel->configs->pluck('id')->map(static fn (mixed $id): int => (int) $id)->values()->all());
+
+        // Every size checked against the chosen car is one Prüfung on the Übersicht's chart:
+        // counted by state, nothing else kept.
+        VerdictTally::record('pdp', array_map(static fn (FitmentVerdict $verdict): VerdictStatus => $verdict->status, array_values($verdicts)));
 
         // Adding a Komplettrad from this page assigns the admin's default Wuchtgewichte colour
         // (§4.1); read once for the whole page, and only where an offer could be made at all.

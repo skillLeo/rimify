@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * „Neueste Bestellungen“: eight rows, each one link (the number is the link; the row's hover and
+ * „Neueste Bestellungen“ — seeded orders are said once above the figures, not on every row: eight rows, each one link (the number is the link; the row's hover and
  * focus light up as one). 13 px, 44 px rows, hairlines, no zebra; the amount right-aligned in
  * tabular figures; payment and shipping as chips; the age as a colleague would say it.
  */
@@ -29,7 +29,6 @@ defineProps<{ orders: DashboardOrderRow[] }>()
                 <tr v-for="order in orders" :key="order.id" class="dt__row">
                     <td>
                         <Link :href="order.href" class="dt__link">{{ order.number }}</Link>
-                        <span v-if="order.demo" class="dt__demo">Demo</span>
                     </td>
                     <td class="dt__text">{{ order.customer }}</td>
                     <td class="dt__num">{{ order.total }}</td>
@@ -76,7 +75,7 @@ defineProps<{ orders: DashboardOrderRow[] }>()
 
 .dt td {
     height: var(--adm-control-h-lg);
-    padding: 0 var(--sp-8);
+    padding: 0 6px;
     border-bottom: 1px solid var(--c-line);
     color: var(--c-ink);
     white-space: nowrap;
@@ -146,9 +145,4 @@ defineProps<{ orders: DashboardOrderRow[] }>()
     box-shadow: var(--adm-row-focus);
 }
 
-.dt__demo {
-    margin-left: var(--sp-8);
-    font-size: var(--fs-micro);
-    color: var(--c-ink-3);
-}
 </style>

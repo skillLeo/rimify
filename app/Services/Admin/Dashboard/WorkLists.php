@@ -57,7 +57,7 @@ final class WorkLists
                 'total' => $row['total'],
                 'payment' => $row['payment'],
                 'fulfilment' => $row['fulfilment'],
-                'ago' => GermanFormat::ago($order->placed_at),
+                'ago' => GermanFormat::ago($order->placed_at, null, 99),
                 'iso' => $order->placed_at?->toIso8601String(),
                 'demo' => $row['demo'],
                 // The order's own page arrives with the order detail; until then the list opens on it.
@@ -89,7 +89,8 @@ final class WorkLists
                 $items[] = [
                     'key' => 'order-'.$order->id,
                     'type' => 'Versand',
-                    'title' => "Bestellung {$order->order_number} versenden",
+                    // The chip already says Versand: the title is the number and the verb.
+                    'title' => "{$order->order_number} versenden",
                     'detail' => GermanFormat::money($order->total_cents).($order->vehicle_label ? ' · '.$order->vehicle_label : ''),
                     'ago' => GermanFormat::ago($since),
                     'iso' => $since?->toIso8601String(),
@@ -110,7 +111,7 @@ final class WorkLists
                 $items[] = [
                     'key' => 'document-'.$draft->id,
                     'type' => 'Gutachten',
-                    'title' => "Gutachten {$draft->report_number} prüfen",
+                    'title' => "{$draft->report_number} prüfen",
                     'detail' => (string) $draft->issuer,
                     'ago' => GermanFormat::ago($since),
                     'iso' => $since?->toIso8601String(),

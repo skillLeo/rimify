@@ -66,14 +66,13 @@ describe('RecentOrders', () => {
         href: '/admin/bestellungen?q=RMF-2026-1004',
     }
 
-    it('makes each row one link, the amount right-aligned, and says a seeded order is a demo', () => {
+    it('makes each row one link, the amount right-aligned, and the age in words', () => {
         const wrapper = mount(RecentOrders, { props: { orders: [row] } })
         const cells = wrapper.findAll('tbody td')
 
         expect(wrapper.findAll('tbody a')).toHaveLength(1)
         expect(wrapper.find('tbody a').attributes('href')).toBe('/admin/bestellungen?q=RMF-2026-1004')
         expect(cells[2]?.classes()).toContain('dt__num')
-        expect(cells[0]?.text()).toContain('Demo')
         expect(cells[5]?.text()).toBe('vor 2 Std.')
     })
 })

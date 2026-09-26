@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UebersichtRequest;
 use App\Models\AdminUser;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\Dashboard\ChartData;
 use App\Services\Admin\Dashboard\Period;
 use App\Services\Admin\Dashboard\SalesFigures;
 use App\Services\Admin\Dashboard\WorkLists;
@@ -35,7 +36,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class UebersichtController extends Controller
 {
-    public function __invoke(UebersichtRequest $request, SalesFigures $sales, WorkLists $lists): Response|RedirectResponse
+    public function __invoke(UebersichtRequest $request, SalesFigures $sales, WorkLists $lists, ChartData $charts): Response|RedirectResponse
     {
         $admin = $request->admin();
         ['period' => $period, 'compare' => $compare] = $request->choice();
@@ -63,6 +64,18 @@ class UebersichtController extends Controller
             'todo' => $lists->todo($admin),
             'today' => $lists->today($admin),
             'activity' => $admin->may(PermissionModule::AuditLog, PermissionAction::View) ? $lists->activity() : null,
+            // The charts come a moment after the figures, each in its own skeleton meanwhile: the
+            // page is never held up by its heaviest query. Each chart only for a role that may see
+            // what it draws; `false` means "not for you", `null` "nothing to draw yet".
+            'charts' => Inertia::defer(fn (): array => [
+                'revenue' => $admin->may(PermissionModule::Reports, PermissionAction::View) ? $charts->revenue($period, $compare) : false,
+                'verdicts' => $admin->may(PermissionModule::Approvals, PermissionAction::View) || $admin->may(PermissionModule::Reports, PermissionAction::View)
+                    ? $charts->verdicts($period)
+                    : false,
+                'topWheels' => $admin->may(PermissionModule::Orders, PermissionAction::View) || $admin->may(PermissionModule::Reports, PermissionAction::View)
+                    ? $charts->topWheels($period)
+                    : false,
+            ]),
             'can' => [
                 'export' => $admin->may(PermissionModule::Reports, PermissionAction::Export),
             ],
