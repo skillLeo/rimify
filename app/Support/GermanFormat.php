@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
@@ -184,6 +185,40 @@ final class GermanFormat
     public static function time(?DateTimeInterface $at): ?string
     {
         return $at === null ? null : self::inBerlin($at)->format('H:i').self::NBSP.'Uhr';
+    }
+
+    /**
+     * How long ago, the way a colleague says it: `gerade eben`, `vor 5 Min.`, `vor 2 Std.`, `gestern`,
+     * `vor 3 Tagen`, and past a month the date itself. Days are Berlin calendar days, so "gestern"
+     * at 00:30 means the day before, not 24 hours before.
+     */
+    public static function ago(?DateTimeInterface $at, ?DateTimeInterface $now = null): ?string
+    {
+        if ($at === null) {
+            return null;
+        }
+
+        $then = self::inBerlin($at);
+        // Carbon's clock, not PHP's: the one the app (and every test) agrees on.
+        $now = self::inBerlin($now ?? CarbonImmutable::now());
+        $minutes = intdiv(max(0, $now->getTimestamp() - $then->getTimestamp()), 60);
+
+        if ($minutes < 1) {
+            return 'gerade eben';
+        }
+
+        if ($minutes < 60) {
+            return "vor {$minutes}".self::NBSP.'Min.';
+        }
+
+        $days = (int) $then->setTime(0, 0)->diff($now->setTime(0, 0))->days;
+
+        return match (true) {
+            $days === 0 => 'vor '.intdiv($minutes, 60).self::NBSP.'Std.',
+            $days === 1 => 'gestern',
+            $days <= 30 => "vor {$days} Tagen",
+            default => (string) self::date($at),
+        };
     }
 
     /** `03/2018` */

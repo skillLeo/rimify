@@ -13,6 +13,7 @@ use App\Models\AdminUser;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Dashboard\Period;
 use App\Services\Admin\Dashboard\SalesFigures;
+use App\Services\Admin\Dashboard\WorkLists;
 use App\Services\Admin\ListExport;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
@@ -34,7 +35,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class UebersichtController extends Controller
 {
-    public function __invoke(UebersichtRequest $request, SalesFigures $sales): Response|RedirectResponse
+    public function __invoke(UebersichtRequest $request, SalesFigures $sales, WorkLists $lists): Response|RedirectResponse
     {
         $admin = $request->admin();
         ['period' => $period, 'compare' => $compare] = $request->choice();
@@ -57,6 +58,11 @@ class UebersichtController extends Controller
             'period' => [...$period->toArray(), 'compare' => $compare],
             'kpis' => $kpis,
             'demo' => $demo,
+            // Lists, each only for a role that may open what its rows lead to.
+            'recentOrders' => $admin->may(PermissionModule::Orders, PermissionAction::View) ? $lists->recentOrders() : null,
+            'todo' => $lists->todo($admin),
+            'today' => $lists->today($admin),
+            'activity' => $admin->may(PermissionModule::AuditLog, PermissionAction::View) ? $lists->activity() : null,
             'can' => [
                 'export' => $admin->may(PermissionModule::Reports, PermissionAction::Export),
             ],

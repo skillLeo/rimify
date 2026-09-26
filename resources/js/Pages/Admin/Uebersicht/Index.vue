@@ -8,17 +8,24 @@
  * are among the ones counted, the page says so once, above the figures.
  */
 
+import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import DashWidget from '../../../Components/Admin/Dashboard/DashWidget.vue'
 import KpiTile from '../../../Components/Admin/Dashboard/KpiTile.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
+import RecentOrders from '../../../Components/Admin/Dashboard/RecentOrders.vue'
+import TodoList from '../../../Components/Admin/Dashboard/TodoList.vue'
+import { useHealth } from '../../../composables/admin/useHealth'
 import type { AdminUebersichtProps } from '../../../types/admin/uebersicht'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminUebersichtProps>()
+
+const health = useHealth()
 
 const exportUrl = computed(() => {
     if (!props.can.export) {
@@ -57,6 +64,62 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
             </section>
 
             <AdminState v-else kind="empty" text="Für deine Rolle gibt es hier noch keine Kennzahlen. Deine Bereiche findest du in der Navigation." />
+
+            <div class="dash__row">
+                <!-- Heute: what this role should do now, each with the button that starts it. -->
+                <DashWidget class="dash__col-4" title="Heute" :empty="today.length ? null : 'Heute ist nichts offen. Neues erscheint hier, sobald es dich betrifft.'">
+                    <ul class="today">
+                        <li v-for="item in today" :key="item.key" class="today__row">
+                            <p class="today__sentence">{{ item.sentence }}</p>
+                            <Link :href="item.href" class="btn btn--secondary btn--sm">{{ item.action }}</Link>
+                        </li>
+                    </ul>
+                </DashWidget>
+
+                <DashWidget v-if="health" class="dash__col-4" title="Systemzustand" :href="health.href" href-label="Details">
+                    <p class="health" :class="`health--${health.state}`">
+                        <span class="adm-health__dot" :class="`adm-health__dot--${health.state}`" aria-hidden="true" />
+                        {{ health.sentence }}
+                    </p>
+                    <p class="health__note">Wird jede Minute neu geprüft.</p>
+                </DashWidget>
+
+                <DashWidget
+                    v-if="activity"
+                    class="dash__col-4"
+                    title="Letzte Aktivität"
+                    href="/admin/protokoll"
+                    :empty="activity.length ? null : 'Jede Änderung im Admin erscheint hier, sobald jemand aus dem Team sie speichert.'"
+                >
+                    <ul class="activity">
+                        <li v-for="entry in activity" :key="entry.id" class="activity__row">
+                            <span class="activity__who">{{ entry.person }}</span>
+                            <span class="activity__what">{{ entry.sentence }}</span>
+                            <time class="activity__when" :datetime="entry.iso ?? undefined">{{ entry.ago }}</time>
+                        </li>
+                    </ul>
+                </DashWidget>
+            </div>
+
+            <div class="dash__row">
+                <DashWidget
+                    v-if="recentOrders"
+                    class="dash__col-7"
+                    title="Neueste Bestellungen"
+                    href="/admin/bestellungen"
+                    :empty="recentOrders.length ? null : 'Hier erscheinen die neuesten Bestellungen, sobald jemand im Shop bestellt.'"
+                >
+                    <RecentOrders :orders="recentOrders" />
+                </DashWidget>
+
+                <DashWidget
+                    :class="recentOrders ? 'dash__col-5' : 'dash__col-12'"
+                    title="Zu erledigen"
+                    :empty="todo.length ? null : 'Alles erledigt. Was auf dich wartet, erscheint hier – das Älteste zuerst.'"
+                >
+                    <TodoList :items="todo" />
+                </DashWidget>
+            </div>
         </div>
     </AdminPage>
 </template>
@@ -118,11 +181,163 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
     grid-column: span var(--kpi-span);
 }
 
+/* A row of widgets on the page's twelve columns; each says how many it takes. */
+.dash__row {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--sp-24);
+}
+
+.dash__col-4 {
+    grid-column: span 4;
+}
+
+.dash__col-5 {
+    grid-column: span 5;
+}
+
+.dash__col-6 {
+    grid-column: span 6;
+}
+
+.dash__col-7 {
+    grid-column: span 7;
+}
+
+.dash__col-12 {
+    grid-column: 1 / -1;
+}
+
+.dash__col-8 {
+    grid-column: span 8;
+}
+
 /* Two by two from the phone up to where four no longer fit beside each other. */
 @media (max-width: 1279px) {
     .dash__kpis > :deep(*) {
         grid-column: span 6;
     }
+
+    .dash__col-4 {
+        grid-column: span 6;
+    }
+
+    .dash__col-5,
+    .dash__col-6,
+    .dash__col-7,
+    .dash__col-8 {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 767px) {
+    .dash__row {
+        gap: var(--sp-16);
+    }
+
+    .dash__col-4 {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ── Heute, Systemzustand, Letzte Aktivität ─────────────────────────────────────── */
+
+.today {
+    display: grid;
+    gap: var(--sp-12);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.today__row {
+    display: grid;
+    justify-items: start;
+    gap: var(--sp-8);
+    padding-bottom: var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+}
+
+.today__row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.today__sentence {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.health {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+}
+
+.health--ok {
+    color: var(--c-ok);
+}
+
+.health--warn {
+    color: var(--c-warn);
+}
+
+.health--bad {
+    color: var(--c-bad);
+}
+
+.health__note {
+    margin: var(--sp-8) 0 0;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.activity {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.activity__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 var(--sp-12);
+    padding-block: var(--sp-8);
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--adm-fs-table);
+    line-height: var(--adm-lh-table);
+}
+
+.activity__row:last-child {
+    border-bottom: 0;
+}
+
+.activity__who {
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.activity__what {
+    grid-column: 1 / -1;
+    color: var(--c-ink-2);
+    overflow-wrap: anywhere;
+}
+
+.activity__when {
+    grid-row: 1;
+    grid-column: 2;
+    font-size: var(--fs-micro);
+    color: var(--c-ink-3);
+    white-space: nowrap;
 }
 
 @media (max-width: 767px) {

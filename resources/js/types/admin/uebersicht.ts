@@ -41,6 +41,46 @@ export interface DashboardPeriod {
     compare: boolean
 }
 
+export interface DashboardOrderRow {
+    id: number
+    number: string
+    customer: string
+    total: string
+    payment: { label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' }
+    fulfilment: { label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' }
+    /** `vor 2 Std.` */
+    ago: string | null
+    iso: string | null
+    demo: boolean
+    href: string
+}
+
+export interface TodoItem {
+    key: string
+    /** The chip: Versand, Gutachten, Anfrage, System. */
+    type: string
+    title: string
+    detail: string | null
+    ago: string | null
+    iso: string | null
+    href: string
+}
+
+export interface TodaySentence {
+    key: string
+    sentence: string
+    action: string
+    href: string
+}
+
+export interface ActivityEntry {
+    id: number
+    person: string
+    sentence: string
+    ago: string | null
+    iso: string | null
+}
+
 export interface AdminUebersichtProps {
     /** `26.09.2026, 20:10 Uhr` */
     asOf: string
@@ -48,5 +88,11 @@ export interface AdminUebersichtProps {
     kpis: Kpi[]
     /** Seeded demonstration orders are among the ones counted. */
     demo: boolean
+    /** Null for a role that may not open Bestellungen. */
+    recentOrders: DashboardOrderRow[] | null
+    todo: TodoItem[]
+    today: TodaySentence[]
+    /** Null for a role that may not read the Protokoll. */
+    activity: ActivityEntry[] | null
     can: { export: boolean }
 }
