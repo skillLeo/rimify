@@ -1,0 +1,182 @@
+import { mount, type VueWrapper } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, nextTick, reactive } from 'vue'
+
+/*
+ * The form's state and its guard. Pinned here: nothing is sent while clean or in flight, a save
+ * makes the saved values the new clean state (or clears a password form), a refused save focuses
+ * the first refused field, and a visit away from a dirty form is held until somebody decides.
+ */
+
+type Handler = (event: { detail: { visit: Record<string, unknown> }; preventDefault: () => void }) => void
+
+const handlers: Record<string, Handler> = {}
+const visit = vi.fn()
+
+interface FakeForm {
+    [key: string]: unknown
+    isDirty: boolean
+    processing: boolean
+    submit: ReturnType<typeof vi.fn>
+    reset: ReturnType<typeof vi.fn>
+    defaults: ReturnType<typeof vi.fn>
+    clearErrors: ReturnType<typeof vi.fn>
+}
+
+let form: FakeForm
+
+vi.mock('@inertiajs/vue3', () => ({
+    useForm: (data: Record<string, unknown>) => {
+        form = reactive({
+            ...data,
+            isDirty: false,
+            processing: false,
+            submit: vi.fn(),
+            reset: vi.fn(),
+            defaults: vi.fn(),
+            clearErrors: vi.fn(),
+        }) as FakeForm
+
+        return form
+    },
+    router: {
+        on: (name: string, handler: Handler) => {
+            handlers[name] = handler
+
+            return () => delete handlers[name]
+        },
+        visit: (...args: unknown[]) => visit(...args),
+    },
+}))
+
+const { useDirtyForm } = await import('./useDirtyForm')
+
+let mounted: VueWrapper[] = []
+
+function mountForm(options: { resetOnSuccess?: boolean } = {}): ReturnType<typeof useDirtyForm> {
+    let editor!: ReturnType<typeof useDirtyForm>
+
+    mounted.push(
+        mount(
+            defineComponent({
+                setup() {
+                    editor = useDirtyForm({ name: 'Rot' }, { method: 'put', url: '/admin/x', ...options })
+
+                    return () => h('div')
+                },
+            }),
+            { attachTo: document.body }
+        )
+    )
+
+    return editor
+}
+
+function navigate(visitOptions: Record<string, unknown> = {}): boolean {
+    let prevented = false
+    handlers.before?.({
+        detail: { visit: { method: 'get', async: false, prefetch: false, url: new URL('http://x.test/admin/rollen'), ...visitOptions } },
+        preventDefault: () => (prevented = true),
+    })
+
+    return prevented
+}
+
+afterEach(() => {
+    mounted.forEach((w) => w.unmount())
+    mounted = []
+    visit.mockReset()
+    document.body.innerHTML = ''
+})
+
+describe('useDirtyForm', () => {
+    it('sends nothing while clean or while a save is in flight', () => {
+        const editor = mountForm()
+
+        editor.save()
+        expect(form.submit).not.toHaveBeenCalled()
+
+        form.isDirty = true
+        form.processing = true
+        editor.save()
+        expect(form.submit).not.toHaveBeenCalled()
+    })
+
+    it('makes what was saved the new clean state', () => {
+        const editor = mountForm()
+        form.isDirty = true
+
+        editor.save()
+        expect(form.submit).toHaveBeenCalledWith('put', '/admin/x', expect.any(Object))
+
+        const options = form.submit.mock.calls[0]?.[2] as { onSuccess: () => void }
+        options.onSuccess()
+        expect(form.defaults).toHaveBeenCalledOnce()
+        expect(form.reset).not.toHaveBeenCalled()
+    })
+
+    it('clears a form that must not keep its values, such as a password', () => {
+        const editor = mountForm({ resetOnSuccess: true })
+        form.isDirty = true
+
+        editor.save()
+        ;(form.submit.mock.calls[0]?.[2] as { onSuccess: () => void }).onSuccess()
+        expect(form.reset).toHaveBeenCalledOnce()
+        expect(form.defaults).not.toHaveBeenCalled()
+    })
+
+    it('marks a refused save and focuses the first refused field', async () => {
+        const editor = mountForm()
+        document.body.insertAdjacentHTML('beforeend', '<main class="adm-page"><input id="a"><input id="b" aria-invalid="true"></main>')
+        form.isDirty = true
+
+        editor.save()
+        ;(form.submit.mock.calls[0]?.[2] as { onError: () => void }).onError()
+        await nextTick()
+
+        expect(editor.failed.value).toBe(true)
+        expect(document.activeElement?.id).toBe('b')
+
+        editor.discard()
+        expect(editor.failed.value).toBe(false)
+        expect(form.reset).toHaveBeenCalled()
+    })
+
+    it('lets every visit through while clean, and holds one while dirty', () => {
+        const editor = mountForm()
+
+        expect(navigate()).toBe(false)
+
+        form.isDirty = true
+        expect(navigate({ method: 'put' })).toBe(false)
+        expect(navigate({ prefetch: true })).toBe(false)
+        expect(navigate()).toBe(true)
+        expect(editor.leaving.value).toBe(true)
+    })
+
+    it('stays on Weiter bearbeiten, and goes where it was going on Änderungen verwerfen', () => {
+        const editor = mountForm()
+        form.isDirty = true
+
+        navigate()
+        editor.stay()
+        expect(editor.leaving.value).toBe(false)
+        expect(visit).not.toHaveBeenCalled()
+
+        navigate()
+        editor.leave()
+        expect(form.reset).toHaveBeenCalled()
+        expect(visit).toHaveBeenCalledWith('http://x.test/admin/rollen', expect.any(Object))
+    })
+
+    it('saves on Strg S when there is something to save', () => {
+        mountForm()
+        form.isDirty = true
+
+        const event = new KeyboardEvent('keydown', { key: 's', ctrlKey: true, cancelable: true })
+        window.dispatchEvent(event)
+
+        expect(event.defaultPrevented).toBe(true)
+        expect(form.submit).toHaveBeenCalledOnce()
+    })
+})

@@ -645,6 +645,19 @@
     animation-duration: var(--adm-d-dialog);
 }
 
+/* A dialog title is a block heading in the admin (§2.1), and its sentence is body text. */
+.adm-dialog .dialog__head .h3 {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.adm-dialog .dialog__description {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
 /* ── The palette (§7) ──────────────────────────────────────────────────────────────
  * Near the top of the screen, so the first result sits under the eye that pressed the shortcut.
  * Centred with auto margins rather than a translate, so the entrance can scale without fighting it. */
@@ -913,13 +926,20 @@
     color: var(--c-ink-3);
 }
 
-/* ── The work area ─────────────────────────────────────────────────────────────── */
+/* ── The work area ─────────────────────────────────────────────────────────────────
+ * `--adm-page-pad` and `--adm-page-gap` are this element's own measures (§2.2), set once per width
+ * so the save bar can reach the edges by exactly the page's padding.                           */
 
 .adm-page {
+    --adm-page-pad: var(--sp-32);
+    --adm-page-gap: var(--sp-40);
+
+    display: flex;
+    flex-direction: column;
     flex: 1;
     width: 100%;
     max-width: var(--adm-work-max);
-    padding: var(--sp-32);
+    padding: var(--adm-page-pad);
 }
 
 .adm-page:focus {
@@ -928,20 +948,257 @@
 
 @media (max-width: 1279px) {
     .adm-page {
-        padding: var(--sp-24);
+        --adm-page-pad: var(--sp-24);
+        --adm-page-gap: var(--sp-32);
     }
 }
 
 @media (max-width: 1023px) {
     .adm-page {
-        padding: var(--sp-20);
+        --adm-page-pad: var(--sp-20);
     }
 }
 
 @media (max-width: 767px) {
     .adm-page {
-        padding: var(--sp-16);
+        --adm-page-pad: var(--sp-16);
+        --adm-page-gap: var(--sp-24);
     }
+}
+
+/* The header (§8.1): what this is, one fact about it, and what you can make here. */
+.adm-page__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-16) var(--sp-24);
+    margin-bottom: var(--adm-page-gap);
+}
+
+.adm-page__titles {
+    min-width: 0;
+}
+
+.adm-page__title {
+    margin: 0;
+    font-size: var(--fs-h3);
+    line-height: var(--lh-h3);
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--c-ink);
+    text-wrap: balance;
+}
+
+.adm-page__context {
+    max-width: 54ch;
+    margin: var(--sp-4) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-page__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.adm-page__more .icon {
+    margin-right: calc(-1 * var(--sp-4));
+}
+
+.adm-page__readonly {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin: calc(-1 * var(--adm-page-gap) + var(--sp-16)) 0 var(--sp-24);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-page__body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Below 768 the title and context stack, and the one primary action takes the full width. */
+@media (max-width: 767px) {
+    .adm-page__head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .adm-page__actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .adm-page__actions .btn {
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
+/* A destructive label: a secondary button or a menu row, only its words in the failure colour. */
+.adm-btn--danger,
+.adm-menu__item--danger {
+    color: var(--c-bad);
+}
+
+/* ── The save bar (§8.3) ───────────────────────────────────────────────────────────
+ * The last thing on a form page, sticky to the bottom of the screen, out to the work area's edges.
+ * In the flow rather than fixed, so the end of the form is never under it.                      */
+
+.adm-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    height: var(--adm-topbar-h);
+    margin: var(--sp-32) calc(-1 * var(--adm-page-pad)) calc(-1 * var(--adm-page-pad));
+    padding-inline: var(--adm-page-pad);
+    background: var(--c-surface);
+    border-top: 1px solid var(--c-line);
+}
+
+.adm-savebar__status {
+    min-width: 0;
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-savebar[data-state='dirty'] .adm-savebar__status,
+.adm-savebar[data-state='saving'] .adm-savebar__status {
+    color: var(--c-ink-2);
+}
+
+.adm-savebar[data-state='failed'] .adm-savebar__status {
+    color: var(--c-bad);
+}
+
+.adm-savebar__actions {
+    display: flex;
+    gap: var(--sp-8);
+    flex: none;
+}
+
+.adm .adm-savebar .btn {
+    min-height: var(--adm-control-h-lg);
+}
+
+/* Below 768: no status line, two big buttons, Speichern taking the rest; riding the keyboard. */
+@media (max-width: 767px) {
+    .adm-savebar {
+        bottom: var(--kb-inset, 0px);
+        height: var(--stickybar-h);
+    }
+
+    .adm-savebar__status {
+        display: none;
+    }
+
+    .adm-savebar__actions {
+        flex: 1;
+    }
+
+    .adm-savebar__save {
+        flex: 1;
+    }
+}
+
+/* ── The four other states (§9) ────────────────────────────────────────────────────
+ * On the page's reading line, where the content would be — never centred in an empty box.       */
+
+.adm-state {
+    display: grid;
+    justify-items: start;
+    gap: var(--sp-8);
+    max-width: 54ch;
+    padding-block: var(--sp-32);
+}
+
+.adm-state__icon {
+    color: var(--c-ink-3);
+}
+
+.adm-state--error .adm-state__icon {
+    color: var(--c-bad);
+}
+
+.adm-state__heading {
+    margin: 0;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-state__text {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-state__action {
+    margin-top: var(--sp-8);
+}
+
+/* Loading rows (§9.2): the table's own tracks and heights, a bar in each cell. */
+.adm-skel__row {
+    display: grid;
+    align-items: center;
+    gap: var(--sp-12);
+    height: var(--adm-row-h);
+    padding-inline: var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+}
+
+.adm-skel__row--two {
+    height: var(--adm-row-h-lg);
+}
+
+.adm-skel__cell {
+    display: grid;
+    gap: var(--sp-8);
+    min-width: 0;
+}
+
+.adm-skel__bar {
+    display: block;
+    width: 64%;
+    height: var(--sp-12);
+}
+
+.adm-skel__bar--sub {
+    width: 40%;
+}
+
+/* ── Confirmations ─────────────────────────────────────────────────────────────── */
+
+.adm-dialog--narrow {
+    max-width: 440px;
+}
+
+.adm-confirm__body {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-confirm__word {
+    margin-top: var(--sp-16);
 }
 
 /* ── Density: the workbench, one notch tighter than the showroom (§2) ─────────────── */
@@ -954,9 +1211,12 @@
         line-height: var(--lh-small);
     }
 
-    .adm .field {
+    /* Typed into at 14 px from 768; below it the storefront's 16 px stays, or iOS zooms. */
+    .adm .input,
+    .adm-dialog .input {
         min-height: var(--adm-control-h);
         font-size: var(--fs-small);
+        line-height: var(--lh-small);
     }
 }
 
