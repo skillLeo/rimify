@@ -564,6 +564,179 @@
     }
 }
 
+/* ── Below 768: the app bar, the bottom bar, Mehr (§11) ──────────────────────────── */
+
+.adm-appbar,
+.adm-tabbar {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    /* The wordmark and the title share one cell and cross-fade; the badge keeps the other. */
+    .adm-appbar {
+        position: sticky;
+        top: 0;
+        z-index: var(--z-header);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: var(--sp-12);
+        height: calc(var(--header-h-m) + env(safe-area-inset-top));
+        padding: env(safe-area-inset-top) var(--sp-16) 0;
+        background: var(--c-surface);
+        border-bottom: 1px solid var(--c-line);
+    }
+
+    /* The page's title has scrolled under the bar: the bar takes it over from the wordmark. */
+    .adm-appbar__brand,
+    .adm-appbar__title {
+        grid-area: 1 / 1;
+        justify-self: start;
+        max-width: 100%;
+        transition: opacity var(--d-1) var(--ease-out);
+    }
+
+    .adm-appbar__brand {
+        font-size: var(--fs-h4);
+    }
+
+    .adm-appbar__title {
+        margin: 0;
+        overflow: hidden;
+        font-size: var(--fs-h4);
+        line-height: var(--lh-h4);
+        font-weight: 600;
+        color: var(--c-ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .adm-appbar[data-titled] .adm-appbar__brand {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .adm-appbar[data-titled] .adm-appbar__title {
+        opacity: 1;
+    }
+
+    .adm-appbar .adm-env {
+        grid-column: 2;
+    }
+
+    .adm-tabbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: var(--z-header);
+        display: flex;
+        height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+        padding-bottom: env(safe-area-inset-bottom);
+        background: var(--c-surface);
+        border-top: 1px solid var(--c-line);
+    }
+
+    /* The on-screen keyboard owns the bottom edge while it is up; the save bar rides on it. */
+    :root.is-keyboard .adm-tabbar {
+        display: none;
+    }
+
+    .adm-tabbar__item {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--sp-4);
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--c-ink-3);
+        font: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .adm-tabbar__item[aria-current='page'] {
+        color: var(--c-blue);
+    }
+
+    .adm-tabbar__item:active {
+        background: var(--c-band);
+    }
+
+    .adm-tabbar__label {
+        max-width: 100%;
+        overflow: hidden;
+        font-size: var(--fs-micro);
+        line-height: var(--lh-micro);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .adm-tabbar__icon {
+        position: relative;
+        display: inline-flex;
+    }
+
+    /* A queue on a tab: a small neutral figure at the icon's shoulder, red only for failures. */
+    .adm-tabbar__badge {
+        position: absolute;
+        top: calc(-1 * var(--sp-4));
+        left: calc(100% - var(--sp-8));
+        min-width: var(--sp-16);
+        height: var(--sp-16);
+        padding-inline: var(--sp-4);
+        border-radius: var(--r-round);
+        background: var(--c-ink-2);
+        color: var(--c-surface);
+        font-size: var(--fs-micro);
+        line-height: var(--sp-16);
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+    }
+
+    .adm-tabbar__badge--bad {
+        background: var(--c-bad);
+    }
+}
+
+.adm-more {
+    margin-inline: calc(-1 * var(--page-margin));
+}
+
+.adm-more__account {
+    padding: var(--sp-24) var(--page-margin) var(--sp-8);
+    border-top: 1px solid var(--c-line);
+    margin-top: var(--sp-16);
+}
+
+.adm-more__name,
+.adm-more__role {
+    margin: 0;
+}
+
+.adm-more__name {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-more__role {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
+    overflow-wrap: anywhere;
+}
+
 /* ── Menus (portalled, so they carry their own prefix rather than sitting under .adm) ─ */
 
 .adm-menu {
@@ -1177,11 +1350,20 @@
     min-height: var(--adm-control-h-lg);
 }
 
-/* Below 768: no status line, two big buttons, Speichern taking the rest; riding the keyboard. */
+/* Below 768: no status line, two big buttons, Speichern taking the rest. The page keeps clear of the
+   bottom bar and the save bar sits on top of it — or, while the keyboard is up, on the keyboard. */
 @media (max-width: 767px) {
+    .adm-page {
+        padding-bottom: calc(var(--adm-page-pad) + var(--bottomnav-h) + env(safe-area-inset-bottom));
+    }
+
     .adm-savebar {
-        bottom: var(--kb-inset, 0px);
+        bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
         height: var(--stickybar-h);
+    }
+
+    :root.is-keyboard .adm-savebar {
+        bottom: var(--kb-inset, 0px);
     }
 
     .adm-savebar__status {

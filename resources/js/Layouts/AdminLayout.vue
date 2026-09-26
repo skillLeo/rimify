@@ -17,6 +17,8 @@
 import { router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import '../../css/admin.css'
+import AdminAppBar from '../Components/Admin/AdminAppBar.vue'
+import AdminBottomBar from '../Components/Admin/AdminBottomBar.vue'
 import AdminPalette from '../Components/Admin/AdminPalette.vue'
 import AdminRail from '../Components/Admin/AdminRail.vue'
 import AdminTopbar from '../Components/Admin/AdminTopbar.vue'
@@ -24,8 +26,14 @@ import ShortcutsDialog from '../Components/Admin/ShortcutsDialog.vue'
 import Toast from '../Components/Chrome/Toast.vue'
 import { provideAdminShell, useAdmin } from '../composables/admin/useAdmin'
 import { useAdminShortcuts } from '../composables/admin/useAdminShortcuts'
+import { isNavigationVisit, provideMobileShell } from '../composables/mobile/useMobileShell'
+import { stripSheetState } from '../composables/mobile/useSheetHistory'
 
 const admin = useAdmin()
+
+// The phone's parts are the product's own (BottomSheet, ListRow); they need the mobile shell, which
+// also publishes the visible viewport and the keyboard inset the save bar and palette ride on.
+const mobile = provideMobileShell()
 
 const paletteOpen = ref(false)
 const shortcutsOpen = ref(false)
@@ -69,6 +77,14 @@ const unbind: Array<() => void> = []
 
 onMounted(() => {
     unbind.push(
+        // An open sheet closes and hands its history entry back before a real navigation — not on the
+        // prefetch a row's press fires, or the click that follows would land on a closing row.
+        router.on('before', (event) => {
+            if (isNavigationVisit(event.detail.visit as { prefetch?: boolean; only?: string[]; except?: string[] })) {
+                mobile.closeSheets()
+                stripSheetState()
+            }
+        }),
         router.on('start', (event) => {
             const visit = event.detail.visit
 
@@ -103,12 +119,15 @@ onBeforeUnmount(() => {
         <AdminRail />
 
         <div class="adm-work">
+            <AdminAppBar />
             <AdminTopbar />
 
             <main id="inhalt" class="adm-page" tabindex="-1">
                 <slot />
             </main>
         </div>
+
+        <AdminBottomBar />
     </div>
 
     <AdminPalette />
