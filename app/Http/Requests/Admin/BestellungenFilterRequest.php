@@ -45,7 +45,7 @@ class BestellungenFilterRequest extends FormRequest
 
         return [
             'q' => ['nullable', 'string', 'max:120'],
-            'status' => ['nullable', 'string', Rule::in([OrderList::OPEN, ...OrderStatus::values()])],
+            'status' => ['nullable', 'string', Rule::in([OrderList::OPEN, OrderList::PAID, ...OrderStatus::values()])],
             'von' => $day,
             'bis' => $day,
             'zahlart' => $method,

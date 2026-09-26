@@ -147,6 +147,19 @@
     --adm-wordmark-size: 28px;  /* The rail's wordmark: a 20 px cap height in Archivo (cap ≈ 0.72 em). */
     --adm-form-max: 720px;      /* One-column forms and prose. */
     --adm-work-max: 1600px;     /* The widest a data table stays scannable. */
+    --adm-dash-max: 1440px;     /* The Übersicht: a 12-column grid that fills, never a half-empty band. */
+    --adm-fs-title: 15px;       /* A widget's title: between the body and the small size, 600. */
+    --adm-lh-title: 22px;
+    --adm-fs-table: 13px;       /* Dense tables on the Übersicht; 12 px stays for captions. */
+    --adm-lh-table: 20px;
+
+    /* ── Charts (BRIEF §5): the accent carries the one series that is the story; the rest is grey.
+       Status colours are never series colours. Text on a chart wears ink, never a series colour. */
+    --chart-accent: var(--c-blue);
+    --chart-muted: var(--c-line-2);
+    --chart-grid: var(--c-line);
+    --chart-text: var(--c-ink-3);
+    --chart-marker-ring: 0 0 0 2px var(--c-surface);
 
     /* Admin motion, as the client set it (docs/admin/BRIEF-2.md §4). Transform and opacity only;
        prefers-reduced-motion sets every one of these to zero and keeps the end state. */

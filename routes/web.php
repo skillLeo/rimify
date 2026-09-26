@@ -182,6 +182,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // not open, but a pasted URL must still be refused on the server (R-11). Übersicht is every
         // admin's and filters its own figures by permission.
         Route::get('/', UebersichtController::class)->name('uebersicht');
+        Route::get('/uebersicht/export', [UebersichtController::class, 'export'])
+            ->middleware(EnsureAdminMay::class.':reports,export')
+            ->name('uebersicht.export');
         Route::get('/gutachten', [GutachtenController::class, 'index'])
             ->middleware(EnsureAdminMay::class.':approvals,view')
             ->name('gutachten.index');

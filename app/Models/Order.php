@@ -118,6 +118,17 @@ class Order extends Model
         return $query->addSelect(['is_demo' => self::demoQuery()->whereColumn('ol.order_id', 'orders.id')->selectRaw('1')->limit(1)]);
     }
 
+    /**
+     * Only seeded demonstration orders.
+     *
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopeWhereDemo(Builder $query): Builder
+    {
+        return $query->whereExists(self::demoQuery()->whereColumn('ol.order_id', 'orders.id')->selectRaw('1'));
+    }
+
     private static function demoQuery(): QueryBuilder
     {
         return DB::table('order_lines as ol')

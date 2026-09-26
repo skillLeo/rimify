@@ -86,6 +86,17 @@ enum OrderStatus: string
     }
 
     /**
+     * The statuses whose money stayed with the shop: paid and not refunded. What the Übersicht counts
+     * as Umsatz and as Bestellungen.
+     *
+     * @return list<self>
+     */
+    public static function revenue(): array
+    {
+        return [self::Paid, self::InFulfilment, self::Shipped, self::Completed];
+    }
+
+    /**
      * The statuses whose orders the team still has to send: the Übersicht's "Offene Bestellungen".
      *
      * @return list<self>

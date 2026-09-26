@@ -1,0 +1,282 @@
+<script setup lang="ts">
+/**
+ * The Übersicht's one Zeitraum, applied to every widget and remembered on the account: 7, 30 or 90
+ * days, or an own range typed the German way (TT.MM.JJJJ) — plus "mit Vorperiode vergleichen", and
+ * the page's menu (CSV, print).
+ *
+ * The presets are a toggle group: one pressed at a time, arrows move between them (reka). An own
+ * range opens a small popover with two fields and "Anwenden"; its errors are the admin's shared date
+ * rules, said under the fields before anything is sent.
+ */
+
+import { router } from '@inertiajs/vue3'
+import {
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuPortal,
+    DropdownMenuRoot,
+    DropdownMenuTrigger,
+    PopoverContent,
+    PopoverPortal,
+    PopoverRoot,
+    PopoverTrigger,
+    SwitchRoot,
+    SwitchThumb,
+    ToggleGroupItem,
+    ToggleGroupRoot,
+} from 'reka-ui'
+import { computed, ref } from 'vue'
+import Icon from '../../Ui/Icon.vue'
+import { formatGermanDay, parseGermanDay } from '../../../composables/admin/days'
+import type { DashboardPeriod } from '../../../types/admin/uebersicht'
+
+const props = defineProps<{ period: DashboardPeriod; exportUrl: string | null }>()
+
+const BASE = '/admin'
+const PRESETS = [
+    { key: '7', label: '7 Tage' },
+    { key: '30', label: '30 Tage' },
+    { key: '90', label: '90 Tage' },
+] as const
+
+const busy = ref(false)
+const customOpen = ref(false)
+const von = ref(formatGermanDay(props.period.von))
+const bis = ref(formatGermanDay(props.period.bis))
+const error = ref('')
+
+const preset = computed({
+    get: () => (props.period.key === 'eigen' ? '' : props.period.key),
+    set: (key: string) => {
+        if (key && key !== props.period.key) {
+            go({ zeitraum: key })
+        }
+    },
+})
+
+function go(query: Record<string, string>): void {
+    busy.value = true
+    router.get(BASE, query, { preserveScroll: true, preserveState: true, onFinish: () => (busy.value = false) })
+}
+
+function openCustom(open: boolean): void {
+    customOpen.value = open
+
+    if (open) {
+        von.value = formatGermanDay(props.period.von)
+        bis.value = formatGermanDay(props.period.bis)
+        error.value = ''
+    }
+}
+
+function applyCustom(): void {
+    const from = parseGermanDay(von.value)
+    const to = parseGermanDay(bis.value)
+
+    if (from === null || to === null) {
+        error.value = 'Bitte schreib das Datum als TT.MM.JJJJ, zum Beispiel 01.09.2026.'
+
+        return
+    }
+
+    if (to < from) {
+        error.value = 'Das Enddatum liegt vor dem Anfangsdatum.'
+
+        return
+    }
+
+    customOpen.value = false
+    go({ zeitraum: 'eigen', von: from, bis: to })
+}
+
+function setCompare(on: boolean): void {
+    go({ vergleich: on ? '1' : '0' })
+}
+
+function print(): void {
+    window.print()
+}
+</script>
+
+<template>
+    <div class="period">
+        <ToggleGroupRoot v-model="preset" type="single" class="period__group" aria-label="Zeitraum" :disabled="busy">
+            <ToggleGroupItem v-for="item in PRESETS" :key="item.key" :value="item.key" class="period__seg">{{ item.label }}</ToggleGroupItem>
+        </ToggleGroupRoot>
+
+        <PopoverRoot :open="customOpen" @update:open="openCustom">
+            <PopoverTrigger class="period__seg period__custom" :class="{ 'period__seg--on': period.key === 'eigen' }" :aria-pressed="period.key === 'eigen'">
+                <Icon name="clock" :size="16" />
+                {{ period.key === 'eigen' ? period.range : 'Eigener Zeitraum' }}
+            </PopoverTrigger>
+            <PopoverPortal>
+                <PopoverContent class="adm-menu period__popover" align="end" :side-offset="8">
+                    <form class="period__form" @submit.prevent="applyCustom">
+                        <div class="form-field">
+                            <label class="form-field__label" for="period-von">Von</label>
+                            <input id="period-von" v-model="von" class="input" inputmode="numeric" placeholder="TT.MM.JJJJ" autocomplete="off" :aria-invalid="error ? 'true' : undefined" aria-describedby="period-error">
+                        </div>
+                        <div class="form-field">
+                            <label class="form-field__label" for="period-bis">Bis</label>
+                            <input id="period-bis" v-model="bis" class="input" inputmode="numeric" placeholder="TT.MM.JJJJ" autocomplete="off" :aria-invalid="error ? 'true' : undefined" aria-describedby="period-error">
+                        </div>
+                        <p id="period-error" class="form-field__error period__error">{{ error }}</p>
+                        <button class="btn btn--primary" type="submit">Anwenden</button>
+                    </form>
+                </PopoverContent>
+            </PopoverPortal>
+        </PopoverRoot>
+
+        <label class="period__compare">
+            <SwitchRoot class="period__switch" :model-value="period.compare" :disabled="busy" @update:model-value="setCompare">
+                <SwitchThumb class="period__thumb" />
+            </SwitchRoot>
+            mit Vorperiode vergleichen
+        </label>
+
+        <DropdownMenuRoot>
+            <DropdownMenuTrigger class="adm-iconbtn" aria-label="Weitere Aktionen">
+                <Icon name="more" :size="20" />
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+                <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
+                    <DropdownMenuItem v-if="exportUrl" as-child>
+                        <a class="adm-menu__item" :href="exportUrl" download>
+                            <Icon name="import" :size="20" />
+                            Als CSV exportieren
+                        </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem class="adm-menu__item" @select="print">
+                        <Icon name="document" :size="20" />
+                        Als PDF drucken
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenuPortal>
+        </DropdownMenuRoot>
+    </div>
+</template>
+
+<style scoped>
+.period {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-12);
+}
+
+.period__group {
+    display: inline-flex;
+    padding: 2px;
+    border: 1px solid var(--c-line-2);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+}
+
+.period__seg {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    height: calc(var(--adm-control-h) - 6px);
+    padding-inline: var(--sp-12);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink-2);
+    font: inherit;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.period__seg[data-state='on'],
+.period__seg--on {
+    background: var(--c-ink);
+    color: var(--c-surface);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .period__seg:not([data-state='on'], .period__seg--on):hover {
+        background: var(--c-band);
+        color: var(--c-ink);
+    }
+}
+
+/* The own range stands beside the group, framed like it. */
+.period__custom {
+    height: var(--adm-control-h);
+    border: 1px solid var(--c-line-2);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+}
+
+.period__compare {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    cursor: pointer;
+}
+
+.period__switch {
+    position: relative;
+    flex: none;
+    width: 32px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-round);
+    background: var(--c-line-2);
+    cursor: pointer;
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+.period__switch[data-state='checked'] {
+    background: var(--c-blue);
+}
+
+.period__thumb {
+    display: block;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--r-round);
+    background: var(--c-surface);
+    transform: translateX(2px);
+    transition: transform var(--d-1) var(--ease-out);
+}
+
+.period__thumb[data-state='checked'] {
+    transform: translateX(14px);
+}
+
+.period__popover {
+    width: 280px;
+    padding: var(--sp-16);
+}
+
+.period__form {
+    display: grid;
+    gap: var(--sp-12);
+}
+
+.period__error:empty {
+    display: none;
+}
+
+@media (pointer: coarse) {
+    .period__seg,
+    .period__custom {
+        height: var(--adm-control-h-lg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .period__switch,
+    .period__thumb {
+        transition: none;
+    }
+}
+</style>

@@ -28,6 +28,9 @@ final class OrderList
     /** `status=offen`: paid and not yet sent — the Übersicht's "Offene Bestellungen". */
     public const OPEN = 'offen';
 
+    /** `status=bezahlt`: every order whose money stayed with the shop — the Übersicht's Umsatz. */
+    public const PAID = 'bezahlt';
+
     /** The sorts the list offers, by their URL name. */
     public const SORTS = ['datum', 'summe', 'status'];
 
@@ -102,6 +105,8 @@ final class OrderList
 
         if ($status === self::OPEN) {
             $query->whereIn('orders.status', array_map(static fn (OrderStatus $s): string => $s->value, OrderStatus::open()));
+        } elseif ($status === self::PAID) {
+            $query->whereIn('orders.status', array_map(static fn (OrderStatus $s): string => $s->value, OrderStatus::revenue()));
         } elseif ($status !== null) {
             $query->where('orders.status', $status);
         }
@@ -210,7 +215,16 @@ final class OrderList
             $open += (int) ($counts[$status->value] ?? 0);
         }
 
-        $statuses = [['value' => self::OPEN, 'label' => 'Zu versenden (bezahlt)', 'count' => $open]];
+        $paid = 0;
+
+        foreach (OrderStatus::revenue() as $status) {
+            $paid += (int) ($counts[$status->value] ?? 0);
+        }
+
+        $statuses = [
+            ['value' => self::OPEN, 'label' => 'Zu versenden (bezahlt)', 'count' => $open],
+            ['value' => self::PAID, 'label' => 'Bezahlt, nicht erstattet', 'count' => $paid],
+        ];
 
         foreach (OrderStatus::cases() as $status) {
             $statuses[] = ['value' => $status->value, 'label' => $status->labelDe(), 'count' => (int) ($counts[$status->value] ?? 0)];

@@ -571,7 +571,11 @@ final class AuditDescriber
         $status = self::text($filters, 'status');
 
         if ($status !== null) {
-            $parts[] = 'Status '.self::q($status === OrderList::OPEN ? 'Zu versenden' : (OrderStatus::tryFrom($status)?->labelDe() ?? $status));
+            $parts[] = 'Status '.self::q(match ($status) {
+                OrderList::OPEN => 'Zu versenden',
+                OrderList::PAID => 'Bezahlt, nicht erstattet',
+                default => OrderStatus::tryFrom($status)?->labelDe() ?? $status,
+            });
         }
 
         $from = self::day(self::text($filters, 'von'));
