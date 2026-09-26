@@ -236,6 +236,12 @@ final readonly class Chrome
         ];
     }
 
+    /** Drops the cached menus: a change in Inhalte › Navigation shows on the very next page. */
+    public static function forgetMenus(): void
+    {
+        Cache::forget(self::MENU_CACHE_KEY);
+    }
+
     /**
      * The four menus, each already resolved to a URL.
      *

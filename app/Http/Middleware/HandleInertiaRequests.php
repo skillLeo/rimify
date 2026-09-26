@@ -118,7 +118,12 @@ class HandleInertiaRequests extends Middleware
             // Read on the server and rendered into the first frame: a rail read after hydration
             // snaps from 260 to 64 px on every load (admin-shell.md §5.9).
             'preferences' => ['railCollapsed' => $signedIn && $user->railCollapsed()],
-            'breadcrumbs' => $navigation->breadcrumbs($nav, '/'.ltrim($request->path(), '/')),
+            // Resolved after the controller has run, so a page showing one record can name it.
+            'breadcrumbs' => fn (): array => $navigation->breadcrumbs(
+                $nav,
+                '/'.ltrim($request->path(), '/'),
+                is_string($request->attributes->get(AdminNavigation::RECORD)) ? $request->attributes->get(AdminNavigation::RECORD) : null,
+            ),
             // Not rendered when unset: the help menu never offers an address nobody reads.
             'supportEmail' => is_string(config('rimify.admin.support_email')) ? config('rimify.admin.support_email') : null,
         ]];

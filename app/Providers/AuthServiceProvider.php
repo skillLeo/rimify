@@ -7,8 +7,14 @@ namespace App\Providers;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Models\FaqEntry;
+use App\Models\NavItem;
+use App\Models\Page;
 use App\Models\TpmsSensorPrice;
 use App\Policies\BalanceWeightColourPolicy;
+use App\Policies\FaqEntryPolicy;
+use App\Policies\NavItemPolicy;
+use App\Policies\PagePolicy;
 use App\Policies\TpmsSensorPricePolicy;
 use App\Services\Admin\PermissionMatrix;
 use Illuminate\Auth\Access\Response;
@@ -36,6 +42,9 @@ final class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         BalanceWeightColour::class => BalanceWeightColourPolicy::class,
         TpmsSensorPrice::class => TpmsSensorPricePolicy::class,
+        Page::class => PagePolicy::class,
+        FaqEntry::class => FaqEntryPolicy::class,
+        NavItem::class => NavItemPolicy::class,
     ];
 
     public function register(): void

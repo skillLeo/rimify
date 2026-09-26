@@ -7,6 +7,7 @@ namespace App\Services\Admin;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AuditLog;
+use App\Services\Content\NavigationSchema;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
 use Carbon\CarbonImmutable;
@@ -35,6 +36,7 @@ final class AuditDescriber
     public const AREAS = [
         'team' => 'Team',
         'katalog' => 'Katalog',
+        'inhalte' => 'Inhalte',
         'konto' => 'Konto',
         'zugriff' => 'Zugriff',
         'protokoll' => 'Protokoll',
@@ -68,6 +70,20 @@ final class AuditDescriber
         'tpms_price.deleted' => 'katalog',
         'tpms_default_price.updated' => 'katalog',
         'audit_log.exported' => 'protokoll',
+        'page.created' => 'inhalte',
+        'page.draft_saved' => 'inhalte',
+        'page.draft_discarded' => 'inhalte',
+        'page.published' => 'inhalte',
+        'page.withdrawn' => 'inhalte',
+        'page.revision_restored' => 'inhalte',
+        'faq.created' => 'inhalte',
+        'faq.updated' => 'inhalte',
+        'faq.deleted' => 'inhalte',
+        'faq.reordered' => 'inhalte',
+        'nav.created' => 'inhalte',
+        'nav.updated' => 'inhalte',
+        'nav.deleted' => 'inhalte',
+        'nav.reordered' => 'inhalte',
     ];
 
     /**
@@ -101,6 +117,9 @@ final class AuditDescriber
         'admin.gutachten' => 'Gutachten',
         'admin.benachrichtigungen' => 'Benachrichtigungswünsche',
         'admin.profil' => 'Profil',
+        'admin.seiten' => 'Seiten',
+        'admin.faq' => 'FAQ',
+        'admin.navigation' => 'Navigation',
     ];
 
     /** What a denied request tried to do, as the infinitive that completes „Der Versuch, …". */
@@ -243,11 +262,173 @@ final class AuditDescriber
                 [self::change('Standardpreis je Sensor', self::money($p['old_cents'] ?? null), self::money($p['cents'] ?? null))],
             ],
             'audit_log.exported' => [self::exported($p), []],
+            'page.created' => ['Der Ratgeber-Artikel '.self::page($p).' wurde angelegt. Er ist noch nicht veröffentlicht.', []],
+            'page.draft_saved' => ['Für die Seite '.self::page($p).' wurde ein Entwurf gespeichert.', []],
+            'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
+            'page.published' => self::pagePublished($p),
+            'page.withdrawn' => ['Der Ratgeber-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'page.revision_restored' => [self::revisionRestored($p), []],
+            'faq.created' => [
+                'Die Frage '.self::q(self::text($p, 'question') ?? 'ohne Text').' wurde angelegt'
+                    .(($p['published'] ?? false) === true ? ' und ist im Shop zu sehen.' : '; sie ist noch ausgeblendet.'),
+                [],
+            ],
+            'faq.updated' => self::faqUpdated($p),
+            'faq.deleted' => ['Die Frage '.self::q(self::text($p, 'question') ?? 'ohne Text').' wurde gelöscht.', []],
+            'faq.reordered' => ['Die Reihenfolge der FAQ wurde geändert.', []],
+            'nav.created' => ['Im Menü '.self::menu($p).' wurde der Eintrag '.self::q(self::text($p, 'label') ?? 'ohne Namen').' angelegt.', []],
+            'nav.updated' => [
+                'Im Menü '.self::menu($p).' wurde der Eintrag '.self::q(self::text($p, 'label') ?? 'ohne Namen').' geändert.',
+                self::navChanges($p),
+            ],
+            'nav.deleted' => ['Aus dem Menü '.self::menu($p).' wurde der Eintrag '.self::q(self::text($p, 'label') ?? 'ohne Namen').' gelöscht.', []],
+            'nav.reordered' => ['Die Reihenfolge im Menü '.self::menu($p).' wurde geändert.', []],
             default => [
                 'Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.',
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
             ],
         };
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function page(array $p): string
+    {
+        return self::q(self::text($p, 'page') ?? self::text($p, 'slug') ?? 'ohne Titel');
+    }
+
+    /**
+     * „Die Seite „Impressum" wurde veröffentlicht. Geändert: Abschnitt 1 · Text." — the places, not
+     * the words: a legal text is thousands of characters, and the version list holds it whole.
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function pagePublished(array $p): array
+    {
+        $places = array_values(array_filter(
+            is_array($p['changes'] ?? null) ? $p['changes'] : [],
+            static fn (mixed $place): bool => is_string($place) && $place !== '',
+        ));
+
+        $sentence = 'Die Seite '.self::page($p).' wurde veröffentlicht.';
+
+        if ($places === []) {
+            $sentence .= ' Der Text blieb unverändert.';
+        } else {
+            $shown = array_slice($places, 0, 6);
+            $more = count($places) - count($shown);
+            $tail = match (true) {
+                $more === 1 => ' und eine weitere Stelle',
+                $more > 1 => ' und '.$more.' weitere Stellen',
+                default => '',
+            };
+            $sentence .= ' Geändert: '.implode(', ', $shown).$tail.'.';
+        }
+
+        $note = self::text($p, 'note');
+
+        if ($note !== null) {
+            $sentence .= ' Notiz: '.self::q($note).'.';
+        }
+
+        $changes = [];
+        $reviewed = self::map($p, 'lawyer_reviewed');
+
+        if (isset($reviewed['old'], $reviewed['new']) && $reviewed['old'] !== $reviewed['new']) {
+            $changes[] = self::change('Vom Anwalt geprüft', $reviewed['old'] === true ? 'ja' : 'nein', $reviewed['new'] === true ? 'ja' : 'nein');
+        }
+
+        return [$sentence, $changes];
+    }
+
+    /**
+     * „Die Frage „…" wurde geändert: Antwort." — which parts changed, and whether it was shown or
+     * hidden, without copying the answer's text into the sentence.
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function faqUpdated(array $p): array
+    {
+        $question = self::q(self::text($p, 'old_question') ?? self::text($p, 'question') ?? 'ohne Text');
+        $names = ['group_key' => 'Gruppe', 'question_de' => 'Frage', 'answer_de' => 'Antwort'];
+        $parts = [];
+
+        foreach (is_array($p['changed'] ?? null) ? $p['changed'] : [] as $key) {
+            if (is_string($key) && isset($names[$key])) {
+                $parts[] = $names[$key];
+            }
+        }
+
+        $visibility = self::map($p, 'published');
+        $changes = [];
+
+        if (isset($visibility['old'], $visibility['new']) && $visibility['old'] !== $visibility['new']) {
+            $changes[] = self::change('Im Shop', $visibility['old'] === true ? 'sichtbar' : 'ausgeblendet', $visibility['new'] === true ? 'sichtbar' : 'ausgeblendet');
+        }
+
+        $sentence = $parts === []
+            ? 'Die Frage '.$question.' wurde geändert.'
+            : 'Die Frage '.$question.' wurde geändert: '.implode(', ', $parts).'.';
+
+        return [$sentence, $changes];
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function menu(array $p): string
+    {
+        $key = self::text($p, 'menu');
+
+        return self::q($key !== null && isset(NavigationSchema::MENUS[$key]) ? NavigationSchema::MENUS[$key]['label'] : ($key ?? 'ohne Namen'));
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $p
+     * @return list<Change>
+     */
+    private static function navChanges(array $p): array
+    {
+        $old = self::map($p, 'old');
+        $new = self::map($p, 'new');
+        $names = ['label' => 'Name', 'target' => 'Ziel', 'icon' => 'Symbol'];
+        $changes = [];
+
+        foreach ($names as $key => $label) {
+            $a = self::text($old, $key);
+            $b = self::text($new, $key);
+
+            // A glyph by the name a person uses („Haken im Kreis"), never its key.
+            if ($key === 'icon') {
+                $a = $a === null ? null : (NavigationSchema::ICONS[$a] ?? $a);
+                $b = $b === null ? null : (NavigationSchema::ICONS[$b] ?? $b);
+            }
+
+            if ($a !== $b) {
+                $changes[] = self::change($label, $a ?? self::NOTHING, $b ?? self::NOTHING);
+            }
+        }
+
+        if (isset($old['visible'], $new['visible']) && $old['visible'] !== $new['visible']) {
+            $changes[] = self::change('Im Shop', $old['visible'] === true ? 'sichtbar' : 'ausgeblendet', $new['visible'] === true ? 'sichtbar' : 'ausgeblendet');
+        }
+
+        return $changes;
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function revisionRestored(array $p): string
+    {
+        $at = self::text($p, 'revision_at');
+
+        try {
+            $when = $at === null ? null : GermanFormat::dateTime(CarbonImmutable::parse($at));
+        } catch (\Throwable) {
+            $when = null;
+        }
+
+        return $when === null
+            ? 'Für die Seite '.self::page($p).' wurde eine frühere Version als Entwurf geladen.'
+            : 'Für die Seite '.self::page($p).' wurde die Version vom '.$when.' als Entwurf geladen.';
     }
 
     /**

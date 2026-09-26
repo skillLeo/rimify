@@ -537,14 +537,61 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .adm-iconbtn:hover {
+    .adm-iconbtn:hover:not(:disabled) {
         background: var(--c-band);
         color: var(--c-ink);
     }
 }
 
-.adm-iconbtn:active {
+.adm-iconbtn:active:not(:disabled) {
     background: var(--c-line);
+}
+
+/* A move that cannot happen here (the first row up, the last row down) looks it: no fill, no hand. */
+.adm-iconbtn:disabled {
+    color: var(--c-line-2);
+    cursor: default;
+}
+
+/* A row's up/down pair. Below 768 px there is no room beside the row's words: the pair steps aside
+   in CSS — never by a script after hydration, which made the list jump — and the same moves stay in
+   the row's menu, where they always are. */
+.adm-row-arrows {
+    display: flex;
+    gap: var(--sp-4);
+}
+
+@media (max-width: 767px) {
+    .adm-row-arrows {
+        display: none;
+    }
+}
+
+/* A row just created, moved or changed: one tint that fades, so the eye finds what it did. */
+.adm-row--fresh {
+    animation: adm-row-fresh var(--adm-d-row-flash) var(--ease-out);
+}
+
+@keyframes adm-row-fresh {
+    from {
+        background: var(--c-blue-tint);
+    }
+
+    to {
+        background: transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-row--fresh {
+        animation: none;
+    }
+}
+
+/* A checkbox in a dialog is a field's label, the same size as the labels above it. */
+.adm-dialog .check {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
 }
 
 .adm-usermenu {
@@ -1103,6 +1150,14 @@
     }
 }
 
+/* From 768 the toast sits bottom left, where the save bar says what state the form is in: on a form
+   page it rides above the bar, so the confirmation never hides the status it confirms. */
+@media (min-width: 768px) {
+    .adm:has(.adm-savebar) ~ .toast-viewport {
+        bottom: calc(var(--adm-topbar-h) + var(--sp-12));
+    }
+}
+
 /* ── Tastenkürzel ──────────────────────────────────────────────────────────────── */
 
 .adm-keys + .adm-keys {
@@ -1478,7 +1533,7 @@
     max-width: 54ch;
     margin: var(--sp-12) 0;
     padding: var(--sp-12) var(--sp-16);
-    border: 1px solid var(--c-bad);
+    /* The tint says it; a red frame around a red field says it twice. */
     border-radius: var(--r-control);
     background: var(--c-bad-tint);
     color: var(--c-ink);

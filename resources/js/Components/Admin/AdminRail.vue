@@ -17,6 +17,7 @@ import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTri
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
+import { isCurrentPage } from '../../composables/admin/currentPage'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 import type { AdminNavGroup, AdminNavPage } from '../../types/admin'
 
@@ -32,7 +33,7 @@ const path = computed(() => {
 })
 
 function current(item: AdminNavPage): boolean {
-    return item.href === path.value
+    return isCurrentPage(item.href, path.value)
 }
 
 /** A group of one page is that page: no label saying "Übersicht" above an item saying the same. */

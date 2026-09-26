@@ -20,6 +20,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from 'reka-ui'
+import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import Kbd from '../Ui/Kbd.vue'
@@ -42,7 +43,7 @@ const crumbs = computed(() => admin.value.breadcrumbs)
                     <li v-for="(crumb, index) in crumbs" :key="`${index}-${crumb.label}`">
                         <Icon v-if="index > 0" class="adm-crumbs__sep" name="chevron-right" :size="16" />
                         <span v-if="index === crumbs.length - 1" aria-current="page">{{ crumb.label }}</span>
-                        <a v-else-if="crumb.href" :href="crumb.href">{{ crumb.label }}</a>
+                        <Link v-else-if="crumb.href" :href="crumb.href">{{ crumb.label }}</Link>
                         <span v-else>{{ crumb.label }}</span>
                     </li>
                 </ol>

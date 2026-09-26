@@ -8,10 +8,13 @@ use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\EinladungController;
+use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Admin\SeitenController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Api\FitmentCountController;
@@ -32,6 +35,7 @@ use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\VergleichController;
+use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
 use App\Http\Middleware\EnsureAdminMay;
 use Illuminate\Support\Facades\Route;
@@ -105,6 +109,13 @@ Route::get('/benachrichtigung/abmelden/{token}', [BenachrichtigungController::cl
 Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
 Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtliches');
+
+// A page's draft in the real shop, for the Inhalte editor and whoever it shares the link with. The
+// signature is the permission (it expires); no login, never indexed, framable by our own origin only.
+Route::get('/vorschau/seite/{page}', VorschauController::class)
+    ->whereNumber('page')
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('vorschau.seite');
 
 /*
  * The design specimen: every token and every component in every state, on one page. It exists so
@@ -236,5 +247,49 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/rdks-preise/standard', [RdksPreiseController::class, 'updateDefaultPrice'])->name('rdks.standard');
         Route::patch('/rdks-preise/{price}', [RdksPreiseController::class, 'update'])->name('rdks.update');
         Route::delete('/rdks-preise/{price}', [RdksPreiseController::class, 'destroy'])->name('rdks.destroy');
+
+        // Inhalte › Seiten (docs/admin/inhalte-build-plan.md): a draft visitors never see, the
+        // publish check, and every published state kept. Each write is refused by its Policy.
+        Route::get('/seiten', [SeitenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('seiten.index');
+        Route::post('/seiten', [SeitenController::class, 'store'])->name('seiten.store');
+        Route::get('/seiten/{page}', [SeitenController::class, 'show'])
+            ->whereNumber('page')
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('seiten.show');
+        Route::put('/seiten/{page}/entwurf', [SeitenController::class, 'saveDraft'])->whereNumber('page')->name('seiten.entwurf');
+        Route::delete('/seiten/{page}/entwurf', [SeitenController::class, 'discardDraft'])->whereNumber('page')->name('seiten.entwurf.verwerfen');
+        Route::post('/seiten/{page}/veroeffentlichen', [SeitenController::class, 'publish'])->whereNumber('page')->name('seiten.veroeffentlichen');
+        Route::post('/seiten/{page}/zurueckziehen', [SeitenController::class, 'withdraw'])->whereNumber('page')->name('seiten.zurueckziehen');
+        Route::post('/seiten/{page}/versionen/{revision}', [SeitenController::class, 'restore'])
+            ->whereNumber(['page', 'revision'])
+            ->name('seiten.wiederherstellen');
+        Route::get('/seiten/{page}/versionen/{revision}/vergleich', [SeitenController::class, 'compare'])
+            ->whereNumber(['page', 'revision'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('seiten.vergleich');
+
+        // Inhalte › FAQ: no draft — a visible entry changes on the shop when saved, so changing
+        // one takes the right to publish (FaqEntryPolicy). `/reihenfolge` is a fixed segment.
+        Route::get('/faq', [FragenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('faq.index');
+        Route::post('/faq', [FragenController::class, 'store'])->name('faq.store');
+        Route::put('/faq/reihenfolge', [FragenController::class, 'reorder'])->name('faq.reihenfolge');
+        Route::put('/faq/{entry}', [FragenController::class, 'update'])->whereNumber('entry')->name('faq.update');
+        Route::delete('/faq/{entry}', [FragenController::class, 'destroy'])->whereNumber('entry')->name('faq.destroy');
+        Route::patch('/faq/{entry}/sichtbarkeit', [FragenController::class, 'visibility'])->whereNumber('entry')->name('faq.sichtbarkeit');
+
+        // Inhalte › Navigation: the shop's menus, live on every page, so every change also needs
+        // the right to publish (NavItemPolicy). `/reihenfolge` is a fixed segment.
+        Route::get('/navigation', [NavigationController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('navigation.index');
+        Route::post('/navigation', [NavigationController::class, 'store'])->name('navigation.store');
+        Route::put('/navigation/reihenfolge', [NavigationController::class, 'reorder'])->name('navigation.reihenfolge');
+        Route::put('/navigation/{item}', [NavigationController::class, 'update'])->whereNumber('item')->name('navigation.update');
+        Route::delete('/navigation/{item}', [NavigationController::class, 'destroy'])->whereNumber('item')->name('navigation.destroy');
+        Route::patch('/navigation/{item}/sichtbarkeit', [NavigationController::class, 'visibility'])->whereNumber('item')->name('navigation.sichtbarkeit');
     });
 });

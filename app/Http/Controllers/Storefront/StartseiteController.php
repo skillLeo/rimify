@@ -10,10 +10,12 @@ use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Fitment;
+use App\Models\Page;
 use App\Models\Setting;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Content\PageContent;
 use App\Services\Storefront\CalculatorPrefill;
 use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
@@ -65,6 +67,7 @@ class StartseiteController extends Controller
         private readonly VehicleResolver $resolver,
         private readonly ListingQuery $listing,
         private readonly CalculatorPrefill $calculatorPrefill,
+        private readonly PageContent $content,
     ) {}
 
     public function index(Request $request): Response
@@ -80,8 +83,9 @@ class StartseiteController extends Controller
             'hero' => [
                 'title' => (string) ($blocks['hero']['headline'] ?? 'Felgen, die an dein Auto dürfen.'),
                 'subline' => (string) ($blocks['hero']['sub'] ?? ''),
-                // The phone document's shorter sentence; the desktop one stays the fallback.
-                'sublineMobile' => (string) ($blocks['hero']['sub_mobile'] ?? $blocks['hero']['sub'] ?? ''),
+                // The phone document's own sentence (required in the editor). Absent or empty, the
+                // phone keeps its short default rather than the desktop's five lines (Mobile.vue).
+                'sublineMobile' => trim((string) ($blocks['hero']['sub_mobile'] ?? '')),
                 'product' => $this->heroProduct(),
                 'stats' => $this->stats->counts(),
             ],
@@ -568,22 +572,16 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The homepage's content blocks, keyed by type.
+     * The homepage's content blocks, keyed by type — the live words, or the draft in a preview.
      *
      * @return array<string, array<string, mixed>>
      */
     private function blocks(): array
     {
-        $rows = DB::table('page_blocks as b')
-            ->join('pages as p', 'p.id', '=', 'b.page_id')
-            ->where('p.slug', 'startseite')
-            ->get(['b.type', 'b.data']);
-
         $blocks = [];
 
-        foreach ($rows as $row) {
-            $data = json_decode((string) $row->data, true);
-            $blocks[(string) $row->type] = is_array($data) ? $data : [];
+        foreach ($this->content->page(Page::HOME_SLUG)['blocks'] ?? [] as $block) {
+            $blocks[$block['type']] = $block['data'];
         }
 
         return $blocks;

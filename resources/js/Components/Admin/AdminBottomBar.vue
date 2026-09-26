@@ -12,6 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import AdminMoreSheet from './AdminMoreSheet.vue'
+import { isCurrentPage } from '../../composables/admin/currentPage'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 import type { AdminNavGroup } from '../../types/admin'
 
@@ -35,7 +36,7 @@ function count(group: AdminNavGroup): { value: number; bad: boolean } | null {
 }
 
 function inGroup(group: AdminNavGroup): boolean {
-    return group.pages.some((p) => p.href === path.value)
+    return group.pages.some((p) => isCurrentPage(p.href, path.value))
 }
 
 const moreOpen = ref(false)

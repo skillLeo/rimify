@@ -33,6 +33,9 @@ function adminPageAccessRoutes(): array
         'protokoll' => ['/admin/protokoll', PermissionModule::AuditLog],
         'wuchtgewichte' => ['/admin/wuchtgewichte', PermissionModule::Catalogue],
         'rdks-preise' => ['/admin/rdks-preise', PermissionModule::Catalogue],
+        'seiten' => ['/admin/seiten', PermissionModule::Content],
+        'faq' => ['/admin/faq', PermissionModule::Content],
+        'navigation' => ['/admin/navigation', PermissionModule::Content],
     ];
 }
 

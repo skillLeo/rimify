@@ -172,6 +172,9 @@ final class AdminNavigation
         '/admin/benutzer',
         '/admin/rollen',
         '/admin/protokoll',
+        '/admin/seiten',
+        '/admin/faq',
+        '/admin/navigation',
     ];
 
     /**
@@ -190,6 +193,12 @@ final class AdminNavigation
     private const OFF_RAIL = [
         '/admin/profil' => 'Profil',
     ];
+
+    /**
+     * The request attribute a controller sets to name the record it shows — the last breadcrumb on
+     * a page beneath the rail (/admin/seiten/7 → Inhalte › Seiten › Impressum).
+     */
+    public const RECORD = 'admin.record_crumb';
 
     /**
      * The tree for one admin: groups they may see, holding pages that exist, with their counts.
@@ -317,7 +326,7 @@ final class AdminNavigation
      * @param  list<array<string, mixed>>  $tree
      * @return list<array{label: string, href: string|null}>
      */
-    public function breadcrumbs(array $tree, string $path): array
+    public function breadcrumbs(array $tree, string $path, ?string $record = null): array
     {
         $path = rtrim($path, '/') === '' ? '/' : rtrim($path, '/');
 
@@ -338,6 +347,30 @@ final class AdminNavigation
                     ['label' => (string) $group['label'], 'href' => null],
                     ['label' => $page['label'], 'href' => null],
                 ];
+            }
+        }
+
+        // One record beneath a rail page (/admin/seiten/7): the page becomes the way back, and the
+        // record — named by its controller (RECORD) — is where the reader is.
+        foreach ($tree as $group) {
+            /** @var list<array{label: string, href: string}> $pages */
+            $pages = $group['pages'];
+
+            foreach ($pages as $page) {
+                if ($page['href'] === '/admin' || ! str_starts_with($path, $page['href'].'/')) {
+                    continue;
+                }
+
+                $crumbs = [
+                    ['label' => (string) $group['label'], 'href' => null],
+                    ['label' => $page['label'], 'href' => $page['href']],
+                ];
+
+                if ($record !== null && $record !== '') {
+                    $crumbs[] = ['label' => $record, 'href' => null];
+                }
+
+                return $crumbs;
             }
         }
 

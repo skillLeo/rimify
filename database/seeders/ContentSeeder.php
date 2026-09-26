@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\FaqEntry;
 use App\Models\Setting;
 use App\Models\WheelModel;
 use Illuminate\Database\Seeder;
@@ -99,6 +100,10 @@ class ContentSeeder extends Seeder
         $guides = require $file;
 
         foreach ($guides as $guide) {
+            if ($this->ownedByTeam($guide['slug'])) {
+                continue;
+            }
+
             $page = $this->page($guide['slug'], 'guide', $guide['title'], $guide['status']);
 
             if (isset($guide['meta_description'])) {
@@ -196,6 +201,16 @@ class ContentSeeder extends Seeder
      */
     private function seedFaqEntries(): void
     {
+        /*
+         * Rows are matched on their question, so a question the team reworded would come back under
+         * its old words beside the new one. Once the team has changed any entry in Inhalte › FAQ,
+         * the whole list is theirs and a release leaves it alone.
+         */
+        // The setting survives the team deleting every question (FragenController::touched).
+        if (DB::table('faq_entries')->whereNotNull('team_edited_at')->exists() || Setting::get(FaqEntry::TEAM_OWNED_SETTING) !== null) {
+            return;
+        }
+
         $sort = 0;
 
         foreach (self::FAQ as $entry) {
@@ -214,6 +229,10 @@ class ContentSeeder extends Seeder
 
     private function seedHomepage(): void
     {
+        if ($this->ownedByTeam('startseite')) {
+            return;
+        }
+
         // The spec names the route but never a page title, so the title is the route's own German
         // name — a label for the admin list, not a string any customer reads.
         $page = $this->page('startseite', 'marketing', 'Startseite');
@@ -280,6 +299,12 @@ class ContentSeeder extends Seeder
     private function seedLegalPages(): void
     {
         foreach (self::LEGAL_PAGES as $slug => $title) {
+            // Above all here: a re-seed would write the placeholder over every section of the
+            // Kanzlei's text, because `block()` matches on page and type.
+            if ($this->ownedByTeam($slug)) {
+                continue;
+            }
+
             $page = $this->page($slug, 'legal', $title);
 
             // `legal_body`: one heading plus its body text, rendered at a 68-character measure.
@@ -318,10 +343,30 @@ class ContentSeeder extends Seeder
     // ------------------------------------------------------------------
 
     /**
+     * Whether the client's team has taken this page over in Inhalte › Seiten — drafted, published,
+     * withdrawn or restored it (`pages.team_edited_at`, stamped by every such write). From then on
+     * its words are theirs, and a release that re-runs this seeder leaves the page exactly as they
+     * left it: its title, its status and every block. The seeded copy was only the starting point.
+     */
+    private function ownedByTeam(string $slug): bool
+    {
+        return DB::table('pages')->where('slug', $slug)->whereNotNull('team_edited_at')->exists();
+    }
+
+    /**
      * @param  list<array{label: string, href?: string, route_name?: string, behaviour?: string, icon?: string}>  $items
      */
     private function menu(string $menu, array $items): void
     {
+        /*
+         * A menu the team has changed in Inhalte › Navigation is theirs: rows are matched on their
+         * label, so a renamed entry would come back under its old name, and the clean-up below
+         * would delete every entry they added. A release leaves such a menu exactly as it is.
+         */
+        if (DB::table('nav_items')->where('menu', $menu)->whereNotNull('team_edited_at')->exists()) {
+            return;
+        }
+
         foreach ($items as $index => $item) {
             $this->upsert('nav_items', ['menu' => $menu, 'label' => $item['label']], [
                 'href' => $item['href'] ?? null,

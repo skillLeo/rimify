@@ -63,6 +63,7 @@ export const ICON_NAMES = [
     'import',
     'bell',
     'more',
+    'eye-off',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -125,9 +126,12 @@ const PATHS: Readonly<Record<IconName, string>> = {
     import: '<path d="M4 14v5.5h16V14"/><path d="M12 3.5v11"/><path d="m8 10.5 4 4 4-4"/>',
     // A dome on a shoulder with the clapper beneath; no motion lines, no ring marks.
     bell: '<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5"/><path d="M4 16.5h16"/><path d="M10.5 19.5h3"/>',
-    // Three square dots on the centre line — the row-actions trigger, the one glyph that is not a
-    // drawing of a thing. A zero-length segment with square caps is a 1.5-unit square.
-    more: '<path d="M6 12h.01M12 12h.01M18 12h.01"/>',
+    // Three dots on the centre line — the row-actions trigger, the one glyph that is not a drawing
+    // of a thing. Each is a 0.75 circle under the 1.5 stroke: a 3-unit dot, as heavy as the
+    // chevrons beside it (a 1.5-unit square read as greyed out next to them).
+    more: '<circle cx="6" cy="12" r=".75"/><circle cx="12" cy="12" r=".75"/><circle cx="18" cy="12" r=".75"/>',
+    // The eye, struck through: hidden from visitors (Inhalte › FAQ, "Im Shop ausblenden").
+    'eye-off': '<path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="2.9"/><path d="m4 4 16 16"/>',
 }
 
 export interface IconOptions {

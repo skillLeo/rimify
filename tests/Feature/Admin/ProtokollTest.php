@@ -419,6 +419,36 @@ describe('putting every entry into words', function (): void {
             'tpms_price.deleted' => [['make_key' => 'porsche'], 'Der RDKS-Sensorpreis für Porsche wurde gelöscht.', []],
             'tpms_default_price.updated' => [['old_cents' => 1500, 'cents' => null], 'Der Standardpreis für RDKS-Sensoren wurde geändert.', ['Standardpreis je Sensor: '.$euro(1500).' → nicht festgelegt']],
             'audit_log.exported' => [['filters' => [], 'count' => 3], 'Das ganze Protokoll wurde als CSV exportiert – 3 Einträge.', []],
+            'page.created' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Ratgeber-Artikel „ET richtig lesen“ wurde angelegt. Er ist noch nicht veröffentlicht.', []],
+            'page.draft_saved' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Für die Seite „Impressum“ wurde ein Entwurf gespeichert.', []],
+            'page.draft_discarded' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Der Entwurf der Seite „Impressum“ wurde verworfen.', []],
+            'page.published' => [
+                ['page' => 'Impressum', 'slug' => 'impressum', 'changes' => ['Abschnitt 1 · Text'], 'note' => 'Text der Kanzlei', 'lawyer_reviewed' => ['old' => false, 'new' => true]],
+                'Die Seite „Impressum“ wurde veröffentlicht. Geändert: Abschnitt 1 · Text. Notiz: „Text der Kanzlei“.',
+                ['Vom Anwalt geprüft: nein → ja'],
+            ],
+            'page.withdrawn' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Ratgeber-Artikel „ET richtig lesen“ wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'faq.created' => [['question' => 'Wie lange dauert die Lieferung?', 'published' => false], 'Die Frage „Wie lange dauert die Lieferung?“ wurde angelegt; sie ist noch ausgeblendet.', []],
+            'faq.updated' => [
+                ['question' => 'Wie lange dauert der Versand?', 'old_question' => 'Wie lange dauert die Lieferung?', 'changed' => ['question_de', 'answer_de', 'published'], 'published' => ['old' => false, 'new' => true]],
+                'Die Frage „Wie lange dauert die Lieferung?“ wurde geändert: Frage, Antwort.',
+                ['Im Shop: ausgeblendet → sichtbar'],
+            ],
+            'faq.deleted' => [['question' => 'Kann ich Felgen zurückgeben?', 'published' => true], 'Die Frage „Kann ich Felgen zurückgeben?“ wurde gelöscht.', []],
+            'faq.reordered' => [['count' => 8], 'Die Reihenfolge der FAQ wurde geändert.', []],
+            'nav.created' => [['menu' => 'header', 'label' => 'Ratgeber'], 'Im Menü „Kopfzeile“ wurde der Eintrag „Ratgeber“ angelegt.', []],
+            'nav.updated' => [
+                ['menu' => 'mobile_bottom', 'label' => 'Check', 'old' => ['label' => 'Check', 'target' => 'RIMIFY-Check', 'icon' => 'check-circle', 'visible' => true], 'new' => ['label' => 'Prüfen', 'target' => 'RIMIFY-Check', 'icon' => 'check-circle', 'visible' => false]],
+                'Im Menü „Handy-Leiste unten“ wurde der Eintrag „Check“ geändert.',
+                ['Name: Check → Prüfen', 'Im Shop: sichtbar → ausgeblendet'],
+            ],
+            'nav.deleted' => [['menu' => 'footer_shop', 'label' => 'RIMIFY-Check', 'target' => 'RIMIFY-Check'], 'Aus dem Menü „Fußzeile · Shop“ wurde der Eintrag „RIMIFY-Check“ gelöscht.', []],
+            'nav.reordered' => [['menu' => 'footer_service', 'count' => 3], 'Die Reihenfolge im Menü „Fußzeile · Service“ wurde geändert.', []],
+            'page.revision_restored' => [
+                ['page' => 'Startseite', 'slug' => 'startseite', 'revision' => 3, 'revision_at' => '2026-09-26T12:00:00+00:00'],
+                'Für die Seite „Startseite“ wurde die Version vom '.GermanFormat::dateTime(CarbonImmutable::parse('2026-09-26T12:00:00+00:00')).' als Entwurf geladen.',
+                [],
+            ],
         ];
 
         // A new event in the describer without a case here fails this test rather than going unread.

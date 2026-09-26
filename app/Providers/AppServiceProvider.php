@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Content\PageContent;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Support\Facades\Event;
@@ -35,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);
         }
+
+        // One per request: a signed preview puts a draft in it, and that draft must never outlive
+        // the request that asked for it.
+        $this->app->scoped(PageContent::class);
     }
 
     /**
