@@ -225,6 +225,37 @@ real data. An Auflage is always a full German sentence, never a code.
   every form validates on blur and explains, under the field, how to fix the error.
 - SSR: no `window`, `document` or `localStorage` outside `onMounted`. Zero hydration warnings.
 
+## 8a · The admin — a workbench, not a showroom
+
+The storefront is a showroom and the admin is a workbench, so the admin uses this same system one
+notch tighter. The density and the shell's anatomy are specified in
+`docs/design/sections/admin-shell.md`; what is settled here is the part that must never drift.
+
+**The admin is light (D-030).** No admin surface is dark by default. The dark band is a storefront
+device for emphasis, and a workspace people sit in for hours is not the place to spend it: a
+permanent dark column buys nothing and costs a second dark variant of every component that can
+appear inside it. Brand presence in the admin comes from the wordmark, the blue active state and the
+typography. If a dark admin is ever wanted it is a full dark theme across every admin surface, with
+its own validated token set and chart palette, decided as its own piece of work — never approximated
+with a black rail.
+
+**The rail.**
+
+- `--c-surface`, a 1 px `--c-line` border on the right edge. No shadow, no tint.
+- 260 px, collapsed 64 px icon-only with tooltips, the state remembered per user.
+- Group labels: 12 px, `--c-ink-3`, sentence case. **No uppercase letterspacing anywhere** (§3).
+- Item: 36 px tall, 14 px, `--c-ink-2`, the icon inherits the text colour, 8 px radius.
+  Hover `--c-band`. Active: `--c-blue-tint` fill, `--c-ink` text, and a 2 px `--c-blue` indicator on
+  the left edge inset 8 px top and bottom. Focus-visible is the standard 2 px ring (§6).
+- Counts: right-aligned, tabular figures, `--c-ink-3`, hidden at zero. Only genuine failures — failed
+  jobs, payment problems — use `--c-bad`; workload counts stay neutral. A number that is merely large
+  is not an alarm.
+- Logo: the black wordmark, 20 px cap height, 20 px padding. The environment badge appears only in
+  local and staging, in `--c-warn-tint`; production shows nothing, because the absence of a badge is
+  the least ambiguous way to say "this is the real shop".
+- Below 768 px there is no rail at all — the phone keeps its bottom bar — so every rule above is a
+  desktop decision.
+
 ## 9 · Gates — measured, never judged
 
 A page is finished when, on the production build with SSR on:

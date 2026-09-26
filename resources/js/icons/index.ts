@@ -57,6 +57,12 @@ export const ICON_NAMES = [
     'rain',
     'sound',
     'ruler',
+    // The admin shell (docs/design/sections/admin-shell.md §5.3): Inhalte, Importe, the team's
+    // notifications, and the row-actions trigger.
+    'text',
+    'import',
+    'bell',
+    'more',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -112,6 +118,16 @@ const PATHS: Readonly<Record<IconName, string>> = {
     rain: '<path d="M7 15.5a4 4 0 0 1 .5-8 5.5 5.5 0 0 1 10.5 1.5 3.3 3.3 0 0 1-.5 6.5"/><path d="m9 17.5-1 2.5M13 17.5l-1 2.5M17 17.5l-1 2.5"/>',
     sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
     ruler: '<path d="M3 15.5 15.5 3 21 8.5 8.5 21z"/><path d="m7 11.5 2 2M10 8.5l2 2M13 5.5l2 2"/>',
+    // A paragraph reduced to its rhythm: left-aligned and ragged-right, so it can never be read as
+    // `sort`, which is centred and tapers.
+    text: '<path d="M4 6.5h16M4 11.5h16M4 16.5h9"/>',
+    // A tray open at the top, and data arriving into it.
+    import: '<path d="M4 14v5.5h16V14"/><path d="M12 3.5v11"/><path d="m8 10.5 4 4 4-4"/>',
+    // A dome on a shoulder with the clapper beneath; no motion lines, no ring marks.
+    bell: '<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5"/><path d="M4 16.5h16"/><path d="M10.5 19.5h3"/>',
+    // Three square dots on the centre line — the row-actions trigger, the one glyph that is not a
+    // drawing of a thing. A zero-length segment with square caps is a 1.5-unit square.
+    more: '<path d="M6 12h.01M12 12h.01M18 12h.01"/>',
 }
 
 export interface IconOptions {
