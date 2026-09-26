@@ -31,11 +31,15 @@ final class AdminNavigation
     /**
      * Every group, in the order the client's team works: the day's business first, the system last.
      *
-     * `module` is the permission module the group needs at `View`; null means every signed-in admin.
-     * `count` names a live figure the row carries; only a queue of work whose goal is zero earns one
-     * (admin-shell.md §5.6). A group with exactly one visible page IS that page in the rail.
+     * `module` is the permission module the group's pages need at `View`; null means every signed-in
+     * admin. A page may name its own `module` where it belongs to another area than its neighbours
+     * (the Protokoll sits with the team but is the audit log's). `count` names a live figure the row
+     * carries; only a queue of work whose goal is zero earns one (admin-shell.md §5.6). A group with
+     * exactly one visible page IS that page in the rail.
      *
-     * @var list<array{key: string, label: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string}>}>
+     * Every page has its own glyph, so the collapsed rail — icons only — never shows two rows alike.
+     *
+     * @var list<array{key: string, label: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string}>}>
      */
     private const GROUPS = [
         [
@@ -54,8 +58,8 @@ final class AdminNavigation
             'module' => PermissionModule::Orders->value,
             'pages' => [
                 ['label' => 'Bestellungen', 'href' => '/admin/bestellungen', 'icon' => 'cart', 'count' => 'orders_open'],
-                ['label' => 'Kunden', 'href' => '/admin/kunden', 'icon' => 'user'],
-                ['label' => 'Anfragen', 'href' => '/admin/anfragen', 'icon' => 'mail'],
+                ['label' => 'Kunden', 'href' => '/admin/kunden', 'icon' => 'home'],
+                ['label' => 'Anfragen', 'href' => '/admin/anfragen', 'icon' => 'phone'],
             ],
         ],
         [
@@ -64,12 +68,13 @@ final class AdminNavigation
             'icon' => 'box',
             'module' => PermissionModule::Catalogue->value,
             'pages' => [
-                ['label' => 'Felgen', 'href' => '/admin/felgen', 'icon' => 'box'],
+                ['label' => 'Felgen', 'href' => '/admin/felgen', 'icon' => 'wheel'],
                 ['label' => 'Reifen', 'href' => '/admin/reifen', 'icon' => 'ruler'],
-                ['label' => 'Marken', 'href' => '/admin/marken', 'icon' => 'star'],
-                ['label' => 'Bestände', 'href' => '/admin/bestaende', 'icon' => 'grid'],
+                ['label' => 'Marken', 'href' => '/admin/marken', 'icon' => 'box'],
+                ['label' => 'Bestände', 'href' => '/admin/bestaende', 'icon' => 'truck'],
                 ['label' => 'Wuchtgewichte-Farben', 'href' => '/admin/wuchtgewichte', 'icon' => 'wrench'],
-                ['label' => 'RDKS-Sensorpreise', 'href' => '/admin/rdks-preise', 'icon' => 'shield'],
+                // A sensor that reports by radio: the waves, not a security shield.
+                ['label' => 'RDKS-Sensorpreise', 'href' => '/admin/rdks-preise', 'icon' => 'sound'],
             ],
         ],
         [
@@ -79,13 +84,13 @@ final class AdminNavigation
             'module' => PermissionModule::Approvals->value,
             'pages' => [
                 ['label' => 'Dokumente', 'href' => '/admin/gutachten', 'icon' => 'document'],
-                ['label' => 'Auflagen-Katalog', 'href' => '/admin/auflagen', 'icon' => 'text'],
+                ['label' => 'Auflagen-Katalog', 'href' => '/admin/auflagen', 'icon' => 'check'],
                 ['label' => 'Abdeckung', 'href' => '/admin/abdeckung', 'icon' => 'check-circle'],
                 ['label' => 'Konflikte', 'href' => '/admin/konflikte', 'icon' => 'warning', 'count' => 'conflicts_open'],
                 // Customers asking to be told when a document for their car arrives. The goal of
                 // the team's work is to have told all of them, so it is a queue and earns a count.
                 // Not "Benachrichtigungen": that word belongs to the team's own notifications.
-                ['label' => 'Benachrichtigungswünsche', 'href' => '/admin/benachrichtigungen', 'icon' => 'mail', 'count' => 'notify_open'],
+                ['label' => 'Benachrichtigungswünsche', 'href' => '/admin/benachrichtigungen', 'icon' => 'bell', 'count' => 'notify_open'],
             ],
         ],
         [
@@ -118,8 +123,8 @@ final class AdminNavigation
             'pages' => [
                 ['label' => 'Verkäufe', 'href' => '/admin/verkaeufe', 'icon' => 'chart'],
                 ['label' => 'Suchen ohne Treffer', 'href' => '/admin/suchen-ohne-treffer', 'icon' => 'search'],
-                ['label' => 'Fahrzeuge ohne Felgen', 'href' => '/admin/fahrzeuge-ohne-felgen', 'icon' => 'car'],
-                ['label' => 'Gutachten-Lücken', 'href' => '/admin/gutachten-luecken', 'icon' => 'document'],
+                ['label' => 'Fahrzeuge ohne Felgen', 'href' => '/admin/fahrzeuge-ohne-felgen', 'icon' => 'compare'],
+                ['label' => 'Gutachten-Lücken', 'href' => '/admin/gutachten-luecken', 'icon' => 'filter'],
             ],
         ],
         [
@@ -139,13 +144,13 @@ final class AdminNavigation
             'pages' => [
                 ['label' => 'Benutzer', 'href' => '/admin/benutzer', 'icon' => 'user'],
                 ['label' => 'Rollen & Rechte', 'href' => '/admin/rollen', 'icon' => 'lock'],
-                ['label' => 'Protokoll', 'href' => '/admin/protokoll', 'icon' => 'clock'],
+                ['label' => 'Protokoll', 'href' => '/admin/protokoll', 'icon' => 'clock', 'module' => PermissionModule::AuditLog->value],
             ],
         ],
         [
             'key' => 'system',
             'label' => 'System',
-            'icon' => 'wrench',
+            'icon' => 'settings',
             'module' => PermissionModule::Settings->value,
             'pages' => [
                 ['label' => 'Warteschlange', 'href' => '/admin/warteschlange', 'icon' => 'sort', 'count' => 'jobs_failed'],
@@ -164,7 +169,9 @@ final class AdminNavigation
         '/admin/benachrichtigungen',
         '/admin/wuchtgewichte',
         '/admin/rdks-preise',
+        '/admin/benutzer',
         '/admin/rollen',
+        '/admin/protokoll',
     ];
 
     /**
@@ -197,14 +204,16 @@ final class AdminNavigation
         $tree = [];
 
         foreach (self::GROUPS as $group) {
-            if ($group['module'] !== null && ! $this->mayView($user, $group['module'])) {
-                continue;
-            }
-
             $pages = [];
 
             foreach ($group['pages'] as $page) {
                 if (! in_array($page['href'], $this->built(), true)) {
+                    continue;
+                }
+
+                $module = $page['module'] ?? $group['module'];
+
+                if ($module !== null && ! $this->mayView($user, $module)) {
                     continue;
                 }
 
@@ -220,6 +229,66 @@ final class AdminNavigation
                     // Zero is not a count: a rail that shows `0` is asking to be read as a problem.
                     'count' => $count !== null && $count > 0 ? $count : null,
                     'countTone' => $key !== null && in_array($key, self::FAILURES, true) ? 'bad' : 'neutral',
+                ];
+            }
+
+            if ($pages === []) {
+                continue;
+            }
+
+            $tree[] = [
+                'key' => $group['key'],
+                'label' => $group['label'],
+                'icon' => $group['icon'],
+                'pages' => $pages,
+            ];
+        }
+
+        return $tree;
+    }
+
+    /**
+     * The tree one role would see — "Ansicht als Rolle" on the Rollen & Rechte page — by exactly the
+     * rules of for(): only built pages, only modules the role may view. No counts: they are the
+     * reader's live queue, not part of what a role is.
+     *
+     * Read from the role's own cells rather than from an account, so the answer is about the role
+     * alone and not about whatever other roles some account happens to hold beside it.
+     *
+     * @return list<array{key: string, label: string, icon: string, pages: list<array{label: string, href: string, icon: string, count: null, countTone: string}>}>
+     */
+    public function forRole(int $roleId): array
+    {
+        $viewable = DB::table('role_permissions')
+            ->where('role_id', $roleId)
+            ->where('action', PermissionAction::View->value)
+            ->where('allowed', true)
+            ->pluck('module')
+            ->map(static fn (mixed $module): string => (string) $module)
+            ->all();
+
+        $tree = [];
+
+        foreach (self::GROUPS as $group) {
+            $pages = [];
+
+            foreach ($group['pages'] as $page) {
+                if (! in_array($page['href'], $this->built(), true)) {
+                    continue;
+                }
+
+                $module = $page['module'] ?? $group['module'];
+
+                if ($module !== null && ! in_array($module, $viewable, true)) {
+                    continue;
+                }
+
+                $pages[] = [
+                    'label' => $page['label'],
+                    'href' => $page['href'],
+                    'icon' => $page['icon'],
+                    'count' => null,
+                    'countTone' => 'neutral',
                 ];
             }
 

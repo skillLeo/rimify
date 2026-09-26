@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
+use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
@@ -43,8 +44,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: [SecurityHeaders::class, EnsureAdminPanelEnabled::class]);
 
         // The device split reads a cookie, so it can only run once the cookies are decrypted.
+        // An admin session that was revoked or whose account was suspended ends here, after the
+        // session has started and before any shared prop names the person or draws their rail.
         $middleware->web(append: [
             DetectDevice::class,
+            EnsureAdminSessionValid::class,
             HandleInertiaRequests::class,
         ]);
 

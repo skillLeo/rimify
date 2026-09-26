@@ -6,7 +6,10 @@ use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminPreferencesController;
 use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
+use App\Http\Controllers\Admin\BenutzerController;
+use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\UebersichtController;
@@ -30,6 +33,7 @@ use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\VergleichController;
 use App\Http\Controllers\Storefront\WarenkorbController;
+use App\Http\Middleware\EnsureAdminMay;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -136,6 +140,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         ->middleware('guest:admin')
         ->name('anmelden.store');
 
+    // Accepting an invitation: the link in the e-mail. Not behind `auth:admin` — the person has no
+    // account until they accept — and throttled, because the token is the only thing they present.
+    Route::get('/einladung/{token}', [EinladungController::class, 'show'])
+        ->middleware('guest:admin')
+        ->where('token', '[A-Za-z0-9_-]{20,128}')
+        ->name('einladung');
+    Route::post('/einladung/{token}', [EinladungController::class, 'accept'])
+        ->middleware(['guest:admin', 'throttle:6,1'])
+        ->where('token', '[A-Za-z0-9_-]{20,128}')
+        ->name('einladung.annehmen');
+
     Route::middleware('auth:admin')->group(function (): void {
         Route::post('/abmelden', [AdminLoginController::class, 'destroy'])->name('abmelden');
 
@@ -147,19 +162,65 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('profil.passwort');
         Route::patch('/ansicht', [AdminPreferencesController::class, 'update'])->name('ansicht');
 
+        // Every page names the permission it needs (EnsureAdminMay): the rail hides what a role may
+        // not open, but a pasted URL must still be refused on the server (R-11). Übersicht is every
+        // admin's and filters its own figures by permission.
         Route::get('/', UebersichtController::class)->name('uebersicht');
-        Route::get('/gutachten', [GutachtenController::class, 'index'])->name('gutachten.index');
-        Route::get('/rollen', [RollenController::class, 'index'])->name('rollen.index');
+        Route::get('/gutachten', [GutachtenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':approvals,view')
+            ->name('gutachten.index');
+        // Team: roles and their rights, the accounts that hold them, and the record of every change
+        // (docs/admin/team-build-plan.md). Each write is refused on the server by its Form Request.
+        Route::get('/rollen', [RollenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':roles,view')
+            ->name('rollen.index');
+        Route::post('/rollen', [RollenController::class, 'store'])->name('rollen.store');
+        Route::patch('/rollen/{role}', [RollenController::class, 'update'])->whereNumber('role')->name('rollen.update');
+        Route::post('/rollen/{role}/duplizieren', [RollenController::class, 'duplicate'])->whereNumber('role')->name('rollen.duplicate');
+        Route::delete('/rollen/{role}', [RollenController::class, 'destroy'])->whereNumber('role')->name('rollen.destroy');
         // One cell of the matrix at a time: posting the whole grid would let two admins editing
         // different corners of it silently undo each other.
         Route::patch('/rollen/{role}/rechte', [RollenController::class, 'updatePermission'])
             ->whereNumber('role')
             ->name('rollen.rechte');
-        Route::get('/benachrichtigungen', [BenachrichtigungenController::class, 'index'])->name('benachrichtigungen.index');
+        // A whole role's rights at once — only from "von Rolle kopieren" and the module toggles,
+        // after the page has shown the difference and the person has confirmed it.
+        Route::put('/rollen/{role}/rechte', [RollenController::class, 'replacePermissions'])
+            ->whereNumber('role')
+            ->name('rollen.rechte.ersetzen');
+
+        Route::get('/benutzer', [BenutzerController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':roles,view')
+            ->name('benutzer.index');
+        Route::post('/benutzer/einladungen', [BenutzerController::class, 'invite'])->middleware('throttle:20,1')->name('benutzer.einladen');
+        Route::post('/benutzer/einladungen/{invitation}/erneut', [BenutzerController::class, 'resend'])
+            ->whereNumber('invitation')
+            ->middleware('throttle:20,1')
+            ->name('benutzer.einladung.erneut');
+        Route::delete('/benutzer/einladungen/{invitation}', [BenutzerController::class, 'revoke'])
+            ->whereNumber('invitation')
+            ->name('benutzer.einladung.widerrufen');
+        Route::patch('/benutzer/{user}/rolle', [BenutzerController::class, 'changeRole'])->whereNumber('user')->name('benutzer.rolle');
+        Route::post('/benutzer/{user}/sperren', [BenutzerController::class, 'suspend'])->whereNumber('user')->name('benutzer.sperren');
+        Route::post('/benutzer/{user}/entsperren', [BenutzerController::class, 'reactivate'])->whereNumber('user')->name('benutzer.entsperren');
+        Route::post('/benutzer/{user}/abmelden', [BenutzerController::class, 'revokeSessions'])->whereNumber('user')->name('benutzer.abmelden');
+
+        Route::get('/protokoll', [ProtokollController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':audit_log,view')
+            ->name('protokoll.index');
+        Route::get('/protokoll/export', [ProtokollController::class, 'export'])
+            ->middleware(EnsureAdminMay::class.':audit_log,export')
+            ->name('protokoll.export');
+        // Customer e-mail addresses: the Gutachten area's to read, nobody else's.
+        Route::get('/benachrichtigungen', [BenachrichtigungenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':approvals,view')
+            ->name('benachrichtigungen.index');
 
         // Komplettrad options (docs/specs/komplettrad.md §6.2). Every write is authorised by a
         // Policy on the server; the page only hides what a role may not do (R-11).
-        Route::get('/wuchtgewichte', [WuchtgewichteController::class, 'index'])->name('wuchtgewichte.index');
+        Route::get('/wuchtgewichte', [WuchtgewichteController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':catalogue,view')
+            ->name('wuchtgewichte.index');
         Route::post('/wuchtgewichte', [WuchtgewichteController::class, 'store'])->name('wuchtgewichte.store');
         Route::patch('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'update'])->name('wuchtgewichte.update');
         Route::delete('/wuchtgewichte/{colour}', [WuchtgewichteController::class, 'destroy'])->name('wuchtgewichte.destroy');
@@ -168,7 +229,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // are fixed segments, so neither can ever be read as a `{colour}` or a `{price}`.
         Route::put('/wuchtgewichte/montage', [WuchtgewichteController::class, 'updateMountingFee'])->name('wuchtgewichte.montage');
 
-        Route::get('/rdks-preise', [RdksPreiseController::class, 'index'])->name('rdks.index');
+        Route::get('/rdks-preise', [RdksPreiseController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':catalogue,view')
+            ->name('rdks.index');
         Route::post('/rdks-preise', [RdksPreiseController::class, 'store'])->name('rdks.store');
         Route::put('/rdks-preise/standard', [RdksPreiseController::class, 'updateDefaultPrice'])->name('rdks.standard');
         Route::patch('/rdks-preise/{price}', [RdksPreiseController::class, 'update'])->name('rdks.update');

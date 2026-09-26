@@ -76,7 +76,16 @@ describe('the tree', function (): void {
         expect(array_column($nav, 'label'))->toBe(['Übersicht', 'Katalog', 'Gutachten', 'Team'])
             ->and(array_column($nav[1]['pages'], 'label'))->toBe(['Wuchtgewichte-Farben', 'RDKS-Sensorpreise'])
             ->and(array_column($nav[2]['pages'], 'label'))->toBe(['Dokumente', 'Benachrichtigungswünsche'])
-            ->and(array_column($nav[3]['pages'], 'label'))->toBe(['Rollen & Rechte']);
+            ->and(array_column($nav[3]['pages'], 'label'))->toBe(['Benutzer', 'Rollen & Rechte', 'Protokoll']);
+    });
+
+    it('lets a page belong to another area than its group: the Protokoll needs the audit log, not the roles', function (): void {
+        // Gutachten may read the audit log but may not manage roles: Team shows only the Protokoll.
+        $nav = collect(sharedNav(shellAdmin('compliance-editor')));
+        $team = $nav->firstWhere('key', 'team');
+
+        expect($team)->not->toBeNull()
+            ->and(array_column($team['pages'] ?? [], 'label'))->toBe(['Protokoll']);
     });
 
     it('leaves out a whole group a role may not see, rather than drawing it empty', function (): void {

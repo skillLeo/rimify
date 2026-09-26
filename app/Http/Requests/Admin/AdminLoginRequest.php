@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Models\AdminUser;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
@@ -102,6 +103,8 @@ class AdminLoginRequest extends FormRequest
 
         RateLimiter::clear($this->throttleKey());
         $this->session()->regenerate();
+        // When this session began: *Überall abmelden* ends every session older than its moment.
+        $this->session()->put(EnsureAdminSessionValid::SESSION_KEY, now()->getTimestamp());
     }
 
     /** How long the lock still holds, in whole seconds, or null while there is no lock. */
