@@ -120,6 +120,9 @@ if (app()->environment(['local', 'testing'])) {
  */
 Route::fallback(static fn () => abort(404));
 
+// The whole panel answers 404 where `rimify.admin.enabled` is false — the preview server while it
+// is being built. Enforced by EnsureAdminPanelEnabled at the front of the web group, not here:
+// as route middleware it was sorted after `Authenticate` and lost to the sign-in redirect.
 Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/anmelden', [AdminLoginController::class, 'create'])
         ->middleware('guest:admin')

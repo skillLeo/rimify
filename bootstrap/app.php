@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\DetectDevice;
+use App\Http\Middleware\EnsureAdminPanelEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
 use App\Services\Storefront\Chrome;
 use App\Services\Storefront\ErrorPage;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -30,7 +32,15 @@ return Application::configure(basePath: dirname(__DIR__))
          * of the group ran. A 419 thrown by the CSRF check used to leave the page with no CSP, no
          * X-Frame-Options and no Referrer-Policy at all.
          */
-        $middleware->web(prepend: [SecurityHeaders::class]);
+        /*
+         * `EnsureAdminPanelEnabled` rides at the front too, and for a related reason: whether the
+         * panel exists at all has to be decided BEFORE anyone is asked to sign in. As route
+         * middleware it lost that race — `Authenticate` sits in the framework's priority list and
+         * was sorted ahead of it, so a closed panel answered a redirect to its own sign-in screen,
+         * which both admits there is something here and sends the reader to a page that is gone.
+         * At the front of the group nothing can be sorted above it.
+         */
+        $middleware->web(prepend: [SecurityHeaders::class, EnsureAdminPanelEnabled::class]);
 
         // The device split reads a cookie, so it can only run once the cookies are decrypted.
         $middleware->web(append: [

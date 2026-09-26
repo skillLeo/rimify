@@ -129,6 +129,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Admin panel
+    |--------------------------------------------------------------------------
+    |
+    | Whether the panel exists on this deployment at all. False and every `admin/*` path answers
+    | the same designed 404 an unknown URL gets — no sign-in screen, so nothing says there is
+    | something behind it, and no password can open it either.
+    |
+    | On by default, because a developer's machine and the real shop both want it. It is turned OFF
+    | on the preview server while the panel is being built: a client shown a half-finished screen
+    | reads it as a finished one and reports its gaps as faults.
+    */
+    'admin' => [
+        'enabled' => filter_var(env('RIMIFY_ADMIN_ENABLED', true), FILTER_VALIDATE_BOOL),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature flags
     |--------------------------------------------------------------------------
     */
