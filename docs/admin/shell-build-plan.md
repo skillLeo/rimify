@@ -12,7 +12,8 @@ Built sequentially, committed per step, no push, no deploy.
 | Notification bell | **Not rendered** — no team-notification data exists until notification rules land. |
 | Help menu | *Tastenkürzel* (built) · *Hilfe per E-Mail* only when `rimify.admin.support_email` is set. |
 | Palette record groups (Bestellungen, Kunden, Felgen …) | **Arrive with their pages.** No record type has an admin page to open yet, so step 1's palette searches the admin's pages and actions from the shared props, plus *Zuletzt geöffnet*. No endpoint until there is a record to link to. |
-| Palette actions | Only what works now: *Navigation ein-/ausklappen*, *Tastenkürzel anzeigen*, *Abmelden*. |
+| Palette actions | Only what works now: *Navigation ein-/ausklappen*, *Tastenkürzel anzeigen* (keyboard devices only), *Passwort ändern*, *Abmelden*. |
+| Palette copy | Says what it searches today: placeholder *Seite oder Aktion suchen*, page group *Gehe zu*, no-match hint *Gesucht wird in allen Seiten und Aktionen, die du öffnen darfst.* The spec's record wording returns with the record groups. No fetch, so no loading or error state yet. |
 | Mobile bottom bar | Übersicht · first two permitted groups **with a built page**, in rail order · Suche · Mehr. Bestellungen takes slot 2 automatically once it exists. |
 | Dashboard | Renamed **Übersicht**. KPI row only (the brief: charts are step 7). A tile links only where its list exists. |
 | `/admin/benachrichtigungen` | Renamed **Benachrichtigungswünsche** (the bell's word belongs to the team's own notifications). |

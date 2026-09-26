@@ -54,7 +54,7 @@ watch(shortcutsOpen, (open) => {
         </section>
 
         <section v-if="targets.length" class="adm-keys" aria-labelledby="adm-keys-go">
-            <h3 id="adm-keys-go" class="adm-keys__title">Springen</h3>
+            <h3 id="adm-keys-go" class="adm-keys__title">Gehe zu</h3>
             <dl class="adm-keys__list">
                 <div v-for="target in targets" :key="target.key" class="adm-keys__row">
                     <dt>{{ target.label }}</dt>

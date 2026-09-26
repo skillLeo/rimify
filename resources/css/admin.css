@@ -645,6 +645,221 @@
     animation-duration: var(--adm-d-dialog);
 }
 
+/* ── The palette (§7) ──────────────────────────────────────────────────────────────
+ * Near the top of the screen, so the first result sits under the eye that pressed the shortcut.
+ * Centred with auto margins rather than a translate, so the entrance can scale without fighting it. */
+
+.adm-palette__scrim {
+    animation-duration: var(--adm-d-dialog);
+}
+
+.adm-palette {
+    position: fixed;
+    top: var(--sp-40);
+    left: 0;
+    right: 0;
+    z-index: var(--z-dialog);
+    display: flex;
+    flex-direction: column;
+    width: min(640px, calc(100vw - 2 * var(--sp-20)));
+    max-height: calc(100dvh - 2 * var(--sp-40));
+    margin-inline: auto;
+    overflow: hidden;
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    box-shadow: var(--e-3);
+    animation: adm-palette-in var(--adm-d-dialog) var(--ease-out);
+}
+
+.adm-palette[data-state='closed'] {
+    animation: adm-palette-out var(--adm-d-dialog) var(--ease-in);
+}
+
+@keyframes adm-palette-in {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+@keyframes adm-palette-out {
+    to {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+.adm-palette__field {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    flex: none;
+    height: var(--adm-control-h-lg);
+    padding-inline: var(--sp-16);
+    border-bottom: 1px solid var(--c-line);
+    color: var(--c-ink-3);
+}
+
+/* The one field typed into without looking: body size at every width (§2.1's exception). */
+.adm-palette__input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--c-ink);
+    font: inherit;
+    font-size: var(--fs-body);
+    outline: none;
+}
+
+.adm-palette__input::placeholder {
+    color: var(--c-ink-3);
+}
+
+.adm-palette__cancel {
+    display: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--c-blue);
+    font: inherit;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.adm-palette__results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp-4) var(--sp-8) var(--sp-8);
+}
+
+.adm-palette__heading {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-12) var(--sp-4);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 500;
+    color: var(--c-ink-3);
+}
+
+.adm-palette__row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    min-height: var(--adm-row-h);
+    padding-inline: var(--sp-12);
+    border-radius: var(--r-control);
+    color: var(--c-ink-3);
+    cursor: pointer;
+}
+
+.adm-palette__row--two {
+    min-height: var(--adm-row-h-lg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-palette__row:hover {
+        background: var(--c-band);
+    }
+}
+
+.adm-palette__row[aria-selected='true'] {
+    background: var(--c-blue-tint);
+}
+
+.adm-palette__row:active {
+    background: var(--c-line);
+}
+
+.adm-palette__text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.adm-palette__key,
+.adm-palette__sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-palette__key {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.adm-palette__sub {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-palette__meta {
+    flex: none;
+}
+
+.adm-palette__none {
+    padding: var(--sp-16) var(--sp-20) var(--sp-20);
+}
+
+.adm-palette__none-title,
+.adm-palette__none-hint {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-palette__none-title {
+    color: var(--c-ink);
+}
+
+.adm-palette__none-hint {
+    margin-top: var(--sp-4);
+    color: var(--c-ink-2);
+}
+
+.adm-palette__foot {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    flex: none;
+    padding: var(--sp-8) var(--sp-16);
+    border-top: 1px solid var(--c-line);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+/* Below 768: a full-screen sheet as tall as the visible viewport, so no result sits under the
+   keyboard; the hints give way to an explicit Abbrechen. */
+@media (max-width: 767px) {
+    .adm-palette {
+        top: 0;
+        width: 100%;
+        height: var(--vv-h, 100dvh);
+        max-height: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .adm-palette__cancel {
+        display: inline-flex;
+    }
+
+    .adm-palette__foot {
+        display: none;
+    }
+}
+
 /* ── Tastenkürzel ──────────────────────────────────────────────────────────────── */
 
 .adm-keys + .adm-keys {
@@ -751,7 +966,9 @@
     .adm *,
     .adm-menu,
     .adm-tooltip,
-    .adm-dialog {
+    .adm-dialog,
+    .adm-palette,
+    .adm-palette__scrim {
         transition-duration: 0ms !important;
         animation-duration: 0ms !important;
     }

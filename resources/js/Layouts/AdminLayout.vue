@@ -17,6 +17,7 @@
 import { router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import '../../css/admin.css'
+import AdminPalette from '../Components/Admin/AdminPalette.vue'
 import AdminRail from '../Components/Admin/AdminRail.vue'
 import AdminTopbar from '../Components/Admin/AdminTopbar.vue'
 import ShortcutsDialog from '../Components/Admin/ShortcutsDialog.vue'
@@ -110,6 +111,7 @@ onBeforeUnmount(() => {
         </div>
     </div>
 
+    <AdminPalette />
     <ShortcutsDialog />
 
     <!-- The confirmation a mutation flashed (`flash.toast`), announced once per response. -->
