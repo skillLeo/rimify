@@ -29,8 +29,6 @@ const props = defineProps<AdminBenutzerProps>()
 
 const page = usePage()
 
-const INVITATIONS_EMPTY = 'Keine Einladung offen. Wer eingeladen ist, steht hier, bis die Einladung angenommen ist.'
-
 /** Which request the server's messages belong to: each form only shows what it sent itself. */
 type Sender = 'invite' | 'role' | 'account' | 'invitation' | null
 
@@ -56,6 +54,13 @@ const alert = computed(() => {
 })
 
 const context = computed(() => contextLine(props.accounts, props.invitations))
+
+/** Under an invitation's name: the address (when a name stands above it) and who invited. */
+function invitationSub(invitation: BenutzerInvitation): string {
+    return [invitation.name ? invitation.email : null, invitation.invitedBy ? `eingeladen von ${invitation.invitedBy}` : null]
+        .filter(Boolean)
+        .join(' · ')
+}
 const readOnly = computed(() => !props.can.invite && !props.can.manage)
 const hasRowActions = computed(() => props.can.manage && props.accounts.some((a) => a.manageable))
 
@@ -240,148 +245,116 @@ function withdraw(): void {
 
         <p v-if="alert" class="adm-alert" role="alert">{{ alert }}</p>
 
-        <section class="adm-section" aria-labelledby="bn-accounts-title">
-            <div class="adm-section__head">
-                <h2 id="bn-accounts-title" class="adm-section__title">Konten</h2>
-            </div>
-
-            <div v-if="accounts.length > 0" class="adm-panel">
-                <table class="adm-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Name</th>
-                            <th scope="col">Rolle</th>
-                            <th scope="col">Status</th>
-                            <th scope="col">Letzte Anmeldung</th>
-                            <th scope="col">Zwei-Faktor</th>
-                            <th v-if="hasRowActions" scope="col"><span class="visually-hidden">Aktionen</span></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="account in accounts" :key="account.id">
-                            <td data-label="Name">
-                                <span class="adm-table__key">
-                                    {{ account.name }}<span v-if="account.isSelf" class="bn__you"> (du)</span>
-                                </span>
-                                <span class="adm-table__sub">{{ account.email }}</span>
-                            </td>
-                            <td data-label="Rolle">{{ account.role ?? 'Keine Rolle' }}</td>
-                            <td data-label="Status">
+        <!-- One list: the accounts, then the invitations still waiting — one grid, one kind of row.
+             The state is said only where it is the exception (Gesperrt, Eingeladen). -->
+        <div v-if="accounts.length > 0 || invitations.length > 0" class="adm-panel">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Rolle</th>
+                        <th scope="col">Letzte Anmeldung</th>
+                        <th scope="col">Zwei-Faktor</th>
+                        <th v-if="hasRowActions || can.invite" scope="col"><span class="visually-hidden">Aktionen</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="account in accounts" :key="`a${account.id}`">
+                        <td data-label="Name">
+                            <span class="adm-table__key bn__name">
+                                {{ account.name }}<span v-if="account.isSelf" class="bn__you"> (du)</span>
                                 <span v-if="account.status === 'suspended'" class="adm-tag adm-tag--bad">Gesperrt</span>
                                 <span v-else-if="account.status === 'invited'" class="adm-tag adm-tag--neutral">Eingeladen</span>
-                                <template v-else>Aktiv</template>
-                            </td>
-                            <td data-label="Letzte Anmeldung" data-phone="hide">{{ account.lastLogin ?? 'Noch nie' }}</td>
-                            <td data-label="Zwei-Faktor" data-phone="hide">{{ account.twoFactor ? 'Ja' : 'Nein' }}</td>
-                            <td v-if="hasRowActions" data-label="Aktionen" class="bn__actions">
-                                <DropdownMenuRoot v-if="account.manageable">
-                                    <DropdownMenuTrigger class="adm-iconbtn" :aria-label="`Aktionen für ${account.name}`">
-                                        <Icon name="more" :size="20" />
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuPortal>
-                                        <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
-                                            <DropdownMenuItem class="adm-menu__item" @select="openRole(account)">
-                                                <Icon name="shield" :size="20" />
-                                                Rolle ändern…
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                v-if="account.status !== 'suspended'"
-                                                class="adm-menu__item"
-                                                @select="ask('signout', account)"
-                                            >
-                                                <Icon name="logout" :size="20" />
-                                                Überall abmelden
-                                            </DropdownMenuItem>
+                            </span>
+                            <span class="adm-table__sub">{{ account.email }}</span>
+                        </td>
+                        <td data-label="Rolle">{{ account.role ?? 'Keine Rolle' }}</td>
+                        <td data-label="Letzte Anmeldung" class="bn__num">{{ account.lastLogin ?? 'Noch nie' }}</td>
+                        <td data-label="Zwei-Faktor" data-phone="hide">{{ account.twoFactor ? 'Ja' : 'Nein' }}</td>
+                        <td v-if="hasRowActions || can.invite" data-label="Aktionen" data-phone="menu" class="bn__actions">
+                            <DropdownMenuRoot v-if="account.manageable">
+                                <DropdownMenuTrigger class="adm-iconbtn" :aria-label="`Aktionen für ${account.name}`">
+                                    <Icon name="more" :size="20" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuPortal>
+                                    <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
+                                        <DropdownMenuItem class="adm-menu__item" @select="openRole(account)">
+                                            <Icon name="shield" :size="20" />
+                                            Rolle ändern…
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            v-if="account.status !== 'suspended'"
+                                            class="adm-menu__item"
+                                            @select="ask('signout', account)"
+                                        >
+                                            <Icon name="logout" :size="20" />
+                                            Überall abmelden
+                                        </DropdownMenuItem>
 
-                                            <DropdownMenuSeparator class="adm-menu__sep" />
+                                        <DropdownMenuSeparator class="adm-menu__sep" />
 
-                                            <DropdownMenuItem
-                                                v-if="account.status === 'suspended'"
-                                                class="adm-menu__item"
-                                                @select="ask('reactivate', account)"
-                                            >
-                                                <Icon name="check" :size="20" />
-                                                Entsperren
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                v-else
-                                                class="adm-menu__item adm-menu__item--danger"
-                                                @select="ask('suspend', account)"
-                                            >
-                                                <Icon name="lock" :size="20" />
-                                                Sperren
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenuPortal>
-                                </DropdownMenuRoot>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                                        <DropdownMenuItem
+                                            v-if="account.status === 'suspended'"
+                                            class="adm-menu__item"
+                                            @select="ask('reactivate', account)"
+                                        >
+                                            <Icon name="check" :size="20" />
+                                            Entsperren
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            v-else
+                                            class="adm-menu__item adm-menu__item--danger"
+                                            @select="ask('suspend', account)"
+                                        >
+                                            <Icon name="lock" :size="20" />
+                                            Sperren
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenuPortal>
+                            </DropdownMenuRoot>
+                        </td>
+                    </tr>
 
-            <AdminState v-else kind="empty" text="Noch kein Konto. Konten entstehen, wenn jemand eine Einladung annimmt." />
-        </section>
+                    <tr v-for="invitation in invitations" :key="`i${invitation.id}`">
+                        <td data-label="Name">
+                            <span class="adm-table__key bn__name">
+                                {{ invitation.name || invitation.email }}
+                                <span class="adm-tag adm-tag--neutral">Eingeladen</span>
+                            </span>
+                            <span v-if="invitationSub(invitation)" class="adm-table__sub">{{ invitationSub(invitation) }}</span>
+                        </td>
+                        <td data-label="Rolle">{{ invitation.role ?? 'Keine Rolle' }}</td>
+                        <td data-label="Letzte Anmeldung" class="bn__num">
+                            <span v-if="invitation.expired" class="adm-tag adm-tag--warn">Link abgelaufen</span>
+                            <template v-else>Link gültig bis {{ invitation.expiresAt }}</template>
+                        </td>
+                        <td data-label="Zwei-Faktor" data-phone="hide">–</td>
+                        <td v-if="hasRowActions || can.invite" data-label="Aktionen" data-phone="menu" class="bn__actions">
+                            <DropdownMenuRoot v-if="can.invite">
+                                <DropdownMenuTrigger class="adm-iconbtn" :aria-label="`Aktionen für die Einladung an ${invitation.email}`">
+                                    <Icon name="more" :size="20" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuPortal>
+                                    <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
+                                        <DropdownMenuItem class="adm-menu__item" :disabled="sending !== null" @select="resend(invitation)">
+                                            <Icon name="mail" :size="20" />
+                                            {{ sending === invitation.id ? 'Wird gesendet …' : 'Erneut senden' }}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator class="adm-menu__sep" />
+                                        <DropdownMenuItem class="adm-menu__item adm-menu__item--danger" @select="withdrawing = invitation">
+                                            <Icon name="close" :size="20" />
+                                            Widerrufen
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenuPortal>
+                            </DropdownMenuRoot>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
-        <section class="adm-section" aria-labelledby="bn-invitations-title">
-            <div class="adm-section__head">
-                <h2 id="bn-invitations-title" class="adm-section__title">Offene Einladungen</h2>
-            </div>
-
-            <div v-if="invitations.length > 0" class="adm-panel">
-                <table class="adm-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">E-Mail</th>
-                            <th scope="col">Rolle</th>
-                            <th scope="col">Eingeladen von</th>
-                            <th scope="col">Gültig bis</th>
-                            <th v-if="can.invite" scope="col"><span class="visually-hidden">Aktionen</span></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="invitation in invitations" :key="invitation.id">
-                            <td data-label="E-Mail">
-                                <span class="adm-table__key">{{ invitation.email }}</span>
-                                <span v-if="invitation.name" class="adm-table__sub">{{ invitation.name }}</span>
-                            </td>
-                            <td data-label="Rolle">{{ invitation.role ?? 'Keine Rolle' }}</td>
-                            <td data-label="Eingeladen von" data-phone="hide">{{ invitation.invitedBy ?? '–' }}</td>
-                            <td data-label="Gültig bis">
-                                <span class="bn__until">
-                                    {{ invitation.expiresAt }}
-                                    <span v-if="invitation.expired" class="adm-tag adm-tag--warn">Abgelaufen</span>
-                                </span>
-                            </td>
-                            <td v-if="can.invite" data-label="Aktionen">
-                                <div class="adm-table__actions">
-                                    <button
-                                        class="btn btn--secondary btn--sm"
-                                        type="button"
-                                        :aria-busy="sending === invitation.id ? 'true' : undefined"
-                                        :disabled="sending !== null"
-                                        @click="resend(invitation)"
-                                    >
-                                        {{ sending === invitation.id ? 'Wird gesendet …' : 'Erneut senden' }}<span class="visually-hidden">: {{ invitation.email }}</span>
-                                    </button>
-                                    <button
-                                        class="btn btn--secondary btn--sm adm-btn--danger"
-                                        type="button"
-                                        @click="withdrawing = invitation"
-                                    >
-                                        Widerrufen<span class="visually-hidden">: {{ invitation.email }}</span>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <AdminState v-else kind="empty" :text="INVITATIONS_EMPTY">
-                <button v-if="can.invite" class="btn btn--secondary" type="button" @click="openInvite">Person einladen</button>
-            </AdminState>
-        </section>
+        <AdminState v-else kind="empty" text="Noch kein Konto und keine Einladung. Wer eingeladen wird, erscheint hier und bekommt ein Konto, sobald die Einladung angenommen ist." />
 
         <!-- Person einladen -->
         <Dialog v-model:open="inviting" title="Person einladen" content-class="adm-dialog">
@@ -516,11 +489,15 @@ function withdraw(): void {
     text-align: right;
 }
 
-.bn__until {
+/* The exceptional state stands right after the name, where the eye already is. */
+.bn__name {
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--sp-8);
+    gap: var(--sp-4) var(--sp-8);
+}
+
+.bn__num {
     font-variant-numeric: tabular-nums;
 }
 </style>

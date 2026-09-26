@@ -108,7 +108,8 @@ describe('Protokoll', () => {
 
     it('opens an entry to show before → after and the IP, and says whether it is open', async () => {
         const wrapper = mountPage()
-        const toggle = wrapper.find('.pk-entry__toggle')
+        // The whole row is the disclosure: one target, no row of blue "Details" down the edge.
+        const toggle = wrapper.find('button.pk-entry__row')
         const details = wrapper.find('#pk-details-1')
 
         expect(toggle.attributes('aria-expanded')).toBe('false')
@@ -128,7 +129,8 @@ describe('Protokoll', () => {
     it('offers no disclosure for an entry with nothing more to show', () => {
         const wrapper = mountPage()
 
-        expect(wrapper.findAll('.pk-entry__toggle')).toHaveLength(1)
+        expect(wrapper.findAll('button.pk-entry__row')).toHaveLength(1)
+        expect(wrapper.findAll('div.pk-entry__row')).toHaveLength(1)
         expect(wrapper.find('#pk-details-2').exists()).toBe(false)
     })
 
@@ -144,11 +146,12 @@ describe('Protokoll', () => {
         expect(refused.text()).not.toContain('Als CSV exportieren')
     })
 
-    it('applies the filters with the button, sending only the ones set', async () => {
+    it('applies the filters with the button, sending only the ones set, the dates as ISO days', async () => {
         const wrapper = mountPage()
 
         await wrapper.find('#pk-bereich').setValue('team')
-        await wrapper.find('#pk-von').setValue('2026-09-01')
+        await wrapper.find('#pk-zeitraum').setValue('eigen')
+        await wrapper.find('#pk-von').setValue('01.09.2026')
 
         expect(router.get).not.toHaveBeenCalled()
 
@@ -161,12 +164,24 @@ describe('Protokoll', () => {
         )
     })
 
+    it('says what is wrong with a typed date instead of sending it', async () => {
+        const wrapper = mountPage()
+
+        await wrapper.find('#pk-zeitraum').setValue('eigen')
+        await wrapper.find('#pk-von').setValue('2026-09-01')
+        await wrapper.find('form').trigger('submit')
+
+        expect(router.get).not.toHaveBeenCalled()
+        expect(wrapper.find('#pk-date-err').text()).toBe('Bitte schreib das Datum als TT.MM.JJJJ, zum Beispiel 01.09.2026.')
+        expect(wrapper.find('#pk-von').attributes('aria-invalid')).toBe('true')
+    })
+
     it('resets every filter at once', async () => {
         const wrapper = mountPage({ filtered: true, filters: { person: '1', bereich: 'team', von: null, bis: null } })
 
         expect((wrapper.find('#pk-person').element as HTMLSelectElement).value).toBe('1')
 
-        const reset = wrapper.findAll('button').find((b) => b.text() === 'Filter zurücksetzen')
+        const reset = wrapper.findAll('button').find((b) => b.text() === 'Zurücksetzen')
         await reset!.trigger('click')
 
         expect(router.get).toHaveBeenCalledWith('/admin/protokoll', {}, expect.anything())
