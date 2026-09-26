@@ -88,7 +88,10 @@ function onDark(level: number): boolean {
     gap: var(--sp-12);
 }
 
+/* The positioned box its hidden labels hang from: without it they escape the scroll box's clip and
+   widen the whole page on a phone. */
 .cm__scroll {
+    position: relative;
     overflow-x: auto;
 }
 

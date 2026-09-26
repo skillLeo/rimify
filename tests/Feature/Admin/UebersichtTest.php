@@ -9,6 +9,7 @@ use App\Models\OrderLine;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use Database\Seeders\AccessSeeder;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -61,12 +62,17 @@ describe('who sees what', function (): void {
     })->with([
         ['super-admin', ['umsatz', 'bestellungen', 'bestellwert', 'offen']],
         ['order-manager', ['umsatz', 'bestellungen', 'bestellwert', 'offen']],
-        ['support-agent', ['bestellungen', 'offen']],
+        // Support: who waits and who asked, then the orders — never money (UebersichtVariantsTest).
+        ['support-agent', ['wartend', 'anfragen', 'bestellungen', 'offen']],
         ['accountant', ['umsatz', 'bestellungen', 'bestellwert', 'offen']],
         ['content-editor', []],
     ]);
 
     it('keeps the money figures for a role that may read reports but not orders, without a link it could not open', function (): void {
+        // The catalogue role, cut down to the reports right alone: a controller, say.
+        $role = DB::table('roles')->where('name', 'catalogue-manager')->value('id');
+        DB::table('role_permissions')->where('role_id', $role)->where('module', '!=', 'reports')->update(['allowed' => false]);
+
         $tiles = dashTiles('', 'catalogue-manager');
 
         expect(array_keys($tiles))->toBe(['umsatz', 'bestellwert'])

@@ -187,11 +187,28 @@ export interface DashboardCharts {
     demand: DemandList | false
 }
 
+/** A Felge in the shop with something missing (RoleFigures::incomplete). */
+export interface QualityRow {
+    key: string
+    /** `BBS CH-R` */
+    title: string
+    /** `8,5J × 19 · ET 35 · Satin Black` */
+    detail: string
+    /** `Preis`, `Foto`, `Gewicht`, `Traglast` */
+    missing: string[]
+}
+
+/** Which Übersicht this role gets (Variant): one layout, different figures. */
+export type DashboardVariant = 'verkauf' | 'katalog' | 'gutachten' | 'support' | 'keine'
+
 export interface AdminUebersichtProps {
     /** `26.09.2026, 20:10 Uhr` */
     asOf: string
     period: DashboardPeriod
+    variant: DashboardVariant
     kpis: Kpi[]
+    /** Katalog only: the Felgen with something missing. */
+    quality: QualityRow[] | null
     /** Seeded demonstration orders are among the ones counted. */
     demo: boolean
     /** Null for a role that may not open Bestellungen. */

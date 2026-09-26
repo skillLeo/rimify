@@ -118,7 +118,9 @@ function print(): void {
         <PopoverRoot :open="customOpen" @update:open="openCustom">
             <PopoverTrigger class="period__seg period__custom" :class="{ 'period__seg--on': period.key === 'eigen' }" :aria-pressed="period.key === 'eigen'">
                 <Icon name="calendar" :size="16" />
-                {{ period.key === 'eigen' ? period.range : 'Eigener Zeitraum' }}
+                <span class="period__custom-label">{{ period.key === 'eigen' ? period.range : 'Eigener Zeitraum' }}</span>
+                <!-- On a phone the four choices are one control: the own range is its fourth segment. -->
+                <span class="period__custom-short" aria-hidden="true">Eigen</span>
             </PopoverTrigger>
             <PopoverPortal>
                 <PopoverContent class="adm-menu period__popover" align="end" :side-offset="8">
@@ -281,6 +283,63 @@ function print(): void {
     .period__seg,
     .period__custom {
         height: var(--adm-control-h-lg);
+    }
+}
+
+.period__custom-short {
+    display: none;
+}
+
+/* A phone: 7 · 30 · 90 · Eigen as one segmented control across the width, the comparison and the
+   menu on the line beneath. The chosen own range is named in the line under the header anyway. */
+@media (max-width: 767px) {
+    .period {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--sp-12) 0;
+        width: 100%;
+    }
+
+    .period__group {
+        display: flex;
+        grid-area: 1 / 1;
+        border-right: 0;
+        border-radius: var(--r-control) 0 0 var(--r-control);
+    }
+
+    .period__group .period__seg {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .period__custom {
+        grid-area: 1 / 2;
+        align-self: stretch;
+        height: auto;
+        border-left: 0;
+        border-radius: 0 var(--r-control) var(--r-control) 0;
+    }
+
+    .period__custom :deep(svg),
+    .period__custom-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .period__custom-short {
+        display: inline;
+    }
+
+    .period__compare {
+        grid-area: 2 / 1;
+    }
+
+    .period > :last-child {
+        grid-area: 2 / 2;
+        justify-self: end;
     }
 }
 

@@ -84,6 +84,25 @@ describe('PeriodSwitcher', () => {
         expect(get).toHaveBeenCalledWith('/admin', { vergleich: '0' }, expect.anything())
     })
 
+    it('steers a page beneath the Übersicht with the same Zeitraum, keeping that page’s own filter', async () => {
+        const wrapper = mount(PeriodSwitcher, { props: { period: PERIOD, exportUrl: null, base: '/admin/nachfrage', comparable: false, keep: { stand: 'beobachtet' } } })
+
+        // Nothing to compare on a list: no switch that would do nothing.
+        expect(wrapper.find('.switch').exists()).toBe(false)
+
+        wrapper.findComponent({ name: 'ToggleGroupRoot' }).vm.$emit('update:modelValue', '90')
+        await wrapper.vm.$nextTick()
+
+        expect(get).toHaveBeenCalledWith('/admin/nachfrage', { stand: 'beobachtet', zeitraum: '90' }, expect.anything())
+    })
+
+    it('names the own range in full, and as the fourth segment „Eigen“ where the four share a phone’s width', () => {
+        const trigger = mount(PeriodSwitcher, { props: { period: PERIOD, exportUrl: null } }).find('.period__custom')
+
+        expect(trigger.find('.period__custom-label').text()).toBe('Eigener Zeitraum')
+        expect(trigger.find('.period__custom-short').attributes('aria-hidden')).toBe('true')
+    })
+
     it('offers the CSV only with an address to download it from', () => {
         expect(mount(PeriodSwitcher, { props: { period: PERIOD, exportUrl: null } }).find('a[download]').exists()).toBe(false)
         expect(mount(PeriodSwitcher, { props: { period: PERIOD, exportUrl: '/admin/uebersicht/export?zeitraum=30' } }).find('a[download]').attributes('href')).toBe('/admin/uebersicht/export?zeitraum=30')

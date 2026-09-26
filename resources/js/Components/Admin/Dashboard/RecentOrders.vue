@@ -145,4 +145,85 @@ defineProps<{ orders: DashboardOrderRow[] }>()
     box-shadow: var(--adm-row-focus);
 }
 
+/* A phone: each order a card — number and amount, then customer and age, then its two states. */
+@media (max-width: 767px) {
+    .dt thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .dt,
+    .dt tbody {
+        display: block;
+    }
+
+    .dt__row {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        gap: var(--sp-4) var(--sp-8);
+        padding: var(--sp-12) var(--sp-20);
+        border-bottom: 1px solid var(--c-line);
+    }
+
+    .dt tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .dt td,
+    .dt td:first-child,
+    .dt td:last-child {
+        display: block;
+        height: auto;
+        padding: 0;
+        border: 0;
+    }
+
+    .dt__row td:nth-child(1) {
+        grid-area: 1 / 1 / 2 / 4;
+    }
+
+    .dt__row td:nth-child(3) {
+        grid-area: 1 / 4;
+        font-weight: 600;
+    }
+
+    .dt__row td:nth-child(2) {
+        grid-area: 2 / 1 / 3 / 4;
+        max-width: none;
+        color: var(--c-ink-2);
+    }
+
+    .dt__row td:nth-child(6) {
+        grid-area: 2 / 4;
+    }
+
+    .dt__row td:nth-child(4) {
+        grid-area: 3 / 1;
+        padding-top: var(--sp-4);
+    }
+
+    .dt__row td:nth-child(5) {
+        grid-area: 3 / 2;
+        padding-top: var(--sp-4);
+    }
+
+    /* Nothing to say about shipping: on a card a lone dash is noise, so the chip line keeps only the payment. */
+    .dt__row td:nth-child(5):has(.chip-none) {
+        display: none;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .dt__row:hover {
+            background: var(--c-band);
+        }
+    }
+
+    .dt__row:focus-within,
+    .dt__row:focus-within td {
+        background: var(--c-band);
+    }
+}
 </style>

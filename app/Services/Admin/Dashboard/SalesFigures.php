@@ -214,7 +214,7 @@ final class SalesFigures
      * @param  list<int>  $values
      * @return list<int>
      */
-    private static function fold(array $values, int $step): array
+    public static function fold(array $values, int $step): array
     {
         if ($step <= 1) {
             return $values;
@@ -230,7 +230,7 @@ final class SalesFigures
     }
 
     /** @return Delta|null */
-    private static function delta(int $current, ?int $previous): ?array
+    public static function delta(int $current, ?int $previous): ?array
     {
         if ($previous === null || $previous === 0) {
             return null;

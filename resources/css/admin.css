@@ -2390,6 +2390,63 @@ a.adm-foot__health {
     }
 }
 
+/* ── The Übersicht's grid: a row of widgets on twelve columns, each saying how many it takes ── */
+
+.dash__row {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--sp-24);
+}
+
+.dash__col-4 {
+    grid-column: span 4;
+}
+
+.dash__col-5 {
+    grid-column: span 5;
+}
+
+.dash__col-6 {
+    grid-column: span 6;
+}
+
+.dash__col-7 {
+    grid-column: span 7;
+}
+
+.dash__col-8 {
+    grid-column: span 8;
+}
+
+.dash__col-12 {
+    grid-column: 1 / -1;
+}
+
+/* Two by two up to where four no longer fit beside each other; one column on a phone. */
+@media (max-width: 1279px) {
+    .dash__col-4 {
+        grid-column: span 6;
+    }
+
+    .dash__col-5,
+    .dash__col-6,
+    .dash__col-7,
+    .dash__col-8 {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 767px) {
+    .dash__row {
+        gap: var(--sp-16);
+    }
+
+    .dash__col-4 {
+        grid-column: 1 / -1;
+    }
+}
+
 /* ── Print: the Übersicht as a page — the content, without the frame around it ────── */
 
 @media print {

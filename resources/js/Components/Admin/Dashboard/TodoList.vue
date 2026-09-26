@@ -118,4 +118,29 @@ defineProps<{ items: TodoItem[] }>()
 .todo__go {
     color: var(--c-ink-3);
 }
+
+/* A phone: the kind and the age share the first line, so the title has the width it needs. */
+@media (max-width: 767px) {
+    .todo__row {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: var(--sp-4) var(--sp-8);
+    }
+
+    .todo__type {
+        grid-area: 1 / 1;
+    }
+
+    .todo__age {
+        grid-area: 1 / 2;
+    }
+
+    .todo__go {
+        grid-area: 1 / 3 / 3 / 4;
+        align-self: center;
+    }
+
+    .todo__text {
+        grid-area: 2 / 1 / 3 / 3;
+    }
+}
 </style>

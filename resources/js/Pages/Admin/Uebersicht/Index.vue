@@ -18,15 +18,14 @@ import ChartMenu from '../../../Components/Admin/Charts/ChartMenu.vue'
 import ChartTable from '../../../Components/Admin/Charts/ChartTable.vue'
 import LineChart from '../../../Components/Admin/Charts/LineChart.vue'
 import StackedBar from '../../../Components/Admin/Charts/StackedBar.vue'
-import CoverageMatrix from '../../../Components/Admin/Dashboard/CoverageMatrix.vue'
+import CoverageRow from '../../../Components/Admin/Dashboard/CoverageRow.vue'
 import DashWidget from '../../../Components/Admin/Dashboard/DashWidget.vue'
-import DemandGaps from '../../../Components/Admin/Dashboard/DemandGaps.vue'
 import KpiTile from '../../../Components/Admin/Dashboard/KpiTile.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
+import QualityList from '../../../Components/Admin/Dashboard/QualityList.vue'
 import RecentOrders from '../../../Components/Admin/Dashboard/RecentOrders.vue'
 import TodoList from '../../../Components/Admin/Dashboard/TodoList.vue'
 import { useHealth } from '../../../composables/admin/useHealth'
-import { decimal } from '../../../format'
 import type { AdminUebersichtProps } from '../../../types/admin/uebersicht'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -101,6 +100,9 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
 
             <AdminState v-else kind="empty" text="Für deine Rolle gibt es hier noch keine Kennzahlen. Deine Bereiche findest du in der Navigation." />
 
+            <!-- Documents, conflicts and demand are the Gutachten role's day: its coverage row comes first. -->
+            <CoverageRow v-if="charts?.coverage !== false && variant === 'gutachten'" :charts="charts" />
+
             <!-- Row 2: the trend, and beside it what to do now and whether the shop is all right. -->
             <div class="dash__row">
                 <Deferred v-if="charts?.revenue !== false" data="charts">
@@ -172,8 +174,18 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
                     <RecentOrders :orders="recentOrders" />
                 </DashWidget>
 
+                <!-- Katalog: what is missing from the Felgen in the shop, where Verkauf has its orders. -->
                 <DashWidget
-                    :class="recentOrders ? 'dash__col-5' : 'dash__col-12'"
+                    v-if="quality"
+                    class="dash__col-7"
+                    title="Datenqualität"
+                    :empty="quality.length ? null : 'Bei jeder Ausführung im Shop sind Preis, Foto, Gewicht und Traglast gepflegt.'"
+                >
+                    <QualityList :rows="quality" />
+                </DashWidget>
+
+                <DashWidget
+                    :class="recentOrders || quality ? 'dash__col-5' : 'dash__col-12'"
                     title="Zu erledigen"
                     :empty="todo.length ? null : 'Alles erledigt. Was auf dich wartet, erscheint hier – das Älteste zuerst.'"
                 >
@@ -251,40 +263,9 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
                 </DashWidget>
             </div>
 
-            <!-- Row 5: the client's core asset, made visible — what the shop may show, by make and size —
-                 and beside it what customers asked for that it does not show yet. -->
-            <div v-if="charts?.coverage !== false" class="dash__row">
-                <Deferred data="charts">
-                    <template #fallback>
-                        <DashWidget class="dash__col-8" title="Abdeckung" loading :skeleton-rows="8" />
-                        <DashWidget class="dash__col-4" title="Nachfrage-Lücken" loading :skeleton-rows="5" />
-                    </template>
-                    <template v-if="charts && charts.coverage">
-                        <DashWidget
-                            class="dash__col-8"
-                            title="Abdeckung"
-                            href="/admin/abdeckung"
-                            href-label="Abdeckung öffnen"
-                            :empty="charts.coverage.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import der Fahrzeugliste.'"
-                        >
-                            <CoverageMatrix :matrix="charts.coverage" />
-                        </DashWidget>
-                        <DashWidget
-                            v-if="charts.demand"
-                            class="dash__col-4"
-                            title="Nachfrage-Lücken"
-                            href="/admin/nachfrage"
-                            :empty="charts.demand.rows.length ? null : 'Im Zeitraum hat niemand nach einem Auto gefragt, für das der Shop keine Felge zeigen kann.'"
-                        >
-                            <p class="demand-lead">
-                                {{ decimal(charts.demand.counts.offen, 0) }} {{ charts.demand.counts.offen === 1 ? 'offene Lücke' : 'offene Lücken' }},
-                                {{ decimal(charts.demand.asks, 0) }}-mal gefragt<template v-if="charts.demand.waiting">, {{ decimal(charts.demand.waiting, 0) }} {{ charts.demand.waiting === 1 ? 'Person wartet' : 'Personen warten' }}</template>.
-                            </p>
-                            <DemandGaps :rows="charts.demand.rows" />
-                        </DashWidget>
-                    </template>
-                </Deferred>
-            </div>
+            <!-- Row 5: the client's core asset, made visible, and what customers asked for that it does
+                 not cover yet. The Gutachten role has it straight under its figures instead. -->
+            <CoverageRow v-if="charts?.coverage !== false && variant !== 'gutachten'" :charts="charts" />
         </div>
     </AdminPage>
 </template>
@@ -346,63 +327,10 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
     grid-column: span var(--kpi-span);
 }
 
-/* A row of widgets on the page's twelve columns; each says how many it takes. */
-.dash__row {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    align-items: start;
-    gap: var(--sp-24);
-}
-
-.dash__col-4 {
-    grid-column: span 4;
-}
-
-.dash__col-5 {
-    grid-column: span 5;
-}
-
-.dash__col-6 {
-    grid-column: span 6;
-}
-
-.dash__col-7 {
-    grid-column: span 7;
-}
-
-.dash__col-12 {
-    grid-column: 1 / -1;
-}
-
-.dash__col-8 {
-    grid-column: span 8;
-}
-
 /* Two by two from the phone up to where four no longer fit beside each other. */
 @media (max-width: 1279px) {
     .dash__kpis > :deep(*) {
         grid-column: span 6;
-    }
-
-    .dash__col-4 {
-        grid-column: span 6;
-    }
-
-    .dash__col-5,
-    .dash__col-6,
-    .dash__col-7,
-    .dash__col-8 {
-        grid-column: 1 / -1;
-    }
-}
-
-@media (max-width: 767px) {
-    .dash__row {
-        gap: var(--sp-16);
-    }
-
-    .dash__col-4 {
-        grid-column: 1 / -1;
     }
 }
 
@@ -459,13 +387,6 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
     border-top: 2px dashed var(--chart-muted);
 }
 
-.demand-lead {
-    margin: 0 0 var(--sp-8);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink-2);
-    font-variant-numeric: tabular-nums;
-}
 
 .chart-note {
     margin: var(--sp-8) 0 0;
