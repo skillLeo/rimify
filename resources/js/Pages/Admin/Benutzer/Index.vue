@@ -20,6 +20,7 @@ import AdminState from '../../../Components/Admin/AdminState.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import Icon from '../../../Components/Ui/Icon.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { useOpenOnArrival } from '../../../composables/admin/useOpenOnArrival'
 import type { AdminBenutzerProps, BenutzerAccount, BenutzerInvitation } from '../../../types/admin/benutzer'
 import { actionBody, actionLabel, actionTitle, actionUrl, contextLine, type AccountAction } from './benutzer'
 
@@ -74,6 +75,9 @@ function openInvite(): void {
     sender.value = null
     inviting.value = true
 }
+
+// „Neu › Person einladen“ from the rail's foot or the palette lands here with ?einladen=1.
+useOpenOnArrival('einladen', openInvite, () => props.can.invite)
 
 function sendInvite(): void {
     if (busy.value) {

@@ -9,8 +9,11 @@ use App\Enums\PermissionModule;
 use App\Models\AdminUser;
 use App\Services\Admin\AdminAlerts;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\QuickActions;
+use App\Services\Admin\SystemHealth;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Middleware;
@@ -136,7 +139,34 @@ class HandleInertiaRequests extends Middleware
             ],
             // Not rendered when unset: the help menu never offers an address nobody reads.
             'supportEmail' => is_string(config('rimify.admin.support_email')) ? config('rimify.admin.support_email') : null,
+            // The rail's foot: one sentence about the shop's health in the first frame (the rail
+            // polls it after that), and whether this role may open System › Zustand behind it.
+            'health' => fn (): ?array => $user instanceof AdminUser ? self::health($user) : null,
+            // „Neu“: what this role may create where the creating page exists (QuickActions).
+            'quickActions' => fn (): array => $user instanceof AdminUser ? app(QuickActions::class)->for($user) : [],
         ]];
+    }
+
+    /**
+     * The health line, from a report at most 30 seconds old: every admin page asks for it, and five
+     * checks per page view would be the dashboard's own load problem.
+     *
+     * @return array{state: string, sentence: string, href: string|null}
+     */
+    private static function health(AdminUser $user): array
+    {
+        try {
+            /** @var array{state: string, sentence: string} $report */
+            $report = Cache::remember('admin.health', 30, static fn (): array => app(SystemHealth::class)->report());
+        } catch (Throwable) {
+            $report = ['state' => 'warn', 'sentence' => 'Zustand unbekannt'];
+        }
+
+        return [
+            'state' => $report['state'],
+            'sentence' => $report['sentence'],
+            'href' => $user->may(PermissionModule::Settings, PermissionAction::View) ? '/admin/system' : null,
+        ];
     }
 
     private static function unread(AdminUser $user): ?int

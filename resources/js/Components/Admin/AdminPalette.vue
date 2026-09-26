@@ -69,7 +69,17 @@ function signOut(): void {
 /** Only what works today (shell-build-plan.md). The rail toggle only where the rail can be toggled. */
 const actions = computed<PaletteEntry[]>(() => {
     const collapsed = shell.railCollapsed.value
-    const list: PaletteEntry[] = []
+    // „Neu“ first: the rail foot's quick actions, the one list the server decided (QuickActions).
+    const list: PaletteEntry[] = admin.value.quickActions.map((action) => ({
+        id: `action:new:${action.key}`,
+        group: 'actions',
+        label: action.label,
+        sub: 'Neu',
+        keys: null,
+        icon: action.icon,
+        href: action.href,
+        keywords: 'neu anlegen erstellen',
+    }))
 
     if (wide.value) {
         list.push({

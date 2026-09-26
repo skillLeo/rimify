@@ -7,6 +7,9 @@
  * a dead link. It draws the client's rail (DIRECTION §8a): light, labelled groups, 36 px items, the
  * tint and 2 px indicator where you are, counts as quiet figures that disappear at zero.
  *
+ * Its foot (AdminRailFoot) stays put under a hairline while the navigation scrolls above it: the
+ * shop's health, „Neu“, and the account with its way out.
+ *
  * Collapsed it is icons with tooltips. That happens by choice from 1024 px, remembered on the
  * account so the first frame is already right, and by force at 768–1023, where there is no room to
  * honour a choice to open it — so the toggle is not offered there at all.
@@ -16,6 +19,7 @@ import { Link, usePage } from '@inertiajs/vue3'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import AdminRailFoot from './AdminRailFoot.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
 import { isCurrentPage } from '../../composables/admin/currentPage'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
@@ -133,6 +137,8 @@ const collapsed = computed(() => shell.railCollapsed.value || narrow.value)
                     </ul>
                 </section>
             </nav>
+
+            <AdminRailFoot :collapsed="collapsed" />
         </aside>
     </TooltipProvider>
 </template>

@@ -154,6 +154,7 @@ final class AdminNavigation
             'icon' => 'settings',
             'module' => PermissionModule::Settings->value,
             'pages' => [
+                ['label' => 'Zustand', 'href' => '/admin/system', 'icon' => 'check-circle'],
                 ['label' => 'Warteschlange', 'href' => '/admin/warteschlange', 'icon' => 'sort', 'count' => 'jobs_failed'],
             ],
         ],
@@ -176,6 +177,7 @@ final class AdminNavigation
         '/admin/seiten',
         '/admin/faq',
         '/admin/navigation',
+        '/admin/system',
     ];
 
     /**

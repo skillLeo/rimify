@@ -108,7 +108,7 @@ describe('AdminBottomBar', () => {
         const sheet = wrapper.find('[data-sheet="admin-mehr"]')
         const titles = sheet.findAll('.mrow__title').map((t) => t.text())
 
-        expect(titles).toEqual(['Rollen & Rechte', 'System', 'Profil', 'Passwort ändern', 'Abmelden'])
+        expect(titles).toEqual(['Rollen & Rechte', 'System', 'Profil', 'Benachrichtigungen', 'Passwort ändern', 'Abmelden'])
         expect(sheet.find('.mrow__sub').text()).toBe('Team')
         expect(sheet.find('.adm-more__name').text()).toBe('Mara Keller')
         expect(sheet.find('a[href="/admin/rollen"]').exists()).toBe(true)

@@ -62,14 +62,14 @@
 
 /* ── The rail ──────────────────────────────────────────────────────────────────── */
 
+/* The rail is navigation that scrolls, above a foot that does not (AdminRailFoot). */
 .adm-rail {
     position: sticky;
     top: 0;
     display: flex;
     flex-direction: column;
     height: 100dvh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: hidden;
     padding: 0 var(--sp-12) var(--sp-12);
     background: var(--c-surface);
     border-right: 1px solid var(--c-line);
@@ -110,7 +110,272 @@
 
 .adm-rail__nav {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
+    min-height: 0;
+    margin-inline: calc(-1 * var(--sp-12));
+    padding: 0 var(--sp-12) var(--sp-16);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* ── The rail's foot: health, Neu, the account ─────────────────────────────────────── */
+
+.adm-foot {
+    display: grid;
+    flex: none;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-8);
+    margin-inline: calc(-1 * var(--sp-12));
+    padding: var(--sp-12) var(--sp-12) 0;
+    border-top: 1px solid var(--c-line);
+}
+
+.adm-foot__health {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-height: var(--sp-32);
+    margin: 0;
+    padding-inline: var(--sp-12);
+    border-radius: var(--r-control);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.adm-foot__health--ok {
+    color: var(--c-ok);
+}
+
+.adm-foot__health--warn {
+    color: var(--c-warn);
+}
+
+.adm-foot__health--bad {
+    color: var(--c-bad);
+}
+
+a.adm-foot__health {
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    a.adm-foot__health:hover {
+        background: var(--c-band);
+    }
+}
+
+.adm-foot__sentence {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The one dot of a state: 8 px, the state's own colour, never alone without its word. */
+.adm-health__dot {
+    flex: none;
+    width: var(--sp-8);
+    height: var(--sp-8);
+    border-radius: var(--r-round);
+}
+
+.adm-health__dot--ok {
+    background: var(--c-ok);
+}
+
+.adm-health__dot--warn {
+    background: var(--c-warn);
+}
+
+.adm-health__dot--bad {
+    background: var(--c-bad);
+}
+
+.adm-foot__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.adm-foot__new {
+    flex: 1 1 auto;
+    justify-content: center;
+}
+
+.adm-foot__new svg {
+    flex: none;
+}
+
+/* The palette's shortcut, quiet at the end of the row: a hint that is also a button. */
+.adm-foot__kbd {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-8);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink-3);
+    cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-foot__kbd:hover {
+        background: var(--c-band);
+        color: var(--c-ink-2);
+    }
+}
+
+.adm-foot__profile {
+    display: grid;
+    grid-template-columns: var(--sp-32) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sp-12);
+    width: 100%;
+    min-height: var(--adm-row-h-lg);
+    padding: var(--sp-8) var(--sp-12);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+.adm-foot__profile[data-state='open'] {
+    background: var(--c-band);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-foot__profile:hover {
+        background: var(--c-band);
+    }
+}
+
+/* A monogram tile where a photo would be: the initials, the accent's tint and ink. */
+.adm-avatar {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: var(--sp-32);
+    height: var(--sp-32);
+    border-radius: var(--r-tile);
+    background: var(--c-blue-tint);
+    color: var(--c-blue);
+    font-size: var(--fs-micro);
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.adm-foot__who {
+    display: grid;
+    min-width: 0;
+}
+
+.adm-foot__name,
+.adm-foot__role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-foot__name {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+}
+
+.adm-foot__role {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-foot__chevron {
+    color: var(--c-ink-3);
+}
+
+.adm-foot__menu {
+    min-width: 256px;
+}
+
+/* Collapsed (by choice, or by force at 768–1023): the dot, a +, the avatar — the words become the
+   tooltips and stay the controls' names for a screen reader. */
+.adm[data-rail='collapsed'] .adm-foot__health,
+.adm[data-rail='collapsed'] .adm-foot__profile {
+    justify-content: center;
+    padding-inline: 0;
+}
+
+.adm[data-rail='collapsed'] .adm-foot__profile {
+    display: flex;
+}
+
+.adm[data-rail='collapsed'] .adm-foot__sentence,
+.adm[data-rail='collapsed'] .adm-foot__new-label,
+.adm[data-rail='collapsed'] .adm-foot__who {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.adm[data-rail='collapsed'] .adm-foot__kbd,
+.adm[data-rail='collapsed'] .adm-foot__chevron {
+    display: none;
+}
+
+.adm[data-rail='collapsed'] .adm-foot .adm-foot__new {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    margin-inline: auto;
+    padding: 0;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .adm .adm-foot__health,
+    .adm .adm-foot__profile {
+        justify-content: center;
+        padding-inline: 0;
+    }
+
+    .adm .adm-foot__profile {
+        display: flex;
+    }
+
+    .adm .adm-foot__sentence,
+    .adm .adm-foot__new-label,
+    .adm .adm-foot__who {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .adm .adm-foot__kbd,
+    .adm .adm-foot__chevron {
+        display: none;
+    }
+
+    .adm .adm-foot .adm-foot__new {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        margin-inline: auto;
+        padding: 0;
+    }
 }
 
 .adm-rail__group + .adm-rail__group {
@@ -663,42 +928,6 @@
     line-height: var(--lh-small);
 }
 
-.adm-usermenu {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-8);
-    height: var(--adm-control-h);
-    padding-inline: var(--sp-8);
-    border: 0;
-    border-radius: var(--r-control);
-    background: transparent;
-    color: var(--c-ink);
-    font: inherit;
-    font-size: var(--fs-small);
-    cursor: pointer;
-    transition: background-color var(--d-1) var(--ease-out);
-}
-
-.adm-usermenu__name {
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .adm-usermenu:hover {
-        background: var(--c-band);
-    }
-}
-
-@media (max-width: 1023px) {
-    .adm-usermenu__name,
-    .adm-usermenu__chevron {
-        display: none;
-    }
-}
-
 /* ── Below 768: the app bar, the bottom bar, Mehr (§11) ──────────────────────────── */
 
 .adm-appbar,
@@ -864,14 +1093,42 @@
 }
 
 .adm-more__account {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
     padding: var(--sp-24) var(--page-margin) var(--sp-8);
     border-top: 1px solid var(--c-line);
     margin-top: var(--sp-16);
 }
 
+.adm-more__account .adm-avatar {
+    width: var(--adm-control-h-lg);
+    height: var(--adm-control-h-lg);
+    font-size: var(--fs-small);
+}
+
 .adm-more__name,
 .adm-more__role {
+    display: block;
     margin: 0;
+}
+
+/* The health line opens the sheet, a full row at the phone's touch height. */
+.adm-more__health {
+    min-height: var(--adm-control-h-lg);
+    margin: 0 var(--page-margin) var(--sp-8);
+}
+
+.adm-more__caption {
+    margin: var(--sp-16) var(--page-margin) var(--sp-4);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-more__signout .mrow__title,
+.adm-more__signout .mrow__lead {
+    color: var(--c-bad);
 }
 
 .adm-more__name {

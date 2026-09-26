@@ -50,6 +50,23 @@ export interface AdminShared {
      * this role can receive any alert at all. A bell that can never ring is not drawn.
      */
     notifications: { unread: number | null; offered: boolean }
+    /** The rail foot's line; `href` only for a role that may open System › Zustand. */
+    health: AdminHealth | null
+    /** „Neu“: what this role may create where the creating page exists. */
+    quickActions: AdminQuickAction[]
+}
+
+export interface AdminHealth {
+    state: 'ok' | 'warn' | 'bad'
+    sentence: string
+    href: string | null
+}
+
+export interface AdminQuickAction {
+    key: string
+    label: string
+    href: string
+    icon: IconName
 }
 
 /** One of the team's own alerts, as the bell and /admin/benachrichtigungen show it. */

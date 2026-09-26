@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * The topbar: where you are, the way to anything, and your account.
+ * The topbar: where you are, the way to anything, what happened, and help — nothing else. The
+ * account lives at the foot of the rail (AdminRailFoot), where the navigation ends.
  *
  * Breadcrumbs on the left come from the server (a slug is not a label); the group is a label and
  * the current page is not a link, so nothing here goes nowhere. The search is a button that looks
@@ -24,7 +25,6 @@ import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import AdminBell from './AdminBell.vue'
-import AdminUserMenu from './AdminUserMenu.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 
@@ -97,8 +97,6 @@ const crumbs = computed(() => admin.value.breadcrumbs)
                     </DropdownMenuContent>
                 </DropdownMenuPortal>
             </DropdownMenuRoot>
-
-            <AdminUserMenu />
         </div>
     </header>
 </template>

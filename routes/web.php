@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\SeitenController;
+use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Api\FitmentCountController;
@@ -249,6 +250,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereUuid('notification')
             ->name('benachrichtigungen.gelesen');
         Route::put('/benachrichtigungen/einstellungen', [BenachrichtigungenController::class, 'preferences'])->name('benachrichtigungen.einstellungen');
+
+        // System › Zustand, and the one line of it the rail polls — the line is every admin's, the
+        // page with the checks behind it is the settings role's.
+        Route::get('/system', [SystemController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':settings,view')
+            ->name('system.index');
+        Route::get('/system/puls', [SystemController::class, 'pulse'])->name('system.puls');
 
         // Einstellungen › Zubehörpreise: the Komplettrad options (docs/specs/komplettrad.md §6.2),
         // two tabs under one rail item. Every write is authorised by a Policy on the server; the

@@ -24,6 +24,8 @@ const EMPTY: AdminShared = {
     breadcrumbs: [],
     supportEmail: null,
     notifications: { unread: null, offered: false },
+    health: null,
+    quickActions: [],
 }
 
 export function useAdmin(): ComputedRef<AdminShared> {
@@ -50,6 +52,11 @@ export function useAdmin(): ComputedRef<AdminShared> {
                 unread: typeof admin.notifications?.unread === 'number' && admin.notifications.unread >= 0 ? admin.notifications.unread : null,
                 offered: admin.notifications?.offered === true,
             },
+            health:
+                admin.health && (admin.health.state === 'ok' || admin.health.state === 'warn' || admin.health.state === 'bad') && typeof admin.health.sentence === 'string'
+                    ? { state: admin.health.state, sentence: admin.health.sentence, href: typeof admin.health.href === 'string' ? admin.health.href : null }
+                    : null,
+            quickActions: Array.isArray(admin.quickActions) ? admin.quickActions : [],
         }
     })
 }

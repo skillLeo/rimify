@@ -14,6 +14,7 @@ import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { useOpenOnArrival } from '../../../composables/admin/useOpenOnArrival'
 import type { AdminSeitenProps, SeitenGroup } from '../../../types/admin/seiten'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -64,6 +65,9 @@ function openCreate(): void {
     sent.value = false
     creating.value = true
 }
+
+// „Neu › Ratgeber-Artikel anlegen“ from the rail's foot or the palette lands here with ?neu=1.
+useOpenOnArrival('neu', openCreate, () => props.can.create)
 
 function create(): void {
     if (busy.value) {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * Mehr (admin-shell.md §11.3): every group the bottom bar has no slot for, then the account.
+ * Mehr (admin-shell.md §11.3): the shop's health, every group the bottom bar has no slot for, „Neu“,
+ * then the account — on a phone, the rail's foot lives here.
  *
  * A group of one page is that page's row, the group named beneath it. A group of several opens a
  * second sheet with its pages — never an accordion inside a sheet, where a long group pushes the
@@ -8,11 +9,13 @@
  * Both sheets are the product's one BottomSheet, so back, swipe and Esc close them the same way.
  */
 
-import { router } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import BottomSheet from '../Mobile/BottomSheet.vue'
 import ListRow from '../Mobile/ListRow.vue'
+import { monogram } from '../../composables/admin/monogram'
 import { useAdmin } from '../../composables/admin/useAdmin'
+import { useHealth } from '../../composables/admin/useHealth'
 import type { AdminNavGroup, AdminNavPage } from '../../types/admin'
 
 const props = defineProps<{
@@ -24,6 +27,9 @@ const open = defineModel<boolean>('open', { default: false })
 
 const admin = useAdmin()
 const account = computed(() => admin.value.account)
+const actions = computed(() => admin.value.quickActions)
+const initials = computed(() => monogram(account.value?.name))
+const health = useHealth()
 
 const groups = computed(() => admin.value.nav.filter((g) => g.key !== 'uebersicht' && !props.exclude.includes(g.key)))
 
@@ -72,6 +78,18 @@ function signOut(): void {
 <template>
     <BottomSheet id="admin-mehr" v-model:open="open" title="Mehr">
         <div class="adm-more">
+            <!-- The rail's foot, on a phone: the shop's health first, in words. -->
+            <component
+                :is="health.href ? Link : 'p'"
+                v-if="health"
+                :href="health.href ?? undefined"
+                class="adm-foot__health adm-more__health"
+                :class="`adm-foot__health--${health.state}`"
+            >
+                <span class="adm-health__dot" :class="`adm-health__dot--${health.state}`" aria-hidden="true" />
+                <span class="adm-foot__sentence">{{ health.sentence }}</span>
+            </component>
+
             <template v-for="item in groups" :key="item.key">
                 <!-- A group of one page is that page, with the group beneath so it can still be found by it. -->
                 <ListRow
@@ -85,14 +103,30 @@ function signOut(): void {
                 <ListRow v-else :icon="item.icon" :title="item.label" :meta="total(item)" chevron @activate="group = item" />
             </template>
 
+            <template v-if="actions.length">
+                <p class="adm-more__caption">Neu anlegen</p>
+                <ListRow v-for="action in actions" :key="action.key" :icon="action.icon" :title="action.label" :href="action.href" />
+            </template>
+
             <div v-if="account" class="adm-more__account">
-                <p class="adm-more__name">{{ account.name }}</p>
-                <p class="adm-more__role">{{ account.role ?? account.email }}</p>
+                <span class="adm-avatar" aria-hidden="true">{{ initials }}</span>
+                <span>
+                    <span class="adm-more__name">{{ account.name }}</span>
+                    <span class="adm-more__role">{{ account.role ?? account.email }}</span>
+                </span>
             </div>
 
             <ListRow icon="user" title="Profil" href="/admin/profil" />
+            <ListRow icon="bell" title="Benachrichtigungen" href="/admin/benachrichtigungen" />
             <ListRow icon="shield" title="Passwort ändern" href="/admin/profil#passwort" />
-            <ListRow icon="logout" :title="signingOut ? 'Wird abgemeldet …' : 'Abmelden'" :chevron="false" :disabled="signingOut" @activate="signOut" />
+            <ListRow
+                class="adm-more__signout"
+                icon="logout"
+                :title="signingOut ? 'Wird abgemeldet …' : 'Abmelden'"
+                :chevron="false"
+                :disabled="signingOut"
+                @activate="signOut"
+            />
         </div>
     </BottomSheet>
 
