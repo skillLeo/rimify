@@ -11,6 +11,7 @@ use App\Services\Admin\AdminNavigation;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -81,6 +82,11 @@ class HandleInertiaRequests extends Middleware
         if (! is_string($routeName) || ! str_starts_with($routeName, 'admin.')) {
             return [];
         }
+
+        // Admin pages carry customer addresses and colleagues' rights. Their copies in the browser's
+        // history are encrypted, and signing out rotates the key (AdminLoginController::destroy), so
+        // Back after Abmelden asks the server again instead of showing the last page it had.
+        Inertia::encryptHistory();
 
         $user = $request->user('admin');
         $signedIn = $user instanceof AdminUser;

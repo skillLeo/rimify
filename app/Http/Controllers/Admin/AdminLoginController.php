@@ -56,6 +56,10 @@ class AdminLoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
+        // Into the NEW session, after the old one is gone: the sign-in page that answers this redirect
+        // tells the browser to drop the key its admin history was encrypted with.
+        Inertia::clearHistory();
+
         return redirect()->route('admin.anmelden');
     }
 }

@@ -129,6 +129,29 @@ describe('useAdminShortcuts', () => {
         expect(visit).toHaveBeenCalledWith('/admin/gutachten')
     })
 
+    it('takes [ typed as Option 5 on a Mac German keyboard, and a held key only once', () => {
+        const { toggle } = mountKeys()
+
+        press('[', { altKey: true })
+        expect(toggle).toHaveBeenCalledOnce()
+
+        press('[', { repeat: true })
+        expect(toggle).toHaveBeenCalledOnce()
+    })
+
+    it('leaves the keys to an open menu, so typing in it never jumps to another page', () => {
+        const { palette } = mountKeys()
+        const menu = document.body.appendChild(document.createElement('div'))
+        menu.setAttribute('role', 'menu')
+        menu.setAttribute('data-state', 'open')
+
+        press('g')
+        press('g')
+        press('/')
+        expect(visit).not.toHaveBeenCalled()
+        expect(palette.value).toBe(false)
+    })
+
     it('toggles the rail with [ — typed as AltGr 8 on a German keyboard — from 1024 px only', () => {
         const { toggle } = mountKeys()
         const altGr = { ctrlKey: true, altKey: true, modifierAltGraph: true } as KeyboardEventInit

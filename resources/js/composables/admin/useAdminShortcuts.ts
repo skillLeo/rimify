@@ -56,6 +56,11 @@ export function goTargets(nav: AdminNavGroup[]): Array<{ key: string; label: str
     return targets
 }
 
+/** Whether a menu or a dialog is open — reka marks both with `data-state="open"`. */
+export function overlayOpen(): boolean {
+    return document.querySelector('[role="menu"][data-state="open"], [role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]') !== null
+}
+
 /** Whether the keystroke belongs to something being typed. */
 export function isTyping(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) {
@@ -90,8 +95,18 @@ export function useAdminShortcuts(shell: AdminShell, nav: ComputedRef<AdminNavGr
             return
         }
 
-        // An open menu or dialog owns its keys (typeahead, Esc); it marks them handled when it uses them.
-        if (event.defaultPrevented || mod || alt || isTyping(event.target) || shell.paletteOpen.value || shell.shortcutsOpen.value) {
+        // An open menu or dialog owns its keys (typeahead, Esc) — a letter typed into the user menu is
+        // a search for a menu row, never a jump to another page. A held key is one press, not many.
+        if (event.defaultPrevented || mod || event.repeat || isTyping(event.target) || shell.paletteOpen.value || shell.shortcutsOpen.value || overlayOpen()) {
+            return
+        }
+
+        // `/`, `?` and `[` are read by the character they produce, whatever it took to type it: on a
+        // Mac's German layout `[` is Option 5, and refusing Alt there made the key untypeable. Letters
+        // are different — Option g is not g — so the `g` sequences still want no Alt.
+        if (alt && !['/', '?', '['].includes(event.key)) {
+            pendingG = 0
+
             return
         }
 

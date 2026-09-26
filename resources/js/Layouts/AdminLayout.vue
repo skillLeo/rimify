@@ -45,18 +45,32 @@ watch(
     (value) => (railCollapsed.value = value)
 )
 
+/** Laravel's XSRF cookie, decoded, as the `X-XSRF-TOKEN` header the request is checked against. */
+function xsrfToken(): string {
+    const match = /(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)
+
+    return match?.[1] ? decodeURIComponent(match[1]) : ''
+}
+
 /**
- * The rail moves at once; the choice is saved behind it. The save is a quiet visit — no progress,
- * no history entry, only the `admin` prop back — and a failure costs the preference, not the page.
+ * The rail moves at once; the choice is saved behind it with a plain background request, not an
+ * Inertia visit — nothing on the page re-renders, so neither a stale toast nor a late answer to an
+ * earlier click can come back. A failure costs the preference, never the page.
  */
 function toggleRail(): void {
     railCollapsed.value = !railCollapsed.value
 
-    router.patch(
-        '/admin/ansicht',
-        { rail: railCollapsed.value ? 'collapsed' : 'open' },
-        { async: true, showProgress: false, preserveScroll: true, preserveState: true, replace: true, only: ['admin'] }
-    )
+    void fetch('/admin/ansicht', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': xsrfToken(),
+        },
+        body: JSON.stringify({ rail: railCollapsed.value ? 'collapsed' : 'open' }),
+    }).catch(() => undefined)
 }
 
 const shell = { paletteOpen, shortcutsOpen, railCollapsed, toggleRail }
