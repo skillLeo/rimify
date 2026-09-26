@@ -838,6 +838,7 @@ class ComposerStaticInitb3f69a3a4adc41e8b8e6cf84b4cbcb39
         'App\\Http\\Controllers\\Storefront\\VergleichController' => __DIR__ . '/../..' . '/app/Http/Controllers/Storefront/VergleichController.php',
         'App\\Http\\Controllers\\Storefront\\WarenkorbController' => __DIR__ . '/../..' . '/app/Http/Controllers/Storefront/WarenkorbController.php',
         'App\\Http\\Middleware\\DetectDevice' => __DIR__ . '/../..' . '/app/Http/Middleware/DetectDevice.php',
+        'App\\Http\\Middleware\\EnsureAdminPanelEnabled' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureAdminPanelEnabled.php',
         'App\\Http\\Middleware\\HandleInertiaRequests' => __DIR__ . '/../..' . '/app/Http/Middleware/HandleInertiaRequests.php',
         'App\\Http\\Middleware\\SecurityHeaders' => __DIR__ . '/../..' . '/app/Http/Middleware/SecurityHeaders.php',
         'App\\Http\\Middleware\\VaryByDevice' => __DIR__ . '/../..' . '/app/Http/Middleware/VaryByDevice.php',

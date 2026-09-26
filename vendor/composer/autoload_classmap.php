@@ -100,6 +100,7 @@ return array(
     'App\\Http\\Controllers\\Storefront\\VergleichController' => $baseDir . '/app/Http/Controllers/Storefront/VergleichController.php',
     'App\\Http\\Controllers\\Storefront\\WarenkorbController' => $baseDir . '/app/Http/Controllers/Storefront/WarenkorbController.php',
     'App\\Http\\Middleware\\DetectDevice' => $baseDir . '/app/Http/Middleware/DetectDevice.php',
+    'App\\Http\\Middleware\\EnsureAdminPanelEnabled' => $baseDir . '/app/Http/Middleware/EnsureAdminPanelEnabled.php',
     'App\\Http\\Middleware\\HandleInertiaRequests' => $baseDir . '/app/Http/Middleware/HandleInertiaRequests.php',
     'App\\Http\\Middleware\\SecurityHeaders' => $baseDir . '/app/Http/Middleware/SecurityHeaders.php',
     'App\\Http\\Middleware\\VaryByDevice' => $baseDir . '/app/Http/Middleware/VaryByDevice.php',
