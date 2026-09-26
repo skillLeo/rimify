@@ -106,6 +106,7 @@ return array(
     'App\\Http\\Requests\\Admin\\AdminLoginRequest' => $baseDir . '/app/Http/Requests/Admin/AdminLoginRequest.php',
     'App\\Http\\Requests\\Admin\\BalanceWeightColourRequest' => $baseDir . '/app/Http/Requests/Admin/BalanceWeightColourRequest.php',
     'App\\Http\\Requests\\Admin\\MountingFeeRequest' => $baseDir . '/app/Http/Requests/Admin/MountingFeeRequest.php',
+    'App\\Http\\Requests\\Admin\\RolePermissionRequest' => $baseDir . '/app/Http/Requests/Admin/RolePermissionRequest.php',
     'App\\Http\\Requests\\Admin\\TpmsDefaultPriceRequest' => $baseDir . '/app/Http/Requests/Admin/TpmsDefaultPriceRequest.php',
     'App\\Http\\Requests\\Admin\\TpmsSensorPriceRequest' => $baseDir . '/app/Http/Requests/Admin/TpmsSensorPriceRequest.php',
     'App\\Http\\Requests\\Api\\FitmentCountRequest' => $baseDir . '/app/Http/Requests/Api/FitmentCountRequest.php',

@@ -655,11 +655,11 @@
     "/build/assets/Icon-Cd7fU8zT.js"
   ],
   "resources/js/Components/Art/RevenueChart.vue": [
-    "/build/assets/Index-BQ0sQ7QO.js",
+    "/build/assets/Index-BXGabi6w.js",
     "/build/assets/Index-Bqmi25i7.css"
   ],
   "resources/js/Components/Art/RevenueChart.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-BQ0sQ7QO.js",
+    "/build/assets/Index-BXGabi6w.js",
     "/build/assets/Index-Bqmi25i7.css"
   ],
   "resources/js/Components/Art/Svg.vue": [
@@ -1457,16 +1457,16 @@
     "/build/assets/VehicleSelector-BjWMC9mo.css"
   ],
   "resources/js/Layouts/AdminLayout.vue": [
-    "/build/assets/AdminLayout-BezLetQd.js",
-    "/build/assets/AdminLayout-DjISbsc5.css"
+    "/build/assets/AdminLayout-BXe7zDOy.js",
+    "/build/assets/AdminLayout-DVfWpECE.css"
   ],
   "resources/js/Layouts/AdminLayout.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AdminLayout-BezLetQd.js",
-    "/build/assets/AdminLayout-DjISbsc5.css"
+    "/build/assets/AdminLayout-BXe7zDOy.js",
+    "/build/assets/AdminLayout-DVfWpECE.css"
   ],
-  "resources/js/Layouts/AdminLayout.vue?vue&type=style&index=0&scoped=5b3e0d64&lang.css": [
-    "/build/assets/AdminLayout-BezLetQd.js",
-    "/build/assets/AdminLayout-DjISbsc5.css"
+  "resources/js/Layouts/AdminLayout.vue?vue&type=style&index=0&scoped=48b088e7&lang.css": [
+    "/build/assets/AdminLayout-BXe7zDOy.js",
+    "/build/assets/AdminLayout-DVfWpECE.css"
   ],
   "resources/js/Layouts/AppLayout.vue": [
     "/build/assets/AppLayout-CIg_X6Ij.js",
@@ -1509,75 +1509,75 @@
     "/build/assets/Index-42lBw80h.css"
   ],
   "resources/js/Pages/Admin/Benachrichtigungen/Index.vue": [
-    "/build/assets/Index-CqL4luiF.js",
+    "/build/assets/Index-CHvrNn3e.js",
     "/build/assets/Index-D9cHUynK.css"
   ],
   "resources/js/Pages/Admin/Benachrichtigungen/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-CqL4luiF.js",
+    "/build/assets/Index-CHvrNn3e.js",
     "/build/assets/Index-D9cHUynK.css"
   ],
   "resources/js/Pages/Admin/Benachrichtigungen/Index.vue?vue&type=style&index=0&scoped=a16344e6&lang.css": [
-    "/build/assets/Index-CqL4luiF.js",
+    "/build/assets/Index-CHvrNn3e.js",
     "/build/assets/Index-D9cHUynK.css"
   ],
   "resources/js/Pages/Admin/Dashboard/Index.vue": [
-    "/build/assets/Index-BQ0sQ7QO.js",
+    "/build/assets/Index-BXGabi6w.js",
     "/build/assets/Index-Bqmi25i7.css"
   ],
   "resources/js/Pages/Admin/Dashboard/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-BQ0sQ7QO.js",
+    "/build/assets/Index-BXGabi6w.js",
     "/build/assets/Index-Bqmi25i7.css"
   ],
   "resources/js/Pages/Admin/Dashboard/Index.vue?vue&type=style&index=0&scoped=7ec2de05&lang.css": [
-    "/build/assets/Index-BQ0sQ7QO.js",
+    "/build/assets/Index-BXGabi6w.js",
     "/build/assets/Index-Bqmi25i7.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Index.vue": [
-    "/build/assets/Index-CWK_FqXb.js",
+    "/build/assets/Index-CeYqYR41.js",
     "/build/assets/Index-DOFtavxy.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-CWK_FqXb.js",
+    "/build/assets/Index-CeYqYR41.js",
     "/build/assets/Index-DOFtavxy.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Index.vue?vue&type=style&index=0&scoped=573ec21d&lang.css": [
-    "/build/assets/Index-CWK_FqXb.js",
+    "/build/assets/Index-CeYqYR41.js",
     "/build/assets/Index-DOFtavxy.css"
   ],
   "resources/js/Pages/Admin/Rdks/Index.vue": [
-    "/build/assets/Index-BNT2gCot.js",
+    "/build/assets/Index-BWQ84X_8.js",
     "/build/assets/Index-DUQyl3Gn.css"
   ],
   "resources/js/Pages/Admin/Rdks/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-BNT2gCot.js",
+    "/build/assets/Index-BWQ84X_8.js",
     "/build/assets/Index-DUQyl3Gn.css"
   ],
   "resources/js/Pages/Admin/Rdks/Index.vue?vue&type=style&index=0&scoped=6f5d169f&lang.css": [
-    "/build/assets/Index-BNT2gCot.js",
+    "/build/assets/Index-BWQ84X_8.js",
     "/build/assets/Index-DUQyl3Gn.css"
   ],
   "resources/js/Pages/Admin/Rollen/Index.vue": [
-    "/build/assets/Index-D8Z9eCiH.js",
-    "/build/assets/Index-DkFEzsHS.css"
+    "/build/assets/Index-fkNhsLzI.js",
+    "/build/assets/Index-Cd2Jju8e.css"
   ],
   "resources/js/Pages/Admin/Rollen/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-D8Z9eCiH.js",
-    "/build/assets/Index-DkFEzsHS.css"
+    "/build/assets/Index-fkNhsLzI.js",
+    "/build/assets/Index-Cd2Jju8e.css"
   ],
-  "resources/js/Pages/Admin/Rollen/Index.vue?vue&type=style&index=0&scoped=0152d1e7&lang.css": [
-    "/build/assets/Index-D8Z9eCiH.js",
-    "/build/assets/Index-DkFEzsHS.css"
+  "resources/js/Pages/Admin/Rollen/Index.vue?vue&type=style&index=0&scoped=f7687fab&lang.css": [
+    "/build/assets/Index-fkNhsLzI.js",
+    "/build/assets/Index-Cd2Jju8e.css"
   ],
   "resources/js/Pages/Admin/Wuchtgewichte/Index.vue": [
-    "/build/assets/Index-BnhAbd7D.js",
+    "/build/assets/Index-D3kNaJs_.js",
     "/build/assets/Index-BsWJwCb8.css"
   ],
   "resources/js/Pages/Admin/Wuchtgewichte/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-BnhAbd7D.js",
+    "/build/assets/Index-D3kNaJs_.js",
     "/build/assets/Index-BsWJwCb8.css"
   ],
   "resources/js/Pages/Admin/Wuchtgewichte/Index.vue?vue&type=style&index=0&scoped=be4c3cfe&lang.css": [
-    "/build/assets/Index-BnhAbd7D.js",
+    "/build/assets/Index-D3kNaJs_.js",
     "/build/assets/Index-BsWJwCb8.css"
   ],
   "resources/js/Pages/Bestellung/Index.vue": [

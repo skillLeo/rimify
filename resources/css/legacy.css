@@ -1616,6 +1616,34 @@
         gap: var(--space-2);
     }
 
+    /*
+     * The rail is the height of the SCREEN, not of the page.
+     *
+     * Without this it is a plain grid item: it stretches to the row, the row is as tall as whatever
+     * the page happens to hold, and on a long page — the permission matrix runs to twelve modules —
+     * the navigation scrolls away with the content and the theme button ends up pinned to the
+     * bottom of the document, a screen and a half below the fold. Sticky at `top: 0` with the
+     * viewport's own height is what every dashboard rail does, and `--spacer`'s `flex: 1` then
+     * pushes the last item to the bottom of the SCREEN, which is where it was always meant to sit.
+     *
+     * `overflow-y: auto` and not `scroll`: the rail scrolls only when its own items are taller than
+     * the screen, so on an ordinary laptop there is no second scrollbar beside the page's. And
+     * `overscroll-behavior: contain`, so reaching the end of a scrolling rail does not then start
+     * scrolling the page behind it.
+     *
+     * Only from 1200px. Below that the rail is a horizontal strip across the top (further down this
+     * file) and must keep scrolling with the page.
+     */
+    @media (min-width: 1200px) {
+        .adm__side {
+            position: sticky;
+            top: 0;
+            height: 100dvh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+    }
+
     .adm__link {
         display: flex;
         align-items: center;

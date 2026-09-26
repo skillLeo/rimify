@@ -844,6 +844,7 @@ class ComposerStaticInitb3f69a3a4adc41e8b8e6cf84b4cbcb39
         'App\\Http\\Requests\\Admin\\AdminLoginRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/AdminLoginRequest.php',
         'App\\Http\\Requests\\Admin\\BalanceWeightColourRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/BalanceWeightColourRequest.php',
         'App\\Http\\Requests\\Admin\\MountingFeeRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/MountingFeeRequest.php',
+        'App\\Http\\Requests\\Admin\\RolePermissionRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/RolePermissionRequest.php',
         'App\\Http\\Requests\\Admin\\TpmsDefaultPriceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TpmsDefaultPriceRequest.php',
         'App\\Http\\Requests\\Admin\\TpmsSensorPriceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TpmsSensorPriceRequest.php',
         'App\\Http\\Requests\\Api\\FitmentCountRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Api/FitmentCountRequest.php',

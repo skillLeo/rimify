@@ -137,6 +137,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/gutachten', [GutachtenController::class, 'index'])->name('gutachten.index');
         Route::get('/rollen', [RollenController::class, 'index'])->name('rollen.index');
+        // One cell of the matrix at a time: posting the whole grid would let two admins editing
+        // different corners of it silently undo each other.
+        Route::patch('/rollen/{role}/rechte', [RollenController::class, 'updatePermission'])
+            ->whereNumber('role')
+            ->name('rollen.rechte');
         Route::get('/benachrichtigungen', [BenachrichtigungenController::class, 'index'])->name('benachrichtigungen.index');
 
         // Komplettrad options (docs/specs/komplettrad.md §6.2). Every write is authorised by a
