@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Admin;
 
 use App\Models\AdminUser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -31,6 +32,40 @@ final class AdminErrorPage
     public const EXPIRED = 'Die Seite war zu lange offen, deshalb ist nichts gespeichert. Bitte versuch es noch einmal.';
 
     public const TOO_MANY = 'Zu viele Versuche in kurzer Zeit. Bitte warte eine Minute und versuch es dann noch einmal.';
+
+    /** The page was open too long, or the sign-in ran out: said while the typed words stay on screen. */
+    public const EXPIRED_KEPT = 'Die Seite war zu lange offen, deshalb ist nichts gespeichert. Deine Eingaben sind noch da: Melde dich, falls nötig, in einem neuen Tab wieder an und speichere dann hier noch einmal.';
+
+    /**
+     * A save sent from an admin page that failed — for any reason, signed in or not any more. The
+     * page must not be replaced: what the person typed is only in their browser. So the answer is
+     * not a page but one sentence, which the admin shows beside the form it leaves untouched
+     * (AdminLayout's `httpException` handler).
+     */
+    public function keepsTheForm(Request $request, int $status): bool
+    {
+        return $request->is('admin', 'admin/*')
+            && ! $request->isMethod('GET')
+            && $request->header('X-Inertia') !== null
+            && $status >= 400
+            // Not a form inside the admin frame: signing out with an expired session still lands on
+            // the sign-in page, and the guest pages (sign-in, invitation) keep their own answers —
+            // they have no layout to show a sentence in.
+            && ! $request->routeIs('admin.abmelden', 'admin.anmelden', 'admin.anmelden.*', 'admin.einladung', 'admin.einladung.*');
+    }
+
+    public function formFailure(int $status): JsonResponse
+    {
+        $message = match (true) {
+            $status === 419, $status === 401 => self::EXPIRED_KEPT,
+            $status === 403 => 'Dafür fehlt dir inzwischen das Recht. Es wurde nichts gespeichert.',
+            $status === 404 => 'Das gibt es nicht mehr – vielleicht hat es gerade jemand gelöscht. Es wurde nichts gespeichert.',
+            $status === 429 => self::TOO_MANY,
+            default => 'Das hat auf unserer Seite nicht geklappt. Es wurde nichts gespeichert, deine Eingaben sind noch da. Versuch es gleich noch einmal.',
+        };
+
+        return new JsonResponse(['message' => $message], $status);
+    }
 
     public function handles(Request $request, int $status): bool
     {

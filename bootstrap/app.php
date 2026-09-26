@@ -11,6 +11,7 @@ use App\Http\Middleware\VaryByDevice;
 use App\Services\Admin\AdminErrorPage;
 use App\Services\Storefront\Chrome;
 use App\Services\Storefront\ErrorPage;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -72,6 +73,17 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         /*
+         * A save from an admin page after the sign-in ran out. Same-origin requests pass the CSRF
+         * check, so it is the sign-in that refuses — and its redirect to /admin/anmelden would
+         * replace the page and everything typed on it. The page gets one sentence instead and stays.
+         */
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            $admin = app(AdminErrorPage::class);
+
+            return $admin->keepsTheForm($request, 401) ? $admin->formFailure(401) : null;
+        });
+
+        /*
          * Every failure state is built in one place — App\Services\Storefront\ErrorPage — which
          * decides between the Inertia page inside the storefront frame and the standalone Blade
          * page that needs neither the built bundle nor the database. A status the shop wrote no
@@ -85,6 +97,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
             // Inside the admin, for somebody signed into it: the admin's own frame (AdminErrorPage).
             $admin = app(AdminErrorPage::class);
+
+            // A failed save from an admin page: one sentence, never a page over the typed words.
+            if ($admin->keepsTheForm($request, $response->getStatusCode())) {
+                return $admin->formFailure($response->getStatusCode());
+            }
 
             if ($admin->handles($request, $response->getStatusCode())) {
                 return $admin->render($request, $response);

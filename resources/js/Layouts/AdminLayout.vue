@@ -24,6 +24,7 @@ import AdminRail from '../Components/Admin/AdminRail.vue'
 import AdminTopbar from '../Components/Admin/AdminTopbar.vue'
 import ShortcutsDialog from '../Components/Admin/ShortcutsDialog.vue'
 import Toast from '../Components/Chrome/Toast.vue'
+import { toast } from '../Components/Chrome/toast'
 import { provideAdminShell, useAdmin } from '../composables/admin/useAdmin'
 import { useAdminShortcuts } from '../composables/admin/useAdminShortcuts'
 import { isNavigationVisit, provideMobileShell } from '../composables/mobile/useMobileShell'
@@ -116,9 +117,59 @@ onMounted(() => {
 
             clearTimeout(busyTimer)
             busy.value = false
+        }),
+        /*
+         * A save that failed is answered with one sentence (AdminErrorPage::formFailure), never a
+         * page: the page stays exactly as it is, with everything typed into it, and the sentence
+         * is said. Anything else unexpected gets the same care rather than a pane of raw HTML.
+         */
+        router.on('start', (event) => {
+            lastWrite = event.detail.visit.method !== 'get'
+        }),
+        router.on('httpException', (event) => {
+            const headers = event.detail.response.headers as Record<string, string | undefined>
+
+            // A page is a page: the admin's own refusal or not-found (Admin/Fehler) renders as before.
+            if (headers['x-inertia']) {
+                return
+            }
+
+            event.preventDefault()
+            toast.show({ text: failureMessage(event.detail.response.data), icon: 'info' })
+        }),
+        router.on('networkError', (event) => {
+            event.preventDefault()
+            toast.show({ text: lastWrite ? OFFLINE_WRITE : OFFLINE_READ, icon: 'info' })
         })
     )
 })
+
+/** Whether the last visit wrote something: its failure then says nothing was saved. */
+let lastWrite = false
+
+const OFFLINE_WRITE = 'Keine Verbindung zum Server. Es wurde nichts gespeichert, deine Eingaben sind noch da. Prüf die Verbindung und versuch es noch einmal.'
+
+const OFFLINE_READ = 'Keine Verbindung zum Server. Prüf die Verbindung und versuch es noch einmal.'
+
+const FALLBACK_WRITE = 'Das hat nicht geklappt. Es wurde nichts gespeichert, deine Eingaben sind noch da. Versuch es gleich noch einmal.'
+
+const FALLBACK_READ = 'Die Seite konnte nicht geladen werden. Versuch es gleich noch einmal.'
+
+function failureMessage(data: unknown): string {
+    const fallback = lastWrite ? FALLBACK_WRITE : FALLBACK_READ
+
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data) as unknown
+        } catch {
+            return fallback
+        }
+    }
+
+    const message = data !== null && typeof data === 'object' ? (data as { message?: unknown }).message : undefined
+
+    return typeof message === 'string' && message !== '' ? message : fallback
+}
 
 onBeforeUnmount(() => {
     clearTimeout(busyTimer)

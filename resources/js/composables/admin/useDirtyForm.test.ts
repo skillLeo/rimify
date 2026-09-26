@@ -31,6 +31,7 @@ vi.mock('@inertiajs/vue3', () => ({
             ...data,
             isDirty: false,
             processing: false,
+            data: () => ({ ...data }),
             submit: vi.fn(),
             reset: vi.fn(),
             defaults: vi.fn(),
@@ -192,6 +193,65 @@ describe('useDirtyForm', () => {
 
         send!()
         expect(form.submit).toHaveBeenCalledOnce()
+    })
+
+    it('keeps words typed while a save was on its way marked as unsaved', () => {
+        const editor = mountForm()
+        form.isDirty = true
+        editor.save()
+
+        // The field changes after the request left: the saved state is what was sent, not this.
+        form.data = () => ({ name: 'Rot und Blau' })
+        ;(form.submit.mock.calls[0]?.[2] as { onSuccess: () => void }).onSuccess()
+
+        expect(form.defaults).toHaveBeenCalledWith({ name: 'Rot' })
+        expect(form.isDirty).toBe(true)
+    })
+
+    it('marks the save failed when the server or the network refuses it, and keeps what was typed', () => {
+        const editor = mountForm()
+        form.isDirty = true
+
+        editor.save()
+        const options = form.submit.mock.calls[0]?.[2] as { onHttpException: () => void; onNetworkError: () => void }
+
+        options.onHttpException()
+        expect(editor.failed.value).toBe(true)
+        expect(form.reset).not.toHaveBeenCalled()
+
+        editor.discard()
+        options.onNetworkError()
+        expect(editor.failed.value).toBe(true)
+    })
+
+    it('holds the browser Back button while dirty, and goes back on Änderungen verwerfen', () => {
+        const own = { page: { url: '/admin/seiten/7' } }
+        window.history.replaceState(own, '', '/admin/seiten/7')
+        const editor = mountForm()
+        const push = vi.spyOn(window.history, 'pushState')
+        const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
+        const router = vi.fn()
+        window.addEventListener('popstate', router)
+
+        // Clean: Back is the router's.
+        window.dispatchEvent(new PopStateEvent('popstate', { state: { page: { url: '/admin/seiten' } } }))
+        expect(router).toHaveBeenCalledOnce()
+
+        // Dirty: the page goes back under the button, and the question is asked.
+        form.isDirty = true
+        window.dispatchEvent(new PopStateEvent('popstate', { state: { page: { url: '/admin/seiten' } } }))
+        expect(router).toHaveBeenCalledOnce()
+        expect(push).toHaveBeenCalledWith(own, '', expect.stringContaining('/admin/seiten/7'))
+        expect(editor.leaving.value).toBe(true)
+
+        editor.leave()
+        expect(back).toHaveBeenCalledOnce()
+        window.dispatchEvent(new PopStateEvent('popstate', { state: { page: { url: '/admin/seiten' } } }))
+        expect(router).toHaveBeenCalledTimes(2)
+
+        window.removeEventListener('popstate', router)
+        push.mockRestore()
+        back.mockRestore()
     })
 
     it('saves on Strg S when there is something to save', () => {

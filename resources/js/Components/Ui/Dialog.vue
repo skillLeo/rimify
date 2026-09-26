@@ -7,6 +7,7 @@
  */
 
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
+import { watch } from 'vue'
 import Icon from './Icon.vue'
 
 withDefaults(
@@ -24,6 +25,40 @@ withDefaults(
 )
 
 const open = defineModel<boolean>('open', { default: false })
+
+/* For the rare caller that must send focus somewhere else on close — calling preventDefault() on
+   the event keeps the primitive from returning it to the opener. */
+const emit = defineEmits<{ closeAutoFocus: [event: Event] }>()
+
+/*
+ * Where focus goes back to. A dialog opened from a menu item would hand it back to that item — which
+ * the closing menu has removed — and focus fell to the end of the page. The menu's own trigger (the
+ * element whose aria-controls names the menu) is remembered instead.
+ */
+let opener: HTMLElement | null = null
+
+watch(open, (value) => {
+    if (!value || typeof document === 'undefined') {
+        return
+    }
+
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const menu = active?.closest<HTMLElement>('[role="menu"]')
+    const trigger = menu?.id ? document.querySelector<HTMLElement>(`[aria-controls="${menu.id}"]`) : null
+
+    opener = trigger ?? active
+})
+
+function onCloseAutoFocus(event: Event): void {
+    emit('closeAutoFocus', event)
+
+    if (!event.defaultPrevented && opener?.isConnected) {
+        event.preventDefault()
+        opener.focus()
+    }
+
+    opener = null
+}
 </script>
 
 <template>
@@ -33,6 +68,7 @@ const open = defineModel<boolean>('open', { default: false })
             <DialogContent
                 :class="[variant === 'dialog' ? 'dialog' : variant, { 'dialog--wide': wide }, contentClass]"
                 :aria-describedby="description ? undefined : ''"
+                @close-auto-focus="onCloseAutoFocus"
             >
                 <div v-if="variant === 'sheet'" class="sheet__grab" aria-hidden="true" />
 
