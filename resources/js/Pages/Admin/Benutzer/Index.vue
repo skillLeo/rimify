@@ -18,7 +18,7 @@ import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { useOpenOnArrival } from '../../../composables/admin/useOpenOnArrival'
 import type { AdminBenutzerProps, BenutzerAccount, BenutzerInvitation } from '../../../types/admin/benutzer'
@@ -341,7 +341,7 @@ function withdraw(): void {
                                 <DropdownMenuPortal>
                                     <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
                                         <DropdownMenuItem class="adm-menu__item" :disabled="sending !== null" @select="resend(invitation)">
-                                            <Icon name="mail" :size="20" />
+                                            <Icon name="emails" :size="20" />
                                             {{ sending === invitation.id ? 'Wird gesendet …' : 'Erneut senden' }}
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator class="adm-menu__sep" />

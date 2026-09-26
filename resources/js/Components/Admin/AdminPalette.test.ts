@@ -37,14 +37,14 @@ const { default: AdminPalette } = await import('./AdminPalette.vue')
 const { provideAdminShell } = await import('../../composables/admin/useAdmin')
 
 const NAV: AdminNavGroup[] = [
-    { key: 'uebersicht', label: 'Übersicht', icon: 'grid', pages: [{ label: 'Übersicht', href: '/admin', icon: 'grid', count: null, countTone: 'neutral' }] },
+    { key: 'uebersicht', label: 'Übersicht', icon: 'overview', pages: [{ label: 'Übersicht', href: '/admin', icon: 'overview', count: null, countTone: 'neutral' }] },
     {
         key: 'gutachten',
         label: 'Gutachten',
-        icon: 'document',
+        icon: 'documents',
         pages: [
-            { label: 'Dokumente', href: '/admin/gutachten', icon: 'document', count: null, countTone: 'neutral' },
-            { label: 'Benachrichtigungswünsche', href: '/admin/benachrichtigungen', icon: 'mail', count: null, countTone: 'neutral' },
+            { label: 'Dokumente', href: '/admin/gutachten', icon: 'documents', count: null, countTone: 'neutral' },
+            { label: 'Benachrichtigungswünsche', href: '/admin/benachrichtigungen', icon: 'inquiries', count: null, countTone: 'neutral' },
         ],
     },
 ]

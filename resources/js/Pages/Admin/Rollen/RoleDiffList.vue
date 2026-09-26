@@ -6,7 +6,7 @@
  */
 
 import { computed } from 'vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import type { RoleDiff } from '../../../composables/admin/roleDiff'
 import { decimal } from '../../../format'
 

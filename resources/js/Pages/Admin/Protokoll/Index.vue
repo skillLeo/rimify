@@ -16,7 +16,7 @@
 
 import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import BottomSheet from '../../../Components/Mobile/BottomSheet.vue'
@@ -148,7 +148,7 @@ function toggle(id: number): void {
             <!-- A plain link, not an Inertia visit: the answer is a file, and the page stays.
                  On a phone it moves into the filter sheet, with the filters it exports. -->
             <a class="btn btn--secondary pk-export" :href="exportUrl" download>
-                <Icon name="import" :size="20" />
+                <Icon name="export" :size="20" />
                 Als CSV exportieren
             </a>
         </template>
@@ -183,7 +183,7 @@ function toggle(id: number): void {
                 <button class="btn btn--primary btn--block" type="submit" :disabled="busy">Anwenden</button>
                 <button v-if="filtered" class="btn btn--secondary btn--block" type="button" :disabled="busy" @click="reset">Zurücksetzen</button>
                 <a v-if="can.export && exportUrl" class="btn btn--ghost btn--block" :href="exportUrl" download>
-                    <Icon name="import" :size="20" />
+                    <Icon name="export" :size="20" />
                     Als CSV exportieren
                 </a>
             </form>

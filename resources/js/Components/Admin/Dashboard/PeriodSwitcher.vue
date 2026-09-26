@@ -26,7 +26,7 @@ import {
     ToggleGroupRoot,
 } from 'reka-ui'
 import { computed, ref } from 'vue'
-import Icon from '../../Ui/Icon.vue'
+import Icon from '../AdminIcon.vue'
 import { formatGermanDay, parseGermanDay } from '../../../composables/admin/days'
 import type { DashboardPeriod } from '../../../types/admin/uebersicht'
 
@@ -117,7 +117,7 @@ function print(): void {
 
         <PopoverRoot :open="customOpen" @update:open="openCustom">
             <PopoverTrigger class="period__seg period__custom" :class="{ 'period__seg--on': period.key === 'eigen' }" :aria-pressed="period.key === 'eigen'">
-                <Icon name="clock" :size="16" />
+                <Icon name="calendar" :size="16" />
                 {{ period.key === 'eigen' ? period.range : 'Eigener Zeitraum' }}
             </PopoverTrigger>
             <PopoverPortal>
@@ -153,12 +153,12 @@ function print(): void {
                 <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
                     <DropdownMenuItem v-if="exportUrl" as-child>
                         <a class="adm-menu__item" :href="exportUrl" download>
-                            <Icon name="import" :size="20" />
+                            <Icon name="export" :size="20" />
                             Als CSV exportieren
                         </a>
                     </DropdownMenuItem>
                     <DropdownMenuItem class="adm-menu__item" @select="print">
-                        <Icon name="document" :size="20" />
+                        <Icon name="print" :size="20" />
                         Als PDF drucken
                     </DropdownMenuItem>
                 </DropdownMenuContent>

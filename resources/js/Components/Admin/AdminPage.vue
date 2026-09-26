@@ -12,8 +12,8 @@
 import { Head, Link } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed } from 'vue'
-import Icon from '../Ui/Icon.vue'
-import type { IconName } from '../../icons'
+import Icon from './AdminIcon.vue'
+import type { AdminIconName } from '../../icons/admin'
 
 export interface AdminPageAction {
     label: string
@@ -21,7 +21,7 @@ export interface AdminPageAction {
     href?: string
     /** … or a thing to do. */
     run?: () => void
-    icon?: IconName
+    icon?: AdminIconName
     /** Sorted to the end, behind a hairline, its label in the failure colour. */
     danger?: boolean
 }

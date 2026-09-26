@@ -11,7 +11,7 @@
 
 import { Link } from '@inertiajs/vue3'
 import { useId } from 'vue'
-import Icon from '../../Ui/Icon.vue'
+import Icon from '../AdminIcon.vue'
 
 withDefaults(
     defineProps<{

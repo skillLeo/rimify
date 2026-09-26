@@ -16,7 +16,7 @@ import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminFaqProps, FaqEntryRow } from '../../../types/admin/faq'
 import type { SchemaField } from '../../../types/admin/seiten'
@@ -403,7 +403,7 @@ function move(entry: FaqEntryRow, by: -1 | 1): void {
                                 <DropdownMenuPortal>
                                     <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
                                         <DropdownMenuItem v-if="mayEdit(entry)" class="adm-menu__item" @select="openEdit(entry)">
-                                            <Icon name="text" :size="20" />
+                                            <Icon name="edit" :size="20" />
                                             Bearbeiten
                                         </DropdownMenuItem>
                                         <DropdownMenuItem v-if="mayToggle" class="adm-menu__item" @select="toggle(entry)">
@@ -427,7 +427,7 @@ function move(entry: FaqEntryRow, by: -1 | 1): void {
                                         <template v-if="mayDelete(entry)">
                                             <DropdownMenuSeparator class="adm-menu__sep" />
                                             <DropdownMenuItem class="adm-menu__item adm-menu__item--danger" @select="askDelete(entry)">
-                                                <Icon name="trash" :size="20" />
+                                                <Icon name="delete" :size="20" />
                                                 Löschen
                                             </DropdownMenuItem>
                                         </template>

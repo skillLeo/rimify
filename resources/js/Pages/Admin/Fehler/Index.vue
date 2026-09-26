@@ -12,7 +12,7 @@ import { computed } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 

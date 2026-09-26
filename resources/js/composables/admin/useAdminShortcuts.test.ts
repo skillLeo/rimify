@@ -18,14 +18,14 @@ vi.mock('@inertiajs/vue3', () => ({
 const { goTargets, useAdminShortcuts } = await import('./useAdminShortcuts')
 
 const NAV: AdminNavGroup[] = [
-    { key: 'uebersicht', label: 'Übersicht', icon: 'grid', pages: [{ label: 'Übersicht', href: '/admin', icon: 'grid', count: null, countTone: 'neutral' }] },
+    { key: 'uebersicht', label: 'Übersicht', icon: 'overview', pages: [{ label: 'Übersicht', href: '/admin', icon: 'overview', count: null, countTone: 'neutral' }] },
     {
         key: 'katalog',
         label: 'Katalog',
-        icon: 'box',
-        pages: [{ label: 'Wuchtgewichte-Farben', href: '/admin/wuchtgewichte', icon: 'wrench', count: null, countTone: 'neutral' }],
+        icon: 'wheels',
+        pages: [{ label: 'Wuchtgewichte-Farben', href: '/admin/wuchtgewichte', icon: 'prices', count: null, countTone: 'neutral' }],
     },
-    { key: 'gutachten', label: 'Gutachten', icon: 'document', pages: [{ label: 'Dokumente', href: '/admin/gutachten', icon: 'document', count: null, countTone: 'neutral' }] },
+    { key: 'gutachten', label: 'Gutachten', icon: 'documents', pages: [{ label: 'Dokumente', href: '/admin/gutachten', icon: 'documents', count: null, countTone: 'neutral' }] },
 ]
 
 let mounted: VueWrapper[] = []

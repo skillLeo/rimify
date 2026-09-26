@@ -26,7 +26,7 @@ import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import RightBox from './RightBox.vue'
 import RoleDiffList from './RoleDiffList.vue'
 import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
@@ -412,21 +412,21 @@ function pickBlur(): void {
                             <DropdownMenuPortal>
                                 <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
                                     <DropdownMenuItem v-if="menu.copy" class="adm-menu__item" @select="openCopy">
-                                        <Icon name="compare" :size="20" />
+                                        <Icon name="imports" :size="20" />
                                         Von Rolle kopieren
                                     </DropdownMenuItem>
                                     <DropdownMenuItem v-if="menu.rename" class="adm-menu__item" @select="openRename">
-                                        <Icon name="text" :size="20" />
+                                        <Icon name="edit" :size="20" />
                                         {{ role.isSystem ? 'Beschreibung ändern' : 'Umbenennen' }}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem v-if="menu.duplicate" class="adm-menu__item" @select="duplicate">
-                                        <Icon name="plus" :size="20" />
+                                        <Icon name="duplicate" :size="20" />
                                         Duplizieren
                                     </DropdownMenuItem>
                                     <template v-if="menu.remove">
                                         <DropdownMenuSeparator class="adm-menu__sep" />
                                         <DropdownMenuItem class="adm-menu__item adm-menu__item--danger" @select="deleteOpen = true">
-                                            <Icon name="trash" :size="20" />
+                                            <Icon name="delete" :size="20" />
                                             Löschen
                                         </DropdownMenuItem>
                                     </template>

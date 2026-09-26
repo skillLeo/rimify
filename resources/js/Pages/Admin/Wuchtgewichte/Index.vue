@@ -16,7 +16,7 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { computed, reactive, ref } from 'vue'
-import Icon from '../../../Components/Art/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminSectionTabs from '../../../Components/Admin/AdminSectionTabs.vue'

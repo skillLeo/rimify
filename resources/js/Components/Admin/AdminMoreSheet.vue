@@ -13,6 +13,7 @@ import { Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import BottomSheet from '../Mobile/BottomSheet.vue'
 import ListRow from '../Mobile/ListRow.vue'
+import AdminIcon from './AdminIcon.vue'
 import { monogram } from '../../composables/admin/monogram'
 import { useAdmin } from '../../composables/admin/useAdmin'
 import { useHealth } from '../../composables/admin/useHealth'
@@ -94,18 +95,23 @@ function signOut(): void {
                 <!-- A group of one page is that page, with the group beneath so it can still be found by it. -->
                 <ListRow
                     v-if="item.pages.length === 1"
-                    :icon="item.pages[0]?.icon ?? item.icon"
                     :title="item.pages[0]?.label ?? item.label"
                     :sub="item.pages[0]?.label === item.label ? undefined : item.label"
                     :meta="total(item)"
                     :href="item.pages[0]?.href"
-                />
-                <ListRow v-else :icon="item.icon" :title="item.label" :meta="total(item)" chevron @activate="group = item" />
+                >
+                    <template #leading><AdminIcon :name="item.pages[0]?.icon ?? item.icon" :size="24" /></template>
+                </ListRow>
+                <ListRow v-else :title="item.label" :meta="total(item)" chevron @activate="group = item">
+                    <template #leading><AdminIcon :name="item.icon" :size="24" /></template>
+                </ListRow>
             </template>
 
             <template v-if="actions.length">
                 <p class="adm-more__caption">Neu anlegen</p>
-                <ListRow v-for="action in actions" :key="action.key" :icon="action.icon" :title="action.label" :href="action.href" />
+                <ListRow v-for="action in actions" :key="action.key" :title="action.label" :href="action.href">
+                    <template #leading><AdminIcon :name="action.icon" :size="24" /></template>
+                </ListRow>
             </template>
 
             <div v-if="account" class="adm-more__account">
@@ -116,23 +122,32 @@ function signOut(): void {
                 </span>
             </div>
 
-            <ListRow icon="user" title="Profil" href="/admin/profil" />
-            <ListRow icon="bell" title="Benachrichtigungen" href="/admin/benachrichtigungen" />
-            <ListRow icon="shield" title="Passwort ändern" href="/admin/profil#passwort" />
+            <ListRow title="Profil" href="/admin/profil">
+                <template #leading><AdminIcon name="users" :size="24" /></template>
+            </ListRow>
+            <ListRow title="Benachrichtigungen" href="/admin/benachrichtigungen">
+                <template #leading><AdminIcon name="bell" :size="24" /></template>
+            </ListRow>
+            <ListRow title="Passwort ändern" href="/admin/profil#passwort">
+                <template #leading><AdminIcon name="shield" :size="24" /></template>
+            </ListRow>
             <ListRow
                 class="adm-more__signout"
-                icon="logout"
                 :title="signingOut ? 'Wird abgemeldet …' : 'Abmelden'"
                 :chevron="false"
                 :disabled="signingOut"
                 @activate="signOut"
-            />
+            >
+                <template #leading><AdminIcon name="logout" :size="24" /></template>
+            </ListRow>
         </div>
     </BottomSheet>
 
     <BottomSheet id="admin-mehr-gruppe" v-model:open="groupOpen" :title="shownGroup?.label ?? ''">
         <div class="adm-more">
-            <ListRow v-for="page in shownGroup?.pages ?? []" :key="page.href" :icon="page.icon" :title="page.label" :meta="pageCount(page)" :href="page.href" />
+            <ListRow v-for="page in shownGroup?.pages ?? []" :key="page.href" :title="page.label" :meta="pageCount(page)" :href="page.href">
+                <template #leading><AdminIcon :name="page.icon" :size="24" /></template>
+            </ListRow>
         </div>
     </BottomSheet>
 </template>

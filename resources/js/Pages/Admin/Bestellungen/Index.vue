@@ -15,7 +15,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import BottomSheet from '../../../Components/Mobile/BottomSheet.vue'
@@ -157,7 +157,7 @@ function tagClass(state: OrderState): string | null {
             <!-- Plain links, not Inertia visits: the answer is a file, and the page stays. -->
             <DropdownMenuRoot>
                 <DropdownMenuTrigger class="btn btn--secondary ob-export">
-                    <Icon name="import" :size="20" />
+                    <Icon name="export" :size="20" />
                     Exportieren
                     <Icon name="chevron-down" :size="16" />
                 </DropdownMenuTrigger>

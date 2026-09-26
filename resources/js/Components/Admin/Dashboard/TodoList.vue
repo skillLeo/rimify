@@ -6,7 +6,7 @@
  */
 
 import { Link } from '@inertiajs/vue3'
-import Icon from '../../Ui/Icon.vue'
+import Icon from '../AdminIcon.vue'
 import type { TodoItem } from '../../../types/admin/uebersicht'
 
 defineProps<{ items: TodoItem[] }>()

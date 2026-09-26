@@ -9,23 +9,23 @@ import { pageEntries, readRecent, recentEntries, recentKey, rememberRecent, RECE
  */
 
 const NAV: AdminNavGroup[] = [
-    { key: 'uebersicht', label: 'Übersicht', icon: 'grid', pages: [{ label: 'Übersicht', href: '/admin', icon: 'grid', count: null, countTone: 'neutral' }] },
+    { key: 'uebersicht', label: 'Übersicht', icon: 'overview', pages: [{ label: 'Übersicht', href: '/admin', icon: 'overview', count: null, countTone: 'neutral' }] },
     {
         key: 'katalog',
         label: 'Katalog',
-        icon: 'box',
+        icon: 'wheels',
         pages: [
-            { label: 'Wuchtgewichte-Farben', href: '/admin/wuchtgewichte', icon: 'wrench', count: null, countTone: 'neutral' },
+            { label: 'Wuchtgewichte-Farben', href: '/admin/wuchtgewichte', icon: 'prices', count: null, countTone: 'neutral' },
             { label: 'RDKS-Sensorpreise', href: '/admin/rdks-preise', icon: 'shield', count: null, countTone: 'neutral' },
         ],
     },
     {
         key: 'gutachten',
         label: 'Gutachten',
-        icon: 'document',
+        icon: 'documents',
         pages: [
-            { label: 'Dokumente', href: '/admin/gutachten', icon: 'document', count: null, countTone: 'neutral' },
-            { label: 'Benachrichtigungswünsche', href: '/admin/anfragen', icon: 'mail', count: 4, countTone: 'neutral' },
+            { label: 'Dokumente', href: '/admin/gutachten', icon: 'documents', count: null, countTone: 'neutral' },
+            { label: 'Benachrichtigungswünsche', href: '/admin/anfragen', icon: 'inquiries', count: 4, countTone: 'neutral' },
         ],
     },
 ]
@@ -49,7 +49,7 @@ describe('pageEntries', () => {
                 key: 'einstellungen',
                 label: 'Einstellungen',
                 icon: 'settings',
-                pages: [{ label: 'Zubehörpreise', href: '/admin/zubehoerpreise', icon: 'wrench', count: null, countTone: 'neutral' }],
+                pages: [{ label: 'Zubehörpreise', href: '/admin/zubehoerpreise', icon: 'prices', count: null, countTone: 'neutral' }],
             },
         ]
         const found = search(pageEntries(nav), 'rdks')

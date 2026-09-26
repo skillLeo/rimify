@@ -15,7 +15,8 @@ import { computed, nextTick, reactive, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
+import StoreIcon from '../../../Components/Ui/Icon.vue'
 import { isIconName, type IconName } from '../../../icons'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminNavigationProps, NavEntry, NavMenu } from '../../../types/admin/navigation'
@@ -360,7 +361,7 @@ function move(entry: NavEntry, by: -1 | 1): void {
                             <!-- The glyph is part of the entry: named in words beside its drawing, so it is read aloud too. -->
                             <template v-if="menu.icon">
                                 · Symbol:
-                                <Icon v-if="glyph(entry.icon)" class="nav-adm__glyph" :name="glyph(entry.icon)!" :size="16" />
+                                <StoreIcon v-if="glyph(entry.icon)" class="nav-adm__glyph" :name="glyph(entry.icon)!" :size="16" />
                                 {{ iconLabel(entry.icon) }}
                             </template>
                         </p>
@@ -398,7 +399,7 @@ function move(entry: NavEntry, by: -1 | 1): void {
                                 <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
                                     <template v-if="mayChange(entry)">
                                         <DropdownMenuItem class="adm-menu__item" @select="openEdit(entry)">
-                                            <Icon name="text" :size="20" />
+                                            <Icon name="edit" :size="20" />
                                             Bearbeiten
                                         </DropdownMenuItem>
                                         <DropdownMenuItem class="adm-menu__item" @select="toggle(entry)">
@@ -423,7 +424,7 @@ function move(entry: NavEntry, by: -1 | 1): void {
                                     <template v-if="mayDelete(entry)">
                                         <DropdownMenuSeparator class="adm-menu__sep" />
                                         <DropdownMenuItem class="adm-menu__item adm-menu__item--danger" @select="askDelete(entry)">
-                                            <Icon name="trash" :size="20" />
+                                            <Icon name="delete" :size="20" />
                                             Löschen
                                         </DropdownMenuItem>
                                     </template>

@@ -33,14 +33,14 @@ const { default: AdminAppBar } = await import('./AdminAppBar.vue')
 const { provideAdminShell } = await import('../../composables/admin/useAdmin')
 
 const page = (label: string, href: string, count: number | null = null, countTone: 'neutral' | 'bad' = 'neutral') =>
-    ({ label, href, icon: 'grid', count, countTone }) as const
+    ({ label, href, icon: 'overview', count, countTone }) as const
 
 const NAV: AdminNavGroup[] = [
-    { key: 'uebersicht', label: 'Übersicht', icon: 'grid', pages: [page('Übersicht', '/admin')] },
-    { key: 'katalog', label: 'Katalog', icon: 'box', pages: [page('Wuchtgewichte-Farben', '/admin/wuchtgewichte'), page('RDKS-Sensorpreise', '/admin/rdks-preise')] },
-    { key: 'gutachten', label: 'Gutachten', icon: 'document', pages: [page('Dokumente', '/admin/gutachten', 60), page('Benachrichtigungswünsche', '/admin/benachrichtigungen', 45)] },
-    { key: 'team', label: 'Team', icon: 'user', pages: [page('Rollen & Rechte', '/admin/rollen')] },
-    { key: 'system', label: 'System', icon: 'wrench', pages: [page('Warteschlange', '/admin/warteschlange', 2, 'bad'), page('Protokoll', '/admin/protokoll')] },
+    { key: 'uebersicht', label: 'Übersicht', icon: 'overview', pages: [page('Übersicht', '/admin')] },
+    { key: 'katalog', label: 'Katalog', icon: 'wheels', pages: [page('Wuchtgewichte-Farben', '/admin/wuchtgewichte'), page('RDKS-Sensorpreise', '/admin/rdks-preise')] },
+    { key: 'gutachten', label: 'Gutachten', icon: 'documents', pages: [page('Dokumente', '/admin/gutachten', 60), page('Benachrichtigungswünsche', '/admin/benachrichtigungen', 45)] },
+    { key: 'team', label: 'Team', icon: 'users', pages: [page('Rollen & Rechte', '/admin/rollen')] },
+    { key: 'system', label: 'System', icon: 'prices', pages: [page('Warteschlange', '/admin/warteschlange', 2, 'bad'), page('Protokoll', '/admin/protokoll')] },
 ]
 
 let mounted: VueWrapper[] = []

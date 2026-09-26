@@ -26,11 +26,11 @@ final class QuickActions
         $actions = [];
 
         if ($this->built('/admin/seiten') && $user->may(PermissionModule::Content, PermissionAction::View) && $user->may(PermissionModule::Content, PermissionAction::Create)) {
-            $actions[] = ['key' => 'ratgeber', 'label' => 'Ratgeber-Artikel anlegen', 'href' => '/admin/seiten?neu=1', 'icon' => 'text'];
+            $actions[] = ['key' => 'ratgeber', 'label' => 'Ratgeber-Artikel anlegen', 'href' => '/admin/seiten?neu=1', 'icon' => 'guides'];
         }
 
         if ($this->built('/admin/benutzer') && $user->may(PermissionModule::Roles, PermissionAction::View) && $user->may(PermissionModule::Roles, PermissionAction::Create)) {
-            $actions[] = ['key' => 'person', 'label' => 'Person einladen', 'href' => '/admin/benutzer?einladen=1', 'icon' => 'user'];
+            $actions[] = ['key' => 'person', 'label' => 'Person einladen', 'href' => '/admin/benutzer?einladen=1', 'icon' => 'users'];
         }
 
         return $actions;

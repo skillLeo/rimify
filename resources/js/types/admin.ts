@@ -4,12 +4,12 @@
  * value here, so the client never filters, never guesses and never fetches the rail after the fact.
  */
 
-import type { IconName } from '../icons'
+import type { AdminIconName } from '../icons/admin'
 
 export interface AdminNavPage {
     label: string
     href: string
-    icon: IconName
+    icon: AdminIconName
     /** A queue of work waiting; null at zero or when it could not be computed. */
     count: number | null
     /** `bad` only where the number means something broke; a large workload is not an alarm. */
@@ -19,7 +19,7 @@ export interface AdminNavPage {
 export interface AdminNavGroup {
     key: string
     label: string
-    icon: IconName
+    icon: AdminIconName
     pages: AdminNavPage[]
 }
 
@@ -66,7 +66,7 @@ export interface AdminQuickAction {
     key: string
     label: string
     href: string
-    icon: IconName
+    icon: AdminIconName
 }
 
 /** One of the team's own alerts, as the bell and /admin/benachrichtigungen show it. */

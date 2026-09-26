@@ -6,7 +6,7 @@
  */
 
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import Icon from '../../Ui/Icon.vue'
+import Icon from '../AdminIcon.vue'
 
 const props = defineProps<{
     title: string
@@ -48,11 +48,11 @@ function download(): void {
         <DropdownMenuPortal>
             <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
                 <DropdownMenuItem class="adm-menu__item" @select="emit('update:table', !table)">
-                    <Icon :name="table ? 'chart' : 'menu'" :size="20" />
+                    <Icon :name="table ? 'chart' : 'table'" :size="20" />
                     {{ table ? 'Diagramm anzeigen' : 'Tabelle anzeigen' }}
                 </DropdownMenuItem>
                 <DropdownMenuItem class="adm-menu__item" @select="download">
-                    <Icon name="import" :size="20" />
+                    <Icon name="export" :size="20" />
                     Als CSV
                 </DropdownMenuItem>
             </DropdownMenuContent>

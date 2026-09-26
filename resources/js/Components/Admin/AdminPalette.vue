@@ -15,7 +15,7 @@
 import { router, usePage } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import Icon from '../Ui/Icon.vue'
+import Icon from './AdminIcon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 import { goTargets } from '../../composables/admin/useAdminShortcuts'

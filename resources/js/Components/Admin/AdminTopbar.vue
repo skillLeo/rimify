@@ -22,7 +22,7 @@ import {
 } from 'reka-ui'
 import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Icon from '../Ui/Icon.vue'
+import Icon from './AdminIcon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import AdminBell from './AdminBell.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
@@ -77,7 +77,7 @@ const crumbs = computed(() => admin.value.breadcrumbs)
 
             <DropdownMenuRoot>
                 <DropdownMenuTrigger class="adm-iconbtn" aria-label="Hilfe">
-                    <Icon name="info" :size="20" />
+                    <Icon name="help" :size="20" />
                 </DropdownMenuTrigger>
                 <DropdownMenuPortal>
                     <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
@@ -88,7 +88,7 @@ const crumbs = computed(() => admin.value.breadcrumbs)
                         <!-- Only when somebody was asked to read that address; never a placeholder. -->
                         <DropdownMenuItem v-if="admin.supportEmail" as-child>
                             <a class="adm-menu__item" :href="`mailto:${admin.supportEmail}`">
-                                <Icon name="mail" :size="20" />
+                                <Icon name="emails" :size="20" />
                                 Hilfe per E-Mail
                             </a>
                         </DropdownMenuItem>

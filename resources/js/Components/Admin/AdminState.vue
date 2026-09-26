@@ -13,9 +13,9 @@
 
 import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Icon from '../Ui/Icon.vue'
+import Icon from './AdminIcon.vue'
 import { decimal } from '../../format'
-import type { IconName } from '../../icons'
+import type { AdminIconName } from '../../icons/admin'
 
 const props = withDefaults(
     defineProps<{
@@ -32,7 +32,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{ reset: []; retry: [] }>()
 
-const icon = computed<IconName | null>(() => ({ empty: null, filtered: 'filter', error: 'warning', forbidden: 'lock' })[props.kind] as IconName | null)
+const icon = computed<AdminIconName | null>(() => ({ empty: null, filtered: 'filter', error: 'warning', forbidden: 'lock' })[props.kind] as AdminIconName | null)
 
 const heading = computed(
     () =>

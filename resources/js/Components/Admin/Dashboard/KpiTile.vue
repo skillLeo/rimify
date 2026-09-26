@@ -15,7 +15,7 @@
 import { Link } from '@inertiajs/vue3'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed, ref, useId } from 'vue'
-import Icon from '../../Ui/Icon.vue'
+import Icon from '../AdminIcon.vue'
 import Sparkline from '../Charts/Sparkline.vue'
 import type { Kpi } from '../../../types/admin/uebersicht'
 
@@ -57,7 +57,7 @@ const showsDelta = computed(() => props.compare && props.kpi.delta !== null)
             <template v-if="kpi.value !== null">
                 <span class="kpi__value">{{ kpi.value }}</span>
                 <span v-if="showsDelta && kpi.delta" class="kpi__delta" :class="`kpi__delta--${kpi.delta.direction}`">
-                    <Icon v-if="kpi.delta.direction !== 'flat'" :name="kpi.delta.direction === 'up' ? 'chevron-up' : 'chevron-down'" :size="16" />
+                    <Icon v-if="kpi.delta.direction !== 'flat'" :name="kpi.delta.direction === 'up' ? 'arrow-up' : 'arrow-down'" :size="16" />
                     {{ kpi.delta.label }}
                 </span>
                 <span v-else-if="compare && kpi.deltaNote" class="kpi__meta">{{ kpi.deltaNote }}</span>

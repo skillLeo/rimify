@@ -29,7 +29,7 @@ import {
     TooltipTrigger,
 } from 'reka-ui'
 import { computed, ref } from 'vue'
-import Icon from '../Ui/Icon.vue'
+import Icon from './AdminIcon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 import { useHealth } from '../../composables/admin/useHealth'
@@ -143,7 +143,7 @@ function signOut(event: Event): void {
                     <DropdownMenuSeparator class="adm-menu__sep" />
                     <DropdownMenuItem as-child>
                         <Link href="/admin/profil" class="adm-menu__item">
-                            <Icon name="user" :size="20" />
+                            <Icon name="users" :size="20" />
                             Profil
                         </Link>
                     </DropdownMenuItem>

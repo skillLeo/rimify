@@ -18,7 +18,7 @@
 import { Link, usePage } from '@inertiajs/vue3'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import Icon from '../Ui/Icon.vue'
+import Icon from './AdminIcon.vue'
 import AdminRailFoot from './AdminRailFoot.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
 import { isCurrentPage } from '../../composables/admin/currentPage'
@@ -75,7 +75,7 @@ const collapsed = computed(() => shell.railCollapsed.value || narrow.value)
             <div class="adm-rail__brand">
                 <Link href="/admin" class="adm-wordmark adm-wordmark--full">RIMIFY</Link>
                 <Link href="/admin" class="adm-iconbtn adm-wordmark--mark" aria-label="RIMIFY – zur Übersicht">
-                    <Icon name="wheel" :size="24" />
+                    <Icon name="wheels" :size="24" />
                 </Link>
                 <EnvironmentBadge />
                 <button

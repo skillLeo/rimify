@@ -10,7 +10,7 @@
  * The box is 18 px with a 44 px target (the touch floor), in the panel's blue.
  */
 
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 
 withDefaults(
     defineProps<{

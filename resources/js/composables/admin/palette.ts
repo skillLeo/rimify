@@ -8,7 +8,7 @@
  */
 
 import { SECTION_TABS } from '../../Components/Admin/sectionTabs'
-import type { IconName } from '../../icons'
+import type { AdminIconName } from '../../icons/admin'
 import type { AdminNavGroup } from '../../types/admin'
 
 export type PaletteGroup = 'recent' | 'goto' | 'actions'
@@ -21,7 +21,7 @@ export interface PaletteEntry {
     sub: string | null
     /** The keys that do the same without the palette, right-aligned; null where there are none. */
     keys: string[] | null
-    icon: IconName
+    icon: AdminIconName
     /** Exactly one of these: a place to go, or a thing to do. */
     href?: string
     run?: () => void
@@ -36,8 +36,8 @@ export const GROUP_LABEL: Record<PaletteGroup, string> = {
 }
 
 /** Pages that are not in the rail but are the viewer's own, so they can be found and remembered. */
-export const OWN_PAGES: ReadonlyArray<{ label: string; href: string; icon: IconName; keywords: string }> = [
-    { label: 'Profil', href: '/admin/profil', icon: 'user', keywords: 'konto account' },
+export const OWN_PAGES: ReadonlyArray<{ label: string; href: string; icon: AdminIconName; keywords: string }> = [
+    { label: 'Profil', href: '/admin/profil', icon: 'users', keywords: 'konto account' },
     { label: 'Benachrichtigungen', href: '/admin/benachrichtigungen', icon: 'bell', keywords: 'glocke hinweise meldungen ungelesen' },
 ]
 

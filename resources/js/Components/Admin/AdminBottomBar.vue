@@ -10,7 +10,7 @@
 
 import { Link, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
-import Icon from '../Ui/Icon.vue'
+import Icon from './AdminIcon.vue'
 import AdminMoreSheet from './AdminMoreSheet.vue'
 import { isCurrentPage } from '../../composables/admin/currentPage'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
@@ -51,7 +51,7 @@ const inMore = computed(() => !OUTSIDE_MORE.includes(path.value) && !slots.value
 <template>
     <nav class="adm-tabbar" aria-label="Hauptnavigation">
         <Link href="/admin" class="adm-tabbar__item" :aria-current="path === '/admin' ? 'page' : undefined">
-            <Icon name="grid" :size="24" />
+            <Icon name="overview" :size="24" />
             <span class="adm-tabbar__label">Übersicht</span>
         </Link>
 

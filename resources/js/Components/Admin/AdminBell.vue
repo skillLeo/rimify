@@ -16,7 +16,7 @@
 import { Link, router } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import Icon from '../Ui/Icon.vue'
+import Icon from './AdminIcon.vue'
 import { useAdmin } from '../../composables/admin/useAdmin'
 import { fetchLatest, useAlertCount } from '../../composables/admin/useAlertCount'
 import type { AdminAlertItem } from '../../types/admin'

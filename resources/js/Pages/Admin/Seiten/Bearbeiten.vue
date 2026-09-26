@@ -18,7 +18,7 @@ import AdminPage, { type AdminPageAction } from '../../../Components/Admin/Admin
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import { toast } from '../../../Components/Chrome/toast'
 import Dialog from '../../../Components/Ui/Dialog.vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminSeiteProps, PageContent, SchemaBlock, SchemaField, SeitenRevision } from '../../../types/admin/seiten'
@@ -319,11 +319,11 @@ const more = computed<AdminPageAction[]>(() => {
 
     actions.push(
         { label: 'Vorschau in neuem Tab', icon: 'arrow-right', run: () => window.open(props.preview.desktop, '_blank', 'noopener') },
-        { label: 'Vorschau-Link kopieren', icon: 'document', run: copyPreviewLink }
+        { label: 'Vorschau-Link kopieren', icon: 'duplicate', run: copyPreviewLink }
     )
 
     if (props.draft && props.can.edit) {
-        actions.push({ label: 'Entwurf verwerfen', icon: 'trash', danger: true, run: () => (discarding.value = true) })
+        actions.push({ label: 'Entwurf verwerfen', icon: 'delete', danger: true, run: () => (discarding.value = true) })
     }
 
     if (props.can.withdraw) {
@@ -639,7 +639,7 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                                         :aria-label="`${schemaOf(index)!.list!.itemLabel} ${j + 1} entfernen`"
                                         @click="removeItem(index, schemaOf(index)!, j)"
                                     >
-                                        <Icon name="trash" :size="20" />
+                                        <Icon name="delete" :size="20" />
                                     </button>
                                 </div>
                             </div>
@@ -715,7 +715,7 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                                     :aria-label="`${blockLabel(schema, form.blocks, index)} entfernen`"
                                     @click="removeSection(index)"
                                 >
-                                    <Icon name="trash" :size="20" />
+                                    <Icon name="delete" :size="20" />
                                 </button>
                             </div>
                         </div>

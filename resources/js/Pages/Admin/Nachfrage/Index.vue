@@ -16,7 +16,7 @@ import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
 import StateChip from '../../../Components/Admin/Dashboard/StateChip.vue'
-import Icon from '../../../Components/Ui/Icon.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../format'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminNachfrageProps, DemandState } from '../../../types/admin/nachfrage'
@@ -205,7 +205,7 @@ function chip(gap: DemandGap): { label: string; tone: 'plain' | 'warn' | 'neutra
                                                     Als angefordert markieren
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem v-if="gap.mark?.state === 'requested'" class="adm-menu__item" @select="request(gap)">
-                                                    <Icon name="mail" :size="20" />
+                                                    <Icon name="emails" :size="20" />
                                                     Erneut anfordern
                                                 </DropdownMenuItem>
                                                 <template v-if="gap.mark">
