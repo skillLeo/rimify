@@ -9,11 +9,14 @@ use App\Observers\OrderAlertObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * An order. Guest checkout: `customer_id` points at a row with no password and no account.
@@ -50,6 +53,7 @@ class Order extends Model
         'order_number', 'customer_id', 'delivery_address_id', 'billing_address_id', 'status',
         'vehicle_id', 'vehicle_label', 'vehicle_make', 'vehicle_hsn', 'vehicle_tsn', 'vehicle_vsn',
         'subtotal_cents', 'shipping_cents', 'tax_cents', 'total_cents', 'currency',
+        'payment_method', 'shipping_method',
         'stripe_session_id', 'stripe_payment_intent_id',
         'note', 'placed_at', 'paid_at', 'shipped_at', 'tracking_code',
     ];
@@ -91,5 +95,34 @@ class Order extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(OrderLine::class);
+    }
+
+    /**
+     * Seeded demonstration data (CommerceSeeder): any line is a wheel from a demo model. A demo model
+     * can never be ordered (KasseController refuses it), so a real order never matches. The one rule,
+     * for the storefront's receipt and the admin alike.
+     */
+    public function isDemo(): bool
+    {
+        return self::demoQuery()->where('ol.order_id', $this->id)->exists();
+    }
+
+    /**
+     * Adds `is_demo` (1 or null) to every row of a list, in the same query rather than one per row.
+     *
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopeWithDemoFlag(Builder $query): Builder
+    {
+        return $query->addSelect(['is_demo' => self::demoQuery()->whereColumn('ol.order_id', 'orders.id')->selectRaw('1')->limit(1)]);
+    }
+
+    private static function demoQuery(): QueryBuilder
+    {
+        return DB::table('order_lines as ol')
+            ->join('wheel_configs as wc', 'wc.id', '=', 'ol.wheel_config_id')
+            ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
+            ->where('wm.is_demo', true);
     }
 }

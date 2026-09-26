@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Admin;
 
 use App\Enums\ConflictStatus;
+use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
@@ -166,6 +167,7 @@ final class AdminNavigation
     public const BUILT = [
         '/admin',
         '/admin/gutachten',
+        '/admin/bestellungen',
         '/admin/anfragen',
         '/admin/zubehoerpreise',
         '/admin/benutzer',
@@ -399,6 +401,10 @@ final class AdminNavigation
     {
         try {
             return match ($key) {
+                // Paid and not yet sent: work whose goal is zero.
+                'orders_open' => DB::table('orders')
+                    ->whereIn('status', array_map(static fn (OrderStatus $s): string => $s->value, OrderStatus::open()))
+                    ->count(),
                 'conflicts_open' => DB::table('fitment_conflicts')
                     ->where('status', ConflictStatus::Open->value)
                     ->count(),

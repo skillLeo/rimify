@@ -11,6 +11,7 @@ use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\Orders\OrderList;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,6 +76,8 @@ class UebersichtController extends Controller
                 GermanFormat::integer(DB::table('orders')->whereIn('status', [OrderStatus::Paid->value, OrderStatus::InFulfilment->value])->count()),
                 'Bezahlt oder in Bearbeitung, aber noch nicht versendet.',
                 '/admin/bestellungen',
+                // The list opens on exactly the orders the figure counts.
+                ['status' => OrderList::OPEN],
             );
         }
 
@@ -120,16 +123,17 @@ class UebersichtController extends Controller
     }
 
     /**
+     * @param  array<string, string>  $filter  the list's own filter for exactly what the figure counts
      * @return array{key: string, label: string, value: string, hint: string, href: string|null}
      */
-    private function tile(string $key, string $label, string $value, string $hint, string $list): array
+    private function tile(string $key, string $label, string $value, string $hint, string $list, array $filter = []): array
     {
         return [
             'key' => $key,
             'label' => $label,
             'value' => $value,
             'hint' => $hint,
-            'href' => in_array($list, AdminNavigation::BUILT, true) ? $list : null,
+            'href' => in_array($list, AdminNavigation::BUILT, true) ? $list.($filter === [] ? '' : '?'.http_build_query($filter)) : null,
         ];
     }
 

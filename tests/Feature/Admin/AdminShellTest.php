@@ -94,7 +94,7 @@ describe('the tree', function (): void {
         $nav = sharedNav(shellAdmin());
 
         expect(array_column($nav, 'label'))->toBe(['Übersicht', 'Verkauf', 'Gutachten', 'Inhalte', 'Einstellungen', 'Team'])
-            ->and(array_column($nav[1]['pages'], 'label'))->toBe(['Anfragen'])
+            ->and(array_column($nav[1]['pages'], 'label'))->toBe(['Bestellungen', 'Anfragen'])
             ->and(array_column($nav[2]['pages'], 'label'))->toBe(['Dokumente'])
             ->and(array_column($nav[3]['pages'], 'label'))->toBe(['Seiten', 'FAQ', 'Navigation'])
             ->and(array_column($nav[4]['pages'], 'label'))->toBe(['Zubehörpreise'])

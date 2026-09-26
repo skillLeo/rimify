@@ -27,6 +27,7 @@ function adminPageAccessRoutes(): array
 {
     return [
         'gutachten' => ['/admin/gutachten', PermissionModule::Approvals],
+        'bestellungen' => ['/admin/bestellungen', PermissionModule::Orders],
         'anfragen' => ['/admin/anfragen', PermissionModule::Approvals],
         'rollen' => ['/admin/rollen', PermissionModule::Roles],
         'benutzer' => ['/admin/benutzer', PermissionModule::Roles],

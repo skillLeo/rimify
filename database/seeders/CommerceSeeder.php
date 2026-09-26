@@ -220,6 +220,12 @@ class CommerceSeeder extends Seeder
                     'tax_cents' => $tax,
                     'total_cents' => $total,
                     'currency' => 'EUR',
+                    // How a demo order was paid, where it got as far as a payment: mostly card, some
+                    // PayPal, so the list's Zahlart filter has something to show. Shipping methods
+                    // stay empty until the client names theirs (Einstellungen › Versand).
+                    'payment_method' => $status->isPaid() || $status === OrderStatus::Failed
+                        ? ($index % 4 === 1 ? 'paypal' : 'card')
+                        : null,
                     'placed_at' => $status === OrderStatus::Draft ? null : $placedAt,
                     'paid_at' => $status->isPaid() ? $placedAt->copy()->addMinutes(3) : null,
                     'shipped_at' => in_array($status, [OrderStatus::Shipped, OrderStatus::Completed], true)

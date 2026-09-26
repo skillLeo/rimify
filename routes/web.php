@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\AnfragenController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\BenutzerController;
+use App\Http\Controllers\Admin\BestellungenController;
 use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenController;
@@ -225,6 +226,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/protokoll/export', [ProtokollController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':audit_log,export')
             ->name('protokoll.export');
+        // Verkauf › Bestellungen (docs/admin/rest-build-plan.md, step 2): the filters ride in the URL;
+        // the export needs the right to take customer data away as well as to read it.
+        Route::get('/bestellungen', [BestellungenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':orders,view')
+            ->name('bestellungen.index');
+        Route::get('/bestellungen/export', [BestellungenController::class, 'export'])
+            ->middleware(EnsureAdminMay::class.':orders,export')
+            ->name('bestellungen.export');
+
         // Verkauf › Anfragen — the „Sag mir Bescheid“ subscriptions. Customer e-mail addresses: the
         // Gutachten area's to read, nobody else's (the team that answers them with a document).
         Route::get('/anfragen', [AnfragenController::class, 'index'])

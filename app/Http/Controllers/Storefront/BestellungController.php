@@ -9,7 +9,6 @@ use App\Models\Order;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +28,7 @@ class BestellungController extends Controller
             ->where('order_number', $order)
             ->firstOrFail();
 
-        $demo = $this->isDemo($record);
+        $demo = $record->isDemo();
         $lines = [];
 
         foreach ($record->lines as $line) {
@@ -79,20 +78,5 @@ class BestellungController extends Controller
             // then offers the e-mail.
             'contact' => Chrome::contact(),
         ]);
-    }
-
-    /**
-     * Whether an order is seeded demonstration data: any of its lines is a wheel from a demo
-     * model. Every order CommerceSeeder writes has such a line, and a demo model can never be
-     * ordered (KasseController refuses it), so a real order never matches.
-     */
-    private function isDemo(Order $order): bool
-    {
-        return DB::table('order_lines as ol')
-            ->join('wheel_configs as wc', 'wc.id', '=', 'ol.wheel_config_id')
-            ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
-            ->where('ol.order_id', $order->id)
-            ->where('wm.is_demo', true)
-            ->exists();
     }
 }

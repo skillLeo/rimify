@@ -419,6 +419,11 @@ describe('putting every entry into words', function (): void {
             'tpms_price.deleted' => [['make_key' => 'porsche'], 'Der RDKS-Sensorpreis für Porsche wurde gelöscht.', []],
             'tpms_default_price.updated' => [['old_cents' => 1500, 'cents' => null], 'Der Standardpreis für RDKS-Sensoren wurde geändert.', ['Standardpreis je Sensor: '.$euro(1500).' → nicht festgelegt']],
             'audit_log.exported' => [['filters' => [], 'count' => 3], 'Das ganze Protokoll wurde als CSV exportiert – 3 Einträge.', []],
+            'orders.exported' => [
+                ['format' => 'xlsx', 'filters' => ['status' => 'PAID', 'von' => '2026-09-01', 'bis' => '2026-09-26'], 'count' => 12],
+                'Bestellungen wurden als Excel-Datei exportiert (Status „Bezahlt“, Zeitraum 01.09.2026 bis 26.09.2026) – 12 Bestellungen.',
+                [],
+            ],
             'page.created' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Ratgeber-Artikel „ET richtig lesen“ wurde angelegt. Er ist noch nicht veröffentlicht.', []],
             'page.draft_saved' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Für die Seite „Impressum“ wurde ein Entwurf gespeichert.', []],
             'page.draft_discarded' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Der Entwurf der Seite „Impressum“ wurde verworfen.', []],

@@ -81,10 +81,13 @@ it('links every figure whose list is built, and says in one line what each count
         'review' => '/admin/fahrzeuge/pruefung',
     ];
 
+    // A figure that counts part of its list opens the list filtered to exactly that part.
+    $filters = ['orders' => '?status=offen'];
+
     foreach (uebersichtProps($admin)['tiles'] as $tile) {
         $built = in_array($lists[$tile['key']], AdminNavigation::BUILT, true);
 
-        expect($tile['href'])->toBe($built ? $lists[$tile['key']] : null)
+        expect($tile['href'])->toBe($built ? $lists[$tile['key']].($filters[$tile['key']] ?? '') : null)
             ->and($tile['hint'])->toBeString()->not->toBe('')
             ->and($tile['hint'])->toEndWith('.');
     }

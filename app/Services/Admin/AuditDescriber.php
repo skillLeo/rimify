@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AuditLog;
+use App\Services\Admin\Orders\OrderList;
 use App\Services\Content\NavigationSchema;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
@@ -34,6 +36,7 @@ final class AuditDescriber
 {
     /** The Protokoll's areas, as the filter offers them: key in the query string => German label. */
     public const AREAS = [
+        'verkauf' => 'Verkauf',
         'team' => 'Team',
         'katalog' => 'Katalog',
         'inhalte' => 'Inhalte',
@@ -70,6 +73,7 @@ final class AuditDescriber
         'tpms_price.deleted' => 'katalog',
         'tpms_default_price.updated' => 'katalog',
         'audit_log.exported' => 'protokoll',
+        'orders.exported' => 'verkauf',
         'page.created' => 'inhalte',
         'page.draft_saved' => 'inhalte',
         'page.draft_discarded' => 'inhalte',
@@ -116,6 +120,7 @@ final class AuditDescriber
         'admin.protokoll' => 'Protokoll',
         'admin.gutachten' => 'Gutachten',
         'admin.anfragen' => 'Anfragen',
+        'admin.bestellungen' => 'Bestellungen',
         'admin.benachrichtigungen' => 'Benachrichtigungen',
         'admin.profil' => 'Profil',
         'admin.seiten' => 'Seiten',
@@ -263,6 +268,7 @@ final class AuditDescriber
                 [self::change('Standardpreis je Sensor', self::money($p['old_cents'] ?? null), self::money($p['cents'] ?? null))],
             ],
             'audit_log.exported' => [self::exported($p), []],
+            'orders.exported' => [self::ordersExported($p), []],
             'page.created' => ['Der Ratgeber-Artikel '.self::page($p).' wurde angelegt. Er ist noch nicht veröffentlicht.', []],
             'page.draft_saved' => ['Für die Seite '.self::page($p).' wurde ein Entwurf gespeichert.', []],
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
@@ -546,6 +552,42 @@ final class AuditDescriber
             PermissionAction::Export->value => 'auf der Seite '.self::q($page).' zu exportieren',
             default => 'auf der Seite '.self::q($page).' das Recht '.self::q(self::right($module, $action)).' zu nutzen',
         };
+    }
+
+    /**
+     * `Bestellungen wurden als Excel-Datei exportiert (Status „Bezahlt“, Zeitraum 01.09.2026 bis
+     * 26.09.2026) – 12 Bestellungen.`: which customer data left the panel, and how much of it.
+     *
+     * @param  array<string, mixed>  $p
+     */
+    private static function ordersExported(array $p): string
+    {
+        $filters = self::map($p, 'filters');
+        $count = is_numeric($p['count'] ?? null) ? (int) $p['count'] : null;
+        $format = self::text($p, 'format') === 'xlsx' ? 'als Excel-Datei' : 'als CSV';
+        $parts = [];
+
+        $status = self::text($filters, 'status');
+
+        if ($status !== null) {
+            $parts[] = 'Status '.self::q($status === OrderList::OPEN ? 'Zu versenden' : (OrderStatus::tryFrom($status)?->labelDe() ?? $status));
+        }
+
+        $from = self::day(self::text($filters, 'von'));
+        $to = self::day(self::text($filters, 'bis'));
+
+        if ($from !== null || $to !== null) {
+            $parts[] = 'Zeitraum '.($from ?? '…').' bis '.($to ?? '…');
+        }
+
+        if (self::text($filters, 'q') !== null) {
+            $parts[] = 'Suche '.self::q((string) self::text($filters, 'q'));
+        }
+
+        $scope = $parts === [] ? '' : ' ('.implode(', ', $parts).')';
+        $rows = $count === null ? '' : ' – '.self::count($count, 'Bestellung', 'Bestellungen');
+
+        return 'Bestellungen wurden '.$format.' exportiert'.$scope.$rows.'.';
     }
 
     /** @param  array<array-key, mixed>  $p */
