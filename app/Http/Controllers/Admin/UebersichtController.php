@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\UebersichtRequest;
 use App\Models\AdminUser;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Dashboard\ChartData;
+use App\Services\Admin\Dashboard\Coverage;
 use App\Services\Admin\Dashboard\Period;
 use App\Services\Admin\Dashboard\SalesFigures;
 use App\Services\Admin\Dashboard\WorkLists;
@@ -36,7 +37,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class UebersichtController extends Controller
 {
-    public function __invoke(UebersichtRequest $request, SalesFigures $sales, WorkLists $lists, ChartData $charts): Response|RedirectResponse
+    public function __invoke(UebersichtRequest $request, SalesFigures $sales, WorkLists $lists, ChartData $charts, Coverage $coverage): Response|RedirectResponse
     {
         $admin = $request->admin();
         ['period' => $period, 'compare' => $compare] = $request->choice();
@@ -75,6 +76,8 @@ class UebersichtController extends Controller
                 'topWheels' => $admin->may(PermissionModule::Orders, PermissionAction::View) || $admin->may(PermissionModule::Reports, PermissionAction::View)
                     ? $charts->topWheels($period)
                     : false,
+                // What the shop may show, by make and rim size — not a period figure: coverage is now.
+                'coverage' => $admin->may(PermissionModule::Approvals, PermissionAction::View) ? $coverage->matrix() : false,
             ]),
             'can' => [
                 'export' => $admin->may(PermissionModule::Reports, PermissionAction::Export),

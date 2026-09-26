@@ -115,11 +115,38 @@ export interface VerdictChart {
     since: string | null
 }
 
+export interface CoverageCell {
+    /** `19`, `18,5` */
+    size: string
+    count: number
+    /** 0 for none, 1–7: the step of the sequential ramp. */
+    level: number
+    /** `BMW, 19 Zoll: 142 von 168 Varianten` */
+    sentence: string
+    href: string | null
+}
+
+export interface CoverageRow {
+    make: string
+    variants: number
+    covered: number
+    cells: CoverageCell[]
+}
+
+export interface CoverageMatrix {
+    sizes: { key: string; label: string }[]
+    rows: CoverageRow[]
+    max: number
+    summary: { fitments: string; variants: string; sentence: string }
+    computedAt: string
+}
+
 export interface DashboardCharts {
     /** false: not for this role; null: nothing to draw yet. */
     revenue: RevenueChart | null | false
     verdicts: VerdictChart | null | false
     topWheels: ChartPoint[] | false
+    coverage: CoverageMatrix | false
 }
 
 export interface AdminUebersichtProps {

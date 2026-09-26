@@ -18,6 +18,7 @@ import ChartMenu from '../../../Components/Admin/Charts/ChartMenu.vue'
 import ChartTable from '../../../Components/Admin/Charts/ChartTable.vue'
 import LineChart from '../../../Components/Admin/Charts/LineChart.vue'
 import StackedBar from '../../../Components/Admin/Charts/StackedBar.vue'
+import CoverageMatrix from '../../../Components/Admin/Dashboard/CoverageMatrix.vue'
 import DashWidget from '../../../Components/Admin/Dashboard/DashWidget.vue'
 import KpiTile from '../../../Components/Admin/Dashboard/KpiTile.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
@@ -247,6 +248,22 @@ const kpiSpan = computed(() => (props.kpis.length > 0 ? Math.max(3, Math.floor(1
                     </ul>
                 </DashWidget>
             </div>
+
+            <!-- Row 5: the client's core asset, made visible — what the shop may show, by make and size. -->
+            <Deferred v-if="charts?.coverage !== false" data="charts">
+                <template #fallback>
+                    <DashWidget title="Abdeckung" loading :skeleton-rows="8" />
+                </template>
+                <DashWidget
+                    v-if="charts"
+                    title="Abdeckung"
+                    href="/admin/abdeckung"
+                    href-label="Abdeckung öffnen"
+                    :empty="charts.coverage.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import der Fahrzeugliste.'"
+                >
+                    <CoverageMatrix :matrix="charts.coverage" />
+                </DashWidget>
+            </Deferred>
         </div>
     </AdminPage>
 </template>

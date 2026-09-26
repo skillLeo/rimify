@@ -122,6 +122,7 @@ final class AuditDescriber
         'admin.anfragen' => 'Anfragen',
         'admin.bestellungen' => 'Bestellungen',
         'admin.system' => 'Systemzustand',
+        'admin.abdeckung' => 'Abdeckung',
         'admin.benachrichtigungen' => 'Benachrichtigungen',
         'admin.profil' => 'Profil',
         'admin.seiten' => 'Seiten',

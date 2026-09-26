@@ -168,6 +168,7 @@ final class AdminNavigation
     public const BUILT = [
         '/admin',
         '/admin/gutachten',
+        '/admin/abdeckung',
         '/admin/bestellungen',
         '/admin/anfragen',
         '/admin/zubehoerpreise',

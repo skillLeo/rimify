@@ -187,6 +187,11 @@
     --chart-div-mid: #e2e5e9;
     --chart-div-pos: #1a44d4;
 
+    /* A matrix cell pointed at or focused: a 2 px ring in ink, inside the cell. */
+    --chart-cell-hover: inset 0 0 0 2px var(--c-ink);
+    /* …and a cell with nothing in it: its hairline only. */
+    --chart-cell-empty: inset 0 0 0 1px var(--c-line);
+
     /* A table row that holds the keyboard's focus: a 2 px bar in the accent at its start. */
     --adm-row-focus: inset 2px 0 0 var(--c-blue);
 

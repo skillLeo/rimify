@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\AbdeckungController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminPreferencesController;
 use App\Http\Controllers\Admin\AdminProfileController;
@@ -230,6 +231,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/protokoll/export', [ProtokollController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':audit_log,export')
             ->name('protokoll.export');
+        // Gutachten › Abdeckung: the coverage matrix and the variants behind each of its cells.
+        Route::get('/abdeckung', [AbdeckungController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':approvals,view')
+            ->name('abdeckung.index');
+
         // Verkauf › Bestellungen (docs/admin/rest-build-plan.md, step 2): the filters ride in the URL;
         // the export needs the right to take customer data away as well as to read it.
         Route::get('/bestellungen', [BestellungenController::class, 'index'])
