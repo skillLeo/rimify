@@ -190,8 +190,9 @@ it('refuses a denied role at the URL with a 403 and logs the attempt with its ro
     $this->actingAs(rechteAdmin('content-editor'), 'admin')
         ->get(PROBE_PATH)
         ->assertForbidden()
+        // Answered inside the admin's own frame, not with the shop's error page (AdminErrorPage).
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Fehler/Index')
+            ->component('Admin/Fehler/Index')
             ->where('status', 403)
         );
 

@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  * An entry stores an event name and its properties — codes, ids, cents. None of that is shown: the
  * sentence is written the way R-15 writes a condition, as a sentence, never as `role_permission.
  * updated`. Money goes through GermanFormat, a right through the same German words the Rollen &
- * Rechte grid uses, a switch as erlaubt/verboten or aktiv/inaktiv.
+ * Rechte grid uses, a switch as erlaubt/nicht erlaubt or aktiv/inaktiv.
  *
  * Two things this never does. It never prints a secret: any property whose key names a password,
  * token or secret is dropped before anything is read, even though no writer is meant to store one.
@@ -283,7 +283,7 @@ final class AuditDescriber
         $old = $p['old'] ?? null;
 
         return [
-            'Für '.$this->role($p).' wurde '.self::q($right).($allowed ? ' erlaubt.' : ' verboten.'),
+            ucfirst($this->roleDative($p)).' wurde das Recht '.self::q($right).($allowed ? ' gegeben.' : ' entzogen.'),
             [self::change($right, $old === null ? 'nicht festgelegt' : self::allowed((bool) $old), self::allowed($allowed))],
         ];
     }
@@ -296,7 +296,7 @@ final class AuditDescriber
     {
         $added = self::list($p, 'added');
         $removed = self::list($p, 'removed');
-        $role = $this->role($p);
+        $role = $this->roleDative($p);
 
         $changes = [];
 
@@ -311,7 +311,7 @@ final class AuditDescriber
         $parts = [];
 
         if ($added !== []) {
-            $parts[] = self::count(count($added), 'Recht', 'Rechte').' erlaubt';
+            $parts[] = self::count(count($added), 'Recht', 'Rechte').' gegeben';
         }
 
         if ($removed !== []) {
@@ -319,12 +319,13 @@ final class AuditDescriber
         }
 
         if ($parts === []) {
-            return ['Für '.$role.' wurden die Rechte ohne Änderung gespeichert.', []];
+            // "der Rolle" reads as the genitive here: die Rechte der Rolle.
+            return ['Die Rechte '.$role.' wurden ohne Änderung gespeichert.', []];
         }
 
         $verb = count($added) + count($removed) === 1 ? 'wurde' : 'wurden';
 
-        return ['Für '.$role.' '.$verb.' '.implode(' und ', $parts).'.', $changes];
+        return [ucfirst($role).' '.$verb.' '.implode(' und ', $parts).'.', $changes];
     }
 
     /** @param  array<array-key, mixed>  $p */
@@ -333,14 +334,36 @@ final class AuditDescriber
         $route = self::text($p, 'route') ?? '';
         $prefix = implode('.', array_slice(explode('.', $route), 0, 2));
         $page = self::PAGES[$prefix] ?? null;
-        $attempt = self::ABILITIES[self::text($p, 'ability') ?? ''] ?? null;
+        $ability = self::text($p, 'ability') ?? '';
 
         if ($page === null) {
             return 'Ein Zugriff wurde abgelehnt, weil die Berechtigung dafür fehlte.';
         }
 
-        return 'Der Versuch, auf der Seite '.self::q($page).' '.($attempt ?? 'etwas zu tun')
-            .', wurde abgelehnt, weil die Berechtigung dafür fehlte.';
+        $attempt = self::pageAttempt($ability, $page)
+            ?? 'auf der Seite '.self::q($page).' '.(self::ABILITIES[$ability] ?? 'etwas zu tun');
+
+        return 'Der Versuch, '.$attempt.', wurde abgelehnt, weil die Berechtigung dafür fehlte.';
+    }
+
+    /**
+     * A page's own permission, as EnsureAdminMay records it (`approvals.view`), as what completes
+     * „Der Versuch, … ": opening the page, exporting from it, or using the named right there. Null
+     * for a policy ability (`update`), which the ABILITIES table words instead.
+     */
+    private static function pageAttempt(string $ability, string $page): ?string
+    {
+        [$module, $action] = array_pad(explode('.', $ability, 2), 2, '');
+
+        if (PermissionModule::tryFrom($module) === null || PermissionAction::tryFrom($action) === null) {
+            return null;
+        }
+
+        return match ($action) {
+            PermissionAction::View->value => 'die Seite '.self::q($page).' zu öffnen',
+            PermissionAction::Export->value => 'auf der Seite '.self::q($page).' zu exportieren',
+            default => 'auf der Seite '.self::q($page).' das Recht '.self::q(self::right($module, $action)).' zu nutzen',
+        };
     }
 
     /** @param  array<array-key, mixed>  $p */
@@ -463,9 +486,10 @@ final class AuditDescriber
             : 'nicht festgelegt';
     }
 
+    /** A right is given or not: "nicht erlaubt", never "verboten", which is not how German speaks of it. */
     private static function allowed(bool $allowed): string
     {
-        return $allowed ? 'erlaubt' : 'verboten';
+        return $allowed ? 'erlaubt' : 'nicht erlaubt';
     }
 
     /** `Katalog · Bearbeiten` — the grid's own words for one cell. */
@@ -516,6 +540,21 @@ final class AuditDescriber
         }
 
         return $this->roleLabels[$id] === null ? 'eine inzwischen gelöschte Rolle' : 'die Rolle '.self::q($this->roleLabels[$id]);
+    }
+
+    /**
+     * The same role as the object of giving and taking — "der Rolle „Lager“ wurde … gegeben" — and,
+     * since the feminine forms coincide, as the genitive of "die Rechte der Rolle …".
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private function roleDative(array $p): string
+    {
+        return match ($role = $this->role($p)) {
+            'eine inzwischen gelöschte Rolle' => 'einer inzwischen gelöschten Rolle',
+            'eine Rolle ohne Angabe' => 'einer Rolle ohne Angabe',
+            default => 'der '.substr($role, strlen('die ')),
+        };
     }
 
     /**

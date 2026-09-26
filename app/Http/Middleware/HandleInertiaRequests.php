@@ -79,7 +79,11 @@ class HandleInertiaRequests extends Middleware
     {
         $routeName = Route::currentRouteName();
 
-        if (! is_string($routeName) || ! str_starts_with($routeName, 'admin.')) {
+        // An admin route — or any address under /admin, so a page that does not exist is still
+        // answered inside the admin's frame for somebody signed into it (AdminErrorPage).
+        $isAdmin = (is_string($routeName) && str_starts_with($routeName, 'admin.')) || $request->is('admin', 'admin/*');
+
+        if (! $isAdmin) {
             return [];
         }
 

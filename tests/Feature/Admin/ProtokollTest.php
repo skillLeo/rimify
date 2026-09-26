@@ -376,13 +376,13 @@ describe('putting every entry into words', function (): void {
             'role.deleted' => [['role_id' => 50, 'label' => 'Lager'], 'Die Rolle „Lager“ wurde gelöscht.', []],
             'role_permission.updated' => [
                 ['role_id' => $accountant, 'module' => 'catalogue', 'action' => 'edit', 'old' => false, 'allowed' => true],
-                'Für die Rolle „'.$accountantLabel.'“ wurde „Katalog · Bearbeiten“ erlaubt.',
-                ['Katalog · Bearbeiten: verboten → erlaubt'],
+                'Der Rolle „'.$accountantLabel.'“ wurde das Recht „Katalog · Bearbeiten“ gegeben.',
+                ['Katalog · Bearbeiten: nicht erlaubt → erlaubt'],
             ],
             'role_permissions.replaced' => [
                 ['role_id' => $accountant, 'label' => 'Buchhaltung', 'added' => ['catalogue.edit', 'audit_log.view'], 'removed' => ['reports.export']],
-                'Für die Rolle „Buchhaltung“ wurden 2 Rechte erlaubt und 1 Recht entzogen.',
-                ['Katalog · Bearbeiten: verboten → erlaubt', 'Protokoll · Ansehen: verboten → erlaubt', 'Auswertungen · Exportieren: erlaubt → verboten'],
+                'Der Rolle „Buchhaltung“ wurden 2 Rechte gegeben und 1 Recht entzogen.',
+                ['Katalog · Bearbeiten: nicht erlaubt → erlaubt', 'Protokoll · Ansehen: nicht erlaubt → erlaubt', 'Auswertungen · Exportieren: erlaubt → nicht erlaubt'],
             ],
             'admin.invited' => [['email' => 'neu@rimify.test', 'role_label' => 'Support Agent'], 'Die Einladung an neu@rimify.test mit der Rolle „Support Agent“ wurde verschickt.', []],
             'admin.invitation_resent' => [['email' => 'neu@rimify.test'], 'Die Einladung an neu@rimify.test wurde noch einmal verschickt.', []],
@@ -445,7 +445,7 @@ describe('putting every entry into words', function (): void {
             'role_id' => 99999, 'module' => 'orders', 'action' => 'export', 'old' => null, 'allowed' => false,
         ]));
 
-        expect($described['sentence'])->toBe('Für eine inzwischen gelöschte Rolle wurde „Bestellungen · Exportieren“ verboten.')
+        expect($described['sentence'])->toBe('Einer inzwischen gelöschten Rolle wurde das Recht „Bestellungen · Exportieren“ entzogen.')
             ->and($described['changes'][0]['before'])->toBe('nicht festgelegt');
     });
 

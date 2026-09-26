@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
+use App\Services\Admin\AdminErrorPage;
 use App\Services\Storefront\Chrome;
 use App\Services\Storefront\ErrorPage;
 use Illuminate\Auth\Middleware\Authenticate;
@@ -60,6 +61,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE]);
 
         $middleware->redirectGuestsTo(fn (): string => '/admin/anmelden');
+
+        // Somebody already signed into the admin who opens its sign-in page or an invitation link is
+        // sent into the admin, never to the shop's home page.
+        $middleware->redirectUsersTo(fn (Request $request): string => $request->is('admin', 'admin/*') ? '/admin' : '/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -76,6 +81,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return $response;
+            }
+
+            // Inside the admin, for somebody signed into it: the admin's own frame (AdminErrorPage).
+            $admin = app(AdminErrorPage::class);
+
+            if ($admin->handles($request, $response->getStatusCode())) {
+                return $admin->render($request, $response);
             }
 
             $pages = app(ErrorPage::class);

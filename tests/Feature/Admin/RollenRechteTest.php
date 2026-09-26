@@ -218,5 +218,5 @@ it('tells the page whether this admin may edit, so a reader is not shown control
 it('refuses the page to a role without roles × view, and sends none of the roles', function (): void {
     $this->actingAs(rolesAdmin('accountant'), 'admin')->get('/admin/rollen')
         ->assertForbidden()
-        ->assertInertia(fn ($page) => $page->component('Fehler/Index')->missing('roles'));
+        ->assertInertia(fn ($page) => $page->component('Admin/Fehler/Index')->where('area', 'Rollen & Rechte')->missing('roles'));
 });

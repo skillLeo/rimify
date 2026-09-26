@@ -6,6 +6,8 @@ use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
+use App\Services\Admin\AdminErrorPage;
+use App\Services\Admin\AuditDescriber;
 use Database\Seeders\AccessSeeder;
 
 /**
@@ -69,4 +71,59 @@ it('sends somebody who is not signed in to the sign-in screen, not to a refusal'
     foreach (adminPageAccessRoutes() as [$path]) {
         $this->get($path)->assertRedirect('/admin/anmelden');
     }
+});
+
+describe('answering a failure inside the admin', function (): void {
+    it('refuses inside the admin frame and names the area the page belongs to', function (): void {
+        $editor = AdminUser::query()->where('email', 'content-editor@rimify.test')->firstOrFail();
+
+        $this->actingAs($editor, 'admin')->get('/admin/gutachten')
+            ->assertForbidden()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Fehler/Index')
+                ->where('status', 403)
+                ->where('area', 'Gutachten')
+                ->has('admin.nav'));
+    });
+
+    it('answers an address that does not exist inside the admin frame, for somebody signed in', function (): void {
+        $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+
+        $this->actingAs($admin, 'admin')->get('/admin/gibt-es-nicht')
+            ->assertNotFound()
+            ->assertInertia(fn ($page) => $page->component('Admin/Fehler/Index')->where('status', 404)->has('admin.nav'));
+    });
+
+    it('sends a save that was throttled back to its form, input kept, with one German sentence', function (): void {
+        $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->actingAs($admin, 'admin')->from('/admin/profil')->put('/admin/profil/passwort', ['current_password' => 'falsch']);
+        }
+
+        $this->actingAs($admin, 'admin')->from('/admin/profil')
+            ->put('/admin/profil/passwort', ['current_password' => 'falsch', 'password' => 'geheim-und-lang-genug'])
+            ->assertRedirect('/admin/profil')
+            ->assertSessionHas('toast', AdminErrorPage::TOO_MANY);
+
+        // A password is never kept for the form to show again.
+        expect(session()->getOldInput('password'))->toBeNull();
+    });
+
+    it('sends somebody already signed in from the sign-in page into the admin, not to the shop', function (): void {
+        $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+
+        $this->actingAs($admin, 'admin')->get('/admin/anmelden')->assertRedirect('/admin');
+    });
+});
+
+it('writes a refused page into the Protokoll as a sentence a person can read', function (): void {
+    $editor = AdminUser::query()->where('email', 'content-editor@rimify.test')->firstOrFail();
+
+    $this->actingAs($editor, 'admin')->get('/admin/gutachten')->assertForbidden();
+
+    $entry = AuditLog::query()->where('description', 'permission.denied')->latest('id')->firstOrFail();
+
+    expect(app(AuditDescriber::class)->describe($entry)['sentence'])
+        ->toBe('Der Versuch, die Seite „Gutachten“ zu öffnen, wurde abgelehnt, weil die Berechtigung dafür fehlte.');
 });

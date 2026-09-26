@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Services\Admin\AdminErrorPage;
 use App\Services\Admin\AuditTrail;
 use Closure;
 use Illuminate\Http\Request;
@@ -44,6 +45,9 @@ final class EnsureAdminMay
                 'ability' => $case->value.'.'.$verb->value,
                 'route' => Route::currentRouteName(),
             ]);
+
+            // So the refusal can name the area, the same word the Rollen & Rechte grid uses.
+            $request->attributes->set(AdminErrorPage::DENIED_AREA, $case->labelDe());
 
             abort(403);
         }
