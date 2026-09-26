@@ -555,6 +555,11 @@ export interface AdminRollenProps {
         label: string
         actions: { action: string; label: string; roles: Record<number, boolean> }[]
     }[]
+    /**
+     * Whether this admin holds `roles × ändern`. It decides only whether the grid draws checkboxes
+     * or ticks and dashes; the server refuses the write regardless (R-11).
+     */
+    can: { update: boolean }
 }
 
 /**

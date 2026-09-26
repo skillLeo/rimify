@@ -10,7 +10,7 @@
  * The dark layer is a token redefinition on `data-theme`, not a second stylesheet.
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Components/Art/Icon.vue'
 import Toast from '../Components/Chrome/Toast.vue'
@@ -66,6 +66,32 @@ function canFrom(admin: unknown): Record<string, boolean> {
 const can = computed(() => canFrom(shared.value.admin))
 const items = computed(() => rail.filter((item) => item.module === null || can.value[item.module] === true))
 
+/**
+ * Who is signed in, as the server shares it — the name and the role they are wearing.
+ *
+ * The rail says it out loud rather than hiding it behind an avatar: on a panel where the same
+ * screen shows different things to different roles, "which account am I?" is the question behind
+ * half of all confusion, and it costs one line to answer permanently.
+ */
+const account = computed(() => {
+    const admin: unknown = shared.value.admin
+
+    if (admin === null || typeof admin !== 'object') {
+        return null
+    }
+
+    const value = (admin as { account?: unknown }).account
+
+    return value !== null && typeof value === 'object' ? (value as { name: string; email: string; role: string | null }) : null
+})
+
+const signingOut = ref(false)
+
+function signOut(): void {
+    signingOut.value = true
+    router.post('/admin/abmelden', {}, { onFinish: () => (signingOut.value = false) })
+}
+
 function toggleTheme(): void {
     theme.value = theme.value === 'dark' ? 'light' : 'dark'
     apply()
@@ -105,7 +131,9 @@ onBeforeUnmount(() => {
 <template>
     <div class="adm">
         <aside class="adm__side">
-            <Link href="/admin" class="wordmark adm__mark">RIMIFY</Link>
+            <!-- `--light` because this rail is `--ink`: the plain wordmark is `--ink` too, so it
+                 was being set in near-black on near-black and simply was not there. -->
+            <Link href="/admin" class="wordmark wordmark--light adm__mark">RIMIFY</Link>
 
             <Link
                 v-for="item in items"
@@ -120,9 +148,25 @@ onBeforeUnmount(() => {
 
             <div class="adm__spacer" />
 
+            <!-- Who is signed in, then the two things you do with that: change how it looks, leave. -->
+            <div v-if="account" class="adm__account">
+                <p class="adm__account-name">{{ account.name }}</p>
+                <p class="adm__account-role">{{ account.role ?? account.email }}</p>
+            </div>
+
             <button class="adm__link adm__link--button" type="button" @click="toggleTheme">
                 <Icon name="settings" :size="20" />
                 {{ theme === 'dark' ? 'Helles Design' : 'Dunkles Design' }}
+            </button>
+
+            <button
+                class="adm__link adm__link--button"
+                type="button"
+                :disabled="signingOut"
+                @click="signOut"
+            >
+                <Icon name="close" :size="20" />
+                {{ signingOut ? 'Wird abgemeldet …' : 'Abmelden' }}
             </button>
         </aside>
 
@@ -147,6 +191,25 @@ onBeforeUnmount(() => {
 
 .adm__spacer {
     flex: 1;
+}
+
+.adm__account {
+    padding: var(--space-3);
+    border-top: 1px solid rgba(247, 248, 253, 0.16);
+}
+
+.adm__account-name {
+    color: var(--on-dark);
+    font-size: var(--text-small);
+    font-weight: 700;
+}
+
+.adm__account-role {
+    margin-top: 2px;
+    color: var(--on-dark-2);
+    font-size: var(--text-micro);
+    /* An address can be longer than the rail; it wraps rather than pushing the rail wider. */
+    overflow-wrap: anywhere;
 }
 
 .adm__link--button {

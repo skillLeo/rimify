@@ -9,6 +9,7 @@ use App\Enums\PermissionModule;
 use App\Models\AdminUser;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
 
@@ -63,11 +64,15 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Which modules the signed-in admin may see, for the rail — and only on `admin.*` routes, so no
-     * admin module name ever reaches a storefront page (RoutesRenderTest). Presentation only: an
-     * item the rail leaves out is a route the server refuses regardless (R-11).
+     * Who is signed in and which modules they may see, for the rail — and only on `admin.*` routes,
+     * so no admin module name and no colleague's name ever reaches a storefront page
+     * (RoutesRenderTest). Presentation only: an item the rail leaves out is a route the server
+     * refuses regardless (R-11).
      *
-     * @return array{admin?: array{can: array<string, bool>}}
+     * `account` is null on the sign-in screen, which is an `admin.*` route with nobody signed in
+     * yet — the rail is not drawn there at all, and a name would be a lie.
+     *
+     * @return array{admin?: array{can: array<string, bool>, account: array{name: string, email: string, role: string|null}|null}}
      */
     private function admin(Request $request): array
     {
@@ -84,6 +89,28 @@ class HandleInertiaRequests extends Middleware
             $can[$module->value] = $user instanceof AdminUser && $user->may($module, PermissionAction::View);
         }
 
-        return ['admin' => ['can' => $can]];
+        return ['admin' => [
+            'can' => $can,
+            'account' => $user instanceof AdminUser ? [
+                'name' => $user->name,
+                'email' => $user->email,
+                // The role as a human reads it, so the rail can say which hat this person is wearing.
+                'role' => self::roleLabel($user),
+            ] : null,
+        ]];
+    }
+
+    /** The German label of the first role this admin holds, or its bare name, or null for neither. */
+    private static function roleLabel(AdminUser $user): ?string
+    {
+        $name = $user->getRoleNames()->first();
+
+        if (! is_string($name)) {
+            return null;
+        }
+
+        $label = DB::table('roles')->where('name', $name)->where('guard_name', 'admin')->value('label_de');
+
+        return is_string($label) && $label !== '' ? $label : $name;
     }
 }
