@@ -614,3 +614,15 @@ export interface AdminRdksProps {
     default: { cents: number | null; typed: string }
     can: { create: boolean; update: boolean; delete: boolean }
 }
+
+export interface AdminProfilProps {
+    profile: {
+        name: string
+        email: string
+        /** The German role label; null means the address stands in for it. */
+        role: string | null
+        /** `26.09.2026, 13:10` in Europe/Berlin, or null before the first sign-in was recorded. */
+        lastLogin: string | null
+        twoFactor: boolean
+    }
+}

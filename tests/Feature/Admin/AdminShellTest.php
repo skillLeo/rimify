@@ -218,6 +218,28 @@ describe('the rail, remembered', function (): void {
     });
 });
 
+describe('the profile', function (): void {
+    it('opens for every role, says who they are, and names itself in the breadcrumbs', function (string $role): void {
+        $admin = shellAdmin($role);
+
+        $this->actingAs($admin, 'admin')->get('/admin/profil')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Admin/Profil/Index')
+                ->where('profile.name', $admin->name)
+                ->where('profile.email', $admin->email)
+                ->where('profile.role', $admin->roleLabel())
+                ->where('admin.breadcrumbs', [['label' => 'Profil', 'href' => null]]));
+    })->with(shellRoles());
+
+    it('never sends the password hash or the two-factor secret to the page', function (): void {
+        $this->actingAs(shellAdmin(), 'admin')->get('/admin/profil')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->missing('profile.password')
+                ->missing('profile.totp_secret'));
+    });
+});
+
 describe('changing your own password', function (): void {
     it('changes it, and the new one signs in', function (): void {
         $admin = shellAdmin();

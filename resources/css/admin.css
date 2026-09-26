@@ -1041,6 +1041,79 @@
     }
 }
 
+/* ── Forms (§8.2): one column, label above field, 720 px at most ─────────────────── */
+
+.adm-form {
+    display: grid;
+    gap: var(--sp-32);
+    max-width: var(--adm-form-max);
+}
+
+.adm-form__group {
+    display: grid;
+    gap: var(--sp-16);
+    min-width: 0;
+}
+
+.adm-form__heading {
+    margin: 0 0 calc(var(--sp-12) - var(--sp-16));
+    font-size: var(--fs-h4);
+    line-height: var(--lh-h4);
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--c-ink);
+}
+
+.adm-form__note {
+    max-width: 54ch;
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
+}
+
+@media (max-width: 1023px) {
+    .adm-form {
+        gap: var(--sp-24);
+    }
+}
+
+/* Facts about a record, read-only: label left, value right of it, one hairline per row. */
+.adm-facts {
+    margin: 0;
+    border-top: 1px solid var(--c-line);
+}
+
+.adm-facts__row {
+    display: grid;
+    grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+    gap: var(--sp-16);
+    align-items: center;
+    min-height: var(--adm-row-h);
+    padding-block: var(--sp-8);
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-facts__row dt {
+    color: var(--c-ink-2);
+    font-weight: 500;
+}
+
+.adm-facts__row dd {
+    margin: 0;
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+    .adm-facts__row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+}
+
 /* A destructive label: a secondary button or a menu row, only its words in the failure colour. */
 .adm-btn--danger,
 .adm-menu__item--danger {
@@ -1051,6 +1124,14 @@
  * The last thing on a form page, sticky to the bottom of the screen, out to the work area's edges.
  * In the flow rather than fixed, so the end of the form is never under it.                      */
 
+/* On a short form the bar still sits at the foot of the work area, not straight under the last
+   field: the body becomes a column and the bar takes the space that is left above it. */
+.adm-page__body:has(> .adm-savebar) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-32);
+}
+
 .adm-savebar {
     position: sticky;
     bottom: 0;
@@ -1060,7 +1141,7 @@
     justify-content: space-between;
     gap: var(--sp-16);
     height: var(--adm-topbar-h);
-    margin: var(--sp-32) calc(-1 * var(--adm-page-pad)) calc(-1 * var(--adm-page-pad));
+    margin: auto calc(-1 * var(--adm-page-pad)) calc(-1 * var(--adm-page-pad));
     padding-inline: var(--adm-page-pad);
     background: var(--c-surface);
     border-top: 1px solid var(--c-line);
@@ -1203,8 +1284,10 @@
 
 /* ── Density: the workbench, one notch tighter than the showroom (§2) ─────────────── */
 
+/* `.adm-dialog` is listed beside `.adm` because a dialog is portalled out of the frame. */
 @media (min-width: 768px) {
-    .adm .btn {
+    .adm .btn,
+    .adm-dialog .btn {
         min-height: var(--adm-control-h);
         padding-inline: var(--sp-16);
         font-size: var(--fs-small);
