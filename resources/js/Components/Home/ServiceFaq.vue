@@ -12,6 +12,7 @@ import { Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import Accordion, { type AccordionEntry } from '../Ui/Accordion.vue'
 import Icon from '../Ui/Icon.vue'
+import { paragraphs } from '../../format'
 import { useShared } from '../../composables/useShared'
 import type { FaqPreview } from '../../types/pages'
 
@@ -75,7 +76,12 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="service__faq">
-                <Accordion v-if="items.length > 0" :items="items" :level="3" />
+                <Accordion v-if="items.length > 0" :items="items" :level="3">
+                    <!-- The answer's own paragraphs, as the team typed them in Inhalte › FAQ. -->
+                    <template #body="{ item }">
+                        <p v-for="(paragraph, p) in paragraphs(item.body)" :key="p" class="service__para">{{ paragraph }}</p>
+                    </template>
+                </Accordion>
                 <p v-else class="body muted">Die häufigsten Fragen beantworten wir gerade neu.</p>
 
                 <Link href="/faq" class="link service__all" prefetch>Alle Fragen ansehen</Link>
@@ -87,6 +93,14 @@ onBeforeUnmount(() => {
 <style scoped>
 .service__grid {
     row-gap: var(--sp-40);
+}
+
+.service__para {
+    white-space: pre-line;
+}
+
+.service__para + .service__para {
+    margin-top: var(--sp-12);
 }
 
 .service__contact,

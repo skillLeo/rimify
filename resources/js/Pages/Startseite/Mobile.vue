@@ -45,16 +45,14 @@ const service = computed(() => shared.value.serviceStatus ?? null)
 
 /* ── H2 ─────────────────────────────────────────────────────────────────────── */
 
-/** The phone sentence from home.md, used while the CMS block only echoes the desktop one. */
+/** The phone sentence from home.md, for a homepage whose block carries no phone sentence of its own. */
 const PHONE_SUBLINE = 'Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.'
 
 const title = computed(() => (vehicle.value ? `Felgen, die an deinen ${vehicle.value.short} dürfen.` : props.hero.title))
-const subline = computed(() => {
-    const mobile = props.hero.sublineMobile
 
-    // A server that falls back to the desktop sentence would put five lines above the panel.
-    return mobile && mobile !== props.hero.subline ? mobile : PHONE_SUBLINE
-})
+/* The team's own phone sentence (Inhalte › Seiten, at most 110 characters). Never the desktop one:
+   its five lines would push the vehicle selector below the fold. */
+const subline = computed(() => props.hero.sublineMobile || PHONE_SUBLINE)
 
 /** F1 for the shared vehicle, in the first paint; the listing's total is the same figure's fallback. */
 const vehicleCount = computed(() => props.fitmentCount?.count ?? props.popular.total)
@@ -210,7 +208,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 
 <template>
     <Head :title="TITLE">
-        <meta name="description" :content="DESCRIPTION" head-key="description" />
+        <meta name="description" :content="DESCRIPTION" head-key="description">
     </Head>
 
     <!-- H2 · The question, and the panel that answers it. -->
@@ -338,7 +336,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     <!-- H7 · The one dark band: what a Komplettrad is, and its tyre's regulated facts. -->
     <section v-if="tyre" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
-            <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br />montiert und gewuchtet.</h2>
+            <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br>montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
 
             <KomplettradWheel class="home-komplett__wheel" />

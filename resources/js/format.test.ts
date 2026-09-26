@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { decimal, euro, felgen, NNBSP, withUnit, zoll } from './format'
+import { decimal, euro, felgen, NNBSP, paragraphs, withUnit, zoll } from './format'
 
 describe('format', () => {
+    it('reads a typed text as its paragraphs: a blank line starts a new one', () => {
+        expect(paragraphs('Erster Absatz.\n\nZweiter Absatz,\nmit Umbruch.')).toEqual(['Erster Absatz.', 'Zweiter Absatz,\nmit Umbruch.'])
+        expect(paragraphs('Windows\r\n\r\nZeilen')).toEqual(['Windows', 'Zeilen'])
+        expect(paragraphs('Leerzeile mit Leerzeichen\n   \nweiter')).toEqual(['Leerzeile mit Leerzeichen', 'weiter'])
+        expect(paragraphs('')).toEqual([])
+        expect(paragraphs(null)).toEqual([])
+    })
+
     it('counts wheels in one spelling', () => {
         expect(felgen(1)).toBe(`1${NNBSP}Felge`)
         expect(felgen(12)).toBe(`12${NNBSP}Felgen`)

@@ -14,6 +14,7 @@
 import { Head, Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import { paragraphs } from '../../format'
 import type { RechtlichesProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -69,7 +70,9 @@ const blocks = computed(() =>
 
                 <div v-for="block in blocks" :key="block.id" class="rec__block">
                     <h2 v-if="block.heading" class="t-h3">{{ block.heading }}</h2>
-                    <p class="t-body" :class="{ 'rec__placeholder': block.placeholder }">{{ block.text }}</p>
+                    <p v-if="block.placeholder" class="t-body rec__placeholder">{{ block.text }}</p>
+                    <!-- The Kanzlei's text as its paragraphs: a blank line typed in the admin is a new one. -->
+                    <p v-for="(paragraph, p) in paragraphs(block.text)" v-else :key="p" class="t-body rec__para">{{ paragraph }}</p>
                 </div>
 
                 <p v-if="blocks.length === 0" class="t-body rec__placeholder">
@@ -132,6 +135,15 @@ const blocks = computed(() =>
 
 .rec__block h2 {
     margin-bottom: var(--space-2);
+}
+
+/* A line break inside a paragraph stays one: an address in the Impressum is one line per row. */
+.rec__para {
+    white-space: pre-line;
+}
+
+.rec__para + .rec__para {
+    margin-top: var(--space-3);
 }
 
 .rec__placeholder {

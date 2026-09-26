@@ -46,3 +46,16 @@ export function zoll(inches: number | string | (number | string)[]): string {
 
     return withUnit(values.join(' · '), 'Zoll')
 }
+
+/**
+ * A text the team typed in Inhalte, as the paragraphs they meant: a blank line starts a new one
+ * (the editor says so under every long field). One rule for the Ratgeber, the legal pages and the
+ * FAQ, so no page prints a typed paragraph break as a single run-on block.
+ */
+export function paragraphs(text: string | null | undefined): string[] {
+    return (text ?? '')
+        .replace(/\r\n?/g, '\n')
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .filter((p) => p !== '')
+}

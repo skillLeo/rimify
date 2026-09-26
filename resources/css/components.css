@@ -944,6 +944,8 @@
         padding-bottom: var(--sp-24);
         color: var(--c-ink-2);
         hyphens: auto;
+        /* A body is often text the team typed in the admin: its line breaks are kept, as typed. */
+        white-space: pre-line;
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
