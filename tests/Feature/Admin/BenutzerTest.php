@@ -14,7 +14,7 @@ use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
-use Illuminate\Contracts\Queue\ShouldBeEncrypted;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -268,7 +268,7 @@ describe('inviting', function (): void {
             ->and($invitation->isOpen())->toBeTrue()
             ->and(abs($invitation->expires_at->diffInSeconds(now()->addDays(7))))->toBeLessThan(5);
 
-        Mail::assertQueued(AdminInvitationMail::class, function (AdminInvitationMail $mail) use ($invitation): bool {
+        Mail::assertSent(AdminInvitationMail::class, function (AdminInvitationMail $mail) use ($invitation): bool {
             $token = benutzerTokenFrom($mail->url);
 
             return $mail->hasTo('jana.winter@example.test')
@@ -303,7 +303,9 @@ describe('inviting', function (): void {
         $mail->assertSeeInHtml('03.10.2026, 14:22 Uhr');
         $mail->assertSeeInHtml('Hallo Jana');
 
-        expect($mail)->toBeInstanceOf(ShouldBeEncrypted::class);
+        // Sent at once, never queued: the link with its plain token is never written to a jobs table,
+        // and "ist verschickt" is true whether or not a queue worker runs.
+        expect($mail)->not->toBeInstanceOf(ShouldQueue::class);
     });
 
     it('refuses an address that already has an account', function (): void {
@@ -312,7 +314,7 @@ describe('inviting', function (): void {
             ->assertSessionHasErrors(['email' => BenutzerController::ADDRESS_HAS_ACCOUNT]);
 
         expect(AdminInvitation::query()->count())->toBe(0);
-        Mail::assertNothingQueued();
+        Mail::assertNothingSent();
     });
 
     it('refuses an address with an open invitation, but not one whose link ran out', function (): void {
@@ -382,7 +384,7 @@ describe('inviting', function (): void {
             ->assertForbidden();
 
         expect(AdminInvitation::query()->count())->toBe(0);
-        Mail::assertNothingQueued();
+        Mail::assertNothingSent();
     })->with(['accountant@rimify.test', 'teamansicht@rimify.test']);
 
     it('keeps the invitation and says so when the mail cannot be sent', function (): void {
@@ -413,7 +415,7 @@ describe('sending an invitation again', function (): void {
         expect($fresh?->token_hash)->not->toBe($oldHash)
             ->and(abs((int) $fresh?->expires_at->diffInSeconds(now()->addDays(7))))->toBeLessThan(5);
 
-        Mail::assertQueued(AdminInvitationMail::class, fn (AdminInvitationMail $mail): bool => $mail->hasTo('neu@example.test')
+        Mail::assertSent(AdminInvitationMail::class, fn (AdminInvitationMail $mail): bool => $mail->hasTo('neu@example.test')
             && AdminInvitation::hashToken(benutzerTokenFrom($mail->url)) === $fresh?->token_hash);
 
         // The link is opened by the invited person, who is nobody's session yet.
@@ -446,7 +448,7 @@ describe('sending an invitation again', function (): void {
             ->post("/admin/benutzer/einladungen/{$revoked->id}/erneut")
             ->assertSessionHasErrors(['invitation' => BenutzerController::INVITATION_REVOKED]);
 
-        Mail::assertNothingQueued();
+        Mail::assertNothingSent();
     });
 
     it('refuses somebody who may not hand out the role the invitation carries', function (): void {

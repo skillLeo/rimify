@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeEncrypted;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -15,14 +12,12 @@ use Illuminate\Mail\Mailables\Envelope;
  * The invitation into the admin: who invited you, which role you will hold, the link, and until
  * when it works. Nothing else — no contact details, no legal text.
  *
- * It carries only strings, already formatted, so a queued copy needs nothing from the database. The
- * link is the one place the plain token exists outside the recipient's inbox, so the queued job is
- * encrypted: the table keeps only the token's hash, and the queue must not keep more than that.
+ * Sent at once, not queued. "Die Einladung ist verschickt" must be true when the page says it, on a
+ * server whether or not a queue worker runs; and the link is the one place the plain token exists
+ * outside the recipient's inbox, so it is never written to a jobs table either.
  */
-class AdminInvitationMail extends Mailable implements ShouldBeEncrypted, ShouldQueue
+class AdminInvitationMail extends Mailable
 {
-    use Queueable;
-
     public const SUBJECT = 'Deine Einladung zum RIMIFY-Admin';
 
     /**
@@ -35,7 +30,11 @@ class AdminInvitationMail extends Mailable implements ShouldBeEncrypted, ShouldQ
         public readonly string $roleLabel,
         public readonly string $expiresAt,
         public readonly ?string $recipientName = null,
-    ) {}
+    ) {
+        // Rendered in German whatever the app's locale: the mail layout's own footer line
+        // ("All rights reserved.") goes through the translator (lang/de.json).
+        $this->locale('de');
+    }
 
     public function envelope(): Envelope
     {

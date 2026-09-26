@@ -77,6 +77,9 @@ class BenutzerController extends Controller
 
     public const INVITATION_REVOKED = 'Diese Einladung ist schon widerrufen.';
 
+    public const LAST_SUPER_ADMIN = 'Das ist das letzte aktive Konto mit der Rolle Super-Admin. '
+        .'Gib die Rolle zuerst einer anderen Person.';
+
     public const MAIL_FAILED = 'Die Einladung ist angelegt, aber die E-Mail konnte nicht verschickt werden. '
         .'Versuch es gleich mit „Erneut senden“.';
 
@@ -324,6 +327,10 @@ class BenutzerController extends Controller
                 throw ValidationException::withMessages(['role_id' => RollenController::LOCKOUT_REFUSAL]);
             }
 
+            if (! self::superAdminsRemain()) {
+                throw ValidationException::withMessages(['role_id' => self::LAST_SUPER_ADMIN]);
+            }
+
             AuditTrail::record($admin, 'admin.role_changed', [
                 'user_id' => (int) $user->getKey(),
                 'email' => $user->email,
@@ -355,6 +362,10 @@ class BenutzerController extends Controller
 
             if (! self::roleEditorsRemain()) {
                 throw ValidationException::withMessages(['account' => RollenController::LOCKOUT_REFUSAL]);
+            }
+
+            if (! self::superAdminsRemain()) {
+                throw ValidationException::withMessages(['account' => self::LAST_SUPER_ADMIN]);
             }
 
             AuditTrail::record($admin, 'admin.suspended', self::who($user), $user);
@@ -411,7 +422,7 @@ class BenutzerController extends Controller
      * are the Super-Admin, who may hand out everything.
      *
      * @param  array<int, array{name: string, label: string}>  $roles
-     * @return array{super: bool, cells: array<string, true>, byRole: array<int, array<string, true>>}
+     * @return array{super: bool, cells: array<string, true>, byRole: array<int, array<string, true>>, superRoles: list<int>}
      */
     private static function reach(AdminUser $admin, array $roles): array
     {
@@ -424,23 +435,39 @@ class BenutzerController extends Controller
             $super = $super || ($roles[$id]['name'] ?? null) === self::SUPER_ADMIN;
         }
 
-        return ['super' => $super, 'cells' => $cells, 'byRole' => $byRole];
+        // The Super-Admin role is more than its cells: an all-rights copy of it is still not it, and
+        // only a Super-Admin hands it out or acts on somebody who holds it (BRIEF §2).
+        $superRoles = [];
+
+        foreach ($roles as $id => $role) {
+            if ($role['name'] === self::SUPER_ADMIN) {
+                $superRoles[] = $id;
+            }
+        }
+
+        return ['super' => $super, 'cells' => $cells, 'byRole' => $byRole, 'superRoles' => $superRoles];
     }
 
     /**
-     * Whether the role holds no real right this admin lacks.
+     * Whether the role holds no real right this admin lacks — and is not the Super-Admin, which
+     * only a Super-Admin hands out.
      *
-     * @param  array{super: bool, cells: array<string, true>, byRole: array<int, array<string, true>>}  $reach
+     * @param  array{super: bool, cells: array<string, true>, byRole: array<int, array<string, true>>, superRoles: list<int>}  $reach
      */
     private static function mayAssign(array $reach, int $roleId): bool
     {
-        return $reach['super'] || array_diff_key($reach['byRole'][$roleId] ?? [], $reach['cells']) === [];
+        if ($reach['super']) {
+            return true;
+        }
+
+        return ! in_array($roleId, $reach['superRoles'], true)
+            && array_diff_key($reach['byRole'][$roleId] ?? [], $reach['cells']) === [];
     }
 
     /**
      * Whether an account holding these roles holds no real right this admin lacks.
      *
-     * @param  array{super: bool, cells: array<string, true>, byRole: array<int, array<string, true>>}  $reach
+     * @param  array{super: bool, cells: array<string, true>, byRole: array<int, array<string, true>>, superRoles: list<int>}  $reach
      * @param  list<int>  $roleIds
      */
     private static function mayManage(array $reach, array $roleIds): bool
@@ -496,6 +523,19 @@ class BenutzerController extends Controller
             ->where('rp.module', PermissionModule::Roles->value)
             ->where('rp.action', PermissionAction::Edit->value)
             ->where('rp.allowed', true)
+            ->where('u.status', AdminUserStatus::Active->value)
+            ->exists();
+    }
+
+    /** Whether an account that may sign in still holds the Super-Admin role itself (BRIEF §2). */
+    private static function superAdminsRemain(): bool
+    {
+        return DB::table('model_has_roles as mhr')
+            ->join('roles as r', 'r.id', '=', 'mhr.role_id')
+            ->join('admin_users as u', 'u.id', '=', 'mhr.model_id')
+            ->where('mhr.model_type', (new AdminUser)->getMorphClass())
+            ->where('r.name', self::SUPER_ADMIN)
+            ->where('r.guard_name', 'admin')
             ->where('u.status', AdminUserStatus::Active->value)
             ->exists();
     }

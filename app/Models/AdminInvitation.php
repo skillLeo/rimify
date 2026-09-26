@@ -21,7 +21,7 @@ use Spatie\Permission\Models\Role;
  * @property int $id
  * @property string $email
  * @property string|null $name
- * @property int $role_id
+ * @property int|null $role_id null once a closed invitation's role has been deleted
  * @property string $token_hash
  * @property int|null $invited_by
  * @property CarbonImmutable $expires_at

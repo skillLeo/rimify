@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AdminUserStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
@@ -61,6 +62,11 @@ class RollenController extends Controller
 
     /** The identifier of the role that is always everything. */
     public const SUPER_ADMIN = 'super-admin';
+
+    public const OPEN_INVITATION_REFUSAL = 'Eine offene Einladung vergibt diese Rolle noch. Widerrufe sie zuerst unter Benutzer.';
+
+    /** Handing a role a right one does not hold oneself — see beyondActor(). */
+    public const BEYOND_REFUSAL = 'Du kannst nur Rechte vergeben, die du selbst hast.';
 
     /** What the refusal says. Named so the test asserts the sentence the admin actually reads. */
     public const LOCKOUT_REFUSAL = 'Das würde das letzte Konto aussperren, das Rollen und Rechte '
@@ -151,6 +157,9 @@ class RollenController extends Controller
             'selected' => $selected,
             // "Ansicht als Rolle": the rail the selected role would see, by the rail's own rules.
             'navigation' => $selected === null ? [] : $this->navigation->forRole($selected),
+            // The rights this admin may hand to a role — their own; null for a Super-Admin, who holds
+            // all of them. The page offers nothing beyond it; the server refuses it regardless.
+            'grantable' => $actorIsSuperAdmin ? null : self::heldRights($admin),
             // What this admin may do here. The server refuses regardless (R-11); this only decides
             // which controls are drawn.
             'can' => [
@@ -168,6 +177,11 @@ class RollenController extends Controller
         $label = $request->label();
         $description = $request->description();
         $copyFrom = $request->copyFrom();
+
+        // Copying a role is handing out its rights: only the ones the copier holds.
+        if ($copyFrom !== null && ($beyond = self::beyondActor($admin, self::rightsOf($copyFrom))) !== []) {
+            throw ValidationException::withMessages(['copyFrom' => self::beyondRefusal($beyond)]);
+        }
 
         $id = DB::transaction(static function () use ($admin, $label, $description, $copyFrom): int {
             $source = $copyFrom === null ? null : self::roleRow($copyFrom);
@@ -239,6 +253,10 @@ class RollenController extends Controller
         $source = self::roleRow($role);
         $admin = $request->admin();
 
+        if (($beyond = self::beyondActor($admin, self::rightsOf($role))) !== []) {
+            throw ValidationException::withMessages(['role' => self::beyondRefusal($beyond)]);
+        }
+
         $id = DB::transaction(static function () use ($source, $admin): int {
             $from = self::labelOf($source);
             $label = self::copyLabel($from);
@@ -287,6 +305,21 @@ class RollenController extends Controller
                     throw ValidationException::withMessages(['role' => self::heldRefusal($accounts)]);
                 }
 
+                // A withdrawn, accepted or expired invitation lets go of the role (the column nulls
+                // out); only one that can still be accepted keeps it, because accepting it would
+                // hand out a role that no longer exists.
+                $open = DB::table('admin_invitations')
+                    ->where('role_id', $role)
+                    ->whereNull('accepted_at')
+                    ->whereNull('revoked_at')
+                    ->where('expires_at', '>', now())
+                    ->lockForUpdate()
+                    ->count();
+
+                if ($open > 0) {
+                    throw ValidationException::withMessages(['role' => self::OPEN_INVITATION_REFUSAL]);
+                }
+
                 DB::table('roles')->where('id', $role)->delete();
 
                 AuditTrail::record($admin, 'role.deleted', [
@@ -331,7 +364,14 @@ class RollenController extends Controller
             throw ValidationException::withMessages(['allowed' => self::RAISE_OWN_REFUSAL]);
         }
 
-        DB::transaction(static function () use ($role, $module, $action, $allowed, $admin): void {
+        if ($allowed && ($beyond = self::beyondActor($admin, [$module->value.'.'.$action->value])) !== []) {
+            throw ValidationException::withMessages(['allowed' => self::beyondRefusal($beyond)]);
+        }
+
+        // Kept on the entry: the Protokoll must still name the role after it has been renamed or deleted.
+        $label = self::labelOf($row);
+
+        DB::transaction(static function () use ($role, $label, $module, $action, $allowed, $admin): void {
             $before = DB::table('role_permissions')
                 ->where('role_id', $role)
                 ->where('module', $module->value)
@@ -354,6 +394,7 @@ class RollenController extends Controller
 
             AuditTrail::record($admin, 'role_permission.updated', [
                 'role_id' => $role,
+                'label' => $label,
                 'module' => $module->value,
                 'action' => $action->value,
                 'old' => $before === null ? null : (bool) $before,
@@ -389,6 +430,10 @@ class RollenController extends Controller
 
         if ($added !== [] && self::raiseBlocked($admin, $role)) {
             throw ValidationException::withMessages(['rights' => self::RAISE_OWN_REFUSAL]);
+        }
+
+        if (($beyond = self::beyondActor($admin, $added)) !== []) {
+            throw ValidationException::withMessages(['rights' => self::beyondRefusal($beyond)]);
         }
 
         DB::transaction(static function () use ($role, $row, $next, $added, $removed, $admin): void {
@@ -504,12 +549,69 @@ class RollenController extends Controller
         return in_array($role, self::heldRoleIds($admin), true) && ! self::holdsSuperAdmin($admin);
     }
 
-    /** Whether no account at all would still be able to edit roles. */
+    /**
+     * The rights among `$cells` this admin does not hold themselves — what they may therefore not
+     * hand to any role. Without this, somebody who may edit roles could widen any role they do not
+     * hold (or copy the Super-Admin into a new one), invite a second address of their own with it,
+     * and hold every right. A Super-Admin already holds everything.
+     *
+     * @param  list<string>  $cells
+     * @return list<string>
+     */
+    private static function beyondActor(AdminUser $admin, array $cells): array
+    {
+        if (self::holdsSuperAdmin($admin)) {
+            return [];
+        }
+
+        return array_values(array_diff($cells, self::heldRights($admin)));
+    }
+
+    /**
+     * Every right this admin holds through any of their roles, in the grid's order.
+     *
+     * @return list<string>
+     */
+    private static function heldRights(AdminUser $admin): array
+    {
+        $held = [];
+
+        foreach (self::heldRoleIds($admin) as $id) {
+            array_push($held, ...self::rightsOf($id));
+        }
+
+        return array_values(array_intersect(PermissionModule::cells(), array_unique($held)));
+    }
+
+    /**
+     * The refusal for handing out rights one does not hold, naming them the way the grid does.
+     *
+     * @param  list<string>  $cells
+     */
+    public static function beyondRefusal(array $cells): string
+    {
+        $labels = array_map(static function (string $cell): string {
+            [$module, $action] = array_pad(explode('.', $cell, 2), 2, '');
+            $m = PermissionModule::tryFrom($module);
+            $a = PermissionAction::tryFrom($action);
+
+            return '„'.($m?->labelDe() ?? $module).' '.GermanFormat::MIDDOT.' '.($a?->labelDe() ?? $action).'“';
+        }, array_slice($cells, 0, 3));
+
+        $more = count($cells) > 3 ? sprintf(' und %s weitere', GermanFormat::integer(count($cells) - 3)) : '';
+
+        return self::BEYOND_REFUSAL.' Nicht dabei: '.implode(', ', $labels).$more.'.';
+    }
+
+    /** Whether no account that can still sign in would be able to edit roles. */
     private static function wouldLockEveryoneOut(): bool
     {
         return DB::table('role_permissions as rp')
             ->join('model_has_roles as mhr', 'mhr.role_id', '=', 'rp.role_id')
+            // A suspended account is no way back in: only accounts that may sign in count.
+            ->join('admin_users as au', 'au.id', '=', 'mhr.model_id')
             ->where('mhr.model_type', (new AdminUser)->getMorphClass())
+            ->where('au.status', AdminUserStatus::Active->value)
             ->where('rp.module', PermissionModule::Roles->value)
             ->where('rp.action', PermissionAction::Edit->value)
             ->where('rp.allowed', true)

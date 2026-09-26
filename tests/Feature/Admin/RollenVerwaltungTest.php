@@ -494,13 +494,19 @@ describe('one cell', function (): void {
             ->patch("/admin/rollen/{$own}/rechte", ['module' => 'vehicles', 'action' => 'view', 'allowed' => false])
             ->assertSessionHasNoErrors();
 
-        // Another role they do not hold is theirs to widen.
+        // Another role they do not hold is theirs to widen — with rights they hold themselves…
         $this->actingAs(verwaltungAdmin('catalogue-manager'), 'admin')->from('/admin/rollen')
-            ->patch('/admin/rollen/'.verwaltungRoleId('accountant').'/rechte', ['module' => 'vehicles', 'action' => 'view', 'allowed' => true])
+            ->patch('/admin/rollen/'.verwaltungRoleId('accountant').'/rechte', ['module' => 'catalogue', 'action' => 'view', 'allowed' => true])
             ->assertSessionHasNoErrors();
 
+        // …and never with one they no longer have: the one they just gave up stays out of reach.
+        $this->actingAs(verwaltungAdmin('catalogue-manager'), 'admin')->from('/admin/rollen')
+            ->patch('/admin/rollen/'.verwaltungRoleId('accountant').'/rechte', ['module' => 'vehicles', 'action' => 'view', 'allowed' => true])
+            ->assertSessionHasErrors('allowed');
+
         expect(verwaltungRights($own))->not->toContain('vehicles.view')
-            ->and(verwaltungRights(verwaltungRoleId('accountant')))->toContain('vehicles.view');
+            ->and(verwaltungRights(verwaltungRoleId('accountant')))->toContain('catalogue.view')
+            ->and(verwaltungRights(verwaltungRoleId('accountant')))->not->toContain('vehicles.view');
     });
 
     it('lets a Super-Admin widen a role they also hold', function (): void {
@@ -522,7 +528,8 @@ describe('one cell', function (): void {
         $entry = verwaltungEntry('role_permission.updated');
 
         expect((int) $entry?->subject_id)->toBe($role)
-            ->and($entry?->properties->all())->toEqual(['role_id' => $role, 'module' => 'vehicles', 'action' => 'view', 'old' => false, 'allowed' => true]);
+            // The label is kept on the entry, so the Protokoll still names the role once it is renamed or gone.
+            ->and($entry?->properties->all())->toEqual(['role_id' => $role, 'label' => 'Buchhaltung', 'module' => 'vehicles', 'action' => 'view', 'old' => false, 'allowed' => true]);
     });
 });
 
@@ -681,5 +688,46 @@ describe('the German labels migration', function (): void {
             'content-editor' => 'content editor',
             'accountant' => 'Buchhaltung',
         ]);
+    });
+});
+
+describe('deleting a role once named in an invitation', function (): void {
+    /** An invitation row for the role, in the given state. */
+    function verwaltungInvitation(int $role, array $state): void
+    {
+        DB::table('admin_invitations')->insert([
+            'email' => 'lager'.uniqid().'@example.test',
+            'role_id' => $role,
+            'token_hash' => hash('sha256', uniqid('', true)),
+            'expires_at' => now()->addDays(7),
+            'created_at' => now(),
+            'updated_at' => now(),
+            ...$state,
+        ]);
+    }
+
+    it('deletes it when every invitation naming it is closed, and the invitation lets go of it', function (): void {
+        $role = verwaltungCustomRole('Lager');
+        verwaltungInvitation($role, ['revoked_at' => now()]);
+        verwaltungInvitation($role, ['expires_at' => now()->subDay()]);
+
+        $this->actingAs(verwaltungAdmin(), 'admin')->from('/admin/rollen')
+            ->delete("/admin/rollen/{$role}")
+            ->assertSessionHasNoErrors();
+
+        expect(DB::table('roles')->where('id', $role)->exists())->toBeFalse()
+            ->and(DB::table('admin_invitations')->count())->toBe(2)
+            ->and(DB::table('admin_invitations')->whereNotNull('role_id')->count())->toBe(0);
+    });
+
+    it('refuses while an invitation that can still be accepted hands it out, and says what to do', function (): void {
+        $role = verwaltungCustomRole('Lager');
+        verwaltungInvitation($role, []);
+
+        $this->actingAs(verwaltungAdmin(), 'admin')->from('/admin/rollen')
+            ->delete("/admin/rollen/{$role}")
+            ->assertSessionHasErrors(['role' => RollenController::OPEN_INVITATION_REFUSAL]);
+
+        expect(DB::table('roles')->where('id', $role)->exists())->toBeTrue();
     });
 });
