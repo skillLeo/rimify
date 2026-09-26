@@ -4,29 +4,33 @@
  *
  * The roles on the left, one role's rights on the right: modules down, actions across, and only the
  * actions a module really has — a cell that cannot exist is left quiet, never a checkbox that does
- * nothing. A single box saves at once, as before. Anything that changes several rights at once — a
- * module's "Alle", "Von Rolle kopieren" — first shows exactly what would be gained and lost, and
- * saves only after a yes.
+ * nothing.
+ *
+ * Nothing saves on a click. Ticks, a module's "Alle" and "Von Rolle kopieren" all change a draft;
+ * the save bar says so, and Speichern first shows exactly which rights the role gains and loses
+ * (BRIEF §2: "a diff of what changes before saving", "every change is confirmed"). Leaving with an
+ * unsaved draft is asked about, like every admin form.
  *
  * Every refusal is the server's (R-11): the Super-Admin always has everything, nobody widens a role
  * they hold themselves, and nobody takes away the last way back into this screen. The page only
- * draws what the viewer may try, and shows the server's sentence when a try is refused. A refused
- * box springs back to what the server stored rather than keeping a tick the server never saved.
+ * draws what the viewer may try, and shows the server's sentence when a save is refused.
  *
  * Below 1024 px the role is chosen from a select and each module becomes a block of its actions.
  */
 
 import { Link, router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import Icon from '../../../Components/Ui/Icon.vue'
 import RightBox from './RightBox.vue'
 import RoleDiffList from './RoleDiffList.vue'
-import { matchModules, moduleState, rightKey, roleDiff, withModule } from '../../../composables/admin/roleDiff'
+import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
+import { matchModules, moduleState, realCells, rightKey, roleDiff, withModule } from '../../../composables/admin/roleDiff'
 import { decimal } from '../../../format'
 import type { AdminRollenPageProps, RollenModule, RollenRole } from '../../../types/admin/rollen'
 
@@ -46,21 +50,101 @@ const context = computed(
 /** What this viewer may change on the selected role. */
 const editable = computed(() => props.can.update && role.value !== null && !role.value.isSuperAdmin)
 
-/** A box the viewer may tick: not on the Super-Admin, and — on a role they hold — only to take a right away. */
+function actionLabel(action: string): string {
+    return props.actions.find((a) => a.action === action)?.label ?? action
+}
+
+function accounts(n: number): string {
+    return `${decimal(n, 0)} ${n === 1 ? 'Konto' : 'Konten'}`
+}
+
+/* ── The draft: what the grid shows, saved only through the save bar ─────────────── */
+
+/** The save waiting for its yes, while the difference is on screen. */
+let send: (() => void) | null = null
+const confirmOpen = ref(false)
+
+const editor = useDirtyForm(
+    { rights: [...(role.value?.rights ?? [])] },
+    {
+        method: 'put',
+        url: () => `/admin/rollen/${props.selected ?? 0}/rechte`,
+        beforeSave: (proceed) => {
+            send = proceed
+            confirmOpen.value = true
+        },
+    }
+)
+
+const draft = computed(() => editor.form.rights)
+
+// Another role is another draft: the server's rights become the new "unchanged".
+watch(
+    () => [props.selected, role.value?.rights.join(',')],
+    () => {
+        editor.form.defaults({ rights: [...(role.value?.rights ?? [])] })
+        editor.form.reset()
+        confirmOpen.value = false
+    }
+)
+
+function has(key: string): boolean {
+    return draft.value.includes(key)
+}
+
+/** Whether this viewer may hand out every one of these rights (they hold them, or are a Super-Admin). */
+function mayGrant(rights: readonly string[]): boolean {
+    return props.grantable === null || rights.every((key) => props.grantable?.includes(key) === true)
+}
+
+/**
+ * A box the viewer may change: never on the Super-Admin; a right the role already had may always go;
+ * a new one only when the role is not their own and they hold that right themselves.
+ */
 function boxEditable(key: string): boolean {
     if (!editable.value || role.value === null) {
         return false
     }
 
-    return !role.value.raiseBlocked || role.value.rights.includes(key)
+    if (role.value.rights.includes(key)) {
+        return true
+    }
+
+    return !role.value.raiseBlocked && mayGrant([key])
 }
 
-function actionLabel(action: string): string {
-    return props.actions.find((a) => a.action === action)?.label ?? action
+function setRight(key: string, on: boolean): void {
+    const next = new Set(draft.value)
+
+    if (on) {
+        next.add(key)
+    } else {
+        next.delete(key)
+    }
+
+    // Kept in the grid's own order, so the same set of rights always reads as the same draft.
+    editor.form.rights = realCells(props.modules).filter((k) => next.has(k))
 }
 
-function has(key: string): boolean {
-    return role.value?.rights.includes(key) ?? false
+function moduleAll(module: RollenModule): void {
+    const on = moduleState(draft.value, module) !== 'all'
+    const next = withModule(draft.value, props.modules, module.module, on)
+
+    // "Alle" gives only what this viewer may give; the rest of the module stays as it is.
+    editor.form.rights = on ? next.filter((key) => draft.value.includes(key) || role.value?.rights.includes(key) || mayGrant([key])) : next
+}
+
+/** "Alle" is offered where it can do something for this viewer. */
+function allEditable(module: RollenModule): boolean {
+    return editable.value && role.value !== null && !role.value.raiseBlocked && module.actions.some((a) => boxEditable(rightKey(module.module, a)))
+}
+
+const saveDiff = computed(() => (role.value === null ? null : roleDiff(role.value.rights, draft.value, props.modules, props.actions)))
+
+function confirmSave(): void {
+    confirmOpen.value = false
+    send?.()
+    send = null
 }
 
 /* ── The server's refusals, shown once above the grid they belong to ─────────────── */
@@ -71,134 +155,47 @@ const errors = computed<Record<string, string>>(() => {
     return bag !== null && typeof bag === 'object' ? (bag as Record<string, string>) : {}
 })
 
-const refusal = computed(() => errors.value.allowed ?? errors.value.rights ?? errors.value.role ?? '')
+const refusal = computed(() => errors.value.rights ?? errors.value.allowed ?? errors.value.role ?? '')
 
-/* ── One box, saved at once ──────────────────────────────────────────────────────── */
+/* ── Von Rolle kopieren: into the draft, saved like any other change ─────────────── */
 
-const saving = ref<string | null>(null)
-
-function toggle(module: string, action: string, event: Event): void {
-    const target = event.target as HTMLInputElement
-    const current = role.value
-
-    if (current === null) {
-        return
-    }
-
-    const key = rightKey(module, action)
-    saving.value = key
-
-    router.patch(
-        `/admin/rollen/${current.id}/rechte`,
-        { module, action, allowed: target.checked },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            onFinish: () => {
-                saving.value = null
-                // Whatever the answer, the box shows what the server now holds: Vue would not put back a
-                // value that did not change, so a refused tick is undone here, by hand.
-                void nextTick(() => (target.checked = has(key)))
-            },
-        }
-    )
-}
-
-/* ── Several rights at once: shown first, saved after a yes ──────────────────────── */
-
-const pending = ref<{ title: string; rights: string[] } | null>(null)
-const replacing = ref(false)
-
-const pendingOpen = computed({
-    get: () => pending.value !== null,
-    set: (open: boolean) => {
-        if (!open) {
-            pending.value = null
-        }
-    },
-})
-
-const pendingDiff = computed(() =>
-    pending.value === null || role.value === null ? null : roleDiff(role.value.rights, pending.value.rights, props.modules, props.actions)
-)
-
-function moduleAll(module: RollenModule, event: Event): void {
-    const target = event.target as HTMLInputElement
-    const current = role.value
-
-    // The box itself never changes on its own; the question decides.
-    target.checked = moduleState(current?.rights ?? [], module) === 'all'
-
-    if (current === null) {
-        return
-    }
-
-    const on = moduleState(current.rights, module) !== 'all'
-
-    pending.value = {
-        title: on ? `Alle Rechte für „${module.label}“ geben?` : `Alle Rechte für „${module.label}“ nehmen?`,
-        rights: withModule(current.rights, props.modules, module.module, on),
-    }
-}
-
-function applyPending(): void {
-    const current = role.value
-    const next = pending.value
-
-    if (current === null || next === null) {
-        return
-    }
-
-    replacing.value = true
-
-    router.put(
-        `/admin/rollen/${current.id}/rechte`,
-        { rights: next.rights },
-        {
-            preserveScroll: true,
-            onSuccess: () => (pending.value = null),
-            onFinish: () => (replacing.value = false),
-        }
-    )
-}
-
-/* Von Rolle kopieren */
 const copyOpen = ref(false)
-const copySource = ref<number | null>(null)
-const copyCandidates = computed(() => props.roles.filter((r) => r.id !== props.selected))
+const copySource = ref<number | ''>('')
+/** Only roles whose rights this viewer may hand out can be copied from. */
+const copyCandidates = computed(() => props.roles.filter((r) => r.id !== props.selected && mayGrant(r.rights)))
+const createSources = computed(() => props.roles.filter((r) => mayGrant(r.rights)))
 const copyDiff = computed(() => {
     const source = props.roles.find((r) => r.id === copySource.value)
 
-    return source && role.value ? roleDiff(role.value.rights, source.rights, props.modules, props.actions) : null
+    return source ? roleDiff(draft.value, source.rights, props.modules, props.actions) : null
 })
 
 function openCopy(): void {
-    copySource.value = copyCandidates.value[0]?.id ?? null
+    copySource.value = ''
     copyOpen.value = true
 }
 
 function applyCopy(): void {
     const source = props.roles.find((r) => r.id === copySource.value)
-    const current = role.value
 
-    if (!source || current === null) {
+    // The greyed-out button does nothing: no source yet, or nothing that would change.
+    if (!source || !copyDiff.value || copyDiff.value.gained.length + copyDiff.value.lost.length === 0) {
         return
     }
 
-    replacing.value = true
-
-    router.put(
-        `/admin/rollen/${current.id}/rechte`,
-        { rights: source.rights },
-        {
-            preserveScroll: true,
-            onSuccess: () => (copyOpen.value = false),
-            onFinish: () => (replacing.value = false),
-        }
-    )
+    const cells = new Set(source.rights)
+    editor.form.rights = realCells(props.modules).filter((k) => cells.has(k))
+    copyOpen.value = false
 }
 
 /* ── The role itself: create, rename, duplicate, delete ──────────────────────────── */
+
+/** Which dialog sent the last request: each shows only the server's messages about its own save. */
+const sentFrom = ref<'create' | 'rename' | null>(null)
+
+function dialogError(from: 'create' | 'rename', key: string): string {
+    return sentFrom.value === from ? (errors.value[key] ?? '') : ''
+}
 
 const createOpen = ref(false)
 const createForm = ref({ label: '', description: '', copyFrom: '' as number | '' })
@@ -206,10 +203,17 @@ const createBusy = ref(false)
 
 function openCreate(): void {
     createForm.value = { label: '', description: '', copyFrom: '' }
+    sentFrom.value = null
     createOpen.value = true
 }
 
 function submitCreate(): void {
+    // Enter twice is one request.
+    if (createBusy.value) {
+        return
+    }
+
+    sentFrom.value = 'create'
     createBusy.value = true
 
     router.post(
@@ -233,16 +237,18 @@ const renameBusy = ref(false)
 
 function openRename(): void {
     renameForm.value = { label: role.value?.label ?? '', description: role.value?.description ?? '' }
+    sentFrom.value = null
     renameOpen.value = true
 }
 
 function submitRename(): void {
     const current = role.value
 
-    if (current === null) {
+    if (current === null || renameBusy.value) {
         return
     }
 
+    sentFrom.value = 'rename'
     renameBusy.value = true
 
     router.patch(
@@ -275,28 +281,32 @@ function submitDelete(): void {
     deleteBusy.value = true
 
     router.delete(`/admin/rollen/${current.id}`, {
-        onSuccess: () => (deleteOpen.value = false),
-        onFinish: () => (deleteBusy.value = false),
+        // Closed either way: a refusal is shown above the grid, where it can be read, not behind a dialog.
+        onFinish: () => {
+            deleteBusy.value = false
+            deleteOpen.value = false
+        },
     })
 }
 
-/** What the role menu offers for this role and this viewer. */
+/** The one menu of secondary actions for this role and this viewer (admin-shell §8.1). */
 const menu = computed(() => {
     const current = role.value
 
     if (current === null || current.isSuperAdmin) {
-        return { rename: false, duplicate: false, remove: false }
+        return { copy: false, rename: false, duplicate: false, remove: false }
     }
 
     return {
+        copy: editable.value && !current.raiseBlocked && copyCandidates.value.length > 0,
         rename: props.can.update,
-        duplicate: props.can.create,
+        duplicate: props.can.create && mayGrant(current.rights),
         // A role still held by accounts is refused on the server; the page does not offer it.
         remove: props.can.delete && !current.isSystem && current.users === 0,
     }
 })
 
-const hasMenu = computed(() => menu.value.rename || menu.value.duplicate || menu.value.remove)
+const hasMenu = computed(() => menu.value.copy || menu.value.rename || menu.value.duplicate || menu.value.remove)
 
 /* ── Ansicht als Rolle, search, the phone's picker ───────────────────────────────── */
 
@@ -304,20 +314,50 @@ const previewOpen = ref(false)
 const search = ref('')
 const shownModules = computed(() => matchModules(props.modules, search.value))
 
-function pick(event: Event): void {
-    router.get('/admin/rollen', { rolle: (event.target as HTMLSelectElement).value }, { preserveScroll: true })
+/*
+ * The phone's and tablet's role select. On Windows a closed select fires `change` on every arrow
+ * key; navigating on each would reload the page under the keyboard. So a choice made with the arrows
+ * waits for Enter or for leaving the field; a choice made by picking goes at once.
+ */
+let pendingPick: string | null = null
+let arrowed = false
+
+function goTo(id: string): void {
+    pendingPick = null
+
+    if (id !== String(props.selected)) {
+        router.get('/admin/rollen', { rolle: id }, { preserveScroll: true })
+    }
 }
 
-watch(
-    () => props.selected,
-    () => {
-        pending.value = null
-        copyOpen.value = false
+function pickKey(event: KeyboardEvent): void {
+    if (['ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+        arrowed = true
+    } else if (event.key === 'Enter' && pendingPick !== null) {
+        event.preventDefault()
+        goTo(pendingPick)
     }
-)
+}
 
-function accounts(n: number): string {
-    return `${decimal(n, 0)} ${n === 1 ? 'Konto' : 'Konten'}`
+function pick(event: Event): void {
+    const id = (event.target as HTMLSelectElement).value
+
+    if (arrowed) {
+        arrowed = false
+        pendingPick = id
+
+        return
+    }
+
+    goTo(id)
+}
+
+function pickBlur(): void {
+    arrowed = false
+
+    if (pendingPick !== null) {
+        goTo(pendingPick)
+    }
 }
 </script>
 
@@ -347,7 +387,7 @@ function accounts(n: number): string {
 
             <div class="form-field rol__pick">
                 <label class="form-field__label" for="rol-pick">Rolle</label>
-                <select id="rol-pick" class="input" :value="selected ?? ''" @change="pick">
+                <select id="rol-pick" class="input" :value="selected ?? ''" @change="pick" @keydown="pickKey" @blur="pickBlur">
                     <option v-for="item in roles" :key="item.id" :value="item.id">{{ item.label }} ({{ accounts(item.users) }})</option>
                 </select>
             </div>
@@ -356,18 +396,13 @@ function accounts(n: number): string {
                 <header class="rol__head">
                     <div class="rol__titles">
                         <h2 id="rol-title" class="adm-section__title">{{ role.label }}</h2>
-                        <p class="adm-note">
-                            {{ role.description ?? 'Ohne Beschreibung.' }} · {{ accounts(role.users) }}
-                        </p>
+                        <p class="adm-note">{{ role.description ?? 'Ohne Beschreibung.' }} · {{ accounts(role.users) }}</p>
                     </div>
 
                     <div class="rol__actions">
                         <button class="btn btn--secondary" type="button" @click="previewOpen = true">
                             <Icon name="eye" :size="16" />
                             Ansicht als Rolle
-                        </button>
-                        <button v-if="editable && !role.raiseBlocked" class="btn btn--secondary" type="button" @click="openCopy">
-                            Von Rolle kopieren
                         </button>
 
                         <DropdownMenuRoot v-if="hasMenu">
@@ -376,6 +411,10 @@ function accounts(n: number): string {
                             </DropdownMenuTrigger>
                             <DropdownMenuPortal>
                                 <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
+                                    <DropdownMenuItem v-if="menu.copy" class="adm-menu__item" @select="openCopy">
+                                        <Icon name="compare" :size="20" />
+                                        Von Rolle kopieren
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem v-if="menu.rename" class="adm-menu__item" @select="openRename">
                                         <Icon name="text" :size="20" />
                                         {{ role.isSystem ? 'Beschreibung ändern' : 'Umbenennen' }}
@@ -385,7 +424,7 @@ function accounts(n: number): string {
                                         Duplizieren
                                     </DropdownMenuItem>
                                     <template v-if="menu.remove">
-                                        <DropdownMenuSeparator v-if="menu.rename || menu.duplicate" class="adm-menu__sep" />
+                                        <DropdownMenuSeparator class="adm-menu__sep" />
                                         <DropdownMenuItem class="adm-menu__item adm-menu__item--danger" @select="deleteOpen = true">
                                             <Icon name="trash" :size="20" />
                                             Löschen
@@ -401,9 +440,6 @@ function accounts(n: number): string {
                 <p v-else-if="role.raiseBlocked && editable" class="adm-note rol__note">
                     Du hast diese Rolle selbst. Rechte kannst du ihr nehmen, aber nicht geben – das macht eine andere Person.
                 </p>
-                <p v-else-if="editable" class="adm-note rol__note">
-                    Ein Häkchen speichert sofort. Die Änderung gilt beim nächsten Klick der betroffenen Personen.
-                </p>
 
                 <!-- The one refusal the server made: above the grid, read before the retry. -->
                 <p v-if="refusal" class="adm-alert" role="alert">{{ refusal }}</p>
@@ -418,6 +454,11 @@ function accounts(n: number): string {
                 <!-- From 1024 px: modules down, actions across. -->
                 <div v-if="shownModules.length" class="rol__grid">
                     <table class="rol__table">
+                        <colgroup>
+                            <col>
+                            <col v-if="editable && !role.raiseBlocked" class="rol__col">
+                            <col v-for="action in actions" :key="action.action" class="rol__col">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th scope="col">Modul</th>
@@ -430,12 +471,12 @@ function accounts(n: number): string {
                                 <th scope="row" class="rol__module">{{ module.label }}</th>
                                 <td v-if="editable && !role.raiseBlocked" class="rol__c">
                                     <RightBox
+                                        v-if="allEditable(module)"
                                         :label="`${role.label}: ${module.label} – alle Rechte`"
-                                        :allowed="moduleState(role.rights, module) === 'all'"
-                                        :mixed="moduleState(role.rights, module) === 'some'"
+                                        :allowed="moduleState(draft, module) === 'all'"
+                                        :mixed="moduleState(draft, module) === 'some'"
                                         editable
-                                        :busy="replacing"
-                                        @change="moduleAll(module, $event)"
+                                        @change="moduleAll(module)"
                                     />
                                 </td>
                                 <td v-for="action in actions" :key="action.action" class="rol__c">
@@ -444,8 +485,7 @@ function accounts(n: number): string {
                                         :label="`${role.label}: ${module.label} – ${action.label}`"
                                         :allowed="has(rightKey(module.module, action.action))"
                                         :editable="boxEditable(rightKey(module.module, action.action))"
-                                        :busy="saving === rightKey(module.module, action.action)"
-                                        @change="toggle(module.module, action.action, $event)"
+                                        @change="setRight(rightKey(module.module, action.action), ($event.target as HTMLInputElement).checked)"
                                     />
                                 </td>
                             </tr>
@@ -456,7 +496,19 @@ function accounts(n: number): string {
                 <!-- Below 1024 px: each module a block, its actions as rows. -->
                 <div v-if="shownModules.length" class="rol__blocks">
                     <section v-for="module in shownModules" :key="module.module" class="rol__block" :aria-label="module.label">
-                        <h3 class="rol__block-title">{{ module.label }}</h3>
+                        <div class="rol__block-head">
+                            <h3 class="rol__block-title">{{ module.label }}</h3>
+                            <span v-if="allEditable(module)" class="rol__all">
+                                <span aria-hidden="true">Alle</span>
+                                <RightBox
+                                    :label="`${role.label}: ${module.label} – alle Rechte`"
+                                    :allowed="moduleState(draft, module) === 'all'"
+                                    :mixed="moduleState(draft, module) === 'some'"
+                                    editable
+                                    @change="moduleAll(module)"
+                                />
+                            </span>
+                        </div>
                         <ul class="rol__rows">
                             <li v-for="action in module.actions" :key="action" class="rol__row">
                                 <span>{{ actionLabel(action) }}</span>
@@ -464,8 +516,7 @@ function accounts(n: number): string {
                                     :label="`${role.label}: ${module.label} – ${actionLabel(action)}`"
                                     :allowed="has(rightKey(module.module, action))"
                                     :editable="boxEditable(rightKey(module.module, action))"
-                                    :busy="saving === rightKey(module.module, action)"
-                                    @change="toggle(module.module, action, $event)"
+                                    @change="setRight(rightKey(module.module, action), ($event.target as HTMLInputElement).checked)"
                                 />
                             </li>
                         </ul>
@@ -474,20 +525,12 @@ function accounts(n: number): string {
             </section>
         </div>
 
-        <!-- Several rights at once: what changes, before it is saved. -->
-        <Dialog v-model:open="pendingOpen" :title="pending?.title ?? ''" content-class="adm-dialog adm-dialog--narrow">
-            <RoleDiffList v-if="pendingDiff && role" :diff="pendingDiff" :role-label="role.label" />
+        <!-- Speichern: what changes, before it is saved. -->
+        <Dialog v-model:open="confirmOpen" :title="`Rechte für „${role?.label ?? ''}“ speichern?`" content-class="adm-dialog adm-dialog--narrow">
+            <RoleDiffList v-if="saveDiff && role" :diff="saveDiff" :role-label="role.label" />
             <template #actions>
-                <button class="btn btn--secondary" type="button" @click="pending = null">Abbrechen</button>
-                <button
-                    class="btn btn--primary"
-                    type="button"
-                    :aria-busy="replacing ? 'true' : undefined"
-                    :aria-disabled="pendingDiff && pendingDiff.gained.length + pendingDiff.lost.length === 0 ? 'true' : undefined"
-                    @click="applyPending"
-                >
-                    Übernehmen
-                </button>
+                <button class="btn btn--secondary" type="button" @click="confirmOpen = false">Abbrechen</button>
+                <button class="btn btn--primary" type="button" @click="confirmSave">Speichern</button>
             </template>
         </Dialog>
 
@@ -495,16 +538,17 @@ function accounts(n: number): string {
             <div class="form-field rol__dialog-field">
                 <label class="form-field__label" for="rol-copy">Rechte übernehmen von</label>
                 <select id="rol-copy" v-model="copySource" class="input">
+                    <option value="" disabled>Rolle wählen</option>
                     <option v-for="item in copyCandidates" :key="item.id" :value="item.id">{{ item.label }}</option>
                 </select>
             </div>
             <RoleDiffList v-if="copyDiff && role" :diff="copyDiff" :role-label="role.label" />
+            <p class="adm-note rol__dialog-note">Gespeichert wird erst mit Speichern in der Leiste unten.</p>
             <template #actions>
                 <button class="btn btn--secondary" type="button" @click="copyOpen = false">Abbrechen</button>
                 <button
                     class="btn btn--primary"
                     type="button"
-                    :aria-busy="replacing ? 'true' : undefined"
                     :aria-disabled="!copyDiff || copyDiff.gained.length + copyDiff.lost.length === 0 ? 'true' : undefined"
                     @click="applyCopy"
                 >
@@ -514,7 +558,10 @@ function accounts(n: number): string {
         </Dialog>
 
         <Dialog v-model:open="previewOpen" :title="`Ansicht als „${role?.label ?? ''}“`" content-class="adm-dialog adm-dialog--narrow">
-            <p class="adm-note rol__dialog-field">So sieht die Navigation für diese Rolle aus. Seiten, die sie nicht öffnen darf, kommen darin nicht vor.</p>
+            <p class="adm-note rol__dialog-field">
+                So sieht die Navigation für diese Rolle aus – mit den gespeicherten Rechten. Seiten, die sie nicht öffnen darf,
+                kommen darin nicht vor.
+            </p>
             <p v-if="navigation.length === 0" class="adm-note">Diese Rolle sieht keine Seite außer ihrem Profil.</p>
             <div v-for="group in navigation" :key="group.key" class="rol__nav-group">
                 <p class="rol__nav-label">{{ group.label }}</p>
@@ -536,26 +583,26 @@ function accounts(n: number): string {
                         v-model="createForm.label"
                         class="input"
                         type="text"
-                        maxlength="64"
+                        maxlength="60"
                         autocomplete="off"
                         aria-required="true"
-                        :aria-invalid="errors.label ? 'true' : undefined"
+                        :aria-invalid="dialogError('create', 'label') ? 'true' : undefined"
                         aria-describedby="rol-new-label-err"
                     >
-                    <p id="rol-new-label-err" class="form-field__error">{{ createOpen ? (errors.label ?? '') : '' }}</p>
+                    <p id="rol-new-label-err" class="form-field__error">{{ dialogError('create', 'label') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="rol-new-desc">Beschreibung (optional)</label>
-                    <input id="rol-new-desc" v-model="createForm.description" class="input" type="text" maxlength="255" autocomplete="off">
+                    <input id="rol-new-desc" v-model="createForm.description" class="input" type="text" maxlength="500" autocomplete="off">
                     <p class="form-field__help">Für wen die Rolle gedacht ist, zum Beispiel „Lager und Versand“.</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="rol-new-copy">Rechte übernehmen von</label>
                     <select id="rol-new-copy" v-model="createForm.copyFrom" class="input">
                         <option value="">Keine – leer anfangen</option>
-                        <option v-for="item in roles" :key="item.id" :value="item.id">{{ item.label }}</option>
+                        <option v-for="item in createSources" :key="item.id" :value="item.id">{{ item.label }}</option>
                     </select>
-                    <p class="form-field__error">{{ createOpen ? (errors.copyFrom ?? '') : '' }}</p>
+                    <p class="form-field__error">{{ dialogError('create', 'copyFrom') }}</p>
                 </div>
             </form>
             <template #actions>
@@ -564,11 +611,7 @@ function accounts(n: number): string {
             </template>
         </Dialog>
 
-        <Dialog
-            v-model:open="renameOpen"
-            :title="role?.isSystem ? 'Beschreibung ändern' : 'Rolle umbenennen'"
-            content-class="adm-dialog adm-dialog--narrow"
-        >
+        <Dialog v-model:open="renameOpen" :title="role?.isSystem ? 'Beschreibung ändern' : 'Rolle umbenennen'" content-class="adm-dialog adm-dialog--narrow">
             <form id="rol-rename" class="rol__form" novalidate @submit.prevent="submitRename">
                 <div v-if="!role?.isSystem" class="form-field">
                     <label class="form-field__label" for="rol-edit-label">Bezeichnung</label>
@@ -577,18 +620,18 @@ function accounts(n: number): string {
                         v-model="renameForm.label"
                         class="input"
                         type="text"
-                        maxlength="64"
+                        maxlength="60"
                         autocomplete="off"
                         aria-required="true"
-                        :aria-invalid="errors.label ? 'true' : undefined"
+                        :aria-invalid="dialogError('rename', 'label') ? 'true' : undefined"
                         aria-describedby="rol-edit-label-err"
                     >
-                    <p id="rol-edit-label-err" class="form-field__error">{{ renameOpen ? (errors.label ?? '') : '' }}</p>
+                    <p id="rol-edit-label-err" class="form-field__error">{{ dialogError('rename', 'label') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="rol-edit-desc">Beschreibung (optional)</label>
-                    <input id="rol-edit-desc" v-model="renameForm.description" class="input" type="text" maxlength="255" autocomplete="off">
-                    <p class="form-field__error">{{ renameOpen ? (errors.description ?? '') : '' }}</p>
+                    <input id="rol-edit-desc" v-model="renameForm.description" class="input" type="text" maxlength="500" autocomplete="off">
+                    <p class="form-field__error">{{ dialogError('rename', 'description') }}</p>
                 </div>
             </form>
             <template #actions>
@@ -604,6 +647,8 @@ function accounts(n: number): string {
             :busy="deleteBusy"
             @confirm="submitDelete"
         />
+
+        <AdminSaveBar v-if="editable" :editor="editor" />
     </AdminPage>
 </template>
 
@@ -630,7 +675,6 @@ function accounts(n: number): string {
 .rol__role {
     position: relative;
     display: grid;
-    gap: 0;
     padding: var(--sp-8) var(--sp-12);
     border-radius: var(--r-tile);
     color: var(--c-ink-2);
@@ -671,10 +715,6 @@ function accounts(n: number): string {
     font-variant-numeric: tabular-nums;
 }
 
-.rol__pick {
-    max-width: 32ch;
-}
-
 /* ── The editor ────────────────────────────────────────────────────────────── */
 
 .rol__editor {
@@ -700,7 +740,6 @@ function accounts(n: number): string {
 
 .rol__actions {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: var(--sp-8);
 }
@@ -714,7 +753,6 @@ function accounts(n: number): string {
 }
 
 .rol__search {
-    max-width: 32ch;
     margin-bottom: var(--sp-16);
 }
 
@@ -726,9 +764,15 @@ function accounts(n: number): string {
 
 .rol__table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: var(--fs-small);
     line-height: var(--lh-small);
+}
+
+/* One pitch for every action column, wide enough for "Veröffentlichen". */
+.rol__col {
+    width: calc(var(--sp-96) + var(--sp-16));
 }
 
 .rol__table th,
@@ -746,13 +790,14 @@ function accounts(n: number): string {
 }
 
 .rol__table .rol__c {
-    width: 88px;
     text-align: center;
 }
 
 .rol__module {
+    overflow: hidden;
     font-weight: 500;
     color: var(--c-ink);
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -767,12 +812,27 @@ function accounts(n: number): string {
     border-top: 1px solid var(--c-line);
 }
 
+.rol__block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    padding: var(--sp-8) 0 var(--sp-4);
+}
+
 .rol__block-title {
     margin: 0;
-    padding: var(--sp-12) 0 var(--sp-4);
     font-size: var(--fs-body);
     line-height: var(--lh-body);
     font-weight: 600;
+}
+
+.rol__all {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: var(--fs-small);
+    color: var(--c-ink-2);
 }
 
 .rol__rows {
@@ -806,6 +866,10 @@ function accounts(n: number): string {
     margin-bottom: var(--sp-16);
 }
 
+.rol__dialog-note {
+    margin-top: var(--sp-16);
+}
+
 .rol__nav-group + .rol__nav-group {
     margin-top: var(--sp-12);
 }
@@ -832,7 +896,9 @@ function accounts(n: number): string {
     color: var(--c-ink-2);
 }
 
-@media (min-width: 1024px) {
+/* The grid needs about 900 px beside the role list; below 1280 (the rail open) it has not got them,
+   so the list becomes a select and each module a block. */
+@media (min-width: 1280px) {
     .rol {
         grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
         align-items: start;
@@ -846,6 +912,10 @@ function accounts(n: number): string {
 
     .rol__pick {
         display: none;
+    }
+
+    .rol__search {
+        max-width: 32ch;
     }
 
     .rol__grid {

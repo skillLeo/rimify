@@ -108,11 +108,9 @@ const empty = computed(() => props.diff.gained.length === 0 && props.diff.lost.l
     border-top: 1px solid var(--c-line);
 }
 
-.rol-diff__gain {
-    color: var(--c-ok);
-}
-
+/* Colour belongs to verdicts, stock and errors (DIRECTION §2); the headings say gained or lost. */
+.rol-diff__gain,
 .rol-diff__loss {
-    color: var(--c-bad);
+    color: var(--c-ink-2);
 }
 </style>

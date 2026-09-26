@@ -45,6 +45,12 @@ export interface DirtyFormOptions {
      */
     resetOnSuccess?: boolean
     onSaved?: () => void
+    /**
+     * A question before the save is sent — for changes that must be seen before they are made (the
+     * rights of a role: BRIEF §2 "a diff of what changes before saving"). It receives the send and
+     * calls it on a yes. Speichern and Strg S both go through it.
+     */
+    beforeSave?: (send: () => void) => void
 }
 
 export function useDirtyForm<T extends FormDataType<T>>(initial: T, options: DirtyFormOptions): DirtyForm<T> {
@@ -55,6 +61,20 @@ export function useDirtyForm<T extends FormDataType<T>>(initial: T, options: Dir
     const failed = ref(false)
 
     function save(): void {
+        if (!form.isDirty || form.processing) {
+            return
+        }
+
+        if (options.beforeSave) {
+            options.beforeSave(send)
+
+            return
+        }
+
+        send()
+    }
+
+    function send(): void {
         if (!form.isDirty || form.processing) {
             return
         }

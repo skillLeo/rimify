@@ -169,6 +169,31 @@ describe('useDirtyForm', () => {
         expect(visit).toHaveBeenCalledWith('http://x.test/admin/rollen', expect.any(Object))
     })
 
+    it('asks first when the page wants a question before the save, and sends only on a yes', () => {
+        let send: (() => void) | null = null
+        let editor!: ReturnType<typeof useDirtyForm>
+
+        mounted.push(
+            mount(
+                defineComponent({
+                    setup() {
+                        editor = useDirtyForm({ rights: [] }, { method: 'put', url: '/admin/x', beforeSave: (proceed) => (send = proceed) })
+
+                        return () => h('div')
+                    },
+                })
+            )
+        )
+        form.isDirty = true
+
+        editor.save()
+        expect(form.submit).not.toHaveBeenCalled()
+        expect(send).not.toBeNull()
+
+        send!()
+        expect(form.submit).toHaveBeenCalledOnce()
+    })
+
     it('saves on Strg S when there is something to save', () => {
         mountForm()
         form.isDirty = true

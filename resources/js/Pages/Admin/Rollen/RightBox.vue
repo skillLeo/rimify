@@ -53,13 +53,21 @@ const emit = defineEmits<{ change: [event: Event] }>()
 </template>
 
 <style scoped>
+/* The admin's row control from 768 px (the grid keeps its 40 px rows); the 44 px touch floor below. */
 .rol-box {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: var(--adm-control-h-lg);
-    min-height: var(--adm-control-h-lg);
+    min-width: var(--adm-control-h);
+    min-height: var(--adm-control-h);
     vertical-align: middle;
+}
+
+@media (max-width: 767px) {
+    .rol-box {
+        min-width: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
+    }
 }
 
 label.rol-box {
@@ -67,8 +75,8 @@ label.rol-box {
 }
 
 .rol-box input {
-    width: 18px;
-    height: 18px;
+    width: var(--sp-16);
+    height: var(--sp-16);
     margin: 0;
     accent-color: var(--c-blue);
     cursor: pointer;

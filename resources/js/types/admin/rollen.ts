@@ -52,6 +52,8 @@ export interface AdminRollenPageProps {
     selected: number | null
     /** "Ansicht als Rolle": the rail the selected role would see. */
     navigation: AdminNavGroup[]
+    /** The rights this viewer may hand to a role — their own; null for a Super-Admin (all of them). */
+    grantable: string[] | null
     /** Presentation only — the server refuses regardless (R-11). */
     can: { create: boolean; update: boolean; delete: boolean }
 }
