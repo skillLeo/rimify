@@ -186,21 +186,35 @@ describe('Wuchtgewichte-Farben', () => {
         expect((wrapper.find('#wg-name').element as HTMLInputElement).value).toBe('')
     })
 
-    it('asks before deleting and only then sends the request', async () => {
-        const wrapper = mountPage()
+    it('asks before deleting, naming the colour, and only then sends the request', async () => {
+        const wrapper = mountPage({
+            colours: [colour(), colour({ id: 2, nameDe: 'Schwarz', slug: 'schwarz', isDefault: false })],
+        })
 
         expect(wrapper.find('.dialog-stub').exists()).toBe(false)
 
         await button(wrapper, 'Löschen')!.trigger('click')
 
-        expect(wrapper.find('.dialog-stub').text()).toContain(
-            'Farbe wirklich löschen? Bestellungen behalten die Farbe, die sie hatten.'
-        )
+        const dialog = wrapper.find('.dialog-stub')
+        expect(dialog.find('h3').text()).toBe('Farbe „Silber“ löschen?')
+        expect(dialog.text()).toContain('Bestellungen behalten die Farbe, mit der sie verkauft wurden.')
+        // Another active colour remains, so the storefront keeps selling Kompletträder.
+        expect(dialog.text()).not.toContain('keine aktive Farbe mehr')
         expect(router.delete).not.toHaveBeenCalled()
 
-        await wrapper.find('.wg__confirm').trigger('click')
+        await dialog.find('.adm-btn--danger').trigger('click')
 
         expect(router.delete).toHaveBeenCalledWith('/admin/wuchtgewichte/1', expect.objectContaining({ preserveScroll: true }))
+    })
+
+    it('says so when deleting the last active colour would stop Komplettrad orders', async () => {
+        const wrapper = mountPage()
+
+        await button(wrapper, 'Löschen')!.trigger('click')
+
+        expect(wrapper.find('.dialog-stub').text()).toContain(
+            'Danach ist keine aktive Farbe mehr übrig – Kompletträder lassen sich dann nicht bestellen.'
+        )
     })
 
     it('shows the server\'s message under the field it belongs to', async () => {

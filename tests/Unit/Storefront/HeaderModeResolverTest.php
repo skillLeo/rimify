@@ -13,7 +13,7 @@ use App\Domain\Storefront\HeaderModeResolver;
 dataset('routes', [
     'startseite', 'felgen-suchen', 'felgen.index', 'felgen.show', 'felgen.fuer', 'warenkorb.index',
     'kasse.index', 'kasse.store', 'bestellung.show', 'rimify-check.index', 'check.show', 'faq',
-    'kontakt', 'rechtliches', 'admin.dashboard', 'does.not.exist',
+    'kontakt', 'rechtliches', 'admin.uebersicht', 'does.not.exist',
 ]);
 
 it('shows a plain header without a vehicle on every non-checkout route', function (string $route): void {

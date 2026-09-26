@@ -500,16 +500,11 @@ export interface AdminAnmeldenProps {
     stage: string
 }
 
-export interface AdminDashboardProps {
-    tiles: { key: string; label: string; value: string }[]
-    revenue: { label: string; value: number }[]
-    conflicts: {
-        id: number
-        kind: string
-        blocking: boolean
-        vehicle: string
-        keyNumbers: string
-    }[]
+export interface AdminUebersichtProps {
+    /** Only the figures of areas the viewer may open; `href` only where the list exists. */
+    tiles: { key: string; label: string; value: string; href: string | null }[]
+    /** `26.09.2026, 13:40 Uhr` in Europe/Berlin — when the figures were counted. */
+    asOf: string
 }
 
 export interface AdminGutachtenProps {
@@ -529,6 +524,8 @@ export interface AdminGutachtenProps {
 }
 
 export interface AdminBenachrichtigungenProps {
+    /** `waiting`: confirmed, still subscribed, not yet told — the rail's count. `limit`: the list's cap. */
+    summary: { waiting: number; total: number; limit: number }
     subscriptions: {
         id: number
         email: string

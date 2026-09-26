@@ -1597,48 +1597,6 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
-       ADMIN · the frame lives in admin.css; these are the dashboard's figures until Übersicht moves
-       ═══════════════════════════════════════════════════════════════════════════ */
-
-    /* Operational metrics: a label and a real number that links to the list behind it. */
-    .metrics {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: var(--space-4);
-    }
-
-    .metric {
-        display: block;
-        /* So the figure inside can answer to the tile's own width, not the viewport's. */
-        container-type: inline-size;
-        padding: var(--space-4);
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: var(--radius-md);
-        color: inherit;
-        text-decoration: none;
-    }
-
-    /* A figure is one thing, so it stays on one line: `7.224,00 €` was wrapping after the last
-       digit and reading as `7.224,0` with `0 €` beneath it — a number that says something else.
-       Where a tile is too narrow for it, the figure steps down rather than breaking. */
-    .metric__value {
-        font-family: var(--mono);
-        font-size: var(--text-h2);
-        font-weight: 700;
-        color: var(--ink);
-        font-variant-numeric: tabular-nums;
-        margin-top: var(--space-1);
-        white-space: nowrap;
-    }
-
-    @container (max-width: 240px) {
-        .metric__value {
-            font-size: var(--text-h3);
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════════════════════════════
        SMALL LAYOUT HELPERS
        ═══════════════════════════════════════════════════════════════════════════ */
 

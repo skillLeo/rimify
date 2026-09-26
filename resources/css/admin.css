@@ -1379,6 +1379,416 @@
     }
 }
 
+/* ── Blocks on a page: sections, panels, notes ─────────────────────────────────────── */
+
+.adm-section + .adm-section {
+    margin-top: var(--sp-32);
+}
+
+.adm-section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-8) var(--sp-16);
+    margin-bottom: var(--sp-12);
+}
+
+.adm-section__title {
+    margin: 0;
+    font-size: var(--fs-h4);
+    line-height: var(--lh-h4);
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--c-ink);
+}
+
+.adm-note {
+    max-width: 54ch;
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-note + .adm-note,
+.adm-section__head + .adm-note {
+    margin-top: var(--sp-4);
+}
+
+/* A refusal the server made about the block it sits above: said once, read before the retry. */
+.adm-alert {
+    max-width: 72ch;
+    margin: var(--sp-12) 0;
+    padding: var(--sp-12) var(--sp-16);
+    border: 1px solid var(--c-bad);
+    border-radius: var(--r-control);
+    background: var(--c-bad-tint);
+    color: var(--c-ink);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+/* One bordered surface for a table or a small form — the only card a list page needs. */
+.adm-panel {
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    overflow: hidden;
+}
+
+.adm-panel--pad {
+    padding: var(--sp-20) var(--sp-24);
+    overflow: visible;
+}
+
+@media (max-width: 767px) {
+    .adm-panel--pad {
+        padding: var(--sp-16);
+    }
+}
+
+/* A small form inside a panel: fields in a row from 1024 px, one column below. */
+.adm-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-16);
+    align-items: start;
+}
+
+.adm-fields__narrow {
+    max-width: 22ch;
+}
+
+.adm-fields__checks {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--sp-16);
+}
+
+.adm-fields__checks .form-field__error {
+    flex-basis: 100%;
+}
+
+.adm-fields__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+    margin-top: var(--sp-16);
+}
+
+/* One short field and its button on one line, under the field's label; help runs full width below.
+   A price is a few characters wide, and a field the width of the screen invites a sentence. */
+.adm-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.adm-inline > .input {
+    flex: 0 1 22ch;
+    min-width: 0;
+}
+
+.adm-inline > .btn {
+    flex: none;
+}
+
+/* Running text under a field keeps a reading width, however wide the field's column is. */
+.adm .form-field__help {
+    max-width: 54ch;
+}
+
+/* ── Filters (§8.1: at the top of the body, never in the header) ─────────────────────── */
+
+.adm-filters {
+    display: grid;
+    gap: var(--sp-8);
+    margin-bottom: var(--sp-16);
+}
+
+.adm-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.adm-filter__label {
+    min-width: 56px;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    color: var(--c-ink-2);
+}
+
+.adm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-12);
+    border: 1px solid var(--c-line-2);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    color: var(--c-ink-2);
+    font: inherit;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    cursor: pointer;
+    transition:
+        background-color var(--d-1) var(--ease-out),
+        border-color var(--d-1) var(--ease-out),
+        color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-chip:hover {
+        border-color: var(--c-ink-3);
+    }
+}
+
+.adm-chip[aria-pressed='true'] {
+    border-color: var(--c-blue);
+    background: var(--c-blue-tint);
+    color: var(--c-ink);
+}
+
+.adm-chip__n {
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+}
+
+@media (max-width: 767px) {
+    .adm-chip {
+        height: var(--adm-control-h-lg);
+    }
+}
+
+/* ── Tables (§9.6): hairlines, no zebra, no vertical rules; a card per row below 768 ───── */
+
+.adm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-table th {
+    height: var(--adm-row-h);
+    padding: 0 var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+    background: var(--c-surface);
+    font-weight: 500;
+    color: var(--c-ink-2);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.adm-table td {
+    height: var(--adm-row-h);
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+    vertical-align: middle;
+    color: var(--c-ink);
+}
+
+.adm-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.adm-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-table__key {
+    display: block;
+    font-weight: 600;
+}
+
+.adm-table__sub {
+    display: block;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-table__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--sp-8);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-table tbody tr:hover td {
+        background: var(--c-band);
+    }
+}
+
+.adm-table tr[aria-current='true'] td {
+    background: var(--c-blue-tint);
+}
+
+/* Below 768 each row is a card: the first cell is its key line, every other value labelled. */
+@media (max-width: 767px) {
+    .adm-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .adm-table,
+    .adm-table tbody,
+    .adm-table tr,
+    .adm-table td {
+        display: block;
+    }
+
+    .adm-table tr {
+        padding: var(--sp-12) var(--sp-16);
+        border-bottom: 1px solid var(--c-line);
+    }
+
+    .adm-table tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .adm-table td {
+        display: grid;
+        grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
+        gap: var(--sp-12);
+        height: auto;
+        padding: var(--sp-4) 0;
+        border: 0;
+        text-align: left;
+    }
+
+    .adm-table td.num {
+        text-align: left;
+    }
+
+    .adm-table td::before {
+        content: attr(data-label);
+        color: var(--c-ink-2);
+    }
+
+    /* The key line reads as the card's title, not as one more labelled value. */
+    .adm-table td:first-child {
+        display: block;
+        padding-bottom: var(--sp-8);
+        font-size: var(--fs-body);
+        line-height: var(--lh-body);
+    }
+
+    .adm-table td:first-child::before {
+        content: none;
+    }
+
+    .adm-table td[data-label='Aktionen'] {
+        display: block;
+        padding-top: var(--sp-8);
+    }
+
+    .adm-table td[data-label='Aktionen']::before {
+        content: none;
+    }
+
+    .adm-table__actions {
+        justify-content: flex-start;
+    }
+}
+
+/* ── Figures (§2.1: one figure on a tile is --fs-h2, tabular, 700) ────────────────── */
+
+.adm-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--sp-16);
+}
+
+.adm-stat {
+    display: grid;
+    gap: var(--sp-8);
+    /* So the figure answers to the tile's own width, not the viewport's. */
+    container-type: inline-size;
+    padding: var(--sp-16) var(--sp-20);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    text-decoration: none;
+}
+
+.adm-stat__label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    color: var(--c-ink-2);
+}
+
+.adm-stat__go {
+    flex: none;
+    color: var(--c-ink-3);
+    transition: transform var(--d-1) var(--ease-out), color var(--d-1) var(--ease-out);
+}
+
+/* A figure is one thing, so it stays on one line: `7.224,00 €` once wrapped after the last digit
+   and read as `7.224,0` over `0 €`. Where a tile is too narrow, it steps down instead. */
+.adm-stat__value {
+    font-size: var(--fs-h2);
+    line-height: var(--lh-h2);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+@container (max-width: 200px) {
+    .adm-stat__value {
+        font-size: var(--fs-h3);
+        line-height: var(--lh-h3);
+    }
+}
+
+.adm-stat--link {
+    transition: border-color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-stat--link:hover {
+        border-color: var(--c-line-2);
+    }
+
+    .adm-stat--link:hover .adm-stat__go {
+        color: var(--c-ink);
+        transform: translateX(2px);
+    }
+}
+
+.adm-stat--link:active {
+    background: var(--c-band);
+}
+
+@media (max-width: 767px) {
+    .adm-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--sp-12);
+    }
+
+    .adm-stat {
+        padding: var(--sp-12);
+    }
+}
+
 /* ── The four other states (§9) ────────────────────────────────────────────────────
  * On the page's reading line, where the content would be — never centred in an empty box.       */
 

@@ -6,24 +6,31 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Support\GermanFormat;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Benachrichtigungen — who is waiting for a document that names their vehicle (F2), and which
- * vehicles are asked for most. The second list is the point: it ranks the Gutachten worth buying
- * by real demand.
+ * Benachrichtigungswünsche — who is waiting for a document that names their vehicle (F2), and which
+ * vehicles are asked for most. The ranking is the point: it orders the Gutachten worth buying by
+ * real demand.
+ *
+ * "Waiting" means one thing everywhere — confirmed, still subscribed, not yet told — so the ranking,
+ * the page's own figure and the count on the rail can never disagree.
  */
 class BenachrichtigungenController extends Controller
 {
+    /** The newest this many; the page says so when there are more. */
+    public const LIST_LIMIT = 200;
+
     public function index(Request $request): Response
     {
         $rows = DB::table('fitment_subscriptions as s')
             ->join('vehicles as v', 'v.id', '=', 's.vehicle_id')
             ->orderByDesc('s.created_at')
-            ->limit(200)
+            ->limit(self::LIST_LIMIT)
             ->get([
                 's.id', 's.email', 's.confirmed_at', 's.unsubscribed_at', 's.notified_at', 's.created_at',
                 'v.make', 'v.model', 'v.variant', 'v.hsn', 'v.tsn',
@@ -43,16 +50,19 @@ class BenachrichtigungenController extends Controller
             ];
         }
 
-        $demand = DB::table('fitment_subscriptions as s')
+        $demand = $this->waiting()
             ->join('vehicles as v', 'v.id', '=', 's.vehicle_id')
-            ->whereNotNull('s.confirmed_at')
-            ->whereNull('s.unsubscribed_at')
             ->groupBy('v.id', 'v.make', 'v.model', 'v.variant', 'v.hsn', 'v.tsn')
             ->orderByDesc(DB::raw('COUNT(*)'))
             ->limit(20)
             ->get(['v.make', 'v.model', 'v.variant', 'v.hsn', 'v.tsn', DB::raw('COUNT(*) as waiting')]);
 
         return Inertia::render('Admin/Benachrichtigungen/Index', [
+            'summary' => [
+                'waiting' => $this->waiting()->count(),
+                'total' => DB::table('fitment_subscriptions')->count(),
+                'limit' => self::LIST_LIMIT,
+            ],
             'subscriptions' => $subscriptions,
             'demand' => $demand->map(static fn (object $row): array => [
                 'vehicle' => trim($row->make.' '.$row->variant),
@@ -60,6 +70,15 @@ class BenachrichtigungenController extends Controller
                 'waiting' => (int) $row->waiting,
             ])->values()->all(),
         ]);
+    }
+
+    /** Confirmed, still subscribed, not yet told — the same rule as the rail's count. */
+    private function waiting(): Builder
+    {
+        return DB::table('fitment_subscriptions as s')
+            ->whereNotNull('s.confirmed_at')
+            ->whereNull('s.unsubscribed_at')
+            ->whereNull('s.notified_at');
     }
 
     private function status(object $row): string

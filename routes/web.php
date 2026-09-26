@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminPreferencesController;
 use App\Http\Controllers\Admin\AdminProfileController;
@@ -10,6 +9,7 @@ use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
@@ -147,7 +147,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('profil.passwort');
         Route::patch('/ansicht', [AdminPreferencesController::class, 'update'])->name('ansicht');
 
-        Route::get('/', AdminDashboardController::class)->name('dashboard');
+        Route::get('/', UebersichtController::class)->name('uebersicht');
         Route::get('/gutachten', [GutachtenController::class, 'index'])->name('gutachten.index');
         Route::get('/rollen', [RollenController::class, 'index'])->name('rollen.index');
         // One cell of the matrix at a time: posting the whole grid would let two admins editing

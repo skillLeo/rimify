@@ -168,7 +168,7 @@ it('renders the admin panel for a signed-in staff account', function (string $pa
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component($component));
 })->with([
-    'dashboard' => ['/admin', 'Admin/Dashboard/Index'],
+    'uebersicht' => ['/admin', 'Admin/Uebersicht/Index'],
     'gutachten' => ['/admin/gutachten', 'Admin/Gutachten/Index'],
     'rollen' => ['/admin/rollen', 'Admin/Rollen/Index'],
 ]);
@@ -187,7 +187,7 @@ it('renders a designed 404 rather than a framework page', function (): void {
         );
 });
 
-it('fills the dashboard from real queries', function (): void {
+it('fills the Übersicht from real queries', function (): void {
     $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
 
     $this->actingAs($admin, 'admin')
@@ -196,10 +196,8 @@ it('fills the dashboard from real queries', function (): void {
         ->assertInertia(
             fn (AssertableInertia $page) => $page
                 ->has('tiles', 6)
-                // Twelve months, zeros included, so the line has a shape rather than a gap.
-                ->has('revenue', 12)
                 // The seed plants one deliberate entry-requirement disagreement.
-                ->has('conflicts', 1)
-                ->where('conflicts.0.blocking', true)
+                ->where('tiles.4.key', 'conflicts')
+                ->where('tiles.4.value', '1')
         );
 });

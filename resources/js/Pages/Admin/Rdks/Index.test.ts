@@ -181,21 +181,29 @@ describe('RDKS-Sensorpreise je Marke', () => {
         expect((wrapper.find('#rd-make').element as HTMLInputElement).value).toBe('')
     })
 
-    it('asks before deleting and only then sends the request', async () => {
-        const wrapper = mountPage()
+    it('asks before deleting, naming the make and what the checkout then does, and only then sends the request', async () => {
+        const wrapper = mountPage({ default: { cents: null, typed: '' } })
 
         expect(wrapper.find('.dialog-stub').exists()).toBe(false)
 
         await button(wrapper, 'Löschen')!.trigger('click')
 
-        expect(wrapper.find('.dialog-stub').text()).toContain(
-            'Preis wirklich löschen? An der Kasse können wir für diese Marke dann keine Sensoren mehr berechnen.'
-        )
+        const dialog = wrapper.find('.dialog-stub')
+        expect(dialog.find('h3').text()).toBe('Preis für Volkswagen löschen?')
+        expect(dialog.text()).toContain('An der Kasse können wir für diese Marke dann keine Sensoren mehr berechnen.')
         expect(router.delete).not.toHaveBeenCalled()
 
-        await wrapper.find('.rd__confirm').trigger('click')
+        await dialog.find('.adm-btn--danger').trigger('click')
 
         expect(router.delete).toHaveBeenCalledWith('/admin/rdks-preise/7', expect.objectContaining({ preserveScroll: true }))
+    })
+
+    it('says the default price takes over when one is set', async () => {
+        const wrapper = mountPage({ default: { cents: 1500, typed: '15,00 €' } })
+
+        await button(wrapper, 'Löschen')!.trigger('click')
+
+        expect(wrapper.find('.dialog-stub').text()).toContain('An der Kasse gilt für diese Marke dann der Standardpreis von 15,00 € je Sensor.')
     })
 
     it('shows the server\'s message under the field it belongs to', async () => {
