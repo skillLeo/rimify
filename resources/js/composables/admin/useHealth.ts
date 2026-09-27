@@ -57,8 +57,16 @@ export function useHealth(): ComputedRef<AdminHealth | null> {
     if (!listening && typeof window !== 'undefined') {
         listening = true
         // A page from the server carries an answer at most 30 seconds old: it replaces the polled one.
-        router.on('success', () => {
+        // A page without the banner that was put off means the server keeps the snooze now; when it
+        // runs out, the banner may come back even in a tab left open for the 8 hours.
+        router.on('success', (event) => {
             live.value = null
+
+            const admin = (event.detail.page.props as { admin?: { health?: { banner?: { key?: unknown } | null } | null } }).admin
+
+            if (admin?.health?.banner?.key !== snoozedBanner.value) {
+                snoozedBanner.value = null
+            }
         })
     }
 
@@ -91,7 +99,35 @@ export function useHealth(): ComputedRef<AdminHealth | null> {
     })
 }
 
-/** For tests: forget the polled answer. */
+/*
+ * One problem, three places, three jobs: the banner is the interrupt, the Systemzustand card the
+ * detail, the rail's line (and the phone's Mehr row) the ambient reminder. While the banner shows,
+ * the line would only say it a second time, so it stays away; once the banner is put off („Später
+ * erinnern“), the line comes back. The card always stays.
+ *
+ * „Später erinnern“ hides the banner at once, in every part of the page; the server remembers it from
+ * the next page on (HandleInertiaRequests leaves the banner out of the first frame).
+ */
+const snoozedBanner = ref<string | null>(null)
+
+/** The urgent problem's banner as the page shows it now: null when there is none, or it was put off. */
+export function useHealthBanner(): ComputedRef<AdminHealth['banner']> {
+    const admin = useAdmin()
+
+    return computed(() => {
+        const banner = admin.value.health?.banner ?? null
+
+        return banner !== null && banner.key !== snoozedBanner.value ? banner : null
+    })
+}
+
+/** „Später erinnern“: the banner about this problem goes, and the rail's line comes back. */
+export function snoozeBanner(key: string): void {
+    snoozedBanner.value = key
+}
+
+/** For tests: forget the polled answer and any banner put off. */
 export function resetHealth(): void {
     live.value = null
+    snoozedBanner.value = null
 }

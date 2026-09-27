@@ -5,24 +5,18 @@
  *
  * It cannot be dismissed — a problem hidden for good is how a dead queue goes unnoticed. „Später
  * erinnern“ keeps it away for 8 hours, saved on the account so it does not flash up on the next page
- * (the server leaves it out of the first frame); the rail's line keeps showing the problem meanwhile.
- * The link leads to System › Zustand, which explains it and retries.
+ * (the server leaves it out of the first frame). While it shows, the rail's line about the same
+ * problem stays away; put off, the line comes back and reminds (useHealthBanner). The link leads to
+ * System › Zustand, which explains it and retries.
  */
 
 import { Link } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useAdmin } from '../../composables/admin/useAdmin'
+import { snoozeBanner, useHealthBanner } from '../../composables/admin/useHealth'
 
 const admin = useAdmin()
-
-/** Hidden at once on „Später erinnern“; the server remembers it from the next page on. */
-const snoozed = ref<string | null>(null)
-
-const banner = computed(() => {
-    const value = admin.value.health?.banner ?? null
-
-    return value !== null && value.key !== snoozed.value ? value : null
-})
+const banner = useHealthBanner()
 
 const href = computed(() => admin.value.health?.href ?? null)
 const tone = computed(() => (banner.value?.key === 'maintenance' ? 'bad' : 'warn'))
@@ -41,7 +35,7 @@ function remindLater(): void {
         return
     }
 
-    snoozed.value = key
+    snoozeBanner(key)
 
     void fetch('/admin/ansicht', {
         method: 'PATCH',

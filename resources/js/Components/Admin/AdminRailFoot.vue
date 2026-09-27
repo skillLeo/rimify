@@ -35,7 +35,7 @@ import AdminMenuTip from './AdminMenuTip.vue'
 import Icon from './AdminIcon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
-import { useHealth } from '../../composables/admin/useHealth'
+import { useHealth, useHealthBanner } from '../../composables/admin/useHealth'
 import { monogram } from '../../composables/admin/monogram'
 
 defineProps<{ collapsed: boolean }>()
@@ -43,6 +43,7 @@ defineProps<{ collapsed: boolean }>()
 const admin = useAdmin()
 const shell = useAdminShell()
 const health = useHealth()
+const banner = useHealthBanner()
 
 const account = computed(() => admin.value.account)
 const actions = computed(() => admin.value.quickActions)
@@ -80,7 +81,8 @@ function signOut(event: Event): void {
          prop only turns tooltips on and opens the menus to the side instead of upward. -->
     <div class="adm-foot">
         <!-- 1 · Systemzustand: nothing while all is well. -->
-        <TooltipRoot v-if="health && health.state !== 'ok'">
+        <!-- The ambient reminder: away while the banner says the same thing (useHealthBanner). -->
+        <TooltipRoot v-if="health && health.state !== 'ok' && !banner">
             <TooltipTrigger as-child>
                 <component
                     :is="health.href ? Link : 'p'"

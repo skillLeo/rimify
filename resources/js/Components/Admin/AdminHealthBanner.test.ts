@@ -12,6 +12,7 @@ const current: { props: Record<string, unknown> } = { props: {} }
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => current,
+    router: { on: vi.fn(() => () => undefined) },
     Link: defineComponent({
         props: { href: { type: String, required: true } },
         setup: (props, { slots, attrs }) => () => h('a', { href: props.href, ...attrs }, slots.default?.()),
@@ -19,6 +20,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }))
 
 const { default: AdminHealthBanner } = await import('./AdminHealthBanner.vue')
+const { resetHealth } = await import('../../composables/admin/useHealth')
 
 function mountBanner(health: Record<string, unknown> | null) {
     current.props = { admin: { health } }
@@ -35,7 +37,10 @@ const QUEUE = {
     banner: { key: 'queue', sentence: 'Die Warteschlange steht seit 2 Stunden: E-Mails und andere Hintergrundaufgaben werden nicht abgearbeitet.' },
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+    vi.unstubAllGlobals()
+    resetHealth()
+})
 
 describe('AdminHealthBanner', () => {
     it('is not there without an urgent problem', () => {

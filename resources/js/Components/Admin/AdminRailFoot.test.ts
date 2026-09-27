@@ -46,7 +46,7 @@ vi.mock('reka-ui', () => {
 
 const { default: AdminRailFoot } = await import('./AdminRailFoot.vue')
 const { provideAdminShell } = await import('../../composables/admin/useAdmin')
-const { resetHealth } = await import('../../composables/admin/useHealth')
+const { resetHealth, snoozeBanner } = await import('../../composables/admin/useHealth')
 
 let mounted: VueWrapper[] = []
 const shortcuts = ref(false)
@@ -118,6 +118,26 @@ describe('AdminRailFoot', () => {
         expect(plain.find('a.adm-foot__health').exists()).toBe(false)
         expect(plain.find('p.adm-foot__health').exists()).toBe(true)
         expect(plain.find('[role="status"]').text()).toBe('Warteschlange steht seit 12 Stunden')
+    })
+
+    it('stays away while the banner says the same, and comes back once it is put off', async () => {
+        const queue = {
+            state: 'warn',
+            sentence: 'Warteschlange steht seit 2 Stunden',
+            label: 'Warteschlange stockt',
+            count: '2 Std',
+            href: '/admin/system',
+            banner: { key: 'queue', sentence: 'Die Warteschlange steht seit 2 Stunden.' },
+        }
+        const wrapper = mountFoot({ health: queue })
+
+        // The banner is the interrupt; the rail's line would only say it a second time.
+        expect(wrapper.find('.adm-foot__health').exists()).toBe(false)
+
+        // „Später erinnern“ on the banner: the ambient reminder is back.
+        snoozeBanner('queue')
+        await flushPromises()
+        expect(wrapper.find('.adm-foot__label').text()).toBe('Warteschlange stockt')
     })
 
     it('asks again every minute and shows the new line', async () => {

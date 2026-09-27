@@ -16,7 +16,7 @@ import ListRow from '../Mobile/ListRow.vue'
 import AdminIcon from './AdminIcon.vue'
 import { monogram } from '../../composables/admin/monogram'
 import { useAdmin } from '../../composables/admin/useAdmin'
-import { useHealth } from '../../composables/admin/useHealth'
+import { useHealth, useHealthBanner } from '../../composables/admin/useHealth'
 import type { AdminNavGroup, AdminNavPage } from '../../types/admin'
 
 const props = defineProps<{
@@ -31,6 +31,7 @@ const account = computed(() => admin.value.account)
 const actions = computed(() => admin.value.quickActions)
 const initials = computed(() => monogram(account.value?.name))
 const health = useHealth()
+const banner = useHealthBanner()
 
 const groups = computed(() => admin.value.nav.filter((g) => g.key !== 'uebersicht' && !props.exclude.includes(g.key)))
 
@@ -79,11 +80,11 @@ function signOut(): void {
 <template>
     <BottomSheet id="admin-mehr" v-model:open="open" title="Mehr">
         <div class="adm-more">
-            <!-- The rail's foot, on a phone: the shop's health first — only when something is wrong,
-                 one quiet line, the same words as the rail. -->
+            <!-- The rail's foot, on a phone: the shop's health first — only when something is wrong and
+                 no banner is saying it already, one quiet line, the same words as the rail. -->
             <component
                 :is="health.href ? Link : 'p'"
-                v-if="health && health.state !== 'ok'"
+                v-if="health && health.state !== 'ok' && !banner"
                 :href="health.href ?? undefined"
                 class="adm-foot__health adm-more__health"
                 :aria-label="health.sentence"
