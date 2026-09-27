@@ -129,9 +129,11 @@
     padding: 0 var(--sp-12) var(--sp-16);
     overflow-y: auto;
     overscroll-behavior: contain;
-    /* A thin, quiet scrollbar, only while there is more to scroll to. (Not a stable gutter: that kept
-       its room from every rail on a system with classic scrollbars, and cut the foot's health line.) */
+    /* A thin, quiet scrollbar. Its room is kept in the navigation alone, whether it scrolls or not, so
+       nothing in the list moves the moment it starts to scroll (classic scrollbars: 10 px). The foot
+       keeps its full width — a gutter there cut the health line short. */
     scrollbar-color: var(--c-line-2) transparent;
+    scrollbar-gutter: stable;
     scrollbar-width: thin;
 }
 
