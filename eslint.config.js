@@ -59,4 +59,23 @@ export default [
             'vue/singleline-html-element-content-newline': 'off',
         },
     },
+    // R-10: a number becomes text in one module only (resources/js/lib/num.ts). A second formatter
+    // anywhere is how „1000“ and „1.000“ come to mean two things (SV-13).
+    {
+        files: ['resources/js/**/*.{ts,vue}'],
+        ignores: ['resources/js/lib/num.ts'],
+        rules: {
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: "CallExpression[callee.property.name='toLocaleString']",
+                    message: 'Numbers are formatted in resources/js/lib/num.ts only (formatNumber, formatCurrency, formatPercent).',
+                },
+                {
+                    selector: "NewExpression[callee.object.name='Intl'][callee.property.name='NumberFormat']",
+                    message: 'Numbers are formatted in resources/js/lib/num.ts only (formatNumber, formatCurrency, formatPercent).',
+                },
+            ],
+        },
+    },
 ];

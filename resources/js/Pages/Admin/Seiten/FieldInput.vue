@@ -11,6 +11,7 @@
 import { computed } from 'vue'
 import Icon from '../../../Components/Ui/Icon.vue'
 import { isIconName } from '../../../icons'
+import { formatNumber } from '../../../lib/num'
 import type { SchemaField } from '../../../types/admin/seiten'
 import { length, overLimit } from './content'
 
@@ -42,7 +43,7 @@ const showCounter = computed(() => {
 const counterText = computed(() => {
     const max = props.field.max ?? 0
 
-    return `${count.value.toLocaleString('de-DE')} / ${max.toLocaleString('de-DE')}`
+    return `${formatNumber(count.value)} / ${formatNumber(max)}`
 })
 
 /* A long text gets the room it needs, up to a screenful; the rest scrolls inside the field. */
