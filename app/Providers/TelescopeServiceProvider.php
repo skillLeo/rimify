@@ -42,7 +42,8 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
             return;
         }
 
-        Telescope::hideRequestParameters(['_token']);
+        // The storage keys typed into Medien und Speicher, and the password asked for before it.
+        Telescope::hideRequestParameters(['_token', 'password', 'access_key', 'secret']);
 
         Telescope::hideRequestHeaders([
             'cookie',

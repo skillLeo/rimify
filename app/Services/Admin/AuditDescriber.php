@@ -77,6 +77,7 @@ final class AuditDescriber
         'audit_log.exported' => 'protokoll',
         'orders.exported' => 'verkauf',
         'demo.purged' => 'protokoll',
+        'storage.settings_updated' => 'zugriff',
         'demand.marked' => 'gutachten',
         'demand.unmarked' => 'gutachten',
         'page.created' => 'inhalte',
@@ -277,6 +278,7 @@ final class AuditDescriber
             ],
             'audit_log.exported' => [self::exported($p), []],
             'demo.purged' => self::demoPurged($p),
+            'storage.settings_updated' => self::storageUpdated($p),
             'orders.exported' => [self::ordersExported($p), []],
             'demand.marked' => [self::demandMarked($p), []],
             'demand.unmarked' => ['Die Markierung der Nachfrage-Lücke '.self::q(self::text($p, 'gap') ?? 'ohne Namen').' wurde aufgehoben. Sie ist wieder offen.', []],
@@ -326,6 +328,33 @@ final class AuditDescriber
         foreach (self::map($p, 'tables') as $table => $count) {
             if (is_string($table) && is_numeric($count)) {
                 $changes[] = self::change(DemoTables::LABELS[$table] ?? $table, GermanFormat::decimal((int) $count, 0), '0');
+            }
+        }
+
+        return [$sentence, $changes];
+    }
+
+    /**
+     * „Die Speicher-Einstellungen wurden geändert: Bucket, Geheimer Schlüssel. Sie gelten ab jetzt.“ —
+     * the keys only as their last four characters, before and after (never a key).
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function storageUpdated(array $p): array
+    {
+        $fields = array_values(array_filter(is_array($p['changed'] ?? null) ? $p['changed'] : [], 'is_string'));
+        $sentence = 'Die Speicher-Einstellungen wurden '.($fields === [] ? 'gespeichert' : 'geändert: '.implode(', ', $fields)).'.'
+            .(($p['active'] ?? false) === true ? ' Sie gelten ab jetzt.' : ' Die Verbindung klappte damit nicht; es gelten weiter die bisherigen.');
+        $changes = [];
+
+        foreach (['key_last4' => 'Zugriffsschlüssel', 'signing_key_last4' => 'Geheimer Schlüssel'] as $key => $label) {
+            $pair = self::map($p, $key);
+            $old = is_string($pair['old'] ?? null) ? '…'.$pair['old'] : self::NOTHING;
+            $new = is_string($pair['new'] ?? null) ? '…'.$pair['new'] : self::NOTHING;
+
+            if ($old !== $new) {
+                $changes[] = self::change($label, $old, $new);
             }
         }
 

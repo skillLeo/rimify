@@ -60,6 +60,9 @@ const G = {
     taxes: '<path d="M4.75 2.75h10.5v14.5l-1.75-1.25-1.75 1.25-1.75-1.25-1.75 1.25-1.75-1.25-1.75 1.25z"/><path d="M7.25 6.75h5.5M7.25 9.75h5.5M7.25 12.75h3"/>',
     emails: '<rect x="2.75" y="4.75" width="14.5" height="10.5"/><path d="M2.75 4.75L10 10.75l7.25-6"/>',
     'feature-flags': '<rect x="2.75" y="6.25" width="14.5" height="7.5" rx="3.75"/><circle cx="13.5" cy="10" r="2"/>',
+    // Medien und Speicher: the bucket the shop's files live in, a drum seen from the side — never the
+    // server racks that are System.
+    storage: '<path d="M3.75 5a6.25 2.25 0 1 0 12.5 0a6.25 2.25 0 1 0-12.5 0z"/><path d="M3.75 5v10c0 1.24 2.8 2.25 6.25 2.25s6.25-1.01 6.25-2.25V5M3.75 10c0 1.24 2.8 2.25 6.25 2.25s6.25-1.01 6.25-2.25"/>',
 
     // ── Team und System ─────────────────────────────────────────────────────────────────────────
     users: '<circle cx="10" cy="6.75" r="3.25"/><path d="M3.75 17.25v-.75a4.5 4.5 0 0 1 4.5-4.5h3.5a4.5 4.5 0 0 1 4.5 4.5v.75"/>',
@@ -123,7 +126,7 @@ export const NAV_ICONS = [
     'overview', 'orders', 'returns', 'customers', 'inquiries', 'wheels', 'tyres', 'complete-wheels', 'brands', 'stock',
     'prices', 'media', 'documents', 'conditions', 'coverage', 'conflicts', 'vehicles', 'review', 'imports', 'pages',
     'guides', 'faq', 'navigation', 'legal', 'reports', 'gap', 'settings', 'branding', 'shipping', 'payment', 'taxes',
-    'emails', 'feature-flags', 'users', 'roles', 'audit-log', 'system', 'queue', 'search', 'filter',
+    'emails', 'feature-flags', 'storage', 'users', 'roles', 'audit-log', 'system', 'queue', 'search', 'filter',
 ] as const satisfies readonly AdminIconName[]
 
 /** What a row of a list can do to its record. */

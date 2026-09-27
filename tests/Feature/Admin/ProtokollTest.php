@@ -419,6 +419,11 @@ describe('putting every entry into words', function (): void {
             'tpms_price.deleted' => [['make_key' => 'porsche'], 'Der RDKS-Sensorpreis für Porsche wurde gelöscht.', []],
             'tpms_default_price.updated' => [['old_cents' => 1500, 'cents' => null], 'Der Standardpreis für RDKS-Sensoren wurde geändert.', ['Standardpreis je Sensor: '.$euro(1500).' → nicht festgelegt']],
             'audit_log.exported' => [['filters' => [], 'count' => 3], 'Das ganze Protokoll wurde als CSV exportiert – 3 Einträge.', []],
+            'storage.settings_updated' => [
+                ['changed' => ['Bucket', 'Geheimer Schlüssel'], 'key_last4' => ['old' => 'AB12', 'new' => 'AB12'], 'signing_key_last4' => ['old' => 'X9Y8', 'new' => 'Q7R6'], 'active' => true],
+                'Die Speicher-Einstellungen wurden geändert: Bucket, Geheimer Schlüssel. Sie gelten ab jetzt.',
+                ['Geheimer Schlüssel: …X9Y8 → …Q7R6'],
+            ],
             'demo.purged' => [
                 ['tables' => ['orders' => 1412, 'audit_logs' => 44], 'total' => 1456, 'anchor' => '2026-09-27', 'operator' => 'Konsole (demo:purge)', 'environment' => 'staging'],
                 'Die Demodaten wurden entfernt: 1.456 Datensätze, eingespielt bis zum 27.09.2026.',

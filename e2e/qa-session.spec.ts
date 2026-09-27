@@ -1,5 +1,5 @@
 import { test } from '@playwright/test'
-import { signIn } from './bugs/faq-support'
+import { SUPER_ADMIN, signIn, waitForApp } from './bugs/faq-support'
 
 /*
  * The admin session the gate scripts (scripts/qa/*.mjs) run the admin's routes with: signed in once
@@ -15,5 +15,16 @@ test('saves an admin session for the gate scripts', async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop-1440', 'One session serves every width.')
 
     await signIn(page)
+
+    // Sudo mode too, so the gates reach the screens behind it (Medien und Speicher) for 15 minutes.
+    await page.goto('/admin/einstellungen/speicher', { waitUntil: 'domcontentloaded' })
+    await waitForApp(page)
+
+    if (page.url().includes('/admin/bestaetigen')) {
+        await page.fill('#sudo-password', SUPER_ADMIN.password)
+        await page.getByRole('button', { name: 'Bestätigen', exact: true }).click()
+        await page.waitForURL(/\/admin\/einstellungen\/speicher$/)
+    }
+
     await page.context().storageState({ path: SESSION_FILE })
 })

@@ -72,6 +72,10 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
 
+        // A refused form is sent back with what was typed — never the storage keys (Medien und
+        // Speicher): they would sit in the session store in clear text until the next request.
+        $exceptions->dontFlash(['access_key', 'secret']);
+
         /*
          * A save from an admin page after the sign-in ran out. Same-origin requests pass the CSRF
          * check, so it is the sign-in that refuses — and its redirect to /admin/anmelden would

@@ -37,11 +37,12 @@ final class AdminNavigation
      * (the Protokoll sits with the team but is the audit log's). `count` names a live figure the row
      * carries; only a queue of work whose goal is zero earns one (admin-shell.md §5.6). A group with
      * exactly one visible page IS that page in the rail. `short` is the group's label for a rail
-     * dragged narrower than 248 px — a word of its own, never a label cut mid-word.
+     * dragged narrower than 248 px — a word of its own, never a label cut mid-word. `super` marks a
+     * page for the Super-Admin role alone, on top of the module right.
      *
      * Every page has its own glyph, so the collapsed rail — icons only — never shows two rows alike.
      *
-     * @var list<array{key: string, label: string, short: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string}>}>
+     * @var list<array{key: string, label: string, short: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string, super?: bool}>}>
      */
     private const GROUPS = [
         [
@@ -144,6 +145,8 @@ final class AdminNavigation
                 // What the extras on a Komplettrad cost: Wuchtgewicht colours and RDKS sensors, two
                 // pages behind one item. Prices of the catalogue, so the catalogue's right.
                 ['label' => 'Zubehörpreise', 'href' => '/admin/zubehoerpreise', 'icon' => 'prices', 'module' => PermissionModule::Catalogue->value],
+                // The bucket's keys: the Super-Admin alone, whatever the matrix says (StorageSettingPolicy).
+                ['label' => 'Medien und Speicher', 'href' => '/admin/einstellungen/speicher', 'icon' => 'storage', 'super' => true],
             ],
         ],
         [
@@ -190,7 +193,11 @@ final class AdminNavigation
         '/admin/faq',
         '/admin/navigation',
         '/admin/system',
+        '/admin/einstellungen/speicher',
     ];
+
+    /** The role `super` pages ask for (AdminUser::isSuperAdmin). */
+    private const SUPER_ROLE = 'super-admin';
 
     /**
      * Counts that mean something broke rather than work waiting. Only these wear `--c-bad`: a
@@ -208,6 +215,7 @@ final class AdminNavigation
     private const OFF_RAIL = [
         '/admin/profil' => 'Profil',
         '/admin/benachrichtigungen' => 'Benachrichtigungen',
+        '/admin/bestaetigen' => 'Passwort bestätigen',
     ];
 
     /**
@@ -257,6 +265,10 @@ final class AdminNavigation
                 $module = $page['module'] ?? $group['module'];
 
                 if ($module !== null && ! $this->mayView($user, $module)) {
+                    continue;
+                }
+
+                if (($page['super'] ?? false) && ! $user->isSuperAdmin()) {
                     continue;
                 }
 
@@ -311,6 +323,7 @@ final class AdminNavigation
             ->map(static fn (mixed $module): string => (string) $module)
             ->all();
 
+        $super = DB::table('roles')->where('id', $roleId)->value('name') === self::SUPER_ROLE;
         $tree = [];
 
         foreach (self::GROUPS as $group) {
@@ -324,6 +337,10 @@ final class AdminNavigation
                 $module = $page['module'] ?? $group['module'];
 
                 if ($module !== null && ! in_array($module, $viewable, true)) {
+                    continue;
+                }
+
+                if (($page['super'] ?? false) && ! $super) {
                     continue;
                 }
 

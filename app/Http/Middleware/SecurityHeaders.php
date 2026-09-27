@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Services\Storage\StorageSettings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
@@ -16,7 +17,8 @@ use Symfony\Component\HttpFoundation\Response;
  * The CSP is nonce-based: the Vite tags carry the nonce, nothing else may execute. Stripe Checkout is hosted (a redirect, never an embedded script), so the only
  * third-party script origin is none at all.
  *
- * `img-src` is `'self' data: blob:`, widened to named hosts only when config/rimify.php lists any.
+ * `img-src` is `'self' data: blob:`, widened to named hosts only when config/rimify.php lists any,
+ * and to the media bucket's own origins when one is in force (also in `connect-src`, for uploads).
  */
 final class SecurityHeaders
 {
@@ -70,6 +72,12 @@ final class SecurityHeaders
             $hosts = config('rimify.photography.hosts', []);
             $img = [...$img, ...$hosts];
         }
+
+        // The media bucket in force (Einstellungen › Medien und Speicher): its pictures are shown, and
+        // the Gutachten upload posts to it. Its own named origins — never a wildcard of amazonaws.com.
+        $bucket = app(StorageSettings::class)->current()->origins();
+        $img = array_values(array_unique([...$img, ...$bucket]));
+        $connect = [...$connect, ...$bucket];
 
         // The Vite dev server only exists locally; production never widens the policy.
         if (app()->environment('local') && Vite::isRunningHot()) {

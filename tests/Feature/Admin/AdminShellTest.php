@@ -97,7 +97,7 @@ describe('the tree', function (): void {
             ->and(array_column($nav[1]['pages'], 'label'))->toBe(['Bestellungen', 'Anfragen'])
             ->and(array_column($nav[2]['pages'], 'label'))->toBe(['Dokumente', 'Abdeckung'])
             ->and(array_column($nav[3]['pages'], 'label'))->toBe(['Seiten', 'FAQ', 'Navigation'])
-            ->and(array_column($nav[4]['pages'], 'label'))->toBe(['Zubehörpreise'])
+            ->and(array_column($nav[4]['pages'], 'label'))->toBe(['Zubehörpreise', 'Medien und Speicher'])
             ->and(array_column($nav[5]['pages'], 'label'))->toBe(['Benutzer', 'Rollen & Rechte', 'Protokoll'])
             ->and(array_column($nav[6]['pages'], 'label'))->toBe(['Zustand']);
     });

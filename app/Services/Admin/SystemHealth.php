@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Services\Storage\StorageProbe;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -191,12 +192,26 @@ final class SystemHealth
         return ['key' => 'mail', 'label' => 'E-Mail', 'state' => 'ok', 'sentence' => 'E-Mails werden verschickt.', 'short' => '', 'count' => null];
     }
 
-    /** @return Check */
+    /**
+     * The server's own folder, and — where the files live in a bucket — whether the bucket answers
+     * (StorageProbe). A bucket that does not is amber: pictures fall back to their placeholder and
+     * uploads are refused with a sentence, but the shop still sells.
+     *
+     * @return Check
+     */
     private function storage(): array
     {
-        return is_writable(storage_path('app'))
-            ? ['key' => 'storage', 'label' => 'Speicher', 'state' => 'ok', 'sentence' => 'Dateien können gespeichert werden.', 'short' => '', 'count' => null]
-            : ['key' => 'storage', 'label' => 'Speicher', 'state' => 'bad', 'sentence' => 'Speicher nicht beschreibbar', 'short' => 'Speicher schreibgeschützt', 'count' => null];
+        if (! is_writable(storage_path('app'))) {
+            return ['key' => 'storage', 'label' => 'Speicher', 'state' => 'bad', 'sentence' => 'Speicher nicht beschreibbar', 'short' => 'Speicher schreibgeschützt', 'count' => null];
+        }
+
+        return $this->guard('storage', 'Speicher', static function (): array {
+            $status = app(StorageProbe::class)->status();
+
+            return $status === null || $status['reachable']
+                ? ['state' => 'ok', 'sentence' => 'Dateien können gespeichert werden.', 'short' => '', 'count' => null]
+                : ['state' => 'warn', 'sentence' => 'Speicher nicht erreichbar', 'short' => 'Speicher nicht erreichbar', 'count' => null];
+        });
     }
 
     /**

@@ -236,4 +236,13 @@ class AdminUser extends Authenticatable
     {
         return app(PermissionMatrix::class)->allows($this, $module, $action);
     }
+
+    /**
+     * The Super-Admin role — for the few screens no other role may ever get, whatever the grid says
+     * (the shop's storage keys). Everything else asks `may()`.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin', 'admin');
+    }
 }

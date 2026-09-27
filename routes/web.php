@@ -21,8 +21,11 @@ use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
+use App\Http\Controllers\Admin\SpeicherController;
+use App\Http\Controllers\Admin\SudoController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
+use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
@@ -45,6 +48,8 @@ use App\Http\Controllers\Storefront\VergleichController;
 use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
 use App\Http\Middleware\EnsureAdminMay;
+use App\Http\Middleware\EnsureSudo;
+use App\Models\StorageSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -259,6 +264,24 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy
         // through its Form Request; a deleted view can be restored („Rückgängig“).
         Route::post('/ansichten', [SavedViewsController::class, 'store'])->middleware('throttle:60,1')->name('ansichten.store');
+        // Sudo mode: the password once more before the screens that hold the shop's keys (EnsureSudo).
+        Route::get('/bestaetigen', [SudoController::class, 'show'])->name('bestaetigen');
+        Route::post('/bestaetigen', [SudoController::class, 'store'])->middleware('throttle:6,1')->name('bestaetigen.store');
+
+        // Einstellungen › Medien und Speicher: the Super-Admin alone (StorageSettingPolicy, checked before
+        // the password is asked — nobody is asked only to be refused), then sudo mode.
+        Route::prefix('/einstellungen/speicher')->middleware(['can:view,'.StorageSetting::class, EnsureSudo::class])->group(function (): void {
+            Route::get('/', [SpeicherController::class, 'edit'])->name('speicher.edit');
+            Route::put('/', [SpeicherController::class, 'update'])->middleware('throttle:10,1')->name('speicher.update');
+            Route::post('/test', [SpeicherController::class, 'test'])->middleware('throttle:10,1')->name('speicher.test');
+            Route::post('/buckets', [SpeicherController::class, 'buckets'])->middleware('throttle:10,1')->name('speicher.buckets');
+        });
+
+        // Large PDFs straight into the bucket (PdfUpload): the form, and the app's stand-in for the
+        // bucket on a machine without one — signed, expiring like the bucket's own form.
+        Route::post('/uploads/pdf', [UploadController::class, 'presign'])->middleware('throttle:30,1')->name('uploads.pdf.presign');
+        Route::post('/uploads/pdf/lokal/{name}', [UploadController::class, 'local'])->middleware(['signed', 'throttle:30,1'])->name('uploads.pdf.local');
+
         // The rail's demo strip: the demo set taken away, recorded (DemoDataPolicy, DemoPurge).
         Route::post('/demodaten/entfernen', [DemoDataController::class, 'destroy'])->middleware('throttle:6,1')->name('demodaten.purge');
 
