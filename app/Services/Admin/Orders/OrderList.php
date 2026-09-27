@@ -50,6 +50,8 @@ final class OrderList
         'apple_pay' => 'Apple Pay',
         'google_pay' => 'Google Pay',
         'bank_transfer' => 'Überweisung',
+        // The review's stand-in for a provider (App\Payments\SandboxGateway): no money moved.
+        'sandbox' => 'Testzahlung',
     ];
 
     /**

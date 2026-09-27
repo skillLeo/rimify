@@ -50,9 +50,12 @@ if [ "$TARGET_ENV" = staging ]; then
     set_env RIMIFY_ADMIN_ENABLED true
     # The client's review: the board, the feedback button and the review accounts.
     set_env RIMIFY_REVIEW true
+    # Test orders end to end: a page that says it is a test chooses how the payment ends.
+    set_env RIMIFY_PAYMENTS sandbox
 else
     set_env DEMO_DATA 0
     set_env RIMIFY_REVIEW false
+    set_env RIMIFY_PAYMENTS none
 fi
 set_env APP_DEBUG false
 set_env APP_URL "${APP_URL:-https://rimify.skillleo.com}"

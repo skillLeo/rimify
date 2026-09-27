@@ -26,6 +26,7 @@ use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Support\GermanFormat;
 use App\Support\OrderLineLabel;
+use App\Support\VehicleName;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -503,7 +504,7 @@ final class DemoDashboard
             'status' => $status->value,
             'vehicle_id' => $vehicle->id,
             'vehicle_make' => $vehicle->make,
-            'vehicle_label' => trim($vehicle->make.' '.$vehicle->model.' '.$vehicle->variant),
+            'vehicle_label' => VehicleName::from($vehicle),
             'vehicle_hsn' => $vehicle->hsn,
             'vehicle_tsn' => $vehicle->tsn,
             'vehicle_vsn' => $vehicle->vsn,
@@ -803,7 +804,7 @@ final class DemoDashboard
                 $surface = (string) DemoRandom::weighted(['pdp' => 5, 'plp' => 3, 'check' => 2], $u[4]);
                 $rows[] = [
                     'vehicle_id' => $vehicle->id, 'wheel_config_id' => null, 'hsn' => $vehicle->hsn, 'tsn' => $vehicle->tsn,
-                    'vehicle_label' => trim($vehicle->make.' '.$vehicle->model.' '.$vehicle->variant),
+                    'vehicle_label' => VehicleName::from($vehicle),
                     'reason_code' => 'NO_DOCUMENT', 'surface' => $surface, 'occurred_at' => $at->utc(), 'is_demo' => true, 'demo_ref' => $ref,
                 ];
             }

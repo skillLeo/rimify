@@ -9,6 +9,7 @@ use App\Enums\ConflictStatus;
 use App\Models\FitmentConflict;
 use App\Services\Admin\AdminAlerts;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Throwable;
 
@@ -54,7 +55,7 @@ class ConflictAlertObserver implements ShouldHandleEventsAfterCommit
             return null;
         }
 
-        $name = trim(implode(' ', array_filter([$vehicle->make, $vehicle->model, $vehicle->variant], static fn (?string $part): bool => is_string($part) && $part !== '')));
+        $name = VehicleName::from($vehicle);
 
         return $name === '' ? null : $name;
     }

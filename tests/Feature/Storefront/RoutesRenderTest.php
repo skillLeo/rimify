@@ -8,6 +8,7 @@ use App\Models\WheelModel;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
+use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -146,7 +147,10 @@ it('renders a product page with its finishes and configurations', function (): v
 it('renders an order with its frozen verdict per line', function (): void {
     $order = Order::query()->firstOrFail();
 
-    $this->get('/bestellung/'.$order->order_number)
+    // A real order opens for the browser that placed it, or through a signed link.
+    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
+
+    $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page

@@ -7,12 +7,15 @@ namespace App\Http\Controllers\Storefront;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\PlaceOrderRequest;
 use App\Http\Requests\Storefront\TpmsChoiceRequest;
+use App\Payments\Payments;
+use App\Services\Commerce\OrderWriter;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 /**
  * Checkout. Guest only — there are no customer accounts in this product.
@@ -21,9 +24,10 @@ use Inertia\Response;
  * not compete with the summary, and a blue bar offering to change the vehicle beside a payment
  * button is an invitation to abandon.
  *
- * Nothing binding happens here yet (ACCURACY.md D4). The pages can be walked for review, and the
- * server refuses every order: while a basket line is a demo model, while the shipping price is not
- * configured, and — until the payment integration exists — in any case. No row is written.
+ * An order is written only with a payment driver in force (App\Payments): until a provider is
+ * configured the server refuses every order — and always while a basket line is a demo model or not
+ * sellable. Where the review is on, the sandbox runs a test order the whole way: written with its
+ * frozen verdicts (OrderWriter), paid or refused on a page that says it is a test.
  */
 class KasseController extends Controller
 {
@@ -48,7 +52,9 @@ class KasseController extends Controller
             // The sentence the server answers a submission with, shown before anyone presses the
             // button: a checkout that fails only after the form is filled in wastes the customer's
             // time. The server check in store() stands on its own (R-11: the UI only hides).
-            'orderRefusal' => $this->basket->refusalOf($basket) ?? self::PREVIEW_REFUSAL,
+            'orderRefusal' => $this->refusal($basket),
+            // A test order (the review): the page says so before anything is entered.
+            'sandbox' => Payments::sandbox(),
             // The shared shape, whole: a page prop named `contact` replaces the shared one for the
             // header and the footer too. The phone is null until the client gives one.
             'contact' => Chrome::contact(),
@@ -75,7 +81,7 @@ class KasseController extends Controller
      * the stored answer the quote stays as it was, so a sensor price that moved since the render
      * is caught below; where it differs, the answer — and its quote — is taken afresh.
      */
-    public function store(PlaceOrderRequest $request): RedirectResponse
+    public function store(PlaceOrderRequest $request, OrderWriter $writer): RedirectResponse
     {
         $posted = $request->rdks();
 
@@ -83,7 +89,8 @@ class KasseController extends Controller
             $this->basket->answerTpms($request, $posted);
         }
 
-        $refusal = $this->basket->orderRefusal($request);
+        $summary = $this->basket->summary($request);
+        $refusal = $this->refusal($summary);
 
         if ($refusal !== null) {
             return back()->withErrors(['order' => $refusal]);
@@ -98,6 +105,47 @@ class KasseController extends Controller
             return redirect()->route('warenkorb.index')->withErrors(['order' => self::PRICE_CHANGED_REFUSAL]);
         }
 
-        return back()->withErrors(['order' => self::PREVIEW_REFUSAL]);
+        $gateway = Payments::gateway();
+
+        if ($gateway === null) {
+            return back()->withErrors(['order' => self::PREVIEW_REFUSAL]);
+        }
+
+        $open = $summary['totals']['shippingConfigured'] !== true;
+
+        try {
+            $order = $writer->write(
+                $request,
+                $request->customerData(),
+                $summary,
+                $gateway->method(),
+                // A test order may run before the shipping price is named; the order says so.
+                $open ? 'Testbestellung: Die Versandkosten sind noch nicht festgelegt und mit 0,00 € berechnet.' : null,
+            );
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['order' => $e->getMessage()]);
+        }
+
+        BestellungController::remember($request, $order->order_number);
+
+        return redirect()->to($gateway->start($order));
+    }
+
+    /**
+     * Why this basket cannot be ordered here, or null. Without a payment driver nothing can be
+     * ordered at all. A test order (the sandbox, only where the review is on) may go before the
+     * shipping price is named — every other refusal stands.
+     *
+     * @param  array{lines: list<array<string, mixed>>, totals: array<string, mixed>}  $summary
+     */
+    private function refusal(array $summary): ?string
+    {
+        $refusal = $this->basket->refusalOf($summary);
+
+        if ($refusal === Basket::SHIPPING_REFUSAL && Payments::sandbox()) {
+            $refusal = null;
+        }
+
+        return $refusal ?? (Payments::gateway() === null ? self::PREVIEW_REFUSAL : null);
     }
 }

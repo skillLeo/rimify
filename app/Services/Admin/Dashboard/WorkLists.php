@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Services\Admin\AuditDescriber;
 use App\Services\Admin\Orders\OrderList;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -147,7 +148,7 @@ final class WorkLists
                 $items[] = [
                     'key' => 'anfrage-'.$row->vehicle_id,
                     'type' => 'Anfrage',
-                    'title' => trim("{$row->make} {$row->model} {$row->variant}"),
+                    'title' => VehicleName::from($row),
                     'detail' => $count === 1 ? '1 Person wartet auf ein Gutachten' : "{$count} Personen warten auf ein Gutachten",
                     'ago' => GermanFormat::ago($since),
                     'iso' => $since->toIso8601String(),

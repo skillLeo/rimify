@@ -7,6 +7,7 @@ namespace App\Services\Admin\Dashboard;
 use App\Models\DemandMark;
 use App\Models\Fitment;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -133,9 +134,7 @@ final class Demand
     /** `BMW 3er 320d`, and `BMW X3 M40i` rather than `BMW X3 X3 M40i`. */
     public static function vehicleName(string $make, string $model, string $variant): string
     {
-        $rest = str_starts_with($variant, $model) ? $variant : trim("{$model} {$variant}");
-
-        return trim("{$make} {$rest}");
+        return VehicleName::of($make, $model, $variant);
     }
 
     /**

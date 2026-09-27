@@ -50,6 +50,7 @@ use App\Http\Controllers\Storefront\KontaktController;
 use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
+use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
 use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
@@ -106,6 +107,10 @@ Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
 Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:30,1')->name('kasse.rdks');
 // Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
 Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:10,1')->name('kasse.store');
+// The sandbox's payment page (App\Payments\SandboxGateway): by its signed link only, and only where
+// the review is on (TestPaymentRequest). The POST carries the same signature in its query string.
+Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
+Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:10,1'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
 
 /*

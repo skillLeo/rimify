@@ -146,6 +146,13 @@ return [
         'enabled' => filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL),
     ],
 
+    // How orders are paid (App\Payments\Payments). `none` until a provider is configured (BLOCKED #3):
+    // the shop then takes no orders. `sandbox` runs test orders end to end, and is the default where the
+    // review is on (Payments refuses it anywhere else, whatever this says).
+    'payments' => [
+        'driver' => env('RIMIFY_PAYMENTS', filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL) ? 'sandbox' : 'none'),
+    ],
+
     'admin' => [
         'enabled' => filter_var(env('RIMIFY_ADMIN_ENABLED', true), FILTER_VALIDATE_BOOL),
         // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody

@@ -13,6 +13,7 @@ use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -96,7 +97,7 @@ class FahrzeugeController extends Controller
     public function show(VehicleRequest $request, Vehicle $vehicle): Response
     {
         // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
-        request()->attributes->set(AdminNavigation::RECORD, trim($vehicle->make.' '.$vehicle->model.' '.$vehicle->variant));
+        request()->attributes->set(AdminNavigation::RECORD, VehicleName::from($vehicle));
 
         $rows = Fitment::query()
             ->with(['approvalDocument', 'wheelConfig.wheelModel.brand', 'wheelConfig.wheelFinish', 'conditions'])
@@ -109,7 +110,7 @@ class FahrzeugeController extends Controller
         return Inertia::render('Admin/Fahrzeuge/Show', [
             'vehicle' => [
                 'id' => (int) $vehicle->id,
-                'name' => trim($vehicle->make.' '.$vehicle->model.' '.$vehicle->variant),
+                'name' => VehicleName::from($vehicle),
                 'keys' => GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn),
                 'vsn' => $vehicle->vsn,
                 'typeDesignation' => $vehicle->getAttribute('type_designation'),
@@ -147,7 +148,7 @@ class FahrzeugeController extends Controller
             $vehicle->forceFill($data + ['needs_review' => ! $complete])->save();
 
             AuditTrail::record($request->admin(), 'vehicle.legal_data_updated', [
-                'vehicle' => trim($vehicle->make.' '.$vehicle->model.' '.$vehicle->variant),
+                'vehicle' => VehicleName::from($vehicle),
                 'old' => $before,
                 'new' => $data,
                 'complete' => $complete,

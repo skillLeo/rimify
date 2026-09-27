@@ -110,8 +110,8 @@ describe('the rows', function (): void {
                 'customer' => 'Jonas Weber',
                 'email' => 'jonas@example.de',
                 // Minor units: the page writes the amount (num.ts formatMoney: 1.425,00 €).
-            'total' => 142_500,
-            'currency' => 'EUR',
+                'total' => 142_500,
+                'currency' => 'EUR',
                 'payment' => ['label' => 'Bezahlt', 'tone' => 'plain'],
                 'fulfilment' => ['label' => 'Versendet', 'tone' => 'plain'],
                 'paymentMethod' => 'PayPal',

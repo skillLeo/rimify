@@ -27,6 +27,7 @@ use App\Services\Admin\AuditTrail;
 use App\Services\Storage\PdfUpload;
 use App\Services\Storage\UploadRejected;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -332,12 +333,7 @@ class GutachtenController extends Controller
         $kw = $vehicle->power_kw ?? null;
         $power = is_numeric($kw) ? ' · '.$kw.' kW' : '';
 
-        // „RS 4 Avant Quattro“ already says „RS 4“: the model is named once.
-        $model = (string) $vehicle->model;
-        $variant = (string) $vehicle->variant;
-        $name = $model !== '' && str_starts_with($variant, $model) ? $variant : trim($model.' '.$variant);
-
-        return trim($vehicle->make.' '.$name).$power.' · '.$keys;
+        return VehicleName::from($vehicle).$power.' · '.$keys;
     }
 
     /** Nordfelge Fjord, or a dash for a model that is gone. */

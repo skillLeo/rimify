@@ -87,7 +87,40 @@ class PlaceOrderRequest extends FormRequest
         });
     }
 
-    /** The RDKS answer, `ja` or `nein`; null where none was posted. */
+    /**
+     * The customer and where the order goes, as the order writer takes them.
+     *
+     * @return array{email: string, phone: string|null, name: string, street: string, houseNumber: string, zip: string, city: string, billingSame: bool, billingName?: string, billingStreet?: string, billingHouseNumber?: string, billingZip?: string, billingCity?: string}
+     */
+    public function customerData(): array
+    {
+        $text = fn (string $key): string => trim((string) $this->validated($key, ''));
+        $phone = $text('phone');
+        $same = (bool) $this->validated('billingSame');
+        $data = [
+            'email' => $text('email'),
+            'phone' => $phone === '' ? null : $phone,
+            'name' => $text('name'),
+            'street' => $text('street'),
+            'houseNumber' => $text('houseNumber'),
+            'zip' => $text('zip'),
+            'city' => $text('city'),
+            'billingSame' => $same,
+        ];
+
+        if (! $same) {
+            $data += [
+                'billingName' => $text('billingName'),
+                'billingStreet' => $text('billingStreet'),
+                'billingHouseNumber' => $text('billingHouseNumber'),
+                'billingZip' => $text('billingZip'),
+                'billingCity' => $text('billingCity'),
+            ];
+        }
+
+        return $data;
+    }
+
     public function rdks(): ?string
     {
         $value = $this->validated('rdks');
