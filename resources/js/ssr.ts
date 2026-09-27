@@ -25,6 +25,8 @@ createServer((page) =>
         },
     }),
     // On a shared host the default port may already belong to another application, so it is
-    // configurable. INERTIA_SSR_URL in .env must point at the same port.
-    { port: Number(process.env.INERTIA_SSR_PORT ?? 13714) },
+    // configurable. INERTIA_SSR_URL in .env must point at the same port. Only this machine may ask
+    // for a render: the default would listen on every interface. No cluster: it forks one renderer
+    // per visible CPU, which on a shared host runs into its process and memory limits.
+    { port: Number(process.env.INERTIA_SSR_PORT ?? 13714), host: '127.0.0.1' },
 );

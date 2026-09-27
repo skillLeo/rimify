@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Demo;
 
 use App\Models\Setting;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * The tables demo rows live in, and how many each holds (R-12: born demo, `is_demo` and `demo_ref`).
@@ -54,8 +54,9 @@ final class DemoTables
     private const CACHE_KEY = 'admin.demo_rows';
 
     /**
-     * Demo rows per table, and the demo queue's jobs. A table without the columns yet (a database
-     * before the migration) holds none.
+     * Demo rows per table, and the demo queue's jobs. The migrations guarantee the columns; no
+     * schema lookup is made first (information_schema queries are slow on shared MariaDB, and the
+     * rail asks for this on admin pages). A caller that must survive a database without them catches.
      *
      * @return array<string, int>
      */
@@ -64,12 +65,10 @@ final class DemoTables
         $counts = [];
 
         foreach (self::TABLES as $table) {
-            $counts[$table] = Schema::hasTable($table) && Schema::hasColumn($table, 'is_demo')
-                ? DB::table($table)->where('is_demo', true)->count()
-                : 0;
+            $counts[$table] = DB::table($table)->where('is_demo', true)->count();
         }
 
-        $counts['jobs'] = Schema::hasTable('jobs') ? DB::table('jobs')->where('queue', self::QUEUE)->count() : 0;
+        $counts['jobs'] = DB::table('jobs')->where('queue', self::QUEUE)->count();
 
         return $counts;
     }
@@ -80,12 +79,12 @@ final class DemoTables
     }
 
     /**
-     * The total, read at most every 30 seconds: every admin page asks for it (the rail's strip), and
+     * The total, read at most every five minutes: every admin page asks for it (the rail's strip), and
      * ten counts per page view would be a load of their own. A seed and a purge forget it at once.
      */
     public static function cachedTotal(): int
     {
-        return (int) Cache::remember(self::CACHE_KEY, 30, static fn (): int => self::total());
+        return (int) Cache::remember(self::CACHE_KEY, 300, static fn (): int => self::total());
     }
 
     public static function forget(): void
@@ -100,11 +99,12 @@ final class DemoTables
      */
     public static function set(): ?array
     {
-        if (! Schema::hasTable('settings')) {
+        try {
+            $set = Setting::get(self::SETTING);
+        } catch (QueryException) {
+            // A database before the settings table: no set recorded.
             return null;
         }
-
-        $set = Setting::get(self::SETTING);
 
         return is_array($set) && is_string($set['anchor'] ?? null) && is_numeric($set['scale'] ?? null)
             ? ['anchor' => $set['anchor'], 'scale' => (float) $set['scale']]

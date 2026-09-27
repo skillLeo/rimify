@@ -6,12 +6,14 @@ namespace App\Providers;
 
 use App\Listeners\FailedJobAlert;
 use App\Services\Content\PageContent;
+use App\Support\Ssr\BoundedSsrGateway;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Ssr\HttpGateway;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
@@ -43,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
         // One per request: a signed preview puts a draft in it, and that draft must never outlive
         // the request that asked for it.
         $this->app->scoped(PageContent::class);
+
+        // Server-side rendering with short, bounded waits: a slow or stopped renderer costs a page
+        // half a second at most, never the HTTP client's 10 + 30 seconds (BoundedSsrGateway).
+        $this->app->singleton(HttpGateway::class, BoundedSsrGateway::class);
     }
 
     /**

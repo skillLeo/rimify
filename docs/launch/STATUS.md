@@ -212,6 +212,15 @@ Cross-cutting, built inside the milestones that need them:
   Speicher“ in the admin (the seeded example documents have no files); the shop links a Gutachten's PDF, opened
   at the row's page, wherever one is stored.
 
+- **2026-09-28 · Speed (user: pages take 2–10 s).** Measured locally: PHP and SQL are 150–350 ms a page (SQL 5–90 ms);
+  the renderer 75–280 ms; a renderer that is starting, stalled or gone held pages for seconds (the HTTP client waits
+  up to 10 + 30 s). Now: SSR with 0,5 s to connect and 2,5 s to render, paused 30 s after a failure (the browser
+  renders meanwhile, same first-frame data, R-08); the renderer listens on 127.0.0.1 only; a cron watchdog
+  (`deploy/ssr-watch.sh`, installed by `remote.sh`) restarts it within a minute. Static files: hashed build files
+  cached a year (immutable), images and CSS/JS a week, text compressed. No `information_schema` lookups per request
+  (DemoTables, StorageSettings). Telescope is opt-in locally. Not done: SSR cluster mode (forks one process per
+  visible CPU — over a shared host's limits).
+
 ## Deviations
 
 - **M1 · Bestellungen 104, not 300–420** (see the decision above; the three acceptance numbers are inconsistent).

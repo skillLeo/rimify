@@ -6,7 +6,6 @@ namespace App\Services\Storage;
 
 use App\Models\StorageSetting;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -44,14 +43,12 @@ final class StorageSettings
     /** The admin screen's active set, if one is saved whole. */
     public function fromDatabase(): ?StorageConfig
     {
+        // No schema lookup first: an information_schema query on every request is slow on shared
+        // MariaDB. A database without the table (before its migration) throws, and is caught.
         try {
-            if (! Schema::hasTable('storage_settings')) {
-                return null;
-            }
-
             $row = StorageSetting::query()->where('state', StorageSetting::ACTIVE)->first();
         } catch (Throwable) {
-            // No database (a build step, a broken connection): the fallback serves.
+            // No database or no table yet (a build step, a broken connection): the fallback serves.
             return null;
         }
 

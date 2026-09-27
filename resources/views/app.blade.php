@@ -32,7 +32,7 @@
             $heroSet = is_array($heroPicture) && isset($heroPicture['base'], $heroPicture['widths']) && is_array($heroPicture['widths'])
                 ? implode(', ', array_map(fn ($w) => $heroPicture['base'].'-'.$w.'.'.$heroFormat.' '.$w.'w', $heroPicture['widths']))
                 : null;
-            $heroType = ['avif' => 'image/avif', 'webp' => 'image/webp', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'svg' => 'image/svg+xml'][$heroFormat] ?? null;
+            $heroType = $heroFormat === null ? null : (['avif' => 'image/avif', 'webp' => 'image/webp', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'svg' => 'image/svg+xml'][$heroFormat] ?? null);
             $heroSizes = ($page['component'] ?? '') === 'Startseite/Mobile'
                 ? '(min-width: 768px) calc(77vw - 49px), calc(77vw - 31px)'
                 : '(min-width: 1280px) 500px, (min-width: 1024px) 33vw, (min-width: 768px) 373px, calc(67vw - 27px)';

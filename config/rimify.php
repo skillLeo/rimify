@@ -153,6 +153,15 @@ return [
         'driver' => env('RIMIFY_PAYMENTS', filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL) ? 'sandbox' : 'none'),
     ],
 
+    // Server-side rendering's bounds (App\Support\Ssr\BoundedSsrGateway), in seconds: how long to
+    // wait for the renderer to answer the phone, how long for a page, and how long to leave it alone
+    // after it failed. The browser renders meanwhile; nothing on the page depends on which one drew it.
+    'ssr' => [
+        'connect_timeout' => (float) env('RIMIFY_SSR_CONNECT_TIMEOUT', 0.5),
+        'timeout' => (float) env('RIMIFY_SSR_TIMEOUT', 2.5),
+        'pause' => (int) env('RIMIFY_SSR_PAUSE', 30),
+    ],
+
     'admin' => [
         'enabled' => filter_var(env('RIMIFY_ADMIN_ENABLED', true), FILTER_VALIDATE_BOOL),
         // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody

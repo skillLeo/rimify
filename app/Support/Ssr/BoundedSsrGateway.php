@@ -1,0 +1,96 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\Ssr;
+
+use Exception;
+use Illuminate\Http\Client\StrayRequestException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Vite;
+use Inertia\Ssr\HttpGateway;
+use Inertia\Ssr\Response;
+use Inertia\Ssr\SsrException;
+
+/**
+ * Server-side rendering that can never make a page slow.
+ *
+ * Inertia asks the Node renderer with the HTTP client's defaults — up to 10 seconds to connect and
+ * 30 to answer. On a shared host the renderer is one process that the host may stop at any time; a
+ * stalled or queued renderer then held every page for seconds. Here it gets a short time to connect
+ * and a bounded time to render. When it fails, pages are sent without server rendering for a short
+ * while (the browser renders them, the first frame's data is the same, R-08), and it is asked again
+ * after that — never once per page while it is down.
+ */
+class BoundedSsrGateway extends HttpGateway
+{
+    /** Set while the renderer is not asked. */
+    public const PAUSE_KEY = 'ssr.paused';
+
+    public function dispatch(array $page, ?Request $request = null): ?Response
+    {
+        if (! $this->ssrIsEnabled($request ?? request())) {
+            return null;
+        }
+
+        $isHot = Vite::isRunningHot();
+
+        if (! $isHot && $this->shouldEnsureBundleExists() && ! $this->bundleExists()) {
+            return null;
+        }
+
+        if (self::paused()) {
+            return null;
+        }
+
+        $url = $isHot ? $this->getHotUrl('/__inertia_ssr') : $this->getProductionUrl('/render');
+
+        try {
+            $response = Http::connectTimeout((float) config('rimify.ssr.connect_timeout', 0.5))
+                ->timeout((float) config('rimify.ssr.timeout', 2.5))
+                ->post($url, $page);
+
+            if ($response->failed()) {
+                $this->handleSsrFailure($page, $response->json());
+
+                return null;
+            }
+
+            if (! $data = $response->json()) {
+                return null;
+            }
+
+            return new Response(implode("\n", $data['head'] ?? []), $data['body'] ?? '');
+        } catch (Exception $e) {
+            if ($e instanceof StrayRequestException || $e instanceof SsrException) {
+                throw $e;
+            }
+
+            // Not reachable, or too slow: rest it, and let the browser render meanwhile.
+            self::pause();
+            $this->handleSsrFailure($page, ['error' => $e->getMessage(), 'type' => 'connection']);
+
+            return null;
+        }
+    }
+
+    public static function paused(): bool
+    {
+        try {
+            return Cache::get(self::PAUSE_KEY) === true;
+        } catch (Exception) {
+            return false;
+        }
+    }
+
+    public static function pause(): void
+    {
+        try {
+            Cache::put(self::PAUSE_KEY, true, (int) config('rimify.ssr.pause', 30));
+        } catch (Exception) {
+            // Without a cache the next page asks again, within the same short bounds.
+        }
+    }
+}

@@ -138,6 +138,15 @@ INERTIA_SSR_PORT="$SSR_PORT" nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" > 
 sleep 3
 grep -q 'started' storage/logs/ssr.log && echo "== renderer running on $SSR_PORT" || { echo "== renderer did not start"; tail -5 storage/logs/ssr.log; }
 
+# The host may stop the renderer between releases: a watchdog in cron starts it again within a minute
+# (deploy/ssr-watch.sh; it does nothing while the renderer answers). Idempotent: one line, replaced.
+WATCH="* * * * * SSR_PORT=$SSR_PORT NODE_BIN=$NODE bash $APP/deploy/ssr-watch.sh > /dev/null 2>&1"
+if command -v crontab > /dev/null 2>&1 && { crontab -l 2> /dev/null | grep -v 'deploy/ssr-watch.sh'; echo "$WATCH"; } | crontab - 2> /dev/null; then
+    echo "== renderer watchdog in cron"
+else
+    echo "== add this line in hPanel → Erweitert → Cron-Jobs (every minute): bash $APP/deploy/ssr-watch.sh"
+fi
+
 # ── Live ───────────────────────────────────────────────────────────────────────
 # Last, and only when everything above succeeded (set -e).
 "$PHP" artisan up

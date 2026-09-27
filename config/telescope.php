@@ -18,7 +18,9 @@ return [
     |
     */
 
-    'enabled' => env('TELESCOPE_ENABLED', true),
+    // Opt-in: recording writes every request and query to the database, which slowed every local page
+    // (1,8 million entries). TELESCOPE_ENABLED=true while debugging. Never installed in production.
+    'enabled' => env('TELESCOPE_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
