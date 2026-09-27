@@ -354,8 +354,10 @@ onBeforeUnmount(() => observer?.disconnect())
                     </FitmentPanel>
 
                     <div class="pdp__price">
+                        <!-- One rim, as the basket charges it; the set of four stands beside it. -->
                         <p class="price price--lg" translate="no">{{ selected?.price ?? config.fromPrice.value }}</p>
-                        <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
+                        <p class="price-note">pro Felge, inkl. MwSt., zzgl. Versand</p>
+                        <p v-if="selected?.priceForFour" class="price-note pdp__four">4 Felgen: <span class="num" translate="no">{{ selected.priceForFour }}</span></p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
                         <p v-if="demo" class="t-small pdp__demo">
                             Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
@@ -469,7 +471,7 @@ onBeforeUnmount(() => observer?.disconnect())
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div class="pdp__sticky-price">
             <p class="price" translate="no">{{ selected.price }}</p>
-            <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
+            <p class="price-note">pro Felge, inkl. MwSt., zzgl. Versand</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"

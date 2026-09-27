@@ -211,6 +211,17 @@ final readonly class FitmentResolver
             $conditions = Condition::union($conditions, $row->conditions);
         }
 
+        // The entry flag and the Auflagen about entry must never disagree. An Auflage requiring the
+        // entry requires it; a „Keine Eintragung erforderlich.“ loses to any source that requires one
+        // — the answer shown is the cautious one, never both (R-02: never confidently wrong).
+        foreach ($conditions as $condition) {
+            $requiresEntry = $requiresEntry || $condition->code === Condition::ENTRY_REQUIRED;
+        }
+
+        if ($requiresEntry) {
+            $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
+        }
+
         $front = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT');
         $rear = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR');
 

@@ -89,7 +89,7 @@ const sizeList = computed(() => {
 const sizesPlain = computed(() => (props.card.diameters.length ? zoll(props.card.diameters) : ''))
 
 /* A per-wheel price: the catalogue prices a set of four, the tile says what one costs. */
-const perWheel = computed(() => euro(Math.round(props.card.fromPriceCents / 4)))
+const perWheel = computed(() => euro(props.card.fromPriceCents))
 
 /* ── Compare ────────────────────────────────────────────────────────────────── */
 

@@ -19,7 +19,6 @@ use App\Services\Storefront\Basket;
 use App\Support\VehicleName;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * Writes an order from the basket, in one transaction: the customer and their addresses, the order
@@ -46,7 +45,7 @@ final class OrderWriter
         $vehicle = $vehicleId === null ? null : Vehicle::query()->find($vehicleId);
 
         if ($vehicle === null) {
-            throw new RuntimeException(Basket::BLOCKED_REFUSAL);
+            throw new OrderRefused(Basket::BLOCKED_REFUSAL);
         }
 
         // Every wheel line's verdict, resolved now: the snapshot is what the customer is shown at the
@@ -57,7 +56,7 @@ final class OrderWriter
             $verdict = $this->resolver->resolve((int) $vehicle->id, (int) $line['wheelConfigId']);
 
             if (! $verdict->isSellable()) {
-                throw new RuntimeException(Basket::BLOCKED_REFUSAL);
+                throw new OrderRefused(Basket::BLOCKED_REFUSAL);
             }
 
             $verdicts[$i] = $verdict;
@@ -172,15 +171,22 @@ final class OrderWriter
         return 'Komplettrad: '.$wheel.($tyre === '' ? '' : ' mit '.$tyre);
     }
 
-    /** `RMF-2026-00001`: the year's next number, read under a lock so two checkouts never share one. */
+    /**
+     * `RMF-2026-1022`: the year's next number, read under a lock so two checkouts never share one.
+     * Compared as a number, not as text: as text `RMF-2026-999` sorts above `RMF-2026-1000`, and
+     * the same number would be issued twice.
+     */
     private static function nextNumber(): string
     {
         $year = now()->year;
         $prefix = "RMF-{$year}-";
-        $last = Order::query()->where('order_number', 'like', $prefix.'%')->lockForUpdate()->orderByDesc('order_number')->value('order_number');
-        $n = is_string($last) ? (int) substr($last, strlen($prefix)) + 1 : 1;
+        $last = Order::query()
+            ->where('order_number', 'like', $prefix.'%')
+            ->lockForUpdate()
+            ->selectRaw('MAX(CAST(SUBSTRING(order_number, ?) AS UNSIGNED)) AS n', [strlen($prefix) + 1])
+            ->value('n');
 
-        return $prefix.str_pad((string) $n, 5, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) ((int) $last + 1), 4, '0', STR_PAD_LEFT);
     }
 
     /** @return array{0: string|null, 1: string|null} first name(s) and last name */

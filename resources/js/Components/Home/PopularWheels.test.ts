@@ -42,7 +42,7 @@ function card(n: number, overrides: Partial<ProductCardProp> = {}): ProductCardP
         rating: 4.5,
         ratingCount: 12,
         ratingLabel: 'Sehr gut',
-        fromPriceCents: 75600 + n * 400,
+        fromPriceCents: 18900 + n * 100,
         fromPrice: '',
         inStock: true,
         stockQty: 8,

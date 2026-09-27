@@ -186,3 +186,18 @@ it('shows a real order only to the browser that placed it or through a signed li
     $this->get('/bestellung/'.$order->order_number)->assertNotFound();
     $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))->assertOk();
 });
+
+it('counts order numbers as numbers, so a longer or zero-padded number is never issued twice', function (): void {
+    $year = now()->year;
+    $template = Order::query()->firstOrFail();
+
+    // As text, `8999` sorts above `09000`; as numbers the next is 9001.
+    foreach (["RMF-{$year}-8999", "RMF-{$year}-09000"] as $number) {
+        $copy = $template->replicate();
+        $copy->forceFill(['order_number' => $number, 'is_demo' => false])->save();
+    }
+
+    [$order] = testzahlungPlace($this);
+
+    expect($order->order_number)->toBe("RMF-{$year}-9001");
+});

@@ -55,6 +55,9 @@ const entryLine = computed(() => {
         : 'Keine Eintragung erforderlich.'
 })
 
+/* An Auflage that says word for word what the entry line above it says is not said twice. */
+const conditions = computed(() => (props.verdict?.conditions ?? []).filter((condition) => condition !== entryLine.value))
+
 const documentLine = computed(() => {
     const document = props.verdict?.document
 
@@ -106,8 +109,8 @@ const headline = computed(() => {
 
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. -->
-            <ul v-if="verdict.conditions.length" class="fit__conditions">
-                <li v-for="condition in verdict.conditions" :key="condition">{{ condition }}</li>
+            <ul v-if="conditions.length" class="fit__conditions">
+                <li v-for="condition in conditions" :key="condition">{{ condition }}</li>
             </ul>
 
             <div v-if="verdict.tyreSizes.length" class="fit__tyres">
@@ -120,6 +123,12 @@ const headline = computed(() => {
             <p v-if="documentLine" class="fit__doc">
                 <Icon name="document" :size="20" />
                 <span class="data">{{ documentLine }}</span>
+            </p>
+            <!-- The document itself, opened where the answer stands: the customer can check it. -->
+            <p v-if="verdict.document?.pdf" class="fit__pdf">
+                <a :href="verdict.document.pdf.url" target="_blank" rel="noopener">
+                    Gutachten öffnen (PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
+                </a>
             </p>
         </template>
 
@@ -165,6 +174,11 @@ const headline = computed(() => {
     margin: var(--space-3) 0 0;
     font-size: var(--text-body);
     color: var(--ink2);
+}
+
+.fit__pdf {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-small);
 }
 
 .fit__doc {

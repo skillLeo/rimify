@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Storefront;
 
+use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
@@ -20,6 +21,7 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Enums\TyreSeason;
+use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Controller;
 use App\Models\BalanceWeightColour;
 use App\Models\CatalogueGapEvent;
@@ -35,8 +37,10 @@ use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 /**
  * The selector, the listing and the product page.
@@ -222,8 +226,11 @@ class FelgenController extends Controller
                 // document states for the chosen car travels inside the verdict instead (§1, R-06).
                 'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
                 'hump' => $hump === '' ? null : $hump,
+                // `price_cents` is ONE rim (docs/specs/komplettrad.md §9); the set of four is
+                // formatted here, so the page never multiplies cents (R-10).
                 'priceCents' => (int) $config->price_cents,
                 'price' => GermanFormat::money((int) $config->price_cents),
+                'priceForFour' => GermanFormat::money((int) $config->price_cents * 4),
                 'stockQty' => (int) $config->stock_qty,
                 'inStock' => $config->stock_qty > 0,
                 'kbaNumber' => $config->kba_number,
@@ -484,6 +491,8 @@ class FelgenController extends Controller
                 'number' => $verdict->document->number,
                 'issuer' => $verdict->document->issuer,
                 'kind' => $verdict->document->kind,
+                // The Gutachten itself, opened at the page the answer stands on.
+                'pdf' => self::pdfLink($verdict->document),
             ],
             'tyreSizes' => $this->sizeLabels($verdict->front),
             // The tyre side of the verdict (§3.4): both axles, the layout, and the minimum four
@@ -499,6 +508,28 @@ class FelgenController extends Controller
             'minSpeedSource' => $minimum['speedSource'] ?? $this->either($verdict->front->minSpeedSource, $verdict->rear->minSpeedSource),
             'minSentence' => $this->eligibility->minimumSentenceDe($verdict),
         ];
+    }
+
+    /**
+     * The document's PDF, at the page its row cites; null where no file is stored. The URL is the
+     * public document disk's own (ABEs/ on the bucket): the customer reads the very file the verdict
+     * rests on, the one whose hash an order freezes.
+     *
+     * @return array{url: string, page: int|null}|null
+     */
+    private static function pdfLink(DocumentRecord $document): ?array
+    {
+        if ($document->pdfKey === null) {
+            return null;
+        }
+
+        try {
+            $url = Storage::disk(GutachtenController::DISK)->url($document->pdfKey);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return ['url' => $url.($document->sourcePage === null ? '' : '#page='.$document->sourcePage), 'page' => $document->sourcePage];
     }
 
     /** @return list<string> `245/45 R18` per permitted size on this axle. */

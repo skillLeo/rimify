@@ -90,4 +90,33 @@ describe('FitmentPanel', () => {
 
         expect(wrapper.find('.fit__doc').text()).toBe('TG-123')
     })
+
+    it('opens the Gutachten at the page the answer stands on, and says the entry once', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({
+                    status: 'CONDITIONAL',
+                    requiresEntry: true,
+                    conditions: ['Eintragung in die Fahrzeugpapiere erforderlich.', 'Bördeln der Radläufe erforderlich.'],
+                    document: { number: '53810', issuer: 'KBA', kind: 'ABE', pdf: { url: '/storage/ABEs/gutachten/a.pdf#page=2', page: 2 } },
+                }),
+            },
+        })
+
+        const link = wrapper.find('.fit__pdf a')
+        expect(link.attributes('href')).toBe('/storage/ABEs/gutachten/a.pdf#page=2')
+        expect(link.attributes('target')).toBe('_blank')
+        expect(link.text()).toBe('Gutachten öffnen (PDF, Seite 2)')
+        expect(wrapper.text().split('Eintragung in die Fahrzeugpapiere erforderlich.')).toHaveLength(2)
+        expect(wrapper.findAll('.fit__conditions li').map((li) => li.text())).toEqual(['Bördeln der Radläufe erforderlich.'])
+    })
+
+    it('offers no link where no file is stored', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ document: { number: '53810', issuer: 'KBA', kind: 'ABE', pdf: null } }) },
+        })
+
+        expect(wrapper.find('.fit__pdf').exists()).toBe(false)
+    })
 })

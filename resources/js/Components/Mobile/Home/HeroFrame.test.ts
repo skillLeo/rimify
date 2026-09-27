@@ -110,7 +110,7 @@ function product(overrides: Partial<HeroProduct> = {}): HeroProduct {
         name: 'MCR4 Ultimate',
         brand: 'MOTEC',
         finish: 'Light Grey D5',
-        fromPriceCents: 75600,
+        fromPriceCents: 18900,
         fromPrice: `756,00${NBSP}€`,
         imageManifest: manifest(),
         symbolic: false,

@@ -287,8 +287,11 @@ export interface ProduktConfig {
     centreBore: string
     /** `H2` — the hump designation the wheel's approval prints; null where the record holds none. */
     hump?: string | null
+    /** ONE rim (docs/specs/komplettrad.md §9). */
     priceCents: number
     price: string
+    /** The set of four, formatted on the server; the page never multiplies cents. */
+    priceForFour?: string
     stockQty: number
     inStock: boolean
     kbaNumber: string | null
@@ -321,7 +324,8 @@ export interface ConfigVerdict {
     centreBoreSource?: 'DOCUMENT' | 'UNSTATED' | 'CONFLICTING'
     reason: string | null
     reasonCode: string | null
-    document: { number: string | null; issuer: string | null; kind: string } | null
+    /** pdf: the Gutachten itself, at the page the answer stands on; absent where no file is stored. */
+    document: { number: string | null; issuer: string | null; kind: string; pdf?: { url: string; page: number | null } | null } | null
     tyreSizes: string[]
     /* docs/specs/komplettrad.md §3.4 — the tyre side of the verdict, additive and optional. */
     /** `245/45 R18` per axle; `tyreSizes` above stays the front list. */

@@ -39,7 +39,8 @@ function card(n = 1, overrides: Partial<ProductCardProp> = {}): ProductCardProp 
         rating: null,
         ratingCount: 0,
         ratingLabel: null,
-        fromPriceCents: 68900,
+        // ONE rim (docs/specs/komplettrad.md §9): the tile prints it as it is.
+        fromPriceCents: 17225,
         fromPrice: '',
         inStock: true,
         stockQty: 8,

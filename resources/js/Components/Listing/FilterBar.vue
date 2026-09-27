@@ -53,6 +53,24 @@ function selected(facet: string): string[] {
 function optionsFor(facet: string): { value: string; count: number }[] {
     return props.facets[facet] ?? []
 }
+
+/*
+ * The measurements arrive as the database holds them (`18.0`, `8.50`); they are shown the German
+ * way, with only the decimals they need — `18`, `8,5`, `35` (R-10). The value sent back stays raw.
+ */
+function optionLabel(facet: string, value: string): string {
+    if (facet !== 'zoll' && facet !== 'breite' && facet !== 'et') {
+        return value
+    }
+
+    const n = Number(value)
+
+    if (!Number.isFinite(n)) {
+        return value
+    }
+
+    return formatNumber(n, Number.isInteger(n) ? 0 : Number.isInteger(n * 10) ? 1 : 2)
+}
 </script>
 
 <template>
@@ -85,7 +103,7 @@ function optionsFor(facet: string): { value: string; count: number }[] {
                     :disabled="option.count === 0 && !selected(facet.key).includes(option.value)"
                     @change="emit('toggle', facet.key, option.value)"
                 />
-                <span class="fpanel__label">{{ option.value }}</span>
+                <span class="fpanel__label">{{ optionLabel(facet.key, option.value) }}</span>
                 <span class="data fpanel__count">{{ formatNumber(option.count) }}</span>
             </label>
 

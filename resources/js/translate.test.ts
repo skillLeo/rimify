@@ -202,7 +202,7 @@ describe('ProductTile', () => {
             rating: null,
             ratingCount: 0,
             ratingLabel: null,
-            fromPriceCents: 75600,
+            fromPriceCents: 18900,
             fromPrice: '',
             inStock: true,
             stockQty: 8,

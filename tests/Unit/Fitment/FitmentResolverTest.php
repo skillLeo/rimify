@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Support\BuildWindow;
+use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
+use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use Tests\Support\Fitment\FitmentFixtures;
@@ -350,4 +352,29 @@ it('resolves the two RS4 variants independently of each other', function (): voi
         ->toBe(VerdictStatus::Permitted)
         ->and($resolver->resolve(RS4_SECOND, FitmentFixtures::WHEEL_CONFIG_ID)->status)
         ->toBe(VerdictStatus::NotPermitted);
+});
+
+it('never says both: an Auflage requiring entry sets the flag, and „keine Eintragung“ gives way to it', function (): void {
+    $noEntry = new Condition(code: Condition::NO_ENTRY_REQUIRED, severity: Severity::Info, textDe: 'Keine Eintragung erforderlich.');
+
+    // The row forgot the flag, its Auflage did not: entry is required.
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(requiresEntry: false, conditions: [FitmentFixtures::entryRequired()]),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->requiresEntry)->toBeTrue()->and($verdict->status->value)->toBe('CONDITIONAL');
+
+    // One document requires the entry, another says none is needed: the cautious answer alone.
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(id: 1, requiresEntry: true),
+        FitmentFixtures::row(id: 2, requiresEntry: false, conditions: [$noEntry]),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->requiresEntry)->toBeTrue()
+        ->and(array_map(static fn (Condition $c): string => $c->code, $verdict->conditions))->not->toContain(Condition::NO_ENTRY_REQUIRED);
+
+    // Where nothing requires it, the sentence stands.
+    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(conditions: [$noEntry])])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->requiresEntry)->toBeFalse()->and($verdict->conditions)->toHaveCount(1);
 });

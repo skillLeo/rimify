@@ -72,7 +72,7 @@ const title = computed(() =>
 )
 const subline = computed(() => (props.hero.subline.trim() === '' ? SUBLINE : props.hero.subline))
 const alt = computed(() => (product.value === null ? '' : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`))
-const perWheel = computed(() => (product.value === null ? '' : euro(Math.round(product.value.fromPriceCents / 4))))
+const perWheel = computed(() => (product.value === null ? '' : euro(product.value.fromPriceCents)))
 
 /* The layout's geometry for the stylesheet, and the leaders' start after the roll (none without one). */
 const stageStyle = computed(() => ({ ...frameStyle(DESKTOP_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))

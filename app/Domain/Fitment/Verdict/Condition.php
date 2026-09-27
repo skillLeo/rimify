@@ -15,6 +15,12 @@ use InvalidArgumentException;
  */
 final readonly class Condition
 {
+    /** The Auflage that says the fitment must be entered in the papers: it sets the entry flag too. */
+    public const ENTRY_REQUIRED = 'ENTRY_REQUIRED';
+
+    /** The Auflage that says no entry is needed: never shown where any source requires one. */
+    public const NO_ENTRY_REQUIRED = 'NO_ENTRY_REQUIRED';
+
     public function __construct(
         public string $code,
         public Severity $severity,

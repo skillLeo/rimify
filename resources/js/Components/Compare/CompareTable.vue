@@ -133,7 +133,7 @@ function entryText(verdict: ConfigVerdict | null): string {
     return verdict.requiresEntry ? 'erforderlich' : 'nicht erforderlich'
 }
 
-const perWheel = (item: CompareItem): string => euro(Math.round(item.fromPriceCents / 4))
+const perWheel = (item: CompareItem): string => euro(item.fromPriceCents)
 
 const groups = computed<Group[]>(() => {
     const items = props.items

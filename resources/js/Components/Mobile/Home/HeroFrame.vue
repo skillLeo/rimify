@@ -48,7 +48,7 @@ const named = computed(() => !props.product.symbolic && photo.value !== null)
 
 const href = computed(() => `/felgen/${props.product.slug}`)
 const alt = computed(() => `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`)
-const perWheel = computed(() => euro(Math.round(props.product.fromPriceCents / 4)))
+const perWheel = computed(() => euro(props.product.fromPriceCents))
 
 const frameVars = computed(() => ({ ...frameStyle(PHONE_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))
 const pictureStyle = computed(() => rollStyle(scene.value))

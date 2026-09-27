@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\PlaceOrderRequest;
 use App\Http\Requests\Storefront\TpmsChoiceRequest;
 use App\Payments\Payments;
+use App\Services\Commerce\OrderRefused;
 use App\Services\Commerce\OrderWriter;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
@@ -15,7 +16,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use RuntimeException;
 
 /**
  * Checkout. Guest only — there are no customer accounts in this product.
@@ -122,7 +122,7 @@ class KasseController extends Controller
                 // A test order may run before the shipping price is named; the order says so.
                 $open ? 'Testbestellung: Die Versandkosten sind noch nicht festgelegt und mit 0,00 € berechnet.' : null,
             );
-        } catch (RuntimeException $e) {
+        } catch (OrderRefused $e) {
             return back()->withErrors(['order' => $e->getMessage()]);
         }
 
