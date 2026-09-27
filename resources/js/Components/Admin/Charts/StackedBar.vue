@@ -202,10 +202,14 @@ function onKey(event: KeyboardEvent): void {
         <span v-if="loading" class="skeleton sb__skeleton" :style="{ height: `${height}px` }" aria-hidden="true" />
 
         <div v-else ref="el" class="sb__plot" :style="{ height: `${height}px` }">
+            <!-- Drawn at the measured width; between two measurements (a rail being dragged) the drawing
+                 scales down into its box rather than past it — letterboxed, never overflowing. -->
             <svg
                 class="sb__svg"
                 :width="width"
                 :height="height"
+                :viewBox="`0 0 ${width} ${height}`"
+                preserveAspectRatio="xMinYMin meet"
                 role="group"
                 :aria-label="`${label}. Mit den Pfeiltasten von Woche zu Woche.`"
                 tabindex="0"
@@ -293,6 +297,7 @@ function onKey(event: KeyboardEvent): void {
 /* A finger drawn sideways reads the weeks; drawn up or down it scrolls the page. */
 .sb__svg {
     display: block;
+    width: 100%;
     overflow: visible;
     outline: none;
     touch-action: pan-y;

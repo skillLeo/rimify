@@ -111,8 +111,8 @@ describe('AdminPalette', () => {
         const { wrapper } = await openPalette()
 
         expect(wrapper.findAll('.adm-palette__heading').map((h) => h.text())).toEqual(['Aktionen'])
-        expect(rows(wrapper)).toEqual(['Navigation einklappen', 'Tastenkürzel anzeigen', 'Passwort ändern', 'Abmelden'])
-        expect(activeRow(wrapper)).toBe('Navigation einklappen')
+        expect(rows(wrapper)).toEqual(['Seitenleiste einklappen', 'Tastenkürzel anzeigen', 'Passwort ändern', 'Abmelden'])
+        expect(activeRow(wrapper)).toBe('Seitenleiste einklappen')
     })
 
     it('lists where you were, but not the page you are on', async () => {
@@ -131,7 +131,7 @@ describe('AdminPalette', () => {
         expect(activeRow(wrapper)).toBe('Abmelden')
 
         await input.trigger('keydown', { key: 'ArrowDown' })
-        expect(activeRow(wrapper)).toBe('Navigation einklappen')
+        expect(activeRow(wrapper)).toBe('Seitenleiste einklappen')
         expect(input.attributes('aria-activedescendant')).toBe(wrapper.find('[aria-selected="true"]').attributes('id'))
 
         await input.trigger('keydown', { key: 'End' })

@@ -155,6 +155,24 @@ describe('AdminRailFoot', () => {
         expect(profile.attributes('aria-label')).toBe('Konto: Sabine Roth, Super-Admin')
     })
 
+    it('shows the whole name in the rail’s own tooltip only once it is cut — never a native title', async () => {
+        const wrapper = mountFoot()
+        const profile = wrapper.find('.adm-foot__profile')
+        // The tooltip's root around the menu (AdminMenuTip), the one element here that takes `disabled`.
+        const tooltip = profile.element.closest('div[disabled]') as HTMLElement
+
+        expect(wrapper.findAll('[title]')).toHaveLength(0)
+        expect(tooltip.getAttribute('disabled')).toBe('true')
+
+        // A narrow rail: the name ends in „…“.
+        const name = profile.find('.adm-foot__name').element
+        Object.defineProperty(name, 'scrollWidth', { value: 180, configurable: true })
+        Object.defineProperty(name, 'clientWidth', { value: 120, configurable: true })
+        await profile.trigger('pointerenter')
+
+        expect(tooltip.getAttribute('disabled')).toBe('false')
+    })
+
     it('offers the profile, the notifications, the shortcuts and — last, in red — the way out', async () => {
         const wrapper = mountFoot()
         const menu = wrapper.find('.adm-foot__menu')

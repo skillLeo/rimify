@@ -70,6 +70,10 @@ onBeforeUnmount(() => media?.removeEventListener('change', onMedia))
    control), or by the tablet's width. */
 const collapsed = computed(() => (shell.rail?.shown.value ?? shell.railCollapsed.value) || narrow.value)
 
+/* The toggle names what it will do to the rail as it is shown — collapsed by the window included. */
+const railClosed = computed(() => shell.rail?.shown.value ?? shell.railCollapsed.value)
+const hint = computed(() => shell.rail?.hint?.value ?? null)
+
 /*
  * An item whose label ends in „…“ at this width shows the whole of it in a tooltip, as the icon rail
  * does. Measured when it is pointed at or reached, not on every frame of a drag.
@@ -97,17 +101,27 @@ function measure(event: Event, item: AdminNavPage): void {
                     <span aria-hidden="true">R</span>
                 </Link>
                 <EnvironmentBadge />
-                <button
-                    class="adm-iconbtn adm-rail__toggle"
-                    type="button"
-                    :aria-expanded="shell.railCollapsed.value ? 'false' : 'true'"
-                    aria-controls="adm-nav"
-                    aria-keyshortcuts="["
-                    :aria-label="shell.railCollapsed.value ? 'Navigation ausklappen' : 'Navigation einklappen'"
-                    @click="shell.toggleRail"
-                >
-                    <Icon :name="shell.railCollapsed.value ? 'chevron-right' : 'chevron-left'" :size="16" />
-                </button>
+                <!-- Never hidden: where it does less than its name — opens narrower, or cannot open in a
+                     window this narrow — its tooltip says why. -->
+                <TooltipRoot :disabled="!hint">
+                    <TooltipTrigger as-child>
+                        <button
+                            class="adm-iconbtn adm-rail__toggle"
+                            type="button"
+                            :aria-expanded="railClosed ? 'false' : 'true'"
+                            aria-controls="adm-nav"
+                            aria-keyshortcuts="["
+                            :aria-disabled="shell.rail?.forced.value ? 'true' : undefined"
+                            :aria-label="railClosed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'"
+                            @click="shell.toggleRail"
+                        >
+                            <Icon :name="railClosed ? 'chevron-right' : 'chevron-left'" :size="16" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipPortal>
+                        <TooltipContent class="adm-tooltip" side="right" :side-offset="8">{{ hint }}</TooltipContent>
+                    </TooltipPortal>
+                </TooltipRoot>
             </div>
 
             <nav id="adm-nav" class="adm-rail__nav" aria-label="Hauptnavigation">

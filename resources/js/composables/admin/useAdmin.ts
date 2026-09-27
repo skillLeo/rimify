@@ -22,7 +22,8 @@ const EMPTY: AdminShared = {
     account: null,
     nav: [],
     environment: null,
-    preferences: { railCollapsed: false, railWidth: RAIL.default },
+    preferences: { railCollapsed: false, railWidth: RAIL.default, railRev: 0 },
+    csrfToken: null,
     breadcrumbs: [],
     supportEmail: null,
     notifications: { unread: null, offered: false },
@@ -58,7 +59,12 @@ export function useAdmin(): ComputedRef<AdminShared> {
             account: admin.account ?? null,
             nav: Array.isArray(admin.nav) ? admin.nav : [],
             environment: admin.environment === 'local' || admin.environment === 'staging' ? admin.environment : null,
-            preferences: { railCollapsed: admin.preferences?.railCollapsed === true, railWidth: clampWidth(admin.preferences?.railWidth) },
+            preferences: {
+                railCollapsed: admin.preferences?.railCollapsed === true,
+                railWidth: clampWidth(admin.preferences?.railWidth),
+                railRev: typeof admin.preferences?.railRev === 'number' && admin.preferences.railRev > 0 ? admin.preferences.railRev : 0,
+            },
+            csrfToken: typeof admin.csrfToken === 'string' && admin.csrfToken !== '' ? admin.csrfToken : null,
             breadcrumbs: Array.isArray(admin.breadcrumbs) ? admin.breadcrumbs : [],
             supportEmail: typeof admin.supportEmail === 'string' ? admin.supportEmail : null,
             notifications: {
@@ -83,12 +89,20 @@ export function useAdmin(): ComputedRef<AdminShared> {
 
 /** The rail's width and state, as the layout keeps them (AdminLayout, AdminRailHandle). */
 export interface RailControl {
-    /** The width in px (232–400) — while collapsed, the width it opens to. */
-    width: Ref<number>
-    /** Collapsed as it is shown: by choice, or by a window without room beside 960 px of content. */
+    /**
+     * The width in px as shown (232–400): the person's own, or less where the window leaves less room
+     * beside the content's 960 px — the stored width is kept for a wider window. While collapsed, the
+     * width it opens to.
+     */
+    width: Readonly<Ref<number>>
+    /** The widest this window allows (at most 400); the separator's `aria-valuemax`. */
+    max?: Readonly<Ref<number>>
+    /** Collapsed as it is shown: by choice, or by a window without room for even 232 px of rail. */
     shown: ComputedRef<boolean>
-    /** Collapsed by the window, whatever was chosen: nothing to open. */
+    /** Collapsed by the window, whatever was chosen: nothing to open, and nothing it does is saved. */
     forced: ComputedRef<boolean>
+    /** Why the toggle does less than it says, for its tooltip („Fenster zu schmal …“); null when it does not. */
+    hint?: ComputedRef<string | null>
     /** A drag in progress: nothing animates, and charts wait to measure until it ends. */
     resizing: Ref<boolean>
     /** A new state: `animate` for collapse, expand and reset; `save` now, or within the next second. */

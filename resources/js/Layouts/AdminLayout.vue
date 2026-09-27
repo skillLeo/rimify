@@ -29,7 +29,7 @@ import Toast from '../Components/Chrome/Toast.vue'
 import { toast } from '../Components/Chrome/toast'
 import { provideAdminShell, useAdmin } from '../composables/admin/useAdmin'
 import { useAdminShortcuts } from '../composables/admin/useAdminShortcuts'
-import { RAIL, clampWidth, fits, labelMode, type RailState } from '../composables/admin/railResize'
+import { RAIL, clampWidth, effectiveRail, labelMode, nextRev, toggleHint, toggleIntent, type RailIntent, type RailState } from '../composables/admin/railResize'
 import { railResizing } from '../composables/admin/railResizing'
 import { isNavigationVisit, provideMobileShell } from '../composables/mobile/useMobileShell'
 import { stripSheetState } from '../composables/mobile/useSheetHistory'
@@ -43,42 +43,52 @@ const mobile = provideMobileShell()
 
 const paletteOpen = ref(false)
 const shortcutsOpen = ref(false)
+/*
+ * The rail's intent — what this person chose: collapsed or not, and the width. Stored on the account
+ * and changed only by a gesture (railResize.ts says which). The server's copy draws the first frame;
+ * after that a visit's copy is taken only when it is newer than this window's — its revision higher,
+ * because another tab saved since. A visit answered while this window's save was still on its way
+ * carries the width from before it, and must not put the rail back there.
+ */
 const railCollapsed = ref(admin.value.preferences.railCollapsed)
 const railWidth = ref(clampWidth(admin.value.preferences.railWidth))
+let railRev = admin.value.preferences.railRev
 
-// The server's answer wins whenever it arrives — another tab may have changed it — but never in the
-// middle of a drag.
 watch(
-    () => admin.value.preferences.railCollapsed,
-    (value) => {
-        if (!railResizing.value) {
-            railCollapsed.value = value
-        }
-    }
-)
-watch(
-    () => admin.value.preferences.railWidth,
-    (value) => {
-        if (!railResizing.value) {
-            railWidth.value = clampWidth(value)
+    () => admin.value.preferences,
+    (stored) => {
+        if (stored.railRev > railRev && !railResizing.value) {
+            railRev = stored.railRev
+            railCollapsed.value = stored.railCollapsed
+            railWidth.value = stored.railWidth
         }
     }
 )
 
 /*
- * The window's width, known only in a browser. The content keeps 960 px: where the window has no
- * room for the rail at its width beside that, the rail is collapsed by the window (not by choice).
- * On the server nothing is forced; app.blade.php collapses it before the first paint where the window
- * is too narrow, and this starts from the same answer, so the first frame never jumps.
+ * The page the rail and the content share — the shell's own width: the window less its scrollbar
+ * (railResize's pageWidth; the root keeps a stable gutter). Known only in a browser, and only from
+ * 1024 px, asked of the stylesheet's own media query: below it the stylesheet alone decides. What
+ * this window shows is derived from the intent and the page (effectiveRail) and never stored.
+ * app.blade.php draws the same answer before the first paint and this starts from it, so the first
+ * frame never jumps; a ResizeObserver on the shell also sees a page scrollbar come and go.
  */
-/** The shell's own width — the page without whatever scrollbar it has: the content's 960 px are measured against this. */
-function pageWidth(): number {
+function measurePage(): number | null {
+    if (!window.matchMedia(`(min-width: ${RAIL.resizableFrom}px)`).matches) {
+        return null
+    }
+
     return document.querySelector<HTMLElement>('.adm')?.clientWidth || document.documentElement.clientWidth
 }
 
-const viewport = ref<number | null>(typeof document === 'undefined' ? null : pageWidth())
-const railForced = computed(() => viewport.value !== null && viewport.value >= RAIL.resizableFrom && !fits(railWidth.value, viewport.value))
-const railShown = computed(() => railCollapsed.value || railForced.value)
+const railPage = ref<number | null>(typeof window === 'undefined' ? null : measurePage())
+const railIntent = computed<RailIntent>(() => ({ collapsed: railCollapsed.value, width: railWidth.value }))
+const railEffective = computed(() => effectiveRail(railIntent.value, railPage.value))
+const railForced = computed(() => railEffective.value.forced)
+const railShown = computed(() => railEffective.value.collapsed)
+const railShownWidth = computed(() => railEffective.value.width)
+const railMax = computed(() => railEffective.value.max)
+const railHint = computed(() => toggleHint(railIntent.value, railPage.value))
 
 let viewportFrame = 0
 
@@ -86,7 +96,7 @@ function onViewport(): void {
     if (viewportFrame === 0) {
         viewportFrame = requestAnimationFrame(() => {
             viewportFrame = 0
-            viewport.value = pageWidth()
+            railPage.value = measurePage()
         })
     }
 }
@@ -99,37 +109,59 @@ function xsrfToken(): string {
 }
 
 /**
- * The rail moves at once; the choice is saved behind it with a plain background request, not an
+ * The rail moves at once; the intent is saved behind it with a plain background request, not an
  * Inertia visit — nothing on the page re-renders, so neither a stale toast nor a late answer to an
  * earlier click can come back. A failure costs the preference, never the page.
+ *
+ * Every save carries a revision that only grows (nextRev), and the server keeps the highest: a save
+ * overtaken on its way by a later one is dropped there rather than written over it.
  */
-function sendRail(): void {
+interface RailSave {
+    rail: 'open' | 'collapsed'
+    width: number
+    rev: number
+}
+
+/** Whether the intent has changed since it was last sent. */
+let unsent = false
+
+function nextSave(): RailSave {
+    unsent = false
+    railRev = nextRev(railRev, Date.now())
+
+    return { rail: railCollapsed.value ? 'collapsed' : 'open', width: railWidth.value, rev: railRev }
+}
+
+function postRail(save: RailSave): void {
     void fetch('/admin/ansicht', {
         method: 'PATCH',
         credentials: 'same-origin',
+        keepalive: true,
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
             'X-XSRF-TOKEN': xsrfToken(),
         },
-        body: JSON.stringify({ rail: railCollapsed.value ? 'collapsed' : 'open', width: railWidth.value }),
+        body: JSON.stringify(save),
     }).catch(() => undefined)
 }
 
 /*
  * Saved on the account, so the rail is the same on any machine — at most once a second while it
- * moves (`soon`), and once more the moment it stops (`now`).
+ * moves (`soon`), and once more the moment it stops (`now`: the pointer let go, the keys went quiet).
  */
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let savePending = false
 
 function saveRail(now: boolean): void {
+    unsent = true
+
     if (now) {
         clearTimeout(saveTimer)
         saveTimer = undefined
         savePending = false
-        sendRail()
+        postRail(nextSave())
 
         return
     }
@@ -140,7 +172,7 @@ function saveRail(now: boolean): void {
         return
     }
 
-    sendRail()
+    postRail(nextSave())
     saveTimer = setTimeout(() => {
         saveTimer = undefined
 
@@ -152,11 +184,44 @@ function saveRail(now: boolean): void {
 }
 
 /*
+ * The tab is closing or going to the background: whatever has not been sent leaves now, by beacon —
+ * the one request a closing page is sure to send. A beacon carries no headers, so it is a form post
+ * with the session's token and the method in fields (Laravel reads both); without a beacon, a fetch
+ * that outlives the page.
+ */
+function flushRail(): void {
+    if (!unsent) {
+        return
+    }
+
+    clearTimeout(saveTimer)
+    saveTimer = undefined
+    savePending = false
+
+    const save = nextSave()
+    const token = admin.value.csrfToken
+    const form = new URLSearchParams({ _method: 'PATCH', _token: token ?? '', rail: save.rail, width: String(save.width), rev: String(save.rev) })
+    const beaconed = token !== null && typeof navigator.sendBeacon === 'function' && navigator.sendBeacon('/admin/ansicht', form)
+
+    if (!beaconed) {
+        postRail(save)
+    }
+}
+
+function onVisibility(): void {
+    if (document.visibilityState === 'hidden') {
+        flushRail()
+    }
+}
+
+/*
  * Collapse, expand and the reset take 180 ms; a drag never animates. The grid changes at once and the
  * content area slides from where it was — a transform, never an animated width (DIRECTION §5) — and
  * with reduced motion it simply moves.
  */
 const work = ref<HTMLElement | null>(null)
+/** While the content slides, the handle's line waits: it is at the rail's new edge already. */
+const sliding = ref(false)
 
 function slide(apply: () => void): void {
     const el = work.value
@@ -180,14 +245,25 @@ function slide(apply: () => void): void {
         const style = getComputedStyle(document.documentElement)
         const duration = Number.parseFloat(style.getPropertyValue('--adm-d-rail')) || 180
 
-        el.animate([{ transform: `translateX(${delta}px)` }, { transform: 'none' }], {
+        sliding.value = true
+        const motion = el.animate([{ transform: `translateX(${delta}px)` }, { transform: 'none' }], {
             duration,
             easing: style.getPropertyValue('--ease-out').trim() || 'ease-out',
         })
+
+        motion.finished.then(
+            () => (sliding.value = false),
+            () => (sliding.value = false)
+        )
     })
 }
 
 function setRail(state: RailState, options: { animate?: boolean; save?: 'now' | 'soon' } = {}): void {
+    // Collapsed by the window: nothing done to the rail now is the person's choice.
+    if (railForced.value) {
+        return
+    }
+
     const apply = (): void => {
         railCollapsed.value = state.collapsed
         railWidth.value = state.width
@@ -204,8 +280,17 @@ function setRail(state: RailState, options: { animate?: boolean; save?: 'now' | 
     }
 }
 
+/**
+ * The toggle — the button, `[`, and Enter or Space on the handle all come here (toggleIntent): the
+ * width stays the person's own, and opened on a narrow page it shows at the widest that fits. Where
+ * the window collapsed the rail it does nothing, and its tooltip says why.
+ */
 function toggleRail(): void {
-    setRail({ collapsed: !railCollapsed.value, width: railWidth.value }, { animate: true, save: 'now' })
+    const next = toggleIntent(railIntent.value, railPage.value)
+
+    if (next !== null) {
+        setRail(next, { animate: true, save: 'now' })
+    }
 }
 
 const shell = {
@@ -213,7 +298,7 @@ const shell = {
     shortcutsOpen,
     railCollapsed,
     toggleRail,
-    rail: { width: railWidth, shown: railShown, forced: railForced, resizing: railResizing, set: setRail },
+    rail: { width: railShownWidth, max: railMax, shown: railShown, forced: railForced, hint: railHint, resizing: railResizing, set: setRail },
 }
 
 provideAdminShell(shell)
@@ -232,8 +317,23 @@ const unbind: Array<() => void> = []
 
 onMounted(() => {
     window.addEventListener('resize', onViewport)
+    window.addEventListener('pagehide', flushRail)
+    document.addEventListener('visibilitychange', onVisibility)
+
+    // The shell narrows without a resize event when the page's scrollbar appears.
+    const shellObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(onViewport) : null
+    const shellEl = document.querySelector('.adm')
+
+    if (shellObserver && shellEl) {
+        shellObserver.observe(shellEl)
+    }
+
+    onViewport()
     unbind.push(
         () => window.removeEventListener('resize', onViewport),
+        () => window.removeEventListener('pagehide', flushRail),
+        () => document.removeEventListener('visibilitychange', onVisibility),
+        () => shellObserver?.disconnect(),
         // An open sheet closes and hands its history entry back before a real navigation — not on the
         // prefetch a row's press fires, or the click that follows would land on a closing row.
         router.on('before', (event) => {
@@ -341,10 +441,11 @@ onBeforeUnmount(() => {
         class="adm"
         :data-rail="railShown ? 'collapsed' : 'open'"
         :data-rail-forced="railForced ? '' : undefined"
-        :data-labels="labelMode(railWidth)"
+        :data-labels="labelMode(railShownWidth)"
         :data-resizing="railResizing ? '' : undefined"
+        :data-sliding="sliding ? '' : undefined"
         :data-busy="busy ? '' : undefined"
-        :style="{ '--rail-w': `${railWidth}px` }"
+        :style="{ '--rail-w': `${railShownWidth}px` }"
     >
         <AdminRail />
         <AdminRailHandle />

@@ -154,10 +154,14 @@ function onKey(event: KeyboardEvent): void {
 
 <template>
     <div ref="el" class="lc" :style="{ height: `${height}px` }">
+        <!-- Drawn at the measured width; between two measurements (a rail being dragged) the drawing
+             scales down into its box rather than past it — letterboxed, never overflowing. -->
         <svg
             class="lc__svg"
             :width="width"
             :height="height"
+            :viewBox="`0 0 ${width} ${height}`"
+            preserveAspectRatio="xMinYMin meet"
             role="group"
             :aria-label="`${label}. Mit den Pfeiltasten von Tag zu Tag.`"
             tabindex="0"
@@ -215,6 +219,7 @@ function onKey(event: KeyboardEvent): void {
 /* A finger drawn sideways reads the line; drawn up or down it scrolls the page. */
 .lc__svg {
     display: block;
+    width: 100%;
     overflow: visible;
     outline: none;
     touch-action: pan-y;

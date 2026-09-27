@@ -85,12 +85,12 @@ const actions = computed<PaletteEntry[]>(() => {
         list.push({
             id: 'action:rail',
             group: 'actions',
-            label: collapsed ? 'Navigation ausklappen' : 'Navigation einklappen',
+            label: collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen',
             sub: null,
             keys: ['['],
             icon: collapsed ? 'chevron-right' : 'chevron-left',
             run: shell.toggleRail,
-            keywords: 'seitenleiste menue',
+            keywords: 'navigation menue',
         })
     }
 

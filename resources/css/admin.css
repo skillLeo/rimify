@@ -57,10 +57,12 @@
     transform: none;
 }
 
+/* Its own ground: while it slides over the rail's labels (collapse, expand, reset), it covers them. */
 .adm-work {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    background: var(--c-surface);
 }
 
 /* ── The rail ──────────────────────────────────────────────────────────────────── */
@@ -73,7 +75,7 @@
     flex-direction: column;
     height: 100dvh;
     overflow: hidden;
-    padding: 0 var(--sp-12) var(--sp-12);
+    padding: 0 var(--sp-12);
     background: var(--c-surface);
     border-right: 1px solid var(--c-line);
 }
@@ -84,13 +86,19 @@
     }
 }
 
-/* Exactly the top bar's height, so the wordmark sits on the breadcrumbs' centre line. */
+/* Exactly the top bar's height, so the wordmark sits on the breadcrumbs' centre line. The toggle sits
+   4 px from the edge, which puts its chevron on the column the counts and the profile's chevron end on. */
 .adm-rail__brand {
     display: flex;
     align-items: center;
     gap: var(--sp-8);
     min-height: var(--adm-topbar-h);
-    padding: 0 var(--sp-8);
+    padding: 0 var(--sp-4) 0 var(--sp-8);
+}
+
+/* At its narrowest the rail keeps the wordmark, the environment and the toggle on one line. */
+.adm[data-labels='short'] .adm-rail__brand {
+    gap: var(--sp-4);
 }
 
 /* The logo: black, a 20 px cap height, the storefront wordmark's own weight and tracking. */
@@ -121,6 +129,10 @@
     padding: 0 var(--sp-12) var(--sp-16);
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* A thin, quiet scrollbar, only while there is more to scroll to. (Not a stable gutter: that kept
+       its room from every rail on a system with classic scrollbars, and cut the foot's health line.) */
+    scrollbar-color: var(--c-line-2) transparent;
+    scrollbar-width: thin;
 }
 
 /* ── The rail's resize handle (AdminRailHandle) ─────────────────────────────────────
@@ -132,7 +144,8 @@
     top: 0;
     bottom: 0;
     left: calc(var(--rail-w, var(--adm-rail-w)) - 4px);
-    z-index: var(--z-sticky);
+    /* Above the sticky top bar beside it, or its top 56 px would be half a grip and half a line. */
+    z-index: var(--z-header);
     width: 8px;
     cursor: col-resize;
     touch-action: none;
@@ -168,6 +181,38 @@
     transition-delay: 0s;
 }
 
+/* While the content slides to the rail's new edge the line waits there unseen, not ahead of it. */
+.adm[data-sliding] .adm-handle::after {
+    opacity: 0;
+    transition: none;
+}
+
+/* No room for the rail even at 232 px beside the content: it is the icon rail, nothing to pull. */
+.adm[data-rail-forced] .adm-handle {
+    display: none;
+}
+
+/* A card holding a chart keeps the chart inside it: while the rail is dragged a chart keeps its last
+   measured drawing (it redraws once, after the drag) and scales it down to its box through its
+   viewBox — nothing of it ever lies across the neighbouring card. Its menu is portalled, its focus
+   ring falls inside the card's padding. */
+.adm .widget:has(.lc, .sb__plot) {
+    overflow: hidden;
+}
+
+/* A contrast theme drops colour changes: focus is an outline in the theme's own text colour, and the
+   line takes the system's highlight rather than a background painted over as Canvas. */
+@media (forced-colors: active) {
+    .adm-handle:focus-visible {
+        outline: 2px solid CanvasText;
+    }
+
+    .adm-handle::after {
+        background: Highlight;
+        forced-color-adjust: none;
+    }
+}
+
 /* While dragging: the cursor is col-resize over the whole window, and nothing gets selected. */
 :root[data-rail-resizing],
 :root[data-rail-resizing] * {
@@ -188,9 +233,11 @@
     }
 }
 
-/* Collapsed by the window (no room for the rail beside 960 px of content): nothing to open. */
-.adm[data-rail-forced] .adm-rail__toggle {
-    display: none;
+/* Collapsed by the window (no room for the rail beside 960 px of content): the toggle stays, quieter,
+   and its tooltip says why it cannot open. */
+.adm-rail__toggle[aria-disabled='true'] {
+    color: var(--c-ink-3);
+    cursor: default;
 }
 
 /* Below 248 px the group labels take their own short word (AdminNavigation's `short`), never a label
@@ -219,7 +266,7 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--sp-8);
     margin-inline: calc(-1 * var(--sp-12));
-    padding: var(--sp-12) var(--sp-12) 0;
+    padding: var(--sp-12);
     border-top: 1px solid var(--c-line);
 }
 
@@ -228,10 +275,12 @@
 .adm-foot__health {
     display: flex;
     align-items: center;
-    gap: var(--sp-8);
+    gap: var(--sp-12);
     height: var(--sp-32);
     margin: 0;
-    padding-inline: var(--sp-12);
+    /* The words start on the labels' line (56 px); the row gives them its right-hand room, so the
+       short label and its count fit whole at the rail's default width. */
+    padding-inline: var(--sp-12) var(--sp-4);
     border-radius: var(--r-control);
     font-size: var(--fs-small);
     line-height: var(--lh-small);
@@ -250,7 +299,7 @@
    at a word's distance („Warteschlange stockt · 12 Std“), not the row's gap. */
 .adm-foot__count {
     flex: none;
-    margin-left: calc(-1 * var(--sp-4));
+    margin-left: calc(-1 * var(--sp-8));
     font-variant-numeric: tabular-nums;
 }
 
@@ -260,6 +309,11 @@
 
 .adm-foot__count--bad {
     color: var(--c-bad);
+}
+
+/* The dot on the icons' column (centred in their 20 px), the words on the labels' line (56 px). */
+.adm-foot__health .adm-health__dot {
+    margin-inline: calc((var(--sp-20) - var(--sp-8)) / 2);
 }
 
 a.adm-foot__health {
@@ -620,6 +674,11 @@ a.adm-foot__health {
     margin-inline: auto;
 }
 
+/* The icon rail has no room for a scrollbar beside its 40 px icons: it scrolls without one. */
+.adm[data-rail='collapsed'] .adm-rail__nav {
+    scrollbar-width: none;
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
     .adm .adm-rail__brand {
         flex-direction: column;
@@ -657,6 +716,10 @@ a.adm-foot__health {
         height: 40px;
         padding: 0;
         margin-inline: auto;
+    }
+
+    .adm .adm-rail__nav {
+        scrollbar-width: none;
     }
 }
 

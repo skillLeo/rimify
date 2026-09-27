@@ -44,8 +44,13 @@ export interface AdminShared {
     nav: AdminNavGroup[]
     /** `local` and `staging` are said out loud; production is null and shows nothing. */
     environment: 'local' | 'staging' | null
-    /** The rail as this person left it: collapsed or not, and its width in px (232–400). */
-    preferences: { railCollapsed: boolean; railWidth: number }
+    /**
+     * The rail as this person left it: collapsed or not, its width in px (232–400), and the revision
+     * of that save (0 before the first) — a page takes a newer one from a visit, never an older one.
+     */
+    preferences: { railCollapsed: boolean; railWidth: number; railRev: number }
+    /** The session's CSRF token, for the one save that cannot send headers (navigator.sendBeacon). */
+    csrfToken: string | null
     breadcrumbs: AdminCrumb[]
     supportEmail: string | null
     /**

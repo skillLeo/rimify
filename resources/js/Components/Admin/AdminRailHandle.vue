@@ -36,6 +36,8 @@ function room(): number {
 /* ── Dragging ─────────────────────────────────────────────────────────────────────── */
 
 let dragging: RailState | null = null
+/** The rail when the pointer went down: a press that moves nothing saves and says nothing. */
+let started: RailState | null = null
 let railLeft = 0
 let pointerX = 0
 let frame = 0
@@ -51,6 +53,7 @@ function onPointerDown(event: PointerEvent): void {
     handle.value?.setPointerCapture?.(event.pointerId)
     railLeft = document.querySelector('.adm-rail')?.getBoundingClientRect().left ?? 0
     pointerX = event.clientX
+    started = { collapsed: state.value.collapsed, width: state.value.width }
     dragging = { ...state.value, origin: state.value.width }
     lastSnap = null
     rail.resizing.value = true
@@ -62,7 +65,10 @@ function onPointerMove(event: PointerEvent): void {
         return
     }
 
-    pointerX = event.clientX
+    // The newest position the browser has, not merely this event's: a busy frame folds several moves
+    // into one event, the last of them where the pointer really is.
+    const coalesced = typeof event.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : []
+    pointerX = (coalesced.at(-1) ?? event).clientX
 
     if (frame === 0) {
         frame = requestAnimationFrame(step)
@@ -83,15 +89,23 @@ function step(now: number): void {
         return
     }
 
-    const next = dragTo(pointerX - railLeft, dragging, room())
+    const next = advance()
 
     if (next.snapped !== null && next.snapped !== lastSnap) {
         holdUntil = now + RAIL.snapHoldMs
     }
 
     lastSnap = next.snapped
-    dragging = { collapsed: next.collapsed, width: next.width, holding: next.holding, pointer: next.pointer, origin: next.origin }
     rail.set(dragging, { save: 'soon' })
+}
+
+/** The rail for the pointer's latest position, kept as the drag's state. */
+function advance(): ReturnType<typeof dragTo> {
+    const next = dragTo(pointerX - railLeft, dragging ?? state.value, room())
+
+    dragging = { collapsed: next.collapsed, width: next.width, holding: next.holding, pointer: next.pointer, origin: next.origin }
+
+    return next
 }
 
 function onPointerUp(event: PointerEvent): void {
@@ -106,13 +120,26 @@ function onPointerUp(event: PointerEvent): void {
     cancelAnimationFrame(frame)
     frame = 0
 
+    // The rail ends under the pointer: the release's own position counts, even when a quick flick
+    // never gave the last move a frame of its own.
+    if (event.type === 'pointerup') {
+        pointerX = event.clientX
+        advance()
+    }
+
     const last = { collapsed: dragging.collapsed, width: dragging.width }
+    const moved = started === null || last.collapsed !== started.collapsed || last.width !== started.width
 
     dragging = null
+    started = null
     rail.resizing.value = false
     delete document.documentElement.dataset.railResizing
-    rail.set(last, { save: 'now' })
-    say(last)
+
+    // A press that moved nothing — a plain click, the two clicks of a double-click — is not a change.
+    if (moved) {
+        rail.set(last, { save: 'now' })
+        say(last)
+    }
 }
 
 /** Back to the default width — collapse, expand and reset are the three moves that animate. */
@@ -130,9 +157,12 @@ function reset(): void {
 /* ── The keyboard ─────────────────────────────────────────────────────────────────── */
 
 let sayTimer: ReturnType<typeof setTimeout> | undefined
+/** Where the keys have moved the rail and not yet said nor saved: the keyboard's pointerup is pending. */
+let keyed: { state: RailState; save: boolean } | null = null
 
 function onKey(event: KeyboardEvent): void {
-    if (!rail) {
+    // Alt+← is the browser's Back, Ctrl and ⌘ belong to the browser too: only Shift is the handle's.
+    if (!rail || event.altKey || event.ctrlKey || event.metaKey) {
         return
     }
 
@@ -143,13 +173,43 @@ function onKey(event: KeyboardEvent): void {
     }
 
     event.preventDefault()
-    const toggles = next.collapsed !== state.value.collapsed
 
-    rail.set(next, { animate: toggles || event.key === 'Home', save: 'soon' })
+    // Enter and Space are the toggle's own move (the one the button and `[` make): collapsed and
+    // opened again, the width stays the person's — shown as wide as the window allows.
+    if (next.collapsed !== state.value.collapsed) {
+        shell.toggleRail()
+        keyed = { state: next, save: false }
+    } else {
+        rail.set(next, { animate: event.key === 'Home', save: 'soon' })
+        keyed = { state: next, save: true }
+    }
 
-    // Said once the keys stop, not at every press.
+    whenQuiet()
+}
+
+/*
+ * Once the keys have been quiet for 250 ms — no key down, none coming up — the rail is said, and
+ * saved as it is then: the keyboard's pointerup.
+ */
+function whenQuiet(): void {
     clearTimeout(sayTimer)
-    sayTimer = setTimeout(() => say(next), 500)
+
+    if (keyed === null) {
+        return
+    }
+
+    sayTimer = setTimeout(() => {
+        if (keyed === null || !rail) {
+            return
+        }
+
+        if (keyed.save) {
+            rail.set(keyed.state, { save: 'now' })
+        }
+
+        say(keyed.state)
+        keyed = null
+    }, RAIL.keyQuietMs)
 }
 
 function say(next: RailState): void {
@@ -179,7 +239,7 @@ onBeforeUnmount(() => {
         aria-controls="adm-nav"
         aria-label="Seitenleistenbreite"
         :aria-valuemin="RAIL.min"
-        :aria-valuemax="RAIL.max"
+        :aria-valuemax="rail.max?.value ?? RAIL.max"
         :aria-valuenow="state.width"
         :aria-valuetext="railSentence(state)"
         tabindex="0"
@@ -190,6 +250,7 @@ onBeforeUnmount(() => {
         @lostpointercapture="onPointerUp"
         @dblclick="reset"
         @keydown="onKey"
+        @keyup="whenQuiet"
     />
     <span v-if="rail" class="visually-hidden" role="status">{{ said }}</span>
 </template>

@@ -1,6 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, ref } from 'vue'
+import { computed, defineComponent, h, ref } from 'vue'
 import type { AdminNavGroup } from '../../types/admin'
 
 /*
@@ -119,12 +119,48 @@ describe('AdminRail', () => {
         const button = open.wrapper.find('.adm-rail__toggle')
 
         expect(button.attributes('aria-expanded')).toBe('true')
-        expect(button.attributes('aria-label')).toBe('Navigation einklappen')
+        expect(button.attributes('aria-label')).toBe('Seitenleiste einklappen')
 
         await button.trigger('click')
         expect(open.toggle).toHaveBeenCalledOnce()
 
         const closed = mountRail('/admin', true)
-        expect(closed.wrapper.find('.adm-rail__toggle').attributes('aria-label')).toBe('Navigation ausklappen')
+        expect(closed.wrapper.find('.adm-rail__toggle').attributes('aria-label')).toBe('Seitenleiste ausklappen')
+    })
+
+    it('keeps the toggle where the window collapsed the rail — unavailable, and saying why', () => {
+        current.url = '/admin'
+        current.props = { admin: { nav: NAV, environment: null, preferences: { railCollapsed: false } } }
+
+        const wrapper = mount(
+            defineComponent({
+                setup() {
+                    provideAdminShell({
+                        paletteOpen: ref(false),
+                        shortcutsOpen: ref(false),
+                        railCollapsed: ref(false),
+                        toggleRail: () => undefined,
+                        rail: {
+                            width: ref(260),
+                            shown: computed(() => true),
+                            forced: computed(() => true),
+                            hint: computed(() => 'Fenster zu schmal für die Seitenleiste'),
+                            resizing: ref(false),
+                            set: () => undefined,
+                        },
+                    })
+
+                    return () => h(AdminRail)
+                },
+            })
+        )
+        mounted.push(wrapper)
+        const toggle = wrapper.get('.adm-rail__toggle')
+
+        expect(toggle.attributes('aria-disabled')).toBe('true')
+        // Named for what it would do to the rail as it is shown: collapsed by the window. (Its tooltip's
+        // sentence is railResize's toggleHint, tested there; reka draws it.)
+        expect(toggle.attributes('aria-label')).toBe('Seitenleiste ausklappen')
+        expect(toggle.isVisible()).toBe(true)
     })
 })

@@ -53,18 +53,23 @@
 <body class="{{ ($page['props']['isMobile'] ?? false) ? 'is-mobile' : 'is-desktop' }}">
     @inertia
     @if (str_starts_with($page['component'] ?? '', 'Admin/'))
-        {{-- The admin's content keeps 960 px: in a window without room for the rail at the width this
-             person gave it, the rail is collapsed before the first paint — the same answer the layout
-             then starts from — so it never opens and snaps shut (AdminLayout, railResize.ts). --}}
+        {{-- The admin's content keeps 960 px. Before the first paint — the same answer the layout then
+             starts from, so nothing opens and snaps shut (AdminLayout, railResize.ts): in a window
+             without room for the rail at the width this person gave it, the rail is drawn as wide as
+             there is room for; without room even for its narrowest 232 px, it is collapsed by the
+             window, with no handle to pull at. --}}
         <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
             (function () {
                 var shell = document.querySelector('.adm');
-                if (!shell || window.innerWidth < 1024) return;
-                var room = shell.clientWidth;
+                if (!shell || !window.matchMedia('(min-width: 1024px)').matches) return;
+                var room = Math.min(400, shell.clientWidth - 960);
                 var width = parseInt(shell.style.getPropertyValue('--rail-w'), 10) || 260;
-                if (room - width < 960) {
+                if (room < 232) {
                     shell.setAttribute('data-rail', 'collapsed');
                     shell.setAttribute('data-rail-forced', '');
+                } else if (room < width) {
+                    shell.style.setProperty('--rail-w', room + 'px');
+                    shell.setAttribute('data-labels', room < 248 ? 'short' : 'full');
                 }
             })();
         </script>

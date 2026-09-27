@@ -39,7 +39,7 @@ watch(shortcutsOpen, (open) => {
                     <dd><Kbd :keys="['K']" modifier /> <span class="adm-keys__or">oder</span> <Kbd :keys="['/']" /></dd>
                 </div>
                 <div v-if="wide" class="adm-keys__row">
-                    <dt>Navigation ein- oder ausklappen</dt>
+                    <dt>Seitenleiste ein- oder ausklappen</dt>
                     <dd><Kbd :keys="['[']" /></dd>
                 </div>
                 <div class="adm-keys__row">

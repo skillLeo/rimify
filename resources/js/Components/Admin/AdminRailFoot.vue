@@ -31,6 +31,7 @@ import {
     TooltipTrigger,
 } from 'reka-ui'
 import { computed, ref } from 'vue'
+import AdminMenuTip from './AdminMenuTip.vue'
 import Icon from './AdminIcon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
@@ -46,6 +47,18 @@ const health = useHealth()
 const account = computed(() => admin.value.account)
 const actions = computed(() => admin.value.quickActions)
 const initials = computed(() => monogram(account.value?.name))
+
+/*
+ * A name or role that ends in „…“ at this width shows the whole of it in the rail's own tooltip, as
+ * the items above do — measured when the row is pointed at or reached, not on every frame of a drag.
+ */
+const whoCut = ref(false)
+
+function measureWho(event: Event): void {
+    const lines = (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('.adm-foot__name, .adm-foot__role')
+
+    whoCut.value = [...lines].some((line) => line.scrollWidth > line.clientWidth)
+}
 
 const signingOut = ref(false)
 
@@ -93,30 +106,26 @@ function signOut(event: Event): void {
 
         <!-- 2 · Neu, and the way to everything -->
         <div class="adm-foot__actions">
-            <DropdownMenuRoot v-if="actions.length">
-                <TooltipRoot :disabled="!collapsed">
-                    <TooltipTrigger as-child>
-                        <DropdownMenuTrigger class="btn btn--secondary adm-foot__new">
-                            <Icon name="plus" :size="20" />
-                            <span class="adm-foot__new-label">Neu</span>
-                        </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipPortal>
-                        <TooltipContent class="adm-tooltip" side="right" :side-offset="8">Neu anlegen</TooltipContent>
-                    </TooltipPortal>
-                </TooltipRoot>
-                <DropdownMenuPortal>
-                    <DropdownMenuContent class="adm-menu" :side="collapsed ? 'right' : 'top'" align="start" :side-offset="8">
-                        <DropdownMenuLabel class="adm-menu__caption">Neu anlegen</DropdownMenuLabel>
-                        <DropdownMenuItem v-for="action in actions" :key="action.key" as-child>
-                            <Link :href="action.href" class="adm-menu__item">
-                                <Icon :name="action.icon" :size="20" />
-                                {{ action.label }}
-                            </Link>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenuPortal>
-            </DropdownMenuRoot>
+            <!-- The tooltip wraps the menu, never the other way round (AdminMenuTip says why). -->
+            <AdminMenuTip v-if="actions.length" text="Neu anlegen" :disabled="!collapsed">
+                <DropdownMenuRoot>
+                    <DropdownMenuTrigger class="btn btn--secondary adm-foot__new">
+                        <Icon name="plus" :size="20" />
+                        <span class="adm-foot__new-label">Neu</span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuPortal>
+                        <DropdownMenuContent class="adm-menu" :side="collapsed ? 'right' : 'top'" align="start" :side-offset="8">
+                            <DropdownMenuLabel class="adm-menu__caption">Neu anlegen</DropdownMenuLabel>
+                            <DropdownMenuItem v-for="action in actions" :key="action.key" as-child>
+                                <Link :href="action.href" class="adm-menu__item">
+                                    <Icon :name="action.icon" :size="20" />
+                                    {{ action.label }}
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenuPortal>
+                </DropdownMenuRoot>
+            </AdminMenuTip>
 
             <button
                 class="adm-foot__kbd"
@@ -130,56 +139,63 @@ function signOut(event: Event): void {
         </div>
 
         <!-- 3 · Who you are -->
-        <DropdownMenuRoot v-if="account">
-            <DropdownMenuTrigger class="adm-foot__profile" :aria-label="`Konto: ${account.name}${account.role ? `, ${account.role}` : ''}`">
-                <span class="adm-avatar" aria-hidden="true">{{ initials }}</span>
-                <span class="adm-foot__who">
-                    <span class="adm-foot__name" :title="account.name">{{ account.name }}</span>
-                    <span class="adm-foot__role" :title="account.role ?? account.email">{{ account.role ?? account.email }}</span>
-                </span>
-                <Icon class="adm-foot__chevron" name="chevron-up" :size="16" />
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-                <DropdownMenuContent class="adm-menu adm-foot__menu" :side="collapsed ? 'right' : 'top'" align="start" :side-offset="8">
-                    <div class="adm-menu__head">
-                        <DropdownMenuLabel class="adm-menu__name">{{ account.name }}</DropdownMenuLabel>
-                        <DropdownMenuLabel class="adm-menu__meta">{{ account.email }}</DropdownMenuLabel>
-                    </div>
-                    <DropdownMenuSeparator class="adm-menu__sep" />
-                    <DropdownMenuItem as-child>
-                        <Link href="/admin/profil" class="adm-menu__item">
-                            <Icon name="users" :size="20" />
-                            Profil
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem as-child>
-                        <Link href="/admin/benachrichtigungen" class="adm-menu__item">
-                            <Icon name="bell" :size="20" />
-                            Benachrichtigungen
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem as-child>
-                        <Link href="/admin/profil#passwort" class="adm-menu__item">
-                            <Icon name="shield" :size="20" />
-                            Passwort ändern
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem class="adm-menu__item" @select="shell.shortcutsOpen.value = true">
-                        <Icon name="keyboard" :size="20" />
-                        Tastenkürzel
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator class="adm-menu__sep" />
-                    <DropdownMenuItem
-                        class="adm-menu__item adm-menu__item--danger"
-                        :disabled="signingOut"
-                        :aria-busy="signingOut ? 'true' : undefined"
-                        @select="signOut"
-                    >
-                        <Icon name="logout" :size="20" />
-                        {{ signingOut ? 'Wird abgemeldet …' : 'Abmelden' }}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenuPortal>
-        </DropdownMenuRoot>
+        <AdminMenuTip v-if="account" :text="`${account.name} · ${account.role ?? account.email}`" :disabled="!collapsed && !whoCut">
+            <DropdownMenuRoot>
+                <DropdownMenuTrigger
+                    class="adm-foot__profile"
+                    :aria-label="`Konto: ${account.name}${account.role ? `, ${account.role}` : ''}`"
+                    @pointerenter="measureWho"
+                    @focus="measureWho"
+                >
+                    <span class="adm-avatar" aria-hidden="true">{{ initials }}</span>
+                    <span class="adm-foot__who">
+                        <span class="adm-foot__name">{{ account.name }}</span>
+                        <span class="adm-foot__role">{{ account.role ?? account.email }}</span>
+                    </span>
+                    <Icon class="adm-foot__chevron" name="chevron-up" :size="16" />
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                    <DropdownMenuContent class="adm-menu adm-foot__menu" :side="collapsed ? 'right' : 'top'" align="start" :side-offset="8">
+                        <div class="adm-menu__head">
+                            <DropdownMenuLabel class="adm-menu__name">{{ account.name }}</DropdownMenuLabel>
+                            <DropdownMenuLabel class="adm-menu__meta">{{ account.email }}</DropdownMenuLabel>
+                        </div>
+                        <DropdownMenuSeparator class="adm-menu__sep" />
+                        <DropdownMenuItem as-child>
+                            <Link href="/admin/profil" class="adm-menu__item">
+                                <Icon name="users" :size="20" />
+                                Profil
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem as-child>
+                            <Link href="/admin/benachrichtigungen" class="adm-menu__item">
+                                <Icon name="bell" :size="20" />
+                                Benachrichtigungen
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem as-child>
+                            <Link href="/admin/profil#passwort" class="adm-menu__item">
+                                <Icon name="shield" :size="20" />
+                                Passwort ändern
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem class="adm-menu__item" @select="shell.shortcutsOpen.value = true">
+                            <Icon name="keyboard" :size="20" />
+                            Tastenkürzel
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator class="adm-menu__sep" />
+                        <DropdownMenuItem
+                            class="adm-menu__item adm-menu__item--danger"
+                            :disabled="signingOut"
+                            :aria-busy="signingOut ? 'true' : undefined"
+                            @select="signOut"
+                        >
+                            <Icon name="logout" :size="20" />
+                            {{ signingOut ? 'Wird abgemeldet …' : 'Abmelden' }}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenuPortal>
+            </DropdownMenuRoot>
+        </AdminMenuTip>
     </div>
 </template>
