@@ -21,6 +21,15 @@ PHP="${PHP_BIN:-/opt/alt/php84/usr/bin/php}"
 NODE="${NODE_BIN:-/opt/alt/alt-nodejs22/root/usr/bin/node}"
 SSR_PORT="${SSR_PORT:-13714}"
 
+# What this host is. `production` (the default): the client's shop — no demo row, ever (R-12), and
+# the release stops if it finds one. `staging`: a review preview — the admin is on, and its
+# demonstration data is written once, flagged as such on every screen (DemoGuard allows it there).
+TARGET_ENV="${TARGET_ENV:-production}"
+case "$TARGET_ENV" in
+    production|staging) ;;
+    *) echo "== TARGET_ENV must be production or staging, not $TARGET_ENV"; exit 1 ;;
+esac
+
 cd "$APP"
 echo "== code: $(git log -1 --format='%h %s')"
 
@@ -35,7 +44,13 @@ if [ ! -f .env ]; then
 fi
 
 set_env() { "$PHP" deploy/env.php "$1" "${2:-}"; }
-set_env APP_ENV production
+set_env APP_ENV "$TARGET_ENV"
+if [ "$TARGET_ENV" = staging ]; then
+    set_env DEMO_DATA 1
+    set_env RIMIFY_ADMIN_ENABLED true
+else
+    set_env DEMO_DATA 0
+fi
 set_env APP_DEBUG false
 set_env APP_URL "${APP_URL:-https://rimify.skillleo.com}"
 set_env LOG_STACK daily
@@ -60,8 +75,11 @@ chmod -R ug+rwX storage bootstrap/cache
 # ── PHP dependencies and schema ────────────────────────────────────────────────
 COMPOSER="$(command -v composer || echo /usr/local/bin/composer)"
 "$PHP" "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --no-progress 2>&1 | tail -1
-# R-12: this database holds no demo rows. Found any, the release stops here, still in maintenance.
-"$PHP" artisan demo:assert-clean --no-interaction
+# R-12: a production database holds no demo rows. Found any, the release stops here, still in
+# maintenance. A staging preview holds them on purpose.
+if [ "$TARGET_ENV" = production ]; then
+    "$PHP" artisan demo:assert-clean --no-interaction
+fi
 "$PHP" artisan migrate --force --no-interaction
 
 # A brand-new database gets the reference data and the demonstration catalogue once. An existing
@@ -75,6 +93,19 @@ fi
 # The seeded data this release changes (renamed demo catalogue, retired fitments, corrected
 # content), applied once per release and recorded. A no-op on every later deploy.
 "$PHP" artisan rimify:release-seed --no-interaction
+
+# Staging: the admin's demonstration data, written once — the Übersicht, the orders, the Protokoll.
+# Never again on a later deploy: its frozen snapshots may not be rewritten (R-12), and a set that is
+# there is kept (`demo:reanchor` moves its dates, `demo:purge` takes it away).
+if [ "$TARGET_ENV" = staging ]; then
+    DEMO_ROWS="$("$PHP" artisan tinker --execute='echo \App\Services\Demo\DemoTables::total();' 2>/dev/null | tail -1)"
+    if [ "$DEMO_ROWS" = "0" ]; then
+        echo "== staging: writing the demonstration data"
+        "$PHP" artisan demo:seed --no-interaction | tail -2
+    else
+        echo "== staging: demonstration data present ($DEMO_ROWS rows)"
+    fi
+fi
 
 # The demo imagery is served from storage/app/public through the public/storage link. Made with
 # `ln`, not `artisan storage:link`: this shared host disables PHP's `exec()`, and Laravel's
