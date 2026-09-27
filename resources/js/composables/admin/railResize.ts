@@ -11,8 +11,9 @@
  *     change only this.
  *
  * The rules:
- *   - Free between 232 and 400 px; two magnets, 260 (the default) and 320 (comfortable), that catch
- *     the rail within 8 px of them.
+ *   - Free between 232 and 400 px; two magnets, 260 (the default) and 320 (comfortable). A magnet
+ *     catches the rail within 8 px and holds it until the pointer is more than 12 px away — distance,
+ *     not time, so it feels the same at any frame rate, and the rail never flickers on and off it.
  *   - Below 200 px the drag collapses it to the 64 px icon rail — a state, not a width: the width it
  *     had is kept. Pulled out past 120 px it opens again at that width, and holds there until the
  *     pointer reaches it (so the rail does not collapse again under a pointer still at 130 px).
@@ -31,9 +32,10 @@ export const RAIL = {
     collapsed: 64,
     collapseBelow: 200,
     expandPast: 120,
+    /** A magnet catches the rail this close to it … */
     snap: 8,
-    /** How long a snap holds the rail still, so the snap is felt rather than seen. */
-    snapHoldMs: 6,
+    /** … and lets go only once the pointer is further away than this (hysteresis). */
+    release: 12,
     shortBelow: 248,
     /** The content area's minimum: the rail collapses before the content shrinks under it. */
     contentMin: 960,
@@ -58,11 +60,8 @@ export interface RailState {
     pointer?: number
     /** The width when this drag began: a drag that ends collapsed opens again at it, not at 232. */
     origin?: number
-}
-
-export interface RailStep extends RailState {
-    /** The magnet the rail just caught, if it did. */
-    snapped: number | null
+    /** The magnet holding the rail during this drag, if one is. */
+    magnet?: number | null
 }
 
 /** A stored width, or the default when it is none: whole pixels, inside the range. */
@@ -162,14 +161,15 @@ export function nextRev(last: number, now: number): number {
  * Where the rail goes for a pointer `desired` px from its left edge. On a page with no room for the
  * rail at all nothing moves: that collapse is the window's, not the pointer's.
  */
-export function dragTo(desired: number, state: RailState, viewport = Number.POSITIVE_INFINITY): RailStep {
+export function dragTo(desired: number, state: RailState, viewport = Number.POSITIVE_INFINITY): RailState {
     const room = maxFit(viewport)
 
     if (room < RAIL.min) {
-        return { ...state, snapped: null }
+        return state
     }
 
     const pointer = desired
+    const origin = state.origin
 
     if (state.collapsed) {
         // Dragged out past 120 px it opens — at the width it had, or as wide as the window allows. Out,
@@ -180,37 +180,45 @@ export function dragTo(desired: number, state: RailState, viewport = Number.POSI
         if (outward && desired > RAIL.expandPast) {
             const width = fitWidth(state.width, viewport)
 
-            return { collapsed: false, width, holding: desired < width, pointer, origin: state.origin, snapped: null }
+            return { collapsed: false, width, holding: desired < width, pointer, origin, magnet: null }
         }
 
-        return { collapsed: true, width: state.width, holding: false, pointer, origin: state.origin, snapped: null }
+        return { collapsed: true, width: state.width, holding: false, pointer, origin, magnet: null }
     }
 
     if (state.holding) {
         if (desired < RAIL.expandPast) {
-            return { collapsed: true, width: state.width, holding: false, pointer, origin: state.origin, snapped: null }
+            return { collapsed: true, width: state.width, holding: false, pointer, origin, magnet: null }
         }
 
         if (desired < state.width) {
-            return { collapsed: false, width: state.width, holding: true, pointer, origin: state.origin, snapped: null }
+            return { collapsed: false, width: state.width, holding: true, pointer, origin, magnet: null }
         }
     }
 
     // Collapsed on the way in: the width to open to again is the one this drag started from — the
     // rail shrank to 232 on its way here, and that is not the width anybody chose.
     if (desired < RAIL.collapseBelow) {
-        return { collapsed: true, width: state.origin ?? state.width, holding: false, pointer, origin: state.origin, snapped: null }
+        return { collapsed: true, width: origin ?? state.width, holding: false, pointer, origin, magnet: null }
     }
 
     const width = Math.round(Math.min(room, Math.max(RAIL.min, desired)))
 
+    // Held by a magnet: it stays there until the pointer is more than 12 px away …
+    const held = state.magnet ?? null
+
+    if (held !== null && held <= room && Math.abs(width - held) <= RAIL.release) {
+        return { collapsed: false, width: held, holding: false, pointer, origin, magnet: held }
+    }
+
+    // … and a magnet catches it within 8 px.
     for (const magnet of MAGNETS) {
         if (magnet <= room && Math.abs(width - magnet) <= RAIL.snap) {
-            return { collapsed: false, width: magnet, holding: false, pointer, origin: state.origin, snapped: magnet }
+            return { collapsed: false, width: magnet, holding: false, pointer, origin, magnet }
         }
     }
 
-    return { collapsed: false, width, holding: false, pointer, origin: state.origin, snapped: null }
+    return { collapsed: false, width, holding: false, pointer, origin, magnet: null }
 }
 
 /**

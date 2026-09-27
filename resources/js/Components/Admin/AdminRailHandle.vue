@@ -6,9 +6,9 @@
  * 120 ms of hovering, the col-resize cursor, and while dragging the line stays, the cursor is
  * col-resize over the whole window and text cannot be selected. The rail follows the pointer with no
  * animation: the rail's left edge is read once, on pointerdown, and the width written through
- * requestAnimationFrame. The magnets at 260 and 320 hold the rail still for 6 ms when they catch it,
- * so the snap is felt rather than seen. Below 200 px it collapses; pulled out past 120 px it opens
- * again (railResize.ts has every rule). A double-click resets it to 260.
+ * requestAnimationFrame. The magnets at 260 and 320 catch the rail within 8 px and hold it until the
+ * pointer is 12 px away. Below 200 px it collapses; pulled out past 120 px it opens again
+ * (railResize.ts has every rule). A double-click resets it to 260.
  *
  * From the keyboard it is a separator with a value: arrows move it 16 px (Shift: 48), Home is 260,
  * End the widest there is room for, Enter and Space collapse and open it; once it stops, the result
@@ -41,8 +41,6 @@ let started: RailState | null = null
 let railLeft = 0
 let pointerX = 0
 let frame = 0
-let holdUntil = 0
-let lastSnap: number | null = null
 
 function onPointerDown(event: PointerEvent): void {
     if (!rail || event.button !== 0) {
@@ -55,7 +53,6 @@ function onPointerDown(event: PointerEvent): void {
     pointerX = event.clientX
     started = { collapsed: state.value.collapsed, width: state.value.width }
     dragging = { ...state.value, origin: state.value.width }
-    lastSnap = null
     rail.resizing.value = true
     document.documentElement.dataset.railResizing = ''
 }
@@ -75,37 +72,21 @@ function onPointerMove(event: PointerEvent): void {
     }
 }
 
-function step(now: number): void {
+function step(): void {
     frame = 0
 
     if (dragging === null || !rail) {
         return
     }
 
-    // Held by a magnet: the pointer's next position is taken once the hold is over.
-    if (now < holdUntil) {
-        frame = requestAnimationFrame(step)
-
-        return
-    }
-
-    const next = advance()
-
-    if (next.snapped !== null && next.snapped !== lastSnap) {
-        holdUntil = now + RAIL.snapHoldMs
-    }
-
-    lastSnap = next.snapped
-    rail.set(dragging, { save: 'soon' })
+    rail.set(advance(), { save: 'soon' })
 }
 
-/** The rail for the pointer's latest position, kept as the drag's state. */
-function advance(): ReturnType<typeof dragTo> {
-    const next = dragTo(pointerX - railLeft, dragging ?? state.value, room())
+/** The rail for the pointer's latest position — a magnet's hold included — kept as the drag's state. */
+function advance(): RailState {
+    dragging = dragTo(pointerX - railLeft, dragging ?? state.value, room())
 
-    dragging = { collapsed: next.collapsed, width: next.width, holding: next.holding, pointer: next.pointer, origin: next.origin }
-
-    return next
+    return dragging
 }
 
 function onPointerUp(event: PointerEvent): void {

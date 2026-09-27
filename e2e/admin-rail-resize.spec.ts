@@ -12,12 +12,15 @@ import { openUebersicht, patchCharts } from './bugs/ueb-support'
  *
  * The width is stored on the account: every test leaves it as it found it — 260 px, open.
  *
- * Classic scrollbars: a headless browser draws none, so the fit beside a real 17 px Windows scrollbar
- * is tested on the rule itself (railResize.test.ts, „fits the rail to the page without the
- * scrollbar“). The check by hand, in Chrome on Windows with classic scrollbars (Settings › Accessibility
- * › Visual effects › Always show scrollbars) and the rail at 260 px: at a 1237 px window the rail stays
- * 260 px open; at 1236 px it gives way to 259; at 1208 px it is the icon rail, its toggle saying
- * „Fenster zu schmal für die Seitenleiste“ — and the content never below 960 px on the way.
+ * Classic scrollbars: Playwright hides them, so the fit beside one is tested on the rule itself
+ * (railResize.test.ts, „fits the rail to the page without the scrollbar“) and with Chromium's own drawn
+ * (admin-rail-scrollbars.spec.ts). Still open, by hand on a real Windows machine (docs/qa/BUGS.md,
+ * RAIL-M1) — Chrome or Edge and Firefox, Settings › Accessibility › Visual effects › Always show
+ * scrollbars, the rail at 260 px: narrow the window step by step; the rail stays 260 until the content
+ * would go below 960 px (window = 960 + 260 + the scrollbar's width), then gives way a pixel at a time;
+ * without room for 232 px it is the icon rail, its toggle saying „Fenster zu schmal für die
+ * Seitenleiste“. The content never reads below 960 px on the way. Make the window short so the
+ * navigation scrolls: nothing in the rail moves.
  */
 
 test.skip(({ isMobile }) => isMobile, 'The rail is resized from 1024 px up.')
@@ -194,9 +197,18 @@ test('the last width survives the tab closing within the second', async ({ page,
     await resetRail(next)
 })
 
-test('below 200 px it collapses; pulled out past 120 px it opens at the width it had', async ({ page }) => {
+test('a magnet holds the rail until the pointer is 12 px past it', async ({ page }) => {
+    // On the way out the drag passes 320: caught within 8 px, held while the pointer stays within 12.
     await dragTo(page, 330)
-    await expect(handle(page)).toHaveAttribute('aria-valuenow', '330')
+    await expect(handle(page)).toHaveAttribute('aria-valuenow', '320')
+
+    await dragTo(page, 334)
+    await expect(handle(page)).toHaveAttribute('aria-valuenow', '334')
+})
+
+test('below 200 px it collapses; pulled out past 120 px it opens at the width it had', async ({ page }) => {
+    await dragTo(page, 340)
+    await expect(handle(page)).toHaveAttribute('aria-valuenow', '340')
 
     await dragTo(page, 150)
     await expect(page.locator('.adm')).toHaveAttribute('data-rail', 'collapsed')
@@ -204,7 +216,7 @@ test('below 200 px it collapses; pulled out past 120 px it opens at the width it
 
     await dragTo(page, 170)
     await expect(page.locator('.adm')).toHaveAttribute('data-rail', 'open')
-    expect(await railWidth(page)).toBe(330)
+    expect(await railWidth(page)).toBe(340)
 })
 
 test('while it is dragged, no chart reaches past its card', async ({ page }) => {

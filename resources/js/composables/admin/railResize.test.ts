@@ -10,14 +10,33 @@ import { RAIL, clampWidth, dragTo, effectiveRail, fitWidth, keyTo, labelMode, ma
 const open = (width: number) => ({ collapsed: false, width })
 
 describe('dragging', () => {
-    it('snaps to 260 and to 320 within 8 px, and tells which it caught', () => {
-        expect(dragTo(253, open(300))).toMatchObject({ collapsed: false, width: 260, holding: false, snapped: 260 })
-        expect(dragTo(268, open(300))).toMatchObject({ width: 260, snapped: 260 })
-        expect(dragTo(313, open(300))).toMatchObject({ width: 320, snapped: 320 })
-        expect(dragTo(328, open(300))).toMatchObject({ width: 320, snapped: 320 })
+    it('snaps to 260 and to 320 within 8 px, and tells which holds it', () => {
+        expect(dragTo(253, open(300))).toMatchObject({ collapsed: false, width: 260, holding: false, magnet: 260 })
+        expect(dragTo(268, open(300))).toMatchObject({ width: 260, magnet: 260 })
+        expect(dragTo(313, open(300))).toMatchObject({ width: 320, magnet: 320 })
+        expect(dragTo(328, open(300))).toMatchObject({ width: 320, magnet: 320 })
         // Just outside the pull: free.
-        expect(dragTo(269, open(300))).toMatchObject({ width: 269, snapped: null })
-        expect(dragTo(329, open(300))).toMatchObject({ width: 329, snapped: null })
+        expect(dragTo(269, open(300))).toMatchObject({ width: 269, magnet: null })
+        expect(dragTo(329, open(300))).toMatchObject({ width: 329, magnet: null })
+    })
+
+    it('holds a caught rail until the pointer is more than 12 px away — distance, not time', () => {
+        const caught = dragTo(318, open(300))
+        expect(caught).toMatchObject({ width: 320, magnet: 320 })
+
+        // Past the 8 px that caught it, still inside the 12 that hold it: it stays.
+        expect(dragTo(330, caught)).toMatchObject({ width: 320, magnet: 320 })
+        expect(dragTo(309, caught)).toMatchObject({ width: 320, magnet: 320 })
+        expect(dragTo(332, caught)).toMatchObject({ width: 320, magnet: 320 })
+
+        // One pixel further: let go, and it follows the pointer.
+        expect(dragTo(333, caught)).toMatchObject({ width: 333, magnet: null })
+        expect(dragTo(307, caught)).toMatchObject({ width: 307, magnet: null })
+
+        // Coming back from outside, only the 8 px catch it again — no flicker at the edge of the hold.
+        const free = dragTo(333, caught)
+        expect(dragTo(329, free)).toMatchObject({ width: 329, magnet: null })
+        expect(dragTo(328, free)).toMatchObject({ width: 320, magnet: 320 })
     })
 
     it('stops at 232 and at 400', () => {
@@ -26,7 +45,7 @@ describe('dragging', () => {
     })
 
     it('collapses below 200, keeping the width to open to again', () => {
-        expect(dragTo(199, open(320))).toMatchObject({ collapsed: true, width: 320, holding: false, snapped: null })
+        expect(dragTo(199, open(320))).toMatchObject({ collapsed: true, width: 320, holding: false, magnet: null })
         expect(dragTo(200, open(320))).toMatchObject({ collapsed: false, width: 232 })
     })
 
@@ -36,7 +55,7 @@ describe('dragging', () => {
         expect(dragTo(120, collapsed)).toMatchObject({ collapsed: true })
 
         const opened = dragTo(121, collapsed)
-        expect(opened).toMatchObject({ collapsed: false, width: 320, holding: true, snapped: null })
+        expect(opened).toMatchObject({ collapsed: false, width: 320, holding: true, magnet: null })
 
         // Still short of 320: the rail stays open at 320 rather than collapsing under the pointer.
         expect(dragTo(180, opened)).toMatchObject({ collapsed: false, width: 320, holding: true })
