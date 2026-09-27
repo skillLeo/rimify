@@ -5,7 +5,7 @@
  * `lib/num.ts`, the one module that formats and parses them.
  */
 
-import { NNBSP, formatCurrency, formatNumber } from './lib/num'
+import { NNBSP, formatMoney, formatNumber } from './lib/num'
 
 export { NNBSP }
 
@@ -16,7 +16,7 @@ export function decimal(value: number, digits = 1): string {
 
 /** `1.234,00 €` from integer cents. */
 export function euro(cents: number): string {
-    return formatCurrency(cents)
+    return formatMoney(cents)
 }
 
 /** `72,6 mm`, `71 dB`, `ET 35` — a value and its unit, inseparable. */

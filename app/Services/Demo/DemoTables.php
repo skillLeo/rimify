@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Demo;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -50,6 +51,8 @@ final class DemoTables
     /** The setting that records the demo set in place: its anchor day and scale. */
     public const SETTING = 'demo_set';
 
+    private const CACHE_KEY = 'admin.demo_rows';
+
     /**
      * Demo rows per table, and the demo queue's jobs. A table without the columns yet (a database
      * before the migration) holds none.
@@ -74,6 +77,20 @@ final class DemoTables
     public static function total(): int
     {
         return array_sum(self::counts());
+    }
+
+    /**
+     * The total, read at most every 30 seconds: every admin page asks for it (the rail's strip), and
+     * ten counts per page view would be a load of their own. A seed and a purge forget it at once.
+     */
+    public static function cachedTotal(): int
+    {
+        return (int) Cache::remember(self::CACHE_KEY, 30, static fn (): int => self::total());
+    }
+
+    public static function forget(): void
+    {
+        Cache::forget(self::CACHE_KEY);
     }
 
     /**

@@ -21,6 +21,7 @@ import ProductTile from '../../Components/Ui/ProductTile.vue'
 import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
+import { formatNumber } from '../../lib/num'
 import type { FelgenProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
@@ -92,7 +93,7 @@ onBeforeUnmount(() => {
                 </h1>
                 <p class="plp__count">
                     <template v-if="total !== null">
-                        <strong class="tabular">{{ total }}</strong>
+                        <strong class="tabular">{{ formatNumber(total ?? 0) }}</strong>
                         {{ total === 1 ? 'Felge' : 'Felgen' }} mit gültigem Gutachten für dieses Fahrzeug
                     </template>
                     <template v-else>{{ cards.length }} Felgen im Sortiment</template>
@@ -209,7 +210,7 @@ onBeforeUnmount(() => {
             />
             <div class="plp__apply">
                 <button class="btn btn--primary btn--block" type="button" @click="sheetOpen = false">
-                    {{ total ?? 0 }} {{ total === 1 ? 'Felge' : 'Felgen' }} anzeigen
+                    {{ formatNumber(total ?? 0) }} {{ total === 1 ? 'Felge' : 'Felgen' }} anzeigen
                 </button>
             </div>
         </div>

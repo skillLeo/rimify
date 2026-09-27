@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NNBSP, formatCurrency, formatNumber, formatPercent, parseNumber } from './num'
+import { NNBSP, formatMoney, formatNumber, formatPercent, parseNumber } from './num'
 
 /* The one place a number becomes text and text a number (R-10). */
 
@@ -10,8 +10,9 @@ describe('formatting', () => {
     })
 
     it('writes money with cents for tables and without for tiles and charts', () => {
-        expect(formatCurrency(142550)).toBe(`1.425,50${NNBSP}€`)
-        expect(formatCurrency(142550, false)).toBe(`1.426${NNBSP}€`)
+        expect(formatMoney(142550)).toBe(`1.425,50${NNBSP}€`)
+        expect(formatMoney(5974800)).toBe(`59.748,00${NNBSP}€`)
+        expect(formatMoney(142550, true)).toBe(`1.426${NNBSP}€`)
     })
 
     it('writes a change with its sign, a real minus and a narrow space before the percent', () => {

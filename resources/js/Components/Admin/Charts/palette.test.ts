@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { differenceEuclidean, filterDeficiencyDeuter, filterDeficiencyProt, parse, wcagContrast, type Color } from 'culori'
+import { differenceEuclidean, filterDeficiencyDeuter, filterDeficiencyProt, filterDeficiencyTrit, parse, wcagContrast, type Color } from 'culori'
 import { describe, expect, it } from 'vitest'
 
 /*
@@ -78,6 +78,41 @@ describe('chart palette', () => {
 
         for (const hex of categorical) {
             expect(statuses).not.toContain(hex.toLowerCase())
+        }
+    })
+})
+
+/*
+ * The verdicts' chart colours (the Übersicht brief's OKLab gate): stacked, every state touches every
+ * other, so every pair — not only neighbours — stays apart: ΔE ≥ 15 under normal vision and ≥ 8
+ * under protanopia, deuteranopia and tritanopia, each a mark on the surface (≥ 3:1). The badges'
+ * own verdict colours fail this in a chart (Mit Auflagen and Nicht freigegeben: ΔE 0,9 for a
+ * deuteranope) — which is why the chart has these.
+ */
+describe('verdict chart palette', () => {
+    const trit = filterDeficiencyTrit(1)
+    const verdicts = ['permitted', 'conditional', 'refused', 'unknown'].map((name) => token(`chart-verdict-${name}`))
+    const pairs = verdicts.flatMap((a, i) => verdicts.slice(i + 1).map((b) => [a, b] as [string, string]))
+
+    it.each(pairs)('keeps %s and %s apart for every reader', (a, b) => {
+        const ca = colour(a)
+        const cb = colour(b)
+
+        expect(deltaE(ca, cb) * 100).toBeGreaterThanOrEqual(15)
+        expect(deltaE(prot(ca), prot(cb)) * 100).toBeGreaterThanOrEqual(8)
+        expect(deltaE(deuter(ca), deuter(cb)) * 100).toBeGreaterThanOrEqual(8)
+        expect(deltaE(trit(ca), trit(cb)) * 100).toBeGreaterThanOrEqual(8)
+    })
+
+    it.each(verdicts)('shows %s as a mark on the surface (≥ 3:1)', (hex) => {
+        expect(wcagContrast(colour(hex), SURFACE)).toBeGreaterThanOrEqual(3)
+    })
+
+    it('is nothing else\'s colour: no series, no status', () => {
+        const others = [...categorical, ...sequential, ...['c-ok', 'c-warn', 'c-bad', 'c-unk', 'c-blue'].map(token)].map((hex) => hex.toLowerCase())
+
+        for (const hex of verdicts) {
+            expect(others).not.toContain(hex.toLowerCase())
         }
     })
 })

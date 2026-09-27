@@ -4,9 +4,9 @@ import { defineComponent, h } from 'vue'
 import type { Kpi } from '../../../types/admin/uebersicht'
 
 /*
- * A KPI tile: the server's German figure as it is, the change as words and an arrow, a sentence in
- * place of a zero, and the whole tile as the link to what it counts — with what it counts read to a
- * screen reader.
+ * A KPI tile (the density brief): the figure and its unit — money from minor units through num.ts — and
+ * exactly one line under it; zero is `0`, a dash only where no figure can be computed, with why; the
+ * whole tile the link to what it counts, with what it counts read to a screen reader.
  */
 
 vi.mock('@inertiajs/vue3', () => ({
@@ -30,17 +30,17 @@ vi.mock('reka-ui', () => {
 
 const { default: KpiTile } = await import('./KpiTile.vue')
 
+const NNBSP = ' '
+
 function kpi(overrides: Partial<Kpi> = {}): Kpi {
     return {
         key: 'umsatz',
         label: 'Umsatz',
         hint: 'Summe der bezahlten, nicht erstatteten Bestellungen, nach Bestelldatum.',
-        value: '6.132,00 €',
-        empty: null,
-        delta: { value: 12.4, direction: 'up', label: '+12,4 % zum Vorzeitraum' },
-        deltaNote: null,
+        value: 16_201_950,
+        unit: 'EUR',
+        sub: { text: '+15 % zum Vorzeitraum', kind: 'delta', direction: 'up' },
         series: [1, 2, 3],
-        note: null,
         href: '/admin/bestellungen?status=bezahlt',
         ...overrides,
     }
@@ -48,53 +48,58 @@ function kpi(overrides: Partial<Kpi> = {}): Kpi {
 
 describe('KpiTile', () => {
     it('is one link to its list, and says what it counts to a screen reader', () => {
-        const tile = mount(KpiTile, { props: { kpi: kpi(), compare: true } }).find('a.kpi')
+        const tile = mount(KpiTile, { props: { kpi: kpi() } }).find('a.kpi')
         const describedBy = tile.attributes('aria-describedby') ?? ''
 
         expect(tile.attributes('href')).toBe('/admin/bestellungen?status=bezahlt')
         expect(tile.find(`[id="${describedBy}"]`).text()).toBe('Summe der bezahlten, nicht erstatteten Bestellungen, nach Bestelldatum.')
     })
 
-    it('shows the figure as the server formatted it, and the change in words with its direction', () => {
-        const wrapper = mount(KpiTile, { props: { kpi: kpi(), compare: true } })
+    it('writes money from minor units with its cents, the unit beside the figure, and the change as words and an arrow', () => {
+        const wrapper = mount(KpiTile, { props: { kpi: kpi() } })
 
-        expect(wrapper.find('.kpi__value').text()).toBe('6.132,00 €')
-        expect(wrapper.find('.kpi__delta--up').text()).toBe('+12,4 % zum Vorzeitraum')
+        expect(wrapper.find('.kpi__value').text()).toBe(`162.019,50${NNBSP}€`)
+        expect(wrapper.find('.kpi__unit').text()).toBe('€')
+        expect(wrapper.find('.kpi__sub--up').text()).toBe('+15 % zum Vorzeitraum')
+        expect(wrapper.find('.kpi__sub svg').exists()).toBe(true)
         expect(wrapper.find('.spark').exists()).toBe(true)
     })
 
-    it('drops the change when comparing is off', () => {
-        expect(mount(KpiTile, { props: { kpi: kpi(), compare: false } }).find('.kpi__delta').exists()).toBe(false)
+    it('shows zero as a figure, never as a dash', () => {
+        const wrapper = mount(KpiTile, { props: { kpi: kpi({ key: 'offen', value: 0, unit: null, sub: { text: 'alles versendet', kind: 'note', direction: null }, series: [] }) } })
+
+        expect(wrapper.find('.kpi__value').text()).toBe('0')
+        expect(wrapper.find('.kpi__value--none').exists()).toBe(false)
+        expect(wrapper.find('.kpi__sub').text()).toBe('alles versendet')
     })
 
-    it('says why there is no change rather than leaving a gap', () => {
-        const wrapper = mount(KpiTile, { props: { kpi: kpi({ delta: null, deltaNote: 'Im Vorzeitraum keine Bestellung' }), compare: true } })
-
-        expect(wrapper.find('.kpi__meta').text()).toBe('Im Vorzeitraum keine Bestellung')
-    })
-
-    it('keeps the tile’s shape with nothing to count: a quiet dash, never a zero, the sentence beneath, no curve', () => {
-        const wrapper = mount(KpiTile, { props: { kpi: kpi({ value: null, empty: 'Keine bezahlte Bestellung in diesem Zeitraum.', delta: null, series: [] }), compare: true } })
+    it('draws a dash only where no figure can be computed, and says why in its line', () => {
+        const wrapper = mount(KpiTile, { props: { kpi: kpi({ value: null, sub: { text: 'noch keine bezahlte Bestellung', kind: 'reason', direction: null }, series: [] }) } })
         const dash = wrapper.get('.kpi__value')
 
-        expect(dash.text()).toBe('—')
         expect(dash.classes()).toContain('kpi__value--none')
-        // Said by the sentence, not as „Gedankenstrich“.
-        expect(dash.attributes('aria-hidden')).toBe('true')
-        expect(wrapper.find('.kpi__empty').text()).toBe('Keine bezahlte Bestellung in diesem Zeitraum.')
+        // Heard as „keine Zahl“, never as „Gedankenstrich“.
+        expect(dash.get('[aria-hidden="true"]').text()).toBe('—')
+        expect(dash.get('.visually-hidden').text()).toBe('keine Zahl')
+        expect(wrapper.find('.kpi__sub--reason').text()).toBe('noch keine bezahlte Bestellung')
         expect(wrapper.find('.spark').exists()).toBe(false)
     })
 
-    it('gives a figure its second line — one fact — above the change', () => {
-        const wrapper = mount(KpiTile, { props: { kpi: kpi({ note: 'letzte vor 2 Std.' }), compare: true } })
-        const lines = wrapper.findAll('.kpi__meta, .kpi__delta').map((line) => line.text())
+    it('has exactly one line under the figure', () => {
+        for (const sub of [
+            { text: '+15 % zum Vorzeitraum', kind: 'delta', direction: 'up' },
+            { text: 'letzte vor 2 Std.', kind: 'note', direction: null },
+            { text: 'Vorzeitraum ohne bezahlte Bestellung', kind: 'reason', direction: null },
+        ] as Kpi['sub'][]) {
+            const lines = mount(KpiTile, { props: { kpi: kpi({ sub }) } }).findAll('.kpi__sub')
 
-        expect(lines[0]).toBe('letzte vor 2 Std.')
-        expect(lines[1]).toContain('zum Vorzeitraum')
+            expect(lines).toHaveLength(1)
+            expect(lines[0]?.text()).toBe(sub.text)
+        }
     })
 
     it('is plain, not a link, where this role cannot open the list', () => {
-        const wrapper = mount(KpiTile, { props: { kpi: kpi({ href: null }), compare: true } })
+        const wrapper = mount(KpiTile, { props: { kpi: kpi({ href: null }) } })
 
         expect(wrapper.find('a').exists()).toBe(false)
         expect(wrapper.find('.kpi__go').exists()).toBe(false)

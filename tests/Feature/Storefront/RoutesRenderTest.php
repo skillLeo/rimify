@@ -213,6 +213,7 @@ it('fills the Übersicht from real queries', function (): void {
             fn (AssertableInertia $page) => $page
                 ->where('variant', 'gutachten')
                 ->where('kpis.1.key', 'conflicts')
-                ->where('kpis.1.value', '1')
+                // A figure goes out as a number; the page writes it (num.ts).
+                ->where('kpis.1.value', 1)
         );
 });

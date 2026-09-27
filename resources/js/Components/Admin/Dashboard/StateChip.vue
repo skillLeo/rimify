@@ -1,15 +1,16 @@
 <script setup lang="ts">
 /**
- * A state as a text chip with a dot (the Übersicht's tables): the word carries the meaning, the dot
- * only repeats it in colour — never the other way round. `–` (nothing to say) is written as a dash,
- * not as a chip.
+ * A state as a text chip with a dot (the Übersicht's tables), in the status palette — never a
+ * verdict's chart colour: the word carries the meaning, the dot only repeats it. Nothing to say
+ * (tone `none`: „noch nicht versandt“, „entfällt“) is quiet text, not a chip.
  */
 
-defineProps<{ label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' }>()
+defineProps<{ label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' | 'none' }>()
 </script>
 
 <template>
-    <span v-if="label === '–'" class="chip-none" aria-label="nichts zu tun">–</span>
+    <span v-if="label === '–'" class="chip-none"><span aria-hidden="true">–</span><span class="visually-hidden">nichts zu tun</span></span>
+    <span v-else-if="tone === 'none'" class="chip-none">{{ label }}</span>
     <span v-else class="chip" :class="`chip--${tone}`">
         <span class="chip__dot" aria-hidden="true" />
         {{ label }}

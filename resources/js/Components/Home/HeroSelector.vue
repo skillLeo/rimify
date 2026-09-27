@@ -39,6 +39,7 @@ import DocumentScan from './DocumentScan.vue'
 import type { DocVariant } from '../../art'
 import { useFitmentCount, type FitmentCountQuery } from '../../composables/useFitmentCount'
 import { withUnit } from '../../format'
+import { formatNumber } from '../../lib/num'
 import { cleanHsn, cleanTsn, isHsn, isTsn } from '../../lib/fahrzeugschein'
 import type { LookupResult, MakeOption, ModelOption, VariantOption } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
@@ -522,7 +523,7 @@ onBeforeUnmount(() => treeController?.abort())
             <Skeleton v-if="count.loading.value" width="60%" height="var(--lh-small)" />
             <template v-else-if="count.failed.value">Die Anzahl lässt sich gerade nicht laden.</template>
             <template v-else-if="counted && counted.count > 0">
-                <strong class="sel__n">{{ counted.count }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
+                <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
             </template>
         </p>
 
@@ -846,7 +847,7 @@ onBeforeUnmount(() => treeController?.abort())
                 <Skeleton v-if="count.loading.value" width="60%" height="var(--lh-small)" />
                 <template v-else-if="count.failed.value">Die Anzahl lässt sich gerade nicht laden.</template>
                 <template v-else-if="counted && counted.count > 0">
-                    <strong class="sel__n">{{ counted.count }}</strong> Felgen mit Gutachten für {{ counted.vehicle?.label }}
+                    <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> Felgen mit Gutachten für {{ counted.vehicle?.label }}
                 </template>
             </p>
 

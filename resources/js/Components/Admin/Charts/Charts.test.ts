@@ -3,18 +3,22 @@ import { describe, expect, it } from 'vitest'
 import BarChart from './BarChart.vue'
 import LineChart from './LineChart.vue'
 import StackedBar from './StackedBar.vue'
-import type { ChartPoint, VerdictChart } from '../../../types/admin/uebersicht'
+import type { ChartPoint, TopWheel, VerdictChart } from '../../../types/admin/uebersicht'
 
 /*
  * Chart geometry (BRIEF §4 tests): bar lengths proportional to the values, stacked segments summing
  * to the column's total, a single point and an all-zero series drawn without NaN, the axis in German.
  */
 
-/** The narrow no-break space format.ts puts between a figure and its unit. */
+/** The narrow no-break space num.ts puts between a figure and its unit. */
 const NNBSP = String.fromCharCode(0x202f)
 
 function point(value: number, i: number): ChartPoint {
-    return { key: `d${i}`, label: `0${i + 1}.09.2026`, value, text: `${value} €` }
+    return { key: `d${i}`, label: `0${i + 1}.09.2026`, value, orders: 1 }
+}
+
+function wheel(value: number, i: number): TopWheel {
+    return { key: `m${i}`, label: `BORBET Y${i}`, brand: 'BORBET', name: `Y${i}`, size: '8,5J × 19', value }
 }
 
 /** The vertical extent of a column path drawn by StackedBar: `M x,bottom V top ...`. */
@@ -27,7 +31,7 @@ function extent(d: string): { top: number; bottom: number } {
 
 describe('BarChart', () => {
     it('draws each bar in proportion to the largest, the first in the accent', () => {
-        const bars = mount(BarChart, { props: { label: 'Top', bars: [point(8, 0), point(4, 1), point(2, 2)] } }).findAll('.bc__bar')
+        const bars = mount(BarChart, { props: { label: 'Top', bars: [wheel(8, 0), wheel(4, 1), wheel(2, 2)] } }).findAll('.bc__bar')
 
         // Each bar's share of one and the same length (the track less the room for its figure): 8 : 4 : 2.
         expect(bars.map((b) => b.attributes('style'))).toEqual([
@@ -39,10 +43,18 @@ describe('BarChart', () => {
         expect(bars[1]?.classes()).not.toContain('bc__bar--lead')
     })
 
-    it('says each value at its tip, in words', () => {
-        const values = mount(BarChart, { props: { label: 'Top', bars: [{ key: 'a', label: 'BORBET Y', value: 2, text: '2 Bestellungen' }] } }).findAll('.bc__value')
+    it('says each value at its tip, and the Felge in two weights: the model, then its size', () => {
+        const wrapper = mount(BarChart, { props: { label: 'Top', bars: [wheel(1_234, 0), wheel(1, 1)] } })
 
-        expect(values.map((v) => v.text())).toEqual(['2 Bestellungen'])
+        expect(wrapper.findAll('.bc__value').map((v) => v.text())).toEqual(['1.234 Bestellungen', '1 Bestellung'])
+        expect(wrapper.find('.bc__name').text()).toBe('BORBET Y0')
+        expect(wrapper.find('.bc__size').text()).toBe('8,5J × 19')
+    })
+
+    it('shows the top seven, never more', () => {
+        const bars = Array.from({ length: 9 }, (_, i) => wheel(20 - i, i))
+
+        expect(mount(BarChart, { props: { label: 'Top', bars } }).findAll('.bc__row')).toHaveLength(7)
     })
 })
 
@@ -59,17 +71,19 @@ describe('StackedBar', () => {
             { key: 'w2', label: 'KW 39', range: '21.09.–26.09.2026', values: { PERMITTED: 5, CONDITIONAL: 0, NOT_PERMITTED: 0, UNKNOWN: 0 }, total: 5 },
         ],
         since: '14.09.2026',
+        checks: 15,
+        permitted: 11,
     }
 
     it('names every series in the legend, in words', () => {
         expect(mount(StackedBar, { props: { chart, label: 'Verdikte' } }).findAll('.sb__key').map((k) => k.text())).toEqual(['Freigegeben', 'Mit Auflagen', 'Nicht freigegeben', 'Unbekannt'])
     })
 
-    it('stacks only the series a week has, each in its verdict’s own colour', () => {
+    it('stacks only the series a week has, each in its verdict’s chart colour — reserved for verdicts', () => {
         const columns = mount(StackedBar, { props: { chart, label: 'Verdikte' } }).findAll('.sb__column')
         const first = columns[0]!.findAll('path')
 
-        expect(first.map((p) => p.attributes('fill'))).toEqual(['var(--c-ok)', 'var(--c-warn)', 'var(--c-unk)'])
+        expect(first.map((p) => p.attributes('fill'))).toEqual(['var(--chart-verdict-permitted)', 'var(--chart-verdict-conditional)', 'var(--chart-verdict-unknown)'])
         expect(columns[1]!.findAll('path')).toHaveLength(1)
     })
 
@@ -95,12 +109,13 @@ describe('LineChart', () => {
         expect(zero.html()).not.toContain('NaN')
     })
 
-    it('labels its last point with its value, and writes the axis in German', () => {
-        const wrapper = mount(LineChart, { props: { label: 'Umsatz', points: [point(0, 0), point(250_000, 1), point(142_550, 2)].map((p, i) => ({ ...p, text: ['0,00 €', '2.500,00 €', '1.425,50 €'][i]! })) } })
+    it('labels its last point with its amount, cents and all, and writes the axis in whole euros', () => {
+        const wrapper = mount(LineChart, { props: { label: 'Umsatz', points: [point(0, 0), point(250_000, 1), point(142_550, 2)] } })
         const ticks = wrapper.findAll('.lc__grid .lc__tick').map((t) => t.text())
 
-        expect(wrapper.find('.lc__value').text()).toBe('1.425,50 €')
-        // Whole euros, a thousands point, and a narrow no-break space before the sign (format.ts).
+        // An amount is written as everywhere (num.ts formatMoney); only the axis' round ticks drop the cents.
+        expect(wrapper.find('.lc__value').text()).toBe(`1.425,50${NNBSP}€`)
+        // Whole euros, a thousands point, and a narrow no-break space before the sign (num.ts).
         expect(ticks).toContain(`0${NNBSP}€`)
         expect(ticks.some((t) => new RegExp(`^\\d{1,3}(\\.\\d{3})*${NNBSP}€$`).test(t) && t !== `0${NNBSP}€`)).toBe(true)
     })

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { ChartPoint } from '../../resources/js/types/admin/uebersicht';
+import type { TopWheel } from '../../resources/js/types/admin/uebersicht';
 import { SHOTS, openUebersicht, patchCharts, signIn, widget } from './ueb-support';
 
 /*
@@ -18,10 +18,10 @@ import { SHOTS, openUebersicht, patchCharts, signIn, widget } from './ueb-suppor
  * browser by three stand-in bars of known size.
  */
 
-const BARS: ChartPoint[] = [
-    { key: 'qa-a', label: 'QA Felge A', value: 10, text: '10 Bestellungen' },
-    { key: 'qa-b', label: 'QA Felge B', value: 5, text: '5 Bestellungen' },
-    { key: 'qa-c', label: 'QA Felge C', value: 1, text: '1 Bestellung' },
+const BARS: TopWheel[] = [
+    { key: 'qa-a', label: 'QA Felge A', brand: 'QA', name: 'Felge A', size: '8,5J × 19', value: 10 },
+    { key: 'qa-b', label: 'QA Felge B', brand: 'QA', name: 'Felge B', size: '8J × 18', value: 5 },
+    { key: 'qa-c', label: 'QA Felge C', brand: 'QA', name: 'Felge C', size: null, value: 1 },
 ];
 
 test('UEB-03 Top-Felgen: every bar is as long as its figure says', async ({ page }) => {

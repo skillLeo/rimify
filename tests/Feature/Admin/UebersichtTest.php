@@ -82,7 +82,7 @@ describe('who sees what', function (): void {
 });
 
 describe('the figures', function (): void {
-    it('counts paid, unrefunded orders of the period, and compares them with the period before', function (): void {
+    it('counts paid, unrefunded orders of the period as numbers, and compares them with the period before', function (): void {
         dashOrder(100_000, '2026-09-24 10:00:00');
         dashOrder(50_000, '2026-09-25 10:00:00', OrderStatus::Shipped);
         dashOrder(99_999, '2026-09-25 11:00:00', OrderStatus::Refunded);
@@ -92,28 +92,28 @@ describe('the figures', function (): void {
 
         $tiles = dashTiles();
 
-        expect($tiles['umsatz']['value'])->toBe("1.500,00\u{00A0}€")
-            ->and($tiles['umsatz']['delta']['label'])->toBe("+100\u{00A0}% zum Vorzeitraum")
-            ->and($tiles['umsatz']['delta']['direction'])->toBe('up')
-            ->and($tiles['bestellungen']['value'])->toBe('2')
-            ->and($tiles['bestellungen']['delta']['label'])->toBe("+100\u{00A0}% zum Vorzeitraum")
-            ->and($tiles['bestellwert']['value'])->toBe("750,00\u{00A0}€")
-            // JSON carries 0.0 as 0: compared by value.
-            ->and($tiles['bestellwert']['delta'])->toEqual(['value' => 0, 'direction' => 'flat', 'label' => "0\u{00A0}% zum Vorzeitraum"])
+        // The figure goes out in minor units; the page writes it (num.ts formatMoney: 1.500,00 €).
+        expect($tiles['umsatz'])->toMatchArray(['value' => 150_000, 'unit' => 'EUR'])
+            ->and($tiles['umsatz']['sub'])->toBe(['text' => "+100\u{00A0}% zum Vorzeitraum", 'kind' => 'delta', 'direction' => 'up'])
+            ->and($tiles['bestellungen'])->toMatchArray(['value' => 2, 'unit' => null])
+            ->and($tiles['bestellungen']['sub']['text'])->toBe("+100\u{00A0}% zum Vorzeitraum")
+            ->and($tiles['bestellwert']['value'])->toBe(75_000)
+            ->and($tiles['bestellwert']['sub'])->toBe(['text' => "0\u{00A0}% zum Vorzeitraum", 'kind' => 'delta', 'direction' => 'flat'])
             ->and($tiles['umsatz']['series'])->toHaveCount(30);
     });
 
-    it('gives each figure a second line — one fact about the orders it counts', function (): void {
+    it('gives each figure one line — a fact about the orders it counts — when not comparing', function (): void {
         dashOrder(100_000, '2026-09-24 10:00:00');
         dashOrder(50_000, '2026-09-25 10:00:00', OrderStatus::Shipped);
         // Not counted, so not the latest nor the largest either.
         dashOrder(250_000, '2026-09-26 08:00:00', OrderStatus::Refunded);
 
-        $tiles = dashTiles();
+        $tiles = dashTiles('?vergleich=0');
 
-        expect($tiles['umsatz']['note'])->toBe("stärkster Tag 24.09. \u{00B7} 1.000,00\u{00A0}€")
-            ->and($tiles['bestellungen']['note'])->toBe('letzte gestern')
-            ->and($tiles['bestellwert']['note'])->toBe("höchster Bestellwert 1.000,00\u{00A0}€");
+        // Whole euros in a tile's line too; tables keep the cents.
+        expect($tiles['umsatz']['sub'])->toBe(['text' => "stärkster Tag 24.09. \u{00B7} 1.000,00\u{00A0}€", 'kind' => 'note', 'direction' => null])
+            ->and($tiles['bestellungen']['sub']['text'])->toBe('letzte gestern')
+            ->and($tiles['bestellwert']['sub']['text'])->toBe("höchster Bestellwert 1.000,00\u{00A0}€");
     });
 
     it('takes the later of two equally strong days, and says a recent order in hours', function (): void {
@@ -122,29 +122,21 @@ describe('the figures', function (): void {
         // 09:40 UTC is 11:40 in Berlin: two hours before the clock's 13:40.
         dashOrder(5_000, '2026-09-26 09:40:00');
 
-        $tiles = dashTiles();
+        $tiles = dashTiles('?vergleich=0');
 
-        expect($tiles['umsatz']['note'])->toBe("stärkster Tag 22.09. \u{00B7} 200,00\u{00A0}€")
-            ->and($tiles['bestellungen']['note'])->toBe("letzte vor 2\u{00A0}Std.");
+        expect($tiles['umsatz']['sub']['text'])->toBe("stärkster Tag 22.09. \u{00B7} 200,00\u{00A0}€")
+            ->and($tiles['bestellungen']['sub']['text'])->toBe("letzte vor 2\u{00A0}Std.");
     });
 
     it('dates the last order in a range that ended before today, and says a brand-new one in seconds', function (): void {
         dashOrder(30_000, '2026-08-10 10:00:00');
 
         // 01.–31.08.2026, over by now: „letzte vor 47 Tagen“ would read as „none since“.
-        expect(dashTiles('?zeitraum=eigen&von=2026-08-01&bis=2026-08-31')['bestellungen']['note'])->toBe('letzte am 10.08.2026');
+        expect(dashTiles('?zeitraum=eigen&von=2026-08-01&bis=2026-08-31&vergleich=0')['bestellungen']['sub']['text'])->toBe('letzte am 10.08.2026');
 
         dashOrder(5_000, '2026-09-26 11:39:30');
 
-        expect(dashTiles('?zeitraum=7')['bestellungen']['note'])->toBe('letzte vor Sekunden');
-    });
-
-    it('has no second line where there is nothing to count', function (): void {
-        $tiles = dashTiles();
-
-        expect($tiles['umsatz']['note'])->toBeNull()
-            ->and($tiles['bestellungen']['note'])->toBeNull()
-            ->and($tiles['bestellwert']['note'])->toBeNull();
+        expect(dashTiles('?zeitraum=7&vergleich=0')['bestellungen']['sub']['text'])->toBe('letzte vor Sekunden');
     });
 
     it('files an order under the Berlin day it was placed on', function (): void {
@@ -170,32 +162,38 @@ describe('the figures', function (): void {
             ->and($series[11])->toBe(40_000);
     });
 
-    it('says there is nothing to count instead of showing a zero', function (): void {
-        $tiles = dashTiles();
+    it('shows zero as a figure, and a figure it cannot compute as none — saying why', function (): void {
+        $tiles = dashTiles('?vergleich=0');
 
-        expect($tiles['umsatz']['value'])->toBeNull()
-            ->and($tiles['umsatz']['empty'])->toBe('Keine bezahlte Bestellung in diesem Zeitraum.')
-            ->and($tiles['bestellwert']['empty'])->toBe('Ohne Bestellung gibt es keinen Durchschnitt.')
-            ->and($tiles['offen']['empty'])->toBe('Alles versendet. Keine Bestellung wartet.');
+        expect($tiles['umsatz'])->toMatchArray(['value' => 0, 'series' => []])
+            ->and($tiles['umsatz']['sub']['text'])->toBe('keine bezahlte Bestellung')
+            ->and($tiles['bestellungen']['value'])->toBe(0)
+            // An average of no orders has no figure: the line says why, in a few words.
+            ->and($tiles['bestellwert']['value'])->toBeNull()
+            ->and($tiles['bestellwert']['sub'])->toBe(['text' => 'noch keine bezahlte Bestellung', 'kind' => 'reason', 'direction' => null])
+            ->and($tiles['offen']['value'])->toBe(0)
+            ->and($tiles['offen']['sub']['text'])->toBe('alles versendet');
+    });
+
+    it('never leaves a tile without its one line', function (): void {
+        foreach (['', '?vergleich=0', '?zeitraum=7'] as $query) {
+            foreach (dashTiles($query) as $tile) {
+                expect($tile['sub']['text'])->toBeString()->not->toBe('');
+            }
+        }
     });
 
     it('names a previous period without orders instead of a change it cannot compute', function (): void {
         dashOrder(10_000, '2026-09-24 10:00:00');
 
-        $tiles = dashTiles();
-
-        expect($tiles['umsatz']['delta'])->toBeNull()
-            ->and($tiles['umsatz']['deltaNote'])->toBe('Im Vorzeitraum keine Bestellung');
+        expect(dashTiles()['umsatz']['sub'])->toBe(['text' => 'Vorzeitraum ohne bezahlte Bestellung', 'kind' => 'reason', 'direction' => null]);
     });
 
     it('computes no change at all when comparing is off', function (): void {
         dashOrder(10_000, '2026-09-24 10:00:00');
         dashOrder(10_000, '2026-08-20 10:00:00');
 
-        $tiles = dashTiles('?vergleich=0');
-
-        expect($tiles['umsatz']['delta'])->toBeNull()
-            ->and($tiles['umsatz']['deltaNote'])->toBeNull();
+        expect(dashTiles('?vergleich=0')['umsatz']['sub']['kind'])->toBe('note');
     });
 
     it('counts the open orders now, whatever the period, and says how long the oldest has waited', function (): void {
@@ -204,9 +202,8 @@ describe('the figures', function (): void {
 
         $open = dashTiles('?zeitraum=7')['offen'];
 
-        expect($open['value'])->toBe('2')
-            ->and($open['note'])->toBe('älteste seit 268 Tagen')
-            ->and($open['delta'])->toBeNull();
+        expect($open['value'])->toBe(2)
+            ->and($open['sub'])->toBe(['text' => 'älteste seit 268 Tagen', 'kind' => 'note', 'direction' => null]);
     });
 });
 

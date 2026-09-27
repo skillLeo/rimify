@@ -1,30 +1,34 @@
 <script setup lang="ts">
 /**
- * A trend over days (BRIEF §5: a trend is a line). One measure, one axis: the period in the accent,
- * 2 px with round caps; with comparing on, the previous period day for day as a quiet dashed grey
- * line beside it — never a second axis. Gridlines are hairlines; the axis text wears ink.
+ * A trend over days (BRIEF §5: a trend is a line), hand-built on d3-scale and d3-shape. One measure,
+ * one axis: the period in the accent, 2 px with round caps, no fill; with comparing on, the previous
+ * period day for day as a 1 px dotted grey line beside it — never a second axis. Gridlines are solid
+ * hairlines; the axis text wears ink. The plot's height is the token's (--adm-plot-h: 260 / 200 /
+ * 168 px), measured, so the drawing is never stretched.
  *
- * The last point carries its value. Pointing anywhere over the drawing, or moving with the arrow
- * keys once the chart has focus, sets a crosshair on the nearest day and says its date and value —
- * aloud as well, through a polite live region. The line draws itself once, on the first paint only;
- * a new period simply shows the new line.
+ * Only the last point carries a dot and its value. Pointing anywhere over the drawing, or moving with
+ * the arrow keys once the chart has focus, sets a crosshair on the nearest day and says its date, the
+ * Umsatz and the Bestellungen — aloud as well, through a polite live region. On touch a tap pins it;
+ * it stays where it was read until the next tap. Amounts go through num.ts's formatMoney, with the
+ * cents; only the axis' round ticks drop them.
  */
 
 import { scaleLinear } from 'd3-scale'
 import { curveMonotoneX, line } from 'd3-shape'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { euro } from '../../../format'
+import { formatMoney, formatNumber } from '../../../lib/num'
 import type { ChartPoint } from '../../../types/admin/uebersicht'
 import { mayAnimate, useWidth } from './useWidth'
 
-const props = withDefaults(defineProps<{ points: ChartPoint[]; previous?: ChartPoint[] | null; height?: number; label: string }>(), { previous: null, height: 240 })
+const props = withDefaults(defineProps<{ points: ChartPoint[]; previous?: ChartPoint[] | null; label: string }>(), { previous: null })
 
 const M = { top: 28, right: 20, bottom: 28, left: 72 }
 
 /** The room between the crosshair and its tip. */
 const TIP_GAP = 12
 
-const { el, width } = useWidth(720)
+/** The server's drawing, before the box is measured: the widest plot's height. */
+const { el, width, height } = useWidth(720, 260)
 const active = ref<number | null>(null)
 const drawIn = ref(false)
 
@@ -32,15 +36,20 @@ onMounted(() => {
     drawIn.value = mayAnimate()
 })
 
-/** Whole euros on the axis: `12.000 €`. */
-function axisEuro(cents: number): string {
-    return euro(Math.round(cents / 100) * 100).replace(/,00(?=\s)/, '')
+/** An amount, as everywhere: `12.345,67 €` (num.ts). */
+const money = (cents: number): string => formatMoney(cents)
+
+/** The axis' round ticks: whole euros, `12.000 €`. */
+const tick = (cents: number): string => formatMoney(cents, true)
+
+function orders(n: number): string {
+    return n === 1 ? '1 Bestellung' : `${formatNumber(n)} Bestellungen`
 }
 
 const geometry = computed(() => {
     const n = props.points.length
     const innerW = Math.max(40, width.value - M.left - M.right)
-    const innerH = props.height - M.top - M.bottom
+    const innerH = Math.max(40, height.value - M.top - M.bottom)
     const values = [...props.points.map((p) => p.value), ...(props.previous ?? []).map((p) => p.value)]
     const max = Math.max(1, ...values)
 
@@ -51,7 +60,7 @@ const geometry = computed(() => {
         .y((p) => y(p.value))
         .curve(curveMonotoneX)
 
-    const ticks = y.ticks(4).map((value) => ({ value, y: y(value), label: axisEuro(value) }))
+    const ticks = y.ticks(4).map((value) => ({ value, y: y(value), label: tick(value) }))
     const xIdx = n <= 2 ? [0, n - 1] : [0, Math.floor((n - 1) / 2), n - 1]
     const xLabels = [...new Set(xIdx)].filter((i) => i >= 0).map((i) => ({ x: x(i), label: props.points[i]?.label.slice(0, 6) ?? '', anchor: i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle' }))
 
@@ -67,7 +76,7 @@ const geometry = computed(() => {
         previous: props.previous ? (draw(props.previous) ?? '') : null,
         ticks,
         xLabels,
-        last: lastPoint ? { x: x(last), y: y(lastPoint.value), text: lastPoint.text } : null,
+        last: lastPoint ? { x: x(last), y: y(lastPoint.value), text: money(lastPoint.value) } : null,
     }
 })
 
@@ -117,7 +126,11 @@ const tipLeft = computed(() => {
 /* Said aloud only when the keyboard moved it: a mouse crossing the chart is not something to read out. */
 const byKeyboard = ref(false)
 
-const announcement = computed(() => (byKeyboard.value && hovered.value ? `${hovered.value.point.label}: ${hovered.value.point.text}` : ''))
+const announcement = computed(() => {
+    const at = hovered.value
+
+    return byKeyboard.value && at ? `${at.point.label}: ${money(at.point.value)}, ${orders(at.point.orders)}` : ''
+})
 
 /* A mouse leaving takes the crosshair with it; a finger lifting leaves it where it was read. */
 function onLeave(event: PointerEvent): void {
@@ -153,7 +166,7 @@ function onKey(event: KeyboardEvent): void {
 </script>
 
 <template>
-    <div ref="el" class="lc" :style="{ height: `${height}px` }">
+    <div ref="el" class="lc">
         <!-- Drawn at the measured width; between two measurements (a rail being dragged) the drawing
              scales down into its box rather than past it — letterboxed, never overflowing. -->
         <svg
@@ -202,8 +215,9 @@ function onKey(event: KeyboardEvent): void {
 
         <div v-if="hovered" ref="tip" class="lc__tip" :style="{ left: `${tipLeft}px`, top: `${M.top}px` }" aria-hidden="true">
             <span class="lc__tip-date">{{ hovered.point.label }}</span>
-            <span class="lc__tip-value">{{ hovered.point.text }}</span>
-            <span v-if="hovered.previous" class="lc__tip-prev">Vorzeitraum: {{ hovered.previous.text }}</span>
+            <span class="lc__tip-value">{{ money(hovered.point.value) }}</span>
+            <span class="lc__tip-orders">{{ orders(hovered.point.orders) }}</span>
+            <span v-if="hovered.previous" class="lc__tip-prev">Vorzeitraum: {{ money(hovered.previous.value) }}</span>
         </div>
 
         <span class="visually-hidden" role="status">{{ announcement }}</span>
@@ -211,9 +225,11 @@ function onKey(event: KeyboardEvent): void {
 </template>
 
 <style scoped>
+/* The plot's height is the token's; the drawing is measured to it. */
 .lc {
     position: relative;
     width: 100%;
+    height: var(--adm-plot-h);
 }
 
 /* A finger drawn sideways reads the line; drawn up or down it scrolls the page. */
@@ -246,18 +262,20 @@ function onKey(event: KeyboardEvent): void {
 .lc__line,
 .lc__previous {
     fill: none;
-    stroke-width: 2px;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
 
 .lc__line {
     stroke: var(--chart-accent);
+    stroke-width: 2px;
 }
 
+/* The previous period: 1 px, dotted, in the strong line colour — beside the story, never over it. */
 .lc__previous {
-    stroke: var(--chart-muted);
-    stroke-dasharray: 4 4;
+    stroke: var(--c-line-2);
+    stroke-width: 1px;
+    stroke-dasharray: 0 3;
 }
 
 /* The line draws itself once, 300 ms, on the first paint (BRIEF-2 §4). */

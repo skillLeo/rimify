@@ -32,14 +32,18 @@ const props = withDefaults(
          * A chart's box is known before its data: giving it once means nothing on the page moves when
          * the data lands, or when a new Zeitraum replaces it.
          */
-        bodyHeight?: number | null
+        bodyHeight?: number | string | null
     }>(),
     { href: null, hrefLabel: 'Alle ansehen', empty: null, emptyLink: null, loading: false, skeletonRows: 4, error: null, bodyHeight: null }
 )
 
 const emit = defineEmits<{ retry: [] }>()
 
-const box = computed(() => (props.bodyHeight ? { minHeight: `${props.bodyHeight}px` } : undefined))
+/*
+ * Only a plot keeps a minimum — the skeleton standing in for it, and the chart itself. An empty card
+ * or an error shrinks to its sentence: a card never holds space for a chart it does not have.
+ */
+const box = computed(() => (props.bodyHeight ? { minHeight: typeof props.bodyHeight === 'number' ? `${props.bodyHeight}px` : props.bodyHeight } : undefined))
 
 const titleId = useId()
 </script>
@@ -66,17 +70,17 @@ const titleId = useId()
             </slot>
         </div>
 
-        <div v-else-if="error" class="widget__state" :style="box" role="alert">
+        <div v-else-if="error" class="widget__state" role="alert">
             <p class="widget__sentence">{{ error }}</p>
             <button class="btn btn--secondary btn--sm" type="button" @click="emit('retry')">Erneut versuchen</button>
         </div>
 
-        <div v-else-if="empty" class="widget__state" :style="box">
+        <div v-else-if="empty" class="widget__state">
             <p class="widget__sentence">{{ empty }}</p>
             <Link v-if="emptyLink" :href="emptyLink.href" class="widget__link">{{ emptyLink.label }}</Link>
         </div>
 
-        <div v-else class="widget__body" :style="box">
+        <div v-else class="widget__body">
             <slot />
         </div>
     </section>
@@ -88,18 +92,20 @@ const titleId = useId()
     flex-direction: column;
     gap: var(--sp-12);
     min-width: 0;
-    padding: var(--sp-20);
+    padding: var(--adm-card-pad);
     border: 1px solid var(--c-line);
     border-radius: var(--r-tile);
     background: var(--c-surface);
 }
 
-/* One height for every head, with a chart's menu or without: the bodies of a row start level. */
+/* One height for every head, with a chart's menu or without: the bodies of a row start level. In a
+   narrow card the link goes under the title rather than past the card's edge. */
 .widget__head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--sp-12);
+    gap: var(--sp-4) var(--sp-12);
     min-height: var(--adm-control-h);
 }
 

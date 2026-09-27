@@ -62,6 +62,8 @@ export interface AdminShared {
     health: AdminHealth | null
     /** „Neu“: what this role may create where the creating page exists. */
     quickActions: AdminQuickAction[]
+    /** The demo set, while there is one: its rows, and whether this person may take it away. */
+    demo: { rows: number; canPurge: boolean } | null
 }
 
 export interface AdminHealth {

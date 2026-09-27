@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\DB;
  * not built yet (Konflikte, Produkte ohne Foto) joins the list the day that page does — until then
  * its figure is on the Gutachten tiles, not a row that goes nowhere.
  *
- * @phpstan-type OrderRow array{id: int, number: string, customer: string, total: string, payment: array{label: string, tone: string}, fulfilment: array{label: string, tone: string}, ago: string|null, iso: string|null, demo: bool, href: string}
+ * @phpstan-type OrderRow array{id: int, number: string, customer: string, total: int, payment: array{label: string, tone: string}, fulfilment: array{label: string, tone: string}, ago: string|null, iso: string|null, demo: bool, href: string, customerHref: string|null}
  * @phpstan-type TodoItem array{key: string, type: string, title: string, detail: string|null, ago: string|null, iso: string|null, href: string}
  * @phpstan-type TodaySentence array{key: string, sentence: string, action: string, href: string}
  * @phpstan-type Activity array{id: int, person: string, sentence: string, ago: string|null, iso: string|null}
@@ -49,19 +49,29 @@ final class WorkLists
 
         foreach ($orders as $order) {
             $row = $this->orders->row($order);
+            $fulfilment = $row['fulfilment'];
+
+            // Nothing to ship said in words, quietly: not yet (a checkout still open), or not at all.
+            if ($fulfilment['label'] === '–') {
+                $fulfilment = ['label' => $order->status === OrderStatus::PendingPayment ? 'noch nicht versandt' : 'entfällt', 'tone' => 'none'];
+            }
+
+            $email = is_string($row['email'] ?? null) ? $row['email'] : null;
 
             $rows[] = [
                 'id' => $row['id'],
                 'number' => $row['number'],
-                'customer' => (string) ($row['customer'] ?? $row['email'] ?? '–'),
+                'customer' => (string) ($row['customer'] ?? $email ?? '–'),
                 'total' => $row['total'],
                 'payment' => $row['payment'],
-                'fulfilment' => $row['fulfilment'],
+                'fulfilment' => $fulfilment,
                 'ago' => GermanFormat::ago($order->placed_at, null, 99),
                 'iso' => $order->placed_at?->toIso8601String(),
                 'demo' => $row['demo'],
                 // The order's own page arrives with the order detail; until then the list opens on it.
                 'href' => '/admin/bestellungen?'.http_build_query(['q' => $row['number']]),
+                // A row action: every order of the same person.
+                'customerHref' => $email === null ? null : '/admin/bestellungen?'.http_build_query(['q' => $email]),
             ];
         }
 

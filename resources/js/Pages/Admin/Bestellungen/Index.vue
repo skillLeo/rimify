@@ -25,6 +25,7 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { berlinToday } from '../../../composables/admin/days'
 import { hasMobileShell } from '../../../composables/mobile/useMobileShell'
 import { decimal } from '../../../format'
+import { formatMoney } from '../../../lib/num'
 import type { AdminBestellungenProps, OrderSort, OrderState } from '../../../types/admin/bestellungen'
 import type { ColumnsInForce } from '../../../types/admin/lists'
 import FilterFields from './FilterFields.vue'
@@ -397,7 +398,7 @@ function tagClass(state: OrderState): string | null {
                             <td v-if="has('fahrzeug')" data-label="Fahrzeug">
                                 <span class="ob-vehicle">{{ order.vehicle ?? '–' }}</span>
                             </td>
-                            <td v-if="has('summe')" data-label="Summe" class="num">{{ order.total }}</td>
+                            <td v-if="has('summe')" data-label="Summe" class="num">{{ formatMoney(order.total) }}</td>
                             <td v-if="has('zahlung')" data-label="Zahlung">
                                 <span v-if="tagClass(order.payment)" :class="tagClass(order.payment)">{{ order.payment.label }}</span>
                                 <template v-else>{{ order.payment.label }}</template>

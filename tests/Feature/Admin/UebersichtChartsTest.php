@@ -13,6 +13,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Admin\Dashboard\ChartData;
 use App\Services\Admin\Dashboard\Period;
+use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
@@ -83,10 +84,11 @@ describe('the chart data', function (): void {
         $revenue = app(ChartData::class)->revenue(Period::preset('7'), true);
 
         expect($revenue['points'])->toHaveCount(7)
-            ->and($revenue['points'][4])->toBe(['key' => '2026-09-24', 'label' => '24.09.2026', 'value' => 142_550, 'text' => "1.425,50\u{00A0}€"])
+            // Minor units and the day's paid orders: the page writes them (num.ts), chart and table alike.
+            ->and($revenue['points'][4])->toBe(['key' => '2026-09-24', 'label' => '24.09.2026', 'value' => 142_550, 'orders' => 1])
             ->and($revenue['previous'])->toHaveCount(7)
             ->and($revenue['previous'][5]['value'])->toBe(10_000)
-            ->and($revenue['total'])->toBe("1.425,50\u{00A0}€");
+            ->and($revenue['total'])->toBe(142_550);
     });
 
     it('has nothing to draw while the period holds no paid order', function (): void {
@@ -131,8 +133,17 @@ describe('the chart data', function (): void {
 
         expect(array_column($bars, 'value'))->toBe([2, 1])
             ->and($bars[0]['label'])->toEndWith('Alpha')
-            ->and($bars[0]['text'])->toBe('2 Bestellungen')
-            ->and($bars[1]['text'])->toBe('1 Bestellung');
+            ->and($bars[0]['name'])->toBe('Alpha')
+            // The size most of its orders took, as the label's second weight.
+            ->and($bars[0]['size'])->toBe(GermanFormat::rimSize((string) $a->width_in, (string) $a->diameter_in));
+    });
+
+    it('shows the top seven, not more', function (): void {
+        foreach (range(1, 9) as $n) {
+            chartOrder(10_000, '2026-09-20 10:00:00', WheelConfig::factory()->create(['wheel_model_id' => WheelModel::factory()->create(['name' => "Modell {$n}"])->id]));
+        }
+
+        expect(app(ChartData::class)->topWheels(Period::preset('30')))->toHaveCount(7);
     });
 });
 

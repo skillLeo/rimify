@@ -38,7 +38,7 @@ function anchor(key: string): string {
 
 <style scoped>
 .dg {
-    margin: 0 calc(-1 * var(--sp-20));
+    margin: 0 calc(-1 * var(--adm-card-pad));
     padding: 0;
     list-style: none;
 }
@@ -52,7 +52,7 @@ function anchor(key: string): string {
     /* Two lines — the car, then its key numbers — so the shell's two-line row, exactly: the figures
        column (count, bar, who waits) fits inside it. */
     min-height: var(--adm-row-h-lg);
-    padding: var(--sp-4) var(--sp-20);
+    padding: var(--sp-4) var(--adm-card-pad);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--adm-fs-table);
     line-height: var(--adm-lh-table);

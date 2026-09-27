@@ -44,6 +44,8 @@ final class DemoPurge
             Setting::query()->whereKey(DemoTables::SETTING)->delete();
         });
 
+        DemoTables::forget();
+
         return $counts;
     }
 

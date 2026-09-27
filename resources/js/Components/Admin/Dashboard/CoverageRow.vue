@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * The Übersicht's coverage row: the Abdeckungs-Matrix on eight columns and the Nachfrage-Lücken on
- * four — what the shop may show, and what customers asked for that it may not show yet. Its own
- * component because the Gutachten role sees it straight under the figures, the others further down.
+ * The Übersicht's coverage pair: the Abdeckungs-Matrix and the Nachfrage-Lücken — what the shop may
+ * show, and what customers asked for that it may not show yet. Two cells of the page's grid, each
+ * placed by the page (`coverageStyle`, `demandStyle`: its spans); its own component because the
+ * Gutachten role sees it straight under the figures, the others further down.
  *
  * Both arrive with the page's deferred charts. Until then each stands in its own final size — the
  * matrix as a skeleton of as many makes as it will show (`rows`, counted with the page), the list as
@@ -14,7 +15,7 @@ import { computed } from 'vue'
 import CoverageMatrix from './CoverageMatrix.vue'
 import DashWidget from './DashWidget.vue'
 import DemandGaps from './DemandGaps.vue'
-import { decimal } from '../../../format'
+import { formatNumber } from '../../../lib/num'
 import type { ChartKey, CoverageMatrix as Matrix, DashboardCharts } from '../../../types/admin/uebersicht'
 
 const props = defineProps<{
@@ -27,6 +28,9 @@ const props = defineProps<{
     failed: boolean
     /** The Übersicht's Zeitraum as a query, so the full list counts the same days as the widget. */
     periodQuery: string
+    /** Where each sits in the page's grid. */
+    coverageStyle?: Record<string, string | number>
+    demandStyle?: Record<string, string | number>
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
@@ -60,59 +64,61 @@ const skeleton = computed<Matrix>(() => {
 </script>
 
 <template>
-    <div class="dash__row">
-        <template v-if="keys.includes('coverage')">
-            <DashWidget
-                v-if="!charts || !charts.coverage"
-                class="dash__col-8"
-                title="Abdeckung"
-                :loading="!charts && !failed"
-                :error="failedOne('coverage')"
-                @retry="emit('retry')"
-            >
-                <template #skeleton>
-                    <CoverageMatrix :matrix="skeleton" placeholder />
-                </template>
-            </DashWidget>
-            <DashWidget
-                v-else
-                class="dash__col-8"
-                title="Abdeckung"
-                href="/admin/abdeckung"
-                href-label="Abdeckung öffnen"
-                :empty="charts.coverage.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import der Fahrzeugliste.'"
-            >
-                <CoverageMatrix :matrix="charts.coverage" />
-            </DashWidget>
-        </template>
+    <template v-if="keys.includes('coverage')">
+        <DashWidget
+            v-if="!charts || !charts.coverage"
+            class="dash__cell"
+            :style="coverageStyle"
+            title="Abdeckung"
+            :loading="!charts && !failed"
+            :error="failedOne('coverage')"
+            @retry="emit('retry')"
+        >
+            <template #skeleton>
+                <CoverageMatrix :matrix="skeleton" placeholder />
+            </template>
+        </DashWidget>
+        <DashWidget
+            v-else
+            class="dash__cell"
+            :style="coverageStyle"
+            title="Abdeckung"
+            href="/admin/abdeckung"
+            href-label="Abdeckung öffnen"
+            :empty="charts.coverage.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import der Fahrzeugliste.'"
+        >
+            <CoverageMatrix :matrix="charts.coverage" />
+        </DashWidget>
+    </template>
 
-        <template v-if="keys.includes('demand')">
-            <DashWidget
-                v-if="!charts || !charts.demand"
-                class="dash__col-4"
-                title="Nachfrage-Lücken"
-                :body-height="DEMAND_HEIGHT"
-                :loading="!charts && !failed"
-                :error="failedOne('demand')"
-                @retry="emit('retry')"
-            />
-            <DashWidget
-                v-else
-                class="dash__col-4"
-                title="Nachfrage-Lücken"
-                :href="`/admin/nachfrage${periodQuery}`"
-                href-label="Alle offenen Lücken"
-                :body-height="DEMAND_HEIGHT"
-                :empty="charts.demand.rows.length ? null : 'Im Zeitraum hat niemand nach einem Auto gefragt, für das der Shop keine Felge zeigen kann.'"
-            >
-                <p class="demand-lead">
-                    {{ decimal(charts.demand.counts.offen, 0) }} {{ charts.demand.counts.offen === 1 ? 'offene Lücke' : 'offene Lücken' }},
-                    {{ decimal(charts.demand.asks, 0) }}-mal gefragt<template v-if="charts.demand.waiting">, {{ decimal(charts.demand.waiting, 0) }} {{ charts.demand.waiting === 1 ? 'Person wartet' : 'Personen warten' }}</template>.
-                </p>
-                <DemandGaps :rows="charts.demand.rows" />
-            </DashWidget>
-        </template>
-    </div>
+    <template v-if="keys.includes('demand')">
+        <DashWidget
+            v-if="!charts || !charts.demand"
+            class="dash__cell"
+            :style="demandStyle"
+            title="Nachfrage-Lücken"
+            :body-height="DEMAND_HEIGHT"
+            :loading="!charts && !failed"
+            :error="failedOne('demand')"
+            @retry="emit('retry')"
+        />
+        <DashWidget
+            v-else
+            class="dash__cell"
+            :style="demandStyle"
+            title="Nachfrage-Lücken"
+            :href="`/admin/nachfrage${periodQuery}`"
+            href-label="Alle offenen Lücken"
+            :body-height="DEMAND_HEIGHT"
+            :empty="charts.demand.rows.length ? null : 'Im Zeitraum hat niemand nach einem Auto gefragt, für das der Shop keine Felge zeigen kann.'"
+        >
+            <p class="demand-lead">
+                {{ formatNumber(charts.demand.counts.offen) }} {{ charts.demand.counts.offen === 1 ? 'offene Lücke' : 'offene Lücken' }},
+                {{ formatNumber(charts.demand.asks) }}-mal gefragt<template v-if="charts.demand.waiting">, {{ formatNumber(charts.demand.waiting) }} {{ charts.demand.waiting === 1 ? 'Person wartet' : 'Personen warten' }}</template>.
+            </p>
+            <DemandGaps :rows="charts.demand.rows" />
+        </DashWidget>
+    </template>
 </template>
 
 <style scoped>

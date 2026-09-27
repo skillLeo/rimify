@@ -14,6 +14,7 @@
  */
 
 import { computed } from 'vue'
+import { formatNumber } from '../../lib/num'
 import type { Facets } from '../../types/rimify'
 
 const props = defineProps<{
@@ -85,7 +86,7 @@ function optionsFor(facet: string): { value: string; count: number }[] {
                     @change="emit('toggle', facet.key, option.value)"
                 />
                 <span class="fpanel__label">{{ option.value }}</span>
-                <span class="data fpanel__count">{{ option.count }}</span>
+                <span class="data fpanel__count">{{ formatNumber(option.count) }}</span>
             </label>
 
             <p v-if="optionsFor(facet.key).length === 0" class="quiet t-small">Keine Auswahl verfügbar.</p>

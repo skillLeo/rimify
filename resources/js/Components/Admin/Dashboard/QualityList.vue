@@ -26,7 +26,7 @@ defineProps<{ rows: QualityRow[] }>()
 
 <style scoped>
 .ql {
-    margin: 0 calc(-1 * var(--sp-20));
+    margin: 0 calc(-1 * var(--adm-card-pad));
     padding: 0;
     list-style: none;
 }
@@ -38,7 +38,7 @@ defineProps<{ rows: QualityRow[] }>()
     gap: var(--sp-12);
     /* Two lines — the Felge, then its size — so the shell's two-line row. */
     min-height: var(--adm-row-h-lg);
-    padding: var(--sp-8) var(--sp-20);
+    padding: var(--sp-8) var(--adm-card-pad);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--adm-fs-table);
     line-height: var(--adm-lh-table);

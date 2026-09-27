@@ -12,15 +12,15 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The Übersicht's three charts, aggregated on the server (BRIEF §5: "all aggregation on the
- * server, formatted German in Europe/Berlin"): every point arrives with its value for the scale and
- * its German text for the tooltip and the table view, so the browser draws and never formats money.
+ * The Übersicht's three charts, aggregated on the server in Europe/Berlin days. Every figure goes out
+ * as a number — money in minor units — and the page writes it (num.ts), in the chart, its table and
+ * its CSV alike.
  *
- * @phpstan-type Point array{key: string, label: string, value: int, text: string}
- * @phpstan-type Revenue array{points: list<Point>, previous: list<Point>|null, total: string}
+ * @phpstan-type Point array{key: string, label: string, value: int, orders: int}
+ * @phpstan-type Revenue array{points: list<Point>, previous: list<Point>|null, total: int}
  * @phpstan-type Week array{key: string, label: string, range: string, values: array<string, int>, total: int}
- * @phpstan-type Verdicts array{series: list<array{key: string, label: string}>, weeks: list<Week>, since: string|null}
- * @phpstan-type Bar array{key: string, label: string, value: int, text: string}
+ * @phpstan-type Verdicts array{series: list<array{key: string, label: string}>, weeks: list<Week>, since: string|null, checks: int, permitted: int}
+ * @phpstan-type Bar array{key: string, label: string, brand: string, name: string, size: string|null, value: int}
  */
 final class ChartData
 {
@@ -48,15 +48,16 @@ final class ChartData
             return null;
         }
 
-        $points = self::points($daily['days'], $daily['revenue']);
+        $points = self::points($daily['days'], $daily['revenue'], $daily['count']);
         $previous = null;
 
         if ($compare) {
             $before = $this->sales->daily($period->previous());
-            $previous = self::points($before['days'], $before['revenue']);
+            $previous = self::points($before['days'], $before['revenue'], $before['count']);
         }
 
-        return ['points' => $points, 'previous' => $previous, 'total' => GermanFormat::money(array_sum($daily['revenue']))];
+        // The same sum as the Umsatz tile's, to the cent: both add the same days.
+        return ['points' => $points, 'previous' => $previous, 'total' => array_sum($daily['revenue'])];
     }
 
     /**
@@ -104,31 +105,37 @@ final class ChartData
         }
 
         $since = DB::table('verdict_tallies')->min('day');
+        $checks = array_sum(array_column($weeks, 'total'));
 
         return [
             'series' => array_map(static fn (string $key, string $label): array => ['key' => $key, 'label' => $label], array_keys(self::VERDICTS), array_values(self::VERDICTS)),
             'weeks' => array_values($weeks),
             'since' => is_string($since) ? GermanFormat::date(CarbonImmutable::createFromFormat('!Y-m-d', $since, GermanFormat::TIMEZONE) ?: null) : null,
+            // The period's Prüfungen and how many were freigegeben: the Freigabequote is the one ÷ the other.
+            'checks' => $checks,
+            'permitted' => array_sum(array_map(static fn (array $week): int => $week['values'][VerdictStatus::Permitted->value], $weeks)),
         ];
     }
 
     /**
-     * The Felgen most ordered in the period — by paid orders that hold them, not by units, so one
-     * set of four counts once.
+     * The seven Felgen most ordered in the period — by paid orders that hold them, not by units, so
+     * one set of four counts once — each with the size most of those orders took (`8,5J × 19`).
      *
      * @return list<Bar>
      */
-    public function topWheels(Period $period, int $limit = 8): array
+    public function topWheels(Period $period, int $limit = 7): array
     {
-        $rows = DB::table('order_lines as l')
+        $lines = fn () => DB::table('order_lines as l')
             ->join('orders as o', 'o.id', '=', 'l.order_id')
             ->join('wheel_configs as c', 'c.id', '=', 'l.wheel_config_id')
-            ->join('wheel_models as m', 'm.id', '=', 'c.wheel_model_id')
-            ->join('brands as b', 'b.id', '=', 'm.brand_id')
             ->where('l.kind', OrderLineKind::Wheel->value)
             ->whereIn('o.status', array_map(static fn (OrderStatus $s): string => $s->value, OrderStatus::revenue()))
             ->where('o.placed_at', '>=', $period->startUtc())
-            ->where('o.placed_at', '<', $period->endUtc())
+            ->where('o.placed_at', '<', $period->endUtc());
+
+        $rows = $lines()
+            ->join('wheel_models as m', 'm.id', '=', 'c.wheel_model_id')
+            ->join('brands as b', 'b.id', '=', 'm.brand_id')
             ->groupBy('m.id', 'm.name', 'b.name')
             ->selectRaw('m.id, m.name, b.name as brand, COUNT(DISTINCT o.id) as orders')
             ->orderByDesc('orders')
@@ -136,20 +143,34 @@ final class ChartData
             ->limit($limit)
             ->get();
 
+        // Each model's leading size, the largest first among equals.
+        $sizes = [];
+
+        foreach ($lines()->whereIn('c.wheel_model_id', $rows->pluck('id'))
+            ->groupBy('c.wheel_model_id', 'c.width_in', 'c.diameter_in')
+            ->selectRaw('c.wheel_model_id AS model, c.width_in, c.diameter_in, COUNT(DISTINCT o.id) AS orders')
+            ->orderByDesc('orders')->orderByDesc('c.diameter_in')->orderByDesc('c.width_in')
+            ->get() as $size) {
+            $sizes[(int) $size->model] ??= GermanFormat::rimSize((string) $size->width_in, (string) $size->diameter_in);
+        }
+
         return $rows->map(static fn (object $row): array => [
             'key' => 'm'.$row->id,
             'label' => trim($row->brand.' '.$row->name),
+            'brand' => (string) $row->brand,
+            'name' => (string) $row->name,
+            'size' => $sizes[(int) $row->id] ?? null,
             'value' => (int) $row->orders,
-            'text' => ((int) $row->orders === 1 ? '1 Bestellung' : GermanFormat::integer((int) $row->orders).' Bestellungen'),
         ])->values()->all();
     }
 
     /**
      * @param  list<string>  $days
      * @param  list<int>  $values
+     * @param  list<int>  $orders
      * @return list<Point>
      */
-    private static function points(array $days, array $values): array
+    private static function points(array $days, array $values, array $orders): array
     {
         $points = [];
 
@@ -159,7 +180,7 @@ final class ChartData
                 'key' => $day,
                 'label' => $date === null ? $day : (string) GermanFormat::date($date),
                 'value' => $values[$i] ?? 0,
-                'text' => GermanFormat::money($values[$i] ?? 0),
+                'orders' => $orders[$i] ?? 0,
             ];
         }
 

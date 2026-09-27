@@ -187,7 +187,9 @@ final class OrderList
             'customer' => $name === null || $name === '' ? null : $name,
             'email' => $customer?->email,
             'vehicle' => $order->vehicle_label,
-            'total' => GermanFormat::money($order->total_cents, $order->currency ?? 'EUR'),
+            // Minor units: the page writes the amount (num.ts formatMoney), the export sums the column.
+            'total' => (int) $order->total_cents,
+            'currency' => $order->currency ?? 'EUR',
             'status' => $order->status->value,
             'statusLabel' => $order->status->labelDe(),
             'payment' => $order->status->paymentState(),

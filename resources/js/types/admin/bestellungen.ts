@@ -21,8 +21,9 @@ export interface OrderRow {
     customer: string | null
     email: string | null
     vehicle: string | null
-    /** `1.425,00 €` */
-    total: string
+    /** Minor units (cents); written by num.ts formatMoney: `1.425,00 €`. */
+    total: number
+    currency: string
     status: string
     statusLabel: string
     payment: OrderState

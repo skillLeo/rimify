@@ -52,14 +52,14 @@ final class RoleFigures
 
         return [
             self::state('bestand', 'Felgen auf Lager', 'Stück aller Ausführungen, die im Shop stehen — Stand jetzt.',
-                $units, 'Keine Felge auf Lager.', null,
+                $units, 'keine Felge auf Lager', null,
                 $variants > 0 ? 'in '.GermanFormat::integer($variants).($variants === 1 ? ' Ausführung' : ' Ausführungen') : null),
             self::state('ausverkauft', 'Nicht auf Lager', 'Ausführungen im Shop, von denen kein Stück auf Lager ist.',
-                $soldOut, 'Jede Ausführung im Shop ist auf Lager.', null),
+                $soldOut, 'jede Ausführung lieferbar', null),
             self::state('ohne-freigabe', 'Ohne Freigabe', 'Diese Ausführungen kann der Shop keinem Auto zeigen: Kein veröffentlichtes Gutachten nennt sie.',
-                $unapproved, 'Jede Ausführung im Shop hat mindestens eine Freigabe.', null),
+                $unapproved, 'jede mit einer Freigabe', null),
             self::state('unvollstaendig', 'Unvollständige Daten', 'Ausführungen im Shop ohne Preis, Foto, Gewicht oder Traglast.',
-                $incomplete, 'Bei jeder Ausführung sind Preis, Foto, Gewicht und Traglast gepflegt.', null),
+                $incomplete, 'alle Daten gepflegt', null),
         ];
     }
 
@@ -117,23 +117,20 @@ final class RoleFigures
 
         $tiles = [
             self::state('documents', 'Veröffentlichte Gutachten', 'Gutachten, nach denen der Shop gerade Felgen zeigt. Entwürfe zählen nicht mit.',
-                DB::table('approval_documents')->where('status', 'published')->count(), 'Noch kein Gutachten veröffentlicht.', '/admin/gutachten'),
+                DB::table('approval_documents')->where('status', 'published')->count(), 'noch keines veröffentlicht', '/admin/gutachten'),
             self::state('conflicts', 'Offene Konflikte', 'Zwei Gutachten sagen über dieselbe Felge am selben Fahrzeug Verschiedenes.',
-                DB::table('fitment_conflicts')->where('status', ConflictStatus::Open->value)->count(), 'Kein offener Konflikt.', '/admin/konflikte'),
-            [
-                ...self::state('nachfrage', 'Nachfrage-Lücken', 'Autos, nach denen im Zeitraum gefragt wurde und für die der Shop keine Felge zeigen kann — die offenen, nicht die schon beobachteten oder angeforderten.',
-                    $gaps, 'Im Zeitraum fragte niemand nach einem Auto ohne Freigabe.', '/admin/nachfrage'),
-                'note' => $period->label(),
-            ],
+                DB::table('fitment_conflicts')->where('status', ConflictStatus::Open->value)->count(), 'kein offener Konflikt', '/admin/konflikte'),
+            self::state('nachfrage', 'Nachfrage-Lücken', 'Autos, nach denen im Zeitraum gefragt wurde und für die der Shop keine Felge zeigen kann — die offenen, nicht die schon beobachteten oder angeforderten.',
+                $gaps, 'niemand fragte vergeblich', '/admin/nachfrage', $period->label()),
         ];
 
         $tiles[] = $admin->may(PermissionModule::Vehicles, PermissionAction::View)
             // A vehicle the importer could not characterise can never produce a positive verdict, so
             // this figure is the queue that turns silence back into sales (R-03).
             ? self::state('review', 'Fahrzeuge zur Prüfung', 'Ohne lesbare Achslast oder Höchstgeschwindigkeit. Für sie zeigt der Shop keine Felgen.',
-                DB::table('vehicles')->whereNull('deleted_at')->where('needs_review', true)->count(), 'Kein Fahrzeug wartet auf Prüfung.', '/admin/fahrzeuge/pruefung')
+                DB::table('vehicles')->whereNull('deleted_at')->where('needs_review', true)->count(), 'keines wartet auf Prüfung', '/admin/fahrzeuge/pruefung')
             : self::state('fitments', 'Veröffentlichte Freigaben', 'Eine Freigabe ist eine Zeile eines Gutachtens: diese Felge an diesem Fahrzeug.',
-                DB::table('fitments')->where('status', 'published')->count(), 'Noch keine Freigabe veröffentlicht.', '/admin/abdeckung');
+                DB::table('fitments')->where('status', 'published')->count(), 'noch keine veröffentlicht', '/admin/abdeckung');
 
         return $tiles;
     }
@@ -155,19 +152,17 @@ final class RoleFigures
 
         return [
             self::state('wartend', 'Warten auf Nachricht', 'Bestätigte „Sag mir Bescheid“-Anfragen, denen noch niemand geschrieben hat — Stand jetzt.',
-                $waiting, 'Niemand wartet auf eine Nachricht.', '/admin/anfragen'),
-            [
-                'key' => 'anfragen',
-                'label' => 'Neue Anfragen',
-                'hint' => '„Sag mir Bescheid“-Anfragen, die im Zeitraum eingegangen sind, bestätigt oder nicht.',
-                'value' => $asked > 0 ? GermanFormat::integer($asked) : null,
-                'empty' => $asked > 0 ? null : 'Im Zeitraum kam keine Anfrage.',
-                'delta' => $delta,
-                'deltaNote' => $compare && $asked > 0 && $delta === null ? 'Im Vorzeitraum keine Anfrage' : null,
-                'series' => $asked > 0 ? SalesFigures::fold($current, $period->days() > 31 ? 7 : 1) : [],
-                'note' => null,
-                'href' => self::built('/admin/anfragen'),
-            ],
+                $waiting, 'niemand wartet', '/admin/anfragen'),
+            SalesFigures::tile(
+                'anfragen',
+                'Neue Anfragen',
+                '„Sag mir Bescheid“-Anfragen, die im Zeitraum eingegangen sind, bestätigt oder nicht.',
+                $asked,
+                null,
+                SalesFigures::sub($compare, $delta, $asked > 0 ? $period->label() : null, 'keine Anfrage im Zeitraum', 'Vorzeitraum ohne Anfrage'),
+                SalesFigures::fold($current, $period->days() > 31 ? 7 : 1),
+                self::built('/admin/anfragen'),
+            ),
         ];
     }
 
@@ -212,21 +207,23 @@ final class RoleFigures
         return array_values($days);
     }
 
-    /** @return Tile */
-    private static function state(string $key, string $label, string $hint, int $count, string $empty, ?string $list, ?string $note = null): array
+    /**
+     * A figure that is a state, counted now: zero is a figure too, and its line says what zero means.
+     *
+     * @return Tile
+     */
+    private static function state(string $key, string $label, string $hint, int $count, string $zero, ?string $list, ?string $note = null): array
     {
-        return [
-            'key' => $key,
-            'label' => $label,
-            'hint' => $hint,
-            'value' => $count > 0 ? GermanFormat::integer($count) : null,
-            'empty' => $count > 0 ? null : $empty,
-            'delta' => null,
-            'deltaNote' => null,
-            'series' => [],
-            'note' => $note ?? 'Stand jetzt',
-            'href' => $list === null ? null : self::built($list),
-        ];
+        return SalesFigures::tile(
+            $key,
+            $label,
+            $hint,
+            $count,
+            null,
+            ['text' => $count > 0 ? ($note ?? 'Stand jetzt') : $zero, 'kind' => 'note', 'direction' => null],
+            [],
+            $list === null ? null : self::built($list),
+        );
     }
 
     /** A tile links to its list once that list exists — never to a page that is not there. */

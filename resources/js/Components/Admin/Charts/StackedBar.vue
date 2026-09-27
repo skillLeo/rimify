@@ -1,23 +1,24 @@
 <script setup lang="ts">
 /**
  * Part of a whole, over weeks (BRIEF §5: part of a whole → a stacked bar). One column per week, the
- * series stacked in their fixed order and colours (the categorical palette; colour follows the
- * series, never the rank). Columns are 24 px at most; touching segments are parted by a 2 px gap in
- * the surface colour, never a stroke; only the top of a column is rounded, its base stays square.
+ * series stacked in their fixed order and colours (colour follows the series, never the rank; the
+ * verdicts wear --chart-verdict-*, reserved for them). Columns are 24 px at most; touching segments
+ * are parted by a 2 px gap in the surface colour, never a stroke; only the data end of a column is
+ * rounded, 4 px, its base stays square. The plot's height is the token's (--adm-plot-h).
  *
- * The legend names every series in words. Pointing at a column, or moving with the arrow keys,
+ * The legend, top right, names every series in words. Pointing at a column, or moving with the arrow keys,
  * shows that week's numbers. Columns grow from the baseline once, on the first paint.
  */
 
 import { scaleBand, scaleLinear } from 'd3-scale'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { decimal } from '../../../format'
+import { formatNumber } from '../../../lib/num'
 import type { VerdictChart } from '../../../types/admin/uebersicht'
 import { mayAnimate, useWidth } from './useWidth'
 
 /* loading: the legend as it will be — it wraps as the chart's will — above a skeleton of the plot's
    height: the chart's own size before its weeks arrive. */
-const props = withDefaults(defineProps<{ chart: VerdictChart; height?: number; label: string; loading?: boolean }>(), { height: 240, loading: false })
+const props = withDefaults(defineProps<{ chart: VerdictChart; label: string; loading?: boolean }>(), { loading: false })
 
 const M = { top: 12, right: 8, bottom: 28, left: 44 }
 const GAP = 2
@@ -28,7 +29,7 @@ const LABEL_ROOM = 44
 /** The room between the column and its tip. */
 const TIP_GAP = 16
 
-const { el, width } = useWidth(360)
+const { el, width, height } = useWidth(360, 260)
 const active = ref<number | null>(null)
 const growIn = ref(false)
 
@@ -45,7 +46,7 @@ function column(x: number, y: number, w: number, h: number, rounded: boolean): s
 
 const geometry = computed(() => {
     const innerW = Math.max(40, width.value - M.left - M.right)
-    const innerH = props.height - M.top - M.bottom
+    const innerH = Math.max(40, height.value - M.top - M.bottom)
     const weeks = props.chart.weeks
     const max = Math.max(1, ...weeks.map((w) => w.total))
 
@@ -85,21 +86,21 @@ const geometry = computed(() => {
         barW,
         columns,
         every,
-        ticks: y.ticks(4).map((value) => ({ value, y: y(value), label: decimal(value, 0) })),
+        ticks: y.ticks(4).map((value) => ({ value, y: y(value), label: formatNumber(value) })),
         band: x.bandwidth(),
     }
 })
 
 /*
- * A verdict wears the verdict's own colour, the one the shop shows it in — Freigegeben green, Mit
- * Auflagen amber, Nicht freigegeben red, Unbekannt grey — never a chart colour that means nothing
- * there. Any other series takes the categorical palette.
+ * A verdict wears its chart colour — the verdict hues, stepped in lightness so the four stay apart for
+ * every reader where they touch (DIRECTION §2, palette.test.ts). Any other series takes the
+ * categorical palette.
  */
 const VERDICT_COLOURS: Record<string, string> = {
-    PERMITTED: 'var(--c-ok)',
-    CONDITIONAL: 'var(--c-warn)',
-    NOT_PERMITTED: 'var(--c-bad)',
-    UNKNOWN: 'var(--c-unk)',
+    PERMITTED: 'var(--chart-verdict-permitted)',
+    CONDITIONAL: 'var(--chart-verdict-conditional)',
+    NOT_PERMITTED: 'var(--chart-verdict-refused)',
+    UNKNOWN: 'var(--chart-verdict-unknown)',
 }
 
 function colour(key: string, index: number): string {
@@ -199,9 +200,9 @@ function onKey(event: KeyboardEvent): void {
             </li>
         </ul>
 
-        <span v-if="loading" class="skeleton sb__skeleton" :style="{ height: `${height}px` }" aria-hidden="true" />
+        <span v-if="loading" class="skeleton sb__skeleton" aria-hidden="true" />
 
-        <div v-else ref="el" class="sb__plot" :style="{ height: `${height}px` }">
+        <div v-else ref="el" class="sb__plot">
             <!-- Drawn at the measured width; between two measurements (a rail being dragged) the drawing
                  scales down into its box rather than past it — letterboxed, never overflowing. -->
             <svg
@@ -245,7 +246,7 @@ function onKey(event: KeyboardEvent): void {
                 <span v-for="(series, i) in chart.series" :key="series.key" class="sb__tip-row">
                     <span class="sb__swatch" :style="{ background: colour(series.key, i) }" />
                     {{ series.label }}
-                    <strong>{{ decimal(hovered.week.values[series.key] ?? 0, 0) }}</strong>
+                    <strong>{{ formatNumber(hovered.week.values[series.key] ?? 0) }}</strong>
                 </span>
             </div>
 
@@ -262,11 +263,14 @@ function onKey(event: KeyboardEvent): void {
 
 .sb__skeleton {
     display: block;
+    height: var(--adm-plot-h);
 }
 
+/* Top right: the eye reads the columns first, the key where it looks for one. */
 .sb__legend {
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-end;
     gap: var(--sp-4) var(--sp-16);
     margin: 0;
     padding: 0;
@@ -292,6 +296,7 @@ function onKey(event: KeyboardEvent): void {
 
 .sb__plot {
     position: relative;
+    height: var(--adm-plot-h);
 }
 
 /* A finger drawn sideways reads the weeks; drawn up or down it scrolls the page. */

@@ -7,6 +7,7 @@
  * nothing is a dead end. Amounts are typed the German way and read by the server.
  */
 
+import { formatNumber } from '../../../lib/num'
 import type { OrderOption } from '../../../types/admin/bestellungen'
 import type { FilterForm } from './filters'
 
@@ -28,7 +29,7 @@ const form = defineModel<FilterForm>('form', { required: true })
         <label class="form-field__label" :for="`${idPrefix}-status`">Status</label>
         <select :id="`${idPrefix}-status`" v-model="form.status" class="input">
             <option value="">Alle</option>
-            <option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }} ({{ status.count }})</option>
+            <option v-for="status in statuses" :key="status.value" :value="status.value">{{ status.label }} ({{ formatNumber(status.count) }})</option>
         </select>
     </div>
 

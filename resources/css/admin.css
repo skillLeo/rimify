@@ -272,6 +272,45 @@
     border-top: 1px solid var(--c-line);
 }
 
+/* Demodaten: the warning colour, words and dot alike — a state nobody should overlook — on the
+   health line's grid (the dot on the icons' column, the words on the labels' line); wrapping to a
+   second line rather than cutting the count. */
+.adm-foot__demo {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-12);
+    min-height: var(--sp-32);
+    margin: 0;
+    padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-12);
+    border-radius: var(--r-control);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-warn);
+}
+
+.adm-foot__demo-dot {
+    flex: none;
+    width: var(--sp-8);
+    height: var(--sp-8);
+    margin: calc((var(--lh-micro) - var(--sp-8)) / 2) calc((var(--sp-20) - var(--sp-8)) / 2) 0;
+    border-radius: var(--r-round);
+    background: var(--c-warn);
+}
+
+.adm-foot__demo-purge {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
 /* One quiet line, 32 px, never wrapping: the dot carries the colour, the words stay the rail's own
    grey, and a long label gives way with „…“ (the whole sentence is the tooltip). */
 .adm-foot__health {
@@ -467,6 +506,7 @@ a.adm-foot__health {
 
 /* Collapsed (by choice, or by force at 768–1023): the dot, a +, the avatar — the words become the
    tooltips and stay the controls' names for a screen reader. */
+.adm[data-rail='collapsed'] .adm-foot__demo,
 .adm[data-rail='collapsed'] .adm-foot__health,
 .adm[data-rail='collapsed'] .adm-foot__profile {
     justify-content: center;
@@ -477,6 +517,7 @@ a.adm-foot__health {
     display: flex;
 }
 
+.adm[data-rail='collapsed'] .adm-foot__demo-text,
 .adm[data-rail='collapsed'] .adm-foot__label,
 .adm[data-rail='collapsed'] .adm-foot__count,
 .adm[data-rail='collapsed'] .adm-foot__new-label,
@@ -503,6 +544,7 @@ a.adm-foot__health {
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
+    .adm .adm-foot__demo,
     .adm .adm-foot__health,
     .adm .adm-foot__profile {
         justify-content: center;
@@ -513,6 +555,7 @@ a.adm-foot__health {
         display: flex;
     }
 
+    .adm .adm-foot__demo-text,
     .adm .adm-foot__label,
     .adm .adm-foot__count,
     .adm .adm-foot__new-label,
@@ -2611,6 +2654,41 @@ a.adm-foot__health {
 
     .adm-table__actions {
         justify-content: flex-start;
+    }
+}
+
+/*
+ * ── The Übersicht's cards: one grid of twelve columns (the density brief) ──
+ * Rows as tall as their tallest card, every card as tall as its own content (align-items: start) —
+ * no card carries a minimum; only a plot has one (--adm-plot-h). Each card's span is placed by
+ * layout.ts (--span-wide from 1280, --span-mid below); the gutter is --adm-dash-gap (24 / 16 px);
+ * below 900 one column, with Heute straight after the figures.
+ */
+.dash__grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: min-content;
+    align-items: start;
+    gap: var(--adm-dash-gap);
+}
+
+.dash__cell {
+    grid-column: span var(--span-wide, 12);
+}
+
+@media (max-width: 1279px) {
+    .dash__cell {
+        grid-column: span var(--span-mid, 12);
+    }
+}
+
+@media (max-width: 899px) {
+    .dash__grid > * {
+        grid-column: 1 / -1;
+    }
+
+    .dash__grid > .dash__today {
+        order: -1;
     }
 }
 

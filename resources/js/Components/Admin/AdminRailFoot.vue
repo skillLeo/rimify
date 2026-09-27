@@ -3,6 +3,10 @@
  * The rail's foot: how the shop is, what you can make, and who you are — fixed at the bottom of the
  * rail under a hairline, never scrolling with the navigation above it.
  *
+ *   0. Demodaten — only while demo rows exist (DemoTables): „Demodaten aktiv · 1.412 Datensätze ·
+ *      entfernen“ in the warning colour, so whoever opens the admin next knows what the figures are
+ *      made of. „entfernen“ — for who may (DemoDataPolicy) — asks first (AdminConfirm), then takes
+ *      exactly the demo rows away, recorded in the Protokoll.
  *   1. Systemzustand — only when something is wrong: an empty foot is the healthy state. One quiet
  *      line of 32 px: the dot carries the colour, then a short label and a count in it („Warteschlange
  *      stockt · 12 Std“), the whole sentence in the tooltip. No way to dismiss it — a problem hidden
@@ -31,8 +35,10 @@ import {
     TooltipTrigger,
 } from 'reka-ui'
 import { computed, ref } from 'vue'
+import AdminConfirm from './AdminConfirm.vue'
 import AdminMenuTip from './AdminMenuTip.vue'
 import Icon from './AdminIcon.vue'
+import { formatNumber } from '../../lib/num'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 import { useHealth, useHealthBanner } from '../../composables/admin/useHealth'
@@ -61,6 +67,26 @@ function measureWho(event: Event): void {
     whoCut.value = [...lines].some((line) => line.scrollWidth > line.clientWidth)
 }
 
+/* ── Demodaten ─────────────────────────────────────────────────────────────── */
+
+const demo = computed(() => admin.value.demo)
+const demoRows = computed(() => (demo.value ? `${formatNumber(demo.value.rows)} ${demo.value.rows === 1 ? 'Datensatz' : 'Datensätze'}` : ''))
+const confirmingPurge = ref(false)
+const purging = ref(false)
+
+function purgeDemo(): void {
+    if (purging.value) {
+        return
+    }
+
+    purging.value = true
+    router.post('/admin/demodaten/entfernen', {}, {
+        preserveScroll: true,
+        onSuccess: () => (confirmingPurge.value = false),
+        onFinish: () => (purging.value = false),
+    })
+}
+
 const signingOut = ref(false)
 
 /** A post, not a link, and not twice: while it is in flight the row says so and refuses again. */
@@ -80,6 +106,32 @@ function signOut(event: Event): void {
     <!-- Collapsed or not is the stylesheet's call (the rail's own rule, first frame included); the
          prop only turns tooltips on and opens the menus to the side instead of upward. -->
     <div class="adm-foot">
+        <!-- 0 · Demodaten: only while there are any. -->
+        <TooltipRoot v-if="demo" :disabled="!collapsed">
+            <TooltipTrigger as-child>
+                <p class="adm-foot__demo" :tabindex="collapsed ? 0 : undefined">
+                    <span class="adm-foot__demo-dot" aria-hidden="true" />
+                    <span class="adm-foot__demo-text">
+                        Demodaten aktiv · {{ demoRows }}<template v-if="demo.canPurge"> ·
+                            <button class="adm-foot__demo-purge" type="button" @click="confirmingPurge = true">entfernen</button></template>
+                    </span>
+                </p>
+            </TooltipTrigger>
+            <TooltipPortal>
+                <TooltipContent class="adm-tooltip" side="right" :side-offset="8">Demodaten aktiv · {{ demoRows }}</TooltipContent>
+            </TooltipPortal>
+        </TooltipRoot>
+
+        <AdminConfirm
+            v-if="demo?.canPurge"
+            v-model:open="confirmingPurge"
+            title="Demodaten entfernen"
+            :body="`Alle ${demoRows} der Demodaten werden gelöscht – Bestellungen, Prüfungen, Nachfrage und die Einträge des Demo-Teams. Echte Daten bleiben unberührt, und das Protokoll hält fest, wer sie entfernt hat.`"
+            confirm-label="Entfernen"
+            :busy="purging"
+            @confirm="purgeDemo"
+        />
+
         <!-- 1 · Systemzustand: nothing while all is well. -->
         <!-- The ambient reminder: away while the banner says the same thing (useHealthBanner). -->
         <TooltipRoot v-if="health && health.state !== 'ok' && !banner">

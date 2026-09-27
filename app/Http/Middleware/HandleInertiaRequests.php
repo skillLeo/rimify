@@ -7,10 +7,12 @@ namespace App\Http\Middleware;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Policies\DemoDataPolicy;
 use App\Services\Admin\AdminAlerts;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
+use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -157,7 +159,29 @@ class HandleInertiaRequests extends Middleware
             'health' => fn (): ?array => $user instanceof AdminUser ? self::health($user) : null,
             // „Neu“: what this role may create where the creating page exists (QuickActions).
             'quickActions' => fn (): array => $user instanceof AdminUser ? app(QuickActions::class)->for($user) : [],
+            // The demo set, while there is one: the rail tells everyone, and offers „entfernen“ to who
+            // may (asked of the policy directly — a strip not offered is no denied attempt to log).
+            'demo' => fn (): ?array => $user instanceof AdminUser ? self::demo($user) : null,
         ]];
+    }
+
+    /**
+     * The rail's demo strip. A count that cannot be read (a locked table) costs the strip, never the
+     * page: the strip only informs — `demo:assert-clean` is what guards a production database.
+     *
+     * @return array{rows: int, canPurge: bool}|null
+     */
+    private static function demo(AdminUser $user): ?array
+    {
+        try {
+            $rows = DemoTables::cachedTotal();
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
+
+        return $rows > 0 ? ['rows' => $rows, 'canPurge' => (new DemoDataPolicy)->purge($user)] : null;
     }
 
     /**

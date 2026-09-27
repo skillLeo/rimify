@@ -109,7 +109,9 @@ describe('the rows', function (): void {
             ->and($orders[1])->toMatchArray([
                 'customer' => 'Jonas Weber',
                 'email' => 'jonas@example.de',
-                'total' => "1.425,00\u{00A0}€",
+                // Minor units: the page writes the amount (num.ts formatMoney: 1.425,00 €).
+            'total' => 142_500,
+            'currency' => 'EUR',
                 'payment' => ['label' => 'Bezahlt', 'tone' => 'plain'],
                 'fulfilment' => ['label' => 'Versendet', 'tone' => 'plain'],
                 'paymentMethod' => 'PayPal',

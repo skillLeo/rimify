@@ -420,4 +420,14 @@ function print(): void {
         transition: none;
     }
 }
+
+/* A finger's target: the switch's own box grows to 44 px, its track stays 32 × 20 (the background
+   drawn in the content box only). */
+@media (pointer: coarse), (max-width: 767px) {
+    .period__switch {
+        box-sizing: content-box;
+        padding: var(--sp-12) var(--sp-8);
+        background-clip: content-box;
+    }
+}
 </style>

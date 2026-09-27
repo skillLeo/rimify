@@ -244,6 +244,8 @@ final class DemoDashboard
             Setting::set(DemoTables::SETTING, ['anchor' => $day, 'scale' => $scale, 'seed' => self::SEED]);
         });
 
+        DemoTables::forget();
+
         return DemoTables::counts();
     }
 

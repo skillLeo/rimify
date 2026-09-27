@@ -21,14 +21,24 @@ use Illuminate\Support\Facades\DB;
  * function, so the answer is the same on MySQL and on MariaDB without time-zone tables, across a
  * clock change included.
  *
- * A tile with nothing to count says so in a sentence; it never shows a zero that reads like a
- * result. A change needs a previous period with something in it: "+∞ %" is not a number.
+ * A tile is a figure, its unit and exactly one line under it (the brief's density pass). Zero is a
+ * figure like any other: `0 €`, `0`. Only a figure that cannot be computed — an average of nothing —
+ * has none, and then the line says why in a few words. The line is the change against the previous
+ * period while comparing (or why there is none), otherwise one fact about the figure's own orders.
+ * The figure goes out as a number and is written by the page (num.ts: whole euros on a tile).
  *
  * @phpstan-type Delta array{value: float, direction: 'up'|'down'|'flat', label: string}
- * @phpstan-type Tile array{key: string, label: string, hint: string, value: string|null, empty: string|null, delta: Delta|null, deltaNote: string|null, series: list<int|float|null>, note: string|null, href: string|null}
+ * @phpstan-type Sub array{text: string, kind: 'delta'|'note'|'reason', direction: 'up'|'down'|'flat'|null}
+ * @phpstan-type Tile array{key: string, label: string, hint: string, value: int|null, unit: 'EUR'|null, sub: Sub, series: list<int|float|null>, href: string|null}
  */
 final class SalesFigures
 {
+    /** Why an average of no orders has no figure. */
+    public const NO_ORDERS = 'noch keine bezahlte Bestellung';
+
+    /** Why a change cannot be given: nothing to compare with. */
+    public const NO_PREVIOUS = 'Vorzeitraum ohne bezahlte Bestellung';
+
     /** @return array{tiles: list<Tile>, demo: bool} */
     public function for(Period $period, bool $compare): array
     {
@@ -68,42 +78,38 @@ final class SalesFigures
         $extremes = $count > 0 ? $this->extremes($period) : null;
 
         $tiles = [
-            $this->tile(
+            self::tile(
                 'umsatz',
                 'Umsatz',
                 'Summe der bezahlten, nicht erstatteten Bestellungen, nach Bestelldatum.',
-                $count > 0 ? GermanFormat::money($revenue) : null,
-                'Keine bezahlte Bestellung in diesem Zeitraum.',
-                $count > 0 ? self::delta($revenue, $prevRevenue) : null,
-                $compare,
+                $revenue,
+                'EUR',
+                self::sub($compare, self::delta($revenue, $prevRevenue), $count > 0 ? self::strongestDay($period, $current['revenue']) : null, 'keine bezahlte Bestellung'),
                 $sparkRevenue,
                 $list(),
-                $count > 0 ? self::strongestDay($period, $current['revenue']) : null,
             ),
-            $this->tile(
+            self::tile(
                 'bestellungen',
                 'Bestellungen',
                 'Bezahlte, nicht erstattete Bestellungen im Zeitraum.',
-                $count > 0 ? GermanFormat::integer($count) : null,
+                $count,
+                null,
                 // Only paid ones are counted: „keine Bestellungen“ would be untrue beside unpaid ones.
-                'Keine bezahlte Bestellung in diesem Zeitraum.',
-                $count > 0 ? self::delta($count, $prevCount) : null,
-                $compare,
+                self::sub($compare, self::delta($count, $prevCount), $extremes === null ? null : self::latest($extremes['latest'], $period), 'keine bezahlte Bestellung'),
                 $sparkCount,
                 $list(),
-                $extremes === null ? null : self::latest($extremes['latest'], $period),
             ),
-            $this->tile(
+            self::tile(
                 'bestellwert',
                 'Ø Bestellwert',
                 'Umsatz geteilt durch die Zahl der Bestellungen.',
-                $average === null ? null : GermanFormat::money($average),
-                'Ohne Bestellung gibt es keinen Durchschnitt.',
-                $average === null ? null : self::delta($average, $prevAverage),
-                $compare,
+                $average,
+                'EUR',
+                $average === null
+                    ? ['text' => self::NO_ORDERS, 'kind' => 'reason', 'direction' => null]
+                    : self::sub($compare, self::delta($average, $prevAverage), $extremes === null ? null : 'höchster Bestellwert '.GermanFormat::money($extremes['largest']), self::NO_ORDERS),
                 $averageSeries,
                 $list(['sort' => 'summe']),
-                $extremes === null ? null : 'höchster Bestellwert '.GermanFormat::money($extremes['largest']),
             ),
             $this->openTile(),
         ];
@@ -175,18 +181,16 @@ final class SalesFigures
             };
         }
 
-        return [
-            'key' => 'offen',
-            'label' => 'Offene Bestellungen',
-            'hint' => 'Bezahlt oder in Bearbeitung, noch nicht versendet — Stand jetzt, unabhängig vom Zeitraum.',
-            'value' => $count > 0 ? GermanFormat::integer($count) : null,
-            'empty' => 'Alles versendet. Keine Bestellung wartet.',
-            'delta' => null,
-            'deltaNote' => null,
-            'series' => [],
-            'note' => $note,
-            'href' => '/admin/bestellungen?'.http_build_query(['status' => OrderList::OPEN, 'sort' => 'datum', 'richtung' => 'auf']),
-        ];
+        return self::tile(
+            'offen',
+            'Offene Bestellungen',
+            'Bezahlt oder in Bearbeitung, noch nicht versendet — Stand jetzt, unabhängig vom Zeitraum.',
+            $count,
+            null,
+            ['text' => $note ?? 'alles versendet', 'kind' => 'note', 'direction' => null],
+            [],
+            '/admin/bestellungen?'.http_build_query(['status' => OrderList::OPEN, 'sort' => 'datum', 'richtung' => 'auf']),
+        );
     }
 
     /**
@@ -262,30 +266,42 @@ final class SalesFigures
     }
 
     /**
-     * @param  Delta|null  $delta
+     * @param  'EUR'|null  $unit
+     * @param  Sub  $sub
      * @param  list<int|float|null>  $series
      * @return Tile
      */
-    private function tile(string $key, string $label, string $hint, ?string $value, string $empty, ?array $delta, bool $compare, array $series, string $href, ?string $fact = null): array
+    public static function tile(string $key, string $label, string $hint, ?int $value, ?string $unit, array $sub, array $series, ?string $href): array
     {
-        $note = null;
-
-        if ($compare && $value !== null && $delta === null) {
-            $note = 'Im Vorzeitraum keine Bestellung';
-        }
-
         return [
             'key' => $key,
             'label' => $label,
             'hint' => $hint,
             'value' => $value,
-            'empty' => $value === null ? $empty : null,
-            'delta' => $delta,
-            'deltaNote' => $note,
-            'series' => $value === null ? [] : $series,
-            'note' => $value === null ? null : $fact,
+            'unit' => $unit,
+            'sub' => $sub,
+            // A curve of nothing is a flat line along the floor: none is drawn.
+            'series' => $value === null || array_sum(array_map(static fn (int|float|null $v): float => (float) $v, $series)) === 0.0 ? [] : $series,
             'href' => $href,
         ];
+    }
+
+    /**
+     * A tile's one line: comparing, the change — or why there is none; otherwise the fact, or what
+     * stands for it when there is nothing to tell.
+     *
+     * @param  Delta|null  $delta
+     * @return Sub
+     */
+    public static function sub(bool $compare, ?array $delta, ?string $fact, string $none, string $noPrevious = self::NO_PREVIOUS): array
+    {
+        if ($compare) {
+            return $delta === null
+                ? ['text' => $noPrevious, 'kind' => 'reason', 'direction' => null]
+                : ['text' => $delta['label'], 'kind' => 'delta', 'direction' => $delta['direction']];
+        }
+
+        return ['text' => $fact ?? $none, 'kind' => 'note', 'direction' => null];
     }
 
     /**

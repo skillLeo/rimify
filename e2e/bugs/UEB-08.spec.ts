@@ -49,20 +49,21 @@ test('UEB-08 Neueste Bestellungen: at 1280 px every column is in view', async ({
 
             if (first) {
                 first.customer = LONG;
-                first.total = '9.999,00 €';
+                first.total = 999_900;
             } else {
                 json.props.recentOrders = [
                     {
                         id: 990001,
                         number: 'QA-2026-099001',
                         customer: LONG,
-                        total: '9.999,00 €',
+                        total: 999_900,
                         payment: { label: 'Bezahlt', tone: 'plain' },
                         fulfilment: { label: 'In Bearbeitung', tone: 'warn' },
                         ago: 'vor 12 Tagen',
                         iso: null,
                         demo: false,
                         href: '/admin/bestellungen?q=QA-2026-099001',
+        customerHref: null,
                     },
                 ];
             }

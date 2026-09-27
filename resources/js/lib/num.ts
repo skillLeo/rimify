@@ -4,12 +4,14 @@
  * (ESLint refuses `toLocaleString` and `Intl.NumberFormat` outside this file).
  *
  *   formatNumber(1234.5, 1)        → `1.234,5`
- *   formatCurrency(142550)         → `1.425,50 €`   (tables, order detail)
- *   formatCurrency(142550, false)  → `1.426 €`      (tiles, charts: no cents)
+ *   formatMoney(5974800)           → `59.748,00 €`  (every amount: tiles, tables, charts, exports)
+ *   formatMoney(5974800, true)     → `59.748 €`     (a chart axis' round ticks only)
  *   formatPercent(12.4)            → `+12,4 %`
  *   parseNumber('1.425,50')        → 1425.5         (and `1000`, `1.000`, ` 1000 ` → 1000)
  *
- * A number and its unit are joined by a narrow no-break space, so `189 €` never breaks apart.
+ * Money is minor units (cents) everywhere — in PHP, in the props, in JS — and becomes euros only
+ * here, at the render edge. A number and its unit are joined by a narrow no-break space, so `189 €`
+ * never breaks apart.
  */
 
 export const NNBSP = ' '
@@ -33,9 +35,12 @@ export function formatNumber(value: number, digits = 0): string {
     return formatter(digits, digits).format(value)
 }
 
-/** `1.425,50 €` from integer cents; `1.426 €` without the cents, for a tile or a chart. */
-export function formatCurrency(cents: number, withCents = true): string {
-    return `${formatNumber(withCents ? cents / 100 : Math.round(cents / 100), withCents ? 2 : 0)}${NNBSP}€`
+/**
+ * `59.748,00 €` from minor units (cents) — the one way an amount becomes text. `whole` drops the
+ * cents: only for a chart axis, whose ticks are round numbers anyway.
+ */
+export function formatMoney(minorUnits: number, whole = false): string {
+    return `${formatNumber(whole ? Math.round(minorUnits / 100) : minorUnits / 100, whole ? 0 : 2)}${NNBSP}€`
 }
 
 /** `+12,4 %` (with its sign), or `12,4 %` with `sign: false`. */

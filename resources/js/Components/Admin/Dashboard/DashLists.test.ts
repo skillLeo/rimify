@@ -57,23 +57,41 @@ describe('RecentOrders', () => {
         id: 1,
         number: 'RMF-2026-1004',
         customer: 'Petra Bauer',
-        total: '1.425,00 €',
+        total: 142_500,
         payment: { label: 'Bezahlt', tone: 'plain' },
         fulfilment: { label: 'Zu versenden', tone: 'warn' },
         ago: 'vor 2 Std.',
         iso: null,
         demo: true,
         href: '/admin/bestellungen?q=RMF-2026-1004',
+        customerHref: null,
     }
 
-    it('makes each row one link, the amount right-aligned, and the age in words', () => {
+    it('links the number only — the row is no link — with the amount right-aligned and the age in words', () => {
         const wrapper = mount(RecentOrders, { props: { orders: [row] } })
         const cells = wrapper.findAll('tbody td')
 
-        expect(wrapper.findAll('tbody a')).toHaveLength(1)
-        expect(wrapper.find('tbody a').attributes('href')).toBe('/admin/bestellungen?q=RMF-2026-1004')
+        expect(cells[0]?.find('a').attributes('href')).toBe('/admin/bestellungen?q=RMF-2026-1004')
+        expect(cells[0]?.find('a').text()).toBe('RMF-2026-1004')
+        expect(wrapper.find('tbody tr').attributes('onclick')).toBeUndefined()
         expect(cells[2]?.classes()).toContain('dt__num')
         expect(cells[5]?.text()).toBe('vor 2 Std.')
+    })
+
+    it('offers its actions in the row, each named for a screen reader: open it, and the same person\'s orders', () => {
+        const wrapper = mount(RecentOrders, { props: { orders: [{ ...row, customerHref: '/admin/bestellungen?q=petra%40example.de' }] } })
+        const actions = wrapper.findAll('.dt__actions a')
+
+        expect(actions.map((a) => a.attributes('aria-label'))).toEqual(['Bestellung RMF-2026-1004 öffnen', 'Alle Bestellungen von Petra Bauer'])
+        expect(actions[1]?.attributes('href')).toBe('/admin/bestellungen?q=petra%40example.de')
+    })
+
+    it('says nothing to ship quietly in words, never as a lone dash', () => {
+        const wrapper = mount(RecentOrders, { props: { orders: [{ ...row, fulfilment: { label: 'entfällt', tone: 'none' } }] } })
+        const cell = wrapper.findAll('tbody td')[4]
+
+        expect(cell?.find('.chip').exists()).toBe(false)
+        expect(cell?.find('.chip-none').text()).toBe('entfällt')
     })
 })
 

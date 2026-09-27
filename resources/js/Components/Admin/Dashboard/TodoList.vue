@@ -28,7 +28,7 @@ defineProps<{ items: TodoItem[] }>()
 
 <style scoped>
 .todo {
-    margin: 0 calc(-1 * var(--sp-20));
+    margin: 0 calc(-1 * var(--adm-card-pad));
     padding: 0;
     list-style: none;
 }
@@ -42,7 +42,7 @@ defineProps<{ items: TodoItem[] }>()
     /* One line, 44 px, like the orders beside it (the brief's table row); a long title wraps rather
        than being cut, and the phone stacks the row. */
     min-height: var(--adm-row-h-dash);
-    padding: var(--sp-4) var(--sp-20);
+    padding: var(--sp-4) var(--adm-card-pad);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--adm-fs-table);
     line-height: var(--adm-lh-table);

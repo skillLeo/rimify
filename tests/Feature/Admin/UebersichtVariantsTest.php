@@ -83,11 +83,11 @@ describe('Katalog', function (): void {
         $kpis = variantKpis('catalogue-manager');
 
         expect(array_keys($kpis))->toBe(['bestand', 'ausverkauft', 'ohne-freigabe', 'unvollstaendig'])
-            ->and($kpis['bestand']['value'])->toBe('15')
-            ->and($kpis['bestand']['note'])->toBe('in 3 Ausführungen')
-            ->and($kpis['ausverkauft']['value'])->toBe('1')
-            ->and($kpis['ohne-freigabe']['value'])->toBe('2')
-            ->and($kpis['unvollstaendig']['value'])->toBe('1');
+            ->and($kpis['bestand']['value'])->toBe(15)
+            ->and($kpis['bestand']['sub']['text'])->toBe('in 3 Ausführungen')
+            ->and($kpis['ausverkauft']['value'])->toBe(1)
+            ->and($kpis['ohne-freigabe']['value'])->toBe(2)
+            ->and($kpis['unvollstaendig']['value'])->toBe(1);
 
         $this->actingAs(variantAdmin('catalogue-manager'), 'admin')->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page
@@ -100,9 +100,9 @@ describe('Katalog', function (): void {
     it('says so when the shop has nothing to count', function (): void {
         $kpis = variantKpis('catalogue-manager');
 
-        expect($kpis['bestand']['value'])->toBeNull()
-            ->and($kpis['bestand']['empty'])->toBe('Keine Felge auf Lager.')
-            ->and($kpis['unvollstaendig']['empty'])->toBe('Bei jeder Ausführung sind Preis, Foto, Gewicht und Traglast gepflegt.');
+        expect($kpis['bestand']['value'])->toBe(0)
+            ->and($kpis['bestand']['sub']['text'])->toBe('keine Felge auf Lager')
+            ->and($kpis['unvollstaendig']['sub']['text'])->toBe('alle Daten gepflegt');
     });
 });
 
@@ -115,12 +115,12 @@ describe('Gutachten', function (): void {
         $kpis = variantKpis('compliance-editor');
 
         expect(array_keys($kpis))->toBe(['documents', 'conflicts', 'nachfrage', 'review'])
-            ->and($kpis['documents']['value'])->toBe('2')
-            ->and($kpis['conflicts']['empty'])->toBe('Kein offener Konflikt.')
-            ->and($kpis['nachfrage']['value'])->toBe('1')
+            ->and($kpis['documents']['value'])->toBe(2)
+            ->and($kpis['conflicts']['sub']['text'])->toBe('kein offener Konflikt')
+            ->and($kpis['nachfrage']['value'])->toBe(1)
             ->and($kpis['nachfrage']['href'])->toBe('/admin/nachfrage')
-            ->and($kpis['nachfrage']['note'])->toBe('Letzte 30 Tage')
-            ->and($kpis['review']['value'])->toBe('1');
+            ->and($kpis['nachfrage']['sub']['text'])->toBe('Letzte 30 Tage')
+            ->and($kpis['review']['value'])->toBe(1);
 
         $this->actingAs(variantAdmin('compliance-editor'), 'admin')->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page
@@ -154,10 +154,10 @@ describe('Support', function (): void {
         $kpis = variantKpis('support-agent');
 
         expect(array_keys($kpis))->toBe(['wartend', 'anfragen', 'bestellungen', 'offen'])
-            ->and($kpis['wartend']['value'])->toBe('2')
+            ->and($kpis['wartend']['value'])->toBe(2)
             ->and($kpis['wartend']['href'])->toBe('/admin/anfragen')
-            ->and($kpis['anfragen']['value'])->toBe('3')
-            ->and($kpis['anfragen']['delta']['label'])->toBe(GermanFormat::percent(200.0).' zum Vorzeitraum')
+            ->and($kpis['anfragen']['value'])->toBe(3)
+            ->and($kpis['anfragen']['sub']['text'])->toBe(GermanFormat::percent(200.0).' zum Vorzeitraum')
             ->and($kpis)->not->toHaveKeys(['umsatz', 'bestellwert']);
     });
 });

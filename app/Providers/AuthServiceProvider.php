@@ -17,6 +17,7 @@ use App\Models\TpmsSensorPrice;
 use App\Policies\AdminNotificationPolicy;
 use App\Policies\BalanceWeightColourPolicy;
 use App\Policies\DemandMarkPolicy;
+use App\Policies\DemoDataPolicy;
 use App\Policies\FaqEntryPolicy;
 use App\Policies\NavItemPolicy;
 use App\Policies\OrderPolicy;
@@ -24,6 +25,7 @@ use App\Policies\PagePolicy;
 use App\Policies\SavedViewPolicy;
 use App\Policies\TpmsSensorPricePolicy;
 use App\Services\Admin\PermissionMatrix;
+use App\Services\Demo\DemoTables;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Notifications\DatabaseNotification;
@@ -57,6 +59,8 @@ final class AuthServiceProvider extends ServiceProvider
         Order::class => OrderPolicy::class,
         DemandMark::class => DemandMarkPolicy::class,
         SavedView::class => SavedViewPolicy::class,
+        // Not a model: the demo set as a whole (DemoTables), taken away from the rail's strip.
+        DemoTables::class => DemoDataPolicy::class,
     ];
 
     public function register(): void

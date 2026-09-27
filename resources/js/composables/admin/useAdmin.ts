@@ -29,6 +29,7 @@ const EMPTY: AdminShared = {
     notifications: { unread: null, offered: false },
     health: null,
     quickActions: [],
+    demo: null,
 }
 
 /** The urgent problem's banner, only in the shape the panel knows (maintenance, a dead queue). */
@@ -83,6 +84,10 @@ export function useAdmin(): ComputedRef<AdminShared> {
                       }
                     : null,
             quickActions: Array.isArray(admin.quickActions) ? admin.quickActions : [],
+            demo:
+                admin.demo && typeof admin.demo.rows === 'number' && admin.demo.rows > 0
+                    ? { rows: admin.demo.rows, canPurge: admin.demo.canPurge === true }
+                    : null,
         }
     })
 }

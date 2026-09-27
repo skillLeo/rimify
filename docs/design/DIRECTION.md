@@ -46,6 +46,13 @@ swapped for a competitor's, the section has failed.
 - Green, amber and red appear only as verdicts, stock, errors and the Felgenrechner's tolerance
   light (`sections/home-overhaul.md` §3), which never borrows the verdict component or its words.
   `Unbekannt` is neutral grey so it can never be mistaken for a refusal.
+- In a chart, where verdict areas meet without words (the Übersicht's stacked columns), the verdicts
+  wear `--chart-verdict-*`: the same four hues stepped in lightness so every pair stays apart for
+  every reader (OKLab ΔE ≥ 15, ≥ 8 under protanopia, deuteranopia and tritanopia). The badge
+  colours above fail there — *Mit Auflagen* and *Nicht freigegeben* are ΔE 0,9 apart for a
+  deuteranope. A badge always carries its word, so badges keep `--c-ok` … `--c-unk`.
+- A change against a previous period is an arrow and a sign in ink (`--delta-up`, `--delta-down`),
+  never green or red: more is not better for every figure.
 - No tinted section backgrounds. Sections alternate `--c-surface` and `--c-band`; one dark band
   (`--c-dark`) per page at most.
 - Text on dark bands is `--c-surface` (primary) and `--c-on-dark-2` (secondary). Scrims over

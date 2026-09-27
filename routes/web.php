@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\AnfragenController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\BestellungenController;
+use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenController;
@@ -258,6 +259,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy
         // through its Form Request; a deleted view can be restored („Rückgängig“).
         Route::post('/ansichten', [SavedViewsController::class, 'store'])->middleware('throttle:60,1')->name('ansichten.store');
+        // The rail's demo strip: the demo set taken away, recorded (DemoDataPolicy, DemoPurge).
+        Route::post('/demodaten/entfernen', [DemoDataController::class, 'destroy'])->middleware('throttle:6,1')->name('demodaten.purge');
+
         // A view deleted in another tab is still found, so the stale tab is told so in a sentence.
         Route::patch('/ansichten/{view}', [SavedViewsController::class, 'update'])->whereNumber('view')->withTrashed()->name('ansichten.update');
         Route::delete('/ansichten/{view}', [SavedViewsController::class, 'destroy'])->whereNumber('view')->withTrashed()->name('ansichten.destroy');

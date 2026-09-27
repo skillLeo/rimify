@@ -1,10 +1,13 @@
 /** Übersicht — UebersichtController and SalesFigures. */
 
-export interface KpiDelta {
-    value: number
-    direction: 'up' | 'down' | 'flat'
-    /** `+12,4 % zum Vorzeitraum` */
-    label: string
+/** A tile's one line under its figure. */
+export interface KpiSub {
+    /** `+12,4 % zum Vorzeitraum`, `älteste seit 3 Tagen`, `noch keine bezahlte Bestellung` */
+    text: string
+    /** The change against the previous period, a fact about the figure, or why there is no figure (or change). */
+    kind: 'delta' | 'note' | 'reason'
+    /** For a change: which way (the arrow). */
+    direction: 'up' | 'down' | 'flat' | null
 }
 
 export interface Kpi {
@@ -12,17 +15,12 @@ export interface Kpi {
     label: string
     /** What the figure counts — shown on hover and read with the link. */
     hint: string
-    /** Formatted German; null when there is nothing to count. */
-    value: string | null
-    /** The sentence shown instead of a zero. */
-    empty: string | null
-    delta: KpiDelta | null
-    /** Why a change is missing although comparing is on („Im Vorzeitraum keine Bestellung“). */
-    deltaNote: string | null
+    /** The figure: cents where `unit` is EUR, else a count. Zero is a figure; null only where none can be computed. */
+    value: number | null
+    unit: 'EUR' | null
+    sub: KpiSub
     /** One value per day of the period; null where a day has no value (an average without orders). */
     series: (number | null)[]
-    /** A state's own line: `Stand jetzt`, `älteste seit 3 Tagen`. */
-    note: string | null
     /** The list that shows exactly what the figure counts; null where this role cannot open it. */
     href: string | null
 }
@@ -45,14 +43,18 @@ export interface DashboardOrderRow {
     id: number
     number: string
     customer: string
-    total: string
+    /** Minor units (cents); written by num.ts formatMoney. */
+    total: number
     payment: { label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' }
-    fulfilment: { label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' }
+    /** `none`: nothing to ship, said quietly („noch nicht versandt“, „entfällt“) — not a chip. */
+    fulfilment: { label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' | 'none' }
     /** `vor 2 Std.` */
     ago: string | null
     iso: string | null
     demo: boolean
     href: string
+    /** Every order of the same person — a row action. */
+    customerHref: string | null
 }
 
 export interface TodoItem {
@@ -85,17 +87,31 @@ export interface ChartPoint {
     key: string
     /** `24.09.2026` */
     label: string
-    /** For the scale: cents, or a count. */
+    /** Cents. */
     value: number
-    /** For the tooltip and the table: `1.425,00 €`. */
-    text: string
+    /** Paid orders that day. */
+    orders: number
 }
 
 export interface RevenueChart {
     points: ChartPoint[]
     /** The previous period, day for day; null with comparing off. */
     previous: ChartPoint[] | null
-    total: string
+    /** Cents: the sum of the days, the Umsatz tile's figure. */
+    total: number
+}
+
+/** One Felge in the ranking: the model, and the size most of its orders took. */
+export interface TopWheel {
+    key: string
+    /** `MOTEC MCR4 Ultimate` */
+    label: string
+    brand: string
+    name: string
+    /** `8,5J × 19` */
+    size: string | null
+    /** Paid orders holding it. */
+    value: number
 }
 
 export interface VerdictWeek {
@@ -113,6 +129,9 @@ export interface VerdictChart {
     weeks: VerdictWeek[]
     /** The first day counted: `27.09.2026`. */
     since: string | null
+    /** The period's Prüfungen, and how many were freigegeben (the Freigabequote is one ÷ the other). */
+    checks: number
+    permitted: number
 }
 
 export interface CoverageCell {
@@ -185,7 +204,7 @@ export interface DashboardCharts {
     /** false: not for this role; null: nothing to draw yet — or its query failed (then in `failed`). */
     revenue: RevenueChart | null | false
     verdicts: VerdictChart | null | false
-    topWheels: ChartPoint[] | null | false
+    topWheels: TopWheel[] | null | false
     coverage: CoverageMatrix | null | false
     demand: DemandList | null | false
     /** The charts whose query failed: each widget says so and offers „Erneut versuchen“. */

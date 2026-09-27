@@ -188,6 +188,33 @@
     --chart-div-mid: #e2e5e9;
     --chart-div-pos: #1a44d4;
 
+    /* The four verdicts where their areas meet without words (a stacked column): the verdict hues
+       (§2) stepped in lightness so every pair stays apart for every reader — OKLab ΔE ≥ 15, ≥ 8
+       under protanopia, deuteranopia and tritanopia, each ≥ 3:1 on the surface (palette.test.ts).
+       Reserved for verdicts: nothing else on a page wears them. Badges keep --c-ok … --c-unk. */
+    --chart-verdict-permitted: #31663a;
+    --chart-verdict-conditional: #c38323;
+    --chart-verdict-refused: #6f1915;
+    --chart-verdict-unknown: #7b8187;
+
+    /* A change against the previous period: an arrow and a sign in ink, never a verdict's or a
+       status's colour — up is not „good“ and down is not „bad“ for every figure. */
+    --delta-up: var(--c-ink);
+    --delta-down: var(--c-ink);
+
+    /* A chart's plot: its only minimum height (cards have none). Smaller below 1280 and 768. */
+    --adm-plot-h: 260px;
+
+    /* The Übersicht's gutter: 24 px from 1280, 16 px below. */
+    --adm-dash-gap: 24px;
+
+    /* Inside every card on the Übersicht — tiles, widgets, Heute — one padding. */
+    --adm-card-pad: var(--sp-20);
+
+    /* The caption under a chart: what it counts, two lines at most. */
+    --adm-fs-caption: 13.5px;
+    --adm-lh-caption: 20px;
+
     /* A matrix cell pointed at or focused: a 2 px ring in ink, inside the cell. */
     --chart-cell-hover: inset 0 0 0 2px var(--c-ink);
     /* …and a cell with nothing in it: its hairline only. */
@@ -246,6 +273,14 @@
     }
 }
 
+/* The Übersicht below its full width: a tighter gutter, lower plots. */
+@media (max-width: 1279px) {
+    :root {
+        --adm-plot-h: 200px;
+        --adm-dash-gap: 16px;
+    }
+}
+
 /* The tablet scale. Below 1024px a 64px headline is a wall, not a title. */
 @media (max-width: 1023px) {
     :root {
@@ -289,6 +324,7 @@
         --lh-h4: 24px;
         --fs-body-l: 16px;
         --lh-body-l: 24px;
+        --adm-plot-h: 168px;
     }
 }
 

@@ -27,10 +27,16 @@ const GRADIENT_ALLOWLIST = ['.photo-scrim', '.band-scrim', '.hero-studio', '.her
 const tokens = readFileSync('resources/css/tokens.css', 'utf8')
 const names = [...new Set([...tokens.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]))]
 const byPrefix = (prefix) => names.filter((n) => n.startsWith(prefix))
+/* A token's first written value, to tell a chart's colours from its shadows. */
+const raw = Object.fromEntries([...tokens.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)].reverse().map((m) => [m[1], m[2].trim()]))
+const chart = byPrefix('chart-')
 const TOKENS = {
-    colours: byPrefix('c-'),
-    shadows: byPrefix('e-'),
-    sizes: byPrefix('fs-'),
+    // The palette, and the charts' own colours (DIRECTION §2, the chart palette and verdict colours).
+    colours: [...byPrefix('c-'), ...chart.filter((n) => /^(#|var\(--c-|rgb)/.test(raw[n] ?? ''))],
+    // The elevations, and the charts' rings and cell edges.
+    shadows: [...byPrefix('e-'), ...chart.filter((n) => /inset|^0 0 0/.test(raw[n] ?? ''))],
+    // The type scale, and the admin's own steps (--adm-fs-*, the wordmark).
+    sizes: names.filter((n) => /(^|-)fs-/.test(n) || n.endsWith('wordmark-size')),
     radii: byPrefix('r-'),
     families: byPrefix('font-'),
 }
