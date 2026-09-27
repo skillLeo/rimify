@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import type { ListViewItem, ListViewsProps } from '../../../types/admin/lists'
+import type { ColumnsInForce, ListViewItem, ListViewsProps } from '../../../types/admin/lists'
 
 /*
  * The views above a list: the whole list, the person's own views, those shared with their role —
@@ -52,15 +52,29 @@ vi.mock('../../Chrome/toast', () => ({ toast: { show: (...a: unknown[]) => shown
 const { default: ListViews } = await import('./ListViews.vue')
 
 function item(overrides: Partial<ListViewItem> = {}): ListViewItem {
-    return { id: 1, name: 'Bezahlt', href: '/admin/bestellungen?status=bezahlt&ansicht=1', mine: true, sharedWith: null, roleId: null, owner: null, ...overrides }
+    return {
+        id: 1,
+        name: 'Bezahlt',
+        href: '/admin/bestellungen?status=bezahlt&ansicht=1',
+        query: { status: 'bezahlt' },
+        storesColumns: false,
+        columns: null,
+        mine: true,
+        sharedWith: null,
+        roleId: null,
+        owner: null,
+        ...overrides,
+    }
 }
 
 function views(overrides: Partial<ListViewsProps> = {}): ListViewsProps {
-    return { items: [item()], active: null, missing: false, modified: false, shareOptions: [], canSave: true, limit: 30, ...overrides }
+    return { items: [item()], active: null, missing: false, shareOptions: [], canSave: true, limit: 30, ...overrides }
 }
 
-function mountBar(v: ListViewsProps, query: Record<string, string> = {}) {
-    return mount(ListViews, { props: { list: 'bestellungen', base: '/admin/bestellungen', allLabel: 'Alle Bestellungen', views: v, query } })
+const MINE: ColumnsInForce = { keys: ['nummer', 'datum', 'summe'], fromView: false }
+
+function mountBar(v: ListViewsProps, query: Record<string, string> = {}, columns: ColumnsInForce = MINE) {
+    return mount(ListViews, { props: { list: 'bestellungen', base: '/admin/bestellungen', allLabel: 'Alle Bestellungen', views: v, query, columns } })
 }
 
 const labels = (wrapper: ReturnType<typeof mountBar>): string[] => wrapper.findAll('.lv__actions button, .lv__actions a').map((b) => b.text())
@@ -113,24 +127,74 @@ describe('ListViews', () => {
     })
 
     it('lets the owner save over a changed view or set it back — never a view shared by somebody else', () => {
-        const own = mountBar(views({ active: 1, modified: true }), { status: 'offen' })
+        const own = mountBar(views({ active: 1 }), { status: 'offen' })
         expect(labels(own)).toEqual(['Änderungen speichern', 'Verwerfen', 'Als Ansicht speichern'])
         expect(own.find('.lv__actions a').attributes('href')).toBe('/admin/bestellungen?status=bezahlt&ansicht=1')
         expect(own.find('.lv__changed').text()).toBe('geändert')
 
-        const shared = mountBar(views({ items: [item({ mine: false, owner: 'Sabine Roth' })], active: 1, modified: true }), { status: 'offen' })
+        const shared = mountBar(views({ items: [item({ mine: false, owner: 'Sabine Roth' })], active: 1 }), { status: 'offen' })
         expect(labels(shared)).toEqual(['Als Ansicht speichern'])
         expect(shared.find('.lv__more').exists()).toBe(false)
     })
 
-    it('saves the filters on screen into the open view', async () => {
-        const wrapper = mountBar(views({ active: 1, modified: true }), { status: 'offen' })
+    it('does not call a view changed for an amount spelled another way (SV-13)', () => {
+        const saved = item({ query: { min: '1.000', status: 'bezahlt' } })
+
+        for (const onScreen of ['1000', '1.000', ' 1000 ']) {
+            const wrapper = mountBar(views({ items: [saved], active: 1 }), { status: 'bezahlt', min: onScreen })
+
+            expect(wrapper.find('.lv__changed').exists()).toBe(false)
+            expect(labels(wrapper)).toEqual([])
+        }
+
+        // A different amount is a change.
+        expect(mountBar(views({ items: [saved], active: 1 }), { status: 'bezahlt', min: '1001' }).find('.lv__changed').exists()).toBe(true)
+    })
+
+    it('saves the filters on screen into the open view — and the person\'s columns never', async () => {
+        const wrapper = mountBar(views({ active: 1 }), { status: 'offen' })
 
         await wrapper.find('.lv__actions button').trigger('click')
 
         expect(router.patch).toHaveBeenCalledWith('/admin/ansichten/1', { query: { status: 'offen' } }, expect.anything())
     })
+})
 
+describe('ListViews with a view that keeps its columns', () => {
+    const withColumns = item({ storesColumns: true, columns: ['nummer', 'datum', 'fahrzeug'] })
+    const fromView = (keys: string[]): ColumnsInForce => ({ keys, fromView: true })
+
+    it('says whose columns are shown next to the view, and gives the person\'s own back', async () => {
+        const wrapper = mountBar(views({ items: [withColumns], active: 1 }), { status: 'bezahlt' }, fromView(['nummer', 'datum', 'fahrzeug']))
+
+        expect(wrapper.find('.lv__cols').text()).toContain('Spalten aus dieser Ansicht')
+        // Its own columns as saved: the view is unchanged.
+        expect(wrapper.find('.lv__changed').exists()).toBe(false)
+
+        await wrapper.find('.lv__own').trigger('click')
+        expect(wrapper.emitted('ownColumns')).toHaveLength(1)
+    })
+
+    it('says nothing of columns while the person\'s own are shown', () => {
+        const wrapper = mountBar(views({ items: [withColumns], active: 1 }), { status: 'bezahlt' })
+
+        expect(wrapper.find('.lv__cols').exists()).toBe(false)
+        // The person's columns differ from the view's — that is no change to the view.
+        expect(wrapper.find('.lv__changed').exists()).toBe(false)
+    })
+
+    it('reads as changed when its columns change on screen, and saves them over with the filters', async () => {
+        const wrapper = mountBar(views({ items: [withColumns], active: 1 }), { status: 'bezahlt' }, fromView(['nummer', 'summe']))
+
+        expect(wrapper.find('.lv__changed').text()).toBe('geändert')
+        expect(labels(wrapper)).toEqual(['Änderungen speichern', 'Verwerfen', 'Als Ansicht speichern'])
+
+        await wrapper.find('.lv__actions button').trigger('click')
+        expect(router.patch).toHaveBeenCalledWith('/admin/ansichten/1', { query: { status: 'bezahlt' }, columns: ['nummer', 'summe'] }, expect.anything())
+    })
+})
+
+describe('ListViews, deleting and naming', () => {
     it('deletes the open view and brings it back from the toast', async () => {
         const wrapper = mountBar(views({ active: 1 }), { status: 'bezahlt' })
 
@@ -148,7 +212,7 @@ describe('ListViews', () => {
     })
 
     it('opens the dialog to rename and share the open view, and to save a new one', async () => {
-        const wrapper = mountBar(views({ active: 1, modified: true }), { status: 'offen' })
+        const wrapper = mountBar(views({ active: 1 }), { status: 'offen' })
 
         await wrapper.findAll('.adm-menu__item').find((b) => b.text().includes('Umbenennen'))?.trigger('click')
         expect(wrapper.find('.dialog-stub').attributes()).toMatchObject({ 'data-open': 'true', 'data-view': '1' })

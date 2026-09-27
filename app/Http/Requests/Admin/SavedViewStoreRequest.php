@@ -39,6 +39,10 @@ class SavedViewStoreRequest extends FormRequest
             'query' => ['present', 'array', 'max:20'],
             'query.*' => ['nullable', 'string', 'max:120'],
             'role_id' => ['nullable', 'integer'],
+            // „Spalten mitspeichern“: off unless asked for; then the columns on screen go with the view.
+            'stores_columns' => ['sometimes', 'boolean'],
+            'columns' => ['nullable', 'array', 'max:30'],
+            'columns.*' => ['string', 'max:32'],
         ];
     }
 
@@ -64,6 +68,7 @@ class SavedViewStoreRequest extends FormRequest
                 }
 
                 SavedViewRules::check($validator, $this->admin(), $this->list(), $this->name(), $this->viewQuery(), $this->roleId(), null);
+                SavedViewRules::checkColumns($validator, $this->list(), $this->storesColumns(), $this->rawColumns());
             },
         ];
     }
@@ -97,5 +102,28 @@ class SavedViewStoreRequest extends FormRequest
     public function roleId(): ?int
     {
         return $this->filled('role_id') ? (int) $this->input('role_id') : null;
+    }
+
+    public function storesColumns(): bool
+    {
+        return $this->boolean('stores_columns');
+    }
+
+    /** @return array<array-key, mixed>|null */
+    public function rawColumns(): ?array
+    {
+        $columns = $this->input('columns');
+
+        return is_array($columns) ? $columns : null;
+    }
+
+    /**
+     * The columns the view keeps, in the list's order; null when it keeps none.
+     *
+     * @return list<string>|null
+     */
+    public function viewColumns(): ?array
+    {
+        return $this->storesColumns() ? AdminLists::columns($this->list(), $this->rawColumns()) : null;
     }
 }

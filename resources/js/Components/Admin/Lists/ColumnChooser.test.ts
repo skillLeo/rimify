@@ -44,20 +44,23 @@ const COLUMNS: ListColumn[] = [
 ]
 const DEFAULTS = ['nummer', 'datum', 'summe']
 
-function mountChooser(start: string[] = DEFAULTS, sorted: string | null = null) {
+function mountChooser(start: string[] = DEFAULTS, sorted: string | null = null, owner: 'person' | 'view' = 'person') {
     const shown = ref([...start])
-    const fetch = vi.fn(async () => ({ ok: true }))
+    const fetch = vi.fn(async (_url: string, _init: { body: string }) => ({ ok: true }))
     vi.stubGlobal('fetch', fetch)
 
     const wrapper = mount(
         defineComponent({
             setup: () => () =>
-                h(ColumnChooser, { list: 'bestellungen', columns: COLUMNS, defaults: DEFAULTS, sorted, shown: shown.value, 'onUpdate:shown': (v: string[]) => (shown.value = v) }),
+                h(ColumnChooser, { list: 'bestellungen', columns: COLUMNS, defaults: DEFAULTS, sorted, owner, shown: shown.value, 'onUpdate:shown': (v: string[]) => (shown.value = v) }),
         })
     )
 
     return { wrapper, shown, fetch }
 }
+
+const sent = (fetch: ReturnType<typeof mountChooser>['fetch'], n = 0): { list: string; columns: string[]; rev: number } =>
+    JSON.parse(fetch.mock.calls[n]?.[1].body ?? '{}') as { list: string; columns: string[]; rev: number }
 
 const boxes = (wrapper: ReturnType<typeof mountChooser>['wrapper']) => wrapper.findAll('[role="menuitemcheckbox"]')
 
@@ -78,7 +81,27 @@ describe('ColumnChooser', () => {
         await boxes(wrapper)[2]?.trigger('click')
 
         expect(shown.value).toEqual(['nummer', 'datum', 'fahrzeug', 'summe'])
-        expect(fetch).toHaveBeenCalledWith('/admin/ansicht', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ list: 'bestellungen', columns: ['nummer', 'datum', 'fahrzeug', 'summe'] }) }))
+        expect(fetch).toHaveBeenCalledWith('/admin/ansicht', expect.objectContaining({ method: 'PATCH' }))
+        expect(sent(fetch)).toMatchObject({ list: 'bestellungen', columns: ['nummer', 'datum', 'fahrzeug', 'summe'] })
+    })
+
+    it('numbers every save higher than the last, so a late answer cannot put an older choice back', async () => {
+        const { wrapper, fetch } = mountChooser()
+
+        await boxes(wrapper)[2]?.trigger('click')
+        await boxes(wrapper)[1]?.trigger('click')
+
+        expect(sent(fetch, 1).rev).toBeGreaterThan(sent(fetch, 0).rev)
+    })
+
+    it('changes an open view\'s own columns on screen, and never the account\'s', async () => {
+        const { wrapper, shown, fetch } = mountChooser(DEFAULTS, null, 'view')
+
+        expect(wrapper.text()).toContain('Spalten dieser Ansicht')
+        await boxes(wrapper)[2]?.trigger('click')
+
+        expect(shown.value).toEqual(['nummer', 'datum', 'fahrzeug', 'summe'])
+        expect(fetch).not.toHaveBeenCalled()
     })
 
     it('takes a column away, and puts back the list\'s own set with „Standard“', async () => {

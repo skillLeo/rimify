@@ -9,6 +9,10 @@
  * „Verwerfen“ opens it as it was. The open view of one's own has a menu: rename and share, delete —
  * and a deleted view comes back with „Rückgängig“ in the toast. Shared views are for using: only
  * their owner changes them.
+ *
+ * „Geändert“ is decided here, on what the filters mean (normalizeViewState on both sides, SV-13):
+ * `1000` typed where the view keeps `1.000` is the same view. A view saved with its columns shows
+ * them, says so next to its name, and gives the person's own back with one button — the view stays.
  */
 
 import { Link, router } from '@inertiajs/vue3'
@@ -17,7 +21,8 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import Icon from '../AdminIcon.vue'
 import SaveViewDialog from './SaveViewDialog.vue'
 import { toast } from '../../Chrome/toast'
-import type { ListViewItem, ListViewsProps } from '../../../types/admin/lists'
+import { sameViewState } from '../../../lib/viewState'
+import type { ColumnsInForce, ListViewItem, ListViewsProps } from '../../../types/admin/lists'
 
 const props = defineProps<{
     list: string
@@ -28,7 +33,12 @@ const props = defineProps<{
     views: ListViewsProps
     /** The filters and sort on screen, as the server wrote them. */
     query: Record<string, string>
+    /** The columns on screen, and whether they are the open view's own. */
+    columns: ColumnsInForce
 }>()
+
+/** „Meine Spalten wiederherstellen“: the page shows the person's own columns, the view stays open. */
+const emit = defineEmits<{ ownColumns: [] }>()
 
 const activeView = computed(() => props.views.items.find((view) => view.id === props.views.active) ?? null)
 const filtersOn = computed(() => Object.keys(props.query).length > 0)
@@ -36,15 +46,29 @@ const filtersOn = computed(() => Object.keys(props.query).length > 0)
 /** „Alle“ is where one is with no view and nothing filtered — in whatever order: all is all. */
 const allCurrent = computed(() => props.views.active === null && Object.keys(props.query).every((key) => key === 'sort' || key === 'richtung'))
 
-/** Filters on screen that no view keeps as they are. */
-const wantsSave = computed(() => filtersOn.value && (activeView.value === null || props.views.modified))
+/** The open view's own columns changed on screen — only while they are the ones shown. */
+const columnsChanged = computed(() => {
+    const view = activeView.value
+
+    return view !== null && props.columns.fromView && !sameViewState({ columns: view.columns ?? [] }, { columns: props.columns.keys })
+})
+
+/** The open view, no longer as it was saved: its filters, or its own columns. */
+const modified = computed(() => {
+    const view = activeView.value
+
+    return view !== null && (!sameViewState(view.query, props.query) || columnsChanged.value)
+})
+
+/** Filters (or a view's columns) on screen that no view keeps as they are. */
+const wantsSave = computed(() => (filtersOn.value || columnsChanged.value) && (activeView.value === null || modified.value))
 const offerSave = computed(() => props.views.canSave && wantsSave.value)
 
 /** The same wish at the limit of views: said, rather than the button simply gone. */
 const atLimit = computed(() => !props.views.canSave && wantsSave.value)
 
 /** The person's own view, open and changed. */
-const offerSaveOver = computed(() => activeView.value !== null && activeView.value.mine && props.views.modified)
+const offerSaveOver = computed(() => activeView.value !== null && activeView.value.mine && modified.value)
 
 const dialogOpen = ref(false)
 const editing = ref<ListViewItem | null>(null)
@@ -68,7 +92,8 @@ function saveOver(): void {
     }
 
     busy.value = true
-    router.patch(`/admin/ansichten/${view.id}`, { query: props.query }, {
+    // The view's own columns go with it while they are the ones on screen; the person's never do.
+    router.patch(`/admin/ansichten/${view.id}`, props.columns.fromView ? { query: props.query, columns: props.columns.keys } : { query: props.query }, {
         preserveScroll: true,
         // The button goes with the change it saved: the focus goes to the view.
         onSuccess: () => void nextTick(() => focusTab('current')),
@@ -151,7 +176,7 @@ function sharedNote(view: ListViewItem): string {
                     {{ view.name }}
                     <span class="visually-hidden">{{ sharedNote(view) }}</span>
                     <!-- The comma keeps a screen reader from running the name into „geändert“. -->
-                    <template v-if="view.id === views.active && views.modified">
+                    <template v-if="view.id === views.active && modified">
                         <span class="visually-hidden">, </span>
                         <span class="lv__changed">geändert</span>
                     </template>
@@ -175,6 +200,12 @@ function sharedNote(view: ListViewItem): string {
                         </DropdownMenuContent>
                     </DropdownMenuPortal>
                 </DropdownMenuRoot>
+
+                <!-- Quiet, next to the view: whose columns these are, and the way back to one's own. -->
+                <span v-if="view.id === views.active && columns.fromView" class="lv__cols">
+                    Spalten aus dieser Ansicht
+                    <button class="lv__own" type="button" @click="emit('ownColumns')">Meine Spalten wiederherstellen</button>
+                </span>
             </span>
         </nav>
 
@@ -198,7 +229,15 @@ function sharedNote(view: ListViewItem): string {
         Die verlinkte Ansicht gibt es nicht mehr oder sie ist nicht mit dir geteilt. Die Filter aus dem Link gelten trotzdem.
     </p>
 
-    <SaveViewDialog v-model:open="dialogOpen" :list="list" :query="query" :share-options="views.shareOptions" :view="editing" @saved="focusTab('current')" />
+    <SaveViewDialog
+        v-model:open="dialogOpen"
+        :list="list"
+        :query="query"
+        :columns="columns.keys"
+        :share-options="views.shareOptions"
+        :view="editing"
+        @saved="focusTab('current')"
+    />
 </template>
 
 <style scoped>
@@ -258,8 +297,48 @@ function sharedNote(view: ListViewItem): string {
     color: var(--c-ink-3);
 }
 
+/* „Spalten aus dieser Ansicht“: a note beside the view, not a control of its own weight. */
+.lv__cols {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--sp-8);
+    margin-left: var(--sp-8);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+    white-space: nowrap;
+}
+
+.lv__own {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--adm-control-h);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--c-ink-2);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .lv__own:hover {
+        color: var(--c-ink);
+    }
+}
+
+@media (pointer: coarse) {
+    .lv__own {
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
 /* The row scrolls sideways, which clips anything drawn outside it: the ring goes inside. */
-.lv__more:focus-visible {
+.lv__more:focus-visible,
+.lv__own:focus-visible {
     outline-offset: -2px;
 }
 

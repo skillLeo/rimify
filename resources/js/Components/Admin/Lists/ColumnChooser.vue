@@ -6,11 +6,16 @@
  * away. A change shows at once and is kept on the account behind it (AdminLists on the server), so
  * the list opens the same way next time, on any machine. „Standard“ puts back the list's own set.
  * The menu stays open while columns are ticked — choosing three columns is one visit, not three.
+ *
+ * While an open view shows its own columns („Spalten mitspeichern“), the menu changes those: the
+ * change stays on screen, the view reads as changed, and its owner can save it into the view. The
+ * person's own set is not touched.
  */
 
 import { DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuItemIndicator, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import Icon from '../AdminIcon.vue'
 import { savePreference } from '../../../composables/admin/preferences'
+import { nextRev } from '../../../composables/admin/railResize'
 import type { ListColumn } from '../../../types/admin/lists'
 
 const props = defineProps<{
@@ -20,6 +25,8 @@ const props = defineProps<{
     defaults: string[]
     /** The column the list is sorted by: shown and fixed while the sort lasts. */
     sorted?: string | null
+    /** Whose columns these are: the person's own (kept on the account), or the open view's. */
+    owner?: 'person' | 'view'
 }>()
 
 const fixed = (column: ListColumn): boolean => column.required || column.key === props.sorted
@@ -30,9 +37,18 @@ function inOrder(keys: Set<string>): string[] {
     return props.columns.filter((column) => column.required || keys.has(column.key)).map((column) => column.key)
 }
 
+/* Each save carries a revision that only grows: two quick ticks whose requests overtake each other
+   leave the later choice stored, not the earlier (AdminUser::rememberColumns). */
+let rev = 0
+
 function choose(next: string[]): void {
     shown.value = next
-    void savePreference({ list: props.list, columns: next })
+
+    // A view's columns are the view's to keep („Änderungen speichern“), never the account's.
+    if (props.owner !== 'view') {
+        rev = nextRev(rev, Date.now())
+        void savePreference({ list: props.list, columns: next, rev })
+    }
 }
 
 function toggle(column: ListColumn, on: boolean): void {
@@ -65,7 +81,7 @@ function isDefault(): boolean {
         </DropdownMenuTrigger>
         <DropdownMenuPortal>
             <DropdownMenuContent class="adm-menu lc-menu" align="end" :side-offset="8">
-                <DropdownMenuLabel class="adm-menu__caption">Spalten in der Liste</DropdownMenuLabel>
+                <DropdownMenuLabel class="adm-menu__caption">{{ owner === 'view' ? 'Spalten dieser Ansicht' : 'Spalten in der Liste' }}</DropdownMenuLabel>
                 <DropdownMenuCheckboxItem
                     v-for="column in columns"
                     :key="column.key"

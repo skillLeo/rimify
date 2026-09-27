@@ -32,14 +32,23 @@ class SavedViewsController extends Controller
             'list' => $request->list(),
             'name' => $request->name(),
             'query' => $request->viewQuery(),
+            'stores_columns' => $request->storesColumns(),
+            'columns' => $request->viewColumns(),
             'role_id' => $request->roleId(),
         ]);
 
         return redirect()->to(self::href($view))->with('toast', "Ansicht „{$view->name}“ gespeichert.");
     }
 
+    /** What a tab still showing a view hears when the view was deleted meanwhile (in another tab). */
+    public const GONE = 'Diese Ansicht gibt es nicht mehr. Sie wurde inzwischen gelöscht.';
+
     public function update(SavedViewUpdateRequest $request, SavedView $view): RedirectResponse
     {
+        if ($view->trashed()) {
+            return back()->with('toast', self::GONE);
+        }
+
         $changes = [];
 
         if ($request->has('name')) {
@@ -54,10 +63,26 @@ class SavedViewsController extends Controller
             $changes['role_id'] = $request->roleId();
         }
 
+        // „Spalten mitspeichern“ turned on or off, or the view's own columns saved over.
+        $columnsChanged = $request->has('stores_columns') || $request->has('columns');
+
+        if ($columnsChanged) {
+            $changes['stores_columns'] = $request->storesColumns();
+            $changes['columns'] = $request->viewColumns();
+        }
+
         $view->forceFill($changes)->save();
 
+        // „Änderungen speichern“ sends the filters, and a view's own columns: saved over.
+        $savedOver = $request->has('query') || ($request->has('columns') && ! $request->has('stores_columns'));
+        // The dialog sends what changed in it: more than one thing is said as one.
+        $dialog = array_filter([$request->has('name'), $request->has('role_id'), $request->has('stores_columns')]);
+
         $toast = match (true) {
-            $request->has('query') => "Änderungen in „{$view->name}“ gespeichert.",
+            $savedOver => "Änderungen in „{$view->name}“ gespeichert.",
+            count($dialog) > 1 => "Ansicht „{$view->name}“ gespeichert.",
+            $request->has('stores_columns') && $view->stores_columns => "Ansicht „{$view->name}“ speichert jetzt die Spalten mit.",
+            $request->has('stores_columns') => "Ansicht „{$view->name}“ speichert die Spalten nicht mehr mit.",
             $request->has('role_id') && $view->role_id !== null => "Ansicht „{$view->name}“ mit der Rolle „".self::roleLabel($view).'“ geteilt.',
             $request->has('role_id') => "Ansicht „{$view->name}“ ist nicht mehr geteilt.",
             default => "Ansicht in „{$view->name}“ umbenannt.",
@@ -70,7 +95,10 @@ class SavedViewsController extends Controller
     /** Deleted, not destroyed: the page offers „Rückgängig“ in its toast. */
     public function destroy(SavedViewDestroyRequest $request, SavedView $view): RedirectResponse
     {
-        $view->delete();
+        // Deleted in another tab already: what was asked for is so — the page's „gelöscht“ is true.
+        if (! $view->trashed()) {
+            $view->delete();
+        }
 
         return back();
     }

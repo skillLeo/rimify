@@ -45,7 +45,7 @@ class BestellungenController extends Controller
         $filters = $request->filters();
         $canonical = $request->canonical();
         $admin = $request->admin();
-        $lists = $this->views->for($admin, AdminLists::BESTELLUNGEN, $canonical, $request->view());
+        $lists = $this->views->for($admin, AdminLists::BESTELLUNGEN, $request->view());
         // The pages of a view stay in it: the view rides along in their links, never in the export.
         $paged = $lists['views']['active'] === null ? $canonical : [...$canonical, 'ansicht' => (string) $lists['views']['active']];
 

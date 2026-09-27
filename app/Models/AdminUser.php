@@ -117,18 +117,36 @@ class AdminUser extends Authenticatable
     }
 
     /**
-     * The columns this person wants in one list (AdminLists), kept beside their choice for the others.
+     * The columns this person wants in one list (AdminLists), kept beside their choice for the others
+     * — unless a later save of that list's columns got here first (the revision, as for the rail).
      *
      * @param  list<string>  $columns
+     * @return bool whether it was taken
      */
-    public function rememberColumns(string $list, array $columns): void
+    public function rememberColumns(string $list, array $columns, ?int $rev = null): bool
     {
-        $this->changePreferences(static function (array $current) use ($list, $columns): array {
+        $taken = false;
+
+        $this->changePreferences(static function (array $current) use ($list, $columns, $rev, &$taken): array {
+            $revs = is_array($current['columnsRev'] ?? null) ? $current['columnsRev'] : [];
+            $last = is_int($revs[$list] ?? null) ? $revs[$list] : 0;
+
+            if ($rev !== null && $rev <= $last) {
+                return $current;
+            }
+
+            $taken = true;
             $all = is_array($current['columns'] ?? null) ? $current['columns'] : [];
             $all[$list] = $columns;
 
-            return [...$current, 'columns' => $all];
+            if ($rev !== null) {
+                $revs[$list] = $rev;
+            }
+
+            return [...$current, 'columns' => $all, 'columnsRev' => $revs];
         });
+
+        return $taken;
     }
 
     /** The revision of the rail's last save; 0 before the first. */

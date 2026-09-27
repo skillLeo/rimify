@@ -6,6 +6,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\AdminUser;
 use App\Models\SavedView;
+use App\Services\Admin\Lists\AdminLists;
 use App\Services\Admin\Lists\ListViews;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -32,6 +33,9 @@ class SavedViewUpdateRequest extends FormRequest
             'query' => ['sometimes', 'present', 'array', 'max:20'],
             'query.*' => ['nullable', 'string', 'max:120'],
             'role_id' => ['sometimes', 'nullable', 'integer'],
+            'stores_columns' => ['sometimes', 'boolean'],
+            'columns' => ['sometimes', 'nullable', 'array', 'max:30'],
+            'columns.*' => ['string', 'max:32'],
         ];
     }
 
@@ -51,11 +55,12 @@ class SavedViewUpdateRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                if ($validator->errors()->isNotEmpty()) {
+                $view = $this->view();
+
+                // Deleted meanwhile (another tab): nothing to check — the controller says so.
+                if ($validator->errors()->isNotEmpty() || $view->trashed()) {
                     return;
                 }
-
-                $view = $this->view();
 
                 SavedViewRules::check(
                     $validator,
@@ -66,6 +71,11 @@ class SavedViewUpdateRequest extends FormRequest
                     $this->has('role_id') ? $this->roleId() : null,
                     $view,
                 );
+
+                // Columns sent keep them (and a view that already keeps some takes the new set).
+                if ($this->has('stores_columns') || $this->has('columns')) {
+                    SavedViewRules::checkColumns($validator, $view->list, $this->storesColumns(), $this->rawColumns());
+                }
             },
         ];
     }
@@ -102,5 +112,33 @@ class SavedViewUpdateRequest extends FormRequest
     public function roleId(): ?int
     {
         return $this->filled('role_id') ? (int) $this->input('role_id') : null;
+    }
+
+    /** Whether the view keeps columns after this change: as sent, else as it was. */
+    public function storesColumns(): bool
+    {
+        return $this->has('stores_columns') ? $this->boolean('stores_columns') : $this->view()->stores_columns;
+    }
+
+    /** @return array<array-key, mixed>|null */
+    public function rawColumns(): ?array
+    {
+        $columns = $this->input('columns');
+
+        return is_array($columns) ? $columns : null;
+    }
+
+    /**
+     * The columns the view keeps after this change, in the list's order; null when none.
+     *
+     * @return list<string>|null
+     */
+    public function viewColumns(): ?array
+    {
+        if (! $this->storesColumns()) {
+            return null;
+        }
+
+        return AdminLists::columns($this->view()->list, $this->rawColumns() ?? $this->view()->columns);
     }
 }

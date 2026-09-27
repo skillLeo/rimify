@@ -258,8 +258,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy
         // through its Form Request; a deleted view can be restored („Rückgängig“).
         Route::post('/ansichten', [SavedViewsController::class, 'store'])->middleware('throttle:60,1')->name('ansichten.store');
-        Route::patch('/ansichten/{view}', [SavedViewsController::class, 'update'])->whereNumber('view')->name('ansichten.update');
-        Route::delete('/ansichten/{view}', [SavedViewsController::class, 'destroy'])->whereNumber('view')->name('ansichten.destroy');
+        // A view deleted in another tab is still found, so the stale tab is told so in a sentence.
+        Route::patch('/ansichten/{view}', [SavedViewsController::class, 'update'])->whereNumber('view')->withTrashed()->name('ansichten.update');
+        Route::delete('/ansichten/{view}', [SavedViewsController::class, 'destroy'])->whereNumber('view')->withTrashed()->name('ansichten.destroy');
         Route::post('/ansichten/{view}/wiederherstellen', [SavedViewsController::class, 'restore'])
             ->whereNumber('view')
             ->withTrashed()

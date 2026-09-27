@@ -20,6 +20,8 @@ use Spatie\Permission\Models\Role;
  * @property string $list
  * @property string $name
  * @property array<string, string> $query
+ * @property bool $stores_columns
+ * @property list<string>|null $columns
  * @property int|null $role_id
  */
 class SavedView extends Model
@@ -29,12 +31,12 @@ class SavedView extends Model
     /** How many views one person keeps for one list: a bar of more is no longer a shortcut. */
     public const MAX_PER_LIST = 30;
 
-    protected $fillable = ['admin_user_id', 'list', 'name', 'query', 'role_id'];
+    protected $fillable = ['admin_user_id', 'list', 'name', 'query', 'stores_columns', 'columns', 'role_id'];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['query' => 'array'];
+        return ['query' => 'array', 'stores_columns' => 'boolean', 'columns' => 'array'];
     }
 
     /** @return BelongsTo<AdminUser, $this> */

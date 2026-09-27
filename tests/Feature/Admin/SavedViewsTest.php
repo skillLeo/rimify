@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\AdminUser;
 use App\Models\SavedView;
+use App\Services\Admin\Lists\ListViews;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -29,9 +30,9 @@ function viewRoleId(string $name): int
 }
 
 /**
- * The Bestellungen page's views and columns for one person and query.
+ * The Bestellungen page's views, columns and query on screen for one person and query.
  *
- * @return array{views: array<string, mixed>, columns: array<string, mixed>}
+ * @return array{views: array<string, mixed>, columns: array<string, mixed>, query: array<string, string>}
  */
 function listViews(string $query = '', string $role = 'order-manager'): array
 {
@@ -43,17 +44,22 @@ function listViews(string $query = '', string $role = 'order-manager'): array
             $props = $page->toArray()['props'];
         });
 
-    return ['views' => $props['views'], 'columns' => $props['columns']];
+    return ['views' => $props['views'], 'columns' => $props['columns'], 'query' => $props['query']];
 }
 
-/** @param  array<string, string>  $query */
-function aView(string $role, string $name, array $query = ['status' => 'bezahlt'], ?string $sharedWith = null): SavedView
+/**
+ * @param  array<string, string>  $query
+ * @param  list<string>|null  $columns  the view's own columns („Spalten mitspeichern“); none by default
+ */
+function aView(string $role, string $name, array $query = ['status' => 'bezahlt'], ?string $sharedWith = null, ?array $columns = null): SavedView
 {
     return SavedView::query()->create([
         'admin_user_id' => viewsAdmin($role)->id,
         'list' => 'bestellungen',
         'name' => $name,
         'query' => $query,
+        'stores_columns' => $columns !== null,
+        'columns' => $columns,
         'role_id' => $sharedWith === null ? null : viewRoleId($sharedWith),
     ]);
 }
@@ -73,15 +79,19 @@ describe('saving a view', function (): void {
         $props = listViews("?status=bezahlt&sort=summe&richtung=ab&ansicht={$view->id}");
 
         expect($props['views']['active'])->toBe($view->id)
-            ->and($props['views']['modified'])->toBeFalse()
             ->and($props['views']['items'][0])->toMatchArray(['name' => 'Bezahlt, ohne Versand', 'mine' => true, 'sharedWith' => null])
-            ->and($props['views']['items'][0]['href'])->toBe("/admin/bestellungen?richtung=ab&sort=summe&status=bezahlt&ansicht={$view->id}");
+            ->and($props['views']['items'][0]['href'])->toBe("/admin/bestellungen?richtung=ab&sort=summe&status=bezahlt&ansicht={$view->id}")
+            // The page compares the view's filters with those on screen: here, the same.
+            ->and($props['views']['items'][0]['query'])->toBe(ListViews::normalise($props['query']));
     });
 
-    it('says the view has changed once the filters on screen are no longer its own', function (): void {
+    it('sends the view\'s own filters with it, so the page can tell once those on screen are others', function (): void {
         $view = aView('order-manager', 'Bezahlt');
+        $props = listViews("?status=offen&ansicht={$view->id}");
 
-        expect(listViews("?status=offen&ansicht={$view->id}")['views'])->toMatchArray(['active' => $view->id, 'modified' => true]);
+        expect($props['views']['active'])->toBe($view->id)
+            ->and($props['views']['items'][0]['query'])->toBe(['status' => 'bezahlt'])
+            ->and($props['query'])->toMatchArray(['status' => 'offen']);
     });
 
     it('keeps nothing but the list\'s own filters, and refuses a name used twice or none at all', function (): void {
@@ -159,6 +169,16 @@ describe('sharing a view', function (): void {
             ->and($support[0])->toMatchArray(['id' => $view->id, 'mine' => false, 'owner' => viewsAdmin()->name]);
 
         expect(listViews('', 'accountant')['views']['items'])->toBe([]);
+    });
+
+    it('lists one\'s own views in the order they were made, then the shared ones by name', function (): void {
+        aView('order-manager', 'Zuletzt geteilt', sharedWith: 'support-agent');
+        aView('order-manager', 'Anfang geteilt', sharedWith: 'support-agent');
+        aView('support-agent', 'Meine zweite');
+        aView('support-agent', 'Meine erste');
+
+        expect(array_column(listViews('', 'support-agent')['views']['items'], 'name'))
+            ->toBe(['Meine zweite', 'Meine erste', 'Anfang geteilt', 'Zuletzt geteilt']);
     });
 
     it('offers only the roles that may open the list', function (): void {
@@ -242,6 +262,25 @@ describe('changing and deleting a view', function (): void {
         expect(listViews('?status=bezahlt')['views']['missing'])->toBeFalse();
     });
 
+    it('tells a tab still showing a view deleted in another that it is gone — no error page', function (): void {
+        $view = aView('order-manager', 'Anderer Tab');
+        $view->delete();
+
+        $this->actingAs(viewsAdmin(), 'admin')->from('/admin/bestellungen')
+            ->patch("/admin/ansichten/{$view->id}", ['query' => ['status' => 'offen']])
+            ->assertRedirect('/admin/bestellungen')
+            ->assertSessionHas('toast', 'Diese Ansicht gibt es nicht mehr. Sie wurde inzwischen gelöscht.');
+
+        // Deleting it once more is what was asked for already: still deleted, still restorable.
+        $this->actingAs(viewsAdmin(), 'admin')->from('/admin/bestellungen')->delete("/admin/ansichten/{$view->id}")->assertRedirect('/admin/bestellungen');
+
+        expect(SavedView::withTrashed()->find($view->id)?->only(['query']))->toBe(['query' => ['status' => 'bezahlt']])
+            ->and(SavedView::withTrashed()->find($view->id)?->trashed())->toBeTrue();
+
+        // Nobody else learns of it either way.
+        $this->actingAs(viewsAdmin('accountant'), 'admin')->patch("/admin/ansichten/{$view->id}", ['name' => 'X'])->assertForbidden();
+    });
+
     it('does not let another person bring back a view they deleted nothing of', function (): void {
         $view = aView('order-manager', 'Weg');
         $view->delete();
@@ -264,15 +303,15 @@ describe('a view over time', function (): void {
                     $props = $page->toArray()['props'];
                 });
 
-            return ['filters' => $props['filters'], 'modified' => $props['views']['modified']];
+            return ['filters' => $props['filters'], 'unchanged' => $props['views']['items'][0]['query'] === ListViews::normalise($props['query'])];
         };
 
-        expect($filters())->toMatchArray(['modified' => false])
+        expect($filters())->toMatchArray(['unchanged' => true])
             ->and($filters()['filters'])->toMatchArray(['zeitraum' => '7', 'von' => '', 'bis' => '']);
 
         // A month on, the same view: still the last seven days, still the view unchanged.
         $this->travelTo(now()->addMonth());
-        expect($filters())->toMatchArray(['modified' => false]);
+        expect($filters())->toMatchArray(['unchanged' => true]);
     });
 
     it('stays open when the list refuses its filters, so its owner can still save over or delete it', function (): void {
@@ -281,6 +320,73 @@ describe('a view over time', function (): void {
         $this->actingAs(viewsAdmin(), 'admin')
             ->get("/admin/bestellungen?status=gibt-es-nicht&ansicht={$view->id}")
             ->assertRedirect("/admin/bestellungen?ansicht={$view->id}");
+    });
+});
+
+describe('a view with its own columns („Spalten mitspeichern“)', function (): void {
+    it('keeps no columns unless asked to — even when the page sends them', function (): void {
+        $this->actingAs(viewsAdmin(), 'admin')
+            ->post('/admin/ansichten', ['list' => 'bestellungen', 'name' => 'Nur Filter', 'query' => ['status' => 'bezahlt'], 'columns' => ['datum']])
+            ->assertSessionHasNoErrors();
+
+        expect(SavedView::query()->sole()->only(['stores_columns', 'columns']))->toBe(['stores_columns' => false, 'columns' => null])
+            ->and(listViews()['views']['items'][0])->toMatchArray(['storesColumns' => false, 'columns' => null]);
+    });
+
+    it('keeps the columns on screen when asked, in the list\'s order, the same for everyone it is shared with', function (): void {
+        $this->actingAs(viewsAdmin(), 'admin')
+            ->post('/admin/ansichten', [
+                'list' => 'bestellungen', 'name' => 'Mit Fahrzeug', 'query' => [],
+                'stores_columns' => true, 'columns' => ['fahrzeug', 'datum'], 'role_id' => viewRoleId('support-agent'),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $mine = listViews()['views']['items'][0];
+        $theirs = listViews('', 'support-agent')['views']['items'][0];
+
+        // The number names the order: it goes with every set.
+        expect($mine)->toMatchArray(['storesColumns' => true, 'columns' => ['nummer', 'datum', 'fahrzeug']])
+            ->and($theirs)->toMatchArray(['storesColumns' => true, 'columns' => ['nummer', 'datum', 'fahrzeug']])
+            // The person's own columns stay theirs: the view does not overwrite them.
+            ->and(listViews()['columns']['shown'])->toBe(['nummer', 'datum', 'kunde', 'summe', 'zahlung', 'versand']);
+    });
+
+    it('refuses columns the list does not have, and none at all', function (): void {
+        foreach ([['passwort'], []] as $columns) {
+            $this->actingAs(viewsAdmin(), 'admin')->from('/admin/bestellungen')
+                ->post('/admin/ansichten', ['list' => 'bestellungen', 'name' => 'Kaputt', 'query' => [], 'stores_columns' => true, 'columns' => $columns])
+                ->assertSessionHasErrors(['columns' => 'Diese Spalten lassen sich nicht mitspeichern. Lad die Seite bitte neu.']);
+        }
+
+        expect(SavedView::query()->count())->toBe(0);
+    });
+
+    it('lets its owner turn it on, save new columns over it, and turn it off again', function (): void {
+        $view = aView('order-manager', 'Spalten');
+
+        $this->actingAs(viewsAdmin(), 'admin')->patch("/admin/ansichten/{$view->id}", ['stores_columns' => true, 'columns' => ['datum']])
+            ->assertSessionHas('toast', 'Ansicht „Spalten“ speichert jetzt die Spalten mit.');
+        expect($view->fresh()?->columns)->toBe(['nummer', 'datum']);
+
+        // „Änderungen speichern“ with the view's columns changed on screen.
+        $this->actingAs(viewsAdmin(), 'admin')->patch("/admin/ansichten/{$view->id}", ['query' => ['status' => 'bezahlt'], 'columns' => ['summe', 'versand']])
+            ->assertSessionHas('toast', 'Änderungen in „Spalten“ gespeichert.');
+        expect($view->fresh()?->columns)->toBe(['nummer', 'summe', 'versand']);
+
+        $this->actingAs(viewsAdmin(), 'admin')->patch("/admin/ansichten/{$view->id}", ['stores_columns' => false])
+            ->assertSessionHas('toast', 'Ansicht „Spalten“ speichert die Spalten nicht mehr mit.');
+        expect($view->fresh()?->only(['stores_columns', 'columns']))->toBe(['stores_columns' => false, 'columns' => null]);
+
+        // Renamed and shared and turned on in one go: said as one.
+        $this->actingAs(viewsAdmin(), 'admin')
+            ->patch("/admin/ansichten/{$view->id}", ['name' => 'Neu', 'role_id' => viewRoleId('accountant'), 'stores_columns' => true, 'columns' => ['datum']])
+            ->assertSessionHas('toast', 'Ansicht „Neu“ gespeichert.');
+    });
+
+    it('drops a column the list no longer has, and keeps the one that names the row', function (): void {
+        aView('order-manager', 'Alt', columns: ['datum', 'gibt-es-nicht-mehr']);
+
+        expect(listViews()['views']['items'][0]['columns'])->toBe(['nummer', 'datum']);
     });
 });
 
@@ -308,6 +414,20 @@ describe('the Spaltenwahl', function (): void {
             ->assertUnprocessable();
 
         expect(viewsAdmin('content-editor')->fresh()?->preferences['columns'] ?? null)->toBeNull();
+    });
+
+    it('drops a save of the columns overtaken by a later one', function (): void {
+        $admin = viewsAdmin();
+
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['list' => 'bestellungen', 'columns' => ['datum', 'fahrzeug'], 'rev' => 200])->assertNoContent();
+        // The earlier click's request, arriving late.
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['list' => 'bestellungen', 'columns' => ['datum'], 'rev' => 100])->assertNoContent();
+
+        expect($admin->fresh()?->preferences['columns']['bestellungen'] ?? null)->toBe(['nummer', 'datum', 'fahrzeug']);
+
+        // A save without a revision (a plain form) is always taken.
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['list' => 'bestellungen', 'columns' => ['summe']])->assertNoContent();
+        expect($admin->fresh()?->preferences['columns']['bestellungen'] ?? null)->toBe(['nummer', 'summe']);
     });
 
     it('keeps the rail\'s width when the columns are saved, and the columns when the rail is', function (): void {

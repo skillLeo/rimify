@@ -54,6 +54,25 @@ final class SavedViewRules
     }
 
     /**
+     * „Spalten mitspeichern“: a view that keeps columns keeps some of its list's own — at least the one
+     * that names the row, which AdminLists adds.
+     *
+     * @param  array<array-key, mixed>|null  $columns
+     */
+    public static function checkColumns(Validator $validator, string $list, bool $stores, ?array $columns): void
+    {
+        $spec = AdminLists::get($list);
+
+        if (! $stores || $spec === null) {
+            return;
+        }
+
+        if ($columns === null || $columns === [] || array_diff($columns, array_column($spec['columns'], 'key')) !== []) {
+            $validator->errors()->add('columns', 'Diese Spalten lassen sich nicht mitspeichern. Lad die Seite bitte neu.');
+        }
+    }
+
+    /**
      * Whether the person already has a view of this name on this list. Compared letter for letter:
      * the column's collation would take „Zählung“ for „Zahlung“ and refuse a name nobody used.
      */

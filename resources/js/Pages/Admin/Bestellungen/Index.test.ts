@@ -25,7 +25,12 @@ vi.mock('@inertiajs/vue3', () => ({
 vi.mock('../../../Layouts/AdminLayout.vue', () => ({ default: defineComponent({ setup: (_, { slots }) => () => slots.default?.() }) }))
 
 // The views bar and the column chooser have tests of their own (Components/Admin/Lists).
-vi.mock('../../../Components/Admin/Lists/ListViews.vue', () => ({ default: defineComponent({ setup: () => () => h('div', { class: 'lv-stub' }) }) }))
+vi.mock('../../../Components/Admin/Lists/ListViews.vue', () => ({
+    default: defineComponent({
+        emits: ['ownColumns'],
+        setup: (_, { emit }) => () => h('button', { class: 'lv-stub', type: 'button', onClick: () => emit('ownColumns') }),
+    }),
+}))
 vi.mock('../../../Components/Admin/Lists/ColumnChooser.vue', () => ({ default: defineComponent({ setup: () => () => h('div', { class: 'lc-stub' }) }) }))
 
 vi.mock('reka-ui', () => {
@@ -78,7 +83,7 @@ function props(overrides: Partial<AdminBestellungenProps> = {}): AdminBestellung
         query: {},
         exportUrls: null,
         can: { export: false },
-        views: { items: [], active: null, missing: false, modified: false, shareOptions: [], canSave: true, limit: 30 },
+        views: { items: [], active: null, missing: false, shareOptions: [], canSave: true, limit: 30 },
         columns: {
             all: [
                 { key: 'nummer', label: 'Nummer', required: true },
@@ -128,6 +133,28 @@ describe('Bestellungen', () => {
         expect(wrapper.findAll('thead th').map((th) => th.text())).toEqual(['Nummer', 'Datum', 'Summe'])
     })
 
+    it('shows an open view\'s own columns from the first frame, and the person\'s own once asked for', async () => {
+        const view = {
+            id: 7,
+            name: 'Mit Fahrzeug',
+            href: '/admin/bestellungen?ansicht=7',
+            query: {},
+            storesColumns: true,
+            columns: ['nummer', 'fahrzeug'],
+            mine: true,
+            sharedWith: null,
+            roleId: null,
+            owner: null,
+        }
+        const wrapper = mount(Page, { props: props({ views: { items: [view], active: 7, missing: false, shareOptions: [], canSave: true, limit: 30 } }) })
+
+        expect(wrapper.findAll('thead th').map((th) => th.text())).toEqual(['Nummer', 'Fahrzeug'])
+
+        // „Meine Spalten wiederherstellen“: the view stays open, the person's columns come back.
+        await wrapper.find('.lv-stub').trigger('click')
+        expect(wrapper.findAll('thead th').map((th) => th.text())).toEqual(['Nummer', 'Datum', 'Kundin oder Kunde', 'Summe', 'Zahlung', 'Versand'])
+    })
+
     it('says a refused filter above the list — and leaves a refused view name to its dialog', () => {
         current.props = { errors: { status: 'Diesen Status gibt es nicht. Wähl bitte einen aus der Liste.', name: 'Eine Ansicht mit diesem Namen hast du schon.' } }
 
@@ -137,7 +164,7 @@ describe('Bestellungen', () => {
     })
 
     it('keeps an open view open when a heading re-sorts the list', async () => {
-        const wrapper = mount(Page, { props: props({ query: { status: 'offen' }, views: { items: [], active: 7, missing: false, modified: false, shareOptions: [], canSave: true, limit: 30 } }) })
+        const wrapper = mount(Page, { props: props({ query: { status: 'offen' }, views: { items: [], active: 7, missing: false, shareOptions: [], canSave: true, limit: 30 } }) })
 
         await wrapper.findAll('.ob-sort')[1]?.trigger('click')
 

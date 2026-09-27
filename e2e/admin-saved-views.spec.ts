@@ -52,11 +52,18 @@ test.afterEach(async ({ page, isMobile }) => {
     }
 })
 
-async function saveView(page: Page, name: string): Promise<void> {
+async function saveView(page: Page, name: string, withColumns = false): Promise<void> {
     await page.getByRole('button', { name: 'Als Ansicht speichern' }).click()
     const dialog = page.getByRole('dialog', { name: 'Als Ansicht speichern' })
 
     await dialog.getByLabel('Name').fill(name)
+    // Off unless ticked: a view keeps filters, not columns.
+    await expect(dialog.getByLabel('Spalten mitspeichern')).not.toBeChecked()
+
+    if (withColumns) {
+        await dialog.getByLabel('Spalten mitspeichern').check()
+    }
+
     await dialog.getByRole('button', { name: 'Speichern' }).click()
     await expect(dialog).toBeHidden()
 }
@@ -120,7 +127,7 @@ test('a column ticked on is there after a reload, and „Standard“ takes it aw
 
     expect(await headings()).not.toContain('Fahrzeug')
 
-    await page.getByRole('button', { name: 'Spalten' }).click()
+    await page.getByRole('button', { name: 'Spalten', exact: true }).click()
     const saved = page.waitForResponse((r) => r.url().endsWith('/admin/ansicht') && r.request().method() === 'PATCH')
     await page.getByRole('menuitemcheckbox', { name: 'Fahrzeug' }).click()
     await saved
@@ -132,7 +139,52 @@ test('a column ticked on is there after a reload, and „Standard“ takes it aw
     await page.reload({ waitUntil: 'networkidle' })
     expect(await headings()).toContain('Fahrzeug')
 
-    await page.getByRole('button', { name: 'Spalten' }).click()
+    await page.getByRole('button', { name: 'Spalten', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Standard wiederherstellen' }).click()
     await expect.poll(headings).not.toContain('Fahrzeug')
+})
+
+test('a view saved with its columns shows them, is changed and saved over, and gives one\'s own back', async ({ page }) => {
+    await page.goto('/admin/bestellungen?richtung=ab&sort=summe', { waitUntil: 'networkidle' })
+    await waitForApp(page)
+    const headings = () => page.locator('.ob-table thead th').allInnerTexts()
+    const accountSaves: string[] = []
+    page.on('request', (r) => {
+        if (r.url().endsWith('/admin/ansicht') && r.method() === 'PATCH') {
+            accountSaves.push(r.postData() ?? '')
+        }
+    })
+
+    // The person's own set gets the car; the view is saved with it.
+    await page.getByRole('button', { name: 'Spalten', exact: true }).click()
+    await page.getByRole('menuitemcheckbox', { name: 'Fahrzeug' }).click()
+    await page.keyboard.press('Escape')
+    await expect.poll(headings).toContain('Fahrzeug')
+    await saveView(page, `${PREFIX}Mit Spalten`, true)
+    await expect(bar(page)).toContainText('Spalten aus dieser Ansicht')
+    const beforeView = accountSaves.length
+
+    // In the view, the menu changes the view's columns — not the account's — and the view reads changed.
+    await page.getByRole('button', { name: 'Spalten', exact: true }).click()
+    await expect(page.getByText('Spalten dieser Ansicht')).toBeVisible()
+    await page.getByRole('menuitemcheckbox', { name: 'Kundin oder Kunde' }).click()
+    await page.keyboard.press('Escape')
+    await expect.poll(headings).not.toContain('Kundin oder Kunde')
+    await expect(bar(page)).toContainText('geändert')
+    expect(accountSaves.length).toBe(beforeView)
+
+    await page.getByRole('button', { name: 'Änderungen speichern' }).click()
+    await expect(bar(page)).not.toContainText('geändert')
+    expect(await headings()).not.toContain('Kundin oder Kunde')
+
+    // One's own columns back, the view still open.
+    await page.getByRole('button', { name: 'Meine Spalten wiederherstellen' }).click()
+    await expect.poll(headings).toContain('Kundin oder Kunde')
+    await expect(bar(page)).not.toContainText('Spalten aus dieser Ansicht')
+    await expect(bar(page).getByRole('link', { name: `${PREFIX}Mit Spalten` })).toHaveAttribute('aria-current', 'page')
+
+    // Opened again: the view's own columns, from the first frame.
+    await page.reload({ waitUntil: 'networkidle' })
+    expect(await headings()).not.toContain('Kundin oder Kunde')
+    await expect(bar(page)).toContainText('Spalten aus dieser Ansicht')
 })

@@ -12,29 +12,29 @@ use Illuminate\Support\Facades\DB;
 /**
  * What a list page needs for its Gespeicherte Ansichten and its Spaltenwahl, in one prop.
  *
- * A view is active while the URL names it (`?ansicht=12`) and the person may see it; it reads as
- * changed once the filters on screen are no longer the ones it keeps — then it can be saved over or
- * set back. The columns are the person's own choice for this list, stored with their preferences
- * and drawn by the server, so the first frame already has them.
+ * A view is active while the URL names it (`?ansicht=12`) and the person may see it. Each view goes
+ * out with the query it keeps, so the page itself tells when the filters on screen are no longer
+ * the view's (normalizeViewState on both sides — SV-13: `1000` and `1.000` are one amount).
+ *
+ * The columns are the person's own choice for this list, stored with their preferences and drawn by
+ * the server, so the first frame already has them. A view saved with „Spalten mitspeichern“ carries
+ * its own set, which the page shows while the view is open — the same for everyone it is shared with.
  *
  * @phpstan-import-type Column from AdminLists
  *
- * @phpstan-type ViewItem array{id: int, name: string, href: string, mine: bool, sharedWith: string|null, roleId: int|null, owner: string|null}
- * @phpstan-type ViewProps array{items: list<ViewItem>, active: int|null, missing: bool, modified: bool, shareOptions: list<array{id: int, label: string}>, canSave: bool, limit: int}
+ * @phpstan-type ViewItem array{id: int, name: string, href: string, query: array<string, string>, storesColumns: bool, columns: list<string>|null, mine: bool, sharedWith: string|null, roleId: int|null, owner: string|null}
+ * @phpstan-type ViewProps array{items: list<ViewItem>, active: int|null, missing: bool, shareOptions: list<array{id: int, label: string}>, canSave: bool, limit: int}
  * @phpstan-type ColumnProps array{all: list<array{key: string, label: string, required: bool}>, shown: list<string>, defaults: list<string>}
  */
 final class ListViews
 {
-    /**
-     * @param  array<string, string>  $canonical  the list's canonical query in force
-     * @return array{views: ViewProps, columns: ColumnProps}
-     */
-    public function for(AdminUser $user, string $list, array $canonical, ?int $activeId): array
+    /** @return array{views: ViewProps, columns: ColumnProps} */
+    public function for(AdminUser $user, string $list, ?int $activeId): array
     {
         $spec = AdminLists::get($list);
 
         if ($spec === null) {
-            return ['views' => ['items' => [], 'active' => null, 'missing' => false, 'modified' => false, 'shareOptions' => [], 'canSave' => false, 'limit' => SavedView::MAX_PER_LIST], 'columns' => ['all' => [], 'shown' => [], 'defaults' => []]];
+            return ['views' => ['items' => [], 'active' => null, 'missing' => false, 'shareOptions' => [], 'canSave' => false, 'limit' => SavedView::MAX_PER_LIST], 'columns' => ['all' => [], 'shown' => [], 'defaults' => []]];
         }
 
         $views = SavedView::query()
@@ -42,6 +42,8 @@ final class ListViews
             ->with(['owner:id,name', 'role:id,name,label_de'])
             // Own views first, in the order they were made; then those shared with the person, by name.
             ->orderByRaw('CASE WHEN admin_user_id = ? THEN 0 ELSE 1 END', [$user->id])
+            ->orderByRaw('CASE WHEN admin_user_id = ? THEN id END', [$user->id])
+            ->orderBy('name')
             ->orderBy('id')
             ->get();
 
@@ -52,6 +54,11 @@ final class ListViews
             'id' => $view->id,
             'name' => $view->name,
             'href' => self::href($spec['path'], $view->query, $view->id),
+            // What the page compares the filters on screen with, to say „geändert“.
+            'query' => self::normalise($view->query),
+            'storesColumns' => $view->stores_columns,
+            // Through the list's own columns: a column the list no longer has drops out, the required stays.
+            'columns' => $view->stores_columns ? AdminLists::columns($list, $view->columns) : null,
             'mine' => $view->admin_user_id === $user->id,
             'sharedWith' => $view->role_id === null ? null : self::roleLabel($view->role),
             // For the owner's „Umbenennen und teilen“: the role it is shared with now.
@@ -68,7 +75,6 @@ final class ListViews
                 'active' => $active?->id,
                 // A link to a view that is gone (deleted, no longer shared): the page says so.
                 'missing' => $activeId !== null && $active === null,
-                'modified' => $active !== null && self::normalise($active->query) !== self::normalise($canonical),
                 'shareOptions' => $this->shareOptions($spec['module']->value),
                 'canSave' => $mine < SavedView::MAX_PER_LIST,
                 'limit' => SavedView::MAX_PER_LIST,

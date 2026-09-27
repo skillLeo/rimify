@@ -26,6 +26,7 @@ import { berlinToday } from '../../../composables/admin/days'
 import { hasMobileShell } from '../../../composables/mobile/useMobileShell'
 import { decimal } from '../../../format'
 import type { AdminBestellungenProps, OrderSort, OrderState } from '../../../types/admin/bestellungen'
+import type { ColumnsInForce } from '../../../types/admin/lists'
 import FilterFields from './FilterFields.vue'
 import { activeCount, formFromFilters, nextSort, queryFromForm, sortQuery, type FilterForm } from './filters'
 
@@ -51,11 +52,50 @@ const COLUMNS: { id: string; key: OrderSort | null; label: string; num?: boolean
 const page = usePage()
 
 /* The Spaltenwahl: the person's own, from the server in the first frame; changed here at once. */
-const shown = ref<string[]>([...props.columns.shown])
+const mine = ref<string[]>([...props.columns.shown])
 watch(
     () => props.columns.shown,
-    (value) => (shown.value = [...value])
+    (value) => (mine.value = [...value])
 )
+
+/*
+ * A view saved with „Spalten mitspeichern“ shows its own columns while it is open — from the first
+ * frame, since the view comes with the page. Changed on screen they are a draft the owner can save
+ * into the view; „Meine Spalten wiederherstellen“ shows the person's own for as long as the view
+ * stays open (the filters may change, the pages may turn).
+ */
+const openView = computed(() => props.views.items.find((view) => view.id === props.views.active) ?? null)
+const draft = ref<string[] | null>(null)
+const ownFor = ref<number | null>(null)
+
+watch(
+    () => `${props.views.active ?? ''}:${openView.value?.columns?.join() ?? ''}`,
+    () => (draft.value = null)
+)
+
+const inForce = computed<ColumnsInForce>(() => {
+    const view = openView.value
+
+    return view?.storesColumns && view.columns && ownFor.value !== view.id
+        ? { keys: draft.value ?? view.columns, fromView: true }
+        : { keys: mine.value, fromView: false }
+})
+
+const shown = computed({
+    get: () => inForce.value.keys,
+    set: (keys: string[]) => {
+        if (inForce.value.fromView) {
+            draft.value = keys
+        } else {
+            mine.value = keys
+        }
+    },
+})
+
+function ownColumns(): void {
+    ownFor.value = props.views.active
+    draft.value = null
+}
 
 /* The column the list is sorted by is always there: hidden, its arrow — the only way to see and turn
    the order — would be gone with it. The chooser shows it fixed while the sort lasts. The list's own
@@ -208,6 +248,7 @@ function tagClass(state: OrderState): string | null {
                     :columns="props.columns.all"
                     :defaults="props.columns.defaults"
                     :sorted="sortedColumn"
+                    :owner="inForce.fromView ? 'view' : 'person'"
                 />
             </span>
             <!-- Plain links, not Inertia visits: the answer is a file, and the page stays. -->
@@ -230,7 +271,7 @@ function tagClass(state: OrderState): string | null {
             </DropdownMenuRoot>
         </template>
 
-        <ListViews list="bestellungen" :base="BASE" all-label="Alle Bestellungen" :views="views" :query="query" />
+        <ListViews list="bestellungen" :base="BASE" all-label="Alle Bestellungen" :views="views" :query="query" :columns="inForce" @own-columns="ownColumns" />
 
         <div v-if="refusals.length" class="adm-alert" role="alert">
             <p v-for="message in refusals" :key="message" class="ob-refusal">{{ message }}</p>
@@ -373,7 +414,8 @@ function tagClass(state: OrderState): string | null {
             </div>
 
             <nav v-if="pagination.last > 1" class="ob-pages" aria-label="Seiten der Bestellungen">
-                <Link v-if="pagination.prev" :href="pagination.prev" class="btn btn--secondary" preserve-scroll>
+                <!-- The state kept: a view shown with the person's own columns stays so on the next page. -->
+                <Link v-if="pagination.prev" :href="pagination.prev" class="btn btn--secondary" preserve-scroll preserve-state>
                     <Icon name="chevron-left" :size="16" />
                     Vorherige
                 </Link>
@@ -381,7 +423,7 @@ function tagClass(state: OrderState): string | null {
 
                 <p class="ob-pages__where">Seite {{ decimal(pagination.current, 0) }} von {{ decimal(pagination.last, 0) }}</p>
 
-                <Link v-if="pagination.next" :href="pagination.next" class="btn btn--secondary" preserve-scroll>
+                <Link v-if="pagination.next" :href="pagination.next" class="btn btn--secondary" preserve-scroll preserve-state>
                     Nächste
                     <Icon name="chevron-right" :size="16" />
                 </Link>
