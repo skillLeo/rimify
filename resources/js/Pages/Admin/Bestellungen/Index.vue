@@ -383,7 +383,7 @@ function tagClass(state: OrderState): string | null {
                     <tbody>
                         <tr v-for="order in orders" :key="order.id">
                             <td data-label="Nummer">
-                                <span class="ob-number">{{ order.number }}</span>
+                                <Link :href="order.href" class="ob-number">{{ order.number }}</Link>
                                 <span v-if="order.demo" class="adm-tag adm-tag--neutral ob-demo">Demodaten</span>
                                 <span v-if="order.conditions" class="ob-sub">mit Auflagen</span>
                             </td>
@@ -531,8 +531,17 @@ function tagClass(state: OrderState): string | null {
 }
 
 .ob-number {
+    color: var(--c-ink);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .ob-number:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
 }
 
 .ob-demo {

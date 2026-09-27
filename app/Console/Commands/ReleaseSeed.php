@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Setting;
+use App\Services\Demo\DemoTables;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
@@ -38,8 +39,15 @@ final class ReleaseSeed extends Command
      * document that states no bore must leave it empty — but it means an existing database keeps
      * NULL everywhere and the product page goes on showing only the rim's own figure. The bore the
      * documents state is seeded data, so ApprovalSeeder has to run once more to write it.
+     *
+     * v4: the invented example catalogue (the review release §2) — brands and models renamed in place,
+     * drafts only, placeholder drawings — and a demo set written again where one is kept (a staging
+     * preview): its order lines froze the old names, and frozen rows are renewed, never edited (R-12).
      */
-    public const VERSION = 3;
+    public const VERSION = 4;
+
+    /** From this version on, a kept demo set is written again once, so its frozen labels match. */
+    public const DEMO_RENEWED_AT = 4;
 
     /** The idempotent seeders a release may re-apply, in dependency order. */
     public const SEEDERS = [
@@ -75,6 +83,13 @@ final class ReleaseSeed extends Command
 
                 return self::FAILURE;
             }
+        }
+
+        // A demo set kept on this database (only a staging preview keeps one; the live shop holds none,
+        // demo:assert-clean) froze names the seeders above just changed: taken away and written anew.
+        if ($applied < self::DEMO_RENEWED_AT && DemoTables::total() > 0) {
+            $this->call('demo:purge', ['--force' => true]);
+            $this->call('demo:seed', ['--no-interaction' => true]);
         }
 
         Setting::set(self::SETTING, self::VERSION);

@@ -4,12 +4,18 @@
  * place while one record is open. Übersicht is /admin itself and nothing below it, or it would be
  * current everywhere.
  */
-export function isCurrentPage(href: string, path: string): boolean {
+export function isCurrentPage(href: string, path: string, others: readonly string[] = []): boolean {
     if (href === '/admin') {
         return path === '/admin' || BENEATH_UEBERSICHT.includes(path)
     }
 
-    return href === path || path.startsWith(`${href}/`)
+    if (!(href === path || path.startsWith(`${href}/`))) {
+        return false
+    }
+
+    // A rail page nested in another's address (/admin/fahrzeuge/pruefung beneath /admin/fahrzeuge)
+    // owns its own address: there, only the more specific page is where the reader is.
+    return !others.some((other) => other !== href && other.startsWith(`${href}/`) && (other === path || path.startsWith(`${other}/`)))
 }
 
 /**

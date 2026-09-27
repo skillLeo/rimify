@@ -36,8 +36,11 @@ const path = computed(() => {
     return url.length > 1 ? url.replace(/\/$/, '') : url
 })
 
+/** Every rail address, so a page nested in another's address is the only one current on it. */
+const hrefs = computed(() => admin.value.nav.flatMap((group) => group.pages.map((p) => p.href)))
+
 function current(item: AdminNavPage): boolean {
-    return isCurrentPage(item.href, path.value)
+    return isCurrentPage(item.href, path.value, hrefs.value)
 }
 
 /** A group of one page is that page: no label saying "Übersicht" above an item saying the same. */

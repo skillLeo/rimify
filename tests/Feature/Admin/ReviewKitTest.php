@@ -1,0 +1,132 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\AdminUser;
+use App\Models\ReviewFeedback;
+use Database\Seeders\AccessSeeder;
+use Database\Seeders\ReviewAccountsSeeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
+
+/**
+ * The review kit (the review release §3): the board, the feedback button's point with its context and
+ * screenshot, the list the team answers from, `review:report`, and the review accounts — only where
+ * the review is on, never on the live shop.
+ */
+beforeEach(function (): void {
+    $this->seed(AccessSeeder::class);
+    config(['rimify.review.enabled' => true]);
+    Storage::fake(ReviewFeedback::DISK);
+});
+
+function reviewer(string $role = 'super-admin'): AdminUser
+{
+    return AdminUser::query()->where('email', $role.'@rimify.test')->firstOrFail();
+}
+
+/** The smallest real PNG: one transparent pixel. */
+function onePixelPng(): string
+{
+    $image = imagecreatetruecolor(1, 1);
+    ob_start();
+    imagepng($image);
+
+    return 'data:image/png;base64,'.base64_encode((string) ob_get_clean());
+}
+
+it('shows every screen with its state, and the review group in the rail', function (): void {
+    $this->actingAs(reviewer('support-agent'), 'admin')->get('/admin/review')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Admin/Review/Board')
+            ->where('areas.0.label', 'Übersicht')
+            ->where('areas', fn ($areas) => collect($areas)->pluck('label')->all() === ['Übersicht', 'Verkauf', 'Katalog', 'Gutachten', 'Fahrzeuge', 'Inhalte', 'Einstellungen', 'System', 'Auswertungen'])
+            ->where('admin.review', true)
+            ->where('admin.nav', fn ($nav) => collect($nav)->contains('key', 'review')));
+});
+
+it('takes a point with where it was made, and its screenshot, checked by its bytes', function (): void {
+    $this->actingAs(reviewer('order-manager'), 'admin')->post('/admin/review/rueckmeldungen', [
+        'type' => 'text',
+        'sentence' => 'Hier fehlt das Wort „inklusive“ vor MwSt.',
+        'url' => '/admin/felgen/12?seite=2',
+        'viewport' => '1440×900',
+        'browser' => 'Chrome 128',
+        'screenshot' => onePixelPng(),
+    ])->assertSessionHasNoErrors()->assertSessionHas('toast', 'Danke – deine Rückmeldung ist angekommen.');
+
+    $point = ReviewFeedback::query()->firstOrFail();
+
+    expect($point->screen)->toBe('Felgen')
+        ->and($point->status)->toBe('neu')
+        ->and($point->role)->not->toBeNull()
+        ->and($point->screenshot_path)->toStartWith('feedback/');
+    Storage::disk(ReviewFeedback::DISK)->assertExists((string) $point->screenshot_path);
+
+    $this->actingAs(reviewer(), 'admin')->get("/admin/review/rueckmeldungen/{$point->id}/bild")->assertOk()->assertHeader('Content-Type', 'image/png');
+});
+
+it('refuses a screenshot that is not a PNG, in a sentence', function (): void {
+    $this->actingAs(reviewer(), 'admin')->post('/admin/review/rueckmeldungen', [
+        'type' => 'fehler', 'sentence' => 'Etwas stimmt nicht.', 'url' => '/admin', 'viewport' => '390×844', 'browser' => 'Safari 18',
+        'screenshot' => 'data:image/png;base64,'.base64_encode('<svg/>'),
+    ])->assertSessionHasErrors(['screenshot' => 'Das Bildschirmfoto ließ sich nicht lesen. Schick die Rückmeldung bitte ohne.']);
+});
+
+it('lets the lead answer, and asks for a reason when a point is refused', function (): void {
+    $point = ReviewFeedback::query()->create(['type' => 'wunsch', 'sentence' => 'Dunkler Modus.', 'url' => '/admin', 'screen' => 'Übersicht', 'viewport' => '1440×900', 'browser' => 'Chrome 128', 'status' => 'neu']);
+
+    $this->actingAs(reviewer('support-agent'), 'admin')->patch("/admin/review/rueckmeldungen/{$point->id}", ['status' => 'erledigt'])->assertForbidden();
+
+    $this->actingAs(reviewer(), 'admin')->patch("/admin/review/rueckmeldungen/{$point->id}", ['status' => 'abgelehnt', 'answer' => ''])
+        ->assertSessionHasErrors(['answer' => 'Wer ablehnt, sagt warum: Bitte schreib die Begründung.']);
+
+    $this->actingAs(reviewer(), 'admin')->patch("/admin/review/rueckmeldungen/{$point->id}", ['status' => 'abgelehnt', 'answer' => 'Nicht vor dem Start.', 'assignee_id' => reviewer()->id])
+        ->assertSessionHasNoErrors();
+
+    expect($point->refresh()->closed_at)->not->toBeNull()->and($point->assignee_id)->toBe(reviewer()->id);
+});
+
+it('filters the list by kind, screen and state', function (): void {
+    foreach ([['fehler', 'Felgen', 'neu'], ['text', 'Felgen', 'erledigt'], ['fehler', 'Übersicht', 'angenommen']] as [$type, $screen, $status]) {
+        ReviewFeedback::query()->create(['type' => $type, 'sentence' => 'Punkt.', 'url' => '/admin', 'screen' => $screen, 'viewport' => '1440×900', 'browser' => 'Chrome 128', 'status' => $status]);
+    }
+
+    $this->actingAs(reviewer(), 'admin')->get('/admin/review/rueckmeldungen?typ=fehler')
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Review/Feedback')->has('items', 2));
+    $this->actingAs(reviewer(), 'admin')->get('/admin/review/rueckmeldungen?seite=Felgen&status=alle')
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('items', 2));
+});
+
+it('writes the points out with review:report', function (): void {
+    $point = ReviewFeedback::query()->create(['type' => 'design', 'sentence' => 'Die Tabelle ist zu eng | sehr eng.', 'url' => '/admin/felgen', 'screen' => 'Felgen', 'viewport' => '1440×900', 'browser' => 'Chrome 128', 'status' => 'erledigt', 'answer' => 'Breiter gemacht.', 'closed_at' => now()]);
+    $path = storage_path('framework/testing/OPEN-POINTS.md');
+
+    $this->artisan('review:report', ['--path' => $path])->assertSuccessful();
+
+    expect((string) file_get_contents($path))->toContain("| #{$point->id} | Felgen | Design: Die Tabelle ist zu eng \\| sehr eng. | Breiter gemacht. | Erledigt |");
+});
+
+it('is gone where the review is off: no board, no point, no group, no accounts', function (): void {
+    config(['rimify.review.enabled' => false]);
+
+    $this->actingAs(reviewer(), 'admin')->get('/admin/review')->assertForbidden();
+    $this->actingAs(reviewer(), 'admin')->post('/admin/review/rueckmeldungen', ['type' => 'fehler', 'sentence' => 'x y z', 'url' => '/admin', 'viewport' => '1×1', 'browser' => 'x'])->assertForbidden();
+    $this->actingAs(reviewer(), 'admin')->get('/admin')
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.review', false)->where('admin.nav', fn ($nav) => ! collect($nav)->contains('key', 'review')));
+
+    expect(fn () => $this->seed(ReviewAccountsSeeder::class))->toThrow(RuntimeException::class);
+});
+
+it('makes the three review accounts with their roles and the obvious password', function (): void {
+    $this->seed(ReviewAccountsSeeder::class);
+
+    foreach (ReviewAccountsSeeder::ACCOUNTS as $email => [, $role]) {
+        $user = AdminUser::query()->where('email', $email)->firstOrFail();
+
+        expect($user->hasRole($role))->toBeTrue()
+            ->and(Hash::check(ReviewAccountsSeeder::PASSWORD, $user->password))->toBeTrue();
+    }
+});

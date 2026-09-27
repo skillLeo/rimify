@@ -159,7 +159,8 @@ it('marks all of one\'s own read, and only one\'s own', function (): void {
 
 it('links an alert only to a page that exists', function (): void {
     $me = bellAdmin();
-    alertFor($me, target: ['route' => 'admin.bestellungen.show', 'params' => ['order' => 1]]);
+    // Kunden is not built yet: an alert pointing there links nowhere rather than to a 404.
+    alertFor($me, target: ['route' => 'admin.kunden.show', 'params' => ['customer' => 1]]);
 
     $this->actingAs($me, 'admin')->get('/admin/benachrichtigungen')
         ->assertInertia(fn (AssertableInertia $page) => $page->where('items.0.href', null));

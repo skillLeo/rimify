@@ -7,19 +7,23 @@ use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminPreferencesController;
 use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\AnfragenController;
+use App\Http\Controllers\Admin\AuflagenController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\BestellungenController;
 use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
+use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
+use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
@@ -200,6 +204,41 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/gutachten', [GutachtenController::class, 'index'])
             ->middleware(EnsureAdminMay::class.':approvals,view')
             ->name('gutachten.index');
+        // Gutachten-Erfassung (the review release §4.3): the PDF and the document's facts, the
+        // Verwendungsbereich rows, the preview, the Freigabe — each asked of ApprovalDocumentPolicy
+        // through its Form Request. `/neu` and `/suche` are fixed segments, never a `{document}`.
+        Route::get('/gutachten/neu', [GutachtenController::class, 'create'])->name('gutachten.create');
+        Route::post('/gutachten', [GutachtenController::class, 'store'])->middleware('throttle:30,1')->name('gutachten.store');
+        Route::get('/gutachten/suche/fahrzeuge', [GutachtenZeilenController::class, 'vehicles'])->middleware('throttle:120,1')->name('gutachten.suche.fahrzeuge');
+        Route::get('/gutachten/suche/felgen', [GutachtenZeilenController::class, 'wheels'])->middleware('throttle:120,1')->name('gutachten.suche.felgen');
+        Route::get('/gutachten/{document}', [GutachtenController::class, 'show'])->whereNumber('document')->name('gutachten.show');
+        Route::put('/gutachten/{document}', [GutachtenController::class, 'update'])->whereNumber('document')->name('gutachten.update');
+        Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
+        Route::post('/gutachten/{document}/zeilen', [GutachtenZeilenController::class, 'store'])->whereNumber('document')->name('gutachten.zeilen.store');
+        Route::put('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'update'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.update');
+        Route::delete('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'destroy'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.entfernen');
+
+        // The review kit (the review release §3): the board, the point sent from the feedback button, the
+        // list the team answers from and a point's screenshot — only where the review is on
+        // (ReviewFeedbackPolicy, asked by ReviewRequest).
+        Route::get('/review', [ReviewController::class, 'board'])->name('review.board');
+        Route::get('/review/rueckmeldungen', [ReviewController::class, 'feedback'])->name('review.rueckmeldungen');
+        Route::post('/review/rueckmeldungen', [ReviewController::class, 'store'])->middleware('throttle:30,1')->name('review.store');
+        Route::patch('/review/rueckmeldungen/{feedback}', [ReviewController::class, 'update'])->whereNumber('feedback')->name('review.update');
+        Route::get('/review/rueckmeldungen/{feedback}/bild', [ReviewController::class, 'image'])->whereNumber('feedback')->name('review.bild');
+
+        // Gutachten › Auflagen-Katalog: each Auflage written once as a full sentence (R-15).
+        Route::get('/auflagen', [AuflagenController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('auflagen.index');
+        Route::post('/auflagen', [AuflagenController::class, 'store'])->name('auflagen.store');
+        Route::put('/auflagen/{code}', [AuflagenController::class, 'update'])->whereNumber('code')->name('auflagen.update');
+        Route::delete('/auflagen/{code}', [AuflagenController::class, 'destroy'])->whereNumber('code')->name('auflagen.destroy');
+
+        // Fahrzeuge: the variants, the ones waiting for their legal data, and one vehicle's page —
+        // never deleted here (R-04).
+        Route::get('/fahrzeuge', [FahrzeugeController::class, 'index'])->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.index');
+        Route::get('/fahrzeuge/pruefung', [FahrzeugeController::class, 'review'])->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.pruefung');
+        Route::get('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'show'])->whereNumber('vehicle')->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.show');
+        Route::put('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'update'])->whereNumber('vehicle')->name('fahrzeuge.update');
         // Team: roles and their rights, the accounts that hold them, and the record of every change
         // (docs/admin/team-build-plan.md). Each write is refused on the server by its Form Request.
         Route::get('/rollen', [RollenController::class, 'index'])
@@ -300,6 +339,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bestellungen', [BestellungenController::class, 'index'])
             ->middleware(EnsureAdminMay::class.':orders,view')
             ->name('bestellungen.index');
+        Route::get('/bestellungen/{order}', [BestellungenController::class, 'show'])
+            ->whereNumber('order')
+            ->name('bestellungen.show');
         Route::get('/bestellungen/export', [BestellungenController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':orders,export')
             ->name('bestellungen.export');

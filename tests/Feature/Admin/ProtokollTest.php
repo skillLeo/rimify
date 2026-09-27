@@ -475,6 +475,28 @@ describe('putting every entry into words', function (): void {
                 [],
             ],
             'catalogue.import_rolled_back' => [['file' => 'lieferant.csv'], 'Der Import der Datei „lieferant.csv“ wurde zurückgenommen.', []],
+            'approval.created' => [['document' => 'ABE 53810'], 'Das Dokument „ABE 53810“ wurde als Entwurf angelegt.', []],
+            'approval.updated' => [['document' => 'ABE 53810', 'pdf' => true], 'Die Angaben zum Dokument „ABE 53810“ wurden geändert; das PDF wurde ersetzt.', []],
+            'approval.rows_added' => [['document' => 'ABE 53810', 'rows' => 12], 'Im Verwendungsbereich von „ABE 53810“ wurden 12 Zeilen angelegt.', []],
+            'approval.row_updated' => [['document' => 'ABE 53810', 'row' => 4], 'Eine Zeile im Verwendungsbereich von „ABE 53810“ wurde geändert.', []],
+            'approval.row_deleted' => [['document' => 'ABE 53810', 'row' => 4], 'Eine Zeile wurde aus dem Verwendungsbereich von „ABE 53810“ entfernt.', []],
+            'approval.released' => [
+                ['document' => 'ABE 53810', 'rows' => 30, 'conflicts' => 2],
+                'Das Dokument „ABE 53810“ wurde freigegeben: 30 Zeilen sind jetzt im Shop. 2 Widersprüche zu anderen Gutachten wurden erkannt.',
+                [],
+            ],
+            'condition.created' => [['code' => 'RADLAUF', 'text' => 'Bördeln der Radläufe erforderlich.'], 'Die Auflage „Bördeln der Radläufe erforderlich.“ wurde angelegt.', []],
+            'condition.updated' => [
+                ['code' => 'RADLAUF', 'old_text' => 'Radlauf bördeln.', 'text' => 'Bördeln der Radläufe erforderlich.'],
+                'Die Auflage „RADLAUF“ wurde geändert.',
+                ['Wortlaut: Radlauf bördeln. → Bördeln der Radläufe erforderlich.'],
+            ],
+            'condition.deleted' => [['code' => 'RADLAUF', 'text' => 'Bördeln der Radläufe erforderlich.'], 'Die Auflage „Bördeln der Radläufe erforderlich.“ wurde gelöscht.', []],
+            'vehicle.legal_data_updated' => [
+                ['vehicle' => 'BMW 3er Limousine', 'complete' => true],
+                'Die Achslasten und die Höchstgeschwindigkeit von „BMW 3er Limousine“ wurden eingetragen; das Fahrzeug ist vollständig.',
+                [],
+            ],
             'page.revision_restored' => [
                 ['page' => 'Startseite', 'slug' => 'startseite', 'revision' => 3, 'revision_at' => '2026-09-26T12:00:00+00:00'],
                 'Für die Seite „Startseite“ wurde die Version vom '.GermanFormat::dateTime(CarbonImmutable::parse('2026-09-26T12:00:00+00:00')).' als Entwurf geladen.',

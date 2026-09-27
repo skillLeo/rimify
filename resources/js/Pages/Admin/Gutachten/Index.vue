@@ -13,7 +13,9 @@
  * different states with two different sentences (admin-shell.md §9.3).
  */
 
+import { Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
@@ -92,6 +94,13 @@ const context = computed(() => {
 
 <template>
     <AdminPage title="Dokumente" :context="context">
+        <template v-if="can.create" #primary>
+            <Link href="/admin/gutachten/neu" class="btn btn--primary">
+                <Icon name="plus" :size="20" />
+                Neues Gutachten
+            </Link>
+        </template>
+
         <div v-if="showStatus || showKind" class="adm-filters">
             <div v-if="showStatus" class="adm-filter" role="group" aria-label="Status">
                 <span class="adm-filter__label" aria-hidden="true">Status</span>
@@ -141,7 +150,7 @@ const context = computed(() => {
                 <tbody>
                     <tr v-for="doc in rows" :key="doc.id">
                         <td data-label="Nummer">
-                            <span class="adm-table__key">{{ doc.reportNumber }}</span>
+                            <Link :href="doc.href" class="adm-table__key gd-link">{{ doc.reportNumber }}</Link>
                             <span v-if="doc.kbaNumber" class="adm-table__sub">KBA {{ doc.kbaNumber }}</span>
                         </td>
                         <td data-label="Art" data-phone="hide">{{ KIND_LABEL[doc.kind] ?? doc.kind }}</td>
@@ -160,8 +169,24 @@ const context = computed(() => {
             </table>
         </div>
 
-        <AdminState v-else-if="documents.length === 0" kind="empty" text="Gutachten erfasst das Compliance-Team; jedes erscheint hier mit seinen Freigaben." />
+        <AdminState v-else-if="documents.length === 0" kind="empty" text="Gutachten erfasst das Compliance-Team; jedes erscheint hier mit seinen Freigaben.">
+            <Link v-if="can.create" href="/admin/gutachten/neu" class="btn btn--primary">Erstes Gutachten anlegen</Link>
+        </AdminState>
 
         <AdminState v-else kind="filtered" :total="documents.length" @reset="resetFilters" />
     </AdminPage>
 </template>
+
+<style scoped>
+.gd-link {
+    color: var(--c-ink);
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .gd-link:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+</style>

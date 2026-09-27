@@ -361,6 +361,33 @@ a.adm-foot__health {
     transition: background-color var(--d-1) var(--ease-out);
 }
 
+/* The review's „Rückmeldung geben“: a quiet row like the health line, the icon on the icons' column. */
+.adm-foot__feedback {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    width: 100%;
+    height: var(--sp-32);
+    padding-inline: var(--sp-8) var(--sp-4);
+    border: 0;
+    border-radius: var(--r-control);
+    background: none;
+    color: var(--c-ink-2);
+    font: inherit;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-foot__feedback:hover {
+        background: var(--c-band);
+        color: var(--c-ink);
+    }
+}
+
 @media (hover: hover) and (pointer: fine) {
     a.adm-foot__health:hover {
         background: var(--c-band);
@@ -521,6 +548,7 @@ a.adm-foot__health {
 .adm[data-rail='collapsed'] .adm-foot__label,
 .adm[data-rail='collapsed'] .adm-foot__count,
 .adm[data-rail='collapsed'] .adm-foot__new-label,
+.adm[data-rail='collapsed'] .adm-foot__feedback-label,
 .adm[data-rail='collapsed'] .adm-foot__who {
     position: absolute;
     width: 1px;
@@ -565,6 +593,7 @@ a.adm-foot__health {
     .adm .adm-foot__label,
     .adm .adm-foot__count,
     .adm .adm-foot__new-label,
+    .adm .adm-foot__feedback-label,
     .adm .adm-foot__who {
         position: absolute;
         width: 1px;

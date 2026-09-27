@@ -42,7 +42,7 @@ final class AdminNavigation
      *
      * Every page has its own glyph, so the collapsed rail — icons only — never shows two rows alike.
      *
-     * @var list<array{key: string, label: string, short: string, icon: string, module: string|null, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string, super?: bool}>}>
+     * @var list<array{key: string, label: string, short: string, icon: string, module: string|null, review?: bool, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string, super?: bool}>}>
      */
     private const GROUPS = [
         [
@@ -53,6 +53,19 @@ final class AdminNavigation
             'module' => null,
             'pages' => [
                 ['label' => 'Übersicht', 'href' => '/admin', 'icon' => 'overview'],
+            ],
+        ],
+        // The client's review of the admin (the review release §3): only where the review is on.
+        [
+            'key' => 'review',
+            'label' => 'Review',
+            'short' => 'Review',
+            'icon' => 'check-circle',
+            'module' => null,
+            'review' => true,
+            'pages' => [
+                ['label' => 'Stand der Seiten', 'href' => '/admin/review', 'icon' => 'check-circle'],
+                ['label' => 'Rückmeldungen', 'href' => '/admin/review/rueckmeldungen', 'icon' => 'bookmark', 'count' => 'review_open'],
             ],
         ],
         [
@@ -183,9 +196,14 @@ final class AdminNavigation
      */
     public const BUILT = [
         '/admin',
+        '/admin/review',
+        '/admin/review/rueckmeldungen',
         '/admin/felgen',
         '/admin/katalog/import',
         '/admin/gutachten',
+        '/admin/auflagen',
+        '/admin/fahrzeuge',
+        '/admin/fahrzeuge/pruefung',
         '/admin/abdeckung',
         '/admin/bestellungen',
         '/admin/anfragen',
@@ -259,6 +277,11 @@ final class AdminNavigation
         $tree = [];
 
         foreach (self::GROUPS as $group) {
+            // The review's group exists only where the review is on (local and staging).
+            if (($group['review'] ?? false) && ! (bool) config('rimify.review.enabled', false)) {
+                continue;
+            }
+
             $pages = [];
 
             foreach ($group['pages'] as $page) {
@@ -331,6 +354,11 @@ final class AdminNavigation
         $tree = [];
 
         foreach (self::GROUPS as $group) {
+            // The review's group exists only where the review is on (local and staging).
+            if (($group['review'] ?? false) && ! (bool) config('rimify.review.enabled', false)) {
+                continue;
+            }
+
             $pages = [];
 
             foreach ($group['pages'] as $page) {
@@ -466,6 +494,10 @@ final class AdminNavigation
                     ->whereNull('notified_at')
                     ->count(),
                 'jobs_failed' => DB::table('failed_jobs')->count(),
+                // The review's points still to answer.
+                'review_open' => DB::table('review_feedback')->whereIn('status', ['neu', 'angenommen'])->count(),
+                // Vehicles without the legal data a verdict needs: never shown as fitting (R-03).
+                'vehicles_review' => DB::table('vehicles')->whereNull('deleted_at')->where('needs_review', true)->count(),
                 default => null,
             };
         } catch (Throwable) {

@@ -5,21 +5,27 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\AdminUser;
+use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
 use App\Models\CatalogueImport;
+use App\Models\ConditionCode;
 use App\Models\DemandMark;
 use App\Models\FaqEntry;
 use App\Models\NavItem;
 use App\Models\Order;
 use App\Models\Page;
+use App\Models\ReviewFeedback;
 use App\Models\SavedView;
 use App\Models\StorageSetting;
 use App\Models\TpmsSensorPrice;
+use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Policies\AdminNotificationPolicy;
+use App\Policies\ApprovalDocumentPolicy;
 use App\Policies\BalanceWeightColourPolicy;
 use App\Policies\CatalogueImportPolicy;
+use App\Policies\ConditionCodePolicy;
 use App\Policies\DemandMarkPolicy;
 use App\Policies\DemoDataPolicy;
 use App\Policies\DocumentUploadPolicy;
@@ -27,9 +33,11 @@ use App\Policies\FaqEntryPolicy;
 use App\Policies\NavItemPolicy;
 use App\Policies\OrderPolicy;
 use App\Policies\PagePolicy;
+use App\Policies\ReviewFeedbackPolicy;
 use App\Policies\SavedViewPolicy;
 use App\Policies\StorageSettingPolicy;
 use App\Policies\TpmsSensorPricePolicy;
+use App\Policies\VehiclePolicy;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
 use App\Services\Demo\DemoTables;
@@ -74,6 +82,10 @@ final class AuthServiceProvider extends ServiceProvider
         PdfUpload::class => DocumentUploadPolicy::class,
         WheelModel::class => WheelModelPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,
+        ApprovalDocument::class => ApprovalDocumentPolicy::class,
+        ConditionCode::class => ConditionCodePolicy::class,
+        Vehicle::class => VehiclePolicy::class,
+        ReviewFeedback::class => ReviewFeedbackPolicy::class,
     ];
 
     public function register(): void

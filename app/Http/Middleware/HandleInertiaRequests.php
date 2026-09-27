@@ -162,6 +162,8 @@ class HandleInertiaRequests extends Middleware
             // The demo set, while there is one: the rail tells everyone, and offers „entfernen“ to who
             // may (asked of the policy directly — a strip not offered is no denied attempt to log).
             'demo' => fn (): ?array => $user instanceof AdminUser ? self::demo($user) : null,
+            // The review kit's feedback button: only where the review is on (local and staging).
+            'review' => $signedIn && (bool) config('rimify.review.enabled', false),
         ]];
     }
 

@@ -34,6 +34,8 @@ export interface OrderRow {
     conditions: boolean
     /** Seeded demonstration data, never a real sale. */
     demo: boolean
+    /** The order's own page. */
+    href: string
 }
 
 export type OrderSort = 'datum' | 'summe' | 'status'

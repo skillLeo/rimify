@@ -140,6 +140,12 @@ return [
     | on the preview server while the panel is being built: a client shown a half-finished screen
     | reads it as a finished one and reports its gaps as faults.
     */
+    // The client's review of the admin (the review release §3): the review board, the feedback button
+    // and its list. On wherever the shop is not live; the live shop never shows it.
+    'review' => [
+        'enabled' => filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL),
+    ],
+
     'admin' => [
         'enabled' => filter_var(env('RIMIFY_ADMIN_ENABLED', true), FILTER_VALIDATE_BOOL),
         // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody

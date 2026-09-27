@@ -37,6 +37,7 @@ function doc(overrides: Partial<Document> = {}): Document {
         pageCount: 12,
         fitmentCount: 1408,
         publishedCount: 1276,
+        href: '/admin/gutachten/1',
         ...overrides,
     }
 }
@@ -44,7 +45,7 @@ function doc(overrides: Partial<Document> = {}): Document {
 let mounted: VueWrapper[] = []
 
 function mountPage(documents: Document[]): VueWrapper {
-    const wrapper = mount(Page, { props: { documents }, attachTo: document.body })
+    const wrapper = mount(Page, { props: { documents, can: { create: false } }, attachTo: document.body })
     mounted.push(wrapper)
 
     return wrapper

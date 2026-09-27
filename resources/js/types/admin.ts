@@ -64,6 +64,8 @@ export interface AdminShared {
     quickActions: AdminQuickAction[]
     /** The demo set, while there is one: its rows, and whether this person may take it away. */
     demo: { rows: number; canPurge: boolean } | null
+    /** The review kit is on (local and staging): the feedback button is drawn. */
+    review?: boolean
 }
 
 export interface AdminHealth {

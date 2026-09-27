@@ -520,7 +520,9 @@ export interface AdminGutachtenProps {
         pageCount: number | null
         fitmentCount: number
         publishedCount: number
+        href: string
     }[]
+    can: { create: boolean }
 }
 
 export interface AdminBenachrichtigungenProps {

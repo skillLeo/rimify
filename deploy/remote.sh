@@ -48,8 +48,11 @@ set_env APP_ENV "$TARGET_ENV"
 if [ "$TARGET_ENV" = staging ]; then
     set_env DEMO_DATA 1
     set_env RIMIFY_ADMIN_ENABLED true
+    # The client's review: the board, the feedback button and the review accounts.
+    set_env RIMIFY_REVIEW true
 else
     set_env DEMO_DATA 0
+    set_env RIMIFY_REVIEW false
 fi
 set_env APP_DEBUG false
 set_env APP_URL "${APP_URL:-https://rimify.skillleo.com}"
@@ -105,6 +108,9 @@ if [ "$TARGET_ENV" = staging ]; then
     else
         echo "== staging: demonstration data present ($DEMO_ROWS rows)"
     fi
+
+    # The review accounts (docs/review/ACCOUNTS.md): made or refreshed on every staging deploy.
+    "$PHP" artisan db:seed --class=ReviewAccountsSeeder --force --no-interaction
 fi
 
 # The demo imagery is served from storage/app/public through the public/storage link. Made with

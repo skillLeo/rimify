@@ -30,12 +30,28 @@ not listed stays behind an honest „noch nicht gebaut“ on the review board.
       of the plan shown (refused if the catalogue moved), rollback whole while nothing builds on it, sample
       file. Pest `FelgenTest` (22), `KatalogImportTest` (11); Vitest `list`, `matrix`; shots `docs/qa/shots/m-katalog/`.
       Open in this area: Reifen, Marken, Bestände pages (rail shows them only once built).
-- [ ] **§4.3 Gutachten und Fahrzeuge** — PDF upload (PdfUpload), Verwendungsbereich, Auflagen library, preview,
-      Freigeben, Abdeckung from real rows
-- [ ] **§4.4 Verkauf** — order list, order detail with the frozen snapshot per line
+- [x] **§4.3 Gutachten und Fahrzeuge** — Gutachten › Neu (PDF straight to the bucket, confirmed and hashed; kind
+      with its own number; issuer, date, pages; the revision it replaces), one document's workspace (facts,
+      rows grouped by vehicle, „Zeilen hinzufügen“ for vehicles × sizes found by name/HSN-TSN and model/SKU,
+      tyre sizes typed „225/40 R18 93Y“, Auflagen from the library with a note, Eintragung, page → PDF at that
+      page, the document's own limits folded away), „Vorschau im Shop“ by the shop's own resolver on the draft
+      rows (EloquentFitmentRepository::forPreviewOf), Freigeben of the whole document (blockers in sentences;
+      conflicts with other documents recorded, the stricter governs; the replaced revision superseded). Auflagen-
+      Katalog (full sentences checked, weight, in-use count, no delete while used). Fahrzeuge list and „Zur
+      Prüfung“, one vehicle with its rows and its legal data (all three → leaves the review, R-03). Abdeckung
+      was already counted from rows. Pest `GutachtenErfassungTest` (14). Konflikte page: not built (on the board).
+- [x] **§4.4 Verkauf** — order detail: facts, customer, addresses, lines, and per wheel line the verdict restored
+      from its frozen snapshot (never recomputed), with a line when the document was replaced since; an
+      unreadable snapshot says so. List rows link to it. Pest `BestellungDetailTest` (4). Editing an order
+      (status, shipping, invoice, refund) and a sandbox payment: not built (on the board).
 - [ ] **§4.5 Einstellungen** — storage screen ✔, roles screen ✔ (built earlier), review of both at 12 widths
-- [ ] **§3 Review kit** — `/admin/review`, the feedback button (context + screenshot), the Feedback list,
-      role accounts (`docs/review/ACCOUNTS.md`), `review:report` → `docs/review/OPEN-POINTS.md`
+- [x] **§3 Review kit** — `/admin/review` (every screen: fertig / in Arbeit / noch nicht gebaut, link, one line,
+      open points), „Rückmeldung geben“ in the rail foot and the phone's „Mehr“, key `R` (URL, window, browser,
+      role and a screenshot drawn in the browser with html-to-image, one sentence, Fehler/Design/Text/Wunsch),
+      Review › Rückmeldungen (filters by kind, screen and state; neu/angenommen/erledigt/abgelehnt with a reason;
+      assignee), accounts Verkauf/Lager/Admin (`ReviewAccountsSeeder`, `docs/review/ACCOUNTS.md`), `php artisan
+      review:report` → `docs/review/OPEN-POINTS.md`. Only where `RIMIFY_REVIEW` is on (local, staging); the
+      deploy sets it for staging and off for production, and the seeder refuses where it is off.
 - [ ] **§1 Golden record** — the chain end to end against a stand-in, `docs/review/GOLDEN-RECORD.md` with a shot per step
 - [ ] **§5 Drop-in** — dashboard and Katalog list tested with an empty database, one row and the demo set;
       `demo:purge` leaves the golden record standing

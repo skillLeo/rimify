@@ -16,6 +16,7 @@ import ListRow from '../Mobile/ListRow.vue'
 import AdminConfirm from './AdminConfirm.vue'
 import AdminIcon from './AdminIcon.vue'
 import { useDemoStrip } from '../../composables/admin/useDemoStrip'
+import { startFeedback } from '../../composables/admin/useFeedback'
 import { monogram } from '../../composables/admin/monogram'
 import { useAdmin } from '../../composables/admin/useAdmin'
 import { useHealth, useHealthBanner } from '../../composables/admin/useHealth'
@@ -46,6 +47,12 @@ function total(group: AdminNavGroup): string | undefined {
 
 function pageCount(page: AdminNavPage): string | undefined {
     return page.count ? String(page.count) : undefined
+}
+
+/* The sheet goes first — its closing animation takes the motion token's time — then the page is drawn. */
+function giveFeedback(): void {
+    open.value = false
+    window.setTimeout(() => void startFeedback(), 320)
 }
 
 const group = ref<AdminNavGroup | null>(null)
@@ -114,6 +121,11 @@ function signOut(): void {
                 :busy="purging"
                 @confirm="purgeDemo"
             />
+
+            <!-- The review: the sheet closes first, so the screenshot shows the page, not the sheet. -->
+            <ListRow v-if="admin.review" title="Rückmeldung geben" sub="Mit Bildschirmfoto an das Team" @activate="giveFeedback">
+                <template #leading><AdminIcon name="bookmark" :size="24" /></template>
+            </ListRow>
 
             <template v-for="item in groups" :key="item.key">
                 <!-- A group of one page is that page, with the group beneath so it can still be found by it. -->

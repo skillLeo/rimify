@@ -41,6 +41,7 @@ final class AuditDescriber
         'team' => 'Team',
         'katalog' => 'Katalog',
         'gutachten' => 'Gutachten',
+        'fahrzeuge' => 'Fahrzeuge',
         'inhalte' => 'Inhalte',
         'konto' => 'Konto',
         'zugriff' => 'Zugriff',
@@ -104,6 +105,16 @@ final class AuditDescriber
         'wheel.image_removed' => 'katalog',
         'catalogue.imported' => 'katalog',
         'catalogue.import_rolled_back' => 'katalog',
+        'approval.created' => 'gutachten',
+        'approval.updated' => 'gutachten',
+        'approval.rows_added' => 'gutachten',
+        'approval.row_updated' => 'gutachten',
+        'approval.row_deleted' => 'gutachten',
+        'approval.released' => 'gutachten',
+        'condition.created' => 'gutachten',
+        'condition.updated' => 'gutachten',
+        'condition.deleted' => 'gutachten',
+        'vehicle.legal_data_updated' => 'fahrzeuge',
     ];
 
     /**
@@ -147,6 +158,8 @@ final class AuditDescriber
         'admin.navigation' => 'Navigation',
         'admin.felgen' => 'Felgen',
         'admin.import' => 'Katalog-Import',
+        'admin.auflagen' => 'Auflagen-Katalog',
+        'admin.fahrzeuge' => 'Fahrzeuge',
     ];
 
     /** What a denied request tried to do, as the infinitive that completes „Der Versuch, …". */
@@ -325,11 +338,55 @@ final class AuditDescriber
             'wheel.image_removed' => ['Das Foto der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde entfernt.', []],
             'catalogue.imported' => [self::imported($p, 'Die Datei '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde in den Katalog importiert'), []],
             'catalogue.import_rolled_back' => ['Der Import der Datei '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde zurückgenommen.', []],
+            'approval.created' => ['Das Dokument '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde als Entwurf angelegt.', []],
+            'approval.updated' => [
+                'Die Angaben zum Dokument '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden geändert'.(($p['pdf'] ?? false) === true ? '; das PDF wurde ersetzt.' : '.'),
+                [],
+            ],
+            'approval.rows_added' => [self::rowsAdded($p), []],
+            'approval.row_updated' => ['Eine Zeile im Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde geändert.', []],
+            'approval.row_deleted' => ['Eine Zeile wurde aus dem Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' entfernt.', []],
+            'approval.released' => [self::released($p), []],
+            'condition.created' => ['Die Auflage '.self::q(self::text($p, 'text') ?? 'ohne Text').' wurde angelegt.', []],
+            'condition.updated' => [
+                'Die Auflage '.self::q(self::text($p, 'code') ?? 'ohne Schlüssel').' wurde geändert.',
+                [self::change('Wortlaut', self::text($p, 'old_text') ?? self::NOTHING, self::text($p, 'text') ?? self::NOTHING)],
+            ],
+            'condition.deleted' => ['Die Auflage '.self::q(self::text($p, 'text') ?? 'ohne Text').' wurde gelöscht.', []],
+            'vehicle.legal_data_updated' => [
+                'Die Achslasten und die Höchstgeschwindigkeit von '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurden eingetragen'
+                    .(($p['complete'] ?? false) === true ? '; das Fahrzeug ist vollständig.' : '; es fehlen noch Angaben.'),
+                [],
+            ],
             default => [
                 'Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.',
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
             ],
         };
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function rowsAdded(array $p): string
+    {
+        $rows = is_numeric($p['rows'] ?? null) ? (int) $p['rows'] : 0;
+
+        return 'Im Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' '
+            .($rows === 1 ? 'wurde eine Zeile' : 'wurden '.GermanFormat::integer($rows).' Zeilen').' angelegt.';
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function released(array $p): string
+    {
+        $rows = is_numeric($p['rows'] ?? null) ? (int) $p['rows'] : 0;
+        $conflicts = is_numeric($p['conflicts'] ?? null) ? (int) $p['conflicts'] : 0;
+        $sentence = 'Das Dokument '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde freigegeben: '
+            .($rows === 1 ? 'eine Zeile ist' : GermanFormat::integer($rows).' Zeilen sind').' jetzt im Shop.';
+
+        if ($conflicts > 0) {
+            $sentence .= ' '.($conflicts === 1 ? 'Ein Widerspruch zu anderen Gutachten wurde' : GermanFormat::integer($conflicts).' Widersprüche zu anderen Gutachten wurden').' erkannt.';
+        }
+
+        return $sentence;
     }
 
     /**

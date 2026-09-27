@@ -24,6 +24,7 @@ import AdminPalette from '../Components/Admin/AdminPalette.vue'
 import AdminRail from '../Components/Admin/AdminRail.vue'
 import AdminRailHandle from '../Components/Admin/AdminRailHandle.vue'
 import AdminTopbar from '../Components/Admin/AdminTopbar.vue'
+import FeedbackDialog from '../Components/Admin/FeedbackDialog.vue'
 import ShortcutsDialog from '../Components/Admin/ShortcutsDialog.vue'
 import Toast from '../Components/Chrome/Toast.vue'
 import { toast } from '../Components/Chrome/toast'
@@ -466,6 +467,8 @@ onBeforeUnmount(() => {
 
     <AdminPalette />
     <ShortcutsDialog />
+    <!-- The review kit: only where the review is on (local and staging). -->
+    <FeedbackDialog v-if="admin.review" />
 
     <!-- The confirmation a mutation flashed (`flash.toast`), announced once per response. -->
     <Toast />

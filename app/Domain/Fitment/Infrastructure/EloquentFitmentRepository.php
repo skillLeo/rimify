@@ -29,9 +29,54 @@ use Illuminate\Database\Eloquent\Builder;
  * published rows of published documents inside their validity window. A superseded revision, a
  * withdrawn document or a retired row is not "filtered out later" — it never crosses this
  * boundary, so no surface can forget to exclude it.
+ *
+ * One exception, and only by construction: the admin's preview of a document before it is freigegeben
+ * (forPreviewOf) reads that document's own draft rows as if they were published — and hides the
+ * revision it replaces — so the team sees exactly what the shop will say once they release it. No
+ * customer-facing surface ever builds a repository that way; the container binds the plain one.
  */
 final readonly class EloquentFitmentRepository implements FitmentRepository
 {
+    public function __construct(private ?int $previewDocumentId = null, private ?int $previewHidesDocumentId = null) {}
+
+    /** What the shop would read once this document is freigegeben — for the admin's preview only. */
+    public static function forPreviewOf(ApprovalDocument $document): self
+    {
+        return new self((int) $document->id, $document->supersedes_id);
+    }
+
+    /**
+     * Published rows of currently valid documents — and, in a preview, the previewed document's rows.
+     *
+     * @param  Builder<Fitment>  $query
+     */
+    private function visible(Builder $query): void
+    {
+        $preview = $this->previewDocumentId;
+        $hidden = $this->previewHidesDocumentId;
+
+        if ($preview === null) {
+            $query->where('fitments.status', FitmentStatus::Published->value)
+                ->whereHas('approvalDocument', $this->currentlyValid(...));
+
+            return;
+        }
+
+        $query->where(function (Builder $either) use ($preview): void {
+            $either->where(function (Builder $published): void {
+                $published->where('fitments.status', FitmentStatus::Published->value)
+                    ->whereHas('approvalDocument', $this->currentlyValid(...));
+            })->orWhere(static function (Builder $draft) use ($preview): void {
+                $draft->where('fitments.approval_document_id', $preview)
+                    ->where('fitments.status', '<>', FitmentStatus::Retired->value);
+            });
+        });
+
+        if ($hidden !== null) {
+            $query->where('fitments.approval_document_id', '<>', $hidden);
+        }
+    }
+
     /**
      * @param  list<int>  $wheelConfigIds
      * @return array<int, list<FitmentRow>>
@@ -47,9 +92,8 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         $rows = Fitment::query()
             ->with(['approvalDocument', 'tyreSizes', 'conditions'])
             ->where('fitments.vehicle_id', $vehicleId)
-            ->where('fitments.status', FitmentStatus::Published->value)
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
-            ->whereHas('approvalDocument', $this->currentlyValid(...))
+            ->tap($this->visible(...))
             ->orderBy('fitments.id')
             ->get();
 
@@ -72,8 +116,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         return Fitment::query()
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
-            ->where('fitments.status', FitmentStatus::Published->value)
-            ->whereHas('approvalDocument', $this->currentlyValid(...))
+            ->tap($this->visible(...))
             ->distinct()
             ->pluck('fitments.wheel_config_id')
             ->map(static fn (mixed $id): int => (int) $id)

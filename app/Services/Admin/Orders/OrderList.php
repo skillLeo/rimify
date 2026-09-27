@@ -199,6 +199,7 @@ final class OrderList
             'conditions' => (bool) ($order->getAttribute('has_conditions') ?? false),
             // Born demo, or a demo wheel on it (Order::isDemo, one rule in one query).
             'demo' => (bool) $order->getAttribute('is_demo') || (bool) ($order->getAttribute('shows_demo') ?? false),
+            'href' => '/admin/bestellungen/'.$order->id,
         ];
     }
 

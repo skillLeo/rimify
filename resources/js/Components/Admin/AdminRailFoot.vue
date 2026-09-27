@@ -41,6 +41,7 @@ import Icon from './AdminIcon.vue'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
 import { useDemoStrip } from '../../composables/admin/useDemoStrip'
+import { feedback, startFeedback } from '../../composables/admin/useFeedback'
 import { useHealth, useHealthBanner } from '../../composables/admin/useHealth'
 import { monogram } from '../../composables/admin/monogram'
 
@@ -141,6 +142,14 @@ function signOut(event: Event): void {
         </TooltipRoot>
         <!-- A change in the shop's health is said aloud once, politely. Always there, so it can speak. -->
         <span class="visually-hidden" role="status">{{ health && health.state !== 'ok' ? health.sentence : '' }}</span>
+
+        <!-- 1½ · The review: „Rückmeldung geben“, only where the review is on. -->
+        <AdminMenuTip v-if="admin.review" text="Rückmeldung geben (R)" :disabled="!collapsed">
+            <button class="adm-foot__feedback" type="button" aria-keyshortcuts="R" :aria-busy="feedback.capturing ? 'true' : undefined" data-feedback-skip @click="startFeedback">
+                <Icon name="bookmark" :size="20" />
+                <span class="adm-foot__feedback-label">{{ feedback.capturing ? 'Bildschirmfoto …' : 'Rückmeldung geben' }}</span>
+            </button>
+        </AdminMenuTip>
 
         <!-- 2 · Neu, and the way to everything -->
         <div class="adm-foot__actions">
