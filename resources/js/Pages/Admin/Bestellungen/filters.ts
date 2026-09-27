@@ -21,10 +21,16 @@ export interface FilterForm {
     auflagen: boolean
 }
 
+const PRESETS = ['heute', '7', '30'] as const
+
+function isPreset(value: string): value is (typeof PRESETS)[number] {
+    return (PRESETS as readonly string[]).includes(value)
+}
+
 export function formFromFilters(filters: OrderFilters, today: string): FilterForm {
     return {
         status: filters.status,
-        ...rangeForm(filters.von || null, filters.bis || null, today),
+        ...(isPreset(filters.zeitraum) ? { zeitraum: filters.zeitraum, von: '', bis: '' } : rangeForm(filters.von || null, filters.bis || null, today)),
         zahlart: filters.zahlart,
         versandart: filters.versandart,
         min: filters.min,
@@ -60,7 +66,12 @@ export function queryFromForm(
         query.status = form.status
     }
 
-    Object.assign(query, range.query)
+    // A preset goes as itself, so a link or a saved view keeps meaning „the last 7 days“ tomorrow.
+    if (isPreset(form.zeitraum)) {
+        query.zeitraum = form.zeitraum
+    } else {
+        Object.assign(query, range.query)
+    }
 
     for (const key of ['zahlart', 'versandart', 'min', 'max'] as const) {
         const value = form[key].trim()
@@ -98,7 +109,7 @@ export function nextSort(current: { sort: OrderSort; richtung: 'auf' | 'ab' }, c
 export function activeCount(filters: OrderFilters): number {
     return [
         filters.status,
-        filters.von || filters.bis,
+        filters.zeitraum || filters.von || filters.bis,
         filters.zahlart,
         filters.versandart,
         filters.min || filters.max,

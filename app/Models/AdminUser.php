@@ -116,6 +116,21 @@ class AdminUser extends Authenticatable
         return $taken;
     }
 
+    /**
+     * The columns this person wants in one list (AdminLists), kept beside their choice for the others.
+     *
+     * @param  list<string>  $columns
+     */
+    public function rememberColumns(string $list, array $columns): void
+    {
+        $this->changePreferences(static function (array $current) use ($list, $columns): array {
+            $all = is_array($current['columns'] ?? null) ? $current['columns'] : [];
+            $all[$list] = $columns;
+
+            return [...$current, 'columns' => $all];
+        });
+    }
+
     /** The revision of the rail's last save; 0 before the first. */
     public function railRev(): int
     {

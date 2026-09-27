@@ -12,6 +12,7 @@ use App\Models\FaqEntry;
 use App\Models\NavItem;
 use App\Models\Order;
 use App\Models\Page;
+use App\Models\SavedView;
 use App\Models\TpmsSensorPrice;
 use App\Policies\AdminNotificationPolicy;
 use App\Policies\BalanceWeightColourPolicy;
@@ -20,6 +21,7 @@ use App\Policies\FaqEntryPolicy;
 use App\Policies\NavItemPolicy;
 use App\Policies\OrderPolicy;
 use App\Policies\PagePolicy;
+use App\Policies\SavedViewPolicy;
 use App\Policies\TpmsSensorPricePolicy;
 use App\Services\Admin\PermissionMatrix;
 use Illuminate\Auth\Access\Response;
@@ -54,6 +56,7 @@ final class AuthServiceProvider extends ServiceProvider
         DatabaseNotification::class => AdminNotificationPolicy::class,
         Order::class => OrderPolicy::class,
         DemandMark::class => DemandMarkPolicy::class,
+        SavedView::class => SavedViewPolicy::class,
     ];
 
     public function register(): void

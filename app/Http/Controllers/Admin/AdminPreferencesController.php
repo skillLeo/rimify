@@ -46,6 +46,11 @@ class AdminPreferencesController extends Controller
             $admin->rememberPreferences(['healthSnooze' => ['key' => $request->snooze(), 'until' => now()->addHours(self::SNOOZE_HOURS)->toIso8601String()]]);
         }
 
+        // The Spaltenwahl of one list, beside the other lists' (AdminLists).
+        if (($choice = $request->columns()) !== null) {
+            $admin->rememberColumns($choice['list'], $choice['columns']);
+        }
+
         return $request->expectsJson() && ! $request->header('X-Inertia') ? response()->noContent() : back();
     }
 }

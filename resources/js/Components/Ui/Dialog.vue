@@ -10,7 +10,7 @@ import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPor
 import { watch } from 'vue'
 import Icon from './Icon.vue'
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         title: string
         description?: string
@@ -20,8 +20,13 @@ withDefaults(
         hideTitle?: boolean
         /** A class for the surface itself — it is portalled, so a surrounding class cannot reach it. */
         contentClass?: string
+        /**
+         * Where the focus starts — a selector inside the dialog (`#sv-name`). Without one the primitive
+         * takes the first control, which is „Schließen“ in the head: a form opens on its first field.
+         */
+        initialFocus?: string
     }>(),
-    { description: undefined, variant: 'dialog', wide: false, hideTitle: false, contentClass: undefined }
+    { description: undefined, variant: 'dialog', wide: false, hideTitle: false, contentClass: undefined, initialFocus: undefined }
 )
 
 const open = defineModel<boolean>('open', { default: false })
@@ -49,6 +54,15 @@ watch(open, (value) => {
     opener = trigger ?? active
 })
 
+function onOpenAutoFocus(event: Event): void {
+    const target = props.initialFocus ? document.querySelector<HTMLElement>(props.initialFocus) : null
+
+    if (target) {
+        event.preventDefault()
+        target.focus()
+    }
+}
+
 function onCloseAutoFocus(event: Event): void {
     emit('closeAutoFocus', event)
 
@@ -68,6 +82,7 @@ function onCloseAutoFocus(event: Event): void {
             <DialogContent
                 :class="[variant === 'dialog' ? 'dialog' : variant, { 'dialog--wide': wide }, contentClass]"
                 :aria-describedby="description ? undefined : ''"
+                @open-auto-focus="onOpenAutoFocus"
                 @close-auto-focus="onCloseAutoFocus"
             >
                 <div v-if="variant === 'sheet'" class="sheet__grab" aria-hidden="true" />

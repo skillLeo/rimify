@@ -9,7 +9,9 @@ use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
 use App\Services\Admin\Orders\OrderList;
+use App\Support\GermanFormat;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -28,7 +30,23 @@ use Illuminate\Validation\Validator;
  */
 class BestellungenFilterRequest extends FormRequest
 {
+    /** The Zeitraum presets, counted back from today in Berlin: today, the last 7, the last 30 days. */
+    public const PRESETS = ['heute', '7', '30'];
+
     protected $redirectRoute = 'admin.bestellungen.index';
+
+    /**
+     * A refused filter opens the list without it — and still in the Gespeicherte Ansicht it came from,
+     * so a view whose filters the list no longer takes can be opened, saved over or deleted.
+     */
+    protected function getRedirectUrl(): string
+    {
+        $view = $this->query('ansicht');
+
+        return is_string($view) && ctype_digit($view)
+            ? route($this->redirectRoute, ['ansicht' => $view])
+            : route($this->redirectRoute);
+    }
 
     public function authorize(): bool
     {
@@ -46,6 +64,8 @@ class BestellungenFilterRequest extends FormRequest
         return [
             'q' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', 'string', Rule::in([OrderList::OPEN, OrderList::PAID, ...OrderStatus::values()])],
+            // A Zeitraum counted back from today: stays „die letzten 7 Tage“ in a view saved last month.
+            'zeitraum' => ['nullable', Rule::in(self::PRESETS)],
             'von' => $day,
             'bis' => $day,
             'zahlart' => $method,
@@ -56,6 +76,8 @@ class BestellungenFilterRequest extends FormRequest
             'sort' => ['nullable', Rule::in(OrderList::SORTS)],
             'richtung' => ['nullable', 'in:auf,ab'],
             'seite' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            // The Gespeicherte Ansicht the filters came from (ListViews): only marks it on the page.
+            'ansicht' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -65,6 +87,7 @@ class BestellungenFilterRequest extends FormRequest
         return [
             'q.*' => 'Der Suchbegriff ist zu lang. Such bitte nach Nummer, Name, E-Mail oder Fahrzeug.',
             'status.*' => 'Diesen Status gibt es nicht. Wähl bitte einen aus der Liste.',
+            'zeitraum.*' => 'Diesen Zeitraum gibt es nicht. Wähl bitte einen aus der Liste.',
             'von.*' => 'Das Anfangsdatum ist kein gültiger Tag.',
             'bis.*' => 'Das Enddatum ist kein gültiger Tag.',
             'zahlart.*' => 'Diese Zahlart gibt es nicht. Wähl bitte eine aus der Liste.',
@@ -75,6 +98,7 @@ class BestellungenFilterRequest extends FormRequest
             'sort.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
             'richtung.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
             'seite.*' => 'Diese Seite gibt es nicht.',
+            'ansicht.*' => 'Diese Ansicht gibt es nicht.',
         ];
     }
 
@@ -119,12 +143,13 @@ class BestellungenFilterRequest extends FormRequest
         $money = fn (string $key): ?int => $this->filled($key) ? Money::fromGerman((string) $this->validated($key)) : null;
 
         $q = $text('q');
+        $range = $this->presetRange();
 
         return [
             'q' => $q === '' ? null : $q,
             'status' => $text('status'),
-            'von' => $text('von'),
-            'bis' => $text('bis'),
+            'von' => $range['von'] ?? $text('von'),
+            'bis' => $range['bis'] ?? $text('bis'),
             'zahlart' => $text('zahlart'),
             'versandart' => $text('versandart'),
             'min' => $money('min'),
@@ -145,8 +170,12 @@ class BestellungenFilterRequest extends FormRequest
     public function canonical(): array
     {
         $query = [];
+        // A preset stands for its days: the link keeps the preset, never the dates it meant today.
+        $keys = $this->filled('zeitraum')
+            ? ['q', 'status', 'zeitraum', 'zahlart', 'versandart', 'min', 'max']
+            : ['q', 'status', 'von', 'bis', 'zahlart', 'versandart', 'min', 'max'];
 
-        foreach (['q', 'status', 'von', 'bis', 'zahlart', 'versandart', 'min', 'max'] as $key) {
+        foreach ($keys as $key) {
             if ($this->filled($key)) {
                 $query[$key] = trim((string) $this->validated($key));
             }
@@ -166,9 +195,40 @@ class BestellungenFilterRequest extends FormRequest
         return $query;
     }
 
+    /** The Zeitraum preset in force, or null. */
+    public function preset(): ?string
+    {
+        return $this->filled('zeitraum') ? (string) $this->validated('zeitraum') : null;
+    }
+
+    /**
+     * The days a preset stands for today, in Berlin; null without one.
+     *
+     * @return array{von: string, bis: string}|null
+     */
+    private function presetRange(): ?array
+    {
+        $preset = $this->preset();
+
+        if ($preset === null) {
+            return null;
+        }
+
+        $today = CarbonImmutable::now(GermanFormat::TIMEZONE)->startOfDay();
+        $back = $preset === 'heute' ? 0 : (int) $preset - 1;
+
+        return ['von' => $today->subDays($back)->format('Y-m-d'), 'bis' => $today->format('Y-m-d')];
+    }
+
     public function page(): int
     {
         return $this->filled('seite') ? max(1, (int) $this->validated('seite')) : 1;
+    }
+
+    /** The Gespeicherte Ansicht named in the URL, if one is. */
+    public function view(): ?int
+    {
+        return $this->filled('ansicht') ? (int) $this->validated('ansicht') : null;
     }
 
     public function admin(): AdminUser

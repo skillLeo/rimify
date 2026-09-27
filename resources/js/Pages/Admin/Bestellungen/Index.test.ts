@@ -10,9 +10,10 @@ import type { AdminBestellungenProps, OrderRow } from '../../../types/admin/best
  */
 
 const get = vi.fn()
+const current: { props: Record<string, unknown>; url: string } = { props: {}, url: '/admin/bestellungen' }
 
 vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: {}, url: '/admin/bestellungen' }),
+    usePage: () => current,
     router: { get: (...a: unknown[]) => get(...a) },
     Head: defineComponent({ setup: () => () => null }),
     Link: defineComponent({
@@ -22,6 +23,10 @@ vi.mock('@inertiajs/vue3', () => ({
 }))
 
 vi.mock('../../../Layouts/AdminLayout.vue', () => ({ default: defineComponent({ setup: (_, { slots }) => () => slots.default?.() }) }))
+
+// The views bar and the column chooser have tests of their own (Components/Admin/Lists).
+vi.mock('../../../Components/Admin/Lists/ListViews.vue', () => ({ default: defineComponent({ setup: () => () => h('div', { class: 'lv-stub' }) }) }))
+vi.mock('../../../Components/Admin/Lists/ColumnChooser.vue', () => ({ default: defineComponent({ setup: () => () => h('div', { class: 'lc-stub' }) }) }))
 
 vi.mock('reka-ui', () => {
     const pass = defineComponent({ setup: (_, { slots, attrs }) => () => h('div', attrs, slots.default?.()) })
@@ -65,7 +70,7 @@ function row(overrides: Partial<OrderRow> = {}): OrderRow {
 function props(overrides: Partial<AdminBestellungenProps> = {}): AdminBestellungenProps {
     return {
         orders: [row()],
-        filters: { q: '', status: '', von: '', bis: '', zahlart: '', versandart: '', min: '', max: '', auflagen: false, sort: 'datum', richtung: 'ab' },
+        filters: { q: '', status: '', zeitraum: '', von: '', bis: '', zahlart: '', versandart: '', min: '', max: '', auflagen: false, sort: 'datum', richtung: 'ab' },
         options: { statuses: [{ value: 'offen', label: 'Zu versenden (bezahlt)', count: 1 }], payment: [], shipping: [] },
         filtered: false,
         totalAll: 1,
@@ -73,11 +78,28 @@ function props(overrides: Partial<AdminBestellungenProps> = {}): AdminBestellung
         query: {},
         exportUrls: null,
         can: { export: false },
+        views: { items: [], active: null, missing: false, modified: false, shareOptions: [], canSave: true, limit: 30 },
+        columns: {
+            all: [
+                { key: 'nummer', label: 'Nummer', required: true },
+                { key: 'datum', label: 'Datum', required: false },
+                { key: 'kunde', label: 'Kundin oder Kunde', required: false },
+                { key: 'fahrzeug', label: 'Fahrzeug', required: false },
+                { key: 'summe', label: 'Summe', required: false },
+                { key: 'zahlung', label: 'Zahlung', required: false },
+                { key: 'versand', label: 'Versand', required: false },
+            ],
+            shown: ['nummer', 'datum', 'kunde', 'summe', 'zahlung', 'versand'],
+            defaults: ['nummer', 'datum', 'kunde', 'summe', 'zahlung', 'versand'],
+        },
         ...overrides,
     }
 }
 
-beforeEach(() => get.mockReset())
+beforeEach(() => {
+    get.mockReset()
+    current.props = {}
+})
 
 describe('Bestellungen', () => {
     it('writes a normal state as text and tags only the exception', () => {
@@ -86,6 +108,40 @@ describe('Bestellungen', () => {
         expect(cells[4]?.find('.adm-tag').exists()).toBe(false)
         expect(cells[4]?.text()).toContain('Bezahlt')
         expect(cells[5]?.find('.adm-tag--warn').text()).toBe('Zu versenden')
+    })
+
+    it('draws only the columns the person chose — the number always, the car when asked for', () => {
+        const base = props()
+        const wrapper = mount(Page, { props: { ...base, columns: { ...base.columns, shown: ['nummer', 'fahrzeug', 'summe'] } } })
+
+        expect(wrapper.findAll('thead th').map((th) => th.text())).toEqual(['Nummer', 'Fahrzeug', 'Summe'])
+        expect(wrapper.findAll('tbody td').map((td) => td.attributes('data-label'))).toEqual(['Nummer', 'Fahrzeug', 'Summe'])
+        expect(wrapper.find('.ob-vehicle').text()).toBe('BMW 3er')
+    })
+
+    it('keeps the column the list is sorted by, even where the person hid it', () => {
+        const base = props()
+        const wrapper = mount(Page, {
+            props: { ...base, filters: { ...base.filters, sort: 'summe', richtung: 'ab' }, columns: { ...base.columns, shown: ['nummer', 'datum'] } },
+        })
+
+        expect(wrapper.findAll('thead th').map((th) => th.text())).toEqual(['Nummer', 'Datum', 'Summe'])
+    })
+
+    it('says a refused filter above the list — and leaves a refused view name to its dialog', () => {
+        current.props = { errors: { status: 'Diesen Status gibt es nicht. Wähl bitte einen aus der Liste.', name: 'Eine Ansicht mit diesem Namen hast du schon.' } }
+
+        const alert = mount(Page, { props: props() }).find('.adm-alert')
+
+        expect(alert.findAll('.ob-refusal').map((p) => p.text())).toEqual(['Diesen Status gibt es nicht. Wähl bitte einen aus der Liste.'])
+    })
+
+    it('keeps an open view open when a heading re-sorts the list', async () => {
+        const wrapper = mount(Page, { props: props({ query: { status: 'offen' }, views: { items: [], active: 7, missing: false, modified: false, shareOptions: [], canSave: true, limit: 30 } }) })
+
+        await wrapper.findAll('.ob-sort')[1]?.trigger('click')
+
+        expect(get).toHaveBeenCalledWith('/admin/bestellungen', { status: 'offen', sort: 'summe', richtung: 'ab', ansicht: '7' }, expect.anything())
     })
 
     it('says a seeded order is Demodaten, and an order sold under Auflagen says so', () => {

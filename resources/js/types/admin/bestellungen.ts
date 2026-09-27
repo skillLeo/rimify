@@ -1,5 +1,7 @@
 /** Verkauf › Bestellungen — BestellungenController::index and OrderList::row. */
 
+import type { ListColumnsProps, ListViewsProps } from './lists'
+
 export interface OrderState {
     label: string
     /** Only the exception is tagged; `plain` is written as text. */
@@ -38,7 +40,9 @@ export type OrderSort = 'datum' | 'summe' | 'status'
 export interface OrderFilters {
     q: string
     status: string
-    /** `YYYY-MM-DD`, Berlin days. */
+    /** A preset counted back from today (`heute`, `7`, `30`) — kept as that in a link or a view. */
+    zeitraum: string
+    /** `YYYY-MM-DD`, Berlin days — an own range. */
     von: string
     bis: string
     zahlart: string
@@ -72,4 +76,6 @@ export interface AdminBestellungenProps {
     query: Record<string, string>
     exportUrls: { csv: string; xlsx: string } | null
     can: { export: boolean }
+    views: ListViewsProps
+    columns: ListColumnsProps
 }

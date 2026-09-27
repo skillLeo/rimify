@@ -11,7 +11,7 @@ import { openNachfrage, patchCharts } from './bugs/ueb-support'
  * nowhere — parked off the screen, never positioned (RAIL-10: „Neu“ and the account menu in the
  * rail's foot). This walks every menu there is: the foot's two, the top bar's Hilfe and bell, the
  * Übersicht's period „…“, its own-range popover and the chart menus, the row menus of Benutzer,
- * Rollen, Navigation, FAQ and Nachfrage, the Bestellungen export, and a page's „…“ (Seiten). The
+ * Rollen, Navigation, FAQ and Nachfrage, the Bestellungen export and Spalten, and a page's „…“ (Seiten). The
  * admin has no bulk-action or breadcrumb menus yet; add them here when it does.
  *
  * The rail's width is stored on the account; every test puts back the default, 260 px, open. The
@@ -75,7 +75,13 @@ const STOPS: Stop[] = [
     { open: (page) => visit(page, '/admin/navigation'), menus: [{ name: 'Navigation row', trigger: (page) => page.locator('[data-focus^="nav-more-"]').first() }] },
     { open: (page) => visit(page, '/admin/faq'), menus: [{ name: 'FAQ row', trigger: (page) => page.locator('[data-focus^="faq-more-"]').first() }] },
     { open: async (page) => void (await openNachfrage(page, 1)), menus: [{ name: 'Nachfrage row', trigger: byName(/^Weitere Aktionen für /) }] },
-    { open: (page) => visit(page, '/admin/bestellungen'), menus: [{ name: 'Bestellungen export', trigger: (page) => page.locator('.ob-export') }] },
+    {
+        open: (page) => visit(page, '/admin/bestellungen'),
+        menus: [
+            { name: 'Bestellungen export', trigger: (page) => page.locator('.ob-export') },
+            { name: 'Bestellungen Spalten', trigger: byName('Spalten') },
+        ],
+    },
     {
         open: async (page) => {
             await visit(page, '/admin/seiten')

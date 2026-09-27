@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
@@ -252,6 +253,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bestellungen/export', [BestellungenController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':orders,export')
             ->name('bestellungen.export');
+
+        // Gespeicherte Ansichten (step 2.2), for every list in AdminLists: a list's filters under a
+        // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy
+        // through its Form Request; a deleted view can be restored („Rückgängig“).
+        Route::post('/ansichten', [SavedViewsController::class, 'store'])->middleware('throttle:60,1')->name('ansichten.store');
+        Route::patch('/ansichten/{view}', [SavedViewsController::class, 'update'])->whereNumber('view')->name('ansichten.update');
+        Route::delete('/ansichten/{view}', [SavedViewsController::class, 'destroy'])->whereNumber('view')->name('ansichten.destroy');
+        Route::post('/ansichten/{view}/wiederherstellen', [SavedViewsController::class, 'restore'])
+            ->whereNumber('view')
+            ->withTrashed()
+            ->name('ansichten.restore');
 
         // Verkauf › Anfragen — the „Sag mir Bescheid“ subscriptions. Customer e-mail addresses: the
         // Gutachten area's to read, nobody else's (the team that answers them with a document).

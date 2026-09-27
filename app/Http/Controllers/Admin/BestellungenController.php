@@ -12,6 +12,8 @@ use App\Http\Requests\Admin\BestellungenFilterRequest;
 use App\Models\Order;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\ListExport;
+use App\Services\Admin\Lists\AdminLists;
+use App\Services\Admin\Lists\ListViews;
 use App\Services\Admin\Orders\OrderList;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
@@ -36,24 +38,27 @@ class BestellungenController extends Controller
         'Zahlart', 'Versandart', 'Summe (EUR)', 'Mit Auflagen', 'Demodaten',
     ];
 
-    public function __construct(private readonly OrderList $list) {}
+    public function __construct(private readonly OrderList $list, private readonly ListViews $views) {}
 
     public function index(BestellungenFilterRequest $request): Response|RedirectResponse
     {
         $filters = $request->filters();
         $canonical = $request->canonical();
+        $admin = $request->admin();
+        $lists = $this->views->for($admin, AdminLists::BESTELLUNGEN, $canonical, $request->view());
+        // The pages of a view stay in it: the view rides along in their links, never in the export.
+        $paged = $lists['views']['active'] === null ? $canonical : [...$canonical, 'ansicht' => (string) $lists['views']['active']];
 
         $page = $this->list->query($filters)->paginate(OrderList::PER_PAGE, ['*'], 'seite', $request->page());
 
         // A page past the end (an old link, a filter that shrank the set) opens the last real one.
         if ($page->isEmpty() && $page->total() > 0) {
-            return redirect()->to(self::url($canonical, $page->lastPage()));
+            return redirect()->to(self::url($paged, $page->lastPage()));
         }
 
         /** @var list<Order> $orders */
         $orders = array_values($page->items());
         $filtered = array_diff_key($canonical, ['sort' => true, 'richtung' => true]) !== [];
-        $admin = $request->admin();
         $canExport = $admin->may(PermissionModule::Orders, PermissionAction::Export);
 
         return Inertia::render('Admin/Bestellungen/Index', [
@@ -61,6 +66,7 @@ class BestellungenController extends Controller
             'filters' => [
                 'q' => $canonical['q'] ?? '',
                 'status' => $canonical['status'] ?? '',
+                'zeitraum' => $canonical['zeitraum'] ?? '',
                 'von' => $canonical['von'] ?? '',
                 'bis' => $canonical['bis'] ?? '',
                 'zahlart' => $canonical['zahlart'] ?? '',
@@ -79,10 +85,13 @@ class BestellungenController extends Controller
                 'current' => $page->currentPage(),
                 'last' => $page->lastPage(),
                 'total' => $page->total(),
-                'prev' => $page->currentPage() > 1 ? self::url($canonical, $page->currentPage() - 1) : null,
-                'next' => $page->hasMorePages() ? self::url($canonical, $page->currentPage() + 1) : null,
+                'prev' => $page->currentPage() > 1 ? self::url($paged, $page->currentPage() - 1) : null,
+                'next' => $page->hasMorePages() ? self::url($paged, $page->currentPage() + 1) : null,
             ],
             'query' => $canonical,
+            // Gespeicherte Ansichten and the Spaltenwahl (step 2.2).
+            'views' => $lists['views'],
+            'columns' => $lists['columns'],
             'exportUrls' => $canExport ? [
                 'csv' => self::url([...$canonical, 'format' => 'csv'], 1, '/admin/bestellungen/export'),
                 'xlsx' => self::url([...$canonical, 'format' => 'xlsx'], 1, '/admin/bestellungen/export'),

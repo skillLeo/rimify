@@ -10,7 +10,7 @@ import { activeCount, formFromFilters, nextSort, queryFromForm, sortQuery, type 
 const TODAY = '2026-09-26'
 
 const NONE: OrderFilters = {
-    q: '', status: '', von: '', bis: '', zahlart: '', versandart: '', min: '', max: '', auflagen: false, sort: 'datum', richtung: 'ab',
+    q: '', status: '', zeitraum: '', von: '', bis: '', zahlart: '', versandart: '', min: '', max: '', auflagen: false, sort: 'datum', richtung: 'ab',
 }
 
 const EMPTY_FORM: FilterForm = { status: '', zeitraum: '', von: '', bis: '', zahlart: '', versandart: '', min: '', max: '', auflagen: false }
@@ -25,7 +25,15 @@ describe('queryFromForm', () => {
         const form: FilterForm = { ...EMPTY_FORM, status: 'offen', zeitraum: '7', zahlart: 'card', min: '1.425,50', auflagen: true }
 
         expect(queryFromForm(form, ' Weber ', { sort: 'summe', richtung: 'auf' }, TODAY)).toEqual({
-            query: { q: 'Weber', status: 'offen', von: '2026-09-20', bis: '2026-09-26', zahlart: 'card', min: '1.425,50', auflagen: '1', sort: 'summe', richtung: 'auf' },
+            query: { q: 'Weber', status: 'offen', zeitraum: '7', zahlart: 'card', min: '1.425,50', auflagen: '1', sort: 'summe', richtung: 'auf' },
+        })
+    })
+
+    it('sends a preset as itself — a link or a view keeps meaning „the last 7 days“ tomorrow', () => {
+        expect(queryFromForm({ ...EMPTY_FORM, zeitraum: 'heute' }, '', NEWEST, TODAY)).toEqual({ query: { zeitraum: 'heute' } })
+        // An own range goes as its days.
+        expect(queryFromForm({ ...EMPTY_FORM, zeitraum: 'eigen', von: '01.09.2026', bis: '02.09.2026' }, '', NEWEST, TODAY)).toEqual({
+            query: { von: '2026-09-01', bis: '2026-09-02' },
         })
     })
 
@@ -40,6 +48,10 @@ describe('queryFromForm', () => {
 })
 
 describe('formFromFilters', () => {
+    it('shows a preset the link carries as that preset', () => {
+        expect(formFromFilters({ ...NONE, zeitraum: '7' }, TODAY)).toMatchObject({ zeitraum: '7', von: '', bis: '' })
+    })
+
     it('shows a range the server applied as the preset it matches, or as an own range', () => {
         expect(formFromFilters({ ...NONE, von: '2026-08-28', bis: '2026-09-26' }, TODAY).zeitraum).toBe('30')
         expect(formFromFilters({ ...NONE, von: '2026-09-01', bis: '2026-09-02' }, TODAY)).toMatchObject({ zeitraum: 'eigen', von: '01.09.2026', bis: '02.09.2026' })
@@ -62,5 +74,6 @@ describe('sorting', () => {
 describe('activeCount', () => {
     it('counts a range once and an amount range once, and not the search', () => {
         expect(activeCount({ ...NONE, q: 'x', von: '2026-09-01', bis: '2026-09-02', min: '1', max: '2', auflagen: true })).toBe(3)
+        expect(activeCount({ ...NONE, zeitraum: '30' })).toBe(1)
     })
 })

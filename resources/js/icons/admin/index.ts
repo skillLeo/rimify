@@ -108,6 +108,10 @@ const G = {
     print: '<path d="M5.75 7.25v-4.5h8.5v4.5"/><path d="M5.75 13.75h-3v-6.5h14.5v6.5h-3"/><rect x="5.75" y="11.75" width="8.5" height="5.5"/>',
     table: '<rect x="2.75" y="3.75" width="14.5" height="12.5"/><path d="M2.75 7.75h14.5M2.75 12h14.5M8 7.75v8.5"/>',
     chart: '<path d="M2.75 14.25l4.5-5 3.5 3 6.5-7.5"/><path d="M2.75 17.25h14.5"/>',
+    // A list's Spaltenwahl: three columns in a frame, no rows.
+    columns: '<rect x="2.75" y="3.75" width="14.5" height="12.5"/><path d="M7.58 3.75v12.5M12.42 3.75v12.5"/>',
+    // A Gespeicherte Ansicht: the bookmark it is kept under.
+    bookmark: '<path d="M5.25 2.75h9.5v14.5L10 13.25l-4.75 4z"/>',
 } as const
 
 export type AdminIconName = keyof typeof G
