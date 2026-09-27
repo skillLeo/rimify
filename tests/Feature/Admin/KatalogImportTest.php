@@ -239,6 +239,26 @@ it('takes an import back whole — and not once something was built on it', func
         ->assertSessionHasErrors(['import' => 'Der Import lässt sich nicht mehr zurücknehmen: Für importierte Größen wurden inzwischen Freigaben eingetragen.']);
 });
 
+it('names a row by the line a spreadsheet shows, blank lines included', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'rimify-feed-').'.csv';
+    file_put_contents($path, "SKU;Marke;Modell;Farbe;Zoll;Breite;ET;Lochbild;MLB;Preis\n\n\nTST-1;Prüfmarke;Kontur;Silber;18;acht;35;5x112;66,6;189,00\n");
+
+    $run = probelauf(new UploadedFile($path, 'luecken.csv', 'text/csv', null, true));
+
+    expect($run->plan[0]['line'])->toBe(4);
+});
+
+it('will not take back an import whose new sizes were changed since', function (): void {
+    $run = probelauf(supplierCsv(feedRows()));
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/importieren");
+
+    $this->travel(1)->minutes();
+    WheelConfig::query()->where('sku', 'TST-18-80-35')->firstOrFail()->forceFill(['stock_qty' => 99])->save();
+
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/zuruecknehmen")
+        ->assertSessionHasErrors(['import' => 'Der Import lässt sich nicht mehr zurücknehmen: Importierte Größen wurden seit dem Import geändert.']);
+});
+
 it('offers a sample file with every column it reads', function (): void {
     $response = $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import/beispiel.csv')->assertOk();
     $csv = $response->streamedContent();

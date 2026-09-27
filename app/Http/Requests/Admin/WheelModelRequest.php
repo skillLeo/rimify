@@ -74,7 +74,8 @@ class WheelModelRequest extends FormRequest
     {
         return [
             'brand_id' => ['nullable', 'integer', 'required_without:brand_new', Rule::exists('brands', 'id')->whereNull('deleted_at')],
-            'brand_new' => ['nullable', 'string', 'max:60', 'required_without:brand_id'],
+            // Missing both is said once, under the brand select (brand_id), not twice.
+            'brand_new' => ['nullable', 'string', 'max:60'],
             'name' => ['required', 'string', 'max:80'],
             'type_designation' => ['nullable', 'string', 'max:80'],
             'spoke_count' => ['required', 'integer', Rule::in(self::SPOKES)],

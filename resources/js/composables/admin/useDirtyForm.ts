@@ -39,7 +39,11 @@ export interface DirtyForm<T extends object> extends DirtyFormState {
 }
 
 export interface DirtyFormOptions {
-    method: Method
+    /**
+     * Asked at each save when a function: a form that creates its record on the first save and
+     * changes it after (Inertia keeps the page, so a method fixed at setup would stay `post`).
+     */
+    method: Method | (() => Method)
     url: string | (() => string)
     /**
      * Back to the initial values after a save, instead of keeping what was saved as the new clean
@@ -83,12 +87,13 @@ export function useDirtyForm<T extends FormDataType<T>>(initial: T, options: Dir
 
         failed.value = false
         const url = typeof options.url === 'function' ? options.url() : options.url
+        const method = typeof options.method === 'function' ? options.method() : options.method
 
         /* Exactly what goes out. Words typed while the save is on its way are not in it: they must
            stay "unsaved", or a click away would drop them without asking. */
         const sent = JSON.stringify(form.data())
 
-        form.submit(options.method, url, {
+        form.submit(method, url, {
             preserveScroll: true,
             onSuccess: () => {
                 if (options.resetOnSuccess) {

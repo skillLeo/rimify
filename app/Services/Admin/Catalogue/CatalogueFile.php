@@ -63,7 +63,7 @@ final class CatalogueFile
 
         $keyed = [];
 
-        foreach ($rows as $cells) {
+        foreach ($rows as $line => $cells) {
             $row = [];
 
             foreach ($headers as $i => $header) {
@@ -74,7 +74,7 @@ final class CatalogueFile
 
             // A line with nothing in it is the end of a spreadsheet, not a wheel.
             if (implode('', $row) !== '') {
-                $keyed[] = $row;
+                $keyed[] = $row + ['_line' => (string) $line];
             }
         }
 
@@ -106,14 +106,22 @@ final class CatalogueFile
             $reader->setDelimiter($delimiter);
             $lines = [];
 
-            foreach ($reader->getRecords() as $record) {
-                $lines[] = array_values($record);
+            // Keyed by the file's own line number (the reader's offset counts from 0), so a row named in
+            // the Probelauf is the line a spreadsheet shows, blank lines or not.
+            foreach ($reader->getRecords() as $offset => $record) {
+                $lines[(int) $offset + 1] = array_values($record);
             }
         } catch (Throwable) {
             throw self::refuse('Die CSV-Datei lässt sich nicht lesen. Speichere sie bitte als „CSV UTF-8“ und lad sie noch einmal hoch.');
         }
 
-        $headers = array_shift($lines) ?? [];
+        // Not array_shift: that numbers the rows anew, and their keys are the file's line numbers.
+        $first = array_key_first($lines);
+        $headers = $first === null ? [] : $lines[$first];
+
+        if ($first !== null) {
+            unset($lines[$first]);
+        }
 
         return [$headers, $lines];
     }
@@ -128,8 +136,8 @@ final class CatalogueFile
             $reader->open($path);
 
             foreach ($reader->getSheetIterator() as $sheet) {
-                foreach ($sheet->getRowIterator() as $row) {
-                    $lines[] = array_map(self::cell(...), $row->toArray());
+                foreach ($sheet->getRowIterator() as $number => $row) {
+                    $lines[(int) $number] = array_map(self::cell(...), $row->toArray());
 
                     if (count($lines) > CatalogueImporter::MAX_ROWS + 1) {
                         break;
@@ -145,7 +153,13 @@ final class CatalogueFile
             $reader->close();
         }
 
-        $headers = array_shift($lines) ?? [];
+        // Not array_shift: that numbers the rows anew, and their keys are the file's line numbers.
+        $first = array_key_first($lines);
+        $headers = $first === null ? [] : $lines[$first];
+
+        if ($first !== null) {
+            unset($lines[$first]);
+        }
 
         return [$headers, $lines];
     }

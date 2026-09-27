@@ -10,7 +10,7 @@
  */
 
 import { router, usePage } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage, { type AdminPageAction } from '../../../Components/Admin/AdminPage.vue'
@@ -49,7 +49,8 @@ function fromProps(): WheelForm {
 }
 
 const editor = useDirtyForm<WheelForm>(fromProps(), {
-    method: props.model ? 'put' : 'post',
+    // Asked at each save: after the first save of a new Felge the page stays, now with its model.
+    method: () => (props.model ? 'put' : 'post'),
     url: () => (props.model ? `/admin/felgen/${props.model.id}` : '/admin/felgen'),
     onSaved: () => sync(),
 })
@@ -98,13 +99,16 @@ const context = computed(() => {
 /* ── Errors: the server's keys are the fields' paths ───────────────────────── */
 
 const inertiaPage = usePage()
-const errors = computed(() => ({ ...(inertiaPage.props.errors as Record<string, string | undefined>), ...(form.errors as Record<string, string | undefined>) }))
+/* The fields' errors are the form's own, so „Verwerfen“ clears them; the page's bag carries only the
+   refusal of a step (Veröffentlichen). */
+const errors = computed(() => form.errors as Record<string, string | undefined>)
+const stepError = computed(() => ((inertiaPage.props.errors ?? {}) as Record<string, string | undefined>).publish ?? '')
 
 function err(path: string): string {
     return errors.value[path] ?? ''
 }
 
-const errorCount = computed(() => Object.entries(errors.value).filter(([key, value]) => typeof value === 'string' && value !== '' && key !== 'publish' && key !== 'image' && key !== 'alt').length)
+const errorCount = computed(() => Object.values(errors.value).filter((value) => typeof value === 'string' && value !== '').length)
 
 /* ── Finishes ──────────────────────────────────────────────────────────────── */
 
@@ -118,14 +122,19 @@ function nextKey(prefix: string): string {
 
 function addFinish(): void {
     form.finishes.push({ key: nextKey('n'), id: null, name: '', hex: '', art_finish: 'graphite' })
+    void nextTick(() => document.getElementById(`fe-f-${form.finishes.length - 1}-name`)?.focus())
 }
 
 function usedBy(finish: FinishForm): number {
     return form.configs.filter((size) => size.finish === finish.key).length
 }
 
+/* Errors are keyed by position: after a row goes they would stand under its neighbour, so they go
+   too, and the next save says again what is still wrong. Focus moves to what is still there. */
 function removeFinish(index: number): void {
     form.finishes.splice(index, 1)
+    form.clearErrors()
+    void nextTick(() => document.getElementById(`fe-f-${Math.min(index, form.finishes.length - 1)}-name`)?.focus())
 }
 
 function serverFinish(finish: FinishForm) {
@@ -149,6 +158,8 @@ const matrixStart = computed(() => {
 })
 
 const added = ref('')
+/* Open from the start while there is no size yet: that is when lists save the most typing. */
+const matrixOpen = ref(props.configs.length === 0)
 
 function addSizes(input: MatrixInput): void {
     const rows = generate(input, form.finishes, form.configs, brandName.value, form.name, () => nextKey('m'))
@@ -181,10 +192,23 @@ function addSize(): void {
     }
 
     form.configs.push(size)
+    // The new row is below the fold more often than not: brought into view, its first field focused.
+    void nextTick(() => {
+        const field = document.getElementById(`fe-size-${form.configs.length - 1}-finish`)
+        // At once, not smooth: on a phone the row can be screens away, and a long glide is motion
+        // nobody asked for.
+        field?.scrollIntoView({ block: 'center' })
+        field?.focus({ preventScroll: true })
+    })
 }
 
 function removeSize(index: number): void {
     form.configs.splice(index, 1)
+    form.clearErrors()
+    void nextTick(() => {
+        const next = document.getElementById(`fe-size-${Math.min(index, form.configs.length - 1)}-sku`)
+        ;(next ?? document.getElementById('fe-add-size'))?.focus()
+    })
 }
 
 /* ── Search engines ─────────────────────────────────────────────────────────── */
@@ -289,7 +313,7 @@ const more = computed<AdminPageAction[]>(() => {
             <h2 id="fe-check-h" class="fe-check__title">
                 Freigabe-Check
                 <span class="fe-check__verdict">
-                    <template v-if="model.demo">Demodaten – kommt nie in den Shop</template>
+                    <template v-if="model.demo">Nicht veröffentlichbar</template>
                     <template v-else-if="model.status === 'published'">Im Shop</template>
                     <template v-else-if="blocked">Noch nicht veröffentlichbar</template>
                     <template v-else>Kann veröffentlicht werden</template>
@@ -307,7 +331,7 @@ const more = computed<AdminPageAction[]>(() => {
             </ul>
             <p v-else class="adm-note">Nichts steht im Weg.</p>
             <p v-if="canPublish && editor.dirty.value" class="adm-note">Speichere zuerst deine Änderungen – veröffentlicht wird, was gespeichert ist.</p>
-            <p v-if="err('publish')" class="adm-alert" role="alert">{{ err('publish') }}</p>
+            <p v-if="stepError" class="adm-alert" role="alert">{{ stepError }}</p>
         </section>
         <p v-else class="adm-note fe-first">Nach dem ersten Speichern prüft der Freigabe-Check hier, ob die Felge in den Shop kann. Gespeichert wird sie als Entwurf.</p>
 
@@ -395,7 +419,14 @@ const more = computed<AdminPageAction[]>(() => {
                             <div class="form-field">
                                 <label class="form-field__label" :for="`fe-f-${index}-hex`">Farbfeld <span class="fe-optional">(optional)</span></label>
                                 <div class="fe-hex">
-                                    <span class="fe-hex__swatch" :style="{ background: /^#[0-9A-Fa-f]{6}$/.test(finish.hex) ? finish.hex : undefined }" aria-hidden="true" />
+                                    <input
+                                        class="fe-hex__swatch"
+                                        type="color"
+                                        :value="/^#[0-9A-Fa-f]{6}$/.test(finish.hex) ? finish.hex : '#C9CED5'"
+                                        :disabled="readonly"
+                                        :aria-label="`Farbe für ${finish.name || 'die Ausführung'} wählen`"
+                                        @input="finish.hex = ($event.target as HTMLInputElement).value.toUpperCase()"
+                                    >
                                     <input
                                         :id="`fe-f-${index}-hex`"
                                         v-model="finish.hex"
@@ -412,21 +443,14 @@ const more = computed<AdminPageAction[]>(() => {
                                 <p :id="`fe-f-${index}-hex-err`" class="form-field__error">{{ err(`finishes.${index}.hex`) }}</p>
                             </div>
                             <div class="form-field">
-                                <label class="form-field__label" :for="`fe-f-${index}-art`">Grundfarbe der Zeichnung</label>
+                                <label class="form-field__label" :for="`fe-f-${index}-art`">Farbe der Umrisszeichnung</label>
                                 <select :id="`fe-f-${index}-art`" v-model="finish.art_finish" class="input" :disabled="readonly">
                                     <option v-for="option in options.artFinishes" :key="option.value" :value="option.value">{{ option.label }}</option>
                                 </select>
                             </div>
-                            <div v-if="!readonly" class="fe-finish__remove">
-                                <button
-                                    class="btn btn--ghost"
-                                    type="button"
-                                    :disabled="form.finishes.length === 1 || usedBy(finish) > 0"
-                                    :title="usedBy(finish) > 0 ? 'Zuerst die Größen dieser Ausführung entfernen' : undefined"
-                                    @click="removeFinish(index)"
-                                >
-                                    Entfernen
-                                </button>
+                            <div v-if="!readonly && form.finishes.length > 1" class="fe-finish__remove">
+                                <button v-if="usedBy(finish) === 0" class="btn btn--ghost" type="button" @click="removeFinish(index)">Entfernen</button>
+                                <p v-else class="adm-note fe-finish__used">Von {{ usedBy(finish) === 1 ? 'einer Größe' : `${usedBy(finish)} Größen` }} genutzt – erst die Größen entfernen.</p>
                             </div>
                         </div>
 
@@ -448,14 +472,20 @@ const more = computed<AdminPageAction[]>(() => {
             <section class="adm-section" aria-labelledby="fe-h-sizes">
                 <div class="adm-section__head">
                     <h2 id="fe-h-sizes" class="adm-section__title">Größen</h2>
-                    <button v-if="!readonly" class="btn btn--ghost" type="button" @click="addSize">
-                        <Icon name="plus" :size="20" />
-                        Eine Größe hinzufügen
-                    </button>
+                    <div v-if="!readonly" class="fe-size-actions">
+                        <button class="btn btn--ghost" type="button" :aria-expanded="matrixOpen ? 'true' : 'false'" aria-controls="fe-matrix" @click="matrixOpen = !matrixOpen">
+                            Größen aus Listen erzeugen
+                            <Icon :name="matrixOpen ? 'chevron-up' : 'chevron-down'" :size="16" />
+                        </button>
+                        <button id="fe-add-size" class="btn btn--ghost" type="button" @click="addSize">
+                            <Icon name="plus" :size="20" />
+                            Eine Größe hinzufügen
+                        </button>
+                    </div>
                 </div>
                 <p class="adm-note">Preis je Felge, mit Mehrwertsteuer. Eine Größe, die in einem Gutachten steht, behält ihre Maße.</p>
 
-                <MatrixPanel v-if="!readonly" :finishes="form.finishes" :bolt-holes="options.boltHoles" :start="matrixStart" @add="addSizes" />
+                <MatrixPanel v-if="!readonly && matrixOpen" id="fe-matrix" :finishes="form.finishes" :bolt-holes="options.boltHoles" :start="matrixStart" @add="addSizes" />
                 <p v-if="added" class="adm-note fe-added" role="status">{{ added }}</p>
 
                 <SizesTable
@@ -644,13 +674,30 @@ const more = computed<AdminPageAction[]>(() => {
     gap: var(--sp-8);
 }
 
+/* The swatch is the colour picker itself: a control, the size of one. */
 .fe-hex__swatch {
     flex: none;
-    width: 24px;
-    height: 24px;
+    width: var(--adm-control-h);
+    height: var(--adm-control-h);
+    padding: var(--sp-4);
     border: 1px solid var(--c-line-2);
-    border-radius: var(--r-round);
+    border-radius: var(--r-control);
     background: var(--c-surface);
+    cursor: pointer;
+}
+
+.fe-hex__swatch:disabled {
+    cursor: default;
+}
+
+.fe-finish__used {
+    max-width: 22ch;
+}
+
+.fe-size-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
 }
 
 .fe-hex .input {
@@ -732,6 +779,11 @@ const more = computed<AdminPageAction[]>(() => {
     .fe-finish__remove .btn,
     .adm-section__head .btn {
         min-height: var(--adm-control-h-lg);
+    }
+
+    .fe-hex__swatch {
+        width: var(--adm-control-h-lg);
+        height: var(--adm-control-h-lg);
     }
 }
 </style>

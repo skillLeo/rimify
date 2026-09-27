@@ -190,8 +190,8 @@ final class WheelList
         return match (true) {
             $sizes === 0 => ['label' => 'Noch keine Größen', 'tone' => 'neutral'],
             $covered === 0 => ['label' => 'Freigaben noch nicht hinterlegt', 'tone' => 'warn'],
-            $covered === $sizes => ['label' => $sizes === 1 ? 'Die Größe hat eine Freigabe' : 'Alle '.$sizes.' Größen haben Freigaben', 'tone' => 'plain'],
-            default => ['label' => $covered.' von '.$sizes.' Größen mit Freigabe', 'tone' => 'plain'],
+            // One pattern down the whole column, so a partial one stands out by its figures.
+            default => ['label' => $covered.' von '.$sizes.($sizes === 1 ? ' Größe' : ' Größen'), 'tone' => 'plain'],
         };
     }
 

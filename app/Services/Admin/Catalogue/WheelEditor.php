@@ -12,6 +12,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Admin\AuditTrail;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -41,6 +42,21 @@ final class WheelEditor
      * @param  list<ConfigInput>  $configs
      */
     public function save(?WheelModel $model, array $attributes, array $finishes, array $configs, AdminUser $admin): WheelModel
+    {
+        try {
+            return $this->write($model, $attributes, $finishes, $configs, $admin);
+        } catch (UniqueConstraintViolationException) {
+            // Whatever the order above cannot untangle is said, never a server error.
+            throw ValidationException::withMessages(['configs' => 'Zwei Größen wären danach gleich: dieselbe SKU oder dieselben Maße in derselben Ausführung. Prüf die Zeilen bitte.']);
+        }
+    }
+
+    /**
+     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null}  $attributes
+     * @param  list<FinishInput>  $finishes
+     * @param  list<ConfigInput>  $configs
+     */
+    private function write(?WheelModel $model, array $attributes, array $finishes, array $configs, AdminUser $admin): WheelModel
     {
         return DB::transaction(function () use ($model, $attributes, $finishes, $configs, $admin): WheelModel {
             $creating = $model === null;
@@ -109,14 +125,18 @@ final class WheelEditor
      */
     private function finishes(WheelModel $model, array $finishes): array
     {
-        $own = $model->finishes()->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all();
+        $own = $model->finishes()->get(['id', 'name_de'])->keyBy('id');
+        $kept = array_values(array_filter(array_map(static fn (array $f): ?int => $f['id'], $finishes)));
+        // Finishes taken off in this save: a new one under the same name takes over its row, so the
+        // table's unique name never sees the old and the new at once.
+        $leaving = $own->reject(static fn (WheelFinish $f): bool => in_array((int) $f->id, $kept, true));
         $ids = [];
 
         foreach ($finishes as $sort => $finish) {
             $values = ['name_de' => $finish['name'], 'hex' => $finish['hex'], 'art_finish' => $finish['art_finish'], 'sort_order' => ($sort + 1) * 10];
 
             if ($finish['id'] !== null) {
-                if (! in_array($finish['id'], $own, true)) {
+                if (! $own->has($finish['id'])) {
                     throw ValidationException::withMessages(["finishes.{$sort}.name" => 'Diese Ausführung gehört zu einer anderen Felge. Lad die Seite bitte neu.']);
                 }
 
@@ -126,7 +146,17 @@ final class WheelEditor
                 continue;
             }
 
-            // A finish removed and added again under its old name comes back, rather than colliding
+            $same = $leaving->first(static fn (WheelFinish $f): bool => mb_strtolower($f->name_de) === mb_strtolower($finish['name']));
+
+            if ($same instanceof WheelFinish) {
+                $leaving->forget($same->id);
+                WheelFinish::query()->whereKey($same->id)->update($values);
+                $ids[$finish['key']] = (int) $same->id;
+
+                continue;
+            }
+
+            // A finish removed in an earlier save and added again comes back, rather than colliding
             // with its own soft-deleted row on the table's unique name.
             $trashed = WheelFinish::onlyTrashed()->where('wheel_model_id', $model->id)->where('name_de', $finish['name'])->first();
 
@@ -145,6 +175,10 @@ final class WheelEditor
     }
 
     /**
+     * The sizes, in an order the table's unique keys can follow: what leaves goes first, an SKU that
+     * moves between rows passes through a name of its own, then the rows that stay change, then the
+     * new ones arrive — so removing a size and adding it again, or swapping two SKUs, in one save works.
+     *
      * @param  list<ConfigInput>  $configs
      * @param  array<string, int>  $finishIds
      * @return array{added: int, changed: int, removed: int}
@@ -155,9 +189,10 @@ final class WheelEditor
         $existing = $model->configs()->get()->keyBy('id');
         $withFitments = DB::table('fitments')->whereIn('wheel_config_id', $existing->keys())->distinct()->pluck('wheel_config_id')
             ->map(static fn (mixed $id): int => (int) $id)->all();
-        $kept = [];
         $counts = ['added' => 0, 'changed' => 0, 'removed' => 0];
         $errors = [];
+        $updates = [];
+        $creates = [];
 
         foreach ($configs as $i => $config) {
             $values = [
@@ -177,29 +212,7 @@ final class WheelEditor
             ];
 
             if ($config['id'] === null) {
-                // A size removed and added again — same SKU, or same measurements in the same finish —
-                // comes back, rather than colliding with its own soft-deleted row on the unique keys.
-                $trashed = WheelConfig::onlyTrashed()
-                    ->where('wheel_model_id', $model->id)
-                    ->where(static function ($same) use ($values): void {
-                        $same->where('sku', $values['sku'])->orWhere(static function ($size) use ($values): void {
-                            $size->where('wheel_finish_id', $values['wheel_finish_id'])
-                                ->where('diameter_in', $values['diameter_in'])
-                                ->where('width_in', $values['width_in'])
-                                ->where('et_mm', $values['et_mm'])
-                                ->where('bolt_circle_mm', $values['bolt_circle_mm']);
-                        });
-                    })
-                    ->first();
-
-                if ($trashed instanceof WheelConfig) {
-                    $trashed->restore();
-                    $trashed->fill($values)->save();
-                } else {
-                    WheelConfig::query()->create($values + ['wheel_model_id' => $model->id, 'currency' => 'EUR']);
-                }
-
-                $counts['added']++;
+                $creates[] = $values;
 
                 continue;
             }
@@ -212,24 +225,21 @@ final class WheelEditor
                 continue;
             }
 
-            $kept[] = (int) $row->id;
-
             if (in_array((int) $row->id, $withFitments, true) && ($this->measurementsChanged($row, $values) || (int) $row->wheel_finish_id !== $values['wheel_finish_id'])) {
                 $errors["configs.{$i}.width"] = 'Diese Größe steht in einem Gutachten. Ihre Maße und ihre Ausführung bleiben, wie sie sind – leg für andere Maße eine neue Größe an.';
 
                 continue;
             }
 
-            $row->fill($values);
-
-            if ($row->isDirty()) {
-                $row->save();
-                $counts['changed']++;
-            }
+            $updates[(int) $row->id] = [$row, $values];
         }
 
+        // 1. What leaves, leaves first. A soft-deleted row keeps its SKU in the unique index, so one
+        //    another row takes over in this save steps aside as it goes.
+        $claimed = array_map(static fn (array $c): string => mb_strtolower($c['sku']), $configs);
+
         foreach ($existing as $id => $row) {
-            if (in_array((int) $id, $kept, true)) {
+            if (self::mentioned($configs, (int) $id)) {
                 continue;
             }
 
@@ -237,6 +247,10 @@ final class WheelEditor
                 $errors['configs'] = 'Die Größe '.$row->label().' steht in einem Gutachten und kann nicht entfernt werden. Nimm sie zuerst im Gutachten zurück.';
 
                 continue;
+            }
+
+            if (in_array(mb_strtolower((string) $row->getAttribute('sku')), $claimed, true)) {
+                self::stepAside((int) $id);
             }
 
             $row->delete();
@@ -247,7 +261,89 @@ final class WheelEditor
             throw ValidationException::withMessages($errors);
         }
 
+        // 2. A new row that is a size this model had before comes back as that row — decided now,
+        //    before any SKU moves, so each trashed row is taken once.
+        $revived = [];
+        $taken = [];
+
+        foreach ($creates as $n => $values) {
+            $trashed = WheelConfig::onlyTrashed()
+                ->where('wheel_model_id', $model->id)
+                ->whereNotIn('id', $taken)
+                ->where(static function ($same) use ($values): void {
+                    $same->where('sku', $values['sku'])->orWhere(static function ($size) use ($values): void {
+                        $size->where('wheel_finish_id', $values['wheel_finish_id'])
+                            ->where('diameter_in', $values['diameter_in'])
+                            ->where('width_in', $values['width_in'])
+                            ->where('et_mm', $values['et_mm'])
+                            ->where('bolt_circle_mm', $values['bolt_circle_mm']);
+                    });
+                })
+                ->first();
+
+            if ($trashed instanceof WheelConfig) {
+                $revived[$n] = $trashed;
+                $taken[] = (int) $trashed->id;
+            }
+        }
+
+        // 3. Every row whose SKU changes steps aside before any takes its new one: SKUs can change
+        //    hands between rows in one save.
+        foreach ($updates as $id => [$row, $values]) {
+            if ($row->getAttribute('sku') !== $values['sku']) {
+                self::stepAside($id);
+                $row->setAttribute('sku', null);
+                $row->syncOriginalAttribute('sku');
+            }
+        }
+
+        foreach ($revived as $n => $row) {
+            if ($row->getAttribute('sku') !== $creates[$n]['sku']) {
+                self::stepAside((int) $row->id);
+            }
+        }
+
+        // 4. The rows that stay change; the new ones arrive.
+        foreach ($updates as [$row, $values]) {
+            $row->fill($values);
+
+            if ($row->isDirty()) {
+                $row->save();
+                $counts['changed']++;
+            }
+        }
+
+        foreach ($creates as $n => $values) {
+            if (isset($revived[$n])) {
+                $row = WheelConfig::onlyTrashed()->findOrFail($revived[$n]->id);
+                $row->restore();
+                $row->fill($values)->save();
+            } else {
+                WheelConfig::query()->create($values + ['wheel_model_id' => $model->id, 'currency' => 'EUR']);
+            }
+
+            $counts['added']++;
+        }
+
         return $counts;
+    }
+
+    /** A temporary SKU no real one can have, so the real one is free for another row in this save. */
+    private static function stepAside(int $id): void
+    {
+        WheelConfig::withTrashed()->whereKey($id)->update(['sku' => '~'.$id.'-'.bin2hex(random_bytes(4))]);
+    }
+
+    /** @param  list<ConfigInput>  $configs */
+    private static function mentioned(array $configs, int $id): bool
+    {
+        foreach ($configs as $config) {
+            if ($config['id'] === $id) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @param  array<string, mixed>  $values */

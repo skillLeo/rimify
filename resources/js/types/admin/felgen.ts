@@ -206,6 +206,8 @@ export interface ImportPlanRow {
 export interface AdminImportProps {
     fields: ImportField[]
     imports: ImportRunRow[]
+    /** Every run, while the page lists the latest 20. */
+    total: number
     can: { preview: boolean }
 }
 

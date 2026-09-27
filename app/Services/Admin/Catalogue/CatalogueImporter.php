@@ -198,7 +198,7 @@ final class CatalogueImporter
         $rows = [];
 
         foreach ($import->source['rows'] as $raw) {
-            $row = ['_decimal' => $pointIsDecimal ? 'punkt' : 'komma'];
+            $row = ['_decimal' => $pointIsDecimal ? 'punkt' : 'komma', '_line' => $raw['_line'] ?? null];
 
             foreach (array_keys(self::FIELDS) as $field) {
                 $header = $mapping[$field] ?? null;
@@ -297,6 +297,10 @@ final class CatalogueImporter
             $problems[] = 'Für importierte Größen wurden inzwischen Freigaben eingetragen.';
         }
 
+        if ($import->applied_at !== null && $configs !== [] && WheelConfig::withTrashed()->whereIn('id', $configs)->where('updated_at', '>', $import->applied_at)->exists()) {
+            $problems[] = 'Importierte Größen wurden seit dem Import geändert.';
+        }
+
         if ($configs !== [] && DB::table('order_lines')->whereIn('wheel_config_id', $configs)->exists()) {
             $problems[] = 'Importierte Größen wurden inzwischen bestellt.';
         }
@@ -353,7 +357,8 @@ final class CatalogueImporter
         $newFinishes = [];
 
         foreach ($rows as $i => $row) {
-            $line = $i + 2;
+            // The file's own line, as a spreadsheet shows it — blank lines included.
+            $line = isset($row['_line']) ? (int) $row['_line'] : $i + 2;
             $parsed = self::parse($row);
             $sku = (string) ($row['sku'] ?? '');
             $entry = ['line' => $line, 'sku' => $sku, 'action' => 'refused', 'label' => $parsed['label'], 'changes' => [], 'reasons' => $parsed['errors'], 'new' => ['brand' => false, 'model' => false, 'finish' => false]];

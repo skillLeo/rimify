@@ -10,6 +10,7 @@
 import { Link, useForm } from '@inertiajs/vue3'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import FilePick from '../../../Components/Admin/FilePick.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminImportProps, ImportRunRow } from '../../../types/admin/felgen'
@@ -19,10 +20,6 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 const props = defineProps<AdminImportProps>()
 
 const upload = useForm<{ file: File | null; dezimal: 'komma' | 'punkt' }>({ file: null, dezimal: 'komma' })
-
-function pick(event: Event): void {
-    upload.file = (event.target as HTMLInputElement).files?.[0] ?? null
-}
 
 function submit(): void {
     if (upload.file === null) {
@@ -58,26 +55,38 @@ const optional = props.fields.filter((field) => !field.required)
 </script>
 
 <template>
-    <AdminPage title="Katalog-Import" :context="imports.length === 1 ? '1 Lauf' : `${decimal(imports.length, 0)} Läufe`">
+    <AdminPage title="Katalog-Import" :context="total === 1 ? '1 Lauf' : `${decimal(total, 0)} Läufe`">
         <section v-if="can.preview" class="adm-section" aria-labelledby="im-h-file">
             <div class="adm-section__head">
                 <h2 id="im-h-file" class="adm-section__title">Datei prüfen</h2>
-                <a class="btn btn--ghost" href="/admin/katalog/import/beispiel.csv" download>Beispieldatei herunterladen</a>
             </div>
-            <p class="adm-note">Eine Zeile ist eine Größe. Der Probelauf liest die Datei und zeigt, was sich ändern würde – im Katalog ändert sich dabei nichts.</p>
+            <p class="adm-note">
+                Eine Zeile ist eine Größe. Der Probelauf liest die Datei und zeigt, was sich ändern würde – im Katalog ändert sich dabei nichts. Zum
+                Anfangen gibt es eine <a href="/admin/katalog/import/beispiel.csv" download>Beispieldatei</a> mit allen Spalten.
+            </p>
+
+            <dl class="im-fields">
+                <div class="im-fields__row">
+                    <dt>Pflicht</dt>
+                    <dd>{{ required.map((f) => f.label).join(', ') }}</dd>
+                </div>
+                <div class="im-fields__row">
+                    <dt>Optional</dt>
+                    <dd>{{ optional.map((f) => f.label).join(', ') }}</dd>
+                </div>
+            </dl>
+            <p class="adm-note im-rules">Der Import erkennt die Spalten an ihrem Namen; im nächsten Schritt kannst du sie auch selbst zuordnen. Eine bekannte SKU ändert nur Preis, Bestand, EAN, KBA-Nummer und Gewicht. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
 
             <form class="im-form" @submit.prevent="submit">
                 <div class="form-field">
-                    <label class="form-field__label" for="im-file">Datei (CSV oder Excel, höchstens 5 MB)</label>
-                    <input
+                    <span id="im-file-label" class="form-field__label">Datei (CSV oder Excel, höchstens 5 MB)</span>
+                    <FilePick
                         id="im-file"
-                        class="input im-file"
-                        type="file"
+                        v-model="upload.file"
                         accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        :aria-invalid="upload.errors.file ? 'true' : undefined"
-                        aria-describedby="im-file-err"
-                        @change="pick"
-                    >
+                        :invalid="!!upload.errors.file"
+                        describedby="im-file-label im-file-err"
+                    />
                     <p id="im-file-err" class="form-field__error">{{ upload.errors.file }}</p>
                 </div>
                 <div class="form-field">
@@ -92,13 +101,6 @@ const optional = props.fields.filter((field) => !field.required)
                     <button class="btn btn--primary" type="submit" :disabled="upload.processing" :aria-busy="upload.processing ? 'true' : undefined">Probelauf starten</button>
                 </div>
             </form>
-
-            <div class="im-fields">
-                <p class="im-fields__head">Diese Spalten liest der Import – er erkennt sie an ihrem Namen, du kannst sie im nächsten Schritt aber auch selbst zuordnen:</p>
-                <p class="im-fields__line"><strong>Pflicht:</strong> {{ required.map((f) => f.label).join(', ') }}.</p>
-                <p class="im-fields__line"><strong>Optional:</strong> {{ optional.map((f) => f.label).join(', ') }}.</p>
-                <p class="adm-note">Eine bekannte SKU ändert nur Preis, Bestand, EAN, KBA-Nummer und Gewicht. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
-            </div>
         </section>
 
         <section class="adm-section" aria-labelledby="im-h-runs">
@@ -149,11 +151,6 @@ const optional = props.fields.filter((field) => !field.required)
     margin-block: var(--sp-16) var(--sp-24);
 }
 
-.im-file {
-    height: auto;
-    padding-block: var(--sp-8);
-}
-
 .im-decimal {
     max-width: 36ch;
 }
@@ -162,23 +159,33 @@ const optional = props.fields.filter((field) => !field.required)
     display: none;
 }
 
+/* The columns the importer reads: a short list at reading width, above the file it applies to. */
 .im-fields {
     display: grid;
     gap: var(--sp-8);
-    max-width: var(--adm-form-max);
+    max-width: 54ch;
+    margin: var(--sp-16) 0 0;
 }
 
-.im-fields__head,
-.im-fields__line {
-    margin: 0;
+.im-fields__row {
+    display: grid;
+    grid-template-columns: 9ch minmax(0, 1fr);
+    gap: var(--sp-12);
     font-size: var(--fs-small);
     line-height: var(--lh-small);
+}
+
+.im-fields__row dt {
+    font-weight: 500;
+}
+
+.im-fields__row dd {
+    margin: 0;
     color: var(--c-ink-2);
 }
 
-.im-fields__line strong {
-    color: var(--c-ink);
-    font-weight: 500;
+.im-rules {
+    margin-top: var(--sp-12);
 }
 
 .im-link {

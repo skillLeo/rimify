@@ -76,7 +76,9 @@ function newParts(row: ImportPlanRow): string {
         parts.push('neue Ausführung')
     }
 
-    return parts.join(', ')
+    const text = parts.join(', ')
+
+    return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 /* ── Import and rollback ───────────────────────────────────────────────────── */
@@ -187,7 +189,7 @@ function runStep(): void {
                             <th scope="col" class="num">Zeile</th>
                             <th scope="col">SKU</th>
                             <th scope="col">Felge</th>
-                            <th scope="col">Was passiert</th>
+                            <th scope="col">Änderung</th>
                             <th scope="col">Einzelheiten</th>
                         </tr>
                     </thead>
@@ -196,7 +198,7 @@ function runStep(): void {
                             <td data-label="Zeile" class="num">{{ row.line }}</td>
                             <td data-label="SKU" class="ir-sku">{{ row.sku || '–' }}</td>
                             <td data-label="Felge" class="ir-label">{{ row.label }}</td>
-                            <td data-label="Was passiert">
+                            <td data-label="Änderung">
                                 <span v-if="ACTIONS[row.action].tag" :class="ACTIONS[row.action].tag">{{ ACTIONS[row.action].label }}</span>
                                 <template v-else>{{ ACTIONS[row.action].label }}</template>
                             </td>
@@ -261,7 +263,7 @@ function runStep(): void {
                 </div>
 
                 <div v-if="can.remap" class="ir-map__actions">
-                    <button class="btn btn--secondary" type="submit" :disabled="!mappingForm.isDirty || mappingForm.processing" :aria-busy="mappingForm.processing ? 'true' : undefined">Neu prüfen</button>
+                    <button class="btn btn--secondary" type="submit" :disabled="mappingForm.processing" :aria-busy="mappingForm.processing ? 'true' : undefined">Neu prüfen</button>
                     <p v-if="mappingForm.isDirty" class="adm-note">Die Zuordnung ist geändert. Prüf neu, bevor du importierst.</p>
                 </div>
             </form>
@@ -282,7 +284,7 @@ function runStep(): void {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--sp-16);
-    max-width: 720px;
+    max-width: var(--adm-form-max);
     margin: 0 0 var(--sp-16);
 }
 

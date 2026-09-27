@@ -45,6 +45,8 @@ class KatalogImportController extends Controller
         return Inertia::render('Admin/Katalog/Import', [
             'fields' => self::fields(),
             'imports' => $imports,
+            // The page lists the latest 20; its context counts them all.
+            'total' => CatalogueImport::query()->count(),
             'can' => ['preview' => $request->admin()->can('preview', CatalogueImport::class)],
         ]);
     }
@@ -64,7 +66,8 @@ class KatalogImportController extends Controller
 
     public function show(CatalogueImportRequest $request, CatalogueImport $import): Response
     {
-        $request->attributes->set(AdminNavigation::RECORD, $import->file_name);
+        // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
+        request()->attributes->set(AdminNavigation::RECORD, $import->file_name);
         $admin = $request->admin();
         $headers = $import->source['headers'];
         $order = ['refused' => 0, 'create' => 1, 'update' => 2];

@@ -251,6 +251,24 @@ describe('changing a Felge', function (): void {
         expect($size->refresh()->price_cents)->toBe(24_900)->and($size->et_mm)->not->toBe(40);
     });
 
+    it('takes a size out and puts the same size back in one save, and swaps two SKUs (KATALOG-02)', function (): void {
+        $wheel = felgeWith([[18.0, 8.0, 35], [19.0, 8.5, 40]]);
+        $payload = felgePayload($wheel);
+        [$first, $second] = $payload['configs'];
+
+        // The first row removed and entered again as new, the SKUs of the two swapped.
+        $payload['configs'] = [
+            [...$first, 'id' => null, 'sku' => $second['sku']],
+            [...$second, 'sku' => $first['sku']],
+        ];
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$wheel->id, $payload)->assertSessionHasNoErrors();
+
+        expect($wheel->configs()->count())->toBe(2)
+            ->and($wheel->configs()->where('diameter_in', 19)->value('sku'))->toBe($first['sku'])
+            ->and($wheel->configs()->where('diameter_in', 18)->value('sku'))->toBe($second['sku']);
+    });
+
     it('will not remove a size an approval names', function (): void {
         $wheel = felgeWith([[18.0, 8.0, 35], [19.0, 8.5, 40]]);
         $named = $wheel->configs()->orderBy('diameter_in')->firstOrFail();
@@ -322,6 +340,15 @@ describe('into the shop', function (): void {
             ->and($demo->refresh()->status)->toBe(CatalogueStatus::Draft);
     });
 
+    it('leaves an archived Felge out of a bulk step: out of the archive is its own step', function (): void {
+        $archived = felgeWith(model: ['status' => CatalogueStatus::Archived->value, 'name' => 'Altes Modell']);
+
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen/sammelaktion', ['action' => 'publish', 'ids' => [$archived->id]])
+            ->assertSessionHas('toast', fn (string $toast): bool => str_contains($toast, 'Altes Modell (archiviert)'));
+
+        expect($archived->refresh()->status)->toBe(CatalogueStatus::Archived);
+    });
+
     it('lists what the Freigabe-Check found on the form', function (): void {
         $wheel = felgeWith(model: ['is_demo' => true]);
 
@@ -329,7 +356,7 @@ describe('into the shop', function (): void {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/Felgen/Edit')
-                ->where('breadcrumbs.2.label', $wheel->brand->name.' Testmodell')
+                ->where('admin.breadcrumbs.2.label', $wheel->brand->name.' Testmodell')
                 ->where('brands', fn ($brands) => collect($brands)->contains('value', $wheel->brand_id))
                 ->where('check.blockers', [WheelModelPolicy::DEMO_REFUSED])
                 ->where('check.hints', fn ($hints) => collect($hints)->contains(fn (string $h): bool => str_starts_with($h, 'Freigaben noch nicht hinterlegt')))

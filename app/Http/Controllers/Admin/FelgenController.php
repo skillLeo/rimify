@@ -127,7 +127,8 @@ class FelgenController extends Controller
     public function edit(WheelModelViewRequest $request, WheelModel $model): Response
     {
         $model->loadMissing('brand');
-        $request->attributes->set(AdminNavigation::RECORD, $model->brand->name.' '.$model->name);
+        // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
+        request()->attributes->set(AdminNavigation::RECORD, $model->brand->name.' '.$model->name);
 
         return Inertia::render('Admin/Felgen/Edit', $this->props($model, $request->admin()));
     }
@@ -176,6 +177,13 @@ class FelgenController extends Controller
 
         foreach (WheelModel::query()->with('brand')->whereIn('id', $request->ids())->get() as $model) {
             $name = $model->brand->name.' '.$model->name;
+
+            // Out of the archive is its own step (Wiederherstellen): a list's selection never skips it.
+            if ($action !== 'archive' && $model->status === CatalogueStatus::Archived) {
+                $skipped[] = $name.' (archiviert)';
+
+                continue;
+            }
 
             if ($action === 'publish') {
                 if ($model->is_demo) {

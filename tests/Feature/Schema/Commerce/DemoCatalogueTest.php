@@ -175,7 +175,7 @@ it('ships an empty photograph map, and draws an honest placeholder for every dem
         $svg = (string) file_get_contents(DemoPlaceholders::dir().'/'.$manifest['name'].'-1080.svg');
 
         expect($svg)->toContain('Platzhalterbild · kein Produktfoto')
-            ->and($svg)->toContain(mb_strtoupper($finish->wheelModel->brand->name))
+            ->and($svg)->toContain($finish->wheelModel->brand->name)
             ->and($svg)->toContain(CatalogueSeeder::BRAND_COLOURS[$finish->wheelModel->brand->name])
             ->and($svg)->toContain(' Zoll');
     }

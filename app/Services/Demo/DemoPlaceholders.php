@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\File;
 /**
  * The demo catalogue's pictures (the review release §2): honest placeholders, never a photograph.
  *
- * One drawing per finish, generated when the catalogue is seeded: the brand's colour as the ground,
- * a wheel silhouette in the finish's colour with the model's own spoke count, the model and its size
+ * One drawing per finish, generated when the catalogue is seeded: a pale ground with the brand's colour
+ * as a thin bar, a wheel silhouette in the finish's colour with the model's own spoke count, the model and its size
  * range printed on it, and the words „Platzhalterbild · kein Produktfoto“. It reads as a placeholder at a
  * glance — which is the point: nobody may take it for a product photograph (§5 UWG). Nothing is
  * scraped, nothing is downloaded, and the drawing is the same on every run.
@@ -26,6 +26,17 @@ final class DemoPlaceholders
     public const WIDE_HEIGHT = 810;
 
     private const FONT = 'Archivo, Arial, Helvetica, sans-serif';
+
+    /*
+     * Quiet on purpose: a list of these must not be the loudest thing on a page. A pale ground, the
+     * wheel in its finish colour inside a grey outline, grey type in normal case — and the brand's
+     * colour only as a thin bar, so the five brands still tell apart.
+     */
+    private const GROUND = '#F3F4F6';
+
+    private const OUTLINE = '#AEB5BE';
+
+    private const TEXT = '#5F6875';
 
     /** The directory the drawings are written to, absolute. */
     public static function dir(): string
@@ -67,7 +78,7 @@ final class DemoPlaceholders
             'fallback' => 'svg',
             'formats' => [],
             // The ground, until the drawing has painted.
-            'placeholder' => 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="'.$brandHex.'"/></svg>'),
+            'placeholder' => 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="'.self::GROUND.'"/></svg>'),
         ];
 
         return $frame($slug, self::SQUARE) + [
@@ -127,21 +138,26 @@ final class DemoPlaceholders
         $rimOuter = round($rim + 8, 1);
         $bottom = $h - 120;
 
+        $paper = self::GROUND;
+        $line = self::OUTLINE;
+        $ink = self::TEXT;
+
         return <<<SVG
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {$w} {$h}" width="{$w}" height="{$h}" role="img" aria-label="{$e('Platzhalterbild: '.$brand.' '.$label)}">
-            <rect width="{$w}" height="{$h}" fill="{$ground}"/>
-            <text x="72" y="112" font-family="{$e(self::FONT)}" font-size="40" font-weight="700" letter-spacing="3" fill="#FFFFFF" fill-opacity="0.92">{$e(mb_strtoupper($brand))}</text>
+            <rect width="{$w}" height="{$h}" fill="{$paper}"/>
+            <rect width="{$w}" height="12" fill="{$ground}"/>
+            <text x="72" y="112" font-family="{$e(self::FONT)}" font-size="40" font-weight="600" fill="{$ink}">{$e($brand)}</text>
             <g transform="translate({$cx} {$cy})" stroke-linecap="round">
-            <circle r="{$r}" fill="none" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="{$rimOuter}"/>
+            <circle r="{$r}" fill="none" stroke="{$line}" stroke-width="{$rimOuter}"/>
             <circle r="{$r}" fill="none" stroke="{$metal}" stroke-width="{$rim}"/>
-            <g stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="{$outline}">{$lines}</g>
+            <g stroke="{$line}" stroke-width="{$outline}">{$lines}</g>
             <g stroke="{$metal}" stroke-width="{$spoke}">{$lines}</g>
-            <circle r="{$hub}" fill="{$metal}" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="4"/>
-            <g fill="{$ground}">{$bolts}</g>
-            <circle r="{$e((string) round(0.07 * $r, 1))}" fill="{$ground}"/>
+            <circle r="{$hub}" fill="{$metal}" stroke="{$line}" stroke-width="4"/>
+            <g fill="{$paper}">{$bolts}</g>
+            <circle r="{$e((string) round(0.07 * $r, 1))}" fill="{$paper}"/>
             </g>
-            <text x="72" y="{$bottom}" font-family="{$e(self::FONT)}" font-size="52" font-weight="600" fill="#FFFFFF">{$e($label)}</text>
-            <text x="72" y="{$e((string) ($bottom + 52))}" font-family="{$e(self::FONT)}" font-size="36" fill="#FFFFFF" fill-opacity="0.82">Platzhalterbild · kein Produktfoto</text>
+            <text x="72" y="{$bottom}" font-family="{$e(self::FONT)}" font-size="52" font-weight="600" fill="{$ink}">{$e($label)}</text>
+            <text x="72" y="{$e((string) ($bottom + 52))}" font-family="{$e(self::FONT)}" font-size="36" fill="{$ink}">Platzhalterbild · kein Produktfoto</text>
             </svg>
             SVG;
     }

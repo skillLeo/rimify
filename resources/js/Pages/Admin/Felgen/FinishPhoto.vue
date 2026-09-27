@@ -8,7 +8,8 @@
  */
 
 import { router, usePage } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import FilePick from '../../../Components/Admin/FilePick.vue'
 import Picture from '../../../Components/Ui/Picture.vue'
 import type { FinishImage } from '../../../types/admin/felgen'
 
@@ -43,12 +44,14 @@ const errors = computed(() => {
 function start(): void {
     open.value = true
     alt.value = props.image && !props.image.placeholder ? props.image.alt : `${props.title} in ${props.finishName}, Ansicht von vorn`
+    // The button that opened the form is gone: focus goes to the first thing to do in it.
+    void nextTick(() => document.querySelector<HTMLElement>(`label[for="${idBase.value}-file"]`)?.focus())
 }
 
-function pick(event: Event): void {
-    const input = event.target as HTMLInputElement
-
-    file.value = input.files?.[0] ?? null
+function cancel(): void {
+    open.value = false
+    file.value = null
+    void nextTick(() => document.getElementById(`${idBase.value}-start`)?.focus())
 }
 
 function upload(): void {
@@ -68,6 +71,7 @@ function upload(): void {
                 open.value = false
                 file.value = null
                 mine.value = false
+                void nextTick(() => document.getElementById(`${idBase.value}-start`)?.focus())
             },
             onFinish: () => {
                 busy.value = false
@@ -102,22 +106,21 @@ function remove(): void {
             </p>
 
             <div v-if="editable && !open" class="fe-photo__actions">
-                <button class="btn btn--secondary" type="button" :disabled="busy" @click="start">{{ image && !image.placeholder ? 'Foto ersetzen' : 'Foto hochladen' }}</button>
+                <button :id="`${idBase}-start`" class="btn btn--secondary" type="button" :disabled="busy" @click="start">{{ image && !image.placeholder ? 'Foto ersetzen' : 'Foto hochladen' }}</button>
                 <button v-if="image && !image.placeholder" class="btn btn--ghost" type="button" :disabled="busy" @click="remove">Foto entfernen</button>
             </div>
 
             <div v-if="open" class="fe-photo__form">
                 <div class="form-field">
-                    <label class="form-field__label" :for="`${idBase}-file`">Foto (JPEG, PNG, WebP oder AVIF, höchstens 10 MB)</label>
-                    <input
+                    <span :id="`${idBase}-file-label`" class="form-field__label">Foto (JPEG, PNG, WebP oder AVIF, höchstens 10 MB)</span>
+                    <FilePick
                         :id="`${idBase}-file`"
-                        class="input fe-photo__file"
-                        type="file"
+                        v-model="file"
                         accept="image/jpeg,image/png,image/webp,image/avif"
-                        :aria-invalid="errors.image ? 'true' : undefined"
-                        :aria-describedby="`${idBase}-file-err`"
-                        @change="pick"
-                    >
+                        label="Foto auswählen"
+                        :invalid="!!errors.image"
+                        :describedby="`${idBase}-file-label ${idBase}-file-err`"
+                    />
                     <p :id="`${idBase}-file-err`" class="form-field__error">{{ errors.image }}</p>
                 </div>
                 <div class="form-field">
@@ -136,7 +139,7 @@ function remove(): void {
                 </div>
                 <div class="fe-photo__actions">
                     <button class="btn btn--primary" type="button" :disabled="busy || file === null" :aria-busy="busy ? 'true' : undefined" @click="upload">Hochladen</button>
-                    <button class="btn btn--ghost" type="button" :disabled="busy" @click="open = false">Abbrechen</button>
+                    <button class="btn btn--ghost" type="button" :disabled="busy" @click="cancel">Abbrechen</button>
                 </div>
             </div>
         </div>

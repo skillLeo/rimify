@@ -11,7 +11,7 @@
  */
 
 import { Link, router, usePage } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
@@ -155,9 +155,21 @@ function visit(query: Record<string, string>, keepView = true): void {
     })
 }
 
+/* The phone sheet's sort is part of its form: it applies with the filters on „Anwenden“, never on its
+   own — choosing it first must not drop the Status picked a moment before. */
+const sheetSort = ref(`${props.filters.sort}:${props.filters.richtung}`)
+
+watch(
+    () => `${props.filters.sort}:${props.filters.richtung}`,
+    (value) => (sheetSort.value = value)
+)
+
 function apply(): void {
+    const [column, direction] = sheetSort.value.split(':') as [WheelSort, 'auf' | 'ab']
+    const chosen = sheetOpen.value ? { sort: column, richtung: direction } : sort.value
+
     sheetOpen.value = false
-    visit(queryFromForm(form.value, search.value, sort.value))
+    visit(queryFromForm(form.value, search.value, chosen))
 }
 
 function reset(): void {
@@ -180,17 +192,6 @@ function sortState(column: WheelSort | null): 'ascending' | 'descending' | undef
 
     return props.filters.richtung === 'auf' ? 'ascending' : 'descending'
 }
-
-const sortChoice = computed({
-    get: () => `${props.filters.sort}:${props.filters.richtung}`,
-    set: (value: string) => {
-        const [column, direction] = value.split(':') as [WheelSort, 'auf' | 'ab']
-        const query = Object.fromEntries(Object.entries(props.query).filter(([key]) => key !== 'sort' && key !== 'richtung'))
-
-        sheetOpen.value = false
-        visit({ ...query, ...sortQuery({ sort: column, richtung: direction }) })
-    },
-})
 
 function tagClass(state: WheelState): string | null {
     return state.tone === 'plain' ? null : `adm-tag adm-tag--${state.tone}`
@@ -265,6 +266,8 @@ function runBulk(): void {
             onFinish: () => {
                 busy.value = false
                 pending.value = null
+                // The bar's buttons are gone with the selection: focus returns to the list's first row.
+                void nextTick(() => document.querySelector<HTMLElement>('.fg-table tbody .fg-check, .fg-table tbody .fg-name')?.focus())
             },
         }
     )
@@ -358,7 +361,7 @@ function runBulk(): void {
             <form class="fg-sheet" aria-label="Felgen filtern" @submit.prevent="apply">
                 <div class="form-field">
                     <label class="form-field__label" for="fg-s-sort">Sortierung</label>
-                    <select id="fg-s-sort" v-model="sortChoice" class="input">
+                    <select id="fg-s-sort" v-model="sheetSort" class="input">
                         <option value="name:auf">Name, A bis Z</option>
                         <option value="name:ab">Name, Z bis A</option>
                         <option value="aktualisiert:ab">Zuletzt geändert zuerst</option>
@@ -414,9 +417,11 @@ function runBulk(): void {
         </template>
 
         <template v-else>
-            <div v-if="canBulk && selected.length" class="fg-bulk" role="region" aria-label="Auswahl">
-                <p class="fg-bulk__count">{{ felgen(selected.length) }} ausgewählt</p>
-                <div class="fg-bulk__actions">
+            <!-- Always there, so ticking a row never moves the table under the pointer; it only fills. -->
+            <div v-if="canBulk" class="fg-bulk" :class="{ 'fg-bulk--idle': selected.length === 0 }" role="region" aria-label="Auswahl">
+                <p v-if="selected.length === 0" class="fg-bulk__count fg-bulk__hint">Wähl Felgen aus, um mehrere auf einmal zu veröffentlichen, zurückzuziehen oder zu archivieren.</p>
+                <p v-else class="fg-bulk__count" aria-live="polite">{{ felgen(selected.length) }} ausgewählt</p>
+                <div v-if="selected.length" class="fg-bulk__actions">
                     <button v-if="can.publish" class="btn btn--secondary" type="button" :disabled="busy" @click="pending = 'publish'">Veröffentlichen</button>
                     <button v-if="can.publish" class="btn btn--secondary" type="button" :disabled="busy" @click="pending = 'unpublish'">Zurückziehen</button>
                     <button v-if="can.archive" class="btn btn--secondary" type="button" :disabled="busy" @click="pending = 'archive'">Archivieren</button>
@@ -438,7 +443,7 @@ function runBulk(): void {
                                     <Icon
                                         class="fg-sort__icon"
                                         :class="{ 'fg-sort__icon--on': filters.sort === column.key }"
-                                        :name="filters.sort === column.key && filters.richtung === 'ab' ? 'chevron-down' : 'chevron-up'"
+                                        :name="filters.sort === column.key && filters.richtung === 'auf' ? 'chevron-up' : 'chevron-down'"
                                         :size="16"
                                     />
                                 </button>
@@ -480,8 +485,8 @@ function runBulk(): void {
                             <td v-if="has('preis')" data-label="Preis ab" class="num">{{ wheel.fromCents === null ? '–' : formatMoney(wheel.fromCents) }}</td>
                             <td v-if="has('bestand')" data-label="Bestand" class="num">{{ decimal(wheel.stock, 0) }}</td>
                             <td v-if="has('freigaben')" data-label="Freigaben">
-                                <span v-if="tagClass(wheel.coverage)" :class="tagClass(wheel.coverage)">{{ wheel.coverage.label }}</span>
-                                <template v-else>{{ wheel.coverage.label }}</template>
+                                <span v-if="tagClass(wheel.coverage)" class="fg-coverage" :class="tagClass(wheel.coverage)">{{ wheel.coverage.label }}</span>
+                                <span v-else class="fg-covered" :class="{ 'fg-covered--partial': wheel.covered < wheel.sizes }">{{ wheel.coverage.label }}</span>
                             </td>
                             <td v-if="has('aktualisiert')" data-label="Geändert" class="fg-date">{{ wheel.updated ?? '–' }}</td>
                         </tr>
@@ -581,8 +586,11 @@ function runBulk(): void {
     align-items: center;
     justify-content: space-between;
     gap: var(--sp-8) var(--sp-16);
+    /* The buttons' height, the padding and the 1 px border: idle and filled are the same height. */
+    min-height: calc(var(--adm-control-h) + 2 * var(--sp-8) + 2px);
     margin-bottom: var(--sp-12);
     padding: var(--sp-8) var(--sp-12);
+    border: 1px solid transparent;
     border-radius: var(--r-control);
     background: var(--c-band);
 }
@@ -593,6 +601,34 @@ function runBulk(): void {
     line-height: var(--lh-small);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
+}
+
+/* Idle: the same box, holding its height (the actions' control height) with a quiet line. */
+.fg-bulk--idle {
+    border-style: dashed;
+    border-color: var(--c-line);
+    background: transparent;
+}
+
+.fg-bulk__hint {
+    font-weight: 400;
+    color: var(--c-ink-3);
+}
+
+/* „Freigaben noch nicht hinterlegt“ wraps like a sentence instead of pushing the card sideways. */
+.fg-coverage {
+    height: auto;
+    min-height: 20px;
+    padding-block: 2px;
+    white-space: normal;
+}
+
+.fg-covered {
+    font-variant-numeric: tabular-nums;
+}
+
+.fg-covered--partial {
+    font-weight: 500;
 }
 
 .fg-bulk__actions {
@@ -764,8 +800,18 @@ function runBulk(): void {
         display: block;
         grid-row: 1;
         grid-column: 1;
-        align-self: baseline;
+        align-self: start;
         padding-bottom: var(--sp-8);
+    }
+
+    /* The status sits on the name's line, not at the thumbnail's foot. */
+    .fg-table td[data-phone='status'] {
+        align-self: start;
+        line-height: var(--lh-body);
+    }
+
+    .fg-bulk {
+        display: none;
     }
 
     .fg-table td.fg-key::before {

@@ -20,7 +20,7 @@ use Illuminate\Auth\Access\Response;
  */
 final class WheelModelPolicy
 {
-    public const DEMO_REFUSED = 'Demodaten kommen nie in den Shop. Leg die Felge als echte Felge an oder importiere sie.';
+    public const DEMO_REFUSED = 'Demodaten kommen nie in den Shop. Leg die Felge neu an oder importiere sie.';
 
     public function viewAny(AdminUser $user): bool
     {

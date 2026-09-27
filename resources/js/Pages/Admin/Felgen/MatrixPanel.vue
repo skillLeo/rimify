@@ -5,7 +5,7 @@
  * nothing is stored until the form is saved, and a size the table already holds is left out.
  */
 
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { FinishForm } from '../../../types/admin/felgen'
 import { parseList, planned, type MatrixInput } from './matrix'
 
@@ -30,6 +30,21 @@ const input = ref<MatrixInput>({
     stock: 0,
 })
 
+/*
+ * The finishes follow the form: one removed there is no longer ticked here, and after a save — when
+ * new finishes get their ids and keys — every finish is offered again, ticked.
+ */
+watch(
+    () => props.finishes.map((finish) => finish.key).join('|'),
+    (now, before) => {
+        const keys = props.finishes.map((finish) => finish.key)
+        const kept = input.value.finishes.filter((key) => keys.includes(key))
+        const added = keys.filter((key) => !(before ?? '').split('|').includes(key))
+
+        input.value.finishes = kept.length === 0 ? keys : [...kept, ...added]
+    }
+)
+
 const count = computed(() => planned(input.value))
 const missing = computed(() => {
     const out: string[] = []
@@ -39,7 +54,7 @@ const missing = computed(() => {
     }
 
     if (parseList(input.value.diameters).length === 0) {
-        out.push('einen Durchmesser')
+        out.push('ein Durchmesser')
     }
 
     if (parseList(input.value.widths).length === 0) {
@@ -61,9 +76,7 @@ function add(): void {
 </script>
 
 <template>
-    <details class="fe-matrix">
-        <summary class="fe-matrix__summary">Größen erzeugen</summary>
-
+    <div class="fe-matrix" role="group" aria-label="Größen aus Listen erzeugen">
         <div class="fe-matrix__body">
             <p class="adm-note">Mehrere Werte trennst du mit Leerzeichen oder Semikolon, zum Beispiel „8 8,5 9“. Jede Kombination wird eine Zeile in der Tabelle; vorhandene Größen bleiben, wie sie sind.</p>
 
@@ -86,7 +99,8 @@ function add(): void {
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="fe-m-et">Einpresstiefen (ET, mm)</label>
-                    <input id="fe-m-et" v-model="input.ets" class="input" type="text" inputmode="numeric" placeholder="35 40">
+                    <!-- `text`, not `numeric`: an ET can be negative, and a phone's number pad has no minus. -->
+                    <input id="fe-m-et" v-model="input.ets" class="input" type="text" inputmode="text" placeholder="35 40 -5">
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="fe-m-holes">Lochzahl</label>
@@ -116,32 +130,23 @@ function add(): void {
                 <button class="btn btn--secondary" type="button" :disabled="missing.length > 0" @click="add">
                     {{ count === 1 ? '1 Größe in die Tabelle' : `${count} Größen in die Tabelle` }}
                 </button>
-                <p v-if="missing.length" class="adm-note" aria-live="polite">Es fehlt noch {{ missing.join(', ') }}.</p>
+                <p v-if="missing.length" class="adm-note" aria-live="polite">Noch nötig: {{ missing.join(', ') }}.</p>
             </div>
         </div>
-    </details>
+    </div>
 </template>
 
 <style scoped>
+/* A tool beside the table, set on the band: no hairline of its own to stack against the table's. */
 .fe-matrix {
-    border-top: 1px solid var(--c-line);
-    border-bottom: 1px solid var(--c-line);
-}
-
-.fe-matrix__summary {
-    display: flex;
-    align-items: center;
-    min-height: var(--adm-row-h);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    font-weight: 500;
-    cursor: pointer;
+    padding: var(--sp-16);
+    border-radius: var(--r-control);
+    background: var(--c-band);
 }
 
 .fe-matrix__body {
     display: grid;
     gap: var(--sp-16);
-    padding-bottom: var(--sp-16);
 }
 
 .fe-matrix__finishes {
@@ -188,8 +193,8 @@ function add(): void {
 }
 
 @media (max-width: 767px) {
-    .fe-matrix__summary {
-        min-height: var(--adm-control-h-lg);
+    .fe-matrix {
+        padding: var(--sp-12);
     }
 
     .fe-matrix__foot .btn {
