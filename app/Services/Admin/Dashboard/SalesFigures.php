@@ -62,28 +62,36 @@ final class SalesFigures
             $sparkCount,
         );
 
+        // Each tile's second line: one fact about the figure's own orders, as „älteste seit 74 Tagen“
+        // is for the open ones — where the money came from, how fresh the last order is, how far the
+        // average is from the biggest.
+        $extremes = $count > 0 ? $this->extremes($period) : null;
+
         $tiles = [
             $this->tile(
                 'umsatz',
                 'Umsatz',
                 'Summe der bezahlten, nicht erstatteten Bestellungen, nach Bestelldatum.',
                 $count > 0 ? GermanFormat::money($revenue) : null,
-                'Noch keine bezahlte Bestellung in diesem Zeitraum.',
+                'Keine bezahlte Bestellung in diesem Zeitraum.',
                 $count > 0 ? self::delta($revenue, $prevRevenue) : null,
                 $compare,
                 $sparkRevenue,
                 $list(),
+                $count > 0 ? self::strongestDay($period, $current['revenue']) : null,
             ),
             $this->tile(
                 'bestellungen',
                 'Bestellungen',
                 'Bezahlte, nicht erstattete Bestellungen im Zeitraum.',
                 $count > 0 ? GermanFormat::integer($count) : null,
-                'Noch keine Bestellungen in diesem Zeitraum.',
+                // Only paid ones are counted: „keine Bestellungen“ would be untrue beside unpaid ones.
+                'Keine bezahlte Bestellung in diesem Zeitraum.',
                 $count > 0 ? self::delta($count, $prevCount) : null,
                 $compare,
                 $sparkCount,
                 $list(),
+                $extremes === null ? null : self::latest($extremes['latest'], $period),
             ),
             $this->tile(
                 'bestellwert',
@@ -95,6 +103,7 @@ final class SalesFigures
                 $compare,
                 $averageSeries,
                 $list(['sort' => 'summe']),
+                $extremes === null ? null : 'höchster Bestellwert '.GermanFormat::money($extremes['largest']),
             ),
             $this->openTile(),
         ];
@@ -181,11 +190,83 @@ final class SalesFigures
     }
 
     /**
+     * The biggest paid order of the period and when the last one was placed — the Bestellungen and
+     * Ø Bestellwert tiles' second lines.
+     *
+     * @return array{largest: int, latest: CarbonImmutable}|null
+     */
+    private function extremes(Period $period): ?array
+    {
+        $row = DB::table('orders')
+            ->whereIn('status', array_map(static fn (OrderStatus $s): string => $s->value, OrderStatus::revenue()))
+            ->where('placed_at', '>=', $period->startUtc())
+            ->where('placed_at', '<', $period->endUtc())
+            ->selectRaw('MAX(total_cents) AS largest, MAX(placed_at) AS latest')
+            ->first();
+
+        if ($row === null || $row->largest === null || ! is_string($row->latest)) {
+            return null;
+        }
+
+        return ['largest' => (int) $row->largest, 'latest' => CarbonImmutable::parse($row->latest, 'UTC')];
+    }
+
+    /**
+     * The Berlin day that brought the most revenue — the latest of equals — with what it brought:
+     * `stärkster Tag 24.09. · 1.425,00 €`.
+     *
+     * @param  list<int>  $revenue  per day of the period, in cents
+     */
+    private static function strongestDay(Period $period, array $revenue): ?string
+    {
+        $best = null;
+
+        foreach ($period->dayKeys() as $i => $day) {
+            $cents = $revenue[$i] ?? 0;
+
+            if ($cents > 0 && ($best === null || $cents >= $best[1])) {
+                $best = [$day, $cents];
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        // A range of a whole year can hold the same day and month twice: then the year says which.
+        $date = CarbonImmutable::parse($best[0], GermanFormat::TIMEZONE);
+        $day = $period->days() > 365 ? GermanFormat::date($date) : GermanFormat::dayMonth($date);
+
+        return "stärkster Tag {$day} ".GermanFormat::MIDDOT.' '.GermanFormat::money($best[1]);
+    }
+
+    /**
+     * When the last paid order came in, as a colleague says it: `letzte vor 2 Std.`, `letzte gestern`.
+     * In a range that ended before today, the date: „letzte vor 40 Tagen“ would read as „none since“.
+     */
+    private static function latest(CarbonImmutable $at, Period $period): string
+    {
+        if ($period->to->lt(CarbonImmutable::now(GermanFormat::TIMEZONE)->startOfDay())) {
+            return 'letzte am '.GermanFormat::date($at);
+        }
+
+        $ago = (string) GermanFormat::ago($at, null, 90);
+
+        return 'letzte '.match (true) {
+            // „letzte gerade eben“ reads as „letzte Gerade“ first; the helper's words are fine elsewhere.
+            $ago === 'gerade eben' => 'vor Sekunden',
+            // Past 90 days `ago` gives the date itself.
+            preg_match('/^\d/', $ago) === 1 => "am {$ago}",
+            default => $ago,
+        };
+    }
+
+    /**
      * @param  Delta|null  $delta
      * @param  list<int|float|null>  $series
      * @return Tile
      */
-    private function tile(string $key, string $label, string $hint, ?string $value, string $empty, ?array $delta, bool $compare, array $series, string $href): array
+    private function tile(string $key, string $label, string $hint, ?string $value, string $empty, ?array $delta, bool $compare, array $series, string $href, ?string $fact = null): array
     {
         $note = null;
 
@@ -202,7 +283,7 @@ final class SalesFigures
             'delta' => $delta,
             'deltaNote' => $note,
             'series' => $value === null ? [] : $series,
-            'note' => null,
+            'note' => $value === null ? null : $fact,
             'href' => $href,
         ];
     }

@@ -169,6 +169,12 @@ final class GermanFormat
         return DateTimeImmutable::createFromInterface($at)->setTimezone(new DateTimeZone(self::TIMEZONE));
     }
 
+    /** `21.11.` — a day within a period that already names its year. */
+    public static function dayMonth(?DateTimeInterface $date): ?string
+    {
+        return $date === null ? null : self::inBerlin($date)->format('d.m.');
+    }
+
     /** `21.11.2025`, rendered in Europe/Berlin whatever zone the instant was stored in. */
     public static function date(?DateTimeInterface $date): ?string
     {

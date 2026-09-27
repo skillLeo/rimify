@@ -73,12 +73,24 @@ describe('KpiTile', () => {
         expect(wrapper.find('.kpi__meta').text()).toBe('Im Vorzeitraum keine Bestellung')
     })
 
-    it('shows its sentence instead of a zero, and no curve', () => {
-        const wrapper = mount(KpiTile, { props: { kpi: kpi({ value: null, empty: 'Noch keine Bestellungen in diesem Zeitraum.', delta: null, series: [] }), compare: true } })
+    it('keeps the tile’s shape with nothing to count: a quiet dash, never a zero, the sentence beneath, no curve', () => {
+        const wrapper = mount(KpiTile, { props: { kpi: kpi({ value: null, empty: 'Keine bezahlte Bestellung in diesem Zeitraum.', delta: null, series: [] }), compare: true } })
+        const dash = wrapper.get('.kpi__value')
 
-        expect(wrapper.find('.kpi__value').exists()).toBe(false)
-        expect(wrapper.find('.kpi__empty').text()).toBe('Noch keine Bestellungen in diesem Zeitraum.')
+        expect(dash.text()).toBe('—')
+        expect(dash.classes()).toContain('kpi__value--none')
+        // Said by the sentence, not as „Gedankenstrich“.
+        expect(dash.attributes('aria-hidden')).toBe('true')
+        expect(wrapper.find('.kpi__empty').text()).toBe('Keine bezahlte Bestellung in diesem Zeitraum.')
         expect(wrapper.find('.spark').exists()).toBe(false)
+    })
+
+    it('gives a figure its second line — one fact — above the change', () => {
+        const wrapper = mount(KpiTile, { props: { kpi: kpi({ note: 'letzte vor 2 Std.' }), compare: true } })
+        const lines = wrapper.findAll('.kpi__meta, .kpi__delta').map((line) => line.text())
+
+        expect(lines[0]).toBe('letzte vor 2 Std.')
+        expect(lines[1]).toContain('zum Vorzeitraum')
     })
 
     it('is plain, not a link, where this role cannot open the list', () => {

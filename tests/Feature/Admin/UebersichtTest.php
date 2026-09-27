@@ -103,6 +103,50 @@ describe('the figures', function (): void {
             ->and($tiles['umsatz']['series'])->toHaveCount(30);
     });
 
+    it('gives each figure a second line — one fact about the orders it counts', function (): void {
+        dashOrder(100_000, '2026-09-24 10:00:00');
+        dashOrder(50_000, '2026-09-25 10:00:00', OrderStatus::Shipped);
+        // Not counted, so not the latest nor the largest either.
+        dashOrder(250_000, '2026-09-26 08:00:00', OrderStatus::Refunded);
+
+        $tiles = dashTiles();
+
+        expect($tiles['umsatz']['note'])->toBe("stärkster Tag 24.09. \u{00B7} 1.000,00\u{00A0}€")
+            ->and($tiles['bestellungen']['note'])->toBe('letzte gestern')
+            ->and($tiles['bestellwert']['note'])->toBe("höchster Bestellwert 1.000,00\u{00A0}€");
+    });
+
+    it('takes the later of two equally strong days, and says a recent order in hours', function (): void {
+        dashOrder(20_000, '2026-09-20 10:00:00');
+        dashOrder(20_000, '2026-09-22 10:00:00');
+        // 09:40 UTC is 11:40 in Berlin: two hours before the clock's 13:40.
+        dashOrder(5_000, '2026-09-26 09:40:00');
+
+        $tiles = dashTiles();
+
+        expect($tiles['umsatz']['note'])->toBe("stärkster Tag 22.09. \u{00B7} 200,00\u{00A0}€")
+            ->and($tiles['bestellungen']['note'])->toBe("letzte vor 2\u{00A0}Std.");
+    });
+
+    it('dates the last order in a range that ended before today, and says a brand-new one in seconds', function (): void {
+        dashOrder(30_000, '2026-08-10 10:00:00');
+
+        // 01.–31.08.2026, over by now: „letzte vor 47 Tagen“ would read as „none since“.
+        expect(dashTiles('?zeitraum=eigen&von=2026-08-01&bis=2026-08-31')['bestellungen']['note'])->toBe('letzte am 10.08.2026');
+
+        dashOrder(5_000, '2026-09-26 11:39:30');
+
+        expect(dashTiles('?zeitraum=7')['bestellungen']['note'])->toBe('letzte vor Sekunden');
+    });
+
+    it('has no second line where there is nothing to count', function (): void {
+        $tiles = dashTiles();
+
+        expect($tiles['umsatz']['note'])->toBeNull()
+            ->and($tiles['bestellungen']['note'])->toBeNull()
+            ->and($tiles['bestellwert']['note'])->toBeNull();
+    });
+
     it('files an order under the Berlin day it was placed on', function (): void {
         // 22:30 UTC on 25 September is 00:30 on 26 September in Berlin — today, the last point.
         dashOrder(10_000, '2026-09-25 22:30:00');
@@ -130,7 +174,7 @@ describe('the figures', function (): void {
         $tiles = dashTiles();
 
         expect($tiles['umsatz']['value'])->toBeNull()
-            ->and($tiles['umsatz']['empty'])->toBe('Noch keine bezahlte Bestellung in diesem Zeitraum.')
+            ->and($tiles['umsatz']['empty'])->toBe('Keine bezahlte Bestellung in diesem Zeitraum.')
             ->and($tiles['bestellwert']['empty'])->toBe('Ohne Bestellung gibt es keinen Durchschnitt.')
             ->and($tiles['offen']['empty'])->toBe('Alles versendet. Keine Bestellung wartet.');
     });

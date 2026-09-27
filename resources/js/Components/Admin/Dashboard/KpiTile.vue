@@ -100,24 +100,29 @@ const showsDelta = computed(() => props.compare && props.kpi.delta !== null)
 
             <template v-if="kpi.value !== null">
                 <span class="kpi__value">{{ kpi.value }}</span>
+                <!-- The figure's second line: one fact about what it counts („älteste seit 74 Tagen“). -->
+                <span v-if="kpi.note" class="kpi__meta">{{ kpi.note }}</span>
                 <span v-if="showsDelta && kpi.delta" class="kpi__delta" :class="`kpi__delta--${kpi.delta.direction}`">
                     <Icon v-if="kpi.delta.direction !== 'flat'" :name="kpi.delta.direction === 'up' ? 'arrow-up' : 'arrow-down'" :size="16" />
                     {{ kpi.delta.label }}
                 </span>
                 <span v-else-if="compare && kpi.deltaNote" class="kpi__meta">{{ kpi.deltaNote }}</span>
-                <span v-else-if="kpi.note" class="kpi__meta">{{ kpi.note }}</span>
                 <Sparkline v-if="kpi.series.length > 1" class="kpi__spark" :values="kpi.series" />
             </template>
-            <span v-else class="kpi__empty">{{ kpi.empty }}</span>
+            <!-- Nothing to count: the same tile, its value a dash, the sentence where the second line goes. -->
+            <template v-else>
+                <span class="kpi__value kpi__value--none" aria-hidden="true">—</span>
+                <span class="kpi__empty">{{ kpi.empty }}</span>
+            </template>
         </component>
     </TooltipProvider>
 </template>
 
 <style scoped>
+/* Label, value, the second line, the change — and the curve at the bottom, level across a row. */
 .kpi {
-    display: grid;
-    grid-template-rows: auto auto auto 1fr;
-    align-content: start;
+    display: flex;
+    flex-direction: column;
     gap: var(--sp-8);
     min-height: 152px;
     padding: var(--sp-20);
@@ -210,14 +215,18 @@ const showsDelta = computed(() => props.compare && props.kpi.delta !== null)
 }
 
 .kpi__spark {
-    align-self: end;
+    margin-top: auto;
+}
+
+/* No figure: a dash in the value's own place and size, quiet — the row keeps its shape. */
+.kpi__value--none {
+    color: var(--c-ink-3);
 }
 
 .kpi__empty {
-    align-self: center;
     max-width: 28ch;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
     color: var(--c-ink-2);
 }
 
