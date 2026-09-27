@@ -98,24 +98,25 @@ class Order extends Model
     }
 
     /**
-     * Seeded demonstration data (CommerceSeeder): any line is a wheel from a demo model. A demo model
-     * can never be ordered (KasseController refuses it), so a real order never matches. The one rule,
-     * for the storefront's receipt and the admin alike.
+     * Seeded demonstration data: an order born demo (`is_demo`, DemoDashboardSeeder), or one with a
+     * wheel from a demo model (CommerceSeeder). A demo model can never be ordered (KasseController
+     * refuses it) and a real order can never be marked demo (R-12), so a real order never matches.
+     * The one rule, for the storefront's receipt and the admin alike.
      */
     public function isDemo(): bool
     {
-        return self::demoQuery()->where('ol.order_id', $this->id)->exists();
+        return (bool) $this->getAttribute('is_demo') || self::demoQuery()->where('ol.order_id', $this->id)->exists();
     }
 
     /**
-     * Adds `is_demo` (1 or null) to every row of a list, in the same query rather than one per row.
+     * Adds `shows_demo` (1 or null) to every row of a list, in the same query rather than one per row.
      *
      * @param  Builder<Order>  $query
      * @return Builder<Order>
      */
     public function scopeWithDemoFlag(Builder $query): Builder
     {
-        return $query->addSelect(['is_demo' => self::demoQuery()->whereColumn('ol.order_id', 'orders.id')->selectRaw('1')->limit(1)]);
+        return $query->addSelect(['shows_demo' => self::demoQuery()->whereColumn('ol.order_id', 'orders.id')->selectRaw('1')->limit(1)]);
     }
 
     /**
@@ -126,7 +127,9 @@ class Order extends Model
      */
     public function scopeWhereDemo(Builder $query): Builder
     {
-        return $query->whereExists(self::demoQuery()->whereColumn('ol.order_id', 'orders.id')->selectRaw('1'));
+        return $query->where(static fn (Builder $q) => $q
+            ->where('orders.is_demo', true)
+            ->orWhereExists(self::demoQuery()->whereColumn('ol.order_id', 'orders.id')->selectRaw('1')));
     }
 
     private static function demoQuery(): QueryBuilder

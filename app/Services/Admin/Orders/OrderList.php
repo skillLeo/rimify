@@ -195,7 +195,8 @@ final class OrderList
             'paymentMethod' => self::paymentLabel($order->payment_method),
             'shippingMethod' => self::shippingLabel($order->shipping_method),
             'conditions' => (bool) ($order->getAttribute('has_conditions') ?? false),
-            'demo' => (bool) ($order->getAttribute('is_demo') ?? false),
+            // Born demo, or a demo wheel on it (Order::isDemo, one rule in one query).
+            'demo' => (bool) $order->getAttribute('is_demo') || (bool) ($order->getAttribute('shows_demo') ?? false),
         ];
     }
 
