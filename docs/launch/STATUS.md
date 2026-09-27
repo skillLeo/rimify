@@ -47,7 +47,8 @@ not listed stays behind an honest „noch nicht gebaut“ on the review board.
       and a signed Testzahlung page ends it bezahlt / abgelehnt / abgebrochen; production sets
       `RIMIFY_PAYMENTS none` and Payments refuses the sandbox anyway. Pest `TestzahlungTest` (9). Editing an
       order (status, shipping, invoice, refund): not built (on the board).
-- [ ] **§4.5 Einstellungen** — storage screen ✔, roles screen ✔ (built earlier), review of both at 12 widths
+- [x] **§4.5 Einstellungen** — storage screen ✔, roles screen ✔ (built earlier); both clean at 12 widths (overflow,
+      axe 0, console clean in three engines; the roles grid's 5 px overflow at 1280 fixed)
 - [x] **§3 Review kit** — `/admin/review` (every screen: fertig / in Arbeit / noch nicht gebaut, link, one line,
       open points), „Rückmeldung geben“ in the rail foot and the phone's „Mehr“, key `R` (URL, window, browser,
       role and a screenshot drawn in the browser with html-to-image, one sentence, Fehler/Design/Text/Wunsch),

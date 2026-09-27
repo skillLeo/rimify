@@ -756,7 +756,9 @@ function pickBlur(): void {
     margin-bottom: var(--sp-16);
 }
 
+/* Positioned, so the hidden labels of its checkboxes belong to its scroll box and never widen the page. */
 .rol__grid {
+    position: relative;
     display: none;
     overflow-x: auto;
     border-top: 1px solid var(--c-line);
