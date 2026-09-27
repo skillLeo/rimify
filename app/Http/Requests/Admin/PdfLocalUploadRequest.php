@@ -34,7 +34,7 @@ class PdfLocalUploadRequest extends FormRequest
     {
         return [
             'file.required' => 'Wähl bitte eine PDF-Datei aus.',
-            'file.mimetypes' => 'Das ist keine PDF-Datei. Lad bitte das Gutachten als PDF hoch.',
+            'file.mimetypes' => 'Das ist keine PDF-Datei. Ein Gutachten wird nur im PDF-Format angenommen.',
             'file.max' => 'Die Datei ist größer als '.config('media.upload.pdf_max_mb').' MB.',
         ];
     }

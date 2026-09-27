@@ -29,7 +29,7 @@ const ATTEMPTS = 3
 const BACKOFF_MS = [1000, 3000]
 
 export const UPLOAD_SENTENCES = {
-    notPdf: 'Das ist keine PDF-Datei. Lad bitte das Gutachten als PDF hoch.',
+    notPdf: 'Das ist keine PDF-Datei. Ein Gutachten wird nur im PDF-Format angenommen.',
     start: 'Das Hochladen lässt sich gerade nicht starten. Versuch es bitte gleich noch einmal.',
     refused: 'Der Speicher hat die Datei nicht angenommen. Prüf bitte, ob es die richtige PDF-Datei ist.',
     connection: 'Die Datei konnte nicht hochgeladen werden. Prüf bitte deine Verbindung und versuch es noch einmal.',

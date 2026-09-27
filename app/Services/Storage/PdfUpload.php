@@ -117,7 +117,7 @@ final class PdfUpload
 
         $refusal = match (true) {
             $bytes > self::maxBytes() => 'Die Datei ist größer als '.config('media.upload.pdf_max_mb').' MB und wird nicht gespeichert.',
-            $magic !== '%PDF-' => 'Das ist keine PDF-Datei. Lad bitte das Gutachten als PDF hoch.',
+            $magic !== '%PDF-' => 'Das ist keine PDF-Datei. Ein Gutachten wird nur im PDF-Format angenommen.',
             default => $this->scan($key),
         };
 
