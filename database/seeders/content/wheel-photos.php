@@ -6,62 +6,15 @@ declare(strict_types=1);
 // and who took it. Data only — `wheels:process-images` renders from it and CatalogueSeeder attaches
 // the results; docs/image-credits.md is written from the same credits.
 //
-// A real brand or model name appears only on a photograph of that exact product
-// (docs/phase0/ACCURACY.md D1). So only the client's own studio shots of the MOTEC MCR4 Ultimate
-// remain. Every free-licence photograph is retired — each showed another maker's wheel on a car,
-// brake disc included — and its credit is kept under "Retired" in docs/image-credits.md. A finish
-// without a photograph draws the line-art outline.
+// Empty, on purpose (the review release §2): example data never carries a maker's photograph. The
+// last entries were the MOTEC MCR4 Ultimate's studio shots (MOTEC's own images, supplied by the
+// client); that wheel is now the invented Bergsteig Gipfel, and a photograph of the real product on
+// it would present an invented wheel as that product. The files stay in
+// database/seeders/content/client-photos/ for the day the client's catalogue brings the real
+// product back. Every finish draws the line-art outline until then.
 //
-// Keyed by the file name. Studio shots the client supplies (`credit.source` = `Kunde`, files named
-// `client-…`) live in database/seeders/content/client-photos/ — they have no public URL to fetch
-// them from — and come with a `mask`: a grey image of the background-removal service's alpha, next
-// to the photograph. `slug` names the output directory under storage/app/public/demo/wheels/ and is
-// `<model slug>-<finish>`. `hub` is null: the cap carries the product brand's own mark and is left
-// as photographed. `colour` is `none`: a studio shot has no daylight cast to correct. An entry with
-// a `view` is a further angle of a finish that already has its front view, and is attached to it as
-// a labelled thumbnail.
-//
-// `anchors` are measured on the front shot, in source pixels (1080 × 1080): `centre` [x, y]; `pcd`
-// [x, y, r], r the radius through the bolt-hole centres; `bore` [x, y, r], the cap covering the
-// centre bore; `valve` [x, y]; `kba` [x, y, width, height], the stamped approval mark. The `wheel`
-// anchor (the outer lip) is not typed in: scripts/wheel-image.mjs derives it from the mask. `stamp`
-// is the approval number the photograph shows (ABE 53810 → 8,5J × 19).
-return [
-    'client-motec-mcr4-ultimate-front.jpg' => [
-        'slug' => 'motec-mcr4-ultimate-light-grey',
-        'model' => 'motec-mcr4-ultimate',
-        'finish' => 'Light Grey D5',
-        'mask' => 'client-motec-mcr4-ultimate-front.mask.png',
-        'hub' => null,
-        'colour' => 'none',
-        'anchors' => [
-            'centre' => [539, 534],
-            'pcd' => [539, 534, 108],
-            'bore' => [540, 537, 70],
-            'valve' => [537, 972],
-            'kba' => [540, 1013, 88, 18],
-        ],
-        'stamp' => '53810',
-        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
-    ],
-    'client-motec-mcr4-ultimate-angle.jpg' => [
-        'slug' => 'motec-mcr4-ultimate-light-grey-schraeg',
-        'model' => 'motec-mcr4-ultimate',
-        'finish' => 'Light Grey D5',
-        'view' => 'Schräg von vorn',
-        'mask' => 'client-motec-mcr4-ultimate-angle.mask.png',
-        'hub' => null,
-        'colour' => 'none',
-        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
-    ],
-    'client-motec-mcr4-ultimate-rear.jpg' => [
-        'slug' => 'motec-mcr4-ultimate-light-grey-hinten',
-        'model' => 'motec-mcr4-ultimate',
-        'finish' => 'Light Grey D5',
-        'view' => 'Schräg von hinten',
-        'mask' => 'client-motec-mcr4-ultimate-rear.mask.png',
-        'hub' => null,
-        'colour' => 'none',
-        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
-    ],
-];
+// An entry, when there is one: keyed by the file name; `slug` names the output directory under
+// storage/app/public/demo/wheels/ (`<model slug>-<finish>`); `model`, `finish`; `circle` [x, y, r] or
+// `mask`; `hub` [x, y, r] or null; `colour`; `anchors` and `stamp` for the hero; `view` for a further
+// angle; `credit` {source, photographer, licence, url}.
+return [];

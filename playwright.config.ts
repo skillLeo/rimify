@@ -33,10 +33,23 @@ export default defineConfig({
             },
         },
     ],
-    webServer: {
-        command: 'php artisan serve --host=127.0.0.1 --port=8000',
-        url: 'http://127.0.0.1:8000/up',
-        reuseExistingServer: !process.env.CI,
-        timeout: 60_000,
-    },
+    webServer: [
+        {
+            // The admin and its demo data.
+            command: 'php artisan serve --host=127.0.0.1 --port=8000',
+            url: 'http://127.0.0.1:8000/up',
+            reuseExistingServer: !process.env.CI,
+            timeout: 60_000,
+        },
+        {
+            // The storefront specs' shop (e2e/shop.ts): its own database, seeded by E2eShopSeeder
+            // (`composer e2e:shop`), because example data never reaches the storefront.
+            command: 'php -S 127.0.0.1:8010 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php',
+            cwd: 'public',
+            env: { DB_DATABASE: 'rimify_wf_e2e' },
+            url: 'http://127.0.0.1:8010/up',
+            reuseExistingServer: !process.env.CI,
+            timeout: 60_000,
+        },
+    ],
 });

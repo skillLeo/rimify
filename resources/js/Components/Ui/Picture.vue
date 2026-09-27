@@ -34,8 +34,13 @@ export interface ImageManifest {
     height: number
     widths: number[]
     placeholder: string
-    /** The format of the `<img>` fallback: `jpg` (the default) or `png` for a transparent cut-out. */
+    /** The format of the `<img>` fallback: `jpg` (the default), `png` for a transparent cut-out, `svg` for a drawing. */
     fallback?: string
+    /**
+     * The formats offered before the fallback, best first (default AVIF, then WebP). A drawn
+     * placeholder (DemoPlaceholders) is one SVG and offers none.
+     */
+    formats?: string[]
     /**
      * Further photographs of the same finish from other angles, in the order they were shot
      * (front view first is the manifest itself). Only real studio shots: never a drawing.
@@ -72,6 +77,7 @@ const emit = defineEmits<{ (e: 'loaded'): void }>()
 const loaded = ref(false)
 
 const srcset = (ext: string): string => props.image.widths.map((w) => `${props.image.base}-${w}.${ext} ${w}w`).join(', ')
+const formats = computed(() => props.image.formats ?? ['avif', 'webp'])
 // The manifest names its own fallback format: a cut-out with transparency ships PNG, a photo JPEG.
 const fallbackExt = computed(() => props.image.fallback ?? 'jpg')
 const fallback = computed(() => `${props.image.base}-${props.image.widths[props.image.widths.length - 1]}.${fallbackExt.value}`)
@@ -86,8 +92,7 @@ function onLoad(): void {
     <!-- A transparent cut-out gets no blurred placeholder: an opaque square behind it would
          show as a box until the file paints. -->
     <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="fallbackExt === 'png' ? undefined : { backgroundImage: `url(${image.placeholder})` }">
-        <source type="image/avif" :srcset="srcset('avif')" :sizes="sizes" />
-        <source type="image/webp" :srcset="srcset('webp')" :sizes="sizes" />
+        <source v-for="format in formats" :key="format" :type="`image/${format}`" :srcset="srcset(format)" :sizes="sizes" />
         <img
             :src="fallback"
             :srcset="srcset(fallbackExt)"

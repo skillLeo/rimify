@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { consentGiven, expectNoHorizontalOverflow, open } from './support';
+import { SHOP } from './shop';
+
+// A storefront spec: the shop with wheels in it (e2e/shop.ts).
+test.use({ baseURL: SHOP });
 
 /*
  * The compare flow (docs/design/sections/home-overhaul.md §2): tick a card → toast and tray; the

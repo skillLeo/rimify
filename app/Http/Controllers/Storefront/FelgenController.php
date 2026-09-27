@@ -18,6 +18,7 @@ use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\CatalogueStatus;
 use App\Enums\TyreSeason;
 use App\Http\Controllers\Controller;
 use App\Models\BalanceWeightColour;
@@ -144,15 +145,20 @@ class FelgenController extends Controller
      */
     private function demo(): bool
     {
-        return WheelModel::query()->where('is_demo', true)->exists();
+        return WheelModel::query()->where('is_demo', true)->where('status', CatalogueStatus::Published->value)->exists();
     }
 
-    /** The product page. One model, its finishes, its configurations. */
+    /**
+     * The product page. One model, its finishes, its configurations — only a published one: a draft,
+     * an archived model or a demonstration row is not in the shop and answers 404, whoever knows its
+     * address (the table itself refuses a published demo row).
+     */
     public function show(Request $request, string $model): Response
     {
         $wheel = WheelModel::query()
             ->with(['brand', 'finishes', 'configs'])
             ->where('slug', $model)
+            ->where('status', CatalogueStatus::Published->value)
             ->firstOrFail();
 
         $this->recentlyViewed->record($request->session(), (int) $wheel->id);

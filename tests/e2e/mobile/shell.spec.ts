@@ -92,8 +92,8 @@ test.describe('mobile shell', () => {
         expect(Math.round(box?.y ?? -1)).toBe(0)
 
         await expect(dialog.getByText('Direkt zu')).toBeVisible()
-        await field.fill('motec')
-        await expect(dialog.getByRole('link', { name: /MOTEC/ }).first()).toBeVisible()
+        await field.fill('bergsteig')
+        await expect(dialog.getByRole('link', { name: /Bergsteig/ }).first()).toBeVisible()
 
         await page.goBack()
         await expect(dialog).toBeHidden()
@@ -111,8 +111,8 @@ test.describe('mobile shell', () => {
         await open(page, '/')
         await page.getByRole('button', { name: 'Suche' }).click()
         const dialog = page.getByRole('dialog', { name: 'Suche' })
-        await dialog.getByRole('searchbox', { name: 'Suche' }).fill('motec')
-        const first = dialog.getByRole('link', { name: /MOTEC/ }).first()
+        await dialog.getByRole('searchbox', { name: 'Suche' }).fill('bergsteig')
+        const first = dialog.getByRole('link', { name: /Bergsteig/ }).first()
         await expect(first).toBeVisible()
         await first.click()
         await page.waitForURL(/\/felgen(\/|\?)/)

@@ -9,7 +9,7 @@
  *   value with a unit or a technical code (`8,5J`, `ET 45`, `225/45 R17`, `23 mm`, `+0,91 %`,
  *   `100,9 km/h`) is wrapped in a `translate="no"` span and the words around it stay translatable.
  * - `<ValueText :text="value" whole />` — the string is nothing but a value or a name
- *   (`66,6 mm`, `189,00 €`, `MOTEC MCR4 Ultimate`): it is wrapped whole, in one span.
+ *   (`66,6 mm`, `189,00 €`, `Bergsteig Gipfel`): it is wrapped whole, in one span.
  *
  * A figure never breaks across a line. Where the element that holds the value exists already and
  * holds nothing else — a spec cell, a size chip, the hero's spec line — that element carries

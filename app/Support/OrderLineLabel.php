@@ -14,7 +14,7 @@ use App\Models\WheelConfig;
  */
 final class OrderLineLabel
 {
-    /** `MOTEC MCR4 Ultimate · Schwarz matt · 8,5J × 19 · ET 35 · 5/112 …` */
+    /** `Bergsteig Gipfel · Hellgrau · 8,5J × 19 · ET 35 · 5/112 …` */
     public static function wheel(WheelConfig $config): string
     {
         $model = $config->wheelModel;

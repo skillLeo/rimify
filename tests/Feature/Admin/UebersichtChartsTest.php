@@ -17,6 +17,7 @@ use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
+use Database\Seeders\CatalogueSeeder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 
@@ -47,6 +48,16 @@ function chartOrder(int $cents, string $placedAtUtc, ?WheelConfig $config = null
 }
 
 describe('the verdict tally', function (): void {
+    // The tally is written by the storefront, which shows real records only: the seeded catalogue is
+    // this describe's shop (tests/Pest.php), and never stays one for the next test.
+    beforeEach(function (): void {
+        CatalogueSeeder::$shopFixture = true;
+    });
+
+    afterEach(function (): void {
+        CatalogueSeeder::$shopFixture = false;
+    });
+
     it('counts every size a customer checks against their car, by state, keeping nothing else', function (): void {
         $this->seed(ApprovalSeeder::class);
         $row = DB::table('fitments as f')

@@ -36,19 +36,14 @@ it('shows no tyre label without a verified EPREL entry', function (): void {
 it('shows the label of a tyre whose EPREL entry is on record', function (): void {
     DB::table('tyre_variants')->update(['eprel_id' => null]);
 
-    $tyre = TyreVariant::query()
-        ->where('stock_qty', '>', 0)
-        ->whereNotNull('eu_fuel_class')
-        ->whereNotNull('eu_wet_grip_class')
-        ->whereNotNull('eu_noise_db')
-        ->whereNotNull('eu_noise_class')
-        ->orderByDesc('id')
-        ->firstOrFail();
-
-    DB::table('tyre_variants')->where('id', $tyre->id)->update(['eprel_id' => '123456']);
+    // The seeded tyres are invented and carry no label: this one gets a registration and its values.
+    $tyre = TyreVariant::query()->where('stock_qty', '>', 0)->orderByDesc('id')->firstOrFail();
+    DB::table('tyre_variants')->where('id', $tyre->id)->update([
+        'eprel_id' => '123456', 'eu_fuel_class' => 'C', 'eu_wet_grip_class' => 'A', 'eu_noise_db' => 72, 'eu_noise_class' => 'B',
+    ]);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('komplettrad.tyre.eprelId', '123456')
-        ->where('komplettrad.tyre.fuel', (string) $tyre->eu_fuel_class)
+        ->where('komplettrad.tyre.fuel', 'C')
     );
 });

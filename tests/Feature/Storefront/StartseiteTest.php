@@ -6,12 +6,14 @@ use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\VehicleContext;
 use App\Models\Setting;
 use App\Models\Vehicle;
+use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Support\DemoWheels;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\DemoWheelFixtures;
 
@@ -51,8 +53,8 @@ it('ships the hero with a real product and its own values', function (): void {
             ->has('hero.stats.gutachten')
             ->has('selector.makes')
             ->has('promises', 4)
-            // Seeded rows are demonstration data, and the page is told so.
-            ->where('demo', true)
+            // This shop is the test's own (tests/Pest.php): nothing on show is demonstration data.
+            ->where('demo', false)
         );
 });
 
@@ -62,9 +64,11 @@ it('shows the hero finish under its own cut-out once the catalogue has one', fun
     $hero = ($chosen === null
         ? WheelModel::query()->where('status', 'published')->orderBy('id')
         : WheelModel::query()->whereKey((int) $chosen))->firstOrFail();
-    $photo = collect(DemoWheels::photos())->firstWhere('model', $hero->slug);
-
-    expect($photo)->not->toBeNull('the hero product must have a photograph in wheel-photos.php');
+    // A cut-out for the hero's last finish — not merely its cheapest — in a map of the test's own:
+    // the shipped map is empty (example data carries no photograph).
+    $finish = WheelFinish::query()->where('wheel_model_id', $hero->id)->orderByDesc('sort_order')->firstOrFail();
+    DemoWheelFixtures::photoMap($this->dir, DemoWheelFixtures::photoPair($hero->slug, $finish->name_de));
+    $photo = collect(DemoWheels::photos())->first(fn (array $p): bool => ! isset($p['view']));
 
     DemoWheelFixtures::write($this->dir, [$photo['slug']]);
     $this->seed(CatalogueSeeder::class);
@@ -80,10 +84,9 @@ it('shows the hero finish under its own cut-out once the catalogue has one', fun
     );
 });
 
-it('tells the listing that the catalogue is demonstration data', function (): void {
-    $this->get('/felgen')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', true));
-
-    WheelModel::query()->update(['is_demo' => false]);
+it('never tells the listing it shows demonstration data: none can be on show', function (): void {
+    // A demo row exists — as a draft, the only way it can.
+    WheelModel::query()->orderBy('id')->limit(1)->update(['is_demo' => true, 'status' => 'draft']);
 
     $this->get('/felgen')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false));
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false));
@@ -145,6 +148,11 @@ it('answers for the chosen vehicle in the first paint', function (): void {
 });
 
 it('shows the EU label of a real tyre and at most five answers', function (): void {
+    // The seeded tyres are invented and carry no label; one gets its registration and values here.
+    DB::table('tyre_variants')->where('stock_qty', '>', 0)->orderByDesc('id')->limit(1)->update([
+        'eprel_id' => '123456', 'eu_fuel_class' => 'C', 'eu_wet_grip_class' => 'A', 'eu_noise_db' => 72, 'eu_noise_class' => 'B',
+    ]);
+
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->has('komplettrad.tyre.title')
         ->has('komplettrad.tyre.noiseClass')

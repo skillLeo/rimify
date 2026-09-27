@@ -23,14 +23,14 @@ beforeEach(function (): void {
     $this->seed(ApprovalSeeder::class);
 });
 
-/** One live MOTEC fitment whose document states its own bore, or one where it states none. */
+/** One live fitment of Bergsteig Gipfel whose document states its own bore, or one where it states none. */
 function pdpBoreFitment(bool $stated): object
 {
     $row = DB::table('fitments as f')
         ->join('wheel_configs as wc', 'wc.id', '=', 'f.wheel_config_id')
         ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
         ->join('vehicles as v', 'v.id', '=', 'f.vehicle_id')
-        ->where('wm.slug', 'motec-mcr4-ultimate')
+        ->where('wm.slug', 'bergsteig-gipfel')
         ->where('f.status', FitmentStatus::Published->value)
         ->when($stated, fn ($q) => $q->whereNotNull('f.centre_bore_mm'), fn ($q) => $q->whereNull('f.centre_bore_mm'))
         ->orderBy('f.id')
@@ -109,15 +109,18 @@ it('makes no claim about a bore at all until a vehicle is chosen', function (): 
 });
 
 it('carries the hump designation only for a wheel whose record holds one', function (): void {
-    $motec = $this->get('/felgen/motec-mcr4-ultimate')->assertOk()->viewData('page')['props'];
+    // A record that holds one: its configurations say so.
+    DB::table('wheel_configs')->whereIn('wheel_model_id', DB::table('wheel_models')->where('slug', 'bergsteig-gipfel')->select('id'))->update(['hump' => 'H2']);
 
-    expect(collect($motec['configs'])->pluck('hump')->unique()->all())->toBe(['H2']);
+    $held = $this->get('/felgen/bergsteig-gipfel')->assertOk()->viewData('page')['props'];
 
-    // A demo wheel has no Gutachten, so it has no designation and the details show no Hump row.
-    $demo = $this->get('/felgen/demo-fuenfspeiche-f-01')
+    expect(collect($held['configs'])->pluck('hump')->unique()->all())->toBe(['H2']);
+
+    // A wheel with no Gutachten has no designation, and the details show no Hump row.
+    $none = $this->get('/felgen/nordfelge-fjord')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Produkt/Index'))
         ->viewData('page')['props'];
 
-    expect(collect($demo['configs'])->every(static fn (array $c): bool => $c['hump'] === null))->toBeTrue();
+    expect(collect($none['configs'])->every(static fn (array $c): bool => $c['hump'] === null))->toBeTrue();
 });

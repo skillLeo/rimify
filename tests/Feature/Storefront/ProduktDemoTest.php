@@ -10,25 +10,27 @@ use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia;
 
 /**
- * ACCURACY.md D4 and findings #48/#59: the product page knows when it shows a demo model, so it
- * can say "Beispielbestand" and "not orderable yet"; and every configuration carries its verified
- * load rating (`maxLoadKg`), null where nobody has verified one (D2).
+ * The product page shows a model that is in the shop and no other: a demonstration row, a draft or
+ * an archived model answers 404, whoever knows its address (the review release §2). And every
+ * configuration carries its verified load rating (`maxLoadKg`), null where nobody has verified one (D2).
  */
 beforeEach(function (): void {
     $this->seed(CommerceSeeder::class);
 });
 
-it('tells the product page that a demo model is demonstration data', function (): void {
-    $model = WheelModel::query()->where('is_demo', true)->firstOrFail();
+it('shows a published model, and nothing that is not in the shop', function (): void {
+    $model = WheelModel::query()->orderBy('id')->firstOrFail();
 
     $this->get('/felgen/'.$model->slug)
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->component('Produkt/Index')->where('demo', true));
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('Produkt/Index')->where('demo', false));
 
-    $model->update(['is_demo' => false]);
+    // A demonstration row, then a real draft, then an archived model: none of them has a page.
+    foreach ([['is_demo' => true, 'status' => 'draft'], ['is_demo' => false, 'status' => 'draft'], ['is_demo' => false, 'status' => 'archived']] as $state) {
+        WheelModel::query()->whereKey($model->id)->update($state);
 
-    $this->get('/felgen/'.$model->slug)
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false));
+        $this->get('/felgen/'.$model->slug)->assertNotFound();
+    }
 });
 
 it('carries the load rating in every configuration, null until one is verified', function (): void {

@@ -13,8 +13,12 @@ not listed stays behind an honest „noch nicht gebaut“ on the review board.
 - [x] **§4.1 Übersicht, review fixes** — interaction-qa M1-01…M1-20 and the accepted ai-look-critic fixes;
       gates on `/admin` clean (style inventory, console ×3, axe 0, overflow at 12 widths) — see the M1 entry below.
       The demo *names* still change with §2 (MOTEC and „Demo …“ → invented brands).
-- [ ] **§2 Example data** — invented brands only (`Nordfelge`, `Kraftrad`, `Stahlwerk 19`, `Aventin`, `Bergsteig`), honest
-      generated placeholder wheels, real sizes/ET/Lochkreis/Mittenloch, demo never publishable
+- [x] **§2 Example data** — 21 wheels under Nordfelge, Kraftrad, Stahlwerk 19, Aventin, Bergsteig (renamed in
+      place: ids, SKUs, fitments kept); tyres under Laufwerk without a label; no KBA/Radlast/hump on any demo
+      wheel; placeholder drawings per finish (DemoPlaceholders, SVG, „Platzhalterbild · kein Produktfoto“);
+      demo never published (CHECK `wheel_models_demo_never_published`, seeded as drafts, PDP/basket refuse a
+      model that is not published); storefront tests on their own shop (Pest `$shopFixture`, Playwright
+      `rimify_wf_e2e` on :8010 via `composer e2e:shop`).
 - [ ] **§4.2 Katalog** — list, form with variant matrix, images (ImageUpload → media_products), importer with Probelauf
 - [ ] **§4.3 Gutachten und Fahrzeuge** — PDF upload (PdfUpload), Verwendungsbereich, Auflagen library, preview,
       Freigeben, Abdeckung from real rows
@@ -135,6 +139,24 @@ Cross-cutting, built inside the milestones that need them:
   exception handler's list is. Without it the secret sat in the session after a refused save (a test caught it).
 - **2026-09-27 · The CSP names the bucket.** `img-src` and `connect-src` gain the public base's and the bucket's
   own origins when a bucket is in force — named hosts, never `*.amazonaws.com`.
+- **2026-09-27 · Demo is never on the storefront (review release §2; supersedes ACCURACY D4).** The badged,
+  walkable demo shop is gone: demo models are drafts and the table refuses a published demo row. Until the
+  golden record (and later the client's catalogue) is published, the storefront shows no wheel and the hero
+  draws its outline. The Demodaten badge stays as a last line of defence.
+- **2026-09-27 · MOTEC MCR4 Ultimate leaves the example data (supersedes ACCURACY D1).** A real brand on demo
+  prices, stock and fitments, pictured by the maker's own photographs, is what §2 rules out. It is now the
+  invented Bergsteig Gipfel: sizes, bolt patterns and SKUs kept; KBA numbers, Radlast, weights, hump and
+  Felgenhorn (all from the real ABE) removed; the photo map is empty. The client's files stay in
+  `database/seeders/content/client-photos/` for the day the real product comes back.
+- **2026-09-27 · Tyres are invented too.** `Laufwerk`, sizes/load/speed that exist, no EU label (label values
+  travel only with a verified EPREL registration, D7).
+- **2026-09-27 · Storefront tests get their own shop.** Pest: `CatalogueSeeder::$shopFixture` (honoured only
+  under test) publishes the seeded catalogue as the test's shop. Playwright: `rimify_wf_e2e` (the `rimify_wf%`
+  grant; `E2eShopSeeder` refuses any database not named `*_e2e`) served on :8010 — :8001 belongs to another
+  local project.
+- **2026-09-27 · The preview becomes staging.** `deploy/remote.sh` takes `TARGET_ENV` (production by default,
+  demo guard unchanged); staging switches the admin on and writes the demo set once. The push/deploy itself
+  was refused by the session's permission check — the user runs it (BLOCKED #12).
 - **2026-09-27 · The review release reorders the work.** The admin on example data is the deliverable; the §4
   order of that brief replaces „M3 next“. M1–M8 stay the long plan.
 

@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { CONSENT_COOKIE, expectNoHorizontalOverflow, open } from './support';
+import { SHOP } from './shop';
+
+// A storefront spec: the shop with wheels in it (e2e/shop.ts).
+test.use({ baseURL: SHOP });
 
 /*
  * H0 — the cookie sheet. The shop sets only necessary cookies and no statistics service is

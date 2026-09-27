@@ -1,5 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { consentGiven, expectNoHorizontalOverflow, open } from './support';
+import { SHOP } from './shop';
+
+// A storefront spec: the shop with wheels in it (e2e/shop.ts).
+test.use({ baseURL: SHOP });
 
 /*
  * /felgenrechner's rear view (ACCURACY.md §6, brief W6), measured in the browser on both documents:

@@ -243,35 +243,43 @@ test.describe('Startseite/Mobile', () => {
         await expect(brand).toHaveAccessibleName(/^\S.* \d+\sFelgen?$/)
     })
 
-    test('hero frame: two callouts over the wheel, the key line beneath, no placeholder in the code fields', async ({ page }) => {
+    test('hero frame: callouts only over a photograph, the key line beneath, no hint text in the code fields', async ({ page }) => {
         await open(page, '/')
 
         const frame = page.locator('#h2 .hero-frame')
         await expect(frame).toHaveCount(1)
-        await expect(frame.locator('.callout')).toHaveCount(2)
 
-        /*
-         * The two figures a buyer checks against their papers: the Lochkreis, drawn through the
-         * bolt-hole centres, and the KBA number at the stamp (HeroFrame.vue). Asserted by the
-         * callout's own key rather than by its German label, which is copy and may be reworded.
-         * Each value is kept from a page translator — `5 × 112` is not a phrase (R-10, §6).
-         */
-        await expect(frame.locator('[data-callout="boltCircle"]')).toHaveCount(1)
-        await expect(frame.locator('[data-callout="kba"]')).toHaveCount(1)
-
-        for (const value of await frame.locator('.callout__value').all()) {
-            await expect(value).toHaveAttribute('translate', 'no')
-        }
-
-        // A symbolic picture names no product: no brand, no price, no link; the sentence says what it is.
+        // A symbolic picture names no product: no brand, no price, no link, no leaders pointing at
+        // nothing; the sentence says what it is. Until a photograph is uploaded, that is the hero.
         const symbolic = page.locator('#h2 .hero-mobile__symbolic')
         if ((await symbolic.count()) === 1) {
             await expect(symbolic).toHaveText('Symbolbild – Werte einer Beispielkonfiguration')
+            await expect(frame.locator('.callout')).toHaveCount(0)
             await expect(page.locator('#h2 .hero-mobile a')).toHaveCount(0)
             await expect(page.locator('#h2 .hero-mobile')).not.toContainText(/pro Felge/)
         } else {
             await expect(page.locator('#h2 .hero-mobile__caption')).toContainText(/pro Felge/)
             await expect(frame).toHaveAttribute('href', /^\/felgen\//)
+
+            // A placeholder drawing has no photographed bolt holes or stamp to point at: no leaders.
+            const drawing = (await frame.locator('img').getAttribute('src'))?.includes('/demo/placeholders/') ?? false
+            if (drawing) {
+                await expect(frame.locator('.callout')).toHaveCount(0)
+            } else {
+                /*
+                 * The two figures a buyer checks against their papers: the Lochkreis, drawn through the
+                 * bolt-hole centres, and the KBA number at the stamp (HeroFrame.vue). Asserted by the
+                 * callout's own key rather than by its German label, which is copy and may be reworded.
+                 * Each value is kept from a page translator — `5 × 112` is not a phrase (R-10, §6).
+                 */
+                await expect(frame.locator('.callout')).toHaveCount(2)
+                await expect(frame.locator('[data-callout="boltCircle"]')).toHaveCount(1)
+                await expect(frame.locator('[data-callout="kba"]')).toHaveCount(1)
+
+                for (const value of await frame.locator('.callout__value').all()) {
+                    await expect(value).toHaveAttribute('translate', 'no')
+                }
+            }
         }
 
         await page.getByRole('tab', { name: 'HSN/TSN' }).click()

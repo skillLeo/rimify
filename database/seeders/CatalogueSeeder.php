@@ -11,44 +11,44 @@ use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Demo\DemoPlaceholders;
 use App\Support\DemoWheels;
 use App\Support\MakeName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Twenty-one wheel models, deliberately uneven, every one of them flagged `is_demo`.
+ * Twenty-one wheel models, deliberately uneven, every one of them flagged `is_demo` — the example
+ * data the admin is reviewed on (the review release §2).
  *
  * A demo catalogue where every product is in stock, unconditioned and identically priced proves
- * nothing: it is exactly the dataset under which a listing page looks finished and then falls over
- * on the client's own data. So two models are out of stock, the spoke counts and palettes differ
- * per model so the grid reads as a real catalogue rather than one wheel twenty times, the bolt
- * patterns span the German market (5 × 112, 5 × 120, 5 × 108, 5 × 114,3), and the prices run from
- * 479,00 € to 1.196,00 €.
+ * nothing: it is exactly the dataset under which a list looks finished and then falls over on the
+ * client's own data. So two models are out of stock, the spoke counts and palettes differ per model,
+ * the bolt patterns span the German market (5 × 112, 5 × 120, 5 × 108, 5 × 114,3) and the prices run
+ * from 479,00 € to 1.196,00 €. The sizes, ET values, bolt patterns and bores are combinations that
+ * exist — wrong numbers would make every fitment screen meaningless to review.
  *
- * A real brand or model name appears only on a photograph of that exact product
- * (docs/phase0/ACCURACY.md D1). The MOTEC MCR4 Ultimate keeps its name because its photographs are
- * the client's own studio shots, and its finish, sizes, KBA numbers, loads and weights are only the
- * values the research report verified (docs/reviews/accuracy-research-motec.md): anything it could
- * not verify is NULL and does not render. Every other model is a neutral demonstration wheel under
- * the brand `Demo`, named for its spoke pattern and numbered in model order ("Fünfspeiche F-01").
- * No demo model carries a type designation, a KBA number or a rating: there is no document behind
- * them and no review table, and an invented one would be confidently wrong (CLAUDE.md §2).
+ * Invented brands only: Nordfelge, Kraftrad, Stahlwerk 19, Aventin and Bergsteig — obviously ours,
+ * never a real maker's name on data we made up, and never a maker's photograph (§5 UWG). No model
+ * carries a type designation, a KBA number, a Radlast or a rating: there is no document and no review
+ * behind them, and an invented one would be confidently wrong (CLAUDE.md §2).
  *
- * The renames happen IN PLACE. A model is found by its slug or by the slug it had before
- * (`formerSlug`), a finish by its name or its former name, so a database seeded before the rename
- * keeps every id, SKU, configuration and fitment, and a second run changes nothing.
+ * A demo model is never published: it is seeded as a draft, and the database refuses a published row
+ * that is demo (`wheel_models_demo_never_published`). The storefront shows real records only.
+ *
+ * The renames happen IN PLACE. A model is found by its slug or by any slug it had before
+ * (`formerSlugs`: its `Demo …` name, and the real maker's name before that), a finish by its name or
+ * its former name, so a database seeded under any earlier name keeps every id, SKU, configuration
+ * and fitment, and a second run changes nothing.
  *
  * The first twelve models are kept exactly as first seeded — same order, same finishes, same
  * sizes — because their configurations' SKUs are numbered in sequence and the fitment seeds hang
- * off those rows. New models are appended, never inserted. The MCR4's configurations carry their
- * SKUs explicitly: the two it had before keep theirs, and two sizes no Motec document covers
- * (9,5J × 19 ET 40, and 8,5J × 20 in 5 × 112, which is not offered in this finish) are retired —
- * soft-deleted, with their SKUs, so a sold order line still resolves.
+ * off those rows. New models are appended, never inserted. Bergsteig Gipfel's configurations carry
+ * their SKUs explicitly, so the ones it had before keep theirs; a size no longer listed is retired —
+ * soft-deleted, with its SKU, so a sold order line still resolves.
  *
- * Each finish that has a photograph in database/seeders/content/wheel-photos.php carries that
- * cut-out's manifest, read from where `wheels:process-images` wrote it; a finish without one draws
- * the outline.
+ * Pictures: a finish carries a cut-out's manifest only where database/seeders/content/wheel-photos.php
+ * maps one (none, today); a finish without one draws the outline.
  */
 class CatalogueSeeder extends Seeder
 {
@@ -66,37 +66,65 @@ class CatalogueSeeder extends Seeder
      */
     public const FORMER_BRANDS = [
         'BORBET', 'OZ Racing', 'ALUTEC', 'BBS', 'YIDO', 'Rotiform', 'Brock', 'MAM', 'Dezent', 'AEZ',
+        // Before the review release: the neutral range, the one real wheel, the three tyre makers.
+        'Demo', 'MOTEC', 'Bridgestone', 'Continental', 'Michelin',
+    ];
+
+    /** The invented brands, in the order the admin lists them; `Laufwerk` makes the tyres. */
+    public const BRANDS = ['Nordfelge', 'Kraftrad', 'Stahlwerk 19', 'Aventin', 'Bergsteig', 'Laufwerk'];
+
+    /**
+     * Each wheel brand's colour: the ground of its placeholder drawings (DemoPlaceholders). Dark
+     * enough for white text at 7:1 or better.
+     *
+     * @var array<string, string>
+     */
+    public const BRAND_COLOURS = [
+        'Nordfelge' => '#2B4C6F',
+        'Kraftrad' => '#7A2E2E',
+        'Stahlwerk 19' => '#3F454D',
+        'Aventin' => '#4E3F6E',
+        'Bergsteig' => '#2F5A43',
     ];
 
     /**
-     * brand, name, the slug it had before the rename, spokes, [finish, hex, palette, former
-     * finish name?], sizes as [width, diameter, ET, euro, optional per-size facts], stock, an
-     * optional [bolt holes, bolt circle mm, centre bore mm] for the whole model, and — only where a
-     * document states them — the `hump` and `bead` designations its approval prints.
+     * Tests only: the seeded catalogue as a test's own shop — published and not demo — for the
+     * storefront tests, whose subject is a shop with wheels in it (tests/Pest.php sets it for them).
+     * Honoured only while the application runs its tests, so no database anyone can deploy ever
+     * gets a published invented product from this seeder.
+     */
+    public static bool $shopFixture = false;
+
+    private static function asShop(): bool
+    {
+        return self::$shopFixture && app()->runningUnitTests();
+    }
+
+    /**
+     * brand, name, the slugs it had before (newest first), spokes, [finish, hex, palette, former
+     * finish name?], sizes as [width, diameter, ET, euro, optional per-size facts], stock, and an
+     * optional [bolt holes, bolt circle mm, centre bore mm] for the whole model.
      *
-     * Per-size facts are used by the MCR4 only, each one read from the wheel's own ABE: `bolt`
-     * (the execution's pattern and bore), `kba` (the ABE number stamped on that size), `load`
-     * (Radlast, kg), `weight` (g, Motec's "ca." figure; NULL where Motec publishes none) and `sku`.
+     * Per-size facts: `bolt` (a size's own pattern and bore, where the model has several) and `sku`
+     * (a fixed article number, where one was sold before).
      *
      * @var list<array{
      *     brand: string,
      *     name: string,
-     *     formerSlug: string|null,
+     *     formerSlugs: list<string>,
      *     spokes: int,
      *     finishes: list<array{0: string, 1: string, 2: string, 3?: string}>,
-     *     sizes: list<array{0: float, 1: float, 2: int, 3: float, 4?: array{bolt: array{0: int, 1: float, 2: float}, kba: string, load: int, weight: int|null, sku: int}}>,
+     *     sizes: list<array{0: float, 1: float, 2: int, 3: float, 4?: array{bolt: array{0: int, 1: float, 2: float}, sku: int}}>,
      *     stock: int,
-     *     bolt?: array{0: int, 1: float, 2: float},
-     *     hump?: string,
-     *     bead?: string
+     *     bolt?: array{0: int, 1: float, 2: float}
      * }>
      */
     private const MODELS = [
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-01', 'formerSlug' => 'borbet-havanna',
+            'brand' => 'Nordfelge', 'name' => 'Fjord', 'formerSlugs' => ['demo-fuenfspeiche-f-01', 'borbet-havanna'],
             'spokes' => 5,
             'finishes' => [
-                ['Graphite matt', '#3A3E45', 'graphite'],
+                ['Graphit matt', '#3A3E45', 'graphite', 'Graphite matt'],
                 ['Schwarz glänzend', '#1A1C20', 'black'],
                 ['Silber', '#C3C8CF', 'silver'],
             ],
@@ -106,7 +134,7 @@ class CatalogueSeeder extends Seeder
         [
             // Out of stock, on purpose: the card, the chip and the disabled action all have to
             // hold up without a single unit behind them.
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-02', 'formerSlug' => 'borbet-lv5',
+            'brand' => 'Nordfelge', 'name' => 'Skagen', 'formerSlugs' => ['demo-zehnspeiche-z-02', 'borbet-lv5'],
             'spokes' => 10,
             'finishes' => [
                 ['Schwarz matt', '#1A1C20', 'black'],
@@ -116,68 +144,68 @@ class CatalogueSeeder extends Seeder
             'stock' => 0,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-03', 'formerSlug' => 'oz-racing-superturismo-gt',
+            'brand' => 'Kraftrad', 'name' => 'KR-10', 'formerSlugs' => ['demo-zehnspeiche-z-03', 'oz-racing-superturismo-gt'],
             'spokes' => 10,
             'finishes' => [
-                ['Matt Race Silber', '#C3C8CF', 'silver'],
+                ['Silber matt', '#C3C8CF', 'silver', 'Matt Race Silber'],
                 ['Schwarz matt', '#1A1C20', 'black'],
             ],
             'sizes' => [[8.0, 18.0, 35, 969.00], [8.5, 18.0, 40, 1019.00], [9.0, 19.0, 42, 1196.00]],
             'stock' => 8,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Siebenspeiche S-04', 'formerSlug' => 'oz-racing-ultraleggera',
+            'brand' => 'Nordfelge', 'name' => 'Aero 7', 'formerSlugs' => ['demo-siebenspeiche-s-04', 'oz-racing-ultraleggera'],
             'spokes' => 7,
             'finishes' => [
-                ['Graphite matt', '#3A3E45', 'graphite'],
+                ['Graphit matt', '#3A3E45', 'graphite', 'Graphite matt'],
                 ['Poliert', '#D5DAE0', 'polished'],
             ],
             'sizes' => [[8.0, 18.0, 38, 1049.00], [8.5, 19.0, 42, 1149.00]],
             'stock' => 6,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-05', 'formerSlug' => 'alutec-monstr',
+            'brand' => 'Kraftrad', 'name' => 'KR-5', 'formerSlugs' => ['demo-fuenfspeiche-f-05', 'alutec-monstr'],
             'spokes' => 5,
             'finishes' => [
-                ['Racing Schwarz', '#1A1C20', 'black'],
-                ['Graphite matt', '#3A3E45', 'graphite'],
+                ['Schwarz', '#1A1C20', 'black', 'Racing Schwarz'],
+                ['Graphit matt', '#3A3E45', 'graphite', 'Graphite matt'],
             ],
             'sizes' => [[8.0, 18.0, 40, 699.00], [8.5, 19.0, 45, 789.00]],
             'stock' => 21,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-06', 'formerSlug' => 'alutec-grip',
+            'brand' => 'Stahlwerk 19', 'name' => 'Kontur S', 'formerSlugs' => ['demo-fuenfspeiche-f-06', 'alutec-grip'],
             'spokes' => 5,
             'finishes' => [
                 ['Silber', '#C3C8CF', 'silver'],
-                ['Polar Silber', '#D5DAE0', 'polished'],
+                ['Hellsilber', '#D5DAE0', 'polished', 'Polar Silber'],
             ],
             'sizes' => [[7.0, 16.0, 38, 689.00], [7.5, 17.0, 38, 739.00]],
             'stock' => 34,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-07', 'formerSlug' => 'bbs-ci-r',
+            'brand' => 'Bergsteig', 'name' => 'Grat', 'formerSlugs' => ['demo-zehnspeiche-z-07', 'bbs-ci-r'],
             'spokes' => 10,
             'finishes' => [
-                ['Platinum Silber', '#C3C8CF', 'silver'],
-                ['Satin Schwarz', '#1A1C20', 'black'],
+                ['Silber glänzend', '#C3C8CF', 'silver', 'Platinum Silber'],
+                ['Schwarz seidenmatt', '#1A1C20', 'black', 'Satin Schwarz'],
                 ['Bronze matt', '#8A6A3C', 'bronze'],
             ],
             'sizes' => [[8.0, 18.0, 44, 1096.00], [8.5, 19.0, 44, 1149.00], [9.0, 19.0, 42, 1196.00]],
             'stock' => 4,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-08', 'formerSlug' => 'bbs-sr',
+            'brand' => 'Bergsteig', 'name' => 'Kamm', 'formerSlugs' => ['demo-zehnspeiche-z-08', 'bbs-sr'],
             'spokes' => 10,
             'finishes' => [
-                ['Himalaya Grau', '#3A3E45', 'graphite'],
-                ['Volcano Grau', '#3A3E45', 'graphite'],
+                ['Grau matt', '#3A3E45', 'graphite', 'Himalaya Grau'],
+                ['Anthrazit', '#3A3E45', 'graphite', 'Volcano Grau'],
             ],
             'sizes' => [[8.0, 18.0, 45, 899.00], [8.5, 18.0, 40, 949.00]],
             'stock' => 15,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Vielspeiche V-09', 'formerSlug' => 'yido-performance-1',
+            'brand' => 'Aventin', 'name' => 'Mesh 20', 'formerSlugs' => ['demo-vielspeiche-v-09', 'yido-performance-1'],
             'spokes' => 20,
             'finishes' => [
                 ['Schwarz poliert', '#1A1C20', 'black'],
@@ -188,7 +216,7 @@ class CatalogueSeeder extends Seeder
         ],
         [
             // The second out-of-stock model.
-            'brand' => 'Demo', 'name' => 'Vielspeiche V-10', 'formerSlug' => 'yido-performance-2',
+            'brand' => 'Aventin', 'name' => 'Mesh 20 R', 'formerSlugs' => ['demo-vielspeiche-v-10', 'yido-performance-2'],
             'spokes' => 20,
             'finishes' => [
                 ['Bronze matt', '#8A6A3C', 'bronze'],
@@ -197,17 +225,17 @@ class CatalogueSeeder extends Seeder
             'stock' => 0,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-11', 'formerSlug' => 'rotiform-kps',
+            'brand' => 'Aventin', 'name' => 'Linea 5', 'formerSlugs' => ['demo-fuenfspeiche-f-11', 'rotiform-kps'],
             'spokes' => 5,
             'finishes' => [
-                ['Gloss Schwarz', '#1A1C20', 'black'],
+                ['Schwarz glänzend', '#1A1C20', 'black', 'Gloss Schwarz'],
                 ['Bronze matt', '#8A6A3C', 'bronze'],
             ],
             'sizes' => [[8.5, 19.0, 35, 949.00], [9.0, 19.0, 40, 989.00]],
             'stock' => 7,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Siebenspeiche S-12', 'formerSlug' => 'rotiform-blq',
+            'brand' => 'Stahlwerk 19', 'name' => 'Profil 7', 'formerSlugs' => ['demo-siebenspeiche-s-12', 'rotiform-blq'],
             'spokes' => 7,
             'finishes' => [
                 ['Silber gebürstet', '#D5DAE0', 'polished'],
@@ -219,7 +247,7 @@ class CatalogueSeeder extends Seeder
 
         // ── Appended for the demo catalogue (OVERHAUL.md §2). Never reorder the twelve above. ──
         [
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-13', 'formerSlug' => 'brock-b32',
+            'brand' => 'Kraftrad', 'name' => 'KR-9', 'formerSlugs' => ['demo-zehnspeiche-z-13', 'brock-b32'],
             'spokes' => 10,
             'finishes' => [
                 ['Kristallsilber', '#C3C8CF', 'silver'],
@@ -230,7 +258,7 @@ class CatalogueSeeder extends Seeder
             'stock' => 26,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-14', 'formerSlug' => 'brock-b40',
+            'brand' => 'Bergsteig', 'name' => 'Pass 5', 'formerSlugs' => ['demo-fuenfspeiche-f-14', 'brock-b40'],
             'spokes' => 5,
             'finishes' => [
                 ['Silber', '#C3C8CF', 'silver'],
@@ -242,10 +270,10 @@ class CatalogueSeeder extends Seeder
             'stock' => 14,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-15', 'formerSlug' => 'mam-a5',
+            'brand' => 'Stahlwerk 19', 'name' => 'Kontur X', 'formerSlugs' => ['demo-fuenfspeiche-f-15', 'mam-a5'],
             'spokes' => 5,
             'finishes' => [
-                ['Palladium', '#B9BEC6', 'silver'],
+                ['Hellgrau', '#B9BEC6', 'silver', 'Palladium'],
                 ['Schwarz matt', '#1A1C20', 'black'],
             ],
             'sizes' => [[8.0, 18.0, 30, 589.00], [8.5, 19.0, 35, 669.00]],
@@ -253,7 +281,7 @@ class CatalogueSeeder extends Seeder
             'stock' => 19,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-16', 'formerSlug' => 'mam-rs4',
+            'brand' => 'Aventin', 'name' => 'Linea 10', 'formerSlugs' => ['demo-zehnspeiche-z-16', 'mam-rs4'],
             'spokes' => 10,
             'finishes' => [
                 ['Silber', '#C3C8CF', 'silver'],
@@ -264,7 +292,7 @@ class CatalogueSeeder extends Seeder
             'stock' => 11,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-17', 'formerSlug' => 'dezent-tz',
+            'brand' => 'Nordfelge', 'name' => 'Fjord S', 'formerSlugs' => ['demo-fuenfspeiche-f-17', 'dezent-tz'],
             'spokes' => 5,
             'finishes' => [
                 ['Silber', '#C3C8CF', 'silver'],
@@ -275,73 +303,63 @@ class CatalogueSeeder extends Seeder
             'stock' => 30,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-18', 'formerSlug' => 'dezent-tn',
+            'brand' => 'Stahlwerk 19', 'name' => 'Raster 10', 'formerSlugs' => ['demo-zehnspeiche-z-18', 'dezent-tn'],
             'spokes' => 10,
             'finishes' => [
                 ['Silber', '#C3C8CF', 'silver'],
-                ['Dark', '#3A3E45', 'graphite'],
+                ['Anthrazit', '#3A3E45', 'graphite', 'Dark'],
             ],
             'sizes' => [[7.0, 16.0, 38, 479.00], [7.5, 17.0, 38, 539.00]],
             'bolt' => [5, 112.0, 57.10],
             'stock' => 40,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Zehnspeiche Z-19', 'formerSlug' => 'aez-leipzig',
+            'brand' => 'Bergsteig', 'name' => 'Sattel', 'formerSlugs' => ['demo-zehnspeiche-z-19', 'aez-leipzig'],
             'spokes' => 10,
             'finishes' => [
                 ['Silber', '#C3C8CF', 'silver'],
-                ['Dark', '#3A3E45', 'graphite'],
+                ['Anthrazit', '#3A3E45', 'graphite', 'Dark'],
             ],
             'sizes' => [[8.0, 18.0, 35, 749.00], [8.5, 19.0, 40, 829.00]],
             'bolt' => [5, 112.0, 66.60],
             'stock' => 9,
         ],
         [
-            'brand' => 'Demo', 'name' => 'Fünfspeiche F-20', 'formerSlug' => 'oz-racing-formula-hlt',
+            'brand' => 'Kraftrad', 'name' => 'KR-5 S', 'formerSlugs' => ['demo-fuenfspeiche-f-20', 'oz-racing-formula-hlt'],
             'spokes' => 5,
             'finishes' => [
-                ['Race Silber', '#C3C8CF', 'silver'],
-                ['Grigio Corsa', '#5A5F66', 'graphite'],
+                ['Silber', '#C3C8CF', 'silver', 'Race Silber'],
+                ['Dunkelgrau', '#5A5F66', 'graphite', 'Grigio Corsa'],
             ],
             'sizes' => [[8.0, 18.0, 45, 899.00], [8.5, 19.0, 40, 979.00], [9.0, 19.0, 45, 1049.00]],
             'bolt' => [5, 112.0, 66.60],
             'stock' => 7,
         ],
         [
-            // The client's own supplier, photographed in MOTEC's studio. Finish and sizes are the
-            // Light Grey D5 combinations Motec offers that an ABE covers (the research report's
-            // verified-official rows 3, 12, 1, 4, 7, 10, 13, 15, 17, 25 and 29, in that order);
-            // 72,6 mm bore in the 5 × 108, 5 × 114,3 and 5 × 120 executions. Prices and stock are
-            // demonstration values.
-            //
-            // The 5 × 112 executions carry 66,5 mm — the figure Motec's own catalogue, every dealer
-            // and the TÜV Teilegutachten RZ-066569-A0-402 ("Mittenlochdurchmesser: 66,50 mm") give
-            // (accuracy-research-motec.md §2.5.1), and the one the client settled on for the shop on
-            // 2026-09-23. The ABE's own 66,6 mm is not lost: it is what that document states for the
-            // cars it covers without a centring ring, and it is seeded per vehicle on the fitment
-            // row, where a bore belongs (ApprovalSeeder::MOTEC_NO_RING_MAKES).
-            //
-            // Hump and Felgenhorn come from each size's own ABE title — "Sonderräder für Pkw
-            // 8½ J x 19 H2" and its siblings (§2.1) — so the MCR4 is the one model here that holds
-            // a designation at all. The demo models have no Gutachten and therefore none.
-            'brand' => 'MOTEC', 'name' => 'MCR4 Ultimate', 'formerSlug' => null,
-            'hump' => 'H2', 'bead' => 'J',
+            // Once the MOTEC MCR4 Ultimate, which this catalogue may no longer carry: a real brand on
+            // demonstration prices, stock and fitments, pictured by the maker's own photographs (the
+            // review release §2). Now an invented wheel like the rest. It keeps what makes it useful
+            // to review — eleven sizes over four bolt patterns, sizes that exist — and it drops every
+            // fact that came from the MCR4's own ABEs (KBA numbers, Radlast, weights, hump and
+            // Felgenhorn): stated of an invented wheel, each would be a claim with nothing behind it.
+            // Its SKUs stay, so a sold order line still resolves.
+            'brand' => 'Bergsteig', 'name' => 'Gipfel', 'formerSlugs' => ['motec-mcr4-ultimate'],
             'spokes' => 10,
             'finishes' => [
-                ['Light Grey D5', '#B9BEC5', 'silver', 'Light Grey'],
+                ['Hellgrau', '#B9BEC5', 'silver', 'Light Grey D5|Light Grey'],
             ],
             'sizes' => [
-                [8.0, 18.0, 45, 796.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53811', 'load' => 620, 'weight' => 7_800, 'sku' => 95]],
-                [8.5, 19.0, 45, 876.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53810', 'load' => 620, 'weight' => 8_600, 'sku' => 96]],
-                [8.0, 18.0, 45, 796.00, ['bolt' => [5, 108.0, 72.60], 'kba' => '53811', 'load' => 620, 'weight' => 7_800, 'sku' => 99]],
-                [8.0, 18.0, 50, 796.00, ['bolt' => [5, 114.3, 72.60], 'kba' => '53811', 'load' => 620, 'weight' => 7_700, 'sku' => 100]],
-                [8.0, 19.0, 48, 836.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53809', 'load' => 620, 'weight' => 8_300, 'sku' => 101]],
-                [8.5, 19.0, 30, 876.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '53810', 'load' => 620, 'weight' => 8_800, 'sku' => 102]],
-                [8.5, 19.0, 45, 876.00, ['bolt' => [5, 114.3, 72.60], 'kba' => '53810', 'load' => 620, 'weight' => 8_700, 'sku' => 103]],
-                [8.5, 19.0, 35, 876.00, ['bolt' => [5, 120.0, 72.60], 'kba' => '53810', 'load' => 640, 'weight' => 9_100, 'sku' => 104]],
-                [9.5, 19.0, 20, 916.00, ['bolt' => [5, 112.0, 66.50], 'kba' => '55070', 'load' => 690, 'weight' => 10_400, 'sku' => 105]],
-                [8.5, 20.0, 35, 996.00, ['bolt' => [5, 120.0, 72.60], 'kba' => '54949', 'load' => 730, 'weight' => null, 'sku' => 106]],
-                [9.5, 20.0, 37, 1036.00, ['bolt' => [5, 114.3, 72.60], 'kba' => '54950', 'load' => 760, 'weight' => 10_600, 'sku' => 107]],
+                [8.0, 18.0, 45, 796.00, ['bolt' => [5, 112.0, 66.50], 'sku' => 95]],
+                [8.5, 19.0, 45, 876.00, ['bolt' => [5, 112.0, 66.50], 'sku' => 96]],
+                [8.0, 18.0, 45, 796.00, ['bolt' => [5, 108.0, 72.60], 'sku' => 99]],
+                [8.0, 18.0, 50, 796.00, ['bolt' => [5, 114.3, 72.60], 'sku' => 100]],
+                [8.0, 19.0, 48, 836.00, ['bolt' => [5, 112.0, 66.50], 'sku' => 101]],
+                [8.5, 19.0, 30, 876.00, ['bolt' => [5, 112.0, 66.50], 'sku' => 102]],
+                [8.5, 19.0, 45, 876.00, ['bolt' => [5, 114.3, 72.60], 'sku' => 103]],
+                [8.5, 19.0, 35, 876.00, ['bolt' => [5, 120.0, 72.60], 'sku' => 104]],
+                [9.5, 19.0, 20, 916.00, ['bolt' => [5, 112.0, 66.50], 'sku' => 105]],
+                [8.5, 20.0, 35, 996.00, ['bolt' => [5, 120.0, 72.60], 'sku' => 106]],
+                [9.5, 20.0, 37, 1036.00, ['bolt' => [5, 114.3, 72.60], 'sku' => 107]],
             ],
             'bolt' => [5, 112.0, 66.50],
             'stock' => 16,
@@ -349,26 +367,22 @@ class CatalogueSeeder extends Seeder
     ];
 
     /**
-     * The six tyres, each with the label values its EPREL registration gives (the research report's
-     * corrected rows, docs/reviews/accuracy-research-guides-tyres.md) and that registration's id.
-     * Label values travel with a verified register entry or not at all (D7): a tyre whose EPREL
-     * entry is not verified is listed here under the brand `Demo` with a neutral name, NULL label
-     * values and a NULL EPREL id, and shows no label. All six were verified.
+     * The six tyres: an invented maker, `Laufwerk`, in sizes, load indices and speed symbols that
+     * exist. No EU tyre label: label values travel with a verified EPREL registration or not at all
+     * (D7), and an invented tyre has none — its label shows as not given.
      *
-     * brand, name, season, width, aspect, diameter, load index, speed symbol, speed rank, fuel
-     * class, wet grip class, noise dB, noise class, EPREL id.
+     * brand, name, season, width, aspect, diameter, load index, speed symbol, speed rank, and the
+     * [brand, name] it was seeded under before (found and renamed in place).
      *
-     * @var list<array{0: string, 1: string, 2: string, 3: int, 4: int, 5: float, 6: int, 7: string, 8: int, 9: string|null, 10: string|null, 11: int|null, 12: string|null, 13: string|null}>
+     * @var list<array{0: string, 1: string, 2: string, 3: int, 4: int, 5: float, 6: int, 7: string, 8: int, 9: array{0: string, 1: string}}>
      */
     private const TYRES = [
-        // EPREL 2402971 (on the market since 2025); the older 382152 carries fuel class D.
-        ['Bridgestone', 'Potenza Sport', 'sommer', 245, 45, 18.0, 100, 'Y', 13, 'C', 'A', 72, 'B', '2402971'],
-        ['Continental', 'PremiumContact 7', 'sommer', 245, 45, 18.0, 96, 'Y', 13, 'C', 'A', 71, 'B', '834095'],
-        ['Michelin', 'Pilot Sport 5', 'sommer', 245, 45, 18.0, 100, 'Y', 13, 'C', 'A', 72, 'B', '909785'],
-        // 624311 carries the same label.
-        ['Bridgestone', 'Blizzak LM005', 'winter', 245, 45, 18.0, 100, 'V', 11, 'C', 'A', 72, 'B', '381960'],
-        ['Continental', 'AllSeasonContact 2', 'ganzjahres', 255, 40, 19.0, 100, 'Y', 13, 'B', 'B', 72, 'B', '1226698'],
-        ['Michelin', 'Pilot Sport 4 S', 'sommer', 255, 40, 19.0, 100, 'Y', 13, 'D', 'B', 71, 'B', '409928'],
+        ['Laufwerk', 'Sommer S1', 'sommer', 245, 45, 18.0, 100, 'Y', 13, ['Bridgestone', 'Potenza Sport']],
+        ['Laufwerk', 'Sommer S2', 'sommer', 245, 45, 18.0, 96, 'Y', 13, ['Continental', 'PremiumContact 7']],
+        ['Laufwerk', 'Sommer S3', 'sommer', 245, 45, 18.0, 100, 'Y', 13, ['Michelin', 'Pilot Sport 5']],
+        ['Laufwerk', 'Winter W1', 'winter', 245, 45, 18.0, 100, 'V', 11, ['Bridgestone', 'Blizzak LM005']],
+        ['Laufwerk', 'Allwetter A1', 'ganzjahres', 255, 40, 19.0, 100, 'Y', 13, ['Continental', 'AllSeasonContact 2']],
+        ['Laufwerk', 'Sommer S4', 'sommer', 255, 40, 19.0, 100, 'Y', 13, ['Michelin', 'Pilot Sport 4 S']],
     ];
 
     public function run(): void
@@ -384,6 +398,7 @@ class CatalogueSeeder extends Seeder
         $brands = $this->seedBrands();
         $this->seedWheels($brands);
         $this->attachPhotographs();
+        $this->attachPlaceholders();
         $this->seedTyres($brands);
         $this->retireFormerBrands();
     }
@@ -395,29 +410,45 @@ class CatalogueSeeder extends Seeder
     }
 
     /**
-     * Every model this seeder writes, as new slug => the slug it had before the rename (null for a
-     * model that kept its name).
+     * Every model this seeder writes, as slug now => the slugs it had before, newest first.
      *
-     * @return array<string, string|null>
+     * @return array<string, list<string>>
      */
     public static function slugs(): array
     {
         $out = [];
 
         foreach (self::MODELS as $spec) {
-            $out[self::slugFor($spec['brand'], $spec['name'])] = $spec['formerSlug'];
+            $out[self::slugFor($spec['brand'], $spec['name'])] = self::formerSlugs($spec);
         }
 
         return $out;
     }
 
+    /**
+     * Every slug a model had before, as the slug it has now — for a seeder that still names a model
+     * the old way (ApprovalSeeder's coverage, the demo orders).
+     */
+    public static function currentSlug(string $slug): string
+    {
+        foreach (self::MODELS as $spec) {
+            if (in_array($slug, self::formerSlugs($spec), true)) {
+                return self::slugFor($spec['brand'], $spec['name']);
+            }
+        }
+
+        return $slug;
+    }
+
     /** @return array<string, Brand> */
     private function seedBrands(): array
     {
-        $names = ['MOTEC', 'Demo', 'Bridgestone', 'Continental', 'Michelin'];
+        $names = self::BRANDS;
 
         $brands = [];
-        $sort = 0;
+        // After the slot BrandLogoSeeder keeps for the client's supplier (MOTEC_SORT_ORDER = 10), and
+        // before the researched brands (from 100): the wall's order never ties.
+        $sort = BrandLogoSeeder::MOTEC_SORT_ORDER;
 
         foreach ($names as $name) {
             // One spelling per brand, compared without regard to case: "motec" and "MOTEC" are
@@ -442,22 +473,23 @@ class CatalogueSeeder extends Seeder
         $sku = 0;
 
         foreach (self::MODELS as $spec) {
-            $model = $this->model($spec['brand'], $spec['name'], $spec['formerSlug']);
+            $model = $this->model($spec['brand'], $spec['name'], self::formerSlugs($spec));
 
             $model->fill([
                 'brand_id' => $brands[$spec['brand']]->id,
                 'name' => $spec['name'],
                 'slug' => self::slugFor($spec['brand'], $spec['name']),
-                // A type designation is what a Gutachten prints; a demo wheel has no Gutachten,
-                // and the MCR4's type is per size (MCR4-8519 …), not per model.
+                // A type designation is what a Gutachten prints; a demo wheel has no Gutachten.
                 'type_designation' => null,
                 'spoke_count' => $spec['spokes'],
                 // No review table exists, so there is no rating to show (findings #47, #60).
                 'rating' => null,
                 'rating_count' => 0,
-                'status' => CatalogueStatus::Published->value,
-                // Every row this seeder writes is a demonstration, and the page says so.
-                'is_demo' => true,
+                // Never published: example data lives in the admin, the storefront shows real
+                // records only — and the database refuses the other way round.
+                'status' => self::asShop() ? CatalogueStatus::Published->value : CatalogueStatus::Draft->value,
+                // Every row this seeder writes is a demonstration, and the admin says so.
+                'is_demo' => ! self::asShop(),
             ])->save();
 
             $kept = [];
@@ -497,14 +529,11 @@ class CatalogueSeeder extends Seeder
                     $config->fill([
                         'bolt_holes' => $boltHoles,
                         'centre_bore_mm' => $centreBore,
-                        // Only what a document prints. Every row used to carry a literal H2/J,
-                        // which was a constant and not approval data — and the product details now
-                        // show the hump, so a typed-in designation would reach a customer as a
-                        // fact about their wheel. A model without a Gutachten holds neither.
-                        'hump' => $spec['hump'] ?? null,
-                        'bead_profile' => $spec['bead'] ?? null,
-                        // Only a number read in the wheel's own ABE; a demo wheel has none.
-                        'kba_number' => $facts['kba'] ?? null,
+                        // Only what a document prints — and a demo wheel has no document: no hump,
+                        // no Felgenhorn, no KBA number, no Radlast.
+                        'hump' => null,
+                        'bead_profile' => null,
+                        'kba_number' => null,
                         'sku' => sprintf('RMF-%06d', $facts['sku'] ?? $sku),
                         'price_cents' => (int) round($euro * 100) + $surcharge,
                         'currency' => 'EUR',
@@ -513,10 +542,8 @@ class CatalogueSeeder extends Seeder
                         'stock_qty' => $spec['stock'] === 0
                             ? 0
                             : max(0, $spec['stock'] - ($sizeOrder % 4) * 3 - $order),
-                        'weight_g' => $facts === null
-                            ? 9_400 + (int) ($diameter * 260) + (int) ($width * 120)
-                            : $facts['weight'],
-                        'max_load_kg' => $facts['load'] ?? null,
+                        'weight_g' => 9_400 + (int) ($diameter * 260) + (int) ($width * 120),
+                        'max_load_kg' => null,
                     ]);
                     $config->deleted_at = null;
                     $config->save();
@@ -535,30 +562,53 @@ class CatalogueSeeder extends Seeder
         }
     }
 
-    /** The model under its current slug, else under the slug it had before the rename, else new. */
-    private function model(string $brand, string $name, ?string $formerSlug): WheelModel
+    /**
+     * A model spec's former slugs, as the strings they are.
+     *
+     * @param  array<array-key, mixed>  $spec
+     * @return list<string>
+     */
+    private static function formerSlugs(array $spec): array
+    {
+        $former = $spec['formerSlugs'] ?? [];
+
+        return array_values(array_filter(is_array($former) ? $former : [], 'is_string'));
+    }
+
+    /**
+     * The model under its current slug, else under a slug it had before (newest first), else new.
+     *
+     * @param  list<string>  $formerSlugs
+     */
+    private function model(string $brand, string $name, array $formerSlugs): WheelModel
     {
         $slug = self::slugFor($brand, $name);
 
-        $model = WheelModel::query()->where('slug', $slug)->first();
+        foreach ([$slug, ...$formerSlugs] as $candidate) {
+            $model = WheelModel::query()->where('slug', $candidate)->first();
 
-        if ($model === null && $formerSlug !== null) {
-            $model = WheelModel::query()->where('slug', $formerSlug)->first();
+            if ($model !== null) {
+                return $model;
+            }
         }
 
-        return $model ?? new WheelModel(['slug' => $slug]);
+        return new WheelModel(['slug' => $slug]);
     }
 
-    /** The finish under its name, else under its former name, else new. */
-    private function finish(int $modelId, string $name, ?string $formerName): WheelFinish
+    /** The finish under its name, else under a former name (`a|b`, newest first), else new. */
+    private function finish(int $modelId, string $name, ?string $formerNames): WheelFinish
     {
-        $finish = WheelFinish::query()->where('wheel_model_id', $modelId)->where('name_de', $name)->first();
+        $candidates = [$name, ...($formerNames === null ? [] : explode('|', $formerNames))];
 
-        if ($finish === null && $formerName !== null) {
-            $finish = WheelFinish::query()->where('wheel_model_id', $modelId)->where('name_de', $formerName)->first();
+        foreach ($candidates as $candidate) {
+            $finish = WheelFinish::query()->where('wheel_model_id', $modelId)->where('name_de', $candidate)->first();
+
+            if ($finish !== null) {
+                return $finish;
+            }
         }
 
-        return $finish ?? new WheelFinish(['wheel_model_id' => $modelId, 'name_de' => $name]);
+        return new WheelFinish(['wheel_model_id' => $modelId, 'name_de' => $name]);
     }
 
     /**
@@ -625,6 +675,36 @@ class CatalogueSeeder extends Seeder
     }
 
     /**
+     * Every demo finish without a photograph gets its placeholder drawing (DemoPlaceholders): honest
+     * about what it is, never a photograph. A real row is left alone — its pictures are its own.
+     */
+    private function attachPlaceholders(): void
+    {
+        $drawer = app(DemoPlaceholders::class);
+
+        foreach (WheelModel::query()->where('is_demo', true)->with(['brand', 'finishes', 'configs'])->orderBy('id')->get() as $model) {
+            $diameters = $model->configs->map(static fn (WheelConfig $c): float => (float) $c->diameter_in)->unique()->values()->all();
+
+            foreach ($model->finishes as $finish) {
+                if ($finish->image_manifest !== null) {
+                    continue;
+                }
+
+                $finish->image_manifest = $drawer->draw(
+                    Str::slug($model->slug.'-'.$finish->name_de, '-', 'de'),
+                    (string) $model->brand->name,
+                    (string) $model->name,
+                    self::BRAND_COLOURS[(string) $model->brand->name] ?? '#3F454D',
+                    (string) $finish->hex,
+                    (int) $model->spoke_count,
+                    $diameters,
+                );
+                $finish->save();
+            }
+        }
+    }
+
+    /**
      * What a thumbnail needs of a manifest — the picture, not the 4:3 frame, the anchors, the
      * credit or the fingerprint.
      *
@@ -645,34 +725,38 @@ class CatalogueSeeder extends Seeder
      */
     private function seedTyres(array $brands): void
     {
-        foreach (self::TYRES as [$brand, $name, $season, $width, $aspect, $diameter, $load, $symbol, $rank, $fuel, $grip, $noise, $noiseClass, $eprelId]) {
-            TyreVariant::updateOrCreate(
-                [
-                    'brand_id' => $brands[$brand]->id,
-                    'name' => $name,
-                    'width_mm' => $width,
-                    'aspect' => $aspect,
-                    'diameter_in' => $diameter,
-                ],
-                [
-                    'season' => $season,
-                    'load_index' => $load,
-                    'speed_symbol' => $symbol,
-                    'speed_rank' => $rank,
-                    'eu_fuel_class' => $fuel,
-                    'eu_wet_grip_class' => $grip,
-                    'eu_noise_db' => $noise,
-                    'eu_noise_class' => $noiseClass,
-                    'eprel_id' => $eprelId,
-                    'price_cents' => 14_900 + $load * 90,
-                    'currency' => 'EUR',
-                    'stock_qty' => 24,
-                    // Demonstration data, like every wheel this seeder writes: the demo gate has
-                    // to catch a Komplettrad built from this tyre too, and a re-run must not clear
-                    // what the migration backfilled.
-                    'is_demo' => true,
-                ],
-            );
+        foreach (self::TYRES as [$brand, $name, $season, $width, $aspect, $diameter, $load, $symbol, $rank, [$formerBrand, $formerName]]) {
+            $size = ['width_mm' => $width, 'aspect' => $aspect, 'diameter_in' => $diameter];
+
+            // Under its name now, else under the maker and name it was seeded with before: renamed
+            // in place, so a Komplettrad order line that names it still resolves.
+            $tyre = TyreVariant::query()->where(['brand_id' => $brands[$brand]->id, 'name' => $name, ...$size])->first()
+                ?? TyreVariant::query()
+                    ->whereHas('brand', static fn ($q) => $q->withTrashed()->where('name', $formerBrand))
+                    ->where(['name' => $formerName, ...$size])
+                    ->first()
+                ?? new TyreVariant;
+
+            $tyre->forceFill([
+                'brand_id' => $brands[$brand]->id,
+                'name' => $name,
+                ...$size,
+                'season' => $season,
+                'load_index' => $load,
+                'speed_symbol' => $symbol,
+                'speed_rank' => $rank,
+                'eu_fuel_class' => null,
+                'eu_wet_grip_class' => null,
+                'eu_noise_db' => null,
+                'eu_noise_class' => null,
+                'eprel_id' => null,
+                'price_cents' => 14_900 + $load * 90,
+                'currency' => 'EUR',
+                'stock_qty' => 24,
+                // Demonstration data, like every wheel this seeder writes: the demo gate has to
+                // catch a Komplettrad built from this tyre too.
+                'is_demo' => ! self::asShop(),
+            ])->save();
         }
     }
 

@@ -82,9 +82,15 @@
             "npm run lint",
             "npx vitest run --coverage",
             "npm run build",
+            "@e2e:shop",
             "npx playwright test",
             "npx playwright test -c tests/e2e/mobile/playwright.config.ts",
             "npm run qa"
+        ],
+        "e2e:shop": [
+            "Composer\\Config::disableProcessTimeout",
+            "@putenv DB_DATABASE=rimify_wf_e2e",
+            "@php artisan migrate:fresh --seed --seeder=E2eShopSeeder --force"
         ],
         "verify:php": [
             "Composer\\Config::disableProcessTimeout",

@@ -37,9 +37,6 @@ use Illuminate\Support\Facades\DB;
  */
 class ContentSeeder extends Seeder
 {
-    /** The hero wheel: the one model whose photographs are the client's own (ACCURACY D10). */
-    public const HERO_SLUG = 'motec-mcr4-ultimate';
-
     public function run(): void
     {
         $this->seedNavItems();
@@ -54,31 +51,24 @@ class ContentSeeder extends Seeder
     }
 
     /**
-     * The hero product is the MOTEC MCR4 Ultimate, the only wheel photographed as itself.
-     *
-     * The setting is written when it is unset, when it names no model any more, or when it names a
-     * demonstration model — a demo pick is ours, never the client's. A real product the client has
-     * chosen stays chosen. Nothing happens before the catalogue has been seeded.
+     * The hero product is the client's to choose, and only ever a real one: example data never
+     * reaches the storefront (the review release §2). A setting that names a demonstration model, or
+     * a model that is gone, is cleared — the hero then draws its outline — and a real product the
+     * client has chosen stays chosen. The seeder picks none itself.
      */
     private function seedSettings(): void
     {
-        $hero = WheelModel::query()->where('slug', self::HERO_SLUG)->value('id');
+        $chosen = Setting::get('hero_product_id');
 
-        if ($hero === null) {
+        if ($chosen === null) {
             return;
         }
 
-        $chosen = Setting::get('hero_product_id');
+        $current = is_int($chosen) || (is_string($chosen) && ctype_digit($chosen)) ? WheelModel::query()->find((int) $chosen) : null;
 
-        if (is_int($chosen) || (is_string($chosen) && ctype_digit($chosen))) {
-            $current = WheelModel::query()->find((int) $chosen);
-
-            if ($current !== null && ! $current->is_demo) {
-                return;
-            }
+        if ($current === null || $current->is_demo) {
+            Setting::query()->whereKey('hero_product_id')->delete();
         }
-
-        Setting::set('hero_product_id', (int) $hero);
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\CatalogueStatus;
 use App\Enums\TyreSeason;
 use App\Models\BalanceWeightColour;
 use App\Models\TyreVariant;
@@ -295,8 +296,9 @@ final readonly class Basket
      * The quantity is a parameter, not something this method can recover: four Kompletträder
      * against one tyre in stock are refused at the click, not discovered at the checkout.
      *
-     * A demo wheel may go into the basket: the flow stays walkable for review. The order is what
-     * the server refuses (ACCURACY.md D4).
+     * Only a wheel that is in the shop: a published, real model. A draft, an archived model or any
+     * demonstration row is not on the storefront (the review release §2), so a hand-made request for
+     * one is answered as for a wheel that is gone.
      */
     public function refusalFor(
         Request $request,
@@ -305,9 +307,10 @@ final readonly class Basket
         ?int $weightColourId = null,
         int $quantity = 1,
     ): ?string {
-        $config = WheelConfig::query()->find($wheelConfigId);
+        $config = WheelConfig::query()->with('wheelModel')->find($wheelConfigId);
+        $model = $config?->wheelModel;
 
-        if ($config === null) {
+        if ($config === null || $model === null || $model->is_demo || $model->status !== CatalogueStatus::Published) {
             return self::WHEEL_GONE;
         }
 

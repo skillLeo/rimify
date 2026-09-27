@@ -20,6 +20,7 @@ use App\Models\SpeedSymbolEntry;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
 use Inertia\Testing\AssertableInertia;
 
@@ -30,6 +31,8 @@ use Inertia\Testing\AssertableInertia;
  * and testing environments only. The frozen snapshots are never rewritten (R-12).
  */
 beforeEach(function (): void {
+    // This file is about demonstration data itself: the catalogue stays demo (tests/Pest.php).
+    CatalogueSeeder::$shopFixture = false;
     $this->seed(CommerceSeeder::class);
 });
 

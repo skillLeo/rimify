@@ -265,7 +265,8 @@ describe('where each figure leads', function (): void {
 
 it('says so when seeded demonstration orders are among the ones counted', function (): void {
     $order = dashOrder(10_000, '2026-09-24 10:00:00');
-    $model = WheelModel::factory()->create(['is_demo' => true]);
+    // A demo model is never published (the table refuses it): a draft, as it can only be.
+    $model = WheelModel::factory()->draft()->create(['is_demo' => true]);
     OrderLine::factory()->create(['order_id' => $order->id, 'wheel_config_id' => WheelConfig::factory()->create(['wheel_model_id' => $model->id])->id]);
 
     expect(dashProps()['demo'])->toBeTrue();

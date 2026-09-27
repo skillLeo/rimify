@@ -104,7 +104,7 @@ export interface RevenueChart {
 /** One Felge in the ranking: the model, and the size most of its orders took. */
 export interface TopWheel {
     key: string
-    /** `MOTEC MCR4 Ultimate` */
+    /** `Bergsteig Gipfel` */
     label: string
     brand: string
     name: string

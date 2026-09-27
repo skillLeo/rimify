@@ -373,8 +373,10 @@ final class DemoDashboard
     }
 
     /**
-     * The wheel models orders go to: the MCR4 Ultimate leads where the catalogue has it, then the
-     * models with the most fitments, then all the rest in equal parts.
+     * The wheel models orders go to: the one with the most sizes leads — a range that is ordered in
+     * many sizes is what a ranking should open with — then the models with the most fitments, then
+     * all the rest in equal parts. Read from the data, never a model named in code: the client's
+     * catalogue replaces this one without a line changing here (review release §5).
      *
      * @return list<array{id: int, share: float, fitments: list<Fitment>, sized: list<Fitment>}>
      */
@@ -401,7 +403,13 @@ final class DemoDashboard
             return [];
         }
 
-        $leader = DB::table('wheel_models')->whereIn('id', array_keys($byModel))->where('name', 'MCR4 Ultimate')->value('id');
+        $leader = DB::table('wheel_configs')
+            ->whereIn('wheel_model_id', array_keys($byModel))
+            ->whereNull('deleted_at')
+            ->groupBy('wheel_model_id')
+            ->orderByRaw('COUNT(*) DESC')
+            ->orderBy('wheel_model_id')
+            ->value('wheel_model_id');
         $ranked = array_keys($byModel);
         usort($ranked, static fn (int $a, int $b): int => [count($byModel[$b]), $a] <=> [count($byModel[$a]), $b]);
 

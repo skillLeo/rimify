@@ -21,7 +21,8 @@ export default defineConfig({
     reporter: [['list']],
     outputDir: '../../../test-results/mobile',
     use: {
-        baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000',
+        // The phone documents are the storefront's: the e2e shop (e2e/shop.ts), its own database.
+        baseURL: process.env.E2E_SHOP_URL ?? 'http://127.0.0.1:8010',
         locale: 'de-DE',
         timezoneId: 'Europe/Berlin',
         trace: 'retain-on-failure',
@@ -36,8 +37,10 @@ export default defineConfig({
         { name: 'galaxy-a55', use: { ...devices['Galaxy A55'] } },
     ],
     webServer: {
-        command: 'php artisan serve --host=127.0.0.1 --port=8000',
-        url: 'http://127.0.0.1:8000/up',
+        command: 'php -S 127.0.0.1:8010 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php',
+        cwd: '../../../public',
+        env: { DB_DATABASE: 'rimify_wf_e2e' },
+        url: 'http://127.0.0.1:8010/up',
         reuseExistingServer: true,
         timeout: 60_000,
     },

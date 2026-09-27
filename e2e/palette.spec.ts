@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { consentGiven, open } from './support';
+import { SHOP } from './shop';
+
+// A storefront spec: the shop with wheels in it (e2e/shop.ts).
+test.use({ baseURL: SHOP });
 
 /*
  * F4 — the command palette: Ctrl/⌘+K anywhere, a typed fragment finds the wheel, Enter opens it.
@@ -21,14 +25,14 @@ test.describe('command palette', () => {
 
         const field = palette.getByRole('combobox');
         await expect(field).toBeFocused();
-        await field.fill('ultimat');
+        await field.fill('gipfe');
 
-        const hit = palette.getByRole('option', { name: /MCR4 Ultimate/ });
+        const hit = palette.getByRole('option', { name: /Gipfel/ });
         await expect(hit).toBeVisible();
         await hit.click();
 
-        await page.waitForURL('**/felgen/motec-mcr4-ultimate', { timeout: 15_000 });
-        await expect(page.getByRole('heading', { level: 1 })).toContainText('MCR4 Ultimate');
+        await page.waitForURL('**/felgen/bergsteig-gipfel', { timeout: 15_000 });
+        await expect(page.getByRole('heading', { level: 1 })).toContainText('Gipfel');
     });
 
     test('closes on Escape and returns focus', async ({ page }, testInfo) => {

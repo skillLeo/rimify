@@ -48,11 +48,12 @@ final class DemoWheels
 
     /**
      * The photograph map: file → slug, rim circle or mask, hub circle, credit, the finish it
-     * stands for, and — for a further angle — the view's label.
+     * stands for, and — for a further angle — the view's label. A test points it at a map of its own
+     * (`rimify.demo.photos_file`): the shipped one is empty (example data carries no photograph).
      */
     public static function photosFile(): string
     {
-        return database_path('seeders/content/wheel-photos.php');
+        return self::absolute((string) config('rimify.demo.photos_file', 'database/seeders/content/wheel-photos.php'));
     }
 
     /**

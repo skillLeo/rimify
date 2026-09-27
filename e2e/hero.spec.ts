@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { consentGiven, open } from './support';
+import { SHOP } from './shop';
+
+// A storefront spec: the shop with wheels in it (e2e/shop.ts).
+test.use({ baseURL: SHOP });
 
 /*
  * The hero stage on a cold load (OVERHAUL.md §9): the photograph is the content from the first
@@ -68,7 +72,7 @@ test.describe('hero stage', () => {
         }
     });
 
-    test('the wheel rolls in once, from past the right edge, and comes to rest without the page scrolling sideways', async ({ page }, testInfo) => {
+    test('a cut-out rolls in once, a drawing stands still, and neither scrolls the page sideways', async ({ page }, testInfo) => {
         test.skip(testInfo.project.name !== 'desktop-1440', 'the phone frame clips the roll; measured by the device lab');
 
         await page.addInitScript(() => {
@@ -83,15 +87,23 @@ test.describe('hero stage', () => {
         await open(page, '/');
         await page.waitForTimeout(2000);
 
-        const result = await page.evaluate(() => ({
-            rolls: (window as Window & { __rolls?: number }).__rolls,
-            sideScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-            // At rest the turn is none and the roll box sits where the layout put it.
-            turn: getComputedStyle(document.querySelector('#h2 .hero__spin') as Element).transform,
-        }));
+        const result = await page.evaluate(() => {
+            const spin = document.querySelector('#h2 .hero__spin');
+
+            return {
+                rolls: (window as Window & { __rolls?: number }).__rolls,
+                // Only a photographed cut-out with its measured anchors rolls; a drawn placeholder
+                // (DemoPlaceholders) stands where the layout put it — rolling it would roll its ground.
+                rolling: document.querySelector('#h2 .hero__roll--rolling') !== null,
+                sideScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                // At rest the turn is none and the roll box sits where the layout put it.
+                turn: spin === null ? 'none' : getComputedStyle(spin).transform,
+            };
+        });
 
         // Once: the server's page is hydrated, not thrown away and drawn again (app.ts, createSSRApp).
-        expect(result.rolls).toBe(1);
+        // A picture that does not roll never starts the animation at all.
+        expect(result.rolls).toBe(result.rolling ? 1 : 0);
         expect(result.sideScroll).toBe(false);
         expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(result.turn);
     });

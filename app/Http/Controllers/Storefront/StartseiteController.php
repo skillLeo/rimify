@@ -111,7 +111,8 @@ class StartseiteController extends Controller
             'faq' => $this->faqPreview(),
             // Seeded demonstration rows are on the page: it says so (OVERHAUL.md §2), and the
             // flag leaves with the rows before launch.
-            'demo' => WheelModel::query()->where('is_demo', true)->exists(),
+            // Only a demo row on show counts — and none can be (the review release §2).
+            'demo' => WheelModel::query()->where('is_demo', true)->where('status', CatalogueStatus::Published->value)->exists(),
         ]);
     }
 

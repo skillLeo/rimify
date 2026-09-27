@@ -123,7 +123,8 @@ describe('the rows', function (): void {
 
     it('marks a seeded order as Demodaten, and no other', function (): void {
         $demo = anOrder(['order_number' => 'RMF-DEMO']);
-        $model = WheelModel::factory()->create(['is_demo' => true]);
+        // A demo model is never published (the table refuses it): a draft, as it can only be.
+        $model = WheelModel::factory()->draft()->create(['is_demo' => true]);
         $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id]);
         OrderLine::factory()->create(['order_id' => $demo->id, 'wheel_config_id' => $config->id]);
         anOrder(['order_number' => 'RMF-REAL']);

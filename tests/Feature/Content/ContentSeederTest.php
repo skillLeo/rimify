@@ -11,8 +11,8 @@ use Inertia\Testing\AssertableInertia;
 /*
  * The seeded content after the accuracy pass (docs/phase0/ACCURACY.md D5, D7, D8): no phone and no
  * reply-time promise in any row, an FAQ whose unpublished answers stay unpublished, guides seeded
- * with the status the legal research gives them, and the MOTEC as the hero unless the client has
- * chosen a real product.
+ * with the status the legal research gives them, and a hero that is only ever a real product the
+ * client chose — example data never reaches the storefront (the review release §2).
  */
 
 /** Every text value the content tables hold, as `table#id: value`, for scanning. */
@@ -186,25 +186,24 @@ it('seeds each guide with the status the legal research gives it, and corrected'
     expect(DB::table('pages')->where('slug', 'abe-teilegutachten-ece')->value('status'))->toBe('draft');
 });
 
-it('makes the MOTEC the hero when none is set, or a demo model is', function (): void {
-    $motec = WheelModel::factory()->create(['slug' => ContentSeeder::HERO_SLUG, 'name' => 'MCR4 Ultimate', 'is_demo' => true]);
-    $demo = WheelModel::factory()->create(['is_demo' => true]);
+it('picks no hero itself, and clears one that names a demo model or a model that is gone', function (): void {
+    $demo = WheelModel::factory()->draft()->create(['is_demo' => true]);
 
     $this->seed(ContentSeeder::class);
-    expect(Setting::get('hero_product_id'))->toBe($motec->id);
+    expect(Setting::get('hero_product_id'))->toBeNull();
 
     Setting::set('hero_product_id', $demo->id);
     $this->seed(ContentSeeder::class);
-    expect(Setting::get('hero_product_id'))->toBe($motec->id);
+    expect(Setting::get('hero_product_id'))->toBeNull();
 
     // A setting naming a model that no longer exists is no choice at all.
     Setting::set('hero_product_id', 999_999);
     $this->seed(ContentSeeder::class);
-    expect(Setting::get('hero_product_id'))->toBe($motec->id);
+    expect(Setting::get('hero_product_id'))->toBeNull();
 });
 
 it('keeps a real product the client has chosen as the hero', function (): void {
-    WheelModel::factory()->create(['slug' => ContentSeeder::HERO_SLUG, 'is_demo' => true]);
+    WheelModel::factory()->draft()->create(['is_demo' => true]);
     $real = WheelModel::factory()->create(['is_demo' => false]);
 
     Setting::set('hero_product_id', $real->id);
@@ -220,7 +219,7 @@ it('leaves the hero setting alone before the catalogue exists', function (): voi
 });
 
 it('duplicates nothing and loses nothing when it runs twice', function (): void {
-    WheelModel::factory()->create(['slug' => ContentSeeder::HERO_SLUG, 'is_demo' => true]);
+    WheelModel::factory()->draft()->create(['is_demo' => true]);
 
     $counts = fn (): array => collect(['pages', 'page_blocks', 'nav_items', 'faq_entries', 'settings'])
         ->mapWithKeys(fn (string $table): array => [$table => DB::table($table)->count()])
