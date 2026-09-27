@@ -198,13 +198,12 @@ export interface DemandList {
 }
 
 /** The charts a role may get; which of them it does get is known before they arrive (`chartKeys`). */
-export type ChartKey = 'revenue' | 'verdicts' | 'topWheels' | 'coverage' | 'demand'
+export type ChartKey = 'revenue' | 'verdicts' | 'coverage' | 'demand'
 
 export interface DashboardCharts {
     /** false: not for this role; null: nothing to draw yet — or its query failed (then in `failed`). */
     revenue: RevenueChart | null | false
     verdicts: VerdictChart | null | false
-    topWheels: TopWheel[] | null | false
     coverage: CoverageMatrix | null | false
     demand: DemandList | null | false
     /** The charts whose query failed: each widget says so and offers „Erneut versuchen“. */
@@ -241,6 +240,11 @@ export interface AdminUebersichtProps {
     today: TodaySentence[]
     /** Null for a role that may not read the Protokoll. */
     activity: ActivityEntry[] | null
+    /**
+     * Top-Felgen, with the page itself (null: not for this role). One short query — and a ranking whose
+     * names may wrap has no skeleton that could match it, so it has none (M1-06).
+     */
+    topWheels: TopWheel[] | null
     /** Deferred: undefined until the charts arrive, a moment after the page. */
     charts?: DashboardCharts
     /** The charts this role gets, known at once: their boxes are in place from the first frame. */

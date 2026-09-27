@@ -9,8 +9,10 @@ The client reviews the admin on example data before sending the catalogue, the G
 credentials. The admin is the deliverable; his review is the gate. Work in the brief's §4 order; anything
 not listed stays behind an honest „noch nicht gebaut“ on the review board.
 
-- [x] **Storage (S3) — Einstellungen › Medien und Speicher** — see „Storage milestone“ below (§4.5, first half)
-- [ ] **§4.1 Übersicht** — interaction-qa M1-01…M1-21 and the accepted ai-look-critic fixes; no empty cards
+- [x] **Storage (S3) — Einstellungen › Medien und Speicher** — `452449a4`, `7da6da8b` (§4.5, first half)
+- [x] **§4.1 Übersicht, review fixes** — interaction-qa M1-01…M1-20 and the accepted ai-look-critic fixes;
+      gates on `/admin` clean (style inventory, console ×3, axe 0, overflow at 12 widths) — see the M1 entry below.
+      The demo *names* still change with §2 (MOTEC and „Demo …“ → invented brands).
 - [ ] **§2 Example data** — invented brands only (`Nordfelge`, `Kraftrad`, `Stahlwerk 19`, `Aventin`, `Bergsteig`), honest
       generated placeholder wheels, real sizes/ET/Lochkreis/Mittenloch, demo never publishable
 - [ ] **§4.2 Katalog** — list, form with variant matrix, images (ImageUpload → media_products), importer with Probelauf
@@ -58,7 +60,17 @@ not listed stays behind an honest „noch nicht gebaut“ on the review board.
   - [x] Rail-foot demo strip (`demodaten.purge`, DemoDataPolicy, audited)
   - [x] `DashboardEmptyStateTest` (Pest + Vitest), `DemoDataConsistencyTest`, Playwright `dashboard-empty`
   - [x] Gates on `/admin`: style inventory, console (Chromium, WebKit, Firefox), axe (0 violations), overflow at 12 widths, OKLab palette test; screenshots in `docs/qa/shots/M1/`
-  - [ ] Review fixes from ai-look-critic / interaction-qa (follow-up commit)
+  - [x] M1 itself — `0e7362e7`
+  - [x] Review fixes from ai-look-critic / interaction-qa — the commit after `7da6da8b`. QA (0 S1, 6 S2, 11 S3,
+    4 S4): M1-01 switch colour only, M1-02 purge not a hidden Tab stop, M1-03 a touch scroll pins nothing
+    (tap / sideways drag still read), M1-04 no `order` lift below 900 px, M1-05 reka `scrollBody` without
+    padding (root.ts), M1-06 Top-Felgen with the page (no skeleton), M1-07/08 KPI subgrid + the delta's words
+    heard-only on narrow tiles, M1-09 card keeps „noch nicht versandt“, M1-10 demo line in Mehr, M1-11 first
+    arrow = last day, M1-12 touch heads 44 px, M1-13 Nachfrage bar = the count, M1-14 halo, M1-15/17
+    no-break space and hyphen, M1-16 focus home in Safari, M1-18 singular, M1-19 one Tab stop per order,
+    M1-20 comments. Critic: plain states as text (chips only for exceptions), one-line titles, one-kind
+    to-dos without a tag, no Demodaten tag in the note, tokens for 6 px, deltas with one decimal,
+    „Gezählt seit“ only inside the Zeitraum. M1-21 (report files) needs nothing.
 
   **M1 figures (30 days, demo set at scale 1):** Umsatz 162.019,00 € (+15 %), Bestellungen 104 (+11,8 %),
   Ø Bestellwert 1.557,87 €, Prüfungen 1.411, Freigabequote 63,2 %, Heute 13 (9 demo + 4 CommerceSeeder).
@@ -82,6 +94,7 @@ Cross-cutting, built inside the milestones that need them:
 | Date | Pest | Vitest | Playwright |
 |---|---|---|---|
 | before saved views | 1493 | — | — |
+| 2026-09-27, storage (`452449a4`) | 1611 (0 failed, 0 skipped) | 1146 | M1-0x, UEB-03, dashboard, menus, storage shots green |
 
 ## Decisions
 
@@ -130,5 +143,9 @@ Cross-cutting, built inside the milestones that need them:
 - **M1 · Bestellungen 104, not 300–420** (see the decision above; the three acceptance numbers are inconsistent).
 - **M1 · Top-Felgen rows 36 px, not 28** — the two-weight label (model, then size) is two lines at 4 columns;
   a fixed 36 px row keeps its skeleton exact (UEB-02). 28 px would cut the name or the size.
+- **M1 · Heute follows Umsatz below 900 px** (was lifted above it with `order: -1`, my own choice, not the
+  brief's): the only way the keyboard reads the cards where the eye does (M1-04).
+- **M1 · Top-Felgen is not deferred** — it comes with the page. A ranking whose names may wrap cannot have a
+  skeleton of its exact height; one short query avoids the skeleton instead of cutting the names (M1-06).
 - **M1 · Zu erledigen 8 beside Letzte Aktivität 4** — the brief places Letzte Aktivität at 4 and leaves the row's
   other 8 columns unnamed; the to-dos fill them.

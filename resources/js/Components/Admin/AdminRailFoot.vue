@@ -38,9 +38,9 @@ import { computed, ref } from 'vue'
 import AdminConfirm from './AdminConfirm.vue'
 import AdminMenuTip from './AdminMenuTip.vue'
 import Icon from './AdminIcon.vue'
-import { formatNumber } from '../../lib/num'
 import Kbd from '../Ui/Kbd.vue'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
+import { useDemoStrip } from '../../composables/admin/useDemoStrip'
 import { useHealth, useHealthBanner } from '../../composables/admin/useHealth'
 import { monogram } from '../../composables/admin/monogram'
 
@@ -69,23 +69,7 @@ function measureWho(event: Event): void {
 
 /* ── Demodaten ─────────────────────────────────────────────────────────────── */
 
-const demo = computed(() => admin.value.demo)
-const demoRows = computed(() => (demo.value ? `${formatNumber(demo.value.rows)} ${demo.value.rows === 1 ? 'Datensatz' : 'Datensätze'}` : ''))
-const confirmingPurge = ref(false)
-const purging = ref(false)
-
-function purgeDemo(): void {
-    if (purging.value) {
-        return
-    }
-
-    purging.value = true
-    router.post('/admin/demodaten/entfernen', {}, {
-        preserveScroll: true,
-        onSuccess: () => (confirmingPurge.value = false),
-        onFinish: () => (purging.value = false),
-    })
-}
+const { demo, rows: demoRows, body: purgeBody, confirming: confirmingPurge, purging, ask: askPurge, purge: purgeDemo } = useDemoStrip()
 
 const signingOut = ref(false)
 
@@ -113,7 +97,7 @@ function signOut(event: Event): void {
                     <span class="adm-foot__demo-dot" aria-hidden="true" />
                     <span class="adm-foot__demo-text">
                         Demodaten aktiv · {{ demoRows }}<template v-if="demo.canPurge"> ·
-                            <button class="adm-foot__demo-purge" type="button" @click="confirmingPurge = true">entfernen</button></template>
+                            <button class="adm-foot__demo-purge" type="button" @click="askPurge">entfernen</button></template>
                     </span>
                 </p>
             </TooltipTrigger>
@@ -126,7 +110,7 @@ function signOut(event: Event): void {
             v-if="demo?.canPurge"
             v-model:open="confirmingPurge"
             title="Demodaten entfernen"
-            :body="`Alle ${demoRows} der Demodaten werden gelöscht – Bestellungen, Prüfungen, Nachfrage und die Einträge des Demo-Teams. Echte Daten bleiben unberührt, und das Protokoll hält fest, wer sie entfernt hat.`"
+            :body="purgeBody"
             confirm-label="Entfernen"
             :busy="purging"
             @confirm="purgeDemo"

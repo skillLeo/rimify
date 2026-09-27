@@ -158,7 +158,39 @@ const announcement = computed(() => {
     return `${week.label}, ${week.range}: ` + props.chart.series.map((s) => `${s.label} ${week.values[s.key] ?? 0}`).join(', ')
 })
 
+/*
+ * As the Umsatz line: a mouse reads where it points; a finger pins with a tap or reads while it drags
+ * sideways, and a scroll that only starts on the chart leaves nothing pinned or dimmed (M1-03).
+ */
+const touching = ref(false)
+
+function onDown(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+        read(event)
+    } else {
+        touching.value = true
+    }
+}
+
 function onMove(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' || touching.value) {
+        read(event)
+    }
+}
+
+function onUp(event: PointerEvent): void {
+    if (event.pointerType !== 'mouse' && touching.value) {
+        touching.value = false
+        read(event)
+    }
+}
+
+function onCancel(): void {
+    touching.value = false
+    active.value = null
+}
+
+function read(event: PointerEvent): void {
     byKeyboard.value = false
     const box = (event.currentTarget as SVGElement).getBoundingClientRect()
     const px = event.clientX - box.left - M.left
@@ -187,7 +219,8 @@ function onKey(event: KeyboardEvent): void {
 
     event.preventDefault()
     byKeyboard.value = true
-    active.value = Math.min(n - 1, Math.max(0, (active.value ?? n - 1) + step))
+    // The first arrow says the last week (Home the first); after that, week by week (M1-11).
+    active.value = active.value === null ? (event.key === 'Home' ? 0 : n - 1) : Math.min(n - 1, Math.max(0, active.value + step))
 }
 </script>
 
@@ -214,8 +247,10 @@ function onKey(event: KeyboardEvent): void {
                 role="group"
                 :aria-label="`${label}. Mit den Pfeiltasten von Woche zu Woche.`"
                 tabindex="0"
-                @pointerdown="onMove"
+                @pointerdown="onDown"
                 @pointermove="onMove"
+                @pointerup="onUp"
+                @pointercancel="onCancel"
                 @pointerleave="onLeave"
                 @keydown="onKey"
                 @blur="active = null"

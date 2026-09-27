@@ -535,6 +535,12 @@ a.adm-foot__health {
     display: none;
 }
 
+/* The words stay a name for a screen reader; the control inside them does not stay a Tab stop
+   nobody can see (M1-02). The purge is offered again with the rail open. */
+.adm[data-rail='collapsed'] .adm-foot__demo-purge {
+    visibility: hidden;
+}
+
 .adm[data-rail='collapsed'] .adm-foot .adm-foot__new {
     flex: none;
     width: 40px;
@@ -571,6 +577,10 @@ a.adm-foot__health {
     .adm .adm-foot__kbd,
     .adm .adm-foot__chevron {
         display: none;
+    }
+
+    .adm .adm-foot__demo-purge {
+        visibility: hidden;
     }
 
     .adm .adm-foot .adm-foot__new {
@@ -1334,6 +1344,20 @@ a.adm-foot__health {
 .adm-more__health {
     min-height: var(--adm-control-h-lg);
     margin: 0 var(--page-margin) var(--sp-8);
+}
+
+/* The rail foot's demo line, on a phone: the same words, a finger's height for „entfernen“. */
+.adm-more__demo {
+    align-items: center;
+    min-height: var(--adm-control-h-lg);
+    margin: 0 var(--page-margin) var(--sp-8);
+}
+
+.adm-more__demo .adm-foot__demo-purge {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--adm-control-h-lg);
+    vertical-align: middle;
 }
 
 .adm-more__caption {
@@ -2683,12 +2707,10 @@ a.adm-foot__health {
 }
 
 @media (max-width: 899px) {
+    /* One column, in the order of the page: no card is lifted with `order`, which moves the box but
+       not the Tab order (M1-04). */
     .dash__grid > * {
         grid-column: 1 / -1;
-    }
-
-    .dash__grid > .dash__today {
-        order: -1;
     }
 }
 

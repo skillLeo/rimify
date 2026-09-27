@@ -290,13 +290,15 @@ function print(): void {
     padding: 0;
     border: 0;
     border-radius: var(--r-round);
-    background: var(--c-line-2);
+    background-color: var(--c-line-2);
     cursor: pointer;
     transition: background-color var(--d-1) var(--ease-out);
 }
 
+/* The colour alone: the shorthand would reset `background-clip`, and on a finger's 44 px box the
+   whole target turned into a blue disc (M1-01). */
 .period__switch[data-state='checked'] {
-    background: var(--c-blue);
+    background-color: var(--c-blue);
 }
 
 .period__thumb {

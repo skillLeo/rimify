@@ -107,6 +107,36 @@ export async function patchCharts(page: Page, patch: (charts: Record<string, unk
     });
 }
 
+/**
+ * Opens the Übersicht by a click in the rail — an Inertia visit — whose answer is the server's own,
+ * changed in the browser by `patch`: for props that come with the page, not with the charts (Top-Felgen).
+ */
+export async function openUebersichtWith(page: Page, patch: (props: Record<string, unknown>) => void): Promise<void> {
+    await page.route(
+        (url) => url.pathname === '/admin',
+        async (route) => {
+            const request = route.request();
+            const partial = (await request.headerValue('x-inertia-partial-data')) !== null;
+
+            if (!(await isInertiaGet(request)) || partial) {
+                await route.fallback();
+
+                return;
+            }
+
+            const response = await route.fetch({ headers: await inertiaHeaders(request) });
+            const json = (await response.json()) as { props: Record<string, unknown> };
+            patch(json.props);
+            await route.fulfill({ response, json });
+        },
+    );
+
+    await page.goto('/admin/bestellungen', { waitUntil: 'domcontentloaded' });
+    await waitForApp(page);
+    await page.getByRole('link', { name: 'Übersicht' }).first().click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Übersicht' })).toBeVisible();
+}
+
 /* ── Layout shift, measured the way the brief asks: a PerformanceObserver ─────────────── */
 
 interface Shift {

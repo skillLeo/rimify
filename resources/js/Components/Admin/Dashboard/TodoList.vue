@@ -1,21 +1,25 @@
 <script setup lang="ts">
 /**
  * „Zu erledigen“: one list of everything waiting on this role — orders to send, Gutachten to check,
- * customers waiting on a document, failed jobs — each with its kind as a chip, the oldest first,
- * each row the link to where it is done.
+ * customers waiting on a document, failed jobs — the oldest first, each row the link to where it is
+ * done. Its kind is a tag only while the list holds more than one kind: a column that says the same
+ * word on every row says nothing.
  */
 
 import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import Icon from '../AdminIcon.vue'
 import type { TodoItem } from '../../../types/admin/uebersicht'
 
-defineProps<{ items: TodoItem[] }>()
+const props = defineProps<{ items: TodoItem[] }>()
+
+const mixed = computed(() => new Set(props.items.map((item) => item.type)).size > 1)
 </script>
 
 <template>
-    <ul class="todo">
+    <ul class="todo" :class="{ 'todo--one-kind': !mixed }">
         <li v-for="item in items" :key="item.key" class="todo__row">
-            <span class="todo__type adm-tag adm-tag--neutral">{{ item.type }}</span>
+            <span v-if="mixed" class="todo__type adm-tag adm-tag--neutral">{{ item.type }}</span>
             <span class="todo__text">
                 <Link :href="item.href" class="todo__link">{{ item.title }}</Link>
                 <span v-if="item.detail" class="todo__detail">{{ item.detail }}</span>
@@ -50,6 +54,10 @@ defineProps<{ items: TodoItem[] }>()
 
 .todo__row:last-child {
     border-bottom: 0;
+}
+
+.todo--one-kind .todo__row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -152,6 +160,15 @@ defineProps<{ items: TodoItem[] }>()
     .todo__text {
         display: grid;
         grid-area: 2 / 1 / 3 / 3;
+    }
+
+    /* One kind: no tag line — the title leads, the age beside it. */
+    .todo--one-kind .todo__text {
+        grid-area: 1 / 1 / 3 / 2;
+    }
+
+    .todo--one-kind .todo__age {
+        grid-area: 1 / 2;
     }
 }
 </style>

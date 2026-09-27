@@ -37,10 +37,10 @@ it('opens a fresh shop with zeros that are figures, one line under each, and not
             ->where('todo', [])
             ->where('today', [])
             ->where('activity', [])
+            ->where('topWheels', [])
             ->loadDeferredProps(fn (AssertableInertia $charts) => $charts
                 ->where('charts.revenue', null)
                 ->where('charts.verdicts', null)
-                ->where('charts.topWheels', [])
                 ->where('charts.demand.rows', [])
                 ->where('charts.failed', [])));
 });

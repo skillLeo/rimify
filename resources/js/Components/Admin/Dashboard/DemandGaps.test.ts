@@ -47,12 +47,15 @@ describe('DemandGaps', () => {
         expect(links[1]!.attributes('href')).toBe('/admin/nachfrage#gap-k-0005-ABC')
     })
 
-    it('prints each count the German way, and draws its bar to the weight', () => {
-        const wrapper = mount(DemandGaps, { props: { rows } })
+    it('prints each count the German way, and draws its bar to that count — never to the ranking weight', () => {
+        // Ranked 2nd by weight but asked more often than the 1st: the bar says what the figure says (M1-13).
+        const ranked = [gap('v:1', 'Audi A4 Avant', 12, 100), gap('v:2', 'BMW 3er Touring', 13, 60), gap('v:3', 'VW Golf', 3, 10)]
+        const bars = mount(DemandGaps, { props: { rows: ranked } }).findAll('.dg__bar > span').map((bar) => bar.attributes('style'))
 
-        expect(wrapper.findAll('.dg__asked')[0]!.text()).toBe('1.240× gefragt')
-        expect(wrapper.findAll('.dg__bar > span')[0]!.attributes('style')).toContain('width: 100%')
-        expect(wrapper.findAll('.dg__bar > span')[1]!.attributes('style')).toContain('width: 1%')
+        expect(mount(DemandGaps, { props: { rows } }).findAll('.dg__asked')[0]!.text()).toBe('1.240× gefragt')
+        expect(bars[1]).toContain('width: 100%')
+        expect(bars[0]).toContain(`width: ${(12 / 13) * 100}%`)
+        expect(bars[2]).toContain(`width: ${(3 / 13) * 100}%`)
     })
 
     it('says who is waiting in words, singular and plural', () => {

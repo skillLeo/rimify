@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
- * A state as a text chip with a dot (the Übersicht's tables), in the status palette — never a
- * verdict's chart colour: the word carries the meaning, the dot only repeats it. Nothing to say
- * (tone `none`: „noch nicht versandt“, „entfällt“) is quiet text, not a chip.
+ * A state in the Übersicht's tables, by the list rule: an ordinary state is plain text („bezahlt“,
+ * „versandt“), and only an exception wears a chip with a dot, in the status palette (`warn`, `bad`) —
+ * never a verdict's chart colour; the word carries the meaning, the dot only repeats it. A column of
+ * chips on every row says nothing; one chip among plain words is read. Nothing to say (tone `none`:
+ * „noch nicht versandt“, „entfällt“) is quiet text.
  */
 
 defineProps<{ label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' | 'none' }>()
@@ -10,22 +12,21 @@ defineProps<{ label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' | 'none'
 
 <template>
     <span v-if="label === '–'" class="chip-none"><span aria-hidden="true">–</span><span class="visually-hidden">nichts zu tun</span></span>
-    <span v-else-if="tone === 'none'" class="chip-none">{{ label }}</span>
-    <span v-else class="chip" :class="`chip--${tone}`">
+    <span v-else-if="tone === 'warn' || tone === 'bad'" class="chip" :class="`chip--${tone}`">
         <span class="chip__dot" aria-hidden="true" />
         {{ label }}
     </span>
+    <span v-else :class="tone === 'plain' ? 'chip-plain' : 'chip-none'">{{ label }}</span>
 </template>
 
 <style scoped>
 .chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sp-4);
     height: 22px;
     padding-inline: var(--sp-8);
     border-radius: var(--r-round);
-    background: var(--c-band);
     color: var(--c-ink);
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
@@ -37,7 +38,6 @@ defineProps<{ label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' | 'none'
     width: 6px;
     height: 6px;
     border-radius: var(--r-round);
-    background: var(--c-ok);
 }
 
 .chip--warn {
@@ -57,8 +57,8 @@ defineProps<{ label: string; tone: 'plain' | 'warn' | 'bad' | 'neutral' | 'none'
     background: var(--c-bad);
 }
 
-.chip--neutral .chip__dot {
-    background: var(--c-ink-3);
+.chip-plain {
+    color: var(--c-ink);
 }
 
 .chip-none {

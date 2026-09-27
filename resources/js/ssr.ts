@@ -1,9 +1,10 @@
-import { createSSRApp, h, type DefineComponent } from 'vue';
+import { createSSRApp, type DefineComponent } from 'vue';
 import { renderToString } from '@vue/server-renderer';
 import { createInertiaApp } from '@inertiajs/vue3';
 import createServer from '@inertiajs/vue3/server';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
+import { root } from './root';
 
 const appName = process.env.VITE_APP_NAME || 'RIMIFY';
 
@@ -18,7 +19,7 @@ createServer((page) =>
         resolve: (name) =>
             resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob<DefineComponent>('./Pages/**/*.vue')),
         setup({ App, props, plugin }) {
-            return createSSRApp({ render: () => h(App, props) })
+            return createSSRApp({ render: () => root(App, props) })
                 .use(plugin)
                 .use(createPinia());
         },

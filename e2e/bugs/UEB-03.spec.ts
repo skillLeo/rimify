@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { TopWheel } from '../../resources/js/types/admin/uebersicht';
-import { SHOTS, openUebersicht, patchCharts, signIn, widget } from './ueb-support';
+import { SHOTS, openUebersichtWith, signIn, widget } from './ueb-support';
 
 /*
  * UEB-03 (S2) — Top-Felgen nach Bestellungen: the bars are not to scale (docs/qa/BUGS.md).
@@ -14,7 +14,7 @@ import { SHOTS, openUebersicht, patchCharts, signIn, widget } from './ueb-suppor
  *
  * Expected: bar lengths in proportion to the figures (10 : 5 : 1).
  *
- * Nothing is written: the charts' answer is the server's own, with its Top-Felgen replaced in the
+ * Nothing is written: the page's answer is the server's own, with its Top-Felgen replaced in the
  * browser by three stand-in bars of known size.
  */
 
@@ -26,10 +26,10 @@ const BARS: TopWheel[] = [
 
 test('UEB-03 Top-Felgen: every bar is as long as its figure says', async ({ page }) => {
     await signIn(page);
-    await patchCharts(page, (charts) => {
-        charts.topWheels = BARS;
+    // Top-Felgen comes with the page (M1-06), not with the charts.
+    await openUebersichtWith(page, (props) => {
+        props.topWheels = BARS;
     });
-    await openUebersicht(page);
 
     const box = widget(page, 'Top-Felgen nach Bestellungen');
     const bars = box.locator('.bc__bar');

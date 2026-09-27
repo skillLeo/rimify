@@ -67,7 +67,6 @@ class UebersichtController extends Controller
             // Revenue is the selling roles' curve; Katalog and Gutachten see their own figures instead.
             'revenue' => $variant === Variant::Verkauf && $reports ? fn () => $charts->revenue($period, $compare) : false,
             'verdicts' => $approvals || $reports ? fn () => $charts->verdicts($period) : false,
-            'topWheels' => $admin->may(PermissionModule::Orders, PermissionAction::View) || $reports ? fn () => $charts->topWheels($period) : false,
             // What the shop may show, by make and rim size — not a period figure: coverage is now.
             'coverage' => $approvals ? fn () => $coverage->matrix() : false,
             // Beside it, the cars asked for that it does not cover yet: the open ones, the five most in demand.
@@ -87,6 +86,9 @@ class UebersichtController extends Controller
             'todo' => $lists->todo($admin),
             'today' => $lists->today($admin),
             'activity' => $admin->may(PermissionModule::AuditLog, PermissionAction::View) ? $lists->activity() : null,
+            // Top-Felgen with the page, not deferred: one short query, and a ranking whose names wrap
+            // has no skeleton that could match it — so the card is never a skeleton (M1-06).
+            'topWheels' => $admin->may(PermissionModule::Orders, PermissionAction::View) || $reports ? $charts->topWheels($period) : null,
             // The charts come a moment after the figures, each in its own skeleton meanwhile: the
             // page is never held up by its heaviest query. Which charts this role gets is known at
             // once (`chartKeys`), so the first frame already has the right boxes in the right places.

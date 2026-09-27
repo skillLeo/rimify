@@ -13,7 +13,9 @@ import { Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import BottomSheet from '../Mobile/BottomSheet.vue'
 import ListRow from '../Mobile/ListRow.vue'
+import AdminConfirm from './AdminConfirm.vue'
 import AdminIcon from './AdminIcon.vue'
+import { useDemoStrip } from '../../composables/admin/useDemoStrip'
 import { monogram } from '../../composables/admin/monogram'
 import { useAdmin } from '../../composables/admin/useAdmin'
 import { useHealth, useHealthBanner } from '../../composables/admin/useHealth'
@@ -32,6 +34,7 @@ const actions = computed(() => admin.value.quickActions)
 const initials = computed(() => monogram(account.value?.name))
 const health = useHealth()
 const banner = useHealthBanner()
+const { demo, rows: demoRows, body: purgeBody, confirming: confirmingPurge, purging, ask: askPurge, purge: purgeDemo } = useDemoStrip()
 
 const groups = computed(() => admin.value.nav.filter((g) => g.key !== 'uebersicht' && !props.exclude.includes(g.key)))
 
@@ -93,6 +96,24 @@ function signOut(): void {
                 <span class="adm-foot__label" aria-hidden="true">{{ health.label }}</span>
                 <span v-if="health.count" class="adm-foot__count" :class="`adm-foot__count--${health.state}`" aria-hidden="true">· {{ health.count }}</span>
             </component>
+
+            <!-- Demodaten, as in the rail's foot: a phone has no foot, and must be told as well (M1-10). -->
+            <p v-if="demo" class="adm-foot__demo adm-more__demo">
+                <span class="adm-foot__demo-dot" aria-hidden="true" />
+                <span class="adm-foot__demo-text">
+                    Demodaten aktiv · {{ demoRows }}<template v-if="demo.canPurge"> ·
+                        <button class="adm-foot__demo-purge" type="button" @click="askPurge">entfernen</button></template>
+                </span>
+            </p>
+            <AdminConfirm
+                v-if="demo?.canPurge"
+                v-model:open="confirmingPurge"
+                title="Demodaten entfernen"
+                :body="purgeBody"
+                confirm-label="Entfernen"
+                :busy="purging"
+                @confirm="purgeDemo"
+            />
 
             <template v-for="item in groups" :key="item.key">
                 <!-- A group of one page is that page, with the group beneath so it can still be found by it. -->

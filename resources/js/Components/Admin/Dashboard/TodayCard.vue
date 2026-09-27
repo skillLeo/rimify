@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * „Heute“: at most three sentences telling this role what to do now, each with the button that
- * starts it. The Übersicht shows it where it serves the width: beside the Umsatz curve from 1440 px,
- * above the two tables when they stack (768–1439), and straight under the figures on a phone.
+ * starts it. The Übersicht's grid places it: beside the Umsatz curve from 1280 px, beside Verdikte
+ * from 900 px, and after the Umsatz card in the one column below that — in the page's order, so the
+ * keyboard reads it where the eye does (M1-04).
  */
 
 import { Link } from '@inertiajs/vue3'

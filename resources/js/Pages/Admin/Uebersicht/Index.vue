@@ -82,7 +82,7 @@ const verdictTable = computed(() => {
 
 const topTable = computed(() => ({
     header: ['Felge', 'Größe', 'Bestellungen'],
-    rows: props.charts?.topWheels ? props.charts.topWheels.map((b) => [b.label, b.size ?? '', formatNumber(b.value)]) : [],
+    rows: (props.topWheels ?? []).map((b) => [b.label, b.size ?? '', formatNumber(b.value)]),
 }))
 
 /** „1.411 Prüfungen im Zeitraum, 63,2 % davon freigegeben.“ — the Freigabequote is PERMITTED ÷ all. */
@@ -153,9 +153,6 @@ function retryCharts(): void {
 }
 
 /* The skeletons stand in at the size of what replaces them (UEB-02). */
-/** Seven rows of 36 px with 8 px between them: the ranking's box. */
-const TOP_HEIGHT = 7 * 36 + 6 * 8
-
 /** The four verdicts, in the server's words (ChartData::VERDICTS), for the legend of the skeleton. */
 const VERDICT_SKELETON: VerdictChart = {
     series: [
@@ -188,7 +185,7 @@ const slots = computed<Slot[]>(() => {
         ...(has('revenue') ? (['revenue'] as const) : []),
         'today',
         ...(has('verdicts') ? (['verdicts'] as const) : []),
-        ...(has('topWheels') ? (['topWheels'] as const) : []),
+        ...(props.topWheels ? (['topWheels'] as const) : []),
         ...(health.value ? (['health'] as const) : []),
     ]
     const lists: Slot[] = [
@@ -224,7 +221,6 @@ function cell(slot: Slot): Record<string, number> {
             </p>
 
             <p v-if="demo" class="dash__demo" role="note">
-                <span class="adm-tag adm-tag--neutral">Demodaten</span>
                 Unter den gezählten Bestellungen sind Demodaten. Die Zahlen zeigen, wie die Übersicht arbeitet, nicht, wie der Shop läuft.
             </p>
 
@@ -351,25 +347,14 @@ function cell(slot: Slot): Record<string, number> {
                     </DashWidget>
                 </template>
 
-                <template v-if="has('topWheels')">
+                <template v-if="topWheels">
                     <DashWidget
-                        v-if="!charts || !charts.topWheels"
                         class="dash__cell"
                         :style="cell('topWheels')"
                         title="Top-Felgen nach Bestellungen"
-                        :body-height="TOP_HEIGHT"
-                        :loading="chartsLoading"
-                        :error="failedOne('topWheels')"
-                        @retry="retryCharts"
-                    />
-                    <DashWidget
-                        v-else
-                        class="dash__cell"
-                        :style="cell('topWheels')"
-                        title="Top-Felgen nach Bestellungen"
-                        :empty="charts.topWheels.length ? null : 'Noch keine bezahlte Bestellung mit Felgen in diesem Zeitraum.'"
+                        :empty="topWheels.length ? null : 'Noch keine bezahlte Bestellung mit Felgen in diesem Zeitraum.'"
                     >
-                        <template v-if="charts.topWheels.length" #tools>
+                        <template v-if="topWheels.length" #tools>
                             <ChartMenu
                                 v-model:table="tables.topWheels"
                                 title="Top-Felgen nach Bestellungen"
@@ -379,7 +364,7 @@ function cell(slot: Slot): Record<string, number> {
                             />
                         </template>
                         <ChartTable v-if="tables.topWheels" caption="Top-Felgen nach Bestellungen" :header="topTable.header" :rows="topTable.rows" />
-                        <BarChart v-else :bars="charts.topWheels" :label="`Top-Felgen nach Bestellungen, ${period.range}`" />
+                        <BarChart v-else :bars="topWheels" :label="`Top-Felgen nach Bestellungen, ${period.range}`" />
                     </DashWidget>
                 </template>
 
@@ -501,9 +486,11 @@ function cell(slot: Slot): Record<string, number> {
     color: var(--c-ink-2);
 }
 
+/* Each tile takes four row tracks (KpiTile's subgrid): the tracks are shared along a row of tiles. */
 .dash__kpis {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: auto;
     gap: var(--adm-dash-gap);
 }
 

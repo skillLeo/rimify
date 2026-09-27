@@ -104,7 +104,10 @@ final class ChartData
             }
         }
 
+        // „Gezählt seit …“ only when the counting began inside the Zeitraum: before it, the whole
+        // period was counted, and the sentence would only raise a doubt.
         $since = DB::table('verdict_tallies')->min('day');
+        $since = is_string($since) && $since > $period->from->format('Y-m-d') ? $since : null;
         $checks = array_sum(array_column($weeks, 'total'));
 
         return [

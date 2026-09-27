@@ -275,8 +275,11 @@ final class GermanFormat
         return self::decimal($rating, 1).' ('.number_format($reviews, 0, ',', '.').' '.$noun.')';
     }
 
-    /** `+12 %` / `−3 %` — a non-breaking space before the sign, per German typography. */
-    public static function percent(int|float $value, bool $withSign = true): string
+    /**
+     * `+12 %` / `−3 %` — a non-breaking space before the sign, per German typography. `$places` fixes
+     * the decimals (`+15,0 %`), where figures side by side must read alike.
+     */
+    public static function percent(int|float $value, bool $withSign = true, ?int $places = null): string
     {
         $sign = '';
 
@@ -284,7 +287,9 @@ final class GermanFormat
             $sign = $value > 0 ? '+' : ($value < 0 ? self::MINUS : '');
         }
 
-        return $sign.self::trimmedDecimal(abs($value), 1).self::NBSP.'%';
+        $figure = $places === null ? self::trimmedDecimal(abs($value), 1) : self::decimal(abs($value), $places);
+
+        return $sign.$figure.self::NBSP.'%';
     }
 
     /** `1.234` — an integer quantity with a thousands point. */

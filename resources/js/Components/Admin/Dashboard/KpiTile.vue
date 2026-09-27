@@ -77,6 +77,18 @@ function onFocus(on: boolean): void {
 }
 
 const arrow = computed(() => (props.kpi.sub.kind === 'delta' && props.kpi.sub.direction !== 'flat' ? (props.kpi.sub.direction === 'up' ? 'arrow-up' : 'arrow-down') : null))
+
+/**
+ * A change's words after its figure (SalesFigures: „+15,0 % zum Vorzeitraum“). On a tile too narrow
+ * for the whole line the words are heard, not shown — the switch above already says what is compared,
+ * and the line stays one line (M1-07).
+ */
+const TAIL = ' zum Vorzeitraum'
+const subParts = computed(() => {
+    const text = props.kpi.sub.text
+
+    return props.kpi.sub.kind === 'delta' && text.endsWith(TAIL) ? { lead: text.slice(0, -TAIL.length), tail: TAIL } : { lead: text, tail: '' }
+})
 </script>
 
 <template>
@@ -125,7 +137,7 @@ const arrow = computed(() => (props.kpi.sub.kind === 'delta' && props.kpi.sub.di
             <!-- Exactly one line: the change, a fact, or the reason. -->
             <span class="kpi__sub" :class="[`kpi__sub--${kpi.sub.kind}`, kpi.sub.direction ? `kpi__sub--${kpi.sub.direction}` : null]">
                 <Icon v-if="arrow" :name="arrow" :size="16" />
-                {{ kpi.sub.text }}
+                <span>{{ subParts.lead }}<span v-if="subParts.tail" class="kpi__sub-tail">{{ subParts.tail }}</span></span>
             </span>
 
             <Sparkline v-if="kpi.series.length > 1" class="kpi__spark" :values="kpi.series" />
@@ -134,12 +146,16 @@ const arrow = computed(() => (props.kpi.sub.kind === 'delta' && props.kpi.sub.di
 </template>
 
 <style scoped>
-/* Label, figure, its one line — and the curve at the bottom, level across a row (the row's grid
-   stretches the tiles to one height; a tile has no minimum of its own). */
+/* Label, figure, its one line — and the curve at the bottom. The tile takes four of its row's tracks
+   (subgrid), so the parts stand level across a row: a label on two lines in one tile moves every
+   figure beside it down with it, never that one alone (M1-08). A tile has no minimum of its own. */
 .kpi {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-8);
+    display: grid;
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+    align-content: start;
+    row-gap: var(--sp-8);
+    container-type: inline-size;
     padding: var(--adm-card-pad);
     border: 1px solid var(--c-line);
     border-radius: var(--r-tile);
@@ -240,7 +256,19 @@ const arrow = computed(() => (props.kpi.sub.kind === 'delta' && props.kpi.sub.di
 }
 
 .kpi__spark {
-    margin-top: auto;
+    align-self: end;
+}
+
+/* Heard, not shown, where the whole line would not fit on one (M1-07). */
+@container (max-width: 180px) {
+    .kpi__sub-tail {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
 }
 
 /* No figure: a dash in the value's own place and size, quiet — the row keeps its shape. */

@@ -132,14 +132,14 @@ const announcement = computed(() => {
     return byKeyboard.value && at ? `${at.point.label}: ${money(at.point.value)}, ${orders(at.point.orders)}` : ''
 })
 
-/* A mouse leaving takes the crosshair with it; a finger lifting leaves it where it was read. */
-function onLeave(event: PointerEvent): void {
-    if (event.pointerType === 'mouse') {
-        active.value = null
-    }
-}
+/*
+ * A mouse reads wherever it points and takes the crosshair with it when it leaves. A finger reads
+ * only what it meant to: a tap pins the day, a sideways drag reads along the line — and a scroll that
+ * merely starts on the chart (the browser takes it: pointercancel) leaves nothing behind (M1-03).
+ */
+const touching = ref(false)
 
-function onMove(event: PointerEvent): void {
+function read(event: PointerEvent): void {
     byKeyboard.value = false
     const svg = event.currentTarget as SVGElement
     const box = svg.getBoundingClientRect()
@@ -149,9 +149,41 @@ function onMove(event: PointerEvent): void {
     active.value = Math.min(props.points.length - 1, Math.max(0, index))
 }
 
+function onDown(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+        read(event)
+    } else {
+        touching.value = true
+    }
+}
+
+function onMove(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' || touching.value) {
+        read(event)
+    }
+}
+
+function onUp(event: PointerEvent): void {
+    if (event.pointerType !== 'mouse' && touching.value) {
+        touching.value = false
+        read(event)
+    }
+}
+
+function onCancel(): void {
+    touching.value = false
+    active.value = null
+}
+
+function onLeave(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+        active.value = null
+    }
+}
+
+/* The first arrow says the last day (Home the first); after that, day by day (M1-11). */
 function onKey(event: KeyboardEvent): void {
     const n = props.points.length
-    const current = active.value ?? n - 1
     const moves: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, Home: -n, End: n }
     const step = moves[event.key]
 
@@ -161,7 +193,7 @@ function onKey(event: KeyboardEvent): void {
 
     event.preventDefault()
     byKeyboard.value = true
-    active.value = Math.min(n - 1, Math.max(0, current + step))
+    active.value = active.value === null ? (event.key === 'Home' ? 0 : n - 1) : Math.min(n - 1, Math.max(0, active.value + step))
 }
 </script>
 
@@ -179,8 +211,10 @@ function onKey(event: KeyboardEvent): void {
             :aria-label="`${label}. Mit den Pfeiltasten von Tag zu Tag.`"
             tabindex="0"
             focusable="true"
-            @pointerdown="onMove"
+            @pointerdown="onDown"
             @pointermove="onMove"
+            @pointerup="onUp"
+            @pointercancel="onCancel"
             @pointerleave="onLeave"
             @keydown="onKey"
             @blur="active = null"
@@ -297,8 +331,14 @@ function onKey(event: KeyboardEvent): void {
     stroke-width: 2px;
 }
 
+/* A halo of the card's own colour, so the line running under the last value never crosses its
+   figures (M1-14). */
 .lc__value {
     fill: var(--c-ink);
+    stroke: var(--c-surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    paint-order: stroke;
     font-size: var(--fs-micro);
     font-weight: 600;
     font-variant-numeric: tabular-nums;

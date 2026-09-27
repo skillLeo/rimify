@@ -109,7 +109,10 @@ describe('the chart data', function (): void {
             ->and($chart['weeks'][0]['values'])->toBe(['PERMITTED' => 0, 'CONDITIONAL' => 3, 'NOT_PERMITTED' => 0, 'UNKNOWN' => 0])
             ->and($chart['weeks'][1]['total'])->toBe(7)
             ->and($chart['weeks'][1]['range'])->toBe("21.09.\u{2013}26.09.2026")
-            ->and($chart['since'])->toBe('14.09.2026');
+            // Counted from the Zeitraum's first day: nothing to add.
+            ->and($chart['since'])->toBeNull()
+            // Counting began inside the Zeitraum: then the caption says since when.
+            ->and(app(ChartData::class)->verdicts(Period::between('2026-09-10', '2026-09-26'))['since'] ?? null)->toBe('14.09.2026');
     });
 
     it('has no verdicts to draw before anything was counted', function (): void {
@@ -148,16 +151,17 @@ describe('the chart data', function (): void {
 });
 
 describe('on the page', function (): void {
-    it('sends the charts a moment after the figures', function (): void {
+    it('sends the charts a moment after the figures — and Top-Felgen with them, no skeleton to jump from', function (): void {
         chartOrder(10_000, '2026-09-24 10:00:00');
 
         $this->actingAs(chartsAdmin(), 'admin')->get('/admin?zeitraum=7')
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->missing('charts')
+                ->has('topWheels')
                 ->loadDeferredProps(fn (AssertableInertia $reload) => $reload
                     ->has('charts.revenue.points', 7)
                     ->where('charts.verdicts', null)
-                    ->has('charts.topWheels')));
+                    ->missing('charts.topWheels')));
     });
 
     it('keeps each chart from a role that may not see what it draws', function (): void {
@@ -168,22 +172,22 @@ describe('on the page', function (): void {
 
         $this->actingAs(chartsAdmin('content-editor'), 'admin')->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('topWheels', null)
                 ->loadDeferredProps(fn (AssertableInertia $reload) => $reload
                     ->where('charts.revenue', false)
-                    ->where('charts.verdicts', false)
-                    ->where('charts.topWheels', false)));
+                    ->where('charts.verdicts', false)));
     });
 
     it('names the charts a role gets before they arrive, so their boxes stand from the first frame', function (): void {
         $this->actingAs(chartsAdmin(), 'admin')->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('chartKeys', ['revenue', 'verdicts', 'topWheels', 'coverage', 'demand'])
+                ->where('chartKeys', ['revenue', 'verdicts', 'coverage', 'demand'])
                 ->where('coverageRows', DB::table('vehicles')->whereNull('deleted_at')->distinct()->count('make')));
 
         // The order team reads the reports too, so the verdicts; without the Gutachten right, no matrix.
         $this->actingAs(chartsAdmin('order-manager'), 'admin')->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('chartKeys', ['revenue', 'verdicts', 'topWheels'])
+                ->where('chartKeys', ['revenue', 'verdicts'])
                 ->where('coverageRows', 0));
 
         $this->actingAs(chartsAdmin('content-editor'), 'admin')->get('/admin')

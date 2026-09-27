@@ -25,7 +25,8 @@ use Illuminate\Support\Facades\DB;
  * figure like any other: `0 €`, `0`. Only a figure that cannot be computed — an average of nothing —
  * has none, and then the line says why in a few words. The line is the change against the previous
  * period while comparing (or why there is none), otherwise one fact about the figure's own orders.
- * The figure goes out as a number and is written by the page (num.ts: whole euros on a tile).
+ * The figure goes out as a number, money in minor units, and is written by the page (num.ts
+ * formatMoney: `59.748,00 €`, with the cents, on a tile as everywhere).
  *
  * @phpstan-type Delta array{value: float, direction: 'up'|'down'|'flat', label: string}
  * @phpstan-type Sub array{text: string, kind: 'delta'|'note'|'reason', direction: 'up'|'down'|'flat'|null}
@@ -344,7 +345,8 @@ final class SalesFigures
         return [
             'value' => $change,
             'direction' => $change > 0 ? 'up' : ($change < 0 ? 'down' : 'flat'),
-            'label' => GermanFormat::percent($change).' zum Vorzeitraum',
+            // Always one decimal — `+15,0 %` beside `+11,8 %` — so the tiles' changes read alike.
+            'label' => GermanFormat::percent($change, true, 1).' zum Vorzeitraum',
         ];
     }
 

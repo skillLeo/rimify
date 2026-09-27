@@ -44,7 +44,8 @@ defineProps<{ orders: DashboardOrderRow[] }>()
                         <time :datetime="order.iso ?? undefined">{{ order.ago ?? '–' }}</time>
                     </td>
                     <td class="dt__actions">
-                        <Link :href="order.href" class="adm-iconbtn dt__action" :aria-label="`Bestellung ${order.number} öffnen`">
+                        <!-- The number is the keyboard's way to the order; this is the pointer's shortcut (M1-19). -->
+                        <Link :href="order.href" class="adm-iconbtn dt__action" tabindex="-1" :aria-label="`Bestellung ${order.number} öffnen`">
                             <Icon name="arrow-right" :size="16" />
                         </Link>
                         <Link v-if="order.customerHref" :href="order.customerHref" class="adm-iconbtn dt__action" :aria-label="`Alle Bestellungen von ${order.customer}`">
@@ -89,7 +90,7 @@ defineProps<{ orders: DashboardOrderRow[] }>()
 
 .dt td {
     height: var(--adm-row-h-dash);
-    padding: 0 6px;
+    padding: 0 var(--sp-8);
     border-bottom: 1px solid var(--c-line);
     color: var(--c-ink);
     white-space: nowrap;
@@ -261,11 +262,6 @@ defineProps<{ orders: DashboardOrderRow[] }>()
         display: inline-block;
         padding-block: var(--sp-12);
         margin-block: calc(-1 * var(--sp-12));
-    }
-
-    /* Nothing to say about shipping: on a card a lone dash is noise, so the chip line keeps only the payment. */
-    .dt__row td:nth-child(5):has(.chip-none) {
-        display: none;
     }
 
     @media (hover: hover) and (pointer: fine) {

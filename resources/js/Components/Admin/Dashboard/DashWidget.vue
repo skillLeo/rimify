@@ -28,9 +28,9 @@ const props = withDefaults(
         skeletonRows?: number
         error?: string | null
         /**
-         * The body's height in px, the same in every state — skeleton, content, empty sentence, error.
-         * A chart's box is known before its data: giving it once means nothing on the page moves when
-         * the data lands, or when a new Zeitraum replaces it.
+         * The skeleton's height in px — the height of the plot it stands in for, so nothing on the page
+         * moves when the data lands. The content itself, an empty sentence or an error take their own
+         * height (M1-20).
          */
         bodyHeight?: number | string | null
     }>(),
@@ -109,7 +109,11 @@ const titleId = useId()
     min-height: var(--adm-control-h);
 }
 
+/* The title keeps its one line: in a narrow card the tools go under it, it never breaks beside them.
+   Only a title wider than the whole card wraps. */
 .widget__title {
+    flex: 0 0 auto;
+    max-width: 100%;
     margin: 0;
     font-size: var(--adm-fs-title);
     line-height: var(--adm-lh-title);
@@ -135,9 +139,15 @@ const titleId = useId()
     white-space: nowrap;
 }
 
-/* A finger's target: the link's line grows to 44 px, the text stays where it is. */
+/* A finger's target: the link's line grows to 44 px, the text stays where it is — and so does every
+   head, with its menu or without and while it is still a skeleton, so nothing under it moves when a
+   chart's 44 px „…“ lands (M1-12). */
 @media (pointer: coarse) {
     .widget__all {
+        min-height: var(--adm-control-h-lg);
+    }
+
+    .widget__head {
         min-height: var(--adm-control-h-lg);
     }
 }

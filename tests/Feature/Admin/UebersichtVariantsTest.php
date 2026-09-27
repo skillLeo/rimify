@@ -157,7 +157,7 @@ describe('Support', function (): void {
             ->and($kpis['wartend']['value'])->toBe(2)
             ->and($kpis['wartend']['href'])->toBe('/admin/anfragen')
             ->and($kpis['anfragen']['value'])->toBe(3)
-            ->and($kpis['anfragen']['sub']['text'])->toBe(GermanFormat::percent(200.0).' zum Vorzeitraum')
+            ->and($kpis['anfragen']['sub']['text'])->toBe(GermanFormat::percent(200.0, true, 1).' zum Vorzeitraum')
             ->and($kpis)->not->toHaveKeys(['umsatz', 'bestellwert']);
     });
 });

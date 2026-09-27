@@ -53,7 +53,6 @@ const STOPS: Stop[] = [
                     weeks: Array.from({ length: 4 }, (_, i) => ({ key: `w${i}`, label: `KW ${36 + i}`, range: '', values: { PERMITTED: 20 + i }, total: 20 + i })),
                     since: '01.09.2026',
                 }
-                charts.topWheels = [{ key: 't1', label: 'BBS CH-R', value: 12, text: '12' }]
             })
             await visit(page, '/admin?zeitraum=30')
             await expect(page.getByRole('button', { name: /^Menü: / }).first()).toBeVisible()

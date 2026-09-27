@@ -33,7 +33,9 @@ const rows = computed(() => {
     const max = Math.max(1, ...bars.map((b) => b.value))
     const x = scaleLinear().domain([0, max]).range([0, 100])
 
-    return bars.map((bar, i) => ({ ...bar, share: x(bar.value) / 100, lead: i === 0, figure: formatNumber(bar.value) }))
+    // A model code keeps its hyphen whole („S‑04“, a no-break hyphen): a name may wrap between its
+    // words, never inside its code (M1-17).
+    return bars.map((bar, i) => ({ ...bar, name: bar.label.replace(/-/g, '\u2011'), share: x(bar.value) / 100, lead: i === 0, figure: formatNumber(bar.value) }))
 })
 </script>
 
@@ -41,7 +43,7 @@ const rows = computed(() => {
     <ol class="bc" :aria-label="label">
         <li v-for="row in rows" :key="row.key" class="bc__row">
             <span class="bc__label">
-                <span class="bc__name">{{ row.label }}</span>
+                <span class="bc__name">{{ row.name }}</span>
                 <span v-if="row.size" class="bc__size">{{ row.size }}</span>
             </span>
             <span class="bc__track">
@@ -85,7 +87,7 @@ const rows = computed(() => {
 .bc__name {
     font-weight: 600;
     color: var(--c-ink);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .bc__size {

@@ -93,12 +93,13 @@ describe('the figures', function (): void {
         $tiles = dashTiles();
 
         // The figure goes out in minor units; the page writes it (num.ts formatMoney: 1.500,00 €).
+        // A change always carries one decimal, so the tiles' lines read alike.
         expect($tiles['umsatz'])->toMatchArray(['value' => 150_000, 'unit' => 'EUR'])
-            ->and($tiles['umsatz']['sub'])->toBe(['text' => "+100\u{00A0}% zum Vorzeitraum", 'kind' => 'delta', 'direction' => 'up'])
+            ->and($tiles['umsatz']['sub'])->toBe(['text' => "+100,0\u{00A0}% zum Vorzeitraum", 'kind' => 'delta', 'direction' => 'up'])
             ->and($tiles['bestellungen'])->toMatchArray(['value' => 2, 'unit' => null])
-            ->and($tiles['bestellungen']['sub']['text'])->toBe("+100\u{00A0}% zum Vorzeitraum")
+            ->and($tiles['bestellungen']['sub']['text'])->toBe("+100,0\u{00A0}% zum Vorzeitraum")
             ->and($tiles['bestellwert']['value'])->toBe(75_000)
-            ->and($tiles['bestellwert']['sub'])->toBe(['text' => "0\u{00A0}% zum Vorzeitraum", 'kind' => 'delta', 'direction' => 'flat'])
+            ->and($tiles['bestellwert']['sub'])->toBe(['text' => "0,0\u{00A0}% zum Vorzeitraum", 'kind' => 'delta', 'direction' => 'flat'])
             ->and($tiles['umsatz']['series'])->toHaveCount(30);
     });
 

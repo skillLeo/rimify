@@ -1,15 +1,19 @@
 <script setup lang="ts">
 /**
- * Nachfrage-Lücken on the Übersicht: the open gaps most in demand, ranked. Each row names the car,
- * how often it was asked for in the Zeitraum — with a bar against the largest, so the order reads at
- * a glance — and how many people are waiting; each opens its row on the full list.
+ * Nachfrage-Lücken on the Übersicht: the open gaps most in demand, ranked (Demand: recent asks and
+ * waiting customers weigh more). Each row names the car, how often it was asked for in the Zeitraum —
+ * with a bar that measures exactly that number against the largest, never the hidden ranking score
+ * (M1-13) — and how many people are waiting; each opens its row on the full list.
  */
 
 import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import { decimal } from '../../../format'
 import type { DemandGap } from '../../../types/admin/uebersicht'
 
-defineProps<{ rows: DemandGap[] }>()
+const props = defineProps<{ rows: DemandGap[] }>()
+
+const most = computed(() => Math.max(1, ...props.rows.map((gap) => gap.asked)))
 
 /** `v:12` → `gap-v-12`: the full list's row for this gap. */
 function anchor(key: string): string {
@@ -29,7 +33,7 @@ function anchor(key: string): string {
                 <span class="dg__asked">
                     {{ decimal(gap.asked, 0) }}×<span class="visually-hidden"> gefragt</span>
                 </span>
-                <span class="dg__bar" aria-hidden="true"><span :style="{ width: `${gap.weight}%` }" /></span>
+                <span class="dg__bar" aria-hidden="true"><span :style="{ width: `${(gap.asked / most) * 100}%` }" /></span>
                 <span v-if="gap.waiting" class="dg__waiting">{{ decimal(gap.waiting, 0) }} {{ gap.waiting === 1 ? 'wartet' : 'warten' }}</span>
             </span>
         </li>

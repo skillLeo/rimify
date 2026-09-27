@@ -58,13 +58,13 @@ function emptyProps(props: Record<string, unknown>): Record<string, unknown> {
         todo: [],
         today: [],
         activity: [],
+        topWheels: [],
     }
 }
 
 const EMPTY_CHARTS = {
     revenue: null,
     verdicts: null,
-    topWheels: [],
     coverage: { sizes: [], rows: [], max: 0, summary: { fitments: '0', variants: '0', sentence: '' }, computedAt: '' },
     demand: { rows: [], counts: { offen: 0, beobachtet: 0, angefordert: 0, alle: 0 }, asks: 0, waiting: 0 },
     failed: [],
