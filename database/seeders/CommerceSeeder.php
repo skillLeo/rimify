@@ -16,7 +16,7 @@ use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
-use App\Support\GermanFormat;
+use App\Support\OrderLineLabel;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -245,7 +245,7 @@ class CommerceSeeder extends Seeder
                     'package_group' => $group,
                     // Frozen at purchase: joining to the catalogue would answer what the product
                     // is called today, which is the wrong question on an invoice.
-                    'label' => $this->wheelLabel($config),
+                    'label' => OrderLineLabel::wheel($config),
                     'quantity' => $quantity,
                     'unit_price_cents' => $config->price_cents,
                     'line_total_cents' => $wheelTotal,
@@ -261,7 +261,7 @@ class CommerceSeeder extends Seeder
                     ['order_id' => $order->id, 'kind' => OrderLineKind::Tyre->value, 'tyre_variant_id' => $tyre->id],
                     [
                         'package_group' => $group,
-                        'label' => $this->tyreLabel($tyre),
+                        'label' => OrderLineLabel::tyre($tyre),
                         'quantity' => $quantity,
                         'unit_price_cents' => $tyre->price_cents,
                         'line_total_cents' => $tyreTotal,
@@ -318,45 +318,6 @@ class CommerceSeeder extends Seeder
             'engine_version' => $verdict->snapshot->engineVersion,
             'computed_at' => $verdict->snapshot->computedAt,
         ]);
-    }
-
-    /** `8,5J × 18 · ET 35 · 5/112` — the description as the customer read it. */
-    private function wheelLabel(WheelConfig $config): string
-    {
-        $model = $config->wheelModel;
-        $finish = $config->wheelFinish;
-
-        return trim(sprintf(
-            '%s %s · %s · %s',
-            $model->brand->name,
-            $model->name,
-            $finish->name_de,
-            GermanFormat::wheelLabel(
-                (float) $config->width_in,
-                (float) $config->diameter_in,
-                (int) $config->et_mm,
-                (int) $config->bolt_holes,
-                (float) $config->bolt_circle_mm,
-                (float) $config->centre_bore_mm,
-            ),
-        ));
-    }
-
-    private function tyreLabel(TyreVariant $tyre): string
-    {
-        return trim(sprintf(
-            '%s %s · %s · %s',
-            $tyre->brand->name,
-            $tyre->name,
-            ucfirst($tyre->season),
-            GermanFormat::tyreSize(
-                (int) $tyre->width_mm,
-                (int) $tyre->aspect,
-                (float) $tyre->diameter_in,
-                (int) $tyre->load_index,
-                $tyre->speed_symbol,
-            ),
-        ));
     }
 
     /** Email-safe local parts: `Krüger` must not become an invalid address. */

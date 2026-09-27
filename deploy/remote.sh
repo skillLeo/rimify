@@ -60,6 +60,8 @@ chmod -R ug+rwX storage bootstrap/cache
 # ── PHP dependencies and schema ────────────────────────────────────────────────
 COMPOSER="$(command -v composer || echo /usr/local/bin/composer)"
 "$PHP" "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --no-progress 2>&1 | tail -1
+# R-12: this database holds no demo rows. Found any, the release stops here, still in maintenance.
+"$PHP" artisan demo:assert-clean --no-interaction
 "$PHP" artisan migrate --force --no-interaction
 
 # A brand-new database gets the reference data and the demonstration catalogue once. An existing

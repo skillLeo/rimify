@@ -61,7 +61,8 @@ describe('the verdict tally', function (): void {
             ->assertOk();
 
         expect((int) DB::table('verdict_tallies')->where('day', '2026-09-26')->where('surface', 'pdp')->sum('n'))->toBe($sizes)
-            ->and(DB::getSchemaBuilder()->getColumnListing('verdict_tallies'))->toBe(['id', 'day', 'surface', 'status', 'n']);
+            // A count per day and state — and the demo marks (R-12), never anything about the person.
+            ->and(DB::getSchemaBuilder()->getColumnListing('verdict_tallies'))->toBe(['id', 'day', 'surface', 'status', 'n', 'is_demo', 'demo_ref']);
     });
 
     it('counts nothing when no car is chosen — nothing was checked', function (): void {

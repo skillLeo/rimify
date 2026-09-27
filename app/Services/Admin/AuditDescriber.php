@@ -10,6 +10,7 @@ use App\Enums\PermissionModule;
 use App\Models\AuditLog;
 use App\Services\Admin\Orders\OrderList;
 use App\Services\Content\NavigationSchema;
+use App\Services\Demo\DemoTables;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
 use Carbon\CarbonImmutable;
@@ -75,6 +76,7 @@ final class AuditDescriber
         'tpms_default_price.updated' => 'katalog',
         'audit_log.exported' => 'protokoll',
         'orders.exported' => 'verkauf',
+        'demo.purged' => 'protokoll',
         'demand.marked' => 'gutachten',
         'demand.unmarked' => 'gutachten',
         'page.created' => 'inhalte',
@@ -274,6 +276,7 @@ final class AuditDescriber
                 [self::change('Standardpreis je Sensor', self::money($p['old_cents'] ?? null), self::money($p['cents'] ?? null))],
             ],
             'audit_log.exported' => [self::exported($p), []],
+            'demo.purged' => self::demoPurged($p),
             'orders.exported' => [self::ordersExported($p), []],
             'demand.marked' => [self::demandMarked($p), []],
             'demand.unmarked' => ['Die Markierung der Nachfrage-Lücke '.self::q(self::text($p, 'gap') ?? 'ohne Namen').' wurde aufgehoben. Sie ist wieder offen.', []],
@@ -303,6 +306,30 @@ final class AuditDescriber
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
             ],
         };
+    }
+
+    /**
+     * „Die Demodaten wurden entfernt: 1.234 Datensätze, eingespielt bis zum 27.09.2026." — and per
+     * table how many there were and that none are left (R-12: every purge says what it took).
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function demoPurged(array $p): array
+    {
+        $total = is_numeric($p['total'] ?? null) ? (int) $p['total'] : 0;
+        $anchor = self::day(self::text($p, 'anchor'));
+        $sentence = 'Die Demodaten wurden entfernt: '.($total === 1 ? 'ein Datensatz' : GermanFormat::decimal($total, 0).' Datensätze')
+            .($anchor === null ? '.' : ", eingespielt bis zum {$anchor}.");
+        $changes = [];
+
+        foreach (self::map($p, 'tables') as $table => $count) {
+            if (is_string($table) && is_numeric($count)) {
+                $changes[] = self::change(DemoTables::LABELS[$table] ?? $table, GermanFormat::decimal((int) $count, 0), '0');
+            }
+        }
+
+        return [$sentence, $changes];
     }
 
     /** @param  array<array-key, mixed>  $p */

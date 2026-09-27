@@ -419,6 +419,11 @@ describe('putting every entry into words', function (): void {
             'tpms_price.deleted' => [['make_key' => 'porsche'], 'Der RDKS-Sensorpreis für Porsche wurde gelöscht.', []],
             'tpms_default_price.updated' => [['old_cents' => 1500, 'cents' => null], 'Der Standardpreis für RDKS-Sensoren wurde geändert.', ['Standardpreis je Sensor: '.$euro(1500).' → nicht festgelegt']],
             'audit_log.exported' => [['filters' => [], 'count' => 3], 'Das ganze Protokoll wurde als CSV exportiert – 3 Einträge.', []],
+            'demo.purged' => [
+                ['tables' => ['orders' => 1412, 'audit_logs' => 44], 'total' => 1456, 'anchor' => '2026-09-27', 'operator' => 'Konsole (demo:purge)', 'environment' => 'staging'],
+                'Die Demodaten wurden entfernt: 1.456 Datensätze, eingespielt bis zum 27.09.2026.',
+                ['Bestellungen: 1.412 → 0', 'Protokolleinträge: 44 → 0'],
+            ],
             'orders.exported' => [
                 ['format' => 'xlsx', 'filters' => ['status' => 'PAID', 'von' => '2026-09-01', 'bis' => '2026-09-26'], 'count' => 12],
                 'Bestellungen wurden als Excel-Datei exportiert (Status „Bezahlt“, Zeitraum 01.09.2026 bis 26.09.2026) – 12 Bestellungen.',
