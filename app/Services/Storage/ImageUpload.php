@@ -37,11 +37,14 @@ final class ImageUpload
     public function __construct(private readonly VirusScanner $scanner, private readonly StorageProbe $probe) {}
 
     /**
+     * `$sized` names the file after its width as well (`…/01j…-1600.jpg`), the way the Picture
+     * component's manifest addresses a frame (`{base}-{width}.{ext}`).
+     *
      * @return Stored
      *
      * @throws UploadRejected with the sentence to show
      */
-    public function store(UploadedFile $file, string $disk, string $directory): array
+    public function store(UploadedFile $file, string $disk, string $directory, bool $sized = false): array
     {
         $path = (string) $file->getRealPath();
         $limits = (array) config('media.upload');
@@ -91,7 +94,7 @@ final class ImageUpload
             throw new UploadRejected('Das Bild lässt sich nicht öffnen. Speichere es bitte neu und lad es noch einmal hoch.');
         }
 
-        $key = trim($directory, '/').'/'.Str::lower((string) Str::ulid()).'.'.self::TYPES[$mime];
+        $key = trim($directory, '/').'/'.Str::lower((string) Str::ulid()).($sized ? '-'.$image->width() : '').'.'.self::TYPES[$mime];
 
         try {
             Storage::disk($disk)->put($key, $encoded, ['ContentType' => $mime, 'CacheControl' => 'public, max-age=31536000, immutable']);

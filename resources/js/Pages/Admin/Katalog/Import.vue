@@ -1,0 +1,208 @@
+<script setup lang="ts">
+/**
+ * Katalog › Import — a supplier feed into the catalogue: the file, its columns, the Probelauf, the
+ * import (the review release §4.2). This page is the first step and the record of every run; each run
+ * has its own page (ImportRun.vue).
+ *
+ * Nothing reaches the catalogue from here: the upload makes a Probelauf, which only reads.
+ */
+
+import { Link, useForm } from '@inertiajs/vue3'
+import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminState from '../../../Components/Admin/AdminState.vue'
+import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { decimal } from '../../../format'
+import type { AdminImportProps, ImportRunRow } from '../../../types/admin/felgen'
+
+defineOptions({ layout: AdminLayout, inheritAttrs: false })
+
+const props = defineProps<AdminImportProps>()
+
+const upload = useForm<{ file: File | null; dezimal: 'komma' | 'punkt' }>({ file: null, dezimal: 'komma' })
+
+function pick(event: Event): void {
+    upload.file = (event.target as HTMLInputElement).files?.[0] ?? null
+}
+
+function submit(): void {
+    if (upload.file === null) {
+        upload.setError('file', 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).')
+
+        return
+    }
+
+    upload.post('/admin/katalog/import/probelauf', { forceFormData: true, preserveScroll: true })
+}
+
+function counts(run: ImportRunRow): string {
+    const s = run.summary
+    const parts: string[] = []
+
+    if (s.create) {
+        parts.push(`${decimal(s.create, 0)} neu`)
+    }
+
+    if (s.update) {
+        parts.push(`${decimal(s.update, 0)} geändert`)
+    }
+
+    if (s.refused) {
+        parts.push(`${decimal(s.refused, 0)} abgelehnt`)
+    }
+
+    return parts.length ? parts.join(' · ') : 'Zuordnung unvollständig'
+}
+
+const required = props.fields.filter((field) => field.required)
+const optional = props.fields.filter((field) => !field.required)
+</script>
+
+<template>
+    <AdminPage title="Katalog-Import" :context="imports.length === 1 ? '1 Lauf' : `${decimal(imports.length, 0)} Läufe`">
+        <section v-if="can.preview" class="adm-section" aria-labelledby="im-h-file">
+            <div class="adm-section__head">
+                <h2 id="im-h-file" class="adm-section__title">Datei prüfen</h2>
+                <a class="btn btn--ghost" href="/admin/katalog/import/beispiel.csv" download>Beispieldatei herunterladen</a>
+            </div>
+            <p class="adm-note">Eine Zeile ist eine Größe. Der Probelauf liest die Datei und zeigt, was sich ändern würde – im Katalog ändert sich dabei nichts.</p>
+
+            <form class="im-form" @submit.prevent="submit">
+                <div class="form-field">
+                    <label class="form-field__label" for="im-file">Datei (CSV oder Excel, höchstens 5 MB)</label>
+                    <input
+                        id="im-file"
+                        class="input im-file"
+                        type="file"
+                        accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        :aria-invalid="upload.errors.file ? 'true' : undefined"
+                        aria-describedby="im-file-err"
+                        @change="pick"
+                    >
+                    <p id="im-file-err" class="form-field__error">{{ upload.errors.file }}</p>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label" for="im-decimal">Kommazahlen in der Datei</label>
+                    <select id="im-decimal" v-model="upload.dezimal" class="input im-decimal" aria-describedby="im-decimal-help">
+                        <option value="komma">mit Komma: 8,5 und 189,00</option>
+                        <option value="punkt">mit Punkt: 8.5 und 189.00</option>
+                    </select>
+                    <p id="im-decimal-help" class="form-field__help">Nur für CSV. Eine Excel-Datei liest der Import immer richtig.</p>
+                </div>
+                <div>
+                    <button class="btn btn--primary" type="submit" :disabled="upload.processing" :aria-busy="upload.processing ? 'true' : undefined">Probelauf starten</button>
+                </div>
+            </form>
+
+            <div class="im-fields">
+                <p class="im-fields__head">Diese Spalten liest der Import – er erkennt sie an ihrem Namen, du kannst sie im nächsten Schritt aber auch selbst zuordnen:</p>
+                <p class="im-fields__line"><strong>Pflicht:</strong> {{ required.map((f) => f.label).join(', ') }}.</p>
+                <p class="im-fields__line"><strong>Optional:</strong> {{ optional.map((f) => f.label).join(', ') }}.</p>
+                <p class="adm-note">Eine bekannte SKU ändert nur Preis, Bestand, EAN, KBA-Nummer und Gewicht. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
+            </div>
+        </section>
+
+        <section class="adm-section" aria-labelledby="im-h-runs">
+            <div class="adm-section__head">
+                <h2 id="im-h-runs" class="adm-section__title">Bisherige Läufe</h2>
+            </div>
+
+            <AdminState v-if="imports.length === 0" kind="empty" text="Hier steht jeder Probelauf und jeder Import, sobald die erste Datei geprüft ist." />
+
+            <div v-else class="adm-panel">
+                <table class="adm-table">
+                    <caption class="visually-hidden">Bisherige Probeläufe und Importe</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Datei</th>
+                            <th scope="col">Stand</th>
+                            <th scope="col">Ergebnis</th>
+                            <th scope="col">Von</th>
+                            <th scope="col">Wann</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="run in imports" :key="run.id">
+                            <td data-label="Datei">
+                                <Link :href="run.href" class="im-link">{{ run.file }}</Link>
+                                <span class="im-sub">{{ run.format }}</span>
+                            </td>
+                            <td data-label="Stand">
+                                <span v-if="run.status !== 'applied'" class="adm-tag adm-tag--neutral">{{ run.statusLabel }}</span>
+                                <template v-else>{{ run.statusLabel }}</template>
+                            </td>
+                            <td data-label="Ergebnis">{{ counts(run) }}</td>
+                            <td data-label="Von">{{ run.by ?? '–' }}</td>
+                            <td data-label="Wann" class="im-when">{{ run.at ?? '–' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </AdminPage>
+</template>
+
+<style scoped>
+.im-form {
+    display: grid;
+    gap: var(--sp-16);
+    max-width: var(--adm-form-max);
+    margin-block: var(--sp-16) var(--sp-24);
+}
+
+.im-file {
+    height: auto;
+    padding-block: var(--sp-8);
+}
+
+.im-decimal {
+    max-width: 36ch;
+}
+
+.im-form .form-field__error:empty {
+    display: none;
+}
+
+.im-fields {
+    display: grid;
+    gap: var(--sp-8);
+    max-width: var(--adm-form-max);
+}
+
+.im-fields__head,
+.im-fields__line {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.im-fields__line strong {
+    color: var(--c-ink);
+    font-weight: 500;
+}
+
+.im-link {
+    color: var(--c-ink);
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.im-sub {
+    display: block;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.im-when {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+    .im-form .btn,
+    .adm-section__head .btn {
+        min-height: var(--adm-control-h-lg);
+    }
+}
+</style>

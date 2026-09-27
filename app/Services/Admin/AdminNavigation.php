@@ -82,6 +82,8 @@ final class AdminNavigation
                 ['label' => 'Reifen', 'href' => '/admin/reifen', 'icon' => 'tyres'],
                 ['label' => 'Marken', 'href' => '/admin/marken', 'icon' => 'brands'],
                 ['label' => 'Bestände', 'href' => '/admin/bestaende', 'icon' => 'stock'],
+                // A supplier feed into the catalogue: the importer's own right, not the catalogue's.
+                ['label' => 'Import', 'href' => '/admin/katalog/import', 'icon' => 'imports', 'module' => PermissionModule::Imports->value],
             ],
         ],
         [
@@ -181,6 +183,8 @@ final class AdminNavigation
      */
     public const BUILT = [
         '/admin',
+        '/admin/felgen',
+        '/admin/katalog/import',
         '/admin/gutachten',
         '/admin/abdeckung',
         '/admin/bestellungen',

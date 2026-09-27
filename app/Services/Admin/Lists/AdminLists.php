@@ -6,6 +6,7 @@ namespace App\Services\Admin\Lists;
 
 use App\Enums\PermissionModule;
 use App\Http\Requests\Admin\BestellungenFilterRequest;
+use App\Http\Requests\Admin\FelgenFilterRequest;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -21,10 +22,12 @@ final class AdminLists
 {
     public const BESTELLUNGEN = 'bestellungen';
 
+    public const FELGEN = 'felgen';
+
     /** @return list<string> */
     public static function keys(): array
     {
-        return [self::BESTELLUNGEN];
+        return [self::BESTELLUNGEN, self::FELGEN];
     }
 
     /** @return ListSpec|null */
@@ -47,6 +50,22 @@ final class AdminLists
                     ['key' => 'summe', 'label' => 'Summe', 'default' => true, 'required' => false],
                     ['key' => 'zahlung', 'label' => 'Zahlung', 'default' => true, 'required' => false],
                     ['key' => 'versand', 'label' => 'Versand', 'default' => true, 'required' => false],
+                ],
+            ],
+            self::FELGEN => [
+                'module' => PermissionModule::Catalogue,
+                'path' => '/admin/felgen',
+                'keys' => ['q', 'status', 'marke', 'freigaben', 'demo', 'sort', 'richtung'],
+                'request' => FelgenFilterRequest::class,
+                'columns' => [
+                    // Brand and model name the row: they cannot be hidden.
+                    ['key' => 'felge', 'label' => 'Felge', 'default' => true, 'required' => true],
+                    ['key' => 'status', 'label' => 'Status', 'default' => true, 'required' => false],
+                    ['key' => 'groessen', 'label' => 'Größen', 'default' => true, 'required' => false],
+                    ['key' => 'preis', 'label' => 'Preis ab', 'default' => true, 'required' => false],
+                    ['key' => 'bestand', 'label' => 'Bestand', 'default' => true, 'required' => false],
+                    ['key' => 'freigaben', 'label' => 'Freigaben', 'default' => true, 'required' => false],
+                    ['key' => 'aktualisiert', 'label' => 'Geändert', 'default' => false, 'required' => false],
                 ],
             ],
             default => null,

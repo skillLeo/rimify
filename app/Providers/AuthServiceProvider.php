@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Models\CatalogueImport;
 use App\Models\DemandMark;
 use App\Models\FaqEntry;
 use App\Models\NavItem;
@@ -15,8 +16,10 @@ use App\Models\Page;
 use App\Models\SavedView;
 use App\Models\StorageSetting;
 use App\Models\TpmsSensorPrice;
+use App\Models\WheelModel;
 use App\Policies\AdminNotificationPolicy;
 use App\Policies\BalanceWeightColourPolicy;
+use App\Policies\CatalogueImportPolicy;
 use App\Policies\DemandMarkPolicy;
 use App\Policies\DemoDataPolicy;
 use App\Policies\DocumentUploadPolicy;
@@ -27,6 +30,7 @@ use App\Policies\PagePolicy;
 use App\Policies\SavedViewPolicy;
 use App\Policies\StorageSettingPolicy;
 use App\Policies\TpmsSensorPricePolicy;
+use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\PdfUpload;
@@ -68,6 +72,8 @@ final class AuthServiceProvider extends ServiceProvider
         StorageSetting::class => StorageSettingPolicy::class,
         // Not a model: a PDF upload before its row exists (PdfUpload).
         PdfUpload::class => DocumentUploadPolicy::class,
+        WheelModel::class => WheelModelPolicy::class,
+        CatalogueImport::class => CatalogueImportPolicy::class,
     ];
 
     public function register(): void

@@ -19,7 +19,17 @@ not listed stays behind an honest „noch nicht gebaut“ on the review board.
       demo never published (CHECK `wheel_models_demo_never_published`, seeded as drafts, PDP/basket refuse a
       model that is not published); storefront tests on their own shop (Pest `$shopFixture`, Playwright
       `rimify_wf_e2e` on :8010 via `composer e2e:shop`).
-- [ ] **§4.2 Katalog** — list, form with variant matrix, images (ImageUpload → media_products), importer with Probelauf
+- [x] **§4.2 Katalog** — `/admin/felgen`: list on the AdminLists pattern (views, Spaltenwahl, filters Status /
+      Marke / Freigaben / Herkunft, search by SKU and EAN, bulk publish / take out / archive with demo and the
+      Freigabe-Check refused per model and named), Freigaben counted from published fitment rows („Freigaben
+      noch nicht hinterlegt“). Form: Stammdaten, Ausführungen with photographs (ImageUpload → `media_products`,
+      alt text required), Größen-Matrix (finishes × Ø × Breite × ET, SKU from its parts), SEO with a preview,
+      Freigabe-Check (blockers vs. hints); a size an approval names keeps its measurements and cannot be removed.
+      A save never publishes. `/admin/katalog/import`: CSV (`;` `,` tab, UTF-8 or Windows-1252) and XLSX,
+      columns mapped by name or by hand (kept for the next file), Probelauf with the plan per row, import only
+      of the plan shown (refused if the catalogue moved), rollback whole while nothing builds on it, sample
+      file. Pest `FelgenTest` (22), `KatalogImportTest` (11); Vitest `list`, `matrix`; shots `docs/qa/shots/m-katalog/`.
+      Open in this area: Reifen, Marken, Bestände pages (rail shows them only once built).
 - [ ] **§4.3 Gutachten und Fahrzeuge** — PDF upload (PdfUpload), Verwendungsbereich, Auflagen library, preview,
       Freigeben, Abdeckung from real rows
 - [ ] **§4.4 Verkauf** — order list, order detail with the frozen snapshot per line

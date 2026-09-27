@@ -12,8 +12,10 @@ use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\BestellungenController;
 use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
+use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
@@ -49,6 +51,7 @@ use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
 use App\Http\Middleware\EnsureAdminMay;
 use App\Http\Middleware\EnsureSudo;
+use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\StorageSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -250,6 +253,47 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('nachfrage.index');
         Route::post('/nachfrage/markierung', [NachfrageController::class, 'mark'])->name('nachfrage.markieren');
         Route::delete('/nachfrage/markierung', [NachfrageController::class, 'unmark'])->name('nachfrage.entmarkieren');
+
+        // Katalog › Felgen (the review release §4.2): the list, one model's form, its step into the
+        // shop and the photographs of its finishes. Each write asks WheelModelPolicy through its Form
+        // Request; `/neu` and `/sammelaktion` are fixed segments, never read as a `{model}`.
+        Route::get('/felgen', [AdminFelgenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':catalogue,view')
+            ->name('felgen.index');
+        Route::get('/felgen/neu', [AdminFelgenController::class, 'create'])->name('felgen.create');
+        Route::post('/felgen', [AdminFelgenController::class, 'store'])->name('felgen.store');
+        Route::post('/felgen/sammelaktion', [AdminFelgenController::class, 'bulk'])->name('felgen.bulk');
+        Route::get('/felgen/{model}', [AdminFelgenController::class, 'edit'])->whereNumber('model')->name('felgen.edit');
+        Route::put('/felgen/{model}', [AdminFelgenController::class, 'update'])->whereNumber('model')->name('felgen.update');
+
+        foreach (array_keys(WheelStatusRequest::STEPS) as $step) {
+            Route::post('/felgen/{model}/'.$step, [AdminFelgenController::class, 'status'])->whereNumber('model')->name('felgen.'.$step);
+        }
+
+        Route::post('/felgen/{model}/ausfuehrungen/{finish}/foto', [AdminFelgenController::class, 'image'])
+            ->whereNumber(['model', 'finish'])
+            ->middleware('throttle:30,1')
+            ->name('felgen.foto');
+        Route::delete('/felgen/{model}/ausfuehrungen/{finish}/foto', [AdminFelgenController::class, 'removeImage'])
+            ->whereNumber(['model', 'finish'])
+            ->name('felgen.foto.entfernen');
+
+        // Katalog › Import: a supplier feed, mapped, checked in a Probelauf, then imported — and taken
+        // back whole if it was wrong (CatalogueImportPolicy).
+        Route::get('/katalog/import', [KatalogImportController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':imports,view')
+            ->name('import.index');
+        Route::get('/katalog/import/beispiel.csv', [KatalogImportController::class, 'sample'])
+            ->middleware(EnsureAdminMay::class.':imports,view')
+            ->name('import.beispiel');
+        Route::post('/katalog/import/probelauf', [KatalogImportController::class, 'preview'])->middleware('throttle:20,1')->name('import.probelauf');
+        Route::get('/katalog/import/{import}', [KatalogImportController::class, 'show'])
+            ->whereNumber('import')
+            ->middleware(EnsureAdminMay::class.':imports,view')
+            ->name('import.show');
+        Route::post('/katalog/import/{import}/zuordnung', [KatalogImportController::class, 'remap'])->whereNumber('import')->middleware('throttle:30,1')->name('import.zuordnung');
+        Route::post('/katalog/import/{import}/importieren', [KatalogImportController::class, 'apply'])->whereNumber('import')->name('import.importieren');
+        Route::post('/katalog/import/{import}/zuruecknehmen', [KatalogImportController::class, 'rollback'])->whereNumber('import')->name('import.zuruecknehmen');
 
         // Verkauf › Bestellungen (docs/admin/rest-build-plan.md, step 2): the filters ride in the URL;
         // the export needs the right to take customer data away as well as to read it.

@@ -94,6 +94,16 @@ final class AuditDescriber
         'nav.updated' => 'inhalte',
         'nav.deleted' => 'inhalte',
         'nav.reordered' => 'inhalte',
+        'wheel.created' => 'katalog',
+        'wheel.updated' => 'katalog',
+        'wheel.published' => 'katalog',
+        'wheel.unpublished' => 'katalog',
+        'wheel.archived' => 'katalog',
+        'wheel.restored' => 'katalog',
+        'wheel.image_uploaded' => 'katalog',
+        'wheel.image_removed' => 'katalog',
+        'catalogue.imported' => 'katalog',
+        'catalogue.import_rolled_back' => 'katalog',
     ];
 
     /**
@@ -135,6 +145,8 @@ final class AuditDescriber
         'admin.seiten' => 'Seiten',
         'admin.faq' => 'FAQ',
         'admin.navigation' => 'Navigation',
+        'admin.felgen' => 'Felgen',
+        'admin.import' => 'Katalog-Import',
     ];
 
     /** What a denied request tried to do, as the infinitive that completes „Der Versuch, …". */
@@ -303,11 +315,47 @@ final class AuditDescriber
             ],
             'nav.deleted' => ['Aus dem Menü '.self::menu($p).' wurde der Eintrag '.self::q(self::text($p, 'label') ?? 'ohne Namen').' gelöscht.', []],
             'nav.reordered' => ['Die Reihenfolge im Menü '.self::menu($p).' wurde geändert.', []],
+            'wheel.created' => ['Die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde als Entwurf angelegt.', []],
+            'wheel.updated' => ['Die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde geändert.', []],
+            'wheel.published' => ['Die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde veröffentlicht und ist im Shop.', []],
+            'wheel.unpublished' => ['Die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde zurückgezogen und ist nicht mehr im Shop.', []],
+            'wheel.archived' => ['Die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde archiviert.', []],
+            'wheel.restored' => ['Die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde aus dem Archiv geholt; sie ist wieder ein Entwurf.', []],
+            'wheel.image_uploaded' => ['Für die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde ein Foto hochgeladen.', []],
+            'wheel.image_removed' => ['Das Foto der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde entfernt.', []],
+            'catalogue.imported' => [self::imported($p, 'Die Datei '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde in den Katalog importiert'), []],
+            'catalogue.import_rolled_back' => ['Der Import der Datei '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde zurückgenommen.', []],
             default => [
                 'Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.',
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
             ],
         };
+    }
+
+    /**
+     * „… wurde in den Katalog importiert: 12 neue Größen, 30 geänderte Größen, 2 abgelehnt."
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function imported(array $p, string $start): string
+    {
+        $summary = self::map($p, 'summary');
+        $n = static fn (string $key): int => is_numeric($summary[$key] ?? null) ? (int) $summary[$key] : 0;
+        $parts = [];
+
+        if ($n('create') > 0) {
+            $parts[] = GermanFormat::integer($n('create')).($n('create') === 1 ? ' neue Größe' : ' neue Größen');
+        }
+
+        if ($n('update') > 0) {
+            $parts[] = GermanFormat::integer($n('update')).($n('update') === 1 ? ' geänderte Größe' : ' geänderte Größen');
+        }
+
+        if ($n('refused') > 0) {
+            $parts[] = GermanFormat::integer($n('refused')).' abgelehnt';
+        }
+
+        return $start.($parts === [] ? '.' : ': '.implode(', ', $parts).'.');
     }
 
     /**
