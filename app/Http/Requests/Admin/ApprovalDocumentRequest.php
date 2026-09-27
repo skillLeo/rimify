@@ -55,7 +55,8 @@ class ApprovalDocumentRequest extends FormRequest
             'report_number' => ['nullable', 'string', 'max:64', Rule::requiredIf(fn (): bool => $this->input('kind') === ApprovalKind::Teilegutachten->value)],
             'approval_mark' => ['nullable', 'string', 'max:64', Rule::requiredIf(fn (): bool => in_array($this->input('kind'), [ApprovalKind::Ece->value, ApprovalKind::Ec->value], true))],
             'issuer' => ['nullable', 'string', 'max:120'],
-            'issued_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:1990-01-01', 'before_or_equal:today'],
+            // Today in Berlin, where the document was issued — not in UTC, which is still yesterday until 02:00.
+            'issued_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:1990-01-01', 'before_or_equal:'.now('Europe/Berlin')->toDateString()],
             'page_count' => ['nullable', 'integer', 'min:1', 'max:2000'],
             'supersedes_id' => ['nullable', 'integer', Rule::exists('approval_documents', 'id')->where('status', DocumentStatus::Published->value)],
         ];
@@ -102,12 +103,15 @@ class ApprovalDocumentRequest extends FormRequest
     public function facts(): array
     {
         $text = fn (string $key): ?string => is_string($this->validated($key)) && $this->validated($key) !== '' ? (string) $this->validated($key) : null;
+        $kind = (string) $this->validated('kind');
 
+        // Only the number the chosen kind carries: a KBA-Nummer typed before the kind was switched
+        // to Teilegutachten is not kept behind the form's back.
         return [
-            'kind' => (string) $this->validated('kind'),
-            'kba_number' => $text('kba_number'),
-            'report_number' => $text('report_number'),
-            'approval_mark' => $text('approval_mark'),
+            'kind' => $kind,
+            'kba_number' => $kind === ApprovalKind::Abe->value ? $text('kba_number') : null,
+            'report_number' => $kind === ApprovalKind::Teilegutachten->value ? $text('report_number') : null,
+            'approval_mark' => in_array($kind, [ApprovalKind::Ece->value, ApprovalKind::Ec->value], true) ? $text('approval_mark') : null,
             'issuer' => $text('issuer'),
             'issued_on' => $text('issued_on'),
             'page_count' => $this->validated('page_count') === null ? null : (int) $this->validated('page_count'),

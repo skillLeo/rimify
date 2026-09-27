@@ -119,7 +119,7 @@ it('adds a row for every vehicle and size chosen, with tyre sizes and Auflagen, 
     ]))->assertSessionHas('toast', '4 Zeilen angelegt.');
 
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicles[0]], [$sizes[0]]))
-        ->assertSessionHas('toast', '0 Zeilen angelegt. Eine gab es schon; sie blieben, wie sie waren.');
+        ->assertSessionHas('toast', 'Keine neue Zeile: Diese Zeile gab es schon; sie bleibt, wie sie war.');
 
     $row = Fitment::query()->with(['tyreSizes', 'conditions'])->where('approval_document_id', $document->id)->firstOrFail();
 

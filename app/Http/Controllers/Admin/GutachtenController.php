@@ -66,6 +66,10 @@ class GutachtenController extends Controller
                 'ad.id', 'ad.report_number', 'ad.kind', 'ad.issuer', 'ad.kba_number', 'ad.approval_mark',
                 'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count',
             )
+            // Drafts first — the documents being worked on — then the newest; a document without its
+            // date is not buried at the bottom (MySQL sorts NULL last in a descending order).
+            ->orderByRaw("ad.status = 'draft' DESC")
+            ->orderByRaw('ad.issued_on IS NULL DESC')
             ->orderByDesc('ad.issued_on')
             ->orderByDesc('ad.id')
             ->get([
@@ -205,8 +209,7 @@ class GutachtenController extends Controller
     public function release(ApprovalStepRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
         $result = $release->release($document, $request->admin());
-        $rows = $result['rows'] === 1 ? 'eine Zeile' : GermanFormat::integer($result['rows']).' Zeilen';
-        $toast = "Freigegeben: {$rows} sind jetzt im Shop.";
+        $toast = $result['rows'] === 1 ? 'Freigegeben: Die Zeile ist jetzt im Shop.' : 'Freigegeben: '.GermanFormat::integer($result['rows']).' Zeilen sind jetzt im Shop.';
 
         if ($result['conflicts'] > 0) {
             $toast .= ' '.($result['conflicts'] === 1 ? 'Ein Widerspruch' : GermanFormat::integer($result['conflicts']).' Widersprüche')
@@ -247,10 +250,15 @@ class GutachtenController extends Controller
     public static function documentFacts(ApprovalDocument $document): array
     {
         $url = null;
+        $missing = false;
 
+        // A link is offered only to a file that is there: a stored key without its file says so
+        // instead of opening a 404. One existence check, on the one document on screen.
         if ($document->pdf_key !== null) {
             try {
-                $url = Storage::disk(self::DISK)->url($document->pdf_key);
+                $disk = Storage::disk(self::DISK);
+                $missing = ! $disk->exists($document->pdf_key);
+                $url = $missing ? null : $disk->url($document->pdf_key);
             } catch (Throwable) {
                 $url = null;
             }
@@ -282,6 +290,7 @@ class GutachtenController extends Controller
             'validTo' => GermanFormat::date($document->valid_to),
             'pdfUrl' => $url,
             'hasPdf' => $document->pdf_key !== null,
+            'pdfMissing' => $missing,
         ];
     }
 
@@ -318,7 +327,10 @@ class GutachtenController extends Controller
                 'min_load_index' => $s->min_load_index,
                 'min_speed_symbol' => $s->min_speed_symbol ?? '',
                 'axle' => $s->axle->value,
-                'label' => GermanFormat::tyreSize($s->width_mm, $s->aspect, (float) $s->diameter_in).($s->axle->value === 'ALL' ? '' : ' ('.$s->axle->labelDe().')'),
+                // The document's own minimum stands with the size, as the Gutachten prints it (R-06).
+                'label' => GermanFormat::tyreSize($s->width_mm, $s->aspect, (float) $s->diameter_in)
+                    .(($s->min_load_index ?? '').($s->min_speed_symbol ?? '') === '' ? '' : ' '.($s->min_load_index ?? '').($s->min_speed_symbol ?? ''))
+                    .($s->axle->value === 'ALL' ? '' : ' ('.$s->axle->labelDe().')'),
             ])->values()->all(),
             'conditions' => $row->conditions->map(static fn (ConditionCode $c): array => [
                 'id' => (int) $c->id,

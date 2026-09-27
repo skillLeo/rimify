@@ -68,9 +68,10 @@ class ApprovalStepRequest extends FormRequest
         return substr($name, (int) strrpos($name, '.') + 1);
     }
 
+    /** The search term, with the no-break spaces a PDF copies in read as spaces. */
     public function term(): string
     {
-        return trim((string) ($this->validated('q') ?? ''));
+        return trim((string) preg_replace('/[\s\x{00A0}\x{202F}]+/u', ' ', (string) ($this->validated('q') ?? '')));
     }
 
     public function vehicleId(): ?int

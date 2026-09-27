@@ -13,6 +13,7 @@ import { computed, ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
+import { focusRefused } from '../../../composables/admin/focusRefused'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
@@ -77,6 +78,7 @@ async function submit(): Promise<void> {
 
     if (pdf.value === null) {
         form.setError('upload_key', 'Bitte wähl das PDF des Gutachtens aus.')
+        focusRefused('.gn-form')
 
         return
     }
@@ -87,6 +89,7 @@ async function submit(): Promise<void> {
 
         if (key === null) {
             form.setError('upload_key', upload.error.value ?? 'Die Datei konnte nicht hochgeladen werden.')
+            focusRefused('.gn-form')
 
             return
         }
@@ -101,6 +104,8 @@ async function submit(): Promise<void> {
             if (bag.upload_key) {
                 form.upload_key = ''
             }
+
+            focusRefused('.gn-form')
         },
     })
 }

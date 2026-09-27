@@ -16,13 +16,16 @@ export interface ParsedTyre {
 
 /**
  * `225/40 R18`, `225/40R18`, `225/40 ZR18 92Y`, `225/40-18` → its parts; null when it is not a tyre
- * size. A load index and speed symbol after it are the document's own minimum.
+ * size. What follows the size is the document's own minimum, as a Gutachten prints it: a load index
+ * and a speed symbol (`92Y`, `92 Y`, `(92Y)`), a load index alone (`93`) or a symbol alone (`Y`). A
+ * trailing `XL` or `RF` names the tyre's build, not a minimum, and is read past.
  */
 export function parseTyre(text: string): ParsedTyre | null {
     const m = text
+        .replace(/[\u00A0\u202F]/g, ' ')
         .trim()
         .toUpperCase()
-        .match(/^(\d{3})\s*\/\s*(\d{2})\s*(?:Z?R|-)\s*(\d{2})(?:\s+(\d{2,3})\s*([A-Z]{1,2}))?$/)
+        .match(/^(\d{3})\s*\/\s*(\d{2})\s*(?:Z?R|-)\s*(\d{2})(?:\s*\(?\s*(?:(\d{2,3})\s*([A-Z])?|([A-Z]))\s*\)?)?(?:\s+(?:XL|RF|REINF|EXTRA LOAD))?$/)
 
     if (!m) {
         return null
@@ -33,8 +36,15 @@ export function parseTyre(text: string): ParsedTyre | null {
         aspect: Number(m[2]),
         diameter: Number(m[3]),
         min_load_index: m[4] ? Number(m[4]) : null,
-        min_speed_symbol: m[5] ?? '',
+        min_speed_symbol: m[5] ?? m[6] ?? '',
     }
+}
+
+/** A size as the form shows it, with the document's minimum where it names one: `245/35 R19 93Y`, `… 93`. */
+export function tyreText(size: { width_mm: number; aspect: number; diameter: number; min_load_index: number | null; min_speed_symbol: string }): string {
+    const minimum = `${size.min_load_index ?? ''}${size.min_speed_symbol ?? ''}`
+
+    return `${size.width_mm}/${size.aspect} R${size.diameter}${minimum === '' ? '' : ` ${minimum}`}`
 }
 
 export function emptySize(axle: AxleValue = 'ALL'): TyreSizeForm {
@@ -74,7 +84,7 @@ export function formFromRow(row: FitmentRowView): RowForm {
         et_max: row.etMax,
         centre_bore: row.centreBore,
         tyre_sizes: row.tyreSizes.map((s) => ({
-            text: `${s.width_mm}/${s.aspect} R${s.diameter}${s.min_load_index !== null && s.min_speed_symbol ? ` ${s.min_load_index}${s.min_speed_symbol}` : ''}`,
+            text: tyreText(s),
             axle: s.axle,
             min_load_index: s.min_load_index,
             min_speed_symbol: s.min_speed_symbol,
@@ -86,6 +96,19 @@ export function formFromRow(row: FitmentRowView): RowForm {
 /** The sizes that do not read as a tyre size, by their place in the list. */
 export function unreadable(form: RowForm): number[] {
     return form.tyre_sizes.flatMap((size, index) => (size.text.trim() !== '' && parseTyre(size.text) === null ? [index] : []))
+}
+
+/**
+ * Where the server finds the size on this line: empty and unreadable lines are not sent, so the
+ * server counts only the sent ones — its sentence about size 2 belongs to the second line sent, not
+ * to the second line on screen. Null for a line that is not sent.
+ */
+export function sentIndex(form: RowForm, index: number): number | null {
+    if (parseTyre(form.tyre_sizes[index]?.text ?? '') === null) {
+        return null
+    }
+
+    return form.tyre_sizes.slice(0, index).filter((size) => parseTyre(size.text) !== null).length
 }
 
 /** What the server reads: empty size lines left out, each size in its parts. */

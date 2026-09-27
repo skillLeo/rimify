@@ -24,6 +24,8 @@ export interface DocumentFacts {
     validTo: string | null
     pdfUrl: string | null
     hasPdf: boolean
+    /** A key is stored, the file is not in the storage. */
+    pdfMissing?: boolean
 }
 
 export interface TyreSizeRow {
@@ -132,4 +134,6 @@ export interface WheelGroup {
     model: string
     demo: boolean
     sizes: { id: number; label: string; finish: string | null; sku: string }[]
+    /** The model goes on past the list's cut: not every size of it is shown. */
+    partial?: boolean
 }

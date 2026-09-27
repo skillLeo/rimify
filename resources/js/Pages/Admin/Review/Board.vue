@@ -32,8 +32,9 @@ function stateLabel(state: string): string {
 <template>
     <AdminPage title="Stand der Seiten" :context="counts.open === 1 ? '1 offene Rückmeldung' : `${decimal(counts.open, 0)} offene Rückmeldungen`">
         <p class="adm-note rb-intro">
-            Fertige Seiten kannst du prüfen. Seiten, die noch fehlen, sind als „Noch nicht gebaut“ markiert. Zu jeder Seite kannst du unten links eine
-            Rückmeldung geben: Ein Satz genügt, ein Bildschirmfoto wird automatisch mitgeschickt.
+            Fertige Seiten kannst du prüfen. Seiten, die noch fehlen, sind als „Noch nicht gebaut“ markiert. Zu jeder Seite kannst du mit „Rückmeldung
+            geben“ etwas sagen – in der Leiste links, am Telefon unter „Mehr“. Ein Satz genügt, ein Bildschirmfoto wird automatisch
+            mitgeschickt.
         </p>
 
         <section v-for="area in areas" :key="area.key" class="adm-section" :aria-labelledby="`rb-${area.key}`">

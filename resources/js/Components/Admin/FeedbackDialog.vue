@@ -22,11 +22,27 @@ const open = computed({
     set: (value: boolean) => (feedback.open = value),
 })
 
+/* A sentence written about another page is not sent with this one's address. */
+let sentenceFor = ''
+
 watch(open, (value) => {
     if (value) {
         errors.value = {}
+
+        if (feedback.url !== sentenceFor) {
+            sentence.value = ''
+            type.value = 'fehler'
+        }
+
+        sentenceFor = feedback.url
     }
 })
+
+/** The server refused the picture: the point can still go, without it. */
+function sendWithout(): void {
+    feedback.screenshot = null
+    send()
+}
 
 const role = computed(() => {
     const admin = (page.props as { admin?: { account?: { role?: string | null } | null } }).admin
@@ -99,7 +115,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                     :aria-invalid="errors.sentence ? 'true' : undefined"
                     aria-describedby="fb-sentence-err fb-context"
                 />
-                <p id="fb-sentence-err" class="form-field__error">{{ errors.sentence ?? errors.url ?? errors.screenshot }}</p>
+                <p id="fb-sentence-err" class="form-field__error">{{ errors.sentence ?? errors.type ?? errors.url ?? errors.viewport ?? errors.browser ?? errors.screenshot }}</p>
+                <button v-if="errors.screenshot && feedback.screenshot" class="btn btn--ghost fb-without" type="button" @click="sendWithout">Ohne Bildschirmfoto senden</button>
             </div>
             <div id="fb-context" class="fb-context">
                 <img v-if="feedback.screenshot" class="fb-shot" :src="feedback.screenshot" alt="Bildschirmfoto dieser Seite, wie es mitgeschickt wird">
@@ -145,6 +162,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .fb-type:has(input:focus-visible) {
     outline: 2px solid var(--c-blue);
     outline-offset: 2px;
+}
+
+.fb-without {
+    justify-self: start;
 }
 
 .fb-area {

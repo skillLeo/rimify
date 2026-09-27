@@ -56,12 +56,22 @@ function open(event: KeyboardEvent): void {
             type="file"
             :accept="accept"
             :disabled="disabled"
-            :aria-invalid="invalid ? 'true' : undefined"
-            :aria-describedby="describedby ? `${id}-name ${describedby}` : `${id}-name`"
+            aria-hidden="true"
             tabindex="-1"
             @change="pick"
         >
-        <label :for="id" class="btn btn--secondary adm-filepick__button" role="button" :tabindex="disabled ? -1 : 0" :aria-disabled="disabled ? 'true' : undefined" @keydown.enter="open" @keydown.space="open">
+        <!-- The button is what takes the focus, so it carries the file's name, the error and its state. -->
+        <label
+            :for="id"
+            class="btn btn--secondary adm-filepick__button"
+            role="button"
+            :tabindex="disabled ? -1 : 0"
+            :aria-disabled="disabled ? 'true' : undefined"
+            :aria-invalid="invalid ? 'true' : undefined"
+            :aria-describedby="describedby ? `${id}-name ${describedby}` : `${id}-name`"
+            @keydown.enter="open"
+            @keydown.space="open"
+        >
             {{ label }}
         </label>
         <span :id="`${id}-name`" class="adm-filepick__name" :class="{ 'adm-filepick__name--empty': file === null }">{{ summary }}</span>

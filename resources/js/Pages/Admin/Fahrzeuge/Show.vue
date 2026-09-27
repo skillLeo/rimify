@@ -6,9 +6,11 @@
  */
 
 import { Link, useForm } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { focusRefused } from '../../../composables/admin/focusRefused'
 import { decimal } from '../../../format'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -63,17 +65,33 @@ const groups = computed(() => {
     })
 })
 
+/* Text, not number fields: `1.200` is read as the German thousands it is (VehicleRequest), never as 1,2. */
 const form = useForm({
-    axle_load_front_kg: props.vehicle.axleFront as number | null,
-    axle_load_rear_kg: props.vehicle.axleRear as number | null,
-    max_speed_kmh: props.vehicle.maxSpeed as number | null,
+    axle_load_front_kg: props.vehicle.axleFront === null ? '' : String(props.vehicle.axleFront),
+    axle_load_rear_kg: props.vehicle.axleRear === null ? '' : String(props.vehicle.axleRear),
+    max_speed_kmh: props.vehicle.maxSpeed === null ? '' : String(props.vehicle.maxSpeed),
 })
 
 const errors = computed(() => form.errors as Record<string, string | undefined>)
 const context = computed(() => `${props.vehicle.keys} · ${props.vehicle.window}`)
 
+/* Emptying a value of a complete vehicle takes it out of the shop's answers: that is asked first. */
+const confirmOpen = ref(false)
+const empties = computed(() => [form.axle_load_front_kg, form.axle_load_rear_kg, form.max_speed_kmh].some((value) => String(value).trim() === ''))
+
 function save(): void {
-    form.put(`/admin/fahrzeuge/${props.vehicle.id}`, { preserveScroll: true })
+    if (props.vehicle.complete && empties.value && !confirmOpen.value) {
+        confirmOpen.value = true
+
+        return
+    }
+
+    send()
+}
+
+function send(): void {
+    confirmOpen.value = false
+    form.put(`/admin/fahrzeuge/${props.vehicle.id}`, { preserveScroll: true, onError: () => focusRefused('.fs-form') })
 }
 
 const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeben', retired: 'Ausgelaufen' }
@@ -81,7 +99,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
 
 <template>
     <AdminPage :title="vehicle.name" :context="context">
-        <p v-if="!vehicle.complete" class="fs-warn" role="note">Diesem Fahrzeug fehlen Angaben. Solange sie fehlen, zeigt der Shop für es keine Felge als passend.</p>
+        <p v-if="!vehicle.complete" class="fs-warn" role="note">Diesem Fahrzeug fehlen Angaben. Solange sie fehlen, zeigt der Shop für dieses Fahrzeug keine Felge als passend.</p>
 
         <section class="adm-section" aria-labelledby="fs-facts-h">
             <div class="adm-section__head">
@@ -103,17 +121,17 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
             <form v-if="can.edit" class="fs-form" novalidate @submit.prevent="save">
                 <div class="form-field">
                     <label class="form-field__label" for="fs-front">Achslast vorn in kg (Feld 8.1)</label>
-                    <input id="fs-front" v-model.number="form.axle_load_front_kg" class="input" type="number" min="300" max="5000" inputmode="numeric" :aria-invalid="errors.axle_load_front_kg ? 'true' : undefined" aria-describedby="fs-front-err">
+                    <input id="fs-front" v-model="form.axle_load_front_kg" class="input" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="errors.axle_load_front_kg ? 'true' : undefined" aria-describedby="fs-front-err">
                     <p id="fs-front-err" class="form-field__error">{{ errors.axle_load_front_kg }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="fs-rear">Achslast hinten in kg (Feld 8.2)</label>
-                    <input id="fs-rear" v-model.number="form.axle_load_rear_kg" class="input" type="number" min="300" max="5000" inputmode="numeric" :aria-invalid="errors.axle_load_rear_kg ? 'true' : undefined" aria-describedby="fs-rear-err">
+                    <input id="fs-rear" v-model="form.axle_load_rear_kg" class="input" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="errors.axle_load_rear_kg ? 'true' : undefined" aria-describedby="fs-rear-err">
                     <p id="fs-rear-err" class="form-field__error">{{ errors.axle_load_rear_kg }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="fs-speed">Höchstgeschwindigkeit in km/h (Feld T)</label>
-                    <input id="fs-speed" v-model.number="form.max_speed_kmh" class="input" type="number" min="40" max="420" inputmode="numeric" :aria-invalid="errors.max_speed_kmh ? 'true' : undefined" aria-describedby="fs-speed-err">
+                    <input id="fs-speed" v-model="form.max_speed_kmh" class="input" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="errors.max_speed_kmh ? 'true' : undefined" aria-describedby="fs-speed-err">
                     <p id="fs-speed-err" class="form-field__error">{{ errors.max_speed_kmh }}</p>
                 </div>
                 <div>
@@ -166,6 +184,14 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
                 </div>
             </div>
         </section>
+        <AdminConfirm
+            v-model:open="confirmOpen"
+            title="Angabe entfernen?"
+            body="Ohne alle drei Angaben zeigt der Shop für dieses Fahrzeug keine Felge mehr als passend, bis sie wieder eingetragen sind."
+            confirm-label="Entfernen und speichern"
+            :busy="form.processing"
+            @confirm="send"
+        />
     </AdminPage>
 </template>
 

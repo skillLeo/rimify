@@ -6,13 +6,14 @@
  */
 
 import { router, useForm } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { afterDialogsClose, focusRefused } from '../../../composables/admin/focusRefused'
 import { decimal } from '../../../format'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -26,12 +27,15 @@ interface Code {
     affectsTyreChoice: boolean
     requiresAcknowledgement: boolean
     used: number
+    /** A freigegebenes Gutachten carries it: only its key may still change. */
+    released: boolean
 }
 
 const props = defineProps<{
     codes: Code[]
-    severities: { value: string; label: string }[]
-    can: { create: boolean; edit: boolean }
+    /** `acknowledged`: this Einstufung is always confirmed before the purchase, whatever the box says. */
+    severities: { value: string; label: string; acknowledged: boolean }[]
+    can: { create: boolean; edit: boolean; delete: boolean }
 }>()
 
 const context = computed(() => (props.codes.length === 1 ? '1 Auflage' : `${decimal(props.codes.length, 0)} Auflagen`))
@@ -57,8 +61,24 @@ function openEdit(code: Code): void {
     dialogOpen.value = true
 }
 
+/** The meaning of a released Auflage is fixed; the dialog then offers the key alone. */
+const fixed = computed(() => editing.value?.released === true)
+
+/** An Einstufung that is always confirmed: the box shows it ticked and cannot be unticked. */
+const forcedAck = computed(() => props.severities.find((s) => s.value === form.severity)?.acknowledged === true)
+
+watch(forcedAck, (forced) => {
+    if (forced) {
+        form.requires_acknowledgement = true
+    }
+})
+
 function save(): void {
-    const done = { preserveScroll: true, onSuccess: () => (dialogOpen.value = false) }
+    if (form.processing) {
+        return
+    }
+
+    const done = { preserveScroll: true, onSuccess: () => (dialogOpen.value = false), onError: () => focusRefused('.adm-dialog') }
 
     if (editing.value) {
         form.put(`/admin/auflagen/${editing.value.id}`, done)
@@ -77,11 +97,59 @@ const deleteOpen = computed({
     },
 })
 
+const deleteBusy = ref(false)
+
+/* One request, however often „Löschen“ is pressed; then the keyboard goes to the Auflage now in its place. */
 function destroy(): void {
-    if (deleting.value) {
-        router.delete(`/admin/auflagen/${deleting.value.id}`, { preserveScroll: true, onFinish: () => (deleting.value = null) })
+    const code = deleting.value
+
+    if (!code || deleteBusy.value) {
+        return
     }
+
+    // Closed first, sent once it is gone: a dialog still closing while its row leaves the table never
+    // finished its exit. deleteBusy stops a second press in between.
+    const place = props.codes.findIndex((c) => c.id === code.id)
+    deleteBusy.value = true
+    deleting.value = null
+    afterDialogsClose(() => {
+        router.delete(`/admin/auflagen/${code.id}`, {
+            preserveScroll: true,
+            onFinish: () => {
+                deleteBusy.value = false
+                void nextTick(() => {
+                    const next = props.codes[Math.min(place, props.codes.length - 1)]
+                    const target = next ? document.querySelector<HTMLElement>(`[data-code-edit="${next.id}"]`) : null
+                    ;(target ?? document.querySelector<HTMLElement>('.adm-page__title'))?.focus()
+                })
+            },
+        })
+    })
 }
+
+/* The confirm's sentence outlives `deleting`, so it does not go blank while the dialog fades out. */
+const deleteBody = ref('')
+
+watch(deleting, (code) => {
+    if (code) {
+        deleteBody.value = `„${code.text}“ wird aus dem Auflagen-Katalog gelöscht.`
+    }
+})
+
+/** What the dialog says about where a change lands. */
+const dialogNote = computed(() => {
+    const code = editing.value
+
+    if (!code) {
+        return undefined
+    }
+
+    if (code.released) {
+        return 'Ein freigegebenes Gutachten trägt diese Auflage. Dort ändert sie sich nicht mehr – hier lässt sich nur noch der Schlüssel ändern.'
+    }
+
+    return code.used === 0 ? undefined : code.used === 1 ? 'Die Änderung gilt für die Zeile, die sie trägt.' : `Die Änderung gilt für alle ${decimal(code.used, 0)} Zeilen, die sie tragen.`
+})
 
 /** `927 Zeilen`, or as the reason a row in use stays: `Wird in 927 Zeilen verwendet`. */
 function usedIn(code: Code, sentence = false): string {
@@ -112,7 +180,7 @@ function severityTag(severity: string): string | null {
             </button>
         </template>
 
-        <p class="adm-note al-intro">Jede Auflage steht hier einmal, als ganzer Satz, so wie Kundinnen und Kunden sie lesen. Eine Änderung gilt für jede Zeile, die sie trägt.</p>
+        <p class="adm-note al-intro">Jede Auflage steht hier einmal, als ganzer Satz, so wie Kundinnen und Kunden sie lesen. Eine Änderung gilt für jeden Entwurf, der sie trägt; in freigegebenen Gutachten bleibt sie, wie sie ist.</p>
 
         <AdminState v-if="codes.length === 0" kind="empty" text="Hier steht jede Auflage, sobald die erste angelegt ist." />
 
@@ -124,7 +192,7 @@ function severityTag(severity: string): string | null {
                         <th scope="col">Auflage</th>
                         <th scope="col">Einstufung</th>
                         <th scope="col" class="num">Verwendet</th>
-                        <th v-if="can.edit" scope="col"><span class="visually-hidden">Aktionen</span></th>
+                        <th v-if="can.edit || can.delete" scope="col"><span class="visually-hidden">Aktionen</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -138,12 +206,13 @@ function severityTag(severity: string): string | null {
                             <template v-else>{{ code.severityLabel }}</template>
                         </td>
                         <td data-label="Verwendet" class="num al-used">{{ usedIn(code) }}</td>
-                        <td v-if="can.edit" data-label="Aktionen" class="al-actions">
-                            <button class="adm-iconbtn" type="button" aria-label="Ändern" :aria-describedby="`al-text-${code.id}`" title="Ändern" @click="openEdit(code)">
+                        <td v-if="can.edit || can.delete" data-label="Aktionen" class="al-actions">
+                            <button v-if="can.edit" class="adm-iconbtn" type="button" :data-code-edit="code.id" aria-label="Ändern" :aria-describedby="`al-text-${code.id}`" title="Ändern" @click="openEdit(code)">
                                 <Icon name="edit" :size="20" />
                             </button>
                             <!-- Always drawn, so the column never shifts; a row in use says why it stays. -->
                             <button
+                                v-if="can.delete"
                                 class="adm-iconbtn"
                                 type="button"
                                 :aria-label="code.used === 0 ? 'Löschen' : `Löschen nicht möglich: ${usedIn(code, true)}`"
@@ -160,17 +229,17 @@ function severityTag(severity: string): string | null {
             </table>
         </div>
 
-        <Dialog v-model:open="dialogOpen" :title="editing ? 'Auflage ändern' : 'Neue Auflage'" :description="editing && editing.used ? `Die Änderung gilt für ${editing.used === 1 ? 'die Zeile' : `alle ${decimal(editing.used, 0)} Zeilen`}, die sie tragen.` : undefined" content-class="adm-dialog">
-            <form class="al-form" novalidate @submit.prevent="save">
+        <Dialog v-model:open="dialogOpen" :title="editing ? 'Auflage ändern' : 'Neue Auflage'" :description="dialogNote" content-class="adm-dialog" :initial-focus="fixed ? '#al-code' : '#al-text'">
+            <form id="al-form" class="al-form" novalidate @submit.prevent="save">
                 <div class="form-field">
                     <label class="form-field__label" for="al-text">Wortlaut</label>
-                    <textarea id="al-text" v-model="form.text" class="input al-area" rows="3" maxlength="600" :aria-invalid="errors.text ? 'true' : undefined" aria-describedby="al-text-help al-text-err" />
+                    <textarea id="al-text" v-model="form.text" class="input al-area" rows="3" maxlength="600" :readonly="fixed" :aria-invalid="errors.text ? 'true' : undefined" aria-describedby="al-text-help al-text-err" />
                     <p id="al-text-help" class="form-field__help">Ein ganzer Satz, so wie Kundinnen und Kunden ihn lesen: „Bördeln der Radläufe erforderlich.“</p>
                     <p id="al-text-err" class="form-field__error">{{ errors.text }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="al-severity">Einstufung</label>
-                    <select id="al-severity" v-model="form.severity" class="input" aria-describedby="al-severity-help">
+                    <select id="al-severity" v-model="form.severity" class="input" :disabled="fixed" aria-describedby="al-severity-help">
                         <option v-for="option in severities" :key="option.value" :value="option.value">{{ option.label }}</option>
                     </select>
                     <p id="al-severity-help" class="form-field__help">Alles außer einem Hinweis macht aus „Passt“ ein „Passt mit Auflagen“.</p>
@@ -182,21 +251,22 @@ function severityTag(severity: string): string | null {
                     <p id="al-code-err" class="form-field__error">{{ errors.code }}</p>
                 </div>
                 <label class="al-check">
-                    <input v-model="form.affects_tyre_choice" type="checkbox">
+                    <input v-model="form.affects_tyre_choice" type="checkbox" :disabled="fixed">
                     <span>Schränkt die Reifenwahl ein</span>
                 </label>
                 <label class="al-check">
-                    <input v-model="form.requires_acknowledgement" type="checkbox">
+                    <input v-model="form.requires_acknowledgement" type="checkbox" :disabled="fixed || forcedAck" aria-describedby="al-ack-help">
                     <span>Wird vor dem Kauf bestätigt</span>
                 </label>
+                <p v-if="forcedAck && !fixed" id="al-ack-help" class="form-field__help al-ack-help">Bei dieser Einstufung immer: Kundinnen und Kunden bestätigen sie vor dem Kauf.</p>
             </form>
             <template #actions>
                 <button class="btn btn--secondary" type="button" @click="dialogOpen = false">Abbrechen</button>
-                <button class="btn btn--primary" type="button" :disabled="form.processing" :aria-busy="form.processing ? 'true' : undefined" @click="save">Speichern</button>
+                <button class="btn btn--primary" type="submit" form="al-form" :disabled="form.processing" :aria-busy="form.processing ? 'true' : undefined">Speichern</button>
             </template>
         </Dialog>
 
-        <AdminConfirm v-model:open="deleteOpen" title="Auflage löschen?" :body="deleting ? `„${deleting.text}“ wird aus dem Auflagen-Katalog gelöscht.` : ''" @confirm="destroy" />
+        <AdminConfirm v-model:open="deleteOpen" title="Auflage löschen?" :body="deleteBody" :busy="deleteBusy" @confirm="destroy" />
     </AdminPage>
 </template>
 

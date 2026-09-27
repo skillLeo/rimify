@@ -9,11 +9,12 @@
  */
 
 import { router, usePage } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage, { type AdminPageAction } from '../../../Components/Admin/AdminPage.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
+import { afterDialogsClose, focusRefused } from '../../../composables/admin/focusRefused'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
@@ -67,7 +68,7 @@ const more = computed<AdminPageAction[]>(() => {
     const actions: AdminPageAction[] = []
 
     if (props.document.pdfUrl) {
-        actions.push({ label: 'PDF öffnen', href: props.document.pdfUrl, icon: 'documents' })
+        actions.push({ label: 'PDF öffnen', href: props.document.pdfUrl, external: true, icon: 'documents' })
     }
 
     if (props.can.edit) {
@@ -82,14 +83,31 @@ const more = computed<AdminPageAction[]>(() => {
 const releaseOpen = ref(false)
 const releasing = ref(false)
 
+/* The button that opened the confirm goes with the Freigabe: the keyboard lands on the document's new state. */
+function focusState(): void {
+    void nextTick(() => document.getElementById('gs-state-h')?.focus())
+}
+
+/*
+ * The confirm closes first and the request goes once it is gone: a dialog still closing while the
+ * page beneath it changes shape (the Freigeben button leaves, the composer goes) never finished its exit
+ * and stayed on screen. `releasing` stops a second press in between.
+ */
 function release(): void {
+    if (releasing.value) {
+        return
+    }
+
     releasing.value = true
-    router.post(`/admin/gutachten/${props.document.id}/freigeben`, {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            releasing.value = false
-            releaseOpen.value = false
-        },
+    releaseOpen.value = false
+    afterDialogsClose(() => {
+        router.post(`/admin/gutachten/${props.document.id}/freigeben`, {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                releasing.value = false
+                focusState()
+            },
+        })
     })
 }
 
@@ -118,7 +136,14 @@ function saveRow(): void {
     const row = editing.value
     const form = editForm.value
 
-    if (!row || !form || unreadable(form).length > 0) {
+    if (!row || !form || editBusy.value) {
+        return
+    }
+
+    if (unreadable(form).length > 0) {
+        editErrors.value = { ...editErrors.value }
+        focusRefused('.gs-dialog')
+
         return
     }
 
@@ -126,9 +151,16 @@ function saveRow(): void {
     router.put(`/admin/gutachten/${props.document.id}/zeilen/${row.id}`, payload(form) as never, {
         preserveScroll: true,
         onSuccess: () => (editing.value = null),
-        onError: (bag) => (editErrors.value = bag),
+        onError: (bag) => {
+            editErrors.value = bag
+            focusRefused('.gs-dialog')
+        },
         onFinish: () => (editBusy.value = false),
     })
+}
+
+function editSizesChanged(): void {
+    editErrors.value = Object.fromEntries(Object.entries(editErrors.value).filter(([key]) => !key.startsWith('tyre_sizes')))
 }
 
 const removing = ref<FitmentRowView | null>(null)
@@ -141,23 +173,64 @@ const removeOpen = computed({
     },
 })
 
+const removeBusy = ref(false)
+
+/* The confirm's sentence outlives `removing`, so it does not go blank while the dialog fades out. */
+const removeBody = ref('')
+
+watch(removing, (row) => {
+    if (row) {
+        removeBody.value = `${row.wheel} ${row.size} für ${row.vehicle} wird aus dem Verwendungsbereich entfernt.`
+    }
+})
+
+/*
+ * One request, however often „Entfernen“ is pressed. Afterwards the keyboard goes to the row that now
+ * stands where the removed one stood — or, with none left, to the Verwendungsbereich heading.
+ */
 function remove(): void {
     const row = removing.value
 
-    if (!row) {
+    if (!row || removeBusy.value) {
         return
     }
 
-    router.delete(`/admin/gutachten/${props.document.id}/zeilen/${row.id}`, {
-        preserveScroll: true,
-        onFinish: () => (removing.value = null),
+    // Closed first, sent once it is gone (see release()); removeBusy stops a second press in between.
+    const place = props.rows.findIndex((r) => r.id === row.id)
+    removeBusy.value = true
+    removing.value = null
+    afterDialogsClose(() => {
+        router.delete(`/admin/gutachten/${props.document.id}/zeilen/${row.id}`, {
+            preserveScroll: true,
+            onFinish: () => {
+                removeBusy.value = false
+                void nextTick(() => {
+                    const next = props.rows[Math.min(place, props.rows.length - 1)]
+                    const target = next ? document.querySelector<HTMLElement>(`[data-row-edit="${next.id}"]`) : null
+                    ;(target ?? document.getElementById('gs-rows-h'))?.focus()
+                })
+            },
+        })
     })
 }
 
 /* ── Preview ───────────────────────────────────────────────────────────────── */
 
-const previewVehicle = ref<number | null>(props.previewVehicle)
+/* The vehicle chosen for the preview: the one the server answered for, or the first the rows name. */
+const previewVehicle = ref<number | null>(props.previewVehicle ?? props.vehicles[0]?.id ?? null)
 const previewBusy = ref(false)
+
+watch(
+    () => props.vehicles,
+    (vehicles) => {
+        if (previewVehicle.value === null || !vehicles.some((v) => v.id === previewVehicle.value)) {
+            previewVehicle.value = props.previewVehicle ?? vehicles[0]?.id ?? null
+        }
+    }
+)
+
+/** The vehicle the verdicts on screen were computed for — named above them, so they are never read as another's. */
+const previewFor = computed(() => props.vehicles.find((v) => v.id === props.previewVehicle)?.label ?? null)
 
 function loadPreview(): void {
     if (previewVehicle.value === null) {
@@ -171,6 +244,9 @@ function loadPreview(): void {
         onFinish: () => (previewBusy.value = false),
     })
 }
+
+/** The preview's entry line, as the shop's panel says it. */
+const ENTRY_LINE = 'Eintragung in die Fahrzeugpapiere erforderlich.'
 
 const TONE: Record<string, string | null> = {
     PERMITTED: null,
@@ -191,15 +267,16 @@ const TONE: Record<string, string | null> = {
 
         <!-- ── The state of the document ─────────────────────────────── -->
         <section class="gs-state" :class="{ 'gs-state--blocked': draft && blockers.length }" aria-labelledby="gs-state-h">
-            <h2 id="gs-state-h" class="gs-state__title">
+            <h2 id="gs-state-h" class="gs-state__title" tabindex="-1">
                 <template v-if="draft && blockers.length">Noch nicht freigebbar</template>
                 <template v-else-if="draft">Kann freigegeben werden</template>
-                <template v-else>{{ document.statusLabel }}<template v-if="document.validFrom"> seit {{ document.validFrom }}</template></template>
+                <template v-else>{{ document.statusLabel }}<template v-if="document.status === 'published' && document.validFrom"> seit {{ document.validFrom }}</template><template v-else-if="document.status !== 'published' && document.validTo"> seit {{ document.validTo }}</template></template>
             </h2>
             <ul v-if="draft && blockers.length" class="gs-state__list">
                 <li v-for="line in blockers" :key="line">{{ line }}</li>
             </ul>
-            <p v-else-if="draft" class="adm-note">Mit der Freigabe gelten alle {{ rows.length === 1 ? 'eine Zeile' : `${decimal(rows.length, 0)} Zeilen` }} auf einmal im Shop. Prüf sie vorher in der Vorschau unten.</p>
+            <p v-else-if="draft" class="adm-note">{{ rows.length === 1 ? 'Mit der Freigabe gilt die Zeile sofort im Shop. Prüf sie vorher in der Vorschau unten.' : `Mit der Freigabe gelten alle ${decimal(rows.length, 0)} Zeilen auf einmal im Shop. Prüf sie vorher in der Vorschau unten.` }}</p>
+            <p v-else-if="document.status === 'withdrawn'" class="adm-note">Dieses Dokument wurde zurückgezogen. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else-if="document.status === 'superseded'" class="adm-note">Eine neuere Fassung hat dieses Dokument ersetzt. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else class="adm-note">Ein freigegebenes Gutachten ändert sich nicht mehr. Für Änderungen legst du eine neue Fassung an, die es ersetzt.</p>
             <p v-if="openConflicts" class="adm-note">{{ openConflicts === 1 ? 'Eine Zeile widerspricht' : `${decimal(openConflicts, 0)} Zeilen widersprechen` }} einem anderen Gutachten. Bis zur Klärung gilt die strengere Angabe.</p>
@@ -228,6 +305,7 @@ const TONE: Record<string, string | null> = {
                     <dt>PDF</dt>
                     <dd>
                         <a v-if="document.pdfUrl" :href="document.pdfUrl" target="_blank" rel="noopener">PDF öffnen</a>
+                        <template v-else-if="document.pdfMissing">Die Datei fehlt im Speicher. Lad das PDF über „Ändern“ neu hoch.</template>
                         <template v-else>Kein PDF hinterlegt</template>
                     </dd>
                 </div>
@@ -237,7 +315,7 @@ const TONE: Record<string, string | null> = {
         <!-- ── Verwendungsbereich ────────────────────────────────────── -->
         <section class="adm-section" aria-labelledby="gs-rows-h">
             <div class="adm-section__head">
-                <h2 id="gs-rows-h" class="adm-section__title">Verwendungsbereich</h2>
+                <h2 id="gs-rows-h" class="adm-section__title" tabindex="-1">Verwendungsbereich</h2>
             </div>
 
             <p v-if="rows.length === 0" class="adm-note">Noch keine Zeile. {{ can.edit ? 'Leg unten die ersten an: Fahrzeuge und Größen wählen, Reifengrößen und Auflagen eintragen.' : '' }}</p>
@@ -281,7 +359,7 @@ const TONE: Record<string, string | null> = {
                                     <template v-else>{{ row.sourcePage ?? '–' }}</template>
                                 </td>
                                 <td v-if="can.edit" data-label="Aktionen" class="gs-actions">
-                                    <button class="adm-iconbtn" type="button" :aria-label="`Zeile ${row.wheel} ${row.size} ändern`" title="Ändern" @click="edit(row)">
+                                    <button class="adm-iconbtn" type="button" :data-row-edit="row.id" :aria-label="`Zeile ${row.wheel} ${row.size} ändern`" title="Ändern" @click="edit(row)">
                                         <Icon name="edit" :size="20" />
                                     </button>
                                     <button class="adm-iconbtn" type="button" :aria-label="`Zeile ${row.wheel} ${row.size} entfernen`" title="Entfernen" @click="removing = row">
@@ -310,12 +388,13 @@ const TONE: Record<string, string | null> = {
             <p class="adm-note">So antwortet der Shop{{ draft ? ' nach der Freigabe' : '' }} für dieses Fahrzeug – berechnet von derselben Prüfung, die jede Kundin und jeder Kunde bekommt.</p>
             <form class="gs-preview-pick" @submit.prevent="loadPreview">
                 <label class="visually-hidden" for="gs-preview-vehicle">Fahrzeug für die Vorschau</label>
-                <select id="gs-preview-vehicle" v-model="previewVehicle" class="input">
+                <select id="gs-preview-vehicle" v-model="previewVehicle" class="input" @change="loadPreview">
                     <option v-for="vehicle in vehicles" :key="vehicle.id" :value="vehicle.id">{{ vehicle.label }}</option>
                 </select>
                 <button class="btn btn--secondary" type="submit" :disabled="previewBusy" :aria-busy="previewBusy ? 'true' : undefined">Vorschau zeigen</button>
             </form>
 
+            <p v-if="preview && previewFor" class="gs-preview-for">Vorschau für {{ previewFor }}</p>
             <ul v-if="preview && preview.length" class="gs-verdicts" aria-live="polite">
                 <li v-for="verdict in preview" :key="verdict.config" class="gs-verdict">
                     <div class="gs-verdict__head">
@@ -326,7 +405,8 @@ const TONE: Record<string, string | null> = {
                     <p v-if="verdict.reason" class="gs-verdict__line">{{ verdict.reason }}</p>
                     <p v-if="verdict.front.length" class="gs-verdict__line">Reifen: {{ verdict.front.join(', ') }}<template v-if="verdict.rear.length && verdict.rear.join() !== verdict.front.join()"> · hinten {{ verdict.rear.join(', ') }}</template></p>
                     <p v-if="verdict.requiresEntry" class="gs-verdict__line">Eintragung in die Fahrzeugpapiere erforderlich.<template v-if="verdict.entryNote"> {{ verdict.entryNote }}</template></p>
-                    <p v-for="sentence in verdict.conditions" :key="sentence" class="gs-verdict__line">{{ sentence }}</p>
+                    <!-- An Auflage that repeats the entry line word for word is not said twice. -->
+                    <p v-for="(sentence, i) in verdict.conditions.filter((s) => !(verdict.requiresEntry && s === ENTRY_LINE))" :key="i" class="gs-verdict__line">{{ sentence }}</p>
                 </li>
             </ul>
             <p v-else-if="preview" class="adm-note">Für dieses Fahrzeug gibt es in diesem Gutachten keine Zeile.</p>
@@ -335,7 +415,7 @@ const TONE: Record<string, string | null> = {
         <AdminConfirm
             v-model:open="releaseOpen"
             title="Gutachten freigeben?"
-            :body="`Alle ${rows.length === 1 ? 'eine Zeile' : `${decimal(rows.length, 0)} Zeilen`} gelten danach sofort im Shop. Ein freigegebenes Gutachten ändert sich nicht mehr; Änderungen kommen mit einer neuen Fassung.`"
+            :body="`${rows.length === 1 ? 'Die Zeile gilt' : `Alle ${decimal(rows.length, 0)} Zeilen gelten`} danach sofort im Shop. Ein freigegebenes Gutachten ändert sich nicht mehr; Änderungen kommen mit einer neuen Fassung.`"
             confirm-label="Freigeben"
             :busy="releasing"
             @confirm="release"
@@ -344,16 +424,20 @@ const TONE: Record<string, string | null> = {
         <AdminConfirm
             v-model:open="removeOpen"
             title="Zeile entfernen?"
-            :body="removing ? `${removing.wheel} ${removing.size} für ${removing.vehicle} wird aus dem Verwendungsbereich entfernt.` : ''"
+            :body="removeBody"
             confirm-label="Entfernen"
+            :busy="removeBusy"
             @confirm="remove"
         />
 
-        <Dialog v-model:open="editOpen" title="Zeile ändern" :description="editing ? `${editing.vehicle} · ${editing.wheel} ${editing.size}` : undefined" content-class="adm-dialog gs-dialog" wide>
-            <RowFields v-if="editForm" v-model:form="editForm" :conditions="conditions" :errors="editErrors" id-prefix="gs-edit" :page-count="document.pageCount" />
+        <Dialog v-model:open="editOpen" title="Zeile ändern" :description="editing ? `${editing.vehicle} · ${editing.wheel} ${editing.size}` : undefined" content-class="adm-dialog gs-dialog" initial-focus="#gs-edit-axle" wide>
+            <!-- A form, so Enter in a field saves, as in every other dialog of the panel. -->
+            <form id="gs-edit-form" novalidate @submit.prevent="saveRow">
+                <RowFields v-if="editForm" v-model:form="editForm" :conditions="conditions" :errors="editErrors" id-prefix="gs-edit" :page-count="document.pageCount" @sizes-changed="editSizesChanged" />
+            </form>
             <template #actions>
                 <button class="btn btn--secondary" type="button" @click="editOpen = false">Abbrechen</button>
-                <button class="btn btn--primary" type="button" :disabled="editBusy" :aria-busy="editBusy ? 'true' : undefined" @click="saveRow">Speichern</button>
+                <button class="btn btn--primary" type="submit" form="gs-edit-form" :disabled="editBusy" :aria-busy="editBusy ? 'true' : undefined">Speichern</button>
             </template>
         </Dialog>
 
@@ -422,6 +506,14 @@ const TONE: Record<string, string | null> = {
 
 .gs-line {
     display: block;
+    overflow-wrap: anywhere;
+}
+
+.gs-preview-for {
+    margin: var(--sp-12) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
 }
 
 .gs-missing {

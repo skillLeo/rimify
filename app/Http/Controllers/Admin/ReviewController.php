@@ -75,6 +75,8 @@ class ReviewController extends Controller
                 'image' => $f->screenshot_path === null ? null : '/admin/review/rueckmeldungen/'.$f->id.'/bild',
             ])->values()->all(),
             'filters' => ['typ' => $type ?? '', 'seite' => $screen ?? '', 'status' => $status],
+            // Everything there is, before the filters: nothing matching is not the same as nothing sent.
+            'total' => ReviewFeedback::query()->count(),
             'types' => array_map(static fn (string $value, string $label): array => ['value' => $value, 'label' => $label], array_keys(ReviewFeedback::TYPES), ReviewFeedback::TYPES),
             'statuses' => array_map(static fn (string $value, string $label): array => ['value' => $value, 'label' => $label], array_keys(ReviewFeedback::STATUSES), ReviewFeedback::STATUSES),
             'screens' => ReviewBoard::screens(),

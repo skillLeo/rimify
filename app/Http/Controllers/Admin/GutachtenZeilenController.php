@@ -27,14 +27,20 @@ class GutachtenZeilenController extends Controller
     /** The most a search answers with: a list longer than this is a question to narrow. */
     public const SEARCH_LIMIT = 40;
 
+    /** Sizes listed at most before anything narrows them. */
+    public const SIZE_LIMIT = 200;
+
     public function store(FitmentRowsRequest $request, ApprovalDocument $document, FitmentRows $rows): RedirectResponse
     {
         $result = $rows->add($document, $request->vehicleIds(), $request->configIds(), $request->spec(), $request->admin());
-        $toast = ($result['created'] === 1 ? 'Eine Zeile' : GermanFormat::integer($result['created']).' Zeilen').' angelegt.';
-
-        if ($result['skipped'] > 0) {
-            $toast .= ' '.($result['skipped'] === 1 ? 'Eine gab es schon' : GermanFormat::integer($result['skipped']).' gab es schon').'; sie blieben, wie sie waren.';
-        }
+        $created = $result['created'];
+        $skipped = $result['skipped'];
+        $toast = match (true) {
+            $created === 0 && $skipped === 1 => 'Keine neue Zeile: Diese Zeile gab es schon; sie bleibt, wie sie war.',
+            $created === 0 => 'Keine neue Zeile: Alle '.GermanFormat::integer($skipped).' gab es schon; sie bleiben, wie sie waren.',
+            default => ($created === 1 ? 'Eine Zeile' : GermanFormat::integer($created).' Zeilen').' angelegt.'
+                .($skipped === 0 ? '' : ' '.($skipped === 1 ? 'Eine gab es schon; sie bleibt, wie sie war.' : GermanFormat::integer($skipped).' gab es schon; sie bleiben, wie sie waren.')),
+        };
 
         return back()->with('toast', $toast);
     }
@@ -60,7 +66,7 @@ class GutachtenZeilenController extends Controller
         $query = Vehicle::query()->orderBy('make')->orderBy('model')->orderBy('variant')->orderBy('id');
 
         if ($term !== '') {
-            if (preg_match('/^(\d{4})\s*[\/\s]?\s*([A-Za-z0-9]{3})?$/', $term, $m) === 1) {
+            if (preg_match('/^(\d{4})\s*[\/\s-]?\s*([A-Za-z0-9]{3})?$/', $term, $m) === 1) {
                 $query->where('hsn', $m[1]);
 
                 if (($m[2] ?? '') !== '') {
@@ -114,7 +120,9 @@ class GutachtenZeilenController extends Controller
             });
         }
 
-        $configs = $query->limit(200)->get();
+        $found = $query->limit(self::SIZE_LIMIT + 1)->get();
+        $more = $found->count() > self::SIZE_LIMIT;
+        $configs = $found->take(self::SIZE_LIMIT);
         $groups = [];
 
         foreach ($configs as $config) {
@@ -129,6 +137,13 @@ class GutachtenZeilenController extends Controller
             ];
         }
 
-        return response()->json(['groups' => array_values($groups), 'more' => $configs->count() >= 200]);
+        $groups = array_values($groups);
+
+        // The last model may go on past the cut: „alle“ would then promise sizes nobody saw.
+        if ($more && $groups !== []) {
+            $groups[count($groups) - 1]['partial'] = true;
+        }
+
+        return response()->json(['groups' => $groups, 'more' => $more]);
     }
 }

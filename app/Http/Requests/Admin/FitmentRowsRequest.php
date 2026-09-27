@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Domain\Fitment\Verdict\Condition;
 use App\Enums\Axle;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -11,6 +12,7 @@ use App\Models\Fitment;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Support\GermanNumber;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -27,6 +29,9 @@ use Illuminate\Validation\Validator;
  */
 class FitmentRowsRequest extends FormRequest
 {
+    /** The most rows one „Zeilen anlegen“ writes: vehicles × sizes. */
+    public const MAX_ROWS = 2000;
+
     public function authorize(): bool
     {
         $user = $this->user('admin');
@@ -148,6 +153,52 @@ class FitmentRowsRequest extends FormRequest
                     }
                 }
 
+                // A pair typed the wrong way round is said under its upper bound, never left to the
+                // table's check constraint (which would answer with a server fault).
+                $width = [GermanNumber::parse((string) $this->input('width_min', ''), 2), GermanNumber::parse((string) $this->input('width_max', ''), 2)];
+
+                if ($width[0] !== null && $width[1] !== null && (float) $width[0] > (float) $width[1] && ! $validator->errors()->hasAny(['width_min', 'width_max'])) {
+                    $validator->errors()->add('width_max', 'Die Breite bis ist kleiner als die Breite von.');
+                }
+
+                $et = [GermanNumber::integer((string) $this->input('et_min', ''), true), GermanNumber::integer((string) $this->input('et_max', ''), true)];
+
+                if ($et[0] !== null && $et[1] !== null && $et[0] > $et[1] && ! $validator->errors()->hasAny(['et_min', 'et_max'])) {
+                    $validator->errors()->add('et_max', 'ET bis ist kleiner als ET von.');
+                }
+
+                // Every vehicle × every size is one row: a batch stays small enough to check and to write.
+                $pairs = count((array) $this->input('vehicle_ids', [])) * count((array) $this->input('config_ids', []));
+
+                if ($this->adding() && $pairs > self::MAX_ROWS && ! $validator->errors()->hasAny(['vehicle_ids', 'config_ids'])) {
+                    $validator->errors()->add('config_ids', 'Das wären '.number_format($pairs, 0, ',', '.').' Zeilen auf einmal – höchstens '
+                        .number_format(self::MAX_ROWS, 0, ',', '.').'. Wähl bitte weniger Fahrzeuge oder Größen.');
+                }
+
+                // The Eintragung box and an Auflage about the Eintragung must say the same thing: a row that
+                // says both is refused, never stored for the shop to choose between (R-02).
+                $codes = DB::table('condition_codes')
+                    ->whereIn('id', array_values(array_filter(array_map(static fn (mixed $c): mixed => is_array($c) ? ($c['id'] ?? null) : null, (array) $this->input('conditions', [])), 'is_numeric')))
+                    ->pluck('code')->all();
+                $entry = filter_var($this->input('requires_entry'), FILTER_VALIDATE_BOOL);
+
+                if (! $entry && in_array(Condition::ENTRY_REQUIRED, $codes, true) && ! $validator->errors()->has('requires_entry')) {
+                    $validator->errors()->add('requires_entry', 'Die gewählte Auflage verlangt eine Eintragung. Setz bitte auch das Häkchen „Eintragung in die Fahrzeugpapiere erforderlich“.');
+                }
+
+                if ($entry && in_array(Condition::NO_ENTRY_REQUIRED, $codes, true) && ! $validator->errors()->has('requires_entry')) {
+                    $validator->errors()->add('requires_entry', 'Die gewählte Auflage sagt „Keine Eintragung erforderlich“ – das widerspricht dem Häkchen. Bitte entscheide dich für eins.');
+                }
+
+                // A changed row may not become the twin of another: one row per vehicle, size and axle.
+                $row = $this->route('fitment');
+
+                if ($row instanceof Fitment && is_string($this->input('axle')) && ! $validator->errors()->has('axle')
+                    && Fitment::query()->where('approval_document_id', $row->approval_document_id)->where('vehicle_id', $row->vehicle_id)
+                        ->where('wheel_config_id', $row->wheel_config_id)->where('axle', $this->input('axle'))->whereKeyNot($row->id)->exists()) {
+                    $validator->errors()->add('axle', 'Für dieses Fahrzeug und diese Größe gibt es schon eine Zeile mit dieser Achse.');
+                }
+
                 $document = $this->route('document');
                 $page = $this->input('source_page');
 
@@ -162,7 +213,13 @@ class FitmentRowsRequest extends FormRequest
                         continue;
                     }
 
-                    $key = implode('|', [$size['width_mm'] ?? '', $size['aspect'] ?? '', $size['diameter'] ?? '', $size['axle'] ?? '']);
+                    // Read as the table will store it, so „+225“ and „225“ are one size.
+                    $key = implode('|', [
+                        is_numeric($size['width_mm'] ?? null) ? (int) $size['width_mm'] : '',
+                        is_numeric($size['aspect'] ?? null) ? (int) $size['aspect'] : '',
+                        is_numeric($size['diameter'] ?? null) ? number_format((float) $size['diameter'], 1, '.', '') : '',
+                        is_string($size['axle'] ?? null) ? $size['axle'] : '',
+                    ]);
 
                     if (isset($seen[$key]) && ! $validator->errors()->has("tyre_sizes.{$i}.width_mm")) {
                         $validator->errors()->add("tyre_sizes.{$i}.width_mm", 'Diese Reifengröße steht schon in der Liste.');

@@ -19,6 +19,8 @@ export interface AdminPageAction {
     label: string
     /** A place to go … */
     href?: string
+    /** … outside the panel — a file such as a PDF: opened in a new tab by the browser, never as a page visit. */
+    external?: boolean
     /** … or a thing to do. */
     run?: () => void
     icon?: AdminIconName
@@ -52,7 +54,7 @@ const danger = computed(() => props.more.filter((a) => a.danger))
 
     <header class="adm-page__head" :class="{ 'adm-page__part--dash': dashboard }">
         <div class="adm-page__titles">
-            <h1 class="adm-page__title">{{ title }}</h1>
+            <h1 class="adm-page__title" tabindex="-1">{{ title }}</h1>
             <p class="adm-page__context">{{ context }}</p>
         </div>
 
@@ -65,7 +67,13 @@ const danger = computed(() => props.more.filter((a) => a.danger))
                 <DropdownMenuPortal>
                     <DropdownMenuContent class="adm-menu" align="end" :side-offset="8">
                         <template v-for="action in safe" :key="action.label">
-                            <DropdownMenuItem v-if="action.href" as-child>
+                            <DropdownMenuItem v-if="action.href && action.external" as-child>
+                                <a :href="action.href" class="adm-menu__item" target="_blank" rel="noopener">
+                                    <Icon v-if="action.icon" :name="action.icon" :size="20" />
+                                    {{ action.label }}
+                                </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem v-else-if="action.href" as-child>
                                 <Link :href="action.href" class="adm-menu__item">
                                     <Icon v-if="action.icon" :name="action.icon" :size="20" />
                                     {{ action.label }}

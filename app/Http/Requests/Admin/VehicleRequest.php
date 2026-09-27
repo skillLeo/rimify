@@ -30,6 +30,22 @@ class VehicleRequest extends FormRequest
             : $user->can('viewAny', Vehicle::class);
     }
 
+    /** `1.200` is how a German writes 1200 kg: the thousands dot and spaces are read past. */
+    protected function prepareForValidation(): void
+    {
+        if ($this->step() !== 'update') {
+            return;
+        }
+
+        foreach (['axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh'] as $key) {
+            $value = $this->input($key);
+
+            if (is_string($value) && preg_match('/^\s*\d{1,3}(?:[.\s\x{00A0}]\d{3})+\s*$/u', $value) === 1) {
+                $this->merge([$key => (string) preg_replace('/\D/', '', $value)]);
+            }
+        }
+    }
+
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {

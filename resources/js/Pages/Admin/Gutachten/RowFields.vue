@@ -8,11 +8,11 @@
  * Used for adding rows and for changing one; the page owns the values.
  */
 
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import type { AxleValue, ConditionOption, RowForm } from '../../../types/admin/gutachten'
-import { emptySize, parseTyre } from './rows'
+import { emptySize, parseTyre, sentIndex } from './rows'
 
 const props = defineProps<{
     conditions: ConditionOption[]
@@ -21,7 +21,25 @@ const props = defineProps<{
     pageCount: number | null
 }>()
 
+const emit = defineEmits<{ 'sizes-changed': [] }>()
+
 const form = defineModel<RowForm>('form', { required: true })
+
+/* A size is judged once its line is left, not from the first keystroke — or at once after a refusal. */
+const left = ref(new Set<number>())
+
+watch(
+    () => props.errors,
+    (errors) => {
+        if (Object.keys(errors).length > 0) {
+            left.value = new Set(form.value.tyre_sizes.map((_, index) => index))
+        }
+    }
+)
+
+function leave(index: number): void {
+    left.value = new Set([...left.value, index])
+}
 
 const AXLES: { value: AxleValue; label: string }[] = [
     { value: 'ALL', label: 'Alle Achsen' },
@@ -29,7 +47,10 @@ const AXLES: { value: AxleValue; label: string }[] = [
     { value: 'REAR', label: 'Hinterachse' },
 ]
 
-const hasLimits = computed(() => [form.value.build_from, form.value.build_to, form.value.width_min, form.value.width_max, form.value.et_min, form.value.et_max, form.value.centre_bore].some((v) => v !== ''))
+const LIMITS = ['build_from', 'build_to', 'width_min', 'width_max', 'et_min', 'et_max', 'centre_bore'] as const
+
+/* Unfolded when the row has limits — and when one of them was refused, so the sentence is seen. */
+const hasLimits = computed(() => LIMITS.some((key) => form.value[key] !== '') || LIMITS.some((key) => Boolean(props.errors[key])))
 
 function id(name: string): string {
     return `${props.idPrefix}-${name}`
@@ -43,10 +64,13 @@ function sizeError(index: number): string {
     const text = form.value.tyre_sizes[index]?.text ?? ''
 
     if (text.trim() !== '' && parseTyre(text) === null) {
-        return 'Diese Reifengröße können wir nicht lesen. Schreib sie bitte so: 225/40 R18.'
+        return left.value.has(index) ? 'Diese Reifengröße können wir nicht lesen. Schreib sie bitte so: 225/40 R18 oder 225/40 R18 92Y.' : ''
     }
 
-    return ['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle'].map((f) => err(`tyre_sizes.${index}.${f}`)).find(Boolean) ?? ''
+    // The server counts only the sizes it was sent.
+    const sent = sentIndex(form.value, index)
+
+    return sent === null ? '' : (['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean) ?? '')
 }
 
 function addSize(): void {
@@ -54,8 +78,11 @@ function addSize(): void {
     form.value.tyre_sizes.push(emptySize(last?.axle ?? 'ALL'))
 }
 
+/* A removed line takes its sentences with it: the line now in its place was not what they were about. */
 function removeSize(index: number): void {
     form.value.tyre_sizes.splice(index, 1)
+    left.value = new Set([...left.value].filter((i) => i < index).concat([...left.value].filter((i) => i > index).map((i) => i - 1)))
+    emit('sizes-changed')
 }
 
 function chosen(conditionId: number): boolean {
@@ -80,9 +107,10 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
         <div class="rf-pair">
             <div class="form-field">
                 <label class="form-field__label" :for="id('axle')">Achse</label>
-                <select :id="id('axle')" v-model="form.axle" class="input">
+                <select :id="id('axle')" v-model="form.axle" class="input" :aria-invalid="err('axle') ? 'true' : undefined" :aria-describedby="`${id('axle')}-err`">
                     <option v-for="axle in AXLES" :key="axle.value" :value="axle.value">{{ axle.label }}</option>
                 </select>
+                <p :id="`${id('axle')}-err`" class="form-field__error">{{ err('axle') }}</p>
             </div>
             <div class="form-field">
                 <label class="form-field__label" :for="id('page')">Seite im Gutachten <span class="rf-optional">(optional)</span></label>
@@ -115,6 +143,7 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
                         placeholder="225/40 R18"
                         spellcheck="false"
                         autocomplete="off"
+                        @blur="leave(index)"
                         :aria-invalid="sizeError(index) ? 'true' : undefined"
                         :aria-describedby="`${id(`size-${index}`)}-err`"
                     >
@@ -130,7 +159,7 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
                 </button>
                 <p :id="`${id(`size-${index}`)}-err`" class="form-field__error rf-size__err">{{ sizeError(index) }}</p>
             </div>
-            <p class="form-field__help">Ein Mindest-Lastindex aus dem Gutachten steht hinter der Größe: 245/35 R19 93Y.</p>
+            <p class="form-field__help">Nennt das Gutachten einen Mindest-Lastindex oder ein Geschwindigkeitssymbol, steht es hinter der Größe: 245/35 R19 93Y oder 245/35 R19 93.</p>
             <div>
                 <button class="btn btn--ghost" type="button" @click="addSize">
                     <Icon name="plus" :size="20" />
@@ -156,12 +185,14 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
 
         <div class="rf-group">
             <label class="rf-check">
-                <input v-model="form.requires_entry" type="checkbox">
+                <input v-model="form.requires_entry" type="checkbox" :aria-invalid="err('requires_entry') ? 'true' : undefined" :aria-describedby="`${id('entry-flag')}-err`">
                 <span>Eintragung in die Fahrzeugpapiere erforderlich</span>
             </label>
+            <p :id="`${id('entry-flag')}-err`" class="form-field__error">{{ err('requires_entry') }}</p>
             <div v-if="form.requires_entry" class="form-field">
                 <label class="form-field__label" :for="id('entry')">Hinweis zur Eintragung <span class="rf-optional">(optional)</span></label>
-                <input :id="id('entry')" v-model="form.entry_note" class="input" type="text" maxlength="500" placeholder="z. B. Abnahme nach § 19 Abs. 3 StVZO.">
+                <input :id="id('entry')" v-model="form.entry_note" class="input" type="text" maxlength="500" placeholder="z. B. Abnahme nach § 19 Abs. 3 StVZO." :aria-invalid="err('entry_note') ? 'true' : undefined" :aria-describedby="`${id('entry')}-err`">
+                <p :id="`${id('entry')}-err`" class="form-field__error">{{ err('entry_note') }}</p>
             </div>
         </div>
 
@@ -171,38 +202,38 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
             <div class="rf-pair">
                 <div class="form-field">
                     <label class="form-field__label" :for="id('from')">Baujahr ab</label>
-                    <DateField :id="id('from')" v-model="form.build_from" :invalid="Boolean(err('build_from'))" />
-                    <p class="form-field__error">{{ err('build_from') }}</p>
+                    <DateField :id="id('from')" v-model="form.build_from" :invalid="Boolean(err('build_from'))" :describedby="`${id('from')}-err`" />
+                    <p :id="`${id('from')}-err`" class="form-field__error">{{ err('build_from') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('to')">Baujahr bis</label>
-                    <DateField :id="id('to')" v-model="form.build_to" :invalid="Boolean(err('build_to'))" />
-                    <p class="form-field__error">{{ err('build_to') }}</p>
+                    <DateField :id="id('to')" v-model="form.build_to" :invalid="Boolean(err('build_to'))" :describedby="`${id('to')}-err`" />
+                    <p :id="`${id('to')}-err`" class="form-field__error">{{ err('build_to') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('wmin')">Breite von (Zoll)</label>
-                    <input :id="id('wmin')" v-model="form.width_min" class="input" type="text" inputmode="decimal" placeholder="8" :aria-invalid="err('width_min') ? 'true' : undefined">
-                    <p class="form-field__error">{{ err('width_min') }}</p>
+                    <input :id="id('wmin')" v-model="form.width_min" class="input" type="text" inputmode="decimal" placeholder="8" :aria-invalid="err('width_min') ? 'true' : undefined" :aria-describedby="`${id('wmin')}-err`">
+                    <p :id="`${id('wmin')}-err`" class="form-field__error">{{ err('width_min') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('wmax')">Breite bis (Zoll)</label>
-                    <input :id="id('wmax')" v-model="form.width_max" class="input" type="text" inputmode="decimal" placeholder="9" :aria-invalid="err('width_max') ? 'true' : undefined">
-                    <p class="form-field__error">{{ err('width_max') }}</p>
+                    <input :id="id('wmax')" v-model="form.width_max" class="input" type="text" inputmode="decimal" placeholder="9" :aria-invalid="err('width_max') ? 'true' : undefined" :aria-describedby="`${id('wmax')}-err`">
+                    <p :id="`${id('wmax')}-err`" class="form-field__error">{{ err('width_max') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('emin')">ET von (mm)</label>
-                    <input :id="id('emin')" v-model="form.et_min" class="input" type="text" inputmode="numeric" placeholder="30" :aria-invalid="err('et_min') ? 'true' : undefined">
-                    <p class="form-field__error">{{ err('et_min') }}</p>
+                    <input :id="id('emin')" v-model="form.et_min" class="input" type="text" inputmode="numeric" placeholder="30" :aria-invalid="err('et_min') ? 'true' : undefined" :aria-describedby="`${id('emin')}-err`">
+                    <p :id="`${id('emin')}-err`" class="form-field__error">{{ err('et_min') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('emax')">ET bis (mm)</label>
-                    <input :id="id('emax')" v-model="form.et_max" class="input" type="text" inputmode="numeric" placeholder="45" :aria-invalid="err('et_max') ? 'true' : undefined">
-                    <p class="form-field__error">{{ err('et_max') }}</p>
+                    <input :id="id('emax')" v-model="form.et_max" class="input" type="text" inputmode="numeric" placeholder="45" :aria-invalid="err('et_max') ? 'true' : undefined" :aria-describedby="`${id('emax')}-err`">
+                    <p :id="`${id('emax')}-err`" class="form-field__error">{{ err('et_max') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('bore')">Mittenlochbohrung laut Gutachten (mm)</label>
-                    <input :id="id('bore')" v-model="form.centre_bore" class="input" type="text" inputmode="decimal" placeholder="66,6" :aria-invalid="err('centre_bore') ? 'true' : undefined">
-                    <p class="form-field__error">{{ err('centre_bore') }}</p>
+                    <input :id="id('bore')" v-model="form.centre_bore" class="input" type="text" inputmode="decimal" placeholder="66,6" :aria-invalid="err('centre_bore') ? 'true' : undefined" :aria-describedby="`${id('bore')}-err`">
+                    <p :id="`${id('bore')}-err`" class="form-field__error">{{ err('centre_bore') }}</p>
                 </div>
             </div>
         </details>
@@ -290,6 +321,7 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
 
 .rf-more__summary {
     min-height: var(--adm-control-h);
+    padding-block: var(--sp-8);
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     font-weight: 500;
@@ -298,6 +330,13 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
 
 .rf-more[open] .rf-pair {
     margin-top: var(--sp-12);
+}
+
+/* A finger needs the larger target. */
+@media (pointer: coarse) {
+    .rf-more__summary {
+        min-height: var(--adm-control-h-lg);
+    }
 }
 
 @media (max-width: 767px) {

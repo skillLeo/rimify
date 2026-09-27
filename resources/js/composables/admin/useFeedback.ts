@@ -3,7 +3,7 @@
  * sent with where it was made — the address, the window, the browser — and what it looked like.
  *
  * The screenshot is taken before the dialog opens, so the dialog is not in it; it is the admin's own
- * page, drawn in the browser (html-to-image) and sent as a PNG. If the browser cannot draw it, the
+ * page as far as the window shows it, drawn in the browser (html-to-image) and sent as a PNG. If the browser cannot draw it, the
  * point goes without one — the sentence is what matters.
  *
  * One dialog for the whole panel (FeedbackDialog in the layout); the rail foot, the phone's „Mehr“
@@ -63,20 +63,31 @@ export async function startFeedback(): Promise<void> {
     feedback.screenshot = null
 
     try {
-        const { toPng } = await import('html-to-image')
+        const { toCanvas } = await import('html-to-image')
         const root = document.querySelector<HTMLElement>('.adm') ?? document.body
 
-        feedback.screenshot = await toPng(root, {
-            // What the person sees: the window, not the whole scrolled page.
-            width: window.innerWidth,
-            height: window.innerHeight,
-            canvasWidth: window.innerWidth,
-            canvasHeight: window.innerHeight,
+        /*
+         * What the person sees: the window where it is scrolled to, not the top of the page. The page is
+         * drawn from its top down to the window's lower edge, and the part above the window is cut off.
+         */
+        const width = window.innerWidth
+        const height = window.innerHeight
+        const top = Math.max(0, Math.round(-root.getBoundingClientRect().top))
+        const page = await toCanvas(root, {
+            width,
+            height: top + height,
+            canvasWidth: width,
+            canvasHeight: top + height,
             pixelRatio: 1,
             cacheBust: true,
             skipFonts: true,
             filter: (node) => !(node instanceof HTMLElement && node.dataset.feedbackSkip !== undefined),
         })
+        const view = document.createElement('canvas')
+        view.width = width
+        view.height = height
+        view.getContext('2d')?.drawImage(page, 0, top, width, height, 0, 0, width, height)
+        feedback.screenshot = view.toDataURL('image/png')
     } catch {
         feedback.screenshot = null
     } finally {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FitmentRowView } from '../../../types/admin/gutachten'
-import { emptyRow, formFromRow, parseTyre, payload, unreadable } from './rows'
+import { emptyRow, formFromRow, parseTyre, payload, sentIndex, unreadable } from './rows'
 
 describe('reading a tyre size as a Gutachten prints it', () => {
     it('reads the usual spellings', () => {
@@ -12,6 +12,16 @@ describe('reading a tyre size as a Gutachten prints it', () => {
 
     it('keeps the document’s own minimum after the size', () => {
         expect(parseTyre('245/35 ZR19 93Y')).toMatchObject({ min_load_index: 93, min_speed_symbol: 'Y' })
+    })
+
+    it('reads a minimum as the PDF prints it: a load index alone, a symbol alone, spaced, bracketed, with XL', () => {
+        expect(parseTyre('245/35 R19 93')).toMatchObject({ min_load_index: 93, min_speed_symbol: '' })
+        expect(parseTyre('245/35 R19 Y')).toMatchObject({ min_load_index: null, min_speed_symbol: 'Y' })
+        expect(parseTyre('245/35 R19 93 Y')).toMatchObject({ min_load_index: 93, min_speed_symbol: 'Y' })
+        expect(parseTyre('245/35 R19 (93Y)')).toMatchObject({ min_load_index: 93, min_speed_symbol: 'Y' })
+        expect(parseTyre('245/35 R19 93Y XL')).toMatchObject({ min_load_index: 93, min_speed_symbol: 'Y' })
+        expect(parseTyre('245/35 R19 XL')).toMatchObject({ min_load_index: null, min_speed_symbol: '' })
+        expect(parseTyre('245/35 R19 93Y')).toMatchObject({ width_mm: 245, min_load_index: 93 })
     })
 
     it('refuses what is not a tyre size', () => {
@@ -64,5 +74,23 @@ describe('the row as the server reads it', () => {
         } as unknown as FitmentRowView
 
         expect(formFromRow(row)).toMatchObject({ requires_entry: true, source_page: 3, tyre_sizes: [{ text: '245/35 R19 93Y', axle: 'REAR' }], conditions: [{ id: 4, note: '' }] })
+    })
+
+    it('keeps a minimum load index without a symbol when a row is changed', () => {
+        const row = { tyreSizes: [{ width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: '', axle: 'ALL', label: '' }], conditions: [] } as unknown as FitmentRowView
+
+        expect(formFromRow(row).tyre_sizes[0]?.text).toBe('245/35 R19 93')
+        expect(payload(formFromRow(row)).tyre_sizes).toEqual([{ width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: '', axle: 'ALL' }])
+    })
+
+    it('finds the line the server means, past the lines that are not sent', () => {
+        const form = emptyRow()
+        form.tyre_sizes = [
+            { text: '', axle: 'ALL', min_load_index: null, min_speed_symbol: '' },
+            { text: '225/40 R18', axle: 'ALL', min_load_index: null, min_speed_symbol: '' },
+            { text: '225/40 ZR18', axle: 'ALL', min_load_index: null, min_speed_symbol: '' },
+        ]
+
+        expect([0, 1, 2].map((i) => sentIndex(form, i))).toEqual([null, 0, 1])
     })
 })

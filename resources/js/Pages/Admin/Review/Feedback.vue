@@ -7,7 +7,7 @@
  */
 
 import { router, useForm } from '@inertiajs/vue3'
-import { ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
@@ -39,6 +39,7 @@ interface Item {
 const props = defineProps<{
     items: Item[]
     filters: { typ: string; seite: string; status: string }
+    total: number
     types: { value: string; label: string }[]
     statuses: { value: string; label: string }[]
     screens: string[]
@@ -77,20 +78,58 @@ function apply(): void {
     router.get('/admin/review/rueckmeldungen', query, { preserveScroll: true, preserveState: true })
 }
 
+function resetFilters(): void {
+    typ.value = ''
+    seite.value = ''
+    status.value = 'alle'
+    apply()
+}
+
 /* ── Answering one point ─────────────────────────────────────────────────── */
 
 const editing = ref<number | null>(null)
 const answer = useForm({ status: 'neu', answer: '', assignee_id: null as number | null })
 
+/* The button that was pressed goes away with the form it opens: the keyboard goes into the form, and back. */
+/* An answer typed and left for another point is kept, and is there again when that point is reopened. */
+const drafts = new Map<number, { status: string; answer: string; assignee_id: number | null }>()
+
 function edit(item: Item): void {
+    if (editing.value !== null && editing.value !== item.id && answer.isDirty) {
+        drafts.set(editing.value, { status: answer.status, answer: answer.answer, assignee_id: answer.assignee_id })
+    }
+
     editing.value = item.id
     answer.defaults({ status: item.status, answer: item.answer, assignee_id: item.assigneeId })
     answer.reset()
     answer.clearErrors()
+
+    const draft = drafts.get(item.id)
+
+    if (draft) {
+        Object.assign(answer, draft)
+    }
+    void nextTick(() => document.getElementById(`rf-a-status-${item.id}`)?.focus())
+}
+
+function close(id: number): void {
+    editing.value = null
+    void nextTick(() => document.querySelector<HTMLElement>(`[data-answer="${id}"]`)?.focus())
 }
 
 function save(item: Item): void {
-    answer.patch(`/admin/review/rueckmeldungen/${item.id}`, { preserveScroll: true, onSuccess: () => (editing.value = null) })
+    if (answer.processing) {
+        return
+    }
+
+    answer.patch(`/admin/review/rueckmeldungen/${item.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            drafts.delete(item.id)
+            close(item.id)
+        },
+        onError: () => void nextTick(() => document.querySelector<HTMLElement>('.rf-answer [aria-invalid="true"]')?.focus()),
+    })
 }
 
 function tag(stateValue: string): string | null {
@@ -128,7 +167,8 @@ function tag(stateValue: string): string | null {
             </div>
         </form>
 
-        <AdminState v-if="items.length === 0" kind="empty" text="Hier erscheint jede Rückmeldung aus der Review. Gib die erste unten links – oder drück R." />
+        <AdminState v-if="items.length === 0 && total === 0" kind="empty" text="Hier erscheint jede Rückmeldung aus der Review. Gib die erste mit „Rückmeldung geben“ – am Rechner auch mit der Taste R." />
+        <AdminState v-else-if="items.length === 0" kind="filtered" :total="total" @reset="resetFilters" />
 
         <ol v-else class="rf-list">
             <li v-for="item in items" :key="item.id" class="rf-item">
@@ -152,7 +192,7 @@ function tag(stateValue: string): string | null {
                         <p v-if="item.answer && editing !== item.id" class="rf-item__answer"><strong>Unsere Antwort:</strong> {{ item.answer }}</p>
                         <p v-if="item.assignee && editing !== item.id" class="rf-item__meta">Bei {{ item.assignee }}</p>
                         <div v-if="can.answer" class="rf-item__actions">
-                            <button v-if="editing !== item.id" class="btn btn--secondary rf-item__answerbtn" type="button" @click="edit(item)">Beantworten</button>
+                            <button v-if="editing !== item.id" class="btn btn--secondary rf-item__answerbtn" type="button" :data-answer="item.id" @click="edit(item)">Beantworten</button>
                             <form v-else class="rf-answer" @submit.prevent="save(item)">
                                 <div class="rf-answer__pair">
                                     <div class="form-field">
@@ -184,7 +224,7 @@ function tag(stateValue: string): string | null {
                                 </div>
                                 <div class="rf-answer__go">
                                     <button class="btn btn--primary" type="submit" :disabled="answer.processing">Speichern</button>
-                                    <button class="btn btn--ghost" type="button" @click="editing = null">Abbrechen</button>
+                                    <button class="btn btn--ghost" type="button" @click="close(item.id)">Abbrechen</button>
                                 </div>
                             </form>
                         </div>
@@ -248,9 +288,13 @@ function tag(stateValue: string): string | null {
     grid-template-columns: minmax(0, 1fr);
 }
 
+/* The picture's box is reserved before it loads, so the list below never jumps. */
 .rf-item__shot img {
     display: block;
     width: 160px;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    object-position: top;
     border: 1px solid var(--c-line);
     border-radius: var(--r-control);
 }
@@ -331,8 +375,7 @@ function tag(stateValue: string): string | null {
     /* The screenshot stays a thumbnail — its top strip — so one point never fills the screen. */
     .rf-item__shot img {
         height: 120px;
-        object-fit: cover;
-        object-position: top;
+        aspect-ratio: auto;
     }
 
     .rf-filters .btn,

@@ -9,6 +9,7 @@ import { useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
+import { focusRefused } from '../../../composables/admin/focusRefused'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
 import { decimal } from '../../../format'
@@ -75,6 +76,7 @@ async function save(): Promise<void> {
 
         if (key === null) {
             form.setError('upload_key', upload.error.value ?? 'Die Datei konnte nicht hochgeladen werden.')
+            focusRefused('.fd')
 
             return
         }
@@ -85,13 +87,14 @@ async function save(): Promise<void> {
     form.put(`/admin/gutachten/${props.document.id}`, {
         preserveScroll: true,
         onSuccess: () => (open.value = false),
+        onError: () => focusRefused('.fd'),
     })
 }
 </script>
 
 <template>
-    <Dialog v-model:open="open" title="Angaben ändern" :description="document.label" content-class="adm-dialog">
-        <form class="fd" novalidate @submit.prevent="save">
+    <Dialog v-model:open="open" title="Angaben ändern" :description="document.label" content-class="adm-dialog" initial-focus="#fd-kind">
+        <form id="fd-form" class="fd" novalidate @submit.prevent="save">
             <div class="form-field">
                 <label class="form-field__label" for="fd-kind">Art</label>
                 <select id="fd-kind" v-model="form.kind" class="input">
@@ -130,13 +133,16 @@ async function save(): Promise<void> {
             <div class="form-field">
                 <span id="fd-pdf-label" class="form-field__label">Anderes PDF (optional)</span>
                 <FilePick id="fd-pdf" v-model="pdf" accept="application/pdf,.pdf" label="PDF ersetzen" :invalid="!!errors.upload_key" describedby="fd-pdf-label fd-pdf-err" :disabled="busy" />
-                <p v-if="upload.state.value === 'uploading'" class="form-field__help" role="status">Wird hochgeladen … {{ decimal(Math.round(upload.progress.value * 100), 0) }} %</p>
+                <p class="form-field__help" role="status">
+                    <template v-if="upload.state.value === 'uploading'">Wird hochgeladen … {{ decimal(Math.round(upload.progress.value * 100), 0) }} %</template>
+                    <template v-else-if="upload.state.value === 'retrying'">Die Verbindung hakt – neuer Versuch ({{ upload.attempt.value }} von 3) …</template>
+                </p>
                 <p id="fd-pdf-err" class="form-field__error">{{ errors.upload_key }}</p>
             </div>
         </form>
         <template #actions>
             <button class="btn btn--secondary" type="button" @click="open = false">Abbrechen</button>
-            <button class="btn btn--primary" type="button" :disabled="busy" :aria-busy="busy ? 'true' : undefined" @click="save">Speichern</button>
+            <button class="btn btn--primary" type="submit" form="fd-form" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Speichern</button>
         </template>
     </Dialog>
 </template>

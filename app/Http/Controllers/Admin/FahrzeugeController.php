@@ -41,7 +41,7 @@ class FahrzeugeController extends Controller
 
     private function list(VehicleRequest $request, bool $review): Response
     {
-        $term = trim((string) ($request->validated('q') ?? ''));
+        $term = trim((string) preg_replace('/[\s\x{00A0}\x{202F}]+/u', ' ', (string) ($request->validated('q') ?? '')));
         $make = trim((string) ($request->validated('marke') ?? ''));
         $query = Vehicle::query()
             ->withCount(['fitments as approvals' => static fn (Builder $q) => $q->where('status', FitmentStatus::Published->value)])
@@ -50,7 +50,7 @@ class FahrzeugeController extends Controller
             ->orderBy('make')->orderBy('model')->orderBy('variant')->orderBy('id');
 
         if ($term !== '') {
-            if (preg_match('/^(\d{4})\s*[\/\s]?\s*([A-Za-z0-9]{3})?$/', $term, $m) === 1) {
+            if (preg_match('/^(\d{4})\s*[\/\s-]?\s*([A-Za-z0-9]{3})?$/', $term, $m) === 1) {
                 $query->where('hsn', $m[1])->when(($m[2] ?? '') !== '', static fn (Builder $q) => $q->where('tsn', strtoupper($m[2])));
             } else {
                 foreach (preg_split('/\s+/', $term) ?: [] as $word) {
@@ -141,6 +141,7 @@ class FahrzeugeController extends Controller
     public function update(VehicleRequest $request, Vehicle $vehicle): RedirectResponse
     {
         $data = $request->legalData();
+        $wasComplete = $vehicle->hasCompleteLegalData();
 
         DB::transaction(function () use ($vehicle, $data, $request): void {
             $before = $vehicle->only(array_keys($data));
@@ -156,6 +157,12 @@ class FahrzeugeController extends Controller
             ], $vehicle);
         });
 
-        return back()->with('toast', in_array(null, $data, true) ? 'Gespeichert. Es fehlen noch Angaben – das Fahrzeug bleibt zur Prüfung.' : 'Gespeichert. Das Fahrzeug ist vollständig.');
+        $toast = match (true) {
+            ! in_array(null, $data, true) => 'Gespeichert. Das Fahrzeug ist vollständig.',
+            $wasComplete => 'Gespeichert. Es fehlt jetzt eine Angabe – das Fahrzeug ist wieder zur Prüfung.',
+            default => 'Gespeichert. Es fehlen noch Angaben – das Fahrzeug bleibt zur Prüfung.',
+        };
+
+        return back()->with('toast', $toast);
     }
 }

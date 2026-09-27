@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ConditionSeverity;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ConditionCodeRequest;
 use App\Models\ConditionCode;
@@ -15,14 +16,17 @@ use Inertia\Response;
 
 /**
  * Gutachten › Auflagen-Katalog: every Auflage once, as the full German sentence a customer reads
- * (R-15), with how heavy it is. A Gutachten's rows choose from here; a changed sentence changes
- * everywhere it is used — which is the point, and why the page says how often each is used.
+ * (R-15), with its Einstufung. A Gutachten's rows choose from here; a changed sentence changes every
+ * draft that uses it — never a freigegebenes Gutachten, where the Auflage is fixed (ConditionCodeRequest).
  */
 class AuflagenController extends Controller
 {
     public function index(ConditionCodeRequest $request): Response
     {
         $used = DB::table('fitment_conditions')->select('condition_code_id')->selectRaw('COUNT(*) as n')->groupBy('condition_code_id')->pluck('n', 'condition_code_id');
+        // Carried by a freigegebenes Gutachten: its meaning is fixed (ConditionCodeRequest::RELEASED_REFUSAL).
+        $released = DB::table('fitment_conditions as fc')->join('fitments as f', 'f.id', '=', 'fc.fitment_id')
+            ->where('f.status', '!=', 'draft')->distinct()->pluck('fc.condition_code_id')->map(static fn (mixed $id): int => (int) $id)->flip();
         $admin = $request->admin();
 
         return Inertia::render('Admin/Auflagen/Index', [
@@ -35,11 +39,18 @@ class AuflagenController extends Controller
                 'affectsTyreChoice' => $c->affects_tyre_choice,
                 'requiresAcknowledgement' => $c->requires_acknowledgement,
                 'used' => (int) ($used[$c->id] ?? 0),
+                'released' => $released->has((int) $c->id),
             ])->values()->all(),
-            'severities' => array_map(static fn (string $value, string $label): array => ['value' => $value, 'label' => $label], array_keys(ConditionCodeRequest::SEVERITY_LABELS), ConditionCodeRequest::SEVERITY_LABELS),
+            // Whether the Einstufung always asks the customer to confirm, whatever the box says.
+            'severities' => array_map(static fn (string $value, string $label): array => [
+                'value' => $value,
+                'label' => $label,
+                'acknowledged' => ConditionSeverity::from($value)->requiresAcknowledgement(),
+            ], array_keys(ConditionCodeRequest::SEVERITY_LABELS), ConditionCodeRequest::SEVERITY_LABELS),
             'can' => [
                 'create' => $admin->can('create', ConditionCode::class),
                 'edit' => $admin->can('update', new ConditionCode),
+                'delete' => $admin->can('delete', new ConditionCode),
             ],
         ]);
     }
