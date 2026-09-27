@@ -11,6 +11,7 @@
 import { useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import DateField from '../../../Components/Admin/DateField.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
@@ -163,7 +164,7 @@ function chose(file: File | null): void {
                 <div class="gn-pair">
                     <div class="form-field">
                         <label class="form-field__label" for="gn-date">Ausgestellt am <span class="gn-optional">(optional)</span></label>
-                        <input id="gn-date" v-model="form.issued_on" class="input" type="date" :aria-invalid="errors.issued_on ? 'true' : undefined" aria-describedby="gn-date-err">
+                        <DateField id="gn-date" v-model="form.issued_on" :invalid="Boolean(errors.issued_on)" describedby="gn-date-err" />
                         <p id="gn-date-err" class="form-field__error">{{ errors.issued_on }}</p>
                     </div>
                     <div class="form-field">
@@ -218,6 +219,11 @@ function chose(file: File | null): void {
 }
 
 @media (max-width: 767px) {
+    /* One column, one edge: every field as wide as the form. */
+    .gn-short {
+        max-width: none;
+    }
+
     .gn-pair {
         grid-template-columns: minmax(0, 1fr);
     }

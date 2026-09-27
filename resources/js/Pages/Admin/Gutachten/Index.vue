@@ -2,11 +2,11 @@
 /**
  * Gutachten › Dokumente: every approval document on file.
  *
- * The Veröffentlicht column shows published against total on purpose: a document with twenty rows
- * entered and none published is the most common half-finished state in this workflow, and it is
+ * The „Zeilen im Shop“ column shows released rows against all rows on purpose: a document with twenty
+ * rows entered and none released is the most common half-finished state in this workflow, and it is
  * invisible unless the list says so.
  *
- * Only the exception is tagged: a published document says so in plain text, a draft is neutral
+ * Only the exception is tagged: a released document says so in plain text, a draft is neutral
  * (never red — "not yet checked" is not "refused", R-03, R-07), a superseded one a warning and a
  * withdrawn one the failure tone. Status and type narrow the list in place, and a filter appears only
  * where there is something to choose between. Nothing on file and nothing matching the filters are two
@@ -37,7 +37,7 @@ const KIND_LABEL: Record<string, string> = {
 
 /** `tag: null` is the normal state, printed as plain text. */
 const STATUS: Record<string, { label: string; tag: string | null }> = {
-    published: { label: 'Veröffentlicht', tag: null },
+    published: { label: 'Freigegeben', tag: null },
     draft: { label: 'Entwurf', tag: 'adm-tag--neutral' },
     superseded: { label: 'Ersetzt', tag: 'adm-tag--warn' },
     withdrawn: { label: 'Zurückgezogen', tag: 'adm-tag--bad' },
@@ -88,7 +88,7 @@ const context = computed(() => {
 
     const published = props.documents.filter((d) => d.status === 'published').length
 
-    return `${decimal(total, 0)} ${total === 1 ? 'Dokument' : 'Dokumente'} · ${decimal(published, 0)} veröffentlicht`
+    return `${decimal(total, 0)} ${total === 1 ? 'Dokument' : 'Dokumente'} · ${decimal(published, 0)} freigegeben`
 })
 </script>
 
@@ -144,7 +144,7 @@ const context = computed(() => {
                         <th scope="col">Aussteller</th>
                         <th scope="col" class="num">Ausgestellt</th>
                         <th scope="col">Status</th>
-                        <th scope="col" class="num">Veröffentlicht</th>
+                        <th scope="col" class="num">Zeilen im Shop</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -163,7 +163,7 @@ const context = computed(() => {
                                 <span class="adm-table__sub">Fassung {{ doc.revision }}</span>
                             </span>
                         </td>
-                        <td data-label="Veröffentlicht" class="num">{{ decimal(doc.publishedCount, 0) }} von {{ decimal(doc.fitmentCount, 0) }}</td>
+                        <td data-label="Zeilen im Shop" class="num">{{ decimal(doc.publishedCount, 0) }} von {{ decimal(doc.fitmentCount, 0) }}</td>
                     </tr>
                 </tbody>
             </table>

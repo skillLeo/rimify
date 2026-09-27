@@ -75,7 +75,7 @@ class ApprovalDocumentRequest extends FormRequest
             'approval_mark.required' => 'Eine ECE- oder EG-Genehmigung braucht ihr Genehmigungszeichen.',
             'approval_mark.max' => 'Das Genehmigungszeichen darf höchstens 64 Zeichen lang sein.',
             'issuer.max' => 'Der Aussteller darf höchstens 120 Zeichen lang sein.',
-            'issued_on.*' => 'Das Ausstellungsdatum ist kein gültiger Tag in der Vergangenheit.',
+            'issued_on.*' => 'Das Ausstellungsdatum ist kein gültiger Tag in der Vergangenheit. Schreib es bitte so: 12.03.2024.',
             'page_count.*' => 'Die Seitenzahl bitte als ganze Zahl ab 1.',
             'supersedes_id.*' => 'Ersetzt werden kann nur ein freigegebenes Dokument.',
         ];

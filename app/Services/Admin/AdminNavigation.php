@@ -65,7 +65,7 @@ final class AdminNavigation
             'review' => true,
             'pages' => [
                 ['label' => 'Stand der Seiten', 'href' => '/admin/review', 'icon' => 'check-circle'],
-                ['label' => 'Rückmeldungen', 'href' => '/admin/review/rueckmeldungen', 'icon' => 'bookmark', 'count' => 'review_open'],
+                ['label' => 'Rückmeldungen', 'href' => '/admin/review/rueckmeldungen', 'icon' => 'feedback', 'count' => 'review_open'],
             ],
         ],
         [
@@ -424,7 +424,8 @@ final class AdminNavigation
                     continue;
                 }
 
-                if (count($pages) === 1 && $page['label'] === $group['label']) {
+                // A page named like its group is that group: „Fahrzeuge“, never „Fahrzeuge › Fahrzeuge“.
+                if ($page['label'] === $group['label']) {
                     return [['label' => $page['label'], 'href' => null]];
                 }
 
@@ -452,6 +453,10 @@ final class AdminNavigation
                     // the first tab — so its crumb is a label, like the group's.
                     ['label' => $page['label'], 'href' => in_array($page['href'], self::TABBED, true) ? null : $page['href']],
                 ];
+
+                if ($page['label'] === $group['label']) {
+                    array_shift($crumbs);
+                }
 
                 if ($record !== null && $record !== '') {
                     $crumbs[] = ['label' => $record, 'href' => null];

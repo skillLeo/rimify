@@ -41,6 +41,18 @@ test('Gutachten, Auflagen, Fahrzeuge and one order', async ({ page }, info) => {
     await expect(page.locator('.gs-verdict').first()).toBeVisible()
     await page.screenshot({ path: `${DIR}/dokument-${width}.png`, fullPage: true })
 
+    // A draft, where the rows are entered: the composer below the Verwendungsbereich.
+    await page.goto('/admin/gutachten', { waitUntil: 'networkidle' })
+    const draft = page.locator('tbody tr', { hasText: 'Entwurf' }).locator('.gd-link').first()
+
+    if ((await draft.count()) > 0) {
+        await draft.click()
+        await page.waitForURL(/\/admin\/gutachten\/\d+$/)
+        await waitForApp(page)
+        await expect(page.getByRole('heading', { name: 'Zeilen hinzufügen' })).toBeVisible()
+        await page.screenshot({ path: `${DIR}/entwurf-${width}.png`, fullPage: true })
+    }
+
     await page.goto('/admin/auflagen', { waitUntil: 'networkidle' })
     await waitForApp(page)
     await page.screenshot({ path: `${DIR}/auflagen-${width}.png`, fullPage: true })

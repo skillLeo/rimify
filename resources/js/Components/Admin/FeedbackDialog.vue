@@ -81,7 +81,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <fieldset class="fb-types">
                 <legend class="form-field__label">Worum geht es?</legend>
                 <div class="fb-types__row">
-                    <label v-for="option in FEEDBACK_TYPES" :key="option.value" class="fb-type" :class="{ 'fb-type--on': type === option.value }">
+                    <label v-for="option in FEEDBACK_TYPES" :key="option.value" class="adm-chip fb-type">
                         <input v-model="type" class="visually-hidden" type="radio" name="fb-type" :value="option.value">
                         {{ option.label }}
                     </label>
@@ -133,30 +133,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .fb-types legend {
     margin-bottom: var(--sp-8);
+    padding: 0;
 }
 
 .fb-types__row {
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-8);
-}
-
-.fb-type {
-    display: inline-flex;
-    align-items: center;
-    height: var(--adm-control-h);
-    padding-inline: var(--sp-12);
-    border: 1px solid var(--c-line-2);
-    border-radius: var(--r-control);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    cursor: pointer;
-}
-
-.fb-type--on {
-    border-color: var(--c-ink);
-    background: var(--c-ink);
-    color: var(--c-surface);
 }
 
 .fb-type:has(input:focus-visible) {
@@ -187,13 +170,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     border-radius: var(--r-control);
 }
 
+/* On a phone the screenshot is a strip of the page's top, so „Senden“ stays in view. */
 @media (max-width: 767px) {
-    .fb-type {
-        height: var(--adm-control-h-lg);
-    }
-
     .fb-context {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fb-shot {
+        width: 100%;
+        max-width: 240px;
+        height: 96px;
+        object-fit: cover;
+        object-position: top;
     }
 }
 </style>

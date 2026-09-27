@@ -10,6 +10,7 @@
 
 import { computed } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
+import DateField from '../../../Components/Admin/DateField.vue'
 import type { AxleValue, ConditionOption, RowForm } from '../../../types/admin/gutachten'
 import { emptySize, parseTyre } from './rows'
 
@@ -170,12 +171,12 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
             <div class="rf-pair">
                 <div class="form-field">
                     <label class="form-field__label" :for="id('from')">Baujahr ab</label>
-                    <input :id="id('from')" v-model="form.build_from" class="input" type="date" :aria-invalid="err('build_from') ? 'true' : undefined">
+                    <DateField :id="id('from')" v-model="form.build_from" :invalid="Boolean(err('build_from'))" />
                     <p class="form-field__error">{{ err('build_from') }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('to')">Baujahr bis</label>
-                    <input :id="id('to')" v-model="form.build_to" class="input" type="date" :aria-invalid="err('build_to') ? 'true' : undefined">
+                    <DateField :id="id('to')" v-model="form.build_to" :invalid="Boolean(err('build_to'))" />
                     <p class="form-field__error">{{ err('build_to') }}</p>
                 </div>
                 <div class="form-field">
@@ -240,6 +241,7 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
 
 .rf-group legend {
     margin-bottom: var(--sp-8);
+    padding: 0;
 }
 
 .rf-size {

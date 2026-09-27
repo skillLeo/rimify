@@ -124,7 +124,7 @@ function signOut(): void {
 
             <!-- The review: the sheet closes first, so the screenshot shows the page, not the sheet. -->
             <ListRow v-if="admin.review" title="Rückmeldung geben" sub="Mit Bildschirmfoto an das Team" @activate="giveFeedback">
-                <template #leading><AdminIcon name="bookmark" :size="24" /></template>
+                <template #leading><AdminIcon name="feedback" :size="24" /></template>
             </ListRow>
 
             <template v-for="item in groups" :key="item.key">

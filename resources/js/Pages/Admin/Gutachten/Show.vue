@@ -264,7 +264,8 @@ const TONE: Record<string, string | null> = {
                                     <span class="gs-sub">{{ row.size }}<template v-if="row.finish"> · {{ row.finish }}</template><template v-if="row.axle !== 'ALL'"> · {{ row.axleLabel }}</template></span>
                                 </td>
                                 <td data-label="Reifen">
-                                    <span>
+                                    <span v-if="row.tyreSizes.length === 0" class="gs-missing">Keine Reifengröße – im Shop nicht bestellbar</span>
+                                    <span v-else>
                                         <span v-for="size in row.tyreSizes" :key="size.label" class="gs-line">{{ size.label }}</span>
                                     </span>
                                 </td>
@@ -421,6 +422,10 @@ const TONE: Record<string, string | null> = {
 
 .gs-line {
     display: block;
+}
+
+.gs-missing {
+    color: var(--c-ink-2);
 }
 
 .gs-actions {

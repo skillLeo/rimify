@@ -115,6 +115,8 @@ const G = {
     columns: '<rect x="2.75" y="3.75" width="14.5" height="12.5"/><path d="M7.58 3.75v12.5M12.42 3.75v12.5"/>',
     // A Gespeicherte Ansicht: the bookmark it is kept under.
     bookmark: '<path d="M5.25 2.75h9.5v14.5L10 13.25l-4.75 4z"/>',
+    // A Rückmeldung: a speech bubble with a line of text in it — never the bookmark of a saved view.
+    feedback: '<path d="M2.75 3.75h14.5v10h-8.5l-4 3.5v-3.5h-2z"/><path d="M6.25 7.75h7.5M6.25 10.25h4.5"/>',
 } as const
 
 export type AdminIconName = keyof typeof G
@@ -126,7 +128,7 @@ export const NAV_ICONS = [
     'overview', 'orders', 'returns', 'customers', 'inquiries', 'wheels', 'tyres', 'complete-wheels', 'brands', 'stock',
     'prices', 'media', 'documents', 'conditions', 'coverage', 'conflicts', 'vehicles', 'review', 'imports', 'pages',
     'guides', 'faq', 'navigation', 'legal', 'reports', 'gap', 'settings', 'branding', 'shipping', 'payment', 'taxes',
-    'emails', 'feature-flags', 'storage', 'users', 'roles', 'audit-log', 'system', 'queue', 'search', 'filter',
+    'emails', 'feature-flags', 'storage', 'users', 'roles', 'audit-log', 'system', 'queue', 'search', 'filter', 'feedback',
 ] as const satisfies readonly AdminIconName[]
 
 /** What a row of a list can do to its record. */

@@ -949,12 +949,18 @@ a.adm-foot__health {
     line-height: var(--lh-small);
 }
 
+/* The ancestors keep their whole names; only the last crumb — the record — gives way when space runs out. */
 .adm-crumbs li {
     display: inline-flex;
+    flex: none;
     align-items: center;
     gap: var(--sp-4);
-    min-width: 0;
     color: var(--c-ink-3);
+}
+
+.adm-crumbs li:last-child {
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .adm-crumbs li > span,
@@ -1058,18 +1064,20 @@ a.adm-foot__health {
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .adm-iconbtn:hover:not(:disabled) {
+    .adm-iconbtn:hover:not(:disabled, [aria-disabled='true']) {
         background: var(--c-band);
         color: var(--c-ink);
     }
 }
 
-.adm-iconbtn:active:not(:disabled) {
+.adm-iconbtn:active:not(:disabled, [aria-disabled='true']) {
     background: var(--c-line);
 }
 
-/* A move that cannot happen here (the first row up, the last row down) looks it: no fill, no hand. */
-.adm-iconbtn:disabled {
+/* A move that cannot happen here (the first row up, the last row down) looks it: no fill, no hand.
+   `aria-disabled` keeps the button focusable, so its reason can still be heard. */
+.adm-iconbtn:disabled,
+.adm-iconbtn[aria-disabled='true'] {
     color: var(--c-line-2);
     cursor: default;
 }
@@ -2475,8 +2483,10 @@ a.adm-foot__health {
     }
 }
 
-/* Chosen: the tint alone, its edge in the same tint — one signal, not a blue ring around a fill. */
-.adm-chip[aria-pressed='true'] {
+/* Chosen: the tint alone, its edge in the same tint — one signal, not a blue ring around a fill.
+   A chip may also be the label of a radio button, where only one of a set can be chosen. */
+.adm-chip[aria-pressed='true'],
+.adm-chip:has(> input[type='radio']:checked) {
     border-color: var(--c-blue-tint);
     background: var(--c-blue-tint);
     color: var(--c-ink);

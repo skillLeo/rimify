@@ -107,6 +107,8 @@ class GutachtenController extends Controller
 
     public function create(ApprovalStepRequest $request): Response
     {
+        request()->attributes->set(AdminNavigation::RECORD, 'Neues Gutachten');
+
         return Inertia::render('Admin/Gutachten/Neu', [
             'kinds' => self::kinds(),
             'replaceable' => self::replaceable(null),

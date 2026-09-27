@@ -125,6 +125,7 @@ class FahrzeugeController extends Controller
             ],
             'rows' => $rows->map(static fn (Fitment $f): array => [
                 'id' => (int) $f->id,
+                'documentId' => (int) $f->approval_document_id,
                 'document' => $f->approvalDocument === null ? '–' : FitmentRows::label($f->approvalDocument),
                 'documentHref' => '/admin/gutachten/'.$f->approval_document_id,
                 'wheel' => GutachtenController::modelName($f->wheelConfig?->wheelModel),

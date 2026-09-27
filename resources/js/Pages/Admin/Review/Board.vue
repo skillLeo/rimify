@@ -17,17 +17,23 @@ defineProps<{
     counts: { open: number; all: number }
 }>()
 
-/** Only the exception is tagged: a finished screen says so in plain words. */
+/** Only the exception is tagged, and neutral: work still to do is no warning. */
 function stateTag(state: string): string | null {
-    return state === 'fertig' ? null : state === 'in Arbeit' ? 'adm-tag adm-tag--warn' : 'adm-tag adm-tag--neutral'
+    return state === 'fertig' ? null : 'adm-tag adm-tag--neutral'
+}
+
+const STATE_LABEL: Record<string, string> = { fertig: 'Fertig', 'in Arbeit': 'In Arbeit', 'noch nicht gebaut': 'Noch nicht gebaut' }
+
+function stateLabel(state: string): string {
+    return STATE_LABEL[state] ?? state
 }
 </script>
 
 <template>
     <AdminPage title="Stand der Seiten" :context="counts.open === 1 ? '1 offene Rückmeldung' : `${decimal(counts.open, 0)} offene Rückmeldungen`">
         <p class="adm-note rb-intro">
-            Was fertig ist, kannst du prüfen; was noch nicht gebaut ist, steht hier ehrlich dabei. Zu jeder Seite kannst du unten links eine Rückmeldung
-            geben – mit einem Satz, das Bildschirmfoto kommt von selbst.
+            Fertige Seiten kannst du prüfen. Seiten, die noch fehlen, sind als „Noch nicht gebaut“ markiert. Zu jeder Seite kannst du unten links eine
+            Rückmeldung geben: Ein Satz genügt, ein Bildschirmfoto wird automatisch mitgeschickt.
         </p>
 
         <section v-for="area in areas" :key="area.key" class="adm-section" :aria-labelledby="`rb-${area.key}`">
@@ -37,8 +43,8 @@ function stateTag(state: string): string | null {
             <ul class="rb-list">
                 <li v-for="screen in area.screens" :key="screen.label" class="rb-row">
                     <span class="rb-state">
-                        <span v-if="stateTag(screen.state)" :class="stateTag(screen.state)">{{ screen.state }}</span>
-                        <template v-else>{{ screen.state }}</template>
+                        <span v-if="stateTag(screen.state)" :class="stateTag(screen.state)">{{ stateLabel(screen.state) }}</span>
+                        <template v-else>{{ stateLabel(screen.state) }}</template>
                     </span>
                     <span class="rb-text">
                         <Link v-if="screen.href" :href="screen.href" class="rb-label">{{ screen.label }}</Link>

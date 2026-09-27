@@ -94,12 +94,12 @@ function save(item: Item): void {
 }
 
 function tag(stateValue: string): string | null {
-    return stateValue === 'neu' ? 'adm-tag adm-tag--warn' : stateValue === 'abgelehnt' ? 'adm-tag adm-tag--neutral' : null
+    return stateValue === 'neu' ? 'adm-tag adm-tag--neutral' : null
 }
 </script>
 
 <template>
-    <AdminPage title="Rückmeldungen" :context="items.length === 1 ? '1 Punkt' : `${decimal(items.length, 0)} Punkte`">
+    <AdminPage title="Rückmeldungen" :context="items.length === 1 ? '1 Rückmeldung' : `${decimal(items.length, 0)} Rückmeldungen`">
         <form class="rf-filters" @submit.prevent="apply">
             <div class="form-field">
                 <label class="form-field__label" for="rf-typ">Art</label>
@@ -141,7 +141,7 @@ function tag(stateValue: string): string | null {
 
                 <div class="rf-item__body">
                     <a v-if="item.image" :href="item.image" target="_blank" rel="noopener" class="rf-item__shot">
-                        <img :src="item.image" :alt="`Bildschirmfoto zu Punkt ${item.id}`" loading="lazy">
+                        <img :src="item.image" :alt="`Bildschirmfoto zu Rückmeldung ${item.id}`" loading="lazy">
                     </a>
                     <div class="rf-item__text">
                         <p class="rf-item__sentence">{{ item.sentence }}</p>
@@ -151,45 +151,44 @@ function tag(stateValue: string): string | null {
                         </p>
                         <p v-if="item.answer && editing !== item.id" class="rf-item__answer"><strong>Unsere Antwort:</strong> {{ item.answer }}</p>
                         <p v-if="item.assignee && editing !== item.id" class="rf-item__meta">Bei {{ item.assignee }}</p>
+                        <div v-if="can.answer" class="rf-item__actions">
+                            <button v-if="editing !== item.id" class="btn btn--secondary rf-item__answerbtn" type="button" @click="edit(item)">Beantworten</button>
+                            <form v-else class="rf-answer" @submit.prevent="save(item)">
+                                <div class="rf-answer__pair">
+                                    <div class="form-field">
+                                        <label class="form-field__label" :for="`rf-a-status-${item.id}`">Stand</label>
+                                        <select :id="`rf-a-status-${item.id}`" v-model="answer.status" class="input">
+                                            <option v-for="option in statuses" :key="option.value" :value="option.value">{{ option.label }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-field">
+                                        <label class="form-field__label" :for="`rf-a-who-${item.id}`">Zuständig</label>
+                                        <select :id="`rf-a-who-${item.id}`" v-model="answer.assignee_id" class="input">
+                                            <option :value="null">Niemand</option>
+                                            <option v-for="person in team" :key="person.value" :value="person.value">{{ person.label }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-field__label" :for="`rf-a-text-${item.id}`">{{ answer.status === 'abgelehnt' ? 'Begründung' : 'Antwort' }}</label>
+                                    <textarea
+                                        :id="`rf-a-text-${item.id}`"
+                                        v-model="answer.answer"
+                                        class="input rf-area"
+                                        rows="3"
+                                        maxlength="2000"
+                                        :aria-invalid="answer.errors.answer ? 'true' : undefined"
+                                        :aria-describedby="`rf-a-text-${item.id}-err`"
+                                    />
+                                    <p :id="`rf-a-text-${item.id}-err`" class="form-field__error">{{ answer.errors.answer }}</p>
+                                </div>
+                                <div class="rf-answer__go">
+                                    <button class="btn btn--primary" type="submit" :disabled="answer.processing">Speichern</button>
+                                    <button class="btn btn--ghost" type="button" @click="editing = null">Abbrechen</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-
-                <div v-if="can.answer" class="rf-item__actions">
-                    <button v-if="editing !== item.id" class="btn btn--ghost" type="button" @click="edit(item)">Beantworten</button>
-                    <form v-else class="rf-answer" @submit.prevent="save(item)">
-                        <div class="rf-answer__pair">
-                            <div class="form-field">
-                                <label class="form-field__label" :for="`rf-a-status-${item.id}`">Stand</label>
-                                <select :id="`rf-a-status-${item.id}`" v-model="answer.status" class="input">
-                                    <option v-for="option in statuses" :key="option.value" :value="option.value">{{ option.label }}</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label class="form-field__label" :for="`rf-a-who-${item.id}`">Zuständig</label>
-                                <select :id="`rf-a-who-${item.id}`" v-model="answer.assignee_id" class="input">
-                                    <option :value="null">Niemand</option>
-                                    <option v-for="person in team" :key="person.value" :value="person.value">{{ person.label }}</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`rf-a-text-${item.id}`">{{ answer.status === 'abgelehnt' ? 'Begründung' : 'Antwort' }}</label>
-                            <textarea
-                                :id="`rf-a-text-${item.id}`"
-                                v-model="answer.answer"
-                                class="input rf-area"
-                                rows="3"
-                                maxlength="2000"
-                                :aria-invalid="answer.errors.answer ? 'true' : undefined"
-                                :aria-describedby="`rf-a-text-${item.id}-err`"
-                            />
-                            <p :id="`rf-a-text-${item.id}-err`" class="form-field__error">{{ answer.errors.answer }}</p>
-                        </div>
-                        <div class="rf-answer__go">
-                            <button class="btn btn--primary" type="submit" :disabled="answer.processing">Speichern</button>
-                            <button class="btn btn--ghost" type="button" @click="editing = null">Abbrechen</button>
-                        </div>
-                    </form>
                 </div>
             </li>
         </ol>
@@ -284,6 +283,11 @@ function tag(stateValue: string): string | null {
     font-weight: 500;
 }
 
+/* A bordered button, so its edge lines up with the sentence above it. */
+.rf-item__actions {
+    margin-top: var(--sp-4);
+}
+
 .rf-answer {
     display: grid;
     gap: var(--sp-12);
@@ -324,8 +328,11 @@ function tag(stateValue: string): string | null {
         grid-template-columns: minmax(0, 1fr);
     }
 
+    /* The screenshot stays a thumbnail — its top strip — so one point never fills the screen. */
     .rf-item__shot img {
-        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        object-position: top;
     }
 
     .rf-filters .btn,

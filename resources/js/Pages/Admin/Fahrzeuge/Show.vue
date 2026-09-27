@@ -29,9 +29,39 @@ const props = defineProps<{
         needsReview: boolean
         complete: boolean
     }
-    rows: { id: number; document: string; documentHref: string; wheel: string; size: string; status: string; requiresEntry: boolean; conditions: number }[]
+    rows: Row[]
     can: { edit: boolean }
 }>()
+
+interface Row {
+    id: number
+    documentId: number
+    document: string
+    documentHref: string
+    wheel: string
+    size: string
+    status: string
+    requiresEntry: boolean
+    conditions: number
+}
+
+/** One heading per Gutachten, in the order the server sends them — as Gutachten › Dokument groups by vehicle. */
+const groups = computed(() => {
+    const byDocument = new Map<number, { id: number; document: string; href: string; rows: Row[] }>()
+
+    for (const row of props.rows) {
+        const group = byDocument.get(row.documentId) ?? { id: row.documentId, document: row.document, href: row.documentHref, rows: [] }
+        group.rows.push(row)
+        byDocument.set(row.documentId, group)
+    }
+
+    return [...byDocument.values()].map((group) => {
+        const released = group.rows.filter((row) => row.status === 'published').length
+        const rows = group.rows.length === 1 ? '1 Zeile' : `${decimal(group.rows.length, 0)} Zeilen`
+
+        return { ...group, summary: released === group.rows.length ? `${rows}, alle freigegeben` : `${rows} · ${decimal(released, 0)} freigegeben` }
+    })
+})
 
 const form = useForm({
     axle_load_front_kg: props.vehicle.axleFront as number | null,
@@ -102,34 +132,38 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
                 <h2 id="fs-rows-h" class="adm-section__title">In Gutachten genannt</h2>
             </div>
             <p v-if="rows.length === 0" class="adm-note">Noch kein Gutachten nennt dieses Fahrzeug.</p>
-            <div v-else class="adm-panel">
-                <table class="adm-table">
-                    <caption class="visually-hidden">Gutachten-Zeilen für {{ vehicle.name }}</caption>
-                    <thead>
-                        <tr>
-                            <th scope="col">Felge</th>
-                            <th scope="col">Gutachten</th>
-                            <th scope="col">Eintragung</th>
-                            <th scope="col" class="num">Auflagen</th>
-                            <th scope="col">Stand</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="row.id">
-                            <td data-label="Felge">
-                                <span class="fs-wheel">{{ row.wheel }}</span>
-                                <span class="fs-sub">{{ row.size }}</span>
-                            </td>
-                            <td data-label="Gutachten"><Link :href="row.documentHref">{{ row.document }}</Link></td>
-                            <td data-label="Eintragung">{{ row.requiresEntry ? 'Ja' : 'Nein' }}</td>
-                            <td data-label="Auflagen" class="num">{{ decimal(row.conditions, 0) }}</td>
-                            <td data-label="Stand" data-phone="status">
-                                <span v-if="row.status !== 'published'" class="adm-tag adm-tag--neutral">{{ STATUS[row.status] ?? row.status }}</span>
-                                <template v-else>{{ STATUS[row.status] }}</template>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div v-for="group in groups" :key="group.id" class="fs-group">
+                <h3 class="fs-group__title">
+                    <Link :href="group.href" class="fs-link">{{ group.document }}</Link>
+                    <span class="fs-group__meta">{{ group.summary }}</span>
+                </h3>
+                <div class="adm-panel">
+                    <table class="adm-table">
+                        <caption class="visually-hidden">Zeilen aus {{ group.document }}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Felge</th>
+                                <th scope="col">Eintragung</th>
+                                <th scope="col" class="num">Auflagen</th>
+                                <th scope="col">Stand</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in group.rows" :key="row.id">
+                                <td data-label="Felge">
+                                    <span class="fs-wheel">{{ row.wheel }}</span>
+                                    <span class="fs-sub">{{ row.size }}</span>
+                                </td>
+                                <td data-label="Eintragung">{{ row.requiresEntry ? 'Ja' : 'Nein' }}</td>
+                                <td data-label="Auflagen" class="num" data-phone="hide">{{ decimal(row.conditions, 0) }}</td>
+                                <td data-label="Stand" data-phone="status">
+                                    <span v-if="row.status !== 'published'" class="adm-tag adm-tag--neutral">{{ STATUS[row.status] ?? row.status }}</span>
+                                    <template v-else>{{ STATUS[row.status] }}</template>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
     </AdminPage>
@@ -158,6 +192,41 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
 
 .fs-form .form-field__error:empty {
     display: none;
+}
+
+.fs-group + .fs-group {
+    margin-top: var(--sp-24);
+}
+
+.fs-group__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--sp-4) var(--sp-12);
+    margin: 0 0 var(--sp-8);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+}
+
+.fs-group__meta {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 400;
+    color: var(--c-ink-2);
+}
+
+.fs-link {
+    color: var(--c-ink);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .fs-link:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
 }
 
 .fs-wheel {

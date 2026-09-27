@@ -123,7 +123,7 @@ function tagClass(state: OrderState): string | null {
             </section>
 
             <section class="adm-section bs-block" aria-labelledby="bs-customer-h">
-                <h2 id="bs-customer-h" class="adm-section__title">Kundin oder Kunde</h2>
+                <h2 id="bs-customer-h" class="adm-section__title">Kundendaten</h2>
                 <dl class="adm-facts">
                     <div class="adm-facts__row"><dt>Name</dt><dd>{{ customer.name ?? '–' }}</dd></div>
                     <div class="adm-facts__row">
@@ -236,8 +236,8 @@ function tagClass(state: OrderState): string | null {
     margin-bottom: var(--sp-12);
 }
 
-.bs-positions {
-    margin-top: var(--sp-32);
+.bs-top + .bs-positions {
+    margin-top: var(--sp-40);
 }
 
 .bs-address {

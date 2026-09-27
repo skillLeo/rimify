@@ -146,7 +146,7 @@ function signOut(event: Event): void {
         <!-- 1½ · The review: „Rückmeldung geben“, only where the review is on. -->
         <AdminMenuTip v-if="admin.review" text="Rückmeldung geben (R)" :disabled="!collapsed">
             <button class="adm-foot__feedback" type="button" aria-keyshortcuts="R" :aria-busy="feedback.capturing ? 'true' : undefined" data-feedback-skip @click="startFeedback">
-                <Icon name="bookmark" :size="20" />
+                <Icon name="feedback" :size="20" />
                 <span class="adm-foot__feedback-label">{{ feedback.capturing ? 'Bildschirmfoto …' : 'Rückmeldung geben' }}</span>
             </button>
         </AdminMenuTip>

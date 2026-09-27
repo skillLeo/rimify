@@ -67,7 +67,7 @@ describe('Gutachten › Dokumente', () => {
         const status = wrapper.findAll('tbody td[data-label="Status"]')
 
         expect(status[0]!.find('.adm-tag').exists()).toBe(false)
-        expect(status[0]!.text()).toContain('Veröffentlicht')
+        expect(status[0]!.text()).toContain('Freigegeben')
         expect(status[1]!.find('.adm-tag--neutral').text()).toBe('Entwurf')
         expect(status[2]!.find('.adm-tag--warn').text()).toBe('Ersetzt')
         expect(status[3]!.find('.adm-tag--bad').text()).toBe('Zurückgezogen')
@@ -76,8 +76,8 @@ describe('Gutachten › Dokumente', () => {
     it('counts published against total in German, under one column header', () => {
         const wrapper = mountPage([doc()])
 
-        expect(wrapper.findAll('th').map((th) => th.text())).toContain('Veröffentlicht')
-        expect(wrapper.find('tbody td[data-label="Veröffentlicht"]').text()).toBe('1.276 von 1.408')
+        expect(wrapper.findAll('th').map((th) => th.text())).toContain('Zeilen im Shop')
+        expect(wrapper.find('tbody td[data-label="Zeilen im Shop"]').text()).toBe('1.276 von 1.408')
     })
 
     it('draws a filter only where there are at least two values to choose between', () => {

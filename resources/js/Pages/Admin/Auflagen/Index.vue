@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Gutachten › Auflagen-Katalog — every Auflage once, as the full German sentence customers read
- * (R-15), with how heavy it is and how many rows carry it. A change here changes every Gutachten row
+ * (R-15), with its Einstufung and how many rows carry it. A change here changes every Gutachten row
  * that uses it, which is why the count stands beside each sentence; one still in use cannot be deleted.
  */
 
@@ -83,6 +83,20 @@ function destroy(): void {
     }
 }
 
+/** `927 Zeilen`, or as the reason a row in use stays: `Wird in 927 Zeilen verwendet`. */
+function usedIn(code: Code, sentence = false): string {
+    const rows = code.used === 1 ? '1 Zeile' : `${decimal(code.used, 0)} Zeilen`
+
+    return sentence ? `Wird in ${code.used === 1 ? 'einer Zeile' : rows} verwendet` : rows
+}
+
+/** What the Auflage does beyond its sentence; the import key stays in the edit dialog. */
+function subLine(code: Code): string {
+    return [code.affectsTyreChoice ? 'Schränkt die Reifenwahl ein' : null, code.requiresAcknowledgement ? 'Wird vor dem Kauf bestätigt' : null]
+        .filter((part): part is string => part !== null)
+        .join(' · ')
+}
+
 /** Only the exception is tagged: a Hinweis is ordinary, anything heavier changes what a customer must do. */
 function severityTag(severity: string): string | null {
     return severity === 'INFO' ? null : severity === 'RESTRICTION' ? 'adm-tag adm-tag--warn' : 'adm-tag adm-tag--neutral'
@@ -108,7 +122,7 @@ function severityTag(severity: string): string | null {
                 <thead>
                     <tr>
                         <th scope="col">Auflage</th>
-                        <th scope="col">Gewicht</th>
+                        <th scope="col">Einstufung</th>
                         <th scope="col" class="num">Verwendet</th>
                         <th v-if="can.edit" scope="col"><span class="visually-hidden">Aktionen</span></th>
                     </tr>
@@ -116,19 +130,28 @@ function severityTag(severity: string): string | null {
                 <tbody>
                     <tr v-for="code in codes" :key="code.id">
                         <td data-label="Auflage">
-                            <span class="al-text">{{ code.text }}</span>
-                            <span class="al-sub">{{ code.code }}<template v-if="code.affectsTyreChoice"> · schränkt die Reifenwahl ein</template><template v-if="code.requiresAcknowledgement"> · wird vor dem Kauf bestätigt</template></span>
+                            <span :id="`al-text-${code.id}`" class="al-text">{{ code.text }}</span>
+                            <span v-if="code.affectsTyreChoice || code.requiresAcknowledgement" class="al-sub">{{ subLine(code) }}</span>
                         </td>
-                        <td data-label="Gewicht" data-phone="status">
+                        <td data-label="Einstufung" data-phone="status">
                             <span v-if="severityTag(code.severity)" :class="severityTag(code.severity)">{{ code.severityLabel }}</span>
                             <template v-else>{{ code.severityLabel }}</template>
                         </td>
-                        <td data-label="Verwendet" class="num">{{ code.used === 1 ? '1 Zeile' : `${decimal(code.used, 0)} Zeilen` }}</td>
+                        <td data-label="Verwendet" class="num al-used">{{ usedIn(code) }}</td>
                         <td v-if="can.edit" data-label="Aktionen" class="al-actions">
-                            <button class="adm-iconbtn" type="button" :aria-label="`${code.code} ändern`" title="Ändern" @click="openEdit(code)">
+                            <button class="adm-iconbtn" type="button" aria-label="Ändern" :aria-describedby="`al-text-${code.id}`" title="Ändern" @click="openEdit(code)">
                                 <Icon name="edit" :size="20" />
                             </button>
-                            <button v-if="code.used === 0" class="adm-iconbtn" type="button" :aria-label="`${code.code} löschen`" title="Löschen" @click="deleting = code">
+                            <!-- Always drawn, so the column never shifts; a row in use says why it stays. -->
+                            <button
+                                class="adm-iconbtn"
+                                type="button"
+                                :aria-label="code.used === 0 ? 'Löschen' : `Löschen nicht möglich: ${usedIn(code, true)}`"
+                                :aria-describedby="`al-text-${code.id}`"
+                                :aria-disabled="code.used === 0 ? undefined : 'true'"
+                                :title="code.used === 0 ? 'Löschen' : usedIn(code, true)"
+                                @click="code.used === 0 && (deleting = code)"
+                            >
                                 <Icon name="delete" :size="20" />
                             </button>
                         </td>
@@ -142,11 +165,11 @@ function severityTag(severity: string): string | null {
                 <div class="form-field">
                     <label class="form-field__label" for="al-text">Wortlaut</label>
                     <textarea id="al-text" v-model="form.text" class="input al-area" rows="3" maxlength="600" :aria-invalid="errors.text ? 'true' : undefined" aria-describedby="al-text-help al-text-err" />
-                    <p id="al-text-help" class="form-field__help">Ein ganzer Satz, so wie der Kunde ihn liest: „Bördeln der Radläufe erforderlich.“</p>
+                    <p id="al-text-help" class="form-field__help">Ein ganzer Satz, so wie Kundinnen und Kunden ihn lesen: „Bördeln der Radläufe erforderlich.“</p>
                     <p id="al-text-err" class="form-field__error">{{ errors.text }}</p>
                 </div>
                 <div class="form-field">
-                    <label class="form-field__label" for="al-severity">Gewicht</label>
+                    <label class="form-field__label" for="al-severity">Einstufung</label>
                     <select id="al-severity" v-model="form.severity" class="input" aria-describedby="al-severity-help">
                         <option v-for="option in severities" :key="option.value" :value="option.value">{{ option.label }}</option>
                     </select>
@@ -164,7 +187,7 @@ function severityTag(severity: string): string | null {
                 </label>
                 <label class="al-check">
                     <input v-model="form.requires_acknowledgement" type="checkbox">
-                    <span>Der Kunde bestätigt sie vor dem Kauf</span>
+                    <span>Wird vor dem Kauf bestätigt</span>
                 </label>
             </form>
             <template #actions>
@@ -197,6 +220,20 @@ function severityTag(severity: string): string | null {
 .al-actions {
     white-space: nowrap;
     text-align: right;
+}
+
+/* On a phone the two buttons sit at the end of the „Verwendet“ line, not on a line of their own. */
+@media (max-width: 767px) {
+    .adm-table td.al-used {
+        grid-column: 1;
+        align-self: center;
+    }
+
+    .adm-table td.al-actions {
+        grid-column: 2;
+        align-self: center;
+        padding: 0;
+    }
 }
 
 .al-form {

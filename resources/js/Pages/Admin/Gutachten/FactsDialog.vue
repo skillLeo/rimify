@@ -7,6 +7,7 @@
 
 import { useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
+import DateField from '../../../Components/Admin/DateField.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
@@ -109,7 +110,7 @@ async function save(): Promise<void> {
             <div class="fd-pair">
                 <div class="form-field">
                     <label class="form-field__label" for="fd-date">Ausgestellt am</label>
-                    <input id="fd-date" v-model="form.issued_on" class="input" type="date" :aria-invalid="errors.issued_on ? 'true' : undefined" aria-describedby="fd-date-err">
+                    <DateField id="fd-date" v-model="form.issued_on" :invalid="Boolean(errors.issued_on)" describedby="fd-date-err" />
                     <p id="fd-date-err" class="form-field__error">{{ errors.issued_on }}</p>
                 </div>
                 <div class="form-field">
