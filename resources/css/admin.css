@@ -2364,7 +2364,10 @@ a.adm-foot__health {
 
 /* Not everything is a card: a table sits on the page under one hairline, the same rule its rows use.
    Wider than the work area (768–1023 with many columns), it scrolls inside itself, never the page. */
+/* Positioned so the visually hidden labels in its cells (absolute) belong to it: without, they escape
+   its scroll box and widen the whole page by the table's width (Felgen › Größen, 768–1024 px). */
 .adm-panel {
+    position: relative;
     border-top: 1px solid var(--c-line);
     background: var(--c-surface);
     overflow-x: auto;
@@ -2717,6 +2720,42 @@ a.adm-foot__health {
 
     .adm-table__actions {
         justify-content: flex-start;
+    }
+
+    /* A record's key link is its card: stretched over the whole row, so a finger can tap anywhere on
+       it (WCAG 2.5.8). The row's own controls stay above the stretch and keep their own taps. */
+    .adm-table tbody tr {
+        position: relative;
+    }
+
+    :is(.adm-table__key, .fz-name, .fg-name, .ob-number)::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+
+    /* Its key line is at least a finger high, too. */
+    .adm-table tbody td:first-child:has(> :is(.adm-table__key, .fz-name, .fg-name, .ob-number)) {
+        min-height: var(--adm-control-h-lg);
+    }
+
+    .adm-table tbody td :is(button, input, select, textarea, label, a):not(.adm-table__key, .fz-name, .fg-name, .ob-number) {
+        position: relative;
+        z-index: var(--z-raised);
+    }
+
+    /* The column heads are read out, not shown: their sort buttons are no invisible tab stops. */
+    .adm-table thead :is(button, a, input) {
+        visibility: hidden;
+    }
+
+    /* A link standing on its own — not inside a sentence — is a target of its own: 44 px. */
+    .adm-facts dd > a:only-child,
+    :is(.fs-link, .rb-label, .rb-open, .im-link, .bs-back > a) {
+        display: inline-flex;
+        align-items: center;
+        min-width: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
     }
 }
 

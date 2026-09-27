@@ -520,6 +520,16 @@ const TONE: Record<string, string | null> = {
     color: var(--c-ink-2);
 }
 
+/* „S. 2“ is a target of its own on a phone: 44 px. */
+@media (max-width: 767px) {
+    .gs-table td[data-label='Seite'] a {
+        display: inline-flex;
+        align-items: center;
+        min-width: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
 .gs-actions {
     white-space: nowrap;
     text-align: right;
