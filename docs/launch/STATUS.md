@@ -42,8 +42,11 @@ not listed stays behind an honest „noch nicht gebaut“ on the review board.
       was already counted from rows. Pest `GutachtenErfassungTest` (14). Konflikte page: not built (on the board).
 - [x] **§4.4 Verkauf** — order detail: facts, customer, addresses, lines, and per wheel line the verdict restored
       from its frozen snapshot (never recomputed), with a line when the document was replaced since; an
-      unreadable snapshot says so. List rows link to it. Pest `BestellungDetailTest` (4). Editing an order
-      (status, shipping, invoice, refund) and a sandbox payment: not built (on the board).
+      unreadable snapshot says so. List rows link to it. Pest `BestellungDetailTest` (4). Sandbox payment built
+      (`c56f71dc`): where the review is on, the checkout writes the order with its verdicts frozen (OrderWriter)
+      and a signed Testzahlung page ends it bezahlt / abgelehnt / abgebrochen; production sets
+      `RIMIFY_PAYMENTS none` and Payments refuses the sandbox anyway. Pest `TestzahlungTest` (9). Editing an
+      order (status, shipping, invoice, refund): not built (on the board).
 - [ ] **§4.5 Einstellungen** — storage screen ✔, roles screen ✔ (built earlier), review of both at 12 widths
 - [x] **§3 Review kit** — `/admin/review` (every screen: fertig / in Arbeit / noch nicht gebaut, link, one line,
       open points), „Rückmeldung geben“ in the rail foot and the phone's „Mehr“, key `R` (URL, window, browser,
@@ -52,9 +55,16 @@ not listed stays behind an honest „noch nicht gebaut“ on the review board.
       assignee), accounts Verkauf/Lager/Admin (`ReviewAccountsSeeder`, `docs/review/ACCOUNTS.md`), `php artisan
       review:report` → `docs/review/OPEN-POINTS.md`. Only where `RIMIFY_REVIEW` is on (local, staging); the
       deploy sets it for staging and off for production, and the seeder refuses where it is off.
-- [ ] **§1 Golden record** — the chain end to end against a stand-in, `docs/review/GOLDEN-RECORD.md` with a shot per step
-- [ ] **§5 Drop-in** — dashboard and Katalog list tested with an empty database, one row and the demo set;
-      `demo:purge` leaves the golden record standing
+- [x] **§1 Golden record** — `e2e/golden-record.spec.ts`: supplier CSV → Probelauf → import → publish → Gutachten
+      (placeholder PDF, ABE „PLATZHALTER-GR-1“) → row via HSN/TSN × model, tyre size, Auflage, page → preview →
+      Freigeben → shop by HSN/TSN → verdict, Auflage, „Gutachten öffnen (PDF, Seite 2)“ → basket → Kasse →
+      Testzahlung → confirmation → Verkauf with the frozen proof. Every stand-in says it is one. 15 shots in
+      `docs/review/golden-record/`, told in `docs/review/GOLDEN-RECORD.md`. Found and fixed on the way: tiles
+      showed a quarter of the price, the PDP a one-rim price as four; entry flag and entry Auflage could
+      disagree; order numbers compared as text collided; a database error reached the checkout as text.
+- [x] **§5 Drop-in** — Pest `DropInTest`: the golden record (document, rows, paid order, frozen snapshot, byte
+      for byte) survives `demo:purge`; the Übersicht with one paid order and with the demo set (the empty
+      database was `DashboardEmptyStateTest`); the Katalog list was tested with all three in §4.2.
 
 ## Storage milestone — S3 media storage, configured from the admin (2026-09-27)
 
@@ -185,6 +195,22 @@ Cross-cutting, built inside the milestones that need them:
   was refused by the session's permission check — the user runs it (BLOCKED #12).
 - **2026-09-27 · The review release reorders the work.** The admin on example data is the deliverable; the §4
   order of that brief replaces „M3 next“. M1–M8 stay the long plan.
+
+- **2026-09-28 · `price_cents` is one rim, everywhere (docs/specs/komplettrad.md §9).** The storefront tiles, hero and
+  compare table divided it by four and the PDP printed it under „für 4 Felgen“, while basket, orders, admin and
+  importer charge it per rim. The display now follows the charge: „pro Felge“ everywhere, the PDP adds „4 Felgen:
+  …“ formatted on the server. Found by the golden record.
+- **2026-09-28 · An Auflage carried by a freigegebenes Gutachten keeps its meaning (GUTACHTEN-44).** Its wording,
+  Einstufung and flags are refused a change (only the import key may still be corrected); a new wording is a new
+  Auflage. A released Gutachten changes only by a new Fassung, and verdicts must not move under it.
+- **2026-09-28 · Entry flag and entry Auflage agree.** The engine treats an ENTRY_REQUIRED Auflage as requiring
+  entry and drops „Keine Eintragung erforderlich.“ where any source requires one (caution wins); the row form
+  refuses the contradiction. The golden record's first row predates this and stays as released.
+- **2026-09-28 · A real order's confirmation page is private.** Order numbers count up; the page opens only for
+  the browser that placed the order or through a signed link (404 otherwise). Demo orders stay open.
+- **2026-09-28 · Missing PDFs are said, not linked.** A stored key whose file is absent shows „Die Datei fehlt im
+  Speicher“ in the admin (the seeded example documents have no files); the shop links a Gutachten's PDF, opened
+  at the row's page, wherever one is stored.
 
 ## Deviations
 
