@@ -89,13 +89,12 @@ class UebersichtRequest extends FormRequest
             : Period::preset($key === 'eigen' ? '30' : $key);
 
         if ($asked) {
-            $preferences['dashboard'] = [
+            $user->rememberPreferences(['dashboard' => [
                 'zeitraum' => $period->key,
                 'von' => $period->key === 'eigen' ? $period->from->format('Y-m-d') : null,
                 'bis' => $period->key === 'eigen' ? $period->to->format('Y-m-d') : null,
                 'vergleich' => $compare,
-            ];
-            $user->forceFill(['preferences' => $preferences])->save();
+            ]]);
         }
 
         return ['period' => $period, 'compare' => $compare];

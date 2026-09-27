@@ -125,10 +125,17 @@ class HandleInertiaRequests extends Middleware
             // snaps from 260 to 64 px on every load (admin-shell.md §5.9).
             // The rail as this person left it — collapsed or not, and how wide — so the first frame is
             // already right and nothing jumps at hydration.
+            // `railRev` is the revision of the last save: the page takes a newer one from a visit, never
+            // an older one (AdminLayout).
             'preferences' => [
                 'railCollapsed' => $signedIn && $user->railCollapsed(),
                 'railWidth' => $signedIn ? $user->railWidth() : AdminUser::RAIL_WIDTH_DEFAULT,
+                'railRev' => $signedIn ? $user->railRev() : 0,
             ],
+            // For the one save that cannot send headers: the rail's last width, sent with
+            // navigator.sendBeacon as the tab closes. Fresh on every response, unlike the <meta> of the
+            // first load; the page history holding it is encrypted.
+            'csrfToken' => $signedIn ? csrf_token() : null,
             // Resolved after the controller has run, so a page showing one record can name it.
             'breadcrumbs' => fn (): array => $navigation->breadcrumbs(
                 $nav,

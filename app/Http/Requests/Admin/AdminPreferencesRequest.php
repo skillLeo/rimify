@@ -32,6 +32,8 @@ class AdminPreferencesRequest extends FormRequest
             'width' => ['required_without_all:rail,snooze', 'nullable', 'integer', 'between:'.AdminUser::RAIL_WIDTH_MIN.','.AdminUser::RAIL_WIDTH_MAX],
             // Which urgent problem to be reminded of later: only the two a banner is ever shown for.
             'snooze' => ['required_without_all:rail,width', 'nullable', 'string', 'in:maintenance,queue'],
+            // The save's revision (AdminUser::rememberRail): an older one than the stored is dropped.
+            'rev' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -54,6 +56,11 @@ class AdminPreferencesRequest extends FormRequest
     public function width(): ?int
     {
         return $this->filled('width') ? (int) $this->validated('width') : null;
+    }
+
+    public function rev(): ?int
+    {
+        return $this->filled('rev') ? (int) $this->validated('rev') : null;
     }
 
     public function snooze(): ?string

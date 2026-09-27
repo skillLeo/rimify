@@ -73,6 +73,81 @@ class AdminUser extends Authenticatable
         return ($this->preferences['rail'] ?? null) === 'collapsed';
     }
 
+    /**
+     * Sets some of this person's preferences and keeps the rest as they are in the database now — not
+     * as this request read them. The rail, the Übersicht's period and the alert choices are saved by
+     * separate requests that can overlap (a rail save beside a `?zeitraum=` visit), and a write from a
+     * stale copy of the whole column would quietly undo the other. The row is locked while merging.
+     *
+     * @param  array<string, mixed>  $changes
+     */
+    public function rememberPreferences(array $changes): void
+    {
+        $this->changePreferences(fn (array $current): array => array_merge($current, $changes));
+    }
+
+    /**
+     * The rail as a save from the browser left it — unless a later save got here first. Every save
+     * carries a revision that only ever grows (the browser's clock, never below its last one); an
+     * older one arriving after a newer one — two requests overtaking each other, a second tab — is
+     * dropped rather than written over it. A save without one (a plain form) is always taken.
+     *
+     * @return bool whether it was taken
+     */
+    public function rememberRail(?string $rail, ?int $width, ?int $rev): bool
+    {
+        $taken = false;
+
+        $this->changePreferences(function (array $current) use ($rail, $width, $rev, &$taken): array {
+            if ($rev !== null && $rev <= self::revOf($current)) {
+                return $current;
+            }
+
+            $taken = true;
+
+            return array_merge(
+                $current,
+                $rail !== null ? ['rail' => $rail] : [],
+                $width !== null ? ['railWidth' => $width] : [],
+                $rev !== null ? ['railRev' => $rev] : [],
+            );
+        });
+
+        return $taken;
+    }
+
+    /** The revision of the rail's last save; 0 before the first. */
+    public function railRev(): int
+    {
+        return self::revOf(is_array($this->preferences) ? $this->preferences : []);
+    }
+
+    /** @param  array<string, mixed>  $preferences */
+    private static function revOf(array $preferences): int
+    {
+        return is_int($preferences['railRev'] ?? null) && $preferences['railRev'] > 0 ? $preferences['railRev'] : 0;
+    }
+
+    /**
+     * The one way preferences are written: the row locked, the change applied to what it holds now.
+     *
+     * @param  callable(array<string, mixed>): array<string, mixed>  $change
+     */
+    private function changePreferences(callable $change): void
+    {
+        $merged = DB::transaction(function () use ($change): array {
+            $fresh = static::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $merged = $change(is_array($fresh->preferences) ? $fresh->preferences : []);
+
+            $fresh->forceFill(['preferences' => $merged])->save();
+
+            return $merged;
+        });
+
+        $this->preferences = $merged;
+        $this->syncOriginalAttribute('preferences');
+    }
+
     /** The rail's width as this person dragged it (232–400 px); the default until they do. */
     public const RAIL_WIDTH_DEFAULT = 260;
 

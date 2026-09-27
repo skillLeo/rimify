@@ -127,10 +127,7 @@ final class AdminAlerts
                 : ['in_app' => $offered['inApp'], 'email' => $offered['email']];
         }
 
-        $preferences = is_array($user->preferences) ? $user->preferences : [];
-        $preferences[self::PREFERENCE_KEY] = $stored;
-
-        $user->forceFill(['preferences' => $preferences])->save();
+        $user->rememberPreferences([self::PREFERENCE_KEY => $stored]);
     }
 
     /**

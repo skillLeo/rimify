@@ -296,6 +296,46 @@ describe('the rail, remembered', function (): void {
 
         expect($admin->fresh()?->railWidth())->toBe(260);
     });
+
+    it('keeps the newest save of the rail and drops an older one that arrives after it', function (): void {
+        $admin = shellAdmin();
+
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['rail' => 'open', 'width' => 320, 'rev' => 20])->assertNoContent();
+        // Overtaken on its way: an earlier save of the same drag gets there second.
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['rail' => 'open', 'width' => 276, 'rev' => 10])->assertNoContent();
+
+        expect($admin->fresh()?->railWidth())->toBe(320)
+            ->and($admin->fresh()?->railRev())->toBe(20);
+
+        $this->actingAs($admin->fresh() ?? $admin, 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.preferences.railRev', 20));
+    });
+
+    it('takes the last width from a closing tab: a beacon, a form post with its token and method in fields', function (): void {
+        $admin = shellAdmin();
+
+        // navigator.sendBeacon sends no headers: `_method` makes it the PATCH, `_token` passes the check.
+        $this->actingAs($admin, 'admin')
+            ->post('/admin/ansicht', ['_method' => 'PATCH', '_token' => 'from-the-page', 'rail' => 'open', 'width' => '344', 'rev' => '1727000000000'])
+            ->assertRedirect();
+
+        expect($admin->fresh()?->railWidth())->toBe(344)
+            ->and($admin->fresh()?->railRev())->toBe(1727000000000);
+    });
+
+    it('never lets one save undo another made from an older copy — a rail save beside a period choice', function (): void {
+        $admin = shellAdmin();
+
+        // Two requests that read the account at the same moment, then each save one choice.
+        $rail = AdminUser::query()->findOrFail($admin->id);
+        $period = AdminUser::query()->findOrFail($admin->id);
+
+        $rail->rememberPreferences(['railWidth' => 320]);
+        $period->rememberPreferences(['dashboard' => ['zeitraum' => '7']]);
+
+        expect($admin->fresh()?->preferences)->toEqual(['railWidth' => 320, 'dashboard' => ['zeitraum' => '7']])
+            ->and($period->preferences)->toEqual(['railWidth' => 320, 'dashboard' => ['zeitraum' => '7']]);
+    });
 });
 
 describe('the rail, narrow', function (): void {
@@ -303,7 +343,7 @@ describe('the rail, narrow', function (): void {
         $groups = collect(sharedNav(shellAdmin()))->keyBy('key');
 
         expect($groups->every(fn (array $group): bool => is_string($group['short']) && $group['short'] !== '' && ! str_contains($group['short'], '…')))->toBeTrue()
-            ->and($groups['einstellungen']['short'])->toBe('Optionen')
+            ->and($groups['einstellungen']['short'])->toBe('Vorgaben')
             ->and($groups['verkauf']['short'])->toBe('Verkauf');
     });
 });

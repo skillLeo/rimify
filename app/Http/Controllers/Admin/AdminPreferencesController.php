@@ -29,29 +29,22 @@ class AdminPreferencesController extends Controller
      */
     public function update(AdminPreferencesRequest $request): RedirectResponse|Response
     {
+        // Merged, not replaced: the column holds other choices too, and setting one must never quietly
+        // reset the rest (AdminUser::rememberPreferences).
         $admin = $request->admin();
 
-        // Merged, not replaced: the column will hold other choices too, and setting one must never
-        // quietly reset the rest.
-        $preferences = is_array($admin->preferences) ? $admin->preferences : [];
-
-        if ($request->rail() !== null) {
-            $preferences['rail'] = $request->rail();
-        }
-
-        // The rail's width, as the handle left it: written at most once a second while dragging and
-        // once more when the pointer lets go (AdminRailHandle).
-        if ($request->width() !== null) {
-            $preferences['railWidth'] = $request->width();
+        // The rail and its width, as the handle left them: written at most once a second while
+        // dragging and once more when the pointer lets go (AdminRailHandle) — and dropped when a later
+        // save of them is already stored (the revision).
+        if ($request->rail() !== null || $request->width() !== null) {
+            $admin->rememberRail($request->rail(), $request->width(), $request->rev());
         }
 
         // „Später erinnern“: the banner about this problem stays away for 8 hours — a reminder, not a
         // dismissal. The rail's line keeps showing it all the while (HandleInertiaRequests::health).
         if ($request->snooze() !== null) {
-            $preferences['healthSnooze'] = ['key' => $request->snooze(), 'until' => now()->addHours(self::SNOOZE_HOURS)->toIso8601String()];
+            $admin->rememberPreferences(['healthSnooze' => ['key' => $request->snooze(), 'until' => now()->addHours(self::SNOOZE_HOURS)->toIso8601String()]]);
         }
-
-        $admin->forceFill(['preferences' => $preferences])->save();
 
         return $request->expectsJson() && ! $request->header('X-Inertia') ? response()->noContent() : back();
     }

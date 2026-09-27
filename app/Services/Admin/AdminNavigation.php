@@ -123,7 +123,7 @@ final class AdminNavigation
         [
             'key' => 'auswertungen',
             'label' => 'Auswertungen',
-            'short' => 'Zahlen',
+            'short' => 'Berichte',
             'icon' => 'reports',
             'module' => PermissionModule::Reports->value,
             'pages' => [
@@ -136,7 +136,7 @@ final class AdminNavigation
         [
             'key' => 'einstellungen',
             'label' => 'Einstellungen',
-            'short' => 'Optionen',
+            'short' => 'Vorgaben',
             'icon' => 'settings',
             'module' => PermissionModule::Settings->value,
             'pages' => [
