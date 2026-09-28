@@ -39,6 +39,100 @@ final class SvgSanitizer
         'text-anchor', 'letter-spacing', 'dominant-baseline', 'href', 'xlink:href',
     ];
 
+    /** Whether the file declares entities or an internal DTD subset — refused, and said so (K2-14). */
+    public static function declaresEntities(string $svg): bool
+    {
+        return preg_match('/<!ENTITY|<!DOCTYPE[^>]*\[/i', $svg) === 1;
+    }
+
+    /**
+     * Whether a cleaned SVG starts with a filled shape over its whole canvas — a white or coloured ground
+     * under the logo. The brand wall draws every shape as ink, so such a ground is a solid block (K2-02).
+     * The first shape drawn decides: a rectangle from the origin as wide and high as the viewBox (or 100 %),
+     * with a fill that is not `none` and not fully transparent.
+     */
+    public static function hasBackdrop(string $svg): bool
+    {
+        $document = new DOMDocument;
+        $previous = libxml_use_internal_errors(true);
+        $loaded = $document->loadXML($svg, LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $root = $document->documentElement;
+
+        if (! $loaded || ! $root instanceof DOMElement) {
+            return false;
+        }
+
+        [$width, $height] = self::canvas($root);
+        $first = self::firstShape($root);
+
+        if (! $first instanceof DOMElement || mb_strtolower($first->localName ?? '') !== 'rect') {
+            return false;
+        }
+
+        $fill = mb_strtolower(trim($first->getAttribute('fill')));
+
+        if (in_array($fill, ['none', 'transparent'], true) || $first->getAttribute('fill-opacity') === '0' || $first->getAttribute('opacity') === '0') {
+            return false;
+        }
+
+        $covers = static function (string $value, ?float $full): bool {
+            $value = trim($value);
+
+            return $value === '100%' || ($full !== null && is_numeric($value) && abs((float) $value - $full) <= 0.5);
+        };
+        $atOrigin = static fn (string $value): bool => $value === '' || (is_numeric($value) && abs((float) $value) <= 0.5);
+
+        return $atOrigin($first->getAttribute('x')) && $atOrigin($first->getAttribute('y'))
+            && $covers($first->getAttribute('width'), $width) && $covers($first->getAttribute('height'), $height);
+    }
+
+    /** @return array{0: float|null, 1: float|null} the viewBox's width and height, else the root's */
+    private static function canvas(DOMElement $root): array
+    {
+        $parts = preg_split('/[\s,]+/', trim($root->getAttribute('viewBox'))) ?: [];
+
+        if (count($parts) === 4 && is_numeric($parts[2]) && is_numeric($parts[3])) {
+            return [(float) $parts[2], (float) $parts[3]];
+        }
+
+        $width = $root->getAttribute('width');
+        $height = $root->getAttribute('height');
+
+        return [is_numeric($width) ? (float) $width : null, is_numeric($height) ? (float) $height : null];
+    }
+
+    /** The first shape in drawing order, outside `defs`, `clipPath`, `mask` and `symbol`. */
+    private static function firstShape(DOMElement $element): ?DOMElement
+    {
+        foreach ($element->childNodes as $child) {
+            if (! $child instanceof DOMElement) {
+                continue;
+            }
+
+            $name = mb_strtolower($child->localName ?? '');
+
+            if (in_array($name, ['defs', 'clippath', 'mask', 'symbol', 'title', 'desc', 'lineargradient', 'radialgradient'], true)) {
+                continue;
+            }
+
+            if ($name === 'g') {
+                $inner = self::firstShape($child);
+
+                if ($inner !== null) {
+                    return $inner;
+                }
+
+                continue;
+            }
+
+            return $child;
+        }
+
+        return null;
+    }
+
     public static function clean(string $svg): ?string
     {
         if ($svg === '' || strlen($svg) > self::MAX_BYTES) {
@@ -48,7 +142,11 @@ final class SvgSanitizer
         // No entity and no internal DTD subset: the whole class of XML expansion and external-entity
         // attacks is shut before the parser sees the file. A plain DOCTYPE line (as drawing programs
         // write it) says nothing a drawing needs and is dropped.
-        if (preg_match('/<!ENTITY|<!DOCTYPE[^>]*\[/i', $svg) === 1) {
+        if (str_starts_with($svg, "\xEF\xBB\xBF")) {
+            $svg = substr($svg, 3);
+        }
+
+        if (self::declaresEntities($svg)) {
             return null;
         }
 

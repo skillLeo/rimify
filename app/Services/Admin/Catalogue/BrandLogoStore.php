@@ -34,6 +34,21 @@ final class BrandLogoStore
 
     public const INFECTED = 'Der Virenscanner hat die Datei abgelehnt. Sie wird nicht gespeichert.';
 
+    public const BACKDROP = 'Das Logo hat eine gefüllte Hintergrundfläche. Die Markenwand zeichnet jede Fläche in der Schriftfarbe – bitte das Logo ohne Hintergrund exportieren.';
+
+    public const ENTITIES = 'Die SVG-Datei enthält eine DOCTYPE-Angabe mit Entitäten, die der Shop aus Sicherheitsgründen nicht liest. Bitte ohne DOCTYPE exportieren (in Illustrator: „SVG-Code …“, dann speichern).';
+
+    public const SAMPLE_RANGE = 'Die Beispielmarke zeigt nie ein Logo. Lade es bei der echten Marke hoch.';
+
+    /**
+     * How much of a raster's edge must be see-through: a logo exported on a white or coloured ground is
+     * opaque all round, a logo on a transparent ground is not — whatever the file's header claims (K2-02).
+     */
+    private const MIN_TRANSPARENT_EDGE = 0.25;
+
+    /** GD's alpha runs 0 (opaque) … 127 (clear); from here on a pixel counts as see-through. */
+    private const CLEAR_ALPHA = 100;
+
     public function __construct(private readonly VirusScanner $scanner) {}
 
     /**
@@ -44,6 +59,12 @@ final class BrandLogoStore
      */
     public function store(Brand $brand, UploadedFile $file): array
     {
+        // The sample range never shows a logo (BrandLogos::resolve): one stored for it would be praised
+        // and then reported missing (K2-25).
+        if ($brand->slug === BrandLogos::SAMPLE_RANGE) {
+            return self::refused(self::SAMPLE_RANGE);
+        }
+
         $bytes = (string) file_get_contents($file->getRealPath() ?: '');
 
         if ($bytes === '' || strlen($bytes) > self::MAX_BYTES) {
@@ -54,21 +75,43 @@ final class BrandLogoStore
             return self::refused(self::INFECTED);
         }
 
+        // A byte-order mark in front of an SVG is an editor's habit, not a different file (K2-14).
+        if (str_starts_with($bytes, "\xEF\xBB\xBF")) {
+            $bytes = substr($bytes, 3);
+        }
+
         $format = self::format($bytes);
 
         if ($format === null) {
-            return self::refused(self::NOT_A_LOGO);
+            return self::refused(SvgSanitizer::declaresEntities($bytes) ? self::ENTITIES : self::NOT_A_LOGO);
         }
 
         if ($format === 'svg') {
+            if (SvgSanitizer::declaresEntities($bytes)) {
+                return self::refused(self::ENTITIES);
+            }
+
             $bytes = (string) SvgSanitizer::clean($bytes);
 
             if ($bytes === '') {
                 return self::refused(self::NOT_A_LOGO);
             }
+
+            if (SvgSanitizer::hasBackdrop($bytes)) {
+                return self::refused(self::BACKDROP);
+            }
+        } else {
+            $ground = self::transparentGround($bytes);
+
+            if ($ground !== true) {
+                // null: this server cannot decode the file, which is not the same as an opaque one.
+                return self::refused($ground === null ? self::NOT_A_LOGO : self::OPAQUE);
+            }
         }
 
-        $path = self::DIR.'/'.Str::slug($brand->name ?: 'marke').'-'.substr(sha1($bytes), 0, 12).'.'.$format;
+        // The brand's id in the name: two brands (a renamed one and a new one of its old name) never share
+        // a file, so removing one's logo never takes the other's (K2-26).
+        $path = self::DIR.'/'.Str::slug($brand->name ?: 'marke').'-'.$brand->id.'-'.substr(sha1($bytes), 0, 12).'.'.$format;
         $disk = Storage::disk('public');
         $disk->put($path, $bytes);
 
@@ -93,6 +136,50 @@ final class BrandLogoStore
         if (str_starts_with(ltrim($path, '/'), self::DIR.'/')) {
             Storage::disk('public')->delete(ltrim($path, '/'));
         }
+    }
+
+    /**
+     * Whether a PNG or WebP really stands on a see-through ground: enough of its edge ring is clear. The
+     * header's alpha flag only says the file *could* be transparent; the brand wall paints every opaque
+     * pixel as ink, so an alpha channel that is opaque everywhere is a solid block there (K2-02).
+     */
+    private static function transparentGround(string $bytes): ?bool
+    {
+        $image = @imagecreatefromstring($bytes);
+
+        if ($image === false) {
+            return null;
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        // At most ~2 000 samples along the edge, however large the file.
+        $step = max(1, intdiv(2 * ($width + $height), 2000));
+        $clear = 0;
+        $seen = 0;
+
+        $sample = static function (int $x, int $y) use ($image, &$clear, &$seen): void {
+            $rgba = imagecolorsforindex($image, imagecolorat($image, $x, $y));
+            $seen++;
+
+            if ($rgba['alpha'] >= self::CLEAR_ALPHA) {
+                $clear++;
+            }
+        };
+
+        for ($x = 0; $x < $width; $x += $step) {
+            $sample($x, 0);
+            $sample($x, $height - 1);
+        }
+
+        for ($y = 0; $y < $height; $y += $step) {
+            $sample(0, $y);
+            $sample($width - 1, $y);
+        }
+
+        imagedestroy($image);
+
+        return $seen > 0 && $clear / $seen >= self::MIN_TRANSPARENT_EDGE;
     }
 
     /** The file's type from its first bytes: svg, png or webp — or null. */
