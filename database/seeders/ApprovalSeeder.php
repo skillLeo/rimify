@@ -269,6 +269,11 @@ class ApprovalSeeder extends Seeder
 
     public function run(): void
     {
+        // The example Gutachten belong to the example catalogue: demo, never written to the live shop.
+        if (app()->environment('production')) {
+            return;
+        }
+
         // Guarded on the data rather than on `callOnce`, which Laravel tracks in a process-static
         // array and which therefore lies to the second test of a RefreshDatabase run.
         if (WheelConfig::query()->doesntExist()) {

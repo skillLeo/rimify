@@ -15,10 +15,14 @@ use Illuminate\Support\Facades\DB;
  * The order is the purge's: every table before the ones it references, so no delete ever leans on
  * a cascade — MySQL fires no trigger on a cascading delete, and the snapshot rows must go through
  * theirs. Beside the tables: the demo queue's jobs (`demo:break-queue`) and the anchor setting.
+ *
+ * Two parts, one demo set: the admin's figures (these tables, DemoDashboard) and the example catalogue
+ * they are drawn on (DemoCatalogue). The counts are both — what `demo:assert-clean`, the preflight and
+ * the rail's strip report — and the set alone is what `demo:reanchor` writes again.
  */
 final class DemoTables
 {
-    /** Child first. */
+    /** The admin's figures, child first. */
     public const TABLES = [
         'order_line_fitments',
         'order_lines',
@@ -43,6 +47,7 @@ final class DemoTables
         'audit_logs' => 'Protokolleinträge',
         'admin_users' => 'Konten des Demo-Teams',
         'jobs' => 'Aufgaben der Demo-Warteschlange',
+        ...DemoCatalogue::LABELS,
     ];
 
     /** The queue `demo:break-queue` stalls. No worker listens to it. */
@@ -54,13 +59,29 @@ final class DemoTables
     private const CACHE_KEY = 'admin.demo_rows';
 
     /**
-     * Demo rows per table, and the demo queue's jobs. The migrations guarantee the columns; no
-     * schema lookup is made first (information_schema queries are slow on shared MariaDB, and the
-     * rail asks for this on admin pages). A caller that must survive a database without them catches.
+     * Demo rows per table — the figures, the demo queue's jobs and the example catalogue. The
+     * migrations guarantee the columns; no schema lookup is made first (information_schema queries are
+     * slow on shared MariaDB, and the rail asks for this on admin pages). A caller that must survive a
+     * database without them catches.
      *
      * @return array<string, int>
      */
     public static function counts(): array
+    {
+        return [...self::setCounts(), ...DemoCatalogue::counts()];
+    }
+
+    public static function total(): int
+    {
+        return array_sum(self::counts());
+    }
+
+    /**
+     * The admin's figures alone, and the demo queue's jobs: what DemoDashboard writes.
+     *
+     * @return array<string, int>
+     */
+    public static function setCounts(): array
     {
         $counts = [];
 
@@ -73,9 +94,9 @@ final class DemoTables
         return $counts;
     }
 
-    public static function total(): int
+    public static function setTotal(): int
     {
-        return array_sum(self::counts());
+        return array_sum(self::setCounts());
     }
 
     /**

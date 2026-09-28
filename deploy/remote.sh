@@ -92,8 +92,9 @@ if [ "$TARGET_ENV" = production ]; then
 fi
 "$PHP" artisan migrate --force --no-interaction
 
-# A brand-new database gets the reference data and the demonstration catalogue once. An existing
-# one is never re-seeded: that would overwrite whatever has been edited since.
+# A brand-new database gets the reference data once — and, on staging only, the example catalogue
+# (the seeders refuse it in production). An existing one is never re-seeded: that would overwrite
+# whatever has been edited since.
 VEHICLES="$("$PHP" artisan tinker --execute='echo \Illuminate\Support\Facades\DB::table("vehicles")->count();' 2>/dev/null | tail -1)"
 if [ "$VEHICLES" = "0" ]; then
     echo "== empty database: seeding"
@@ -108,7 +109,7 @@ fi
 # Never again on a later deploy: its frozen snapshots may not be rewritten (R-12), and a set that is
 # there is kept (`demo:reanchor` moves its dates, `demo:purge` takes it away).
 if [ "$TARGET_ENV" = staging ]; then
-    DEMO_ROWS="$("$PHP" artisan tinker --execute='echo \App\Services\Demo\DemoTables::total();' 2>/dev/null | tail -1)"
+    DEMO_ROWS="$("$PHP" artisan tinker --execute='echo \App\Services\Demo\DemoTables::setTotal();' 2>/dev/null | tail -1)"
     if [ "$DEMO_ROWS" = "0" ]; then
         echo "== staging: writing the demonstration data"
         "$PHP" artisan demo:seed --no-interaction | tail -2

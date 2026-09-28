@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Setting;
+use App\Services\Demo\DemoPurge;
 use App\Services\Demo\DemoTables;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\BrandLogoSeeder;
@@ -86,9 +87,10 @@ final class ReleaseSeed extends Command
         }
 
         // A demo set kept on this database (only a staging preview keeps one; the live shop holds none,
-        // demo:assert-clean) froze names the seeders above just changed: taken away and written anew.
-        if ($applied < self::DEMO_RENEWED_AT && DemoTables::total() > 0) {
-            $this->call('demo:purge', ['--force' => true]);
+        // demo:assert-clean) froze names the seeders above just changed: its figures taken away and
+        // written anew, on the example catalogue the seeders just renewed.
+        if ($applied < self::DEMO_RENEWED_AT && DemoTables::setTotal() > 0) {
+            app(DemoPurge::class)->run(DemoPurgeCommand::operator('rimify:release-seed'), catalogue: false);
             $this->call('demo:seed', ['--no-interaction' => true]);
         }
 

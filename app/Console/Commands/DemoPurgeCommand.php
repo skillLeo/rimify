@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\Demo\DemoPurge;
+use App\Services\Demo\DemoPurgeRefused;
 use App\Services\Demo\DemoTables;
 use Illuminate\Console\Command;
 
 /**
- * Removes the demo set: the rows born demo, child first, in one transaction, after one entry in the
- * Protokoll that stays (DemoPurge). Nothing else is touched.
+ * Removes the demo set: the rows born demo and the example catalogue, child first, in one transaction,
+ * after one entry in the Protokoll that stays (DemoPurge). Nothing else is touched; while something
+ * real names the example catalogue, nothing at all.
  */
 final class DemoPurgeCommand extends Command
 {
@@ -36,7 +38,18 @@ final class DemoPurgeCommand extends Command
             return self::SUCCESS;
         }
 
-        $removed = $purge->run(self::operator('demo:purge'));
+        try {
+            $removed = $purge->run(self::operator('demo:purge'));
+        } catch (DemoPurgeRefused $refused) {
+            $this->error('Nothing removed.');
+
+            foreach ($refused->reasons as $reason) {
+                $this->line($reason);
+            }
+
+            return self::FAILURE;
+        }
+
         $this->info(sprintf('Removed %d demo rows; one entry in the Protokoll says so.', array_sum($removed)));
 
         return self::SUCCESS;

@@ -143,7 +143,8 @@ describe('the story', function (): void {
             ->and(DB::table('orders')->where('is_demo', true)->max('updated_at'))->toBe($touched)
             ->and(demoFingerprint())->toEqual($first);
 
-        app(DemoPurge::class)->run('Test');
+        // The figures alone, as demo:reanchor takes them: the example catalogue they stand on stays.
+        app(DemoPurge::class)->run('Test', catalogue: false);
         app(DemoDashboard::class)->seed(demoAnchor(), 0.25);
 
         expect(demoFingerprint())->toEqual($first);

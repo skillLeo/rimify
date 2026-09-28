@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Order;
+use App\Models\Vehicle;
 use App\Models\WheelModel;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\DatabaseSeeder;
@@ -32,8 +33,10 @@ it('seeds no demo orders outside the local and testing environments', function (
 
         $this->artisan('db:seed', ['--class' => DatabaseSeeder::class, '--force' => true])->assertSuccessful();
         expect(Order::query()->count())->toBe(0)
-            // The catalogue is still seeded: only the orders are held back.
-            ->and(WheelModel::query()->count())->toBeGreaterThan(0);
+            // The example catalogue is demo too (the launch release §3): the live shop starts with the
+            // reference data and the vehicles, and its first wheel is a real one.
+            ->and(WheelModel::query()->count())->toBe(0)
+            ->and(Vehicle::query()->count())->toBeGreaterThan(0);
     });
 });
 

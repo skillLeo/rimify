@@ -387,6 +387,12 @@ class CatalogueSeeder extends Seeder
 
     public function run(): void
     {
+        // The example catalogue is demo (the launch release §3): never written to the live shop, whoever
+        // calls this seeder — `demo:assert-clean` would stop the next deploy on it.
+        if (app()->environment('production')) {
+            return;
+        }
+
         // Guarded on the data, never on `callOnce`. Laravel tracks callOnce in a PROCESS-STATIC
         // array, so under RefreshDatabase the second test in a run is told the seeder already ran
         // while its transaction has just rolled the rows away — leaving an empty catalogue and a

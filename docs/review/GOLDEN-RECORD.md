@@ -120,7 +120,9 @@ später, bleibt nachvollziehbar, was die Kundin oder der Kunde gesehen hat.
 
 ## Beispieldaten entfernen
 
-`php artisan demo:purge` entfernt die Beispiel-Bestellungen, -Kundschaft, -Zahlen und -Protokolleinträge
-und schreibt einen Protokolleintrag darüber. Der goldene Datensatz bleibt: Er ist echt angelegt, nicht als
-Beispiel (Test `tests/Feature/Admin/DropInTest.php`). Danach kommen die echten Dateien über denselben Weg
-wie hier: Import → Zuordnung → Probelauf → Importieren.
+`php artisan demo:purge` entfernt die Beispiel-Bestellungen, -Kundschaft, -Zahlen und -Protokolleinträge und
+den Beispielkatalog: die erfundenen Felgen mit Farben und Größen, die Beispiel-Gutachten mit ihren Zeilen, die
+Beispielreifen, die erfundenen Marken und die Platzhalterzeichnungen. Darüber schreibt er einen
+Protokolleintrag. Der goldene Datensatz bleibt: Er ist echt angelegt, nicht als Beispiel (Tests
+`tests/Feature/Admin/DropInTest.php`, `tests/Feature/Demo/DemoCataloguePurgeTest.php`). Danach kommen die echten
+Dateien über denselben Weg wie hier: Import → Zuordnung → Probelauf → Importieren.

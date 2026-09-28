@@ -17,7 +17,7 @@ export function useDemoStrip() {
 
     const body = computed(
         () =>
-            `${demo.value?.rows === 1 ? 'Der letzte Datensatz der Demodaten wird' : `Alle ${rows.value} der Demodaten werden`} gelöscht – Bestellungen, Prüfungen, Nachfrage und die Einträge des Demo-Teams. Echte Daten bleiben unberührt, und das Protokoll hält fest, wer sie entfernt hat.`
+            `${demo.value?.rows === 1 ? 'Der letzte Datensatz der Demodaten wird' : `Alle ${rows.value} der Demodaten werden`} gelöscht – Bestellungen, Prüfungen, Nachfrage, die Einträge des Demo-Teams und der Beispielkatalog mit seinen Gutachten. Echte Daten bleiben unberührt, und das Protokoll hält fest, wer sie entfernt hat.`
     )
 
     const confirming = ref(false)

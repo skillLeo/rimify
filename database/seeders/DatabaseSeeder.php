@@ -17,7 +17,8 @@ use Illuminate\Database\Seeder;
  *
  * The orders are demonstration data and are seeded only in the local and testing environments:
  * on any other database an invented order with an invented tracking number would read as a real
- * one (ACCURACY.md §7).
+ * one (ACCURACY.md §7). The example catalogue and its Gutachten are demo too: never in production
+ * (the seeders refuse it themselves; `demo:purge` takes them away where they are).
  *
  * Every seeder below is idempotent, so this can be re-run against a populated database without
  * duplicating a row — which matters because the one table that must never be rewritten,

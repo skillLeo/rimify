@@ -9,15 +9,25 @@ The last build before go-live and the client presentation. Order: audit, then th
 No push, no deploy: the user runs `docs/launch/GO-LIVE.md`.
 
 - [x] **§1 Compliance audit** — `docs/launch/COMPLIANCE.md`, `e3823278`: 25 erledigt, 7 teilweise, no S1 (item 13: RESTRICT)
-- [ ] **Audit gaps** — formatCurrency (1), CLAUDE.md versioning (14), images (23), importer (25), accounts proof (29),
-      OPEN-POINTS.md (30), BLOCKED.md (32)
-- [ ] **§2 Review kit** — feedback row with screenshot proven, three accounts visibly different, `review:report`
-- [ ] **§3 Weak spots** — SSR fallback counter + health row + log; readiness before serving; no-JS synthetic check;
-      mobile suite three times clean; coverage (pcov) in the ledger; demo catalogue decided; order numbers with a
-      unique constraint + retry + concurrent test; APP_DEBUG enforced + our own 500 page
-- [ ] **§4 Money sweep** — `Money` in PHP, one `formatMoney` in JS, `MoneyDisplayTest` over ten surfaces
-- [ ] **§5 Go-live** — `rimify:smoke`, German holding page, backup/restore, rollback timed, `GO-LIVE.md`
-- [ ] **§6 Presentation pack** — `docs/review/PRESENT.md`
+- [x] **§3 SSR, order numbers, debug** — fallback counter + amber health row + log line with the URL; readiness loop
+      before leaving maintenance; no-JS synthetic check (`rimify:smoke`, `e2e/ssr-nojs.spec.ts`); order numbers:
+      unique index + numeric MAX under a row lock + retry + a second-connection test; `APP_DEBUG` forced off in
+      production and a failing preflight; our own 500 page — `9cb03cdc`
+- [x] **§5 `rimify:smoke`** passes locally (seven rows) — `9cb03cdc`
+
+Remaining, in the order the user set on 2026-09-28 (then the Stripe brief, with test keys only):
+
+1. [x] The two loose edits committed on their own — `257de430`
+2. [x] Example catalogue: demo, goes with `demo:purge` (decision below)
+3. [ ] Money sweep — `Money` in PHP, one `formatMoney` in JS, `MoneyDisplayTest` over ten surfaces, the set of four
+4. [ ] Mobile suite: cause found and fixed, then three clean runs in a row
+5. [ ] Coverage with pcov, the number in this ledger
+6. [ ] Review-kit proofs: a feedback row with its screenshot, three accounts visibly different, `review:report` → OPEN-POINTS.md
+7. [ ] `docs/launch/GO-LIVE.md` and `docs/review/PRESENT.md`
+8. [ ] `COMPLIANCE.md` complete, every row answered, row 13's foreign keys written out
+- [ ] **Guards (added 2026-09-28)** — `secrets:scan` + pre-commit hook, the whole history scanned once (row 21); the
+      live-credential rule in CLAUDE.md and in a versioned doc; the payment-key guard (`sk_live_` refused outside
+      production, `sk_test_` refused in live mode)
 
 ## Previous target — the admin review release (brief of 2026-09-27)
 
@@ -237,6 +247,19 @@ Cross-cutting, built inside the milestones that need them:
   cached a year (immutable), images and CSS/JS a week, text compressed. No `information_schema` lookups per request
   (DemoTables, StorageSettings). Telescope is opt-in locally. Not done: SSR cluster mode (forks one process per
   visible CPU — over a shared host's limits).
+
+- **2026-09-28 · The example catalogue is demo, and it goes with `demo:purge`.** Not part of the golden record, not a
+  third state of hidden drafts. `DemoCatalogue` names it — the models and tyres born `is_demo`, their finishes and
+  sizes, the rows on them with their Auflagen, tyre sizes and conflicts, the documents of the invented issuer
+  („Prüfstelle (Demodaten)“) with no row on a real wheel, the invented brands no real wheel or tyre carries, and the
+  placeholder drawings — and the purge removes it child first in the same transaction as the figures, after the one
+  Protokoll entry that counts it. Refused as a whole, nothing removed, while something real names it: a real
+  Gutachten with rows on an example wheel (R-05), a real document replacing an example one, or an order line not
+  born demo on an example wheel or tyre (R-12 — only CommerceSeeder's orders on a development database; checkout
+  refuses a demo line). `demo:assert-clean`, the preflight and the rail's strip count the catalogue; `demo:reanchor`
+  and the release seed renew the figures only. The seeders never write the example catalogue in production, so the
+  live shop's first wheel is a real one. The development database keeps its catalogue (41 seeded order lines name
+  it) until rebuilt. Pest `DemoCataloguePurgeTest` (7).
 
 ## Deviations
 

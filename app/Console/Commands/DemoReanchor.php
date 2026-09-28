@@ -49,7 +49,8 @@ final class DemoReanchor extends Command
         // One transaction: a seed that fails puts the old set back, rather than leaving none.
         try {
             DB::transaction(static function () use ($purge, $demo, $anchor, $scale): void {
-                $purge->run(DemoPurgeCommand::operator('demo:reanchor'));
+                // The figures only: they are written again at once, on the same example catalogue.
+                $purge->run(DemoPurgeCommand::operator('demo:reanchor'), catalogue: false);
                 $demo->seed($anchor, (float) $scale);
             });
         } catch (RuntimeException $e) {
