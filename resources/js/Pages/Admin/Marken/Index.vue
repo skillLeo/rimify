@@ -7,6 +7,9 @@
  * WebP with a transparent ground — the server reads the file and refuses anything else in a sentence under
  * the row it was sent from. One form serves a new brand and an existing one, like Zubehörpreise.
  *
+ * The keyboard never falls to `<body>`: every action names where the focus goes next and useFocusAfter
+ * puts it there once the page has settled (K2-03, K2-05, K2-11).
+ *
  * Every write is authorised on the server (R-11); `can` only decides what is drawn.
  */
 
@@ -17,6 +20,7 @@ import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -30,11 +34,15 @@ interface BrandRow {
     logo: { url: string; aspect: number } | null
     logoBroken: boolean
     wheels: number
+    /** Removed Felgen keep their brand too (BrandPolicy). */
+    removedWheels: number
     tyres: number
 }
 
 const props = defineProps<{
     brands: BrandRow[]
+    /** Where a new brand joins the wall: at its end (K2-12). */
+    nextSortOrder: number
     can: { create: boolean; update: boolean; delete: boolean }
 }>()
 
@@ -48,18 +56,20 @@ interface BrandForm {
 }
 
 function blank(): BrandForm {
-    return { name: '', isWheelBrand: true, sortOrder: 0 }
+    return { name: '', isWheelBrand: true, sortOrder: props.nextSortOrder }
 }
 
 const page = usePage()
+const focus = useFocusAfter()
 const form = reactive<BrandForm>(blank())
-const nameField = ref<HTMLInputElement | null>(null)
 const editing = ref<number | null>(null)
 const sent = ref(false)
 const busy = ref(false)
 /** The row whose logo was just sent: only it shows the server's word about a logo. */
 const logoRow = ref<number | null>(null)
 const confirming = ref<BrandRow | null>(null)
+/** A row just created or changed: tinted once, so the eye finds it. */
+const fresh = ref<number | null>(null)
 
 const bag = computed<Record<string, string>>(() => {
     const raw: unknown = page.props.errors
@@ -68,6 +78,8 @@ const bag = computed<Record<string, string>>(() => {
 })
 const errors = computed<Record<string, string>>(() => (sent.value ? bag.value : {}))
 const logoError = computed(() => bag.value.logo ?? '')
+/** Why a brand could not be removed — the Policy's own sentence (K2-16). */
+const brandError = computed(() => bag.value.brand ?? '')
 
 const canWrite = computed(() => props.can.create || props.can.update)
 const editingBrand = computed(() => props.brands.find((b) => b.id === editing.value) ?? null)
@@ -90,30 +102,45 @@ const confirmOpen = computed({
     },
 })
 
+const more = (id: number): string => `mk-more-${id}`
+
 function reset(): void {
     Object.assign(form, blank())
     editing.value = null
     sent.value = false
 }
 
+/** „Abbrechen“: the form is new again, and the keyboard stays in it. */
+function cancel(): void {
+    reset()
+    focus.request('mk-name')
+}
+
+/** From a row's menu: the form, far above on a phone, is brought into view with the focus in Name (K2-05). */
 function edit(brand: BrandRow): void {
     form.name = brand.name
     form.isWheelBrand = brand.isWheelBrand
     form.sortOrder = brand.sortOrder
     editing.value = brand.id
     sent.value = false
-    nameField.value?.focus()
+    focus.request('mk-name', { scroll: true })
 }
 
 function submit(): void {
     sent.value = true
     busy.value = true
+    const name = form.name.trim()
 
     const options = {
         preserveScroll: true,
-        onSuccess: reset,
+        onSuccess: () => {
+            reset()
+            fresh.value = props.brands.find((b) => b.name === name)?.id ?? null
+        },
         onFinish: () => {
             busy.value = false
+            // Created, saved or refused: the keyboard is in Name, where the next thing is typed or fixed.
+            focus.request('mk-name')
         },
     }
 
@@ -134,10 +161,15 @@ function upload(brand: BrandRow, event: Event): void {
 
     logoRow.value = brand.id
     busy.value = true
+    // Back on the row's „⋯“ once the answer is in and it is enabled again.
+    focus.request(more(brand.id))
 
     router.post(`${BASE}/${brand.id}/logo`, { logo: file }, {
         forceFormData: true,
         preserveScroll: true,
+        onSuccess: () => {
+            fresh.value = brand.id
+        },
         onFinish: () => {
             busy.value = false
             input.value = ''
@@ -148,6 +180,7 @@ function upload(brand: BrandRow, event: Event): void {
 function removeLogo(brand: BrandRow): void {
     logoRow.value = brand.id
     busy.value = true
+    focus.request(more(brand.id))
 
     router.delete(`${BASE}/${brand.id}/logo`, {
         preserveScroll: true,
@@ -164,15 +197,28 @@ function remove(): void {
         return
     }
 
+    // Where the keyboard goes once the row is gone: the next row, else the one before, else the form.
+    const index = props.brands.findIndex((b) => b.id === brand.id)
+    const next = props.brands[index + 1]?.id
+    const previous = props.brands[index - 1]?.id
+    const targets = [next, previous].filter((id): id is number => id !== undefined).map(more)
+
     busy.value = true
     router.delete(`${BASE}/${brand.id}`, {
         preserveScroll: true,
         onSuccess: () => {
             confirming.value = null
+            focus.request([...targets, 'mk-name', 'mk-list-title'])
 
             if (editing.value === brand.id) {
                 reset()
             }
+        },
+        onError: () => {
+            // Refused (still in use): the dialog closes, the sentence stands above the list, the keyboard
+            // stays on the row.
+            confirming.value = null
+            focus.request(more(brand.id))
         },
         onFinish: () => {
             busy.value = false
@@ -180,9 +226,9 @@ function remove(): void {
     })
 }
 
-/** A brand that carries nothing may go; the server says the same (BrandPolicy). */
+/** A brand that carries nothing — not even a removed Felge — may go; the server says the same (BrandPolicy). */
 function mayRemove(brand: BrandRow): boolean {
-    return props.can.delete && brand.wheels === 0 && brand.tyres === 0
+    return props.can.delete && brand.wheels === 0 && brand.removedWheels === 0 && brand.tyres === 0
 }
 
 function hasMenu(brand: BrandRow): boolean {
@@ -196,6 +242,10 @@ function pickLogo(brand: BrandRow): void {
 
 function counts(brand: BrandRow): string {
     const parts = [brand.wheels === 1 ? '1 Felge' : `${brand.wheels} Felgen`]
+
+    if (brand.removedWheels > 0) {
+        parts.push(brand.removedWheels === 1 ? '1 entfernte Felge' : `${brand.removedWheels} entfernte Felgen`)
+    }
 
     if (brand.tyres > 0) {
         parts.push(brand.tyres === 1 ? '1 Reifen' : `${brand.tyres} Reifen`)
@@ -221,7 +271,6 @@ function counts(brand: BrandRow): string {
                         <label class="form-field__label" for="mk-name">Name</label>
                         <input
                             id="mk-name"
-                            ref="nameField"
                             v-model="form.name"
                             class="input"
                             :class="{ 'input--error': errors.name || errors.slug }"
@@ -232,7 +281,7 @@ function counts(brand: BrandRow): string {
                             aria-describedby="mk-name-err"
                             :aria-invalid="errors.name || errors.slug ? 'true' : undefined"
                         >
-                        <p id="mk-name-err" class="form-field__error">{{ errors.name ?? errors.slug ?? '' }}</p>
+                        <p id="mk-name-err" class="form-field__error" aria-live="polite">{{ errors.name ?? errors.slug ?? '' }}</p>
                     </div>
 
                     <div class="form-field">
@@ -249,7 +298,7 @@ function counts(brand: BrandRow): string {
                             aria-describedby="mk-sort-help mk-sort-err"
                             :aria-invalid="errors.sortOrder ? 'true' : undefined"
                         >
-                        <p id="mk-sort-help" class="form-field__help">Kleinere Zahlen stehen weiter vorn.</p>
+                        <p id="mk-sort-help" class="form-field__help">Kleinere Zahlen stehen weiter vorn. Eine neue Marke steht am Ende.</p>
                         <p id="mk-sort-err" class="form-field__error">{{ errors.sortOrder ?? '' }}</p>
                     </div>
 
@@ -263,16 +312,17 @@ function counts(brand: BrandRow): string {
 
                 <div class="adm-fields__actions">
                     <button class="btn btn--primary" type="submit" :disabled="busy">{{ editing === null ? 'Marke anlegen' : 'Änderungen speichern' }}</button>
-                    <button v-if="editing !== null" class="btn btn--secondary" type="button" @click="reset">Abbrechen</button>
+                    <button v-if="editing !== null" class="btn btn--secondary" type="button" @click="cancel">Abbrechen</button>
                 </div>
             </form>
         </section>
 
         <section class="adm-section" aria-labelledby="mk-list-title">
             <div class="adm-section__head">
-                <h2 id="mk-list-title" class="adm-section__title">Marken</h2>
+                <h2 id="mk-list-title" class="adm-section__title mk__list-title" tabindex="-1">Marken</h2>
             </div>
             <p class="form-field__help mk__hint">{{ LOGO_HINT }}</p>
+            <p v-if="brandError" class="adm-alert" role="alert">{{ brandError }}</p>
 
             <div v-if="brands.length > 0" class="adm-panel">
                 <table class="adm-table mk__table">
@@ -287,7 +337,13 @@ function counts(brand: BrandRow): string {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="brand in brands" :key="brand.id" :aria-current="editing === brand.id ? 'true' : undefined">
+                        <tr
+                            v-for="brand in brands"
+                            :key="brand.id"
+                            :class="{ 'adm-row--fresh': fresh === brand.id }"
+                            :aria-current="editing === brand.id ? 'true' : undefined"
+                            @animationend="fresh = null"
+                        >
                             <td data-label="Marke">
                                 <span class="adm-table__key">{{ brand.name }}</span>
                                 <span class="adm-table__sub">{{ brand.slug }}</span>
@@ -317,11 +373,11 @@ function counts(brand: BrandRow): string {
                                     @change="upload(brand, $event)"
                                 >
                                 <DropdownMenuRoot v-if="hasMenu(brand)">
-                                    <DropdownMenuTrigger :id="`mk-more-${brand.id}`" class="adm-iconbtn" :disabled="busy" :aria-label="`Aktionen für ${brand.name}`">
+                                    <DropdownMenuTrigger :data-focus="more(brand.id)" class="adm-iconbtn" :disabled="busy" :aria-label="`Aktionen für ${brand.name}`">
                                         <Icon name="more" :size="20" />
                                     </DropdownMenuTrigger>
                                     <DropdownMenuPortal>
-                                        <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
+                                        <DropdownMenuContent class="adm-menu" align="end" :side-offset="4" @close-auto-focus="focus.onMenuClose">
                                             <template v-if="can.update">
                                                 <DropdownMenuItem class="adm-menu__item" @select="edit(brand)">
                                                     <Icon name="edit" :size="20" />
@@ -412,5 +468,10 @@ function counts(brand: BrandRow): string {
 
 .mk__row-error {
     margin-top: var(--sp-4);
+}
+
+/* The list's heading takes the focus only as the last way out of a removed row; it draws no ring. */
+.mk__list-title:focus {
+    outline: none;
 }
 </style>

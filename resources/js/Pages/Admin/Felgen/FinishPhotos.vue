@@ -8,15 +8,19 @@
  * The order moves with *nach oben* / *nach unten* (beside the photo from 768 px, always in its menu) and,
  * with a pointer, by dragging. Every photo keeps its own sentence for a screen reader; the server refuses
  * one without it (WheelImageRequest, WheelPhotoAltRequest). A generated drawing (the demo set) says it is one.
+ *
+ * The keyboard never falls to `<body>`: every action names where the focus goes next and useFocusAfter puts
+ * it there once the round trip is over and the control is enabled again (K2-04, K2-22).
  */
 
 import { router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
 import Picture from '../../../Components/Ui/Picture.vue'
+import { resolveTarget, useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import type { FinishImage, FinishPhoto } from '../../../types/admin/felgen'
 
 const props = defineProps<{
@@ -33,13 +37,14 @@ const props = defineProps<{
 }>()
 
 const page = usePage()
+const focus = useFocusAfter()
 const base = computed(() => `/admin/felgen/${props.modelId}/ausfuehrungen/${props.finishId}`)
 const idBase = computed(() => `fe-photo-${props.finishId}`)
 const busy = ref(false)
 const fresh = ref<number | null>(null)
 const announce = ref('')
 
-/** Whose errors this colour shows: only those of a request it sent itself. */
+/** Whose errors this colour shows: only those of a request it sent itself, and only until it starts anew. */
 const mine = ref<'upload' | 'alt' | 'order' | null>(null)
 
 const errors = computed(() => {
@@ -56,8 +61,13 @@ const full = computed(() => props.photos.length >= props.max)
 const drawing = computed(() => props.photos.length === 0 && props.image?.placeholder === true)
 const count = computed(() => (props.photos.length === 1 ? '1 Foto' : `${props.photos.length} Fotos`))
 
-function focus(id: string): void {
-    void nextTick(() => document.getElementById(id)?.focus())
+const startId = computed(() => `${idBase.value}-start`)
+const moreId = (id: number): string => `${idBase.value}-more-${id}`
+/** The last photo's „⋯“ — where the keyboard goes when „Foto hinzufügen“ is closed off by the limit. */
+const lastMore = (): HTMLElement | null => {
+    const last = props.photos.at(-1)
+
+    return last === undefined ? null : resolveTarget(moreId(last.id))
 }
 
 /* ── Adding ────────────────────────────────────────────────────────────────── */
@@ -68,16 +78,18 @@ const alt = ref('')
 
 function startAdd(): void {
     adding.value = true
+    mine.value = null
     // The first photo is the front view as a rule; any later one is the admin's own sentence.
     alt.value = props.photos.length === 0 ? `${props.title} in ${props.finishName}, Ansicht von vorn` : ''
     // The button that opened the form is gone: focus goes to the first thing to do in it.
-    void nextTick(() => document.querySelector<HTMLElement>(`label[for="${idBase.value}-file"]`)?.focus())
+    focus.request(() => document.querySelector<HTMLElement>(`label[for="${idBase.value}-file"]`))
 }
 
 function cancelAdd(): void {
     adding.value = false
     file.value = null
-    focus(`${idBase.value}-start`)
+    mine.value = null
+    focus.request(startId.value)
 }
 
 function upload(): void {
@@ -98,7 +110,12 @@ function upload(): void {
                 file.value = null
                 mine.value = null
                 fresh.value = props.photos.at(-1)?.id ?? null
-                focus(`${idBase.value}-start`)
+                // „Foto hinzufügen“ once it is enabled again; at the limit it stays off, so the new photo's „⋯“.
+                focus.request([startId.value, lastMore])
+            },
+            onError: () => {
+                // Refused: the form stays with the sentence; the keyboard goes to what needs fixing.
+                focus.request([`${idBase.value}-alt`, () => document.querySelector<HTMLElement>(`label[for="${idBase.value}-file"]`)])
             },
             onFinish: () => {
                 busy.value = false
@@ -113,7 +130,12 @@ function place(index: number): string {
     return index === 0 ? 'an erster Stelle und ist das Titelbild' : `an Stelle ${index + 1}`
 }
 
-function order(ids: number[], moved: number, button: string | null): void {
+/**
+ * @param ids the whole new order
+ * @param keep where the keyboard stays: the photo's arrow (with the other arrow as the way out at the first
+ *             or last place), or its „⋯“ when the move came from the menu (K2-22), or nothing for a drag
+ */
+function order(ids: number[], moved: number, keep: string[]): void {
     if (busy.value) {
         return
     }
@@ -131,39 +153,53 @@ function order(ids: number[], moved: number, button: string | null): void {
         onFinish: () => {
             busy.value = false
 
-            if (button !== null) {
-                // The keyboard stays on the photo it moved; at the first or last place the other
-                // direction's button takes it, and from the menu, the "…".
-                void nextTick(() => {
-                    const other = button.endsWith('-up') ? button.replace(/-up$/, '-down') : button.replace(/-down$/, '-up')
-                    const usable = [button, other]
-                        .map((id) => document.getElementById(id) as HTMLButtonElement | null)
-                        .find((el) => el !== null && !el.disabled && el.offsetParent !== null)
-
-                    ;(usable ?? document.getElementById(`${idBase.value}-more-${moved}`))?.focus()
-                })
+            if (keep.length > 0) {
+                focus.request([...keep, moreId(moved)])
             }
         },
     })
 }
 
-function move(photo: FinishPhoto, by: -1 | 1): void {
+function move(photo: FinishPhoto, by: -1 | 1, from: 'arrows' | 'menu' = 'arrows'): void {
     const ids = props.photos.map((p) => p.id)
-    const from = ids.indexOf(photo.id)
-    const to = from + by
+    const at = ids.indexOf(photo.id)
+    const to = at + by
 
-    if (from < 0 || to < 0 || to >= ids.length) {
+    if (at < 0 || to < 0 || to >= ids.length) {
         return
     }
 
-    ids.splice(from, 1)
+    ids.splice(at, 1)
     ids.splice(to, 0, photo.id)
-    order(ids, photo.id, `${idBase.value}-${photo.id}-${by < 0 ? 'up' : 'down'}`)
+
+    const same = `${idBase.value}-${photo.id}-${by < 0 ? 'up' : 'down'}`
+    const other = `${idBase.value}-${photo.id}-${by < 0 ? 'down' : 'up'}`
+
+    order(ids, photo.id, from === 'menu' ? [moreId(photo.id)] : [same, other])
 }
 
-/* Dragging, for a pointer: the same request as the arrows. */
+/*
+ * Dragging, for a pointer: the same request as the arrows. The marker is drawn where the photo will land:
+ * dragged down, it lands after the photo it is dropped on, so the line is under that photo; dragged up,
+ * before it, the line above (K2-07).
+ */
 const dragging = ref<number | null>(null)
-const over = ref<number | null>(null)
+const over = ref<{ id: number; after: boolean } | null>(null)
+
+function carriesFiles(event: DragEvent): boolean {
+    return Array.from(event.dataTransfer?.types ?? []).includes('Files')
+}
+
+/** A file dragged in from the desktop is never taken here — and never opens in the tab (K2-08). */
+function refuseFiles(event: DragEvent): void {
+    if (dragging.value === null && carriesFiles(event)) {
+        event.preventDefault()
+
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'none'
+        }
+    }
+}
 
 function dragStart(event: DragEvent, photo: FinishPhoto): void {
     dragging.value = photo.id
@@ -174,18 +210,21 @@ function dragStart(event: DragEvent, photo: FinishPhoto): void {
     }
 }
 
-function dragOver(event: DragEvent, photo: FinishPhoto): void {
+function dragOver(event: DragEvent, target: FinishPhoto): void {
     if (dragging.value === null) {
         return
     }
 
     event.preventDefault()
-    over.value = photo.id
+    const from = props.photos.findIndex((p) => p.id === dragging.value)
+    const to = props.photos.findIndex((p) => p.id === target.id)
+    over.value = { id: target.id, after: from < to }
 }
 
 function drop(event: DragEvent, target: FinishPhoto): void {
     event.preventDefault()
     const moved = dragging.value
+    const after = over.value?.after ?? false
     dragEnd()
 
     if (moved === null || moved === target.id) {
@@ -193,8 +232,8 @@ function drop(event: DragEvent, target: FinishPhoto): void {
     }
 
     const ids = props.photos.map((p) => p.id).filter((id) => id !== moved)
-    ids.splice(props.photos.findIndex((p) => p.id === target.id), 0, moved)
-    order(ids, moved, null)
+    ids.splice(ids.indexOf(target.id) + (after ? 1 : 0), 0, moved)
+    order(ids, moved, [])
 }
 
 function dragEnd(): void {
@@ -211,12 +250,13 @@ function startEdit(photo: FinishPhoto): void {
     editing.value = photo.id
     draft.value = photo.alt
     mine.value = null
-    focus(`${idBase.value}-alt-${photo.id}`)
+    focus.request(`${idBase.value}-alt-${photo.id}`)
 }
 
 function cancelEdit(photo: FinishPhoto): void {
     editing.value = null
-    focus(`${idBase.value}-more-${photo.id}`)
+    mine.value = null
+    focus.request(moreId(photo.id))
 }
 
 function saveEdit(photo: FinishPhoto): void {
@@ -232,7 +272,10 @@ function saveEdit(photo: FinishPhoto): void {
             editing.value = null
             mine.value = null
             fresh.value = photo.id
-            focus(`${idBase.value}-more-${photo.id}`)
+            focus.request(moreId(photo.id))
+        },
+        onError: () => {
+            focus.request(`${idBase.value}-alt-${photo.id}`)
         },
         onFinish: () => {
             busy.value = false
@@ -277,7 +320,7 @@ function remove(): void {
         onSuccess: () => {
             confirmOpen.value = false
             removing.value = null
-            focus(`${idBase.value}-start`)
+            focus.request([startId.value, lastMore])
         },
         onFinish: () => {
             busy.value = false
@@ -287,7 +330,7 @@ function remove(): void {
 </script>
 
 <template>
-    <div class="fe-photos">
+    <div class="fe-photos" @dragover="refuseFiles" @drop="refuseFiles">
         <p v-if="drawing" class="fe-photos__state">Platzhalterbild der Demodaten – kein Produktfoto.</p>
         <p v-else-if="photos.length === 0" class="fe-photos__state">Kein Foto. Der Shop zeigt die Umrisszeichnung, bis eines hochgeladen ist.</p>
         <p v-else-if="editable && photos.length > 1" class="fe-photos__state">
@@ -305,12 +348,13 @@ function remove(): void {
                 :class="{
                     'adm-row--fresh': fresh === photo.id,
                     'fe-photos__item--dragging': dragging === photo.id,
-                    'fe-photos__item--over': over === photo.id && dragging !== photo.id,
+                    'fe-photos__item--over': over?.id === photo.id && dragging !== photo.id && !over.after,
+                    'fe-photos__item--over-after': over?.id === photo.id && dragging !== photo.id && over.after,
                 }"
                 :draggable="editable && !busy && editing === null && photos.length > 1 ? 'true' : undefined"
                 @dragstart="dragStart($event, photo)"
                 @dragover="dragOver($event, photo)"
-                @dragleave="over = over === photo.id ? null : over"
+                @dragleave="over = over?.id === photo.id ? null : over"
                 @drop="drop($event, photo)"
                 @dragend="dragEnd"
                 @animationend="fresh = null"
@@ -340,7 +384,7 @@ function remove(): void {
                                 @keydown.esc.prevent="cancelEdit(photo)"
                             >
                             <p :id="`${idBase}-alt-${photo.id}-help`" class="form-field__help">Diesen Satz hört, wer das Foto nicht sehen kann.</p>
-                            <p :id="`${idBase}-alt-${photo.id}-err`" class="form-field__error">{{ errors.alt }}</p>
+                            <p :id="`${idBase}-alt-${photo.id}-err`" class="form-field__error" aria-live="polite">{{ errors.alt }}</p>
                         </div>
                         <div class="fe-photos__actions">
                             <button class="btn btn--primary" type="button" :disabled="busy" :aria-busy="busy ? 'true' : undefined" @click="saveEdit(photo)">Speichern</button>
@@ -374,21 +418,21 @@ function remove(): void {
                     </div>
 
                     <DropdownMenuRoot>
-                        <DropdownMenuTrigger :id="`${idBase}-more-${photo.id}`" class="adm-iconbtn" :disabled="busy" :aria-label="`Aktionen für Foto ${index + 1}`">
+                        <DropdownMenuTrigger :data-focus="moreId(photo.id)" class="adm-iconbtn" :disabled="busy" :aria-label="`Aktionen für Foto ${index + 1}`">
                             <Icon name="more" :size="20" />
                         </DropdownMenuTrigger>
                         <DropdownMenuPortal>
-                            <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
+                            <DropdownMenuContent class="adm-menu" align="end" :side-offset="4" @close-auto-focus="focus.onMenuClose">
                                 <DropdownMenuItem class="adm-menu__item" @select="startEdit(photo)">
                                     <Icon name="edit" :size="20" />
                                     Beschreibung ändern
                                 </DropdownMenuItem>
                                 <template v-if="photos.length > 1">
-                                    <DropdownMenuItem class="adm-menu__item" :disabled="index === 0" @select="move(photo, -1)">
+                                    <DropdownMenuItem class="adm-menu__item" :disabled="index === 0" @select="move(photo, -1, 'menu')">
                                         <Icon name="chevron-up" :size="20" />
                                         Nach oben
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem class="adm-menu__item" :disabled="index === photos.length - 1" @select="move(photo, 1)">
+                                    <DropdownMenuItem class="adm-menu__item" :disabled="index === photos.length - 1" @select="move(photo, 1, 'menu')">
                                         <Icon name="chevron-down" :size="20" />
                                         Nach unten
                                     </DropdownMenuItem>
@@ -408,12 +452,14 @@ function remove(): void {
         <p v-if="errors.order" class="form-field__error" role="alert">{{ errors.order }}</p>
 
         <div v-if="editable && !adding" class="fe-photos__add">
-            <button :id="`${idBase}-start`" class="btn btn--secondary" type="button" :disabled="busy || full" @click="startAdd">Foto hinzufügen</button>
+            <button :id="startId" class="btn btn--secondary" type="button" :disabled="busy || full" @click="startAdd">Foto hinzufügen</button>
             <p class="fe-photos__count">
                 {{ count }} von höchstens {{ max }}<template v-if="full"> – entferne eines, um ein weiteres hinzuzufügen</template>
             </p>
         </div>
 
+        <!-- Not a <form>: the Felge form around it is one. Enter in the description uploads, as Enter saves a
+             description that is edited (K2-09). -->
         <div v-if="adding" class="fe-photos__form">
             <div class="form-field">
                 <span :id="`${idBase}-file-label`" class="form-field__label">Foto (JPEG, PNG, WebP oder AVIF, höchstens 10 MB)</span>
@@ -425,7 +471,7 @@ function remove(): void {
                     :invalid="!!errors.image"
                     :describedby="`${idBase}-file-label ${idBase}-file-err`"
                 />
-                <p :id="`${idBase}-file-err`" class="form-field__error">{{ errors.image }}</p>
+                <p :id="`${idBase}-file-err`" class="form-field__error" aria-live="polite">{{ errors.image }}</p>
             </div>
             <div class="form-field">
                 <label class="form-field__label" :for="`${idBase}-alt`">Was zeigt das Foto?</label>
@@ -437,11 +483,12 @@ function remove(): void {
                     maxlength="200"
                     :aria-invalid="errors.alt ? 'true' : undefined"
                     :aria-describedby="`${idBase}-alt-help ${idBase}-alt-err`"
+                    @keydown.enter.prevent="upload"
                 >
                 <p :id="`${idBase}-alt-help`" class="form-field__help">
                     Diesen Satz hört, wer das Foto nicht sehen kann – zum Beispiel „{{ title }} in {{ finishName }}, schräg von der Seite“.
                 </p>
-                <p :id="`${idBase}-alt-err`" class="form-field__error">{{ errors.alt }}</p>
+                <p :id="`${idBase}-alt-err`" class="form-field__error" aria-live="polite">{{ errors.alt }}</p>
             </div>
             <div class="fe-photos__actions">
                 <button class="btn btn--primary" type="button" :disabled="busy || file === null" :aria-busy="busy ? 'true' : undefined" @click="upload">Hochladen</button>
@@ -502,13 +549,23 @@ function remove(): void {
     opacity: 0.5;
 }
 
-/* Where a dragged photo lands: a line across the top of the photo it will stand before. */
-.fe-photos__item--over::before {
+/* Where a dragged photo lands: a line above the photo it will stand before, or below the one it will follow. */
+.fe-photos__item--over::before,
+.fe-photos__item--over-after::before {
     content: '';
     position: absolute;
-    inset: -1px 0 auto;
+    right: 0;
+    left: 0;
     height: 2px;
     background: var(--c-blue);
+}
+
+.fe-photos__item--over::before {
+    top: -1px;
+}
+
+.fe-photos__item--over-after::before {
+    bottom: -1px;
 }
 
 .fe-photos__frame {

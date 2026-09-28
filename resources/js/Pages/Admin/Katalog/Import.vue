@@ -8,9 +8,11 @@
  */
 
 import { Link, useForm } from '@inertiajs/vue3'
+import { watch } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
+import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminImportProps, ImportRunRow } from '../../../types/admin/felgen'
@@ -20,15 +22,32 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 const props = defineProps<AdminImportProps>()
 
 const upload = useForm<{ file: File | null; dezimal: 'komma' | 'punkt'; lieferant: string }>({ file: null, dezimal: 'komma', lieferant: '' })
+const focus = useFocusAfter()
+
+// A file chosen answers the sentence that asked for one (K2-21).
+watch(
+    () => upload.file,
+    (chosen) => {
+        if (chosen !== null) {
+            upload.clearErrors('file')
+        }
+    }
+)
 
 function submit(): void {
     if (upload.file === null) {
         upload.setError('file', 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).')
+        // The keyboard goes to the field the sentence is about (K2-21).
+        focus.request('im-file-button')
 
         return
     }
 
-    upload.post('/admin/katalog/import/probelauf', { forceFormData: true, preserveScroll: true })
+    upload.post('/admin/katalog/import/probelauf', {
+        forceFormData: true,
+        preserveScroll: true,
+        onError: (errors) => focus.request(errors.lieferant ? 'im-supplier' : 'im-file-button'),
+    })
 }
 
 function counts(run: ImportRunRow): string {
@@ -87,7 +106,7 @@ const optional = props.fields.filter((field) => !field.required)
                         :invalid="!!upload.errors.file"
                         describedby="im-file-label im-file-err"
                     />
-                    <p id="im-file-err" class="form-field__error">{{ upload.errors.file }}</p>
+                    <p id="im-file-err" class="form-field__error" aria-live="polite">{{ upload.errors.file }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="im-supplier">Lieferant <span class="im-optional">(optional)</span></label>

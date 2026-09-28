@@ -46,7 +46,7 @@ test('Marken: a brand is created, gets an SVG logo drawn on the page, and is rem
 
     async function removeBrand(): Promise<void> {
         await row.getByRole('button', { name: `Aktionen für ${name}` }).click()
-        await page.getByRole('menuitem', { name: 'Entfernen' }).click()
+        await page.getByRole('menuitem', { name: 'Entfernen', exact: true }).click()
         await page.getByRole('dialog').getByRole('button', { name: 'Entfernen' }).click()
         await expect(row).toHaveCount(0)
     }
@@ -128,7 +128,7 @@ test('Fotos: two photos on a colour, reordered by the arrows, the new first one 
     // Taken off again, so the development catalogue is as it was.
     for (let left = 2; left > 0; left--) {
         await photos.getByRole('button', { name: 'Aktionen für Foto 1' }).click()
-        await page.getByRole('menuitem', { name: 'Entfernen' }).click()
+        await page.getByRole('menuitem', { name: 'Entfernen', exact: true }).click()
         await page.getByRole('dialog').getByRole('button', { name: 'Entfernen' }).click()
         await expect(items).toHaveCount(left - 1)
     }
