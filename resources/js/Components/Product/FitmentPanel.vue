@@ -12,6 +12,7 @@
 
 import { computed } from 'vue'
 import Icon from '../Art/Icon.vue'
+import ValueText from '../Ui/ValueText.vue'
 import type { IconName } from '../../art'
 import type { ConfigVerdict } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
@@ -106,6 +107,21 @@ const headline = computed(() => {
         <p class="rcheck-panel__vehicle">{{ headline }}</p>
 
         <template v-if="verdict">
+            <!-- Two lines, one per half: the wheel rests on the Gutachten, the tyres on the car's papers. -->
+            <dl v-if="verdict.wheelLabel && verdict.tyre" class="fit__halves">
+                <div class="fit__half">
+                    <dt>Felge</dt>
+                    <dd>{{ verdict.wheelLabel }}</dd>
+                </div>
+                <div class="fit__half" :data-tyre="verdict.tyre.status">
+                    <dt>Reifen</dt>
+                    <dd>{{ verdict.tyre.label }}</dd>
+                </div>
+            </dl>
+            <ul v-if="verdict.tyre?.lines.length" class="fit__tyre-lines">
+                <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
+            </ul>
+
             <p v-if="entryLine" class="fit__entry">{{ entryLine }}</p>
 
             <p v-if="entryLine && verdict.entryNoteDe" class="quiet fit__note">{{ verdict.entryNoteDe }}</p>
@@ -146,6 +162,37 @@ const headline = computed(() => {
 </template>
 
 <style scoped>
+.fit__halves {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-2) 0 0;
+}
+
+.fit__half {
+    display: flex;
+    gap: var(--space-2);
+    font-size: var(--text-small);
+}
+
+.fit__half dt {
+    min-width: 4.5em;
+    color: var(--ink2);
+}
+
+.fit__half dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.fit__tyre-lines {
+    display: grid;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-4);
+    font-size: var(--text-small);
+    color: var(--ink);
+}
+
 .fit__entry {
     margin: var(--space-2) 0 0;
     font-size: var(--text-small);

@@ -43,7 +43,18 @@ final readonly class LoadIndexDeriver
 
         // Deliberately not integer division: 1231 kg is 615.5 kg per tyre, and truncating that to
         // 615 would accept an index rated for exactly 615 when 615.5 is actually carried.
-        $perTyreKg = $axleLoadKg / 2;
+        return $this->forTyreLoad($axleLoadKg / 2);
+    }
+
+    /**
+     * The first index whose capacity reaches a load one tyre must carry — the per-tyre half of an axle,
+     * or that half raised by the speed derating (SpeedDerating). Null beyond the table, never a guess.
+     */
+    public function forTyreLoad(float $perTyreKg): ?LoadIndex
+    {
+        if ($perTyreKg <= 0) {
+            return null;
+        }
 
         foreach ($this->tables->loadIndices as $position => $entry) {
             if ($entry->capacityKg >= $perTyreKg) {
@@ -53,6 +64,27 @@ final readonly class LoadIndexDeriver
 
         // Beyond the passenger-car range: we cannot state a legal minimum, so we do not guess.
         return null;
+    }
+
+    /**
+     * The index whose capacity is exactly this many kilograms — how a document's load-index limit is read:
+     * every such limit is twice a capacity from the table (T88 → 1.120 kg = 2 × 560 kg). Null otherwise.
+     */
+    public function indexForCapacity(int $capacityKg): ?LoadIndex
+    {
+        foreach ($this->tables->loadIndices as $entry) {
+            if ($entry->capacityKg === $capacityKg) {
+                return $entry;
+            }
+        }
+
+        return null;
+    }
+
+    /** The capacity of one index, in kilograms — null for an index the table does not know. */
+    public function capacityOf(int $index): ?int
+    {
+        return $this->tables->loadIndex($index)?->capacityKg;
     }
 
     /** Walking off the top of the table clamps at the highest index, never wraps or returns null. */

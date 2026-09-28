@@ -358,6 +358,21 @@ export interface ConfigVerdict {
     minSpeedSource?: 'DOCUMENT' | 'DERIVED'
     /** `Für dein Fahrzeug brauchen die Reifen mindestens …` — a full sentence, never a bare number pair. */
     minSentence?: string | null
+    /**
+     * The two halves of the answer (R-03 as amended on 28.09.2026): the wheel, from the document alone,
+     * and the tyres, from the car's axle loads (8.1, 8.2) and top speed (T). `status` is the weaker.
+     * Absent on a negative verdict.
+     */
+    wheelStatus?: VerdictStatus | null
+    wheelLabel?: string | null
+    tyre?: {
+        status: VerdictStatus
+        label: string
+        /** Full German sentences: the document's limits and the fields to compare, or the sum. */
+        lines: string[]
+        thresholds: { text: string; maxAxleLoad: string }[]
+        fromVehicleData: boolean
+    } | null
 }
 
 /**

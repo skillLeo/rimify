@@ -9,6 +9,7 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
 use App\Services\Admin\Approvals\DocumentConditions;
+use App\Services\Admin\Approvals\LoadLimitCheck;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -118,6 +119,17 @@ class DocumentConditionRequest extends FormRequest
 
                 if ($document instanceof ApprovalDocument && $document->page_count !== null && is_numeric($page) && (int) $page > $document->page_count && ! $validator->errors()->has('source_page')) {
                     $validator->errors()->add('source_page', "Das Gutachten hat nur {$document->page_count} Seiten.");
+                }
+
+                // Every load-index limit is twice a capacity from the table (the free cross-check).
+                $kg = $this->input('max_axle_load_kg');
+
+                if ($this->input('kind') === ConditionKind::ReifenTragfaehigkeit->value && is_numeric($kg) && ! $validator->errors()->has('max_axle_load_kg')) {
+                    $problem = app(LoadLimitCheck::class)->problem((string) $this->input('code'), (int) $kg);
+
+                    if ($problem !== null) {
+                        $validator->errors()->add('max_axle_load_kg', $problem);
+                    }
                 }
             },
         ];

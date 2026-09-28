@@ -9,6 +9,7 @@ use App\Domain\Fitment\Data\ConflictDecision;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\RowFilter;
+use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Support\BuildWindow;
@@ -93,7 +94,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument.conditions', 'tyreSizes.conditionCodes', 'conditionCodes'])
+            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'tyreSizes.conditionCodes', 'conditionCodes'])
             ->where('fitments.vehicle_id', $vehicleId)
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             ->tap($this->visible(...))
@@ -246,7 +247,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 return null;
             }
 
-            return Condition::ofKind($code, $definition->kind, $definition->text_de, $note, $definition->source_page);
+            return Condition::ofKind($code, $definition->kind, $definition->text_de, $note, $definition->source_page, $definition->max_axle_load_kg);
         };
 
         $rowConditions = [];
@@ -322,6 +323,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 sourcePage: $fitment->source_page,
                 issuer: $document->issuer,
                 notesDe: array_values(array_filter([$document->baseMissingDe(), $document->productionFromDe()])),
+                speedDerating: self::speedDerating($document),
             ),
             vehicleId: $fitment->vehicle_id,
             wheelConfigId: $fitment->wheel_config_id,
@@ -363,6 +365,20 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         return $scoped;
     }
 
+    /** The document's table of tyre load at speed, as the engine reads it; null when it prints none. */
+    private static function speedDerating(ApprovalDocument $document): ?SpeedDeratingTable
+    {
+        $rows = [];
+        $page = null;
+
+        foreach ($document->speedDeratings as $cell) {
+            $rows[$cell->speed_kmh][$cell->symbol] = $cell->percent;
+            $page ??= $cell->source_page;
+        }
+
+        return $rows === [] ? null : new SpeedDeratingTable($rows, $page);
+    }
+
     public static function toWheelConfig(WheelConfig $config): WheelConfigRecord
     {
         return new WheelConfigRecord(
@@ -381,6 +397,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             modelName: $config->relationLoaded('wheelModel') ? $config->wheelModel?->name : null,
             brandName: $config->relationLoaded('wheelModel') ? $config->wheelModel?->brand?->name : null,
             finishNameDe: $config->relationLoaded('wheelFinish') ? $config->wheelFinish?->name_de : null,
+            maxLoadKg: $config->max_load_kg,
         );
     }
 }

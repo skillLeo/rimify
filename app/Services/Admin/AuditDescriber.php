@@ -130,6 +130,8 @@ final class AuditDescriber
         'approval.notice_removed' => 'gutachten',
         'approval.rework_added' => 'gutachten',
         'approval.rework_removed' => 'gutachten',
+        'approval.derating_saved' => 'gutachten',
+        'approval.derating_removed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
         'condition.deleted' => 'gutachten',
@@ -391,6 +393,8 @@ final class AuditDescriber
             'approval.notice_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Pflichthinweis '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
             'approval.rework_added' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Maß der Nacharbeit '.self::q(self::text($p, 'what') ?? '–').' eingetragen.', []],
             'approval.rework_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Maß der Nacharbeit '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
+            'approval.derating_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit gespeichert ('.(self::text($p, 'rows') ?? '0').' Zeilen).', []],
+            'approval.derating_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit entfernt.', []],
             'conflict.decided' => [
                 'Der Konflikt zu '.self::q(trim((self::text($p, 'vehicle') ?? 'einem Fahrzeug').' · '.(self::text($p, 'wheel') ?? 'einer Felge'))).' wurde entschieden: '
                     .(($p['mode'] ?? null) === 'only'

@@ -32,6 +32,17 @@ export interface VehicleProp {
     tsn: string
     keyNumbers: string
     buildWindow: string
+    /**
+     * The figures the customer typed from their own papers for THIS car (8.1, 8.2, T), kept in the browser
+     * with the car until customer accounts exist; null when none were entered. Additive.
+     */
+    papers?: PapersProp | null
+}
+
+export interface PapersProp {
+    axleFrontKg: number | null
+    axleRearKg: number | null
+    topSpeedKmh: number | null
 }
 
 export interface NavItem {

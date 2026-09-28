@@ -34,6 +34,42 @@ function verdict(overrides: Partial<ConfigVerdict>): ConfigVerdict {
 }
 
 describe('FitmentPanel', () => {
+    it('reads the answer in two lines — the wheel from the Gutachten, the tyres from the papers — with the tyre sentences', () => {
+        const line = 'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.120 kg zulässig. Vergleiche die 1.120 kg mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.'
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({
+                    status: 'CONDITIONAL',
+                    wheelStatus: 'PERMITTED',
+                    wheelLabel: 'Freigegeben',
+                    tyre: {
+                        status: 'CONDITIONAL',
+                        label: 'Mit deinen Fahrzeugpapieren prüfen',
+                        lines: [line],
+                        thresholds: [{ text: 'Reifen mit Tragfähigkeitsindex 88 …', maxAxleLoad: '1.120 kg' }],
+                        fromVehicleData: false,
+                    },
+                }),
+            },
+        })
+
+        const halves = wrapper.findAll('.fit__half').map((half) => [half.find('dt').text(), half.find('dd').text()])
+
+        expect(halves).toEqual([
+            ['Felge', 'Freigegeben'],
+            ['Reifen', 'Mit deinen Fahrzeugpapieren prüfen'],
+        ])
+        expect(wrapper.find('.fit__tyre-lines').text()).toBe(line)
+    })
+
+    it('shows no halves on a verdict that has none', () => {
+        const wrapper = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', sellable: false }) } })
+
+        expect(wrapper.find('.fit__halves').exists()).toBe(false)
+        expect(wrapper.find('.fit__tyre-lines').exists()).toBe(false)
+    })
+
     it('never tells the customer "no entry needed" about a wheel that is not permitted', () => {
         const wrapper = mount(FitmentPanel, {
             props: {

@@ -11,6 +11,7 @@ use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\ApprovalDocument;
+use App\Models\DocumentSpeedDerating;
 use App\Models\Fitment;
 use App\Models\FitmentConflict;
 use App\Models\Vehicle;
@@ -482,7 +483,42 @@ class ApprovalSeeder extends Seeder
             'status' => DocumentStatus::Published->value,
         ])->save();
 
+        $this->seedDerating($document);
+
         return $document;
+    }
+
+    /**
+     * An example document prints the usual table of tyre load at speed, as ABE 55255 prints it on page 6 —
+     * example data like the rest of it. A document holds its own table (the operator's review of C9, §5);
+     * one that already has rows keeps them.
+     */
+    private function seedDerating(ApprovalDocument $document): void
+    {
+        if ($document->speedDeratings()->exists()) {
+            return;
+        }
+
+        /** @var array{source_page: int, rows: array<int, array<string, int|null>>} $printed */
+        $printed = require __DIR__.'/content/derating-abe-55255.php';
+        $now = now();
+        $cells = [];
+
+        foreach ($printed['rows'] as $speed => $row) {
+            foreach ($row as $symbol => $percent) {
+                $cells[] = [
+                    'approval_document_id' => $document->id,
+                    'speed_kmh' => $speed,
+                    'symbol' => $symbol,
+                    'percent' => $percent,
+                    'source_page' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        DocumentSpeedDerating::query()->insert($cells);
     }
 
     /**

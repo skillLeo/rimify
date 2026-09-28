@@ -186,6 +186,13 @@ export interface PreviewVerdict {
     sourcePage: number | null
 }
 
+/** A document's table of tyre load at speed (ABE 55255, p. 6): each cell „97“, „–“ or absent. */
+export interface DeratingView {
+    sourcePage: number | null
+    symbols: string[]
+    rows: { speed: number; cells: Record<string, string> }[]
+}
+
 export interface AdminGutachtenShowProps {
     document: DocumentFacts
     rows: FitmentRowView[]
@@ -205,6 +212,8 @@ export interface AdminGutachtenShowProps {
     fasteners: FastenerView[]
     notices: NoticeView[]
     reworks: ReworkView[]
+    /** The document's own table of tyre load at speed; `rows` empty when it has none. */
+    derating: DeratingView
     openConflicts: number
     can: { edit: boolean; release: boolean }
 }

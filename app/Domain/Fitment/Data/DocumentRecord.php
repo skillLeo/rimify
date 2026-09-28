@@ -33,6 +33,12 @@ final readonly class DocumentRecord
          * @var list<string>
          */
         public array $notesDe = [],
+        /**
+         * The document's own table of tyre load at speed; null when it prints none — then above 210 km/h
+         * its tyre answer is UNKNOWN, never borrowed from another document. Not frozen onto a snapshot: the
+         * sum it produced is, in the verdict's tyre lines.
+         */
+        public ?SpeedDeratingTable $speedDerating = null,
     ) {}
 
     /**

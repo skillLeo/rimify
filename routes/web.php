@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenAngabenController;
 use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\GutachtenTabelleController;
 use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
@@ -238,6 +239,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/gutachten/{document}/hinweise/{notice}', [GutachtenAngabenController::class, 'destroyNotice'])->whereNumber(['document', 'notice'])->name('gutachten.hinweis.entfernen');
         Route::post('/gutachten/{document}/nacharbeit', [GutachtenAngabenController::class, 'store'])->whereNumber('document')->name('gutachten.nacharbeit.store');
         Route::delete('/gutachten/{document}/nacharbeit/{rework}', [GutachtenAngabenController::class, 'destroyRework'])->whereNumber(['document', 'rework'])->name('gutachten.nacharbeit.entfernen');
+        // Its own table of tyre load at speed (ABE 55255, p. 6), saved whole.
+        Route::put('/gutachten/{document}/tragfaehigkeitstabelle', [GutachtenTabelleController::class, 'update'])->whereNumber('document')->name('gutachten.tabelle.update');
 
         // The review kit (the review release §3): the board, the point sent from the feedback button, the
         // list the team answers from and a point's screenshot — only where the review is on

@@ -8,8 +8,10 @@ use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\FitmentRepository;
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Data\ConflictDecision;
+use App\Domain\Fitment\Data\DeratingLookup;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
+use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Data\WheelConfigRecord;
@@ -21,12 +23,15 @@ use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Verdict\AxleRequirement;
 use App\Domain\Fitment\Verdict\CentreBoreSource;
 use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\Severity;
+use App\Domain\Fitment\Verdict\TyreCheck;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictSnapshot;
 use App\Domain\Fitment\Verdict\VerdictStatus;
+use App\Support\GermanFormat;
 
 /**
  * Decides whether a wheel is legal on a car.
@@ -122,11 +127,11 @@ final readonly class FitmentResolver
         $verdicts = [];
 
         // ── Step 1 · the vehicle must be usable at all ───────────────────────────────────
-        // Asked before anything else: a vehicle whose axle loads or top speed could not be parsed
-        // can never produce a positive verdict, because both derivations return null and a null
-        // minimum is not "no minimum" (R-03). This outranks R-06 — a document stating its own
-        // minimum does not rescue a vehicle we cannot characterise.
-        if (! $vehicle->hasCompleteLegalData()) {
+        // A removed vehicle answers nothing. A vehicle without axle loads or top speed still gets its
+        // wheel verdict — the Gutachten names its type and kW band — but never a positive tyre half:
+        // that half is CONDITIONAL and says what to compare in the papers (R-03 as amended on
+        // 28.09.2026, buildPositiveVerdict()).
+        if ($vehicle->isDeleted) {
             foreach ($ids as $id) {
                 $verdicts[$id] = $this->negative(
                     VerdictStatus::Unknown,
@@ -350,8 +355,8 @@ final readonly class FitmentResolver
             $conditions = Condition::union($conditions, $row->conditions);
         }
 
-        $front = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT');
-        $rear = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR');
+        [$front, $frontCheck] = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT');
+        [$rear, $rearCheck] = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR');
 
         // An Auflage the document hangs off one tyre size stays with that size for the customer's
         // choice, and counts here too: until a size is chosen, the verdict carries every Auflage a
@@ -384,30 +389,41 @@ final readonly class FitmentResolver
             );
         }
 
-        // A minimum we could not derive is not a minimum of zero.
-        if (! $front->hasUsableMinimum() || ! $rear->hasUsableMinimum()) {
-            return $this->negative(
-                VerdictStatus::Unknown,
-                $vehicle,
-                $wheel,
-                VerdictReason::of(VerdictReason::VEHICLE_INCOMPLETE),
-                $covering[0]->document,
-            );
+        // The wheel's own tested load, where its document states one: with the car's axle loads known,
+        // half of each axle the wheel may go on must not exceed it — per axle, because front and rear may
+        // carry different sizes, and the axle that binds is named.
+        $overload = $this->wheelOverload($vehicle, $wheel, $front, $rear);
+
+        if ($overload !== null) {
+            return $this->negative(VerdictStatus::NotPermitted, $vehicle, $wheel, $overload, $covering[0]->document);
         }
 
+        // ── The wheel half: the document's Auflagen and the Eintragung. Tyre limits are the other half.
         $hasPurchaseAffectingCondition = false;
 
         foreach ($conditions as $condition) {
-            if ($condition->downgradesVerdict()) {
+            if ($condition->downgradesVerdict() && ! $condition->affectsTyreChoice) {
                 $hasPurchaseAffectingCondition = true;
             }
         }
 
         // Entry in the papers is itself something the customer must do before driving, so it
         // downgrades the verdict just as an ACTION condition does.
-        $status = ($requiresEntry || $hasPurchaseAffectingCondition)
+        $wheelStatus = ($requiresEntry || $hasPurchaseAffectingCondition)
             ? VerdictStatus::Conditional
             : VerdictStatus::Permitted;
+
+        // ── The tyre half, and the answer: the weaker of the two, never PERMITTED while the tyres
+        // are open (R-03).
+        $tyre = $this->tyreCheck($vehicle, $wheel, $conditions, $front, $rear, $frontCheck, $rearCheck);
+        $status = VerdictStatus::weaker($wheelStatus, $tyre->status);
+
+        // Where the tyres decide against the wheel, the answer says why in the tyres' own words.
+        $reason = match ($tyre->status) {
+            VerdictStatus::NotPermitted => new VerdictReason(VerdictReason::TYRE_NOT_PERMITTED, $tyre->lines[0] ?? VerdictReason::sentenceFor(VerdictReason::TYRE_NOT_PERMITTED)),
+            VerdictStatus::Unknown => new VerdictReason(VerdictReason::TYRE_UNKNOWN, $tyre->lines[0] ?? VerdictReason::sentenceFor(VerdictReason::TYRE_UNKNOWN)),
+            default => null,
+        };
 
         // The document reported is the one whose row is most specific: the newest revision among
         // the covering rows, so a reissue is what the customer is shown.
@@ -425,7 +441,7 @@ final readonly class FitmentResolver
             conditions: $conditions,
             front: $front,
             rear: $rear,
-            reason: null,
+            reason: $reason,
             snapshot: new VerdictSnapshot(
                 fitmentId: $this->governingRow($covering)->id,
                 documentRevision: $document->revision,
@@ -434,7 +450,258 @@ final readonly class FitmentResolver
             ),
             documentCentreBoreMm: $centreBoreMm,
             centreBoreSource: $centreBoreSource,
+            wheelStatus: $wheelStatus,
+            tyre: $tyre,
         );
+    }
+
+    /**
+     * The tested wheel load against each axle the wheel may go on (the operator's review of C9, §4): null
+     * when it holds, or when either figure is not known — the document's listing of the car governs then —
+     * else why not, naming the axle that binds, with the sum.
+     */
+    private function wheelOverload(VehicleRecord $vehicle, ?WheelConfigRecord $wheel, AxleRequirement $front, AxleRequirement $rear): ?VerdictReason
+    {
+        $radlast = $wheel?->maxLoadKg;
+
+        if ($radlast === null || $radlast <= 0 || ! $vehicle->hasCompleteLegalData()) {
+            return null;
+        }
+
+        $over = [];
+
+        foreach ([['Vorderachse', $front, (int) $vehicle->axleLoadFrontKg], ['Hinterachse', $rear, (int) $vehicle->axleLoadRearKg]] as [$name, $axle, $load]) {
+            if ($axle->hasPermittedSizes() && $load / 2 > $radlast) {
+                $over[$name] = $load;
+            }
+        }
+
+        if ($over === []) {
+            return null;
+        }
+
+        arsort($over);
+        $name = (string) array_key_first($over);
+        $load = $over[$name];
+
+        return new VerdictReason(VerdictReason::WHEEL_LOAD_EXCEEDED, sprintf(
+            'Die Felge ist für %s je Rad geprüft. Maßgeblich ist die %s mit %s: %s je Rad – mehr, als die Felge tragen darf.',
+            GermanFormat::kilograms($radlast),
+            $name,
+            GermanFormat::kilograms($load),
+            GermanFormat::kilograms((int) ceil($load / 2)),
+        ));
+    }
+
+    /**
+     * The tyre half of the verdict (R-03 as amended on 28.09.2026; the operator's review of C9).
+     *
+     * Without the car's axle loads and top speed it is CONDITIONAL, and says which threshold the document
+     * sets — its `reifen_tragfaehigkeit` Auflagen, T88 → 1.120 kg — and which fields of the papers to
+     * compare it with. With them it is decided per axle the wheel may go on: the document's own load-index
+     * limit and the derated requirement are stated separately and the stricter is named; a „–“ in the
+     * document's table raises the speed symbol; a speed, a symbol or a table the document does not print
+     * is UNKNOWN. A tyre rule the document writes that no figure can settle keeps it CONDITIONAL.
+     *
+     * @param  list<Condition>  $conditions
+     * @param  array<string, mixed>  $frontCheck
+     * @param  array<string, mixed>  $rearCheck
+     */
+    private function tyreCheck(VehicleRecord $vehicle, ?WheelConfigRecord $wheel, array $conditions, AxleRequirement $front, AxleRequirement $rear, array $frontCheck, array $rearCheck): TyreCheck
+    {
+        $thresholds = [];
+
+        foreach ($conditions as $condition) {
+            if ($condition->kind === ConditionKind::ReifenTragfaehigkeit && $condition->maxAxleLoadKg !== null) {
+                $thresholds[] = ['textDe' => $condition->sentenceDe(), 'maxAxleLoadKg' => $condition->maxAxleLoadKg];
+            }
+        }
+
+        if (! $vehicle->hasCompleteLegalData()) {
+            $lines = [];
+
+            foreach ($thresholds as $threshold) {
+                $lines[] = sprintf(
+                    '%s Vergleiche die %s mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.',
+                    rtrim($threshold['textDe']),
+                    GermanFormat::kilograms($threshold['maxAxleLoadKg']),
+                );
+            }
+
+            if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
+                $lines[] = sprintf(
+                    'Die Felge ist für %s je Rad geprüft: Die zulässige Achslast in den Feldern 8.1 und 8.2 darf höchstens %s betragen.',
+                    GermanFormat::kilograms($wheel->maxLoadKg),
+                    GermanFormat::kilograms($wheel->maxLoadKg * 2),
+                );
+            }
+
+            $lines[] = 'Welche Reifen du fahren darfst, hängt von der zulässigen Achslast (Felder 8.1 und 8.2) und der Höchstgeschwindigkeit (Feld T) deines Fahrzeugs ab. Trag sie ein, dann sagen wir es dir genau.';
+
+            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds);
+        }
+
+        $lines = [];
+        $status = VerdictStatus::Permitted;
+
+        foreach ([['Vorderachse', $front, $frontCheck], ['Hinterachse', $rear, $rearCheck]] as [$name, $axle, $check]) {
+            if (! $axle->hasPermittedSizes()) {
+                continue;
+            }
+
+            [$axleStatus, $axleLines] = $this->axleLines($name, $axle, $check, $wheel);
+            $status = VerdictStatus::weaker($status, $axleStatus);
+            $lines = [...$lines, ...$axleLines];
+        }
+
+        if ($status !== VerdictStatus::Permitted) {
+            // The first line of a failing axle is the reason; keep it first.
+            usort($lines, static fn (string $a, string $b): int => (int) str_starts_with($b, '!') <=> (int) str_starts_with($a, '!'));
+
+            return new TyreCheck($status, array_map(static fn (string $l): string => ltrim($l, '!'), $lines), $thresholds, true);
+        }
+
+        // Four identical tyres meet the stricter axle, and the line says which one bound.
+        if ($front->hasPermittedSizes() && $rear->hasPermittedSizes() && $this->sameSizes($front, $rear)) {
+            $frontLoad = (int) $vehicle->axleLoadFrontKg;
+            $rearLoad = (int) $vehicle->axleLoadRearKg;
+            $bindingIndex = max((int) $front->minLoadIndex, (int) $rear->minLoadIndex);
+            $lines[] = $frontLoad === $rearLoad
+                ? sprintf('Beide Achsen tragen %s: vier gleiche Reifen brauchen mindestens Tragfähigkeitsindex %d.', GermanFormat::kilograms($frontLoad), $bindingIndex)
+                : sprintf(
+                    'Für vier gleiche Reifen maßgeblich ist die %s mit %s: mindestens Tragfähigkeitsindex %d.',
+                    $rear->minLoadIndex >= $front->minLoadIndex ? 'Hinterachse' : 'Vorderachse',
+                    GermanFormat::kilograms($rear->minLoadIndex >= $front->minLoadIndex ? $rearLoad : $frontLoad),
+                    $bindingIndex,
+                );
+        }
+
+        $restricting = array_filter(
+            $conditions,
+            static fn (Condition $c): bool => $c->affectsTyreChoice && $c->kind !== ConditionKind::ReifenTragfaehigkeit,
+        );
+
+        if ($restricting !== []) {
+            $lines[] = 'Das Gutachten schreibt außerdem vor, welche Reifen du fahren darfst – die Auflagen unter „Reifen“ gelten zusätzlich.';
+
+            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds, true);
+        }
+
+        return new TyreCheck(VerdictStatus::Permitted, $lines, $thresholds, true);
+    }
+
+    /**
+     * One axle, as the customer can follow it — the load per wheel, the document's own load-index limit and
+     * the derated requirement each on its own, and which of them binds:
+     * `Hinterachse: 1.180 kg ÷ 2 = 590 kg je Rad. Laut Auflage T91 genügt … Bei 250 km/h trägt … Maßgeblich …`
+     *
+     * A line that is the reason an axle fails starts with `!` (removed by the caller).
+     *
+     * @param  array<string, mixed>  $check
+     * @return array{0: VerdictStatus, 1: list<string>}
+     */
+    private function axleLines(string $name, AxleRequirement $axle, array $check, ?WheelConfigRecord $wheel): array
+    {
+        $load = (int) $check['load'];
+        $speed = (int) $check['speed'];
+        $perWheel = $load / 2;
+        $lead = sprintf('%s: %s ÷ 2 = %s je Rad.', $name, GermanFormat::kilograms($load), GermanFormat::kilograms((int) ceil($perWheel)));
+
+        /** @var DeratingLookup|null $lookup */
+        $lookup = $check['lookup'];
+
+        if ($check['badLimit'] !== null) {
+            return [VerdictStatus::Unknown, [sprintf(
+                '!Die Auflage %s nennt %s – das ist nicht das Doppelte einer Tragfähigkeit aus der Tabelle. Die Reifen können wir deshalb nicht bestätigen; wir prüfen das Gutachten.',
+                $check['badLimit']['code'],
+                GermanFormat::kilograms($check['badLimit']['kg']),
+            )]];
+        }
+
+        if ($lookup !== null && $lookup->isNotPermitted() && $check['raisedFrom'] === null) {
+            return [VerdictStatus::NotPermitted, [sprintf('!Bei %s km/h ist laut Tabelle des Gutachtens kein Reifen mit Geschwindigkeitsindex %s zulässig.', GermanFormat::integer($speed), $check['symbol'])]];
+        }
+
+        if ($lookup === null || $lookup->isAbsent()) {
+            return [VerdictStatus::Unknown, [$check['hasTable']
+                ? sprintf('!Für %s km/h nennt die Tabelle des Gutachtens für Geschwindigkeitsindex %s keinen Wert. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed), $check['symbol'])
+                : sprintf('!Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit. Für %s km/h können wir die Reifen deshalb nicht bestätigen.', GermanFormat::integer($speed))]];
+        }
+
+        if ($check['limitsUncovered'] !== null) {
+            return [VerdictStatus::Unknown, [sprintf(
+                '!Die Auflagen des Gutachtens nennen Tragfähigkeitsindizes nur bis %s Achslast; die %s trägt %s. Die Reifen können wir deshalb nicht bestätigen.',
+                GermanFormat::kilograms((int) $check['limitsUncovered']),
+                $name,
+                GermanFormat::kilograms($load),
+            )]];
+        }
+
+        if ($check['derived'] === null || ! $axle->hasUsableMinimum()) {
+            return [VerdictStatus::Unknown, [sprintf('!Für eine Achslast von %s nennt die Tragfähigkeitstabelle keinen Index. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::kilograms($load))]];
+        }
+
+        $lines = [$lead];
+
+        if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
+            $lines[] = sprintf('Die Felge ist für %s je Rad geprüft – das reicht.', GermanFormat::kilograms($wheel->maxLoadKg));
+        }
+
+        // The document's own stated limit, on its own.
+        if ($check['limit'] !== null) {
+            $lines[] = sprintf(
+                'Laut Auflage %s genügt Tragfähigkeitsindex %d bis %s Achslast.',
+                $check['limit']['code'],
+                $check['limit']['index'],
+                GermanFormat::kilograms($check['limit']['kg']),
+            );
+        }
+
+        // The table's „–“ for the lower symbols, said as the document says it.
+        if ($check['raisedFrom'] !== null) {
+            $lines[] = sprintf('Bei %s km/h ist ein %s-Reifen laut Tabelle des Gutachtens nicht zulässig, erforderlich ist %s.', GermanFormat::integer($speed), $check['raisedFrom'], $check['symbol']);
+        }
+
+        // The derated requirement, on its own.
+        $derived = $check['derived'];
+        $percent = (int) $lookup->percent;
+        $source = $check['tableSource'];
+        $lines[] = $percent === 100
+            ? sprintf('Bei %s km/h trägt ein Reifen mit Geschwindigkeitsindex %s seine volle Last: das verlangt Tragfähigkeitsindex %d (%s).', GermanFormat::integer($speed), $check['symbol'], $derived->index, GermanFormat::kilograms($derived->capacityKg))
+            : sprintf(
+                'Bei %s km/h trägt ein Reifen mit Geschwindigkeitsindex %s nur %d %% seiner Last%s: %s ÷ %s = %s – das verlangt Tragfähigkeitsindex %d (%s).',
+                GermanFormat::integer($speed),
+                $check['symbol'],
+                $percent,
+                $source === null ? '' : ' ('.$source.')',
+                GermanFormat::kilograms((int) ceil($perWheel)),
+                GermanFormat::trimmedDecimal($percent / 100, 2),
+                GermanFormat::kilograms((int) ceil($perWheel * 100 / $percent)),
+                $derived->index,
+                GermanFormat::kilograms($derived->capacityKg),
+            );
+
+        $binding = match ($check['binding']) {
+            'limit' => sprintf('die Auflage %s', $check['limit']['code'] ?? ''),
+            'size' => 'die Reifengröße im Gutachten',
+            default => 'die Minderung bei hoher Geschwindigkeit',
+        };
+
+        $lines[] = sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol);
+
+        return [VerdictStatus::Permitted, $lines];
+    }
+
+    private function sameSizes(AxleRequirement $front, AxleRequirement $rear): bool
+    {
+        $keys = static function (AxleRequirement $axle): array {
+            $out = array_map(static fn (TyreSize $s): string => $s->key(), $axle->sizes);
+            sort($out);
+
+            return $out;
+        };
+
+        return $keys($front) === $keys($rear);
     }
 
     /**
@@ -476,19 +743,28 @@ final readonly class FitmentResolver
     }
 
     /**
-     * The permitted sizes and the governing minima for one axle.
+     * The permitted sizes and the governing minima for one axle — and, beside them, how they were reached,
+     * for the sentences the tyre half shows (tyreCheck()).
+     *
+     * The load index is the stricter of three: half the axle load raised by the document's own table of
+     * tyre load at speed (read at the speed rounded up to its row, for the symbol that governs; a „–“ raises
+     * the symbol to the one the row requires); the document's `reifen_tragfaehigkeit` limits (the smallest
+     * index whose limit reaches this axle); and a size's own stated minimum (R-06).
      *
      * @param  list<FitmentRow>  $covering
+     * @return array{0: AxleRequirement, 1: array<string, mixed>}
      */
     private function axleRequirement(
         array $covering,
         ?int $axleLoadKg,
         ?int $maxSpeedKmh,
         string $axle,
-    ): AxleRequirement {
+    ): array {
         $sizes = null;
-        $documentLoadIndex = null;
+        $sizeLoadIndex = null;
         $documentSpeedSymbol = null;
+        $tables = [];
+        $limits = [];
 
         foreach ($covering as $row) {
             if (! $this->rowCoversAxle($row, $axle)) {
@@ -502,45 +778,145 @@ final readonly class FitmentResolver
 
             // Intersection across documents: a size only one of them permits is not offered.
             $sizes = $sizes === null ? $rowSizes : TyreSize::intersect($sizes, $rowSizes);
+            $tables[$row->document->id] = $row->document->speedDerating;
 
             foreach ($rowSizes as $size) {
                 if ($size->documentMinLoadIndex !== null) {
-                    $documentLoadIndex = max($documentLoadIndex ?? 0, $size->documentMinLoadIndex);
+                    $sizeLoadIndex = max($sizeLoadIndex ?? 0, $size->documentMinLoadIndex);
                 }
 
                 if ($size->documentMinSpeedSymbol !== null) {
                     $documentSpeedSymbol = $size->documentMinSpeedSymbol;
                 }
             }
+
+            // The document's load-index limits that reach this axle: on the row, and on its sizes here.
+            foreach ([$row->conditions, ...array_map(static fn (TyreSize $s): array => $s->conditions, $rowSizes)] as $list) {
+                foreach ($list as $condition) {
+                    if ($condition->kind === ConditionKind::ReifenTragfaehigkeit && $condition->maxAxleLoadKg !== null) {
+                        $limits[$condition->code."\u{0}".$condition->maxAxleLoadKg] = $condition;
+                    }
+                }
+            }
         }
 
-        $derivedLoadIndex = $this->loadIndex->forAxle($axleLoadKg);
         $derivedSpeedSymbol = $this->speedSymbol->forTopSpeed($maxSpeedKmh);
 
         // R-06: the stricter of document and derivation governs, and the verdict records which.
-        [$minLoadIndex, $loadSource] = $this->stricterLoadIndex(
-            $derivedLoadIndex?->index,
-            $documentLoadIndex,
-        );
-
         [$minSpeedSymbol, $speedSource] = $this->stricterSpeedSymbol(
             $derivedSpeedSymbol?->symbol,
             $documentSpeedSymbol,
         );
 
-        return new AxleRequirement(
-            sizes: $sizes ?? [],
-            minLoadIndex: $minLoadIndex,
-            minSpeedSymbol: $minSpeedSymbol,
-            // If either half came from the document, the reasoning is "the document said so" —
-            // and each half records its own source, so a sentence about the load index can never
-            // credit a Gutachten that only stated a speed symbol.
-            minSource: ($loadSource === MinSource::Document || $speedSource === MinSource::Document)
-                ? MinSource::Document
-                : MinSource::Derived,
-            minLoadSource: $loadSource,
-            minSpeedSource: $speedSource,
+        // The document's own table, at the speed rounded up; a „–“ for the governing symbol raises it to
+        // the one the row requires, and says so. No table, no row, no column: nothing is derived.
+        $lookup = null;
+        $raisedFrom = null;
+        $tableList = array_values($tables);
+
+        if ($maxSpeedKmh !== null && $minSpeedSymbol !== null) {
+            $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
+
+            if ($lookup->isNotPermitted() && $lookup->required !== null) {
+                $raisedFrom = $minSpeedSymbol;
+                $minSpeedSymbol = $lookup->required;
+                $speedSource = MinSource::Document;
+                $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
+            }
+        }
+
+        $derivedLoadIndex = $axleLoadKg === null || $axleLoadKg <= 0 || $lookup === null || $lookup->percent === null
+            ? null
+            : $this->loadIndex->forTyreLoad($axleLoadKg / 2 * 100 / $lookup->percent);
+
+        // The limits: the smallest index whose limit reaches this axle's load. A limit that is not twice a
+        // capacity from the table cannot be read; limits that all stop below the load say nothing for it.
+        $limit = null;
+        $badLimit = null;
+        $limitsUncovered = null;
+
+        if ($axleLoadKg !== null && $axleLoadKg > 0 && $limits !== []) {
+            $maxKg = 0;
+
+            foreach ($limits as $condition) {
+                $kg = (int) $condition->maxAxleLoadKg;
+                $index = $kg % 2 === 0 ? $this->loadIndex->indexForCapacity(intdiv($kg, 2)) : null;
+
+                if ($index === null) {
+                    $badLimit ??= ['code' => $condition->code, 'kg' => $kg];
+
+                    continue;
+                }
+
+                $maxKg = max($maxKg, $kg);
+
+                if ($kg >= $axleLoadKg && ($limit === null || $index->index < $limit['index'])) {
+                    $limit = ['code' => $condition->code, 'kg' => $kg, 'index' => $index->index];
+                }
+            }
+
+            if ($limit === null && $badLimit === null) {
+                $limitsUncovered = $maxKg;
+            }
+        }
+
+        $documentLoadIndex = max($sizeLoadIndex ?? 0, $limit['index'] ?? 0) ?: null;
+
+        [$minLoadIndex, $loadSource] = $this->stricterLoadIndex(
+            $derivedLoadIndex?->index,
+            $documentLoadIndex,
         );
+
+        $binding = match (true) {
+            $loadSource !== MinSource::Document => 'derived',
+            $limit !== null && $limit['index'] === $minLoadIndex => 'limit',
+            default => 'size',
+        };
+
+        $sourceTable = array_values(array_filter($tableList))[0] ?? null;
+        $documentNumber = null;
+
+        foreach ($covering as $row) {
+            if ($row->document->speedDerating !== null) {
+                $documentNumber = $row->document->number;
+
+                break;
+            }
+        }
+
+        return [
+            new AxleRequirement(
+                sizes: $sizes ?? [],
+                minLoadIndex: $minLoadIndex,
+                minSpeedSymbol: $minSpeedSymbol,
+                // If either half came from the document, the reasoning is "the document said so" —
+                // and each half records its own source, so a sentence about the load index can never
+                // credit a Gutachten that only stated a speed symbol.
+                minSource: ($loadSource === MinSource::Document || $speedSource === MinSource::Document)
+                    ? MinSource::Document
+                    : MinSource::Derived,
+                minLoadSource: $loadSource,
+                minSpeedSource: $speedSource,
+            ),
+            [
+                'load' => $axleLoadKg,
+                'speed' => $maxSpeedKmh,
+                'symbol' => $minSpeedSymbol,
+                'lookup' => $lookup,
+                'raisedFrom' => $raisedFrom,
+                'derived' => $derivedLoadIndex,
+                'limit' => $limit,
+                'badLimit' => $badLimit,
+                'limitsUncovered' => $limitsUncovered,
+                'binding' => $binding,
+                'hasTable' => array_filter($tableList) !== [],
+                'tableSource' => $sourceTable === null ? null : trim(sprintf(
+                    'Tabelle%s im Gutachten %s',
+                    $sourceTable->sourcePage === null ? '' : ' auf Seite '.$sourceTable->sourcePage,
+                    (string) $documentNumber,
+                )),
+            ],
+        ];
     }
 
     /** @return array{0: int|null, 1: MinSource} */

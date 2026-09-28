@@ -40,6 +40,7 @@ final class DemoCatalogue
         'document_conditions',
         'document_fasteners',
         'document_notices',
+        'document_speed_deratings',
         'approval_documents',
         'wheel_configs',
         'wheel_finishes',
@@ -60,6 +61,7 @@ final class DemoCatalogue
         'document_conditions' => 'Auflagenverzeichnisse der Beispiel-Gutachten',
         'document_fasteners' => 'Befestigungsmittel der Beispiel-Gutachten',
         'document_notices' => 'Pflichthinweise der Beispiel-Gutachten',
+        'document_speed_deratings' => 'Tragfähigkeitstabellen der Beispiel-Gutachten',
         'approval_documents' => 'Beispiel-Gutachten',
         'wheel_configs' => 'Größen der Beispielfelgen',
         'wheel_finishes' => 'Farben der Beispielfelgen',
@@ -174,6 +176,7 @@ final class DemoCatalogue
         self::deleteIn('document_conditions', 'approval_document_id', $documents);
         self::deleteIn('document_fasteners', 'approval_document_id', $documents);
         self::deleteIn('document_notices', 'approval_document_id', $documents);
+        self::deleteIn('document_speed_deratings', 'approval_document_id', $documents);
 
         // A chain among the example documents themselves: unlinked first, so no row is refused for
         // the one that replaces it.
@@ -221,7 +224,7 @@ final class DemoCatalogue
             'fitments' => DB::table($table)->whereIn('wheel_config_id', self::configs()),
             'fitment_tyre_size_conditions' => DB::table($table)->whereIn('fitment_tyre_size_id', DB::table('fitment_tyre_sizes')->whereIn('fitment_id', self::fitments())->select('id')),
             'document_condition_reworks' => DB::table($table)->whereIn('document_condition_id', DB::table('document_conditions')->whereIn('approval_document_id', self::documents())->select('id')),
-            'document_conditions', 'document_fasteners', 'document_notices' => DB::table($table)->whereIn('approval_document_id', self::documents()),
+            'document_conditions', 'document_fasteners', 'document_notices', 'document_speed_deratings' => DB::table($table)->whereIn('approval_document_id', self::documents()),
             'approval_documents' => DB::table($table)->whereIn('id', self::documents()),
             'wheel_configs', 'wheel_finishes' => DB::table($table)->whereIn('wheel_model_id', self::models()),
             'wheel_models', 'tyre_variants' => DB::table($table)->where('is_demo', true),

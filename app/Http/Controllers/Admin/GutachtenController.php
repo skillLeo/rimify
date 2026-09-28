@@ -213,6 +213,8 @@ class GutachtenController extends Controller
                     'measure' => $r->measureDe(),
                     'note' => $r->note_de,
                 ])->values()->all(),
+            // Its own table of tyre load at speed (ABE 55255, p. 6): rows of speeds, columns of symbols.
+            'derating' => self::deratingView($document),
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
                 ->whereIn('candidate_fitment_id', $rows->pluck('id'))->count(),
             'can' => [
@@ -220,6 +222,32 @@ class GutachtenController extends Controller
                 'release' => $admin->can('publish', $document),
             ],
         ]);
+    }
+
+    /**
+     * The document's table as the grid shows it: its columns in the order first entered (V, W, Y), its rows
+     * by speed, each cell „97“, „–“ or empty.
+     *
+     * @return array{sourcePage: int|null, symbols: list<string>, rows: list<array{speed: int, cells: array<string, string>}>}
+     */
+    private static function deratingView(ApprovalDocument $document): array
+    {
+        $cells = $document->speedDeratings()->get();
+        $symbols = [];
+        $rows = [];
+
+        foreach ($cells as $cell) {
+            $symbols[$cell->symbol] = true;
+            $rows[$cell->speed_kmh][$cell->symbol] = $cell->percent === null ? '–' : (string) $cell->percent;
+        }
+
+        ksort($rows);
+
+        return [
+            'sourcePage' => $cells->first()?->source_page,
+            'symbols' => array_keys($symbols),
+            'rows' => array_map(static fn (int $speed, array $row): array => ['speed' => $speed, 'cells' => $row], array_keys($rows), $rows),
+        ];
     }
 
     public function update(ApprovalDocumentRequest $request, ApprovalDocument $document, PdfUpload $uploads): RedirectResponse

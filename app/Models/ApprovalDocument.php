@@ -176,6 +176,16 @@ class ApprovalDocument extends Model
     }
 
     /**
+     * The document's own table of tyre load at speed (ABE 55255, p. 6), cell by cell.
+     *
+     * @return HasMany<DocumentSpeedDerating, $this>
+     */
+    public function speedDeratings(): HasMany
+    {
+        return $this->hasMany(DocumentSpeedDerating::class)->orderBy('speed_kmh')->orderBy('id');
+    }
+
+    /**
      * The sentence for a Nachtrag whose base we do not hold (the corrections memo §4) — said on the
      * record, in the Abdeckung and to the customer; null for any other document.
      */

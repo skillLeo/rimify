@@ -38,6 +38,11 @@ final readonly class Condition
         public ?ConditionKind $kind = null,
         /** The page of the document the sentence stands on. */
         public ?int $sourcePage = null,
+        /**
+         * A `reifen_tragfaehigkeit` Auflage: the permitted axle load it allows up to, in kg (T88 → 1.120).
+         * The tyre half of the verdict sets it beside the car's figures (R-03).
+         */
+        public ?int $maxAxleLoadKg = null,
     ) {
         if (trim($textDe) === '') {
             throw new InvalidArgumentException(
@@ -51,7 +56,7 @@ final readonly class Condition
      * An Auflage of its document, as the customer reads it: the kind decides severity and flags, so
      * nothing about what it asks of the customer is typed twice.
      */
-    public static function ofKind(string $code, ConditionKind $kind, string $textDe, ?string $noteDe = null, ?int $sourcePage = null): self
+    public static function ofKind(string $code, ConditionKind $kind, string $textDe, ?string $noteDe = null, ?int $sourcePage = null, ?int $maxAxleLoadKg = null): self
     {
         return new self(
             code: $code,
@@ -63,6 +68,7 @@ final readonly class Condition
             noteDe: $noteDe,
             kind: $kind,
             sourcePage: $sourcePage,
+            maxAxleLoadKg: $kind === ConditionKind::ReifenTragfaehigkeit ? $maxAxleLoadKg : null,
         );
     }
 
@@ -100,7 +106,7 @@ final readonly class Condition
      * @return array{
      *     code: string, severity: string, textDe: string, textEn: string|null,
      *     affectsTyreChoice: bool, affectsPurchase: bool, requiresAcknowledgement: bool,
-     *     kind: string|null, sourcePage: int|null
+     *     kind: string|null, sourcePage: int|null, maxAxleLoadKg: int|null
      * }
      */
     public function toArray(): array
@@ -116,6 +122,7 @@ final readonly class Condition
             // Additive: a snapshot written before kinds reads them as null.
             'kind' => $this->kind?->value,
             'sourcePage' => $this->sourcePage,
+            'maxAxleLoadKg' => $this->maxAxleLoadKg,
         ];
     }
 
@@ -123,7 +130,7 @@ final readonly class Condition
      * @param array{
      *     code: string, severity: string, textDe: string, textEn?: string|null,
      *     affectsTyreChoice?: bool, affectsPurchase?: bool, requiresAcknowledgement?: bool,
-     *     kind?: string|null, sourcePage?: int|null
+     *     kind?: string|null, sourcePage?: int|null, maxAxleLoadKg?: int|null
      * } $data
      */
     public static function fromArray(array $data): self
@@ -139,6 +146,7 @@ final readonly class Condition
             requiresAcknowledgement: (bool) ($data['requiresAcknowledgement'] ?? false),
             kind: isset($data['kind']) ? ConditionKind::tryFrom((string) $data['kind']) : null,
             sourcePage: isset($data['sourcePage']) ? (int) $data['sourcePage'] : null,
+            maxAxleLoadKg: isset($data['maxAxleLoadKg']) ? (int) $data['maxAxleLoadKg'] : null,
         );
     }
 

@@ -77,14 +77,17 @@ it('flags a workshop condition as needing explicit acknowledgement', function ()
  * UNKNOWN — we do not know. Distinct from "we checked and the answer is no".
  */
 
-it('yields UNKNOWN for a vehicle whose legal data could not be parsed', function (): void {
-    // R-03 outranks everything: no derivation, no positive verdict, whatever the document says.
+it('gives a vehicle whose legal data could not be parsed its wheel verdict, and never a positive tyre half', function (): void {
+    // R-03 as amended on 28.09.2026: the wheel rests on the document; the tyres wait for the papers.
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: NEEDS_REVIEW)])
         ->resolve(NEEDS_REVIEW, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    expect($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->reason?->code)->toBe(VerdictReason::VEHICLE_INCOMPLETE)
-        ->and($verdict->isSellable())->toBeFalse();
+    expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Conditional)
+        ->and($verdict->status)->toBe(VerdictStatus::Conditional)
+        // No minimum is stated without the figures, so no tyre can be offered on it.
+        ->and($verdict->front->minLoadIndex)->toBeNull()
+        ->and($verdict->front->minSpeedSymbol)->toBeNull();
 });
 
 it('yields UNKNOWN when no document mentions the wheel at all', function (): void {
@@ -167,9 +170,10 @@ it('derives the minimum when the document is silent', function (): void {
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row()])
         ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    // 1210 kg front → 605.0 per tyre → 91; 1235 kg rear → 617.5 → 92; 280 km/h → Y.
-    expect($verdict->front->minLoadIndex)->toBe(91)
-        ->and($verdict->rear->minLoadIndex)->toBe(92)
+    // 280 km/h → Y, and at 280 km/h a Y tyre carries 95 % of its load (ABE 55255, p. 6).
+    // 1210 kg front → 605,0 per tyre ÷ 0,95 = 636,8 → 93 (650); 1235 kg rear → 617,5 ÷ 0,95 = 650,0 → 93.
+    expect($verdict->front->minLoadIndex)->toBe(93)
+        ->and($verdict->rear->minLoadIndex)->toBe(93)
         ->and($verdict->front->minSpeedSymbol)->toBe('Y')
         ->and($verdict->front->minSource)->toBe(MinSource::Derived);
 });
@@ -188,7 +192,7 @@ it('ignores a laxer document minimum — the derivation is the floor', function 
         FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinLoadIndex: 80)]),
     ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    expect($verdict->front->minLoadIndex)->toBe(91)
+    expect($verdict->front->minLoadIndex)->toBe(93)
         ->and($verdict->front->minSource)->toBe(MinSource::Derived);
 });
 
@@ -203,10 +207,12 @@ it('ignores a document speed symbol it does not recognise, rather than relaxing'
 });
 
 it('derives front and rear separately', function (): void {
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row()])
-        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+    // The BMW 3er, 225 km/h → V at 94 %: 900 kg → 450 ÷ 0,94 = 478,7 → 83; 1020 kg → 510 ÷ 0,94 = 542,6 → 87.
+    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 3)])
+        ->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    expect($verdict->front->minLoadIndex)->not->toBe($verdict->rear->minLoadIndex);
+    expect($verdict->front->minLoadIndex)->toBe(83)
+        ->and($verdict->rear->minLoadIndex)->toBe(87);
 });
 
 /*
@@ -262,7 +268,7 @@ it('reports the newest revision among the covering rows', function (): void {
 /** A second document, issued later than the fixture's own. */
 function laterDocument(): DocumentRecord
 {
-    return new DocumentRecord(id: 58, kind: 'ABE', number: '55255', revision: 1, issuedOn: new DateTimeImmutable('2025-06-02'), sourcePage: 4);
+    return new DocumentRecord(id: 58, kind: 'ABE', number: '55255', revision: 1, issuedOn: new DateTimeImmutable('2025-06-02'), sourcePage: 4, speedDerating: FitmentFixtures::deratingTable());
 }
 
 it('names every document that agrees, the newest first', function (): void {

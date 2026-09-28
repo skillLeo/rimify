@@ -18,13 +18,17 @@ use Tests\Support\Fitment\FitmentFixtures;
  * (spec §3.4): no key is removed or renamed, old rows keep deserialising, R-12 is untouched.
  */
 
-/** A verdict that exercises every field the round trip used to lose. */
+/**
+ * A verdict that exercises every field the round trip used to lose — on the BMW 3er (225 km/h), whose V the
+ * document raises to W, so both halves of the front minimum are the document's.
+ */
 function verdictWithEverything(): FitmentVerdict
 {
     return FitmentFixtures::resolver([
         FitmentFixtures::row(
+            vehicleId: 3,
             sizes: [
-                new TyreSize(245, 40, 18.0, documentMinLoadIndex: 95, documentMinSpeedSymbol: '(Y)', axle: 'FRONT'),
+                new TyreSize(245, 40, 18.0, documentMinLoadIndex: 95, documentMinSpeedSymbol: 'W', axle: 'FRONT'),
                 new TyreSize(275, 35, 18.0, axle: 'REAR'),
             ],
             conditions: [
@@ -39,7 +43,7 @@ function verdictWithEverything(): FitmentVerdict
             // The bore this document states for THIS car — 66,5 on a rim cast 66,60.
             centreBoreMm: 66.5,
         ),
-    ])->resolve(1, FitmentFixtures::WHEEL_CONFIG_ID);
+    ])->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
 }
 
 it('preserves the tyre-choice flag, the document minima, the axle and both sources through the round trip', function (): void {
@@ -57,7 +61,7 @@ it('preserves the tyre-choice flag, the document minima, the axle and both sourc
         ->and($byCode['ARCH_ROLLING']->affectsPurchase)->toBeTrue()
         ->and($byCode['ARCH_ROLLING']->requiresAcknowledgement)->toBeTrue()
         ->and($restored->front->sizes[0]->documentMinLoadIndex)->toBe(95)
-        ->and($restored->front->sizes[0]->documentMinSpeedSymbol)->toBe('(Y)')
+        ->and($restored->front->sizes[0]->documentMinSpeedSymbol)->toBe('W')
         ->and($restored->front->sizes[0]->axle)->toBe('FRONT')
         ->and($restored->rear->sizes[0]->axle)->toBe('REAR')
         ->and($restored->front->minLoadSource)->toBe(MinSource::Document)
@@ -132,6 +136,8 @@ it('keeps every key the snapshot shape had before — nothing removed, nothing r
         // Added with the per-vehicle bore; everything around them is untouched.
         'documentCentreBoreMm', 'centreBoreSource',
         'conditions', 'tyres', 'reason', 'snapshot',
+        // Added with the split of R-03 (28.09.2026): the wheel half and the tyre half.
+        'wheelStatus', 'tyreCheck',
     ])
         ->and(array_keys($payload['tyres']))->toBe(['perAxle', 'front', 'rear'])
         ->and(array_slice(array_keys($payload['tyres']['front']), 0, 4))->toBe(['sizes', 'minLoadIndex', 'minSpeedSymbol', 'minSource'])

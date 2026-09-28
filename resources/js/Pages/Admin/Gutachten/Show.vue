@@ -19,6 +19,7 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
+import DeratingTable from './DeratingTable.vue'
 import DocumentExtras from './DocumentExtras.vue'
 import FactsDialog from './FactsDialog.vue'
 import RowComposer from './RowComposer.vue'
@@ -341,6 +342,14 @@ const TONE: Record<string, string | null> = {
                 <h2 id="gs-extras-h" class="adm-section__title">Befestigung und Hinweise</h2>
             </div>
             <DocumentExtras :document-id="document.id" :fasteners="fasteners" :notices="notices" :reworks="reworks" :conditions="conditions" :editable="can.edit && draft" :page-count="document.pageCount" />
+        </section>
+
+        <!-- ── Its own table of tyre load at speed ───────────────────── -->
+        <section class="adm-section" aria-labelledby="gs-derating-h">
+            <div class="adm-section__head">
+                <h2 id="gs-derating-h" class="adm-section__title">Tragfähigkeit bei hoher Geschwindigkeit</h2>
+            </div>
+            <DeratingTable :document-id="document.id" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" />
         </section>
 
         <!-- ── Verwendungsbereich ────────────────────────────────────── -->

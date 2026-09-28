@@ -528,6 +528,22 @@ class FelgenController extends Controller
             'minLoadSource' => $minimum['loadSource'] ?? $this->either($verdict->front->minLoadSource, $verdict->rear->minLoadSource),
             'minSpeedSource' => $minimum['speedSource'] ?? $this->either($verdict->front->minSpeedSource, $verdict->rear->minSpeedSource),
             'minSentence' => $this->eligibility->minimumSentenceDe($verdict),
+            // The two halves (R-03 as amended): the wheel from the document, the tyres from the car's
+            // figures — each with its own word, the tyres with their sentences and the document's limits.
+            'wheelStatus' => $verdict->wheelStatus?->value,
+            'wheelLabel' => $verdict->wheelStatus?->labelDe(),
+            'tyre' => $verdict->tyre === null ? null : [
+                'status' => $verdict->tyre->status->value,
+                'label' => $verdict->tyre->status === VerdictStatus::Conditional && ! $verdict->tyre->fromVehicleData
+                    ? 'Mit deinen Fahrzeugpapieren prüfen'
+                    : $verdict->tyre->status->labelDe(),
+                'lines' => $verdict->tyre->lines,
+                'thresholds' => array_map(static fn (array $t): array => [
+                    'text' => $t['textDe'],
+                    'maxAxleLoad' => GermanFormat::kilograms($t['maxAxleLoadKg']),
+                ], $verdict->tyre->thresholds),
+                'fromVehicleData' => $verdict->tyre->fromVehicleData,
+            ],
         ];
     }
 

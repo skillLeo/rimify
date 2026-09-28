@@ -75,6 +75,13 @@ final readonly class FitmentVerdict
          * @var list<DocumentRecord>
          */
         public array $documents = [],
+        /**
+         * The two halves `status` is the weaker of (R-03 as amended on 28.09.2026): the wheel, from the
+         * document alone, and the tyres, from the car's axle loads and top speed. Null on a negative
+         * verdict and on a snapshot frozen before the split.
+         */
+        public ?VerdictStatus $wheelStatus = null,
+        public ?TyreCheck $tyre = null,
     ) {}
 
     /**
@@ -103,6 +110,8 @@ final readonly class FitmentVerdict
             wheelLabel: $this->wheelLabel,
             restored: $this->restored,
             documents: count($documents) > 1 ? $documents : [],
+            wheelStatus: $this->wheelStatus,
+            tyre: $this->tyre,
         );
     }
 
@@ -181,6 +190,9 @@ final readonly class FitmentVerdict
             ],
             'reason' => $this->reason?->toArray(),
             'snapshot' => $this->snapshot->toArray(),
+            // Additive: the two halves; a snapshot written before the split has neither.
+            ...($this->wheelStatus === null ? [] : ['wheelStatus' => $this->wheelStatus->value]),
+            ...($this->tyre === null ? [] : ['tyreCheck' => $this->tyre->toArray()]),
         ];
     }
 
@@ -268,6 +280,8 @@ final readonly class FitmentVerdict
                 static fn (mixed $d): DocumentRecord => DocumentRecord::fromArray((array) $d),
                 is_array($data['documents'] ?? null) ? $data['documents'] : [],
             )),
+            wheelStatus: isset($data['wheelStatus']) ? VerdictStatus::tryFrom((string) $data['wheelStatus']) : null,
+            tyre: is_array($data['tyreCheck'] ?? null) ? TyreCheck::fromArray($data['tyreCheck']) : null,
         );
     }
 
