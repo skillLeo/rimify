@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '../fixtures';
 import { SHOTS, anchorOf, focused, gapRows, keepMailtoInPage, openNachfrage, signIn, type MarkRig } from './ueb-support';
 
 /*

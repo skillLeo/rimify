@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
 import { resetRail, storeRail } from './bugs/rail-support'
 import { openNachfrage, patchCharts } from './bugs/ueb-support'

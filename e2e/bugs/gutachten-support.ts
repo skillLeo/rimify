@@ -108,8 +108,8 @@ export async function guardWrites(page: Page): Promise<WriteLog> {
 /* ── Documents ─────────────────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Opens the Dokumente list and returns a document with rows to work on: the one with the FEWEST rows
- * above zero, so its page stays quick — a document of 1.400 rows makes every step slow, not different.
+ * Opens the Dokumente list and returns a released document with rows to work on: the one with the FEWEST
+ * rows above zero, so its page stays quick — a document of 1.400 rows makes every step slow, not different.
  */
 export async function busiestDocument(page: Page): Promise<number> {
     await page.goto('/admin/gutachten', { waitUntil: 'domcontentloaded' });
@@ -122,11 +122,15 @@ export async function busiestDocument(page: Page): Promise<number> {
         for (const tr of Array.from(document.querySelectorAll('table.adm-table tbody tr'))) {
             const href = tr.querySelector('a.gd-link')?.getAttribute('href') ?? '';
             const id = Number(href.split('/').pop());
+            // "N von M": N rows in the shop, M in all. Only a released document has rows in the shop — the
+            // callers answer it in the browser as a draft and release it again; a real draft (QA-ENTWURF)
+            // is not what they are about.
             const cell = tr.querySelector('td[data-label="Zeilen im Shop"]')?.textContent ?? '';
-            const total = /von\s+([\d.]+)/.exec(cell)?.[1] ?? '0';
+            const [, live = '0', total = '0'] = /([\d.]+)\s+von\s+([\d.]+)/.exec(cell) ?? [];
+            const inShop = Number(live.replace(/\./g, ''));
             const rows = Number(total.replace(/\./g, ''));
 
-            if (Number.isInteger(id) && id > 0 && rows > 0 && rows < best.rows) {
+            if (Number.isInteger(id) && id > 0 && inShop > 0 && rows > 0 && rows < best.rows) {
                 best = { id, rows };
             }
         }

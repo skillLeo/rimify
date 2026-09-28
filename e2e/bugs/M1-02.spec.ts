@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, focusStop, guardDemoData, isPhone, openUebersicht, signIn, type FocusStop } from './m1-support';
 
 /*

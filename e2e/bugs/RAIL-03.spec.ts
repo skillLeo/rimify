@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { waitForApp } from './faq-support';
 import { SHOTS, openAdmin, railWidth, resetRail, room, storeRail, workWidth } from './rail-support';
 

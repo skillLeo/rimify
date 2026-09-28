@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, handle, isRailSave, openAdmin, railWidth, recordSaves, resetRail } from './rail-support';
 
 /*

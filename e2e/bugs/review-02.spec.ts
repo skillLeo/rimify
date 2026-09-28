@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, focusFell, guardWrites, inertiaHeaders, isInertiaGet, signIn, waitForApp } from './gutachten-support';
 
 /*

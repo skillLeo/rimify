@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, firstWheelId, guardWrites, openFelge, pressSave, signIn } from './katalog-support';
 
 /*

@@ -30,12 +30,19 @@ export interface FaqProps {
     can: { create: boolean; edit: boolean; delete: boolean; publish: boolean };
 }
 
+/**
+ * Signs in and waits for the admin to be ready to use — its app mounted — not for every image and font
+ * of the Übersicht to arrive (\load\): that wait measured the server's queue, not the page, and timed out
+ * in long runs (the launch release §3).
+ */
 export async function signIn(page: Page): Promise<void> {
-    await page.goto('/admin/anmelden', { waitUntil: 'networkidle' });
+    await page.goto('/admin/anmelden', { waitUntil: 'domcontentloaded' });
+    await waitForApp(page);
     await page.fill('#lg-mail', SUPER_ADMIN.email);
     await page.fill('#lg-pass', SUPER_ADMIN.password);
     await page.locator('button[type=submit]').first().click();
-    await page.waitForURL(/\/admin$/, { timeout: 10_000 });
+    await page.waitForURL(/\/admin$/, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await waitForApp(page);
 }
 
 export async function waitForApp(page: Page): Promise<void> {

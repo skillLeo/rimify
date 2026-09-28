@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../fixtures'
 import { SHOTS, bar, cleanUp, createViews, myViews, open, send, start } from './sv-support'
 
 /*

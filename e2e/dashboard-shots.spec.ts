@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
+import { expect, test, type Page, type Route } from './fixtures'
 import { inertiaHeaders, isInertiaGet } from './bugs/bell-support'
 import { signIn, waitForApp } from './bugs/faq-support'
 

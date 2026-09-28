@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, listInsteadOf, openFaq, signIn } from './faq-support';
 
 /*

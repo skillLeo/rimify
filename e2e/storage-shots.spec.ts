@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { SUPER_ADMIN, signIn, waitForApp } from './bugs/faq-support'
 
 /*
@@ -14,7 +14,8 @@ test('Medien und Speicher: the password step, then the screen', async ({ page },
 
     await signIn(page)
     await page.goto('/admin/einstellungen/speicher', { waitUntil: 'networkidle' })
-    await expect(page).toHaveURL(/\/admin\/bestaetigen$/)
+    // The way back rides along in the address (EnsureSudo), so a parallel request cannot lose it.
+    await expect(page).toHaveURL(/\/admin\/bestaetigen\?weiter=%2Fadmin%2Feinstellungen%2Fspeicher$/)
     await waitForApp(page)
     await page.screenshot({ path: `${DIR}/bestaetigen-${width}.png`, fullPage: true })
 

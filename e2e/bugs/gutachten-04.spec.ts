@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, answerWithDocument, asDraft, busiestDocument, chooseOneEach, composer, guardWrites, openAsDraft, signIn, waitForApp } from './gutachten-support';
 
 /*

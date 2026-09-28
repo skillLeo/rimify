@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, holdCharts, layoutShiftSince, openUebersicht, recordLayoutShifts, signIn, widget } from './ueb-support';
 
 /*

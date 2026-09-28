@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
+import { busiestDocument } from './bugs/gutachten-support'
 
 /*
  * Proof shots of Gutachten, Fahrzeuge and one order (docs/qa/shots/m-gutachten/): the documents, the
@@ -32,8 +33,10 @@ test('Gutachten, Auflagen, Fahrzeuge and one order', async ({ page }, info) => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Neues Gutachten')
     await page.screenshot({ path: `${DIR}/neu-${width}.png`, fullPage: true })
 
-    await page.goto('/admin/gutachten', { waitUntil: 'networkidle' })
-    await page.locator('.gd-link').first().click()
+    // A released document (the preview needs its rows in the shop), the smallest one: not whichever the
+    // list happens to show first.
+    const released = await busiestDocument(page)
+    await page.locator(`a.gd-link[href$="/admin/gutachten/${released}"]`).first().click()
     await page.waitForURL(/\/admin\/gutachten\/\d+$/)
     await waitForApp(page)
     await expect(page.getByRole('heading', { name: 'Verwendungsbereich' })).toBeVisible()

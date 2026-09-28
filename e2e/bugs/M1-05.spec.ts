@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '../fixtures';
 import { SHOTS, chartsSettled, guardDemoData, isPhone, openUebersicht, signIn } from './m1-support';
 
 /*

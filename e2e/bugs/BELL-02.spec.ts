@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { SHOTS, bell, isAdminUrl, isInertiaGet, openCentreFromBell, pageInsteadOf, signIn, waitForApp, type AlertItem, type InertiaPage } from './bell-support';
 
 /*

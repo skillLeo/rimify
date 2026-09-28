@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import type { DashboardOrderRow } from '../../resources/js/types/admin/uebersicht';
 import { SHOTS, isInertiaGet, isPhone, signIn, waitForApp, widget } from './ueb-support';
 

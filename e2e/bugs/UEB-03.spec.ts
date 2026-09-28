@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import type { TopWheel } from '../../resources/js/types/admin/uebersicht';
 import { SHOTS, openUebersichtWith, signIn, widget } from './ueb-support';
 

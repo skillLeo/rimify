@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '../fixtures';
 import { waitForApp } from './faq-support';
 import { SHOTS, handle, openAdmin, railWidth, recordSaves, resetRail } from './rail-support';
 

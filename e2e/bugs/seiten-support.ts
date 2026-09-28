@@ -13,13 +13,8 @@ export const SUPER_ADMIN = { email: 'super-admin@rimify.test', password: 'rimify
 /** Where the bug tests leave their evidence. Relative to the project root, where Playwright runs. */
 export const SHOTS = 'docs/qa/shots/seiten';
 
-export async function signIn(page: Page): Promise<void> {
-    await page.goto('/admin/anmelden', { waitUntil: 'networkidle' });
-    await page.fill('#lg-mail', SUPER_ADMIN.email);
-    await page.fill('#lg-pass', SUPER_ADMIN.password);
-    await page.locator('button[type=submit]').first().click();
-    await page.waitForURL(/\/admin$/, { timeout: 10_000 });
-}
+/** The one sign-in of the suites (faq-support): waits for the admin's app, not for \load\. */
+export { signIn } from './faq-support';
 
 /**
  * Opens a page's editor from the list with an Inertia visit — so the browser history holds the

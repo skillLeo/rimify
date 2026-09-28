@@ -36,12 +36,13 @@ export default defineConfig({
         { name: 'pixel-8', use: { ...devices['Pixel 8'] } },
         { name: 'galaxy-a55', use: { ...devices['Galaxy A55'] } },
     ],
+    // Several PHP workers behind the port (scripts/e2e/serve.mjs), as the main suite.
     webServer: {
-        command: 'php -S 127.0.0.1:8010 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php',
-        cwd: '../../../public',
+        command: 'node scripts/e2e/serve.mjs --port 8010 --workers 4',
+        cwd: '../../..',
         env: { DB_DATABASE: 'rimify_wf_e2e' },
         url: 'http://127.0.0.1:8010/up',
         reuseExistingServer: true,
-        timeout: 60_000,
+        timeout: 90_000,
     },
 })

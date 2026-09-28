@@ -1,4 +1,4 @@
-import { expect, test, type Route } from '@playwright/test';
+import { expect, test, type Route } from '../fixtures';
 import { SHOTS, inertiaHeaders, openUebersicht, routeCharts, signIn, widget } from './ueb-support';
 
 /*

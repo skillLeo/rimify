@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 /*
  * Server rendering, proven the only way that counts (the launch release §3): a browser with

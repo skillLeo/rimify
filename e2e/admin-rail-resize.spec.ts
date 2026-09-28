@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
 import { maxFit } from '../resources/js/composables/admin/railResize'
 import { signIn } from './bugs/faq-support'
 import { openUebersicht, patchCharts } from './bugs/ueb-support'
