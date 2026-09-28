@@ -421,7 +421,7 @@ const TONE: Record<string, string | null> = {
             <div class="adm-section__head">
                 <h2 id="gs-add-h" class="adm-section__title">Zeilen hinzufügen</h2>
             </div>
-            <RowComposer :document-id="document.id" :conditions="conditions" :page-count="document.pageCount" />
+            <RowComposer :document-id="document.id" :conditions="conditions" :page-count="document.pageCount" :body-forms="choices.bodyForms" :drives="choices.drives" />
         </section>
 
         <!-- ── Preview ───────────────────────────────────────────────── -->

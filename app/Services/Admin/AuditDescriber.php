@@ -137,6 +137,7 @@ final class AuditDescriber
         'condition.updated' => 'gutachten',
         'condition.deleted' => 'gutachten',
         'vehicle.legal_data_updated' => 'fahrzeuge',
+        'vehicle.created_from_document' => 'fahrzeuge',
     ];
 
     /**
@@ -411,6 +412,11 @@ final class AuditDescriber
                 [self::change('Wortlaut', self::text($p, 'old_text') ?? self::NOTHING, self::text($p, 'text') ?? self::NOTHING)],
             ],
             'condition.deleted' => ['Die Auflage '.self::q(self::text($p, 'text') ?? 'ohne Text').' wurde gelöscht.', []],
+            'vehicle.created_from_document' => [
+                'Das Fahrzeug '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurde aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer')
+                    .(self::text($p, 'page') === null ? '' : ', Seite '.self::text($p, 'page')).' angelegt, mit der EG-Typgenehmigungsnummer '.self::q(self::text($p, 'eg') ?? '–').'; ohne HSN und TSN.',
+                [],
+            ],
             'vehicle.legal_data_updated' => [
                 'Die Achslasten und die Höchstgeschwindigkeit von '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurden eingetragen'
                     .(($p['complete'] ?? false) === true ? '; das Fahrzeug ist vollständig.' : '; es fehlen noch Angaben.'),

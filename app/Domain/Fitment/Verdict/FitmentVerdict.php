@@ -214,8 +214,9 @@ final readonly class FitmentVerdict
 
         $vehicle = new VehicleRecord(
             id: (int) $vehicleData['id'],
-            hsn: (string) $vehicleData['hsn'],
-            tsn: (string) $vehicleData['tsn'],
+            // A car from a Gutachten has no key numbers yet: its snapshot reads back without them, never as ''.
+            hsn: isset($vehicleData['hsn']) ? (string) $vehicleData['hsn'] : null,
+            tsn: isset($vehicleData['tsn']) ? (string) $vehicleData['tsn'] : null,
             vsn: $vehicleData['vsn'] === null ? null : (string) $vehicleData['vsn'],
             make: '',
             model: '',

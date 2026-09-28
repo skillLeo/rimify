@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenAngabenController;
 use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\GutachtenFahrzeugController;
 use App\Http\Controllers\Admin\GutachtenTabelleController;
 use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
@@ -229,6 +230,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/gutachten/{document}', [GutachtenController::class, 'update'])->whereNumber('document')->name('gutachten.update');
         Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
         Route::post('/gutachten/{document}/zeilen', [GutachtenZeilenController::class, 'store'])->whereNumber('document')->name('gutachten.zeilen.store');
+        // A car exactly as the document names it — no HSN or TSN, none made up (Block C, item 7).
+        Route::post('/gutachten/{document}/fahrzeuge', [GutachtenFahrzeugController::class, 'store'])->whereNumber('document')->middleware('throttle:30,1')->name('gutachten.fahrzeuge.store');
         Route::put('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'update'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.update');
         Route::delete('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'destroy'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.entfernen');
         // A Gutachten's own Auflagenverzeichnis (the corrections memo §1): its codes, written while it is a draft.

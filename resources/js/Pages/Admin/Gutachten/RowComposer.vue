@@ -13,12 +13,16 @@ import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
 import type { DocumentConditionView, RowForm, VehicleHit, WheelGroup } from '../../../types/admin/gutachten'
 import RowFields from './RowFields.vue'
+import VehicleFromDocument from './VehicleFromDocument.vue'
 import { emptyRow, payload, unreadable } from './rows'
 
 const props = defineProps<{
     documentId: number
     conditions: DocumentConditionView[]
     pageCount: number | null
+    /** The body styles and drives a document may name, for a car created from it. */
+    bodyForms: string[]
+    drives: string[]
 }>()
 
 const emit = defineEmits<{ done: [] }>()
@@ -152,6 +156,19 @@ function modelLabel(group: WheelGroup): string {
     return group.partial ? `${group.model} – die ${n} gezeigten Größen` : `${group.model} – ${n === 1 ? 'die eine Größe' : `alle ${n} Größen`}`
 }
 
+/* A car just created from this document heads the list and is chosen: it was made for these rows. */
+const adopted = ref('')
+
+function adopt(vehicle: VehicleHit): void {
+    vehicleHits.value = [vehicle, ...vehicleHits.value.filter((v) => v.id !== vehicle.id)]
+
+    if (!hasVehicle(vehicle.id)) {
+        chosenVehicles.value = [...chosenVehicles.value, vehicle]
+    }
+
+    adopted.value = `${vehicle.label} ist angelegt und gewählt.`
+}
+
 /** What a vehicle still lacks for a verdict (R-03) — said once, not guessed per field. */
 function missing(hit: VehicleHit): string {
     return hit.needsReview ? ' · Angaben für die Prüfung fehlen' : ''
@@ -229,7 +246,7 @@ function sizesChanged(): void {
                     v-model="vehicleTerm"
                     class="input"
                     type="search"
-                    placeholder="Marke, Modell oder HSN/TSN, z. B. 0005 BGU"
+                    placeholder="Marke, Modell, Fahrzeugtyp, EG-Nummer oder HSN/TSN"
                     autocomplete="off"
                     @keydown.enter.prevent="findVehicles(vehicleTerm)"
                 >
@@ -261,6 +278,9 @@ function sizesChanged(): void {
                     </li>
                 </ul>
                 <p v-if="errors.vehicle_ids" class="form-field__error">{{ errors.vehicle_ids }}</p>
+                <p v-if="adopted" class="adm-note" role="status">{{ adopted }}</p>
+                <!-- The car the document names, when no list has it yet (Block C, item 7). -->
+                <VehicleFromDocument :document-id="documentId" :page-count="pageCount" :body-forms="bodyForms" :drives="drives" @created="adopt" />
             </section>
 
             <section class="rc-col" aria-labelledby="rc-h-sizes">

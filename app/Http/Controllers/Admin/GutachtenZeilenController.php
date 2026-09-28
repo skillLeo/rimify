@@ -79,7 +79,9 @@ class GutachtenZeilenController extends Controller
                         $any->where('make', 'like', $like)
                             ->orWhere('model', 'like', $like)
                             ->orWhere('variant', 'like', $like)
-                            ->orWhere('type_designation', 'like', $like);
+                            ->orWhere('type_designation', 'like', $like)
+                            // How the documents name a car: `e1*2007/46*0316` finds the car typed from one.
+                            ->orWhere('eg_nummer_raw', 'like', $like);
                     });
                 }
             }

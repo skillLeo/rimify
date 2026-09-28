@@ -19,10 +19,14 @@ use App\Domain\Fitment\Support\BuildWindow;
  */
 final readonly class VehicleRecord
 {
+    /**
+     * @param  string|null  $hsn  null, with $tsn, for a car typed from a Gutachten until a vehicle dataset
+     *                            brings its key numbers (Block C, item 7) — never invented
+     */
     public function __construct(
         public int $id,
-        public string $hsn,
-        public string $tsn,
+        public ?string $hsn,
+        public ?string $tsn,
         public ?string $vsn,
         public string $make,
         public string $model,
@@ -70,8 +74,9 @@ final readonly class VehicleRecord
         return $this->label().', '.$this->buildWindow->labelDe();
     }
 
-    public function keyNumbers(): string
+    /** `0005/BGU`, or null while no source has given the key numbers. */
+    public function keyNumbers(): ?string
     {
-        return $this->hsn.'/'.$this->tsn;
+        return $this->hsn === null || $this->tsn === null ? null : $this->hsn.'/'.$this->tsn;
     }
 }

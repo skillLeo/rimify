@@ -132,6 +132,14 @@ it('uses an en dash in a build period, not a hyphen', function (): void {
         ->not->toContain('-');
 });
 
+it('says the key numbers are not known yet rather than make up a pair, never „HSN 0000“', function (): void {
+    expect(GermanFormat::keyNumbers(null, null))->toBe('HSN/TSN noch nicht hinterlegt')
+        ->and(GermanFormat::keyNumbers('', ''))->toBe('HSN/TSN noch nicht hinterlegt')
+        ->and(GermanFormat::keyNumbers('0005', null))->toBe('HSN/TSN noch nicht hinterlegt')
+        ->and(GermanFormat::hsn(null))->toBe('')
+        ->and(GermanFormat::hsn(''))->toBe('');
+});
+
 it('keeps the leading zeros on an HSN and never casts it to an integer', function (): void {
     expect(GermanFormat::hsn('0005'))->toBe('0005')
         ->and(GermanFormat::hsn('5'))->toBe('0005')

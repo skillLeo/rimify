@@ -94,7 +94,10 @@ final class Smoke extends Command
 
             $pdf = null;
             $this->check('HSN/TSN-Abfrage und Freigabe', function () use ($vehicle, $slug, &$pdf): string {
-                $this->post('/fahrzeug/schluesselnummern', ['hsn' => $vehicle->hsn, 'tsn' => $vehicle->tsn]);
+                // A car typed from a Gutachten has no key numbers yet: it is chosen from the list, as a customer would.
+                if ($vehicle->hsn !== null && $vehicle->tsn !== null) {
+                    $this->post('/fahrzeug/schluesselnummern', ['hsn' => $vehicle->hsn, 'tsn' => $vehicle->tsn]);
+                }
                 // Several cars behind one pair of numbers: the chooser, and this one is chosen (R-01).
                 $this->post('/fahrzeug', ['fahrzeug' => (string) $vehicle->id]);
                 $html = self::rendered($this->get('/felgen/'.$slug)->body());
@@ -102,7 +105,7 @@ final class Smoke extends Command
                 preg_match('#<a href="([^"]+)"[^>]*>\s*Gutachten öffnen#u', $html, $link);
                 $pdf = isset($link[1]) ? html_entity_decode($link[1]) : null;
 
-                return trim($m[0]).' ('.$vehicle->hsn.'/'.$vehicle->tsn.')';
+                return trim($m[0]).' ('.GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn).')';
             });
 
             $this->check('Gutachten-PDF', function () use (&$pdf): string {

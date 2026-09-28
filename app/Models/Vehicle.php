@@ -20,8 +20,8 @@ use Illuminate\Support\Carbon;
  * orders stay readable.
  *
  * @property int $id
- * @property string $hsn
- * @property string $tsn
+ * @property string|null $hsn null, with the TSN, for a car typed from a Gutachten until a dataset brings them
+ * @property string|null $tsn
  * @property string|null $vsn
  * @property string $make
  * @property string $model

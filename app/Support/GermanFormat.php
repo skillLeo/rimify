@@ -269,16 +269,28 @@ final class GermanFormat
         return $start.self::ENDASH.($end ?? 'heute');
     }
 
-    /** HSN keeps its leading zeros: `5` renders as `0005`, never as `5`. */
-    public static function hsn(string $hsn): string
+    /**
+     * HSN keeps its leading zeros: `5` renders as `0005`, never as `5`. A car without one (typed from a
+     * Gutachten, Block C item 7) renders as nothing — never as `0000`, a number no one issued.
+     */
+    public static function hsn(?string $hsn): string
     {
-        return str_pad(mb_strtoupper(trim($hsn)), 4, '0', STR_PAD_LEFT);
+        $hsn = trim((string) $hsn);
+
+        return $hsn === '' ? '' : str_pad(mb_strtoupper($hsn), 4, '0', STR_PAD_LEFT);
     }
 
-    /** `HSN 0005 · TSN 582` */
-    public static function keyNumbers(string $hsn, string $tsn): string
+    /** What every surface says for a car whose key numbers no source has given yet. */
+    public const KEY_NUMBERS_MISSING = 'HSN/TSN noch nicht hinterlegt';
+
+    /** `HSN 0005 · TSN 582`, or that they are not known yet — never a made-up pair. */
+    public static function keyNumbers(?string $hsn, ?string $tsn): string
     {
-        return sprintf('HSN %s %s TSN %s', self::hsn($hsn), self::MIDDOT, mb_strtoupper(trim($tsn)));
+        if (trim((string) $hsn) === '' || trim((string) $tsn) === '') {
+            return self::KEY_NUMBERS_MISSING;
+        }
+
+        return sprintf('HSN %s %s TSN %s', self::hsn($hsn), self::MIDDOT, mb_strtoupper(trim((string) $tsn)));
     }
 
     /** `4,8 (555 Bewertungen)`, with the singular handled. */

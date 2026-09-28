@@ -28,8 +28,9 @@ export interface VehicleProp {
     label: string
     /** `Audi RS 4` — the phone-width truncation, which must never wrap to two lines. */
     short: string
-    hsn: string
-    tsn: string
+    /** Null, with the TSN, for a car typed from a Gutachten until a vehicle dataset brings them. */
+    hsn: string | null
+    tsn: string | null
     keyNumbers: string
     buildWindow: string
     /**
