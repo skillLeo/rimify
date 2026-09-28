@@ -23,7 +23,7 @@ import Picture from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
 import ValueText from '../../Ui/ValueText.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
-import { euro } from '../../../format'
+import { formatMoney } from '../../../lib/num'
 import type { HeroProduct } from '../../../types/pages'
 import { frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_LAYOUT, rollStyle } from './calloutSlots'
 
@@ -48,7 +48,7 @@ const named = computed(() => !props.product.symbolic && photo.value !== null)
 
 const href = computed(() => `/felgen/${props.product.slug}`)
 const alt = computed(() => `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`)
-const perWheel = computed(() => euro(props.product.fromPriceCents))
+const perWheel = computed(() => formatMoney(props.product.fromPriceCents))
 
 const frameVars = computed(() => ({ ...frameStyle(PHONE_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))
 const pictureStyle = computed(() => rollStyle(scene.value))

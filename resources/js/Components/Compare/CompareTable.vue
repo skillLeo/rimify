@@ -24,7 +24,7 @@ import ValueText from '../Ui/ValueText.vue'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import { useShared } from '../../composables/useShared'
-import { euro } from '../../format'
+import { formatMoney } from '../../lib/num'
 import { useCompare, type CompareEntry } from '../../stores/compare'
 import type { CompareItem, ConfigVerdict, VergleichProps } from '../../types/pages'
 import { compareKeyOf } from '../../types/rimify'
@@ -133,7 +133,7 @@ function entryText(verdict: ConfigVerdict | null): string {
     return verdict.requiresEntry ? 'erforderlich' : 'nicht erforderlich'
 }
 
-const perWheel = (item: CompareItem): string => euro(item.fromPriceCents)
+const perWheel = (item: CompareItem): string => formatMoney(item.fromPriceCents)
 
 const groups = computed<Group[]>(() => {
     const items = props.items

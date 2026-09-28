@@ -6,29 +6,34 @@ use App\Support\GermanFormat;
 use Illuminate\Support\Carbon;
 
 /*
- * R-10 — German formatting everywhere, through one helper. The three invisible code points are
- * asserted by value, because a plain space instead of U+00A0 looks identical in a diff and is
- * wrong on every price in the shop.
+ * R-10 — German formatting everywhere, through one helper. The invisible code points are asserted
+ * by value, because a plain space instead of a no-break one looks identical in a diff and is wrong on
+ * every price in the shop.
  */
 
-it('formats money with a thousands point, a decimal comma and a non-breaking space', function (): void {
-    expect(GermanFormat::money(142_500))->toBe("1.425,00\u{00A0}€")
-        ->and(GermanFormat::money(75_029))->toBe("750,29\u{00A0}€")
-        ->and(GermanFormat::money(0))->toBe("0,00\u{00A0}€")
-        ->and(GermanFormat::money(5))->toBe("0,05\u{00A0}€")
-        ->and(GermanFormat::money(100_000_000))->toBe("1.000.000,00\u{00A0}€");
+it('formats money with a thousands point, a decimal comma and a narrow no-break space', function (): void {
+    expect(GermanFormat::money(142_500))->toBe("1.425,00\u{202F}€")
+        ->and(GermanFormat::money(75_029))->toBe("750,29\u{202F}€")
+        ->and(GermanFormat::money(0))->toBe("0,00\u{202F}€")
+        ->and(GermanFormat::money(5))->toBe("0,05\u{202F}€")
+        ->and(GermanFormat::money(29))->toBe("0,29\u{202F}€")
+        ->and(GermanFormat::money(100_000_000))->toBe("1.000.000,00\u{202F}€")
+        ->and(GermanFormat::money(123_456_789_012))->toBe("1.234.567.890,12\u{202F}€");
 });
 
-it('uses a real no-break space before the euro sign, not a plain one', function (): void {
+it('uses the narrow no-break space DIRECTION.md sets, the same as the browser writes', function (): void {
     $formatted = GermanFormat::money(142_500);
 
-    // U+00A0 is C2 A0 in UTF-8; a plain space would be 0x20.
-    expect(bin2hex(mb_substr($formatted, -2, 1)))->toBe('c2a0')
-        ->and($formatted)->not->toContain(' €');
+    // U+202F is E2 80 AF in UTF-8; a plain space would be 0x20. resources/js/lib/num.test.ts holds
+    // the same fixtures for formatCurrency, so a price reads alike whichever side wrote it.
+    expect(bin2hex(mb_substr($formatted, -2, 1)))->toBe('e280af')
+        ->and($formatted)->not->toContain(' €')
+        ->and(GermanFormat::money(570_000))->toBe("5.700,00\u{202F}€")
+        ->and(GermanFormat::money(-4_999))->toBe("\u{2212}49,99\u{202F}€");
 });
 
 it('renders a negative amount with a true minus sign', function (): void {
-    expect(GermanFormat::money(-1_250))->toBe("\u{2212}12,50\u{00A0}€");
+    expect(GermanFormat::money(-1_250))->toBe("\u{2212}12,50\u{202F}€");
 });
 
 it('formats rim widths the way the document does', function (): void {
@@ -171,6 +176,9 @@ it('never uses a dot as a decimal separator', function (): void {
 });
 
 it('groups thousands in threes so the dot can only ever be a separator', function (): void {
-    expect(GermanFormat::money(100_000_000))->toBe("1.000.000,00\u{00A0}€")
-        ->and(GermanFormat::integer(1_234_567))->toBe('1.234.567');
+    expect(GermanFormat::money(100_000_000))->toBe("1.000.000,00\u{202F}€")
+        ->and(GermanFormat::integer(1_234_567))->toBe('1.234.567')
+        ->and(GermanFormat::grouped('1'))->toBe('1')
+        ->and(GermanFormat::grouped('1234'))->toBe('1.234')
+        ->and(GermanFormat::grouped('123456'))->toBe('123.456');
 });

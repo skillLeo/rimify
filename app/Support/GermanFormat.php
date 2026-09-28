@@ -16,7 +16,10 @@ use DateTimeZone;
  * across machines and a test can assert the exact code points. Three of those code points are
  * invisible in a diff and each of them matters:
  *
- *   U+00A0 NO-BREAK SPACE     between a value and `€`, so a price never wraps across lines
+ *   U+202F NARROW NO-BREAK    between an amount and `€` (DIRECTION.md: a number and its unit), the
+ *          SPACE              same code point as the browser's num.ts, so a price reads alike
+ *                             whichever side wrote it and never wraps across lines
+ *   U+00A0 NO-BREAK SPACE     between a measure and its unit (`66,6 mm`, `ET 35`)
  *   U+00D7 MULTIPLICATION     in `8,5J × 18`, which is not the letter x
  *   U+2013 EN DASH            in a build period `03/2018–11/2019`, which is not a hyphen
  *
@@ -26,6 +29,8 @@ use DateTimeZone;
 final class GermanFormat
 {
     public const NBSP = "\u{00A0}";
+
+    public const NNBSP = "\u{202F}";
 
     public const TIMES = "\u{00D7}";
 
@@ -37,7 +42,10 @@ final class GermanFormat
 
     public const TIMEZONE = 'Europe/Berlin';
 
-    /** `1.425,00 €` — thousands point, decimal comma, non-breaking space before the symbol. */
+    /**
+     * `1.425,00 €` — thousands point, decimal comma, a narrow no-break space before the symbol. Integer
+     * digits only: the cents are never divided into a float (the launch release §4).
+     */
     public static function money(int $cents, string $currency = 'EUR'): string
     {
         $symbol = match ($currency) {
@@ -48,10 +56,16 @@ final class GermanFormat
 
         $sign = $cents < 0 ? self::MINUS : '';
         $absolute = abs($cents);
+        $units = self::grouped((string) intdiv($absolute, 100));
+        $fraction = str_pad((string) ($absolute % 100), 2, '0', STR_PAD_LEFT);
 
-        $value = number_format($absolute / 100, 2, ',', '.');
+        return $sign.$units.','.$fraction.self::NNBSP.$symbol;
+    }
 
-        return $sign.$value.self::NBSP.$symbol;
+    /** `1425` → `1.425`: thousands points on a string of digits, without a number in between. */
+    public static function grouped(string $digits): string
+    {
+        return strrev(implode('.', str_split(strrev($digits), 3)));
     }
 
     /** A plain German decimal: comma separator, thousands point, fixed places. */

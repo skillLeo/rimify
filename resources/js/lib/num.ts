@@ -35,20 +35,47 @@ export function formatNumber(value: number, digits = 0): string {
     return formatter(digits, digits).format(value)
 }
 
+/** The minus of a negative amount: U+2212, as PHP's GermanFormat writes it — never a hyphen. */
+const MINUS = '−'
+
+/**
+ * Minor units split into whole units and cents without dividing into a fraction, so no amount is
+ * ever a float on its way to text (the launch release §4). A fraction of a cent cannot be a price;
+ * one that arrives anyway is taken to the nearest cent.
+ */
+function split(minorUnits: number): { sign: string; units: number; cents: number } {
+    const minor = Math.round(minorUnits)
+    const absolute = Math.abs(minor)
+    const cents = absolute % 100
+
+    return { sign: minor < 0 ? MINUS : '', units: (absolute - cents) / 100, cents }
+}
+
 /**
  * An amount in its currency, from minor units: `1.425,00 €`, `12,50 CHF`. Money travels with its
  * currency (every money column has one); the shop's is EUR, written as `€`, any other by its code.
+ * Byte for byte what PHP's `GermanFormat::money` writes, so a price reads the same whichever side
+ * formatted it.
  */
 export function formatCurrency(minorUnits: number, currency = 'EUR'): string {
-    return `${formatNumber(minorUnits / 100, 2)}${NNBSP}${currency === 'EUR' ? '€' : currency}`
+    const { sign, units, cents } = split(minorUnits)
+
+    return `${sign}${formatNumber(units, 0)},${String(cents).padStart(2, '0')}${NNBSP}${currency === 'EUR' ? '€' : currency}`
 }
 
 /**
  * `59.748,00 €` from minor units (cents) — the one way a euro amount becomes text. `whole` drops the
- * cents: only for a chart axis, whose ticks are round numbers anyway.
+ * cents, rounding half up: only for a chart axis, whose ticks are round numbers anyway.
  */
 export function formatMoney(minorUnits: number, whole = false): string {
-    return whole ? `${formatNumber(Math.round(minorUnits / 100), 0)}${NNBSP}€` : formatCurrency(minorUnits, 'EUR')
+    if (!whole) {
+        return formatCurrency(minorUnits, 'EUR')
+    }
+
+    const { sign, units, cents } = split(minorUnits)
+    const rounded = cents >= 50 ? units + 1 : units
+
+    return `${rounded === 0 ? '' : sign}${formatNumber(rounded, 0)}${NNBSP}€`
 }
 
 /** `+12,4 %` (with its sign), or `12,4 %` with `sign: false`. */

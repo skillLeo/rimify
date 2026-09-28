@@ -19,6 +19,7 @@ use App\Services\Admin\Lists\ListViews;
 use App\Services\Admin\Orders\OrderDetail;
 use App\Services\Admin\Orders\OrderList;
 use App\Support\GermanFormat;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -146,8 +147,8 @@ class BestellungenController extends Controller
                     $row['fulfilment']['label'] === '–' ? '' : $row['fulfilment']['label'],
                     (string) ($row['paymentMethod'] ?? ''),
                     (string) ($row['shippingMethod'] ?? ''),
-                    // Cents become euros once, here at the edge, so a spreadsheet can sum the column.
-                    $order->total_cents / 100,
+                    // An amount the spreadsheet can sum, written from its integer cents (ListExport).
+                    Money::fromMinor((int) $order->total_cents),
                     $row['conditions'] ? 'ja' : 'nein',
                     $row['demo'] ? 'ja' : 'nein',
                 ];

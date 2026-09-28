@@ -23,7 +23,8 @@ import ValueText from './ValueText.vue'
 import VerdictBadge from './VerdictBadge.vue'
 import WheelOutline from './WheelOutline.vue'
 import { toast } from '../Chrome/toast'
-import { euro, NNBSP, zoll } from '../../format'
+import { NNBSP, zoll } from '../../format'
+import { formatMoney } from '../../lib/num'
 import { COMPARE_CAP_TEXT, useCompare, type CompareEntry } from '../../stores/compare'
 import { compareKeyOf, type ProductCardProp, type VehicleProp, type VerdictStatus } from '../../types/rimify'
 
@@ -89,7 +90,7 @@ const sizeList = computed(() => {
 const sizesPlain = computed(() => (props.card.diameters.length ? zoll(props.card.diameters) : ''))
 
 /* A per-wheel price: the catalogue prices a set of four, the tile says what one costs. */
-const perWheel = computed(() => euro(props.card.fromPriceCents))
+const perWheel = computed(() => formatMoney(props.card.fromPriceCents))
 
 /* ── Compare ────────────────────────────────────────────────────────────────── */
 

@@ -16,6 +16,7 @@ use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
+use App\Support\Money;
 use App\Support\OrderLineLabel;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -197,7 +198,7 @@ class CommerceSeeder extends Seeder
             $total = $subtotal + $shipping;
             // German VAT is included in the displayed price, so the tax figure is extracted from
             // the gross total rather than added to it.
-            $tax = (int) round($total - ($total / 1.19));
+            $tax = Money::fromMinor($total)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor();
 
             $placedAt = now()->subDays(90 - $index * 4);
 
@@ -249,7 +250,7 @@ class CommerceSeeder extends Seeder
                     'quantity' => $quantity,
                     'unit_price_cents' => $config->price_cents,
                     'line_total_cents' => $wheelTotal,
-                    'tax_rate_bp' => 1900,
+                    'tax_rate_bp' => Money::VAT_STANDARD_BP,
                     'currency' => 'EUR',
                 ],
             );
@@ -265,7 +266,7 @@ class CommerceSeeder extends Seeder
                         'quantity' => $quantity,
                         'unit_price_cents' => $tyre->price_cents,
                         'line_total_cents' => $tyreTotal,
-                        'tax_rate_bp' => 1900,
+                        'tax_rate_bp' => Money::VAT_STANDARD_BP,
                         'currency' => 'EUR',
                     ],
                 );
@@ -278,7 +279,7 @@ class CommerceSeeder extends Seeder
                         'quantity' => $quantity,
                         'unit_price_cents' => 1_900,
                         'line_total_cents' => $serviceTotal,
-                        'tax_rate_bp' => 1900,
+                        'tax_rate_bp' => Money::VAT_STANDARD_BP,
                         'currency' => 'EUR',
                     ],
                 );

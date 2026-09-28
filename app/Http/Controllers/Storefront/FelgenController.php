@@ -35,6 +35,7 @@ use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
+use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -227,10 +228,10 @@ class FelgenController extends Controller
                 'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
                 'hump' => $hump === '' ? null : $hump,
                 // `price_cents` is ONE rim (docs/specs/komplettrad.md §9); the set of four is
-                // formatted here, so the page never multiplies cents (R-10).
+                // computed and formatted here (Money), so the page never multiplies cents (R-10).
                 'priceCents' => (int) $config->price_cents,
-                'price' => GermanFormat::money((int) $config->price_cents),
-                'priceForFour' => GermanFormat::money((int) $config->price_cents * 4),
+                'price' => $this->rimPrice($config)->format(),
+                'priceForFour' => $this->rimPrice($config)->multiply(self::SET_OF)->format(),
                 'stockQty' => (int) $config->stock_qty,
                 'inStock' => $config->stock_qty > 0,
                 'kbaNumber' => $config->kba_number,
@@ -296,6 +297,14 @@ class FelgenController extends Controller
         ]);
     }
 
+    /** One rim's price in its own currency (the shop's, EUR, where a row names none). */
+    private function rimPrice(WheelConfig $config): Money
+    {
+        $currency = $config->getAttribute('currency');
+
+        return Money::fromMinor((int) $config->price_cents, is_string($currency) && $currency !== '' ? $currency : 'EUR');
+    }
+
     /** A positive whole number of kilograms, or null. */
     private function maxLoadKg(mixed $value): ?int
     {
@@ -352,7 +361,8 @@ class FelgenController extends Controller
 
             $price = $this->pricer->perWheel($config, $variant, $colour);
             $priceOpen = $priceOpen || ! $price->complete();
-            $perWheel = $price->knownPerWheelCents();
+            $perWheel = Money::fromMinor($price->knownPerWheelCents(), $price->currency);
+            $forFour = $perWheel->multiply(self::SET_OF);
 
             $tyres[] = [
                 'id' => (int) $variant->id,
@@ -363,13 +373,13 @@ class FelgenController extends Controller
                 'sizeLabel' => $variant->label(),
                 'stockQty' => (int) $variant->stock_qty,
                 'tyrePriceCents' => (int) $variant->price_cents,
-                'tyrePrice' => GermanFormat::money((int) $variant->price_cents, $price->currency),
+                'tyrePrice' => Money::fromMinor((int) $variant->price_cents, $price->currency)->format(),
                 // The known components per wheel; an unconfigured mounting fee is left out and
                 // `priceOpen` says so — never a guessed number, never a silent 0,00 € (D-032).
-                'perWheelCents' => $perWheel,
-                'perWheel' => GermanFormat::money($perWheel, $price->currency),
-                'forFourCents' => $perWheel * self::SET_OF,
-                'forFour' => GermanFormat::money($perWheel * self::SET_OF, $price->currency),
+                'perWheelCents' => $perWheel->toMinor(),
+                'perWheel' => $perWheel->format(),
+                'forFourCents' => $forFour->toMinor(),
+                'forFour' => $forFour->format(),
                 'label' => Basket::euLabel($variant),
                 'isDemo' => (bool) $variant->is_demo,
             ];

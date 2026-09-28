@@ -68,3 +68,95 @@ it('refuses an amount too long to hold as integer cents', function (): void {
     expect(Money::fromGerman(str_repeat('9', 16).',00'))->toBeNull()
         ->and(Money::fromGerman(str_repeat('9', 15).',00'))->toBe((int) str_repeat('9', 15) * 100);
 });
+
+describe('the value object', function (): void {
+    it('holds integer minor units and a currency, and gives them back unchanged', function (): void {
+        $price = Money::fromMinor(142_500);
+
+        expect($price->toMinor())->toBe(142_500)
+            ->and($price->currency())->toBe('EUR')
+            ->and(Money::fromMinor(1_250, 'CHF')->currency())->toBe('CHF')
+            ->and(Money::zero()->isZero())->toBeTrue();
+    });
+
+    it('multiplies by a quantity: a set of four is four rims, never a price divided by four', function (): void {
+        $rim = Money::fromMinor(142_500);
+
+        expect($rim->multiply(4)->toMinor())->toBe(570_000)
+            ->and($rim->multiply(4)->format())->toBe("5.700,00\u{202F}€")
+            ->and($rim->multiply(1)->equals($rim))->toBeTrue()
+            ->and($rim->multiply(0)->isZero())->toBeTrue();
+    });
+
+    it('adds VAT to a net amount and finds the VAT inside a gross one, in integers', function (): void {
+        expect(Money::fromMinor(10_000)->withVat(Money::VAT_STANDARD_BP)->toMinor())->toBe(11_900)
+            ->and(Money::fromMinor(11_900)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor())->toBe(1_900)
+            ->and(Money::fromMinor(11_900)->withoutVat(Money::VAT_STANDARD_BP)->toMinor())->toBe(10_000)
+            // 1.425,00 € gross: 227,52 € VAT (22 752,1 cents, rounded), as the float version said.
+            ->and(Money::fromMinor(142_500)->vatIncluded(1900)->toMinor())->toBe(22_752)
+            // 7 %: 10,70 € gross holds 0,70 €.
+            ->and(Money::fromMinor(1_070)->vatIncluded(700)->toMinor())->toBe(70);
+    });
+
+    it('rounds half away from zero, as an invoice does, for refunds too', function (): void {
+        // 0,05 € net at 10 % is 0,005 € VAT: half a cent goes up, and down for a refund.
+        expect(Money::fromMinor(5)->withVat(1000)->toMinor())->toBe(6)
+            ->and(Money::fromMinor(-5)->withVat(1000)->toMinor())->toBe(-6)
+            ->and(Money::fromMinor(4)->withVat(1000)->toMinor())->toBe(4);
+    });
+
+    it('agrees with the float formula it replaces on every gross total up to 10.000,00 €', function (): void {
+        // The basket extracted VAT as round(total - total / 1.19). The integer version must give the
+        // same cents on every amount a customer could plausibly pay, or old orders would disagree.
+        for ($total = 0; $total <= 1_000_000; $total += 7) {
+            expect(Money::fromMinor($total)->vatIncluded(1900)->toMinor())->toBe((int) round($total - ($total / 1.19)));
+        }
+    });
+
+    it('never adds two currencies, and refuses what is not a currency or a rate', function (): void {
+        expect(fn () => Money::fromMinor(100)->plus(Money::fromMinor(100, 'CHF')))->toThrow(InvalidArgumentException::class)
+            ->and(fn () => Money::fromMinor(100, 'euro'))->toThrow(InvalidArgumentException::class)
+            ->and(fn () => Money::fromMinor(100)->withVat(-1))->toThrow(InvalidArgumentException::class)
+            ->and(Money::fromMinor(100)->plus(Money::fromMinor(50))->minus(Money::fromMinor(25))->toMinor())->toBe(125);
+    });
+
+    it('writes its digits for a machine and for a German field, from integers only', function (): void {
+        expect(Money::fromMinor(142_550)->toDecimal())->toBe('1425.50')
+            ->and(Money::fromMinor(5)->toDecimal())->toBe('0.05')
+            ->and(Money::fromMinor(-1_250)->toDecimal())->toBe('-12.50')
+            ->and(Money::fromMinor(142_500)->toGerman())->toBe('1.425,00')
+            ->and(Money::fromMinor(29)->toGerman())->toBe('0,29')
+            ->and(Money::fromMinor(142_500)->format())->toBe("1.425,00\u{202F}€");
+    });
+});
+
+it('keeps float arithmetic away from money everywhere in app/', function (): void {
+    // The launch release §4: two of the six golden-record bugs were prices converted in a second
+    // place. Cents divided into euros, or VAT through a float rate, is how that starts again.
+    $patterns = [
+        '/(_cents|Cents)\)?\s*\/\s*100\b/' => 'cents divided by 100',
+        '/\b1\.19\b/' => 'VAT as a float rate',
+        '/\bVAT_RATE\s*=\s*1\./' => 'VAT as a float rate',
+    ];
+    $found = [];
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__, 3).'/app', FilesystemIterator::SKIP_DOTS)) as $file) {
+        if (! $file instanceof SplFileInfo || $file->getExtension() !== 'php') {
+            continue;
+        }
+
+        foreach (file($file->getPathname()) ?: [] as $number => $line) {
+            if (preg_match('/^\s*(\*|\/\/)/', $line) === 1) {
+                continue;
+            }
+
+            foreach ($patterns as $pattern => $what) {
+                if (preg_match($pattern, $line) === 1) {
+                    $found[] = basename($file->getPathname()).':'.($number + 1).' — '.$what;
+                }
+            }
+        }
+    }
+
+    expect($found)->toBe([]);
+});

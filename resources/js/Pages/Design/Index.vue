@@ -19,7 +19,8 @@ import SpecCallout from '../../Components/Ui/SpecCallout.vue'
 import TyreLabel from '../../Components/Ui/TyreLabel.vue'
 import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
 import { ICON_NAMES } from '../../icons'
-import { euro, withUnit } from '../../format'
+import { withUnit } from '../../format'
+import { formatMoney } from '../../lib/num'
 import hero from '../../images/hero.json'
 import type { ProductCardProp, VehicleProp, VerdictStatus } from '../../types/rimify'
 
@@ -108,7 +109,7 @@ function simulateBusy(): void {
             <p class="body prose" style="margin-top: var(--sp-24)">
                 Die Kraftfahrzeug-Zulassungsbescheinigung Teil I nennt in Feld 2.1 die Herstellerschlüsselnummer und in Feld 2.2 die
                 Typschlüsselnummer. Ein Reifendruckkontrollsystem ist seit November 2014 für neu zugelassene Pkw Pflicht.
-                Preise wie <span class="num">{{ euro(123400) }}</span>, Maße wie <span class="num">{{ withUnit('72,6', 'mm') }}</span> und Größen wie
+                Preise wie <span class="num">{{ formatMoney(123400) }}</span>, Maße wie <span class="num">{{ withUnit('72,6', 'mm') }}</span> und Größen wie
                 <span class="num">{{ withUnit('8,5', 'J') }} × 19 · {{ withUnit('ET', '35') }} · {{ withUnit('LK', '5 × 120') }}</span> laufen in Tabellenziffern.
             </p>
         </section>

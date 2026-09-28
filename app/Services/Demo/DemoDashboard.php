@@ -25,6 +25,7 @@ use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Support\GermanFormat;
+use App\Support\Money;
 use App\Support\OrderLineLabel;
 use App\Support\VehicleName;
 use Carbon\CarbonImmutable;
@@ -492,8 +493,8 @@ final class DemoDashboard
         // Demonstration figures, as CommerceSeeder's: the client has named no shipping price yet.
         $shipping = $subtotal >= 50_000 ? 0 : 990;
         $total = $subtotal + $shipping;
-        // German VAT is inside the gross price: taken out of the total, never added to it.
-        $tax = (int) round($total - ($total / 1.19));
+        // German VAT is inside the gross price: taken out of the total, never added to it (Money).
+        $tax = Money::fromMinor($total)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor();
         $ref = sprintf('%05d', $index);
 
         $orderRow = $this->upsert(Order::class, "demo:order:{$ref}", [
@@ -535,7 +536,7 @@ final class DemoDashboard
             'quantity' => $quantity,
             'unit_price_cents' => $config->price_cents,
             'line_total_cents' => $wheelTotal,
-            'tax_rate_bp' => 1900,
+            'tax_rate_bp' => Money::VAT_STANDARD_BP,
             'currency' => 'EUR',
             'created_at' => $lineAt,
             'updated_at' => $lineAt,
@@ -553,7 +554,7 @@ final class DemoDashboard
                 'quantity' => 4,
                 'unit_price_cents' => $tyre->price_cents,
                 'line_total_cents' => $tyreTotal,
-                'tax_rate_bp' => 1900,
+                'tax_rate_bp' => Money::VAT_STANDARD_BP,
                 'currency' => 'EUR',
                 'created_at' => $lineAt,
                 'updated_at' => $lineAt,
@@ -567,7 +568,7 @@ final class DemoDashboard
                 'quantity' => 4,
                 'unit_price_cents' => 1_900,
                 'line_total_cents' => $serviceTotal,
-                'tax_rate_bp' => 1900,
+                'tax_rate_bp' => Money::VAT_STANDARD_BP,
                 'currency' => 'EUR',
                 'created_at' => $lineAt,
                 'updated_at' => $lineAt,

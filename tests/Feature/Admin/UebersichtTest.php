@@ -112,9 +112,9 @@ describe('the figures', function (): void {
         $tiles = dashTiles('?vergleich=0');
 
         // Whole euros in a tile's line too; tables keep the cents.
-        expect($tiles['umsatz']['sub'])->toBe(['text' => "stärkster Tag 24.09. \u{00B7} 1.000,00\u{00A0}€", 'kind' => 'note', 'direction' => null])
+        expect($tiles['umsatz']['sub'])->toBe(['text' => "stärkster Tag 24.09. \u{00B7} 1.000,00\u{202F}€", 'kind' => 'note', 'direction' => null])
             ->and($tiles['bestellungen']['sub']['text'])->toBe('letzte gestern')
-            ->and($tiles['bestellwert']['sub']['text'])->toBe("höchster Bestellwert 1.000,00\u{00A0}€");
+            ->and($tiles['bestellwert']['sub']['text'])->toBe("höchster Bestellwert 1.000,00\u{202F}€");
     });
 
     it('takes the later of two equally strong days, and says a recent order in hours', function (): void {
@@ -125,7 +125,7 @@ describe('the figures', function (): void {
 
         $tiles = dashTiles('?vergleich=0');
 
-        expect($tiles['umsatz']['sub']['text'])->toBe("stärkster Tag 22.09. \u{00B7} 200,00\u{00A0}€")
+        expect($tiles['umsatz']['sub']['text'])->toBe("stärkster Tag 22.09. \u{00B7} 200,00\u{202F}€")
             ->and($tiles['bestellungen']['sub']['text'])->toBe("letzte vor 2\u{00A0}Std.");
     });
 
@@ -278,7 +278,7 @@ it('exports the period day by day for a role that may export reports, and only f
     $csv = $this->actingAs(dashAdmin('accountant'), 'admin')->get('/admin/uebersicht/export?zeitraum=7')->streamedContent();
 
     expect($csv)->toStartWith("\u{FEFF}Datum;\"Umsatz (EUR)\";Bestellungen;")
-        ->and($csv)->toContain('24.09.2026;1425,5;1;1425,5');
+        ->and($csv)->toContain('24.09.2026;1425,50;1;1425,50');
 
     $this->actingAs(dashAdmin('support-agent'), 'admin')->get('/admin/uebersicht/export?zeitraum=7')->assertForbidden();
 });

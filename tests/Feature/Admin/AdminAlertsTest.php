@@ -72,7 +72,7 @@ describe('an order turning Bezahlt', function (): void {
         $data = alertAdmin('order-manager')->notifications()->firstOrFail()->data;
 
         expect($data['title'])->toBe('Bestellung RMF-000042 ist bezahlt.')
-            ->and($data['detail'])->toBe("1.425,00\u{00A0}€ · Audi RS 4 Avant Quattro (B9)");
+            ->and($data['detail'])->toBe("1.425,00\u{202F}€ · Audi RS 4 Avant Quattro (B9)");
     });
 
     it('rings no bell for an order that was written as paid — demo data, imports', function (): void {

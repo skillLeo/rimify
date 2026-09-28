@@ -1,22 +1,17 @@
 /**
- * German formatting in the browser (R-10): the one place a price, a measure or a size is turned
- * into text. Numbers and units are joined with a narrow no-break space, so `189,00 €` and
- * `72,6 mm` never break across a line and never drift apart. The numbers themselves come from
- * `lib/num.ts`, the one module that formats and parses them.
+ * German formatting in the browser (R-10): the one place a measure or a size is turned into text.
+ * Numbers and units are joined with a narrow no-break space, so `72,6 mm` never breaks across a
+ * line. The numbers themselves come from `lib/num.ts`, the one module that formats and parses them —
+ * and money only from its `formatMoney`, the one way an amount becomes text (the launch release §4).
  */
 
-import { NNBSP, formatMoney, formatNumber } from './lib/num'
+import { NNBSP, formatNumber } from './lib/num'
 
 export { NNBSP }
 
 /** `1.234,5` — thousands point, decimal comma, a fixed number of places. */
 export function decimal(value: number, digits = 1): string {
     return formatNumber(value, digits)
-}
-
-/** `1.234,00 €` from integer cents. */
-export function euro(cents: number): string {
-    return formatMoney(cents)
 }
 
 /** `72,6 mm`, `71 dB`, `ET 35` — a value and its unit, inseparable. */

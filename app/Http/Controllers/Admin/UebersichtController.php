@@ -19,6 +19,7 @@ use App\Services\Admin\Dashboard\Variant;
 use App\Services\Admin\Dashboard\WorkLists;
 use App\Services\Admin\ListExport;
 use App\Support\GermanFormat;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -118,10 +119,10 @@ class UebersichtController extends Controller
 
                 yield [
                     (string) GermanFormat::date(CarbonImmutable::createFromFormat('!Y-m-d', $day, GermanFormat::TIMEZONE) ?: null),
-                    // Cents become euros once, here at the edge, so a spreadsheet can sum the column.
-                    $revenue / 100,
+                    // Amounts the spreadsheet can sum, written from their integer cents (ListExport).
+                    Money::fromMinor((int) $revenue),
                     $count,
-                    $count > 0 ? intdiv($revenue, $count) / 100 : null,
+                    $count > 0 ? Money::fromMinor(intdiv((int) $revenue, (int) $count)) : null,
                 ];
             }
         })();

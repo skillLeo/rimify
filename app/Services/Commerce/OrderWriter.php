@@ -16,6 +16,7 @@ use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
 use App\Models\Vehicle;
 use App\Services\Storefront\Basket;
+use App\Support\Money;
 use App\Support\VehicleName;
 use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -115,7 +116,7 @@ final class OrderWriter
                     'quantity' => (int) $line['quantity'],
                     'unit_price_cents' => (int) $line['unitPriceCents'],
                     'line_total_cents' => (int) $line['lineTotalCents'],
-                    'tax_rate_bp' => 1900,
+                    'tax_rate_bp' => Money::VAT_STANDARD_BP,
                     'currency' => 'EUR',
                 ]);
 
@@ -134,7 +135,7 @@ final class OrderWriter
                     'quantity' => (int) $tpms['quantity'],
                     'unit_price_cents' => (int) $tpms['unitPriceCents'],
                     'line_total_cents' => (int) $tpms['totalCents'],
-                    'tax_rate_bp' => 1900,
+                    'tax_rate_bp' => Money::VAT_STANDARD_BP,
                     'currency' => 'EUR',
                 ]);
             }

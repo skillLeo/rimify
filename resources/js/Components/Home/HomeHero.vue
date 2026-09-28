@@ -33,7 +33,7 @@ import ValueText from '../Ui/ValueText.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
 import { DESKTOP_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
-import { euro } from '../../format'
+import { formatMoney } from '../../lib/num'
 import type { MakeOption, StartseiteProps } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
 
@@ -72,7 +72,7 @@ const title = computed(() =>
 )
 const subline = computed(() => (props.hero.subline.trim() === '' ? SUBLINE : props.hero.subline))
 const alt = computed(() => (product.value === null ? '' : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`))
-const perWheel = computed(() => (product.value === null ? '' : euro(product.value.fromPriceCents)))
+const perWheel = computed(() => (product.value === null ? '' : formatMoney(product.value.fromPriceCents)))
 
 /* The layout's geometry for the stylesheet, and the leaders' start after the roll (none without one). */
 const stageStyle = computed(() => ({ ...frameStyle(DESKTOP_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))

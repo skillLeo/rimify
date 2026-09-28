@@ -19,7 +19,8 @@ Remaining, in the order the user set on 2026-09-28 (then the Stripe brief, with 
 
 1. [x] The two loose edits committed on their own — `257de430`
 2. [x] Example catalogue: demo, goes with `demo:purge` (decision below)
-3. [ ] Money sweep — `Money` in PHP, one `formatMoney` in JS, `MoneyDisplayTest` over ten surfaces, the set of four
+3. [x] Money sweep — `Money` in PHP, one `formatMoney` in JS, `MoneyDisplayTest` over nine surfaces (the invoice
+      PDF is not built; decision below)
 4. [ ] Mobile suite: cause found and fixed, then three clean runs in a row
 5. [ ] Coverage with pcov, the number in this ledger
 6. [ ] Review-kit proofs: a feedback row with its screenshot, three accounts visibly different, `review:report` → OPEN-POINTS.md
@@ -260,6 +261,23 @@ Cross-cutting, built inside the milestones that need them:
   and the release seed renew the figures only. The seeders never write the example catalogue in production, so the
   live shop's first wheel is a real one. The development database keeps its catalogue (41 seeded order lines name
   it) until rebuilt. Pest `DemoCataloguePurgeTest` (7).
+
+- **2026-09-28 · Money is computed in one place and written the same way on both sides.** `App\Support\Money` (integer
+  minor units and a currency; `fromMinor`, `toMinor`, `multiply`, `plus`, `minus`, `withVat` and `vatIncluded` in
+  basis points with commercial rounding, integers only) now computes the basket's line totals, its components, the
+  RDKS total and the VAT, the product page's set of four and the Komplettrad offer, and the demo and seed VAT; the
+  float `1.19` is gone, and a Pest guard fails on cents divided by 100 or a float VAT rate anywhere in `app/`
+  (the integer VAT equals the float formula on every total to 10.000,00 €). Exports take a `Money` cell (`1425,50`,
+  both cents kept). `GermanFormat::money` writes integer digits and U+202F before `€` — DIRECTION.md's narrow no-break
+  space, the code point `num.ts` already used, so a price is the same bytes whichever side wrote it (fixtures on
+  both sides); a negative amount has U+2212 in both. JS: `formatMoney` is the one way (`format.ts euro()` removed),
+  from integer digits; ESLint refuses cents divided or multiplied in a component. `ProductCard.vue` (never imported,
+  labelled a one-rim price „für 4 Felgen“) deleted. `MoneyDisplayTest` (Pest) walks one rim at 1.234,56 € through
+  tile props, product page, variant selector, Komplettrad bundle, basket line and total, checkout, confirmation,
+  admin order and CSV — four rims 4.938,24 € throughout; its Vitest twin renders the tile and the admin order line
+  from those cents. **Not covered: the invoice PDF — none exists yet** (it needs the client's tax number, §14 UStG;
+  the payments brief builds it). Measures (`66,6 mm`, `ET 35`) still use U+00A0 in PHP and U+202F in JS: the same
+  class, left for a separate pass because it touches every measure test.
 
 ## Deviations
 

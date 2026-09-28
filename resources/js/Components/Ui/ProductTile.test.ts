@@ -2,7 +2,8 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
-import { euro, NNBSP } from '../../format'
+import { NNBSP } from '../../format'
+import { formatMoney } from '../../lib/num'
 import { useCompare } from '../../stores/compare'
 import type { ImageManifest, ProductCardProp, VehicleProp } from '../../types/rimify'
 
@@ -111,7 +112,7 @@ describe('ProductTile', () => {
         expect(wrapper.find('.tile__brand').text()).toBe('Demo')
         expect(wrapper.find('.tile__finish').text()).toBe('Platinum Silber')
         expect(wrapper.find('.tile__sizes').text()).toBe(`18 · 19 · 20${NNBSP}Zoll`)
-        expect(wrapper.find('.tile__price').text()).toBe(`ab ${euro(17225)} pro Felge`)
+        expect(wrapper.find('.tile__price').text()).toBe(`ab ${formatMoney(17225)} pro Felge`)
         expect(wrapper.find('.tile__legal').text()).toBe('inkl. MwSt., zzgl. Versand')
         expect(wrapper.find('.verdict').exists()).toBe(false)
         expect(wrapper.find('.stock--out').exists()).toBe(false)

@@ -75,6 +75,17 @@ export default [
                     selector: "NewExpression[callee.object.name='Intl'][callee.property.name='NumberFormat']",
                     message: 'Numbers are formatted in resources/js/lib/num.ts only (formatNumber, formatCurrency, formatPercent).',
                 },
+                // The launch release §4: an amount is computed on the server and becomes text through
+                // formatMoney. A component that divides or multiplies cents is how a tile came to show
+                // a quarter of the price.
+                {
+                    selector: "BinaryExpression[operator=/^[*\\/]$/][left.name=/[Cc]ents$/]",
+                    message: 'Money is computed on the server (App\\Support\\Money) and shown with formatMoney(cents) from lib/num.ts.',
+                },
+                {
+                    selector: "BinaryExpression[operator=/^[*\\/]$/][left.property.name=/[Cc]ents$/]",
+                    message: 'Money is computed on the server (App\\Support\\Money) and shown with formatMoney(cents) from lib/num.ts.',
+                },
             ],
         },
     },

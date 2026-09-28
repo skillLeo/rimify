@@ -252,7 +252,8 @@ describe('the export', function (): void {
             ->and($csv)->toContain('RMF-X')
             ->and($csv)->not->toContain('RMF-Y')
             ->and($csv)->toContain("'=HYPERLINK")
-            ->and($csv)->toContain(';1425,5;');
+            // An amount keeps both its cents (Money), where a float once lost the trailing zero.
+            ->and($csv)->toContain(';1425,50;');
     });
 
     it('writes an Excel file of the same set', function (): void {

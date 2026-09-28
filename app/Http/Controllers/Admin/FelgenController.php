@@ -30,6 +30,7 @@ use App\Services\Admin\Lists\ListViews;
 use App\Services\Storage\ImageUpload;
 use App\Services\Storage\UploadRejected;
 use App\Support\GermanFormat;
+use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -358,7 +359,7 @@ class FelgenController extends Controller
                 'sku' => (string) $c->getAttribute('sku'),
                 'ean' => (string) ($c->getAttribute('ean') ?? ''),
                 'kba' => (string) ($c->kba_number ?? ''),
-                'price' => GermanFormat::decimal($c->price_cents / 100, 2),
+                'price' => Money::fromMinor((int) $c->price_cents)->toGerman(),
                 'stock' => $c->stock_qty,
                 'weight_g' => $c->weight_g,
                 'locked' => in_array((int) $c->id, $locked, true),
