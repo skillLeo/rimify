@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\VehicleSource;
 use App\Models\Vehicle;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -43,8 +44,8 @@ class VehicleFactory extends Factory
             'needs_review' => false,
             'raw' => [],
             'imported_at' => now(),
-            // A test's car stands for one from the authoritative vehicle import.
-            'source' => 'import:test',
+            // A test's car is a car someone checked: an authoritative source, never the development seed.
+            'source' => VehicleSource::ManuellGeprueft->value,
         ];
     }
 
@@ -52,7 +53,7 @@ class VehicleFactory extends Factory
     public function development(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'source' => 'entwicklung',
+            'source' => VehicleSource::Entwicklung->value,
             'is_demo' => true,
             'demo_ref' => 'demo:vehicle:'.$attributes['source_vehicle_id'],
         ]);

@@ -25,7 +25,7 @@ use Illuminate\Database\Seeder;
  */
 class VehicleSeeder extends Seeder
 {
-    /** Where these cars came from: not an import, so no freigegebenes Gutachten may name one in production. */
+    /** Where these cars came from: invented type keys, so no freigegebenes Gutachten may ever name one. */
     public const SOURCE = 'entwicklung';
 
     public function run(): void

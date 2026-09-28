@@ -6,10 +6,11 @@ correct result looks like, and what to do when it is not that. Nothing here is r
 **Do not start** until these are true (`docs/launch/BLOCKED.md` has the owners):
 
 - The production domain points at this Hostinger account, and hPanel shows a valid SSL certificate for it.
-- The real vehicle list is loaded (the vehicle data import — the development cars never reach production).
-  In production a Gutachten is only released when every car it names came from that import (`source` =
-  `import:…`); until then every Freigabe says so. A database seeded before `7f9446a5` holds the 74 development
-  cars as demo rows: `demo:assert-clean` fails until `php artisan demo:purge --force` hides them (never deletes, R-04).
+- The cars the released Gutachten name are in — typed from the Gutachten themselves („Fahrzeug aus diesem
+  Gutachten anlegen“, `source` = `gutachten`) or from a vehicle data import. A Gutachten is only released when
+  every car it names has an authoritative source (`VehicleSource::releasable()`); a development car
+  (`entwicklung`) is refused everywhere. A database seeded before `7f9446a5` holds the 74 development cars as demo
+  rows: `demo:assert-clean` fails until `php artisan demo:purge --force` hides them (never deletes, R-04).
 - The real catalogue is in and **at least one wheel is published with a freigegebenes Gutachten** for a car. The
   example catalogue never reaches production, so without one real wheel the smoke test (§5) cannot pass —
   and a shop without a wheel is not ready to open.

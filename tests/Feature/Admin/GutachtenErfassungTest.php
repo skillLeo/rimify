@@ -21,6 +21,7 @@ use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -186,37 +187,47 @@ it('does not release a document without rows or without its PDF, and says why', 
         ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: Das PDF des Gutachtens fehlt. Es gibt noch keine Zeile im Verwendungsbereich.']);
 });
 
-it('never releases a row on a car that did not come from the vehicle data import in production (DATA-01)', function (): void {
+it('never releases a row on a development car, in any environment — and does on a car from a Gutachten (DATA-01)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $development = Vehicle::factory()->development()->create();
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$development], [wheelSize()]));
-    $sentence = 'Eine Zeile nennt ein Fahrzeug, das nicht aus dem Fahrzeugdaten-Import stammt. Im Shop steht nur ein Fahrzeug, dessen Typdaten aus einer amtlichen oder lizenzierten Quelle kommen.';
-    $refusal = 'Noch nicht freigebbar: '.$sentence;
+    $sentence = 'Eine Zeile nennt ein Fahrzeug ohne belegte Herkunft, etwa aus den Entwicklungsdaten. Freigegeben wird nur ein Fahrzeug aus einem Fahrzeugdaten-Import, aus einem Gutachten oder manuell geprüft.';
 
-    expect(Fitment::query()->where('approval_document_id', $document->id)->count())->toBe(1);
+    expect(Fitment::query()->where('approval_document_id', $document->id)->count())->toBe(1)
+        ->and(app(DocumentRelease::class)->check($document))->toBe([$sentence])
+        ->and(fn () => app(DocumentRelease::class)->release($document, erfassung()))->toThrow(ValidationException::class, 'Noch nicht freigebbar: '.$sentence);
 
-    // The live shop's rule, asked of the one service every release goes through.
+    // Refused the same way in production: there is no switch.
     app()['env'] = 'production';
 
     try {
-        expect(app(DocumentRelease::class)->check($document))->toBe([$sentence])
-            ->and(fn () => app(DocumentRelease::class)->release($document, erfassung()))->toThrow(ValidationException::class, $refusal);
+        expect(app(DocumentRelease::class)->check($document))->toBe([$sentence]);
     } finally {
         app()['env'] = 'testing';
     }
 
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: '.$sentence]);
     expect($document->refresh()->status)->toBe(DocumentStatus::Draft);
 
-    // Outside production a development car stands in for the import; a car of no stated origin never does.
-    $unsourced = Vehicle::factory()->create(['source' => 'entwicklung']);
+    // A car typed from a real Gutachten has no key numbers and is real vehicle data: it may be named.
+    $source = ApprovalDocument::factory()->create(['report_number' => 'TG-QUELLE']);
+    $fromDocument = Vehicle::factory()->create(['source' => 'gutachten', 'source_document_id' => $source->id, 'source_page' => 7]);
     $other = ApprovalDocument::factory()->draft()->create();
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/zeilen", rowPayload([$unsourced], [wheelSize()]));
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/zeilen", rowPayload([$fromDocument], [wheelSize()]));
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/freigeben")->assertSessionHasNoErrors();
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/freigeben")->assertSessionHasErrors(['release' => $refusal]);
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")->assertSessionHasNoErrors();
+    expect($other->refresh()->status)->toBe(DocumentStatus::Published);
+});
 
-    expect($document->refresh()->status)->toBe(DocumentStatus::Published)
-        ->and($other->refresh()->status)->toBe(DocumentStatus::Draft);
+it('keeps a car’s source to the list, and a car from a Gutachten to its document', function (): void {
+    expect(fn () => Vehicle::factory()->create(['source' => 'import:irgendwas']))->toThrow(QueryException::class)
+        ->and(fn () => Vehicle::factory()->create(['source' => 'gutachten', 'source_document_id' => null]))->toThrow(QueryException::class);
+
+    $source = ApprovalDocument::factory()->create();
+    Vehicle::factory()->create(['source' => 'gutachten', 'source_document_id' => $source->id]);
+
+    // The document a car was read from stays as long as the car.
+    expect(fn () => $source->delete())->toThrow(QueryException::class);
 });
 
 it('records where two documents disagree, releases anyway, and says the stricter one governs', function (): void {

@@ -11,9 +11,8 @@ use Illuminate\Support\Facades\Schema;
  * Where a car came from (BUGS.md DATA-01). The 74 development cars carry made-up type keys; the live
  * shop's cars will come from an authoritative vehicle data import. So a car now says which it is:
  *
- *   - `source`: `entwicklung` for the development seeder, `import:<dataset>` for an authoritative import
- *     (the one that does not exist yet — BLOCKED.md, top). Only an imported car may be named by a
- *     freigegebenes Gutachten (DocumentRelease).
+ *   - `source`: `entwicklung` for the development seeder; the full list, and which sources a
+ *     freigegebenes Gutachten may name, came with 001000 (VehicleSource, DocumentRelease).
  *   - `is_demo` / `demo_ref`: the development cars are demo rows like every other (R-12's rule of
  *     birth), so `demo:purge` and `demo:assert-clean` cover them. A car is never hard-deleted (R-04):
  *     the purge soft-deletes it.

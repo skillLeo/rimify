@@ -32,7 +32,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $axle_load_rear_kg
  * @property int|null $max_speed_kmh
  * @property bool $needs_review
- * @property string $source `import:<dataset>` from an authoritative vehicle import, `entwicklung` from the seeder
+ * @property string $source one of VehicleSource: an import, `gutachten`, `manuell_geprueft` or `entwicklung`
+ * @property int|null $source_document_id the Gutachten a `gutachten` car was typed from
+ * @property int|null $source_page the page of that Gutachten
  * @property bool $is_demo
  * @property string|null $demo_ref
  */
@@ -50,7 +52,7 @@ class Vehicle extends Model
         'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
         'needs_review', 'raw', 'imported_at',
         // Fixed at insert (trg_veh_demo_fixed): where the car came from, and whether it is demo data.
-        'source', 'is_demo', 'demo_ref',
+        'source', 'is_demo', 'demo_ref', 'source_document_id', 'source_page',
     ];
 
     /** @return array<string, string> */

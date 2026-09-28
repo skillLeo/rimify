@@ -196,12 +196,17 @@ Cross-cutting, built inside the milestones that need them:
 - **2026-09-28 · R-04 over R-12 for the development cars.** R-12's production has no demo rows; R-04 never
   deletes a vehicle. `demo:purge` soft-deletes the demo cars (hidden from every reader, the next development
   seed brings them back) and `demo:assert-clean` counts only the ones still shown. `fce5bdfb`.
-- **2026-09-28 · The release rule outside production (deviation, for the user to confirm).** The memo's §6 says a
-  car with a non-authoritative TSN can *never* be named by a released Gutachten. In production that holds without
-  exception. Outside production the development cars (`is_demo`) stand in for the import, because there is no
-  imported car yet and every release flow (the golden record, the Gutachten e2e) would stop; a non-demo car of no
-  stated origin is refused everywhere. With the Borbet model (vehicle rows as the document names them, no TSN)
-  this may tighten to "a car that carries a TSN not from an import is refused everywhere".
+- **2026-09-28 · A car needs an authoritative source, not a TSN (user decision, answer 2).** `vehicles.source` is
+  one of `import_kba`, `import_tecdoc`, `import_dat`, `gutachten`, `manuell_geprueft`, `entwicklung` (CHECK); a
+  `gutachten` car names its document and page (CHECK, no referential action). DocumentRelease releases only the
+  first five and never `entwicklung` — no environment, no test is excepted. The Gutachten's own cars enter by
+  „Fahrzeug aus diesem Gutachten anlegen“ (F); `golden-record.spec.ts` is rewritten on them there. The future
+  vehicle import merges on EG number + Fahrzeugtyp with a dry-run diff and upgrades the source.
+- **2026-09-28 · Wheel verdict and tyre verdict are two lines (user decision, answer 1).** R-03 amended: a tyre
+  verdict is never positive without axle loads and top speed and is CONDITIONAL naming the document's threshold
+  and the papers' field; a wheel verdict rests on the released Gutachten's type and kW band alone; the combined
+  verdict is the weaker and never PERMITTED while the tyre line is not. Built in F with 8.1/8.2/T fields, the
+  scanner reading them, and the derating arithmetic shown.
 - **2026-09-28 · An uploaded photo's address is root-relative on the site's own disk.** An absolute APP_URL
   address broke under another name of the same site (the CSP's `'self'`); a bucket address stays absolute and is
   named in the CSP as before. `161cf294`.
