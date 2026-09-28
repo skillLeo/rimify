@@ -58,7 +58,8 @@ describe('formatCurrency', () => {
         expect(formatCurrency(100)).toBe(`1,00${NNBSP}€`)
         // 0.29 × 100 is 28.999… as a float; the digits here never were one.
         expect(formatCurrency(29)).toBe(`0,29${NNBSP}€`)
-        expect(formatCurrency(123456789012)).toBe(`1.234.567.890,12${NNBSP}€`)
+        // Not 1…7 in a row: that is the old homepage phone number ContactDetailsTest hunts for.
+        expect(formatCurrency(987654321098)).toBe(`9.876.543.210,98${NNBSP}€`)
     })
 
     it('writes byte for byte what PHP writes (tests/Unit/Support/GermanFormatTest)', () => {
