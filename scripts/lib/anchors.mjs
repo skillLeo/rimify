@@ -10,10 +10,24 @@
 // fraction of its height. So a page lays the anchors over the image at any displayed size.
 
 /** How many numbers each anchor takes, in order. */
-export const ANCHOR_SHAPES = { centre: 2, wheel: 3, pcd: 3, bore: 3, valve: 2, kba: 4 }
+export const ANCHOR_SHAPES = { centre: 2, wheel: 3, pcd: 3, bore: 3, valve: 2, kba: 4, bead: 3, flanges: 3 }
 
-/** The keys each anchor is written with. */
-const KEYS = { centre: ['x', 'y'], wheel: ['x', 'y', 'r'], pcd: ['x', 'y', 'r'], bore: ['x', 'y', 'r'], valve: ['x', 'y'], kba: ['x', 'y', 'w', 'h'] }
+/**
+ * The keys each anchor is written with. `bead` [x, y, h] is the rim diameter at the bead seat, as a
+ * vertical line through its centre (the one axis a wheel turned sideways does not foreshorten);
+ * `flanges` [x, y, w] is the barrel between the two Felgenhörner where the photograph shows it, as a
+ * horizontal span through its centre.
+ */
+const KEYS = {
+    centre: ['x', 'y'],
+    wheel: ['x', 'y', 'r'],
+    pcd: ['x', 'y', 'r'],
+    bore: ['x', 'y', 'r'],
+    valve: ['x', 'y'],
+    kba: ['x', 'y', 'w', 'h'],
+    bead: ['x', 'y', 'h'],
+    flanges: ['x', 'y', 'w'],
+}
 
 /**
  * Checks measured anchors and returns them as { name: [numbers] }. A centre is required; an
@@ -85,6 +99,10 @@ export function frameAnchors(anchors, geometry) {
         if (name === 'kba') {
             point.w = across(values[2])
             point.h = down(values[3])
+        } else if (name === 'bead') {
+            point.h = down(values[2])
+        } else if (name === 'flanges') {
+            point.w = across(values[2])
         } else if (values.length === 3) {
             point.r = across(values[2])
         }

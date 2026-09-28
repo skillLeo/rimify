@@ -24,7 +24,7 @@ import RimCodePhoto from './RimCodePhoto.vue'
 import RimCodeSchematic from './RimCodeSchematic.vue'
 import RimCodeTeaser from './RimCodeTeaser.vue'
 import ValueText from '../Ui/ValueText.vue'
-import { etSide, kbaNumber, photoFrame, rimFactsOf, rimTokens, schematicKey, type RimCodeProduct, type RimKey } from './rimCode'
+import { etSide, kbaNumber, photoFrame, photoShape, rimFactsOf, rimTokens, schematicKey, type RimCodeProduct, type RimKey } from './rimCode'
 
 const props = withDefaults(
     defineProps<{
@@ -52,9 +52,16 @@ const committed = computed<RimKey | null>(() => (has(chosen.value) ? chosen.valu
 const shown = computed<RimKey | null>(() => (has(previewed.value) ? previewed.value : committed.value))
 const shownToken = computed(() => tokens.value.find((t) => t.key === shown.value) ?? null)
 
-/** The cross-section traces the value when it draws it; the ET only for a positive ET. */
+/*
+ * One picture explains each value (the operator's brief of 28.09.2026, §3): the photograph first —
+ * Maulweite, Zoll, Lochkreis, Mittenlochbohrung, KBA wherever it has the anchor — and the
+ * cross-section for what a photograph cannot show (the ET), or for any value the photograph has no
+ * measured anchor for. The ET is traced only for a positive ET.
+ */
+const onPhoto = computed(() => shown.value !== null && photoShape(shown.value, frame.value, kba.value) !== null)
+
 const traced = computed(() => {
-    const key = shown.value === null ? null : schematicKey(shown.value)
+    const key = shown.value === null || onPhoto.value ? null : schematicKey(shown.value)
 
     return key === 'et' && !showEt.value ? null : key
 })

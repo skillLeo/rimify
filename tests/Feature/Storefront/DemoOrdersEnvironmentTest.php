@@ -7,6 +7,7 @@ use App\Models\Vehicle;
 use App\Models\WheelModel;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\GoldenRecordSeeder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -35,9 +36,11 @@ it('seeds no demo orders outside the local and testing environments', function (
         $this->artisan('db:seed', ['--class' => DatabaseSeeder::class, '--force' => true])->assertSuccessful();
         expect(Order::query()->count())->toBe(0)
             // The example catalogue is demo too (the launch release §3), and so are the development cars
-            // (made-up type numbers): the live shop starts with the reference data alone; its cars come
-            // from the vehicle data import and its first wheel is a real one.
-            ->and(WheelModel::query()->count())->toBe(0)
+            // (made-up type numbers): the live shop starts with the reference data and one real wheel —
+            // the golden record's Borbet DB8GT2, a draft until priced; its cars come from the vehicle
+            // data import.
+            ->and(WheelModel::query()->pluck('slug')->all())->toBe([GoldenRecordSeeder::SLUG])
+            ->and(WheelModel::query()->where('is_demo', true)->count())->toBe(0)
             ->and(Vehicle::query()->count())->toBe(0)
             ->and(DB::table('load_index_table')->count())->toBeGreaterThan(0);
     });

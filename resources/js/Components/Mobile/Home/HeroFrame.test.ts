@@ -468,6 +468,17 @@ describe('HeroFrame · the lines under the frame', () => {
         expect(wrapper.find('.demo-note').text()).toBe(DEMO)
     })
 
+    it('shows a draft over its own photograph and names it, but offers no price and no link', () => {
+        const wrapper = mountFrame(product({ published: false }))
+
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.find('.hero-frame').element.tagName).toBe('DIV')
+        expect(wrapper.find('.hero-frame img').exists()).toBe(true)
+        expect(wrapper.find('.hero-mobile__name').text()).toBe('MOTEC MCR4 Ultimate · Light Grey D5')
+        expect(wrapper.text()).not.toContain('pro Felge')
+        expect(wrapper.find('.hero-mobile__shown').text()).toBe(CAPTION)
+    })
+
     it('names no brand, no price and no link for a symbolic product', () => {
         const wrapper = mountFrame(product({ imageManifest: null, symbolic: true }))
         const text = wrapper.text()

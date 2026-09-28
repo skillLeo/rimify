@@ -544,6 +544,19 @@ describe('HomeHero · the lines under the picture', () => {
         expect(wrapper.text()).not.toContain(SYMBOLIC)
     })
 
+    it('shows a draft over its own photograph and names it, but offers no price and no link', () => {
+        const wrapper = mountHero(product({ published: false }))
+
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.find('.hero__link').element.tagName).toBe('DIV')
+        expect(wrapper.find('img').exists()).toBe(true)
+        expect(wrapper.find('.hero__caption-name').text()).toBe('MOTEC MCR4 Ultimate · Light Grey D5')
+        expect(wrapper.text()).not.toContain('pro Felge')
+        expect(wrapper.text()).not.toContain('189,00')
+        expect(wrapper.find('.hero__shown').text()).toBe(CAPTION)
+        expect(wrapper.text()).not.toContain(SYMBOLIC)
+    })
+
     it('names no brand, no price and no link for a symbolic product', () => {
         const wrapper = mountHero(product({ imageManifest: null, symbolic: true }))
         const text = wrapper.text()

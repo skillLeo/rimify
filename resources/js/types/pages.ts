@@ -63,6 +63,11 @@ export interface HeroProduct {
     imageManifest?: ImageManifest | null
     /** True when there is no photograph of this product: the outline is drawn and no product is named. */
     symbolic: boolean
+    /**
+     * In the shop at a price. False for the chosen wheel while it is a draft: its photograph and its
+     * values are shown, never a price or a link. Absent (an older fixture) reads as true.
+     */
+    published?: boolean
     config: {
         widthIn: number
         diameterIn: number

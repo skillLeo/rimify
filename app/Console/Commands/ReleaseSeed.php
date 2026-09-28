@@ -11,6 +11,7 @@ use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\ContentSeeder;
+use Database\Seeders\GoldenRecordSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Database\Seeders\VehicleSeeder;
 use Illuminate\Console\Command;
@@ -44,8 +45,11 @@ final class ReleaseSeed extends Command
      * v4: the invented example catalogue (the review release §2) — brands and models renamed in place,
      * drafts only, placeholder drawings — and a demo set written again where one is kept (a staging
      * preview): its order lines froze the old names, and frozen rows are renewed, never edited (R-12).
+     *
+     * v5: the golden record's wheel, the Borbet DB8GT2 (GoldenRecordSeeder) — a real product, a draft
+     * until a person prices it, and the hero's wheel with the client's official photographs.
      */
-    public const VERSION = 4;
+    public const VERSION = 5;
 
     /** From this version on, a kept demo set is written again once, so its frozen labels match. */
     public const DEMO_RENEWED_AT = 4;
@@ -56,6 +60,7 @@ final class ReleaseSeed extends Command
         VehicleSeeder::class,
         CatalogueSeeder::class,
         BrandLogoSeeder::class,
+        GoldenRecordSeeder::class,
         ApprovalSeeder::class,
         ContentSeeder::class,
     ];

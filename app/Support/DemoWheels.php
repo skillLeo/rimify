@@ -149,8 +149,8 @@ final class DemoWheels
 
     /**
      * Whether a value is a `WheelAnchors`: a `centre` {x, y}, and optionally `wheel`, `pcd` and
-     * `bore` {x, y, r}, `valve` {x, y} and `kba` {x, y, w, h} — every number a fraction of the
-     * frame, a point inside it, and nothing else.
+     * `bore` {x, y, r}, `valve` {x, y}, `kba` {x, y, w, h}, `bead` {x, y, h} and `flanges` {x, y, w}
+     * — every number a fraction of the frame, a point inside it, and nothing else.
      */
     public static function anchorsWellFormed(mixed $anchors): bool
     {
@@ -165,6 +165,9 @@ final class DemoWheels
             'bore' => ['x', 'y', 'r'],
             'valve' => ['x', 'y'],
             'kba' => ['x', 'y', 'w', 'h'],
+            // The bead-seat diameter as a vertical line, the barrel between the flanges as a span.
+            'bead' => ['x', 'y', 'h'],
+            'flanges' => ['x', 'y', 'w'],
         ];
 
         foreach ($anchors as $name => $point) {

@@ -57,9 +57,9 @@ ${layer9Specular()}
 </svg>`
 }
 
-/** Only the four counts the spec allows; anything else snaps to the nearest of them. */
+/** Only the counts the catalogue allows (six since the Borbet DB8GT2); anything else snaps to the nearest. */
 function normaliseSpokes(n: number): number {
-    const allowed = [5, 7, 10, 20]
+    const allowed = [5, 6, 7, 10, 20]
 
     return allowed.reduce((best, candidate) =>
         Math.abs(candidate - n) < Math.abs(best - n) ? candidate : best

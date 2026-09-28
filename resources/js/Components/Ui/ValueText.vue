@@ -21,7 +21,38 @@ import { valueParts, type TextPart } from '../../lib/felgenSentences'
 
 const props = withDefaults(defineProps<{ text: string; whole?: boolean }>(), { whole: false })
 
-const parts = computed<TextPart[]>(() => (props.whole ? [{ text: props.text, value: true }] : valueParts(props.text)))
+/*
+ * The spaces around a value travel inside its span: a translator trims the edges of the text it
+ * translates, and "hier 8,5J" came back as "here8,5J". A space inside the untranslated span survives.
+ */
+const parts = computed<TextPart[]>(() => {
+    if (props.whole) {
+        return [{ text: props.text, value: true }]
+    }
+
+    const out = valueParts(props.text).map((part) => ({ ...part }))
+
+    out.forEach((part, i) => {
+        if (!part.value) {
+            return
+        }
+
+        const before = out[i - 1]
+        const after = out[i + 1]
+
+        if (before !== undefined && !before.value && / $/.test(before.text)) {
+            before.text = before.text.slice(0, -1)
+            part.text = ` ${part.text}`
+        }
+
+        if (after !== undefined && !after.value && /^ /.test(after.text)) {
+            after.text = after.text.slice(1)
+            part.text = `${part.text} `
+        }
+    })
+
+    return out.filter((part) => part.text !== '')
+})
 </script>
 
 <template>

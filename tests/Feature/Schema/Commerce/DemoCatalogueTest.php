@@ -10,6 +10,7 @@ use App\Models\WheelModel;
 use App\Services\Demo\DemoPlaceholders;
 use App\Support\DemoWheels;
 use Database\Seeders\CatalogueSeeder;
+use Database\Seeders\GoldenRecordSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -154,9 +155,17 @@ it('never lets a demo model be published: the table refuses it', function (): vo
     expect(DB::table('wheel_models')->where('id', $model->id)->value('status'))->toBe('published');
 });
 
-it('ships an empty photograph map, and draws an honest placeholder for every demo finish', function (): void {
-    // Example data carries no maker's photograph.
-    expect(require database_path('seeders/content/wheel-photos.php'))->toBe([]);
+it('ships photographs of real products only, and draws an honest placeholder for every demo finish', function (): void {
+    // Example data carries no maker's photograph: the map names the golden record's wheel and nothing
+    // else, each picture the client's own (CLAUDE.md, "Placeholder imagery").
+    $map = require database_path('seeders/content/wheel-photos.php');
+
+    expect($map)->not->toBeEmpty();
+
+    foreach ($map as $entry) {
+        expect($entry['model'])->toBe(GoldenRecordSeeder::SLUG)
+            ->and($entry['credit']['source'])->toBe('Kunde');
+    }
 
     $this->seed(CatalogueSeeder::class);
 

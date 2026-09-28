@@ -50,7 +50,7 @@ final class ProcessWheelImages extends Command
     private const PIPELINE_VERSION = 5;
 
     /** Each anchor a photograph may be measured with, and how many numbers it takes. */
-    private const ANCHOR_SHAPES = ['centre' => 2, 'wheel' => 3, 'pcd' => 3, 'bore' => 3, 'valve' => 2, 'kba' => 4];
+    private const ANCHOR_SHAPES = ['centre' => 2, 'wheel' => 3, 'pcd' => 3, 'bore' => 3, 'valve' => 2, 'kba' => 4, 'bead' => 3, 'flanges' => 3];
 
     public function handle(): int
     {

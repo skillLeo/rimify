@@ -16,7 +16,7 @@ import { computed, onMounted, ref } from 'vue'
  */
 export interface WheelAnchors {
     centre: { x: number; y: number }
-    /** The rim's outer lip, derived from the cut-out, never typed in. */
+    /** The rim's outer lip: derived from the cut-out, or measured where the cut-out shows the barrel too. */
     wheel?: { x: number; y: number; r: number }
     /** The circle through the bolt-hole centres (Lochkreis). */
     pcd?: { x: number; y: number; r: number }
@@ -25,6 +25,10 @@ export interface WheelAnchors {
     valve?: { x: number; y: number }
     /** The stamped approval mark: its centre, width and height. */
     kba?: { x: number; y: number; w: number; h: number }
+    /** The diameter at the bead seat: a vertical line through its centre, `h` long. */
+    bead?: { x: number; y: number; h: number }
+    /** The barrel between the two Felgenhörner where the photograph shows it: a span through its centre, `w` wide. */
+    flanges?: { x: number; y: number; w: number }
 }
 
 export interface ImageManifest {
@@ -106,7 +110,7 @@ function onLoad(): void {
     <!-- A transparent cut-out gets no blurred placeholder: an opaque square behind it would
          show as a box until the file paints. -->
     <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="fallbackExt === 'png' ? undefined : { backgroundImage: `url(${image.placeholder})` }">
-        <source v-for="format in formats" :key="format" :type="`image/${format}`" :srcset="srcset(format)" :sizes="sizes" />
+        <source v-for="format in formats" :key="format" :type="`image/${format}`" :srcset="srcset(format)" :sizes="sizes">
         <img
             ref="img"
             :src="fallback"
@@ -120,7 +124,7 @@ function onLoad(): void {
             decoding="async"
             @load="onLoad"
             @error="emit('failed')"
-        />
+        >
     </picture>
 </template>
 

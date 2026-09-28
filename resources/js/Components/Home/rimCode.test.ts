@@ -177,6 +177,25 @@ describe('photoShape', () => {
         expect(photoShape('mlb', photoFrame(frame('x', { centre: ANCHORS.centre, bore: { x: 0.5, y: 0.5, r: 0 } })))).toBeNull()
     })
 
+    it('draws the diameter at the bead seat and the Maulweite across the barrel where they were measured', () => {
+        const g = photoFrame(frame('x', { ...ANCHORS, bead: { x: 0.47, y: 0.48, h: 0.74 }, flanges: { x: 0.86, y: 0.48, w: 0.04 } }))
+        const diameter = photoShape('diameter', g)
+        const width = photoShape('width', g)
+
+        // Vertical: the one axis a wheel turned sideways does not foreshorten.
+        expect(diameter).toMatchObject({ key: 'diameter', kind: 'line', x1: 0.47 * 1080, x2: 0.47 * 1080, label: 'am Wulstsitz' })
+        expect(diameter?.kind === 'line' ? diameter.y2 - diameter.y1 : 0).toBeCloseTo(0.74 * 1080, 6)
+        expect(width).toMatchObject({ key: 'width', kind: 'line', y1: 0.48 * 1080, y2: 0.48 * 1080, label: 'Maulweite' })
+        expect(width?.kind === 'line' ? width.x2 - width.x1 : 0).toBeCloseTo(0.04 * 1080, 6)
+        expect(photoHint('diameter', true)).toContain('Wulstsitz')
+        expect(photoHint('width', true)).toContain('Felgenhörnern')
+
+        // The label stays on the picture: a span at the right edge is labelled pulled in.
+        if (width !== null && g !== null) {
+            expect(photoLabel(width, g).x).toBeLessThanOrEqual(0.86)
+        }
+    })
+
     it('puts the label centred under the shape', () => {
         const s = photoShape('mlb', f)
 
@@ -345,7 +364,7 @@ describe('RimCode', () => {
         expect(new Set(seen.map((s) => `${s.marker}|${s.dim}`)).size).toBe(KEYS.length)
     })
 
-    it('highlights each value on the picture that shows it, and the line says which', async () => {
+    it('highlights each value on the one picture that explains it — the photograph first — and the line says which', async () => {
         const w = mountSection()
         const f = photoFrame(MANIFEST)
 
@@ -354,7 +373,8 @@ describe('RimCode', () => {
             const shape = photoShape(key, f, '53810')
 
             expect(state.marker).toBe(shape === null ? null : `${shape.kind}/${key}`)
-            expect(state.dim).toBe(schematicKey(key))
+            // The cross-section traces only what the photograph cannot mark (the operator's brief of 28.09.2026, §3).
+            expect(state.dim).toBe(shape === null ? schematicKey(key) : null)
             expect(state.hint).toBe(photoHint(key, shape !== null))
         }
 

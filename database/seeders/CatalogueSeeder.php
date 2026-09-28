@@ -635,6 +635,16 @@ class CatalogueSeeder extends Seeder
             ->whereNotNull('image_manifest')
             ->update(['image_manifest' => null]);
 
+        self::attachMappedPhotographs();
+    }
+
+    /**
+     * Every mapped photograph onto its finish, whichever seeder wrote the model: the map names the
+     * model by slug and the finish by name, and a model or finish that is not there is skipped. A
+     * finish's front view replaces its manifest; its further angles join it under `views`.
+     */
+    public static function attachMappedPhotographs(): void
+    {
         /** @var array<int, list<array<string, mixed>>> $views */
         $views = [];
 

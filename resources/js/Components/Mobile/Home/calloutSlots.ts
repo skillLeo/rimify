@@ -40,6 +40,8 @@ export interface HeroLayout {
     picture: { size: number; left: number; top: number }
     /** How far a box stands in from its edge, in percent of the frame's width. */
     inset: number
+    /** The same for a box on the left edge, where it lines up with the caption under the frame; `inset` without. */
+    insetLeft?: number
     /** The leader's stroke, in the drawing's units (the frame is 100 units tall). */
     weight: number
     callouts: readonly CalloutPlacement[]
@@ -55,9 +57,10 @@ export const DESKTOP_LAYOUT: HeroLayout = {
     ratio: 3 / 2,
     picture: { size: 1, left: 1 / 6, top: 0 },
     inset: 2,
+    insetLeft: 0,
     weight: 0.3,
     callouts: [
-        { key: 'boltCircle', side: 'right', y: 12, elbow: 78, angle: -56 },
+        { key: 'boltCircle', side: 'right', y: 12, elbow: 78, angle: -87 },
         { key: 'centreBore', side: 'left', y: 87, elbow: 32, angle: 165 },
         { key: 'kba', side: 'right', y: 87, elbow: 70 },
     ],
@@ -74,7 +77,7 @@ export const PHONE_LAYOUT: HeroLayout = {
     weight: 0.45,
     rollDistance: 1.15,
     callouts: [
-        { key: 'boltCircle', side: 'right', y: 12, elbow: 72, angle: -56 },
+        { key: 'boltCircle', side: 'right', y: 12, elbow: 72, angle: -87 },
         { key: 'kba', side: 'right', y: 89 },
     ],
 }
@@ -175,11 +178,26 @@ export function heroScene(product: HeroProduct | null, layout: HeroLayout): Hero
 
     const callouts: Callout[] = []
 
+    // The stamp's box stands on the stamp's side. The layouts place it for a stamp at the bottom of
+    // the rim; where a wheel carries it on the left of its lip (the Borbet DB8GT2), the two lower boxes
+    // change sides, mirrored, so no leader runs across the whole wheel.
+    const stampLeft = anchors?.kba !== undefined && anchors.kba.x < anchors.centre.x - 0.1
+    const placed = (place: CalloutPlacement): CalloutPlacement =>
+        stampLeft && (place.key === 'kba' || place.key === 'centreBore')
+            ? {
+                  ...place,
+                  side: place.side === 'left' ? 'right' : 'left',
+                  elbow: place.elbow === undefined ? undefined : 100 - place.elbow,
+                  angle: place.angle === undefined ? undefined : 180 - place.angle,
+              }
+            : place
+
     if (product !== null && anchors !== null) {
         const { facts } = product
 
-        for (const place of layout.callouts) {
-            const base = { key: place.key, side: place.side, x: layout.inset, y: place.y, elbow: place.elbow }
+        for (const place of layout.callouts.map(placed)) {
+            const inset = place.side === 'left' ? (layout.insetLeft ?? layout.inset) : layout.inset
+            const base = { key: place.key, side: place.side, x: inset, y: place.y, elbow: place.elbow }
 
             if (place.key === 'boltCircle' && anchors.pcd !== undefined) {
                 const end = toFrame(layout, onCircle(anchors.pcd, place.angle ?? 0))

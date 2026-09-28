@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Admin\Catalogue;
 
 use App\Enums\CatalogueStatus;
+use App\Http\Requests\Admin\WheelModelRequest;
 use App\Models\AdminUser;
 use App\Models\Brand;
 use App\Models\CatalogueImport;
@@ -699,7 +700,7 @@ final class CatalogueImporter
         $ean = $optional('ean', static fn (string $r): ?string => preg_match('/^\d{8,14}$/', $r) === 1 ? $r : null, 'Die EAN besteht aus 8 bis 14 Ziffern.');
         $kba = $optional('kba', static fn (string $r): ?string => mb_strlen($r) <= 32 ? $r : null, 'Die KBA-Nummer ist länger als 32 Zeichen.');
         $weight = $optional('gewicht', static fn (string $r): ?int => ($n = GermanNumber::integer($r)) !== null && $n >= 1000 && $n <= 40000 ? $n : null, 'Das Gewicht bitte in Gramm, zwischen 1.000 und 40.000.');
-        $spokes = $optional('speichen', static fn (string $r): ?int => in_array($n = GermanNumber::integer($r), [5, 7, 10, 20], true) ? $n : null, 'Die Speichenzahl muss 5, 7, 10 oder 20 sein.');
+        $spokes = $optional('speichen', static fn (string $r): ?int => in_array($n = GermanNumber::integer($r), WheelModelRequest::SPOKES, true) ? $n : null, 'Die Speichenzahl muss 5, 6, 7, 10 oder 20 sein.');
 
         $label = trim($text('marke').' '.$text('modell')).($text('ausfuehrung') === '' ? '' : ' · '.$text('ausfuehrung'));
 

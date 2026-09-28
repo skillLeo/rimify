@@ -134,10 +134,16 @@ class StartseiteController extends Controller
     {
         $chosen = Setting::get('hero_product_id');
 
+        // The chosen wheel is shown while it is still a draft — the photograph and the document's values,
+        // never a price or a link — so the hero is the real product from the day it is entered. Never a
+        // demo row, never an archived one.
         $model = WheelModel::query()
             ->with(['brand'])
-            ->where('status', CatalogueStatus::Published->value)
-            ->when(is_int($chosen) || is_numeric($chosen), fn ($q) => $q->where('id', (int) $chosen))
+            ->when(
+                is_int($chosen) || is_numeric($chosen),
+                fn ($q) => $q->where('id', (int) $chosen)->where('is_demo', false)->where('status', '<>', CatalogueStatus::Archived->value),
+                fn ($q) => $q->where('status', CatalogueStatus::Published->value),
+            )
             ->orderBy('id')
             ->first();
 
@@ -164,6 +170,8 @@ class StartseiteController extends Controller
 
         $finish = WheelFinish::query()->find($config->wheel_finish_id);
         $manifest = $manifests[(int) $config->wheel_finish_id] ?? null;
+        // Bought and linked only when it is in the shop at a price; a draft is shown, never offered.
+        $published = $model->status === CatalogueStatus::Published && (int) $config->price_cents > 0;
 
         return [
             'slug' => (string) $model->slug,
@@ -184,6 +192,7 @@ class StartseiteController extends Controller
             ],
             // No photograph of this product: the hero draws the outline and names no product.
             'symbolic' => $manifest === null,
+            'published' => $published,
             'facts' => $this->heroFacts($config, $kba),
         ];
     }

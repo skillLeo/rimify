@@ -28,7 +28,7 @@ use Illuminate\Validation\Validator;
  */
 class WheelModelRequest extends FormRequest
 {
-    public const SPOKES = [5, 7, 10, 20];
+    public const SPOKES = [5, 6, 7, 10, 20];
 
     public const BOLT_HOLES = [3, 4, 5, 6, 8, 10];
 
@@ -119,7 +119,7 @@ class WheelModelRequest extends FormRequest
             'name.required' => 'Bitte gib den Namen des Modells ein.',
             'name.max' => 'Der Name darf höchstens 80 Zeichen lang sein.',
             'type_designation.max' => 'Die Typbezeichnung darf höchstens 80 Zeichen lang sein.',
-            'spoke_count.*' => 'Bitte wähl die Zahl der Speichen: 5, 7, 10 oder 20.',
+            'spoke_count.*' => 'Bitte wähl die Zahl der Speichen: 5, 6, 7, 10 oder 20.',
             'description.max' => 'Die Beschreibung darf höchstens 4.000 Zeichen lang sein.',
             'seo_title.max' => 'Der Titel für Suchmaschinen darf höchstens 70 Zeichen lang sein.',
             'seo_description.max' => 'Die Beschreibung für Suchmaschinen darf höchstens 170 Zeichen lang sein.',

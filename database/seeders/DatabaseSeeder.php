@@ -39,6 +39,12 @@ class DatabaseSeeder extends Seeder
             ApprovalSeeder::class,
         ]);
 
+        // The golden record's wheel, a real product (a draft until priced) and the hero's wheel. Not in
+        // the test database, whose storefront tests count the seeded shop and choose their own hero.
+        if (! app()->environment('testing')) {
+            $this->call(GoldenRecordSeeder::class);
+        }
+
         if (app()->environment(['local', 'testing'])) {
             $this->call(CommerceSeeder::class);
             // Two Wuchtgewicht colours and no RDKS price, so the local Komplettrad flow can be

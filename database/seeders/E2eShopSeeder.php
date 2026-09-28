@@ -35,8 +35,9 @@ class E2eShopSeeder extends Seeder
 
         $this->call(DatabaseSeeder::class);
 
-        // The catalogue is this database's shop. The tyres too, so a Komplettrad can be walked.
-        DB::table('wheel_models')->update(['is_demo' => false, 'status' => 'published']);
+        // The catalogue is this database's shop. The tyres too, so a Komplettrad can be walked. The
+        // golden record's wheel (DatabaseSeeder) is real and stays as it is: a draft until priced.
+        DB::table('wheel_models')->where('is_demo', true)->update(['is_demo' => false, 'status' => 'published']);
         DB::table('tyre_variants')->update(['is_demo' => false]);
     }
 }

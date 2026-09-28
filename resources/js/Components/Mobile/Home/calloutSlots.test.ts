@@ -237,6 +237,22 @@ describe('heroScene · the callouts', () => {
         expect(values).not.toContain(FACTS.et)
     })
 
+    it('stands the stamp\'s box on the stamp\'s side: a stamp on the left of the lip mirrors the two lower boxes', () => {
+        // The Borbet DB8GT2 carries its stamp on the left of the lip (x 0,21), not at the bottom.
+        const left: WheelAnchors = { ...ANCHORS, kba: { x: 0.2067, y: 0.6401, w: 0.037, h: 0.0602 } }
+        const scene = heroScene(product({ imageManifest: manifest({}, left) }), DESKTOP_LAYOUT)
+        const side = (key: string) => scene.callouts.find((c) => c.key === key)
+
+        expect(side('kba')?.side).toBe('left')
+        expect(side('centreBore')?.side).toBe('right')
+        expect(side('boltCircle')?.side).toBe('right')
+        // The leader to the stamp ends on the stamp's edge that faces its box: the left one.
+        expect(side('kba')?.tx).toBeCloseTo((1 / 6 + (0.2067 - 0.037 / 2) / 1.5) * 100, 1)
+
+        // The MOTEC's stamp at the bottom keeps the layout as drawn.
+        expect(heroScene(product(), DESKTOP_LAYOUT).callouts.find((c) => c.key === 'kba')?.side).toBe('right')
+    })
+
     it('points, on the phone, at two things: the Lochkreis and the stamp', () => {
         const scene = heroScene(product(), PHONE_LAYOUT)
 
