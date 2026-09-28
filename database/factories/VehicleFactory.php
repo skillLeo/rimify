@@ -35,7 +35,9 @@ class VehicleFactory extends Factory
             'build_to' => $this->faker->dateTimeBetween('-2 years', 'now')->format('Y-m-28'),
             'axle_load_front_kg' => $this->faker->numberBetween(700, 1300),
             'axle_load_rear_kg' => $this->faker->numberBetween(700, 1300),
-            'max_speed_kmh' => $this->faker->numberBetween(140, 300),
+            // Up to 210 km/h no tyre loses load, so a random car never depends on its document printing a
+            // derating table (the C9 reviews). A test about high speed says so: rs4AvantFirst() runs 280.
+            'max_speed_kmh' => $this->faker->numberBetween(140, 210),
             'power_kw' => $this->faker->numberBetween(50, 450),
             'power_ps' => $this->faker->numberBetween(68, 612),
             'displacement_ccm' => $this->faker->numberBetween(900, 6200),

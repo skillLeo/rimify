@@ -12,6 +12,7 @@ use App\Models\Vehicle;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -45,7 +46,7 @@ class GutachtenFahrzeugController extends Controller
             ]);
 
             AuditTrail::record($admin, 'vehicle.created_from_document', [
-                'vehicle' => GutachtenController::vehicleLabel($vehicle),
+                'vehicle' => VehicleName::from($vehicle),
                 'document' => FitmentRows::label($document),
                 'page' => $car['source_page'],
                 'eg' => $car['eg_nummer_raw'],

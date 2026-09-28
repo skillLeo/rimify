@@ -511,6 +511,24 @@ describe('putting every entry into words', function (): void {
             'approval.notice_removed' => [['document' => 'ABE 55255', 'what' => 'Radschrauben nach 50 km nachziehen.'], 'Aus „ABE 55255“ wurde der Pflichthinweis „Radschrauben nach 50 km nachziehen.“ entfernt.', []],
             'approval.rework_added' => [['document' => 'ABE 55255', 'what' => 'K42 · 3C · von 15 bis 30 mm'], 'Zu „ABE 55255“ wurde das Maß der Nacharbeit „K42 · 3C · von 15 bis 30 mm“ eingetragen.', []],
             'approval.rework_removed' => [['document' => 'ABE 55255', 'what' => 'K42 · 3C · von 15 bis 30 mm'], 'Aus „ABE 55255“ wurde das Maß der Nacharbeit „K42 · 3C · von 15 bis 30 mm“ entfernt.', []],
+            'approval.derating_saved' => [['document' => 'ABE 55255', 'rows' => 10], 'Für „ABE 55255“ wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit gespeichert (10 Zeilen).', []],
+            'approval.derating_removed' => [['document' => 'ABE 55255'], 'Aus „ABE 55255“ wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit entfernt.', []],
+            'approval.limit_confirmed' => [
+                ['document' => 'ABE 55255', 'code' => 'T88', 'reason' => 'Seite 7 druckt 1.125 kg.'],
+                'In „ABE 55255“ wurde die Achslast bei „T88“ so bestätigt, wie das Gutachten sie druckt: „Seite 7 druckt 1.125 kg.“.',
+                [],
+            ],
+            'vehicle.created_from_document' => [
+                ['vehicle' => 'BMW 4er Coupé 3C', 'document' => 'ABE 55255', 'page' => 4, 'eg' => 'e1*2007/46*0563*..'],
+                'Das Fahrzeug „BMW 4er Coupé 3C“ wurde aus „ABE 55255“, Seite 4 angelegt, mit der EG-Typgenehmigungsnummer „e1*2007/46*0563*..“; ohne HSN und TSN.',
+                [],
+            ],
+            'vehicle.merged_from_dataset' => [
+                ['vehicle' => 'BMW 4er Coupé 3C · HSN 0005 · TSN CDA', 'source' => 'import_kba', 'fields' => ['hsn', 'tsn'], 'kept' => []],
+                'Das Fahrzeug „BMW 4er Coupé 3C · HSN 0005 · TSN CDA“ wurde aus dem Fahrzeugdatensatz ergänzt; nur leere Felder wurden gefüllt.',
+                [],
+            ],
+            'vehicle.merge_applied' => [['changed' => 3, 'matched' => 4, 'ambiguous' => 2, 'new' => 10], 'Ein Fahrzeugdatensatz wurde zusammengeführt: 3 Fahrzeuge ergänzt, 2 unklar, 10 neu.', []],
             'conflict.decided' => [
                 ['vehicle' => 'BMW 4er', 'wheel' => '8J × 18 ET 35', 'mode' => 'only', 'document' => 'ABE 55255', 'reason' => 'Der Hersteller bestätigt die neuere ABE.'],
                 'Der Konflikt zu „BMW 4er · 8J × 18 ET 35“ wurde entschieden: Nur „ABE 55255“ gilt. Grund: „Der Hersteller bestätigt die neuere ABE.“.',
