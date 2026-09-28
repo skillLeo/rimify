@@ -302,8 +302,11 @@ function uses(condition: DocumentConditionView): string {
 const limitWarnings = computed(() => props.conditions.filter((condition) => Boolean(condition.limitWarning)))
 const limitReasons = reactive<Record<number, string>>({})
 const limitErrors = reactive<Record<number, string>>({})
+/** The condition whose confirmation is on its way: its button shows it. */
+const limitBusy = ref<number | null>(null)
 
 function confirmLimit(condition: DocumentConditionView): void {
+    limitBusy.value = condition.id
     router.post(`/admin/gutachten/${props.documentId}/auflagen/${condition.id}/grenze`, { reason: limitReasons[condition.id] ?? '' }, {
         preserveScroll: true,
         errorBag: 'auflagen',
@@ -313,6 +316,9 @@ function confirmLimit(condition: DocumentConditionView): void {
         },
         onSuccess: () => {
             limitErrors[condition.id] = ''
+        },
+        onFinish: () => {
+            limitBusy.value = null
         },
     })
 }
@@ -379,26 +385,36 @@ function confirmLimit(condition: DocumentConditionView): void {
 
         <!-- A load-index limit that is not twice its index's capacity: kept as printed, confirmed with a reason. -->
         <div v-for="condition in limitWarnings" :key="`limit-${condition.id}`" class="av-limit">
-            <p class="adm-alert" :role="condition.limitConfirmed ? undefined : 'alert'">
+            <!-- Open, it is an alert; confirmed, it is a note on the record — no longer red. -->
+            <p :class="condition.limitConfirmed ? 'adm-note' : 'adm-alert'" :role="condition.limitConfirmed ? undefined : 'alert'">
                 <span translate="no">{{ condition.code }}</span>: {{ condition.limitWarning }}
             </p>
-            <p v-if="condition.limitConfirmed" class="adm-note av-limit__done">
+            <p v-if="condition.limitConfirmed" class="adm-note">
                 Bestätigt{{ condition.limitConfirmed.by ? ` von ${condition.limitConfirmed.by}` : '' }} am {{ condition.limitConfirmed.at }}: „{{ condition.limitConfirmed.reason }}“
             </p>
             <form v-else-if="editable" class="av-limit__form" novalidate @submit.prevent="confirmLimit(condition)">
-                <label class="form-field__label" :for="`av-limit-${condition.id}`">Warum steht die Zahl so im Gutachten?</label>
-                <textarea
-                    :id="`av-limit-${condition.id}`"
-                    v-model="limitReasons[condition.id]"
-                    class="input"
-                    rows="2"
-                    maxlength="500"
-                    :aria-invalid="limitErrors[condition.id] ? 'true' : undefined"
-                    :aria-describedby="`av-limit-${condition.id}-err`"
-                />
-                <p :id="`av-limit-${condition.id}-err`" class="form-field__error">{{ limitErrors[condition.id] }}</p>
+                <div class="form-field">
+                    <label class="form-field__label" :for="`av-limit-${condition.id}`">Warum steht die Zahl so im Gutachten?</label>
+                    <textarea
+                        :id="`av-limit-${condition.id}`"
+                        v-model="limitReasons[condition.id]"
+                        class="input"
+                        rows="2"
+                        maxlength="500"
+                        :aria-invalid="limitErrors[condition.id] ? 'true' : undefined"
+                        :aria-describedby="`av-limit-${condition.id}-err`"
+                    />
+                    <p :id="`av-limit-${condition.id}-err`" class="form-field__error">{{ limitErrors[condition.id] }}</p>
+                </div>
                 <div>
-                    <button class="btn btn--secondary btn--sm" type="submit" :disabled="busy">Zahl bestätigen</button>
+                    <button
+                        class="btn btn--secondary btn--sm"
+                        type="submit"
+                        :disabled="busy || limitBusy === condition.id"
+                        :aria-busy="limitBusy === condition.id ? 'true' : undefined"
+                    >
+                        Zahl bestätigen
+                    </button>
                 </div>
             </form>
         </div>
@@ -557,22 +573,26 @@ function confirmLimit(condition: DocumentConditionView): void {
     gap: var(--sp-16);
 }
 
-.av-limit,
+/* One column as wide as a form: the alert, the note and the reason line up on the same edges. */
+.av-limit {
+    display: grid;
+    gap: var(--sp-8);
+    max-width: var(--adm-form-max);
+}
+
+.av-limit .adm-alert,
+.av-limit .adm-note {
+    margin: 0;
+    max-width: none;
+}
+
 .av-limit__form {
     display: grid;
     gap: var(--sp-8);
 }
 
-.av-limit__form {
-    max-width: var(--adm-form-max);
-}
-
 .av-limit__form .form-field__error:empty {
     display: none;
-}
-
-.av-limit__done {
-    margin: 0;
 }
 
 .av__code {

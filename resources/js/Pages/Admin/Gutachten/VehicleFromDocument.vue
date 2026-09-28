@@ -103,7 +103,7 @@ async function save(): Promise<void> {
         </button>
 
         <form v-else class="vfd-form" novalidate aria-labelledby="vfd-h" @submit.prevent="save">
-            <p id="vfd-h" class="form-field__label">Fahrzeug aus diesem Gutachten</p>
+            <p id="vfd-h" class="vfd-title">Fahrzeug aus diesem Gutachten</p>
             <p class="form-field__help">So, wie das Gutachten es nennt. HSN und TSN stehen in keinem Gutachten und bleiben leer; Achslasten und Höchstgeschwindigkeit ebenso – das Fahrzeug kommt „zur Prüfung“.</p>
             <div class="vfd-grid">
                 <div class="form-field">
@@ -163,6 +163,20 @@ async function save(): Promise<void> {
 </template>
 
 <style scoped>
+/* The form lives in half of „Zeilen hinzufügen“: its columns follow the room it has, not the window. */
+.vfd {
+    container-type: inline-size;
+    margin-top: var(--sp-8);
+}
+
+.vfd-title {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
 .vfd-form {
     display: grid;
     gap: var(--sp-12);
@@ -172,15 +186,20 @@ async function save(): Promise<void> {
     background: var(--c-band);
 }
 
-.vfd-form > .form-field__label,
 .vfd-form > .form-field__help {
     margin: 0;
 }
 
 .vfd-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sp-12) var(--sp-16);
+}
+
+@container (max-width: 479px) {
+    .vfd-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .vfd-wide {
@@ -202,9 +221,4 @@ async function save(): Promise<void> {
     gap: var(--sp-8);
 }
 
-@media (max-width: 767px) {
-    .vfd-grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
 </style>

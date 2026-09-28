@@ -35,7 +35,16 @@ const open = ref(props.papers === null)
 const busy = ref(false)
 const errors = ref<Record<string, string>>({})
 
-const form = reactive({
+type FieldKey = 'axle_front_kg' | 'axle_rear_kg' | 'top_speed_kmh'
+
+/* The unit sits in the field's frame; the label keeps it for a screen reader. */
+const FIELDS: { key: FieldKey; label: string; unit: string; min: number; max: number }[] = [
+    { key: 'axle_front_kg', label: '8.1 · zulässige Achslast vorn', unit: 'kg', min: 300, max: 4000 },
+    { key: 'axle_rear_kg', label: '8.2 · zulässige Achslast hinten', unit: 'kg', min: 300, max: 4000 },
+    { key: 'top_speed_kmh', label: 'T · Höchstgeschwindigkeit', unit: 'km/h', min: 60, max: 420 },
+]
+
+const form = reactive<Record<FieldKey, number | ''>>({
     axle_front_kg: (props.papers?.axleFrontKg ?? '') as number | '',
     axle_rear_kg: (props.papers?.axleRearKg ?? '') as number | '',
     top_speed_kmh: (props.papers?.topSpeedKmh ?? '') as number | '',
@@ -141,11 +150,13 @@ function clear(): void {
         </template>
 
         <form v-else class="pp__form" novalidate aria-labelledby="pp-h" @submit.prevent="save">
-            <p id="pp-h" class="pp__title">Werte aus deiner Zulassungsbescheinigung</p>
-            <p class="pp__help">
-                Freiwillig: Mit der zulässigen Achslast und der Höchstgeschwindigkeit sagen wir dir genau, welche Reifen du fahren darfst. Die Werte bleiben in
-                deinem Browser, bei diesem Fahrzeug.
-            </p>
+            <div class="pp__head">
+                <p id="pp-h" class="pp__title">Werte aus deiner Zulassungsbescheinigung</p>
+                <p class="pp__help">
+                    Freiwillig: Mit der zulässigen Achslast und der Höchstgeschwindigkeit sagen wir dir genau, welche Reifen du fahren darfst. Die Werte bleiben in
+                    deinem Browser, bei diesem Fahrzeug.
+                </p>
+            </div>
 
             <div class="pp__scan">
                 <label for="pp-photo" class="visually-hidden">Foto der Zulassungsbescheinigung Teil I</label>
@@ -157,28 +168,37 @@ function clear(): void {
                 <p class="pp__help">Die Erkennung läuft auf deinem Gerät. Das Foto wird nicht hochgeladen.</p>
                 <p v-if="scan === 'busy'" class="pp__help" role="status">Erkennung läuft …</p>
                 <p v-else-if="scan === 'read'" class="pp__help" role="status">Aus dem Foto gelesen. Prüf die Werte, bevor du sie übernimmst.</p>
-                <p v-else-if="scan === 'failed'" class="notice" role="alert">Wir konnten 8.1, 8.2 und T nicht lesen. Trag sie bitte von Hand ein.</p>
-                <p v-if="powerMismatch" class="notice" role="alert">
-                    Laut Foto hat dein Fahrzeug {{ readPowerKw }}&nbsp;kW (Feld P.2), gewählt ist eine Variante mit {{ powerKw }}&nbsp;kW. Prüf bitte, ob du die
-                    richtige Variante gewählt hast – davon hängt ab, welche Felgen freigegeben sind.
+                <p v-else-if="scan === 'failed'" class="notice notice--warn" role="alert">
+                    <Icon name="warning" :size="20" />
+                    <span>Wir konnten 8.1, 8.2 und T nicht lesen. Trag sie bitte von Hand ein.</span>
+                </p>
+                <p v-if="powerMismatch" class="notice notice--warn" role="alert">
+                    <Icon name="warning" :size="20" />
+                    <span>
+                        Laut Foto hat dein Fahrzeug {{ readPowerKw }}&nbsp;kW (Feld P.2), gewählt ist eine Variante mit {{ powerKw }}&nbsp;kW. Prüf bitte, ob du die
+                        richtige Variante gewählt hast – davon hängt ab, welche Felgen freigegeben sind.
+                    </span>
                 </p>
             </div>
 
             <div class="pp__grid">
-                <div class="form-field">
-                    <label class="form-field__label" for="pp-axle_front_kg">8.1 · zulässige Achslast vorn (kg)</label>
-                    <input id="pp-axle_front_kg" v-model.number="form.axle_front_kg" class="input" type="number" min="300" max="4000" inputmode="numeric" :aria-invalid="errors.axle_front_kg ? 'true' : undefined" aria-describedby="pp-axle_front_kg-err">
-                    <p id="pp-axle_front_kg-err" class="form-field__error">{{ errors.axle_front_kg }}</p>
-                </div>
-                <div class="form-field">
-                    <label class="form-field__label" for="pp-axle_rear_kg">8.2 · zulässige Achslast hinten (kg)</label>
-                    <input id="pp-axle_rear_kg" v-model.number="form.axle_rear_kg" class="input" type="number" min="300" max="4000" inputmode="numeric" :aria-invalid="errors.axle_rear_kg ? 'true' : undefined" aria-describedby="pp-axle_rear_kg-err">
-                    <p id="pp-axle_rear_kg-err" class="form-field__error">{{ errors.axle_rear_kg }}</p>
-                </div>
-                <div class="form-field">
-                    <label class="form-field__label" for="pp-top_speed_kmh">T · Höchstgeschwindigkeit (km/h)</label>
-                    <input id="pp-top_speed_kmh" v-model.number="form.top_speed_kmh" class="input" type="number" min="60" max="420" inputmode="numeric" :aria-invalid="errors.top_speed_kmh ? 'true' : undefined" aria-describedby="pp-top_speed_kmh-err">
-                    <p id="pp-top_speed_kmh-err" class="form-field__error">{{ errors.top_speed_kmh }}</p>
+                <div v-for="field in FIELDS" :key="field.key" class="form-field">
+                    <label class="form-field__label" :for="`pp-${field.key}`">{{ field.label }}<span class="visually-hidden"> ({{ field.unit }})</span></label>
+                    <div class="input-group">
+                        <input
+                            :id="`pp-${field.key}`"
+                            v-model.number="form[field.key]"
+                            class="input"
+                            type="number"
+                            :min="field.min"
+                            :max="field.max"
+                            inputmode="numeric"
+                            :aria-invalid="errors[field.key] ? 'true' : undefined"
+                            :aria-describedby="`pp-${field.key}-err`"
+                        >
+                        <span class="input-group__suffix" aria-hidden="true" translate="no">{{ field.unit }}</span>
+                    </div>
+                    <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
                 </div>
             </div>
 
@@ -198,7 +218,8 @@ function clear(): void {
             </figure>
 
             <div class="pp__actions">
-                <button id="pp-save" class="btn btn--primary btn--sm" type="submit" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Werte übernehmen</button>
+                <!-- Secondary: „In den Warenkorb“ stays the page's one primary action. -->
+                <button id="pp-save" class="btn btn--secondary btn--sm" type="submit" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Werte übernehmen</button>
                 <button v-if="entered" class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="clear">Werte löschen</button>
             </div>
         </form>
@@ -207,42 +228,52 @@ function clear(): void {
 
 <style scoped>
 .pp {
-    margin-top: var(--space-3);
+    margin-block: var(--sp-16);
 }
 
 .pp__summary {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--sp-8);
     margin: 0;
-    font-size: var(--text-small);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
 }
 
+/* A surface, not a band: the chips, the notices and a disabled button are drawn in --c-band and
+   would vanish on it. */
 .pp__form {
     display: grid;
-    gap: var(--space-3);
-    padding: var(--space-3);
+    gap: var(--sp-16);
+    padding: var(--sp-16);
+    border: 1px solid var(--c-line);
     border-radius: var(--r-control);
-    background: var(--c-band);
+    background: var(--c-surface);
+}
+
+.pp__head {
+    display: grid;
+    gap: var(--sp-4);
 }
 
 .pp__title {
     margin: 0;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .pp__help,
 .pp__caption {
     margin: 0;
-    font-size: var(--text-small);
-    color: var(--ink2);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
 }
 
 .pp__scan {
     display: grid;
     justify-items: start;
-    gap: var(--space-2);
+    gap: var(--sp-8);
 }
 
 .pp__scan p {
@@ -251,8 +282,12 @@ function clear(): void {
 
 .pp__grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-16);
+}
+
+.pp .input-group .input {
+    padding-right: var(--sp-48);
 }
 
 .pp__form .form-field__error:empty {
@@ -261,7 +296,7 @@ function clear(): void {
 
 .pp__figure {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--sp-8);
     margin: 0;
     max-width: 360px;
 }
@@ -275,12 +310,36 @@ function clear(): void {
 .pp__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--sp-8);
 }
 
+/* On a phone the photo button takes the full width and its label wraps rather than overflowing. */
 @media (max-width: 767px) {
+    .pp__scan {
+        justify-items: stretch;
+    }
+
+    .pp__scan .btn {
+        white-space: normal;
+        text-wrap: balance;
+    }
+}
+
+/* Three fields side by side: label, field and error each on one line across the three, however
+   many lines a label takes. */
+@media (min-width: 768px) {
     .pp__grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        row-gap: var(--sp-4);
+    }
+
+    .pp__grid .form-field {
+        grid-row: span 3;
+        grid-template-rows: subgrid;
+    }
+
+    .pp__grid .form-field__label {
+        align-self: end;
     }
 }
 </style>

@@ -348,6 +348,8 @@ const TONE: Record<string, string | null> = {
         <section class="adm-section" aria-labelledby="gs-derating-h">
             <div class="adm-section__head">
                 <h2 id="gs-derating-h" class="adm-section__title">Tragfähigkeit bei hoher Geschwindigkeit</h2>
+                <!-- A table the demo seed wrote carries the same tag as every other demo row. -->
+                <span v-if="derating.seededFrom" class="adm-tag adm-tag--neutral">Demodaten</span>
             </div>
             <DeratingTable :document-id="document.id" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" />
         </section>

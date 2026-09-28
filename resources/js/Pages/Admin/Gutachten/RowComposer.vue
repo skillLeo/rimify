@@ -121,7 +121,13 @@ function hasVehicle(id: number): boolean {
 }
 
 function toggleVehicle(hit: VehicleHit): void {
-    chosenVehicles.value = hasVehicle(hit.id) ? chosenVehicles.value.filter((v) => v.id !== hit.id) : [...chosenVehicles.value, hit]
+    if (hasVehicle(hit.id)) {
+        chosenVehicles.value = chosenVehicles.value.filter((v) => v.id !== hit.id)
+        // „… ist angelegt und gewählt.“ is no longer true once that car is taken off.
+        adoptedId.value = adoptedId.value === hit.id ? null : adoptedId.value
+    } else {
+        chosenVehicles.value = [...chosenVehicles.value, hit]
+    }
 }
 
 function hasSize(id: number): boolean {
@@ -156,8 +162,14 @@ function modelLabel(group: WheelGroup): string {
     return group.partial ? `${group.model} – die ${n} gezeigten Größen` : `${group.model} – ${n === 1 ? 'die eine Größe' : `alle ${n} Größen`}`
 }
 
-/* A car just created from this document heads the list and is chosen: it was made for these rows. */
-const adopted = ref('')
+/* A car just created from this document heads the list and is chosen: it was made for these rows. The
+   line saying so goes when the rows are sent or the car is taken off again. */
+const adoptedId = ref<number | null>(null)
+const adopted = computed(() => {
+    const vehicle = chosenVehicles.value.find((v) => v.id === adoptedId.value)
+
+    return vehicle ? `${vehicle.label} ist angelegt und gewählt.` : ''
+})
 
 function adopt(vehicle: VehicleHit): void {
     vehicleHits.value = [vehicle, ...vehicleHits.value.filter((v) => v.id !== vehicle.id)]
@@ -166,7 +178,7 @@ function adopt(vehicle: VehicleHit): void {
         chosenVehicles.value = [...chosenVehicles.value, vehicle]
     }
 
-    adopted.value = `${vehicle.label} ist angelegt und gewählt.`
+    adoptedId.value = vehicle.id
 }
 
 /** What a vehicle still lacks for a verdict (R-03) — said once, not guessed per field. */
@@ -212,6 +224,7 @@ function submit(): void {
                 // The next entry is usually the next vehicle type with the same sizes: the sizes stay,
                 // and the keyboard goes back to the vehicle search.
                 chosenVehicles.value = []
+                adoptedId.value = null
                 form.value = { ...emptyRow(), tyre_sizes: form.value.tyre_sizes, source_page: form.value.source_page }
                 emit('done')
                 vehicleInput.value?.focus()

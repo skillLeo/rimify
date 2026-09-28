@@ -38,20 +38,16 @@ const sheetVisible = computed(() => consent.decided.value === null)
     >
         <ul class="consent__list">
             <li class="consent__row">
-                <div>
-                    <p class="consent__name">Notwendig</p>
-                    <p class="small muted">Warenkorb, gewähltes Fahrzeug, Sitzung, deine Cookie-Auswahl.</p>
-                </div>
+                <p class="consent__name">Notwendig</p>
                 <span class="small quiet consent__state">Immer aktiv</span>
+                <p class="small muted consent__what">Warenkorb, gewähltes Fahrzeug, Sitzung, deine Cookie-Auswahl.</p>
             </li>
             <li class="consent__row">
-                <div>
-                    <p class="consent__name">Funktional</p>
-                    <p class="small muted">
-                        Die Werte aus deiner Zulassungsbescheinigung (Achslasten und Höchstgeschwindigkeit), wenn du sie bei einem Fahrzeug einträgst – für bis zu fünf Fahrzeuge, ein Jahr lang.
-                    </p>
-                </div>
+                <p class="consent__name">Funktional</p>
                 <span class="small quiet consent__state">Nur nach Eingabe</span>
+                <p class="small muted consent__what">
+                    Die Werte aus deiner Zulassungsbescheinigung (Achslasten und Höchstgeschwindigkeit), wenn du sie bei einem Fahrzeug einträgst – für bis zu fünf Fahrzeuge, ein Jahr lang.
+                </p>
             </li>
         </ul>
         <template #actions>
@@ -109,13 +105,19 @@ const sheetVisible = computed(() => consent.decided.value === null)
     white-space: nowrap;
 }
 
+/* Name and state on one baseline, the description beneath across the full width: every row keeps the
+   same right edge, however long its description. */
 .consent__row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--sp-16);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: var(--sp-4) var(--sp-16);
     padding-top: var(--sp-16);
     border-top: 1px solid var(--c-line);
+}
+
+.consent__what {
+    grid-column: 1 / -1;
 }
 
 .consent__name {

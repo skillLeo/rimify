@@ -168,6 +168,17 @@
         border-right-color: transparent;
     }
 
+    /* Sending: busy AND disabled. The button keeps its own fill, so the spinner stays visible — the
+       disabled --c-band fill hid a --c-surface spinner, and on a band box the whole button with it. */
+    .btn--primary[aria-busy='true']:disabled {
+        background: var(--c-blue);
+    }
+
+    .btn--secondary[aria-busy='true']:disabled {
+        background: var(--c-surface);
+        border-color: var(--c-line-2);
+    }
+
     @keyframes spin {
         to {
             transform: rotate(360deg);

@@ -68,47 +68,74 @@ export function docSVG(variant: DocVariant = 'neu', options: DocOptions = {}): s
 </svg>`
 }
 
+/** A ringed field of the papers, or a greeked row (by its field number) between them. */
+type PapersRow = { label: string; value: string; name: string } | { greek: number }
+
 /**
- * `papersSVG` — the same document with the four fields the tyre check reads ringed (Block C, item 10): the
- * permitted axle loads front and rear (8.1, 8.2 — on the old Fahrzeugschein one field, Ziffer 16), the top
- * speed (T — old: Ziffer 6) and the power (P.2 — old: Ziffer 7). The values are placeholders the customer
- * reads past; the rings are what matters.
+ * `papersSVG` — the document with the fields the tyre check reads ringed (Block C, item 10): the permitted
+ * axle loads front and rear (8.1, 8.2 — on the old Fahrzeugschein one field, Ziffer 16), the top speed
+ * (T — old: Ziffer 6) and the power (P.2 — old: Ziffer 7). The values are placeholders the customer reads
+ * past; the rings are what matters.
+ *
+ * Drawn for the width it is shown at, 294 to 360 px: a 360-unit viewBox, so no text falls below 12 px at
+ * 294 px (15 units and up). The text takes the page's own face — no font-family of its own, which would
+ * fall back to Arial — at weights 500 and 600, never letter-spaced (the look review of Block C, §4).
  */
 export function papersSVG(variant: DocVariant = 'neu', options: DocOptions = {}): string {
-    const width = options.width ?? 560
+    const width = options.width ?? 360
     const id = idFor('papers', variant)
     const a11y = options.title
         ? `role="img" aria-label="${escapeAttr(options.title)}"`
         : 'role="presentation" aria-hidden="true"'
 
     const heading = variant === 'neu' ? 'Zulassungsbescheinigung Teil I' : 'Fahrzeugschein'
-    const fields: { y: number; label: string; value: string; name: string }[] = variant === 'neu'
+    const rowsOf: PapersRow[] = variant === 'neu'
         ? [
-            { y: 132, label: '8.1', value: '1.120', name: 'Achslast vorn' },
-            { y: 166, label: '8.2', value: '1.180', name: 'Achslast hinten' },
-            { y: 230, label: 'T', value: '250', name: 'km/h' },
-            { y: 294, label: 'P.2', value: '140', name: 'kW' },
+            { label: '8.1', value: '1.120', name: 'Achslast vorn' },
+            { label: '8.2', value: '1.180', name: 'Achslast hinten' },
+            { greek: 9 },
+            { label: 'T', value: '250', name: 'km/h' },
+            { greek: 11 },
+            { label: 'P.2', value: '140', name: 'kW' },
         ]
         : [
-            { y: 132, label: '6', value: '250', name: 'km/h' },
-            { y: 166, label: '7', value: '140', name: 'kW' },
-            { y: 262, label: '16', value: '1120 / 1180', name: 'Achslasten' },
+            { label: '6', value: '250', name: 'km/h' },
+            { label: '7', value: '140', name: 'kW' },
+            { greek: 12 },
+            { greek: 14 },
+            { label: '16', value: '1120 / 1180', name: 'Achslasten' },
         ]
 
-    const ringed = fields.map((f) => `
-  <rect x="40" y="${f.y - 18}" width="214" height="30" rx="4" fill="none" stroke="#1A44D4" stroke-width="2"/>
-  <text x="50" y="${f.y + 2}" font-family="Lato, Arial, sans-serif" font-size="11" font-weight="700" fill="#3C4A34">${escapeText(f.label)}</text>
-  <text x="84" y="${f.y + 3}" font-family="'IBM Plex Mono', monospace" font-size="14" font-weight="500" letter-spacing="1" fill="#0E1116">${escapeText(f.value)}</text>
-  <path d="M254 ${f.y - 3} H300" stroke="#1A44D4" stroke-width="1.5" fill="none"/>
-  <circle cx="302" cy="${f.y - 3}" r="3" fill="#1A44D4"/>
-  <text x="312" y="${f.y + 1}" font-family="Lato, Arial, sans-serif" font-size="12" font-weight="900" letter-spacing="0.6" fill="#1A44D4">${escapeText(f.name)}</text>`).join('')
+    const STEP = 48
+    const FIRST = 92
+    const height = FIRST + (rowsOf.length - 1) * STEP + 34
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 400" width="${width}" height="${Math.round((width * 400) / 560)}" ${a11y} focusable="false">
-  <rect x="20" y="16" width="520" height="368" rx="6" fill="#E8F0E2" stroke="#B9C9AE" stroke-width="1"/>
-  <text x="44" y="52" font-family="Lato, Arial, sans-serif" font-size="13" font-weight="700" fill="#3C4A34">${escapeText(heading)}</text>
-  <line x1="44" y1="64" x2="516" y2="64" stroke="#B9C9AE" stroke-width="1"/>
-  ${rows(id, fields.map((f) => f.y))}
-  ${ringed}
+    const drawn = rowsOf.map((row, i) => {
+        const y = FIRST + i * STEP
+
+        if ('greek' in row) {
+            // The document's other fields are not the customer's problem: shapes, not legible dummy data.
+            return `
+  <text x="30" y="${y}" font-size="15" font-weight="500" fill="#7C8C74">${row.greek}</text>
+  <rect x="66" y="${y - 11}" width="${80 + ((i * 29) % 40)}" height="10" rx="2" fill="#C9D8BF"/>
+  <rect x="210" y="${y - 11}" width="${70 + ((i * 23) % 50)}" height="10" rx="2" fill="#D6E2CD"/>`
+        }
+
+        return `
+  <rect x="20" y="${y - 24}" width="160" height="36" rx="4" fill="none" stroke="#1A44D4" stroke-width="2"/>
+  <text x="30" y="${y}" font-size="15" font-weight="600" fill="#3C4A34">${escapeText(row.label)}</text>
+  <text x="66" y="${y}" font-size="17" font-weight="500" fill="#0E1116">${escapeText(row.value)}</text>
+  <path d="M180 ${y - 6} H200" stroke="#1A44D4" stroke-width="1.5" fill="none"/>
+  <circle cx="202" cy="${y - 6}" r="3" fill="#1A44D4"/>
+  <text x="210" y="${y}" font-size="15" font-weight="600" fill="#1A44D4">${escapeText(row.name)}</text>`
+    }).join('')
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 ${height}" width="${width}" height="${Math.round((width * height) / 360)}" ${a11y} focusable="false">
+  <rect x="8" y="8" width="344" height="${height - 16}" rx="6" fill="#E8F0E2" stroke="#B9C9AE" stroke-width="1"/>
+  <text x="20" y="40" font-size="16" font-weight="600" fill="#3C4A34">${escapeText(heading)}</text>
+  <line x1="20" y1="52" x2="340" y2="52" stroke="#B9C9AE" stroke-width="1"/>
+  <g data-doc="${id}">${drawn}
+  </g>
 </svg>`
 }
 
