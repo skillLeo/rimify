@@ -138,6 +138,8 @@ final class AuditDescriber
         'condition.deleted' => 'gutachten',
         'vehicle.legal_data_updated' => 'fahrzeuge',
         'vehicle.created_from_document' => 'fahrzeuge',
+        'vehicle.merged_from_dataset' => 'fahrzeuge',
+        'vehicle.merge_applied' => 'fahrzeuge',
     ];
 
     /**
@@ -412,6 +414,15 @@ final class AuditDescriber
                 [self::change('Wortlaut', self::text($p, 'old_text') ?? self::NOTHING, self::text($p, 'text') ?? self::NOTHING)],
             ],
             'condition.deleted' => ['Die Auflage '.self::q(self::text($p, 'text') ?? 'ohne Text').' wurde gelöscht.', []],
+            'vehicle.merged_from_dataset' => [
+                'Das Fahrzeug '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurde aus dem Fahrzeugdatensatz ergänzt; nur leere Felder wurden gefüllt.',
+                [],
+            ],
+            'vehicle.merge_applied' => [
+                'Ein Fahrzeugdatensatz wurde zusammengeführt: '.(self::text($p, 'changed') ?? '0').' Fahrzeuge ergänzt, '
+                    .(self::text($p, 'ambiguous') ?? '0').' unklar, '.(self::text($p, 'new') ?? '0').' neu.',
+                [],
+            ],
             'vehicle.created_from_document' => [
                 'Das Fahrzeug '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurde aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer')
                     .(self::text($p, 'page') === null ? '' : ', Seite '.self::text($p, 'page')).' angelegt, mit der EG-Typgenehmigungsnummer '.self::q(self::text($p, 'eg') ?? '–').'; ohne HSN und TSN.',

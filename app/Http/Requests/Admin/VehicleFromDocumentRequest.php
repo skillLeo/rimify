@@ -9,6 +9,7 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\DocumentConditions;
+use App\Services\Admin\Vehicles\VehicleMerge;
 use App\Support\VehicleName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -90,10 +91,13 @@ class VehicleFromDocumentRequest extends FormRequest
     /** A car that already carries this EG number and Fahrzeugtyp — the same car, never a second one. */
     private function twin(): ?Vehicle
     {
-        $norm = Vehicle::normaliseEcNumber($this->string('eg_number')->toString());
+        $norm = (string) Vehicle::normaliseEcNumber($this->string('eg_number')->toString());
+        $parts = explode('*', $norm);
+        // `…*0563*..` and `…*0563` are the same statement; a named extension (`…*0563*11`) is its own.
+        $named = count($parts) >= 4 && preg_match('/^\d+$/', $parts[3]) === 1;
 
         return Vehicle::query()
-            ->where('eg_nummer_norm', $norm)
+            ->whereIn('eg_nummer_norm', $named ? [$norm] : VehicleMerge::egKeys($norm))
             ->where('type_designation', trim($this->string('type_designation')->toString()))
             ->where('source', '!=', VehicleSource::Entwicklung->value)
             ->first();

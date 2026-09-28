@@ -84,7 +84,13 @@ it('refuses the same car twice and names the one that is there', function (): vo
         ->assertUnprocessable()
         ->assertJsonPath('errors.eg_number.0', 'Dieses Fahrzeug gibt es schon: BMW 4er Coupé 3C. Such es in der Liste oben und wähl es dort.');
 
-    expect(Vehicle::query()->where('source', 'gutachten')->count())->toBe(1);
+    // Without the extension it is the same statement; with a named one it is a narrower, different car.
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", vfdCar(['eg_number' => 'e1*2007/46*0563']))
+        ->assertUnprocessable();
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", vfdCar(['eg_number' => 'e1*2007/46*0563*11']))
+        ->assertCreated();
+
+    expect(Vehicle::query()->where('source', 'gutachten')->count())->toBe(2);
 });
 
 it('refuses, in words, what the document cannot have said', function (array $overrides, string $field, string $message): void {

@@ -60,8 +60,11 @@ seeder, test to follow).
 - [x] 6 · The 74 development cars: references reported (STATUS, `1ca5a2d4`), `entwicklung` + `is_demo` +
       `demo_ref`, covered by `demo:purge` / `demo:assert-clean`, BUGS.md DATA-01 at S1 — `7f9446a5`,
       `fce5bdfb` (before this brief; `docs/qa/` is kept out of git, so BUGS.md lives in the working copy)
-- [ ] 7 · „Fahrzeug aus diesem Gutachten anlegen“ in step 5, `quelle = gutachten` with document and page
-- [ ] 8 · The later merge path: EG number + Fahrzeugtyp, dry-run diff, never duplicates or breaks a released row
+- [x] 7 · „Fahrzeug aus diesem Gutachten anlegen“ in step 5, `quelle = gutachten` with document and page —
+      `58d4a199` (HSN/TSN nullable and paired; „HSN/TSN noch nicht hinterlegt“, never „0000“)
+- [x] 8 · The later merge path: EG number + Fahrzeugtyp, dry-run diff, never duplicates or breaks a released row
+      — `vehicles:merge` (see the commit after `58d4a199`); a `..` extension covers every extension, several
+      dataset cars for one car wait for a person
 - [x] 9 · R-03 split: wheel verdict from type and kW band, tyre verdict CONDITIONAL without axle loads and top
       speed, combined never PERMITTED while the tyre part is open; R-03 amended in CLAUDE.md with the hash —
       `9cd02ace`; the operator's two reviews in `d40b49c8` (the decision in whole numbers, the rows pinned,
