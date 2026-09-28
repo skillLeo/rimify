@@ -560,7 +560,8 @@ final readonly class FitmentResolver
             // The first line of a failing axle is the reason; keep it first.
             usort($lines, static fn (string $a, string $b): int => (int) str_starts_with($b, '!') <=> (int) str_starts_with($a, '!'));
 
-            return new TyreCheck($status, array_map(static fn (string $l): string => ltrim($l, '!'), $lines), $thresholds, true);
+            // A sentence both axles give — „Das Gutachten druckt keine Tabelle …“ — is said once.
+            return new TyreCheck($status, array_values(array_unique(array_map(static fn (string $l): string => ltrim($l, '!'), $lines))), $thresholds, true);
         }
 
         // Four identical tyres meet the stricter axle, and the line says which one bound.

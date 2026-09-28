@@ -89,6 +89,11 @@ final readonly class Basket
     /** UNKNOWN is not NOT_PERMITTED (R-07): a car with no Gutachten on file is not told it is unapproved. */
     public const WHEEL_UNKNOWN = 'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Schreib uns, dann prüfen wir das für dich.';
 
+    /** The wheel is approved, the tyres are not settled: the rim is not sold until they are (fail closed). */
+    public const TYRES_UNKNOWN = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Deshalb verkaufen wir dir die Felge noch nicht – schreib uns, dann prüfen wir das für dich.';
+
+    public const TYRES_NOT_PERMITTED = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Deshalb verkaufen wir dir die Felge nicht.';
+
     public const WHEEL_SOLD_OUT = 'Diese Größe ist derzeit ausverkauft.';
 
     public const TYRE_GONE = 'Diesen Reifen gibt es nicht mehr.';
@@ -320,6 +325,11 @@ final readonly class Basket
         // Selected on the status, never through one "not sellable" branch (R-07): only
         // NOT_PERMITTED means "we checked and your car may not have this".
         if ($verdict !== null && ! $verdict->isSellable()) {
+            // The wheel approved and the tyres not (R-03 split): said as it is, never „kein Gutachten“.
+            if (in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true)) {
+                return $verdict->status === VerdictStatus::NotPermitted ? self::TYRES_NOT_PERMITTED : self::TYRES_UNKNOWN;
+            }
+
             return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;
         }
 

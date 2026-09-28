@@ -11,6 +11,7 @@ import { signIn, waitForApp } from './bugs/faq-support'
  *   2  Katalog › Felgen: the imported Felge → Veröffentlichen
  *   3  Gutachten › Neues Gutachten: the PDF, Art, KBA-Nummer, pages
  *   4  Verwendungsbereich: vehicle × size, tyre size, an Auflage from the Katalog, the page
+ *  4b  Its table of tyre load at speed (without one, no tyre above 210 km/h is confirmed)
  *   5  Vorschau: what the shop will answer, by the shop's own check
  *   6  Freigeben
  *   7  Shop: the car by HSN/TSN
@@ -191,6 +192,32 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     const keys = { name: match![1]!, hsn: match![2]!, tsn: match![3]! }
     await shot(page, '04-verwendungsbereich')
 
+    // ── 4b · Its table of tyre load at speed ──────────────────────────────────────────────────
+    // A document carries its own table, or the shop cannot confirm tyres above 210 km/h (the C9 reviews).
+    // The stand-in's table is typed like any other — the usual shape, as placeholder figures.
+    const tableButton = page.locator('#dt-edit')
+
+    if (draft && (await tableButton.textContent())?.includes('Tabelle eintragen')) {
+        await tableButton.click()
+        await page.locator('#dt-page').fill(String(PAGE))
+
+        const printed: Record<string, string[]> = {
+            V: ['100', '97', '94', '91', '–', '–', '–', '–', '–', '–'],
+            W: ['100', '100', '100', '100', '95', '90', '85', '–', '–', '–'],
+            Y: ['100', '100', '100', '100', '100', '100', '100', '95', '90', '85'],
+        }
+
+        for (const [symbol, cells] of Object.entries(printed)) {
+            for (const [i, cell] of cells.entries()) {
+                await page.locator(`#dt-cell-${i}-${symbol}`).fill(cell)
+            }
+        }
+
+        await page.locator('#dt-save').click()
+        await expect(page.locator('#dt-edit')).toContainText('Tabelle ändern', { timeout: 20_000 })
+        await shot(page, '04b-tragfaehigkeitstabelle')
+    }
+
     // ── 5 · Vorschau ──────────────────────────────────────────────────────────────────────
     await page.getByRole('button', { name: 'Vorschau zeigen' }).click()
     await expect(page.locator('.gs-verdict').first()).toBeVisible({ timeout: 20_000 })
@@ -207,6 +234,9 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
 
     await page.goto(documentUrl, { waitUntil: 'networkidle' })
     await waitForApp(page)
+    // Said here rather than as a disabled button in the shop: a released Gutachten without its table cannot
+    // confirm tyres above 210 km/h, and a released one can no longer be given a table.
+    await expect(page.locator('.dt-table'), 'the Gutachten was released without a table of tyre load at speed').toBeVisible()
     await shot(page, '06-freigegeben')
 
     // ── 7 · Shop: the car by HSN/TSN ──────────────────────────────────────────────────────

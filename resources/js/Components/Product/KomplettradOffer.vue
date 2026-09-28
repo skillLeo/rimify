@@ -48,10 +48,13 @@ const refusal = computed(() => {
 })
 
 /*
- * Which routes forward fit the refusal. A missing car is answered with the selector; a wheel the
- * document forbids is not answered with "buy the rim anyway"; everything else leaves the Felgen
- * purchase open and offers a person to write to.
+ * Which routes forward fit the refusal. A missing car is answered with the selector; a verdict that does
+ * not sell the rim either — forbidden, unknown, restored, or the tyres not settled — is not answered with
+ * "buy the rim anyway", which would lead to a button that cannot be pressed; everything else leaves the
+ * Felgen purchase open and offers a person to write to.
  */
+const RIM_NOT_SOLD: readonly string[] = ['VERDICT_NOT_PERMITTED', 'VERDICT_UNKNOWN', 'VERDICT_RESTORED', 'TYRES_UNKNOWN', 'TYRES_NOT_PERMITTED']
+
 const forward = computed(() => {
     const code = props.offer?.refusalCode ?? null
     const vehicle = code === 'NO_VEHICLE' || code === 'VERDICT_RESTORED'
@@ -59,7 +62,7 @@ const forward = computed(() => {
     return {
         vehicle,
         contact: code !== 'NO_VEHICLE',
-        wheelsOnly: code !== 'VERDICT_NOT_PERMITTED' && code !== 'VERDICT_RESTORED',
+        wheelsOnly: code === null || !RIM_NOT_SOLD.includes(code),
     }
 })
 

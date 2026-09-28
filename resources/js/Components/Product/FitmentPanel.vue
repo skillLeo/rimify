@@ -142,7 +142,8 @@ const headline = computed(() => {
                 <p class="data">{{ verdict.tyreSizes.join(' · ') }}</p>
             </div>
 
-            <p v-if="verdict.reason" class="fit__reason">{{ verdict.reason }}</p>
+            <!-- Said once: a reason the tyre lines above already give is not repeated here. -->
+            <p v-if="verdict.reason && !(verdict.tyre?.lines ?? []).includes(verdict.reason)" class="fit__reason">{{ verdict.reason }}</p>
 
             <p v-if="documentLine" class="fit__doc">
                 <Icon name="document" :size="20" />

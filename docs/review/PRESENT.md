@@ -53,7 +53,8 @@ TÜV Austria) druckt keine eigene Tabelle zur Tragfähigkeit der Reifen bei hohe
 19-Zoll-ABE 55255 hat sie auf Seite 6. Für ein Fahrzeug bis 210 km/h spielt das keine Rolle. Fährt es
 schneller und sind 8.1, 8.2 und T eingetragen, steht bei **Reifen** „Keine Freigabe hinterlegt“ mit dem
 Satz: „Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit. Für … km/h können
-wir die Reifen deshalb nicht bestätigen.“ Die Felge selbst bleibt freigegeben. RIMIFY leiht sich die Tabelle
+wir die Reifen deshalb nicht bestätigen.“ Die Felge selbst bleibt freigegeben, verkauft wird sie für so ein
+Fahrzeug aber erst, wenn die Reifen bestätigt sind – lieber ein verpasster Verkauf als eine falsche Antwort. RIMIFY leiht sich die Tabelle
 nie aus einem anderen Dokument. Schick uns die Seite, falls es sie zum Nachtrag gibt – dann tragen wir sie
 ein, und die Antwort wird eindeutig.
 

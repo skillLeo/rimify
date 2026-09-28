@@ -123,9 +123,12 @@ final readonly class TyreEligibility
             return KomplettradRefusal::VerdictUnknown;
         }
 
+        // Since R-03 was split the wheel can be approved while the tyres are not: the sentence names the
+        // half that refused, and never says „kein Gutachten“ about a car the document names.
+        $wheelApproved = in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true);
         $byStatus = match ($verdict->status) {
-            VerdictStatus::NotPermitted => KomplettradRefusal::VerdictNotPermitted,
-            VerdictStatus::Unknown => KomplettradRefusal::VerdictUnknown,
+            VerdictStatus::NotPermitted => $wheelApproved ? KomplettradRefusal::TyresNotPermitted : KomplettradRefusal::VerdictNotPermitted,
+            VerdictStatus::Unknown => $wheelApproved ? KomplettradRefusal::TyresUnknown : KomplettradRefusal::VerdictUnknown,
             VerdictStatus::Permitted, VerdictStatus::Conditional => null,
         };
 

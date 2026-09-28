@@ -380,7 +380,8 @@ it('states no minimum for a symbol the derating table does not list, and offers 
         ->and($verdict->front->minLoadIndex)->toBeNull()
         ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBe(KomplettradRefusal::VerdictUnknown)
+        // The wheel is approved; only the tyres are open — never „kein Gutachten“ (R-03 split).
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBe(KomplettradRefusal::TyresUnknown)
         ->and(eligibilityOver()->minimumSentenceDe($verdict))->toBeNull();
 });
 

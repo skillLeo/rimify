@@ -384,6 +384,8 @@ export type KomplettradRefusalCode =
     | 'NO_VEHICLE'
     | 'VERDICT_NOT_PERMITTED'
     | 'VERDICT_UNKNOWN'
+    | 'TYRES_UNKNOWN'
+    | 'TYRES_NOT_PERMITTED'
     | 'VERDICT_RESTORED'
     | 'NO_PERMITTED_SIZES'
     | 'NO_USABLE_MINIMUM'
