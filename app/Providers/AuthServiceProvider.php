@@ -8,6 +8,7 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Models\Brand;
 use App\Models\CatalogueImport;
 use App\Models\ConditionCode;
 use App\Models\DemandMark;
@@ -24,6 +25,7 @@ use App\Models\WheelModel;
 use App\Policies\AdminNotificationPolicy;
 use App\Policies\ApprovalDocumentPolicy;
 use App\Policies\BalanceWeightColourPolicy;
+use App\Policies\BrandPolicy;
 use App\Policies\CatalogueImportPolicy;
 use App\Policies\ConditionCodePolicy;
 use App\Policies\DemandMarkPolicy;
@@ -81,6 +83,7 @@ final class AuthServiceProvider extends ServiceProvider
         // Not a model: a PDF upload before its row exists (PdfUpload).
         PdfUpload::class => DocumentUploadPolicy::class,
         WheelModel::class => WheelModelPolicy::class,
+        Brand::class => BrandPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,
         ApprovalDocument::class => ApprovalDocumentPolicy::class,
         ConditionCode::class => ConditionCodePolicy::class,

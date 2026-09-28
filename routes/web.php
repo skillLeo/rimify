@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
+use App\Http\Controllers\Admin\MarkenController;
 use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
@@ -321,6 +322,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/felgen/{model}/ausfuehrungen/{finish}/foto', [AdminFelgenController::class, 'removeImage'])
             ->whereNumber(['model', 'finish'])
             ->name('felgen.foto.entfernen');
+
+        // Katalog › Marken: every brand, its place on the brand wall and its logo (BrandPolicy through the
+        // Form Requests; the logo read from its bytes, an SVG reduced to drawing — BrandLogoStore).
+        Route::get('/marken', [MarkenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':catalogue,view')
+            ->name('marken.index');
+        Route::post('/marken', [MarkenController::class, 'store'])->name('marken.store');
+        Route::put('/marken/{brand}', [MarkenController::class, 'update'])->whereNumber('brand')->name('marken.update');
+        Route::delete('/marken/{brand}', [MarkenController::class, 'destroy'])->whereNumber('brand')->name('marken.destroy');
+        Route::post('/marken/{brand}/logo', [MarkenController::class, 'logo'])->whereNumber('brand')->middleware('throttle:30,1')->name('marken.logo');
+        Route::delete('/marken/{brand}/logo', [MarkenController::class, 'removeLogo'])->whereNumber('brand')->name('marken.logo.entfernen');
 
         // Katalog › Import: a supplier feed, mapped, checked in a Probelauf, then imported — and taken
         // back whole if it was wrong (CatalogueImportPolicy).

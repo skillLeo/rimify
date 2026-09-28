@@ -469,6 +469,17 @@ describe('putting every entry into words', function (): void {
             'wheel.restored' => [['name' => 'Nordfelge Fjord'], 'Die Felge „Nordfelge Fjord“ wurde aus dem Archiv geholt; sie ist wieder ein Entwurf.', []],
             'wheel.image_uploaded' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Für die Felge „Nordfelge Fjord“ in „Graphit matt“ wurde ein Foto hochgeladen.', []],
             'wheel.image_removed' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Das Foto der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde entfernt.', []],
+            'wheel.images_reordered' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Die Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurden neu geordnet.', []],
+            'wheel.image_relabelled' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Der Alternativtext eines Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde geändert.', []],
+            'brand.created' => [['name' => 'Borbet'], 'Die Marke „Borbet“ wurde angelegt.', []],
+            'brand.updated' => [
+                ['old' => ['name' => 'Borbet', 'is_wheel_brand' => false, 'sort_order' => 3], 'new' => ['name' => 'BORBET', 'is_wheel_brand' => true, 'sort_order' => 3]],
+                'Die Marke „BORBET“ wurde geändert.',
+                ['Name: Borbet → BORBET', 'Auf der Markenwand: nein → ja'],
+            ],
+            'brand.logo_changed' => [['name' => 'Borbet'], 'Das Logo der Marke „Borbet“ wurde gespeichert.', []],
+            'brand.logo_removed' => [['name' => 'Borbet'], 'Das Logo der Marke „Borbet“ wurde entfernt.', []],
+            'brand.deleted' => [['name' => 'Borbet'], 'Die Marke „Borbet“ wurde entfernt.', []],
             'catalogue.imported' => [
                 ['file' => 'lieferant.csv', 'summary' => ['create' => 12, 'update' => 1, 'refused' => 2]],
                 'Die Datei „lieferant.csv“ wurde in den Katalog importiert: 12 neue Größen, 1 geänderte Größe, 2 abgelehnt.',

@@ -41,7 +41,8 @@ final class ReviewBoard
         ['key' => 'katalog', 'label' => 'Katalog', 'screens' => [
             ['label' => 'Felgen', 'href' => '/admin/felgen', 'state' => self::DONE, 'line' => 'Liste mit Freigaben je Größe; Anlegen mit Ausführungen, Fotos und Größen-Matrix; Veröffentlichen nach Freigabe-Check.'],
             ['label' => 'Import', 'href' => '/admin/katalog/import', 'state' => self::DONE, 'line' => 'Lieferantendatei (CSV oder Excel) zuordnen, im Probelauf prüfen, importieren und zurücknehmen.'],
-            ['label' => 'Reifen, Marken, Bestände', 'href' => null, 'state' => self::MISSING, 'line' => 'Reifen und Marken pflegen, Bestände über alle Felgen.'],
+            ['label' => 'Marken', 'href' => '/admin/marken', 'state' => self::DONE, 'line' => 'Jede Marke mit Namen, Platz auf der Markenwand und Logo – hochgeladen als SVG, PNG oder WebP, geprüft vor dem Speichern.'],
+            ['label' => 'Reifen, Bestände', 'href' => null, 'state' => self::MISSING, 'line' => 'Reifen pflegen, Bestände über alle Felgen.'],
         ]],
         ['key' => 'gutachten', 'label' => 'Gutachten', 'screens' => [
             ['label' => 'Dokumente', 'href' => '/admin/gutachten', 'state' => self::DONE, 'line' => 'PDF hochladen, Verwendungsbereich für Fahrzeuge × Größen eintragen, Vorschau im Shop, Freigeben.'],

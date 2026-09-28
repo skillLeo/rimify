@@ -103,6 +103,13 @@ final class AuditDescriber
         'wheel.restored' => 'katalog',
         'wheel.image_uploaded' => 'katalog',
         'wheel.image_removed' => 'katalog',
+        'wheel.images_reordered' => 'katalog',
+        'wheel.image_relabelled' => 'katalog',
+        'brand.created' => 'katalog',
+        'brand.updated' => 'katalog',
+        'brand.logo_changed' => 'katalog',
+        'brand.logo_removed' => 'katalog',
+        'brand.deleted' => 'katalog',
         'catalogue.imported' => 'katalog',
         'catalogue.import_rolled_back' => 'katalog',
         'approval.created' => 'gutachten',
@@ -336,6 +343,13 @@ final class AuditDescriber
             'wheel.restored' => ['Die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde aus dem Archiv geholt; sie ist wieder ein Entwurf.', []],
             'wheel.image_uploaded' => ['Für die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde ein Foto hochgeladen.', []],
             'wheel.image_removed' => ['Das Foto der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde entfernt.', []],
+            'wheel.images_reordered' => ['Die Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurden neu geordnet.', []],
+            'wheel.image_relabelled' => ['Der Alternativtext eines Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde geändert.', []],
+            'brand.created' => ['Die Marke '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde angelegt.', []],
+            'brand.updated' => ['Die Marke '.self::q(self::text(self::map($p, 'new'), 'name') ?? 'ohne Namen').' wurde geändert.', self::brandChanges($p)],
+            'brand.logo_changed' => ['Das Logo der Marke '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde gespeichert.', []],
+            'brand.logo_removed' => ['Das Logo der Marke '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde entfernt.', []],
+            'brand.deleted' => ['Die Marke '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde entfernt.', []],
             'catalogue.imported' => [self::imported($p, 'Die Datei '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde in den Katalog importiert'), []],
             'catalogue.import_rolled_back' => ['Der Import der Datei '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde zurückgenommen.', []],
             'approval.created' => ['Das Dokument '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde als Entwurf angelegt.', []],
@@ -829,6 +843,35 @@ final class AuditDescriber
         foreach (self::FIELDS as $key => [$label]) {
             if (array_key_exists($key, $p) && $key !== 'name_de' && $key !== 'label') {
                 $changes[] = self::change($label, self::NOTHING, self::value($key, $p[$key]));
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * A brand's name, its place on the brand wall and its position, before and after.
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return list<Change>
+     */
+    private static function brandChanges(array $p): array
+    {
+        $old = self::map($p, 'old');
+        $new = self::map($p, 'new');
+        $wall = static fn (mixed $value): string => $value === null ? self::NOTHING : ((bool) $value ? 'ja' : 'nein');
+        $changes = [];
+
+        foreach ([
+            'name' => ['Name', static fn (mixed $value): string => is_string($value) && $value !== '' ? $value : self::NOTHING],
+            'is_wheel_brand' => ['Auf der Markenwand', $wall],
+            'sort_order' => ['Position', static fn (mixed $value): string => is_numeric($value) ? (string) (int) $value : self::NOTHING],
+        ] as $key => [$label, $show]) {
+            $before = $show($old[$key] ?? null);
+            $after = $show($new[$key] ?? null);
+
+            if (array_key_exists($key, $new) && $before !== $after) {
+                $changes[] = self::change($label, $before, $after);
             }
         }
 
