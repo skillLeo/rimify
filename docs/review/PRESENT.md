@@ -60,8 +60,10 @@ Den Stand jeder einzelnen Seite zeigt im Admin **Review › Stand der Seiten**. 
 - **Übersicht** je Rolle, **Nachfrage** (gesuchte Fahrzeuge ohne Felge).
 - **Verkauf:** Bestellungen mit Suche, Filtern, gespeicherten Ansichten, Export und Prüfnachweis je Position;
   Anfragen.
-- **Katalog:** Felgen anlegen und pflegen (Ausführungen, Fotos, Größen-Matrix, Freigabe-Check), Import mit
-  Probelauf und Rücknahme.
+- **Katalog:** Felgen anlegen und pflegen (Ausführungen, bis zu zwölf Fotos je Farbe in selbst gewählter
+  Reihenfolge, Größen-Matrix, Freigabe-Check); **Marken** mit Logo-Upload für die Markenwand; Import mit
+  Probelauf und Rücknahme, der sich die Spalten-Zuordnung je Lieferant merkt und abgelehnte Zeilen als
+  CSV zum Korrigieren ausgibt.
 - **Gutachten:** Dokumente mit Verwendungsbereich, Vorschau und Freigabe; Auflagen-Katalog; Abdeckung.
 - **Fahrzeuge:** Liste, Suche nach HSN/TSN, „Zur Prüfung“ für unvollständige Fahrzeugdaten.
 - **Inhalte:** Seiten, FAQ, Navigation.
@@ -71,12 +73,15 @@ Den Stand jeder einzelnen Seite zeigt im Admin **Review › Stand der Seiten**. 
 
 - **Echte Zahlung** (Stripe) – als Nächstes; bis dahin nur die Testzahlung.
 - **Bestellung bearbeiten:** Status, Versand, Rechnung, Erstattung. Die Rechnung als PDF gibt es noch nicht.
-- **Kunden** als eigene Seite; **Reifen, Marken, Bestände** als eigene Seiten.
+- **Kunden** als eigene Seite; **Reifen** und **Bestände** als eigene Seiten.
 - **Konflikte zwischen Gutachten:** werden beim Freigeben schon erkannt und gemeldet; die Seite zum Klären folgt.
 - **Fahrzeugdaten einspielen** (neue Fahrzeuge aus der KBA-Liste), **Medien** für Seiten, **Warteschlange**
   einsehen, **Auswertungen**, die Shop-Einstellungen **Allgemein, Versand, Zahlung, Rechtstexte**.
 - **Von dir:** der Lieferanten-Katalog, die Gutachten-PDFs, die Rechtstexte und die Zugänge für Zahlung
-  und E-Mail.
+  und E-Mail – und die Wahl eines **Fahrzeugdatensatzes**. Die Gutachten nennen Fahrzeuge über die
+  EG-Typgenehmigungsnummer, nicht über HSN/TSN; die Brücke dazwischen ist ein Datensatz, den es zu kaufen gilt
+  (KBA, TecDoc oder DAT/GT Motive). Frag jeden Anbieter nach einer Probe mit HSN, TSN und EG-Nummer samt
+  Erweiterung.
 
 ## Die Rückmeldung
 
