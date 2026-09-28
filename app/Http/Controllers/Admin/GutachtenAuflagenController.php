@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\DocumentConditionBatchRequest;
+use App\Http\Requests\Admin\DocumentConditionRequest;
+use App\Models\ApprovalDocument;
+use App\Models\DocumentCondition;
+use App\Services\Admin\Approvals\DocumentConditions;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Step 4 of the entry flow: a Gutachten's own Auflagenverzeichnis, written while the document is a draft.
+ * Every write is authorised by ApprovalDocumentPolicy through its Form Request (R-11) and leaves one
+ * Protokoll entry (DocumentConditions).
+ */
+class GutachtenAuflagenController extends Controller
+{
+    public const ADDED = 'Code gespeichert.';
+
+    public const CHANGED = 'Gespeichert.';
+
+    public const REMOVED = 'Code entfernt.';
+
+    public function __construct(private readonly DocumentConditions $conditions) {}
+
+    public function store(DocumentConditionRequest $request, ApprovalDocument $document): RedirectResponse
+    {
+        $this->conditions->create($document, $request->payload(), $request->admin());
+
+        return back()->with('toast', self::ADDED);
+    }
+
+    /** A pasted legend, split in the browser and classified by a person: stored as one batch or not at all. */
+    public function batch(DocumentConditionBatchRequest $request, ApprovalDocument $document): RedirectResponse
+    {
+        $entries = $request->entries();
+
+        DB::transaction(function () use ($entries, $document, $request): void {
+            foreach ($entries as $entry) {
+                $this->conditions->create($document, $entry, $request->admin());
+            }
+        });
+
+        return back()->with('toast', count($entries) === 1 ? '1 Code gespeichert.' : count($entries).' Codes gespeichert.');
+    }
+
+    public function update(DocumentConditionRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
+    {
+        $this->conditions->update($condition, $request->payload(), $request->admin());
+
+        return back()->with('toast', self::CHANGED);
+    }
+
+    public function destroy(DocumentConditionRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
+    {
+        $this->conditions->delete($condition, $request->admin());
+
+        return back()->with('toast', self::REMOVED);
+    }
+}

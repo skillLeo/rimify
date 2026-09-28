@@ -64,6 +64,38 @@ export interface FitmentRowView {
     draft: boolean
 }
 
+/** One entry of this document's own Auflagenverzeichnis (document_conditions). */
+export interface DocumentConditionView {
+    id: number
+    code: string
+    kind: string
+    kindLabel: string
+    /** Where the customer reads it: Abnahme, Arbeiten am Fahrzeug, Befestigung, Reifen, Hinweise, Fahrzeug. */
+    section: string
+    text: string
+    page: number | null
+    bodyForms: string[]
+    drive: { mode: 'only' | 'not'; drive: string } | null
+    maxAxleLoadKg: number | null
+    axle: 'FRONT' | 'REAR' | null
+    /** Rows and tyre sizes of this document that carry the code. */
+    uses: number
+}
+
+/** The choices of the Auflagenverzeichnis form. */
+export interface ConditionChoices {
+    kinds: { value: string; label: string; section: string }[]
+    bodyForms: string[]
+    drives: string[]
+}
+
+/** A code a row carries that its document does not define: the row is UNKNOWN until it is defined. */
+export interface UnresolvedCode {
+    code: string
+    rows: number
+}
+
+/** @deprecated kept for the row form until it reads DocumentConditionView */
 export interface ConditionOption {
     id: number
     code: string
