@@ -21,11 +21,34 @@ Remaining, in the order the user set on 2026-09-28 (then the Stripe brief, with 
 2. [x] Example catalogue: demo, goes with `demo:purge` (decision below)
 3. [x] Money sweep — `Money` in PHP, one `formatMoney` in JS, `MoneyDisplayTest` over nine surfaces (the invoice
       PDF is not built; decision below)
-4. [ ] Mobile suite: cause found and fixed, then three clean runs in a row
+4. [x] Mobile suite: cause found and fixed (multi-worker server `scripts/e2e/serve.mjs`, `28d2d633` + `f6694522`),
+      then three clean runs in a row (97 passed, 57 skipped by viewport design, each time)
 5. [ ] Coverage with pcov, the number in this ledger
-6. [ ] Review-kit proofs: a feedback row with its screenshot, three accounts visibly different, `review:report` → OPEN-POINTS.md
-7. [ ] `docs/launch/GO-LIVE.md` and `docs/review/PRESENT.md`
-8. [ ] `COMPLIANCE.md` complete, every row answered, row 13's foreign keys written out
+6. [x] Review-kit proofs — `af0ef57c`: three accounts visibly different (`ReviewKitTest`, `docs/review/roles/`);
+      `16249b5a`: `review:report` → `docs/review/OPEN-POINTS.md` (0 of 7 open on dev; all seven were the e2e spec's own)
+7. [x] `docs/launch/GO-LIVE.md` (`08ada467`, `7f9446a5`, `fce5bdfb`) and `docs/review/PRESENT.md` (`af0ef57c`, `a809a0ec`)
+      — GO-LIVE §7's timings wait for the rollback rehearsal (below)
+8. [x] `COMPLIANCE.md` complete — `16249b5a`: 31 of 32 erledigt, row 14 deliberate (CLAUDE.md outside git),
+      row 13 RESTRICT pinned by `0e472447`, row 21 history scan clean (261 commits)
+9. [ ] Rollback rehearsal, timed, GO-LIVE §7 filled in
+10. [ ] Final gates: full Pest, Vitest, lint, types, Larastan, Pint; the device lab once
+
+**The corrections memo (2026-09-28), §7's order:**
+
+- [x] §6 test cars — `7f9446a5` (seeder guard), `fce5bdfb`: `vehicles.source` + the R-12 demo pair
+      (`trg_veh_demo_fixed`); `demo:purge` hides them (soft delete — R-04 wins over R-12's "no demo rows" for
+      vehicles, decision below), refuses while a real Gutachten names one; DocumentRelease refuses a row on a car
+      not from an import, in production without exception. BUGS.md DATA-01 (S1). What referenced them: 3 746
+      fitment rows on 73 cars, 763 orders (738 demo), 777 snapshots (738 demo), 174 demand events, 1 conflict.
+- [x] §8 HSN/TSN at the top of BLOCKED.md — `a876e4cc`; DATA-CONFLICTS.md for the Borbet documents
+- [x] Katalog › Marken with logo upload — `b9df9b1e`, `161cf294`
+- [x] Several photos per colour (COMPLIANCE row 23) — `2748ac22`, `161cf294`
+- [x] Import mapping per supplier + refused-lines CSV (row 25) — `0629548c`
+- [ ] The remaining launch-release items (5, 9, 10 above)
+- [ ] Corrections §1–§4 and the Borbet golden record (per-document Auflagen, derived Eintragung, per-document
+      verdicts with conflicts as UNKNOWN, Nachtrag/EG-Typgenehmigung and the header fields), then both documents
+      entered through the admin and released by a human
+- [ ] Stripe (test keys only)
 - [x] **Guards (added 2026-09-28)** — `php artisan secrets:scan` (working tree, `--staged`, `--history`, paths; nine
       shapes; masked to the last four) + `.githooks/pre-commit` (installed by `composer install`, proven to refuse a
       staged key) + in `composer verify`; the whole history scanned: **no credential** (247 commits, 2 020 481 added
@@ -170,6 +193,20 @@ Cross-cutting, built inside the milestones that need them:
 
 ## Decisions
 
+- **2026-09-28 · R-04 over R-12 for the development cars.** R-12's production has no demo rows; R-04 never
+  deletes a vehicle. `demo:purge` soft-deletes the demo cars (hidden from every reader, the next development
+  seed brings them back) and `demo:assert-clean` counts only the ones still shown. `fce5bdfb`.
+- **2026-09-28 · The release rule outside production (deviation, for the user to confirm).** The memo's §6 says a
+  car with a non-authoritative TSN can *never* be named by a released Gutachten. In production that holds without
+  exception. Outside production the development cars (`is_demo`) stand in for the import, because there is no
+  imported car yet and every release flow (the golden record, the Gutachten e2e) would stop; a non-demo car of no
+  stated origin is refused everywhere. With the Borbet model (vehicle rows as the document names them, no TSN)
+  this may tighten to "a car that carries a TSN not from an import is refused everywhere".
+- **2026-09-28 · An uploaded photo's address is root-relative on the site's own disk.** An absolute APP_URL
+  address broke under another name of the same site (the CSP's `'self'`); a bucket address stays absolute and is
+  named in the CSP as before. `161cf294`.
+- **2026-09-28 · Supplier names group case-insensitively.** Two spellings of one supplier are one suggestion and
+  one saved mapping (`supplierKey`: case, umlauts and punctuation do not matter). `0629548c`.
 - **2026-09-27 · R-12 amended (user decision).** Snapshots and the audit log are never updated; a row may be
   deleted only if born demo (`is_demo = 1`, `demo_ref` set, both immutable). CLAUDE.md carries the new
   wording (CLAUDE.md is gitignored, so the change is local). `d4b3970a`.
