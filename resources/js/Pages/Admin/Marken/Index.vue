@@ -20,6 +20,7 @@ import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import { MENU_ROOM } from '../../../composables/admin/menu'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 
@@ -80,6 +81,9 @@ const errors = computed<Record<string, string>>(() => (sent.value ? bag.value : 
 const logoError = computed(() => bag.value.logo ?? '')
 /** Why a brand could not be removed — the Policy's own sentence (K2-16). */
 const brandError = computed(() => bag.value.brand ?? '')
+
+/* A refusal, spoken by one region that is always there: the error lines are hidden while empty (K2-39). */
+const spoken = computed(() => errors.value.name ?? errors.value.slug ?? errors.value.sortOrder ?? logoError.value)
 
 const canWrite = computed(() => props.can.create || props.can.update)
 const editingBrand = computed(() => props.brands.find((b) => b.id === editing.value) ?? null)
@@ -161,8 +165,6 @@ function upload(brand: BrandRow, event: Event): void {
 
     logoRow.value = brand.id
     busy.value = true
-    // Back on the row's „⋯“ once the answer is in and it is enabled again.
-    focus.request(more(brand.id))
 
     router.post(`${BASE}/${brand.id}/logo`, { logo: file }, {
         forceFormData: true,
@@ -173,6 +175,8 @@ function upload(brand: BrandRow, event: Event): void {
         onFinish: () => {
             busy.value = false
             input.value = ''
+            // Back on the row's „⋯“ once the answer is in, however long a slow line took (K2-37).
+            focus.request(more(brand.id))
         },
     })
 }
@@ -180,12 +184,12 @@ function upload(brand: BrandRow, event: Event): void {
 function removeLogo(brand: BrandRow): void {
     logoRow.value = brand.id
     busy.value = true
-    focus.request(more(brand.id))
 
     router.delete(`${BASE}/${brand.id}/logo`, {
         preserveScroll: true,
         onFinish: () => {
             busy.value = false
+            focus.request(more(brand.id))
         },
     })
 }
@@ -264,7 +268,9 @@ function counts(brand: BrandRow): string {
 
         <section v-if="canWrite" class="adm-section" aria-labelledby="mk-form-title">
             <form class="mk__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
-                <h2 id="mk-form-title" class="adm-section__title">{{ formTitle }}</h2>
+                <div class="adm-section__head">
+                    <h2 id="mk-form-title" class="adm-section__title">{{ formTitle }}</h2>
+                </div>
 
                 <div class="adm-fields">
                     <div class="form-field">
@@ -281,7 +287,7 @@ function counts(brand: BrandRow): string {
                             aria-describedby="mk-name-err"
                             :aria-invalid="errors.name || errors.slug ? 'true' : undefined"
                         >
-                        <p id="mk-name-err" class="form-field__error" aria-live="polite">{{ errors.name ?? errors.slug ?? '' }}</p>
+                        <p id="mk-name-err" class="form-field__error">{{ errors.name ?? errors.slug ?? '' }}</p>
                     </div>
 
                     <div class="form-field">
@@ -377,7 +383,7 @@ function counts(brand: BrandRow): string {
                                         <Icon name="more" :size="20" />
                                     </DropdownMenuTrigger>
                                     <DropdownMenuPortal>
-                                        <DropdownMenuContent class="adm-menu" align="end" :side-offset="4" @close-auto-focus="focus.onMenuClose">
+                                        <DropdownMenuContent class="adm-menu" align="end" :side-offset="4" :collision-padding="MENU_ROOM" @close-auto-focus="focus.onMenuClose">
                                             <template v-if="can.update">
                                                 <DropdownMenuItem class="adm-menu__item" @select="edit(brand)">
                                                     <Icon name="edit" :size="20" />
@@ -411,6 +417,8 @@ function counts(brand: BrandRow): string {
             <AdminState v-else kind="empty" text="Noch keine Marke. Marken entstehen hier, beim Import einer Lieferantendatei oder beim Anlegen einer Felge." />
         </section>
 
+        <p class="visually-hidden" aria-live="assertive">{{ spoken }}</p>
+
         <AdminConfirm
             v-model:open="confirmOpen"
             :title="`Marke „${confirming?.name ?? ''}“ entfernen?`"
@@ -423,13 +431,12 @@ function counts(brand: BrandRow): string {
 </template>
 
 <style scoped>
-.mk__lead,
-.mk__hint {
-    max-width: var(--adm-form-max);
-}
-
 .mk__lead {
     margin-bottom: var(--sp-32);
+}
+
+.mk__hint {
+    max-width: 54ch;
 }
 
 .mk__form {
@@ -437,7 +444,7 @@ function counts(brand: BrandRow): string {
 }
 
 .mk__num {
-    max-width: 8rem;
+    max-width: var(--sp-128);
 }
 
 .mk__logo {
@@ -450,7 +457,7 @@ function counts(brand: BrandRow): string {
     /* A definite box: an SVG with only a viewBox has no width of its own, and a flex item with
        width: auto collapses to nothing. The logo sits inside it at its own proportions. */
     display: block;
-    width: 6rem;
+    width: var(--sp-96);
     height: var(--sp-32);
     object-fit: contain;
     object-position: left center;
@@ -468,6 +475,13 @@ function counts(brand: BrandRow): string {
 
 .mk__row-error {
     margin-top: var(--sp-4);
+}
+
+@media (max-width: 767px) {
+    /* The card's label beside the logo stands on the logo's middle, not above it. */
+    .mk__table td[data-label='Logo'] {
+        align-items: center;
+    }
 }
 
 /* The list's heading takes the focus only as the last way out of a removed row; it draws no ring. */

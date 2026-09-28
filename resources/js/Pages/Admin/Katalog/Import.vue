@@ -15,6 +15,7 @@ import FilePick from '../../../Components/Admin/FilePick.vue'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
+import { FILE_CHANGED, stillReadable } from '../../../lib/file'
 import type { AdminImportProps, ImportRunRow } from '../../../types/admin/felgen'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -34,7 +35,11 @@ watch(
     }
 )
 
-function submit(): void {
+async function submit(): Promise<void> {
+    if (upload.processing) {
+        return
+    }
+
     if (upload.file === null) {
         upload.setError('file', 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).')
         // The keyboard goes to the field the sentence is about (K2-21).
@@ -43,10 +48,26 @@ function submit(): void {
         return
     }
 
+    // Saved anew since it was chosen: asked for again, never sent into a failure that blames the connection (K2-29).
+    if (!(await stillReadable(upload.file))) {
+        upload.file = null
+        upload.setError('file', FILE_CHANGED)
+        focus.request('im-file-button')
+
+        return
+    }
+
     upload.post('/admin/katalog/import/probelauf', {
         forceFormData: true,
         preserveScroll: true,
-        onError: (errors) => focus.request(errors.lieferant ? 'im-supplier' : 'im-file-button'),
+        onError: (errors) => {
+            // A refused file is let go, so the one chosen again is a fresh copy the browser will send (K2-29).
+            if (errors.file) {
+                upload.file = null
+            }
+
+            focus.request(errors.lieferant ? 'im-supplier' : 'im-file-button')
+        },
     })
 }
 
@@ -96,17 +117,20 @@ const optional = props.fields.filter((field) => !field.required)
             </dl>
             <p class="adm-note im-rules">Der Import erkennt die Spalten an ihrem Namen; im nächsten Schritt kannst du sie auch selbst zuordnen. Eine bekannte SKU ändert nur Preis, Bestand, EAN, KBA-Nummer und Gewicht. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
 
+            <p class="visually-hidden" aria-live="assertive">{{ upload.errors.file ?? upload.errors.lieferant ?? '' }}</p>
+
             <form class="im-form" @submit.prevent="submit">
                 <div class="form-field">
                     <span id="im-file-label" class="form-field__label">Datei (CSV oder Excel, höchstens 5 MB)</span>
                     <FilePick
                         id="im-file"
                         v-model="upload.file"
+                        @refused="(name: string) => upload.setError('file', `„${name}“ nimmt dieses Feld nicht – nur CSV oder Excel (.xlsx).`)"
                         accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         :invalid="!!upload.errors.file"
                         describedby="im-file-label im-file-err"
                     />
-                    <p id="im-file-err" class="form-field__error" aria-live="polite">{{ upload.errors.file }}</p>
+                    <p id="im-file-err" class="form-field__error">{{ upload.errors.file }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="im-supplier">Lieferant <span class="im-optional">(optional)</span></label>
@@ -166,17 +190,18 @@ const optional = props.fields.filter((field) => !field.required)
                                 <Link :href="run.href" class="im-link">{{ run.file }}</Link>
                                 <span class="im-sub">{{ run.supplier ? `${run.supplier} · ${run.format}` : run.format }}</span>
                             </td>
-                            <td data-label="Stand">
+                            <td data-label="Stand" data-phone="status">
                                 <span v-if="run.status !== 'applied'" class="adm-tag adm-tag--neutral">{{ run.statusLabel }}</span>
                                 <template v-else>{{ run.statusLabel }}</template>
                             </td>
                             <td data-label="Ergebnis">{{ counts(run) }}</td>
-                            <td data-label="Von">{{ run.by ?? '–' }}</td>
+                            <td data-label="Von" data-phone="hide">{{ run.by ?? '–' }}</td>
                             <td data-label="Wann" class="im-when">{{ run.at ?? '–' }}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+            <p v-if="total > imports.length" class="adm-note im-more">Hier stehen die letzten {{ decimal(imports.length, 0) }} von {{ decimal(total, 0) }} Läufen.</p>
         </section>
     </AdminPage>
 </template>
@@ -209,14 +234,15 @@ const optional = props.fields.filter((field) => !field.required)
     gap: var(--sp-8);
     max-width: 54ch;
     margin: var(--sp-16) 0 0;
+    /* The measure is set in the list's own type size, so its 54ch ends where the notes' does. */
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
 }
 
 .im-fields__row {
     display: grid;
     grid-template-columns: 9ch minmax(0, 1fr);
     gap: var(--sp-12);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
 }
 
 .im-fields__row dt {

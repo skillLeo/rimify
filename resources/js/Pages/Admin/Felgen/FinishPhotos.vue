@@ -15,12 +15,14 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
 import Picture from '../../../Components/Ui/Picture.vue'
+import { MENU_ROOM } from '../../../composables/admin/menu'
 import { resolveTarget, useFocusAfter } from '../../../composables/admin/useFocusAfter'
+import { FILE_CHANGED, stillReadable } from '../../../lib/file'
 import type { FinishImage, FinishPhoto } from '../../../types/admin/felgen'
 
 const props = defineProps<{
@@ -59,7 +61,6 @@ const errors = computed(() => {
 
 const full = computed(() => props.photos.length >= props.max)
 const drawing = computed(() => props.photos.length === 0 && props.image?.placeholder === true)
-const count = computed(() => (props.photos.length === 1 ? '1 Foto' : `${props.photos.length} Fotos`))
 
 const startId = computed(() => `${idBase.value}-start`)
 const moreId = (id: number): string => `${idBase.value}-more-${id}`
@@ -75,6 +76,40 @@ const lastMore = (): HTMLElement | null => {
 const adding = ref(false)
 const file = ref<File | null>(null)
 const alt = ref('')
+/** A file dropped on the field that is not a photo: said by name, gone once a photo is chosen. */
+const refusedFile = ref<string | null>(null)
+/** „Hochladen“ (or Enter) before a photo was chosen. */
+const missingFile = ref(false)
+/** The chosen photo was saved anew on disk since it was chosen: asked for again (K2-29). */
+const changedFile = ref(false)
+const refusedLine = computed(() => {
+    if (refusedFile.value !== null) {
+        return `„${refusedFile.value}“ nimmt dieses Feld nicht – nur JPEG, PNG, WebP oder AVIF.`
+    }
+
+    if (changedFile.value) {
+        return FILE_CHANGED
+    }
+
+    return missingFile.value ? 'Bitte wähl ein Foto aus.' : ''
+})
+
+watch(file, (chosen) => {
+    if (chosen !== null) {
+        refusedFile.value = null
+        missingFile.value = false
+        changedFile.value = false
+    }
+})
+
+/*
+ * What a refusal says, spoken: the error lines are hidden while empty, and a live region that appears
+ * together with its text is announced unreliably — so one region that is always there speaks it (K2-39).
+ */
+const spoken = computed(() => errors.value.image || refusedLine.value || errors.value.alt || errors.value.order)
+
+/** Photos whose file did not load: said plainly instead of the browser's alt text spilling into the frame. */
+const broken = ref(new Set<number>())
 
 function startAdd(): void {
     adding.value = true
@@ -92,16 +127,41 @@ function cancelAdd(): void {
     focus.request(startId.value)
 }
 
-function upload(): void {
-    if (file.value === null || busy.value) {
+const fileButton = (): HTMLElement | null => document.getElementById(`${idBase.value}-file-button`)
+
+async function upload(): Promise<void> {
+    if (busy.value) {
+        return
+    }
+
+    // Enter before a photo is chosen: said, and the keyboard taken to the field that is missing (K2-40).
+    if (file.value === null) {
+        missingFile.value = true
+        focus.request(fileButton)
+
         return
     }
 
     busy.value = true
+    const chosen = file.value
+
+    // Saved anew since it was chosen: the browser would not send it and the page would blame the
+    // connection — the photo is asked for again instead (K2-29).
+    if (!(await stillReadable(chosen))) {
+        busy.value = false
+        file.value = null
+        // An earlier refusal's sentence gives way to this one.
+        mine.value = null
+        changedFile.value = true
+        focus.request(fileButton)
+
+        return
+    }
+
     mine.value = 'upload'
     router.post(
         `${base.value}/foto`,
-        { image: file.value, alt: alt.value },
+        { image: chosen, alt: alt.value },
         {
             forceFormData: true,
             preserveScroll: true,
@@ -113,9 +173,16 @@ function upload(): void {
                 // „Foto hinzufügen“ once it is enabled again; at the limit it stays off, so the new photo's „⋯“.
                 focus.request([startId.value, lastMore])
             },
-            onError: () => {
-                // Refused: the form stays with the sentence; the keyboard goes to what needs fixing.
-                focus.request([`${idBase.value}-alt`, () => document.querySelector<HTMLElement>(`label[for="${idBase.value}-file"]`)])
+            onError: (refusal) => {
+                // Refused: the form stays with the sentence, and the keyboard goes to what it is about (K2-38).
+                // A refused file is let go: the one chosen again — saved smaller, perhaps under the same
+                // name — must be a fresh copy, or the browser will not send it (K2-29).
+                if (refusal.image) {
+                    file.value = null
+                    focus.request(fileButton)
+                } else {
+                    focus.request(`${idBase.value}-alt`)
+                }
             },
             onFinish: () => {
                 busy.value = false
@@ -186,18 +253,19 @@ function move(photo: FinishPhoto, by: -1 | 1, from: 'arrows' | 'menu' = 'arrows'
 const dragging = ref<number | null>(null)
 const over = ref<{ id: number; after: boolean } | null>(null)
 
-function carriesFiles(event: DragEvent): boolean {
-    return Array.from(event.dataTransfer?.types ?? []).includes('Files')
-}
+/* A file dragged in from the desktop is FilePick's to take, or AdminLayout's to refuse (K2-08, K2-30). */
 
-/** A file dragged in from the desktop is never taken here — and never opens in the tab (K2-08). */
-function refuseFiles(event: DragEvent): void {
-    if (dragging.value === null && carriesFiles(event)) {
-        event.preventDefault()
+/** Leaving a photo for one of its own parts is not leaving it: the line stays put (K2-43). */
+function dragLeave(event: DragEvent, photo: FinishPhoto): void {
+    const into = event.relatedTarget as Node | null
+    const row = event.currentTarget as HTMLElement
 
-        if (event.dataTransfer) {
-            event.dataTransfer.dropEffect = 'none'
-        }
+    if (into !== null && row.contains(into)) {
+        return
+    }
+
+    if (over.value?.id === photo.id) {
+        over.value = null
     }
 }
 
@@ -330,7 +398,7 @@ function remove(): void {
 </script>
 
 <template>
-    <div class="fe-photos" @dragover="refuseFiles" @drop="refuseFiles">
+    <div class="fe-photos">
         <p v-if="drawing" class="fe-photos__state">Platzhalterbild der Demodaten – kein Produktfoto.</p>
         <p v-else-if="photos.length === 0" class="fe-photos__state">Kein Foto. Der Shop zeigt die Umrisszeichnung, bis eines hochgeladen ist.</p>
         <p v-else-if="editable && photos.length > 1" class="fe-photos__state">
@@ -354,13 +422,14 @@ function remove(): void {
                 :draggable="editable && !busy && editing === null && photos.length > 1 ? 'true' : undefined"
                 @dragstart="dragStart($event, photo)"
                 @dragover="dragOver($event, photo)"
-                @dragleave="over = over?.id === photo.id ? null : over"
+                @dragleave="dragLeave($event, photo)"
                 @drop="drop($event, photo)"
                 @dragend="dragEnd"
                 @animationend="fresh = null"
             >
                 <div class="fe-photos__frame">
-                    <Picture :image="photo.manifest" :alt="photo.alt" sizes="72px" />
+                    <span v-if="broken.has(photo.id)" class="fe-photos__missing">Datei fehlt</span>
+                    <Picture v-else :image="photo.manifest" :alt="photo.alt" sizes="64px" @failed="broken = new Set([...broken, photo.id])" />
                 </div>
 
                 <div class="fe-photos__text">
@@ -384,7 +453,7 @@ function remove(): void {
                                 @keydown.esc.prevent="cancelEdit(photo)"
                             >
                             <p :id="`${idBase}-alt-${photo.id}-help`" class="form-field__help">Diesen Satz hört, wer das Foto nicht sehen kann.</p>
-                            <p :id="`${idBase}-alt-${photo.id}-err`" class="form-field__error" aria-live="polite">{{ errors.alt }}</p>
+                            <p :id="`${idBase}-alt-${photo.id}-err`" class="form-field__error">{{ errors.alt }}</p>
                         </div>
                         <div class="fe-photos__actions">
                             <button class="btn btn--primary" type="button" :disabled="busy" :aria-busy="busy ? 'true' : undefined" @click="saveEdit(photo)">Speichern</button>
@@ -422,7 +491,7 @@ function remove(): void {
                             <Icon name="more" :size="20" />
                         </DropdownMenuTrigger>
                         <DropdownMenuPortal>
-                            <DropdownMenuContent class="adm-menu" align="end" :side-offset="4" @close-auto-focus="focus.onMenuClose">
+                            <DropdownMenuContent class="adm-menu" align="end" :side-offset="4" :collision-padding="MENU_ROOM" @close-auto-focus="focus.onMenuClose">
                                 <DropdownMenuItem class="adm-menu__item" @select="startEdit(photo)">
                                     <Icon name="edit" :size="20" />
                                     Beschreibung ändern
@@ -454,7 +523,7 @@ function remove(): void {
         <div v-if="editable && !adding" class="fe-photos__add">
             <button :id="startId" class="btn btn--secondary" type="button" :disabled="busy || full" @click="startAdd">Foto hinzufügen</button>
             <p class="fe-photos__count">
-                {{ count }} von höchstens {{ max }}<template v-if="full"> – entferne eines, um ein weiteres hinzuzufügen</template>
+                {{ photos.length }} von höchstens {{ max }} Fotos<template v-if="full"> – entferne eines, um ein weiteres hinzuzufügen</template>
             </p>
         </div>
 
@@ -467,11 +536,12 @@ function remove(): void {
                     :id="`${idBase}-file`"
                     v-model="file"
                     accept="image/jpeg,image/png,image/webp,image/avif"
+                    @refused="(name: string) => (refusedFile = name)"
                     label="Foto auswählen"
                     :invalid="!!errors.image"
                     :describedby="`${idBase}-file-label ${idBase}-file-err`"
                 />
-                <p :id="`${idBase}-file-err`" class="form-field__error" aria-live="polite">{{ errors.image }}</p>
+                <p :id="`${idBase}-file-err`" class="form-field__error">{{ errors.image || refusedLine }}</p>
             </div>
             <div class="form-field">
                 <label class="form-field__label" :for="`${idBase}-alt`">Was zeigt das Foto?</label>
@@ -488,7 +558,7 @@ function remove(): void {
                 <p :id="`${idBase}-alt-help`" class="form-field__help">
                     Diesen Satz hört, wer das Foto nicht sehen kann – zum Beispiel „{{ title }} in {{ finishName }}, schräg von der Seite“.
                 </p>
-                <p :id="`${idBase}-alt-err`" class="form-field__error" aria-live="polite">{{ errors.alt }}</p>
+                <p :id="`${idBase}-alt-err`" class="form-field__error">{{ errors.alt }}</p>
             </div>
             <div class="fe-photos__actions">
                 <button class="btn btn--primary" type="button" :disabled="busy || file === null" :aria-busy="busy ? 'true' : undefined" @click="upload">Hochladen</button>
@@ -497,6 +567,7 @@ function remove(): void {
         </div>
 
         <p class="visually-hidden" aria-live="polite">{{ announce }}</p>
+        <p class="visually-hidden" aria-live="assertive">{{ spoken }}</p>
 
         <AdminConfirm
             v-model:open="confirmOpen"
@@ -517,6 +588,7 @@ function remove(): void {
 
 .fe-photos__state,
 .fe-photos__count {
+    max-width: 54ch;
     margin: 0;
     font-size: var(--fs-small);
     line-height: var(--lh-small);
@@ -534,7 +606,7 @@ function remove(): void {
 .fe-photos__item {
     position: relative;
     display: grid;
-    grid-template-columns: 72px minmax(0, 1fr) auto;
+    grid-template-columns: var(--sp-64) minmax(0, 1fr) auto;
     gap: var(--sp-12);
     align-items: start;
     padding-block: var(--sp-8);
@@ -569,8 +641,10 @@ function remove(): void {
 }
 
 .fe-photos__frame {
-    width: 72px;
-    height: 72px;
+    display: grid;
+    place-items: center;
+    width: var(--sp-64);
+    height: var(--sp-64);
     overflow: hidden;
     border-radius: var(--r-control);
     background: var(--c-band);
@@ -593,6 +667,14 @@ function remove(): void {
     line-height: var(--lh-small);
     font-weight: 600;
     color: var(--c-ink);
+}
+
+.fe-photos__missing {
+    padding: var(--sp-4);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+    text-align: center;
 }
 
 .fe-photos__cover {
@@ -650,12 +732,12 @@ function remove(): void {
     }
 
     .fe-photos__item {
-        grid-template-columns: 56px minmax(0, 1fr) auto;
+        grid-template-columns: var(--sp-48) minmax(0, 1fr) auto;
     }
 
     .fe-photos__frame {
-        width: 56px;
-        height: 56px;
+        width: var(--sp-48);
+        height: var(--sp-48);
     }
 
     .fe-photos__add .btn,

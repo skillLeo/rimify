@@ -24,11 +24,26 @@ export interface FocusRequest {
     scroll?: boolean
 }
 
-/** How long a request waits for its control: long enough for a slow round trip, short enough never to jump late. */
-const MAX_WAIT_MS = 2000
+/**
+ * How long a request waits for its control: long enough for a large upload on a slow line (K2-37). It
+ * never jumps late, because it steps aside the moment the person has put the focus somewhere themselves.
+ */
+const MAX_WAIT_MS = 30_000
 
 let frame = 0
-let pending: { targets: FocusTarget[]; options: FocusRequest; started: number } | null = null
+let pending: { targets: FocusTarget[]; options: FocusRequest; started: number; origin: Element | null } | null = null
+
+/** Whether the person has moved the focus on while the request waited: a control of their own choosing. */
+function movedOn(origin: Element | null): boolean {
+    const active = document.activeElement
+
+    if (active === null || active === document.body || active === document.documentElement || active === origin) {
+        return false
+    }
+
+    // The menu or the dialog the action came from is still closing: that is not the person's choice.
+    return active.closest('[role="menu"], [role="dialog"], [role="alertdialog"]') === null
+}
 
 /** The element a target names: its id, else the element that carries it as `data-focus`. */
 export function resolveTarget(target: FocusTarget): HTMLElement | null {
@@ -97,7 +112,7 @@ function tick(): void {
     }
 
     // Measured in time, not frames: how often frames come differs by browser, tab and test runner.
-    if (attempt() || performance.now() - pending.started >= MAX_WAIT_MS) {
+    if (movedOn(pending.origin) || attempt() || performance.now() - pending.started >= MAX_WAIT_MS) {
         pending = null
 
         return
@@ -113,7 +128,7 @@ function tick(): void {
  */
 function request(targets: FocusTarget | FocusTarget[], options: FocusRequest = {}): void {
     cancel()
-    pending = { targets: Array.isArray(targets) ? targets : [targets], options, started: performance.now() }
+    pending = { targets: Array.isArray(targets) ? targets : [targets], options, started: performance.now(), origin: document.activeElement }
     frame = requestAnimationFrame(tick)
 }
 

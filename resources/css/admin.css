@@ -1426,7 +1426,9 @@ a.adm-foot__health {
 /* ── Menus (portalled, so they carry their own prefix rather than sitting under .adm) ─ */
 
 .adm-menu {
-    z-index: var(--z-dropdown);
+    /* Above a toast: a menu is open because the person just asked for it, and the toast from the last
+       action must not cover what they are about to choose (at 390 it sat over „Logo ersetzen“). */
+    z-index: calc(var(--z-toast) + 1);
     min-width: 240px;
     padding: var(--sp-4);
     border-radius: var(--r-tile);
@@ -1480,7 +1482,8 @@ a.adm-foot__health {
 
 .adm-menu__item[data-disabled] {
     color: var(--c-ink-3);
-    cursor: progress;
+    /* An item that cannot be used now is not busy: the plain cursor, as a disabled icon button has. */
+    cursor: default;
 }
 
 .adm-menu__sep {
@@ -2712,6 +2715,12 @@ a.adm-foot__health {
 
     .adm-table td[data-phone='menu']::before {
         content: none;
+    }
+
+    /* The card's „⋯“ stands at the panel's right edge, which scrolls sideways and so clips anything
+       outside it: its focus ring is drawn inside the button there, whole (K2-31). */
+    .adm-table td[data-phone='menu'] :focus-visible {
+        outline-offset: -2px;
     }
 
     .adm-table td[data-label='Aktionen']::before {

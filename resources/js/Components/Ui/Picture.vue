@@ -6,7 +6,7 @@
  * below the fold is lazy.
  */
 
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 /**
  * Anchor points measured on the photograph, normalised to this frame: x and y are fractions of the
@@ -78,9 +78,17 @@ const props = withDefaults(
     { sizes: '100vw', eager: false }
 )
 
-const emit = defineEmits<{ (e: 'loaded'): void }>()
+const emit = defineEmits<{ (e: 'loaded'): void; (e: 'failed'): void }>()
 
 const loaded = ref(false)
+const img = ref<HTMLImageElement | null>(null)
+
+/* A file that failed before the page was hydrated fired its error with nobody listening: asked once here. */
+onMounted(() => {
+    if (img.value?.complete && img.value.naturalWidth === 0 && img.value.currentSrc !== '') {
+        emit('failed')
+    }
+})
 
 const srcset = (ext: string): string => props.image.widths.map((w) => `${props.image.base}-${w}.${ext} ${w}w`).join(', ')
 const formats = computed(() => props.image.formats ?? ['avif', 'webp'])
@@ -100,6 +108,7 @@ function onLoad(): void {
     <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="fallbackExt === 'png' ? undefined : { backgroundImage: `url(${image.placeholder})` }">
         <source v-for="format in formats" :key="format" :type="`image/${format}`" :srcset="srcset(format)" :sizes="sizes" />
         <img
+            ref="img"
             :src="fallback"
             :srcset="srcset(fallbackExt)"
             :sizes="sizes"
@@ -110,6 +119,7 @@ function onLoad(): void {
             :fetchpriority="eager ? 'high' : undefined"
             decoding="async"
             @load="onLoad"
+            @error="emit('failed')"
         />
     </picture>
 </template>

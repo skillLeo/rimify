@@ -198,10 +198,11 @@ function runStep(): void {
                     </thead>
                     <tbody>
                         <tr v-for="row in rows" :key="row.line">
-                            <td data-label="Zeile" class="num">{{ row.line }}</td>
+                            <!-- On a phone the line number is the card's title: said as „Zeile 2“, not a bare 2. -->
+                            <td data-label="Zeile" class="num"><span class="ir-line-word">Zeile </span>{{ row.line }}</td>
                             <td data-label="SKU" class="ir-sku">{{ row.sku || '–' }}</td>
                             <td data-label="Felge" class="ir-label">{{ row.label }}</td>
-                            <td data-label="Änderung">
+                            <td data-label="Änderung" data-phone="status">
                                 <span v-if="ACTIONS[row.action].tag" :class="ACTIONS[row.action].tag">{{ ACTIONS[row.action].label }}</span>
                                 <template v-else>{{ ACTIONS[row.action].label }}</template>
                             </td>
@@ -230,7 +231,7 @@ function runStep(): void {
             <p v-if="run.mappingRemembered" class="adm-note">
                 Übernommen aus dem letzten Import {{ run.supplier ? `für „${run.supplier}“` : 'ohne Lieferantennamen' }}.
             </p>
-            <p v-else-if="run.status === 'previewed'" class="adm-note">
+            <p v-else-if="run.status === 'previewed' && importable > 0" class="adm-note">
                 Erkannt an den Spaltennamen. Mit dem Import wird diese Zuordnung{{ run.supplier ? ` für „${run.supplier}“` : '' }} gespeichert.
             </p>
 
@@ -251,7 +252,7 @@ function runStep(): void {
                                     <label :for="`ir-map-${field.key}`" class="ir-field">{{ field.label }}</label>
                                     <span v-if="field.required" class="ir-req">Pflicht</span>
                                 </td>
-                                <td data-label="Spalte aus der Datei">
+                                <td data-label="Spalte">
                                     <select :id="`ir-map-${field.key}`" v-model="mappingForm.mapping[field.key]" class="input ir-select" :disabled="!can.remap">
                                         <option value="">– keine –</option>
                                         <option v-for="header in headers" :key="header" :value="header">{{ header }}</option>
@@ -329,6 +330,11 @@ function runStep(): void {
     overflow-wrap: anywhere;
 }
 
+/* „Zeile“ before the number only where the number is a card's title. */
+.ir-line-word {
+    display: none;
+}
+
 .ir-label,
 .ir-detail {
     overflow-wrap: anywhere;
@@ -381,6 +387,10 @@ function runStep(): void {
 }
 
 @media (max-width: 767px) {
+    .ir-line-word {
+        display: inline;
+    }
+
     .ir-counts {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }

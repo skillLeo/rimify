@@ -69,12 +69,15 @@ test('KATALOG-09c opening and closing the photo form from the keyboard keeps the
     await start.focus();
     await page.keyboard.press('Enter');
     await expect(photo.locator('.fe-photos__form')).toBeVisible();
+    // useFocusAfter moves the focus on a later frame, as in K2-03 / K2-04 (K2-42).
+    await page.waitForTimeout(300);
 
     const opened = await focusFell(page);
 
     await photo.getByRole('button', { name: 'Abbrechen' }).focus();
     await page.keyboard.press('Enter');
     await expect(photo.locator('.fe-photos__form')).toBeHidden();
+    await page.waitForTimeout(300);
 
     const closed = await focusFell(page);
     await photo.screenshot({ path: `${SHOTS}/katalog-09c-photo-${info.project.name}.png` });

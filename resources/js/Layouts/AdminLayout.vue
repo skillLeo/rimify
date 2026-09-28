@@ -316,9 +316,28 @@ const busy = ref(false)
 let busyTimer: ReturnType<typeof setTimeout> | undefined
 const unbind: Array<() => void> = []
 
+/*
+ * A file dragged in from the desktop and let go anywhere that does not take one would open in the tab and
+ * leave the admin — with whatever was typed (K2-08, K2-30). A field that takes files (FilePick) handles the
+ * drop first and marks it; everything else is refused here, at the window, where only unhandled drops arrive.
+ */
+function refuseStrayFile(event: DragEvent): void {
+    if (event.defaultPrevented || !Array.from(event.dataTransfer?.types ?? []).includes('Files')) {
+        return
+    }
+
+    event.preventDefault()
+
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'none'
+    }
+}
+
 onMounted(() => {
     window.addEventListener('resize', onViewport)
     window.addEventListener('pagehide', flushRail)
+    window.addEventListener('dragover', refuseStrayFile)
+    window.addEventListener('drop', refuseStrayFile)
     document.addEventListener('visibilitychange', onVisibility)
 
     // The shell narrows without a resize event when the page's scrollbar appears.
@@ -333,6 +352,8 @@ onMounted(() => {
     unbind.push(
         () => window.removeEventListener('resize', onViewport),
         () => window.removeEventListener('pagehide', flushRail),
+        () => window.removeEventListener('dragover', refuseStrayFile),
+        () => window.removeEventListener('drop', refuseStrayFile),
         () => document.removeEventListener('visibilitychange', onVisibility),
         () => shellObserver?.disconnect(),
         // An open sheet closes and hands its history entry back before a real navigation — not on the

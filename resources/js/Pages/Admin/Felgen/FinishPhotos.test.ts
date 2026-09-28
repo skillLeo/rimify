@@ -56,7 +56,7 @@ describe('FinishPhotos', () => {
         expect(items[0]?.text()).toContain('Titelbild')
         expect(items[1]?.text()).not.toContain('Titelbild')
         expect(wrapper.text()).toContain('Das erste Foto ist das Titelbild im Shop.')
-        expect(wrapper.text()).toContain('2 Fotos von höchstens 12')
+        expect(wrapper.text()).toContain('2 von höchstens 12 Fotos')
     })
 
     it('sends the whole new order when a photo moves down, and offers no step past the last place', async () => {
