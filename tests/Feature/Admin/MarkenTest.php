@@ -36,12 +36,18 @@ function markenAdmin(string $role = 'super-admin'): AdminUser
 /** A 2 × 1 PNG, with or without an alpha channel. */
 function markenPng(bool $alpha): string
 {
-    $image = imagecreatetruecolor(2, 1);
+    // A wordmark-like shape: a dark bar with a gap, on a clear ground (or on nothing clear at all).
+    $image = imagecreatetruecolor(40, 10);
 
     if ($alpha) {
         imagesavealpha($image, true);
+        imagealphablending($image, false);
         imagefill($image, 0, 0, imagecolorallocatealpha($image, 0, 0, 0, 127));
     }
+
+    $ink = imagecolorallocatealpha($image, 20, 20, 20, 0);
+    imagefilledrectangle($image, 4, 3, 16, 6, $ink);
+    imagefilledrectangle($image, 22, 3, 35, 6, $ink);
 
     ob_start();
     imagepng($image);
@@ -124,8 +130,8 @@ it('takes a PNG with transparency and refuses an opaque one and a file that is n
 it('replaces and removes a logo, and its old file goes with it', function (): void {
     $brand = Brand::factory()->create(['name' => 'Borbet', 'slug' => 'borbet']);
     $admin = markenAdmin();
-    $first = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><path d="M0 0h100v50H0z"/></svg>';
-    $second = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 50"><path d="M0 0h300v50H0z"/></svg>';
+    $first = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><path d="M5 5h90v40H5z"/></svg>';
+    $second = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 50"><path d="M5 5h290v40H5z"/></svg>';
 
     $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('a.svg', $first)]);
     $old = (string) $brand->fresh()?->logo_path;
@@ -171,7 +177,7 @@ it('gives a removed brand\'s name back: rename, „Marke anlegen“ and the Felg
     // „Marke anlegen“ of a removed name brings that row back, and says so.
     $this->actingAs($admin, 'admin')->put('/admin/marken/'.$other->id, ['name' => 'Andere', 'isWheelBrand' => true, 'sortOrder' => 5]);
     $this->actingAs($admin, 'admin')->post('/admin/marken', ['name' => 'Rotiform', 'isWheelBrand' => true, 'sortOrder' => 0])
-        ->assertSessionHasNoErrors()->assertSessionHas('toast', MarkenController::RESTORED);
+        ->assertSessionHasNoErrors()->assertSessionHas('toast', MarkenController::RESTORED_WITH_LOGO);
     expect(Brand::query()->where('name', 'Rotiform')->sole()->id)->toBe($gone->id)
         ->and(AuditLog::query()->where('description', 'brand.restored')->exists())->toBeTrue();
 
@@ -179,6 +185,21 @@ it('gives a removed brand\'s name back: rename, „Marke anlegen“ and the Felg
     $this->actingAs($admin, 'admin')->delete('/admin/marken/'.$gone->id);
     $brand = app(WheelEditor::class)->save(null, ['brand_id' => null, 'brand_new' => 'rotiform', 'name' => 'Flow', 'type_designation' => null, 'spoke_count' => 5, 'description_de' => null, 'seo_title' => null, 'seo_description' => null], [], [], $admin)->brand;
     expect($brand?->id)->toBe($gone->id)->and($brand?->trashed())->toBeFalse();
+});
+
+it('makes a new brand in the Felge form when a live brand holds the removed one\'s address (K2-44)', function (): void {
+    $admin = markenAdmin();
+    $gone = Brand::factory()->create(['name' => 'Rotiform', 'slug' => 'rotiform']);
+    $gone->delete();
+    // Renamed with a full stop: the name differs, the address `rotiform` is the same.
+    Brand::factory()->create(['name' => 'Rotiform.', 'slug' => 'rotiform']);
+
+    $brand = app(WheelEditor::class)->save(null, ['brand_id' => null, 'brand_new' => 'Rotiform', 'name' => 'Flow', 'type_designation' => null, 'spoke_count' => 5, 'description_de' => null, 'seo_title' => null, 'seo_description' => null], [], [], $admin)->brand;
+
+    expect($brand?->id)->not->toBe($gone->id)
+        ->and($brand?->name)->toBe('Rotiform')
+        ->and($brand?->slug)->not->toBe('rotiform')
+        ->and(Brand::onlyTrashed()->whereKey($gone->id)->exists())->toBeTrue();
 });
 
 it('refuses a raster whose ground is opaque whatever its header says, and an SVG on a filled ground (K2-02)', function (): void {
@@ -204,12 +225,39 @@ it('refuses a raster whose ground is opaque whatever its header says, and an SVG
         ->assertSessionHasErrors(['logo' => BrandLogoStore::BACKDROP]);
 
     expect($brand->fresh()?->logo_path)->toBeNull()->and(Storage::disk('public')->allFiles('brands'))->toBe([]);
+
+    // A logo on a white sticker with a clear margin: the sticker would be a slab on the wall (K2-36).
+    $sticker = imagecreatetruecolor(60, 20);
+    imagesavealpha($sticker, true);
+    imagealphablending($sticker, false);
+    imagefill($sticker, 0, 0, imagecolorallocatealpha($sticker, 0, 0, 0, 127));
+    imagefilledrectangle($sticker, 3, 2, 56, 17, imagecolorallocatealpha($sticker, 255, 255, 255, 0));
+    imagefilledrectangle($sticker, 10, 7, 30, 12, imagecolorallocatealpha($sticker, 0, 0, 0, 0));
+    ob_start();
+    imagepng($sticker);
+    $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('sticker.png', (string) ob_get_clean())])
+        ->assertSessionHasErrors(['logo' => BrandLogoStore::BACKDROP]);
+
+    // A backdrop drawn as a path, in pixels, under a viewBox that does not start at 0 (K2-36).
+    foreach ([
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><path d="M0 0h200v50H0z" fill="#fff"/><path d="M10 10h40v30H10z"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><rect width="200px" height="50px" fill="#fff"/><path d="M10 10h40v30H10z"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -5 220 60"><rect x="-10" y="-5" width="220" height="60"/><path d="M10 10h40v30H10z"/></svg>',
+    ] as $svg) {
+        $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('logo.svg', $svg)])
+            ->assertSessionHasErrors(['logo' => BrandLogoStore::BACKDROP]);
+    }
+
+    // Huge sides are refused before the picture is decoded (K2-41) — read from a PNG header alone.
+    $header = "\x89PNG\r\n\x1a\n".pack('N', 13).'IHDR'.pack('NN', 16000, 16000)."\x08\x06\x00\x00\x00".pack('N', 0);
+    $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('huge.png', $header)])
+        ->assertSessionHasErrors(['logo' => BrandLogoStore::TOO_MANY_PIXELS]);
 });
 
 it('takes an SVG saved with a byte-order mark, and names the reason for one with entities (K2-14)', function (): void {
     $brand = Brand::factory()->create(['name' => 'Borbet', 'slug' => 'borbet']);
     $admin = markenAdmin();
-    $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><path d="M0 0h200v50H0z"/></svg>';
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><path d="M5 5h190v40H5z"/></svg>';
 
     $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('bom.svg', "\xEF\xBB\xBF".$svg)])
         ->assertSessionHasNoErrors();

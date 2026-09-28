@@ -43,7 +43,9 @@ class MarkenController extends Controller
 
     public const DELETED = 'Marke entfernt.';
 
-    public const RESTORED = 'Die entfernte Marke ist wieder da – mit ihrer Position und, falls sie eins hatte, ihrem Logo.';
+    public const RESTORED = 'Die entfernte Marke ist wieder da.';
+
+    public const RESTORED_WITH_LOGO = 'Die entfernte Marke ist wieder da, mit ihrem früheren Logo.';
 
     public function __construct(private readonly BrandLogoStore $logos) {}
 
@@ -81,26 +83,28 @@ class MarkenController extends Controller
     {
         $attributes = $request->attributesForBrand();
 
-        $restored = self::saying(static fn (): bool => DB::transaction(static function () use ($attributes, $request): bool {
+        $toast = self::saying(static fn (): string => DB::transaction(static function () use ($attributes, $request): string {
             // A removed brand of the same name comes back — with its id, its history and its logo —
-            // instead of a second row; and says so, in the toast and in the Protokoll (K2-13).
+            // instead of a second row; and says so, in the toast and in the Protokoll (K2-13). Its name,
+            // place and wall setting are what the form says now; only the logo is what it had (K2-34).
             $brand = Brand::onlyTrashed()->where('slug', $attributes['slug'])->latest('deleted_at')->first();
 
             if ($brand instanceof Brand) {
                 $brand->restore();
                 $brand->fill($attributes)->save();
-                AuditTrail::record($request->admin(), 'brand.restored', ['brand_id' => $brand->id, 'name' => $brand->name, 'with_logo' => $brand->logo_path !== null], $brand);
+                $withLogo = $brand->logo_path !== null && $brand->logo_path !== '';
+                AuditTrail::record($request->admin(), 'brand.restored', ['brand_id' => $brand->id, 'name' => $brand->name, 'with_logo' => $withLogo], $brand);
 
-                return true;
+                return $withLogo ? self::RESTORED_WITH_LOGO : self::RESTORED;
             }
 
             $brand = Brand::query()->create($attributes);
             AuditTrail::record($request->admin(), 'brand.created', ['brand_id' => $brand->id, 'name' => $brand->name], $brand);
 
-            return false;
+            return self::SAVED;
         }));
 
-        return back()->with('toast', $restored ? self::RESTORED : self::SAVED);
+        return back()->with('toast', $toast);
     }
 
     public function update(BrandRequest $request, Brand $brand): RedirectResponse

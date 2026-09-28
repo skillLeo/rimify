@@ -115,7 +115,9 @@ final class WheelEditor
         // page, rather than a second row as „rotiform-2" (K2-01).
         $removed = Brand::onlyTrashed()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->latest('deleted_at')->first();
 
-        if ($removed instanceof Brand) {
+        // Only while no live brand holds its address: a brand renamed to „Rotiform.“ keeps the slug
+        // `rotiform`, and a restored twin would collide with it (K2-44) — a new brand is made instead.
+        if ($removed instanceof Brand && ! Brand::query()->where('slug', $removed->slug)->exists()) {
             $removed->restore();
 
             return $removed;

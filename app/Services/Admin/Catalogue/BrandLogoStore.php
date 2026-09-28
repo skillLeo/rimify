@@ -40,11 +40,19 @@ final class BrandLogoStore
 
     public const SAMPLE_RANGE = 'Die Beispielmarke zeigt nie ein Logo. Lade es bei der echten Marke hoch.';
 
-    /**
-     * How much of a raster's edge must be see-through: a logo exported on a white or coloured ground is
-     * opaque all round, a logo on a transparent ground is not — whatever the file's header claims (K2-02).
-     */
-    private const MIN_TRANSPARENT_EDGE = 0.25;
+    public const TOO_MANY_PIXELS = 'Das Logo ist zu groß: höchstens 4.000 × 4.000 Bildpunkte. Bitte kleiner exportieren.';
+
+    /** The largest side a logo may have: past it a file is not decoded at all (K2-41). */
+    private const MAX_SIDE_PX = 4000;
+
+    /** How much of a raster must be see-through for a mark to stand on the wall's ground. */
+    private const MIN_CLEAR = 0.05;
+
+    /** A card: its opaque area fills this much of its own box … */
+    private const CARD_FILL = 0.9;
+
+    /** … in one colour this much of the time. */
+    private const CARD_DOMINANT = 0.6;
 
     /** GD's alpha runs 0 (opaque) … 127 (clear); from here on a pixel counts as see-through. */
     private const CLEAR_ALPHA = 100;
@@ -101,11 +109,10 @@ final class BrandLogoStore
                 return self::refused(self::BACKDROP);
             }
         } else {
-            $ground = self::transparentGround($bytes);
+            $refusal = self::rasterRefusal($bytes);
 
-            if ($ground !== true) {
-                // null: this server cannot decode the file, which is not the same as an opaque one.
-                return self::refused($ground === null ? self::NOT_A_LOGO : self::OPAQUE);
+            if ($refusal !== null) {
+                return self::refused($refusal);
             }
         }
 
@@ -139,47 +146,74 @@ final class BrandLogoStore
     }
 
     /**
-     * Whether a PNG or WebP really stands on a see-through ground: enough of its edge ring is clear. The
-     * header's alpha flag only says the file *could* be transparent; the brand wall paints every opaque
-     * pixel as ink, so an alpha channel that is opaque everywhere is a solid block there (K2-02).
+     * Why a PNG or WebP cannot stand on the brand wall, or null when it can. The wall paints every opaque
+     * pixel as ink, so what matters is the picture, not the header's alpha flag (K2-02, K2-36):
+     *
+     *   - its sides are read before anything is decoded — a small file of huge sides would take the
+     *     server's memory (K2-41);
+     *   - some of it must be see-through, or the logo is a solid block;
+     *   - it must not be a card: an opaque area that fills its own box in one dominant colour (a logo on a
+     *     white sticker with a clear margin) is a slab on the wall. A text logo or a round badge leaves
+     *     room in its box, and passes.
      */
-    private static function transparentGround(string $bytes): ?bool
+    private static function rasterRefusal(string $bytes): ?string
     {
+        $size = @getimagesizefromstring($bytes);
+
+        if ($size === false) {
+            return self::NOT_A_LOGO;
+        }
+
+        [$width, $height] = [(int) $size[0], (int) $size[1]];
+
+        if ($width < 1 || $height < 1) {
+            return self::NOT_A_LOGO;
+        }
+
+        if ($width > self::MAX_SIDE_PX || $height > self::MAX_SIDE_PX) {
+            return self::TOO_MANY_PIXELS;
+        }
+
         $image = @imagecreatefromstring($bytes);
 
         if ($image === false) {
-            return null;
+            // This server cannot decode it — not the same as an opaque file.
+            return self::NOT_A_LOGO;
         }
 
-        $width = imagesx($image);
-        $height = imagesy($image);
-        // At most ~2 000 samples along the edge, however large the file.
-        $step = max(1, intdiv(2 * ($width + $height), 2000));
+        // A grid of at most ~40 000 samples, however large the picture.
+        $step = max(1, (int) ceil(sqrt($width * $height / 40_000)));
         $clear = 0;
-        $seen = 0;
-
-        $sample = static function (int $x, int $y) use ($image, &$clear, &$seen): void {
-            $rgba = imagecolorsforindex($image, imagecolorat($image, $x, $y));
-            $seen++;
-
-            if ($rgba['alpha'] >= self::CLEAR_ALPHA) {
-                $clear++;
-            }
-        };
-
-        for ($x = 0; $x < $width; $x += $step) {
-            $sample($x, 0);
-            $sample($x, $height - 1);
-        }
+        $opaque = [];
 
         for ($y = 0; $y < $height; $y += $step) {
-            $sample(0, $y);
-            $sample($width - 1, $y);
+            for ($x = 0; $x < $width; $x += $step) {
+                $rgba = imagecolorsforindex($image, imagecolorat($image, $x, $y));
+
+                if ($rgba['alpha'] >= self::CLEAR_ALPHA) {
+                    $clear++;
+                } else {
+                    // The colour to 3 bits a channel: a card's white or grey is one bin, anti-aliasing is not.
+                    $opaque[] = [$x, $y, ($rgba['red'] >> 5) << 6 | ($rgba['green'] >> 5) << 3 | ($rgba['blue'] >> 5)];
+                }
+            }
         }
 
         imagedestroy($image);
+        $samples = $clear + count($opaque);
 
-        return $seen > 0 && $clear / $seen >= self::MIN_TRANSPARENT_EDGE;
+        if ($samples === 0 || $clear / $samples < self::MIN_CLEAR || $opaque === []) {
+            return $opaque === [] ? self::NOT_A_LOGO : self::OPAQUE;
+        }
+
+        $xs = array_column($opaque, 0);
+        $ys = array_column($opaque, 1);
+        $box = ((intdiv(max($xs) - min($xs), $step) + 1) * (intdiv(max($ys) - min($ys), $step) + 1));
+        $fill = count($opaque) / max(1, $box);
+        $bins = array_count_values(array_column($opaque, 2));
+        $dominant = max($bins) / count($opaque);
+
+        return $fill >= self::CARD_FILL && $dominant >= self::CARD_DOMINANT ? self::BACKDROP : null;
     }
 
     /** The file's type from its first bytes: svg, png or webp — or null. */
