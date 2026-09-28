@@ -172,6 +172,10 @@ const adopted = computed(() => {
 })
 
 function adopt(vehicle: VehicleHit): void {
+    // A search still on its way (the first list, asked on mount) would answer after this and push the new
+    // car out of the list: it is dropped, as any answer overtaken by a newer question is.
+    clearTimeout(vehicleTimer)
+    vehicleAsked++
     vehicleHits.value = [vehicle, ...vehicleHits.value.filter((v) => v.id !== vehicle.id)]
 
     if (!hasVehicle(vehicle.id)) {

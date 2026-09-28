@@ -63,9 +63,13 @@ describe('FitmentPanel', () => {
         expect(wrapper.find('.fit__tyre-lines').text()).toBe(line)
     })
 
-    it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', () => {
+    it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', async () => {
         const tyre = { status: 'CONDITIONAL' as const, label: 'Mit deinen Fahrzeugpapieren prüfen', lines: ['…'], thresholds: [], fromVehicleData: false }
         const empty = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })
+
+        // Closed until asked for, so the price and „In den Warenkorb“ stay on the first screen.
+        expect(empty.find('#pp-axle_front_kg').exists()).toBe(false)
+        await empty.find('#pp-open').trigger('click')
 
         expect(empty.find('#pp-axle_front_kg').exists()).toBe(true)
         expect(empty.find('#pp-axle_rear_kg').exists()).toBe(true)

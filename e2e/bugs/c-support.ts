@@ -46,9 +46,22 @@ export async function chooseCar(page: Page, keys: { hsn: string; tsn: string } =
 
 /**
  * With a car chosen: opens a product page whose RIMIFY-CHECK panel carries the papers form (a verdict with a
- * tyre half). Tries the listing's first products and, on each, the sizes the car may have.
+ * tyre half), and opens the form — it starts closed behind „Werte aus der Zulassungsbescheinigung eintragen“.
  */
 export async function openProductWithPapers(page: Page): Promise<string> {
+    const href = await findProductWithPapers(page);
+    const opener = page.locator('#pp-open');
+
+    if (await opener.isVisible()) {
+        await opener.click();
+        await expect(page.locator('.pp__form')).toBeVisible();
+    }
+
+    return href;
+}
+
+/** Tries the listing's first products and, on each, the sizes the car may have. */
+async function findProductWithPapers(page: Page): Promise<string> {
     await open(page, '/felgen');
 
     const hrefs = await page.evaluate(() => {

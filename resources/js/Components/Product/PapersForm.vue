@@ -31,7 +31,9 @@ const props = defineProps<{
 }>()
 
 const variant = ref<'neu' | 'alt'>('neu')
-const open = ref(props.papers === null)
+/* Closed until asked for: the fields are optional, and open by default they pushed the price and „In den
+   Warenkorb“ below the first screen of the product page. */
+const open = ref(false)
 const busy = ref(false)
 const errors = ref<Record<string, string>>({})
 
@@ -81,7 +83,7 @@ function change(): void {
 function cancel(): void {
     fromPapers()
     open.value = false
-    void nextTick(() => document.getElementById('pp-change')?.focus())
+    void nextTick(() => document.getElementById(props.papers ? 'pp-change' : 'pp-open')?.focus())
 }
 const NBSP = ' '
 const kg = (n: number): string => `${formatNumber(n)}${NBSP}kg`
@@ -164,8 +166,8 @@ function clear(): void {
             form.top_speed_kmh = ''
             // What was wrong with figures that are gone is no longer said (C-07).
             errors.value = {}
-            open.value = true
-            void nextTick(() => document.getElementById('pp-axle_front_kg')?.focus())
+            open.value = false
+            void nextTick(() => document.getElementById('pp-open')?.focus())
         },
         onFinish: () => {
             busy.value = false
@@ -183,6 +185,11 @@ function clear(): void {
             </p>
             <p v-for="note in papers.notes" :key="note" class="pp__help">{{ note }}</p>
         </template>
+
+        <!-- Nothing typed yet: one button, the form opens in place. -->
+        <button v-else-if="!open" id="pp-open" class="btn btn--secondary btn--sm pp__open" type="button" @click="change">
+            Werte aus der Zulassungsbescheinigung eintragen
+        </button>
 
         <form v-else class="pp__form" novalidate aria-labelledby="pp-h" @submit.prevent="save">
             <div class="pp__head">
@@ -255,7 +262,7 @@ function clear(): void {
             <div class="pp__actions">
                 <!-- Secondary: „In den Warenkorb“ stays the page's one primary action. -->
                 <button id="pp-save" class="btn btn--secondary btn--sm" type="submit" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Werte übernehmen</button>
-                <button v-if="entered" class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="cancel">Abbrechen</button>
+                <button class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="cancel">Abbrechen</button>
                 <button v-if="entered" class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="clear">Werte löschen</button>
             </div>
         </form>
@@ -352,7 +359,8 @@ function clear(): void {
     gap: var(--sp-8);
 }
 
-/* The photo button's label wraps rather than widen the column past the screen. */
+/* A button's label wraps rather than widen the column past the screen. */
+.pp__open,
 .pp__scan .btn {
     max-width: 100%;
     white-space: normal;
