@@ -9,7 +9,7 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\DocumentConditions;
-use App\Services\Admin\Vehicles\VehicleMerge;
+use App\Support\EgNumber;
 use App\Support\VehicleName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -26,8 +26,11 @@ use Illuminate\Validation\Validator;
  */
 class VehicleFromDocumentRequest extends FormRequest
 {
-    /** `e1*2007/46*0316*..`, `e1*2001/116*0447*11`, `E1*98/14*0105*` — country, directive, number, extension. */
-    public const EG_NUMBER = '/^e\d{1,2}\*[^*\s]+\*\d{3,5}(\*[0-9.]{0,4})?\*?$/i';
+    /**
+     * `e1*2007/46*0316*..`, `e1*2001/116*0447*11`, `e1*2001/116*0287*00-09`, `e1*2007/46*0273*04-..` — country,
+     * directive, number, and the extensions as the document prints them (EgNumber).
+     */
+    public const EG_NUMBER = EgNumber::PATTERN;
 
     public function authorize(): bool
     {
@@ -91,16 +94,20 @@ class VehicleFromDocumentRequest extends FormRequest
     /** A car that already carries this EG number and Fahrzeugtyp — the same car, never a second one. */
     private function twin(): ?Vehicle
     {
-        $norm = (string) Vehicle::normaliseEcNumber($this->string('eg_number')->toString());
-        $parts = explode('*', $norm);
-        // `…*0563*..` and `…*0563` are the same statement; a named extension (`…*0563*11`) is its own.
-        $named = count($parts) >= 4 && preg_match('/^\d+$/', $parts[3]) === 1;
+        $number = EgNumber::parse($this->string('eg_number')->toString());
 
+        if ($number === null) {
+            return null;
+        }
+
+        // The same Fahrzeugtyp under a range of the same approval that shares an extension with this one is
+        // the same car: `…*0287*00-09` and `…*0287*05` are one, `…*0287*00-09` and `…*0287*10-..` two.
         return Vehicle::query()
-            ->whereIn('eg_nummer_norm', $named ? [$norm] : VehicleMerge::egKeys($norm))
+            ->where('eg_nummer_norm', 'like', addcslashes($number->base, '%_\\').'%')
             ->where('type_designation', trim($this->string('type_designation')->toString()))
             ->where('source', '!=', VehicleSource::Entwicklung->value)
-            ->first();
+            ->get()
+            ->first(static fn (Vehicle $v): bool => EgNumber::parse($v->getAttribute('eg_nummer_norm'))?->overlaps($number) ?? false);
     }
 
     public function document(): ApprovalDocument

@@ -84,13 +84,31 @@ it('refuses the same car twice and names the one that is there', function (): vo
         ->assertUnprocessable()
         ->assertJsonPath('errors.eg_number.0', 'Dieses Fahrzeug gibt es schon: BMW 4er Coupé 3C. Such es in der Liste oben und wähl es dort.');
 
-    // Without the extension it is the same statement; with a named one it is a narrower, different car.
+    // Without the extension it is the same statement; one extension inside „every extension“ is that car
+    // again (EgNumber::overlaps()) — never a second car the later merge could not tell apart.
     $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", vfdCar(['eg_number' => 'e1*2007/46*0563']))
         ->assertUnprocessable();
     $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", vfdCar(['eg_number' => 'e1*2007/46*0563*11']))
-        ->assertCreated();
+        ->assertUnprocessable();
 
-    expect(Vehicle::query()->where('source', 'gutachten')->count())->toBe(2);
+    expect(Vehicle::query()->where('source', 'gutachten')->count())->toBe(1);
+});
+
+it('takes the extensions as the document prints them, and keeps two ranges of one approval apart', function (): void {
+    // ABE 55255, page 2: BMW 1er 187 before the facelift (*0287*00-09) and after it (*0287*10-..).
+    $document = vfdDraft();
+    $early = vfdCar(['model' => '1er-Reihe', 'type_designation' => '187', 'eg_number' => 'e1*2001/116*0287*00-09', 'body_form' => '', 'source_page' => 2]);
+    $late = [...$early, 'variant' => '187 ab Facelift 2007', 'eg_number' => 'e1*2001/116*0287*10-..'];
+
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", $early)->assertCreated();
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", $late)->assertCreated();
+
+    // A single extension inside the first range is that car again.
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$early, 'eg_number' => 'e1*2001/116*0287*05'])
+        ->assertUnprocessable();
+
+    expect(Vehicle::query()->where('type_designation', '187')->pluck('eg_nummer_norm')->all())
+        ->toEqualCanonicalizing(['e1*2001/116*0287*00-09', 'e1*2001/116*0287*10-..']);
 });
 
 it('refuses, in words, what the document cannot have said', function (array $overrides, string $field, string $message): void {

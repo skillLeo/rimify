@@ -8,6 +8,7 @@ use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\Vehicle;
 use App\Services\Admin\AuditTrail;
+use App\Support\EgNumber;
 use App\Support\GermanFormat;
 use App\Support\VehicleName;
 use DateTimeInterface;
@@ -16,8 +17,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * The later merge (Block C, item 8; docs/specs/vehicles-and-tyres.md, C8): when a vehicle dataset arrives,
  * each of its cars is matched to a car typed from a Gutachten (or checked by hand) on the normalised EG
- * number AND the Fahrzeugtyp — nothing looser. A document's `..` extension covers every extension of its
- * base number (egKeys()).
+ * number AND the Fahrzeugtyp — nothing looser. The extensions a document prints — `..`, `00-09`, `04-..`, `11`
+ * — decide which dataset cars a car takes in (EgNumber::covers()).
  *
  * Always a dry run first. Per dataset car:
  * - matched — exactly one car, and no other dataset car points at it: its empty fields are filled (key
@@ -102,18 +103,21 @@ final class VehicleMerge
             return [...$entry, 'status' => self::KNOWN, 'reason' => 'Schon aus diesem Datensatz übernommen.'];
         }
 
-        $eg = $row->egNormalised();
+        $eg = EgNumber::parse($row->egNumber);
 
         if ($eg === null || $row->typeDesignation === null) {
             return [...$entry, 'reason' => 'Ohne EG-Nummer und Fahrzeugtyp wird nichts zusammengeführt.'];
         }
 
+        // Same approval and Fahrzeugtyp, and the car's range takes in this dataset car's extension (EgNumber).
         $candidates = Vehicle::query()
             ->whereIn('source', [VehicleSource::Gutachten->value, VehicleSource::ManuellGeprueft->value])
-            ->whereIn('eg_nummer_norm', self::egKeys($eg))
+            ->where('eg_nummer_norm', 'like', addcslashes($eg->base, '%_\\').'%')
             ->where('type_designation', $row->typeDesignation)
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(static fn (Vehicle $v): bool => EgNumber::parse($v->getAttribute('eg_nummer_norm'))?->covers($eg) ?? false)
+            ->values();
 
         if ($candidates->count() > 1) {
             return [...$entry, 'status' => self::AMBIGUOUS, 'reason' => sprintf(
@@ -132,26 +136,6 @@ final class VehicleMerge
         [$fills, $kept] = $this->diff($vehicle, $row);
 
         return [...$entry, 'status' => self::MATCHED, 'vehicle' => $vehicle, 'fills' => $fills, 'kept' => $kept];
-    }
-
-    /**
-     * The EG numbers a car may carry to be this dataset car: the number itself, and — because a Gutachten
-     * prints the extension as `..` („every extension“) or leaves it off — the base number with `..` or
-     * without an extension. A car whose document names one extension (`*11`) matches that extension only.
-     *
-     * @return list<string>
-     */
-    public static function egKeys(string $normalised): array
-    {
-        $parts = explode('*', $normalised);
-
-        if (count($parts) < 3) {
-            return [$normalised];
-        }
-
-        $base = implode('*', array_slice($parts, 0, 3));
-
-        return array_values(array_unique([$normalised, $base, $base.'*..']));
     }
 
     /**

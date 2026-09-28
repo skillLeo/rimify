@@ -126,7 +126,7 @@ async function save(): Promise<void> {
                 <div class="form-field vfd-wide">
                     <label class="form-field__label" for="vfd-eg-number">EG-Typgenehmigungsnummer</label>
                     <input id="vfd-eg-number" v-model="form.eg_number" class="input" type="text" maxlength="64" spellcheck="false" placeholder="e1*2007/46*0316*.." :aria-invalid="errors.eg_number ? 'true' : undefined" aria-describedby="vfd-eg-number-help vfd-eg-number-err">
-                    <p id="vfd-eg-number-help" class="form-field__help">Mit der Erweiterung, so wie gedruckt. Über sie findet der spätere Fahrzeugdaten-Import dieses Fahrzeug wieder.</p>
+                    <p id="vfd-eg-number-help" class="form-field__help">Mit der Erweiterung, so wie gedruckt – auch als Bereich: e1*2001/116*0287*00-09 oder …*04-... Über sie findet der spätere Fahrzeugdaten-Import dieses Fahrzeug wieder.</p>
                     <p id="vfd-eg-number-err" class="form-field__error">{{ errors.eg_number }}</p>
                 </div>
                 <div class="form-field">

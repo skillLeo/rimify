@@ -138,8 +138,6 @@ it('never matches a development car, never matches without EG number and type, a
 });
 
 it('reads a document’s „..“ as every extension, and a named extension as that one only', function (): void {
-    expect(VehicleMerge::egKeys('e1*2007/46*0563*07'))->toBe(['e1*2007/46*0563*07', 'e1*2007/46*0563', 'e1*2007/46*0563*..']);
-
     $narrow = mergeCar(['eg_nummer_raw' => 'e1*2007/46*0563*11']);
 
     [$other] = app(VehicleMerge::class)->plan([datasetRow(['eg_nummer' => 'e1*2007/46*0563*07'])]);
@@ -147,6 +145,18 @@ it('reads a document’s „..“ as every extension, and a named extension as t
 
     expect($other['status'])->toBe(VehicleMerge::NEW)
         ->and($same['vehicle']?->id)->toBe($narrow->id);
+});
+
+it('takes in a dataset car whose extension lies in a document’s printed range, and none outside it', function (): void {
+    // ABE 55255 prints BMW 1er 187 as e1*2001/116*0287*00-09 before the facelift and *10-.. after it.
+    $early = mergeCar(['make' => 'BMW', 'model' => '1er-Reihe', 'variant' => '187', 'type_designation' => '187', 'eg_nummer_raw' => 'e1*2001/116*0287*00-09']);
+    $late = mergeCar(['make' => 'BMW', 'model' => '1er-Reihe', 'variant' => '187 Facelift', 'type_designation' => '187', 'eg_nummer_raw' => 'e1*2001/116*0287*10-..']);
+
+    [$five] = app(VehicleMerge::class)->plan([datasetRow(['fahrzeugtyp' => '187', 'eg_nummer' => 'e1*2001/116*0287*05'])]);
+    [$twelve] = app(VehicleMerge::class)->plan([datasetRow(['fahrzeugtyp' => '187', 'eg_nummer' => 'e1*2001/116*0287*12', 'fahrzeug_id' => '700009'])]);
+
+    expect($five['vehicle']?->id)->toBe($early->id)
+        ->and($twelve['vehicle']?->id)->toBe($late->id);
 });
 
 it('fills both key numbers or neither, and reads nothing it cannot read', function (): void {
