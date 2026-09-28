@@ -234,6 +234,10 @@ return [
         'public_base' => env('RIMIFY_DEMO_WHEELS_URL', '/storage/demo/wheels'),
         // The free-licence source photographs, credited in docs/image-credits.md.
         'sources_dir' => env('RIMIFY_DEMO_SOURCES_DIR', 'storage/app/public/placeholder'),
+        // The example finishes' placeholder drawings (DemoPlaceholders); `demo:purge` removes them
+        // with the catalogue. The test suite writes its own elsewhere (phpunit.xml).
+        'placeholders_dir' => env('RIMIFY_DEMO_PLACEHOLDERS_DIR', 'storage/app/public/demo/placeholders'),
+        'placeholders_base' => env('RIMIFY_DEMO_PLACEHOLDERS_URL', '/storage/demo/placeholders'),
     ],
 
     /*
