@@ -158,6 +158,13 @@ it('gives a definite answer once the figures from the papers are entered, and sh
         ->and(array_slice($verdict->tyre->lines ?? [], -1))->toBe(['Beide Achsen tragen '.kg('1.100').': vier gleiche Reifen brauchen mindestens Tragfähigkeitsindex 89.']);
 });
 
+it('names the heavier axle for four identical tyres when both axles ask for the same load index', function (): void {
+    // 1.190 kg front → 595 kg a wheel, 1.180 kg rear → 590 kg: both need LI 90 (600 kg); the front is heavier.
+    $lines = decideFor(bmw4er3C(1190, 1180, 200))->tyre->lines ?? [];
+
+    expect(array_slice($lines, -1))->toBe(['Für vier gleiche Reifen maßgeblich ist die Vorderachse mit '.kg('1.190').': mindestens Tragfähigkeitsindex 90.']);
+});
+
 it('never passes a table the demo seed wrote off as printed by the document', function (): void {
     $printed = FitmentFixtures::deratingTable();
     $seeded = new SpeedDeratingTable($printed->rows, null, 'Demo-Seed: Tabelle der ABE 55255, Seite 6');

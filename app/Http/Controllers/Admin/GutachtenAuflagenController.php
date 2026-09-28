@@ -74,8 +74,16 @@ class GutachtenAuflagenController extends Controller
     {
         $reason = trim((string) $request->validated('reason'));
 
-        DB::transaction(static function () use ($condition, $document, $request, $reason): void {
-            $condition->forceFill([
+        // Once, however often it is sent: a double click or a second tab finds it confirmed under the row
+        // lock, and writes neither the reason nor a second Protokoll entry (the Block C QA, C-04).
+        $confirmed = DB::transaction(static function () use ($condition, $document, $request, $reason): bool {
+            $locked = DocumentCondition::query()->lockForUpdate()->findOrFail($condition->id);
+
+            if ($locked->limit_confirmed_at !== null) {
+                return false;
+            }
+
+            $locked->forceFill([
                 'limit_confirmed_reason' => $reason,
                 'limit_confirmed_by' => $request->admin()->id,
                 'limit_confirmed_at' => now(),
@@ -83,12 +91,14 @@ class GutachtenAuflagenController extends Controller
 
             AuditTrail::record($request->admin(), 'approval.limit_confirmed', [
                 'document' => FitmentRows::label($document),
-                'code' => $condition->code,
-                'kg' => $condition->max_axle_load_kg,
+                'code' => $locked->code,
+                'kg' => $locked->max_axle_load_kg,
                 'reason' => $reason,
             ], $document);
+
+            return true;
         });
 
-        return back()->with('toast', 'Zahl bestätigt.');
+        return back()->with('toast', $confirmed ? 'Zahl bestätigt.' : 'Die Zahl war schon bestätigt.');
     }
 }

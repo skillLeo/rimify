@@ -164,6 +164,13 @@ it('keeps a load-index limit as the document prints it, warns, and blocks the re
     expect(app(DocumentRelease::class)->check($document))->not->toContain('Die Achslast bei T88 passt nicht zum Tragfähigkeitsindex. Bestätige die Zahl im Auflagenverzeichnis mit einem Satz.')
         ->and(AuditLog::query()->where('description', 'approval.limit_confirmed')->exists())->toBeTrue();
 
+    // Sent twice (a double click, a second tab): confirmed once, one Protokoll entry, the first reason kept.
+    $this->actingAs(tabelleAdmin(), 'admin')->post($url, ['reason' => 'Ein zweiter Klick mit einem anderen Satz.'])
+        ->assertSessionHasNoErrors()->assertSessionHas('toast', 'Die Zahl war schon bestätigt.');
+
+    expect(AuditLog::query()->where('description', 'approval.limit_confirmed')->count())->toBe(1)
+        ->and($condition->refresh()->limit_confirmed_reason)->toBe('So steht es auf Seite 6 des Gutachtens, geprüft am PDF.');
+
     $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
         ->assertInertia(fn (AssertableInertia $page) => $page->where('conditions.0.limitConfirmed.reason', 'So steht es auf Seite 6 des Gutachtens, geprüft am PDF.'));
 

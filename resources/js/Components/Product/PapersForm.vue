@@ -15,7 +15,7 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import PapersFacsimile from '../Art/PapersFacsimile.vue'
 import Icon from '../Ui/Icon.vue'
 import { useOcr } from '../../composables/useOcr'
@@ -51,6 +51,38 @@ const form = reactive<Record<FieldKey, number | ''>>({
 })
 
 const entered = computed(() => props.papers !== null)
+
+/** The form as the kept figures say, nothing typed since — for „Ändern“ and „Abbrechen“. */
+function fromPapers(): void {
+    form.axle_front_kg = props.papers?.axleFrontKg ?? ''
+    form.axle_rear_kg = props.papers?.axleRearKg ?? ''
+    form.top_speed_kmh = props.papers?.topSpeedKmh ?? ''
+    errors.value = {}
+}
+
+// Figures kept or removed on the server (this tab or another): the closed form follows them.
+watch(
+    () => props.papers,
+    () => {
+        if (!open.value || props.papers === null) {
+            fromPapers()
+        }
+    }
+)
+
+/** „Ändern“: the form opens on the kept figures, and the keyboard is in its first field (C-02). */
+function change(): void {
+    fromPapers()
+    open.value = true
+    void nextTick(() => document.getElementById('pp-axle_front_kg')?.focus())
+}
+
+/** „Abbrechen“: back to the summary, nothing kept of what was typed (C-06). */
+function cancel(): void {
+    fromPapers()
+    open.value = false
+    void nextTick(() => document.getElementById('pp-change')?.focus())
+}
 const NBSP = ' '
 const kg = (n: number): string => `${formatNumber(n)}${NBSP}kg`
 
@@ -130,6 +162,9 @@ function clear(): void {
             form.axle_front_kg = ''
             form.axle_rear_kg = ''
             form.top_speed_kmh = ''
+            // What was wrong with figures that are gone is no longer said (C-07).
+            errors.value = {}
+            open.value = true
             void nextTick(() => document.getElementById('pp-axle_front_kg')?.focus())
         },
         onFinish: () => {
@@ -144,7 +179,7 @@ function clear(): void {
         <template v-if="papers && !open">
             <p class="pp__summary">
                 <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ papers.topSpeedKmh }}&nbsp;km/h</span>
-                <button id="pp-change" class="btn btn--ghost btn--sm" type="button" @click="open = true">Ändern</button>
+                <button id="pp-change" class="btn btn--ghost btn--sm" type="button" @click="change">Ändern</button>
             </p>
             <p v-for="note in papers.notes" :key="note" class="pp__help">{{ note }}</p>
         </template>
@@ -220,6 +255,7 @@ function clear(): void {
             <div class="pp__actions">
                 <!-- Secondary: „In den Warenkorb“ stays the page's one primary action. -->
                 <button id="pp-save" class="btn btn--secondary btn--sm" type="submit" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Werte übernehmen</button>
+                <button v-if="entered" class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="cancel">Abbrechen</button>
                 <button v-if="entered" class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="clear">Werte löschen</button>
             </div>
         </form>
@@ -227,7 +263,10 @@ function clear(): void {
 </template>
 
 <style scoped>
+/* The panel is narrow on a phone AND in the desktop purchase column: the layout follows the room the
+   form has, never the window (C-01). */
 .pp {
+    container-type: inline-size;
     margin-block: var(--sp-16);
 }
 
@@ -313,21 +352,23 @@ function clear(): void {
     gap: var(--sp-8);
 }
 
-/* On a phone the photo button takes the full width and its label wraps rather than overflowing. */
-@media (max-width: 767px) {
+/* The photo button's label wraps rather than widen the column past the screen. */
+.pp__scan .btn {
+    max-width: 100%;
+    white-space: normal;
+    text-wrap: balance;
+}
+
+/* Narrow: the button takes the full width. */
+@container (max-width: 479px) {
     .pp__scan {
         justify-items: stretch;
     }
-
-    .pp__scan .btn {
-        white-space: normal;
-        text-wrap: balance;
-    }
 }
 
-/* Three fields side by side: label, field and error each on one line across the three, however
-   many lines a label takes. */
-@media (min-width: 768px) {
+/* Only where the form is wide enough for „Höchstgeschwindigkeit“ in a third of it: three fields side by
+   side, label, field and error each on one line across the three, however many lines a label takes. */
+@container (min-width: 560px) {
     .pp__grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         row-gap: var(--sp-4);

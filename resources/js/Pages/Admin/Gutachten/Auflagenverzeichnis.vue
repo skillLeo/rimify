@@ -12,7 +12,7 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { MENU_ROOM } from '../../../composables/admin/menu'
@@ -306,6 +306,11 @@ const limitErrors = reactive<Record<number, string>>({})
 const limitBusy = ref<number | null>(null)
 
 function confirmLimit(condition: DocumentConditionView): void {
+    // One confirmation on its way at a time: a double click sends it once (C-04; the server holds it too).
+    if (limitBusy.value !== null) {
+        return
+    }
+
     limitBusy.value = condition.id
     router.post(`/admin/gutachten/${props.documentId}/auflagen/${condition.id}/grenze`, { reason: limitReasons[condition.id] ?? '' }, {
         preserveScroll: true,
@@ -316,6 +321,8 @@ function confirmLimit(condition: DocumentConditionView): void {
         },
         onSuccess: () => {
             limitErrors[condition.id] = ''
+            // The form gives way to the confirmed note: the keyboard goes there, never to the page (C-05).
+            void nextTick(() => document.getElementById(`av-limit-done-${condition.id}`)?.focus())
         },
         onFinish: () => {
             limitBusy.value = null
@@ -389,7 +396,7 @@ function confirmLimit(condition: DocumentConditionView): void {
             <p :class="condition.limitConfirmed ? 'adm-note' : 'adm-alert'" :role="condition.limitConfirmed ? undefined : 'alert'">
                 <span translate="no">{{ condition.code }}</span>: {{ condition.limitWarning }}
             </p>
-            <p v-if="condition.limitConfirmed" class="adm-note">
+            <p v-if="condition.limitConfirmed" :id="`av-limit-done-${condition.id}`" class="adm-note av-limit__done" tabindex="-1">
                 Bestätigt{{ condition.limitConfirmed.by ? ` von ${condition.limitConfirmed.by}` : '' }} am {{ condition.limitConfirmed.at }}: „{{ condition.limitConfirmed.reason }}“
             </p>
             <form v-else-if="editable" class="av-limit__form" novalidate @submit.prevent="confirmLimit(condition)">

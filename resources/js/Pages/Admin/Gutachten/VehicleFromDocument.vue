@@ -86,6 +86,8 @@ async function save(): Promise<void> {
         Object.assign(form, blank())
         open.value = false
         emit('created', vehicle)
+        // The form gives way to its button again: the keyboard goes there, never to the page (C-03).
+        focus.request('vfd-open')
     } catch {
         failed.value = 'Keine Verbindung zum Server. Es wurde nichts gespeichert – prüf die Verbindung und versuch es noch einmal.'
         focus.request('vfd-save')

@@ -41,6 +41,29 @@ describe('PapersForm', () => {
         expect(wrapper.find('[role="alert"]').text()).toContain('Laut Foto hat dein Fahrzeug 140 kW (Feld P.2), gewählt ist eine Variante mit 110 kW.')
     })
 
+    it('opens „Ändern“ on the kept figures with the keyboard in the first field, and „Abbrechen“ keeps nothing typed', async () => {
+        const papers = { axleFrontKg: 1100, axleRearKg: 1180, topSpeedKmh: 250, notes: [] }
+        const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers, powerKw: 140 }, attachTo: document.body })
+
+        await wrapper.find('#pp-change').trigger('click')
+        await flushPromises()
+
+        expect(document.activeElement?.id).toBe('pp-axle_front_kg')
+        expect((wrapper.find('#pp-axle_front_kg').element as HTMLInputElement).value).toBe('1100')
+
+        await wrapper.find('#pp-axle_front_kg').setValue(900)
+        await wrapper.findAll('button').find((b) => b.text() === 'Abbrechen')?.trigger('click')
+        await flushPromises()
+
+        expect(wrapper.find('.pp__summary').text()).toContain('8.1 1.100 kg')
+        expect(document.activeElement?.id).toBe('pp-change')
+
+        await wrapper.find('#pp-change').trigger('click')
+        await flushPromises()
+        expect((wrapper.find('#pp-axle_front_kg').element as HTMLInputElement).value).toBe('1100')
+        wrapper.unmount()
+    })
+
     it('leaves the fields as they were and says so when nothing could be read', async () => {
         const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers: null, powerKw: 110 } })
         await wrapper.find('#pp-top_speed_kmh').setValue(210)

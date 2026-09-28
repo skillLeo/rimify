@@ -567,13 +567,17 @@ final readonly class FitmentResolver
         if ($front->hasPermittedSizes() && $rear->hasPermittedSizes() && $this->sameSizes($front, $rear)) {
             $frontLoad = (int) $vehicle->axleLoadFrontKg;
             $rearLoad = (int) $vehicle->axleLoadRearKg;
-            $bindingIndex = max((int) $front->minLoadIndex, (int) $rear->minLoadIndex);
+            $frontIndex = (int) $front->minLoadIndex;
+            $rearIndex = (int) $rear->minLoadIndex;
+            $bindingIndex = max($frontIndex, $rearIndex);
+            // The axle that asks for more binds; where both ask for the same index, the heavier one (C-09).
+            $rearBinds = $rearIndex !== $frontIndex ? $rearIndex > $frontIndex : $rearLoad > $frontLoad;
             $lines[] = $frontLoad === $rearLoad
                 ? sprintf('Beide Achsen tragen %s: vier gleiche Reifen brauchen mindestens Tragfähigkeitsindex %d.', GermanFormat::kilograms($frontLoad), $bindingIndex)
                 : sprintf(
                     'Für vier gleiche Reifen maßgeblich ist die %s mit %s: mindestens Tragfähigkeitsindex %d.',
-                    $rear->minLoadIndex >= $front->minLoadIndex ? 'Hinterachse' : 'Vorderachse',
-                    GermanFormat::kilograms($rear->minLoadIndex >= $front->minLoadIndex ? $rearLoad : $frontLoad),
+                    $rearBinds ? 'Hinterachse' : 'Vorderachse',
+                    GermanFormat::kilograms($rearBinds ? $rearLoad : $frontLoad),
                     $bindingIndex,
                 );
         }
