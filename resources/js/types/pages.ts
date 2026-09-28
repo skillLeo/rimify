@@ -324,8 +324,20 @@ export interface ConfigVerdict {
     centreBoreSource?: 'DOCUMENT' | 'UNSTATED' | 'CONFLICTING'
     reason: string | null
     reasonCode: string | null
-    /** pdf: the Gutachten itself, at the page the answer stands on; absent where no file is stored. */
-    document: { number: string | null; issuer: string | null; kind: string; pdf?: { url: string; page: number | null } | null } | null
+    /**
+     * pdf: the Gutachten itself, at the page the answer stands on; absent where no file is stored.
+     * others: the further documents the answer rests on, named (the corrections memo §3).
+     * notes: full sentences about the document itself — a Nachtrag without its base, the month a wheel
+     * must be made from (§4).
+     */
+    document: {
+        number: string | null
+        issuer: string | null
+        kind: string
+        pdf?: { url: string; page: number | null } | null
+        others?: string[]
+        notes?: string[]
+    } | null
     tyreSizes: string[]
     /* docs/specs/komplettrad.md §3.4 — the tyre side of the verdict, additive and optional. */
     /** `245/45 R18` per axle; `tyreSizes` above stays the front list. */

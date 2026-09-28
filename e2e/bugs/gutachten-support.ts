@@ -64,7 +64,7 @@ export interface ShowProps {
     /** The document's own Auflagenverzeichnis (the corrections memo §1). */
     conditions: Array<{ id: number; code: string; uses: number; [key: string]: unknown }>;
     can: { edit: boolean; release: boolean };
-    errors?: Record<string, string>;
+    errors?: Record<string, unknown>;
     [key: string]: unknown;
 }
 
@@ -188,7 +188,7 @@ export async function openAsDraft(page: Page, id: number, patch: (props: ShowPro
  * the server has it now, changed by `patch` the way the write's answer would be, and with `errors` as a
  * refusal would carry them. The write itself never reaches the application.
  */
-export async function answerWithDocument(route: Route, id: number, patch: (props: ShowProps) => void, errors: Record<string, string> = {}): Promise<void> {
+export async function answerWithDocument(route: Route, id: number, patch: (props: ShowProps) => void, errors: Record<string, unknown> = {}): Promise<void> {
     const response = await pageInsteadOf(route, new URL(`/admin/gutachten/${id}`, route.request().url()).toString());
     const json = (await response.json()) as InertiaJson<ShowProps>;
 

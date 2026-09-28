@@ -49,6 +49,24 @@ const page = usePage()
 const focus = useFocusAfter()
 const context = computed(() => (props.open.length === 1 ? '1 offen' : `${decimal(props.open.length, 0)} offen`))
 
+/** `HSN 1860` never breaks between the word and its number. */
+const NBSP = String.fromCharCode(0xa0)
+const tight = (label: string): string => label.replace(/\b(HSN|TSN) (\S+)/g, `$1${NBSP}$2`)
+
+/** Which of a pair's facts differ between its sides: marked on each side, so the difference is seen. */
+function differs(pair: Pair, fact: 'requiresEntry' | 'sizes' | 'conditions'): boolean {
+    const seen = new Set(pair.sides.map((side) => JSON.stringify(fact === 'requiresEntry' ? side.requiresEntry : [...side[fact]].sort())))
+
+    return seen.size > 1
+}
+
+/** `A01 – Die Anbauabnahme …`: the code apart from its sentence, as on the Gutachten page. */
+function codeOf(line: string): { code: string; text: string } {
+    const at = line.indexOf(' – ')
+
+    return at === -1 ? { code: '', text: line } : { code: line.slice(0, at), text: line.slice(at + 3) }
+}
+
 /* ── Deciding one pair ─────────────────────────────────────────────────────── */
 
 /** The pair whose decision was sent last: its sentences, not another's. */
@@ -63,6 +81,17 @@ const errors = computed(() => {
     return (key: string, field: string): string => (sentFor.value === key ? (bag[field] ?? '') : '')
 })
 
+/*
+ * A refusal about a pair that is no longer on the list — decided meanwhile in another tab — has no form to
+ * stand under: it is said above the list instead of being lost.
+ */
+const orphaned = computed(() => {
+    const bag = (page.props.errors ?? {}) as Record<string, string | undefined>
+    const gone = sentFor.value !== null && !props.open.some((pair) => pair.key === sentFor.value)
+
+    return gone ? (bag.mode ?? bag.document_id ?? bag.reason ?? '') : ''
+})
+
 function decide(pair: Pair): void {
     if (busy.value) {
         return
@@ -70,6 +99,7 @@ function decide(pair: Pair): void {
 
     const picked = choice[pair.key] ?? ''
     const only = picked.startsWith('only:')
+    const place = props.open.findIndex((p) => p.key === pair.key)
 
     busy.value = true
     sentFor.value = pair.key
@@ -86,11 +116,17 @@ function decide(pair: Pair): void {
             preserveScroll: true,
             onSuccess: () => {
                 sentFor.value = null
-                // The pair has left the list: the keyboard goes to the next one, or the page's title.
-                const next = props.open[0]
-                focus.request(next ? [`kf-h-${next.key}`, 'kf-title'] : ['kf-title'])
+                // The pair has left the list: the keyboard goes to the one now in its place, or the page's title.
+                const next = props.open[Math.min(place, props.open.length - 1)]
+                focus.request(next ? [`kf-h-${next.key}`, 'kf-title'] : ['kf-title'], { scroll: true })
             },
             onError: (bag: Record<string, string>) => {
+                if (!props.open.some((p) => p.key === pair.key)) {
+                    focus.request('kf-title', { scroll: true })
+
+                    return
+                }
+
                 focus.request(bag.mode || bag.document_id ? `kf-choice-${pair.key}-0` : `kf-reason-${pair.key}`)
             },
             onFinish: () => {
@@ -104,14 +140,16 @@ function decide(pair: Pair): void {
 <template>
     <AdminPage title="Konflikte" :context="context">
         <p id="kf-title" class="adm-note kf-intro" tabindex="-1">
-            Hier sagen zwei gültige Gutachten zur selben Kombination aus Fahrzeug und Felge Verschiedenes. Bis du entscheidest, sagt der Shop dort „Unbekannt“ – nie von sich aus das eine oder das andere.
+            Hier widersprechen sich zwei gültige Gutachten zur selben Kombination aus Fahrzeug und Felge. Bis du entscheidest, sagt der Shop dort „Unbekannt“ – nie von sich aus das eine oder das andere.
         </p>
+
+        <p v-if="orphaned" class="adm-alert" role="alert">{{ orphaned }}</p>
 
         <AdminState v-if="open.length === 0" kind="empty" text="Kein Konflikt offen. Ein neuer steht hier, sobald eine Freigabe einem anderen Gutachten widerspricht." />
 
         <section v-for="pair in open" :id="`konflikt-${pair.key}`" :key="pair.key" class="kf-pair" :aria-labelledby="`kf-h-${pair.key}`">
             <div class="kf-pair__head">
-                <h2 :id="`kf-h-${pair.key}`" class="kf-pair__title" tabindex="-1">{{ pair.vehicle }}</h2>
+                <h2 :id="`kf-h-${pair.key}`" class="kf-pair__title" tabindex="-1">{{ tight(pair.vehicle) }}</h2>
                 <p class="kf-pair__wheel">{{ pair.wheel }}</p>
                 <p class="kf-what">Unterschiedlich: {{ pair.what.join(', ') }}</p>
             </div>
@@ -123,22 +161,22 @@ function decide(pair: Pair): void {
                         <a :href="side.pdfHref" target="_blank" rel="noopener">{{ side.page ? `Seite ${side.page} im PDF` : 'PDF öffnen' }}</a>
                     </p>
                     <dl class="kf-facts">
-                        <div class="kf-facts__row">
+                        <div class="kf-facts__row" :class="{ 'kf-facts__row--differs': differs(pair, 'requiresEntry') }">
                             <dt>Eintragung</dt>
                             <dd>{{ side.requiresEntry ? 'Erforderlich' : 'Nicht erforderlich' }}</dd>
                         </div>
-                        <div class="kf-facts__row">
+                        <div class="kf-facts__row" :class="{ 'kf-facts__row--differs': differs(pair, 'sizes') }">
                             <dt>Reifen</dt>
                             <dd>
                                 <span v-if="side.sizes.length === 0">–</span>
                                 <span v-for="size in side.sizes" :key="size" class="kf-line">{{ size }}</span>
                             </dd>
                         </div>
-                        <div class="kf-facts__row">
+                        <div class="kf-facts__row" :class="{ 'kf-facts__row--differs': differs(pair, 'conditions') }">
                             <dt>Auflagen</dt>
                             <dd>
                                 <span v-if="side.conditions.length === 0">–</span>
-                                <span v-for="line in side.conditions" :key="line" class="kf-line">{{ line }}</span>
+                                <span v-for="line in side.conditions" :key="line" class="kf-line"><b v-if="codeOf(line).code" class="kf-code" translate="no">{{ codeOf(line).code }}</b> {{ codeOf(line).text }}</span>
                             </dd>
                         </div>
                     </dl>
@@ -148,11 +186,11 @@ function decide(pair: Pair): void {
             <form v-if="can.decide" class="kf-decide" novalidate @submit.prevent="decide(pair)">
                 <fieldset class="kf-choices">
                     <legend class="form-field__label">Wie gelten die Gutachten?</legend>
-                    <label class="kf-choice">
+                    <label class="check">
                         <input :id="`kf-choice-${pair.key}-0`" v-model="choice[pair.key]" type="radio" :name="`kf-${pair.key}`" value="each" :aria-describedby="`kf-choice-${pair.key}-err`">
-                        <span>Beide gelten jeweils für sich – der Shop nennt beide und liest sie zusammen, im Zweifel streng.</span>
+                        <span>Beide gelten jeweils für sich – der Shop nennt beide und liest sie zusammen; im Zweifel gilt die strengere Angabe.</span>
                     </label>
-                    <label v-for="side in pair.sides" :key="side.documentId" class="kf-choice">
+                    <label v-for="side in pair.sides" :key="side.documentId" class="check">
                         <input v-model="choice[pair.key]" type="radio" :name="`kf-${pair.key}`" :value="`only:${side.documentId}`" :aria-describedby="`kf-choice-${pair.key}-err`">
                         <span>Nur {{ side.document }} gilt.</span>
                     </label>
@@ -215,7 +253,6 @@ function decide(pair: Pair): void {
 
 <style scoped>
 .kf-intro {
-    max-width: 64ch;
     margin-bottom: var(--sp-24);
 }
 
@@ -246,7 +283,7 @@ function decide(pair: Pair): void {
 }
 
 .kf-what {
-    color: var(--c-warn);
+    color: var(--c-ink-2);
 }
 
 .kf-sides {
@@ -269,6 +306,29 @@ function decide(pair: Pair): void {
     font-size: var(--fs-body);
     line-height: var(--lh-body);
     font-weight: 600;
+}
+
+/* A document named is ink, like every document link of the panel; the underline comes on hover. */
+.kf-side__title a {
+    color: var(--c-ink);
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .kf-side__title a:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+
+/* What differs between the sides is what the reader came for. */
+.kf-facts__row--differs dd {
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.kf-code {
+    font-variant-numeric: tabular-nums;
 }
 
 .kf-side__page {
@@ -319,21 +379,8 @@ function decide(pair: Pair): void {
     min-width: 0;
 }
 
-.kf-choice {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sp-8);
-    min-height: var(--adm-control-h);
-    padding-block: var(--sp-4);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    cursor: pointer;
-}
-
-.kf-choice input {
-    flex: none;
-    margin: 0;
-    accent-color: var(--c-ink);
+.kf-choices legend {
+    padding: 0;
 }
 
 .kf-reason {
@@ -354,10 +401,6 @@ function decide(pair: Pair): void {
 }
 
 @media (max-width: 767px) {
-    .kf-choice {
-        min-height: var(--adm-control-h-lg);
-    }
-
     .kf-facts__row {
         grid-template-columns: minmax(0, 1fr);
         gap: 0;

@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
 use App\Http\Controllers\Admin\FragenController;
+use App\Http\Controllers\Admin\GutachtenAngabenController;
 use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\GutachtenZeilenController;
@@ -230,6 +231,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/auflagen/stapel', [GutachtenAuflagenController::class, 'batch'])->whereNumber('document')->name('gutachten.auflagen.stapel');
         Route::put('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'update'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.update');
         Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
+        // What it states beside its codes (the corrections memo §4): Befestigungsmittel, Pflichthinweise, Nacharbeit mit Maßen.
+        Route::post('/gutachten/{document}/befestigungsmittel', [GutachtenAngabenController::class, 'store'])->whereNumber('document')->name('gutachten.befestigungsmittel.store');
+        Route::delete('/gutachten/{document}/befestigungsmittel/{fastener}', [GutachtenAngabenController::class, 'destroyFastener'])->whereNumber(['document', 'fastener'])->name('gutachten.befestigungsmittel.entfernen');
+        Route::post('/gutachten/{document}/hinweise', [GutachtenAngabenController::class, 'store'])->whereNumber('document')->name('gutachten.hinweis.store');
+        Route::delete('/gutachten/{document}/hinweise/{notice}', [GutachtenAngabenController::class, 'destroyNotice'])->whereNumber(['document', 'notice'])->name('gutachten.hinweis.entfernen');
+        Route::post('/gutachten/{document}/nacharbeit', [GutachtenAngabenController::class, 'store'])->whereNumber('document')->name('gutachten.nacharbeit.store');
+        Route::delete('/gutachten/{document}/nacharbeit/{rework}', [GutachtenAngabenController::class, 'destroyRework'])->whereNumber(['document', 'rework'])->name('gutachten.nacharbeit.entfernen');
 
         // The review kit (the review release §3): the board, the point sent from the feedback button, the
         // list the team answers from and a point's screenshot — only where the review is on

@@ -65,7 +65,8 @@ test('GUTACHTEN-10b a refused new code of the Auflagenverzeichnis moves the focu
                 return;
             }
 
-            await answerWithDocument(route, id, asDraft, { text_de: refusal });
+            // The Auflagenverzeichnis reads its own error bag (errorBag: 'auflagen').
+            await answerWithDocument(route, id, asDraft, { auflagen: { text_de: refusal } });
         },
     );
 

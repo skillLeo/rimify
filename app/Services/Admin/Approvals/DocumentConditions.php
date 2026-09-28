@@ -8,6 +8,7 @@ use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
+use App\Models\DocumentConditionRework;
 use App\Services\Admin\AuditTrail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -31,6 +32,8 @@ final class DocumentConditions
     public const DRIVES = ['Allrad', 'Vorderachse', 'Hinterachse', 'Allradlenkung'];
 
     public const IN_USE = 'Dieser Code steht noch in Zeilen des Verwendungsbereichs. Nimm ihn dort zuerst heraus.';
+
+    public const HAS_REWORKS = 'Zu diesem Code stehen Maße der Nacharbeit. Nimm sie unter „Befestigung und Hinweise“ zuerst heraus.';
 
     /** @param ConditionInput $input */
     public function create(ApprovalDocument $document, array $input, AdminUser $admin): DocumentCondition
@@ -69,6 +72,11 @@ final class DocumentConditions
         DB::transaction(function () use ($condition, $admin): void {
             if (self::uses($condition) > 0) {
                 throw ValidationException::withMessages(['condition' => self::IN_USE]);
+            }
+
+            // Its millimetres would go with it, without a word: taken away first, on purpose.
+            if (DocumentConditionRework::query()->where('document_condition_id', $condition->id)->exists()) {
+                throw ValidationException::withMessages(['condition' => self::HAS_REWORKS]);
             }
 
             $document = $condition->document()->firstOrFail();

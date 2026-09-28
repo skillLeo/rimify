@@ -68,8 +68,11 @@ const documentLine = computed(() => {
     const parts = [document.issuer, document.number].filter(
         (part): part is string => typeof part === 'string' && part.trim() !== ''
     )
+    const line = parts.length > 0 ? parts.join(' · ') : null
+    const others = document.others ?? []
 
-    return parts.length > 0 ? parts.join(' · ') : null
+    // Several documents the answer rests on are each named, the newest first (the corrections memo §3).
+    return others.length === 0 ? line : [line, ...others].filter((part): part is string => part !== null).join(' und ')
 })
 
 const headline = computed(() => {
@@ -124,6 +127,8 @@ const headline = computed(() => {
                 <Icon name="document" :size="20" />
                 <span class="data">{{ documentLine }}</span>
             </p>
+            <!-- What the document itself limits: a Nachtrag without its base, the month a wheel must be made from. -->
+            <p v-for="note in verdict.document?.notes ?? []" :key="note" class="fit__note">{{ note }}</p>
             <!-- The document itself, opened where the answer stands: the customer can check it. -->
             <p v-if="verdict.document?.pdf" class="fit__pdf">
                 <a :href="verdict.document.pdf.url" target="_blank" rel="noopener">

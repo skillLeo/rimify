@@ -81,6 +81,22 @@ the row is UNKNOWN until a person enters it.
 - Konflikte (admin): both sides side by side with their pages; the decision is „beide gelten jeweils für
   sich“ or „nur Dokument X gilt“, with a reason, audited. Until then: UNKNOWN.
 
+### As built (2026-09-28)
+
+- A code may be typed on a row before the document's list holds it: it is said on the row, listed as
+  „nicht zugeordnet“, keeps the row UNKNOWN and stops the Freigabe. Codes compare exactly as printed.
+- `fitments.requires_entry` is the derived (or overridden) value, written by FitmentRows and refreshed when
+  the document's list changes; the engine derives it from the codes itself and reads the column only as a
+  floor — a stale value can make an answer stricter, never looser.
+- A Prüfer's override reaches the customer: „required“ adds „Laut Prüfer: …“ to the entry note;
+  „not required“ adds the Hinweis „Laut Prüfer ist keine Eintragung erforderlich: …“.
+- Documents are compared by their answer, their Eintragung, the kinds of their non-Hinweis Auflagen and their
+  tyre sizes per axle. Agreeing documents are read together (the centre bore still says „differs“ when it
+  does). A decision is per car and wheel and covers every open conflict of that pair; a new open conflict
+  makes the pair undecided again.
+- A disagreement the engine sees without a conflict row (released before the check ran) is UNKNOWN too, but
+  cannot be decided on the Konflikte page until a conflict is recorded — a known gap, fails closed.
+
 ## B4 · The record's shape
 
 - Kinds: ABE, Nachtrag, Teilegutachten, EG-Typgenehmigung, ECE.

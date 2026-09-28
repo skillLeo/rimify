@@ -33,6 +33,20 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
 <template>
     <AdminPage title="Abdeckung" dashboard :context="context">
         <div class="ab">
+            <!-- A Nachtrag without its base: the matrix counts its approvals, and says once that they are not the whole approval. -->
+            <section v-if="matrix.incomplete?.length" class="adm-section ab__incomplete" aria-labelledby="ab-incomplete-h">
+                <div class="adm-section__head">
+                    <h2 id="ab-incomplete-h" class="adm-section__title">Nachträge ohne Grundgutachten</h2>
+                </div>
+                <p class="adm-note">Die Matrix zählt ihre Freigaben mit. Ihr Grundgutachten liegt uns nicht vor – ein Nachtrag allein ist nicht die ganze Freigabe, und der Shop sagt das dazu.</p>
+                <ul class="ab__docs">
+                    <li v-for="item in matrix.incomplete" :key="item.href" class="ab__doc">
+                        <Link :href="item.href" class="ab__link">{{ item.document }}</Link>
+                        <span v-if="item.base" class="ab__base">Grundgutachten {{ item.base }}</span>
+                    </li>
+                </ul>
+            </section>
+
             <DashWidget title="Varianten mit freigegebener Felge, nach Marke und Größe" :empty="matrix.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import.'">
                 <CoverageMatrix :matrix="matrix" :selected="selection ? { make: selection.make, size: selection.size } : null" />
             </DashWidget>
@@ -88,6 +102,44 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
     display: grid;
     gap: var(--sp-24);
     max-width: var(--adm-dash-max);
+}
+
+.ab__docs {
+    display: grid;
+    gap: 0;
+    margin: var(--sp-12) 0 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--c-line);
+}
+
+.ab__doc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4) var(--sp-16);
+    padding-block: var(--sp-8);
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.ab__link {
+    color: var(--c-ink);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .ab__link:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+
+.ab__base {
+    color: var(--c-ink-3);
 }
 
 .ab__result {

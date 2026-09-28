@@ -19,6 +19,7 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
+import DocumentExtras from './DocumentExtras.vue'
 import FactsDialog from './FactsDialog.vue'
 import RowComposer from './RowComposer.vue'
 import RowFields from './RowFields.vue'
@@ -280,7 +281,10 @@ const TONE: Record<string, string | null> = {
             <p v-else-if="document.status === 'withdrawn'" class="adm-note">Dieses Dokument wurde zurückgezogen. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else-if="document.status === 'superseded'" class="adm-note">Eine neuere Fassung hat dieses Dokument ersetzt. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else class="adm-note">Ein freigegebenes Gutachten ändert sich nicht mehr. Für Änderungen legst du eine neue Fassung an, die es ersetzt.</p>
-            <p v-if="openConflicts" class="adm-note">{{ openConflicts === 1 ? 'Eine Zeile widerspricht' : `${decimal(openConflicts, 0)} Zeilen widersprechen` }} einem anderen Gutachten. Bis zur Klärung gilt die strengere Angabe.</p>
+            <p v-if="openConflicts" class="adm-note">
+                {{ openConflicts === 1 ? 'Eine Zeile widerspricht' : `${decimal(openConflicts, 0)} Zeilen widersprechen` }} einem anderen Gutachten. Bis unter
+                <a href="/admin/konflikte">Konflikte</a> entschieden ist, sagt der Shop dort „Unbekannt“.
+            </p>
             <p v-if="releaseError" class="adm-alert" role="alert">{{ releaseError }}</p>
         </section>
 
@@ -302,6 +306,15 @@ const TONE: Record<string, string | null> = {
                 <div class="adm-facts__row"><dt>Ausgestellt am</dt><dd>{{ document.issuedOnLabel ?? '–' }}</dd></div>
                 <div class="adm-facts__row"><dt>Seiten</dt><dd>{{ document.pageCount ?? '–' }}</dd></div>
                 <div class="adm-facts__row"><dt>Fassung</dt><dd>{{ document.revision }}<template v-if="document.supersedesLabel"> · ersetzt {{ document.supersedesLabel }}</template></dd></div>
+                <div v-if="document.supplementTo" class="adm-facts__row">
+                    <dt>Nachtrag zu</dt>
+                    <dd>
+                        <a v-if="document.supplementTo.href" :href="document.supplementTo.href">{{ document.supplementTo.label }}</a>
+                        <template v-else>{{ document.supplementTo.label }} – liegt uns nicht vor</template>
+                        <span v-if="document.baseMissing" class="gs-sub">{{ document.baseMissing }}</span>
+                    </dd>
+                </div>
+                <div v-for="entry in document.header" :key="entry.label" class="adm-facts__row"><dt>{{ entry.label }}</dt><dd>{{ entry.value }}</dd></div>
                 <div class="adm-facts__row">
                     <dt>PDF</dt>
                     <dd>
@@ -318,8 +331,16 @@ const TONE: Record<string, string | null> = {
             <div class="adm-section__head">
                 <h2 id="gs-conditions-h" class="adm-section__title">Auflagenverzeichnis</h2>
             </div>
-            <p class="adm-note gs-lead">Jeder Code bedeutet, was dieses Gutachten sagt – nichts anderes. Die Zeilen unten tragen die Codes; der Shop liest den Satz hier.</p>
+            <p class="adm-note gs-lead">Die Zeilen nennen nur Codes. Was ein Code bedeutet, steht hier – so, wie dieses Gutachten ihn druckt.</p>
             <Auflagenverzeichnis :document-id="document.id" :conditions="conditions" :choices="choices" :unresolved="unresolved" :editable="can.edit && draft" :page-count="document.pageCount" />
+        </section>
+
+        <!-- ── What the document states beside its codes ─────────────── -->
+        <section class="adm-section" aria-labelledby="gs-extras-h">
+            <div class="adm-section__head">
+                <h2 id="gs-extras-h" class="adm-section__title">Befestigung und Hinweise</h2>
+            </div>
+            <DocumentExtras :document-id="document.id" :fasteners="fasteners" :notices="notices" :reworks="reworks" :conditions="conditions" :editable="can.edit && draft" :page-count="document.pageCount" />
         </section>
 
         <!-- ── Verwendungsbereich ────────────────────────────────────── -->
@@ -455,7 +476,7 @@ const TONE: Record<string, string | null> = {
             </template>
         </Dialog>
 
-        <FactsDialog v-if="can.edit" v-model:open="factsOpen" :document="document" :kinds="kinds" :replaceable="replaceable" />
+        <FactsDialog v-if="can.edit" v-model:open="factsOpen" :document="document" :kinds="kinds" :replaceable="replaceable" :supplementable="supplementable" />
     </AdminPage>
 </template>
 
@@ -534,12 +555,13 @@ const TONE: Record<string, string | null> = {
 
 /* A code the document's list does not hold: the row is UNKNOWN until it does. */
 .gs-undefined {
-    color: var(--c-warn);
+    color: var(--c-bad);
 }
 
 .gs-lead {
-    max-width: var(--adm-form-max);
+    margin-bottom: var(--sp-12);
 }
+
 
 .gs-preview-for {
     margin: var(--sp-12) 0 0;

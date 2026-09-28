@@ -12,7 +12,7 @@
  * Used for adding rows and for changing one; the page owns the values.
  */
 
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import type { AxleValue, DocumentConditionView, RowForm } from '../../../types/admin/gutachten'
@@ -30,15 +30,16 @@ const emit = defineEmits<{ 'sizes-changed': [] }>()
 
 const form = defineModel<RowForm>('form', { required: true })
 
-/* A size is judged once its line is left, not from the first keystroke — or at once after a refusal. */
+/*
+ * A size is judged once its line is left, not from the first keystroke — or at once after a save was tried:
+ * the page hands in a new errors object then, empty when it stopped the save itself (B-02).
+ */
 const left = ref(new Set<number>())
 
 watch(
     () => props.errors,
-    (errors) => {
-        if (Object.keys(errors).length > 0) {
-            left.value = new Set(form.value.tyre_sizes.map((_, index) => index))
-        }
+    () => {
+        left.value = new Set(form.value.tyre_sizes.map((_, index) => index))
     }
 )
 
@@ -54,8 +55,30 @@ const AXLES: { value: AxleValue; label: string }[] = [
 
 const LIMITS = ['build_from', 'build_to', 'width_min', 'width_max', 'et_min', 'et_max', 'centre_bore'] as const
 
-/* Unfolded when the row has limits — and when one of them was refused, so the sentence is seen. */
-const hasLimits = computed(() => LIMITS.some((key) => form.value[key] !== '') || LIMITS.some((key) => Boolean(props.errors[key])))
+/*
+ * Unfolded when the row has limits — and when one of them was refused, so the sentence is seen. Opened by
+ * the page, never closed by it: a limit emptied while typing does not fold the section away (B-01).
+ */
+const limits = ref<HTMLDetailsElement | null>(null)
+const limitRefused = computed(() => LIMITS.some((key) => Boolean(props.errors[key])))
+
+function unfoldLimits(): void {
+    if (limits.value) {
+        limits.value.open = true
+    }
+}
+
+onMounted(() => {
+    if (LIMITS.some((key) => form.value[key] !== '') || limitRefused.value) {
+        unfoldLimits()
+    }
+})
+
+watch(limitRefused, (value) => {
+    if (value) {
+        unfoldLimits()
+    }
+}, { flush: 'pre' })
 
 function id(name: string): string {
     return `${props.idPrefix}-${name}`
@@ -65,24 +88,36 @@ function err(key: string): string {
     return props.errors[key] ?? ''
 }
 
-function sizeError(index: number): string {
-    const text = form.value.tyre_sizes[index]?.text ?? ''
+/** What is wrong with a size line's size itself — shown under the line, marked on the size field. */
+function textError(index: number): string {
+    const size = form.value.tyre_sizes[index]
+    const text = size?.text ?? ''
 
     if (text.trim() !== '' && parseTyre(text) === null) {
         return left.value.has(index) ? 'Diese Reifengröße können wir nicht lesen. Schreib sie bitte so: 225/40 R18 oder 225/40 R18 92Y.' : ''
     }
 
+    // Codes without their size would be dropped: said, not lost.
+    if (text.trim() === '' && (size?.codes ?? '').trim() !== '') {
+        return left.value.has(index) ? 'Zu diesen Codes fehlt die Reifengröße.' : ''
+    }
+
     // The server counts only the sizes it was sent.
     const sent = sentIndex(form.value, index)
 
-    if (sent === null) {
-        return ''
-    }
+    return sent === null ? '' : (['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean) ?? '')
+}
 
-    const server = ['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle', 'codes'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean)
-    const codeError = Object.entries(props.errors).find(([key, message]) => message && key.startsWith(`tyre_sizes.${sent}.codes.`))?.[1]
+/** What is wrong with a size line's codes — marked on the codes field. */
+function sizeCodesError(index: number): string {
+    const sent = sentIndex(form.value, index)
+    const server = sent === null ? undefined : (err(`tyre_sizes.${sent}.codes`) || Object.entries(props.errors).find(([key, message]) => message && key.startsWith(`tyre_sizes.${sent}.codes.`))?.[1])
 
-    return server ?? codeError ?? codeWords(form.value.tyre_sizes[index]?.codes ?? '')
+    return server || codeWords(form.value.tyre_sizes[index]?.codes ?? '')
+}
+
+function sizeError(index: number): string {
+    return textError(index) || sizeCodesError(index)
 }
 
 /* ── Codes ─────────────────────────────────────────────────────────────────── */
@@ -111,7 +146,7 @@ function sizeMeaning(text: string): { code: string; label: string; defined: bool
         .map((code) => {
             const c = byCode.value.get(code)
 
-            return { code, label: c ? c.kindLabel : 'nicht im Auflagenverzeichnis', defined: c !== undefined }
+            return { code, label: c ? c.kindLabel : 'Nicht im Auflagenverzeichnis', defined: c !== undefined }
         })
 }
 
@@ -129,6 +164,13 @@ function setNote(code: string, event: Event): void {
 /* ── Eintragung ────────────────────────────────────────────────────────────── */
 
 const entry = computed(() => derivedEntry(form.value, props.conditions))
+
+/* A note about an Eintragung that is no longer needed is not kept behind the form's back. */
+watch(() => entry.value.required, (required) => {
+    if (!required) {
+        form.value.entry_note = ''
+    }
+})
 
 /** What the codes alone say, whatever the override. */
 const fromCodes = computed(() => derivedEntry({ ...form.value, entry_override: '' }, props.conditions))
@@ -197,6 +239,12 @@ function removeSize(index: number): void {
         <fieldset class="rf-group">
             <legend class="form-field__label">Reifengrößen</legend>
             <p v-if="err('tyre_sizes')" class="form-field__error">{{ err('tyre_sizes') }}</p>
+            <!-- The columns named once, above the lines; each field keeps its own label for a screen reader. -->
+            <div class="rf-sizes-head" aria-hidden="true">
+                <span>Größe</span>
+                <span>Achse</span>
+                <span>Codes nur dieser Größe</span>
+            </div>
             <div v-for="(size, index) in form.tyre_sizes" :key="index" class="rf-size">
                 <div class="form-field rf-size__text">
                     <label class="visually-hidden" :for="id(`size-${index}`)">Reifengröße {{ index + 1 }}</label>
@@ -208,9 +256,9 @@ function removeSize(index: number): void {
                         placeholder="225/40 R18"
                         spellcheck="false"
                         autocomplete="off"
-                        @blur="leave(index)"
-                        :aria-invalid="sizeError(index) ? 'true' : undefined"
+                        :aria-invalid="textError(index) ? 'true' : undefined"
                         :aria-describedby="`${id(`size-${index}`)}-err`"
+                        @blur="leave(index)"
                     >
                 </div>
                 <div class="form-field rf-size__axle">
@@ -229,6 +277,7 @@ function removeSize(index: number): void {
                         placeholder="Codes, z. B. T88"
                         spellcheck="false"
                         autocomplete="off"
+                        :aria-invalid="sizeCodesError(index) ? 'true' : undefined"
                         :aria-describedby="`${id(`size-${index}`)}-err ${id(`size-${index}`)}-codes`"
                     >
                 </div>
@@ -285,14 +334,14 @@ function removeSize(index: number): void {
         <div class="rf-group">
             <p class="form-field__label rf-entry__label">Eintragung in die Fahrzeugpapiere</p>
             <p class="rf-entry" :class="{ 'rf-entry--struck': overriding }">{{ entryLine }}</p>
-            <label class="rf-check">
+            <label class="check">
                 <input v-model="overriding" type="checkbox">
                 <span>Abweichend festlegen – laut Prüfer</span>
             </label>
             <div v-if="overriding" class="rf-override">
                 <div class="rf-radios" role="radiogroup" :aria-label="'Eintragung laut Prüfer'">
-                    <label class="rf-check"><input v-model="form.entry_override" type="radio" value="required" :name="id('override')"> <span>Erforderlich</span></label>
-                    <label class="rf-check"><input v-model="form.entry_override" type="radio" value="not_required" :name="id('override')"> <span>Nicht erforderlich</span></label>
+                    <label class="check"><input v-model="form.entry_override" type="radio" value="required" :name="id('override')"> <span>Erforderlich</span></label>
+                    <label class="check"><input v-model="form.entry_override" type="radio" value="not_required" :name="id('override')"> <span>Nicht erforderlich</span></label>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" :for="id('override-reason')">Warum?</label>
@@ -316,7 +365,7 @@ function removeSize(index: number): void {
             </div>
         </div>
 
-        <details class="rf-more" :open="hasLimits">
+        <details ref="limits" class="rf-more">
             <summary class="rf-more__summary">Grenzen aus dem Gutachten</summary>
             <p class="form-field__help">Nur ausfüllen, wenn das Gutachten sie für diese Zeile nennt. Leer heißt: keine eigene Grenze.</p>
             <div class="rf-pair">
@@ -395,7 +444,8 @@ function removeSize(index: number): void {
     padding: 0;
 }
 
-.rf-size {
+.rf-size,
+.rf-sizes-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 14ch) minmax(0, 16ch) auto;
     align-items: center;
@@ -407,19 +457,25 @@ function removeSize(index: number): void {
     grid-column: 1 / -1;
 }
 
+.rf-sizes-head {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
 .rf-size__meaning {
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-4) var(--sp-12);
     margin: 0;
-    font-size: var(--fs-micro);
-    line-height: var(--lh-micro);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
     color: var(--c-ink-2);
 }
 
 /* A code the document's list does not hold: the row stays UNKNOWN until it does. */
 .rf-undefined {
-    color: var(--c-warn);
+    color: var(--c-bad);
 }
 
 .rf-codes {
@@ -482,7 +538,6 @@ function removeSize(index: number): void {
 .rf-override {
     display: grid;
     gap: var(--sp-8);
-    padding-left: var(--sp-32);
 }
 
 .rf-radios {
@@ -494,25 +549,6 @@ function removeSize(index: number): void {
 .rf-reason {
     min-height: calc(var(--adm-control-h) * 2);
     resize: vertical;
-}
-
-.rf-check {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sp-8);
-    min-height: var(--adm-control-h);
-    padding-block: var(--sp-4);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    cursor: pointer;
-}
-
-.rf-check input {
-    flex: none;
-    width: 20px;
-    height: 20px;
-    margin: 0;
-    accent-color: var(--c-ink);
 }
 
 .rf-more {
@@ -545,6 +581,11 @@ function removeSize(index: number): void {
         grid-template-columns: minmax(0, 1fr);
     }
 
+    /* Stacked, each field shows its own placeholder: a column head would stand over nothing. */
+    .rf-sizes-head {
+        display: none;
+    }
+
     .rf-size {
         grid-template-columns: minmax(0, 1fr) auto;
     }
@@ -562,13 +603,9 @@ function removeSize(index: number): void {
         grid-column: 1 / -1;
     }
 
-    .rf-code__note,
-    .rf-override {
+    .rf-code__note {
         padding-left: 0;
     }
 
-    .rf-check {
-        min-height: var(--adm-control-h-lg);
-    }
 }
 </style>

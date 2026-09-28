@@ -158,6 +158,11 @@ export interface CoverageMatrix {
     max: number
     summary: { fitments: string; variants: string; sentence: string }
     computedAt: string
+    /**
+     * Released Nachträge whose base document we do not hold, each with its sentence: the approvals the
+     * matrix counts for them are not the whole approval (the corrections memo §4). Additive.
+     */
+    incomplete?: { document: string; href: string; sentence: string; base: string | null }[]
 }
 
 /** One Nachfrage-Lücke: a car asked for that the shop has no approved wheel for yet (Demand). */

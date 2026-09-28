@@ -47,6 +47,26 @@ return new class extends Migration
         'SPEED_STICKER' => 'tacho',
     ];
 
+    /**
+     * The starter keys were internal names (`ENTRY_REQUIRED`), never what a document printed. Where a
+     * document named no code of its own for one, it gets a short code of the kind the documents use — the
+     * same the demo seeder writes — so no internal key stands in a list as if printed.
+     */
+    private const SHORT = [
+        'ENTRY_REQUIRED' => 'A01',
+        'NO_ENTRY_REQUIRED' => 'A02',
+        'ARCH_ROLLING' => 'K1',
+        'ARCH_TRIM' => 'K2',
+        'SPECIFIC_BOLTS' => 'S01',
+        'CENTRING_RING' => 'S02',
+        'TYRE_BRAND_LIMIT' => 'R01',
+        'NO_SNOW_CHAINS' => 'A12',
+        'FRONT_AXLE_ONLY' => 'R02',
+        'REAR_AXLE_ONLY' => 'R03',
+        'TYRE_SIZE_NOTE' => 'H01',
+        'SPEED_STICKER' => 'G01',
+    ];
+
     /** A code the team added itself: its kind by its severity, never lighter (an ACTION code becomes a Verbot, not a Hinweis). */
     private const KIND_OF_SEVERITY = [
         'INFO' => 'hinweis',
@@ -98,7 +118,7 @@ return new class extends Migration
         $defined = [];
 
         foreach ($uses as $use) {
-            $printed = is_string($use->printed_code) && $use->printed_code !== '' ? $use->printed_code : (string) $use->code;
+            $printed = is_string($use->printed_code) && $use->printed_code !== '' ? $use->printed_code : (self::SHORT[$use->code] ?? (string) $use->code);
             $key = $use->approval_document_id.'|'.$printed;
 
             if (! isset($defined[$key])) {

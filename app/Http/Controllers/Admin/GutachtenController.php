@@ -17,6 +17,9 @@ use App\Http\Requests\Admin\ApprovalStepRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
+use App\Models\DocumentConditionRework;
+use App\Models\DocumentFastener;
+use App\Models\DocumentNotice;
 use App\Models\Fitment;
 use App\Models\FitmentCondition;
 use App\Models\FitmentTyreSize;
@@ -120,6 +123,7 @@ class GutachtenController extends Controller
         return Inertia::render('Admin/Gutachten/Neu', [
             'kinds' => self::kinds(),
             'replaceable' => self::replaceable(null),
+            'supplementable' => self::supplementable(),
             'maxMb' => (int) config('media.upload.pdf_max_mb'),
         ]);
     }
@@ -184,6 +188,31 @@ class GutachtenController extends Controller
             'unresolved' => DocumentConditions::unresolvedIn($document),
             'kinds' => self::kinds(),
             'replaceable' => self::replaceable($document),
+            'supplementable' => self::supplementable(),
+            // What the document states beside its codes (the corrections memo §4).
+            'fasteners' => $document->fasteners()->get()->map(static fn (DocumentFastener $f): array => [
+                'id' => (int) $f->id,
+                'number' => $f->number,
+                'thread' => $f->thread,
+                'seat' => $f->seat,
+                'torqueNm' => $f->torque_nm,
+                'shaftLengthMm' => $f->shaft_length_mm,
+                'articleNumber' => $f->article_number,
+                'vehicleTypes' => $f->vehicle_types,
+                'page' => $f->source_page,
+            ])->values()->all(),
+            'notices' => $document->notices()->get()->map(static fn (DocumentNotice $n): array => ['id' => (int) $n->id, 'text' => $n->text_de, 'page' => $n->source_page])->values()->all(),
+            'reworks' => DocumentConditionRework::query()->with('condition')
+                ->whereIn('document_condition_id', array_map(static fn (DocumentCondition $c): int => (int) $c->id, array_values($defined)))
+                ->orderBy('document_condition_id')->orderBy('vehicle_type')->get()
+                ->map(static fn (DocumentConditionRework $r): array => [
+                    'id' => (int) $r->id,
+                    'code' => (string) $r->condition?->code,
+                    'vehicleType' => $r->vehicle_type,
+                    'axle' => $r->axle,
+                    'measure' => $r->measureDe(),
+                    'note' => $r->note_de,
+                ])->values()->all(),
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
                 ->whereIn('candidate_fitment_id', $rows->pluck('id'))->count(),
             'can' => [
@@ -301,7 +330,52 @@ class GutachtenController extends Controller
             'pdfUrl' => $url,
             'hasPdf' => $document->pdf_key !== null,
             'pdfMissing' => $missing,
+            // Page 1's header and a Nachtrag's base (the corrections memo §4): as the forms type them …
+            'shape' => [
+                'supplement_to_id' => $document->supplement_to_id,
+                'supplement_to_number' => (string) ($document->supplement_to_number ?? ''),
+                'annex' => (string) ($document->getAttribute('annex') ?? ''),
+                'test_report_number' => (string) ($document->getAttribute('test_report_number') ?? ''),
+                'copy_number' => (string) ($document->getAttribute('copy_number') ?? ''),
+                'designation_number' => (string) ($document->getAttribute('designation_number') ?? ''),
+                'test_site' => (string) ($document->getAttribute('test_site') ?? ''),
+                'test_date' => $document->test_date?->format('Y-m-d') ?? '',
+                'revision_date' => $document->revision_date?->format('Y-m-d') ?? '',
+                'valid_from_production' => $document->valid_from_production?->format('m.Y') ?? '',
+            ],
+            // … and as the record shows them: only what is filled.
+            'header' => array_values(array_filter([
+                ['label' => 'Anlage', 'value' => (string) ($document->getAttribute('annex') ?? '')],
+                ['label' => 'Prüfbericht-Nr.', 'value' => (string) ($document->getAttribute('test_report_number') ?? '')],
+                ['label' => 'Ausfertigung', 'value' => (string) ($document->getAttribute('copy_number') ?? '')],
+                ['label' => 'Benennungsnummer', 'value' => (string) ($document->getAttribute('designation_number') ?? '')],
+                ['label' => 'Prüfort', 'value' => (string) ($document->getAttribute('test_site') ?? '')],
+                ['label' => 'Prüfdatum', 'value' => (string) GermanFormat::date($document->test_date)],
+                ['label' => 'Stand', 'value' => (string) GermanFormat::date($document->revision_date)],
+                ['label' => 'Gültig ab Fertigungsdatum', 'value' => $document->valid_from_production?->format('m/Y') ?? ''],
+            ], static fn (array $entry): bool => $entry['value'] !== '')),
+            'supplementTo' => $document->kind !== ApprovalKind::Nachtrag ? null : ($document->supplementTo !== null
+                ? ['label' => FitmentRows::label($document->supplementTo), 'href' => '/admin/gutachten/'.$document->supplementTo->id]
+                : ['label' => (string) ($document->supplement_to_number ?? '–'), 'href' => null]),
+            'baseMissing' => $document->baseMissingDe(),
         ];
+    }
+
+    /**
+     * The documents a Nachtrag may supplement: any that is not itself a Nachtrag.
+     *
+     * @return list<array{value: int, label: string}>
+     */
+    private static function supplementable(): array
+    {
+        return ApprovalDocument::query()
+            ->where('kind', '<>', ApprovalKind::Nachtrag->value)
+            ->orderByDesc('issued_on')
+            ->limit(300)
+            ->get()
+            ->map(static fn (ApprovalDocument $d): array => ['value' => (int) $d->id, 'label' => FitmentRows::label($d)])
+            ->values()
+            ->all();
     }
 
     /** @return array<string, mixed> */

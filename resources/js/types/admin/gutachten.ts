@@ -26,6 +26,14 @@ export interface DocumentFacts {
     hasPdf: boolean
     /** A key is stored, the file is not in the storage. */
     pdfMissing?: boolean
+    /** Page 1's header and a Nachtrag's base, as the forms type them. */
+    shape: RecordShape
+    /** Page 1's header, as the record shows it: label → value, only what is filled. */
+    header: { label: string; value: string }[]
+    /** `Nachtrag zu ABE 53841` — linked when we hold it. */
+    supplementTo: { label: string; href: string | null } | null
+    /** The sentence the record, the Abdeckung and the shop say for a Nachtrag without its base. */
+    baseMissing: string | null
 }
 
 /** A code on a row or a tyre size, as printed, with what its own document says it means. */
@@ -37,6 +45,53 @@ export interface RowCode {
     kind: string | null
     page: number | null
     defined: boolean
+}
+
+/** A bolt or nut the document names: `S01 · M14x1,25 · Kegelbund 60° · 140 Nm`. */
+export interface FastenerView {
+    id: number
+    number: string
+    thread: string
+    seat: string
+    torqueNm: number | null
+    shaftLengthMm: number | null
+    articleNumber: string | null
+    vehicleTypes: string | null
+    page: number | null
+}
+
+/** A duty the document always states, shown with every verdict. */
+export interface NoticeView {
+    id: number
+    text: string
+    page: number | null
+}
+
+/** The millimetres of a „Nacharbeit mit Maßen“ code, per vehicle type and axle. */
+export interface ReworkView {
+    id: number
+    code: string
+    vehicleType: string
+    axle: 'FRONT' | 'REAR' | 'ALL'
+    /** `von 15 bis 30 mm · aufgeweitet um 5 mm`, formatted by the server. */
+    measure: string
+    note: string | null
+}
+
+/** The record's shape beyond its number, as the forms type it (the corrections memo §4). */
+export interface RecordShape {
+    supplement_to_id: number | null
+    supplement_to_number: string
+    annex: string
+    test_report_number: string
+    copy_number: string
+    designation_number: string
+    test_site: string
+    /** `YYYY-MM-DD` for the date fields. */
+    test_date: string
+    revision_date: string
+    /** `MM.JJJJ` as typed. */
+    valid_from_production: string
 }
 
 export interface TyreSizeRow {
@@ -144,6 +199,12 @@ export interface AdminGutachtenShowProps {
     unresolved: UnresolvedCode[]
     kinds: { value: string; label: string }[]
     replaceable: { value: number; label: string }[]
+    /** The documents a Nachtrag may supplement. */
+    supplementable: { value: number; label: string }[]
+    /** Befestigungsmittel, Pflichthinweise and the millimetres of the rework codes (the corrections memo §4). */
+    fasteners: FastenerView[]
+    notices: NoticeView[]
+    reworks: ReworkView[]
     openConflicts: number
     can: { edit: boolean; release: boolean }
 }

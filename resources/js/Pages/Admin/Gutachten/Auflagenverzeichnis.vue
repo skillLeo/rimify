@@ -36,8 +36,14 @@ const base = computed(() => `/admin/gutachten/${props.documentId}/auflagen`)
 const busy = ref(false)
 const sent = ref(false)
 
+/*
+ * This list's own error bag: the page carries other forms (the rows, Befestigung und Hinweise) whose
+ * refusals use the same field names — a sentence about one never stands under another.
+ */
+const BAG = 'auflagen'
+
 const bag = computed<Record<string, string>>(() => {
-    const raw: unknown = page.props.errors
+    const raw: unknown = (page.props.errors as Record<string, unknown> | undefined)?.[BAG]
 
     return raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {}
 })
@@ -131,6 +137,7 @@ function save(): void {
     const options = {
         preserveScroll: true,
         preserveState: true,
+        errorBag: BAG,
         onSuccess: () => {
             const code = form.code.trim()
             formOpen.value = false
@@ -146,6 +153,7 @@ function save(): void {
                 ['kind', 'av-kind'],
                 ['text_de', 'av-text'],
                 ['source_page', 'av-page'],
+                ['body_forms', 'av-body-0'],
                 ['drive.drive', 'av-drive'],
                 ['max_axle_load_kg', 'av-load'],
                 ['axle', 'av-axle'],
@@ -192,6 +200,7 @@ function remove(): void {
     router.delete(`${base.value}/${condition.id}`, {
         preserveScroll: true,
         preserveState: true,
+        errorBag: BAG,
         onSuccess: () => {
             removing.value = null
             focus.request([...neighbours, 'av-new'])
@@ -228,6 +237,8 @@ function doSplit(): void {
 
 function dropSplit(key: number): void {
     split.value = split.value.filter((entry) => entry.key !== key)
+    // The server's sentences were counted by place: after a line goes, they would stand under the wrong one (B-03).
+    pasteSent.value = false
 }
 
 const splitReady = computed(() => split.value.length > 0 && split.value.every((entry) => entry.kind !== '' && entry.code.trim() !== '' && entry.text_de.trim() !== ''))
@@ -238,11 +249,17 @@ function saveSplit(): void {
     router.post(`${base.value}/stapel`, { entries: split.value.map(payload) }, {
         preserveScroll: true,
         preserveState: true,
+        errorBag: BAG,
         onSuccess: () => {
             pasteOpen.value = false
             split.value = []
             pasteSent.value = false
             focus.request('av-new')
+        },
+        // Refused: the keyboard goes to the first line and field the sentence is about (B-03).
+        onError: (refused: Record<string, string>) => {
+            const first = Object.keys(refused).map((key) => /^entries\.(\d+)\.(code|kind|text_de)/.exec(key)).find((m) => m !== null)
+            focus.request(first ? [`av-split-${first[2] === 'text_de' ? 'text' : first[2]}-${first[1]}`, 'av-paste'] : ['av-paste'])
         },
         onFinish: () => {
             busy.value = false
@@ -277,14 +294,14 @@ function parameter(condition: DocumentConditionView): string {
 }
 
 function uses(condition: DocumentConditionView): string {
-    return condition.uses === 0 ? '–' : condition.uses === 1 ? '1 Zeile' : `${condition.uses} Zeilen`
+    return condition.uses === 0 ? '–' : formatNumber(condition.uses)
 }
 </script>
 
 <template>
     <div class="av">
         <p v-if="unresolved.length" class="adm-alert" role="alert">
-            Nicht zugeordnete Codes: {{ unresolved.map((u) => u.code).join(', ') }}. Zeilen mit diesen Codes sind unbekannt, bis der Code hier steht — und das
+            Nicht im Auflagenverzeichnis: {{ unresolved.map((u) => u.code).join(', ') }}. Zeilen mit diesen Codes bleiben „Unbekannt“, bis der Code hier steht – und das
             Gutachten ist so lange nicht freigebbar.
         </p>
         <p v-if="listError" class="adm-alert" role="alert">{{ listError }}</p>
@@ -298,7 +315,7 @@ function uses(condition: DocumentConditionView): string {
                         <th scope="col">Art</th>
                         <th scope="col">Satz aus dem Gutachten</th>
                         <th scope="col" class="num">Seite</th>
-                        <th scope="col">Verwendet</th>
+                        <th scope="col" class="num">Verwendet</th>
                         <th v-if="editable" scope="col"><span class="visually-hidden">Aktionen</span></th>
                     </tr>
                 </thead>
@@ -311,7 +328,7 @@ function uses(condition: DocumentConditionView): string {
                         </td>
                         <td data-label="Satz" class="av__text">{{ condition.text }}</td>
                         <td data-label="Seite" class="num">{{ condition.page ?? '–' }}</td>
-                        <td data-label="Verwendet" data-phone="hide">{{ uses(condition) }}</td>
+                        <td data-label="Verwendet" data-phone="hide" class="num">{{ uses(condition) }}</td>
                         <td v-if="editable" data-label="Aktionen" data-phone="menu">
                             <DropdownMenuRoot>
                                 <DropdownMenuTrigger :data-focus="`av-more-${condition.id}`" class="adm-iconbtn" :disabled="busy" :aria-label="`Aktionen für Code ${condition.code}`">
@@ -338,7 +355,7 @@ function uses(condition: DocumentConditionView): string {
                 </tbody>
             </table>
         </div>
-        <p v-else class="adm-note">Noch kein Code. Trag die Auflagen so ein, wie das Gutachten sie druckt — einzeln oder als ganze Legende.</p>
+        <p v-else class="adm-note">Noch kein Code. Trag die Auflagen so ein, wie das Gutachten sie druckt – einzeln oder als ganze Legende.</p>
 
         <div v-if="editable && !formOpen && !pasteOpen" class="av__actions">
             <button id="av-new" class="btn btn--secondary" type="button" :disabled="busy" @click="openNew">
@@ -369,7 +386,7 @@ function uses(condition: DocumentConditionView): string {
 
             <div class="form-field">
                 <label class="form-field__label" for="av-text">Satz aus dem Gutachten</label>
-                <textarea id="av-text" v-model="form.text_de" class="input av__textarea" rows="3" maxlength="2000" :aria-invalid="errors.text_de ? 'true' : undefined" aria-describedby="av-text-err"></textarea>
+                <textarea id="av-text" v-model="form.text_de" class="input av__textarea" rows="3" maxlength="2000" :aria-invalid="errors.text_de ? 'true' : undefined" aria-describedby="av-text-err" />
                 <p id="av-text-err" class="form-field__error" aria-live="polite">{{ errors.text_de }}</p>
             </div>
 
@@ -381,8 +398,8 @@ function uses(condition: DocumentConditionView): string {
 
             <fieldset v-if="form.kind === 'karosserieform'" class="av__group">
                 <legend class="form-field__label">Nur für diese Karosserieformen</legend>
-                <label v-for="bodyForm in choices.bodyForms" :key="bodyForm" class="check">
-                    <input v-model="form.body_forms" type="checkbox" :value="bodyForm">
+                <label v-for="(bodyForm, i) in choices.bodyForms" :key="bodyForm" class="check">
+                    <input :id="`av-body-${i}`" v-model="form.body_forms" type="checkbox" :value="bodyForm">
                     {{ bodyForm }}
                 </label>
                 <p class="form-field__error" aria-live="polite">{{ errors.body_forms }}</p>
@@ -433,7 +450,7 @@ function uses(condition: DocumentConditionView): string {
         <div v-if="pasteOpen" class="av__form">
             <div class="form-field">
                 <label class="form-field__label" for="av-paste">Legende aus dem Gutachten</label>
-                <textarea id="av-paste" v-model="pasted" class="input av__textarea" rows="6" aria-describedby="av-paste-help"></textarea>
+                <textarea id="av-paste" v-model="pasted" class="input av__textarea" rows="6" aria-describedby="av-paste-help" />
                 <p id="av-paste-help" class="form-field__help">Den Block mit den Auflagen und Hinweisen kopieren und einfügen. Er wird an den Codes geteilt; du prüfst jede Zeile und wählst ihre Art.</p>
             </div>
             <div class="av__actions">
@@ -460,7 +477,7 @@ function uses(condition: DocumentConditionView): string {
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" :for="`av-split-text-${index}`">Satz</label>
-                        <textarea :id="`av-split-text-${index}`" v-model="entry.text_de" class="input av__textarea" rows="2"></textarea>
+                        <textarea :id="`av-split-text-${index}`" v-model="entry.text_de" class="input av__textarea" rows="2" />
                         <p class="form-field__error">{{ splitError(index, 'text_de') }}</p>
                     </div>
                     <p v-if="['karosserieform', 'antrieb', 'reifen_tragfaehigkeit', 'reifen_achse'].includes(entry.kind)" class="form-field__help">
@@ -543,6 +560,11 @@ function uses(condition: DocumentConditionView): string {
     margin: 0;
     padding: 0;
     border: 0;
+}
+
+/* Flush with the fields above: the browser indents a legend by default. */
+.av__group legend {
+    padding: 0;
 }
 
 .av__split {

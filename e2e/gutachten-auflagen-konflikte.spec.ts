@@ -30,6 +30,13 @@ test('a Gutachten shows its own Auflagenverzeichnis, and each row its codes with
     }
 
     await list.screenshot({ path: `${SHOTS}/auflagenverzeichnis-${info.project.name}.png` });
+
+    // What the document states beside its codes (the corrections memo §4): its own section, read-only here.
+    const extras = page.locator('section[aria-labelledby="gs-extras-h"]');
+    await expect(extras.getByRole('heading', { name: 'Befestigung und Hinweise' })).toBeVisible();
+    await expect(extras.getByRole('heading', { name: 'Befestigungsmittel' })).toBeVisible();
+    await expect(extras.getByRole('heading', { name: 'Pflichthinweise' })).toBeVisible();
+    await expect(extras.getByRole('button', { name: /hinzufügen/ }), 'a released document takes no entries').toHaveCount(0);
 });
 
 test('the Auflagen page lists every document’s own list, read-only', async ({ page }, info) => {

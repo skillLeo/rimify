@@ -96,6 +96,11 @@ export function derivedEntry(form: RowForm, conditions: DocumentConditionView[])
     const sources = new Set(rowSources.map(label))
 
     form.tyre_sizes.forEach((size, index) => {
+        // Only a line that is sent counts, as on the server: codes without a readable size go nowhere.
+        if (parseTyre(size.text) === null) {
+            return
+        }
+
         const own = parseCodes(size.codes).filter((code) => abnahme.has(code))
 
         own.forEach((code) => sources.add(label(code)))
@@ -165,9 +170,13 @@ export function formFromRow(row: FitmentRowView): RowForm {
     }
 }
 
-/** The sizes that do not read as a tyre size, by their place in the list. */
+/** The lines that cannot be sent: a size that does not read, or codes without their size — by their place. */
 export function unreadable(form: RowForm): number[] {
-    return form.tyre_sizes.flatMap((size, index) => (size.text.trim() !== '' && parseTyre(size.text) === null ? [index] : []))
+    return form.tyre_sizes.flatMap((size, index) => {
+        const text = size.text.trim()
+
+        return (text !== '' && parseTyre(size.text) === null) || (text === '' && size.codes.trim() !== '') ? [index] : []
+    })
 }
 
 /**

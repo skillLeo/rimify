@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Dashboard;
 
+use App\Enums\ApprovalKind;
+use App\Models\ApprovalDocument;
 use App\Models\Fitment;
+use App\Services\Admin\Approvals\FitmentRows;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -21,12 +24,12 @@ use Illuminate\Support\Facades\DB;
  *
  * @phpstan-type Cell array{size: string, count: int, level: int, sentence: string, href: string}
  * @phpstan-type Row array{make: string, variants: int, covered: int, cells: list<Cell>}
- * @phpstan-type Matrix array{sizes: list<array{key: string, label: string}>, rows: list<Row>, max: int, summary: array{fitments: string, variants: string, sentence: string}, computedAt: string}
+ * @phpstan-type Matrix array{sizes: list<array{key: string, label: string}>, rows: list<Row>, max: int, summary: array{fitments: string, variants: string, sentence: string}, computedAt: string, incomplete: list<array{document: string, href: string, sentence: string, base: string|null}>}
  */
 final class Coverage
 {
     /** Versioned: a change to what the matrix carries (its labels) must not wait an hour for the cache. */
-    public const CACHE_KEY = 'admin.coverage.v2';
+    public const CACHE_KEY = 'admin.coverage.v3';
 
     public const CACHE_SECONDS = 3600;
 
@@ -118,6 +121,17 @@ final class Coverage
                 'sentence' => 'Abdeckung insgesamt: '.GermanFormat::integer($fitments).($fitments === 1 ? ' Freigabe' : ' Freigaben').' über '.GermanFormat::integer($vehicles).($vehicles === 1 ? ' Variante' : ' Varianten'),
             ],
             'computedAt' => (string) GermanFormat::dateTime(CarbonImmutable::now()),
+            // A released Nachtrag without its base: the matrix counts its approvals, and says they are
+            // not the whole approval (the corrections memo §4).
+            'incomplete' => ApprovalDocument::query()->currentlyValid()
+                ->where('kind', ApprovalKind::Nachtrag->value)->whereNull('supplement_to_id')
+                ->orderBy('id')->get()
+                ->map(static fn (ApprovalDocument $d): array => [
+                    'document' => FitmentRows::label($d),
+                    'href' => '/admin/gutachten/'.$d->id,
+                    'sentence' => (string) $d->baseMissingDe(),
+                    'base' => $d->supplement_to_number,
+                ])->values()->all(),
         ];
     }
 

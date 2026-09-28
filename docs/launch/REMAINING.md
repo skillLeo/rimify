@@ -25,18 +25,23 @@ seeder, test to follow).
 
 ## Block B — the Gutachten model corrections
 
-- [ ] 1 · Auflagen scoped per document (`gutachten_auflage`, unique on document + code), the global catalogue
+- [x] 1 · Auflagen scoped per document (`gutachten_auflage`, unique on document + code), the global catalogue
       migrated into its documents; an unresolved code is UNKNOWN and blocks publishing; the A01-under-two-
-      documents test
-- [ ] 2 · Eintragung erforderlich derived from an `abnahme` Auflage, per tyre size; read-only with its code;
-      an override needs an audited, displayed reason
-- [ ] 3 · No auto-resolution between documents: verdict per document, the document named; a genuine
-      disagreement goes to Konflikte and shows UNKNOWN
-- [ ] 4 · The record's shape: Nachtrag and EG-Typgenehmigung, `nachtrag_zu`, Anlage, Prüfbericht-Nr,
+      documents test — `89e61480` (table `document_conditions`, see docs/specs/gutachten-model.md; body-style
+      and drive codes narrow a row and fail closed)
+- [x] 2 · Eintragung erforderlich derived from an `abnahme` Auflage, per tyre size; read-only with its code;
+      an override needs an audited, displayed reason — `89e61480`
+- [x] 3 · No auto-resolution between documents: verdict per document, the document named; a genuine
+      disagreement goes to Konflikte and shows UNKNOWN — `57191f6d` (Konflikte page: „beide gelten jeweils für
+      sich“ or „nur Dokument X gilt“, with a reason, audited, Freigeben right)
+- [x] 4 · The record's shape: Nachtrag and EG-Typgenehmigung, `nachtrag_zu`, Anlage, Prüfbericht-Nr,
       Ausfertigung, Benennungsnummer, Prüfort, Stand, gültig ab Fertigungsdatum; a supplement without its
       base shown on the record, the coverage matrix and to the customer; the twelve Auflage types,
-      `auflage_nacharbeit`, `befestigungsmittel`, `gutachten_pflichthinweis`
-- [ ] ai-look-critic and interaction-qa on the block
+      `auflage_nacharbeit`, `befestigungsmittel`, `gutachten_pflichthinweis` — see the B4 commit below
+      (tables `document_condition_reworks`, `document_fasteners`, `document_notices`)
+- [x] ai-look-critic and interaction-qa on the block — both ran; look: 12 fixes, 10 taken (the brief's
+      base-missing sentence kept as written; the key-number formatter left alone), interaction: 4 × S2 and 8 × S3
+      fixed with QA's specs `e2e/bugs/b-01…b-04` green at 1440 and 390
 
 ## Block C — vehicles
 

@@ -14,15 +14,20 @@ import Dialog from '../../../Components/Ui/Dialog.vue'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
 import { decimal } from '../../../format'
 import { FILE_CHANGED } from '../../../lib/file'
-import type { DocumentFacts } from '../../../types/admin/gutachten'
+import type { DocumentFacts, RecordShape } from '../../../types/admin/gutachten'
+import RecordFields from './RecordFields.vue'
 
 const props = defineProps<{
     document: DocumentFacts
     kinds: { value: string; label: string }[]
     replaceable: { value: number; label: string }[]
+    supplementable: { value: number; label: string }[]
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
+
+/* Page 1's header and a Nachtrag's base, sent with the facts (the corrections memo §4). */
+const shape = ref<RecordShape>({ ...props.document.shape })
 
 function fromDocument() {
     return {
@@ -47,6 +52,7 @@ watch(open, (value) => {
         form.defaults(fromDocument())
         form.reset()
         form.clearErrors()
+        shape.value = { ...props.document.shape }
         pdf.value = null
     }
 })
@@ -55,6 +61,8 @@ const numberField = computed(() => {
     switch (form.kind) {
         case 'ABE':
             return { key: 'kba_number' as const, label: 'KBA-Nummer' }
+        case 'NACHTRAG':
+            return { key: 'report_number' as const, label: 'Nummer des Nachtrags' }
         case 'TEILEGUTACHTEN':
             return { key: 'report_number' as const, label: 'Gutachten-Nummer' }
         default:
@@ -91,7 +99,7 @@ async function save(): Promise<void> {
         form.upload_key = key
     }
 
-    form.put(`/admin/gutachten/${props.document.id}`, {
+    form.transform((data) => ({ ...data, ...shape.value })).put(`/admin/gutachten/${props.document.id}`, {
         preserveScroll: true,
         onSuccess: () => (open.value = false),
         onError: () => focusRefused('.fd'),
@@ -117,6 +125,7 @@ async function save(): Promise<void> {
                 <label class="form-field__label" for="fd-issuer">Aussteller</label>
                 <input id="fd-issuer" v-model="form.issuer" class="input" type="text" maxlength="120">
             </div>
+            <RecordFields v-model:shape="shape" :kind="form.kind" :errors="errors" :supplementable="supplementable.filter((d) => d.value !== document.id)" id-prefix="fd" />
             <div class="fd-pair">
                 <div class="form-field">
                     <label class="form-field__label" for="fd-date">Ausgestellt am</label>

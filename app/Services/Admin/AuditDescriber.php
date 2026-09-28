@@ -124,6 +124,12 @@ final class AuditDescriber
         'approval.condition_changed' => 'gutachten',
         'approval.condition_removed' => 'gutachten',
         'conflict.decided' => 'gutachten',
+        'approval.fastener_added' => 'gutachten',
+        'approval.fastener_removed' => 'gutachten',
+        'approval.notice_added' => 'gutachten',
+        'approval.notice_removed' => 'gutachten',
+        'approval.rework_added' => 'gutachten',
+        'approval.rework_removed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
         'condition.deleted' => 'gutachten',
@@ -379,6 +385,12 @@ final class AuditDescriber
             'approval.condition_added' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' angelegt.', []],
             'approval.condition_changed' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' geändert.', []],
             'approval.condition_removed' => ['Aus dem Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' entfernt.', []],
+            'approval.fastener_added' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Befestigungsmittel '.self::q(self::text($p, 'what') ?? '–').' eingetragen.', []],
+            'approval.fastener_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Befestigungsmittel '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
+            'approval.notice_added' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Pflichthinweis '.self::q(self::text($p, 'what') ?? '–').' eingetragen.', []],
+            'approval.notice_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Pflichthinweis '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
+            'approval.rework_added' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Maß der Nacharbeit '.self::q(self::text($p, 'what') ?? '–').' eingetragen.', []],
+            'approval.rework_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Maß der Nacharbeit '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
             'conflict.decided' => [
                 'Der Konflikt zu '.self::q(trim((self::text($p, 'vehicle') ?? 'einem Fahrzeug').' · '.(self::text($p, 'wheel') ?? 'einer Felge'))).' wurde entschieden: '
                     .(($p['mode'] ?? null) === 'only'

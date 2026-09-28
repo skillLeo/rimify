@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
 /**
- * The approval document — ABE, Teilegutachten, ECE or EC.
+ * The approval document — ABE, Nachtrag, Teilegutachten, EG-Typgenehmigung or ECE.
  *
  * Revisions supersede, never overwrite: `supersedes_id` points at the revision this one replaces,
  * and the older row stays readable so an order placed against it can still be explained.
@@ -33,6 +33,11 @@ use LogicException;
  * @property CarbonImmutable|null $valid_from
  * @property CarbonImmutable|null $valid_to
  * @property int|null $supersedes_id
+ * @property int|null $supplement_to_id the base this Nachtrag supplements, when we hold it
+ * @property string|null $supplement_to_number the base we do not hold, as the Nachtrag names it
+ * @property CarbonImmutable|null $test_date
+ * @property CarbonImmutable|null $revision_date
+ * @property CarbonImmutable|null $valid_from_production the first day of the month a wheel must be made from
  */
 class ApprovalDocument extends Model
 {
@@ -42,6 +47,8 @@ class ApprovalDocument extends Model
     protected $fillable = [
         'kind', 'kba_number', 'approval_mark', 'report_number', 'issuer', 'issued_on',
         'revision', 'supersedes_id', 'valid_from', 'valid_to',
+        'supplement_to_id', 'supplement_to_number', 'annex', 'test_report_number', 'copy_number',
+        'designation_number', 'test_site', 'test_date', 'revision_date', 'valid_from_production',
         'pdf_key', 'pdf_sha256', 'page_count', 'status', 'created_by',
     ];
 
@@ -54,6 +61,9 @@ class ApprovalDocument extends Model
             'issued_on' => 'immutable_date',
             'valid_from' => 'immutable_date',
             'valid_to' => 'immutable_date',
+            'test_date' => 'immutable_date',
+            'revision_date' => 'immutable_date',
+            'valid_from_production' => 'immutable_date',
             'revision' => 'integer',
             'page_count' => 'integer',
         ];
@@ -145,6 +155,45 @@ class ApprovalDocument extends Model
     public function conditions(): HasMany
     {
         return $this->hasMany(DocumentCondition::class)->orderBy('id');
+    }
+
+    /** @return BelongsTo<ApprovalDocument, $this> the base this Nachtrag supplements, when we hold it */
+    public function supplementTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'supplement_to_id');
+    }
+
+    /** @return HasMany<DocumentFastener, $this> */
+    public function fasteners(): HasMany
+    {
+        return $this->hasMany(DocumentFastener::class)->orderBy('number');
+    }
+
+    /** @return HasMany<DocumentNotice, $this> */
+    public function notices(): HasMany
+    {
+        return $this->hasMany(DocumentNotice::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * The sentence for a Nachtrag whose base we do not hold (the corrections memo §4) — said on the
+     * record, in the Abdeckung and to the customer; null for any other document.
+     */
+    public function baseMissingDe(): ?string
+    {
+        if ($this->kind !== ApprovalKind::Nachtrag || $this->supplement_to_id !== null) {
+            return null;
+        }
+
+        $base = trim((string) $this->supplement_to_number);
+
+        return 'Grundgutachten '.($base === '' ? 'dieses Nachtrags' : $base).' liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.';
+    }
+
+    /** `Gilt für Felgen, die ab 03/2021 gefertigt wurden.` — null when the document names no month. */
+    public function productionFromDe(): ?string
+    {
+        return $this->valid_from_production === null ? null : 'Gilt für Felgen, die ab '.$this->valid_from_production->format('m/Y').' gefertigt wurden.';
     }
 
     /** @return BelongsTo<AdminUser, $this> */

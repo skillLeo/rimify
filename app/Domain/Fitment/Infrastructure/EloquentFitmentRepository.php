@@ -321,6 +321,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 pdfSha256: $document->pdf_sha256,
                 sourcePage: $fitment->source_page,
                 issuer: $document->issuer,
+                notesDe: array_values(array_filter([$document->baseMissingDe(), $document->productionFromDe()])),
             ),
             vehicleId: $fitment->vehicle_id,
             wheelConfigId: $fitment->wheel_config_id,

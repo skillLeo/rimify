@@ -18,14 +18,32 @@ import { usePresignedUpload } from '../../../composables/admin/usePresignedUploa
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import { FILE_CHANGED } from '../../../lib/file'
+import type { RecordShape } from '../../../types/admin/gutachten'
+import RecordFields from './RecordFields.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<{
     kinds: { value: string; label: string }[]
     replaceable: { value: number; label: string }[]
+    /** The documents a Nachtrag may supplement. */
+    supplementable: { value: number; label: string }[]
     maxMb: number
 }>()
+
+/* A Nachtrag's base and page 1's header, sent with the facts (the corrections memo §4). */
+const shape = ref<RecordShape>({
+    supplement_to_id: null,
+    supplement_to_number: '',
+    annex: '',
+    test_report_number: '',
+    copy_number: '',
+    designation_number: '',
+    test_site: '',
+    test_date: '',
+    revision_date: '',
+    valid_from_production: '',
+})
 
 const pdf = ref<File | null>(null)
 const upload = usePresignedUpload()
@@ -47,6 +65,8 @@ const numberField = computed(() => {
     switch (form.kind) {
         case 'ABE':
             return { key: 'kba_number' as const, label: 'KBA-Nummer', help: 'Die Nummer der Allgemeinen Betriebserlaubnis, zum Beispiel 53810.' }
+        case 'NACHTRAG':
+            return { key: 'report_number' as const, label: 'Nummer des Nachtrags', help: 'So, wie sie auf der ersten Seite steht, zum Beispiel 366-0350-21-WIRD/N1.' }
         case 'TEILEGUTACHTEN':
             return { key: 'report_number' as const, label: 'Gutachten-Nummer', help: 'So, wie sie auf der ersten Seite steht.' }
         default:
@@ -104,7 +124,7 @@ async function submit(): Promise<void> {
         form.upload_key = key
     }
 
-    form.post('/admin/gutachten', {
+    form.transform((data) => ({ ...data, ...shape.value })).post('/admin/gutachten', {
         preserveScroll: true,
         onError: (bag) => {
             // A refused file must be chosen and sent again; the other fields keep what was typed.
@@ -129,7 +149,7 @@ function chose(file: File | null): void {
             <section class="adm-form__group" aria-labelledby="gn-h-pdf">
                 <h2 id="gn-h-pdf" class="adm-form__heading">Das Dokument</h2>
                 <div class="form-field">
-                    <span class="form-field__label" id="gn-pdf-label">PDF des Gutachtens (höchstens {{ maxMb }} MB)</span>
+                    <span id="gn-pdf-label" class="form-field__label">PDF des Gutachtens (höchstens {{ maxMb }} MB)</span>
                     <FilePick
                         id="gn-pdf"
                         :model-value="pdf"
@@ -172,6 +192,8 @@ function chose(file: File | null): void {
                     <input id="gn-issuer" v-model="form.issuer" class="input" type="text" maxlength="120" placeholder="z. B. Kraftfahrt-Bundesamt" aria-describedby="gn-issuer-err">
                     <p id="gn-issuer-err" class="form-field__error">{{ errors.issuer }}</p>
                 </div>
+
+                <RecordFields v-model:shape="shape" :kind="form.kind" :errors="errors" :supplementable="supplementable" id-prefix="gn" />
 
                 <div class="gn-pair">
                     <div class="form-field">

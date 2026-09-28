@@ -26,6 +26,13 @@ final readonly class DocumentRecord
         public ?string $pdfSha256 = null,
         public ?int $sourcePage = null,
         public ?string $issuer = null,
+        /**
+         * Full sentences about the document itself, shown wherever it is named (the corrections memo
+         * §4): a Nachtrag whose base we do not hold, the month a wheel must be made from.
+         *
+         * @var list<string>
+         */
+        public array $notesDe = [],
     ) {}
 
     /**
@@ -46,13 +53,16 @@ final readonly class DocumentRecord
             'pdfUrl' => $this->pdfKey,
             'pdfSha256' => $this->pdfSha256,
             'sourcePage' => $this->sourcePage,
+            // Additive, and only where there is something to say.
+            ...($this->notesDe === [] ? [] : ['notes' => $this->notesDe]),
         ];
     }
 
     /**
      * @param array{
      *     id: string|int, kind: string, number: string|null, revision: int,
-     *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null
+     *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
+     *     notes?: list<string>
      * } $data
      */
     public static function fromArray(array $data): self
@@ -68,6 +78,7 @@ final readonly class DocumentRecord
             pdfKey: $data['pdfUrl'] ?? null,
             pdfSha256: $data['pdfSha256'] ?? null,
             sourcePage: $data['sourcePage'] ?? null,
+            notesDe: $data['notes'] ?? [],
         );
     }
 }

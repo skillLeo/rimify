@@ -62,7 +62,7 @@ function parameter(c: DocumentConditionView): string {
 <template>
     <AdminPage title="Auflagen" :context="context">
         <p class="adm-note al-intro">
-            Jedes Gutachten hat sein eigenes Auflagenverzeichnis: Ein Code bedeutet, was dieses Gutachten sagt. Geschrieben wird es beim Gutachten selbst, solange es ein Entwurf ist.
+            Jedes Gutachten hat sein eigenes Auflagenverzeichnis; derselbe Code kann in zwei Gutachten Verschiedenes bedeuten. Geschrieben wird es beim Gutachten selbst, solange es ein Entwurf ist.
         </p>
 
         <AdminState v-if="documents.length === 0" kind="empty" text="Hier steht das Auflagenverzeichnis jedes Gutachtens, sobald das erste einen Code hat." />
@@ -76,7 +76,7 @@ function parameter(c: DocumentConditionView): string {
             </div>
 
             <p v-if="doc.unresolved.length" class="adm-alert" role="status">
-                Nicht definiert: {{ doc.unresolved.map((u) => `${u.code} (${u.rows === 1 ? '1 Zeile' : `${decimal(u.rows, 0)} Zeilen`})`).join(', ') }}. Diese Zeilen bleiben „Unbekannt“, bis der Code im Verzeichnis steht.
+                Nicht im Auflagenverzeichnis: {{ doc.unresolved.map((u) => `${u.code} (${u.rows === 1 ? '1 Zeile' : `${decimal(u.rows, 0)} Zeilen`})`).join(', ') }}. Diese Zeilen bleiben „Unbekannt“, bis der Code dort steht.
             </p>
 
             <div v-if="doc.conditions.length" class="adm-panel">
@@ -111,8 +111,20 @@ function parameter(c: DocumentConditionView): string {
 
 <style scoped>
 .al-intro {
-    max-width: 64ch;
     margin-bottom: var(--sp-24);
+}
+
+/* A document named is ink, like every document link of the panel; the underline comes on hover. */
+.al-doc .adm-section__title a {
+    color: var(--c-ink);
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .al-doc .adm-section__title a:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
 }
 
 .al-doc + .al-doc {

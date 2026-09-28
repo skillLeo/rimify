@@ -19,6 +19,7 @@ use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\ApprovalKind;
 use App\Enums\CatalogueStatus;
 use App\Enums\TyreSeason;
 use App\Http\Controllers\Admin\GutachtenController;
@@ -503,6 +504,16 @@ class FelgenController extends Controller
                 'kind' => $verdict->document->kind,
                 // The Gutachten itself, opened at the page the answer stands on.
                 'pdf' => self::pdfLink($verdict->document),
+                // Every further document the answer rests on, named (the corrections memo §3).
+                'others' => array_map(
+                    static fn (DocumentRecord $d): string => trim(ApprovalKind::tryFrom($d->kind)?->labelDe().' '.($d->number ?? '')),
+                    array_slice($verdict->documents, 1),
+                ),
+                // What the document itself limits, in sentences: a Nachtrag without its base, the month (§4).
+                'notes' => array_values(array_unique(array_merge(...array_map(
+                    static fn (DocumentRecord $d): array => $d->notesDe,
+                    $verdict->documents === [] ? [$verdict->document] : $verdict->documents,
+                )))),
             ],
             'tyreSizes' => $this->sizeLabels($verdict->front),
             // The tyre side of the verdict (§3.4): both axles, the layout, and the minimum four
