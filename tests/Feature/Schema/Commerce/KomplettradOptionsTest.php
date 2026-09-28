@@ -339,8 +339,9 @@ it('seeds no colour outside the local and testing environments', function (): vo
         $this->artisan('db:seed', ['--class' => DatabaseSeeder::class, '--force' => true])->assertSuccessful();
         expect(BalanceWeightColour::withTrashed()->count())->toBe(0)
             ->and(TpmsSensorPrice::withTrashed()->count())->toBe(0)
-            // The catalogue is still seeded: only the Komplettrad options are held back.
-            ->and(WheelModel::query()->count())->toBeGreaterThan(0);
+            // The reference data is seeded; the example catalogue is held back too (e11d06a4).
+            ->and(DB::table('load_index_table')->count())->toBeGreaterThan(0)
+            ->and(WheelModel::query()->count())->toBe(0);
     });
 
     // And never on a live database through the release seed either.

@@ -43,7 +43,19 @@ class VehicleFactory extends Factory
             'needs_review' => false,
             'raw' => [],
             'imported_at' => now(),
+            // A test's car stands for one from the authoritative vehicle import.
+            'source' => 'import:test',
         ];
+    }
+
+    /** A development car, as VehicleSeeder writes it: demo, and not from an import. */
+    public function development(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'source' => 'entwicklung',
+            'is_demo' => true,
+            'demo_ref' => 'demo:vehicle:'.$attributes['source_vehicle_id'],
+        ]);
     }
 
     /** A model still in production: no end to the build window at all. */

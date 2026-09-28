@@ -25,6 +25,9 @@ use Illuminate\Database\Seeder;
  */
 class VehicleSeeder extends Seeder
 {
+    /** Where these cars came from: not an import, so no freigegebenes Gutachten may name one in production. */
+    public const SOURCE = 'entwicklung';
+
     public function run(): void
     {
         // Development data: hand-written rows with traps for the engine and a fleet whose type numbers
@@ -34,18 +37,19 @@ class VehicleSeeder extends Seeder
             return;
         }
 
-        foreach (self::VEHICLES as $vehicle) {
-            Vehicle::updateOrCreate(
+        foreach ([...self::VEHICLES, ...$this->fleet()] as $vehicle) {
+            // Born demo (R-12's rule of birth), so demo:purge and demo:assert-clean see it; a car the
+            // purge hid (R-04: soft-deleted, never removed) comes back on the next seed.
+            Vehicle::withTrashed()->updateOrCreate(
                 ['source_vehicle_id' => $vehicle['source_vehicle_id']],
-                $vehicle + ['raw' => $vehicle, 'imported_at' => now()],
-            );
-        }
-
-        foreach ($this->fleet() as $vehicle) {
-            Vehicle::updateOrCreate(
-                ['source_vehicle_id' => $vehicle['source_vehicle_id']],
-                $vehicle + ['raw' => $vehicle, 'imported_at' => now()],
-            );
+                $vehicle + [
+                    'raw' => $vehicle,
+                    'imported_at' => now(),
+                    'source' => self::SOURCE,
+                    'is_demo' => true,
+                    'demo_ref' => 'demo:vehicle:'.$vehicle['source_vehicle_id'],
+                ],
+            )->restore();
         }
     }
 

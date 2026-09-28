@@ -21,6 +21,8 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\CatalogueSeeder;
+use Database\Seeders\VehicleSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 
@@ -51,7 +53,7 @@ function realWheelWithRow(int $brandId): Fitment
     return Fitment::factory()->create([
         'approval_document_id' => $document->id,
         'wheel_config_id' => $config->id,
-        'vehicle_id' => Vehicle::query()->orderBy('id')->value('id'),
+        'vehicle_id' => Vehicle::factory()->create()->id,
     ]);
 }
 
@@ -131,6 +133,46 @@ it('removes nothing while a real Gutachten has rows on an example wheel, and nam
     expect(fn () => app(DemoPurge::class)->run('Test'))->toThrow(DemoPurgeRefused::class, '„TG-ECHT-2“ hat Zeilen auf Beispielfelgen');
 
     expect(DemoTables::total())->toBe($total);
+});
+
+it('hides the development cars with the demo set, never removes them, and brings them back on the next seed (DATA-01, R-04)', function (): void {
+    exampleCatalogue();
+    $real = Vehicle::factory()->create();
+    $development = DB::table('vehicles')->where('is_demo', true)->count();
+
+    expect($development)->toBeGreaterThan(0)
+        ->and(DemoCatalogue::counts()['vehicles'])->toBe($development)
+        ->and(DB::table('vehicles')->where('is_demo', true)->where('source', '!=', VehicleSeeder::SOURCE)->count())->toBe(0);
+
+    app(DemoPurge::class)->run('Test');
+
+    expect(Vehicle::query()->pluck('id')->all())->toBe([$real->id])
+        ->and(Vehicle::onlyTrashed()->count())->toBe($development)
+        ->and(DemoCatalogue::counts()['vehicles'])->toBe(0)
+        ->and(AuditLog::query()->where('description', 'demo.purged')->sole()->properties['tables']['vehicles'])->toBe($development);
+
+    $this->artisan('demo:assert-clean')->assertSuccessful();
+
+    // Born demo stays demo: the mark cannot be taken off a row, nor put on one.
+    expect(fn () => DB::table('vehicles')->where('is_demo', true)->limit(1)->update(['is_demo' => false, 'demo_ref' => null]))->toThrow(QueryException::class)
+        ->and(fn () => DB::table('vehicles')->whereKey($real->id)->update(['is_demo' => true, 'demo_ref' => 'demo:vehicle:x']))->toThrow(QueryException::class);
+
+    $this->seed(VehicleSeeder::class);
+
+    expect(Vehicle::query()->where('is_demo', true)->count())->toBe($development);
+});
+
+it('removes nothing while a real Gutachten has rows for a development car, and names it', function (): void {
+    exampleCatalogue();
+    $nordfelge = (int) DB::table('brands')->where('name', 'Nordfelge')->value('id');
+    $real = realWheelWithRow($nordfelge);
+    $real->forceFill(['vehicle_id' => DB::table('vehicles')->where('is_demo', true)->orderBy('id')->value('id')])->save();
+    $total = DemoTables::total();
+
+    expect(fn () => app(DemoPurge::class)->run('Test'))->toThrow(DemoPurgeRefused::class, '„TG-ECHT-1“ hat Zeilen für Entwicklungsfahrzeuge');
+
+    expect(DemoTables::total())->toBe($total)
+        ->and(Vehicle::onlyTrashed()->count())->toBe(0);
 });
 
 it('tells the admin that nothing went, and why', function (): void {

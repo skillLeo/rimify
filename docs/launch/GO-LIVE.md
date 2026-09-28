@@ -7,6 +7,9 @@ correct result looks like, and what to do when it is not that. Nothing here is r
 
 - The production domain points at this Hostinger account, and hPanel shows a valid SSL certificate for it.
 - The real vehicle list is loaded (the vehicle data import — the development cars never reach production).
+  In production a Gutachten is only released when every car it names came from that import (`source` =
+  `import:…`); until then every Freigabe says so. A database seeded before `7f9446a5` holds the 74 development
+  cars as demo rows: `demo:assert-clean` fails until `php artisan demo:purge --force` hides them (never deletes, R-04).
 - The real catalogue is in and **at least one wheel is published with a freigegebenes Gutachten** for a car. The
   example catalogue never reaches production, so without one real wheel the smoke test (§5) cannot pass —
   and a shop without a wheel is not ready to open.
@@ -66,7 +69,7 @@ gunzip -c ~/backups/rimify-$TS.sql.gz | grep -c 'CREATE.*TRIGGER'
 ```
 
 **Correct:** four files listed (the dump a few MB, the release archive a few hundred MB); the dump's last line
-reads `-- Dump completed on <today>`; the trigger count is **12** (the R-12 and demo-row triggers).
+reads `-- Dump completed on <today>`; the trigger count is **13** (the R-12 and demo-row triggers, the development cars' included).
 **If not:**
 - *Access denied* → the `.env` values are not the database's; check hPanel › Datenbanken.
 - *PROCESS privilege* → the `--no-tablespaces` flag is missing; it is in the command above.
@@ -278,7 +281,7 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
   "SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE();" "$DB_DATABASE"
 ```
 
-**Correct:** no output from the first two commands; the last prints **12**.
+**Correct:** no output from the first two commands; the last prints **13**.
 **If not:** *Access denied* → run §0's `eval` and `export MYSQL_PWD` again (a new shell forgets them).
 
 ### 7.3 The code back to §1

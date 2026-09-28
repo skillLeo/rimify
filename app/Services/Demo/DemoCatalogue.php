@@ -19,11 +19,11 @@ use Illuminate\Support\Facades\File;
  *
  * What marks it: a wheel model or a tyre born `is_demo`; a document by the issuer no real one has
  * (ApprovalSeeder::ISSUER) with no row on a real wheel; a brand of CatalogueSeeder::BRANDS that no real
- * model or tyre carries.
+ * model or tyre carries; a development car born `is_demo` (VehicleSeeder) — hidden, never removed (R-04).
  *
  * Refused — nothing removed — while something real still names it: a real Gutachten with rows on an
- * example wheel (R-05: compliance data never disappears as a side effect of tidying a catalogue), a real
- * document superseding an example one, or an order line not born demo on an example wheel or tyre (R-12:
+ * example wheel or a development car (R-05: compliance data never disappears as a side effect of tidying a
+ * catalogue), a real document superseding an example one, or an order line not born demo on an example wheel or tyre (R-12:
  * its snapshot is never deleted, and without the wheel it would no longer read as demo). Checkout refuses
  * a demo line, so only a development database seeded with CommerceSeeder's orders can hold one.
  */
@@ -42,6 +42,7 @@ final class DemoCatalogue
         'wheel_models',
         'tyre_variants',
         'brands',
+        'vehicles',
     ];
 
     /** How a table reads in the Protokoll's purge entry. */
@@ -57,6 +58,7 @@ final class DemoCatalogue
         'wheel_models' => 'Beispielfelgen',
         'tyre_variants' => 'Beispielreifen',
         'brands' => 'Erfundene Marken',
+        'vehicles' => 'Entwicklungsfahrzeuge (ausgeblendet, nie gelöscht)',
     ];
 
     /** How many ids go into one `IN (…)` of a delete. */
@@ -120,6 +122,20 @@ final class DemoCatalogue
             $reasons[] = 'Das Gutachten „'.self::documentName($document).'“ ersetzt ein Beispiel-Gutachten. Löse die Verknüpfung dort zuerst.';
         }
 
+        // A row of a real Gutachten on a development car: the car would vanish from under it.
+        $named = DB::table('approval_documents as d')
+            ->whereNotIn('d.id', self::documents())
+            ->whereExists(static fn (Builder $q) => $q->selectRaw('1')->from('fitments as f')
+                ->whereColumn('f.approval_document_id', 'd.id')
+                ->whereIn('f.vehicle_id', self::vehicles())
+                ->whereNotIn('f.wheel_config_id', self::configs()))
+            ->orderBy('d.id')
+            ->get(['d.report_number', 'd.kba_number']);
+
+        foreach ($named as $document) {
+            $reasons[] = 'Das Gutachten „'.self::documentName($document).'“ hat Zeilen für Entwicklungsfahrzeuge. Entferne sie dort zuerst; ein echtes Gutachten verliert keine Zeile als Nebenwirkung.';
+        }
+
         return $reasons;
     }
 
@@ -159,6 +175,10 @@ final class DemoCatalogue
 
         // After the models and tyres: now a brand of the list is invented and bare, or it stays.
         self::rows('brands')->delete();
+
+        // The development cars are hidden, never removed (R-04): an order or an Anfrage that named one
+        // still reads, and the next development seed brings them back.
+        self::rows('vehicles')->update(['deleted_at' => now(), 'updated_at' => now()]);
     }
 
     /**
@@ -193,6 +213,8 @@ final class DemoCatalogue
                     ->whereColumn('m.brand_id', 'brands.id')->where('m.is_demo', false))
                 ->whereNotExists(static fn (Builder $q) => $q->selectRaw('1')->from('tyre_variants as t')
                     ->whereColumn('t.brand_id', 'brands.id')->where('t.is_demo', false)),
+            // Hidden cars are gone from every reader; only the ones still shown are counted.
+            'vehicles' => DB::table($table)->where('is_demo', true)->whereNull('deleted_at'),
             default => throw new \InvalidArgumentException("{$table} is not part of the example catalogue."),
         };
     }
@@ -215,6 +237,11 @@ final class DemoCatalogue
     private static function tyres(): Builder
     {
         return DB::table('tyre_variants')->select('id')->where('is_demo', true);
+    }
+
+    private static function vehicles(): Builder
+    {
+        return DB::table('vehicles')->select('id')->where('is_demo', true);
     }
 
     /** The example documents: the invented issuer, and not one row on a real wheel. */

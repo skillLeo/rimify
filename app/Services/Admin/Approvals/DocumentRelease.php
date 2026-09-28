@@ -9,7 +9,9 @@ use App\Enums\FitmentStatus;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
+use App\Models\Vehicle;
 use App\Services\Admin\AuditTrail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,7 +19,8 @@ use Illuminate\Validation\ValidationException;
  * Freigeben: a Gutachten and all of its rows become what the shop reads, at once — never row by row.
  *
  * What stops a release is said in sentences (check): no PDF, no rows, a row without a tyre size (the
- * shop could not say which tyre goes on it), a row on a vehicle that was removed. Conflicts with other
+ * shop could not say which tyre goes on it), a row on a vehicle that was removed or did not come from the
+ * vehicle data import. Conflicts with other
  * documents do not stop it: they are recorded (ConflictDetector) and the stricter statement governs
  * until the team decides. A revision replaces the one it supersedes on the same day; the old one stays
  * readable, so an order placed against it can still be explained.
@@ -63,7 +66,33 @@ final class DocumentRelease
             $blockers[] = $gone === 1 ? 'Eine Zeile nennt ein Fahrzeug, das entfernt wurde.' : "{$gone} Zeilen nennen Fahrzeuge, die entfernt wurden.";
         }
 
+        $unsourced = (clone $rows)->whereHas('vehicle', self::notImported(...))->count();
+
+        if ($unsourced > 0) {
+            $blockers[] = ($unsourced === 1
+                ? 'Eine Zeile nennt ein Fahrzeug, das nicht aus dem Fahrzeugdaten-Import stammt.'
+                : "{$unsourced} Zeilen nennen Fahrzeuge, die nicht aus dem Fahrzeugdaten-Import stammen.")
+                .' Im Shop steht nur ein Fahrzeug, dessen Typdaten aus einer amtlichen oder lizenzierten Quelle kommen.';
+        }
+
         return $blockers;
+    }
+
+    /**
+     * A car no freigegebenes Gutachten may name (BUGS.md DATA-01): one that did not come from an
+     * authoritative vehicle import (`source` = `import:<dataset>`). The development cars carry made-up
+     * type keys; outside production they stand in for the import so the admin flows can be worked, never
+     * in it — and there is no switch that changes that.
+     *
+     * @param  Builder<Vehicle>  $query
+     */
+    private static function notImported(Builder $query): void
+    {
+        $query->where('source', 'not like', 'import:%');
+
+        if (! app()->isProduction()) {
+            $query->where('is_demo', false);
+        }
     }
 
     /** @return array{rows: int, conflicts: int} */
