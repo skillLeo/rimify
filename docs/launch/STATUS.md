@@ -3,7 +3,23 @@
 The source of truth for progress on the launch prompt („From 70 % to live, in one run“). Resume at
 the first unchecked item. Every milestone records its date, commit, gates, decisions and deviations.
 
-## Current target — the admin review release (brief of 2026-09-27)
+## Current target — the launch release (brief of 2026-09-28)
+
+The last build before go-live and the client presentation. Order: audit, then the work, then the runbook.
+No push, no deploy: the user runs `docs/launch/GO-LIVE.md`.
+
+- [x] **§1 Compliance audit** — `docs/launch/COMPLIANCE.md`, `e3823278`: 25 erledigt, 7 teilweise, no S1 (item 13: RESTRICT)
+- [ ] **Audit gaps** — formatCurrency (1), CLAUDE.md versioning (14), images (23), importer (25), accounts proof (29),
+      OPEN-POINTS.md (30), BLOCKED.md (32)
+- [ ] **§2 Review kit** — feedback row with screenshot proven, three accounts visibly different, `review:report`
+- [ ] **§3 Weak spots** — SSR fallback counter + health row + log; readiness before serving; no-JS synthetic check;
+      mobile suite three times clean; coverage (pcov) in the ledger; demo catalogue decided; order numbers with a
+      unique constraint + retry + concurrent test; APP_DEBUG enforced + our own 500 page
+- [ ] **§4 Money sweep** — `Money` in PHP, one `formatMoney` in JS, `MoneyDisplayTest` over ten surfaces
+- [ ] **§5 Go-live** — `rimify:smoke`, German holding page, backup/restore, rollback timed, `GO-LIVE.md`
+- [ ] **§6 Presentation pack** — `docs/review/PRESENT.md`
+
+## Previous target — the admin review release (brief of 2026-09-27)
 
 The client reviews the admin on example data before sending the catalogue, the Gutachten and the payment
 credentials. The admin is the deliverable; his review is the gate. Work in the brief's §4 order; anything

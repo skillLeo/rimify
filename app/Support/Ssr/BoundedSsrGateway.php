@@ -22,7 +22,8 @@ use Inertia\Ssr\SsrException;
  * stalled or queued renderer then held every page for seconds. Here it gets a short time to connect
  * and a bounded time to render. When it fails, pages are sent without server rendering for a short
  * while (the browser renders them, the first frame's data is the same, R-08), and it is asked again
- * after that — never once per page while it is down.
+ * after that — never once per page while it is down. Every page sent without it is counted and
+ * logged with its URL (SsrFallbacks): a fallback is never invisible.
  */
 class BoundedSsrGateway extends HttpGateway
 {
@@ -31,17 +32,23 @@ class BoundedSsrGateway extends HttpGateway
 
     public function dispatch(array $page, ?Request $request = null): ?Response
     {
-        if (! $this->ssrIsEnabled($request ?? request())) {
+        $request ??= request();
+
+        if (! $this->ssrIsEnabled($request)) {
             return null;
         }
 
         $isHot = Vite::isRunningHot();
 
         if (! $isHot && $this->shouldEnsureBundleExists() && ! $this->bundleExists()) {
+            SsrFallbacks::record($request->fullUrl(), 'Das Renderer-Bundle fehlt (bootstrap/ssr).');
+
             return null;
         }
 
         if (self::paused()) {
+            SsrFallbacks::record($request->fullUrl(), 'Renderer pausiert nach einem Fehler.');
+
             return null;
         }
 
@@ -53,12 +60,15 @@ class BoundedSsrGateway extends HttpGateway
                 ->post($url, $page);
 
             if ($response->failed()) {
+                SsrFallbacks::record($request->fullUrl(), 'Der Renderer hat mit HTTP '.$response->status().' geantwortet.');
                 $this->handleSsrFailure($page, $response->json());
 
                 return null;
             }
 
             if (! $data = $response->json()) {
+                SsrFallbacks::record($request->fullUrl(), 'Der Renderer hat leer geantwortet.');
+
                 return null;
             }
 
@@ -70,6 +80,7 @@ class BoundedSsrGateway extends HttpGateway
 
             // Not reachable, or too slow: rest it, and let the browser render meanwhile.
             self::pause();
+            SsrFallbacks::record($request->fullUrl(), 'Renderer nicht erreichbar oder zu langsam: '.mb_substr($e->getMessage(), 0, 160));
             $this->handleSsrFailure($page, ['error' => $e->getMessage(), 'type' => 'connection']);
 
             return null;

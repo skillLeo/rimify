@@ -53,7 +53,7 @@ describe('the health sentence', function (): void {
 
         expect($report['state'])->toBe('ok')
             ->and($report['sentence'])->toBe('Alles in Ordnung')
-            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'mail', 'storage']);
+            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'mail', 'storage', 'ssr']);
     });
 
     it('names failed jobs, counted, as a warning', function (): void {
@@ -199,7 +199,7 @@ describe('where it is shown', function (): void {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/System/Index')
-                ->has('report.checks', 5)
+                ->has('report.checks', 6)
                 ->where('report.sentence', 'Alles in Ordnung'));
 
         $this->actingAs(systemAdmin('content-editor'), 'admin')->get('/admin/system')->assertForbidden();

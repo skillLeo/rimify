@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NNBSP, formatMoney, formatNumber, formatPercent, parseNumber } from './num'
+import { NNBSP, formatCurrency, formatMoney, formatNumber, formatPercent, parseNumber } from './num'
 
 /* The one place a number becomes text and text a number (R-10). */
 
@@ -40,5 +40,18 @@ describe('parseNumber', () => {
         expect(parseNumber('zwölf')).toBeNull()
         expect(parseNumber('')).toBeNull()
         expect(parseNumber(null)).toBeNull()
+    })
+})
+
+describe('formatCurrency', () => {
+    it('writes an amount with its currency, the shop’s as €', () => {
+        expect(formatCurrency(142500)).toBe(`1.425,00${NNBSP}€`)
+        expect(formatCurrency(1250, 'CHF')).toBe(`12,50${NNBSP}CHF`)
+        expect(formatCurrency(-990)).toBe(`-9,90${NNBSP}€`)
+    })
+
+    it('is what formatMoney writes for euros, cents included', () => {
+        expect(formatMoney(5974800)).toBe(formatCurrency(5974800, 'EUR'))
+        expect(formatMoney(5974850, true)).toBe(`59.749${NNBSP}€`)
     })
 })

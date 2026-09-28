@@ -6,6 +6,8 @@ namespace App\Services\Admin;
 
 use App\Services\Storage\StorageProbe;
 use App\Support\GermanFormat;
+use App\Support\Ssr\BoundedSsrGateway;
+use App\Support\Ssr\SsrFallbacks;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -46,6 +48,7 @@ final class SystemHealth
             $this->queue(),
             $this->mail(),
             $this->storage(),
+            $this->rendering(),
         ];
 
         $state = 'ok';
@@ -211,6 +214,46 @@ final class SystemHealth
             return $status === null || $status['reachable']
                 ? ['state' => 'ok', 'sentence' => 'Dateien können gespeichert werden.', 'short' => '', 'count' => null]
                 : ['state' => 'warn', 'sentence' => 'Speicher nicht erreichbar', 'short' => 'Speicher nicht erreichbar', 'count' => null];
+        });
+    }
+
+    /**
+     * Server rendering, counted (SsrFallbacks): a page the browser had to draw is empty for a search
+     * engine. Amber while it keeps happening — a fallback in the last hour, or the renderer resting
+     * after a failure — with today's count and the last address in the sentence. Switched off on
+     * purpose it is only worth a word in production.
+     *
+     * @return Check
+     */
+    private function rendering(): array
+    {
+        return $this->guard('ssr', 'Server-Rendering', static function (): array {
+            $today = SsrFallbacks::today();
+
+            if (config('inertia.ssr.enabled', true) !== true) {
+                return app()->environment('production')
+                    ? ['state' => 'warn', 'sentence' => 'Server-Rendering ist ausgeschaltet – Suchmaschinen sehen leere Seiten', 'short' => 'Server-Rendering aus', 'count' => null]
+                    : ['state' => 'ok', 'sentence' => 'Server-Rendering ist in dieser Umgebung ausgeschaltet.', 'short' => '', 'count' => null];
+            }
+
+            if (BoundedSsrGateway::paused() || SsrFallbacks::recent()) {
+                $last = SsrFallbacks::last();
+                $where = $last === null ? '' : ', zuletzt '.(parse_url($last['url'], PHP_URL_PATH) ?: '/').' ('.$last['reason'].')';
+
+                return [
+                    'state' => 'warn',
+                    'sentence' => ($today === 1 ? 'Heute 1 Seite' : 'Heute '.GermanFormat::integer($today).' Seiten').' ohne Server-Rendering'.$where,
+                    'short' => 'Server-Rendering fällt aus',
+                    'count' => GermanFormat::integer($today),
+                ];
+            }
+
+            return [
+                'state' => 'ok',
+                'sentence' => 'Seiten werden auf dem Server gerendert'.($today === 0 ? '.' : ' (heute '.GermanFormat::integer($today).' ohne, zuletzt vor über einer Stunde).'),
+                'short' => '',
+                'count' => null,
+            ];
         });
     }
 

@@ -12,7 +12,8 @@
 # brings the site back with `artisan up` as its LAST step. `set -e` means any failure stops here with
 # the site still in maintenance: a maintenance page, never new code on an unmigrated schema.
 #
-# By hand: `php artisan down`, then pull, then `bash deploy/remote.sh`.
+# By hand: `php artisan down --render="errors::503"`, then pull, then `bash deploy/remote.sh` —
+# docs/launch/GO-LIVE.md is the full runbook, backup and rollback included.
 
 set -euo pipefail
 
@@ -35,7 +36,7 @@ echo "== code: $(git log -1 --format='%h %s')"
 
 # A manual run may not have taken the site down first. This covers that case; it is a no-op when
 # the workflow already did. It may fail before composer has run, hence `|| true`.
-"$PHP" artisan down --retry=60 > /dev/null 2>&1 || true
+"$PHP" artisan down --render="errors::503" --retry=60 > /dev/null 2>&1 || true
 
 # ── Environment ────────────────────────────────────────────────────────────────
 if [ ! -f .env ]; then
@@ -52,10 +53,14 @@ if [ "$TARGET_ENV" = staging ]; then
     set_env RIMIFY_REVIEW true
     # Test orders end to end: a page that says it is a test chooses how the payment ends.
     set_env RIMIFY_PAYMENTS sandbox
+    # A preview sends no mail: every message goes to the log.
+    set_env MAIL_MAILER log
 else
     set_env DEMO_DATA 0
     set_env RIMIFY_REVIEW false
     set_env RIMIFY_PAYMENTS none
+    # Production's mail settings are the operator's (.env, GO-LIVE.md): never overwritten here, and
+    # rimify:preflight refuses a production that only writes its mail to the log.
 fi
 set_env APP_DEBUG false
 set_env APP_URL "${APP_URL:-https://rimify.skillleo.com}"
@@ -64,7 +69,6 @@ set_env LOG_LEVEL warning
 set_env SESSION_DRIVER file
 set_env CACHE_STORE file
 set_env QUEUE_CONNECTION sync
-set_env MAIL_MAILER log
 set_env DB_HOST "${DB_HOST:-localhost}"
 set_env DB_PORT "${DB_PORT:-3306}"
 set_env DB_DATABASE "${DB_DATABASE:-}"
@@ -135,8 +139,22 @@ for pid in $(pgrep -u "$(id -u)" -x node || true); do
 done
 sleep 1
 INERTIA_SSR_PORT="$SSR_PORT" nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" > storage/logs/ssr.log 2>&1 < /dev/null &
-sleep 3
-grep -q 'started' storage/logs/ssr.log && echo "== renderer running on $SSR_PORT" || { echo "== renderer did not start"; tail -5 storage/logs/ssr.log; }
+
+# Readiness: the site is not opened before the renderer answers. Up to 30 seconds; if it never does,
+# the release stops here with the site still in maintenance (set -e) — a page without server
+# rendering is empty for search engines, and that is not how a release goes live.
+READY=0
+for _ in $(seq 1 30); do
+    if curl -s -m 2 -o /dev/null "http://127.0.0.1:$SSR_PORT/health"; then READY=1; break; fi
+    sleep 1
+done
+if [ "$READY" = 1 ]; then
+    echo "== renderer ready on $SSR_PORT"
+else
+    echo "== renderer NOT ready after 30 s — the site stays in maintenance. storage/logs/ssr.log:"
+    tail -5 storage/logs/ssr.log
+    exit 1
+fi
 
 # The host may stop the renderer between releases: a watchdog in cron starts it again within a minute
 # (deploy/ssr-watch.sh; it does nothing while the renderer answers). Idempotent: one line, replaced.
@@ -153,6 +171,7 @@ fi
 echo "== site is up"
 
 # ── Smoke ──────────────────────────────────────────────────────────────────────
-for path in / /felgen /faq /rechtliches/impressum; do
-    printf '   %-26s %s\n' "$path" "$(curl -s -o /dev/null --max-time 30 -w '%{http_code}' "${APP_URL:-https://rimify.skillleo.com}$path")"
-done
+# The shop as a visitor without JavaScript sees it, the lookup, the PDF, the admin's sign-in, the
+# storage prefixes — and a test order where the sandbox is on. Non-zero on any failure: then follow
+# GO-LIVE.md's rollback.
+"$PHP" artisan rimify:smoke --no-interaction

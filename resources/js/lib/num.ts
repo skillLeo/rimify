@@ -36,11 +36,19 @@ export function formatNumber(value: number, digits = 0): string {
 }
 
 /**
- * `59.748,00 €` from minor units (cents) — the one way an amount becomes text. `whole` drops the
+ * An amount in its currency, from minor units: `1.425,00 €`, `12,50 CHF`. Money travels with its
+ * currency (every money column has one); the shop's is EUR, written as `€`, any other by its code.
+ */
+export function formatCurrency(minorUnits: number, currency = 'EUR'): string {
+    return `${formatNumber(minorUnits / 100, 2)}${NNBSP}${currency === 'EUR' ? '€' : currency}`
+}
+
+/**
+ * `59.748,00 €` from minor units (cents) — the one way a euro amount becomes text. `whole` drops the
  * cents: only for a chart axis, whose ticks are round numbers anyway.
  */
 export function formatMoney(minorUnits: number, whole = false): string {
-    return `${formatNumber(whole ? Math.round(minorUnits / 100) : minorUnits / 100, whole ? 0 : 2)}${NNBSP}€`
+    return whole ? `${formatNumber(Math.round(minorUnits / 100), 0)}${NNBSP}€` : formatCurrency(minorUnits, 'EUR')
 }
 
 /** `+12,4 %` (with its sign), or `12,4 %` with `sign: false`. */

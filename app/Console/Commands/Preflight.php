@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Payments\Payments;
+use App\Providers\AppServiceProvider;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
+use App\Support\Ssr\SsrFallbacks;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -23,7 +28,7 @@ final class Preflight extends Command
 {
     protected $signature = 'rimify:preflight {--skip-s3 : Leave out the bucket audit (it writes and reads probe files)}';
 
-    protected $description = 'Go / no-go: application, database, demo data and media storage';
+    protected $description = 'Go / no-go: environment, rendering, mail, payment, database, demo data and media storage';
 
     public function handle(StorageSettings $settings, S3Audit $audit): int
     {
@@ -31,9 +36,16 @@ final class Preflight extends Command
 
         $rows[] = ['Anwendungsschlüssel', filled(config('app.key')) ? 'ok' : 'fail', filled(config('app.key')) ? 'gesetzt' : 'APP_KEY fehlt'];
 
-        $debug = (bool) config('app.debug');
+        $debug = (bool) config('app.debug') || app()->bound(AppServiceProvider::DEBUG_WAS_ON);
         $production = app()->environment('production');
-        $rows[] = ['Umgebung', $production && $debug ? 'fail' : 'ok', app()->environment().($debug ? ', Debug an' : ', Debug aus')];
+        $rows[] = ['Umgebung', $production && $debug ? 'fail' : 'ok', app()->environment().($debug ? ', APP_DEBUG=true in .env – auf false setzen' : ', Debug aus')];
+
+        $url = (string) config('app.url');
+        $rows[] = ['Adresse', str_starts_with($url, 'https://') ? 'ok' : ($production ? 'fail' : 'warn'), $url];
+
+        $rows[] = $this->rendering($production);
+        $rows[] = $this->mail($production, $url);
+        $rows[] = $this->payment($production);
 
         try {
             DB::connection()->getPdo();
@@ -87,5 +99,70 @@ final class Preflight extends Command
         $this->info('GO.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The renderer answers: without it pages are drawn by the browser and empty for search engines.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function rendering(bool $production): array
+    {
+        if (config('inertia.ssr.enabled', true) !== true) {
+            return ['Server-Rendering', $production ? 'fail' : 'warn', 'ausgeschaltet (INERTIA_SSR_ENABLED)'];
+        }
+
+        $url = rtrim((string) config('inertia.ssr.url', 'http://127.0.0.1:13714'), '/');
+
+        try {
+            $ready = Http::connectTimeout(1)->timeout(2)->get($url.'/health')->successful();
+        } catch (Throwable) {
+            $ready = false;
+        }
+
+        return $ready
+            ? ['Server-Rendering', 'ok', "Renderer antwortet ({$url}); heute ".SsrFallbacks::today().' Seiten ohne']
+            : ['Server-Rendering', $production ? 'fail' : 'warn', "Renderer antwortet nicht ({$url}) – deploy/ssr-watch.sh"];
+    }
+
+    /**
+     * Mail really leaves the server, and from the shop's own domain.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function mail(bool $production, string $url): array
+    {
+        $mailer = (string) config('mail.default');
+        $from = (string) config('mail.from.address');
+
+        if (in_array($mailer, ['log', 'array'], true)) {
+            return ['E-Mail', $production ? 'fail' : 'warn', "MAIL_MAILER={$mailer}: nichts wird verschickt"];
+        }
+
+        $host = (string) parse_url($url, PHP_URL_HOST);
+        $domain = Str::after($from, '@');
+        $own = $domain !== '' && ($domain === $host || str_ends_with($host, '.'.$domain) || str_ends_with($domain, '.'.$host));
+
+        return ['E-Mail', $own ? 'ok' : 'warn', "{$mailer}, Absender {$from}".($own ? '' : " – nicht die Domain von {$host}")];
+    }
+
+    /**
+     * Which payment the shop takes: none until a provider is configured; the sandbox never in production.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function payment(bool $production): array
+    {
+        $driver = (string) config('rimify.payments.driver', 'none');
+
+        if ($production && $driver === 'sandbox') {
+            return ['Zahlung', 'fail', 'RIMIFY_PAYMENTS=sandbox im Live-Shop – auf none oder den Anbieter setzen'];
+        }
+
+        return match (true) {
+            Payments::sandbox() => ['Zahlung', 'warn', 'Testzahlung (Sandbox): Bestellungen sind Tests, es fließt kein Geld'],
+            Payments::gateway() === null => ['Zahlung', 'warn', 'kein Zahlungsanbieter eingerichtet: der Shop nimmt keine Bestellungen an (BLOCKED #3)'],
+            default => ['Zahlung', 'ok', $driver],
+        };
     }
 }

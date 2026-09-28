@@ -17,6 +17,8 @@ use App\Models\OrderLineFitment;
 use App\Models\Vehicle;
 use App\Services\Storefront\Basket;
 use App\Support\VehicleName;
+use Closure;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +35,9 @@ use Illuminate\Support\Facades\DB;
  */
 final class OrderWriter
 {
+    /** How often a number refused by the unique index is drawn again before the order fails. */
+    public const NUMBER_ATTEMPTS = 3;
+
     public function __construct(private readonly FitmentResolver $resolver) {}
 
     /**
@@ -75,8 +80,8 @@ final class OrderWriter
             ]);
 
             $totals = $summary['totals'];
-            $order = Order::query()->create([
-                'order_number' => self::nextNumber(),
+            $order = self::withNumber(static fn (string $number): Order => Order::query()->create([
+                'order_number' => $number,
                 'customer_id' => $person->id,
                 'delivery_address_id' => $delivery->id,
                 'billing_address_id' => $billing->id,
@@ -96,7 +101,7 @@ final class OrderWriter
                 'shipping_method' => 'standard',
                 'note' => $note,
                 'placed_at' => now(),
-            ]);
+            ]));
 
             foreach ($summary['lines'] as $i => $line) {
                 $isSet = ($line['isSet'] ?? false) === true;
@@ -172,11 +177,31 @@ final class OrderWriter
     }
 
     /**
+     * The order under the year's next number. Three guards, so two checkouts a second apart can never
+     * share one: the number is read under a row lock (nextNumber), the table's unique index refuses a
+     * duplicate whatever happens, and a refused number is simply drawn again — up to three times.
+     *
+     * @param  Closure(string): Order  $create
+     */
+    public static function withNumber(Closure $create): Order
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $create(self::nextNumber());
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempt >= self::NUMBER_ATTEMPTS || ! str_contains($e->getMessage(), 'order_number')) {
+                    throw $e;
+                }
+            }
+        }
+    }
+
+    /**
      * `RMF-2026-1022`: the year's next number, read under a lock so two checkouts never share one.
      * Compared as a number, not as text: as text `RMF-2026-999` sorts above `RMF-2026-1000`, and
      * the same number would be issued twice.
      */
-    private static function nextNumber(): string
+    public static function nextNumber(): string
     {
         $year = now()->year;
         $prefix = "RMF-{$year}-";

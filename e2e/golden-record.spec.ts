@@ -121,8 +121,8 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     // Each run's paid order takes four from the stand-in's stock: topped up here, as the team would.
     const stock = page.getByLabel('Bestand, Zeile 1')
 
-    if ((await stock.count()) > 0 && Number(await stock.inputValue()) < 4) {
-        await stock.fill('8')
+    if ((await stock.count()) > 0 && Number(await stock.inputValue()) < 20) {
+        await stock.fill('100')
         await page.getByRole('button', { name: 'Speichern', exact: true }).click()
         await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled({ timeout: 20_000 })
     }
