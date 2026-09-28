@@ -348,7 +348,7 @@ onBeforeUnmount(() => observer?.disconnect())
                         </p>
                     </div>
 
-                    <FitmentPanel class="pdp__fit" :verdict="selected?.verdict ?? null" :vehicle="shared.vehicle">
+                    <FitmentPanel class="pdp__fit" :verdict="selected?.verdict ?? null" :vehicle="shared.vehicle" :config-id="selected?.id ?? null">
                         <Link v-if="!hasVehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm pdp__fit-cta">
                             Fahrzeug wählen
                         </Link>

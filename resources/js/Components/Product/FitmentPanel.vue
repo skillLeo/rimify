@@ -10,7 +10,8 @@
  * does not cover this" are different facts, and only one of them is about the customer's car.
  */
 
-import { computed } from 'vue'
+import { router } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 import Icon from '../Art/Icon.vue'
 import ValueText from '../Ui/ValueText.vue'
 import PapersForm from './PapersForm.vue'
@@ -21,7 +22,25 @@ import type { VehicleProp } from '../../types/rimify'
 const props = defineProps<{
     verdict: ConfigVerdict | null
     vehicle: VehicleProp | null
+    /** The size shown: „RIMIFY-Check drucken“ freezes the answer for it and this car. */
+    configId?: number | null
 }>()
+
+/* „RIMIFY-Check drucken“: the answer frozen whole on the server, then its printable page. */
+const issuing = ref(false)
+
+function issueCheck(): void {
+    if (props.configId == null || issuing.value) {
+        return
+    }
+
+    issuing.value = true
+    router.post('/rimify-check/ergebnis', { wheelConfigId: props.configId }, {
+        onFinish: () => {
+            issuing.value = false
+        },
+    })
+}
 
 const tone = computed<{ cls: string; icon: IconName }>(() => {
     if (props.vehicle === null || props.verdict === null) {
@@ -169,6 +188,12 @@ const headline = computed(() => {
                 <a :href="verdict.document.pdf.url" target="_blank" rel="noopener">
                     Gutachten öffnen (PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
                 </a>
+            </p>
+            <!-- The answer to take away: frozen whole, every line of the sum, printable and shareable. -->
+            <p v-if="vehicle && configId" class="fit__pdf">
+                <button class="link fit__issue" type="button" :disabled="issuing" :aria-busy="issuing ? 'true' : undefined" @click="issueCheck">
+                    RIMIFY-Check drucken oder teilen
+                </button>
             </p>
         </template>
 

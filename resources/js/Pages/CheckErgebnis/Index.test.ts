@@ -1,6 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
+import type { CheckResultView } from '../../types/pages'
 import type { VerdictStatus } from '../../types/rimify'
 
 const current: { props: Record<string, unknown> } = { props: {} }
@@ -19,10 +20,32 @@ const { default: CheckErgebnis } = await import('./Index.vue')
 
 let mounted: VueWrapper[] = []
 
-function mountResult(status: VerdictStatus | null): VueWrapper {
+function view(status: VerdictStatus, overrides: Partial<CheckResultView> = {}): CheckResultView {
+    return {
+        status,
+        statusLabel: 'Freigegeben',
+        vehicle: 'Audi RS 4 Avant Quattro (B9), 03/2018–11/2019',
+        wheel: 'Borbet DB8GT2 8,5J × 19 ET 35',
+        wheelLabel: 'Freigegeben',
+        reason: null,
+        requiresEntry: false,
+        entryNote: null,
+        conditions: [],
+        front: ['265/35 R19'],
+        rear: ['265/35 R19'],
+        tyre: null,
+        papers: null,
+        document: { label: 'ABE 55255', issuer: 'Kraftfahrt-Bundesamt', revision: 1, page: 4 },
+        documentToday: null,
+        issuedAt: '29.09.2026, 10:00 Uhr',
+        ...overrides,
+    }
+}
+
+function mountResult(status: VerdictStatus | null, overrides: Partial<CheckResultView> = {}): VueWrapper {
     // Fixture only — the shop's address lives in config/rimify.php; a reserved example domain.
     current.props = { contact: { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9:00–17:00 Uhr' } }
-    const wrapper = mount(CheckErgebnis, { props: { token: 'abc123', result: status === null ? null : { status } } })
+    const wrapper = mount(CheckErgebnis, { props: { token: 'abc123', result: status === null ? null : view(status, overrides) } })
     mounted.push(wrapper)
 
     return wrapper
@@ -46,6 +69,35 @@ describe('CheckErgebnis — "no document" leads to e-mail, not to the old form',
         expect(primary.attributes('data-inertia')).toBeUndefined()
         expect(query.get('body')).toContain('abc123')
         expect(wrapper.find('a[href="/kontakt"]').exists()).toBe(false)
+    })
+
+    it('prints the whole sum unfolded, the answer, its document and the customer’s own figures', () => {
+        const lines = ['Vorderachse: 1.210 kg ÷ 2 = 605 kg je Rad.', 'Hinterachse: 1.235 kg ÷ 2 = 617,5 kg je Rad.']
+        const wrapper = mountResult('PERMITTED', {
+            tyre: {
+                statusLabel: 'Freigegeben',
+                summary: 'Hinterachse mit 1.235 kg: mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.',
+                basis: 'Grundlage: Tabelle auf Seite 6 im Gutachten 55255.',
+                lines,
+                stricterByPapers: true,
+            },
+            papers: { axleFrontKg: 1210, axleRearKg: 1235, topSpeedKmh: 280 },
+        })
+
+        expect(wrapper.find('.res__summary').text()).toBe('Hinterachse mit 1.235 kg: mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.')
+        expect(wrapper.findAll('.res__sum li').map((li) => li.text())).toEqual(lines)
+        // No disclosure on paper: nothing is folded.
+        expect(wrapper.find('details').exists()).toBe(false)
+        expect(wrapper.text()).toContain('8.1 1.210 kg · 8.2 1.235 kg · T 280 km/h')
+        expect(wrapper.text()).toContain('Deine Angaben aus den Fahrzeugpapieren haben die Antwort strenger gemacht.')
+        expect(wrapper.find('.res__actions button').text()).toBe('Drucken')
+    })
+
+    it('never says „kein Gutachten“ when the wheel is approved and only the tyres are open', () => {
+        const wrapper = mountResult('UNKNOWN', { wheelLabel: 'Freigegeben' })
+
+        expect(wrapper.find('.res__body').text()).toContain('Die Felge ist freigegeben, die Reifen dazu können wir aber nicht bestätigen.')
+        expect(wrapper.find('.res__body').text()).not.toContain('kein Gutachten')
     })
 
     it('keeps the other states on their Inertia links', () => {

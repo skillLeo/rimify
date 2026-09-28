@@ -473,9 +473,31 @@ export interface VergleichProps {
     demo: boolean
 }
 
+/** A printable RIMIFY-Check as it was issued: frozen whole, every sentence of it (29.09.2026). */
+export interface CheckResultView {
+    status: VerdictStatus
+    statusLabel: string
+    vehicle: string | null
+    wheel: string | null
+    /** The wheel half, where the verdict has one. */
+    wheelLabel: string | null
+    reason: string | null
+    requiresEntry: boolean
+    entryNote: string | null
+    conditions: string[]
+    front: string[]
+    rear: string[]
+    tyre: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; stricterByPapers: boolean } | null
+    papers: { axleFrontKg: number; axleRearKg: number; topSpeedKmh: number } | null
+    document: { label: string; issuer: string | null; revision: number; page: number | null } | null
+    /** Said only when the document has changed since the result was issued. */
+    documentToday: string | null
+    issuedAt: string | null
+}
+
 export interface CheckErgebnisProps {
     token: string
-    result: { status: VerdictStatus } | null
+    result: CheckResultView | null
 }
 
 export interface BasketProps {

@@ -89,6 +89,8 @@ Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich
 
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');
+// „RIMIFY-Check drucken“: the answer for the chosen car and one wheel, frozen under a token (29.09.2026).
+Route::post('/rimify-check/ergebnis', [CheckController::class, 'store'])->middleware('throttle:20,1')->name('check.ergebnis.store');
 
 /*
  * Choosing the vehicle. A POST because it writes state, and rate-limited because the key-number
