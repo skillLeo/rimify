@@ -119,7 +119,20 @@ const headline = computed(() => {
                     <dd>{{ verdict.tyre.label }}</dd>
                 </div>
             </dl>
-            <ul v-if="verdict.tyre?.lines.length" class="fit__tyre-lines">
+            <!-- With the car's figures: the answer and its document always, the sum one click away, inline —
+                 open at once where we say no or the customer's own figures made it stricter (29.09.2026). -->
+            <template v-if="verdict.tyre?.summary">
+                <p class="fit__tyre-summary"><ValueText :text="verdict.tyre.summary" /></p>
+                <p v-if="verdict.tyre.basis" class="fit__tyre-basis">{{ verdict.tyre.basis }}</p>
+                <details v-if="verdict.tyre.lines.length" class="fit__sum" :open="verdict.tyre.open || undefined">
+                    <summary class="fit__sum-toggle">So haben wir gerechnet</summary>
+                    <ul class="fit__tyre-lines">
+                        <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
+                    </ul>
+                </details>
+            </template>
+            <!-- Without them: the document's thresholds and the fields to compare, in full (R-03). -->
+            <ul v-else-if="verdict.tyre?.lines.length" class="fit__tyre-lines">
                 <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
             </ul>
             <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->
@@ -143,7 +156,7 @@ const headline = computed(() => {
             </div>
 
             <!-- Said once: a reason the tyre lines above already give is not repeated here. -->
-            <p v-if="verdict.reason && !(verdict.tyre?.lines ?? []).includes(verdict.reason)" class="fit__reason">{{ verdict.reason }}</p>
+            <p v-if="verdict.reason && !(verdict.tyre?.lines ?? []).includes(verdict.reason) && verdict.reason !== verdict.tyre?.summary" class="fit__reason">{{ verdict.reason }}</p>
 
             <p v-if="documentLine" class="fit__doc">
                 <Icon name="document" :size="20" />
@@ -197,6 +210,41 @@ const headline = computed(() => {
     padding-left: var(--space-4);
     font-size: var(--text-small);
     color: var(--ink);
+}
+
+/* The answer, then its document: two lines, always there. */
+.fit__tyre-summary {
+    margin: var(--sp-8) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.fit__tyre-basis {
+    margin: var(--sp-4) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+/* The sum, one click away and inline: a native disclosure, so it works without script and on a phone. */
+.fit__sum {
+    margin: var(--sp-8) 0 0;
+}
+
+.fit__sum-toggle {
+    cursor: pointer;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fit__sum-toggle:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
 }
 
 .fit__entry {

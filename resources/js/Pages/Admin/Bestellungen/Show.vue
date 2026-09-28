@@ -40,6 +40,8 @@ interface Snapshot {
     conditions?: string[]
     front?: string[]
     rear?: string[]
+    /** The tyre answer as the customer was shown it, and the whole sum behind it. */
+    tyre?: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; fromPapers: boolean } | null
     computedAt: string | null
     engine: string
     revision: number
@@ -193,6 +195,15 @@ function tagClass(state: OrderState): string | null {
                             </p>
                             <p v-if="line.snapshot.requiresEntry" class="bs-proof__line">Eintragung in die Fahrzeugpapiere erforderlich.<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
                             <p v-for="sentence in line.snapshot.conditions ?? []" :key="sentence" class="bs-proof__line">{{ sentence }}</p>
+                            <!-- The tyre answer and its whole sum, unfolded: the proof shows everything the customer could open. -->
+                            <template v-if="line.snapshot.tyre">
+                                <p class="bs-proof__line">Reifen: {{ line.snapshot.tyre.statusLabel }}<template v-if="line.snapshot.tyre.summary"> – {{ line.snapshot.tyre.summary }}</template></p>
+                                <p v-if="line.snapshot.tyre.basis" class="bs-proof__line">{{ line.snapshot.tyre.basis }}</p>
+                                <p v-if="line.snapshot.tyre.fromPapers" class="bs-proof__line">Mit den Werten aus den Fahrzeugpapieren des Kunden gerechnet; sie haben die Antwort strenger gemacht.</p>
+                                <ol v-if="line.snapshot.tyre.lines.length" class="bs-proof__sum">
+                                    <li v-for="sentence in line.snapshot.tyre.lines" :key="sentence">{{ sentence }}</li>
+                                </ol>
+                            </template>
                         </template>
                         <p v-else class="bs-proof__line">Dieser Prüfnachweis lässt sich nicht lesen. Er bleibt unverändert gespeichert.</p>
                         <p v-if="line.snapshot.documentToday" class="bs-proof__note">{{ line.snapshot.documentToday }} Maßgeblich für diese Bestellung bleibt der Stand oben.</p>
@@ -328,6 +339,16 @@ function tagClass(state: OrderState): string | null {
 
 .bs-proof__note {
     color: var(--c-ink);
+}
+
+.bs-proof__sum {
+    display: grid;
+    gap: var(--sp-4);
+    margin: var(--sp-4) 0 0;
+    padding-left: var(--sp-20);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
 }
 
 .bs-proof__meta {

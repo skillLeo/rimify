@@ -44,6 +44,12 @@ final readonly class VehicleRecord
         public ?int $seats = null,
         public bool $needsReview = false,
         public bool $isDeleted = false,
+        /**
+         * The car as the vehicle data has it, when the customer's own figures were laid over it (C10) — so
+         * the verdict can say whether their figures made the answer stricter, and open its sum (the
+         * operator's decision of 29.09.2026).
+         */
+        public ?VehicleRecord $beforePapers = null,
     ) {}
 
     /**

@@ -77,6 +77,7 @@ final readonly class PapersFigures
             seats: $vehicle->seats,
             needsReview: false,
             isDeleted: $vehicle->isDeleted,
+            beforePapers: $vehicle,
         );
     }
 }

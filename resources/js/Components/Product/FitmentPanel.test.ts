@@ -88,6 +88,45 @@ describe('FitmentPanel', () => {
         expect(kept.find('#pp-axle_front_kg').exists()).toBe(false)
     })
 
+    it('shows the answer and its document always, and the sum behind „So haben wir gerechnet“, closed', () => {
+        const summary = 'Hinterachse mit 1.235 kg: mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.'
+        const lines = ['Vorderachse: 1.210 kg ÷ 2 = 605 kg je Rad.', 'Hinterachse: 1.235 kg ÷ 2 = 617,5 kg je Rad.']
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({
+                    wheelStatus: 'PERMITTED',
+                    wheelLabel: 'Freigegeben',
+                    tyre: { status: 'PERMITTED', label: 'Freigegeben', lines, thresholds: [], fromVehicleData: true, summary, basis: 'Grundlage: Tabelle auf Seite 6 im Gutachten 55255.', open: false },
+                }),
+            },
+        })
+
+        expect(wrapper.find('.fit__tyre-summary').text()).toBe(summary)
+        expect(wrapper.find('.fit__tyre-basis').text()).toBe('Grundlage: Tabelle auf Seite 6 im Gutachten 55255.')
+        expect(wrapper.find('details.fit__sum summary').text()).toBe('So haben wir gerechnet')
+        expect(wrapper.find('details.fit__sum').attributes('open')).toBeUndefined()
+        // Folded, never dropped: the whole sum is in the page.
+        expect(wrapper.findAll('details.fit__sum li').map((li) => li.text())).toEqual(lines)
+    })
+
+    it('opens the sum at once where we say no, or where the customer’s figures made it stricter', () => {
+        const tyre = { status: 'NOT_PERMITTED' as const, label: 'Nicht freigegeben', lines: ['…', '…?'], thresholds: [], fromVehicleData: true, summary: 'Bei 280 km/h …', basis: 'Grundlage: Gutachten 55255.', open: true }
+        const wrapper = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'NOT_PERMITTED', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })
+
+        expect(wrapper.find('details.fit__sum').attributes('open')).toBeDefined()
+    })
+
+    it('shows the document’s thresholds in full, unfolded, while the car’s figures are missing (R-03)', () => {
+        const line = 'Vergleiche die 1.120 kg mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I.'
+        const wrapper = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre: { status: 'CONDITIONAL', label: 'Mit deinen Fahrzeugpapieren prüfen', lines: [line], thresholds: [], fromVehicleData: false } }) },
+        })
+
+        expect(wrapper.find('details.fit__sum').exists()).toBe(false)
+        expect(wrapper.find('.fit__tyre-lines').text()).toBe(line)
+    })
+
     it('offers no papers form without a tyre half', () => {
         const wrapper = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', sellable: false }) } })
 

@@ -414,9 +414,24 @@ final readonly class FitmentResolver
             ? VerdictStatus::Conditional
             : VerdictStatus::Permitted;
 
+        // The document reported is the one whose row is most specific: the newest revision among
+        // the covering rows, so a reissue is what the customer is shown.
+        $document = $this->governingDocument($covering);
+
         // ── The tyre half, and the answer: the weaker of the two, never PERMITTED while the tyres
         // are open (R-03).
-        $tyre = $this->tyreCheck($vehicle, $wheel, $conditions, $front, $rear, $frontCheck, $rearCheck);
+        $tyre = $this->tyreCheck($vehicle, $wheel, $conditions, $front, $rear, $frontCheck, $rearCheck, $document);
+
+        // The customer's own figures laid over the car (C10): did they make the answer stricter than the
+        // vehicle data alone? Then the sum is owed at once, not behind a click (the decision of 29.09.2026).
+        if ($vehicle->beforePapers !== null) {
+            $before = $vehicle->beforePapers;
+            [$beforeFront, $beforeFrontCheck] = $this->axleRequirement($covering, $before->axleLoadFrontKg, $before->maxSpeedKmh, 'FRONT');
+            [$beforeRear, $beforeRearCheck] = $this->axleRequirement($covering, $before->axleLoadRearKg, $before->maxSpeedKmh, 'REAR');
+            $beforeTyre = $this->tyreCheck($before, $wheel, $conditions, $beforeFront, $beforeRear, $beforeFrontCheck, $beforeRearCheck, $document);
+            $tyre = $tyre->withStricterByPapers($this->stricter($tyre, $front, $rear, $beforeTyre, $beforeFront, $beforeRear));
+        }
+
         $status = VerdictStatus::weaker($wheelStatus, $tyre->status);
 
         // Where the tyres decide against the wheel, the answer says why in the tyres' own words.
@@ -425,10 +440,6 @@ final readonly class FitmentResolver
             VerdictStatus::Unknown => new VerdictReason(VerdictReason::TYRE_UNKNOWN, $tyre->lines[0] ?? VerdictReason::sentenceFor(VerdictReason::TYRE_UNKNOWN)),
             default => null,
         };
-
-        // The document reported is the one whose row is most specific: the newest revision among
-        // the covering rows, so a reissue is what the customer is shown.
-        $document = $this->governingDocument($covering);
 
         [$centreBoreMm, $centreBoreSource] = $this->documentCentreBore($covering);
 
@@ -509,7 +520,7 @@ final readonly class FitmentResolver
      * @param  array<string, mixed>  $frontCheck
      * @param  array<string, mixed>  $rearCheck
      */
-    private function tyreCheck(VehicleRecord $vehicle, ?WheelConfigRecord $wheel, array $conditions, AxleRequirement $front, AxleRequirement $rear, array $frontCheck, array $rearCheck): TyreCheck
+    private function tyreCheck(VehicleRecord $vehicle, ?WheelConfigRecord $wheel, array $conditions, AxleRequirement $front, AxleRequirement $rear, array $frontCheck, array $rearCheck, DocumentRecord $document): TyreCheck
     {
         $thresholds = [];
 
@@ -561,8 +572,16 @@ final readonly class FitmentResolver
             usort($lines, static fn (string $a, string $b): int => (int) str_starts_with($b, '!') <=> (int) str_starts_with($a, '!'));
 
             // A sentence both axles give — „Das Gutachten druckt keine Tabelle …“ — is said once.
-            return new TyreCheck($status, array_values(array_unique(array_map(static fn (string $l): string => ltrim($l, '!'), $lines))), $thresholds, true);
+            $lines = array_values(array_unique(array_map(static fn (string $l): string => ltrim($l, '!'), $lines)));
+
+            // Always shown: why not, and the document it rests on.
+            return new TyreCheck($status, $lines, $thresholds, true, $lines[0] ?? null, self::basis($document, $front->hasPermittedSizes() ? $frontCheck : $rearCheck));
         }
+
+        // Always shown, whatever folds the sum away: the axle that binds and what it asks for, and the
+        // document it came from (the operator's decision of 29.09.2026).
+        [$summary, $bindingCheck] = $this->bindingSummary($vehicle, $front, $rear, $frontCheck, $rearCheck);
+        $basis = self::basis($document, $bindingCheck);
 
         // Four identical tyres meet the stricter axle, and the line says which one bound.
         if ($front->hasPermittedSizes() && $rear->hasPermittedSizes() && $this->sameSizes($front, $rear)) {
@@ -591,10 +610,112 @@ final readonly class FitmentResolver
         if ($restricting !== []) {
             $lines[] = 'Das Gutachten schreibt außerdem vor, welche Reifen du fahren darfst – die Auflagen unter „Reifen“ gelten zusätzlich.';
 
-            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds, true);
+            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds, true, $summary, $basis);
         }
 
-        return new TyreCheck(VerdictStatus::Permitted, $lines, $thresholds, true);
+        return new TyreCheck(VerdictStatus::Permitted, $lines, $thresholds, true, $summary, $basis);
+    }
+
+    /**
+     * The one line the customer always sees: `Hinterachse mit 1.235 kg: mindestens Tragfähigkeitsindex 93,
+     * Geschwindigkeitsindex Y.` — the axle that asks for more (a tie: the heavier), or each axle where the
+     * document permits different sizes on them. With the check of the axle it names, for its basis.
+     *
+     * @param  array<string, mixed>  $frontCheck
+     * @param  array<string, mixed>  $rearCheck
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    private function bindingSummary(VehicleRecord $vehicle, AxleRequirement $front, AxleRequirement $rear, array $frontCheck, array $rearCheck): array
+    {
+        $frontLoad = (int) $vehicle->axleLoadFrontKg;
+        $rearLoad = (int) $vehicle->axleLoadRearKg;
+        $says = static fn (string $axle, int $load, int $index, string $symbol): string => sprintf(
+            '%s mit %s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s',
+            $axle,
+            GermanFormat::kilograms($load),
+            $index,
+            $symbol,
+        );
+
+        if (! $rear->hasPermittedSizes()) {
+            return [$says('Vorderachse', $frontLoad, (int) $front->minLoadIndex, (string) $front->minSpeedSymbol).'.', $frontCheck];
+        }
+
+        if (! $front->hasPermittedSizes()) {
+            return [$says('Hinterachse', $rearLoad, (int) $rear->minLoadIndex, (string) $rear->minSpeedSymbol).'.', $rearCheck];
+        }
+
+        if (! $this->sameSizes($front, $rear)) {
+            return [
+                $says('Vorderachse', $frontLoad, (int) $front->minLoadIndex, (string) $front->minSpeedSymbol).'; '
+                    .$says('Hinterachse', $rearLoad, (int) $rear->minLoadIndex, (string) $rear->minSpeedSymbol).'.',
+                $rearCheck,
+            ];
+        }
+
+        // Four identical tyres meet both axles: the higher index, the higher symbol.
+        $frontIndex = (int) $front->minLoadIndex;
+        $rearIndex = (int) $rear->minLoadIndex;
+        $rearBinds = $rearIndex !== $frontIndex ? $rearIndex > $frontIndex : $rearLoad > $frontLoad;
+        $symbol = ($this->speedSymbol->rankOf($rear->minSpeedSymbol) ?? 0) > ($this->speedSymbol->rankOf($front->minSpeedSymbol) ?? 0)
+            ? (string) $rear->minSpeedSymbol
+            : (string) $front->minSpeedSymbol;
+
+        if ($frontLoad === $rearLoad) {
+            return [$says('Beide Achsen', $frontLoad, max($frontIndex, $rearIndex), $symbol).'.', $rearCheck];
+        }
+
+        return $rearBinds
+            ? [$says('Hinterachse', $rearLoad, $rearIndex, $symbol).'.', $rearCheck]
+            : [$says('Vorderachse', $frontLoad, $frontIndex, $symbol).'.', $frontCheck];
+    }
+
+    /**
+     * The document the tyre answer came from: its table where one was read — above 210 km/h, and never passed
+     * off as printed when the demo seed wrote it — else the document itself.
+     *
+     * @param  array<string, mixed>  $check
+     */
+    private static function basis(DocumentRecord $document, array $check): string
+    {
+        $table = $check['tableSource'] ?? null;
+        $speed = $check['speed'] ?? null;
+
+        if (is_string($table) && is_int($speed) && $speed > SpeedDeratingTable::NO_DERATING_UP_TO_KMH) {
+            return 'Grundlage: '.$table.'.';
+        }
+
+        return 'Grundlage: Gutachten '.($document->number ?? '').'.';
+    }
+
+    /**
+     * Whether the customer's figures made the tyre answer stricter than the vehicle data alone: a weaker
+     * status, or a higher load index or speed symbol on an axle the wheel may go on.
+     */
+    private function stricter(TyreCheck $now, AxleRequirement $front, AxleRequirement $rear, TyreCheck $before, AxleRequirement $beforeFront, AxleRequirement $beforeRear): bool
+    {
+        if ($now->status !== $before->status && VerdictStatus::weaker($now->status, $before->status) === $now->status) {
+            return true;
+        }
+
+        foreach ([[$front, $beforeFront], [$rear, $beforeRear]] as [$axle, $was]) {
+            if (! $axle->hasPermittedSizes()) {
+                continue;
+            }
+
+            if ($axle->minLoadIndex !== null && $was->minLoadIndex !== null && $axle->minLoadIndex > $was->minLoadIndex) {
+                return true;
+            }
+
+            $rank = $this->speedSymbol->rankOf($axle->minSpeedSymbol);
+            $wasRank = $this->speedSymbol->rankOf($was->minSpeedSymbol);
+
+            if ($rank !== null && $wasRank !== null && $rank > $wasRank) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

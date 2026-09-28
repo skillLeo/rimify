@@ -127,6 +127,15 @@ final class OrderDetail
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
             'front' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->front->sizes),
             'rear' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->rear->sizes),
+            // The tyre answer as the customer was shown it, and the whole sum behind it — whatever the shop
+            // folded away at the time, it is all here (the operator's decision of 29.09.2026).
+            'tyre' => $verdict->tyre === null ? null : [
+                'statusLabel' => $verdict->tyre->status->labelDe(),
+                'summary' => $verdict->tyre->summary,
+                'basis' => $verdict->tyre->basis,
+                'lines' => $verdict->tyre->lines,
+                'fromPapers' => $verdict->tyre->stricterByPapers,
+            ],
         ];
     }
 

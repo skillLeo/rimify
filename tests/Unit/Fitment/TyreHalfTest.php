@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Fitment\Data\DocumentRecord;
+use App\Domain\Fitment\Data\PapersFigures;
 use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleRecord;
@@ -156,6 +157,55 @@ it('gives a definite answer once the figures from the papers are entered, and sh
             'Maßgeblich ist die Minderung bei hoher Geschwindigkeit: mindestens Tragfähigkeitsindex 89, Geschwindigkeitsindex W.',
         ])
         ->and(array_slice($verdict->tyre->lines ?? [], -1))->toBe(['Beide Achsen tragen '.kg('1.100').': vier gleiche Reifen brauchen mindestens Tragfähigkeitsindex 89.']);
+});
+
+/* ── Always shown: the answer and its document; the sum on one click (the decision of 29.09.2026) ─── */
+
+it('says the binding axle and what it asks for in one line, and the document it came from — the RS 4 at 280 km/h', function (): void {
+    // 1.210 kg front, 1.235 kg rear, 280 km/h: Y at 95 % — LI 93 on both, the rear the heavier.
+    $tyre = decideFor(bmw4er3C(1210, 1235, 280))->tyre;
+
+    expect($tyre?->summary)->toBe('Hinterachse mit '.kg('1.235').': mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.')
+        ->and($tyre?->basis)->toBe('Grundlage: Tabelle auf Seite 6 im Gutachten 55255.')
+        // The whole sum stays in the lines, for the disclosure, the snapshot and the printable check.
+        ->and(count($tyre->lines ?? []))->toBeGreaterThan(5)
+        ->and($tyre?->stricterByPapers)->toBeFalse();
+});
+
+it('names the document alone where no table was read, both axles where they carry the same, and why not where not', function (): void {
+    $slow = decideFor(bmw4er3C(1100, 1100, 200))->tyre;
+
+    // 200 km/h: no derating — 550 kg a wheel asks for LI 88 (560 kg).
+    expect($slow?->summary)->toBe('Beide Achsen mit '.kg('1.100').': mindestens Tragfähigkeitsindex 88, Geschwindigkeitsindex U.')
+        ->and($slow?->basis)->toBe('Grundlage: Gutachten 55255.');
+
+    $unknown = decideFor(bmw4er3C(1100, 1100, 250), withTable: false)->tyre;
+
+    expect($unknown?->summary)->toBe('Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit. Für 250 km/h können wir die Reifen deshalb nicht bestätigen.')
+        ->and($unknown?->basis)->toBe('Grundlage: Gutachten 55255.');
+});
+
+it('says when the customer’s own figures made the answer stricter than the vehicle data, and only then', function (): void {
+    $data = bmw4er3C(1100, 1100, 250);
+    $figures = static fn (int $front, int $rear, int $speed) => PapersFigures::tryFrom($front, $rear, $speed)?->applyTo($data) ?? $data;
+
+    // A heavier axle from the papers: LI 89 becomes LI 91 — stricter.
+    expect(decideFor($figures(1180, 1180, 250))->tyre?->stricterByPapers)->toBeTrue()
+        // A faster T: W at 95 % becomes Y — stricter.
+        ->and(decideFor($figures(1100, 1100, 280))->tyre?->stricterByPapers)->toBeTrue()
+        // The same figures as the data: nothing changed.
+        ->and(decideFor($figures(1100, 1100, 250))->tyre?->stricterByPapers)->toBeFalse()
+        // Figures that only fill a gap never make an answer „stricter“ than the „check your papers“ before.
+        ->and(decideFor(PapersFigures::tryFrom(1100, 1100, 250)?->applyTo(bmw4er3C()) ?? bmw4er3C())->tyre?->stricterByPapers)->toBeFalse();
+});
+
+it('keeps the summary, the basis and the flag in the frozen verdict', function (): void {
+    $verdict = decideFor(bmw4er3C(1210, 1235, 280));
+    $restored = FitmentVerdict::fromArray($verdict->toArray());
+
+    expect($restored->tyre?->summary)->toBe($verdict->tyre?->summary)
+        ->and($restored->tyre?->basis)->toBe($verdict->tyre?->basis)
+        ->and($restored->tyre?->lines)->toBe($verdict->tyre?->lines);
 });
 
 it('names the heavier axle for four identical tyres when both axles ask for the same load index', function (): void {

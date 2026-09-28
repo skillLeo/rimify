@@ -86,6 +86,10 @@ it('shows each wheel line with the verdict as it was shown at purchase', functio
             ->where('lines.0.snapshot.document', 'ABE 53810')
             ->where('lines.0.snapshot.sourcePage', 6)
             ->where('lines.0.snapshot.conditions', fn ($c) => collect($c)->contains('Bördeln der Radläufe erforderlich.'))
+            // The tyre answer and the whole sum behind it, whatever the shop folded away (29.09.2026).
+            ->where('lines.0.snapshot.tyre.lines', fn ($l) => collect($l)->isNotEmpty())
+            ->has('lines.0.snapshot.tyre.summary')
+            ->has('lines.0.snapshot.tyre.basis')
             ->where('lines.0.snapshot.documentToday', null));
 });
 

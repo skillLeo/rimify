@@ -538,6 +538,12 @@ class FelgenController extends Controller
                     ? 'Mit deinen Fahrzeugpapieren prüfen'
                     : $verdict->tyre->status->labelDe(),
                 'lines' => $verdict->tyre->lines,
+                // Always shown: the binding axle and what it asks for, and the document; the sum behind
+                // „So haben wir gerechnet“ — open at once where we say no, or where the customer's own
+                // figures made the answer stricter (the operator's decision of 29.09.2026).
+                'summary' => $verdict->tyre->summary,
+                'basis' => $verdict->tyre->basis,
+                'open' => $verdict->tyre->status === VerdictStatus::NotPermitted || $verdict->tyre->stricterByPapers,
                 'thresholds' => array_map(static fn (array $t): array => [
                     'text' => $t['textDe'],
                     'maxAxleLoad' => GermanFormat::kilograms($t['maxAxleLoadKg']),
