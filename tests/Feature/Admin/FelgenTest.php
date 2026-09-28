@@ -9,8 +9,10 @@ use App\Models\Brand;
 use App\Models\Fitment;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
+use App\Models\WheelFinishImage;
 use App\Models\WheelModel;
 use App\Policies\WheelModelPolicy;
+use App\Services\Admin\Catalogue\FinishImages;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
 use Illuminate\Http\UploadedFile;
@@ -407,5 +409,116 @@ describe('a photograph', function (): void {
             'image' => UploadedFile::fake()->image('felge.jpg', 600, 600),
             'alt' => 'Ein Foto der anderen Felge',
         ])->assertForbidden();
+    });
+});
+
+/**
+ * @param  list<string>  $alts
+ * @return list<int> the photos' ids, in the order uploaded
+ */
+function photographed(WheelModel $wheel, WheelFinish $finish, array $alts): array
+{
+    foreach ($alts as $i => $alt) {
+        test()->actingAs(felgenAdmin(), 'admin')->post("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/foto", [
+            'image' => UploadedFile::fake()->image("felge-{$i}.jpg", 800 + $i, 800 + $i),
+            'alt' => $alt,
+        ])->assertSessionHasNoErrors();
+    }
+
+    return WheelFinishImage::query()->where('wheel_finish_id', $finish->id)->orderBy('position')->pluck('id')->map(fn ($id): int => (int) $id)->all();
+}
+
+describe('several photographs of one colour (COMPLIANCE row 23)', function (): void {
+    it('keeps every photo in order, the first as the cover and the others as the product page’s views', function (): void {
+        Storage::fake('media_products');
+        $wheel = felgeWith();
+        $finish = $wheel->finishes()->firstOrFail();
+
+        photographed($wheel, $finish, ['Testmodell in Graphit matt, Ansicht von vorn', 'Testmodell in Graphit matt, schräg von der Seite']);
+        $manifest = $finish->refresh()->image_manifest;
+
+        expect($manifest['alt'])->toBe('Testmodell in Graphit matt, Ansicht von vorn')
+            ->and($manifest['views'])->toHaveCount(1)
+            ->and($manifest['views'][0]['alt'])->toBe('Testmodell in Graphit matt, schräg von der Seite')
+            ->and($manifest['views'][0]['width'])->toBe(801)
+            ->and($finish->image_alt_de)->toBe('Testmodell in Graphit matt, Ansicht von vorn');
+
+        $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen/'.$wheel->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('finishes.0.photos.1.alt', 'Testmodell in Graphit matt, schräg von der Seite')
+                ->where('options.maxPhotos', 12));
+    });
+
+    it('reorders them, and the new first photo becomes the cover', function (): void {
+        Storage::fake('media_products');
+        $wheel = felgeWith();
+        $finish = $wheel->finishes()->firstOrFail();
+        [$front, $side] = photographed($wheel, $finish, ['Testmodell, Ansicht von vorn', 'Testmodell, Ansicht von der Seite']);
+
+        $this->actingAs(felgenAdmin(), 'admin')->put("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/reihenfolge", ['ids' => [$side, $front]])
+            ->assertSessionHasNoErrors()->assertSessionHas('toast', 'Reihenfolge gespeichert. Das erste Foto ist das Titelbild im Shop.');
+
+        expect($finish->refresh()->image_manifest['alt'])->toBe('Testmodell, Ansicht von der Seite')
+            ->and($finish->image_manifest['views'][0]['alt'])->toBe('Testmodell, Ansicht von vorn')
+            ->and(AuditLog::query()->where('description', 'wheel.images_reordered')->exists())->toBeTrue();
+
+        // A page that has not seen every photo reorders nothing.
+        $this->actingAs(felgenAdmin(), 'admin')->put("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/reihenfolge", ['ids' => [$front]])
+            ->assertSessionHasErrors(['ids' => FinishImages::STALE]);
+        expect($finish->refresh()->image_manifest['alt'])->toBe('Testmodell, Ansicht von der Seite');
+    });
+
+    it('describes one anew and takes one off, and with the last one gone the shop draws the outline again', function (): void {
+        Storage::fake('media_products');
+        $wheel = felgeWith();
+        $finish = $wheel->finishes()->firstOrFail();
+        [$front, $side] = photographed($wheel, $finish, ['Testmodell, Ansicht von vorn', 'Testmodell, Ansicht von der Seite']);
+
+        $this->actingAs(felgenAdmin(), 'admin')->put("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/{$side}", ['alt' => 'kurz'])
+            ->assertSessionHasErrors('alt');
+        $this->actingAs(felgenAdmin(), 'admin')->put("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/{$side}", ['alt' => 'Testmodell, seitlich mit Speichenbild'])
+            ->assertSessionHasNoErrors();
+        expect($finish->refresh()->image_manifest['views'][0]['alt'])->toBe('Testmodell, seitlich mit Speichenbild');
+
+        $this->actingAs(felgenAdmin(), 'admin')->delete("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/{$front}")
+            ->assertSessionHas('toast', 'Foto entfernt.');
+        expect($finish->refresh()->image_manifest['alt'])->toBe('Testmodell, seitlich mit Speichenbild')
+            ->and($finish->image_manifest)->not->toHaveKey('views');
+
+        $this->actingAs(felgenAdmin(), 'admin')->delete("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/{$side}")
+            ->assertSessionHas('toast', 'Foto entfernt. Der Shop zeigt wieder die Umrisszeichnung.');
+        expect($finish->refresh()->image_manifest)->toBeNull()
+            ->and($finish->image_alt_de)->toBeNull();
+    });
+
+    it('takes no thirteenth photo, and never a photo of another colour through this one', function (): void {
+        Storage::fake('media_products');
+        $wheel = felgeWith();
+        $finish = $wheel->finishes()->firstOrFail();
+        $ids = photographed($wheel, $finish, array_map(fn (int $i): string => "Testmodell, Ansicht Nummer {$i}", range(1, FinishImages::MAX_PER_FINISH)));
+
+        $this->actingAs(felgenAdmin(), 'admin')->post("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/foto", [
+            'image' => UploadedFile::fake()->image('felge.jpg', 600, 600),
+            'alt' => 'Testmodell, noch eine Ansicht',
+        ])->assertSessionHasErrors(['image' => FinishImages::FULL]);
+        expect(count(Storage::disk('media_products')->allFiles()))->toBe(FinishImages::MAX_PER_FINISH);
+
+        $other = WheelFinish::factory()->create(['wheel_model_id' => $wheel->id]);
+        $this->actingAs(felgenAdmin(), 'admin')->delete("/admin/felgen/{$wheel->id}/ausfuehrungen/{$other->id}/fotos/{$ids[0]}")->assertForbidden();
+        $this->actingAs(felgenAdmin(), 'admin')->put("/admin/felgen/{$wheel->id}/ausfuehrungen/{$other->id}/fotos/{$ids[0]}", ['alt' => 'Testmodell, fremdes Foto'])->assertForbidden();
+    });
+
+    it('refuses every change to who may only read the catalogue (R-11)', function (): void {
+        Storage::fake('media_products');
+        $wheel = felgeWith();
+        $finish = $wheel->finishes()->firstOrFail();
+        [$id] = photographed($wheel, $finish, ['Testmodell, Ansicht von vorn']);
+        $reader = felgenAdmin('order-manager');
+
+        $this->actingAs($reader, 'admin')->put("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/reihenfolge", ['ids' => [$id]])->assertForbidden();
+        $this->actingAs($reader, 'admin')->put("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/{$id}", ['alt' => 'Testmodell, neu beschrieben'])->assertForbidden();
+        $this->actingAs($reader, 'admin')->delete("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/{$id}")->assertForbidden();
+
+        expect(WheelFinishImage::query()->count())->toBe(1);
     });
 });

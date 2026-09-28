@@ -18,7 +18,7 @@ import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminFelgeProps, FinishForm, SizeForm, WheelForm } from '../../../types/admin/felgen'
-import FinishPhoto from './FinishPhoto.vue'
+import FinishPhotos from './FinishPhotos.vue'
 import MatrixPanel from './MatrixPanel.vue'
 import SizesTable from './SizesTable.vue'
 import { generate, type MatrixInput } from './matrix'
@@ -454,16 +454,18 @@ const more = computed<AdminPageAction[]>(() => {
                             </div>
                         </div>
 
-                        <FinishPhoto
+                        <FinishPhotos
                             v-if="model && finish.id !== null && serverFinish(finish)"
                             :model-id="model.id"
                             :finish-id="finish.id"
                             :finish-name="serverFinish(finish)!.name"
                             :image="serverFinish(finish)!.image"
+                            :photos="serverFinish(finish)!.photos"
+                            :max="options.maxPhotos"
                             :editable="editable"
                             :title="title"
                         />
-                        <p v-else class="adm-note">Nach dem Speichern kannst du für diese Ausführung ein Foto hochladen.</p>
+                        <p v-else class="adm-note">Nach dem Speichern kannst du für diese Ausführung Fotos hochladen.</p>
                     </li>
                 </ol>
             </section>

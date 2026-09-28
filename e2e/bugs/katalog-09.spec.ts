@@ -8,14 +8,14 @@ import { SHOTS, addSizes, firstWheelId, focusFell, guardWrites, openFelge, openN
  *
  *   a) a size's „Zeile N entfernen" (SizesTable.vue) — the row and its button are removed;
  *   b) a finish's „Entfernen" (Edit.vue `removeFinish`) — the finish is removed;
- *   c) „Foto hochladen" / „Foto ersetzen" and the form's „Abbrechen" (FinishPhoto.vue) — `v-if="editable
- *      && !open"` / `v-if="open"` swap the buttons out;
+ *   c) „Foto hinzufügen" and the form's „Abbrechen" (FinishPhotos.vue) — `v-if="editable && !adding"` /
+ *      `v-if="adding"` swap the buttons out;
  *   d) a finished step for the selection (Felgen list, „Zurückziehen" …) — `onSuccess` empties the
  *      selection, which removes the bar and the button that opened the confirm; Ui/Dialog.vue returns the
  *      focus only `if (opener?.isConnected)`.
  *
  * Expected: the focus lands on the next sensible control — the row or finish after the removed one (or
- * „Eine Größe hinzufügen"), the file field, „Foto hochladen" again, the table.
+ * „Eine Größe hinzufügen"), the file field, „Foto hinzufügen" again, the table.
  *
  * Nothing is written: (a)–(c) never save; in (d) the step is sent for a draft (a no-op on the server) and is
  * answered in the browser with the list as it stands — the request never reaches the application.
@@ -62,26 +62,26 @@ test('KATALOG-09c opening and closing the photo form from the keyboard keeps the
     await guardWrites(page);
     await openFelge(page, id);
 
-    const photo = page.locator('.fe-photo').first();
-    const start = photo.locator('.fe-photo__actions .btn--secondary');
+    const photo = page.locator('.fe-photos').first();
+    const start = photo.getByRole('button', { name: 'Foto hinzufügen' });
 
-    await expect(start, 'the first finish offers no „Foto hochladen" (read-only?)').toBeVisible();
+    await expect(start, 'the first finish offers no „Foto hinzufügen" (read-only?)').toBeVisible();
     await start.focus();
     await page.keyboard.press('Enter');
-    await expect(photo.locator('.fe-photo__form')).toBeVisible();
+    await expect(photo.locator('.fe-photos__form')).toBeVisible();
 
     const opened = await focusFell(page);
 
     await photo.getByRole('button', { name: 'Abbrechen' }).focus();
     await page.keyboard.press('Enter');
-    await expect(photo.locator('.fe-photo__form')).toBeHidden();
+    await expect(photo.locator('.fe-photos__form')).toBeHidden();
 
     const closed = await focusFell(page);
     await photo.screenshot({ path: `${SHOTS}/katalog-09c-photo-${info.project.name}.png` });
 
     expect(
         { opened: opened.fell, closed: closed.fell },
-        `„Foto hochladen" left the focus on ${opened.on}; „Abbrechen" left it on ${closed.on}`,
+        `„Foto hinzufügen" left the focus on ${opened.on}; „Abbrechen" left it on ${closed.on}`,
     ).toEqual({ opened: false, closed: false });
 });
 

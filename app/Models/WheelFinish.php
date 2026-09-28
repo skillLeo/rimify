@@ -62,4 +62,14 @@ class WheelFinish extends Model
     {
         return $this->hasMany(WheelConfig::class);
     }
+
+    /**
+     * The colour's photographs, in the order a person set (FinishImages); the first is the cover.
+     *
+     * @return HasMany<WheelFinishImage, $this>
+     */
+    public function images(): HasMany
+    {
+        return $this->hasMany(WheelFinishImage::class)->orderBy('position')->orderBy('id');
+    }
 }

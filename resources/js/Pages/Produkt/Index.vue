@@ -64,11 +64,12 @@ const shots = computed<ImageView[]>(() => {
 
     const { views = [], ...front } = image
 
-    return [{ ...front, label: 'Ansicht von vorn' }, ...views]
+    return [{ ...front, label: front.label ?? 'Ansicht von vorn' }, ...views]
 })
 const shotIndex = ref(0)
 const shot = computed(() => shots.value[shotIndex.value] ?? null)
-const shotAlt = computed(() => `${props.product.brandName} ${props.product.modelName} in ${finish.value?.name ?? ''}, ${shot.value?.label ?? ''}`)
+// An uploaded photo carries the sentence the admin wrote for it; a studio shot is named by its angle.
+const shotAlt = computed(() => shot.value?.alt ?? `${props.product.brandName} ${props.product.modelName} in ${finish.value?.name ?? ''}, ${shot.value?.label ?? ''}`)
 
 // Another finish starts on its own front view.
 watch(

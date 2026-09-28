@@ -54,6 +54,12 @@ export interface ImageManifest {
     bare?: ImageManifest
     /** The approval number the photograph shows (`53810`), when one was read off it. */
     stamp?: string
+    /**
+     * An uploaded photograph's own sentence, as a person wrote it in the admin (FinishImages) — the
+     * alt text wherever it is shown, and its thumbnail's name as `label`.
+     */
+    alt?: string
+    label?: string
 }
 
 /** One more angle of the same finish, and how to name it (`Schräg von vorn`). */

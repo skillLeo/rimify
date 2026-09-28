@@ -315,12 +315,20 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::post('/felgen/{model}/'.$step, [AdminFelgenController::class, 'status'])->whereNumber('model')->name('felgen.'.$step);
         }
 
+        // A finish's photographs (COMPLIANCE row 23): one more after the others, one taken off, all in a
+        // new order, one described anew. FinishImages composes the cover the shop reads from them.
         Route::post('/felgen/{model}/ausfuehrungen/{finish}/foto', [AdminFelgenController::class, 'image'])
             ->whereNumber(['model', 'finish'])
             ->middleware('throttle:30,1')
             ->name('felgen.foto');
-        Route::delete('/felgen/{model}/ausfuehrungen/{finish}/foto', [AdminFelgenController::class, 'removeImage'])
+        Route::put('/felgen/{model}/ausfuehrungen/{finish}/fotos/reihenfolge', [AdminFelgenController::class, 'reorderImages'])
             ->whereNumber(['model', 'finish'])
+            ->name('felgen.fotos.reihenfolge');
+        Route::put('/felgen/{model}/ausfuehrungen/{finish}/fotos/{image}', [AdminFelgenController::class, 'relabelImage'])
+            ->whereNumber(['model', 'finish', 'image'])
+            ->name('felgen.foto.beschreibung');
+        Route::delete('/felgen/{model}/ausfuehrungen/{finish}/fotos/{image}', [AdminFelgenController::class, 'removeImage'])
+            ->whereNumber(['model', 'finish', 'image'])
             ->name('felgen.foto.entfernen');
 
         // Katalog › Marken: every brand, its place on the brand wall and its logo (BrandPolicy through the

@@ -61,7 +61,7 @@ watch(
     }
 )
 const photo = computed(() => (props.card.image && !failed.value ? props.card.image : null))
-const alt = computed(() => `${props.card.brandName} ${props.card.modelName} in ${props.card.finishName}, Ansicht von vorn`)
+const alt = computed(() => photo.value?.alt ?? `${props.card.brandName} ${props.card.modelName} in ${props.card.finishName}, Ansicht von vorn`)
 /* A second studio angle, when the finish has one, fades in on hover — decoration: the front view carries the alt text. */
 const hoverView = computed(() => photo.value?.views?.[0] ?? null)
 

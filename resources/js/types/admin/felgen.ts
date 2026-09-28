@@ -88,6 +88,13 @@ export interface FinishImage {
     placeholder: boolean
 }
 
+/** One photograph of a colour, in the order the shop shows them (the first is the cover). */
+export interface FinishPhoto {
+    id: number
+    manifest: ImageManifest
+    alt: string
+}
+
 export interface SizeForm {
     key: string
     id: number | null
@@ -152,6 +159,7 @@ export interface AdminFelgeProps {
         hex: string
         artFinish: string
         image: FinishImage | null
+        photos: FinishPhoto[]
         sizes: number
     }[]
     configs: (Omit<SizeForm, 'weight_g'> & { weight_g: number | null; locked: boolean })[]
@@ -159,7 +167,7 @@ export interface AdminFelgeProps {
     documents: Record<string, SizeDocument[]>
     check: { blockers: string[]; hints: string[] } | null
     brands: { value: number; label: string }[]
-    options: { spokes: number[]; boltHoles: number[]; artFinishes: WheelOption[] }
+    options: { spokes: number[]; boltHoles: number[]; artFinishes: WheelOption[]; maxPhotos: number }
     can: WheelCan
 }
 

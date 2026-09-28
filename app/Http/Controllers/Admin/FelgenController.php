@@ -14,14 +14,18 @@ use App\Http\Requests\Admin\WheelFinishRequest;
 use App\Http\Requests\Admin\WheelImageRequest;
 use App\Http\Requests\Admin\WheelModelRequest;
 use App\Http\Requests\Admin\WheelModelViewRequest;
+use App\Http\Requests\Admin\WheelPhotoAltRequest;
+use App\Http\Requests\Admin\WheelPhotoOrderRequest;
 use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\AdminUser;
 use App\Models\Brand;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
+use App\Models\WheelFinishImage;
 use App\Models\WheelModel;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
+use App\Services\Admin\Catalogue\FinishImages;
 use App\Services\Admin\Catalogue\PublishCheck;
 use App\Services\Admin\Catalogue\WheelEditor;
 use App\Services\Admin\Catalogue\WheelList;
@@ -56,6 +60,10 @@ class FelgenController extends Controller
     public const IMAGE_SAVED = 'Foto gespeichert.';
 
     public const IMAGE_REMOVED = 'Foto entfernt. Der Shop zeigt wieder die Umrisszeichnung.';
+
+    public const PHOTO_REMOVED = 'Foto entfernt.';
+
+    public const PHOTOS_ORDERED = 'Reihenfolge gespeichert. Das erste Foto ist das Titelbild im Shop.';
 
     private const STEP_TOASTS = [
         'veroeffentlichen' => 'Veröffentlicht. Die Felge ist jetzt im Shop.',
@@ -228,12 +236,18 @@ class FelgenController extends Controller
         return back()->with('toast', $toast);
     }
 
-    public function image(WheelImageRequest $request, WheelModel $model, WheelFinish $finish, ImageUpload $uploads): RedirectResponse
+    /** One more photograph of a finish, after the ones it has (COMPLIANCE row 23). */
+    public function image(WheelImageRequest $request, WheelModel $model, WheelFinish $finish, ImageUpload $uploads, FinishImages $photos): RedirectResponse
     {
         $file = $request->file('image');
 
         if (! $file instanceof UploadedFile) {
             throw ValidationException::withMessages(['image' => 'Bitte wähl ein Foto aus.']);
+        }
+
+        // Before the file is stored: a thirteenth photo is not kept in the bucket either.
+        if ($photos->count($finish) >= FinishImages::MAX_PER_FINISH) {
+            throw ValidationException::withMessages(['image' => FinishImages::FULL]);
         }
 
         try {
@@ -246,45 +260,71 @@ class FelgenController extends Controller
         $ext = pathinfo($stored['path'], PATHINFO_EXTENSION);
         $suffix = '-'.$stored['width'].'.'.$ext;
 
-        $finish->forceFill([
-            'image_manifest' => [
-                'name' => basename($stored['path'], $suffix),
-                'base' => str_ends_with($url, $suffix) ? substr($url, 0, -strlen($suffix)) : $url,
-                'width' => $stored['width'],
-                'height' => $stored['height'],
-                'widths' => [$stored['width']],
-                'fallback' => $ext,
-                // One file as uploaded: no other formats to offer before it.
-                'formats' => [],
-                'placeholder' => 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="'.($finish->hex ?? '#E4E6E8').'"/></svg>'),
-                'kind' => 'photo',
-                'disk' => $stored['disk'],
-                'path' => $stored['path'],
-            ],
-            'image_alt_de' => $request->alt(),
-        ])->save();
-        $model->touch();
+        $manifest = [
+            'name' => basename($stored['path'], $suffix),
+            'base' => str_ends_with($url, $suffix) ? substr($url, 0, -strlen($suffix)) : $url,
+            'width' => $stored['width'],
+            'height' => $stored['height'],
+            'widths' => [$stored['width']],
+            'fallback' => $ext,
+            // One file as uploaded: no other formats to offer before it.
+            'formats' => [],
+            'placeholder' => 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="'.($finish->hex ?? '#E4E6E8').'"/></svg>'),
+            'kind' => 'photo',
+            'disk' => $stored['disk'],
+            'path' => $stored['path'],
+        ];
 
-        AuditTrail::record($request->admin(), 'wheel.image_uploaded', [
-            'name' => $model->loadMissing('brand')->brand->name.' '.$model->name,
-            'finish' => $finish->name_de,
-        ], $model);
+        DB::transaction(function () use ($photos, $finish, $manifest, $request, $model): void {
+            $photos->add($finish, $manifest, $request->alt());
+            $model->touch();
+            AuditTrail::record($request->admin(), 'wheel.image_uploaded', self::photoSubject($model, $finish), $model);
+        });
 
         return back()->with('toast', self::IMAGE_SAVED);
     }
 
-    public function removeImage(WheelFinishRequest $request, WheelModel $model, WheelFinish $finish): RedirectResponse
+    public function removeImage(WheelFinishRequest $request, WheelModel $model, WheelFinish $finish, WheelFinishImage $image, FinishImages $photos): RedirectResponse
     {
-        // The file stays in the bucket: an order confirmation or a cached page may still point at it.
-        $finish->forceFill(['image_manifest' => null, 'image_alt_de' => null])->save();
-        $model->touch();
+        DB::transaction(function () use ($photos, $image, $model, $finish, $request): void {
+            // The file stays in the bucket: an order confirmation or a cached page may still point at it.
+            $photos->remove($image);
+            $model->touch();
+            AuditTrail::record($request->admin(), 'wheel.image_removed', self::photoSubject($model, $finish), $model);
+        });
 
-        AuditTrail::record($request->admin(), 'wheel.image_removed', [
-            'name' => $model->loadMissing('brand')->brand->name.' '.$model->name,
-            'finish' => $finish->name_de,
-        ], $model);
+        return back()->with('toast', $photos->count($finish) === 0 ? self::IMAGE_REMOVED : self::PHOTO_REMOVED);
+    }
 
-        return back()->with('toast', self::IMAGE_REMOVED);
+    public function reorderImages(WheelPhotoOrderRequest $request, WheelModel $model, WheelFinish $finish, FinishImages $photos): RedirectResponse
+    {
+        DB::transaction(function () use ($photos, $finish, $request, $model): void {
+            if (! $photos->reorder($finish, $request->ids())) {
+                throw ValidationException::withMessages(['ids' => FinishImages::STALE]);
+            }
+
+            $model->touch();
+            AuditTrail::record($request->admin(), 'wheel.images_reordered', self::photoSubject($model, $finish), $model);
+        });
+
+        return back()->with('toast', self::PHOTOS_ORDERED);
+    }
+
+    public function relabelImage(WheelPhotoAltRequest $request, WheelModel $model, WheelFinish $finish, WheelFinishImage $image, FinishImages $photos): RedirectResponse
+    {
+        DB::transaction(function () use ($photos, $image, $request, $model, $finish): void {
+            $photos->relabel($image, $request->alt());
+            $model->touch();
+            AuditTrail::record($request->admin(), 'wheel.image_relabelled', self::photoSubject($model, $finish), $model);
+        });
+
+        return back()->with('toast', self::SAVED);
+    }
+
+    /** @return array{name: string, finish: string} */
+    private static function photoSubject(WheelModel $model, WheelFinish $finish): array
+    {
+        return ['name' => $model->loadMissing('brand')->brand->name.' '.$model->name, 'finish' => (string) $finish->name_de];
     }
 
     private function move(WheelModel $model, CatalogueStatus $to, AdminUser $admin): void
@@ -310,7 +350,7 @@ class FelgenController extends Controller
     private function props(?WheelModel $model, AdminUser $admin): array
     {
         $check = $model === null ? null : app(PublishCheck::class)->for($model);
-        $finishes = $model === null ? collect() : $model->finishes()->withCount('configs')->orderBy('sort_order')->orderBy('id')->get();
+        $finishes = $model === null ? collect() : $model->finishes()->with('images')->withCount('configs')->orderBy('sort_order')->orderBy('id')->get();
         $configs = $model === null ? collect() : $model->configs()->orderBy('diameter_in')->orderBy('width_in')->orderBy('et_mm')->orderBy('id')->get();
         $locked = $model === null ? [] : DB::table('fitments')->whereIn('wheel_config_id', $configs->pluck('id'))->distinct()->pluck('wheel_config_id')
             ->map(static fn (mixed $id): int => (int) $id)->all();
@@ -344,6 +384,12 @@ class FelgenController extends Controller
                     'alt' => $f->image_alt_de ?? '',
                     'placeholder' => ($f->image_manifest['kind'] ?? null) === 'placeholder',
                 ] : null,
+                // Every photograph, first the cover; the cover above is composed from them.
+                'photos' => $f->images->map(static fn (WheelFinishImage $i): array => [
+                    'id' => (int) $i->id,
+                    'manifest' => $i->manifest,
+                    'alt' => $i->alt_de,
+                ])->values()->all(),
                 'sizes' => (int) $f->getAttribute('configs_count'),
             ])->values()->all(),
             'configs' => $configs->map(static fn (WheelConfig $c): array => [
@@ -377,6 +423,7 @@ class FelgenController extends Controller
                 'spokes' => WheelModelRequest::SPOKES,
                 'boltHoles' => WheelModelRequest::BOLT_HOLES,
                 'artFinishes' => array_map(static fn (string $value, string $label): array => ['value' => $value, 'label' => $label], array_keys(WheelModelRequest::ART_FINISHES), WheelModelRequest::ART_FINISHES),
+                'maxPhotos' => FinishImages::MAX_PER_FINISH,
             ],
             'can' => self::can($admin),
         ];
