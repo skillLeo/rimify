@@ -8,6 +8,16 @@ session is lost, the next one resumes at the first unticked line.
 transparency), `d3ab4de8` (smaller server-side items), `d39b2609` (the ten look fixes), `4bf51004` (K2-17
 seeder, test to follow).
 
+## First — bring the hero back (the operator's brief of 28.09.2026, ahead of the list)
+
+- [x] The hero wheel and the numbers section's photograph restored on the client's official Borbet DB8GT2
+      pictures, the numbers section photograph-first (Maulweite, Zoll, Lochkreis, Mittenlochbohrung, KBA on
+      the photo; ET on the cross-section), „hier 8,5J“ no longer glued by a translator; placeholder scope and
+      the protected-elements rule in CLAUDE.md; docs/design/PROTECTED.md (P1–P9, with the audit of what
+      changed since approval); e2e/protected.spec.ts at 1440 and 390, fails legibly when an element goes;
+      ai-look-critic's eight fixes taken — `94418abf`. Caption reads the 18″ (the photographed stamp is KBA
+      53841); the two Gutachten still wait for a human release (item 11)
+
 ## Block A — finish the QA batch
 
 - [x] K2-17: the seeder test — `5dd194c1`
@@ -38,7 +48,7 @@ seeder, test to follow).
       Ausfertigung, Benennungsnummer, Prüfort, Stand, gültig ab Fertigungsdatum; a supplement without its
       base shown on the record, the coverage matrix and to the customer; the twelve Auflage types,
       `auflage_nacharbeit`, `befestigungsmittel`, `gutachten_pflichthinweis` — see the B4 commit below
-      (tables `document_condition_reworks`, `document_fasteners`, `document_notices`)
+      (tables `document_condition_reworks`, `document_fasteners`, `document_notices`) — `3eb13651`
 - [x] ai-look-critic and interaction-qa on the block — both ran; look: 12 fixes, 10 taken (the brief's
       base-missing sentence kept as written; the key-number formatter left alone), interaction: 4 × S2 and 8 × S3
       fixed with QA's specs `e2e/bugs/b-01…b-04` green at 1440 and 390
@@ -61,8 +71,9 @@ seeder, test to follow).
 ## Block D — the golden record
 
 - [ ] 11 · ABE 55255 and Gutachten 366-0350-21-WIRD/N1 entered through the admin flow and released by a human
-- [ ] 12 · Borbet DB8GT2: both sizes, both colours, the four photos, the client's description, the documents'
-      values where they differ
+- [x] 12 · Borbet DB8GT2: both sizes, both colours, the four photos, the client's description, the documents'
+      values where they differ — `94418abf` (GoldenRecordSeeder; a draft at no price until the client sends
+      one; the 19″ product-page note „Abbildung zeigt die 18-Zoll-Ausführung“ comes with item 15)
 - [x] 13 · DATA-CONFLICTS.md conflict 1 (72,5 vs 72,6) — `a876e4cc` (before this brief)
 - [ ] 14 · The missing base ABE 53841 visible on the record, in the coverage matrix and to the customer
 - [ ] 15 · The customer view: two-line verdict, Abnahme, Arbeiten am Fahrzeug with the mm profiles, the bolt
