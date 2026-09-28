@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Listeners\FailedJobAlert;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
+use App\Support\SlowQueries;
 use App\Support\Ssr\BoundedSsrGateway;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Connection;
@@ -81,6 +82,9 @@ class AppServiceProvider extends ServiceProvider
         Queue::failing(static function (JobFailed $event): void {
             app(FailedJobAlert::class)->handle($event);
         });
+
+        // The shop's own slow query log (storage/logs/slow-queries-*.log): the host keeps none.
+        SlowQueries::listen();
     }
 
     /** Set when production was started with APP_DEBUG=true: rimify:preflight fails on it. */

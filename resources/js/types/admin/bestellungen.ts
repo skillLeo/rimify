@@ -34,6 +34,8 @@ export interface OrderRow {
     conditions: boolean
     /** Seeded demonstration data, never a real sale. */
     demo: boolean
+    /** Paid with the review's test payment: no money moved. */
+    test: boolean
     /** The order's own page. */
     href: string
 }

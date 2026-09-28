@@ -162,6 +162,9 @@ return [
         'pause' => (int) env('RIMIFY_SSR_PAUSE', 30),
     ],
 
+    // A query at least this slow is written to storage/logs/slow-queries-*.log (SlowQueries).
+    'slow_query_ms' => (int) env('RIMIFY_SLOW_QUERY_MS', 500),
+
     'admin' => [
         'enabled' => filter_var(env('RIMIFY_ADMIN_ENABLED', true), FILTER_VALIDATE_BOOL),
         // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody

@@ -7,6 +7,7 @@ use App\Domain\Storefront\VehicleContext;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Models\Address;
+use App\Models\AdminUser;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderLine;
@@ -16,6 +17,7 @@ use App\Models\WheelConfig;
 use App\Payments\Payments;
 use App\Services\Admin\Orders\OrderList;
 use App\Services\Storefront\Basket;
+use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
@@ -200,4 +202,16 @@ it('counts order numbers as numbers, so a longer or zero-padded number is never 
     [$order] = testzahlungPlace($this);
 
     expect($order->order_number)->toBe("RMF-{$year}-9001");
+});
+
+it('labels a test order as one in the admin: no money moved, whatever the status', function (): void {
+    $this->seed(AccessSeeder::class);
+    [$order] = testzahlungPlace($this);
+    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+
+    $this->actingAs($admin, 'admin')->get('/admin/bestellungen/'.$order->id)->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('order.test', true)->where('order.paymentMethod', 'Testzahlung'));
+
+    $this->actingAs($admin, 'admin')->get('/admin/bestellungen?q='.$order->order_number)->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('orders.0.number', $order->order_number)->where('orders.0.test', true));
 });

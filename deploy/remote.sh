@@ -157,13 +157,18 @@ else
     exit 1
 fi
 
-# The host may stop the renderer between releases: a watchdog in cron starts it again within a minute
-# (deploy/ssr-watch.sh; it does nothing while the renderer answers). Idempotent: one line, replaced.
+# Two lines in cron, every minute (docs/launch/GO-LIVE.md §6). The host may stop the renderer between
+# releases: the watchdog starts it again within a minute (deploy/ssr-watch.sh; it does nothing while
+# the renderer answers). The scheduler runs what routes/console.php plans — demo:assert-clean daily in
+# production (R-12). Idempotent: this app's two lines replaced, every other line on the account kept.
 WATCH="* * * * * SSR_PORT=$SSR_PORT NODE_BIN=$NODE bash $APP/deploy/ssr-watch.sh > /dev/null 2>&1"
-if command -v crontab > /dev/null 2>&1 && { crontab -l 2> /dev/null | grep -v 'deploy/ssr-watch.sh'; echo "$WATCH"; } | crontab - 2> /dev/null; then
-    echo "== renderer watchdog in cron"
+SCHEDULE="* * * * * cd $APP && $PHP artisan schedule:run > /dev/null 2>&1"
+if command -v crontab > /dev/null 2>&1 && { crontab -l 2> /dev/null | grep -v -F "$APP/deploy/ssr-watch.sh" | grep -v -F "cd $APP && "; echo "$WATCH"; echo "$SCHEDULE"; } | crontab - 2> /dev/null; then
+    echo "== renderer watchdog and scheduler in cron"
 else
-    echo "== add this line in hPanel → Erweitert → Cron-Jobs (every minute): bash $APP/deploy/ssr-watch.sh"
+    echo "== add these two lines in hPanel → Erweitert → Cron-Jobs (every minute):"
+    echo "   SSR_PORT=$SSR_PORT NODE_BIN=$NODE bash $APP/deploy/ssr-watch.sh"
+    echo "   cd $APP && $PHP artisan schedule:run"
 fi
 
 # ── Live ───────────────────────────────────────────────────────────────────────

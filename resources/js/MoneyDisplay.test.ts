@@ -62,7 +62,7 @@ describe('MoneyDisplay', () => {
                 order: {
                     id: 1, number: 'RMF-2026-0001', statusLabel: 'Bezahlt', payment: state, fulfilment: state,
                     paymentMethod: null, shippingMethod: null, vehicle: null, keys: null, placedAt: null, paidAt: null,
-                    shippedAt: null, tracking: null, note: null, subtotal: FOUR, shipping: 0, tax: 78_846, total: FOUR, demo: false,
+                    shippedAt: null, tracking: null, note: null, subtotal: FOUR, shipping: 0, tax: 78_846, total: FOUR, demo: false, test: false,
                 },
                 customer: { name: 'Erika Mustermann', email: null, phone: null },
                 delivery: null,

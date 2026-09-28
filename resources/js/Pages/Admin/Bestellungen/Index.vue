@@ -385,6 +385,7 @@ function tagClass(state: OrderState): string | null {
                             <td data-label="Nummer">
                                 <Link :href="order.href" class="ob-number">{{ order.number }}</Link>
                                 <span v-if="order.demo" class="adm-tag adm-tag--neutral ob-demo">Demodaten</span>
+                                <span v-else-if="order.test" class="adm-tag adm-tag--neutral ob-demo" title="Testzahlung – es ist kein Geld geflossen">Testbestellung</span>
                                 <span v-if="order.conditions" class="ob-sub">mit Auflagen</span>
                             </td>
                             <td v-if="has('datum')" data-label="Datum" class="ob-date">

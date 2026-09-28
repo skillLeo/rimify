@@ -69,6 +69,7 @@ function row(overrides: Partial<OrderRow> = {}): OrderRow {
         shippingMethod: null,
         conditions: false,
         demo: false,
+        test: false,
         href: '/admin/bestellungen/1',
         ...overrides,
     }

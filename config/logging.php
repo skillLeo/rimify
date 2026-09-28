@@ -78,6 +78,17 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // The slow query log (SlowQueries): the statement without its values — no customer data —
+        // its time and the page that ran it. The shared host keeps no database slow log of its own.
+        'slow_queries' => [
+            'tap' => [RedactSecrets::class],
+            'driver' => 'daily',
+            'path' => storage_path('logs/slow-queries.log'),
+            'level' => 'warning',
+            'max_files' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'monthly' => [
             'tap' => [RedactSecrets::class],
             'driver' => 'monthly',

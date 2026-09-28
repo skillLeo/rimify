@@ -69,6 +69,7 @@ const props = defineProps<{
         tax: number
         total: number
         demo: boolean
+        test: boolean
     }
     customer: { name: string | null; email: string | null; phone: string | null }
     delivery: Address | null
@@ -94,6 +95,7 @@ function tagClass(state: OrderState): string | null {
 <template>
     <AdminPage :title="`Bestellung ${order.number}`" :context="context">
         <p v-if="order.demo" class="bs-demo" role="note">Diese Bestellung gehört zu den Demodaten. Niemand hat sie aufgegeben; es wird nichts versandt.</p>
+        <p v-else-if="order.test" class="bs-demo" role="note">Testbestellung über die Testzahlung – dabei fließt kein Geld, was auch immer der Status sagt.</p>
 
         <div class="bs-top">
             <section class="adm-section bs-block" aria-labelledby="bs-state-h">

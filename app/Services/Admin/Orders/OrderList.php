@@ -201,6 +201,8 @@ final class OrderList
             'conditions' => (bool) ($order->getAttribute('has_conditions') ?? false),
             // Born demo, or a demo wheel on it (Order::isDemo, one rule in one query).
             'demo' => (bool) $order->getAttribute('is_demo') || (bool) ($order->getAttribute('shows_demo') ?? false),
+            // Paid with the review's test payment: no money moved, whatever the status says (§5).
+            'test' => $order->payment_method === 'sandbox',
             'href' => '/admin/bestellungen/'.$order->id,
         ];
     }

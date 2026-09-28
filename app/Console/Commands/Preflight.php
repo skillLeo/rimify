@@ -183,7 +183,8 @@ final class Preflight extends Command
         }
 
         $mode = config('services.stripe.mode') === StripeKeys::LIVE ? 'Livemodus' : 'Testmodus';
-        $set = filled(config('services.stripe.secret'));
+        // An old .env.example's `sk_test_replace_me` is a placeholder, not a key.
+        $set = filled(config('services.stripe.secret')) && ! str_contains((string) config('services.stripe.secret'), 'replace');
 
         return match (true) {
             ! $set => ['Zahlungsschlüssel', 'skip', "{$mode}, keine Schlüssel in .env (Einstellungen › Zahlung)"],
