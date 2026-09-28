@@ -139,7 +139,35 @@ final class CatalogueImporter
     /** A supplier's name as the saved mappings are keyed: case, umlauts and punctuation do not matter. */
     public static function supplierKey(?string $supplier): string
     {
-        return $supplier === null ? '' : self::headerKey($supplier);
+        if ($supplier === null || trim($supplier) === '') {
+            return '';
+        }
+
+        $key = self::headerKey($supplier);
+
+        // A name without Latin letters or digits („Ωμέγα“) keeps its own key rather than sharing the
+        // mapping of files without a supplier (K2-27).
+        return $key !== '' ? $key : 'u:'.mb_strtolower(trim($supplier));
+    }
+
+    /**
+     * Whether a mapping stands as this supplier's last import left it — and that memory decided
+     * something the column names alone would not have (K2-18).
+     *
+     * @param  array<string, string>  $mapping
+     * @param  list<string>  $headers
+     */
+    public static function rememberedFor(array $mapping, array $headers, ?string $supplier): bool
+    {
+        $saved = self::savedMapping($supplier);
+
+        if ($saved === null) {
+            return false;
+        }
+
+        $fromMemory = self::guessMapping($headers, $saved);
+
+        return $fromMemory !== self::guessMapping($headers) && $mapping == $fromMemory;
     }
 
     /**
@@ -179,8 +207,7 @@ final class CatalogueImporter
             'admin_user_id' => $admin->id,
             'file_name' => mb_substr($file['name'], 0, 200),
             'supplier' => $supplier,
-            // Whether a column was mapped the way this supplier's last import had it.
-            'mapping_remembered' => $saved !== null && array_intersect_assoc($mapping, $saved) !== [],
+            'mapping_remembered' => self::rememberedFor($mapping, $file['headers'], $supplier),
             // A workbook's numbers arrive as German text (CatalogueFile): never read with a point.
             'file_format' => $file['format'],
             'file_sha256' => $file['sha256'],
@@ -202,6 +229,8 @@ final class CatalogueImporter
     public function remap(CatalogueImport $import, array $mapping, bool $pointIsDecimal): CatalogueImport
     {
         $this->evaluate($import, $mapping, $pointIsDecimal && $import->file_format !== 'xlsx');
+        // The note follows the mapping now on screen, not the one the file opened with (K2-18).
+        $import->mapping_remembered = self::rememberedFor($import->mapping, $import->source['headers'], $import->supplier);
         $import->save();
 
         return $import;

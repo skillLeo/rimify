@@ -7,6 +7,7 @@ namespace App\Services\Admin\Catalogue;
 use App\Models\WheelFinish;
 use App\Models\WheelFinishImage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * A colour's photographs (COMPLIANCE row 23): any number, in the order a person sets, each with its own
@@ -29,7 +30,15 @@ final class FinishImages
     public function add(WheelFinish $finish, array $manifest, string $alt): WheelFinishImage
     {
         return DB::transaction(function () use ($finish, $manifest, $alt): WheelFinishImage {
-            $next = (int) WheelFinishImage::query()->where('wheel_finish_id', $finish->id)->lockForUpdate()->max('position') + 1;
+            // Counted under the colour's own row lock: two tabs at eleven photos never make thirteen (K2-23).
+            WheelFinish::query()->whereKey($finish->id)->lockForUpdate()->first();
+            $existing = WheelFinishImage::query()->where('wheel_finish_id', $finish->id);
+
+            if ($existing->count() >= self::MAX_PER_FINISH) {
+                throw ValidationException::withMessages(['image' => self::FULL]);
+            }
+
+            $next = (int) $existing->max('position') + 1;
             unset($manifest['views']);
 
             $image = WheelFinishImage::query()->create([

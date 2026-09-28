@@ -107,9 +107,16 @@ final class ListExport
         };
     }
 
-    /** A cell a spreadsheet would run as a formula is kept as text. */
+    /**
+     * A cell a spreadsheet would run as a formula is kept as text. A plain signed number (`-5`, `+12,5`)
+     * runs nothing and stays as it is: an ET of −5 mm must come back as the file had it (K2-19).
+     */
     public static function defuse(string $cell): string
     {
-        return $cell !== '' && in_array($cell[0], ['=', '+', '-', '@', "\t", "\r"], true) ? "'".$cell : $cell;
+        if ($cell === '' || ! in_array($cell[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return $cell;
+        }
+
+        return preg_match('/^[+-]\d+(?:[.,]\d+)?$/', $cell) === 1 ? $cell : "'".$cell;
     }
 }

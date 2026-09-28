@@ -45,9 +45,10 @@ class KatalogImportController extends Controller
 
         return Inertia::render('Admin/Katalog/Import', [
             'fields' => self::fields(),
-            // Every supplier named before, most recent first: offered as the field's suggestions, so the
-            // same supplier is written the same way and finds its mapping.
-            'suppliers' => CatalogueImport::query()->whereNotNull('supplier')
+            // The suppliers whose mapping is remembered — named on an import that went through — most
+            // recent first, so the same supplier is written the same way and finds it. A name typed on a
+            // Probelauf that was never imported is no suggestion (K2-20).
+            'suppliers' => CatalogueImport::query()->whereNotNull('supplier')->whereNotNull('applied_at')
                 ->selectRaw('supplier, MAX(id) as last_id')->groupBy('supplier')->orderByDesc('last_id')->limit(50)
                 ->pluck('supplier')->map(static fn (mixed $s): string => (string) $s)->values()->all(),
             'imports' => $imports,

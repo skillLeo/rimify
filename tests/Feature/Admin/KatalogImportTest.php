@@ -180,14 +180,23 @@ it('remembers the mapping per supplier, and one supplier’s never steers anothe
     $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import/'.$next->id)
         ->assertInertia(fn (AssertableInertia $page) => $page->where('run.mappingRemembered', true)->where('run.supplier', 'borbet gmbh'));
 
+    // Re-mapped by hand, the note no longer claims the memory (K2-18).
+    $changed = ['preis' => 'Menge', 'bestand' => 'EK'] + $mapping;
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$next->id}/zuordnung", ['mapping' => $changed, 'dezimal' => 'komma']);
+    expect($next->refresh()->mapping_remembered)->toBeFalse();
+
     // Another supplier with the same columns starts from their names alone; so does a file without a name.
     expect(probelauf(supplierCsv(feedRows(), $header), ['lieferant' => 'Lieferant B'])->mapping_remembered)->toBeFalse()
         ->and(probelauf(supplierCsv(feedRows(), $header))->mapping_remembered)->toBeFalse()
         ->and(CatalogueImporter::savedMapping('Lieferant B'))->toBeNull();
 
-    // Suggested once each, the latest first: two spellings of one supplier are one suggestion.
+    // Suggested: only a supplier whose mapping is remembered — one that was imported, not every name typed
+    // on a Probelauf (K2-20).
     $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import')
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('suppliers', fn ($s): bool => count($s) === 2 && $s[0] === 'Lieferant B' && mb_strtolower((string) $s[1]) === 'borbet gmbh'));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('suppliers', ['Borbet GmbH']));
+
+    // A name without Latin letters keeps its own key, never the unnamed files' mapping (K2-27).
+    expect(CatalogueImporter::supplierKey('Ωμέγα'))->not->toBe('')->and(CatalogueImporter::supplierKey('Ωμέγα'))->not->toBe(CatalogueImporter::supplierKey('—'));
 });
 
 it('still reads the one mapping kept before suppliers were named, for a file without a name', function (): void {
@@ -201,6 +210,7 @@ it('hands out the refused lines with why, as the file had them, to who may read 
     $run = probelauf(supplierCsv([
         ['TST-OK', 'Prüfmarke', 'Kontur', 'Graphit matt', '18', '8', '35', '5x112', '66,6', '189,00', '12'],
         ['TST-BAD', 'Prüfmarke', 'Kontur', 'Graphit matt', '18', 'acht', '35', '5x112', '66,6', '=HYPERLINK("x")', '1'],
+        ['TST-NEG', 'Prüfmarke', 'Kontur', 'Graphit matt', '18', 'acht', '-5', '5x112', '66,6', '189,00', '1'],
     ]));
 
     $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import/'.$run->id)
@@ -212,8 +222,9 @@ it('hands out the refused lines with why, as the file had them, to who may read 
     expect($response->headers->get('content-disposition'))->toContain('lieferant-abgelehnt.csv')
         ->and($csv)->toContain('"Zeile in der Datei";"Warum abgelehnt";Artikelnummer;Hersteller')
         ->and($csv)->toContain('3;"Die Breite können wir nicht lesen (Zoll, zwischen 4 und 14). Den Preis können wir nicht lesen.";TST-BAD')
-        // A cell a spreadsheet would run stays text.
+        // A cell a spreadsheet would run stays text; a negative ET comes back as the file had it (K2-19).
         ->and($csv)->toContain("'=HYPERLINK")
+        ->and($csv)->toContain(';-5;')->not->toContain("'-5")
         ->and($csv)->not->toContain('TST-OK');
 
     $this->actingAs(importAdmin('content-editor'), 'admin')->get('/admin/katalog/import/'.$run->id.'/abgelehnt.csv')->assertForbidden();
