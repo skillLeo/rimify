@@ -257,6 +257,14 @@ class FelgenController extends Controller
         }
 
         $url = Storage::disk($stored['disk'])->url($stored['path']);
+        $app = rtrim((string) config('app.url'), '/');
+
+        // On the site's own disk the address is kept root-relative: the page loads it from whichever
+        // name it was opened under (www or not, a staging alias), and the CSP's 'self' covers it.
+        if ($app !== '' && str_starts_with($url, $app.'/')) {
+            $url = substr($url, strlen($app));
+        }
+
         $ext = pathinfo($stored['path'], PATHINFO_EXTENSION);
         $suffix = '-'.$stored['width'].'.'.$ext;
 

@@ -344,11 +344,13 @@ function counts(brand: BrandRow): string {
 }
 
 .mk__logo img {
+    /* A definite box: an SVG with only a viewBox has no width of its own, and a flex item with
+       width: auto collapses to nothing. The logo sits inside it at its own proportions. */
     display: block;
-    width: auto;
-    max-width: 6rem;
-    height: auto;
-    max-height: var(--sp-32);
+    width: 6rem;
+    height: var(--sp-32);
+    object-fit: contain;
+    object-position: left center;
 }
 
 .mk__none {

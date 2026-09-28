@@ -291,7 +291,10 @@ function remove(): void {
         <p v-if="drawing" class="fe-photos__state">Platzhalterbild der Demodaten – kein Produktfoto.</p>
         <p v-else-if="photos.length === 0" class="fe-photos__state">Kein Foto. Der Shop zeigt die Umrisszeichnung, bis eines hochgeladen ist.</p>
         <p v-else-if="editable && photos.length > 1" class="fe-photos__state">
-            Das erste Foto ist das Titelbild im Shop. Zieh ein Foto an eine andere Stelle oder nutze die Pfeile.
+            Das erste Foto ist das Titelbild im Shop.
+            <!-- Below 768 px the arrows step aside and a finger cannot drag: the menu is the way there. -->
+            <span class="fe-photos__how fe-photos__how--wide">Zieh ein Foto an eine andere Stelle oder nutze die Pfeile.</span>
+            <span class="fe-photos__how fe-photos__how--narrow">Die Reihenfolge änderst du im Menü eines Fotos.</span>
         </p>
 
         <ol v-if="photos.length" class="fe-photos__list" :aria-label="`Fotos in ${finishName}`">
@@ -570,7 +573,19 @@ function remove(): void {
     display: none;
 }
 
+.fe-photos__how--narrow {
+    display: none;
+}
+
 @media (max-width: 767px) {
+    .fe-photos__how--wide {
+        display: none;
+    }
+
+    .fe-photos__how--narrow {
+        display: inline;
+    }
+
     .fe-photos__item {
         grid-template-columns: 56px minmax(0, 1fr) auto;
     }

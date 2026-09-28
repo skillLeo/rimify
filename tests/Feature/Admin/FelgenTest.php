@@ -381,6 +381,8 @@ describe('a photograph', function (): void {
         $manifest = $finish->refresh()->image_manifest;
 
         expect($manifest['kind'])->toBe('photo')
+            // On the site's own disk: root-relative, whatever host name the page is opened under.
+            ->and($manifest['base'])->toStartWith('/')->not->toContain('://')
             ->and($manifest['widths'])->toBe([1200])
             ->and($manifest['formats'])->toBe([])
             ->and($finish->image_alt_de)->toBe('Testmodell in Graphit matt, Ansicht von vorn');
