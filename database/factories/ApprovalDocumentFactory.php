@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
 use App\Models\ApprovalDocument;
+use App\Models\DocumentSpeedDerating;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -58,6 +59,31 @@ class ApprovalDocumentFactory extends Factory
             'valid_from' => now()->subYears(3)->toDateString(),
             'valid_to' => now()->subDay()->toDateString(),
         ]);
+    }
+
+    /**
+     * A document that prints its own table of tyre load at speed — ABE 55255's, page 6. Without one a car
+     * faster than 210 km/h gets an UNKNOWN tyre half (the operator's review of C9, §5), so a test about
+     * something else on a fast car gives its document the table.
+     */
+    public function printingDeratingTable(): static
+    {
+        return $this->afterCreating(static function (ApprovalDocument $document): void {
+            /** @var array{source_page: int, rows: array<int, array<string, int|null>>} $printed */
+            $printed = require database_path('seeders/content/derating-abe-55255.php');
+
+            foreach ($printed['rows'] as $speed => $row) {
+                foreach ($row as $symbol => $percent) {
+                    DocumentSpeedDerating::query()->create([
+                        'approval_document_id' => $document->id,
+                        'speed_kmh' => $speed,
+                        'symbol' => $symbol,
+                        'percent' => $percent,
+                        'source_page' => $printed['source_page'],
+                    ]);
+                }
+            }
+        });
     }
 
     public function abe(): static
