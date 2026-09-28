@@ -13,6 +13,7 @@
 import { computed } from 'vue'
 import Icon from '../Art/Icon.vue'
 import ValueText from '../Ui/ValueText.vue'
+import PapersForm from './PapersForm.vue'
 import type { IconName } from '../../art'
 import type { ConfigVerdict } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
@@ -121,6 +122,8 @@ const headline = computed(() => {
             <ul v-if="verdict.tyre?.lines.length" class="fit__tyre-lines">
                 <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
             </ul>
+            <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->
+            <PapersForm v-if="vehicle && verdict.tyre" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" />
 
             <p v-if="entryLine" class="fit__entry">{{ entryLine }}</p>
 

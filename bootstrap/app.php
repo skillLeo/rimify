@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Storefront\PapersBook;
 use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
 use App\Http\Middleware\EnsureAdminSessionValid;
@@ -59,7 +60,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // rmf_view is a harmless layout preference for client demos and rmf_consent is the cookie
         // choice, written by the browser itself; rmf_vehicle stays encrypted and authenticated.
-        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE]);
+        // rmf_papiere holds only a car's own figures, re-checked on every read and able only to make an
+        // answer stricter; plain, it stays far below its 500 bytes (PapersBook).
+        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE, PapersBook::COOKIE]);
 
         $middleware->redirectGuestsTo(fn (): string => '/admin/anmelden');
 

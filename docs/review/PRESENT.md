@@ -48,6 +48,15 @@ Platzhalter („Platzhalter Probelauf“, 1,00 €, Gutachten „PLATZHALTER-GR-
 9. **Verkauf › Bestellungen:** die Bestellung mit ihrem eingefrorenen Prüfnachweis – so, wie das Gutachten
    im Moment des Kaufs lautete, auch wenn es sich später ändert.
 
+**Borbet DB8GT2 in 18 Zoll – was du dort siehst, ist Absicht.** Das 18-Zoll-Gutachten (der Nachtrag von
+TÜV Austria) druckt keine eigene Tabelle zur Tragfähigkeit der Reifen bei hoher Geschwindigkeit; die
+19-Zoll-ABE 55255 hat sie auf Seite 6. Für ein Fahrzeug bis 210 km/h spielt das keine Rolle. Fährt es
+schneller und sind 8.1, 8.2 und T eingetragen, steht bei **Reifen** „Keine Freigabe hinterlegt“ mit dem
+Satz: „Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit. Für … km/h können
+wir die Reifen deshalb nicht bestätigen.“ Die Felge selbst bleibt freigegeben. RIMIFY leiht sich die Tabelle
+nie aus einem anderen Dokument. Schick uns die Seite, falls es sie zum Nachtrag gibt – dann tragen wir sie
+ein, und die Antwort wird eindeutig.
+
 ## Was fertig ist – und was ehrlich noch nicht
 
 Den Stand jeder einzelnen Seite zeigt im Admin **Review › Stand der Seiten**. Kurz:

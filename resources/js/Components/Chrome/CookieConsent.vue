@@ -34,7 +34,7 @@ const sheetVisible = computed(() => consent.decided.value === null)
     <Dialog
         v-model:open="consent.settingsOpen.value"
         title="Cookie-Einstellungen"
-        description="Wir verwenden nur Cookies, die für den Shop nötig sind."
+        description="Wir verwenden nur Cookies, die der Shop braucht oder die du selbst anlegst."
     >
         <ul class="consent__list">
             <li class="consent__row">
@@ -43,6 +43,15 @@ const sheetVisible = computed(() => consent.decided.value === null)
                     <p class="small muted">Warenkorb, gewähltes Fahrzeug, Sitzung, deine Cookie-Auswahl.</p>
                 </div>
                 <span class="small quiet consent__state">Immer aktiv</span>
+            </li>
+            <li class="consent__row">
+                <div>
+                    <p class="consent__name">Funktional</p>
+                    <p class="small muted">
+                        Die Werte aus deiner Zulassungsbescheinigung (Achslasten und Höchstgeschwindigkeit), wenn du sie bei einem Fahrzeug einträgst – für bis zu fünf Fahrzeuge, ein Jahr lang.
+                    </p>
+                </div>
+                <span class="small quiet consent__state">Nur nach Eingabe</span>
             </li>
         </ul>
         <template #actions>

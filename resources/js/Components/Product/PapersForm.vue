@@ -11,8 +11,9 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import PapersFacsimile from '../Art/PapersFacsimile.vue'
+import { formatNumber } from '../../lib/num'
 import type { PapersProp } from '../../types/rimify'
 
 const props = defineProps<{
@@ -32,7 +33,8 @@ const form = reactive({
 })
 
 const entered = computed(() => props.papers !== null)
-const kg = (n: number | null): string => (n === null ? '–' : `${new Intl.NumberFormat('de-DE').format(n)} kg`)
+const NBSP = ' '
+const kg = (n: number): string => `${formatNumber(n)}${NBSP}kg`
 
 function save(): void {
     busy.value = true
@@ -47,6 +49,8 @@ function save(): void {
         onSuccess: () => {
             errors.value = {}
             open.value = false
+            // The form gives way to the summary: focus goes where the reader can change it again.
+            void nextTick(() => document.getElementById('pp-change')?.focus())
         },
         onFinish: () => {
             busy.value = false
@@ -58,6 +62,12 @@ function clear(): void {
     busy.value = true
     router.delete(`/fahrzeug/${props.vehicleId}/papiere`, {
         preserveScroll: true,
+        onSuccess: () => {
+            form.axle_front_kg = ''
+            form.axle_rear_kg = ''
+            form.top_speed_kmh = ''
+            void nextTick(() => document.getElementById('pp-axle_front_kg')?.focus())
+        },
         onFinish: () => {
             busy.value = false
         },
@@ -67,10 +77,13 @@ function clear(): void {
 
 <template>
     <div class="pp">
-        <p v-if="entered && !open" class="pp__summary">
-            <span>Nach deinen Angaben: 8.1 {{ kg(papers?.axleFrontKg ?? null) }} · 8.2 {{ kg(papers?.axleRearKg ?? null) }} · T {{ papers?.topSpeedKmh ?? '–' }} km/h</span>
-            <button class="btn btn--ghost btn--sm" type="button" @click="open = true">Ändern</button>
-        </p>
+        <template v-if="papers && !open">
+            <p class="pp__summary">
+                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ papers.topSpeedKmh }}&nbsp;km/h</span>
+                <button id="pp-change" class="btn btn--ghost btn--sm" type="button" @click="open = true">Ändern</button>
+            </p>
+            <p v-for="note in papers.notes" :key="note" class="pp__help">{{ note }}</p>
+        </template>
 
         <form v-else class="pp__form" novalidate aria-labelledby="pp-h" @submit.prevent="save">
             <p id="pp-h" class="pp__title">Werte aus deiner Zulassungsbescheinigung</p>

@@ -7,6 +7,7 @@ namespace App\Services\Storefront;
 use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\HeaderMode;
 use App\Domain\Storefront\HeaderModeResolver;
+use App\Domain\Storefront\PapersBook;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Models\Vehicle;
@@ -58,7 +59,7 @@ final readonly class Chrome
         $hasEnteredBooking = false;
 
         if ($context !== null) {
-            $vehicle = $this->vehicle($context->vehicleId);
+            $vehicle = $this->vehicle($context->vehicleId, $request);
             $hasEnteredBooking = $context->hasEnteredBooking;
         }
 
@@ -212,7 +213,7 @@ final readonly class Chrome
      *
      * @return array<string, mixed>|null
      */
-    private function vehicle(int $id): ?array
+    private function vehicle(int $id, Request $request): ?array
     {
         $vehicle = Vehicle::query()->find($id);
 
@@ -233,6 +234,54 @@ final readonly class Chrome
             'tsn' => $vehicle->tsn,
             'keyNumbers' => GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn),
             'buildWindow' => GermanFormat::buildPeriod($vehicle->build_from, $vehicle->build_to),
+            // 8.1, 8.2 and T as the customer typed them for this car (Block C, item 10).
+            'papers' => self::papers($request, $vehicle),
+        ];
+    }
+
+    /**
+     * The figures the customer typed for this car, and where the vehicle data asks for more. Every answer
+     * is computed for the larger figure (PapersFigures::applyTo()), and the customer is told which one
+     * was used rather than left to wonder why the sum shows a number they did not type.
+     *
+     * @return array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int, notes: list<string>}|null
+     */
+    private static function papers(Request $request, Vehicle $vehicle): ?array
+    {
+        $raw = $request->cookie(PapersBook::COOKIE);
+        $figures = PapersBook::decode(is_string($raw) ? $raw : null)->for((int) $vehicle->id);
+
+        if ($figures === null) {
+            return null;
+        }
+
+        $notes = [];
+
+        foreach ([['Vorderachse', '8.1', $figures->axleFrontKg, $vehicle->axle_load_front_kg], ['Hinterachse', '8.2', $figures->axleRearKg, $vehicle->axle_load_rear_kg]] as [$axle, $field, $theirs, $data]) {
+            if ($data !== null && $data > $theirs) {
+                $notes[] = sprintf(
+                    'Für die %s rechnen wir mit %s aus unseren Fahrzeugdaten – mehr als deine %s aus Feld %s. So bist du auf der sicheren Seite.',
+                    $axle,
+                    GermanFormat::kilograms($data),
+                    GermanFormat::kilograms($theirs),
+                    $field,
+                );
+            }
+        }
+
+        if ($vehicle->max_speed_kmh !== null && $vehicle->max_speed_kmh > $figures->topSpeedKmh) {
+            $notes[] = sprintf(
+                'Als Höchstgeschwindigkeit rechnen wir mit %s km/h aus unseren Fahrzeugdaten – mehr als deine %s km/h aus Feld T. So bist du auf der sicheren Seite.',
+                GermanFormat::integer($vehicle->max_speed_kmh),
+                GermanFormat::integer($figures->topSpeedKmh),
+            );
+        }
+
+        return [
+            'axleFrontKg' => $figures->axleFrontKg,
+            'axleRearKg' => $figures->axleRearKg,
+            'topSpeedKmh' => $figures->topSpeedKmh,
+            'notes' => $notes,
         ];
     }
 

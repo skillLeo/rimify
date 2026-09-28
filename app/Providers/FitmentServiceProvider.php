@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\FitmentRepository;
+use App\Domain\Fitment\Contracts\PapersSource;
 use App\Domain\Fitment\Contracts\TyreCatalogue;
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Derivation\IndexTables;
@@ -16,11 +17,13 @@ use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Infrastructure\EloquentVehicleRepository;
+use App\Domain\Fitment\Infrastructure\PapersVehicleRepository;
 use App\Domain\Fitment\Infrastructure\SystemClock;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Models\LoadIndexEntry;
 use App\Models\SpeedSymbolEntry;
+use App\Services\Storefront\CookiePapersSource;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 
@@ -34,7 +37,12 @@ final class FitmentServiceProvider extends ServiceProvider implements Deferrable
 {
     public function register(): void
     {
-        $this->app->singleton(VehicleRepository::class, EloquentVehicleRepository::class);
+        // Every surface reads the car with the customer's own figures laid over it (Block C, item 10).
+        $this->app->singleton(PapersSource::class, CookiePapersSource::class);
+        $this->app->singleton(VehicleRepository::class, static fn ($app): VehicleRepository => new PapersVehicleRepository(
+            new EloquentVehicleRepository,
+            $app->make(PapersSource::class),
+        ));
         $this->app->singleton(FitmentRepository::class, EloquentFitmentRepository::class);
         $this->app->singleton(TyreCatalogue::class, EloquentTyreCatalogue::class);
 
@@ -91,6 +99,7 @@ final class FitmentServiceProvider extends ServiceProvider implements Deferrable
     public function provides(): array
     {
         return [
+            PapersSource::class,
             VehicleRepository::class,
             FitmentRepository::class,
             TyreCatalogue::class,

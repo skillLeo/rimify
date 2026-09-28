@@ -62,10 +62,14 @@ seeder, test to follow).
       `fce5bdfb` (before this brief; `docs/qa/` is kept out of git, so BUGS.md lives in the working copy)
 - [ ] 7 · „Fahrzeug aus diesem Gutachten anlegen“ in step 5, `quelle = gutachten` with document and page
 - [ ] 8 · The later merge path: EG number + Fahrzeugtyp, dry-run diff, never duplicates or breaks a released row
-- [ ] 9 · R-03 split: wheel verdict from type and kW band, tyre verdict CONDITIONAL without axle loads and top
-      speed, combined never PERMITTED while the tyre part is open; R-03 amended in CLAUDE.md with the hash
-- [ ] 10 · The optional 8.1 / 8.2 / T fields, saved per vehicle for logged-in customers, the load-index sum
-      shown with the derating table from page 6 of ABE 55255; the scanner reads 8.1, 8.2, T and P.2
+- [x] 9 · R-03 split: wheel verdict from type and kW band, tyre verdict CONDITIONAL without axle loads and top
+      speed, combined never PERMITTED while the tyre part is open; R-03 amended in CLAUDE.md with the hash —
+      `9cd02ace`; the operator's two reviews in `d40b49c8` (the decision in whole numbers, the rows pinned,
+      the index cross-check warns and asks for a reason, demo-seeded tables marked as such)
+- [ ] 10 · The optional 8.1 / 8.2 / T fields, the load-index sum shown with the document's own derating table;
+      the scanner reads 8.1, 8.2, T and P.2 — scanner and drawing `4deda617`. No customer accounts exist yet,
+      so the figures are kept per vehicle in the browser (`rmf_papiere`, docs/launch/COOKIES.md); **when login
+      exists they move into the account** and the cookie is merged on sign-in, like the garage
 - [ ] ai-look-critic and interaction-qa on the block
 
 ## Block D — the golden record

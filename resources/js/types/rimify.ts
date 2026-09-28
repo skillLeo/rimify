@@ -40,9 +40,11 @@ export interface VehicleProp {
 }
 
 export interface PapersProp {
-    axleFrontKg: number | null
-    axleRearKg: number | null
-    topSpeedKmh: number | null
+    axleFrontKg: number
+    axleRearKg: number
+    topSpeedKmh: number
+    /** Where the vehicle data asks for more than the customer typed, and the answer uses that figure. */
+    notes: string[]
 }
 
 export interface NavItem {

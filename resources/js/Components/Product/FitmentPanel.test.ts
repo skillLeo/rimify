@@ -63,6 +63,33 @@ describe('FitmentPanel', () => {
         expect(wrapper.find('.fit__tyre-lines').text()).toBe(line)
     })
 
+    it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', () => {
+        const tyre = { status: 'CONDITIONAL' as const, label: 'Mit deinen Fahrzeugpapieren prüfen', lines: ['…'], thresholds: [], fromVehicleData: false }
+        const empty = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })
+
+        expect(empty.find('#pp-axle_front_kg').exists()).toBe(true)
+        expect(empty.find('#pp-axle_rear_kg').exists()).toBe(true)
+        expect(empty.find('#pp-top_speed_kmh').exists()).toBe(true)
+
+        const note = 'Für die Vorderachse rechnen wir mit 1.100 kg aus unseren Fahrzeugdaten – mehr als deine 1.050 kg aus Feld 8.1. So bist du auf der sicheren Seite.'
+        const kept = mount(FitmentPanel, {
+            props: {
+                vehicle: { ...vehicle, papers: { axleFrontKg: 1050, axleRearKg: 1100, topSpeedKmh: 250, notes: [note] } },
+                verdict: verdict({ wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre: { ...tyre, status: 'PERMITTED', label: 'Freigegeben', fromVehicleData: true } }),
+            },
+        })
+
+        expect(kept.find('.pp__summary').text()).toContain('8.1 1.050 kg · 8.2 1.100 kg · T 250 km/h')
+        expect(kept.text()).toContain(note)
+        expect(kept.find('#pp-axle_front_kg').exists()).toBe(false)
+    })
+
+    it('offers no papers form without a tyre half', () => {
+        const wrapper = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', sellable: false }) } })
+
+        expect(wrapper.find('.pp').exists()).toBe(false)
+    })
+
     it('shows no halves on a verdict that has none', () => {
         const wrapper = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', sellable: false }) } })
 

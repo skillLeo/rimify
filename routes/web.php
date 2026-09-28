@@ -47,6 +47,7 @@ use App\Http\Controllers\Storefront\BenachrichtigungController;
 use App\Http\Controllers\Storefront\BestellungController;
 use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugController;
+use App\Http\Controllers\Storefront\FahrzeugPapiereController;
 use App\Http\Controllers\Storefront\FaqController;
 use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\FelgenrechnerController;
@@ -96,6 +97,9 @@ Route::middleware('throttle:60,1')->group(function (): void {
     Route::post('/fahrzeug', [FahrzeugController::class, 'store'])->name('fahrzeug.store');
     Route::post('/fahrzeug/schluesselnummern', [FahrzeugController::class, 'resolve'])
         ->name('fahrzeug.resolve');
+    // 8.1, 8.2 and T from the customer's own papers, kept per car in one cookie (Block C, item 10).
+    Route::post('/fahrzeug/{vehicle}/papiere', [FahrzeugPapiereController::class, 'store'])->whereNumber('vehicle')->name('fahrzeug.papiere.store');
+    Route::delete('/fahrzeug/{vehicle}/papiere', [FahrzeugPapiereController::class, 'destroy'])->whereNumber('vehicle')->name('fahrzeug.papiere.destroy');
 });
 
 Route::delete('/fahrzeug', [FahrzeugController::class, 'destroy'])->name('fahrzeug.destroy');

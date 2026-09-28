@@ -74,6 +74,19 @@ describe('CookieConsent — no statistics option while no service exists', () =>
         expect(wrapper.find('section.consent').exists()).toBe(false)
     })
 
+    it('lists the functional papers cookie, set only when the customer enters figures, with no switch', async () => {
+        mountSheet({ necessary: true, statistics: false, decidedAt: '2026-01-01T00:00:00.000Z' })
+
+        store!.openSettings()
+        await nextTick()
+        await nextTick()
+
+        const dialog = document.body.querySelector('[role="dialog"]')
+        expect(dialog!.textContent).toContain('Funktional')
+        expect(dialog!.textContent).toContain('Zulassungsbescheinigung')
+        expect(dialog!.textContent).toContain('Nur nach Eingabe')
+    })
+
     it('reopens as settings with the necessary cookies only, and no switch', async () => {
         mountSheet({ necessary: true, statistics: false, decidedAt: '2026-01-01T00:00:00.000Z' })
 
