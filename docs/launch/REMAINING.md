@@ -10,14 +10,14 @@ seeder, test to follow).
 
 ## Block A — finish the QA batch
 
-- [ ] K2-17: the seeder test
-- [ ] K2-03, K2-04, K2-05: the focus bugs — one cause (focus set while the target is disabled or inside the
+- [x] K2-17: the seeder test — `5dd194c1`
+- [x] K2-03, K2-04, K2-05: the focus bugs — `78fc4049` (`useFocusAfter`) — one cause (focus set while the target is disabled or inside the
       menu's focus trap), fixed once; asserted in the specs
-- [ ] The drop marker where the photo lands (K2-07); a dropped file never opens in the tab (K2-08); Enter
+- [x] The drop marker where the photo lands (K2-07); a dropped file never opens in the tab (K2-08); Enter
       submits the add form (K2-09); new brands at the end of the wall (K2-12); the import file field's
-      errors (K2-21); the smaller browser items (K2-06, K2-11, K2-22)
-- [ ] Every K2 spec green at 1440 and 390; the full Pest suite; BUGS.md updated
-- [ ] K2-15 (CSS-styled SVGs) and K2-10 (interrupted upload) left open with a one-line reason each
+      errors (K2-21); the smaller browser items (K2-06, K2-11, K2-22) — `78fc4049`
+- [x] Every K2 spec green at 1440 and 390 (31 passed with the Katalog specs); the full Pest suite (1805, three failures fixed in `d20884e2`, the files re-run green); BUGS.md updated
+- [x] K2-15 (CSS-styled SVGs) and K2-10 (interrupted upload) left open with a one-line reason each (BUGS.md)
 - [ ] ai-look-critic and interaction-qa on the block
 
 ## Block B — the Gutachten model corrections
