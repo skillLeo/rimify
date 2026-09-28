@@ -232,7 +232,7 @@ it('keeps a car’s source to the list, and a car from a Gutachten to its docume
     expect(fn () => $source->delete())->toThrow(QueryException::class);
 });
 
-it('records where two documents disagree, releases anyway, and says the stricter one governs', function (): void {
+it('records where two documents disagree, releases anyway, and says the shop answers „Unbekannt“ until someone decides', function (): void {
     $vehicle = Vehicle::factory()->create();
     $size = wheelSize();
     $existing = ApprovalDocument::factory()->create();
@@ -242,7 +242,7 @@ it('records where two documents disagree, releases anyway, and says the stricter
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size]));
 
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")
-        ->assertSessionHas('toast', fn (string $t): bool => str_contains($t, 'Widerspr') && str_contains($t, 'strengere Angabe'));
+        ->assertSessionHas('toast', fn (string $t): bool => str_contains($t, 'Widerspr') && str_contains($t, '„Unbekannt“'));
 
     $conflicts = FitmentConflict::query()->get();
 

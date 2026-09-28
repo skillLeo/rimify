@@ -223,7 +223,7 @@ class GutachtenController extends Controller
 
         if ($result['conflicts'] > 0) {
             $toast .= ' '.($result['conflicts'] === 1 ? 'Ein Widerspruch' : GermanFormat::integer($result['conflicts']).' Widersprüche')
-                .' zu anderen Gutachten erkannt – bis zur Klärung gilt die strengere Angabe.';
+                .' zu anderen Gutachten erkannt – bis unter Konflikte entschieden ist, sagt der Shop dort „Unbekannt“.';
         }
 
         return back()->with('toast', $toast);

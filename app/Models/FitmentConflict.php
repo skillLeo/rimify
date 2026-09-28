@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\ConflictKind;
 use App\Enums\ConflictStatus;
 use App\Observers\ConflictAlertObserver;
+use Carbon\CarbonImmutable;
 use Database\Factories\FitmentConflictFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ConflictKind $kind
  * @property ConflictStatus $status
  * @property array<string, mixed> $detail
+ * @property CarbonImmutable|null $resolved_at
  */
 #[ObservedBy(ConflictAlertObserver::class)]
 class FitmentConflict extends Model
@@ -31,7 +33,7 @@ class FitmentConflict extends Model
     protected $fillable = [
         'kind', 'status', 'vehicle_id', 'wheel_config_id',
         'candidate_fitment_id', 'existing_fitment_id', 'detail', 'blocking',
-        'detected_by', 'resolved_by', 'resolved_at', 'resolution_note',
+        'detected_by', 'resolved_by', 'resolved_at', 'resolution_note', 'prevailing_document_id',
     ];
 
     /** @return array<string, string> */

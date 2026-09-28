@@ -505,6 +505,11 @@ describe('putting every entry into words', function (): void {
             'approval.condition_added' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ angelegt.', []],
             'approval.condition_changed' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ geändert.', []],
             'approval.condition_removed' => [['document' => 'ABE 53810', 'code' => 'A01'], 'Aus dem Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ entfernt.', []],
+            'conflict.decided' => [
+                ['vehicle' => 'BMW 4er', 'wheel' => '8J × 18 ET 35', 'mode' => 'only', 'document' => 'ABE 55255', 'reason' => 'Der Hersteller bestätigt die neuere ABE.'],
+                'Der Konflikt zu „BMW 4er · 8J × 18 ET 35“ wurde entschieden: Nur „ABE 55255“ gilt. Grund: „Der Hersteller bestätigt die neuere ABE.“.',
+                [],
+            ],
             'condition.created' => [['code' => 'RADLAUF', 'text' => 'Bördeln der Radläufe erforderlich.'], 'Die Auflage „Bördeln der Radläufe erforderlich.“ wurde angelegt.', []],
             'condition.updated' => [
                 ['code' => 'RADLAUF', 'old_text' => 'Radlauf bördeln.', 'text' => 'Bördeln der Radläufe erforderlich.'],

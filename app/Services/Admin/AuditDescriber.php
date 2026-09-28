@@ -123,6 +123,7 @@ final class AuditDescriber
         'approval.condition_added' => 'gutachten',
         'approval.condition_changed' => 'gutachten',
         'approval.condition_removed' => 'gutachten',
+        'conflict.decided' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
         'condition.deleted' => 'gutachten',
@@ -378,6 +379,14 @@ final class AuditDescriber
             'approval.condition_added' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' angelegt.', []],
             'approval.condition_changed' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' geändert.', []],
             'approval.condition_removed' => ['Aus dem Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' entfernt.', []],
+            'conflict.decided' => [
+                'Der Konflikt zu '.self::q(trim((self::text($p, 'vehicle') ?? 'einem Fahrzeug').' · '.(self::text($p, 'wheel') ?? 'einer Felge'))).' wurde entschieden: '
+                    .(($p['mode'] ?? null) === 'only'
+                        ? 'Nur '.self::q(self::text($p, 'document') ?? 'ein Gutachten').' gilt.'
+                        : 'Beide Gutachten gelten jeweils für sich.')
+                    .' Grund: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.',
+                [],
+            ],
             'condition.created' => ['Die Auflage '.self::q(self::text($p, 'text') ?? 'ohne Text').' wurde angelegt.', []],
             'condition.updated' => [
                 'Die Auflage '.self::q(self::text($p, 'code') ?? 'ohne Schlüssel').' wurde geändert.',

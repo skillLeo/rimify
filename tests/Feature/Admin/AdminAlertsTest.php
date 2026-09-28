@@ -151,16 +151,16 @@ describe('a conflict between two documents', function (): void {
 
         expect($data['title'])->toBe("Zwei Gutachten widersprechen sich beim {$vehicle?->make} {$vehicle?->model} {$vehicle?->variant}.")
             ->and($data['detail'])->toContain(GermanFormat::wheelSize($config->width_in, $config->diameter_in, $config->et_mm))
-            ->and($data['detail'])->toEndWith('Eines verlangt eine Eintragung, das andere nicht. Bis zur Klärung gilt die strengere Angabe.')
+            ->and($data['detail'])->toEndWith('Eines verlangt eine Eintragung, das andere nicht. Bis jemand unter Konflikte entscheidet, sagt der Shop dazu „Unbekannt“.')
             ->and($data['detail'])->not->toContain('ENTRY_REQUIREMENT');
     });
 
-    it('links nowhere while the Konflikte page does not exist', function (): void {
-        FitmentConflict::factory()->create();
+    it('links to the conflict on the Konflikte page', function (): void {
+        $conflict = FitmentConflict::factory()->create();
 
         $data = alertAdmin('compliance-editor')->notifications()->firstOrFail()->data;
 
-        expect(AdminAlerts::href($data['target']))->toBeNull();
+        expect(AdminAlerts::href($data['target']))->toBe('/admin/konflikte/'.$conflict->id);
     });
 });
 

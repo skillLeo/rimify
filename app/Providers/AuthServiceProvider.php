@@ -12,6 +12,7 @@ use App\Models\Brand;
 use App\Models\CatalogueImport;
 use App\Models\DemandMark;
 use App\Models\FaqEntry;
+use App\Models\FitmentConflict;
 use App\Models\NavItem;
 use App\Models\Order;
 use App\Models\Page;
@@ -30,6 +31,7 @@ use App\Policies\DemandMarkPolicy;
 use App\Policies\DemoDataPolicy;
 use App\Policies\DocumentUploadPolicy;
 use App\Policies\FaqEntryPolicy;
+use App\Policies\FitmentConflictPolicy;
 use App\Policies\NavItemPolicy;
 use App\Policies\OrderPolicy;
 use App\Policies\PagePolicy;
@@ -84,6 +86,7 @@ final class AuthServiceProvider extends ServiceProvider
         Brand::class => BrandPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,
         ApprovalDocument::class => ApprovalDocumentPolicy::class,
+        FitmentConflict::class => FitmentConflictPolicy::class,
         Vehicle::class => VehiclePolicy::class,
         ReviewFeedback::class => ReviewFeedbackPolicy::class,
     ];

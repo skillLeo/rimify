@@ -203,6 +203,7 @@ final class AdminNavigation
         '/admin/katalog/import',
         '/admin/gutachten',
         '/admin/auflagen',
+        '/admin/konflikte',
         '/admin/fahrzeuge',
         '/admin/fahrzeuge/pruefung',
         '/admin/abdeckung',

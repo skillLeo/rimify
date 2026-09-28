@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Data\ConflictDecision;
+use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Verdict\Condition;
@@ -208,10 +210,10 @@ it('derives front and rear separately', function (): void {
 });
 
 /*
- * Merging several covering rows — always toward caution.
+ * Several rows of ONE document — read together, always toward caution.
  */
 
-it('requires entry if ANY covering document requires it', function (): void {
+it('requires entry if ANY covering row of the document requires it', function (): void {
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, requiresEntry: false),
         FitmentFixtures::row(id: 2, requiresEntry: true, document: FitmentFixtures::document(revision: 3)),
@@ -221,7 +223,7 @@ it('requires entry if ANY covering document requires it', function (): void {
         ->and($verdict->status)->toBe(VerdictStatus::Conditional);
 });
 
-it('shows the union of conditions across covering documents', function (): void {
+it('shows the union of conditions across the document’s covering rows', function (): void {
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, conditions: [FitmentFixtures::specificBolts()]),
         FitmentFixtures::row(id: 2, conditions: [FitmentFixtures::archRolling()]),
@@ -232,7 +234,7 @@ it('shows the union of conditions across covering documents', function (): void 
     expect($codes)->toContain('SPECIFIC_BOLTS')->toContain('ARCH_ROLLING');
 });
 
-it('offers only the intersection of tyre sizes across covering documents', function (): void {
+it('offers only the intersection of tyre sizes across the document’s covering rows', function (): void {
     // A size only one document permits is the permissive answer, and is not offered.
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, sizes: [new TyreSize(245, 45, 18.0), new TyreSize(255, 40, 18.0)]),
@@ -243,7 +245,7 @@ it('offers only the intersection of tyre sizes across covering documents', funct
         ->and($verdict->front->sizes[0]->widthMm)->toBe(245);
 });
 
-it('reports the newest revision among the covering documents', function (): void {
+it('reports the newest revision among the covering rows', function (): void {
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, document: FitmentFixtures::document(revision: 1)),
         FitmentFixtures::row(id: 2, document: FitmentFixtures::document(revision: 4)),
@@ -251,6 +253,68 @@ it('reports the newest revision among the covering documents', function (): void
 
     expect($verdict->document?->revision)->toBe(4)
         ->and($verdict->snapshot->documentRevision)->toBe(4);
+});
+
+/*
+ * Several DOCUMENTS — one verdict each, never blended by the engine (the corrections memo §3).
+ */
+
+/** A second document, issued later than the fixture's own. */
+function laterDocument(): DocumentRecord
+{
+    return new DocumentRecord(id: 58, kind: 'ABE', number: '55255', revision: 1, issuedOn: new DateTimeImmutable('2025-06-02'), sourcePage: 4);
+}
+
+it('names every document that agrees, the newest first', function (): void {
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(id: 1),
+        FitmentFixtures::row(id: 2, document: laterDocument()),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->document?->id)->toBe(58)
+        ->and(array_map(fn ($d): int => $d->id, $verdict->documents))->toBe([58, 57])
+        ->and($verdict->toArray()['documents'])->toHaveCount(2);
+});
+
+it('answers UNKNOWN where two documents disagree, until a person decides', function (): void {
+    $rows = [
+        FitmentFixtures::row(id: 1, requiresEntry: true),
+        FitmentFixtures::row(id: 2, document: laterDocument()),
+    ];
+
+    $verdict = FitmentFixtures::resolver($rows)->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->reason?->code)->toBe(VerdictReason::DOCUMENTS_DISAGREE)
+        ->and($verdict->document?->id)->toBe(58)
+        ->and($verdict->isSellable())->toBeFalse();
+
+    // Other Auflagen, or other tyre sizes, disagree just as well.
+    $conditions = FitmentFixtures::resolver([FitmentFixtures::row(id: 1, conditions: [FitmentFixtures::archRolling()]), FitmentFixtures::row(id: 2, document: laterDocument())])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+    $sizes = FitmentFixtures::resolver([FitmentFixtures::row(id: 1, sizes: [new TyreSize(255, 40, 18.0)]), FitmentFixtures::row(id: 2, document: laterDocument())])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($conditions->reason?->code)->toBe(VerdictReason::DOCUMENTS_DISAGREE)
+        ->and($sizes->reason?->code)->toBe(VerdictReason::DOCUMENTS_DISAGREE);
+});
+
+it('reads the decided document alone, or both toward caution, as a person decided', function (): void {
+    $rows = [
+        FitmentFixtures::row(id: 1, requiresEntry: true),
+        FitmentFixtures::row(id: 2, document: laterDocument()),
+    ];
+
+    $only = FitmentFixtures::resolver([], (new InMemoryFitmentRepository($rows, [FitmentFixtures::wheel()]))->withDecision(FitmentFixtures::WHEEL_CONFIG_ID, ConflictDecision::only(58)))
+        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+    $each = FitmentFixtures::resolver([], (new InMemoryFitmentRepository($rows, [FitmentFixtures::wheel()]))->withDecision(FitmentFixtures::WHEEL_CONFIG_ID, ConflictDecision::each()))
+        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($only->status)->toBe(VerdictStatus::Permitted)
+        ->and($only->document?->id)->toBe(58)
+        ->and($only->documents)->toBe([])
+        ->and($each->status)->toBe(VerdictStatus::Conditional)
+        ->and($each->requiresEntry)->toBeTrue()
+        ->and(array_map(fn ($d): int => $d->id, $each->documents))->toBe([58, 57]);
 });
 
 /*

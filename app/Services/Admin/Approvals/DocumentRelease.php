@@ -20,9 +20,9 @@ use Illuminate\Validation\ValidationException;
  *
  * What stops a release is said in sentences (check): no PDF, no rows, a row without a tyre size (the
  * shop could not say which tyre goes on it), a row on a vehicle that was removed or has no authoritative
- * source (VehicleSource). Conflicts with other
- * documents do not stop it: they are recorded (ConflictDetector) and the stricter statement governs
- * until the team decides. A revision replaces the one it supersedes on the same day; the old one stays
+ * source (VehicleSource), a code the document does not define. Conflicts with other documents do not
+ * stop it: they are recorded (ConflictDetector), and the shop answers UNKNOWN where the documents
+ * disagree until the team decides on the Konflikte page. A revision replaces the one it supersedes on the same day; the old one stays
  * readable, so an order placed against it can still be explained.
  */
 final class DocumentRelease

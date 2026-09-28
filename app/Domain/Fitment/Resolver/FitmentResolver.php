@@ -7,6 +7,7 @@ namespace App\Domain\Fitment\Resolver;
 use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\FitmentRepository;
 use App\Domain\Fitment\Contracts\VehicleRepository;
+use App\Domain\Fitment\Data\ConflictDecision;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\TyreSize;
@@ -22,6 +23,7 @@ use App\Domain\Fitment\Verdict\CentreBoreSource;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
+use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictSnapshot;
 use App\Domain\Fitment\Verdict\VerdictStatus;
@@ -41,11 +43,13 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
  * vehicle, 6 adds the human-readable obligations. Reordering 2 and 5 produces results that pass
  * the physics check with no document behind them.
  *
- * Where several published rows cover the same combination the engine merges TOWARD CAUTION:
- * `requiresEntry` is OR, conditions are the union, tyre sizes are the intersection, and minima
- * take the maximum. The per-vehicle centre bore has no stricter side, so disagreeing rows produce
- * no bore at all. Every one of those choices is the one that fails to a missed sale rather than
- * to a wrong answer.
+ * Each document is decided on its own rows (the corrections memo §3). Several rows of ONE document
+ * are read together TOWARD CAUTION: `requiresEntry` is OR, conditions are the union, tyre sizes are
+ * the intersection, and minima take the maximum. Several documents are never blended by the engine:
+ * where they agree the newest is named with the others, where they disagree the answer is UNKNOWN
+ * until a person decides (decide()). The per-vehicle centre bore has no stricter side, so
+ * disagreeing rows produce no bore at all. Every one of those choices is the one that fails to a
+ * missed sale rather than to a wrong answer.
  */
 final readonly class FitmentResolver
 {
@@ -211,10 +215,30 @@ final readonly class FitmentResolver
             }
 
             $covering[$id] = $admitted;
+        }
 
-            // ── Steps 4, 5 and 6 · merged toward caution across every covering row ───────
+        // Several documents cover a pair: what a person decided about their disagreement, asked once
+        // for the batch and only where it is needed.
+        $contested = [];
+
+        foreach ($ids as $id) {
+            if (! isset($verdicts[$id]) && count(array_unique(array_map(static fn (FitmentRow $r): int => $r->document->id, $covering[$id]))) > 1) {
+                $contested[] = $id;
+            }
+        }
+
+        $decisions = $contested === [] ? [] : $this->fitments->conflictDecisionsFor($vehicle->id, $contested);
+
+        foreach ($ids as $id) {
+            if (isset($verdicts[$id])) {
+                continue;
+            }
+
+            $wheel = $wheels[$id] ?? null;
+
+            // ── Steps 4, 5 and 6 · per document, never blended without a person's word ────
             try {
-                $verdicts[$id] = $this->buildPositiveVerdict($vehicle, $wheel, $covering[$id]);
+                $verdicts[$id] = $this->decide($vehicle, $wheel, $covering[$id], $decisions[$id] ?? null);
             } catch (ReferenceDataMissing) {
                 // A configuration fault must never present itself as a permissive legal answer.
                 $verdicts[$id] = $this->negative(
@@ -226,7 +250,80 @@ final readonly class FitmentResolver
             }
         }
 
-        return $verdicts;
+        // In the order asked, whichever pass decided each.
+        return array_replace(array_fill_keys($ids, null), $verdicts);
+    }
+
+    /**
+     * One verdict per document, decided on that document's own rows (the corrections memo §3). One
+     * document: its verdict. Several that say the same: the newest one's verdict, every document named.
+     * Several that differ — another answer, another Eintragung, other Auflagen, other tyre sizes — stay
+     * UNKNOWN until a person decides on the Konflikte page: „nur Dokument X gilt“ reads X alone; „beide
+     * gelten jeweils für sich“ reads them together, toward caution, and names both.
+     *
+     * @param  list<FitmentRow>  $rows
+     */
+    private function decide(VehicleRecord $vehicle, ?WheelConfigRecord $wheel, array $rows, ?ConflictDecision $decision): FitmentVerdict
+    {
+        /** @var array<int, list<FitmentRow>> $byDocument */
+        $byDocument = [];
+
+        foreach ($rows as $row) {
+            $byDocument[$row->document->id][] = $row;
+        }
+
+        if (count($byDocument) === 1) {
+            return $this->buildPositiveVerdict($vehicle, $wheel, $rows);
+        }
+
+        // Newest first: by the date it was issued, then its revision.
+        $order = array_map(static fn (array $own): DocumentRecord => $own[0]->document, array_values($byDocument));
+        usort($order, static fn (DocumentRecord $a, DocumentRecord $b): int => [$b->issuedOn?->format('Y-m-d') ?? '', $b->revision, $b->id] <=> [$a->issuedOn?->format('Y-m-d') ?? '', $a->revision, $a->id]);
+
+        if ($decision?->mode === ConflictDecision::ONLY && $decision->documentId !== null && isset($byDocument[$decision->documentId])) {
+            return $this->buildPositiveVerdict($vehicle, $wheel, $byDocument[$decision->documentId]);
+        }
+
+        if ($decision?->mode === ConflictDecision::EACH) {
+            return $this->buildPositiveVerdict($vehicle, $wheel, $rows)->withDocuments($order);
+        }
+
+        $each = array_map(fn (DocumentRecord $d): FitmentVerdict => $this->buildPositiveVerdict($vehicle, $wheel, $byDocument[$d->id]), $order);
+
+        // They agree on the answer: read together, so each one's own sentences are shown and a detail
+        // they state differently — the centre bore — is said to differ rather than taken from one.
+        if (count(array_unique(array_map(self::position(...), $each))) === 1) {
+            return $this->buildPositiveVerdict($vehicle, $wheel, $rows)->withDocuments($order);
+        }
+
+        return $this->negative(VerdictStatus::Unknown, $vehicle, $wheel, VerdictReason::of(VerdictReason::DOCUMENTS_DISAGREE), $order[0]);
+    }
+
+    /**
+     * What a document says about the pair, in terms two documents can be compared in: not their codes —
+     * each document numbers its own — but the answer, the Eintragung, what the Auflagen ask of the
+     * customer, and the tyre sizes per axle. A note that changes nothing is left out.
+     */
+    private static function position(FitmentVerdict $verdict): string
+    {
+        $asks = [];
+
+        foreach ($verdict->conditions as $condition) {
+            if ($condition->severity !== Severity::Info) {
+                $asks[$condition->kind === null ? $condition->severity->value.':'.$condition->sentenceDe() : $condition->kind->value] = true;
+            }
+        }
+
+        $asks = array_keys($asks);
+        sort($asks);
+        $sizes = static function (AxleRequirement $axle): array {
+            $keys = array_map(static fn (TyreSize $s): string => $s->key(), $axle->sizes);
+            sort($keys);
+
+            return $keys;
+        };
+
+        return (string) json_encode([$verdict->status->value, $verdict->requiresEntry, $asks, $sizes($verdict->front), $sizes($verdict->rear)]);
     }
 
     /** @param list<FitmentRow> $covering */

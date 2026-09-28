@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Infrastructure;
 
 use App\Domain\Fitment\Contracts\FitmentRepository;
+use App\Domain\Fitment\Data\ConflictDecision;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\RowFilter;
@@ -13,6 +14,7 @@ use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\ApprovalDocument;
@@ -21,6 +23,7 @@ use App\Models\Fitment;
 use App\Models\WheelConfig;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The engine's approval contract, over Eloquent.
@@ -146,6 +149,49 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         return $records;
+    }
+
+    /**
+     * What a person decided on the Konflikte page, per configuration: the newest decision for the pair,
+     * unless a conflict about it is still open — then it is undecided again, and absent here.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, ConflictDecision>
+     */
+    public function conflictDecisionsFor(int $vehicleId, array $wheelConfigIds): array
+    {
+        if ($wheelConfigIds === []) {
+            return [];
+        }
+
+        $conflicts = DB::table('fitment_conflicts')
+            ->where('vehicle_id', $vehicleId)
+            ->whereIn('wheel_config_id', $wheelConfigIds)
+            ->orderBy('resolved_at')
+            ->orderBy('id')
+            ->get(['wheel_config_id', 'status', 'prevailing_document_id']);
+
+        $decisions = [];
+        $open = [];
+
+        foreach ($conflicts as $conflict) {
+            $config = (int) $conflict->wheel_config_id;
+
+            $decision = match ($conflict->status) {
+                ConflictStatus::Open->value => null,
+                ConflictStatus::ResolvedSupersede->value => $conflict->prevailing_document_id === null ? null : ConflictDecision::only((int) $conflict->prevailing_document_id),
+                // Both stand, or there was nothing between them: read together, toward caution.
+                default => ConflictDecision::each(),
+            };
+
+            if ($decision === null) {
+                $open[$config] = true;
+            } else {
+                $decisions[$config] = $decision;
+            }
+        }
+
+        return array_diff_key($decisions, $open);
     }
 
     /**

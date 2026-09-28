@@ -22,8 +22,9 @@ use App\Models\FitmentTyreSize;
  * other current document for the same vehicle and size. Where they differ — one asks for an
  * Eintragung and the other does not, other tyre sizes, another width or ET range, other Auflagen —
  * a conflict is recorded with both sides, as they are shown side by side, and the team is told
- * (ConflictAlertObserver). The release goes on: until someone decides, the resolver merges toward
- * caution, so the stricter statement governs. The system never picks a winner itself.
+ * (ConflictAlertObserver). The release goes on: until someone decides on the Konflikte page, the shop
+ * answers UNKNOWN where the documents' answers differ (the corrections memo §3). The system never
+ * picks a winner itself. Codes are each document's own, so Auflagen are compared by what they ask.
  */
 final class ConflictDetector
 {

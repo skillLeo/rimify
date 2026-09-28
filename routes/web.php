@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
+use App\Http\Controllers\Admin\KonflikteController;
 use App\Http\Controllers\Admin\MarkenController;
 use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NavigationController;
@@ -241,6 +242,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         // Gutachten › Auflagen: every document's own list, read-only; each is written on its Gutachten.
         Route::get('/auflagen', [AuflagenController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('auflagen.index');
+
+        // Gutachten › Konflikte: where documents disagree, the shop says UNKNOWN until a person decides here.
+        Route::get('/konflikte', [KonflikteController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.index');
+        Route::get('/konflikte/{conflict}', [KonflikteController::class, 'show'])->whereNumber('conflict')->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.show');
+        Route::post('/konflikte/entscheiden', [KonflikteController::class, 'decide'])->middleware('throttle:60,1')->name('konflikte.entscheiden');
 
         // Fahrzeuge: the variants, the ones waiting for their legal data, and one vehicle's page —
         // never deleted here (R-04).

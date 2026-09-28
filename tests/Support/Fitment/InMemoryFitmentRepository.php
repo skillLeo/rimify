@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Fitment;
 
 use App\Domain\Fitment\Contracts\FitmentRepository;
+use App\Domain\Fitment\Data\ConflictDecision;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 
@@ -28,7 +29,24 @@ final class InMemoryFitmentRepository implements FitmentRepository
         private array $rows = [],
         private array $configs = [],
         private array $configsWithAnyDocument = [],
+        /** @var array<int, ConflictDecision> keyed by configuration id */
+        private array $decisions = [],
     ) {}
+
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, ConflictDecision>
+     */
+    public function conflictDecisionsFor(int $vehicleId, array $wheelConfigIds): array
+    {
+        return array_intersect_key($this->decisions, array_flip($wheelConfigIds));
+    }
+
+    /** A person decided how the documents' disagreement about this configuration is read. */
+    public function withDecision(int $wheelConfigId, ConflictDecision $decision): self
+    {
+        return new self($this->rows, $this->configs, $this->configsWithAnyDocument, [$wheelConfigId => $decision] + $this->decisions);
+    }
 
     /**
      * @param  list<int>  $wheelConfigIds
@@ -81,12 +99,12 @@ final class InMemoryFitmentRepository implements FitmentRepository
 
     public function withRows(FitmentRow ...$rows): self
     {
-        return new self(array_values($rows), $this->configs, $this->configsWithAnyDocument);
+        return new self(array_values($rows), $this->configs, $this->configsWithAnyDocument, $this->decisions);
     }
 
     /** Documents exist for this config, but none of their rows covers the vehicle asked about. */
     public function withDocumentButNoRows(int $wheelConfigId): self
     {
-        return new self([], $this->configs, [$wheelConfigId]);
+        return new self([], $this->configs, [$wheelConfigId], $this->decisions);
     }
 }

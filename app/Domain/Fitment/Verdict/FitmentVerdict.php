@@ -67,7 +67,44 @@ final readonly class FitmentVerdict
          * input to a fresh decision, and `TyreEligibility` refuses it outright.
          */
         public bool $restored = false,
+        /**
+         * Every document the answer rests on, the newest first (the corrections memo §3). One document
+         * alone: just `$document`. Several that agree, or that a person decided both stand: each named.
+         * Empty means `$document` alone.
+         *
+         * @var list<DocumentRecord>
+         */
+        public array $documents = [],
     ) {}
+
+    /**
+     * This verdict, naming every document it rests on — newest first, the first being `$document`.
+     *
+     * @param  list<DocumentRecord>  $documents
+     */
+    public function withDocuments(array $documents): self
+    {
+        return new self(
+            status: $this->status,
+            vehicle: $this->vehicle,
+            wheel: $this->wheel,
+            document: $documents[0] ?? $this->document,
+            requiresEntry: $this->requiresEntry,
+            entryNoteDe: $this->entryNoteDe,
+            conditions: $this->conditions,
+            front: $this->front,
+            rear: $this->rear,
+            reason: $this->reason,
+            snapshot: $this->snapshot,
+            documentCentreBoreMm: $this->documentCentreBoreMm,
+            centreBoreSource: $this->centreBoreSource,
+            vehicleLabel: $this->vehicleLabel,
+            buildWindowLabel: $this->buildWindowLabel,
+            wheelLabel: $this->wheelLabel,
+            restored: $this->restored,
+            documents: count($documents) > 1 ? $documents : [],
+        );
+    }
 
     /** `SAME` unless the permitted sizes actually differ between the axles. */
     public function tyreLayout(): string
@@ -128,6 +165,8 @@ final readonly class FitmentVerdict
                 'etMm' => $this->wheel->etMm,
             ],
             'document' => $this->document?->toArray(),
+            // Additive: several documents the answer rests on, the newest first; absent for one.
+            ...($this->documents === [] ? [] : ['documents' => array_map(static fn (DocumentRecord $d): array => $d->toArray(), $this->documents)]),
             'requiresEntry' => $this->requiresEntry,
             'entryNoteDe' => $this->entryNoteDe,
             // Additive, like the tyre-size keys before them: a snapshot written without these two
@@ -225,6 +264,10 @@ final readonly class FitmentVerdict
             wheelLabel: $wheelData === null ? null : (string) $wheelData['label'],
             // The only construction site that passes true.
             restored: true,
+            documents: array_values(array_map(
+                static fn (mixed $d): DocumentRecord => DocumentRecord::fromArray((array) $d),
+                is_array($data['documents'] ?? null) ? $data['documents'] : [],
+            )),
         );
     }
 
