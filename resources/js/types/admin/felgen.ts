@@ -192,6 +192,8 @@ export interface ImportSummary {
 export interface ImportRunRow {
     id: number
     file: string
+    /** Who sent the file, as the admin named it. */
+    supplier: string | null
     format: string
     status: 'previewed' | 'applied' | 'rolled_back'
     statusLabel: string
@@ -213,6 +215,8 @@ export interface ImportPlanRow {
 
 export interface AdminImportProps {
     fields: ImportField[]
+    /** Every supplier named before, most recent first. */
+    suppliers: string[]
     imports: ImportRunRow[]
     /** Every run, while the page lists the latest 20. */
     total: number
@@ -220,7 +224,16 @@ export interface AdminImportProps {
 }
 
 export interface AdminImportRunProps {
-    run: ImportRunRow & { decimal: 'komma' | 'punkt'; rowCount: number; appliedAt: string | null; rolledBackAt: string | null }
+    run: ImportRunRow & {
+        decimal: 'komma' | 'punkt'
+        /** The mapping started from this supplier's last import. */
+        mappingRemembered: boolean
+        /** The refused lines as a CSV, when there are any. */
+        refusedHref: string | null
+        rowCount: number
+        appliedAt: string | null
+        rolledBackAt: string | null
+    }
     fields: ImportField[]
     headers: string[]
     examples: Record<string, string>

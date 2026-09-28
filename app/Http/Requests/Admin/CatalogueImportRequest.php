@@ -13,7 +13,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * Every step of Katalog › Import, authorised by CatalogueImportPolicy on the server (R-11); the route
  * names the step:
  *
- *   - import.index, import.show, import.beispiel — reading the importer (`imports` × view);
+ *   - import.index, import.show, import.beispiel, import.abgelehnt — reading the importer (`imports` × view);
  *   - import.probelauf — a file read and checked (`imports` × create), nothing written to the catalogue;
  *   - import.zuordnung — the same file under another mapping;
  *   - import.importieren — the Probelauf applied (and the catalogue's create and edit rights);
@@ -48,6 +48,7 @@ class CatalogueImportRequest extends FormRequest
                 // The 5 MB ceiling is CatalogueFile's, said in its words; this one only keeps a huge body out.
                 'file' => ['required', 'file', 'max:'.(6 * 1024)],
                 'dezimal' => ['nullable', 'in:komma,punkt'],
+                'lieferant' => ['nullable', 'string', 'max:80'],
             ],
             'zuordnung' => [
                 'mapping' => ['present', 'array'],
@@ -66,6 +67,7 @@ class CatalogueImportRequest extends FormRequest
             'file.file' => 'Die Datei ist nicht vollständig angekommen. Lad sie bitte noch einmal hoch.',
             'file.max' => 'Die Datei ist größer als 5 MB. Teil sie bitte auf.',
             'dezimal.*' => 'Bitte wähl, wie die Datei Kommazahlen schreibt.',
+            'lieferant.*' => 'Der Name des Lieferanten darf höchstens 80 Zeichen lang sein.',
             'mapping.*' => 'Die Zuordnung ist unvollständig angekommen. Lad die Seite bitte neu.',
         ];
     }
@@ -82,6 +84,15 @@ class CatalogueImportRequest extends FormRequest
         }
 
         return $mapping;
+    }
+
+    /** Who sent the file, as typed — null when no name was given. */
+    public function supplier(): ?string
+    {
+        $supplier = $this->validated('lieferant');
+        $supplier = is_string($supplier) ? trim((string) preg_replace('/\s+/u', ' ', $supplier)) : '';
+
+        return $supplier === '' ? null : $supplier;
     }
 
     public function pointIsDecimal(): bool

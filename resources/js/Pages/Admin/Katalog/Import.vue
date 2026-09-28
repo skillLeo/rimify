@@ -19,7 +19,7 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminImportProps>()
 
-const upload = useForm<{ file: File | null; dezimal: 'komma' | 'punkt' }>({ file: null, dezimal: 'komma' })
+const upload = useForm<{ file: File | null; dezimal: 'komma' | 'punkt'; lieferant: string }>({ file: null, dezimal: 'komma', lieferant: '' })
 
 function submit(): void {
     if (upload.file === null) {
@@ -90,6 +90,25 @@ const optional = props.fields.filter((field) => !field.required)
                     <p id="im-file-err" class="form-field__error">{{ upload.errors.file }}</p>
                 </div>
                 <div class="form-field">
+                    <label class="form-field__label" for="im-supplier">Lieferant <span class="im-optional">(optional)</span></label>
+                    <input
+                        id="im-supplier"
+                        v-model="upload.lieferant"
+                        class="input im-supplier"
+                        type="text"
+                        maxlength="80"
+                        autocomplete="off"
+                        :list="suppliers.length ? 'im-suppliers' : undefined"
+                        :aria-invalid="upload.errors.lieferant ? 'true' : undefined"
+                        aria-describedby="im-supplier-help im-supplier-err"
+                    >
+                    <datalist v-if="suppliers.length" id="im-suppliers">
+                        <option v-for="name in suppliers" :key="name" :value="name" />
+                    </datalist>
+                    <p id="im-supplier-help" class="form-field__help">Mit Namen merkt sich der Import die Zuordnung der Spalten für jeden Lieferanten einzeln.</p>
+                    <p id="im-supplier-err" class="form-field__error">{{ upload.errors.lieferant }}</p>
+                </div>
+                <div class="form-field">
                     <label class="form-field__label" for="im-decimal">Kommazahlen in der Datei</label>
                     <select id="im-decimal" v-model="upload.dezimal" class="input im-decimal" aria-describedby="im-decimal-help">
                         <option value="komma">mit Komma: 8,5 und 189,00</option>
@@ -126,7 +145,7 @@ const optional = props.fields.filter((field) => !field.required)
                         <tr v-for="run in imports" :key="run.id">
                             <td data-label="Datei">
                                 <Link :href="run.href" class="im-link">{{ run.file }}</Link>
-                                <span class="im-sub">{{ run.format }}</span>
+                                <span class="im-sub">{{ run.supplier ? `${run.supplier} · ${run.format}` : run.format }}</span>
                             </td>
                             <td data-label="Stand">
                                 <span v-if="run.status !== 'applied'" class="adm-tag adm-tag--neutral">{{ run.statusLabel }}</span>
@@ -151,8 +170,14 @@ const optional = props.fields.filter((field) => !field.required)
     margin-block: var(--sp-16) var(--sp-24);
 }
 
-.im-decimal {
+.im-decimal,
+.im-supplier {
     max-width: 36ch;
+}
+
+.im-optional {
+    font-weight: 400;
+    color: var(--c-ink-3);
 }
 
 .im-form .form-field__error:empty {

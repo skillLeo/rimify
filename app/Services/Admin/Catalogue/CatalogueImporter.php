@@ -123,26 +123,64 @@ final class CatalogueImporter
         return (string) preg_replace('/[^a-z0-9]/', '', $key);
     }
 
-    /** The mapping of the last import that went through: the next file from the same supplier starts from it. */
+    /**
+     * Before suppliers were named: the mapping of the last import that went through. Still read for a
+     * file whose supplier is not given, never written again.
+     */
     public const MAPPING_SETTING = 'catalogue_import_mapping';
 
     /**
-     * Reads a file and makes a Probelauf of it: the columns mapped (as given, or as last used, or by
-     * their names), every row planned against the catalogue as it is now. Nothing is written to the
-     * catalogue. A mapping that leaves a required field without a column is kept, with no plan, so the
-     * page can ask for the missing columns.
+     * The mapping of each supplier's last import that went through, keyed by the supplier's name as
+     * supplierKey() reads it (`''` for a file without one): the next file from that supplier starts
+     * from it (COMPLIANCE row 25).
+     */
+    public const MAPPINGS_SETTING = 'catalogue_import_mappings';
+
+    /** A supplier's name as the saved mappings are keyed: case, umlauts and punctuation do not matter. */
+    public static function supplierKey(?string $supplier): string
+    {
+        return $supplier === null ? '' : self::headerKey($supplier);
+    }
+
+    /**
+     * The mapping this supplier's last import went through with, if there is one.
+     *
+     * @return array<string, string>|null
+     */
+    public static function savedMapping(?string $supplier): ?array
+    {
+        $key = self::supplierKey($supplier);
+        $all = Setting::get(self::MAPPINGS_SETTING);
+        $saved = is_array($all) && is_array($all[$key] ?? null) ? $all[$key] : null;
+
+        if ($saved === null && $key === '') {
+            $legacy = Setting::get(self::MAPPING_SETTING);
+            $saved = is_array($legacy) ? $legacy : null;
+        }
+
+        return $saved === null ? null : array_filter($saved, static fn (mixed $header, mixed $field): bool => is_string($field) && is_string($header), ARRAY_FILTER_USE_BOTH);
+    }
+
+    /**
+     * Reads a file and makes a Probelauf of it: the columns mapped (as given, or as this supplier's last
+     * import had them, or by their names), every row planned against the catalogue as it is now. Nothing
+     * is written to the catalogue. A mapping that leaves a required field without a column is kept, with
+     * no plan, so the page can ask for the missing columns.
      *
      * @param  array{name: string, format: string, sha256: string, headers: list<string>, rows: list<array<string, string>>}  $file
      * @param  array<string, string>|null  $mapping
      */
-    public function preview(array $file, ?array $mapping, bool $pointIsDecimal, AdminUser $admin): CatalogueImport
+    public function preview(array $file, ?array $mapping, bool $pointIsDecimal, AdminUser $admin, ?string $supplier = null): CatalogueImport
     {
-        $saved = Setting::get(self::MAPPING_SETTING);
-        $mapping ??= self::guessMapping($file['headers'], is_array($saved) ? array_filter($saved, 'is_string') : null);
+        $saved = self::savedMapping($supplier);
+        $mapping ??= self::guessMapping($file['headers'], $saved);
 
         $import = new CatalogueImport([
             'admin_user_id' => $admin->id,
             'file_name' => mb_substr($file['name'], 0, 200),
+            'supplier' => $supplier,
+            // Whether a column was mapped the way this supplier's last import had it.
+            'mapping_remembered' => $saved !== null && array_intersect_assoc($mapping, $saved) !== [],
             // A workbook's numbers arrive as German text (CatalogueFile): never read with a point.
             'file_format' => $file['format'],
             'file_sha256' => $file['sha256'],
@@ -252,7 +290,9 @@ final class CatalogueImporter
             }
 
             $import->forceFill(['status' => CatalogueImport::APPLIED, 'undo' => $undo, 'applied_at' => now()])->save();
-            Setting::set(self::MAPPING_SETTING, $import->mapping);
+            $mappings = Setting::get(self::MAPPINGS_SETTING);
+            // array_replace, not a spread: a supplier named by digits alone is an integer key, and kept.
+            Setting::set(self::MAPPINGS_SETTING, array_replace(is_array($mappings) ? $mappings : [], [self::supplierKey($import->supplier) => $import->mapping]));
 
             AuditTrail::record($admin, 'catalogue.imported', [
                 'file' => $import->file_name,

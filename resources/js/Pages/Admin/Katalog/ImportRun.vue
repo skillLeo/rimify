@@ -45,7 +45,7 @@ const importable = computed(() => (s.value.create ?? 0) + (s.value.update ?? 0))
 const context = computed(() => {
     const rows = props.run.rowCount === 1 ? '1 Zeile' : `${decimal(props.run.rowCount, 0)} Zeilen`
 
-    return `${props.run.statusLabel} · ${rows} · ${props.run.format}${props.run.at ? ` · ${props.run.at}` : ''}`
+    return `${props.run.statusLabel}${props.run.supplier ? ` · ${props.run.supplier}` : ''} · ${rows} · ${props.run.format}${props.run.at ? ` · ${props.run.at}` : ''}`
 })
 
 const serverError = computed(() => {
@@ -180,6 +180,9 @@ function runStep(): void {
                 {{ decimal(s.finishes ?? 0, 0) }} {{ s.finishes === 1 ? 'Ausführung' : 'Ausführungen' }}. Neue Modelle sind Entwürfe.
             </p>
             <p v-if="run.status === 'previewed' && importable === 0" class="adm-note">Nichts zu importieren: Jede Zeile ist entweder schon so im Katalog oder abgelehnt.</p>
+            <p v-if="run.refusedHref" class="adm-note">
+                <a :href="run.refusedHref" download>Abgelehnte Zeilen als CSV</a> – mit dem Grund und der Zeile, wie sie in der Datei stand. Korrigiert kannst du sie wieder hochladen.
+            </p>
 
             <div v-if="rows.length" class="adm-panel ir-rows">
                 <table class="adm-table">
@@ -224,6 +227,12 @@ function runStep(): void {
                 <h2 id="ir-h-map" class="adm-section__title">Zuordnung der Spalten</h2>
             </div>
             <p v-if="!ready" class="adm-alert" role="alert">Diese Felder brauchen noch eine Spalte aus der Datei: {{ missing.join(', ') }}. Erst dann kann der Probelauf die Zeilen prüfen.</p>
+            <p v-if="run.mappingRemembered" class="adm-note">
+                Übernommen vom letzten Import {{ run.supplier ? `von ${run.supplier}` : 'ohne Lieferantennamen' }}. Nach dem Importieren merkt sich der Import diese Zuordnung für die nächste Datei.
+            </p>
+            <p v-else-if="run.status === 'previewed'" class="adm-note">
+                Erkannt an den Spaltennamen. Nach dem Importieren merkt sich der Import diese Zuordnung{{ run.supplier ? ` für ${run.supplier}` : '' }}.
+            </p>
 
             <form class="ir-map" @submit.prevent="remap">
                 <div class="adm-panel">

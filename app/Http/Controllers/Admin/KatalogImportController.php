@@ -14,6 +14,7 @@ use App\Services\Admin\ListExport;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -44,6 +45,11 @@ class KatalogImportController extends Controller
 
         return Inertia::render('Admin/Katalog/Import', [
             'fields' => self::fields(),
+            // Every supplier named before, most recent first: offered as the field's suggestions, so the
+            // same supplier is written the same way and finds its mapping.
+            'suppliers' => CatalogueImport::query()->whereNotNull('supplier')
+                ->selectRaw('supplier, MAX(id) as last_id')->groupBy('supplier')->orderByDesc('last_id')->limit(50)
+                ->pluck('supplier')->map(static fn (mixed $s): string => (string) $s)->values()->all(),
             'imports' => $imports,
             // The page lists the latest 20; its context counts them all.
             'total' => CatalogueImport::query()->count(),
@@ -59,7 +65,7 @@ class KatalogImportController extends Controller
             throw ValidationException::withMessages(['file' => 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).']);
         }
 
-        $import = $importer->preview(CatalogueFile::read($file), null, $request->pointIsDecimal(), $request->admin());
+        $import = $importer->preview(CatalogueFile::read($file), null, $request->pointIsDecimal(), $request->admin(), $request->supplier());
 
         return redirect('/admin/katalog/import/'.$import->id)->with('toast', self::PREVIEWED);
     }
@@ -91,6 +97,8 @@ class KatalogImportController extends Controller
         return Inertia::render('Admin/Katalog/ImportRun', [
             'run' => self::summaryRow($import->loadMissing('admin:id,name')) + [
                 'decimal' => $import->decimal,
+                'mappingRemembered' => $import->mapping_remembered,
+                'refusedHref' => (int) ($import->summary['refused'] ?? 0) > 0 ? '/admin/katalog/import/'.$import->id.'/abgelehnt.csv' : null,
                 'rowCount' => count($import->source['rows']),
                 'appliedAt' => GermanFormat::dateTime($import->applied_at),
                 'rolledBackAt' => GermanFormat::dateTime($import->rolled_back_at),
@@ -146,6 +154,42 @@ class KatalogImportController extends Controller
         return ListExport::download('felgen-import-beispiel', 'csv', $header, $rows);
     }
 
+    /**
+     * The refused lines of one run, to send back to the supplier or to fix and upload again: why each was
+     * refused, then the line exactly as the file had it, under the file's own column names (COMPLIANCE
+     * row 25).
+     */
+    public function refused(CatalogueImportRequest $request, CatalogueImport $import): StreamedResponse
+    {
+        $headers = $import->source['headers'];
+        $byLine = [];
+
+        foreach ($import->source['rows'] as $i => $row) {
+            $byLine[(int) ($row['_line'] ?? $i + 2)] = $row;
+        }
+
+        $rows = [];
+
+        foreach ($import->plan as $entry) {
+            if (($entry['action'] ?? null) !== 'refused') {
+                continue;
+            }
+
+            $line = (int) $entry['line'];
+            $source = $byLine[$line] ?? [];
+            $rows[] = [
+                $line,
+                implode(' ', array_map('strval', (array) ($entry['reasons'] ?? []))),
+                ...array_map(static fn (string $h): string => (string) ($source[$h] ?? ''), $headers),
+            ];
+        }
+
+        $name = pathinfo($import->file_name, PATHINFO_FILENAME);
+        $slug = Str::slug($name) !== '' ? Str::slug($name) : 'import-'.$import->id;
+
+        return ListExport::download($slug.'-abgelehnt', 'csv', ['Zeile in der Datei', 'Warum abgelehnt', ...$headers], $rows);
+    }
+
     /** @return list<array{key: string, label: string, required: bool}> */
     private static function fields(): array
     {
@@ -164,6 +208,7 @@ class KatalogImportController extends Controller
         return [
             'id' => (int) $import->id,
             'file' => $import->file_name,
+            'supplier' => $import->supplier,
             'format' => $import->file_format === 'xlsx' ? 'Excel' : 'CSV',
             'status' => $import->status,
             'statusLabel' => match ($import->status) {

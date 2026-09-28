@@ -355,6 +355,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber('import')
             ->middleware(EnsureAdminMay::class.':imports,view')
             ->name('import.show');
+        // The refused lines of a run, with why, as the file had them — to fix and upload again.
+        Route::get('/katalog/import/{import}/abgelehnt.csv', [KatalogImportController::class, 'refused'])
+            ->whereNumber('import')
+            ->middleware(EnsureAdminMay::class.':imports,view')
+            ->name('import.abgelehnt');
         Route::post('/katalog/import/{import}/zuordnung', [KatalogImportController::class, 'remap'])->whereNumber('import')->middleware('throttle:30,1')->name('import.zuordnung');
         Route::post('/katalog/import/{import}/importieren', [KatalogImportController::class, 'apply'])->whereNumber('import')->name('import.importieren');
         Route::post('/katalog/import/{import}/zuruecknehmen', [KatalogImportController::class, 'rollback'])->whereNumber('import')->name('import.zuruecknehmen');

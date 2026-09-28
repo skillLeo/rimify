@@ -106,7 +106,7 @@ it('imports the Probelauf: new models are drafts, prices read the German way, th
         ->and((float) $expensive->width_in)->toBe(8.5)
         ->and($expensive->getAttribute('bolt_holes'))->toBe(5)
         ->and($run->refresh()->status)->toBe(CatalogueImport::APPLIED)
-        ->and(Setting::get(CatalogueImporter::MAPPING_SETTING))->toMatchArray(['sku' => 'Artikelnummer'])
+        ->and(CatalogueImporter::savedMapping(null))->toMatchArray(['sku' => 'Artikelnummer'])
         ->and(AuditLog::query()->where('description', 'catalogue.imported')->count())->toBe(1);
 });
 
@@ -153,6 +153,75 @@ it('refuses, row by row, what an import never does — and imports the rest', fu
         ->and($reasons[3])->toBe(['Die SKU gehört zu den Demodaten. Ein Import ändert keine Demodaten.'])
         ->and($reasons[4])->toBe(['Die Breite können wir nicht lesen (Zoll, zwischen 4 und 14).', 'Den Preis können wir nicht lesen.'])
         ->and($reasons[6])->toBe(['Die SKU steht doppelt in der Datei (zuerst in Zeile 5).']);
+});
+
+it('remembers the mapping per supplier, and one supplier’s never steers another’s file (COMPLIANCE row 25)', function (): void {
+    // Borbet's file names its columns its own way; mapped by hand once and imported.
+    $header = 'Nr;Fabrikat;Design;Oberfläche;D;B;Offset;PCD;Bohrung;EK;Menge';
+    $first = probelauf(supplierCsv(feedRows(), $header), ['lieferant' => '  Borbet   GmbH ']);
+
+    expect($first->supplier)->toBe('Borbet GmbH')
+        ->and($first->mapping_remembered)->toBeFalse()
+        ->and(CatalogueImporter::missing($first->mapping, $first->source['headers']))->not->toBe([]);
+
+    $mapping = ['sku' => 'Nr', 'marke' => 'Fabrikat', 'modell' => 'Design', 'ausfuehrung' => 'Oberfläche', 'durchmesser' => 'D', 'breite' => 'B', 'et' => 'Offset', 'lochkreis' => 'PCD', 'mittenloch' => 'Bohrung', 'preis' => 'EK', 'bestand' => 'Menge'];
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$first->id}/zuordnung", ['mapping' => $mapping, 'dezimal' => 'komma'])->assertSessionHasNoErrors();
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$first->id}/importieren")->assertSessionHasNoErrors();
+
+    // The next Borbet file — the name written another way — starts from that mapping, and says so.
+    $rows = feedRows();
+    $rows[0][9] = '179,00';
+    $next = probelauf(supplierCsv($rows, $header), ['lieferant' => 'borbet gmbh']);
+
+    expect($next->mapping_remembered)->toBeTrue()
+        ->and($next->mapping)->toMatchArray($mapping)
+        ->and($next->summary)->toMatchArray(['update' => 1, 'unchanged' => 1]);
+
+    $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import/'.$next->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('run.mappingRemembered', true)->where('run.supplier', 'borbet gmbh'));
+
+    // Another supplier with the same columns starts from their names alone; so does a file without a name.
+    expect(probelauf(supplierCsv(feedRows(), $header), ['lieferant' => 'Lieferant B'])->mapping_remembered)->toBeFalse()
+        ->and(probelauf(supplierCsv(feedRows(), $header))->mapping_remembered)->toBeFalse()
+        ->and(CatalogueImporter::savedMapping('Lieferant B'))->toBeNull();
+
+    // Suggested once each, the latest first: two spellings of one supplier are one suggestion.
+    $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import')
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('suppliers', fn ($s): bool => count($s) === 2 && $s[0] === 'Lieferant B' && mb_strtolower((string) $s[1]) === 'borbet gmbh'));
+});
+
+it('still reads the one mapping kept before suppliers were named, for a file without a name', function (): void {
+    Setting::set(CatalogueImporter::MAPPING_SETTING, ['sku' => 'Nr']);
+
+    expect(CatalogueImporter::savedMapping(null))->toBe(['sku' => 'Nr'])
+        ->and(CatalogueImporter::savedMapping('Borbet'))->toBeNull();
+});
+
+it('hands out the refused lines with why, as the file had them, to who may read imports (COMPLIANCE row 25)', function (): void {
+    $run = probelauf(supplierCsv([
+        ['TST-OK', 'Prüfmarke', 'Kontur', 'Graphit matt', '18', '8', '35', '5x112', '66,6', '189,00', '12'],
+        ['TST-BAD', 'Prüfmarke', 'Kontur', 'Graphit matt', '18', 'acht', '35', '5x112', '66,6', '=HYPERLINK("x")', '1'],
+    ]));
+
+    $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import/'.$run->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('run.refusedHref', '/admin/katalog/import/'.$run->id.'/abgelehnt.csv'));
+
+    $response = $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import/'.$run->id.'/abgelehnt.csv')->assertOk();
+    $csv = $response->streamedContent();
+
+    expect($response->headers->get('content-disposition'))->toContain('lieferant-abgelehnt.csv')
+        ->and($csv)->toContain('"Zeile in der Datei";"Warum abgelehnt";Artikelnummer;Hersteller')
+        ->and($csv)->toContain('3;"Die Breite können wir nicht lesen (Zoll, zwischen 4 und 14). Den Preis können wir nicht lesen.";TST-BAD')
+        // A cell a spreadsheet would run stays text.
+        ->and($csv)->toContain("'=HYPERLINK")
+        ->and($csv)->not->toContain('TST-OK');
+
+    $this->actingAs(importAdmin('content-editor'), 'admin')->get('/admin/katalog/import/'.$run->id.'/abgelehnt.csv')->assertForbidden();
+
+    // Nothing refused: no link.
+    $clean = probelauf(supplierCsv(feedRows()));
+    $this->actingAs(importAdmin(), 'admin')->get('/admin/katalog/import/'.$clean->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('run.refusedHref', null));
 });
 
 it('reads a file that writes 8.5 with a point, when told so', function (): void {

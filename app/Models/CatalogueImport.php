@@ -17,6 +17,8 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int|null $admin_user_id
  * @property string $file_name
+ * @property string|null $supplier who sent the file, as the admin named it
+ * @property bool $mapping_remembered whether the mapping started from this supplier's last import
  * @property string $file_format
  * @property string $file_sha256
  * @property string $status
@@ -47,6 +49,7 @@ class CatalogueImport extends Model
     {
         return [
             'mapping' => 'array',
+            'mapping_remembered' => 'boolean',
             'source' => 'array',
             'rows' => 'array',
             'plan' => 'array',
