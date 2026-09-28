@@ -63,19 +63,24 @@ seeder, test to follow).
 - [x] 7 · „Fahrzeug aus diesem Gutachten anlegen“ in step 5, `quelle = gutachten` with document and page —
       `58d4a199` (HSN/TSN nullable and paired; „HSN/TSN noch nicht hinterlegt“, never „0000“)
 - [x] 8 · The later merge path: EG number + Fahrzeugtyp, dry-run diff, never duplicates or breaks a released row
-      — `vehicles:merge` (see the commit after `58d4a199`); a `..` extension covers every extension, several
-      dataset cars for one car wait for a person
+      — `vehicles:merge`, `de15395c`; a `..` extension covers every extension, several dataset cars for one car
+      wait for a person
 - [x] 9 · R-03 split: wheel verdict from type and kW band, tyre verdict CONDITIONAL without axle loads and top
       speed, combined never PERMITTED while the tyre part is open; R-03 amended in CLAUDE.md with the hash —
       `9cd02ace`; the operator's two reviews in `d40b49c8` (the decision in whole numbers, the rows pinned,
       the index cross-check warns and asks for a reason, demo-seeded tables marked as such)
 - [x] 10 · The optional 8.1 / 8.2 / T fields, the load-index sum shown with the document's own derating table;
       the scanner reads 8.1, 8.2, T and P.2 — scanner and drawing `4deda617`, the endpoint, the cookie and every
-      surface `b7672e58`, the photo in the form with the P.2 check against the chosen variant (see the commit
-      after it). No customer accounts exist yet,
-      so the figures are kept per vehicle in the browser (`rmf_papiere`, docs/launch/COOKIES.md); **when login
-      exists they move into the account** and the cookie is merged on sign-in, like the garage
-- [ ] ai-look-critic and interaction-qa on the block
+      surface `b7672e58`, the photo in the form with the P.2 check against the chosen variant `615cbcef`. No
+      customer accounts exist yet, so the figures are kept per vehicle in the browser (`rmf_papiere`,
+      docs/launch/COOKIES.md); **when login exists they move into the account** and the cookie is merged on
+      sign-in, like the garage
+- [x] ai-look-critic and interaction-qa on the block — both ran. Look: 12 fixes, all taken (`eb49a8bf`).
+      Interaction: 1 × S1, 4 × S2, 4 × S3 fixed (`12af5d2e`), with e2e/bugs/c-01…c-05 green at 1440 and 390 (30 of
+      30 over three repeats); C-10 is by design. Running the golden-record walkthrough afterwards found the shop
+      saying „kein Gutachten“ where only the tyres were open, and the papers form pushing the purchase below
+      the fold — fixed in `5995e15f`, `fcd7b17e`. Open for the operator: the per-axle sum still puts
+      „In den Warenkorb“ at about 1.400 px on a 1440 × 900 desktop
 
 ## Block D — the golden record
 
