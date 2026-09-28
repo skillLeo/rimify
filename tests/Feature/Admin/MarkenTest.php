@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\MarkenController;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Brand;
 use App\Models\WheelModel;
+use App\Policies\BrandPolicy;
 use App\Services\Admin\Catalogue\BrandLogoStore;
+use App\Services\Admin\Catalogue\WheelEditor;
 use App\Support\BrandLogos;
 use App\Support\Security\SvgSanitizer;
 use Database\Seeders\AccessSeeder;
@@ -140,10 +143,89 @@ it('never removes a brand that still carries a wheel, and removes one that carri
     $unused = Brand::factory()->create(['name' => 'Leer', 'slug' => 'leer']);
     $admin = markenAdmin();
 
-    $this->actingAs($admin, 'admin')->delete('/admin/marken/'.$used->id)->assertForbidden();
+    // Who may remove brands is told why, in the Policy's words — not that a right is missing (K2-16).
+    $this->actingAs($admin, 'admin')->delete('/admin/marken/'.$used->id)->assertSessionHasErrors(['brand' => BrandPolicy::IN_USE]);
     $this->actingAs($admin, 'admin')->delete('/admin/marken/'.$unused->id)->assertSessionHas('toast', 'Marke entfernt.');
 
     expect(Brand::query()->whereKey($used->id)->exists())->toBeTrue()->and(Brand::query()->whereKey($unused->id)->exists())->toBeFalse();
+
+    // A removed Felge still keeps its brand, and the list counts it, so it offers no „Entfernen“ the server refuses.
+    $quiet = Brand::factory()->create(['name' => 'Still', 'slug' => 'still']);
+    WheelModel::factory()->create(['brand_id' => $quiet->id])->delete();
+
+    $this->actingAs($admin, 'admin')->get('/admin/marken')
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('brands', fn ($rows): bool => collect($rows)->firstWhere('name', 'Still')['removedWheels'] === 1));
+    $this->actingAs($admin, 'admin')->delete('/admin/marken/'.$quiet->id)->assertSessionHasErrors(['brand' => BrandPolicy::IN_USE]);
+});
+
+it('gives a removed brand\'s name back: rename, „Marke anlegen“ and the Felge form all take it (K2-01)', function (): void {
+    $admin = markenAdmin();
+    $gone = Brand::factory()->create(['name' => 'Rotiform', 'slug' => 'rotiform', 'logo_path' => 'brands/rotiform-1-abc.svg']);
+    $this->actingAs($admin, 'admin')->delete('/admin/marken/'.$gone->id)->assertSessionHasNoErrors();
+
+    // Renaming another brand to it: saved, no 500.
+    $other = Brand::factory()->create(['name' => 'Andere', 'slug' => 'andere']);
+    $this->actingAs($admin, 'admin')->put('/admin/marken/'.$other->id, ['name' => 'Rotiform', 'isWheelBrand' => true, 'sortOrder' => 5])->assertSessionHasNoErrors();
+    expect($other->fresh()?->name)->toBe('Rotiform');
+
+    // „Marke anlegen“ of a removed name brings that row back, and says so.
+    $this->actingAs($admin, 'admin')->put('/admin/marken/'.$other->id, ['name' => 'Andere', 'isWheelBrand' => true, 'sortOrder' => 5]);
+    $this->actingAs($admin, 'admin')->post('/admin/marken', ['name' => 'Rotiform', 'isWheelBrand' => true, 'sortOrder' => 0])
+        ->assertSessionHasNoErrors()->assertSessionHas('toast', MarkenController::RESTORED);
+    expect(Brand::query()->where('name', 'Rotiform')->sole()->id)->toBe($gone->id)
+        ->and(AuditLog::query()->where('description', 'brand.restored')->exists())->toBeTrue();
+
+    // The Felge form's „Neue Marke anlegen“ with a removed name: the brand comes back, no sizes sentence.
+    $this->actingAs($admin, 'admin')->delete('/admin/marken/'.$gone->id);
+    $brand = app(WheelEditor::class)->save(null, ['brand_id' => null, 'brand_new' => 'rotiform', 'name' => 'Flow', 'type_designation' => null, 'spoke_count' => 5, 'description_de' => null, 'seo_title' => null, 'seo_description' => null], [], [], $admin)->brand;
+    expect($brand?->id)->toBe($gone->id)->and($brand?->trashed())->toBeFalse();
+});
+
+it('refuses a raster whose ground is opaque whatever its header says, and an SVG on a filled ground (K2-02)', function (): void {
+    $brand = Brand::factory()->create(['name' => 'Borbet', 'slug' => 'borbet']);
+    $admin = markenAdmin();
+
+    // An RGBA PNG — colour type 6 — whose every pixel is opaque white with a black mark: a solid block on the wall.
+    $image = imagecreatetruecolor(40, 10);
+    imagesavealpha($image, true);
+    imagealphablending($image, false);
+    imagefill($image, 0, 0, imagecolorallocatealpha($image, 255, 255, 255, 0));
+    imagefilledrectangle($image, 10, 2, 30, 7, imagecolorallocatealpha($image, 0, 0, 0, 0));
+    ob_start();
+    imagepng($image);
+    $opaque = (string) ob_get_clean();
+    expect(ord($opaque[25]))->toBe(6);
+
+    $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('logo.png', $opaque)])
+        ->assertSessionHasErrors(['logo' => BrandLogoStore::OPAQUE]);
+
+    $backdrop = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><rect width="200" height="50" fill="#fff"/><path d="M10 10h40v30H10z"/></svg>';
+    $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('logo.svg', $backdrop)])
+        ->assertSessionHasErrors(['logo' => BrandLogoStore::BACKDROP]);
+
+    expect($brand->fresh()?->logo_path)->toBeNull()->and(Storage::disk('public')->allFiles('brands'))->toBe([]);
+});
+
+it('takes an SVG saved with a byte-order mark, and names the reason for one with entities (K2-14)', function (): void {
+    $brand = Brand::factory()->create(['name' => 'Borbet', 'slug' => 'borbet']);
+    $admin = markenAdmin();
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><path d="M0 0h200v50H0z"/></svg>';
+
+    $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('bom.svg', "\xEF\xBB\xBF".$svg)])
+        ->assertSessionHasNoErrors();
+    // The brand's id is in the file's name: two brands never share one (K2-26).
+    expect((string) $brand->fresh()?->logo_path)->toStartWith('brands/borbet-'.$brand->id.'-');
+
+    $illustrator = '<?xml version="1.0"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "x" [<!ENTITY ns_svg "http://www.w3.org/2000/svg">]>'.$svg;
+    $this->actingAs($admin, 'admin')->post('/admin/marken/'.$brand->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('ai.svg', $illustrator)])
+        ->assertSessionHasErrors(['logo' => BrandLogoStore::ENTITIES]);
+});
+
+it('never stores a logo for the sample range, which never shows one (K2-25)', function (): void {
+    $demo = Brand::factory()->create(['name' => 'Demo', 'slug' => BrandLogos::SAMPLE_RANGE]);
+
+    $this->actingAs(markenAdmin(), 'admin')->post('/admin/marken/'.$demo->id.'/logo', ['logo' => UploadedFile::fake()->createWithContent('d.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1"><path d="M0 0h1v1z"/></svg>')])
+        ->assertSessionHasErrors(['logo' => BrandLogoStore::SAMPLE_RANGE]);
 });
 
 it('refuses every write to who may only read the catalogue (R-11)', function (): void {

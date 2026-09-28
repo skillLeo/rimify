@@ -111,6 +111,16 @@ final class WheelEditor
             return $existing;
         }
 
+        // A removed brand of that name comes back — its id, its slug and its logo — as on the Marken
+        // page, rather than a second row as „rotiform-2" (K2-01).
+        $removed = Brand::onlyTrashed()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->latest('deleted_at')->first();
+
+        if ($removed instanceof Brand) {
+            $removed->restore();
+
+            return $removed;
+        }
+
         return Brand::query()->create([
             'name' => $name,
             'slug' => self::brandSlug($name),

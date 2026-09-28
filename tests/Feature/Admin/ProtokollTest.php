@@ -472,6 +472,7 @@ describe('putting every entry into words', function (): void {
             'wheel.images_reordered' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Die Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurden neu geordnet.', []],
             'wheel.image_relabelled' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Der Alternativtext eines Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde geändert.', []],
             'brand.created' => [['name' => 'Borbet'], 'Die Marke „Borbet“ wurde angelegt.', []],
+            'brand.restored' => [['name' => 'Borbet', 'with_logo' => true], 'Die entfernte Marke „Borbet“ wurde wieder angelegt, mit ihrem früheren Logo.', []],
             'brand.updated' => [
                 ['old' => ['name' => 'Borbet', 'is_wheel_brand' => false, 'sort_order' => 3], 'new' => ['name' => 'BORBET', 'is_wheel_brand' => true, 'sort_order' => 3]],
                 'Die Marke „BORBET“ wurde geändert.',

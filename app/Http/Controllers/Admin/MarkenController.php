@@ -14,9 +14,14 @@ use App\Models\Brand;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Catalogue\BrandLogoStore;
 use App\Support\BrandLogos;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,6 +43,8 @@ class MarkenController extends Controller
 
     public const DELETED = 'Marke entfernt.';
 
+    public const RESTORED = 'Die entfernte Marke ist wieder da – mit ihrer Position und, falls sie eins hatte, ihrem Logo.';
+
     public function __construct(private readonly BrandLogoStore $logos) {}
 
     public function index(Request $request): Response
@@ -46,7 +53,13 @@ class MarkenController extends Controller
         $admin = self::admin($request);
 
         $brands = Brand::query()
-            ->withCount(['wheelModels', 'tyreVariants'])
+            // Removed Felgen count too: they keep their brand (BrandPolicy), and the list must not
+            // offer an „Entfernen“ the server refuses (K2-16).
+            ->withCount([
+                'wheelModels',
+                'tyreVariants',
+                'wheelModels as removed_wheels_count' => static fn (Builder $q) => $q->withoutGlobalScope(SoftDeletingScope::class)->whereNotNull('wheel_models.deleted_at'),
+            ])
             ->orderBy('sort_order')->orderBy('name')
             ->get()
             ->map(static fn (Brand $brand): array => self::row($brand))
@@ -54,6 +67,8 @@ class MarkenController extends Controller
 
         return Inertia::render('Admin/Marken/Index', [
             'brands' => $brands,
+            // A new brand joins the wall at its end, as the Felge form and the import place one (K2-12).
+            'nextSortOrder' => (int) Brand::query()->max('sort_order') + 10,
             'can' => [
                 'create' => $admin->can('create', Brand::class),
                 'update' => $admin->may(PermissionModule::Catalogue, PermissionAction::Edit),
@@ -66,32 +81,57 @@ class MarkenController extends Controller
     {
         $attributes = $request->attributesForBrand();
 
-        DB::transaction(function () use ($attributes, $request): void {
-            // A removed brand of the same name comes back instead of a second row with the same slug.
-            $brand = Brand::withTrashed()->where('slug', $attributes['slug'])->first() ?? new Brand;
+        $restored = self::saying(static fn (): bool => DB::transaction(static function () use ($attributes, $request): bool {
+            // A removed brand of the same name comes back — with its id, its history and its logo —
+            // instead of a second row; and says so, in the toast and in the Protokoll (K2-13).
+            $brand = Brand::onlyTrashed()->where('slug', $attributes['slug'])->latest('deleted_at')->first();
 
-            if ($brand->trashed()) {
+            if ($brand instanceof Brand) {
                 $brand->restore();
+                $brand->fill($attributes)->save();
+                AuditTrail::record($request->admin(), 'brand.restored', ['brand_id' => $brand->id, 'name' => $brand->name, 'with_logo' => $brand->logo_path !== null], $brand);
+
+                return true;
             }
 
-            $brand->fill($attributes)->save();
+            $brand = Brand::query()->create($attributes);
             AuditTrail::record($request->admin(), 'brand.created', ['brand_id' => $brand->id, 'name' => $brand->name], $brand);
-        });
 
-        return back()->with('toast', self::SAVED);
+            return false;
+        }));
+
+        return back()->with('toast', $restored ? self::RESTORED : self::SAVED);
     }
 
     public function update(BrandRequest $request, Brand $brand): RedirectResponse
     {
         $attributes = $request->attributesForBrand();
 
-        DB::transaction(static function () use ($attributes, $request, $brand): void {
+        self::saying(static fn () => DB::transaction(static function () use ($attributes, $request, $brand): void {
             $old = $brand->only(['name', 'is_wheel_brand', 'sort_order']);
             $brand->fill($attributes)->save();
             AuditTrail::record($request->admin(), 'brand.updated', ['brand_id' => $brand->id, 'old' => $old, 'new' => $brand->only(['name', 'is_wheel_brand', 'sort_order'])], $brand);
-        });
+        }));
 
         return back()->with('toast', self::SAVED);
+    }
+
+    /**
+     * A name another request took in between the check and the write is said under Name — never a
+     * server error (K2-01).
+     *
+     * @template T
+     *
+     * @param  callable(): T  $write
+     * @return T
+     */
+    private static function saying(callable $write): mixed
+    {
+        try {
+            return $write();
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['name' => 'Diese Marke gibt es schon.']);
+        }
     }
 
     public function logo(BrandLogoRequest $request, Brand $brand): RedirectResponse
@@ -133,7 +173,18 @@ class MarkenController extends Controller
 
     public function destroy(Request $request, Brand $brand): RedirectResponse
     {
-        $this->authorize('delete', $brand);
+        $admin = self::admin($request);
+        $decision = Gate::forUser($admin)->inspect('delete', $brand);
+
+        // Who may remove brands but hits one still in use is told why, in the Policy's own words —
+        // not a „Dafür fehlt dir das Recht“ they do have (K2-16). Who may not remove at all gets 403.
+        if ($decision->denied()) {
+            if ($admin->may(PermissionModule::Catalogue, PermissionAction::Delete)) {
+                throw ValidationException::withMessages(['brand' => (string) $decision->message()]);
+            }
+
+            $decision->authorize();
+        }
 
         DB::transaction(static function () use ($brand, $request): void {
             AuditTrail::record(self::admin($request), 'brand.deleted', ['brand_id' => $brand->id, 'name' => $brand->name], $brand);
@@ -158,6 +209,7 @@ class MarkenController extends Controller
             // Set but not drawable: the file is missing or cannot be sized — said, not hidden.
             'logoBroken' => $logo === null && $brand->logo_path !== null && $brand->logo_path !== '',
             'wheels' => (int) $brand->getAttribute('wheel_models_count'),
+            'removedWheels' => (int) $brand->getAttribute('removed_wheels_count'),
             'tyres' => (int) $brand->getAttribute('tyre_variants_count'),
         ];
     }
