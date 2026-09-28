@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\AuditLog;
 use App\Models\Brand;
 use App\Support\BrandLogos;
 use App\Support\MakeName;
@@ -33,6 +34,9 @@ use Illuminate\Support\Facades\Log;
  *    storefront as a side effect of a seed (CLAUDE.md §2);
  *  - an uploaded logo (`logo_path` on the public disk) is left exactly as it is; only a bundled
  *    `/images/brands/…` path is this seeder's to set or to clear;
+ *  - what a person did in Katalog › Marken — a Protokoll entry for the brand — is never undone: a brand
+ *    removed there stays removed, one renamed or moved keeps its name and place, one whose logo was set
+ *    or taken off keeps that (K2-17);
  *  - the sample range `Demo` is touched for one reason only: to make sure it has no logo. It is
  *    never dressed up as a manufacturer (docs/design/sections/home-brands.md §4.2).
  *
@@ -123,16 +127,34 @@ final class BrandLogoSeeder extends Seeder
             return;
         }
 
+        // Katalog › Marken is where the team decides about a brand. What a person did there — removed
+        // it, renamed or moved it, set or took off its logo — a release seed never undoes (K2-17).
+        if ($brand->exists && self::touchedByPerson($brand, ['brand.deleted'])) {
+            return;
+        }
+
         $current = $brand->logo_path;
+        $named = $brand->exists && self::touchedByPerson($brand, ['brand.updated', 'brand.restored']);
+        $logoByPerson = $brand->exists && self::touchedByPerson($brand, ['brand.logo_changed', 'brand.logo_removed']);
 
         $brand->fill([
-            'name' => MakeName::normalise($spec['name']),
-            'sort_order' => self::sortOrder($spec['rank']),
-            'logo_path' => $this->logoPath($spec['slug'], is_string($current) ? $current : null),
-            'is_wheel_brand' => true,
+            'name' => $named ? $brand->name : MakeName::normalise($spec['name']),
+            'sort_order' => $named ? $brand->sort_order : self::sortOrder($spec['rank']),
+            'logo_path' => $logoByPerson ? $current : $this->logoPath($spec['slug'], is_string($current) ? $current : null),
+            'is_wheel_brand' => $named ? $brand->is_wheel_brand : true,
         ]);
         $brand->deleted_at = null;
         $brand->save();
+    }
+
+    /** @param list<string> $events */
+    private static function touchedByPerson(Brand $brand, array $events): bool
+    {
+        return AuditLog::query()
+            ->where('subject_type', $brand->getMorphClass())
+            ->where('subject_id', $brand->id)
+            ->whereIn('description', $events)
+            ->exists();
     }
 
     /** The processed logo, unless somebody uploaded one — an upload is never overwritten. */
