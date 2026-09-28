@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Payments\Payments;
+use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
@@ -46,6 +47,7 @@ final class Preflight extends Command
         $rows[] = $this->rendering($production);
         $rows[] = $this->mail($production, $url);
         $rows[] = $this->payment($production);
+        $rows[] = $this->paymentKeys($production);
 
         try {
             DB::connection()->getPdo();
@@ -163,6 +165,30 @@ final class Preflight extends Command
             Payments::sandbox() => ['Zahlung', 'warn', 'Testzahlung (Sandbox): Bestellungen sind Tests, es fließt kein Geld'],
             Payments::gateway() === null => ['Zahlung', 'warn', 'kein Zahlungsanbieter eingerichtet: der Shop nimmt keine Bestellungen an (BLOCKED #3)'],
             default => ['Zahlung', 'ok', $driver],
+        };
+    }
+
+    /**
+     * The Stripe keys from .env belong to their mode and to this installation (StripeKeys): a refused
+     * key is not used, and the launch waits until .env is corrected.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function paymentKeys(bool $production): array
+    {
+        $refused = app()->bound(StripeKeys::REFUSED) ? app(StripeKeys::REFUSED) : [];
+
+        if (is_array($refused) && $refused !== []) {
+            return ['Zahlungsschlüssel', 'fail', implode(' ', array_map(static fn (string $field, string $why): string => "STRIPE_{$field}: {$why}", array_map('strtoupper', array_keys($refused)), $refused))];
+        }
+
+        $mode = config('services.stripe.mode') === StripeKeys::LIVE ? 'Livemodus' : 'Testmodus';
+        $set = filled(config('services.stripe.secret'));
+
+        return match (true) {
+            ! $set => ['Zahlungsschlüssel', 'skip', "{$mode}, keine Schlüssel in .env (Einstellungen › Zahlung)"],
+            $production && $mode === 'Testmodus' => ['Zahlungsschlüssel', 'warn', 'Testmodus im Live-Shop: es wird kein Geld abgebucht'],
+            default => ['Zahlungsschlüssel', 'ok', "{$mode}, Schlüssel …".substr((string) config('services.stripe.secret'), -4)],
         };
     }
 }

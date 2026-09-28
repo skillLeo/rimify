@@ -26,9 +26,13 @@ Remaining, in the order the user set on 2026-09-28 (then the Stripe brief, with 
 6. [ ] Review-kit proofs: a feedback row with its screenshot, three accounts visibly different, `review:report` → OPEN-POINTS.md
 7. [ ] `docs/launch/GO-LIVE.md` and `docs/review/PRESENT.md`
 8. [ ] `COMPLIANCE.md` complete, every row answered, row 13's foreign keys written out
-- [ ] **Guards (added 2026-09-28)** — `secrets:scan` + pre-commit hook, the whole history scanned once (row 21); the
-      live-credential rule in CLAUDE.md and in a versioned doc; the payment-key guard (`sk_live_` refused outside
-      production, `sk_test_` refused in live mode)
+- [x] **Guards (added 2026-09-28)** — `php artisan secrets:scan` (working tree, `--staged`, `--history`, paths; nine
+      shapes; masked to the last four) + `.githooks/pre-commit` (installed by `composer install`, proven to refuse a
+      staged key) + in `composer verify`; the whole history scanned: **no credential** (247 commits, 2 020 481 added
+      lines); R-16 in CLAUDE.md and `docs/dev/SECRETS.md` (versioned — CLAUDE.md is not); `App\Payments\StripeKeys`
+      (a live key refused outside production, a test key in Livemodus, a live key in Testmodus, a key in the wrong
+      field) enforced on `.env` at boot and in the preflight — the settings screen that also calls it comes with the
+      payments brief. `.env.example` has the Stripe names with empty values and `STRIPE_MODE=test`.
 
 ## Previous target — the admin review release (brief of 2026-09-27)
 

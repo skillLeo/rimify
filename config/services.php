@@ -30,6 +30,16 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Stripe (the payments brief). Test keys only in .env; a live key is typed into the admin on the
+    // production site and nowhere else (docs/dev/SECRETS.md). The mode is explicit, and a key that does
+    // not belong to it is not used (App\Payments\StripeKeys).
+    'stripe' => [
+        'mode' => env('STRIPE_MODE', 'test'),
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

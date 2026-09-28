@@ -1,0 +1,7 @@
+#!/bin/sh
+# Refuses a commit that adds a credential (docs/dev/SECRETS.md): the staged lines, read by
+# `php artisan secrets:scan --staged`. Installed by `composer install` (`git config core.hooksPath .githooks`).
+php artisan secrets:scan --staged || {
+    echo "Commit refused: a credential is staged (above). Take it out, roll it at its provider, see docs/dev/SECRETS.md." >&2
+    exit 1
+}

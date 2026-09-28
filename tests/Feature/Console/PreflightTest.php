@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
 use Illuminate\Support\Facades\Http;
 
@@ -12,7 +13,34 @@ use Illuminate\Support\Facades\Http;
  */
 afterEach(function (): void {
     app()->forgetInstance(AppServiceProvider::DEBUG_WAS_ON);
+    app()->forgetInstance(StripeKeys::REFUSED);
     app()['env'] = 'testing';
+});
+
+it('never uses a live Stripe key from .env outside production, and fails the preflight on it', function (): void {
+    $live = 'sk_'.'live_'.str_repeat('Ab3', 8);
+    config(['services.stripe.mode' => 'live', 'services.stripe.secret' => $live]);
+
+    StripeKeys::enforce(app());
+
+    expect(config('services.stripe.secret'))->toBeNull()
+        ->and(app(StripeKeys::REFUSED))->toHaveKey('secret');
+
+    Http::fake(['*/health' => Http::response('OK')]);
+    $this->artisan('rimify:preflight', ['--skip-s3' => true])
+        ->expectsOutputToContain('STRIPE_SECRET: Live-Schlüssel nimmt RIMIFY nur im Live-Shop an')
+        ->doesntExpectOutputToContain($live)
+        ->assertFailed();
+});
+
+it('keeps a test key from .env in Testmodus', function (): void {
+    $test = 'sk_'.'test_'.str_repeat('Ab3', 8);
+    config(['services.stripe.mode' => 'test', 'services.stripe.secret' => $test]);
+
+    StripeKeys::enforce(app());
+
+    expect(config('services.stripe.secret'))->toBe($test)
+        ->and(app()->bound(StripeKeys::REFUSED))->toBeFalse();
 });
 
 it('never lets a production run with debug on, and fails the preflight until .env says false', function (): void {

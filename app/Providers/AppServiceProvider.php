@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Listeners\FailedJobAlert;
+use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
 use App\Support\Ssr\BoundedSsrGateway;
 use Illuminate\Contracts\Foundation\Application;
@@ -38,6 +39,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         self::enforceNoDebugInProduction($this->app);
+        // A Stripe key in .env that does not belong here — a live key outside production, a key of
+        // the other mode — is not used at all (docs/dev/SECRETS.md).
+        StripeKeys::enforce($this->app);
 
         // Telescope is a dev dependency: never auto-discovered, only registered locally.
         if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {

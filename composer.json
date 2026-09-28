@@ -74,6 +74,7 @@
         "verify": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi",
+            "@php artisan secrets:scan",
             "@php vendor/bin/pint --test",
             "@php vendor/bin/phpstan analyse --memory-limit=1G --no-progress",
             "@php vendor/bin/pest --coverage --min=85",
@@ -108,12 +109,19 @@
             "npx prettier --write resources/js e2e",
             "npx eslint resources/js e2e --fix"
         ],
+        "hooks": [
+            "@php -r \"if (is_dir('.git') && function_exists('exec')) { exec('git config core.hooksPath .githooks'); }\""
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
         ],
+        "post-install-cmd": [
+            "@hooks"
+        ],
         "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+            "@hooks"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
