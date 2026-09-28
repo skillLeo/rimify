@@ -48,7 +48,7 @@ export function docSVG(variant: DocVariant = 'neu', options: DocOptions = {}): s
   <text x="44" y="52" font-family="Lato, Arial, sans-serif" font-size="13" font-weight="700" fill="#3C4A34">${escapeText(heading)}</text>
   <line x1="44" y1="64" x2="516" y2="64" stroke="#B9C9AE" stroke-width="1"/>
 
-  ${rows(id, hsnY, tsnY)}
+  ${rows(id, [hsnY, tsnY])}
 
   <!-- 2.1 / 2 — HSN, ringed in blue -->
   <rect x="${variant === 'neu' ? 40 : 40}" y="${hsnY - 18}" width="214" height="30" rx="4" fill="none" stroke="#1A44D4" stroke-width="2"/>
@@ -68,15 +68,59 @@ export function docSVG(variant: DocVariant = 'neu', options: DocOptions = {}): s
 </svg>`
 }
 
+/**
+ * `papersSVG` — the same document with the four fields the tyre check reads ringed (Block C, item 10): the
+ * permitted axle loads front and rear (8.1, 8.2 — on the old Fahrzeugschein one field, Ziffer 16), the top
+ * speed (T — old: Ziffer 6) and the power (P.2 — old: Ziffer 7). The values are placeholders the customer
+ * reads past; the rings are what matters.
+ */
+export function papersSVG(variant: DocVariant = 'neu', options: DocOptions = {}): string {
+    const width = options.width ?? 560
+    const id = idFor('papers', variant)
+    const a11y = options.title
+        ? `role="img" aria-label="${escapeAttr(options.title)}"`
+        : 'role="presentation" aria-hidden="true"'
+
+    const heading = variant === 'neu' ? 'Zulassungsbescheinigung Teil I' : 'Fahrzeugschein'
+    const fields: { y: number; label: string; value: string; name: string }[] = variant === 'neu'
+        ? [
+            { y: 132, label: '8.1', value: '1.120', name: 'Achslast vorn' },
+            { y: 166, label: '8.2', value: '1.180', name: 'Achslast hinten' },
+            { y: 230, label: 'T', value: '250', name: 'km/h' },
+            { y: 294, label: 'P.2', value: '140', name: 'kW' },
+        ]
+        : [
+            { y: 132, label: '6', value: '250', name: 'km/h' },
+            { y: 166, label: '7', value: '140', name: 'kW' },
+            { y: 262, label: '16', value: '1120 / 1180', name: 'Achslasten' },
+        ]
+
+    const ringed = fields.map((f) => `
+  <rect x="40" y="${f.y - 18}" width="214" height="30" rx="4" fill="none" stroke="#1A44D4" stroke-width="2"/>
+  <text x="50" y="${f.y + 2}" font-family="Lato, Arial, sans-serif" font-size="11" font-weight="700" fill="#3C4A34">${escapeText(f.label)}</text>
+  <text x="84" y="${f.y + 3}" font-family="'IBM Plex Mono', monospace" font-size="14" font-weight="500" letter-spacing="1" fill="#0E1116">${escapeText(f.value)}</text>
+  <path d="M254 ${f.y - 3} H300" stroke="#1A44D4" stroke-width="1.5" fill="none"/>
+  <circle cx="302" cy="${f.y - 3}" r="3" fill="#1A44D4"/>
+  <text x="312" y="${f.y + 1}" font-family="Lato, Arial, sans-serif" font-size="12" font-weight="900" letter-spacing="0.6" fill="#1A44D4">${escapeText(f.name)}</text>`).join('')
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 400" width="${width}" height="${Math.round((width * 400) / 560)}" ${a11y} focusable="false">
+  <rect x="20" y="16" width="520" height="368" rx="6" fill="#E8F0E2" stroke="#B9C9AE" stroke-width="1"/>
+  <text x="44" y="52" font-family="Lato, Arial, sans-serif" font-size="13" font-weight="700" fill="#3C4A34">${escapeText(heading)}</text>
+  <line x1="44" y1="64" x2="516" y2="64" stroke="#B9C9AE" stroke-width="1"/>
+  ${rows(id, fields.map((f) => f.y))}
+  ${ringed}
+</svg>`
+}
+
 /** The numbered field grid the two ringed rows sit inside — greeked, because the document's other
  *  fields are not the customer's problem and legible dummy data would only invite reading. */
-function rows(id: string, hsnY: number, tsnY: number): string {
+function rows(id: string, ringed: number[]): string {
     const out: string[] = []
 
     for (let i = 0; i < 9; i++) {
         const y = 100 + i * 32
 
-        if (Math.abs(y - hsnY) < 20 || Math.abs(y - tsnY) < 20) {
+        if (ringed.some((r) => Math.abs(y - r) < 20)) {
             continue
         }
 

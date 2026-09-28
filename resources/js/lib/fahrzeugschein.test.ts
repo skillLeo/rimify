@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanHsn, cleanTsn, isHsn, isTsn, parseKeyNumbers } from './fahrzeugschein'
+import { cleanHsn, cleanTsn, isHsn, isTsn, parseKeyNumbers, parsePapers } from './fahrzeugschein'
 
 describe('parseKeyNumbers', () => {
     it('reads the HSN after the 2.1 label', () => {
@@ -48,6 +48,36 @@ describe('parseKeyNumbers', () => {
     it('survives noise around the fields', () => {
         const text = '|| 2.1 O0O5 ,, 2.2: 582 AAB Typ/Variante  9 Kraftstoff 0001'
         expect(parseKeyNumbers(text)).toEqual({ hsn: '0005', tsn: '582' })
+    })
+})
+
+describe('parsePapers', () => {
+    it('reads 8.1, 8.2, T and P.2 after their labels', () => {
+        const text = 'Zulassungsbescheinigung Teil I\n8.1 1120\n8.2 1180\nT 250\nP.2/P.4 140/5500'
+
+        expect(parsePapers(text)).toEqual({ axleFrontKg: 1120, axleRearKg: 1180, topSpeedKmh: 250, powerKw: 140 })
+    })
+
+    it('reads a load printed with a thousands point, and a comma or spaces in the label', () => {
+        expect(parsePapers('8 ,1: 1.120  8 .2 - 1.180').axleFrontKg).toBe(1120)
+        expect(parsePapers('8 ,1: 1.120  8 .2 - 1.180').axleRearKg).toBe(1180)
+    })
+
+    it('never takes the T of TSN or of a word for the speed field', () => {
+        expect(parsePapers('TSN 582 Typ 3C Tür 2').topSpeedKmh).toBeNull()
+        expect(parsePapers('2.2 582 T: 250').topSpeedKmh).toBe(250)
+    })
+
+    it('reads nothing without the labels, and nothing a car cannot have', () => {
+        expect(parsePapers('1120 1180 250 140')).toEqual({ axleFrontKg: null, axleRearKg: null, topSpeedKmh: null, powerKw: null })
+        expect(parsePapers('8.1 99999').axleFrontKg).toBeNull()
+        expect(parsePapers('8.1 120').axleFrontKg).toBeNull()
+        expect(parsePapers('T 999').topSpeedKmh).toBeNull()
+    })
+
+    it('does not mistake 18.1 or 8.12 for the axle fields', () => {
+        expect(parsePapers('18.1 1120').axleFrontKg).toBeNull()
+        expect(parsePapers('8.12 1120').axleFrontKg).toBeNull()
     })
 })
 

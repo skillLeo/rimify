@@ -45,6 +45,51 @@ function digitsOnly(raw: string): string {
         .join('')
 }
 
+/**
+ * The four figures the tyre check reads off the same document (Block C, item 10): the permitted axle
+ * loads 8.1 (front) and 8.2 (rear) in kg, the top speed T in km/h, and the power P.2 in kW. Each only
+ * after its own label and only inside a range a car can have; anything else is null, never a guess —
+ * the customer confirms every figure before it is used.
+ */
+export interface PapersFigures {
+    axleFrontKg: number | null
+    axleRearKg: number | null
+    topSpeedKmh: number | null
+    powerKw: number | null
+}
+
+/* 8.1 / 8.2: the label, then the load as printed — `1120` or `1.120`. */
+const AXLE_FIELD = (n: 1 | 2): RegExp => new RegExp(`(?<![\\d.,])8\\s*[.,]\\s*${n}(?!\\d)[\\s:.\\-–]*(\\d{1,2}\\.?\\d{3})(?![\\d])`)
+
+/* T: a lone letter — never the T of TSN or of a word — then the speed. */
+const SPEED_FIELD = /(?<![A-Z0-9.])T(?![A-Z0-9])[\s:.\-–]*(\d{2,3})(?![\d,.]\d)/
+
+/* P.2, printed with the rated speed as `P.2/P.4 140/5500`: the kW before the slash. */
+const POWER_FIELD = /(?<![A-Z0-9.])P\s*[.,]\s*2(?!\d)(?:\s*\/\s*P\s*[.,]\s*4)?[\s:.\-–]*(\d{1,3})(?![\d])/
+
+const within = (value: number, min: number, max: number): number | null => (value >= min && value <= max ? value : null)
+
+export function parsePapers(text: string): PapersFigures {
+    const upper = text.toUpperCase()
+    const number = (re: RegExp): number | null => {
+        const raw = re.exec(upper)?.[1]
+
+        return raw === undefined ? null : Number(raw.replace('.', ''))
+    }
+
+    const front = number(AXLE_FIELD(1))
+    const rear = number(AXLE_FIELD(2))
+    const speed = number(SPEED_FIELD)
+    const power = number(POWER_FIELD)
+
+    return {
+        axleFrontKg: front === null ? null : within(front, 300, 4000),
+        axleRearKg: rear === null ? null : within(rear, 300, 4000),
+        topSpeedKmh: speed === null ? null : within(speed, 60, 420),
+        powerKw: power === null ? null : within(power, 10, 1000),
+    }
+}
+
 /** What is typed or pasted into the HSN field: spaces gone, four characters at most. */
 export function cleanHsn(raw: string): string {
     return raw.replace(/\s+/g, '').slice(0, 4)
