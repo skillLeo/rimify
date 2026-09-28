@@ -41,7 +41,7 @@ class DocumentConditionBatchRequest extends FormRequest
                 continue;
             }
 
-            $entry['code'] = is_string($entry['code'] ?? null) ? trim($entry['code']) : ($entry['code'] ?? null);
+            $entry['code'] = is_string($entry['code'] ?? null) ? trim((string) preg_replace('/\s+/u', ' ', $entry['code'])) : ($entry['code'] ?? null);
             $entry['text_de'] = is_string($entry['text_de'] ?? null) ? trim((string) preg_replace('/\s+/u', ' ', $entry['text_de'])) : ($entry['text_de'] ?? null);
             $entries[] = $entry;
         }
@@ -56,7 +56,7 @@ class DocumentConditionBatchRequest extends FormRequest
         $rules = [
             'entries' => ['required', 'array', 'min:1', 'max:'.self::MAX_ENTRIES],
             'entries.*.code' => [
-                'required', 'string', 'max:8', 'regex:/^[A-Za-z0-9]+$/', 'distinct',
+                'required', 'string', 'max:32', 'regex:'.DocumentConditions::CODE, 'distinct',
                 Rule::unique('document_conditions', 'code')->where('approval_document_id', $document instanceof ApprovalDocument ? $document->id : 0),
             ],
             'entries.*.kind' => ['required', Rule::in(ConditionKind::values())],
@@ -80,8 +80,8 @@ class DocumentConditionBatchRequest extends FormRequest
             'entries.required' => 'Keine Zeile zum Speichern.',
             'entries.max' => 'Höchstens 200 Codes auf einmal.',
             'entries.*.code.required' => 'Bitte den Code.',
-            'entries.*.code.max' => 'Ein Code hat höchstens acht Zeichen.',
-            'entries.*.code.regex' => 'Ein Code besteht nur aus Buchstaben und Ziffern.',
+            'entries.*.code.max' => DocumentConditions::CODE_MESSAGE,
+            'entries.*.code.regex' => DocumentConditions::CODE_MESSAGE,
             'entries.*.code.distinct' => 'Dieser Code steht zweimal in der Liste.',
             'entries.*.code.unique' => 'Diesen Code gibt es in diesem Gutachten schon.',
             'entries.*.kind.*' => 'Bitte wähl die Art.',

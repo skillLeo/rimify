@@ -435,19 +435,21 @@ it('ignores a document symbol it does not recognise, but refuses a tyre symbol i
         ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 120, speedSymbol: 'ZR')))->toBe(KomplettradRefusal::BelowMinimum);
 });
 
-it('raises the minimum from the listed size where the axle merge kept a laxer symbol', function (): void {
-    // The axle accumulates the document symbol by plain assignment, so the LAST size's V wins
-    // over the first size's (Y) and the derived Y then governs the axle. Rule 8 reads the listed
-    // size's own symbol and closes that hole from the safe side.
+it('binds the axle to the strictest symbol any listed size prints, never to the last one printed', function (): void {
+    // The axle once took the LAST size's symbol, so 255/40's V overwrote 245/45's (Y) and the derived Y
+    // governed an axle whose document asks (Y) of one of its sizes (Block D: engine 1.1.0). The axle now binds
+    // to (Y): what the customer is told is never below what the document asks of a size they may buy. This
+    // document's table (ABE 55255's) prints no (Y) column, so no load at that speed can be read from it: the
+    // tyres are open, and no Komplettrad is put together on a guess.
     $verdict = liveVerdict(FitmentFixtures::row(sizes: [
         new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: '(Y)'),
         new TyreSize(255, 40, 18.0, documentMinSpeedSymbol: 'V'),
     ]));
 
-    expect($verdict->front->minSpeedSymbol)->toBe('Y')
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'Y')))->toBe(KomplettradRefusal::BelowMinimum)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBeNull()
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(widthMm: 255, aspect: 40, speedSymbol: 'Y')))->toBeNull();
+    expect($verdict->front->minSpeedSymbol)->toBe('(Y)')
+        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBe(KomplettradRefusal::TyresUnknown)
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(widthMm: 255, aspect: 40, speedSymbol: 'Y')))->toBe(KomplettradRefusal::TyresUnknown);
 });
 
 it('takes the stricter axle for each half of the minimum, with the source that governed that half', function (): void {

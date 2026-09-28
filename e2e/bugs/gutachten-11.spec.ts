@@ -6,7 +6,8 @@ import { SHOTS, answerWithDocument, asDraft, busiestDocument, chooseOneEach, com
  * `payload()` (Pages/Admin/Gutachten/rows.ts) leaves empty size lines out before sending, so the server's
  * `tyre_sizes.N.*` counts the sent sizes only; RowFields.vue reads `tyre_sizes.${index}` by the line's place
  * on screen. With an empty line above (a line added and left empty, or one cleared), „Diese Reifengröße steht
- * schon in der Liste." or „Dieses Geschwindigkeitssymbol gibt es nicht." lands under a size that is fine,
+ * mit diesem kW-Bereich und diesen Indizes schon in der Liste." or „Dieses Geschwindigkeitssymbol gibt es
+ * nicht." lands under a size that is fine,
  * and the one at fault shows nothing. Removing a line afterwards moves the sentences again (the errors stay
  * keyed by place until the next answer, the KATALOG-03 pattern).
  *
@@ -46,7 +47,7 @@ test('GUTACHTEN-11 the duplicate tyre size carries its own sentence', async ({ p
                 seen.add(key);
             });
 
-            await answerWithDocument(route, id, asDraft, refusedAt < 0 ? {} : { [`tyre_sizes.${refusedAt}.width_mm`]: 'Diese Reifengröße steht schon in der Liste.' });
+            await answerWithDocument(route, id, asDraft, refusedAt < 0 ? {} : { [`tyre_sizes.${refusedAt}.width_mm`]: 'Diese Reifengröße steht mit diesem kW-Bereich und diesen Indizes schon in der Liste.' });
         },
     );
 

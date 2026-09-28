@@ -11,6 +11,10 @@ namespace App\Domain\Fitment\Data;
  *
  * `decide()` answers three ways: the vehicle passes, it is excluded, or we cannot tell — a filter without
  * its parameter, or a vehicle whose body style or drive we do not hold. „Cannot tell“ is never a pass.
+ *
+ * Several of them on one row, or on one tyre size, are read together as the documents print them
+ * (`admitAll()`): each body-style code permits its styles, so ABE 55255's „Cbo Cpe“ is a Cabrio OR a
+ * Coupé; „nur mit“ drives likewise permit any of theirs; each „nicht mit“ keeps its own drive out.
  */
 final readonly class RowFilter
 {
@@ -33,30 +37,97 @@ final readonly class RowFilter
     /** True: the vehicle is covered. False: excluded. Null: we cannot tell. */
     public function decide(VehicleRecord $vehicle): ?bool
     {
-        if ($this->kind === self::BODY_FORM) {
-            if ($this->bodyForms === [] || $vehicle->bodyForm === null || trim($vehicle->bodyForm) === '') {
-                return null;
+        return self::admitAll([$this], $vehicle);
+    }
+
+    /**
+     * The codes of one row, or of one tyre size, together. Any exclusion the vehicle's data proves wins;
+     * otherwise a code we cannot decide leaves the answer open; otherwise the vehicle is covered.
+     *
+     * @param  list<self>  $filters
+     */
+    public static function admitAll(array $filters, VehicleRecord $vehicle): ?bool
+    {
+        $bodies = [];
+        $bodyCodes = false;
+        $bodyOpen = false;
+        $only = [];
+        $not = [];
+        $driveCodes = false;
+        $driveOpen = false;
+        $otherOpen = false;
+
+        foreach ($filters as $filter) {
+            if ($filter->kind === self::BODY_FORM) {
+                $bodyCodes = true;
+                $bodyOpen = $bodyOpen || $filter->bodyForms === [];
+
+                foreach ($filter->bodyForms as $form) {
+                    $bodies[self::normalise($form)] = true;
+                }
+
+                continue;
             }
 
-            return in_array(self::normalise($vehicle->bodyForm), array_map(self::normalise(...), $this->bodyForms), true);
-        }
+            if ($filter->kind !== self::DRIVE) {
+                $otherOpen = true;
 
-        if ($this->kind === self::DRIVE) {
-            if ($this->drive === null || ! in_array($this->driveMode, ['only', 'not'], true) || $vehicle->driveAxle === null || trim($vehicle->driveAxle) === '') {
-                return null;
+                continue;
             }
+
+            $driveCodes = true;
 
             // Four-wheel steering is not a drive axle: no vehicle record says whether a car has it.
-            if (self::normalise($this->drive) === 'allradlenkung') {
-                return null;
+            if ($filter->drive === null || ! in_array($filter->driveMode, ['only', 'not'], true) || self::normalise($filter->drive) === 'allradlenkung') {
+                $driveOpen = true;
+
+                continue;
             }
 
-            $same = self::normalise($vehicle->driveAxle) === self::normalise($this->drive);
-
-            return $this->driveMode === 'only' ? $same : ! $same;
+            if ($filter->driveMode === 'only') {
+                $only[self::normalise($filter->drive)] = true;
+            } else {
+                $not[self::normalise($filter->drive)] = true;
+            }
         }
 
-        return null;
+        $decisions = [];
+
+        if ($bodyCodes) {
+            $body = self::known($vehicle->bodyForm);
+            $decisions[] = match (true) {
+                $body === null => null,
+                isset($bodies[$body]) => true,
+                // A code without its parameter might have let this one in.
+                $bodyOpen => null,
+                default => false,
+            };
+        }
+
+        if ($driveCodes) {
+            $drive = self::known($vehicle->driveAxle);
+            $decisions[] = match (true) {
+                $drive === null => null,
+                isset($not[$drive]) => false,
+                $only !== [] && ! isset($only[$drive]) => $driveOpen ? null : false,
+                default => $driveOpen ? null : true,
+            };
+        }
+
+        if ($otherOpen) {
+            $decisions[] = null;
+        }
+
+        if (in_array(false, $decisions, true)) {
+            return false;
+        }
+
+        return in_array(null, $decisions, true) ? null : true;
+    }
+
+    private static function known(?string $value): ?string
+    {
+        return $value === null || trim($value) === '' ? null : self::normalise($value);
     }
 
     /** `Coupé` and `Coupe`, `SUV` and `suv`: one word. */

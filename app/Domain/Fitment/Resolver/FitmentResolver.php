@@ -181,21 +181,43 @@ final readonly class FitmentResolver
             }
 
             // ── The document's own narrowing, and what we could not read of it ───────────
-            // A body-style or drive code drops a row for a car it excludes; one we cannot decide
-            // (no body style on record, no parameter entered) is never read as a pass.
+            // A body-style or drive code drops a row for a car it excludes, and one printed beside a size
+            // drops that size; one we cannot decide (no body style on record, no parameter entered) is
+            // never read as a pass. A row left without a size is a row that excludes the car.
             $excludedBy = null;
             $undecided = null;
             $admitted = [];
 
             foreach ($covering[$id] as $row) {
                 $admit = $row->filtersAdmit($vehicle);
+                $sizes = [];
+
+                if ($admit === true) {
+                    foreach ($row->tyreSizes as $size) {
+                        $sizeAdmit = $size->filtersAdmit($vehicle);
+
+                        if ($sizeAdmit === null) {
+                            $admit = null;
+
+                            break;
+                        }
+
+                        if ($sizeAdmit) {
+                            $sizes[] = $size;
+                        }
+                    }
+
+                    if ($admit === true && $sizes === [] && $row->tyreSizes !== []) {
+                        $admit = false;
+                    }
+                }
 
                 if ($admit === false) {
                     $excludedBy ??= $row->document;
                 } elseif ($admit === null) {
                     $undecided ??= $row->document;
                 } else {
-                    $admitted[] = $row;
+                    $admitted[] = count($sizes) === count($row->tyreSizes) ? $row : $row->withTyreSizes($sizes);
                 }
             }
 
@@ -964,7 +986,9 @@ final readonly class FitmentResolver
             // And only the sizes whose kW band covers the car's power (Block D): a size the document gives
             // only at 85–125 kW is not offered to a 150 kW car. Power unknown: kept, and the verdict says
             // which band to compare with field P.2 (buildPositiveVerdict()).
-            $rowSizes = array_values(array_filter($row->tyreSizesForAxle($axle), static fn (TyreSize $size): bool => $size->allowsPower($powerKw)));
+            // A size the document prints more than once for the car — at two kW bands, with two load
+            // indexes — is one size to the customer, carrying what every entry asks (mergeSameSizes()).
+            $rowSizes = $this->mergeSameSizes(array_values(array_filter($row->tyreSizesForAxle($axle), static fn (TyreSize $size): bool => $size->allowsPower($powerKw))));
 
             // Intersection across documents: a size only one of them permits is not offered.
             $sizes = $sizes === null ? $rowSizes : TyreSize::intersect($sizes, $rowSizes);
@@ -975,9 +999,9 @@ final readonly class FitmentResolver
                     $sizeLoadIndex = max($sizeLoadIndex ?? 0, $size->documentMinLoadIndex);
                 }
 
-                if ($size->documentMinSpeedSymbol !== null) {
-                    $documentSpeedSymbol = $size->documentMinSpeedSymbol;
-                }
+                // The strictest symbol any offered size prints binds the axle: the 18″ Nachtrag gives one
+                // car 89Y beside 91W, and the axle's line must not read W.
+                $documentSpeedSymbol = $this->stricterPrinted($documentSpeedSymbol, $size->documentMinSpeedSymbol);
             }
 
             // The document's load-index limits that reach this axle: on the row, and on its sizes here.
@@ -1158,6 +1182,101 @@ final readonly class FitmentResolver
         }
 
         return [$document, MinSource::Document];
+    }
+
+    /**
+     * Of two symbols a document prints, the one that asks for more. One the table does not know is not
+     * trusted over one it does; two it does not know keep the first.
+     */
+    private function stricterPrinted(?string $current, ?string $printed): ?string
+    {
+        if ($current === null || $printed === null) {
+            return $current ?? $printed;
+        }
+
+        $currentRank = $this->speedSymbol->rankOf($current);
+        $printedRank = $this->speedSymbol->rankOf($printed);
+
+        if ($printedRank === null) {
+            return $current;
+        }
+
+        return $currentRank === null || $printedRank > $currentRank ? $printed : $current;
+    }
+
+    /**
+     * One size printed more than once for the car on one axle — ABE 55255 gives BMW Z3 its 225/35R19 at
+     * 85–110 and at 85–125 kW, each with its own codes; the 18″ Nachtrag gives BMW 346X its 225/40R18 as 88W,
+     * 88Y and 92 — becomes one size carrying what every entry asks: all their Auflagen, the Eintragung if any
+     * needs it, the highest load index and the strictest speed symbol printed, and every kW band. The
+     * customer buys one tyre that satisfies them all; that is cautious, never wrong.
+     *
+     * @param  list<TyreSize>  $sizes
+     * @return list<TyreSize>
+     */
+    private function mergeSameSizes(array $sizes): array
+    {
+        $groups = [];
+
+        foreach ($sizes as $size) {
+            $groups[$size->key()][] = $size;
+        }
+
+        $out = [];
+
+        foreach ($groups as $group) {
+            if (count($group) === 1) {
+                $out[] = $group[0];
+
+                continue;
+            }
+
+            $loadIndex = null;
+            $symbol = null;
+            $axle = null;
+            $entry = false;
+            $conditions = [];
+            $bands = [];
+            $unbanded = false;
+
+            foreach ($group as $size) {
+                if ($size->documentMinLoadIndex !== null) {
+                    $loadIndex = max($loadIndex ?? 0, $size->documentMinLoadIndex);
+                }
+
+                $symbol = $this->stricterPrinted($symbol, $size->documentMinSpeedSymbol);
+                // Every entry covers the axle asked about; one that covers both makes the size a both-axle size.
+                $axle = $axle === null || $axle === $size->axle ? $size->axle : 'ALL';
+                $entry = $entry || $size->requiresEntry;
+                $conditions = Condition::union($conditions, $size->conditions);
+
+                if ($size->hasPowerBand()) {
+                    $bands = [...$bands, ...$size->bands()];
+                } else {
+                    $unbanded = true;
+                }
+            }
+
+            // An entry without a band permits the size at any power: the bands of the others then say nothing.
+            $bands = $unbanded ? [] : $bands;
+            $first = $group[0];
+
+            $out[] = new TyreSize(
+                widthMm: $first->widthMm,
+                aspect: $first->aspect,
+                diameterIn: $first->diameterIn,
+                documentMinLoadIndex: $loadIndex,
+                documentMinSpeedSymbol: $symbol,
+                axle: (string) $axle,
+                requiresEntry: $entry,
+                conditions: $conditions,
+                kwMin: $bands === [] ? null : min(array_column($bands, 0)),
+                kwMax: $bands === [] ? null : max(array_column($bands, 1)),
+                powerBands: $bands,
+            );
+        }
+
+        return $out;
     }
 
     private function rowCoversAxle(FitmentRow $row, string $axle): bool

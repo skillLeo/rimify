@@ -6,6 +6,7 @@ namespace Tests\Support\Fitment;
 
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
+use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
@@ -122,6 +123,7 @@ final class FitmentFixtures
      *
      * @param  list<TyreSize>|null  $sizes
      * @param  list<Condition>  $conditions
+     * @param  list<RowFilter>  $filters
      */
     public static function row(
         int $vehicleId = 1,
@@ -137,6 +139,7 @@ final class FitmentFixtures
         ?DocumentRecord $document = null,
         string $axle = 'ALL',
         ?float $centreBoreMm = null,
+        array $filters = [],
     ): FitmentRow {
         return new FitmentRow(
             id: $id,
@@ -156,6 +159,7 @@ final class FitmentFixtures
             // Null by default: most rows state no bore of their own, which is the shape every
             // other test in this suite was written against.
             centreBoreMm: $centreBoreMm,
+            filters: $filters,
         );
     }
 

@@ -226,7 +226,9 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         $unresolved = [];
         $filters = [];
 
-        $read = static function (string $code, ?string $note) use ($defined, &$unresolved, &$filters): ?Condition {
+        // A body-style or drive code narrows where it is printed: on the row, the row; beside a size, that
+        // size (FitmentRow::withTyreSizes()).
+        $read = static function (string $code, ?string $note, array &$into) use ($defined, &$unresolved): ?Condition {
             $definition = $defined[$code] ?? null;
 
             if (! $definition instanceof DocumentCondition) {
@@ -236,7 +238,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             }
 
             if ($definition->kind->isFilter()) {
-                $filters[$code] = new RowFilter(
+                $into[$code] = new RowFilter(
                     code: $code,
                     kind: $definition->kind->value,
                     bodyForms: $definition->body_forms ?? [],
@@ -253,7 +255,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         $rowConditions = [];
 
         foreach ($fitment->conditionCodes as $code) {
-            $condition = $read($code->code, $code->note_de);
+            $condition = $read($code->code, $code->note_de, $filters);
 
             if ($condition !== null) {
                 $rowConditions[] = $condition;
@@ -272,9 +274,10 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         foreach ($fitment->tyreSizes as $size) {
             $own = [];
+            $sizeFilters = [];
 
             foreach ($size->conditionCodes as $code) {
-                $condition = $read($code->code, null);
+                $condition = $read($code->code, null, $sizeFilters);
 
                 if ($condition !== null) {
                     $own[] = $condition;
@@ -295,6 +298,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 conditions: $own,
                 kwMin: $size->kw_min,
                 kwMax: $size->kw_max,
+                filters: array_values($sizeFilters),
             );
         }
 
@@ -344,6 +348,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             conditions: $rowConditions,
             unresolvedCodes: array_keys($unresolved),
             filters: array_values($filters),
+            ownRequiresEntry: $overridden ?? $rowEntry,
         );
     }
 

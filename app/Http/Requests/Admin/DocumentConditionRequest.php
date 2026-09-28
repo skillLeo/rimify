@@ -47,7 +47,8 @@ class DocumentConditionRequest extends FormRequest
         $text = $this->input('text_de');
 
         $this->merge([
-            'code' => is_string($code) ? trim($code) : $code,
+            // A space copied from a PDF may be a no-break space: one plain space between the words.
+            'code' => is_string($code) ? trim((string) preg_replace('/\s+/u', ' ', $code)) : $code,
             'text_de' => is_string($text) ? trim((string) preg_replace('/\s+/u', ' ', $text)) : $text,
         ]);
     }
@@ -66,7 +67,7 @@ class DocumentConditionRequest extends FormRequest
 
         return [
             'code' => [
-                'required', 'string', 'max:8', 'regex:/^[A-Za-z0-9]+$/',
+                'required', 'string', 'max:32', 'regex:'.DocumentConditions::CODE,
                 Rule::unique('document_conditions', 'code')
                     ->where('approval_document_id', $document instanceof ApprovalDocument ? $document->id : 0)
                     ->ignore($condition instanceof DocumentCondition ? $condition->id : null),
@@ -89,8 +90,8 @@ class DocumentConditionRequest extends FormRequest
     {
         return [
             'code.required' => 'Bitte den Code so, wie das Gutachten ihn druckt, zum Beispiel A01.',
-            'code.max' => 'Ein Code hat höchstens acht Zeichen.',
-            'code.regex' => 'Ein Code besteht nur aus Buchstaben und Ziffern, so wie im Gutachten.',
+            'code.max' => DocumentConditions::CODE_MESSAGE,
+            'code.regex' => DocumentConditions::CODE_MESSAGE,
             'code.unique' => 'Diesen Code gibt es in diesem Gutachten schon.',
             'kind.*' => 'Bitte wähl, was für eine Auflage das ist.',
             'text_de.required' => 'Bitte den Satz aus dem Gutachten, so wie ihn eine Kundin oder ein Kunde lesen soll.',

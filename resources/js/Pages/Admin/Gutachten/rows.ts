@@ -76,14 +76,24 @@ export function tyreText(size: { width_mm: number; aspect: number; diameter: num
 }
 
 /**
+ * A code as the documents print it: letters and digits, words joined by a space or a hyphen — `A01`, `K1c`,
+ * `5FE`, and what the 18″ Nachtrag prints in its Auflagen column: `Cabrio`, `Heckantrieb`, `Nicht 330D` — at
+ * most 32 characters. The same rule as the server's (DocumentConditions::CODE).
+ */
+export const CODE = /^[\p{L}\p{N}](?:[\p{L}\p{N} -]{0,30}[\p{L}\p{N}])?$/u
+
+/**
  * The codes typed for a row or a size, as the document prints them: split at spaces, commas and
- * semicolons, each kept exactly as typed (`K1c` is not `K1C`), each once, in the order typed.
+ * semicolons, each kept exactly as typed (`K1c` is not `K1C`), each once, in the order typed. A code of
+ * several words stands in quotes: `„Nicht 330D“ 57F 68T`.
  */
 export function parseCodes(text: string): string[] {
     const seen = new Set<string>()
 
     // `\s` takes the no-break spaces a PDF's copied text carries, too.
-    for (const code of text.split(/[\s,;]+/)) {
+    for (const match of text.matchAll(/„([^“”]*)[“”]|"([^"]*)"|[^\s,;„“”"]+/g)) {
+        const code = (match[1] ?? match[2] ?? match[0]).replace(/\s+/g, ' ').trim()
+
         if (code !== '') {
             seen.add(code)
         }
@@ -92,9 +102,14 @@ export function parseCodes(text: string): string[] {
     return [...seen]
 }
 
-/** A typed code the server will refuse as a code: more than eight characters, or not letters and digits. */
+/** Codes as the form shows them to type again: one of several words in quotes, so it reads back as one. */
+export function codesText(codes: string[]): string {
+    return codes.map((code) => (/\s/.test(code) ? `„${code}“` : code)).join(' ')
+}
+
+/** A typed code the server will refuse as a code: longer than 32 characters, or not letters and digits. */
 export function badCodes(text: string): string[] {
-    return parseCodes(text).filter((code) => !/^[A-Za-z0-9]{1,8}$/.test(code))
+    return parseCodes(text).filter((code) => !CODE.test(code))
 }
 
 export interface DerivedEntry {
@@ -175,7 +190,7 @@ export function emptyRow(): RowForm {
 export function formFromRow(row: FitmentRowView): RowForm {
     return {
         axle: row.axle,
-        codes: row.conditions.map((c) => c.code).join(' '),
+        codes: codesText(row.conditions.map((c) => c.code)),
         entry_override: row.entryOverride ?? '',
         entry_override_reason: row.entryOverrideReason,
         entry_note: row.entryNote,
@@ -193,7 +208,7 @@ export function formFromRow(row: FitmentRowView): RowForm {
             min_load_index: s.min_load_index,
             min_speed_symbol: s.min_speed_symbol,
             kw: kwText(s),
-            codes: s.codes.map((c) => c.code).join(' '),
+            codes: codesText(s.codes.map((c) => c.code)),
         })),
         notes: Object.fromEntries(row.conditions.filter((c) => c.note !== '').map((c) => [c.code, c.note])),
     }

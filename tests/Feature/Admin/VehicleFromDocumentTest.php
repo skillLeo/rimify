@@ -111,6 +111,27 @@ it('takes the extensions as the document prints them, and keeps two ranges of on
         ->toEqualCanonicalizing(['e1*2001/116*0287*00-09', 'e1*2001/116*0287*10-..']);
 });
 
+it('keeps apart the cars a document names apart under one approval, and knows one car spelled two ways', function (): void {
+    // ABE 55255, page 5: BMW X3 and BMW X4, both type X3 under e1*2007/46*0512; page 4: BMW 5er-Reihe 5L once
+    // „ohne“ and once „mit Allradlenkung“.
+    $document = vfdDraft();
+    $x3 = vfdCar(['model' => 'X3', 'type_designation' => 'X3', 'eg_number' => 'e1*2007/46*0512*..', 'body_form' => '', 'source_page' => 5]);
+
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", $x3)->assertCreated();
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$x3, 'model' => 'X4', 'eg_number' => 'e1*2007/46*0512*11-..'])->assertCreated();
+
+    $five = vfdCar(['model' => '5er-Reihe', 'type_designation' => '5L', 'eg_number' => 'e1*2007/46*0363*..', 'body_form' => '', 'source_page' => 4]);
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$five, 'variant' => '5L ohne Allradlenkung'])->assertCreated();
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$five, 'variant' => '5L mit Allradlenkung'])->assertCreated();
+
+    // The 18″ Nachtrag spells the same car „1ER REIHE“.
+    $one = vfdCar(['model' => '1er-Reihe', 'type_designation' => '187', 'eg_number' => 'e1*2001/116*0287*00-09', 'body_form' => '', 'source_page' => 2]);
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", $one)->assertCreated();
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$one, 'model' => '1ER REIHE'])->assertUnprocessable();
+
+    expect(Vehicle::query()->where('source', 'gutachten')->count())->toBe(5);
+});
+
 it('refuses, in words, what the document cannot have said', function (array $overrides, string $field, string $message): void {
     $this->actingAs(vfdAdmin(), 'admin')->postJson('/admin/gutachten/'.vfdDraft()->id.'/fahrzeuge', vfdCar($overrides))
         ->assertUnprocessable()

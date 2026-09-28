@@ -8,6 +8,7 @@ use App\Enums\Axle;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
+use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Support\GermanNumber;
 use Illuminate\Foundation\Http\FormRequest;
@@ -57,6 +58,22 @@ class FitmentRowsRequest extends FormRequest
         return $this->route('fitment') === null;
     }
 
+    /** A code of several words keeps one plain space between them, whatever space a PDF's copied text carried. */
+    protected function prepareForValidation(): void
+    {
+        $words = static fn (mixed $code): mixed => is_string($code) ? trim((string) preg_replace('/\s+/u', ' ', $code)) : $code;
+        $sizes = $this->input('tyre_sizes');
+        $conditions = $this->input('conditions');
+
+        if (is_array($sizes)) {
+            $this->merge(['tyre_sizes' => array_map(static fn (mixed $size): mixed => is_array($size) && is_array($size['codes'] ?? null) ? [...$size, 'codes' => array_map($words, $size['codes'])] : $size, $sizes)]);
+        }
+
+        if (is_array($conditions)) {
+            $this->merge(['conditions' => array_map(static fn (mixed $c): mixed => is_array($c) && array_key_exists('code', $c) ? [...$c, 'code' => $words($c['code'])] : $c, $conditions)]);
+        }
+    }
+
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {
@@ -97,8 +114,8 @@ class FitmentRowsRequest extends FormRequest
         ];
     }
 
-    /** A code as a document prints it: letters and digits, at most eight (`A01`, `K1c`, `T88`, `140`). */
-    public const CODE = '/^[A-Za-z0-9]{1,8}$/';
+    /** A code as a document prints it (`A01`, `K1c`, `T88`, `140`, `Nicht 330D`): DocumentConditions::CODE. */
+    public const CODE = DocumentConditions::CODE;
 
     /** @return array<string, string> */
     public function messages(): array
@@ -135,10 +152,10 @@ class FitmentRowsRequest extends FormRequest
             'tyre_sizes.*.kw_max.*' => 'Den kW-Bereich bitte so, wie das Gutachten ihn druckt: zwei ganze Zahlen, etwa 85-195.',
             'tyre_sizes.*.codes.max' => 'Höchstens 20 Codes je Reifengröße.',
             'tyre_sizes.*.codes.*.distinct' => 'Dieser Code steht bei der Reifengröße zweimal.',
-            'tyre_sizes.*.codes.*' => 'Ein Code besteht aus höchstens acht Buchstaben und Ziffern, so wie im Gutachten – zum Beispiel A01.',
+            'tyre_sizes.*.codes.*' => DocumentConditions::CODE_MESSAGE,
             'conditions.max' => 'Höchstens 30 Codes je Zeile.',
             'conditions.*.code.distinct' => 'Dieser Code steht zweimal in der Zeile.',
-            'conditions.*.code.*' => 'Ein Code besteht aus höchstens acht Buchstaben und Ziffern, so wie im Gutachten – zum Beispiel A01.',
+            'conditions.*.code.*' => DocumentConditions::CODE_MESSAGE,
             'conditions.*.note.max' => 'Der Zusatz zur Auflage darf höchstens 300 Zeichen lang sein.',
         ];
     }
@@ -219,16 +236,23 @@ class FitmentRowsRequest extends FormRequest
                         continue;
                     }
 
-                    // Read as the table will store it, so „+225“ and „225“ are one size.
+                    // Read as the table will store it, so „+225“ and „225“ are one size. A size may stand more
+                    // than once — the documents print one at two kW bands, or as 88W and 92 — but not twice
+                    // with the same band and indexes (the table's entry_key).
+                    $number = static fn (mixed $v): string => is_numeric($v) ? (string) (int) $v : '';
                     $key = implode('|', [
-                        is_numeric($size['width_mm'] ?? null) ? (int) $size['width_mm'] : '',
-                        is_numeric($size['aspect'] ?? null) ? (int) $size['aspect'] : '',
+                        $number($size['width_mm'] ?? null),
+                        $number($size['aspect'] ?? null),
                         is_numeric($size['diameter'] ?? null) ? number_format((float) $size['diameter'], 1, '.', '') : '',
                         is_string($size['axle'] ?? null) ? $size['axle'] : '',
+                        $number($size['kw_min'] ?? null),
+                        $number($size['kw_max'] ?? null),
+                        $number($size['min_load_index'] ?? null),
+                        is_string($size['min_speed_symbol'] ?? null) ? strtoupper(trim($size['min_speed_symbol'])) : '',
                     ]);
 
                     if (isset($seen[$key]) && ! $validator->errors()->has("tyre_sizes.{$i}.width_mm")) {
-                        $validator->errors()->add("tyre_sizes.{$i}.width_mm", 'Diese Reifengröße steht schon in der Liste.');
+                        $validator->errors()->add("tyre_sizes.{$i}.width_mm", 'Diese Reifengröße steht mit diesem kW-Bereich und diesen Indizes schon in der Liste.');
                     }
 
                     // A band typed the wrong way round is said here, never left to the table's check constraint.

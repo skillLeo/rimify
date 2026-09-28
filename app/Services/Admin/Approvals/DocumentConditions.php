@@ -31,6 +31,17 @@ final class DocumentConditions
     /** The drives an `antrieb` code may name. */
     public const DRIVES = ['Allrad', 'Vorderachse', 'Hinterachse', 'Allradlenkung'];
 
+    /**
+     * A code as the documents print it: letters and digits, words joined by a space or a hyphen — ABE 55255's
+     * `A01`, `K1c`, `140`, and what the 18″ Nachtrag prints in its Auflagen column without a legend line:
+     * `Cabrio`, `Heckantrieb`, `Schrägheck 2-türig`, `Nicht 330D` — at most 32 characters (the columns' width).
+     * The row form reads the same rule (rows.ts, CODE).
+     */
+    public const CODE = '/^[\p{L}\p{N}](?:[\p{L}\p{N} \-]{0,30}[\p{L}\p{N}])?$/u';
+
+    /** The sentence a refused code is answered with, wherever a code is typed. */
+    public const CODE_MESSAGE = 'Einen Code bitte so, wie das Gutachten ihn druckt: Buchstaben und Ziffern, höchstens 32 Zeichen – zum Beispiel A01 oder „Nicht 330D“.';
+
     public const IN_USE = 'Dieser Code steht noch in Zeilen des Verwendungsbereichs. Nimm ihn dort zuerst heraus.';
 
     public const HAS_REWORKS = 'Zu diesem Code stehen Maße der Nacharbeit. Nimm sie unter „Befestigung und Hinweise“ zuerst heraus.';

@@ -49,27 +49,55 @@ final readonly class FitmentRow
         public ?float $centreBoreMm = null,
         public array $unresolvedCodes = [],
         public array $filters = [],
+        /**
+         * The Eintragung as the row's own codes (or a Prüfer's override) derive it, before its sizes add
+         * theirs — so a row narrowed to fewer sizes says it again from what remains. Null: not known apart.
+         */
+        public ?bool $ownRequiresEntry = null,
     ) {}
 
     /**
-     * Whether the row's body-style and drive codes let this vehicle in: true, false, or null when one
-     * of them cannot be decided — which is never read as a pass.
+     * Whether the row's own body-style and drive codes let this vehicle in: true, false, or null when
+     * they cannot be decided — which is never read as a pass. Its sizes' codes are the sizes' own
+     * (TyreSize::filtersAdmit()).
      */
     public function filtersAdmit(VehicleRecord $vehicle): ?bool
     {
-        $undecided = false;
+        return RowFilter::admitAll($this->filters, $vehicle);
+    }
 
-        foreach ($this->filters as $filter) {
-            $decision = $filter->decide($vehicle);
-
-            if ($decision === false) {
-                return false;
-            }
-
-            $undecided = $undecided || $decision === null;
-        }
-
-        return $undecided ? null : true;
+    /**
+     * The row narrowed to the tyre sizes this vehicle may carry: a size whose own body-style or drive
+     * codes exclude the car is dropped (ABE 55255 gives 390L's 225/35R19 on the rear to the Limousine
+     * only, beside sizes for Limousine and Touring).
+     *
+     * @param  list<TyreSize>  $tyreSizes
+     */
+    public function withTyreSizes(array $tyreSizes): self
+    {
+        return new self(
+            id: $this->id,
+            document: $this->document,
+            vehicleId: $this->vehicleId,
+            wheelConfigId: $this->wheelConfigId,
+            axle: $this->axle,
+            buildWindow: $this->buildWindow,
+            permittedWidthMin: $this->permittedWidthMin,
+            permittedWidthMax: $this->permittedWidthMax,
+            permittedEtMin: $this->permittedEtMin,
+            permittedEtMax: $this->permittedEtMax,
+            // An Abnahme only a dropped size carried is not this car's.
+            requiresEntry: $this->ownRequiresEntry === null
+                ? $this->requiresEntry
+                : $this->ownRequiresEntry || array_filter($tyreSizes, static fn (TyreSize $s): bool => $s->requiresEntry) !== [],
+            entryNoteDe: $this->entryNoteDe,
+            tyreSizes: $tyreSizes,
+            conditions: $this->conditions,
+            centreBoreMm: $this->centreBoreMm,
+            unresolvedCodes: $this->unresolvedCodes,
+            filters: $this->filters,
+            ownRequiresEntry: $this->ownRequiresEntry,
+        );
     }
 
     public function coversFront(): bool

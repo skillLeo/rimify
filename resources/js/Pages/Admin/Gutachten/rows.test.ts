@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DocumentConditionView, FitmentRowView, TyreSizeForm } from '../../../types/admin/gutachten'
-import { badCodes, derivedEntry, emptyRow, formFromRow, kwText, parseCodes, parseKwBand, parseTyre, payload, sentIndex, unreadable } from './rows'
+import { badCodes, codesText, derivedEntry, emptyRow, formFromRow, kwText, parseCodes, parseKwBand, parseTyre, payload, sentIndex, unreadable } from './rows'
 
 const size = (text: string, axle: TyreSizeForm['axle'] = 'ALL', codes = ''): TyreSizeForm => ({ text, axle, min_load_index: null, min_speed_symbol: '', kw: '', codes })
 
@@ -39,8 +39,18 @@ describe('reading codes as the document prints them', () => {
         expect(parseCodes('  ')).toEqual([])
     })
 
+    it('keeps a code of several words together when it stands in quotes, and writes it back that way', () => {
+        // The 18″ Nachtrag, page 7: „Nicht 330D; 57F; 68T“ beside 245/35R18 92.
+        expect(parseCodes('„Nicht 330D“ 57F 68T')).toEqual(['Nicht 330D', '57F', '68T'])
+        expect(parseCodes('"Schrägheck 2-türig" Heckantrieb')).toEqual(['Schrägheck 2-türig', 'Heckantrieb'])
+        expect(parseCodes(codesText(['Nicht 330D', '57F']))).toEqual(['Nicht 330D', '57F'])
+        expect(codesText(['A01', 'Pkw geschlossen'])).toBe('A01 „Pkw geschlossen“')
+    })
+
     it('names a typed code the server will not take', () => {
-        expect(badCodes('A01 Bördeln A-12 987654321')).toEqual(['Bördeln', 'A-12', '987654321'])
+        // Letters (umlauts too), digits, words joined by a space or a hyphen, at most 32 characters.
+        expect(badCodes('A01 Kombilimousine 4-türig -A12 K1c/2 A01.')).toEqual(['-A12', 'K1c/2', 'A01.'])
+        expect(badCodes(`„${'x'.repeat(33)}“`)).toHaveLength(1)
     })
 })
 

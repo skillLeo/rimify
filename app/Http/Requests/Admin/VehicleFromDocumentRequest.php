@@ -21,8 +21,10 @@ use Illuminate\Validation\Validator;
  * where the document says them, and the page. No HSN and no TSN: the documents never print them, and none
  * is made up. Only while the document is a draft, by someone who may edit it (R-11).
  *
- * The same car twice is refused: an EG number and a Fahrzeugtyp that a car already carries name that car,
- * and the person is sent to it — the later merge must never find two (docs/specs/vehicles-and-tyres.md, C8).
+ * The same car twice is refused: an EG number and a Fahrzeugtyp that a car already carries under the same
+ * name name that car, and the person is sent to it (twin()). Two cars a document keeps apart under one
+ * approval — BMW X3 and X4 — are two; the later merge then leaves the choice to a person
+ * (docs/specs/vehicles-and-tyres.md, C8).
  */
 class VehicleFromDocumentRequest extends FormRequest
 {
@@ -91,7 +93,16 @@ class VehicleFromDocumentRequest extends FormRequest
         });
     }
 
-    /** A car that already carries this EG number and Fahrzeugtyp — the same car, never a second one. */
+    /**
+     * A car that already carries this EG number and Fahrzeugtyp under the same name — the same car, never a
+     * second one.
+     *
+     * One approval may name several cars, and the documents keep them apart: ABE 55255 prints BMW X3 and BMW
+     * X4 both as type X3 under e1*2007/46*0512, and BMW 5er-Reihe 5L once „ohne“ and once „mit Allradlenkung“.
+     * So a car that differs in maker, Handelsbezeichnung, variant, body style or drive is another car — the
+     * later merge then finds two and leaves the choice to a person (VehicleMerge). The name is compared as
+     * the documents spell it differently: „1ER REIHE“ is „1er-Reihe“.
+     */
     private function twin(): ?Vehicle
     {
         $number = EgNumber::parse($this->string('eg_number')->toString());
@@ -100,14 +111,35 @@ class VehicleFromDocumentRequest extends FormRequest
             return null;
         }
 
+        $type = trim($this->string('type_designation')->toString());
+        $variant = trim($this->string('variant')->toString());
+        $name = self::named([
+            $this->string('make')->toString(),
+            $this->string('model')->toString(),
+            $variant === '' ? $type : $variant,
+            $this->string('body_form')->toString(),
+            $this->string('drive_axle')->toString(),
+        ]);
+
         // The same Fahrzeugtyp under a range of the same approval that shares an extension with this one is
         // the same car: `…*0287*00-09` and `…*0287*05` are one, `…*0287*00-09` and `…*0287*10-..` two.
         return Vehicle::query()
             ->where('eg_nummer_norm', 'like', addcslashes($number->base, '%_\\').'%')
-            ->where('type_designation', trim($this->string('type_designation')->toString()))
+            ->where('type_designation', $type)
             ->where('source', '!=', VehicleSource::Entwicklung->value)
             ->get()
-            ->first(static fn (Vehicle $v): bool => EgNumber::parse($v->getAttribute('eg_nummer_norm'))?->overlaps($number) ?? false);
+            ->first(static fn (Vehicle $v): bool => (EgNumber::parse($v->getAttribute('eg_nummer_norm'))?->overlaps($number) ?? false)
+                && self::named([$v->make, $v->model, (string) $v->variant, (string) $v->body_form, (string) $v->drive_axle]) === $name);
+    }
+
+    /**
+     * A car's name as the documents spell it, compared without case, spaces or hyphens.
+     *
+     * @param  list<string>  $parts
+     */
+    private static function named(array $parts): string
+    {
+        return implode('|', array_map(static fn (string $part): string => (string) preg_replace('/[\s\-]+/u', '', mb_strtolower(trim($part))), $parts));
     }
 
     public function document(): ApprovalDocument

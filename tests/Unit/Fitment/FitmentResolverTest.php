@@ -333,7 +333,7 @@ it('carries a snapshot identifying the row, revision, time and engine build', fu
 
     expect($verdict->snapshot->fitmentId)->toBe(20431)
         ->and($verdict->snapshot->documentRevision)->toBe(2)
-        ->and($verdict->snapshot->engineVersion)->toBe('1.0.0')
+        ->and($verdict->snapshot->engineVersion)->toBe('1.1.0')
         ->and($verdict->snapshot->toArray()['computedAt'])->toBe('2026-09-21T14:22:31Z');
 });
 

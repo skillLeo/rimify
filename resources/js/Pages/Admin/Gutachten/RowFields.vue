@@ -141,7 +141,7 @@ const byCode = computed(() => new Map(props.conditions.map((c) => [c.code, c])))
 function codeWords(text: string): string {
     const bad = badCodes(text)
 
-    return bad.length === 0 ? '' : `${bad.map((c) => `„${c}“`).join(', ')} ${bad.length === 1 ? 'ist kein Code' : 'sind keine Codes'}: höchstens acht Buchstaben und Ziffern, so wie im Gutachten.`
+    return bad.length === 0 ? '' : `${bad.map((c) => `„${c}“`).join(', ')} ${bad.length === 1 ? 'ist kein Code' : 'sind keine Codes'}: Buchstaben und Ziffern, höchstens 32 Zeichen, so wie im Gutachten.`
 }
 
 const rowCodes = computed(() => parseCodes(form.value.codes).filter((code) => badCodes(code).length === 0))
@@ -343,7 +343,7 @@ function removeSize(index: number): void {
                     :aria-invalid="codesError ? 'true' : undefined"
                     :aria-describedby="`${id('codes')}-help ${id('codes')}-err`"
                 >
-                <p :id="`${id('codes')}-help`" class="form-field__help">So, wie das Gutachten sie druckt, mit Leerzeichen getrennt. Was ein Code bedeutet, steht im Auflagenverzeichnis dieses Gutachtens.</p>
+                <p :id="`${id('codes')}-help`" class="form-field__help">So, wie das Gutachten sie druckt, mit Leerzeichen getrennt; ein Eintrag aus mehreren Wörtern in Anführungszeichen: „Nicht 330D“. Was ein Code bedeutet, steht im Auflagenverzeichnis dieses Gutachtens.</p>
                 <p :id="`${id('codes')}-err`" class="form-field__error">{{ codesError }}</p>
             </div>
             <ul v-if="rowCodes.length" class="rf-codes">
