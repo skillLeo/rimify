@@ -3,6 +3,26 @@
 Each item is outside the build. Each is built so its arrival is a configuration step, never a rewrite.
 Last reviewed 2026-09-28 (the launch release).
 
+## Top — the bridge from HSN/TSN to the Gutachten's cars (a purchase decision for the client, now)
+
+**Neither real ABE contains an HSN or a TSN.** ABE 55255 and Gutachten 366-0350-21-WIRD/N1 name cars by EG
+type-approval number (`e1*2007/46*0316*..`, with extension ranges such as `*00-07` or `ab …*08`), by the maker's
+Fahrzeugtyp (`3C`, `1K4`, `346L`, `Z85`, `UKL/X`) and by a kW band per tyre size. HSN and TSN are fields 2.1 and
+2.2 of the Zulassungsbescheinigung — another key, and the bridge between the two is a dataset we do not own.
+Until it is bought, RIMIFY cannot go from a customer's HSN/TSN to a Gutachten row, and nothing about HSN/TSN
+may be promised.
+
+- **What it takes:** a vehicle dataset per HSN/TSN that also carries the **EG type-approval number with its
+  extension** (the join key to the documents), plus maker, trade name, Fahrzeugtyp, kW, build period, body style
+  and drive. Ask every supplier for a sample of exactly those columns before buying.
+- **Sources:** the KBA's own type data (official, keyed by HSN/TSN); TecDoc from TecAlliance (the parts-trade
+  standard, annual licence); GT Motive or DAT (commercial, similar). Whether each carries the EG number with its
+  extension is the question to put to them.
+- **Meanwhile:** the storefront offers „Fahrzeug auswählen“ — maker, model, the type as the document names it,
+  kW (field P.2 of the Zulassungsbescheinigung) — and the HSN/TSN field says „für dieses Fahrzeug noch nicht
+  hinterlegt“ instead of guessing. The 74 development cars (invented type keys, BUGS.md DATA-01) never reach
+  production.
+
 | # | Waiting for | Owner | Arrives as | Status |
 |---|---|---|---|---|
 | 1 | The supplier product feed and the photo rights | Client | A CSV or Excel file through Katalog › Import (`CatalogueImporter`): columns mapped, Probelauf, import | Open |
