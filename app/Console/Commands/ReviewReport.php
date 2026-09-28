@@ -35,6 +35,10 @@ class ReviewReport extends Command
             'Erzeugt mit `php artisan review:report` am '.GermanFormat::dateTime(now()).'. '
                 .($points->isEmpty() ? 'Noch keine Rückmeldung.' : "{$open} von {$points->count()} Punkten sind offen."),
             '',
+            // Which database the points were read from: the review's are on the preview, not on a
+            // developer's machine — a file written anywhere else says so.
+            'Quelle: '.config('app.url').' ('.app()->environment().').',
+            '',
             '| Nr. | Seite | Was er gesagt hat | Unsere Antwort | Stand | Erledigt am |',
             '|---|---|---|---|---|---|',
         ];

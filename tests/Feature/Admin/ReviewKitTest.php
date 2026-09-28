@@ -130,3 +130,47 @@ it('makes the three review accounts with their roles and the obvious password', 
             ->and(Hash::check(ReviewAccountsSeeder::PASSWORD, $user->password))->toBeTrue();
     }
 });
+
+it('gives the three review accounts three different admins: another sidebar and another Übersicht', function (): void {
+    $this->seed(ReviewAccountsSeeder::class);
+    $seen = [];
+
+    foreach (array_keys(ReviewAccountsSeeder::ACCOUNTS) as $email) {
+        $page = $this->actingAs(AdminUser::query()->where('email', $email)->firstOrFail(), 'admin')
+            ->get('/admin')->assertOk()->viewData('page');
+        $props = is_array($page) ? $page['props'] : [];
+        $nav = collect($props['admin']['nav'] ?? [])->flatMap(static fn (array $group): array => [
+            $group['key'] ?? '',
+            ...collect($group['pages'] ?? [])->pluck('key')->filter()->all(),
+        ])->filter()->values()->all();
+
+        $seen[$email] = [
+            'nav' => $nav,
+            // What the page is made of: its figures, its charts and which lists it has.
+            'page' => [
+                'variant' => $props['variant'] ?? null,
+                'tiles' => collect($props['kpis'] ?? [])->pluck('key')->filter()->values()->all(),
+                'charts' => $props['chartKeys'] ?? [],
+                'lists' => array_keys(array_filter([
+                    'recentOrders' => $props['recentOrders'] ?? null,
+                    'activity' => $props['activity'] ?? null,
+                    'quality' => $props['quality'] ?? null,
+                ], static fn (mixed $list): bool => $list !== null)),
+            ],
+        ];
+    }
+
+    [$verkauf, $lager, $admin] = array_values($seen);
+
+    // Three different sidebars …
+    expect($verkauf['nav'])->not->toBe($lager['nav'])
+        ->and($lager['nav'])->not->toBe($admin['nav'])
+        ->and($verkauf['nav'])->not->toBe($admin['nav'])
+        // … the Admin has pages neither of the others has (Rollen & Rechte, Speicher, System) …
+        ->and(array_diff($admin['nav'], $verkauf['nav']))->not->toBeEmpty()
+        ->and(array_diff($admin['nav'], $lager['nav']))->not->toBeEmpty()
+        // … and the Übersicht is not the same page three times.
+        ->and($verkauf['page'])->not->toBe($lager['page'])
+        ->and($lager['page'])->not->toBe($admin['page'])
+        ->and($verkauf['page'])->not->toBe($admin['page']);
+});

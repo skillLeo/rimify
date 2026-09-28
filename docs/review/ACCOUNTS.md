@@ -5,9 +5,9 @@ dich unter `/admin/anmelden` an.
 
 | Rolle | E-Mail | Passwort | Was sie sieht |
 |---|---|---|---|
-| Verkauf | `verkauf@rimify.test` | `rimify-review-2026` | Bestellungen, Anfragen, Umsatz. Katalog und Gutachten nur lesend. |
-| Lager | `lager@rimify.test` | `rimify-review-2026` | Katalog: Felgen, Größen, Preise, Bestände, Fotos. Gutachten und Fahrzeuge nur lesend. |
-| Admin | `admin@rimify.test` | `rimify-review-2026` | Alles, auch Rollen & Rechte, Medien und Speicher, System. |
+| Verkauf | `verkauf@rimify.test` | `rimify-review-2026` | Bestellungen bearbeiten und exportieren, Umsatz in der Übersicht; Felgen und Zubehörpreise nur lesend. Keine Gutachten. |
+| Lager | `lager@rimify.test` | `rimify-review-2026` | Katalog: Felgen, Größen, Preise, Bestände, Fotos und Zubehörpreise; die Anfragen. Gutachten und Fahrzeuge nur lesend. Die Übersicht zeigt Lager und Datenqualität statt Umsatz. |
+| Admin | `admin@rimify.test` | `rimify-review-2026` | Alles, auch Import, Rollen & Rechte, Medien und Speicher und System. |
 
 Das Passwort ist absichtlich einfach. Diese Konten gibt es **nur lokal und auf der Vorschau-Instanz**
 (Staging): Der Seeder `ReviewAccountsSeeder` verweigert die Arbeit überall, wo die Review aus ist, und

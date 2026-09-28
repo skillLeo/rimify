@@ -34,7 +34,7 @@ final class ReviewBoard
         ['key' => 'verkauf', 'label' => 'Verkauf', 'screens' => [
             ['label' => 'Bestellungen', 'href' => '/admin/bestellungen', 'state' => self::DONE, 'line' => 'Liste mit Suche, Filtern, gespeicherten Ansichten und Export; jede Bestellung mit ihrem Prüfnachweis je Position.'],
             ['label' => 'Anfragen', 'href' => '/admin/anfragen', 'state' => self::DONE, 'line' => 'Kundinnen und Kunden, die benachrichtigt werden wollen, sobald ein Gutachten ihr Fahrzeug nennt.'],
-            ['label' => 'Bestellen mit Testzahlung', 'href' => null, 'state' => self::MISSING, 'line' => 'Eine Bestellung im Shop mit einem Test-Zahlungsanbieter aufgeben; bis dahin sind die Bestellungen Demodaten.'],
+            ['label' => 'Bestellen mit Testzahlung', 'href' => null, 'state' => self::DONE, 'line' => 'Im Shop bestellen und die Testzahlung bezahlt, abgelehnt oder abgebrochen enden lassen – mit eingefrorenem Prüfnachweis, ohne dass Geld fließt. Die echte Zahlung (Stripe) folgt.'],
             ['label' => 'Status, Versand, Rechnung, Erstattung', 'href' => null, 'state' => self::MISSING, 'line' => 'Eine Bestellung bearbeiten: versenden, Rechnung, Rücksendung und Gutschrift.'],
             ['label' => 'Kunden', 'href' => null, 'state' => self::MISSING, 'line' => 'Kundenkonten mit ihren Bestellungen und Fahrzeugen.'],
         ]],
