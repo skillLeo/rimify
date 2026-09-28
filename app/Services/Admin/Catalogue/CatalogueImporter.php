@@ -308,7 +308,7 @@ final class CatalogueImporter
         }
 
         return DB::transaction(function () use ($import, $plan, $admin): CatalogueImport {
-            $undo = ['brands' => [], 'models' => [], 'finishes' => [], 'configs' => [], 'updated' => []];
+            $undo = ['brands' => [], 'restored_brands' => [], 'models' => [], 'finishes' => [], 'configs' => [], 'updated' => []];
 
             foreach ($plan as $i => $entry) {
                 if ($entry['action'] === 'create') {
@@ -396,6 +396,8 @@ final class CatalogueImporter
                 WheelFinish::withTrashed()->whereIn('id', array_map('intval', (array) ($undo['finishes'] ?? [])))->whereDoesntHave('configs', $trashed)->forceDelete();
                 WheelModel::withTrashed()->whereIn('id', $models)->whereDoesntHave('configs', $trashed)->whereDoesntHave('finishes', $trashed)->forceDelete();
                 Brand::withTrashed()->whereIn('id', array_map('intval', (array) ($undo['brands'] ?? [])))->whereDoesntHave('wheelModels', $trashed)->forceDelete();
+                // A brand the import brought back goes back to where it was: removed, never deleted.
+                Brand::query()->whereIn('id', array_map('intval', (array) ($undo['restored_brands'] ?? [])))->whereDoesntHave('wheelModels', $trashed)->get()->each(static fn (Brand $b) => $b->delete());
 
                 $import->forceFill(['status' => CatalogueImport::ROLLED_BACK, 'rolled_back_at' => now(), 'rolled_back_by' => $admin->id])->save();
 
@@ -734,13 +736,25 @@ final class CatalogueImporter
 
     /**
      * @param  array<string, string|null>  $row
-     * @param  array{brands: list<int>, models: list<int>, finishes: list<int>, configs: list<int>, updated: list<array<string, mixed>>}  $undo
+     * @param  array{brands: list<int>, restored_brands: list<int>, models: list<int>, finishes: list<int>, configs: list<int>, updated: list<array<string, mixed>>}  $undo
      */
     private function create(array $row, array &$undo): void
     {
         $v = self::parse($row)['values'];
 
         $brand = Brand::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($v['brand'])])->first();
+
+        // A removed brand of that name comes back — its id, its slug, its logo — as on the Marken page and in
+        // the Felge form, rather than a second one at `…-2` (K2-35). Taking the import back removes it again.
+        if (! $brand instanceof Brand) {
+            $removed = Brand::onlyTrashed()->whereRaw('LOWER(name) = ?', [mb_strtolower($v['brand'])])->latest('deleted_at')->first();
+
+            if ($removed instanceof Brand && ! Brand::query()->where('slug', $removed->slug)->exists()) {
+                $removed->restore();
+                $brand = $removed;
+                $undo['restored_brands'][] = (int) $removed->id;
+            }
+        }
 
         if (! $brand instanceof Brand) {
             $brand = Brand::query()->create([

@@ -319,6 +319,25 @@ it('takes an import back whole — and not once something was built on it', func
         ->assertSessionHasErrors(['import' => 'Der Import lässt sich nicht mehr zurücknehmen: Für importierte Größen wurden inzwischen Freigaben eingetragen.']);
 });
 
+it('brings a removed brand of the file\'s name back, and takes it away again with the import (K2-35)', function (): void {
+    $gone = Brand::factory()->create(['name' => 'Prüfmarke', 'slug' => 'pruefmarke', 'logo_path' => 'brands/pruefmarke-1-abc.svg']);
+    $gone->delete();
+
+    $run = probelauf(supplierCsv(feedRows()));
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/importieren")->assertSessionHasNoErrors();
+
+    $brand = Brand::query()->where('name', 'Prüfmarke')->sole();
+    expect($brand->id)->toBe($gone->id)
+        ->and($brand->slug)->toBe('pruefmarke')
+        ->and($brand->logo_path)->toBe('brands/pruefmarke-1-abc.svg')
+        ->and(Brand::withTrashed()->where('slug', 'like', 'pruefmarke-%')->exists())->toBeFalse();
+
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/zuruecknehmen")->assertSessionHasNoErrors();
+
+    expect(Brand::query()->where('name', 'Prüfmarke')->exists())->toBeFalse()
+        ->and(Brand::onlyTrashed()->whereKey($gone->id)->exists())->toBeTrue();
+});
+
 it('names a row by the line a spreadsheet shows, blank lines included', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'rimify-feed-').'.csv';
     file_put_contents($path, "SKU;Marke;Modell;Farbe;Zoll;Breite;ET;Lochbild;MLB;Preis\n\n\nTST-1;Prüfmarke;Kontur;Silber;18;acht;35;5x112;66,6;189,00\n");
