@@ -92,11 +92,12 @@ if [ "$TARGET_ENV" = production ]; then
 fi
 "$PHP" artisan migrate --force --no-interaction
 
-# A brand-new database gets the reference data once — and, on staging only, the example catalogue
-# (the seeders refuse it in production). An existing one is never re-seeded: that would overwrite
-# whatever has been edited since.
-VEHICLES="$("$PHP" artisan tinker --execute='echo \Illuminate\Support\Facades\DB::table("vehicles")->count();' 2>/dev/null | tail -1)"
-if [ "$VEHICLES" = "0" ]; then
+# A brand-new database gets the reference data once — and, on staging only, the development cars
+# and the example catalogue (the seeders refuse both in production: the live shop's cars come from
+# the vehicle data import). An existing one is never re-seeded: that would overwrite whatever has been
+# edited since. "Brand-new" is read from the reference data, which every environment gets.
+SEEDED="$("$PHP" artisan tinker --execute='echo \Illuminate\Support\Facades\DB::table("load_index_table")->count();' 2>/dev/null | tail -1)"
+if [ "$SEEDED" = "0" ]; then
     echo "== empty database: seeding"
     "$PHP" artisan db:seed --force --no-interaction
 fi

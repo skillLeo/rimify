@@ -6,6 +6,7 @@ correct result looks like, and what to do when it is not that. Nothing here is r
 **Do not start** until these are true (`docs/launch/BLOCKED.md` has the owners):
 
 - The production domain points at this Hostinger account, and hPanel shows a valid SSL certificate for it.
+- The real vehicle list is loaded (the vehicle data import — the development cars never reach production).
 - The real catalogue is in and **at least one wheel is published with a freigegebenes Gutachten** for a car. The
   example catalogue never reaches production, so without one real wheel the smoke test (§5) cannot pass —
   and a shop without a wheel is not ready to open.
@@ -130,7 +131,8 @@ mv public_html public_html.hpanel && mv public_html.new public_html && cd "$APP"
 cp ~/rimify.env.backup .env   # or create .env from .env.example and fill DB_*, MAIL_*, APP_URL
 ```
 
-Then continue with 4.2 (skip 4.1). The empty database is seeded with the reference data and the vehicles only.
+Then continue with 4.2 (skip 4.1). The empty database is seeded with the reference data only: no car, no
+wheel and no demo row. The cars come from the vehicle data import, the wheels from Katalog › Import.
 
 ### 4.1 Fetch the release
 

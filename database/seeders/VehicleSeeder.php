@@ -27,6 +27,13 @@ class VehicleSeeder extends Seeder
 {
     public function run(): void
     {
+        // Development data: hand-written rows with traps for the engine and a fleet whose type numbers
+        // are made up (TSN AKA, AKB, AKC …). The live shop's cars come from the vehicle data import,
+        // never from here — an invented car would get a verdict (CLAUDE.md §2).
+        if (app()->environment('production')) {
+            return;
+        }
+
         foreach (self::VEHICLES as $vehicle) {
             Vehicle::updateOrCreate(
                 ['source_vehicle_id' => $vehicle['source_vehicle_id']],
