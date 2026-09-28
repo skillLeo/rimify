@@ -153,13 +153,15 @@ it('shows the typed figures with the car, and says where the vehicle data asks f
     $this->seed(CommerceSeeder::class);
     $this->seed(AccessSeeder::class);
     $this->seed(ContentSeeder::class);
-    $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1000, 'max_speed_kmh' => 250]);
+    $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1000, 'max_speed_kmh' => 250, 'power_kw' => 135]);
 
     $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($vehicle->id, true))->encode()])
         ->withUnencryptedCookie(PapersBook::COOKIE, "{$vehicle->id}.1050.1100.250")
         ->get('/felgenrechner')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
+            // The power a photographed P.2 is checked against.
+            ->where('vehicle.powerKw', 135)
             ->where('vehicle.papers.axleFrontKg', 1050)
             ->where('vehicle.papers.axleRearKg', 1100)
             ->where('vehicle.papers.topSpeedKmh', 250)

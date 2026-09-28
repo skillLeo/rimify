@@ -37,6 +37,8 @@ export interface VehicleProp {
      * with the car until customer accounts exist; null when none were entered. Additive.
      */
     papers?: PapersProp | null
+    /** The variant's power in kW, for the P.2 check on a photographed Zulassungsbescheinigung. Additive. */
+    powerKw?: number | null
 }
 
 export interface PapersProp {

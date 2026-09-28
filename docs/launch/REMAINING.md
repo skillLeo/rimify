@@ -66,8 +66,10 @@ seeder, test to follow).
       speed, combined never PERMITTED while the tyre part is open; R-03 amended in CLAUDE.md with the hash —
       `9cd02ace`; the operator's two reviews in `d40b49c8` (the decision in whole numbers, the rows pinned,
       the index cross-check warns and asks for a reason, demo-seeded tables marked as such)
-- [ ] 10 · The optional 8.1 / 8.2 / T fields, the load-index sum shown with the document's own derating table;
-      the scanner reads 8.1, 8.2, T and P.2 — scanner and drawing `4deda617`. No customer accounts exist yet,
+- [x] 10 · The optional 8.1 / 8.2 / T fields, the load-index sum shown with the document's own derating table;
+      the scanner reads 8.1, 8.2, T and P.2 — scanner and drawing `4deda617`, the endpoint, the cookie and every
+      surface `b7672e58`, the photo in the form with the P.2 check against the chosen variant (see the commit
+      after it). No customer accounts exist yet,
       so the figures are kept per vehicle in the browser (`rmf_papiere`, docs/launch/COOKIES.md); **when login
       exists they move into the account** and the cookie is merged on sign-in, like the garage
 - [ ] ai-look-critic and interaction-qa on the block

@@ -123,7 +123,7 @@ const headline = computed(() => {
                 <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
             </ul>
             <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->
-            <PapersForm v-if="vehicle && verdict.tyre" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" />
+            <PapersForm v-if="vehicle && verdict.tyre" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" />
 
             <p v-if="entryLine" class="fit__entry">{{ entryLine }}</p>
 

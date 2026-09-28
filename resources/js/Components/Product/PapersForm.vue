@@ -8,17 +8,26 @@
  * Fahrzeugschein. The figures are kept with THIS car in the browser (a cookie keyed by the vehicle, so two
  * saved cars never overwrite each other) until customer accounts exist, and the server reads them for every
  * answer about this car.
+ *
+ * A photo of the papers fills the fields (`useOcr`, on the device, never uploaded): 8.1, 8.2 and T go into
+ * the fields for the customer to check before anything is kept; P.2 is compared with the chosen variant's
+ * power, because the wheel answer rests on the variant, and a mismatch is said at once.
  */
 
 import { router } from '@inertiajs/vue3'
 import { computed, nextTick, reactive, ref } from 'vue'
 import PapersFacsimile from '../Art/PapersFacsimile.vue'
+import Icon from '../Ui/Icon.vue'
+import { useOcr } from '../../composables/useOcr'
+import { parsePapers } from '../../lib/fahrzeugschein'
 import { formatNumber } from '../../lib/num'
 import type { PapersProp } from '../../types/rimify'
 
 const props = defineProps<{
     vehicleId: number
     papers: PapersProp | null
+    /** The chosen variant's power (kW), for the P.2 check; null when the vehicle data has none. */
+    powerKw?: number | null
 }>()
 
 const variant = ref<'neu' | 'alt'>('neu')
@@ -58,6 +67,52 @@ function save(): void {
     })
 }
 
+/* ── The photo ─────────────────────────────────────────────────────────────── */
+
+const ocr = useOcr()
+const fileInput = ref<HTMLInputElement | null>(null)
+const scan = ref<'idle' | 'busy' | 'read' | 'failed'>('idle')
+const readPowerKw = ref<number | null>(null)
+
+const powerMismatch = computed(() => readPowerKw.value !== null && props.powerKw != null && readPowerKw.value !== props.powerKw)
+
+async function onPhoto(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    // Cleared at once, so the same photo can be taken again after a failure.
+    input.value = ''
+
+    if (file === undefined) {
+        return
+    }
+
+    scan.value = 'busy'
+    readPowerKw.value = null
+
+    try {
+        const found = parsePapers(await ocr.read(file))
+
+        if (found.axleFrontKg === null && found.axleRearKg === null && found.topSpeedKmh === null) {
+            scan.value = 'failed'
+            ocr.dispose()
+
+            return
+        }
+
+        // Only what was read replaces what is in a field; nothing is kept until "Werte übernehmen".
+        form.axle_front_kg = found.axleFrontKg ?? form.axle_front_kg
+        form.axle_rear_kg = found.axleRearKg ?? form.axle_rear_kg
+        form.top_speed_kmh = found.topSpeedKmh ?? form.top_speed_kmh
+        readPowerKw.value = found.powerKw
+        scan.value = 'read'
+        await nextTick()
+        document.getElementById('pp-axle_front_kg')?.focus()
+    } catch {
+        scan.value = 'failed'
+        ocr.dispose()
+    }
+}
+
 function clear(): void {
     busy.value = true
     router.delete(`/fahrzeug/${props.vehicleId}/papiere`, {
@@ -91,6 +146,23 @@ function clear(): void {
                 Freiwillig: Mit der zulässigen Achslast und der Höchstgeschwindigkeit sagen wir dir genau, welche Reifen du fahren darfst. Die Werte bleiben in
                 deinem Browser, bei diesem Fahrzeug.
             </p>
+
+            <div class="pp__scan">
+                <label for="pp-photo" class="visually-hidden">Foto der Zulassungsbescheinigung Teil I</label>
+                <input id="pp-photo" ref="fileInput" class="visually-hidden" type="file" accept="image/*" capture="environment" tabindex="-1" @change="onPhoto">
+                <button class="btn btn--secondary btn--sm" type="button" :disabled="scan === 'busy'" :aria-busy="scan === 'busy' ? 'true' : undefined" @click="fileInput?.click()">
+                    <Icon name="camera" :size="20" />
+                    Zulassungsbescheinigung fotografieren
+                </button>
+                <p class="pp__help">Die Erkennung läuft auf deinem Gerät. Das Foto wird nicht hochgeladen.</p>
+                <p v-if="scan === 'busy'" class="pp__help" role="status">Erkennung läuft …</p>
+                <p v-else-if="scan === 'read'" class="pp__help" role="status">Aus dem Foto gelesen. Prüf die Werte, bevor du sie übernimmst.</p>
+                <p v-else-if="scan === 'failed'" class="notice" role="alert">Wir konnten 8.1, 8.2 und T nicht lesen. Trag sie bitte von Hand ein.</p>
+                <p v-if="powerMismatch" class="notice" role="alert">
+                    Laut Foto hat dein Fahrzeug {{ readPowerKw }}&nbsp;kW (Feld P.2), gewählt ist eine Variante mit {{ powerKw }}&nbsp;kW. Prüf bitte, ob du die
+                    richtige Variante gewählt hast – davon hängt ab, welche Felgen freigegeben sind.
+                </p>
+            </div>
 
             <div class="pp__grid">
                 <div class="form-field">
@@ -165,6 +237,16 @@ function clear(): void {
     margin: 0;
     font-size: var(--text-small);
     color: var(--ink2);
+}
+
+.pp__scan {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-2);
+}
+
+.pp__scan p {
+    margin: 0;
 }
 
 .pp__grid {
