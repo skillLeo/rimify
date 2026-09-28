@@ -11,8 +11,10 @@
  */
 
 import { router, usePage } from '@inertiajs/vue3'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed, reactive, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
@@ -37,7 +39,7 @@ const props = defineProps<{
 }>()
 
 const BASE = '/admin/marken'
-const LOGO_HINT = 'SVG, oder PNG / WebP mit transparentem Hintergrund, höchstens 1 MB. Die Markenwand zeichnet die Form des Logos in der Schriftfarbe des Shops.'
+const LOGO_HINT = 'SVG oder PNG/WebP mit transparentem Hintergrund, höchstens 1 MB. Die Markenwand zeichnet die Form des Logos in der Schriftfarbe des Shops.'
 
 interface BrandForm {
     name: string
@@ -178,6 +180,20 @@ function remove(): void {
     })
 }
 
+/** A brand that carries nothing may go; the server says the same (BrandPolicy). */
+function mayRemove(brand: BrandRow): boolean {
+    return props.can.delete && brand.wheels === 0 && brand.tyres === 0
+}
+
+function hasMenu(brand: BrandRow): boolean {
+    return props.can.update || mayRemove(brand)
+}
+
+/** The menu closes and hands the focus back to its trigger; the row's own picker opens then. */
+function pickLogo(brand: BrandRow): void {
+    window.setTimeout(() => document.getElementById(`mk-file-${brand.id}`)?.click(), 0)
+}
+
 function counts(brand: BrandRow): string {
     const parts = [brand.wheels === 1 ? '1 Felge' : `${brand.wheels} Felgen`]
 
@@ -192,7 +208,7 @@ function counts(brand: BrandRow): string {
 <template>
     <AdminPage title="Marken" :context="context" :read-only="!canWrite">
         <p class="adm-note mk__lead">
-            Eine Marke entsteht hier, beim Import oder beim Anlegen einer Felge. Das Logo kommt nur hier hinein. Marken
+            Eine Marke entsteht hier, beim Import oder beim Anlegen einer Felge. Ein Logo lädst du nur hier hoch. Marken
             mit Häkchen „Markenwand“ stehen auf der Startseite – als Link erst, wenn sie eine Felge auf Lager haben.
         </p>
 
@@ -219,7 +235,7 @@ function counts(brand: BrandRow): string {
                         <p id="mk-name-err" class="form-field__error">{{ errors.name ?? errors.slug ?? '' }}</p>
                     </div>
 
-                    <div class="form-field adm-fields__narrow">
+                    <div class="form-field">
                         <label class="form-field__label" for="mk-sort">Position auf der Markenwand</label>
                         <input
                             id="mk-sort"
@@ -262,8 +278,8 @@ function counts(brand: BrandRow): string {
                 <table class="adm-table mk__table">
                     <thead>
                         <tr>
-                            <th scope="col">Logo</th>
                             <th scope="col">Marke</th>
+                            <th scope="col">Logo</th>
                             <th scope="col">Markenwand</th>
                             <th scope="col" class="num">Position</th>
                             <th scope="col">Im Katalog</th>
@@ -272,6 +288,11 @@ function counts(brand: BrandRow): string {
                     </thead>
                     <tbody>
                         <tr v-for="brand in brands" :key="brand.id" :aria-current="editing === brand.id ? 'true' : undefined">
+                            <td data-label="Marke">
+                                <span class="adm-table__key">{{ brand.name }}</span>
+                                <span class="adm-table__sub">{{ brand.slug }}</span>
+                                <p v-if="logoRow === brand.id && logoError" class="form-field__error mk__row-error" role="alert">{{ logoError }}</p>
+                            </td>
                             <td data-label="Logo">
                                 <span class="mk__logo">
                                     <img v-if="brand.logo" :src="brand.logo.url" :alt="`Logo ${brand.name}`" width="96" :height="Math.round(96 / brand.logo.aspect)">
@@ -279,30 +300,52 @@ function counts(brand: BrandRow): string {
                                     <span v-else class="mk__none">kein Logo</span>
                                 </span>
                             </td>
-                            <td data-label="Marke">
-                                <span class="adm-table__key">{{ brand.name }}</span>
-                                <span class="adm-table__sub">{{ brand.slug }}</span>
-                            </td>
                             <td data-label="Markenwand">{{ brand.isWheelBrand ? 'Ja' : 'Nein' }}</td>
-                            <td data-label="Position" class="num">{{ brand.sortOrder }}</td>
+                            <td data-label="Position" data-phone="hide" class="num">{{ brand.sortOrder }}</td>
                             <td data-label="Im Katalog">{{ counts(brand) }}</td>
-                            <td v-if="can.update || can.delete" data-label="Aktionen">
-                                <div class="adm-table__actions">
-                                    <button v-if="can.update" class="btn btn--secondary btn--sm" type="button" @click="edit(brand)">
-                                        Bearbeiten<span class="visually-hidden">: {{ brand.name }}</span>
-                                    </button>
-                                    <label v-if="can.update" class="btn btn--secondary btn--sm mk__file">
-                                        {{ brand.logo ? 'Logo ersetzen' : 'Logo hochladen' }}<span class="visually-hidden">: {{ brand.name }}</span>
-                                        <input class="visually-hidden" type="file" accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp" :disabled="busy" @change="upload(brand, $event)">
-                                    </label>
-                                    <button v-if="can.update && brand.logo" class="btn btn--secondary btn--sm" type="button" :disabled="busy" @click="removeLogo(brand)">
-                                        Logo entfernen<span class="visually-hidden">: {{ brand.name }}</span>
-                                    </button>
-                                    <button v-if="can.delete && brand.wheels === 0 && brand.tyres === 0" class="btn btn--secondary btn--sm adm-btn--danger" type="button" @click="confirming = brand">
-                                        Entfernen<span class="visually-hidden">: {{ brand.name }}</span>
-                                    </button>
-                                </div>
-                                <p v-if="logoRow === brand.id && logoError" class="form-field__error" role="alert">{{ logoError }}</p>
+                            <td v-if="can.update || can.delete" data-label="Aktionen" data-phone="menu" class="mk__actions">
+                                <!-- The picker the menu's „Logo hochladen“ opens: one per row, never shown. -->
+                                <input
+                                    v-if="can.update"
+                                    :id="`mk-file-${brand.id}`"
+                                    class="visually-hidden"
+                                    type="file"
+                                    tabindex="-1"
+                                    aria-hidden="true"
+                                    accept=".svg,.png,.webp,image/svg+xml,image/png,image/webp"
+                                    :disabled="busy"
+                                    @change="upload(brand, $event)"
+                                >
+                                <DropdownMenuRoot v-if="hasMenu(brand)">
+                                    <DropdownMenuTrigger :id="`mk-more-${brand.id}`" class="adm-iconbtn" :disabled="busy" :aria-label="`Aktionen für ${brand.name}`">
+                                        <Icon name="more" :size="20" />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuPortal>
+                                        <DropdownMenuContent class="adm-menu" align="end" :side-offset="4">
+                                            <template v-if="can.update">
+                                                <DropdownMenuItem class="adm-menu__item" @select="edit(brand)">
+                                                    <Icon name="edit" :size="20" />
+                                                    Bearbeiten
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem class="adm-menu__item" @select="pickLogo(brand)">
+                                                    <Icon name="media" :size="20" />
+                                                    {{ brand.logo ? 'Logo ersetzen' : 'Logo hochladen' }}
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem v-if="brand.logo" class="adm-menu__item" @select="removeLogo(brand)">
+                                                    <Icon name="close" :size="20" />
+                                                    Logo entfernen
+                                                </DropdownMenuItem>
+                                            </template>
+                                            <template v-if="mayRemove(brand)">
+                                                <DropdownMenuSeparator v-if="can.update" class="adm-menu__sep" />
+                                                <DropdownMenuItem class="adm-menu__item adm-menu__item--danger" @select="confirming = brand">
+                                                    <Icon name="delete" :size="20" />
+                                                    Entfernen
+                                                </DropdownMenuItem>
+                                            </template>
+                                        </DropdownMenuContent>
+                                    </DropdownMenuPortal>
+                                </DropdownMenuRoot>
                             </td>
                         </tr>
                     </tbody>
@@ -327,6 +370,10 @@ function counts(brand: BrandRow): string {
 .mk__lead,
 .mk__hint {
     max-width: var(--adm-form-max);
+}
+
+.mk__lead {
+    margin-bottom: var(--sp-32);
 }
 
 .mk__form {
@@ -358,13 +405,12 @@ function counts(brand: BrandRow): string {
     font-size: var(--fs-small);
 }
 
-.mk__file {
-    position: relative;
-    cursor: pointer;
+/* Only a field with something to say keeps the error line's height: the form keeps its rhythm. */
+.mk__form .form-field__error:empty {
+    display: none;
 }
 
-.mk__file:focus-within {
-    outline: 2px solid var(--c-blue);
-    outline-offset: 2px;
+.mk__row-error {
+    margin-top: var(--sp-4);
 }
 </style>

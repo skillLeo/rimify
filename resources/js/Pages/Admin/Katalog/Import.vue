@@ -105,7 +105,7 @@ const optional = props.fields.filter((field) => !field.required)
                     <datalist v-if="suppliers.length" id="im-suppliers">
                         <option v-for="name in suppliers" :key="name" :value="name" />
                     </datalist>
-                    <p id="im-supplier-help" class="form-field__help">Mit Namen merkt sich der Import die Zuordnung der Spalten für jeden Lieferanten einzeln.</p>
+                    <p id="im-supplier-help" class="form-field__help">Nennst du den Lieferanten, merkt sich der Import seine Spaltenzuordnung für die nächste Datei.</p>
                     <p id="im-supplier-err" class="form-field__error">{{ upload.errors.lieferant }}</p>
                 </div>
                 <div class="form-field">

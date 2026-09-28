@@ -299,6 +299,21 @@
         background-size: 20px 20px;
     }
 
+    /* A field with suggestions (a datalist) wears the select's chevron, not the browser's black
+       triangle; the browser's own control stays where it is, invisible, so a click there still
+       opens the list. */
+    .input[list] {
+        padding-right: var(--sp-40);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233A424D' stroke-width='1.5'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right var(--sp-12) center;
+        background-size: 20px 20px;
+    }
+
+    .input[list]::-webkit-calendar-picker-indicator {
+        opacity: 0;
+    }
+
     /* A code copied off a document: wide tracking and digits that line up. The value itself is
        upper-cased by the field, so what is typed is what is checked. */
     .input--code {

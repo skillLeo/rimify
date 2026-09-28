@@ -321,8 +321,7 @@ function remove(): void {
 
                 <div class="fe-photos__text">
                     <p class="fe-photos__place">
-                        Foto {{ index + 1 }}
-                        <span v-if="index === 0" class="adm-tag adm-tag--neutral">Titelbild</span>
+                        Foto {{ index + 1 }}<span v-if="index === 0" class="fe-photos__cover"> · Titelbild</span>
                     </p>
                     <p v-if="editing !== photo.id" class="fe-photos__alt">{{ photo.alt }}</p>
 
@@ -486,6 +485,7 @@ function remove(): void {
 }
 
 .fe-photos__item {
+    position: relative;
     display: grid;
     grid-template-columns: 72px minmax(0, 1fr) auto;
     gap: var(--sp-12);
@@ -502,8 +502,13 @@ function remove(): void {
     opacity: 0.5;
 }
 
-.fe-photos__item--over {
-    box-shadow: inset 0 2px 0 var(--c-blue);
+/* Where a dragged photo lands: a line across the top of the photo it will stand before. */
+.fe-photos__item--over::before {
+    content: '';
+    position: absolute;
+    inset: -1px 0 auto;
+    height: 2px;
+    background: var(--c-blue);
 }
 
 .fe-photos__frame {
@@ -526,15 +531,16 @@ function remove(): void {
 }
 
 .fe-photos__place {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-8);
     margin: 0;
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     font-weight: 600;
     color: var(--c-ink);
+}
+
+.fe-photos__cover {
+    font-weight: 400;
+    color: var(--c-ink-2);
 }
 
 .fe-photos__alt {

@@ -228,10 +228,10 @@ function runStep(): void {
             </div>
             <p v-if="!ready" class="adm-alert" role="alert">Diese Felder brauchen noch eine Spalte aus der Datei: {{ missing.join(', ') }}. Erst dann kann der Probelauf die Zeilen prüfen.</p>
             <p v-if="run.mappingRemembered" class="adm-note">
-                Übernommen vom letzten Import {{ run.supplier ? `von ${run.supplier}` : 'ohne Lieferantennamen' }}. Nach dem Importieren merkt sich der Import diese Zuordnung für die nächste Datei.
+                Übernommen aus dem letzten Import {{ run.supplier ? `für „${run.supplier}“` : 'ohne Lieferantennamen' }}.
             </p>
             <p v-else-if="run.status === 'previewed'" class="adm-note">
-                Erkannt an den Spaltennamen. Nach dem Importieren merkt sich der Import diese Zuordnung{{ run.supplier ? ` für ${run.supplier}` : '' }}.
+                Erkannt an den Spaltennamen. Mit dem Import wird diese Zuordnung{{ run.supplier ? ` für „${run.supplier}“` : '' }} gespeichert.
             </p>
 
             <form class="ir-map" @submit.prevent="remap">
