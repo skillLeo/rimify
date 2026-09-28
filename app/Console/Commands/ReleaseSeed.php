@@ -48,8 +48,14 @@ final class ReleaseSeed extends Command
      *
      * v5: the golden record's wheel, the Borbet DB8GT2 (GoldenRecordSeeder) — a real product, a draft
      * until a person prices it, and the hero's wheel with the client's official photographs.
+     *
+     * v6: the tables of tyre load at speed (C9). A document without one answers UNKNOWN above 210 km/h, so
+     * an existing preview would show every fast car „we do not know“. The example documents get ABE 55255's
+     * table marked as the demo seed's — all but DEMO-0007, kept without on purpose so the honest UNKNOWN
+     * stays demonstrable — and so does the walkthrough's placeholder document (the operator's decision of
+     * 29.09.2026). The live shop is untouched: ApprovalSeeder and PlaceholderTables never run there.
      */
-    public const VERSION = 5;
+    public const VERSION = 6;
 
     /** From this version on, a kept demo set is written again once, so its frozen labels match. */
     public const DEMO_RENEWED_AT = 4;

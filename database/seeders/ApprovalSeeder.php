@@ -17,6 +17,7 @@ use App\Models\FitmentConflict;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Demo\PlaceholderTables;
 use App\Support\MakeName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -70,6 +71,14 @@ class ApprovalSeeder extends Seeder
 
     /** Where every demo document's table of tyre load at speed comes from — said wherever the table is. */
     public const DERATING_SEED = 'Demo-Seed: Tabelle der ABE 55255, Seite 6';
+
+    /**
+     * The one example document left deliberately WITHOUT a table (the operator's decision of 29.09.2026):
+     * DEMO-0007, Stahlwerk 19 Kontur X and Aventin Linea 10. Every car above 210 km/h gets an honest UNKNOWN
+     * on it — „Das Gutachten druckt keine Tabelle …“ — so the demo shows that RIMIFY says it does not know
+     * when it does not, beside the documents that answer.
+     */
+    public const WITHOUT_DERATING = 'range7';
 
     /**
      * slot => [report number, the report number it had before, months since issue, page count].
@@ -451,7 +460,17 @@ class ApprovalSeeder extends Seeder
 
         foreach (self::DOCUMENTS as $slot => [$reportNumber, $formerNumber, $months, $pages]) {
             $out[$slot] = $this->document($reportNumber, $formerNumber, now()->subMonths($months)->toDateString(), $pages);
+
+            if ($slot === self::WITHOUT_DERATING) {
+                // Only what the seed wrote goes; a table a person typed from a PDF is never touched.
+                $out[$slot]->speedDeratings()->whereNotNull('seeded_from')->delete();
+            } else {
+                $this->seedDerating($out[$slot]);
+            }
         }
+
+        // The walkthrough's placeholder document gets the same example table, marked as the demo seed's.
+        PlaceholderTables::seed();
 
         /** @var array{range1: ApprovalDocument, range2: ApprovalDocument, range3: ApprovalDocument, range4: ApprovalDocument, conflicting: ApprovalDocument, range6: ApprovalDocument, range7: ApprovalDocument, range8: ApprovalDocument, range9: ApprovalDocument} $out */
         return $out;
@@ -486,8 +505,6 @@ class ApprovalSeeder extends Seeder
             'status' => DocumentStatus::Published->value,
         ])->save();
 
-        $this->seedDerating($document);
-
         return $document;
     }
 
@@ -497,7 +514,7 @@ class ApprovalSeeder extends Seeder
      * demo seed, never this document, as its source (the second review of C9, §4). A document holds its own
      * table (§5 of the first); one that already has rows keeps them.
      */
-    private function seedDerating(ApprovalDocument $document): void
+    public static function seedDerating(ApprovalDocument $document): void
     {
         if ($document->speedDeratings()->exists()) {
             return;

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { expect, test, type Page } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
 
@@ -11,7 +12,7 @@ import { signIn, waitForApp } from './bugs/faq-support'
  *   2  Katalog › Felgen: the imported Felge → Veröffentlichen
  *   3  Gutachten › Neues Gutachten: the PDF, Art, KBA-Nummer, pages
  *   4  Verwendungsbereich: vehicle × size, tyre size, an Auflage from the Katalog, the page
- *  4b  Its table of tyre load at speed (without one, no tyre above 210 km/h is confirmed)
+ *  4b  Its table of tyre load at speed: the example one, marked as the demo seed's (demo:placeholder-tables)
  *   5  Vorschau: what the shop will answer, by the shop's own check
  *   6  Freigeben
  *   7  Shop: the car by HSN/TSN
@@ -194,29 +195,21 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
 
     // ── 4b · Its table of tyre load at speed ──────────────────────────────────────────────────
     // A document carries its own table, or the shop cannot confirm tyres above 210 km/h (the C9 reviews).
-    // The stand-in's table is typed like any other — the usual shape, as placeholder figures.
+    // A placeholder has none to type: it gets ABE 55255's example table, marked as the demo seed's so nobody
+    // reads it as this document's content (the operator's decision of 29.09.2026) — the step ApprovalSeeder
+    // runs too.
+    // The button exists only on a draft; a released placeholder already has its table.
     const tableButton = page.locator('#dt-edit')
 
-    if (draft && (await tableButton.textContent())?.includes('Tabelle eintragen')) {
-        await tableButton.click()
-        await page.locator('#dt-page').fill(String(PAGE))
-
-        const printed: Record<string, string[]> = {
-            V: ['100', '97', '94', '91', '–', '–', '–', '–', '–', '–'],
-            W: ['100', '100', '100', '100', '95', '90', '85', '–', '–', '–'],
-            Y: ['100', '100', '100', '100', '100', '100', '100', '95', '90', '85'],
-        }
-
-        for (const [symbol, cells] of Object.entries(printed)) {
-            for (const [i, cell] of cells.entries()) {
-                await page.locator(`#dt-cell-${i}-${symbol}`).fill(cell)
-            }
-        }
-
-        await page.locator('#dt-save').click()
-        await expect(page.locator('#dt-edit')).toContainText('Tabelle ändern', { timeout: 20_000 })
-        await shot(page, '04b-tragfaehigkeitstabelle')
+    if ((await tableButton.count()) > 0 && (await tableButton.textContent())?.includes('Tabelle eintragen')) {
+        execFileSync('php', ['artisan', 'demo:placeholder-tables'], { stdio: 'pipe' })
+        await page.reload({ waitUntil: 'networkidle' })
+        await waitForApp(page)
     }
+
+    await expect(page.locator('.dt-table'), 'the placeholder has no table of tyre load at speed').toBeVisible()
+    await expect(page.locator('#gs-derating-h + .adm-tag')).toHaveText('Demodaten')
+    await shot(page, '04b-tragfaehigkeitstabelle')
 
     // ── 5 · Vorschau ──────────────────────────────────────────────────────────────────────
     await page.getByRole('button', { name: 'Vorschau zeigen' }).click()

@@ -48,6 +48,17 @@ Platzhalter („Platzhalter Probelauf“, 1,00 €, Gutachten „PLATZHALTER-GR-
 9. **Verkauf › Bestellungen:** die Bestellung mit ihrem eingefrorenen Prüfnachweis – so, wie das Gutachten
    im Moment des Kaufs lautete, auch wenn es sich später ändert.
 
+**Zwei Antworten zum Ausprobieren – beide gehören zum Produkt.** Bei hoher Geschwindigkeit tragen Reifen
+weniger; wie viel, steht in einer Tabelle des Gutachtens. Die Beispiel-Gutachten und das Platzhalter-Gutachten
+tragen die Tabelle der ABE 55255, im Admin mit „Demodaten“ markiert – sie stammt aus den Beispieldaten, nicht
+aus dem jeweiligen Dokument. Wähl ein schnelles Fahrzeug (etwa den Audi RS 4 Avant B9, 280 km/h), trag unter
+der Felge die Werte aus der Zulassungsbescheinigung ein, und RIMIFY rechnet dir die Reifen aus: oben die Antwort,
+darunter „So haben wir gerechnet“. Ein Beispiel-Gutachten hat **absichtlich keine Tabelle**: DEMO-0007 mit den
+Felgen **Stahlwerk 19 Kontur X** und **Aventin Linea 10**. Dort sagt RIMIFY bei den Reifen „Keine Freigabe
+hinterlegt“ mit dem Grund – weil wir es nicht wissen. Genau das ist die Idee: lieber „wissen wir nicht“ als eine
+falsche Antwort. Mit „RIMIFY-Check drucken oder teilen“ nimmst du jede Antwort vollständig mit, die Rechnung
+inklusive.
+
 **Borbet DB8GT2 in 18 Zoll – was du dort siehst, ist Absicht.** Das 18-Zoll-Gutachten (der Nachtrag von
 TÜV Austria) druckt keine eigene Tabelle zur Tragfähigkeit der Reifen bei hoher Geschwindigkeit; die
 19-Zoll-ABE 55255 hat sie auf Seite 6. Für ein Fahrzeug bis 210 km/h spielt das keine Rolle. Fährt es
