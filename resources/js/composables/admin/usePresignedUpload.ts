@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { FILE_CHANGED, stillReadable } from '../../lib/file'
 import { xsrfToken } from './preferences'
 
 /**
@@ -108,6 +109,12 @@ export function usePresignedUpload(options: { presign?: () => Promise<PresignedF
 
         if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
             return fail(UPLOAD_SENTENCES.notPdf)
+        }
+
+        // Saved anew since it was chosen: the browser would not send it, and three tries would end in a
+        // sentence about the connection (K2-29).
+        if (!(await stillReadable(file))) {
+            return fail(FILE_CHANGED)
         }
 
         state.value = 'uploading'

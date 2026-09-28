@@ -17,6 +17,7 @@ import { focusRefused } from '../../../composables/admin/focusRefused'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
+import { FILE_CHANGED } from '../../../lib/file'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -89,6 +90,12 @@ async function submit(): Promise<void> {
 
         if (key === null) {
             form.setError('upload_key', upload.error.value ?? 'Die Datei konnte nicht hochgeladen werden.')
+
+            // Changed on disk since it was chosen: let go, so the field asks for it again (K2-29).
+            if (upload.error.value === FILE_CHANGED) {
+                pdf.value = null
+            }
+
             focusRefused('.gn-form')
 
             return

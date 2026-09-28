@@ -5,8 +5,9 @@
  * (the picker, the keyboard) and hidden, and a button and a line of text stand in for it.
  *
  * The label is the button: clicking it, or Enter and Space on it, opens the picker. A file dragged onto the
- * button or its line is taken when it is of a kind the field accepts; any other file is refused there and
- * never opens in the browser's tab, which would leave the admin page (K2-08).
+ * button or its line is taken when it is of a kind the field accepts; any other file is refused there — said by
+ * the parent in its error line (efused) — and never opens in the browser's tab, which would leave the admin
+ * page (K2-08).
  */
 
 import { computed, ref } from 'vue'
@@ -27,6 +28,9 @@ const props = withDefaults(
 
 const file = defineModel<File | null>({ default: null })
 
+/** A dropped file of a kind the field does not take: the parent says so in its error line, by name. */
+const emit = defineEmits<{ refused: [name: string] }>()
+
 /** A file is being dragged over the field. */
 const hovering = ref(false)
 
@@ -44,7 +48,11 @@ const summary = computed(() => {
 })
 
 function pick(event: Event): void {
-    file.value = (event.target as HTMLInputElement).files?.[0] ?? null
+    const input = event.target as HTMLInputElement
+    file.value = input.files?.[0] ?? null
+    // Emptied at once, so choosing the same file again — saved anew after a refusal — is a new choice with
+    // a fresh copy, not a file the browser refuses to send because it changed on disk (K2-29).
+    input.value = ''
 }
 
 function open(event: KeyboardEvent): void {
@@ -90,8 +98,14 @@ function drop(event: DragEvent): void {
     hovering.value = false
     const dropped = event.dataTransfer?.files?.[0]
 
-    if (!props.disabled && dropped !== undefined && accepts(dropped)) {
+    if (props.disabled || dropped === undefined) {
+        return
+    }
+
+    if (accepts(dropped)) {
         file.value = dropped
+    } else {
+        emit('refused', dropped.name)
     }
 }
 </script>

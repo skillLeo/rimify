@@ -13,6 +13,7 @@ import { focusRefused } from '../../../composables/admin/focusRefused'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
 import { decimal } from '../../../format'
+import { FILE_CHANGED } from '../../../lib/file'
 import type { DocumentFacts } from '../../../types/admin/gutachten'
 
 const props = defineProps<{
@@ -76,6 +77,12 @@ async function save(): Promise<void> {
 
         if (key === null) {
             form.setError('upload_key', upload.error.value ?? 'Die Datei konnte nicht hochgeladen werden.')
+
+            // Changed on disk since it was chosen: let go, so the field asks for it again (K2-29).
+            if (upload.error.value === FILE_CHANGED) {
+                pdf.value = null
+            }
+
             focusRefused('.fd')
 
             return
