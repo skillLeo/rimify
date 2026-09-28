@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Enums\ApprovalKind;
 use App\Enums\ConditionSeverity;
 use App\Enums\DocumentStatus;
@@ -15,11 +16,14 @@ use App\Http\Requests\Admin\ApprovalDocumentRequest;
 use App\Http\Requests\Admin\ApprovalStepRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
-use App\Models\ConditionCode;
+use App\Models\DocumentCondition;
 use App\Models\Fitment;
+use App\Models\FitmentCondition;
 use App\Models\FitmentTyreSize;
+use App\Models\FitmentTyreSizeCondition;
 use App\Models\WheelModel;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\FitmentRows;
@@ -152,7 +156,7 @@ class GutachtenController extends Controller
         request()->attributes->set(AdminNavigation::RECORD, FitmentRows::label($document));
 
         $rows = Fitment::query()
-            ->with(['vehicle' => static fn ($q) => $q->withTrashed(), 'wheelConfig.wheelModel.brand', 'wheelConfig.wheelFinish', 'tyreSizes', 'conditions'])
+            ->with(['vehicle' => static fn ($q) => $q->withTrashed(), 'wheelConfig.wheelModel.brand', 'wheelConfig.wheelFinish', 'tyreSizes.conditionCodes', 'conditionCodes', 'entryOverrideBy'])
             ->where('approval_document_id', $document->id)
             ->orderBy('vehicle_id')
             ->orderBy('wheel_config_id')
@@ -161,17 +165,23 @@ class GutachtenController extends Controller
 
         $vehicles = $rows->pluck('vehicle')->filter()->unique('id')->values();
         $chosen = $request->vehicleId() ?? $vehicles->first()?->id;
+        /** @var array<string, DocumentCondition> $defined */
+        $defined = $document->conditions()->get()->keyBy('code')->all();
+        $uses = DocumentConditions::usesByCode($document);
 
         return Inertia::render('Admin/Gutachten/Show', [
             'document' => self::documentFacts($document),
-            'rows' => $rows->map(self::row(...))->values()->all(),
+            'rows' => $rows->map(static fn (Fitment $row): array => self::row($row, $defined))->values()->all(),
             'vehicles' => $vehicles->map(static fn ($v): array => ['id' => (int) $v->id, 'label' => self::vehicleLabel($v)])->all(),
             'blockers' => $document->status === DocumentStatus::Draft ? $release->check($document) : [],
             // Lazy: the preview is computed when a vehicle is chosen, and only for it.
             'preview' => Inertia::optional(static fn (): array => $chosen === null ? [] : $preview->for($document, (int) $chosen)),
             'previewVehicle' => $chosen,
-            'conditions' => ConditionCode::query()->orderBy('sort_order')->orderBy('id')->get()
-                ->map(static fn (ConditionCode $c): array => ['id' => (int) $c->id, 'code' => $c->code, 'text' => $c->text_de, 'severity' => $c->severity->value])->all(),
+            // The document's own Auflagenverzeichnis, the form's choices, and the codes its rows carry
+            // that it does not define yet (the corrections memo §1).
+            'conditions' => array_values(array_map(static fn (DocumentCondition $c): array => self::conditionView($c, $uses[$c->code] ?? 0), $defined)),
+            'choices' => self::conditionChoices(),
+            'unresolved' => DocumentConditions::unresolvedIn($document),
             'kinds' => self::kinds(),
             'replaceable' => self::replaceable($document),
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
@@ -295,9 +305,58 @@ class GutachtenController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private static function row(Fitment $row): array
+    public static function conditionView(DocumentCondition $condition, int $uses): array
+    {
+        return [
+            'id' => (int) $condition->id,
+            'code' => $condition->code,
+            'kind' => $condition->kind->value,
+            'kindLabel' => $condition->kind->labelDe(),
+            'section' => $condition->kind->sectionDe(),
+            'text' => $condition->text_de,
+            'page' => $condition->source_page,
+            'bodyForms' => $condition->body_forms ?? [],
+            'drive' => is_array($condition->drive) ? $condition->drive : null,
+            'maxAxleLoadKg' => $condition->max_axle_load_kg,
+            'axle' => $condition->axle,
+            'uses' => $uses,
+        ];
+    }
+
+    /** @return array{kinds: list<array{value: string, label: string, section: string}>, bodyForms: list<string>, drives: list<string>} */
+    public static function conditionChoices(): array
+    {
+        return [
+            'kinds' => array_map(static fn (ConditionKind $k): array => ['value' => $k->value, 'label' => $k->labelDe(), 'section' => $k->sectionDe()], ConditionKind::cases()),
+            'bodyForms' => DocumentConditions::BODY_FORMS,
+            'drives' => DocumentConditions::DRIVES,
+        ];
+    }
+
+    /**
+     * @param  array<string, DocumentCondition>  $defined  the document's list, by code
+     * @return array<string, mixed>
+     */
+    private static function row(Fitment $row, array $defined): array
     {
         $config = $row->wheelConfig;
+        $codeView = static function (string $code, ?string $note) use ($defined): array {
+            $definition = $defined[$code] ?? null;
+
+            return [
+                'code' => $code,
+                'note' => (string) ($note ?? ''),
+                'text' => $definition?->text_de,
+                'kind' => $definition?->kind->value,
+                'page' => $definition?->source_page,
+                'defined' => $definition !== null,
+            ];
+        };
+        // The Eintragung as the codes derive it, with the code and page it comes from (§2).
+        $abnahme = static fn (array $codes): array => array_values(array_filter($codes, static fn (string $c): bool => ($defined[$c] ?? null)?->kind === ConditionKind::Abnahme));
+        $rowCodes = $row->conditionCodes->pluck('code')->map(static fn (mixed $c): string => (string) $c)->all();
+        $sizeCodes = $row->tyreSizes->flatMap(static fn (FitmentTyreSize $s) => $s->conditionCodes->pluck('code'))->map(static fn (mixed $c): string => (string) $c)->all();
+        $source = array_values(array_unique($abnahme([...$rowCodes, ...$sizeCodes])));
 
         return [
             'id' => (int) $row->id,
@@ -310,6 +369,12 @@ class GutachtenController extends Controller
             'axle' => $row->axle->value,
             'axleLabel' => $row->axle->labelDe(),
             'requiresEntry' => $row->requires_entry,
+            'entryDerived' => $source !== [],
+            'entrySource' => array_map(static fn (string $c): string => $c.(($defined[$c] ?? null)?->source_page === null ? '' : ', Seite '.$defined[$c]->source_page), $source),
+            'entryOverride' => $row->entry_override,
+            'entryOverrideReason' => $row->entry_override_reason ?? '',
+            'entryOverrideBy' => $row->entryOverrideBy?->name,
+            'entryOverrideAt' => $row->entry_override_at === null ? null : GermanFormat::dateTime($row->entry_override_at),
             'entryNote' => $row->entry_note_de ?? '',
             'sourcePage' => $row->source_page,
             'buildFrom' => $row->build_from?->format('Y-m-d') ?? '',
@@ -331,12 +396,10 @@ class GutachtenController extends Controller
                 'label' => GermanFormat::tyreSize($s->width_mm, $s->aspect, (float) $s->diameter_in)
                     .(($s->min_load_index ?? '').($s->min_speed_symbol ?? '') === '' ? '' : ' '.($s->min_load_index ?? '').($s->min_speed_symbol ?? ''))
                     .($s->axle->value === 'ALL' ? '' : ' ('.$s->axle->labelDe().')'),
+                'codes' => $s->conditionCodes->map(static fn (FitmentTyreSizeCondition $c): array => $codeView($c->code, null))->values()->all(),
+                'requiresEntry' => $row->entry_override === null ? $abnahme([...$rowCodes, ...$s->conditionCodes->pluck('code')->map(static fn (mixed $c): string => (string) $c)->all()]) !== [] : $row->entry_override === 'required',
             ])->values()->all(),
-            'conditions' => $row->conditions->map(static fn (ConditionCode $c): array => [
-                'id' => (int) $c->id,
-                'text' => $c->text_de,
-                'note' => (string) ($c->pivot?->getAttribute('note_de') ?? ''),
-            ])->values()->all(),
+            'conditions' => $row->conditionCodes->map(static fn (FitmentCondition $c): array => $codeView($c->code, $c->note_de))->values()->all(),
             'draft' => $row->status === FitmentStatus::Draft,
         ];
     }

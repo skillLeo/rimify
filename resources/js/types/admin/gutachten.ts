@@ -28,6 +28,17 @@ export interface DocumentFacts {
     pdfMissing?: boolean
 }
 
+/** A code on a row or a tyre size, as printed, with what its own document says it means. */
+export interface RowCode {
+    code: string
+    note: string
+    /** The document's sentence; null while the document does not define the code. */
+    text: string | null
+    kind: string | null
+    page: number | null
+    defined: boolean
+}
+
 export interface TyreSizeRow {
     width_mm: number
     aspect: number
@@ -36,6 +47,9 @@ export interface TyreSizeRow {
     min_speed_symbol: string
     axle: AxleValue
     label: string
+    codes: RowCode[]
+    /** Derived from an Abnahme among its codes and the row's — or the override. */
+    requiresEntry: boolean
 }
 
 export interface FitmentRowView {
@@ -49,6 +63,14 @@ export interface FitmentRowView {
     axle: AxleValue
     axleLabel: string
     requiresEntry: boolean
+    /** Whether an Abnahme among the codes derives the Eintragung. */
+    entryDerived: boolean
+    /** The Abnahme codes it comes from, with their page: `A01, Seite 6`. */
+    entrySource: string[]
+    entryOverride: 'required' | 'not_required' | null
+    entryOverrideReason: string
+    entryOverrideBy: string | null
+    entryOverrideAt: string | null
     entryNote: string
     sourcePage: number | null
     buildFrom: string
@@ -60,7 +82,7 @@ export interface FitmentRowView {
     centreBore: string
     status: 'draft' | 'published' | 'retired'
     tyreSizes: TyreSizeRow[]
-    conditions: { id: number; text: string; note: string }[]
+    conditions: RowCode[]
     draft: boolean
 }
 
@@ -95,14 +117,6 @@ export interface UnresolvedCode {
     rows: number
 }
 
-/** @deprecated kept for the row form until it reads DocumentConditionView */
-export interface ConditionOption {
-    id: number
-    code: string
-    text: string
-    severity: string
-}
-
 export interface PreviewVerdict {
     config: number
     wheel: string
@@ -124,24 +138,32 @@ export interface AdminGutachtenShowProps {
     blockers: string[]
     preview?: PreviewVerdict[]
     previewVehicle: number | null
-    conditions: ConditionOption[]
+    /** The document's own Auflagenverzeichnis. */
+    conditions: DocumentConditionView[]
+    choices: ConditionChoices
+    unresolved: UnresolvedCode[]
     kinds: { value: string; label: string }[]
     replaceable: { value: number; label: string }[]
     openConflicts: number
     can: { edit: boolean; release: boolean }
 }
 
-/** One tyre size as typed: `225/40 R18`, the axle, and an optional minimum from the document. */
+/** One tyre size as typed: `225/40 R18`, the axle, an optional minimum and its own codes (`A01 T88`). */
 export interface TyreSizeForm {
     text: string
     axle: AxleValue
     min_load_index: number | null
     min_speed_symbol: string
+    codes: string
 }
 
 export interface RowForm {
     axle: AxleValue
-    requires_entry: boolean
+    /** The row's codes as typed, as the document prints them: `A01 A12 K1c`. */
+    codes: string
+    /** '' = the Eintragung follows the codes. */
+    entry_override: '' | 'required' | 'not_required'
+    entry_override_reason: string
     entry_note: string
     source_page: number | null
     build_from: string
@@ -152,7 +174,8 @@ export interface RowForm {
     et_max: string
     centre_bore: string
     tyre_sizes: TyreSizeForm[]
-    conditions: { id: number; note: string }[]
+    /** A note per code of the row, kept by code while the codes are retyped. */
+    notes: Record<string, string>
 }
 
 export interface VehicleHit {

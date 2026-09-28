@@ -119,6 +119,10 @@ final class AuditDescriber
         'approval.row_updated' => 'gutachten',
         'approval.row_deleted' => 'gutachten',
         'approval.released' => 'gutachten',
+        'approval.entry_overridden' => 'gutachten',
+        'approval.condition_added' => 'gutachten',
+        'approval.condition_changed' => 'gutachten',
+        'approval.condition_removed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
         'condition.deleted' => 'gutachten',
@@ -363,6 +367,17 @@ final class AuditDescriber
             'approval.row_updated' => ['Eine Zeile im Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde geändert.', []],
             'approval.row_deleted' => ['Eine Zeile wurde aus dem Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' entfernt.', []],
             'approval.released' => [self::released($p), []],
+            'approval.entry_overridden' => [
+                match ($p['override'] ?? null) {
+                    'required' => 'In einer Zeile von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Eintragung abweichend von den Codes auf „erforderlich“ gesetzt: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.',
+                    'not_required' => 'In einer Zeile von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Eintragung abweichend von den Codes auf „nicht erforderlich“ gesetzt: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.',
+                    default => 'In einer Zeile von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' folgt die Eintragung wieder den Codes.',
+                },
+                [],
+            ],
+            'approval.condition_added' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' angelegt.', []],
+            'approval.condition_changed' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' geändert.', []],
+            'approval.condition_removed' => ['Aus dem Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' entfernt.', []],
             'condition.created' => ['Die Auflage '.self::q(self::text($p, 'text') ?? 'ohne Text').' wurde angelegt.', []],
             'condition.updated' => [
                 'Die Auflage '.self::q(self::text($p, 'code') ?? 'ohne Schlüssel').' wurde geändert.',

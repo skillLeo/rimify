@@ -107,7 +107,7 @@ final class AdminNavigation
             'module' => PermissionModule::Approvals->value,
             'pages' => [
                 ['label' => 'Dokumente', 'href' => '/admin/gutachten', 'icon' => 'documents'],
-                ['label' => 'Auflagen-Katalog', 'href' => '/admin/auflagen', 'icon' => 'conditions'],
+                ['label' => 'Auflagen', 'href' => '/admin/auflagen', 'icon' => 'conditions'],
                 ['label' => 'Abdeckung', 'href' => '/admin/abdeckung', 'icon' => 'coverage'],
                 ['label' => 'Konflikte', 'href' => '/admin/konflikte', 'icon' => 'conflicts', 'count' => 'conflicts_open'],
             ],

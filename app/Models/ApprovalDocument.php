@@ -137,6 +137,16 @@ class ApprovalDocument extends Model
         return $this->hasMany(Fitment::class);
     }
 
+    /**
+     * The document's own Auflagenverzeichnis: the codes it prints, in the order it prints them.
+     *
+     * @return HasMany<DocumentCondition, $this>
+     */
+    public function conditions(): HasMany
+    {
+        return $this->hasMany(DocumentCondition::class)->orderBy('id');
+    }
+
     /** @return BelongsTo<AdminUser, $this> */
     public function createdBy(): BelongsTo
     {

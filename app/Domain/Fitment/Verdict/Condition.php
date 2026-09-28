@@ -15,7 +15,10 @@ use InvalidArgumentException;
  */
 final readonly class Condition
 {
-    /** The Auflage that says the fitment must be entered in the papers: it sets the entry flag too. */
+    /**
+     * The key the global catalogue gave the entry Auflage before Auflagen belonged to their document. A
+     * snapshot frozen then still says so; a live Auflage says it by its kind (`abnahme`).
+     */
     public const ENTRY_REQUIRED = 'ENTRY_REQUIRED';
 
     /** The Auflage that says no entry is needed: never shown where any source requires one. */
@@ -31,6 +34,10 @@ final readonly class Condition
         public bool $requiresAcknowledgement = false,
         /** A qualifier this particular document added to the standard wording. */
         public ?string $noteDe = null,
+        /** What a person classified it as, in its own document. Null only in snapshots frozen before kinds. */
+        public ?ConditionKind $kind = null,
+        /** The page of the document the sentence stands on. */
+        public ?int $sourcePage = null,
     ) {
         if (trim($textDe) === '') {
             throw new InvalidArgumentException(
@@ -38,6 +45,31 @@ final readonly class Condition
                 .'code and left to work out what it means (R-15).'
             );
         }
+    }
+
+    /**
+     * An Auflage of its document, as the customer reads it: the kind decides severity and flags, so
+     * nothing about what it asks of the customer is typed twice.
+     */
+    public static function ofKind(string $code, ConditionKind $kind, string $textDe, ?string $noteDe = null, ?int $sourcePage = null): self
+    {
+        return new self(
+            code: $code,
+            severity: $kind->severity(),
+            textDe: $textDe,
+            affectsTyreChoice: $kind->affectsTyreChoice(),
+            affectsPurchase: $kind->severity()->affectsPurchaseByDefault(),
+            requiresAcknowledgement: $kind->severity()->requiresAcknowledgement(),
+            noteDe: $noteDe,
+            kind: $kind,
+            sourcePage: $sourcePage,
+        );
+    }
+
+    /** Whether this Auflage makes the Eintragung necessary: an Abnahme, or the old catalogue's entry key. */
+    public function requiresEntry(): bool
+    {
+        return $this->kind === ConditionKind::Abnahme || ($this->kind === null && $this->code === self::ENTRY_REQUIRED);
     }
 
     /** The full sentence, including any document-specific qualifier. */
@@ -67,7 +99,8 @@ final readonly class Condition
      *
      * @return array{
      *     code: string, severity: string, textDe: string, textEn: string|null,
-     *     affectsTyreChoice: bool, affectsPurchase: bool, requiresAcknowledgement: bool
+     *     affectsTyreChoice: bool, affectsPurchase: bool, requiresAcknowledgement: bool,
+     *     kind: string|null, sourcePage: int|null
      * }
      */
     public function toArray(): array
@@ -80,13 +113,17 @@ final readonly class Condition
             'affectsTyreChoice' => $this->affectsTyreChoice,
             'affectsPurchase' => $this->affectsPurchase,
             'requiresAcknowledgement' => $this->requiresAcknowledgement,
+            // Additive: a snapshot written before kinds reads them as null.
+            'kind' => $this->kind?->value,
+            'sourcePage' => $this->sourcePage,
         ];
     }
 
     /**
      * @param array{
      *     code: string, severity: string, textDe: string, textEn?: string|null,
-     *     affectsTyreChoice?: bool, affectsPurchase?: bool, requiresAcknowledgement?: bool
+     *     affectsTyreChoice?: bool, affectsPurchase?: bool, requiresAcknowledgement?: bool,
+     *     kind?: string|null, sourcePage?: int|null
      * } $data
      */
     public static function fromArray(array $data): self
@@ -100,6 +137,8 @@ final readonly class Condition
             affectsTyreChoice: (bool) ($data['affectsTyreChoice'] ?? false),
             affectsPurchase: (bool) ($data['affectsPurchase'] ?? false),
             requiresAcknowledgement: (bool) ($data['requiresAcknowledgement'] ?? false),
+            kind: isset($data['kind']) ? ConditionKind::tryFrom((string) $data['kind']) : null,
+            sourcePage: isset($data['sourcePage']) ? (int) $data['sourcePage'] : null,
         );
     }
 
@@ -119,11 +158,12 @@ final readonly class Condition
     }
 
     /**
-     * The union of two condition sets, keyed by code.
+     * The union of two condition sets, keyed by code and sentence.
      *
      * Union is the safe default when documents disagree: showing a condition that turns out not to
      * apply costs the customer a moment's reading, while omitting one that does apply costs them a
-     * workshop visit they did not budget for.
+     * workshop visit they did not budget for. A code means what its own document says, so the same
+     * code with another sentence (`A01` of two documents) is two Auflagen, never one.
      *
      * @param  list<self>  $a
      * @param  list<self>  $b
@@ -134,7 +174,7 @@ final readonly class Condition
         $merged = [];
 
         foreach ([...$a, ...$b] as $condition) {
-            $merged[$condition->code] ??= $condition;
+            $merged[$condition->code."\u{0}".$condition->sentenceDe()] ??= $condition;
         }
 
         return self::sorted(array_values($merged));

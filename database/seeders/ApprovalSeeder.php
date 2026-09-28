@@ -11,7 +11,6 @@ use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\ApprovalDocument;
-use App\Models\ConditionCode;
 use App\Models\Fitment;
 use App\Models\FitmentConflict;
 use App\Models\Vehicle;
@@ -623,7 +622,7 @@ class ApprovalSeeder extends Seeder
             return;
         }
 
-        $this->seedConditions($this->fitmentIds($document->id), $meta, $now);
+        $this->seedConditions($document, $this->fitmentIds($document->id), $meta, $now);
     }
 
     /**
@@ -794,12 +793,26 @@ class ApprovalSeeder extends Seeder
     }
 
     /**
+     * The demo document's own Auflagenverzeichnis, and its rows' codes. A demo document prints three codes,
+     * with the sentences the old starter catalogue used; a real document brings its own list, entered by a
+     * person from its PDF (DocumentConditions).
+     *
      * @param  array<string, int>  $ids
      * @param  array<string, array{entry: bool, offset: int}>  $meta
      */
-    private function seedConditions(array $ids, array $meta, \DateTimeInterface $now): void
+    private function seedConditions(ApprovalDocument $document, array $ids, array $meta, \DateTimeInterface $now): void
     {
-        $codes = $this->conditionCodes();
+        foreach (self::DEMO_CONDITIONS as $code => [$kind, $text]) {
+            DB::table('document_conditions')->insertOrIgnore([
+                'approval_document_id' => $document->id,
+                'code' => $code,
+                'kind' => $kind,
+                'text_de' => $text,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
         $rows = [];
 
         foreach ($meta as $key => $row) {
@@ -809,24 +822,24 @@ class ApprovalSeeder extends Seeder
 
             $attach = [];
 
-            if ($row['entry'] && $codes['entry'] !== null) {
-                $attach[$codes['entry']->id] = null;
+            if ($row['entry']) {
+                $attach['A01'] = null;
             }
 
             // A share of fitments carries conditions, which is what the Auflagen panel and the
             // amber CONDITIONAL verdict exist for.
-            if ($row['offset'] % 3 === 0 && $codes['bolts'] !== null) {
-                $attach[$codes['bolts']->id] = null;
+            if ($row['offset'] % 3 === 0) {
+                $attach['S01'] = null;
             }
 
-            if ($row['offset'] % 5 === 2 && $codes['arch'] !== null) {
-                $attach[$codes['arch']->id] = 'Nur an der Hinterachse.';
+            if ($row['offset'] % 5 === 2) {
+                $attach['K1'] = 'Nur an der Hinterachse.';
             }
 
-            foreach ($attach as $conditionCodeId => $note) {
+            foreach ($attach as $code => $note) {
                 $rows[] = [
                     'fitment_id' => $ids[$key],
-                    'condition_code_id' => $conditionCodeId,
+                    'code' => $code,
                     'note_de' => $note,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -839,15 +852,12 @@ class ApprovalSeeder extends Seeder
         }
     }
 
-    /** @return array<string, ConditionCode|null> */
-    private function conditionCodes(): array
-    {
-        return [
-            'entry' => ConditionCode::query()->where('code', 'ENTRY_REQUIRED')->first(),
-            'bolts' => ConditionCode::query()->where('code', 'SPECIFIC_BOLTS')->first(),
-            'arch' => ConditionCode::query()->where('code', 'ARCH_ROLLING')->first(),
-        ];
-    }
+    /** @var array<string, array{0: string, 1: string}> code => [kind, sentence] */
+    private const DEMO_CONDITIONS = [
+        'A01' => ['abnahme', 'Eintragung in die Fahrzeugpapiere erforderlich.'],
+        'S01' => ['befestigung', 'Nur mit den angegebenen Radschrauben zulässig.'],
+        'K1' => ['karosseriearbeit', 'Bördeln der Radläufe erforderlich.'],
+    ];
 
     /**
      * The disagreement, recorded as a row with a status rather than announced and forgotten.

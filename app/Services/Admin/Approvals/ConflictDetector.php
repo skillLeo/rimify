@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Approvals;
 
+use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Enums\ConflictKind;
 use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
@@ -30,7 +31,7 @@ final class ConflictDetector
     public function detect(ApprovalDocument $document, ?AdminUser $by): array
     {
         $rows = Fitment::query()
-            ->with(['tyreSizes', 'conditions'])
+            ->with(['tyreSizes', 'conditionCodes', 'approvalDocument.conditions'])
             ->where('approval_document_id', $document->id)
             ->where('status', '<>', FitmentStatus::Retired->value)
             ->get();
@@ -39,7 +40,7 @@ final class ConflictDetector
 
         foreach ($rows as $row) {
             $others = Fitment::query()
-                ->with(['tyreSizes', 'conditions', 'approvalDocument'])
+                ->with(['tyreSizes', 'conditionCodes', 'approvalDocument.conditions'])
                 ->where('vehicle_id', $row->vehicle_id)
                 ->where('wheel_config_id', $row->wheel_config_id)
                 ->where('approval_document_id', '<>', $document->id)
@@ -107,11 +108,33 @@ final class ConflictDetector
             $out[ConflictKind::WidthEtRange->value] = 'width_et_range';
         }
 
-        if (self::codes($a) !== self::codes($b)) {
+        // Codes are each document's own (`A01` here, `11A` there): what is compared is what the Auflagen
+        // ask of the customer — an Abnahme, work on the body, a tyre limit — not how they are numbered.
+        if (self::kinds($a) !== self::kinds($b)) {
             $out[ConflictKind::Conditions->value] = 'conditions';
         }
 
         return $out;
+    }
+
+    /** @return list<string> the kinds of the row's Auflagen, notes aside; an undefined code counts as itself */
+    private static function kinds(Fitment $row): array
+    {
+        $defined = $row->approvalDocument?->conditions->keyBy('code');
+        $kinds = [];
+
+        foreach ($row->conditionCodes as $code) {
+            $kind = $defined?->get($code->code)?->kind->value ?? 'undefiniert:'.$code->code;
+
+            if ($kind !== ConditionKind::Hinweis->value) {
+                $kinds[$kind] = true;
+            }
+        }
+
+        $kinds = array_keys($kinds);
+        sort($kinds);
+
+        return $kinds;
     }
 
     /** @return list<string> */
@@ -123,10 +146,13 @@ final class ConflictDetector
         return $sizes;
     }
 
-    /** @return list<string> */
+    /** @return list<string> each code with its own document's sentence, as the two sides are shown */
     private static function codes(Fitment $row): array
     {
-        $codes = $row->conditions->pluck('code')->map(static fn (mixed $c): string => (string) $c)->all();
+        $defined = $row->approvalDocument?->conditions->keyBy('code');
+        $codes = $row->conditionCodes
+            ->map(static fn ($c): string => $c->code.' – '.($defined?->get($c->code)->text_de ?? 'im Gutachten nicht definiert'))
+            ->all();
         sort($codes);
 
         return $codes;

@@ -18,6 +18,7 @@ import { afterDialogsClose, focusRefused } from '../../../composables/admin/focu
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
+import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
 import FactsDialog from './FactsDialog.vue'
 import RowComposer from './RowComposer.vue'
 import RowFields from './RowFields.vue'
@@ -312,6 +313,15 @@ const TONE: Record<string, string | null> = {
             </dl>
         </section>
 
+        <!-- ── Auflagenverzeichnis: the codes this document prints, with its own sentences ── -->
+        <section class="adm-section" aria-labelledby="gs-conditions-h">
+            <div class="adm-section__head">
+                <h2 id="gs-conditions-h" class="adm-section__title">Auflagenverzeichnis</h2>
+            </div>
+            <p class="adm-note gs-lead">Jeder Code bedeutet, was dieses Gutachten sagt – nichts anderes. Die Zeilen unten tragen die Codes; der Shop liest den Satz hier.</p>
+            <Auflagenverzeichnis :document-id="document.id" :conditions="conditions" :choices="choices" :unresolved="unresolved" :editable="can.edit && draft" :page-count="document.pageCount" />
+        </section>
+
         <!-- ── Verwendungsbereich ────────────────────────────────────── -->
         <section class="adm-section" aria-labelledby="gs-rows-h">
             <div class="adm-section__head">
@@ -344,16 +354,20 @@ const TONE: Record<string, string | null> = {
                                 <td data-label="Reifen">
                                     <span v-if="row.tyreSizes.length === 0" class="gs-missing">Keine Reifengröße – im Shop nicht bestellbar</span>
                                     <span v-else>
-                                        <span v-for="size in row.tyreSizes" :key="size.label" class="gs-line">{{ size.label }}</span>
+                                        <span v-for="size in row.tyreSizes" :key="size.label" class="gs-line">{{ size.label }}<span v-if="size.codes.length" class="gs-codes" translate="no"> · {{ size.codes.map((c) => c.code).join(' ') }}</span></span>
                                     </span>
                                 </td>
                                 <td data-label="Auflagen">
                                     <span v-if="row.conditions.length === 0">–</span>
                                     <span v-else>
-                                        <span v-for="c in row.conditions" :key="c.id" class="gs-line">{{ c.text }}<template v-if="c.note"> {{ c.note }}</template></span>
+                                        <span v-for="c in row.conditions" :key="c.code" class="gs-line" :class="{ 'gs-undefined': !c.defined }"><b class="gs-code" translate="no">{{ c.code }}</b> {{ c.text ?? 'Nicht im Auflagenverzeichnis' }}<template v-if="c.note"> {{ c.note }}</template></span>
                                     </span>
                                 </td>
-                                <td data-label="Eintragung">{{ row.requiresEntry ? 'Ja' : 'Nein' }}</td>
+                                <td data-label="Eintragung">
+                                    {{ row.requiresEntry ? 'Ja' : 'Nein' }}
+                                    <span v-if="row.entryOverride" class="gs-sub">laut Prüfer: {{ row.entryOverrideReason }}</span>
+                                    <span v-else-if="row.entrySource.length" class="gs-sub">aus {{ row.entrySource.join(', ') }}</span>
+                                </td>
                                 <td data-label="Seite" class="num">
                                     <a v-if="pageHref(row.sourcePage)" :href="pageHref(row.sourcePage)!" target="_blank" rel="noopener">S. {{ row.sourcePage }}</a>
                                     <template v-else>{{ row.sourcePage ?? '–' }}</template>
@@ -507,6 +521,24 @@ const TONE: Record<string, string | null> = {
 .gs-line {
     display: block;
     overflow-wrap: anywhere;
+}
+
+.gs-code {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.gs-codes {
+    color: var(--c-ink-3);
+}
+
+/* A code the document's list does not hold: the row is UNKNOWN until it does. */
+.gs-undefined {
+    color: var(--c-warn);
+}
+
+.gs-lead {
+    max-width: var(--adm-form-max);
 }
 
 .gs-preview-for {

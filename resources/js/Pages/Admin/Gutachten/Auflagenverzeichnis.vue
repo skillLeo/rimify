@@ -139,7 +139,21 @@ function save(): void {
             const saved = props.conditions.find((c) => c.code === code)
             focus.request(saved ? [`av-more-${saved.id}`, 'av-new'] : ['av-new'])
         },
-        onError: () => focus.request(['av-code']),
+        // Refused: the keyboard goes to the first field the sentence is about, in the form's order.
+        onError: (refused: Record<string, string>) => {
+            const order: [string, string][] = [
+                ['code', 'av-code'],
+                ['kind', 'av-kind'],
+                ['text_de', 'av-text'],
+                ['source_page', 'av-page'],
+                ['drive.drive', 'av-drive'],
+                ['max_axle_load_kg', 'av-load'],
+                ['axle', 'av-axle'],
+            ]
+            const first = order.find(([key]) => refused[key])?.[1]
+
+            focus.request(first ? [first, 'av-code'] : ['av-code'])
+        },
         onFinish: () => {
             busy.value = false
         },

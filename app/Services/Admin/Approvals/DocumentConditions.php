@@ -39,6 +39,8 @@ final class DocumentConditions
             $condition = DocumentCondition::query()->create(['approval_document_id' => $document->id] + self::columns($input));
 
             AuditTrail::record($admin, 'approval.condition_added', ['document' => FitmentRows::label($document), 'code' => $condition->code, 'kind' => $condition->kind->value], $document);
+            // A row may already carry the code, typed before it was defined: its Eintragung follows now.
+            FitmentRows::refreshEntry($document);
 
             return $condition;
         });
@@ -55,8 +57,10 @@ final class DocumentConditions
             }
 
             $condition->fill(self::columns($input))->save();
+            $document = $condition->document()->firstOrFail();
 
-            AuditTrail::record($admin, 'approval.condition_changed', ['document' => FitmentRows::label($condition->document()->firstOrFail()), 'code' => $condition->code], $condition->document()->firstOrFail());
+            AuditTrail::record($admin, 'approval.condition_changed', ['document' => FitmentRows::label($document), 'code' => $condition->code, 'kind' => $condition->kind->value], $document);
+            FitmentRows::refreshEntry($document);
         });
     }
 
@@ -71,6 +75,7 @@ final class DocumentConditions
             $condition->delete();
 
             AuditTrail::record($admin, 'approval.condition_removed', ['document' => FitmentRows::label($document), 'code' => $condition->code], $document);
+            FitmentRows::refreshEntry($document);
         });
     }
 
@@ -93,6 +98,67 @@ final class DocumentConditions
             ->count();
 
         return $rows + $sizes;
+    }
+
+    /**
+     * How many rows and tyre sizes carry each code of the document — two queries for the whole list.
+     *
+     * @return array<string, int>
+     */
+    public static function usesByCode(ApprovalDocument $document): array
+    {
+        $counts = [];
+
+        $rows = DB::table('fitment_conditions as fc')
+            ->join('fitments as f', 'f.id', '=', 'fc.fitment_id')
+            ->where('f.approval_document_id', $document->id)
+            ->groupBy('fc.code')
+            ->pluck(DB::raw('COUNT(*) as n'), 'fc.code');
+
+        $sizes = DB::table('fitment_tyre_size_conditions as sc')
+            ->join('fitment_tyre_sizes as s', 's.id', '=', 'sc.fitment_tyre_size_id')
+            ->join('fitments as f', 'f.id', '=', 's.fitment_id')
+            ->where('f.approval_document_id', $document->id)
+            ->groupBy('sc.code')
+            ->pluck(DB::raw('COUNT(*) as n'), 'sc.code');
+
+        foreach ([$rows, $sizes] as $set) {
+            foreach ($set as $code => $n) {
+                $counts[(string) $code] = ($counts[(string) $code] ?? 0) + (int) $n;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * The codes the document's rows and tyre sizes carry that its list does not define, with how many
+     * rows carry each — every one of them keeps those rows UNKNOWN and the Freigabe shut.
+     *
+     * @return list<array{code: string, rows: int}>
+     */
+    public static function unresolvedIn(ApprovalDocument $document): array
+    {
+        $defined = DB::table('document_conditions')->where('approval_document_id', $document->id)->select('code');
+
+        $onRows = DB::table('fitment_conditions as fc')
+            ->join('fitments as f', 'f.id', '=', 'fc.fitment_id')
+            ->where('f.approval_document_id', $document->id)
+            ->whereNotIn('fc.code', $defined)
+            ->select('fc.code', 'f.id as fitment_id');
+
+        $onSizes = DB::table('fitment_tyre_size_conditions as sc')
+            ->join('fitment_tyre_sizes as s', 's.id', '=', 'sc.fitment_tyre_size_id')
+            ->join('fitments as f', 'f.id', '=', 's.fitment_id')
+            ->where('f.approval_document_id', $document->id)
+            ->whereNotIn('sc.code', $defined)
+            ->select('sc.code', 'f.id as fitment_id');
+
+        return DB::query()->fromSub($onRows->union($onSizes), 'u')
+            ->groupBy('code')->orderBy('code')
+            ->get(['code', DB::raw('COUNT(DISTINCT fitment_id) as n')])
+            ->map(static fn (object $r): array => ['code' => (string) $r->code, 'rows' => (int) $r->n])
+            ->values()->all();
     }
 
     /**

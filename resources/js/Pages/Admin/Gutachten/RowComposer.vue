@@ -11,13 +11,13 @@ import { router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
-import type { ConditionOption, RowForm, VehicleHit, WheelGroup } from '../../../types/admin/gutachten'
+import type { DocumentConditionView, RowForm, VehicleHit, WheelGroup } from '../../../types/admin/gutachten'
 import RowFields from './RowFields.vue'
 import { emptyRow, payload, unreadable } from './rows'
 
 const props = defineProps<{
     documentId: number
-    conditions: ConditionOption[]
+    conditions: DocumentConditionView[]
     pageCount: number | null
 }>()
 

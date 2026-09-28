@@ -4,7 +4,7 @@
  * Kept apart from the pages so its reading is tested.
  */
 
-import type { AxleValue, FitmentRowView, RowForm, TyreSizeForm } from '../../../types/admin/gutachten'
+import type { AxleValue, DocumentConditionView, FitmentRowView, RowForm, TyreSizeForm } from '../../../types/admin/gutachten'
 
 export interface ParsedTyre {
     width_mm: number
@@ -47,14 +47,83 @@ export function tyreText(size: { width_mm: number; aspect: number; diameter: num
     return `${size.width_mm}/${size.aspect} R${size.diameter}${minimum === '' ? '' : ` ${minimum}`}`
 }
 
+/**
+ * The codes typed for a row or a size, as the document prints them: split at spaces, commas and
+ * semicolons, each kept exactly as typed (`K1c` is not `K1C`), each once, in the order typed.
+ */
+export function parseCodes(text: string): string[] {
+    const seen = new Set<string>()
+
+    // `\s` takes the no-break spaces a PDF's copied text carries, too.
+    for (const code of text.split(/[\s,;]+/)) {
+        if (code !== '') {
+            seen.add(code)
+        }
+    }
+
+    return [...seen]
+}
+
+/** A typed code the server will refuse as a code: more than eight characters, or not letters and digits. */
+export function badCodes(text: string): string[] {
+    return parseCodes(text).filter((code) => !/^[A-Za-z0-9]{1,8}$/.test(code))
+}
+
+export interface DerivedEntry {
+    /** Whether the codes, or the override, make the Eintragung necessary. */
+    required: boolean
+    /** Derived from the codes (false: the override decides). */
+    derived: boolean
+    /** The Abnahme codes it follows from, with their page: `A01, Seite 6`. */
+    sources: string[]
+    /** The sizes whose own codes (with the row's) derive it, by their place in the list. */
+    sizes: number[]
+}
+
+/**
+ * The Eintragung the form's codes derive in this document, as the server derives it (FitmentRows): an
+ * Abnahme among the row's codes or a size's. A person's override decides instead, and says so.
+ */
+export function derivedEntry(form: RowForm, conditions: DocumentConditionView[]): DerivedEntry {
+    const abnahme = new Map(conditions.filter((c) => c.kind === 'abnahme').map((c) => [c.code, c]))
+    const label = (code: string): string => {
+        const page = abnahme.get(code)?.page
+
+        return page ? `${code}, Seite ${page}` : code
+    }
+    const rowSources = parseCodes(form.codes).filter((code) => abnahme.has(code))
+    const sizes: number[] = []
+    const sources = new Set(rowSources.map(label))
+
+    form.tyre_sizes.forEach((size, index) => {
+        const own = parseCodes(size.codes).filter((code) => abnahme.has(code))
+
+        own.forEach((code) => sources.add(label(code)))
+
+        if (rowSources.length > 0 || own.length > 0) {
+            sizes.push(index)
+        }
+    })
+
+    const fromCodes = sources.size > 0
+
+    if (form.entry_override !== '') {
+        return { required: form.entry_override === 'required', derived: false, sources: [...sources], sizes }
+    }
+
+    return { required: fromCodes, derived: true, sources: [...sources], sizes }
+}
+
 export function emptySize(axle: AxleValue = 'ALL'): TyreSizeForm {
-    return { text: '', axle, min_load_index: null, min_speed_symbol: '' }
+    return { text: '', axle, min_load_index: null, min_speed_symbol: '', codes: '' }
 }
 
 export function emptyRow(): RowForm {
     return {
         axle: 'ALL',
-        requires_entry: false,
+        codes: '',
+        entry_override: '',
+        entry_override_reason: '',
         entry_note: '',
         source_page: null,
         build_from: '',
@@ -65,7 +134,7 @@ export function emptyRow(): RowForm {
         et_max: '',
         centre_bore: '',
         tyre_sizes: [emptySize()],
-        conditions: [],
+        notes: {},
     }
 }
 
@@ -73,7 +142,9 @@ export function emptyRow(): RowForm {
 export function formFromRow(row: FitmentRowView): RowForm {
     return {
         axle: row.axle,
-        requires_entry: row.requiresEntry,
+        codes: row.conditions.map((c) => c.code).join(' '),
+        entry_override: row.entryOverride ?? '',
+        entry_override_reason: row.entryOverrideReason,
         entry_note: row.entryNote,
         source_page: row.sourcePage,
         build_from: row.buildFrom,
@@ -88,8 +159,9 @@ export function formFromRow(row: FitmentRowView): RowForm {
             axle: s.axle,
             min_load_index: s.min_load_index,
             min_speed_symbol: s.min_speed_symbol,
+            codes: s.codes.map((c) => c.code).join(' '),
         })),
-        conditions: row.conditions.map((c) => ({ id: c.id, note: c.note })),
+        notes: Object.fromEntries(row.conditions.filter((c) => c.note !== '').map((c) => [c.code, c.note])),
     }
 }
 
@@ -123,11 +195,13 @@ export function payload(form: RowForm): Record<string, unknown> {
             min_load_index: parsed.min_load_index,
             min_speed_symbol: parsed.min_speed_symbol,
             axle: size.axle,
+            codes: parseCodes(size.codes),
         }))
 
     return {
         axle: form.axle,
-        requires_entry: form.requires_entry,
+        entry_override: form.entry_override === '' ? null : form.entry_override,
+        entry_override_reason: form.entry_override === '' ? null : form.entry_override_reason,
         entry_note: form.entry_note,
         source_page: form.source_page === null || String(form.source_page) === '' ? null : Number(form.source_page),
         build_from: form.build_from || null,
@@ -138,6 +212,6 @@ export function payload(form: RowForm): Record<string, unknown> {
         et_max: form.et_max,
         centre_bore: form.centre_bore,
         tyre_sizes: sizes,
-        conditions: form.conditions.map((c) => ({ id: c.id, note: c.note })),
+        conditions: parseCodes(form.codes).map((code) => ({ code, note: form.notes[code] ?? '' })),
     }
 }

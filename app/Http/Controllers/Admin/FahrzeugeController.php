@@ -100,7 +100,7 @@ class FahrzeugeController extends Controller
         request()->attributes->set(AdminNavigation::RECORD, VehicleName::from($vehicle));
 
         $rows = Fitment::query()
-            ->with(['approvalDocument', 'wheelConfig.wheelModel.brand', 'wheelConfig.wheelFinish', 'conditions'])
+            ->with(['approvalDocument', 'wheelConfig.wheelModel.brand', 'wheelConfig.wheelFinish'])->withCount('conditionCodes')
             ->where('vehicle_id', $vehicle->id)
             ->orderBy('approval_document_id')
             ->orderBy('wheel_config_id')
@@ -132,7 +132,7 @@ class FahrzeugeController extends Controller
                 'size' => $f->wheelConfig?->label() ?? '',
                 'status' => $f->status->value,
                 'requiresEntry' => $f->requires_entry,
-                'conditions' => $f->conditions->count(),
+                'conditions' => (int) $f->getAttribute('condition_codes_count'),
             ])->values()->all(),
             'can' => ['edit' => $request->admin()->can('update', $vehicle)],
         ]);

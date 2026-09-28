@@ -7,6 +7,7 @@ use App\Models\LoadIndexEntry;
 use App\Models\SpeedSymbolEntry;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /*
  * The index tables are real rows so the compliance owner can check them against a printed
@@ -87,44 +88,16 @@ it('treats the open-ended top symbol as above 300, not as unknown', function ():
         ->and(SpeedSymbolEntry::find('Y')?->max_kmh)->toBe(300);
 });
 
-it('seeds the whole condition-code starter catalogue with real German sentences', function (): void {
-    $codes = DB::table('condition_codes')->get();
-
-    expect($codes)->toHaveCount(12);
-
-    foreach ($codes as $code) {
-        // R-15: a customer never sees a bare code, so the sentence must exist and must not be
-        // the code itself dressed up.
-        expect(trim((string) $code->text_de))->not->toBe('')
-            ->and($code->text_de)->not->toBe($code->code)
-            ->and(mb_substr((string) $code->text_de, -1))->toBe('.');
-    }
-});
-
-it('marks the conditions that change what may be bought', function (): void {
-    $byCode = DB::table('condition_codes')->get()->keyBy('code');
-
-    expect((bool) $byCode['ENTRY_REQUIRED']->affects_purchase)->toBeTrue()
-        ->and((bool) $byCode['ARCH_ROLLING']->requires_acknowledgement)->toBeTrue()
-        ->and((bool) $byCode['TYRE_BRAND_LIMIT']->affects_tyre_choice)->toBeTrue()
-        ->and((bool) $byCode['NO_ENTRY_REQUIRED']->affects_purchase)->toBeFalse()
-        ->and($byCode['ENTRY_REQUIRED']->text_de)->toBe('Eintragung in die Fahrzeugpapiere erforderlich.');
-});
-
-it('does not overwrite wording the Compliance Editor has edited', function (): void {
-    DB::table('condition_codes')->where('code', 'ARCH_ROLLING')
-        ->update(['text_de' => 'Die hinteren Radläufe müssen gebördelt werden.']);
-
-    $this->seed(ReferenceDataSeeder::class);
-
-    expect(DB::table('condition_codes')->where('code', 'ARCH_ROLLING')->value('text_de'))
-        ->toBe('Die hinteren Radläufe müssen gebördelt werden.');
+it('seeds no Auflagen catalogue: every document brings its own list (the corrections memo §1)', function (): void {
+    expect(Schema::hasTable('condition_codes'))->toBeFalse()
+        ->and(Schema::hasTable('condition_code_aliases'))->toBeFalse()
+        ->and(Schema::hasTable('document_conditions'))->toBeTrue()
+        ->and(DB::table('document_conditions')->count())->toBe(0);
 });
 
 it('is safe to run twice', function (): void {
     $this->seed(ReferenceDataSeeder::class);
 
     expect(LoadIndexEntry::count())->toBe(count(ReferenceTables::LOAD_INDEX_CAPACITY_KG))
-        ->and(SpeedSymbolEntry::count())->toBe(count(ReferenceTables::SPEED_SYMBOLS))
-        ->and(DB::table('condition_codes')->count())->toBe(12);
+        ->and(SpeedSymbolEntry::count())->toBe(count(ReferenceTables::SPEED_SYMBOLS));
 });

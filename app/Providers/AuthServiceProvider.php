@@ -10,7 +10,6 @@ use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
 use App\Models\Brand;
 use App\Models\CatalogueImport;
-use App\Models\ConditionCode;
 use App\Models\DemandMark;
 use App\Models\FaqEntry;
 use App\Models\NavItem;
@@ -27,7 +26,6 @@ use App\Policies\ApprovalDocumentPolicy;
 use App\Policies\BalanceWeightColourPolicy;
 use App\Policies\BrandPolicy;
 use App\Policies\CatalogueImportPolicy;
-use App\Policies\ConditionCodePolicy;
 use App\Policies\DemandMarkPolicy;
 use App\Policies\DemoDataPolicy;
 use App\Policies\DocumentUploadPolicy;
@@ -86,7 +84,6 @@ final class AuthServiceProvider extends ServiceProvider
         Brand::class => BrandPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,
         ApprovalDocument::class => ApprovalDocumentPolicy::class,
-        ConditionCode::class => ConditionCodePolicy::class,
         Vehicle::class => VehiclePolicy::class,
         ReviewFeedback::class => ReviewFeedbackPolicy::class,
     ];

@@ -1,9 +1,13 @@
 <script setup lang="ts">
 /**
  * What one Verwendungsbereich entry says, typed as the Gutachten prints it: the tyre sizes (`225/40
- * R18`, per axle), the Auflagen from the Auflagen-Katalog with what this document adds to them, the
- * Eintragung, the page it stands on — and, folded away because most rows need none of it, the
- * document's own limits (build period, width and ET range, centre bore).
+ * R18`, per axle, each with its own codes), the row's codes (`A01 A12 K1c`) — their meaning is this
+ * document's Auflagenverzeichnis, shown under them — the Eintragung, the page it stands on, and, folded
+ * away because most rows need none of it, the document's own limits (build period, width and ET range,
+ * centre bore).
+ *
+ * The Eintragung is not typed: it follows from an Abnahme among the codes (the corrections memo §2). A
+ * person may set it otherwise only with the reason, which the customer reads as the Prüfer's.
  *
  * Used for adding rows and for changing one; the page owns the values.
  */
@@ -11,11 +15,12 @@
 import { computed, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
-import type { AxleValue, ConditionOption, RowForm } from '../../../types/admin/gutachten'
-import { emptySize, parseTyre, sentIndex } from './rows'
+import type { AxleValue, DocumentConditionView, RowForm } from '../../../types/admin/gutachten'
+import { badCodes, derivedEntry, emptySize, parseCodes, parseTyre, sentIndex } from './rows'
 
 const props = defineProps<{
-    conditions: ConditionOption[]
+    /** This document's own Auflagenverzeichnis. */
+    conditions: DocumentConditionView[]
     errors: Record<string, string | undefined>
     idPrefix: string
     pageCount: number | null
@@ -70,8 +75,83 @@ function sizeError(index: number): string {
     // The server counts only the sizes it was sent.
     const sent = sentIndex(form.value, index)
 
-    return sent === null ? '' : (['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean) ?? '')
+    if (sent === null) {
+        return ''
+    }
+
+    const server = ['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle', 'codes'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean)
+    const codeError = Object.entries(props.errors).find(([key, message]) => message && key.startsWith(`tyre_sizes.${sent}.codes.`))?.[1]
+
+    return server ?? codeError ?? codeWords(form.value.tyre_sizes[index]?.codes ?? '')
 }
+
+/* ── Codes ─────────────────────────────────────────────────────────────────── */
+
+const byCode = computed(() => new Map(props.conditions.map((c) => [c.code, c])))
+
+/** A code that is not a code at all, said before the server has to. */
+function codeWords(text: string): string {
+    const bad = badCodes(text)
+
+    return bad.length === 0 ? '' : `${bad.map((c) => `„${c}“`).join(', ')} ${bad.length === 1 ? 'ist kein Code' : 'sind keine Codes'}: höchstens acht Buchstaben und Ziffern, so wie im Gutachten.`
+}
+
+const rowCodes = computed(() => parseCodes(form.value.codes).filter((code) => badCodes(code).length === 0))
+
+const codesError = computed(() => {
+    const server = err('conditions') || (Object.entries(props.errors).find(([key, message]) => message && /^conditions\.\d+\./.test(key))?.[1] ?? '')
+
+    return server || codeWords(form.value.codes)
+})
+
+/** A size's codes, each with what the document calls it: `T88 · Reifen: Tragfähigkeit`. */
+function sizeMeaning(text: string): { code: string; label: string; defined: boolean }[] {
+    return parseCodes(text)
+        .filter((code) => badCodes(code).length === 0)
+        .map((code) => {
+            const c = byCode.value.get(code)
+
+            return { code, label: c ? c.kindLabel : 'nicht im Auflagenverzeichnis', defined: c !== undefined }
+        })
+}
+
+/* A note is what this row adds to the document's sentence: opened per code, kept by code. */
+const noting = ref(new Set<string>(Object.keys(form.value.notes)))
+
+function openNote(code: string): void {
+    noting.value = new Set([...noting.value, code])
+}
+
+function setNote(code: string, event: Event): void {
+    form.value.notes = { ...form.value.notes, [code]: (event.target as HTMLInputElement).value }
+}
+
+/* ── Eintragung ────────────────────────────────────────────────────────────── */
+
+const entry = computed(() => derivedEntry(form.value, props.conditions))
+
+/** What the codes alone say, whatever the override. */
+const fromCodes = computed(() => derivedEntry({ ...form.value, entry_override: '' }, props.conditions))
+
+const overriding = computed({
+    get: () => form.value.entry_override !== '',
+    set: (on: boolean) => {
+        // Switched on, it starts at the other answer: an override that says what the codes say is none.
+        form.value.entry_override = on ? (fromCodes.value.required ? 'not_required' : 'required') : ''
+    },
+})
+
+const entryLine = computed(() => {
+    const derived = fromCodes.value
+    const sizes = form.value.tyre_sizes.filter((s) => parseTyre(s.text) !== null)
+    const partly = derived.required && derived.sizes.length > 0 && derived.sizes.length < sizes.length
+        ? ` – für ${derived.sizes.map((i) => form.value.tyre_sizes[i]?.text.trim()).filter(Boolean).join(', ')}`
+        : ''
+
+    return derived.required
+        ? `Erforderlich${partly}. Folgt aus ${derived.sources.join(' und ')}.`
+        : 'Nicht erforderlich: Kein Code dieser Zeile ist eine Abnahme.'
+})
 
 function addSize(): void {
     const last = form.value.tyre_sizes[form.value.tyre_sizes.length - 1]
@@ -85,21 +165,6 @@ function removeSize(index: number): void {
     emit('sizes-changed')
 }
 
-function chosen(conditionId: number): boolean {
-    return form.value.conditions.some((c) => c.id === conditionId)
-}
-
-function toggle(conditionId: number, on: boolean): void {
-    if (on && !chosen(conditionId)) {
-        form.value.conditions.push({ id: conditionId, note: '' })
-    } else if (!on) {
-        form.value.conditions = form.value.conditions.filter((c) => c.id !== conditionId)
-    }
-}
-
-function noteOf(conditionId: number): { id: number; note: string } | undefined {
-    return form.value.conditions.find((c) => c.id === conditionId)
-}
 </script>
 
 <template>
@@ -154,12 +219,28 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
                         <option v-for="axle in AXLES" :key="axle.value" :value="axle.value">{{ axle.label }}</option>
                     </select>
                 </div>
+                <div class="form-field rf-size__codes">
+                    <label class="visually-hidden" :for="id(`size-${index}-codes`)">Codes der Reifengröße {{ index + 1 }}</label>
+                    <input
+                        :id="id(`size-${index}-codes`)"
+                        v-model="size.codes"
+                        class="input"
+                        type="text"
+                        placeholder="Codes, z. B. T88"
+                        spellcheck="false"
+                        autocomplete="off"
+                        :aria-describedby="`${id(`size-${index}`)}-err ${id(`size-${index}`)}-codes`"
+                    >
+                </div>
                 <button v-if="form.tyre_sizes.length > 1" class="adm-iconbtn" type="button" :aria-label="`Reifengröße ${index + 1} entfernen`" @click="removeSize(index)">
                     <Icon name="close" :size="20" />
                 </button>
+                <p v-if="sizeMeaning(size.codes).length" :id="`${id(`size-${index}`)}-codes`" class="rf-size__meaning">
+                    <span v-for="m in sizeMeaning(size.codes)" :key="m.code" :class="{ 'rf-undefined': !m.defined }"><b>{{ m.code }}</b> {{ m.label }}</span>
+                </p>
                 <p :id="`${id(`size-${index}`)}-err`" class="form-field__error rf-size__err">{{ sizeError(index) }}</p>
             </div>
-            <p class="form-field__help">Nennt das Gutachten einen Mindest-Lastindex oder ein Geschwindigkeitssymbol, steht es hinter der Größe: 245/35 R19 93Y oder 245/35 R19 93.</p>
+            <p class="form-field__help">Nennt das Gutachten einen Mindest-Lastindex oder ein Geschwindigkeitssymbol, steht es hinter der Größe: 245/35 R19 93Y oder 245/35 R19 93. Codes, die das Gutachten nur bei dieser Größe druckt, stehen daneben.</p>
             <div>
                 <button class="btn btn--ghost" type="button" @click="addSize">
                     <Icon name="plus" :size="20" />
@@ -168,28 +249,67 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
             </div>
         </fieldset>
 
-        <fieldset class="rf-group">
-            <legend class="form-field__label">Auflagen</legend>
-            <p v-if="conditions.length === 0" class="form-field__help">Der Auflagen-Katalog ist leer.</p>
-            <div v-for="condition in conditions" :key="condition.id" class="rf-cond">
-                <label class="rf-check">
-                    <input type="checkbox" :checked="chosen(condition.id)" @change="toggle(condition.id, ($event.target as HTMLInputElement).checked)">
-                    <span>{{ condition.text }}</span>
-                </label>
-                <div v-if="noteOf(condition.id)" class="form-field rf-cond__note">
-                    <label class="form-field__label" :for="id(`cond-${condition.id}`)">Zusatz aus diesem Gutachten <span class="rf-optional">(optional)</span></label>
-                    <input :id="id(`cond-${condition.id}`)" v-model="noteOf(condition.id)!.note" class="input" type="text" maxlength="300" placeholder="z. B. Nur an der Hinterachse.">
-                </div>
+        <div class="rf-group">
+            <div class="form-field">
+                <label class="form-field__label" :for="id('codes')">Auflagen dieser Zeile <span class="rf-optional">(Codes)</span></label>
+                <input
+                    :id="id('codes')"
+                    v-model="form.codes"
+                    class="input"
+                    type="text"
+                    placeholder="A01 A12 K1c"
+                    spellcheck="false"
+                    autocomplete="off"
+                    :aria-invalid="codesError ? 'true' : undefined"
+                    :aria-describedby="`${id('codes')}-help ${id('codes')}-err`"
+                >
+                <p :id="`${id('codes')}-help`" class="form-field__help">So, wie das Gutachten sie druckt, mit Leerzeichen getrennt. Was ein Code bedeutet, steht im Auflagenverzeichnis dieses Gutachtens.</p>
+                <p :id="`${id('codes')}-err`" class="form-field__error">{{ codesError }}</p>
             </div>
-        </fieldset>
+            <ul v-if="rowCodes.length" class="rf-codes">
+                <li v-for="code in rowCodes" :key="code" class="rf-code">
+                    <div class="rf-code__line">
+                        <b class="rf-code__code">{{ code }}</b>
+                        <span v-if="byCode.get(code)" class="rf-code__text">{{ byCode.get(code)!.text }}<span class="rf-code__meta"> · {{ byCode.get(code)!.kindLabel }}<template v-if="byCode.get(code)!.page"> · S. {{ byCode.get(code)!.page }}</template></span></span>
+                        <span v-else class="rf-code__text rf-undefined">Nicht im Auflagenverzeichnis. Die Zeile bleibt „Unbekannt“ und das Gutachten nicht freigebbar, bis der Code dort steht.</span>
+                        <button v-if="!noting.has(code)" class="btn btn--ghost rf-code__add" type="button" :aria-label="`Zusatz zu ${code}`" @click="openNote(code)">Zusatz</button>
+                    </div>
+                    <div v-if="noting.has(code)" class="form-field rf-code__note">
+                        <label class="form-field__label" :for="id(`note-${code}`)">Zusatz zu {{ code }} aus diesem Gutachten <span class="rf-optional">(optional)</span></label>
+                        <input :id="id(`note-${code}`)" :value="form.notes[code] ?? ''" class="input" type="text" maxlength="300" placeholder="z. B. Nur an der Hinterachse." @input="setNote(code, $event)">
+                    </div>
+                </li>
+            </ul>
+        </div>
 
         <div class="rf-group">
+            <p class="form-field__label rf-entry__label">Eintragung in die Fahrzeugpapiere</p>
+            <p class="rf-entry" :class="{ 'rf-entry--struck': overriding }">{{ entryLine }}</p>
             <label class="rf-check">
-                <input v-model="form.requires_entry" type="checkbox" :aria-invalid="err('requires_entry') ? 'true' : undefined" :aria-describedby="`${id('entry-flag')}-err`">
-                <span>Eintragung in die Fahrzeugpapiere erforderlich</span>
+                <input v-model="overriding" type="checkbox">
+                <span>Abweichend festlegen – laut Prüfer</span>
             </label>
-            <p :id="`${id('entry-flag')}-err`" class="form-field__error">{{ err('requires_entry') }}</p>
-            <div v-if="form.requires_entry" class="form-field">
+            <div v-if="overriding" class="rf-override">
+                <div class="rf-radios" role="radiogroup" :aria-label="'Eintragung laut Prüfer'">
+                    <label class="rf-check"><input v-model="form.entry_override" type="radio" value="required" :name="id('override')"> <span>Erforderlich</span></label>
+                    <label class="rf-check"><input v-model="form.entry_override" type="radio" value="not_required" :name="id('override')"> <span>Nicht erforderlich</span></label>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label" :for="id('override-reason')">Warum?</label>
+                    <textarea
+                        :id="id('override-reason')"
+                        v-model="form.entry_override_reason"
+                        class="input rf-reason"
+                        rows="2"
+                        maxlength="500"
+                        :aria-invalid="err('entry_override_reason') ? 'true' : undefined"
+                        :aria-describedby="`${id('override-reason')}-help ${id('override-reason')}-err`"
+                    />
+                    <p :id="`${id('override-reason')}-help`" class="form-field__help">Steht im Protokoll und beim Kunden als „Laut Prüfer: …“.</p>
+                    <p :id="`${id('override-reason')}-err`" class="form-field__error">{{ err('entry_override_reason') || err('entry_override') }}</p>
+                </div>
+            </div>
+            <div v-if="entry.required" class="form-field">
                 <label class="form-field__label" :for="id('entry')">Hinweis zur Eintragung <span class="rf-optional">(optional)</span></label>
                 <input :id="id('entry')" v-model="form.entry_note" class="input" type="text" maxlength="500" placeholder="z. B. Abnahme nach § 19 Abs. 3 StVZO." :aria-invalid="err('entry_note') ? 'true' : undefined" :aria-describedby="`${id('entry')}-err`">
                 <p :id="`${id('entry')}-err`" class="form-field__error">{{ err('entry_note') }}</p>
@@ -277,22 +397,103 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
 
 .rf-size {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 14ch) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 14ch) minmax(0, 16ch) auto;
     align-items: center;
     gap: var(--sp-8);
 }
 
-.rf-size__err {
+.rf-size__err,
+.rf-size__meaning {
     grid-column: 1 / -1;
 }
 
-.rf-cond {
-    display: grid;
-    gap: var(--sp-8);
+.rf-size__meaning {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4) var(--sp-12);
+    margin: 0;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-2);
 }
 
-.rf-cond__note {
+/* A code the document's list does not hold: the row stays UNKNOWN until it does. */
+.rf-undefined {
+    color: var(--c-warn);
+}
+
+.rf-codes {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--c-line);
+}
+
+.rf-code {
+    display: grid;
+    gap: var(--sp-8);
+    padding-block: var(--sp-8);
+    border-bottom: 1px solid var(--c-line);
+}
+
+.rf-code__line {
+    display: grid;
+    grid-template-columns: 6ch minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: var(--sp-12);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.rf-code__code {
+    font-variant-numeric: tabular-nums;
+}
+
+.rf-code__text {
+    overflow-wrap: anywhere;
+}
+
+.rf-code__meta {
+    color: var(--c-ink-3);
+}
+
+.rf-code__note {
+    padding-left: calc(6ch + var(--sp-12));
+}
+
+.rf-entry__label {
+    margin: 0;
+}
+
+.rf-entry {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+/* Overridden: what the codes say stays readable, set aside. */
+.rf-entry--struck {
+    color: var(--c-ink-3);
+    text-decoration: line-through;
+}
+
+.rf-override {
+    display: grid;
+    gap: var(--sp-8);
     padding-left: var(--sp-32);
+}
+
+.rf-radios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4) var(--sp-24);
+}
+
+.rf-reason {
+    min-height: calc(var(--adm-control-h) * 2);
+    resize: vertical;
 }
 
 .rf-check {
@@ -348,8 +549,22 @@ function noteOf(conditionId: number): { id: number; note: string } | undefined {
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .rf-size__axle {
+    .rf-size__axle,
+    .rf-size__codes {
         grid-column: 1;
+    }
+
+    .rf-code__line {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .rf-code__code {
+        grid-column: 1 / -1;
+    }
+
+    .rf-code__note,
+    .rf-override {
+        padding-left: 0;
     }
 
     .rf-check {

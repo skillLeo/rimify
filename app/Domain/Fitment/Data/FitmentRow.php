@@ -20,6 +20,8 @@ final readonly class FitmentRow
     /**
      * @param  list<TyreSize>  $tyreSizes
      * @param  list<Condition>  $conditions
+     * @param  list<string>  $unresolvedCodes  codes on the row or its sizes that its own document does not define
+     * @param  list<RowFilter>  $filters  body-style and drive codes: they narrow the row, they are not sentences
      */
     public function __construct(
         public int $id,
@@ -45,7 +47,30 @@ final readonly class FitmentRow
          * silent — never "the same as the rim's", which is a claim no document made.
          */
         public ?float $centreBoreMm = null,
+        public array $unresolvedCodes = [],
+        public array $filters = [],
     ) {}
+
+    /**
+     * Whether the row's body-style and drive codes let this vehicle in: true, false, or null when one
+     * of them cannot be decided — which is never read as a pass.
+     */
+    public function filtersAdmit(VehicleRecord $vehicle): ?bool
+    {
+        $undecided = false;
+
+        foreach ($this->filters as $filter) {
+            $decision = $filter->decide($vehicle);
+
+            if ($decision === false) {
+                return false;
+            }
+
+            $undecided = $undecided || $decision === null;
+        }
+
+        return $undecided ? null : true;
+    }
 
     public function coversFront(): bool
     {

@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\FitmentStatus;
-use App\Http\Requests\Admin\ConditionCodeRequest;
 use App\Http\Requests\Admin\FitmentRowsRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
-use App\Models\ConditionCode;
+use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
@@ -54,7 +52,6 @@ function qaRows(array $vehicleIds, array $configIds, array $override = []): arra
         'vehicle_ids' => $vehicleIds,
         'config_ids' => $configIds,
         'axle' => 'ALL',
-        'requires_entry' => false,
         'entry_note' => '',
         'source_page' => 2,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL']],
@@ -111,37 +108,29 @@ it('refuses a changed row that would twin another on the same axle (GUTACHTEN-23
         ->assertSessionHasErrors(['axle' => 'Für dieses Fahrzeug und diese Größe gibt es schon eine Zeile mit dieser Achse.']);
 });
 
-it('keeps a released Gutachten’s Auflage as it is, and lets a draft’s change (GUTACHTEN-44)', function (): void {
-    $code = ConditionCode::query()->create([
-        'code' => 'QA_TEST', 'severity' => 'INFO', 'text_de' => 'Nur mit Serienradschrauben.', 'affects_tyre_choice' => false,
-        'affects_purchase' => false, 'requires_acknowledgement' => false, 'sort_order' => 999,
-    ]);
-    $form = ['code' => 'QA_TEST', 'severity' => 'INFO', 'text' => 'Nur mit den Radschrauben des Herstellers.', 'affects_tyre_choice' => false, 'requires_acknowledgement' => false];
-
-    // Used by nothing yet: it changes.
-    $this->actingAs(qaAdmin(), 'admin')->put("/admin/auflagen/{$code->id}", $form)->assertSessionHasNoErrors();
-
+it('fixes a released Gutachten’s Auflagen, and lets a draft’s change (GUTACHTEN-44)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
-    $this->actingAs(qaAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", qaRows([Vehicle::factory()->create()->id], [qaSize()->id], ['conditions' => [['id' => $code->id, 'note' => '']]]));
-    Fitment::query()->where('approval_document_id', $document->id)->update(['status' => FitmentStatus::Published->value]);
+    $form = ['code' => 'S01', 'kind' => 'hinweis', 'text_de' => 'Nur mit Serienradschrauben.'];
+    $this->actingAs(qaAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", $form)->assertSessionHasNoErrors();
+    $condition = DocumentCondition::query()->sole();
 
-    $this->actingAs(qaAdmin(), 'admin')->put("/admin/auflagen/{$code->id}", [...$form, 'severity' => 'WORKSHOP'])
-        ->assertSessionHasErrors(['text' => ConditionCodeRequest::RELEASED_REFUSAL]);
-    $this->actingAs(qaAdmin(), 'admin')->put("/admin/auflagen/{$code->id}", [...$form, 'code' => 'QA_SCHRAUBEN'])->assertSessionHasNoErrors();
+    // A draft's list changes.
+    $this->actingAs(qaAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/auflagen/{$condition->id}", [...$form, 'kind' => 'befestigung', 'text_de' => 'Nur mit den Radschrauben des Herstellers.'])
+        ->assertSessionHasNoErrors();
+    expect($condition->fresh()?->kind->value)->toBe('befestigung');
 
-    expect($code->fresh()?->severity->value)->toBe('INFO')->and($code->fresh()?->code)->toBe('QA_SCHRAUBEN');
+    // A released one's does not: its meaning is what the shop told customers.
+    $document->forceFill(['status' => 'published'])->save();
+    $this->actingAs(qaAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/auflagen/{$condition->id}", [...$form, 'kind' => 'karosseriearbeit'])->assertForbidden();
 
-    $this->actingAs(qaAdmin(), 'admin')->get('/admin/auflagen')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('can.delete', true)
-        ->where('codes', fn ($codes): bool => collect($codes)->firstWhere('id', $code->id)['released'] === true)
-        ->where('severities', fn ($severities): bool => collect($severities)->firstWhere('value', 'WORKSHOP')['acknowledged'] === true)
-    );
+    expect($condition->fresh()?->kind->value)->toBe('befestigung');
 });
 
 it('accepts an Auflage whose sentence ends in a closing quote (GUTACHTEN-45)', function (): void {
-    $this->actingAs(qaAdmin(), 'admin')->post('/admin/auflagen', [
-        'code' => 'NUR_MARKE', 'severity' => 'RESTRICTION', 'text' => 'Nur mit Reifen der Marke „Beispiel.“',
-        'affects_tyre_choice' => true, 'requires_acknowledgement' => false,
+    $document = ApprovalDocument::factory()->draft()->create();
+
+    $this->actingAs(qaAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", [
+        'code' => 'R12', 'kind' => 'verbot', 'text_de' => 'Nur mit Reifen der Marke „Beispiel.“',
     ])->assertSessionHasNoErrors();
 });
 
@@ -192,24 +181,18 @@ it('finds a vehicle by HSN and TSN pasted with a no-break space or a hyphen (GUT
     expect(DB::table('fitments')->count())->toBe(0);
 });
 
-it('refuses a row whose Eintragung box and Auflage say opposite things', function (): void {
+it('never takes the Eintragung as typed: it follows from an Abnahme among the codes (the corrections memo §2)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $vehicle = Vehicle::factory()->create();
-    $size = qaSize();
-    $entry = ConditionCode::query()->where('code', 'ENTRY_REQUIRED')->firstOrFail();
-    $none = ConditionCode::query()->where('code', 'NO_ENTRY_REQUIRED')->firstOrFail();
+    $this->actingAs(qaAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'A01', 'kind' => 'abnahme', 'text_de' => 'Die Anbauabnahme ist erforderlich.']);
 
+    // The old box is gone: a typed „yes“ without an Abnahme among the codes is not a yes.
     $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['requires_entry' => false, 'conditions' => [['id' => $entry->id, 'note' => '']]]))
-        ->assertSessionHasErrors('requires_entry');
-
+        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [qaSize()->id], ['requires_entry' => true]))
+        ->assertSessionHasNoErrors();
     $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['requires_entry' => true, 'conditions' => [['id' => $none->id, 'note' => '']]]))
-        ->assertSessionHasErrors('requires_entry');
-
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['requires_entry' => true, 'conditions' => [['id' => $entry->id, 'note' => '']]]))
+        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [qaSize()->id], ['conditions' => [['code' => 'A01', 'note' => '']]]))
         ->assertSessionHasNoErrors();
 
-    expect(Fitment::query()->count())->toBe(1);
+    expect(Fitment::query()->orderBy('id')->pluck('requires_entry')->all())->toBe([false, true]);
 });

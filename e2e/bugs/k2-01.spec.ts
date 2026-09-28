@@ -41,9 +41,9 @@ test('K2-01 renaming a brand to the name of a removed brand is saved or refused 
 
     await createBrand(page, KEPT);
 
-    let status = 0;
-    let sentence = '';
-    let saved = false;
+    let status: number;
+    let sentence: string;
+    let saved: boolean;
 
     try {
         await brandMenu(page, KEPT).click();

@@ -6,13 +6,9 @@ import {
     busiestDocument,
     focusFell,
     guardWrites,
-    inertiaHeaders,
-    isInertiaGet,
     openAsDraft,
-    pageInsteadOf,
     rowIdOf,
     signIn,
-    waitForApp,
 } from './gutachten-support';
 
 /*
@@ -21,7 +17,7 @@ import {
  *
  *   a) „Zeile … entfernen" → „Entfernen": the row goes, and with it the button that opened the confirm;
  *   b) „Freigeben" → „Freigeben": the released document has no „Freigeben" any more (`v-if="can.release"`);
- *   c) Auflagen-Katalog, „… löschen" → „Löschen": the Auflage's row goes.
+ *   c) a Gutachten's Auflagenverzeichnis, „Entfernen" → „Entfernen": the code's row goes.
  *
  * Ui/Dialog.vue gives the focus back only `if (opener?.isConnected)`; none of the three pages says where it
  * goes instead.
@@ -31,7 +27,7 @@ import {
  *
  * Nothing is written: (a) and (b) work on a released document answered in the browser as a draft, and the
  * DELETE / the Freigabe are answered in the browser with the document as the server would show it after;
- * in (c) one Auflage is shown as unused in the browser, and its DELETE is answered with the list without it.
+ * in (c) one code is shown as unused in the browser, and its DELETE is answered with the document without it.
  * No request but GETs reaches the application.
  */
 
@@ -105,40 +101,16 @@ test('GUTACHTEN-08b after „Freigeben" from the keyboard the focus stays on the
     expect(focus.fell, `after „Freigeben" the focus is on ${focus.on}`).toBe(false);
 });
 
-test('GUTACHTEN-08c deleting an Auflage from the keyboard keeps the focus in the list', async ({ page }, info) => {
+test('GUTACHTEN-08c removing a code of the Auflagenverzeichnis from the keyboard keeps the focus in the list', async ({ page }, info) => {
     await signIn(page);
     await guardWrites(page);
 
+    const id = await busiestDocument(page);
     let shown: { id: number; code: string } | null = null;
 
-    // The Auflagen-Katalog with its first Auflage shown as unused, so it offers „löschen".
+    // Its DELETE, answered with the document without that code.
     await page.route(
-        (url) => url.pathname === '/admin/auflagen',
-        async (route) => {
-            const request = route.request();
-
-            if (!(await isInertiaGet(request))) {
-                await route.fallback();
-
-                return;
-            }
-
-            const response = await route.fetch({ headers: await inertiaHeaders(request) });
-            const json = (await response.json()) as { props: { codes: Array<{ id: number; code: string; used: number }> } };
-            const first = json.props.codes[0];
-
-            if (first) {
-                first.used = 0;
-                shown = { id: first.id, code: first.code };
-            }
-
-            await route.fulfill({ response, json });
-        },
-    );
-
-    // Its DELETE, answered with the list without it.
-    await page.route(
-        (url) => /^\/admin\/auflagen\/\d+$/.test(url.pathname),
+        (url) => new RegExp(`^/admin/gutachten/${id}/auflagen/\\d+$`).test(url.pathname),
         async (route) => {
             if (route.request().method() !== 'DELETE') {
                 await route.fallback();
@@ -147,28 +119,42 @@ test('GUTACHTEN-08c deleting an Auflage from the keyboard keeps the focus in the
             }
 
             const gone = Number(new URL(route.request().url()).pathname.split('/').pop());
-            const response = await pageInsteadOf(route, new URL('/admin/auflagen', route.request().url()).toString());
-            const json = (await response.json()) as { props: { codes: Array<{ id: number }> } };
 
-            json.props.codes = json.props.codes.filter((c) => c.id !== gone);
-            await route.fulfill({ response, json });
+            await answerWithDocument(route, id, (props) => {
+                asDraft(props);
+                props.conditions = props.conditions.filter((c) => c.id !== gone);
+            });
         },
     );
 
-    await page.goto('/admin/gutachten', { waitUntil: 'domcontentloaded' });
-    await waitForApp(page);
-    await page.locator('a[href$="/admin/auflagen"]').first().evaluate((link) => (link as HTMLElement).click());
-    await page.waitForURL(/\/admin\/auflagen$/);
-    await expect(page.locator('.adm-page__title')).toHaveText('Auflagen-Katalog');
+    // The document's list with its first code shown as unused, so its menu offers „Entfernen".
+    await openAsDraft(page, id, (props) => {
+        const first = props.conditions[0];
+
+        if (first) {
+            first.uses = 0;
+            shown = { id: first.id, code: first.code };
+        }
+    });
 
     const target = shown as { id: number; code: string } | null;
 
-    expect(target, 'the Auflagen-Katalog is empty').not.toBeNull();
+    expect(target, 'the document has no Auflagenverzeichnis (the dev DB should hold the seeded codes)').not.toBeNull();
 
-    await confirmFromKeyboard(page, `tr:has(#al-text-${target?.id ?? 0}) button[aria-label="Löschen"]`, 'Auflage löschen?', 'Löschen');
+    await page.locator(`[data-focus="av-more-${target?.id ?? 0}"]`).focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('menuitem', { name: 'Entfernen' }).focus();
+    await page.keyboard.press('Enter');
+
+    const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'));
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Entfernen', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeHidden();
+    await page.waitForTimeout(400);
 
     const focus = await focusFell(page);
     await page.screenshot({ path: `${SHOTS}/gutachten-08c-after-delete-${info.project.name}.png` });
 
-    expect(focus.fell, `after „Löschen" the focus is on ${focus.on}`).toBe(false);
+    expect(focus.fell, `after „Entfernen" the focus is on ${focus.on}`).toBe(false);
 });

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
-use App\Domain\Fitment\Verdict\Condition;
 use App\Enums\Axle;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -12,7 +11,6 @@ use App\Models\Fitment;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Support\GermanNumber;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -22,8 +20,13 @@ use Illuminate\Validation\Validator;
  * document in the URL.
  *
  * Every row carries at least one tyre size: without one the shop cannot name a tyre, and the
- * Freigabe would be refused anyway. An Auflage is chosen from the Auflagen-Katalog — its sentence is
- * written there once (R-15) — with an optional note for what this document adds.
+ * Freigabe would be refused anyway. Auflagen are the codes the document prints (`A01`, `K1c`), on the row
+ * and on each tyre size, each with an optional note for the row; their sentences are the document's own
+ * Auflagenverzeichnis. A code the list does not hold yet may be typed — it is said on the row and stops
+ * the Freigabe until it is defined (the corrections memo §1).
+ *
+ * The Eintragung is not typed: it follows from an Abnahme among the codes. A person may override it
+ * only with a written reason (§2).
  *
  * @phpstan-import-type RowSpec from FitmentRows
  */
@@ -65,7 +68,8 @@ class FitmentRowsRequest extends FormRequest
             'config_ids' => [$this->adding() ? 'required' : 'prohibited', 'array', 'min:1', 'max:200'],
             'config_ids.*' => ['integer', 'distinct', Rule::exists('wheel_configs', 'id')->whereNull('deleted_at')],
             'axle' => ['required', Rule::in($axles)],
-            'requires_entry' => ['required', 'boolean'],
+            'entry_override' => ['nullable', Rule::in(['required', 'not_required'])],
+            'entry_override_reason' => ['nullable', 'required_with:entry_override', 'string', 'min:10', 'max:500'],
             'entry_note' => ['nullable', 'string', 'max:500'],
             'source_page' => ['nullable', 'integer', 'min:1', 'max:2000'],
             'build_from' => ['nullable', 'date_format:Y-m-d'],
@@ -82,11 +86,16 @@ class FitmentRowsRequest extends FormRequest
             'tyre_sizes.*.min_load_index' => ['nullable', 'integer', Rule::exists('load_index_table', 'load_index')],
             'tyre_sizes.*.min_speed_symbol' => ['nullable', 'string', Rule::exists('speed_symbol_table', 'symbol')],
             'tyre_sizes.*.axle' => ['required', Rule::in($axles)],
-            'conditions' => ['present', 'array', 'max:20'],
-            'conditions.*.id' => ['required', 'integer', 'distinct', Rule::exists('condition_codes', 'id')],
+            'tyre_sizes.*.codes' => ['nullable', 'array', 'max:20'],
+            'tyre_sizes.*.codes.*' => ['string', 'distinct', 'regex:'.self::CODE],
+            'conditions' => ['present', 'array', 'max:30'],
+            'conditions.*.code' => ['required', 'string', 'distinct', 'regex:'.self::CODE],
             'conditions.*.note' => ['nullable', 'string', 'max:300'],
         ];
     }
+
+    /** A code as a document prints it: letters and digits, at most eight (`A01`, `K1c`, `T88`, `140`). */
+    public const CODE = '/^[A-Za-z0-9]{1,8}$/';
 
     /** @return array<string, string> */
     public function messages(): array
@@ -101,7 +110,10 @@ class FitmentRowsRequest extends FormRequest
             'config_ids.max' => 'Höchstens 200 Felgengrößen auf einmal.',
             'config_ids.*' => 'Eine der gewählten Felgengrößen gibt es nicht mehr.',
             'axle.*' => 'Bitte wähl die Achse.',
-            'requires_entry.*' => 'Bitte sag, ob eine Eintragung nötig ist.',
+            'entry_override.*' => 'Bitte wähl, ob die Eintragung laut Prüfer erforderlich ist oder nicht.',
+            'entry_override_reason.required_with' => 'Wer die abgeleitete Eintragung ändert, schreibt dazu, warum – etwa die Aussage des Prüfers.',
+            'entry_override_reason.min' => 'Der Grund ist zu kurz. Schreib ihn so, dass ihn jemand ohne dich versteht.',
+            'entry_override_reason.max' => 'Der Grund darf höchstens 500 Zeichen lang sein.',
             'entry_note.max' => 'Der Hinweis zur Eintragung darf höchstens 500 Zeichen lang sein.',
             'source_page.*' => 'Die Seite bitte als ganze Zahl ab 1.',
             'build_from.*' => 'Den Anfang des Bauzeitraums können wir nicht lesen. Schreib ihn bitte so: 01.03.2019.',
@@ -116,8 +128,12 @@ class FitmentRowsRequest extends FormRequest
             'tyre_sizes.*.min_load_index.*' => 'Diesen Tragfähigkeitsindex gibt es nicht.',
             'tyre_sizes.*.min_speed_symbol.*' => 'Dieses Geschwindigkeitssymbol gibt es nicht.',
             'tyre_sizes.*.axle.*' => 'Bitte wähl die Achse der Reifengröße.',
-            'conditions.*.id.distinct' => 'Diese Auflage ist zweimal gewählt.',
-            'conditions.*.id.*' => 'Diese Auflage gibt es nicht mehr im Auflagen-Katalog.',
+            'tyre_sizes.*.codes.max' => 'Höchstens 20 Codes je Reifengröße.',
+            'tyre_sizes.*.codes.*.distinct' => 'Dieser Code steht bei der Reifengröße zweimal.',
+            'tyre_sizes.*.codes.*' => 'Ein Code besteht aus höchstens acht Buchstaben und Ziffern, so wie im Gutachten – zum Beispiel A01.',
+            'conditions.max' => 'Höchstens 30 Codes je Zeile.',
+            'conditions.*.code.distinct' => 'Dieser Code steht zweimal in der Zeile.',
+            'conditions.*.code.*' => 'Ein Code besteht aus höchstens acht Buchstaben und Ziffern, so wie im Gutachten – zum Beispiel A01.',
             'conditions.*.note.max' => 'Der Zusatz zur Auflage darf höchstens 300 Zeichen lang sein.',
         ];
     }
@@ -173,21 +189,6 @@ class FitmentRowsRequest extends FormRequest
                 if ($this->adding() && $pairs > self::MAX_ROWS && ! $validator->errors()->hasAny(['vehicle_ids', 'config_ids'])) {
                     $validator->errors()->add('config_ids', 'Das wären '.number_format($pairs, 0, ',', '.').' Zeilen auf einmal – höchstens '
                         .number_format(self::MAX_ROWS, 0, ',', '.').'. Wähl bitte weniger Fahrzeuge oder Größen.');
-                }
-
-                // The Eintragung box and an Auflage about the Eintragung must say the same thing: a row that
-                // says both is refused, never stored for the shop to choose between (R-02).
-                $codes = DB::table('condition_codes')
-                    ->whereIn('id', array_values(array_filter(array_map(static fn (mixed $c): mixed => is_array($c) ? ($c['id'] ?? null) : null, (array) $this->input('conditions', [])), 'is_numeric')))
-                    ->pluck('code')->all();
-                $entry = filter_var($this->input('requires_entry'), FILTER_VALIDATE_BOOL);
-
-                if (! $entry && in_array(Condition::ENTRY_REQUIRED, $codes, true) && ! $validator->errors()->has('requires_entry')) {
-                    $validator->errors()->add('requires_entry', 'Die gewählte Auflage verlangt eine Eintragung. Setz bitte auch das Häkchen „Eintragung in die Fahrzeugpapiere erforderlich“.');
-                }
-
-                if ($entry && in_array(Condition::NO_ENTRY_REQUIRED, $codes, true) && ! $validator->errors()->has('requires_entry')) {
-                    $validator->errors()->add('requires_entry', 'Die gewählte Auflage sagt „Keine Eintragung erforderlich“ – das widerspricht dem Häkchen. Bitte entscheide dich für eins.');
                 }
 
                 // A changed row may not become the twin of another: one row per vehicle, size and axle.
@@ -248,6 +249,8 @@ class FitmentRowsRequest extends FormRequest
                 'min_load_index' => isset($size['min_load_index']) ? (int) $size['min_load_index'] : null,
                 'min_speed_symbol' => isset($size['min_speed_symbol']) && $size['min_speed_symbol'] !== '' ? strtoupper((string) $size['min_speed_symbol']) : null,
                 'axle' => (string) $size['axle'],
+                // As printed: `K1c` is not `K1C`.
+                'codes' => array_values(array_map(static fn (mixed $c): string => trim((string) $c), (array) ($size['codes'] ?? []))),
             ];
         }
 
@@ -255,12 +258,16 @@ class FitmentRowsRequest extends FormRequest
 
         foreach ((array) $this->validated('conditions') as $condition) {
             $text = isset($condition['note']) ? trim((string) $condition['note']) : '';
-            $conditions[] = ['id' => (int) $condition['id'], 'note' => $text === '' ? null : $text];
+            $conditions[] = ['code' => trim((string) $condition['code']), 'note' => $text === '' ? null : $text];
         }
+
+        $override = $this->validated('entry_override');
+        $reason = $this->validated('entry_override_reason');
 
         return [
             'axle' => (string) $this->validated('axle'),
-            'requires_entry' => (bool) $this->validated('requires_entry'),
+            'entry_override' => is_string($override) ? $override : null,
+            'entry_override_reason' => is_string($override) && is_string($reason) ? trim($reason) : null,
             'entry_note_de' => is_string($note) && trim($note) !== '' ? trim($note) : null,
             'source_page' => $this->validated('source_page') === null ? null : (int) $this->validated('source_page'),
             'build_from' => is_string($this->validated('build_from')) ? (string) $this->validated('build_from') : null,

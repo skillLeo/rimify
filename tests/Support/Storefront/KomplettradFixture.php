@@ -15,6 +15,7 @@ use App\Models\Fitment;
 use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
@@ -162,7 +163,7 @@ final class KomplettradFixture
         $rows = Fitment::query()
             ->where('vehicle_id', $this->vehicle->id)
             ->where('wheel_config_id', $this->config->id)
-            ->with(['tyreSizes', 'conditions'])
+            ->with(['tyreSizes.conditionCodes', 'conditionCodes'])
             ->get();
 
         foreach ($rows as $row) {
@@ -174,12 +175,14 @@ final class KomplettradFixture
                 $sizeCopy = $size->replicate();
                 $sizeCopy->fitment_id = $copy->id;
                 $sizeCopy->save();
+
+                foreach ($size->conditionCodes as $code) {
+                    DB::table('fitment_tyre_size_conditions')->insert(['fitment_tyre_size_id' => $sizeCopy->id, 'code' => $code->code]);
+                }
             }
 
-            foreach ($row->conditions as $condition) {
-                $copy->conditions()->attach($condition->getKey(), [
-                    'note_de' => $condition->getRelationValue('pivot')?->getAttribute('note_de'),
-                ]);
+            foreach ($row->conditionCodes as $code) {
+                DB::table('fitment_conditions')->insert(['fitment_id' => $copy->id, 'code' => $code->code, 'note_de' => $code->note_de]);
             }
         }
 

@@ -68,7 +68,7 @@ test('GUTACHTEN-01 an inverted Breite or ET range is refused with a sentence, no
         vehicle_ids: vehicleIds,
         config_ids: configIds,
         axle: 'REAR',
-        requires_entry: false,
+        entry_override: null,
         entry_note: '',
         source_page: null,
         build_from: null,

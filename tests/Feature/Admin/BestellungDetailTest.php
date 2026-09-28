@@ -3,10 +3,11 @@
 declare(strict_types=1);
 
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Enums\DocumentStatus;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
-use App\Models\ConditionCode;
+use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\FitmentTyreSize;
 use App\Models\Order;
@@ -18,6 +19,7 @@ use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -45,7 +47,8 @@ function soldWithSnapshot(): array
     $document = ApprovalDocument::factory()->abe()->create(['kba_number' => '53810', 'issuer' => 'Kraftfahrt-Bundesamt']);
     $fitment = Fitment::factory()->create(['approval_document_id' => $document->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'source_page' => 6]);
     FitmentTyreSize::factory()->create(['fitment_id' => $fitment->id, 'width_mm' => 225, 'aspect' => 40, 'diameter_in' => 18.0]);
-    $fitment->conditions()->attach(ConditionCode::query()->where('code', 'ARCH_ROLLING')->value('id'));
+    DocumentCondition::factory()->kind(ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.')->create(['approval_document_id' => $document->id, 'code' => 'K1']);
+    DB::table('fitment_conditions')->insert(['fitment_id' => $fitment->id, 'code' => 'K1']);
 
     $verdict = app(FitmentResolver::class)->resolve($vehicle->id, $config->id);
     $order = Order::factory()->create();

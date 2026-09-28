@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
 use App\Http\Controllers\Admin\FragenController;
+use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
@@ -223,6 +224,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/zeilen', [GutachtenZeilenController::class, 'store'])->whereNumber('document')->name('gutachten.zeilen.store');
         Route::put('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'update'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.update');
         Route::delete('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'destroy'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.entfernen');
+        // A Gutachten's own Auflagenverzeichnis (the corrections memo §1): its codes, written while it is a draft.
+        Route::post('/gutachten/{document}/auflagen', [GutachtenAuflagenController::class, 'store'])->whereNumber('document')->name('gutachten.auflagen.store');
+        Route::post('/gutachten/{document}/auflagen/stapel', [GutachtenAuflagenController::class, 'batch'])->whereNumber('document')->name('gutachten.auflagen.stapel');
+        Route::put('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'update'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.update');
+        Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
 
         // The review kit (the review release §3): the board, the point sent from the feedback button, the
         // list the team answers from and a point's screenshot — only where the review is on
@@ -233,11 +239,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/review/rueckmeldungen/{feedback}', [ReviewController::class, 'update'])->whereNumber('feedback')->name('review.update');
         Route::get('/review/rueckmeldungen/{feedback}/bild', [ReviewController::class, 'image'])->whereNumber('feedback')->name('review.bild');
 
-        // Gutachten › Auflagen-Katalog: each Auflage written once as a full sentence (R-15).
+        // Gutachten › Auflagen: every document's own list, read-only; each is written on its Gutachten.
         Route::get('/auflagen', [AuflagenController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('auflagen.index');
-        Route::post('/auflagen', [AuflagenController::class, 'store'])->name('auflagen.store');
-        Route::put('/auflagen/{code}', [AuflagenController::class, 'update'])->whereNumber('code')->name('auflagen.update');
-        Route::delete('/auflagen/{code}', [AuflagenController::class, 'destroy'])->whereNumber('code')->name('auflagen.destroy');
 
         // Fahrzeuge: the variants, the ones waiting for their legal data, and one vehicle's page —
         // never deleted here (R-04).

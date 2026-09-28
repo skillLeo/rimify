@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fitment\Data;
 
+use App\Domain\Fitment\Verdict\Condition;
 use App\Support\GermanFormat;
 
 /**
@@ -19,6 +20,7 @@ use App\Support\GermanFormat;
  */
 final readonly class TyreSize
 {
+    /** @param list<Condition> $conditions the Auflagen the document hangs off this size itself */
     public function __construct(
         public int $widthMm,
         public int $aspect,
@@ -26,6 +28,12 @@ final readonly class TyreSize
         public ?int $documentMinLoadIndex = null,
         public ?string $documentMinSpeedSymbol = null,
         public string $axle = 'ALL',
+        /**
+         * Whether this size needs the Eintragung: derived from an Abnahme among its own Auflagen and
+         * the row's, or set by a person with a reason (the corrections memo §2). Never typed.
+         */
+        public bool $requiresEntry = false,
+        public array $conditions = [],
     ) {}
 
     /** Identity for set operations: the size itself, not the minima or the axle attached to it. */
@@ -57,7 +65,8 @@ final readonly class TyreSize
      *
      * @return array{
      *     width: int, aspect: int, diameter: float,
-     *     documentMinLoadIndex: int|null, documentMinSpeedSymbol: string|null, axle: string
+     *     documentMinLoadIndex: int|null, documentMinSpeedSymbol: string|null, axle: string,
+     *     requiresEntry: bool, conditions: list<array<string, mixed>>
      * }
      */
     public function toArray(): array
@@ -69,13 +78,16 @@ final readonly class TyreSize
             'documentMinLoadIndex' => $this->documentMinLoadIndex,
             'documentMinSpeedSymbol' => $this->documentMinSpeedSymbol,
             'axle' => $this->axle,
+            'requiresEntry' => $this->requiresEntry,
+            'conditions' => array_map(static fn (Condition $c): array => $c->toArray(), $this->conditions),
         ];
     }
 
     /**
      * @param array{
      *     width: int, aspect: int, diameter: float|int|string,
-     *     documentMinLoadIndex?: int|null, documentMinSpeedSymbol?: string|null, axle?: string
+     *     documentMinLoadIndex?: int|null, documentMinSpeedSymbol?: string|null, axle?: string,
+     *     requiresEntry?: bool, conditions?: list<array{code: string, severity: string, textDe: string}>
      * } $data
      */
     public static function fromArray(array $data): self
@@ -87,6 +99,8 @@ final readonly class TyreSize
             documentMinLoadIndex: $data['documentMinLoadIndex'] ?? null,
             documentMinSpeedSymbol: $data['documentMinSpeedSymbol'] ?? null,
             axle: $data['axle'] ?? 'ALL',
+            requiresEntry: (bool) ($data['requiresEntry'] ?? false),
+            conditions: array_map(static fn (array $c): Condition => Condition::fromArray($c), $data['conditions'] ?? []),
         );
     }
 

@@ -9,6 +9,7 @@ use Database\Factories\FitmentTyreSizeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A tyre size a document permits on a fitment, per axle — front and rear can differ.
@@ -50,5 +51,15 @@ class FitmentTyreSize extends Model
     public function fitment(): BelongsTo
     {
         return $this->belongsTo(Fitment::class);
+    }
+
+    /**
+     * The codes the document hangs off this size, as printed.
+     *
+     * @return HasMany<FitmentTyreSizeCondition, $this>
+     */
+    public function conditionCodes(): HasMany
+    {
+        return $this->hasMany(FitmentTyreSizeCondition::class, 'fitment_tyre_size_id')->orderBy('code');
     }
 }

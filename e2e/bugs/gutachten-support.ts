@@ -61,6 +61,8 @@ export interface ShowProps {
     vehicles: Array<{ id: number; label: string }>;
     blockers: string[];
     previewVehicle: number | null;
+    /** The document's own Auflagenverzeichnis (the corrections memo §1). */
+    conditions: Array<{ id: number; code: string; uses: number; [key: string]: unknown }>;
     can: { edit: boolean; release: boolean };
     errors?: Record<string, string>;
     [key: string]: unknown;

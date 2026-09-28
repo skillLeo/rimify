@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures';
-import { SHOTS, focused, guardWrites, pageInsteadOf, signIn, waitForApp } from './gutachten-support';
+import { SHOTS, answerWithDocument, asDraft, busiestDocument, focused, guardWrites, openAsDraft, signIn, waitForApp } from './gutachten-support';
 
 /*
  * GUTACHTEN-10 (S2) — after a refused „Gutachten anlegen" or a refused Auflage the focus stays on the
@@ -48,15 +48,16 @@ test('GUTACHTEN-10a „Gutachten anlegen" without a PDF moves the focus to the P
     expect(onPdf, `the focus is on ${await focused(page)}; the sentence is ${inView ? 'in view' : 'out of view'}`).toBe(true);
 });
 
-test('GUTACHTEN-10b a refused new Auflage moves the focus to its Wortlaut', async ({ page }, info) => {
+test('GUTACHTEN-10b a refused new code of the Auflagenverzeichnis moves the focus to its sentence', async ({ page }, info) => {
     await signIn(page);
     await guardWrites(page);
 
-    const refusal = 'Bitte schreib die Auflage als ganzen Satz, so wie der Kunde sie lesen soll.';
+    const id = await busiestDocument(page);
+    const refusal = 'Bitte den Satz aus dem Gutachten, so wie ihn eine Kundin oder ein Kunde lesen soll.';
 
-    // The save, answered as the server answers an empty Wortlaut (ConditionCodeRequest: text required).
+    // The save, answered as the server answers an empty sentence (DocumentConditionRequest: text_de required).
     await page.route(
-        (url) => url.pathname === '/admin/auflagen',
+        (url) => url.pathname === `/admin/gutachten/${id}/auflagen`,
         async (route) => {
             if (route.request().method() !== 'POST') {
                 await route.fallback();
@@ -64,32 +65,24 @@ test('GUTACHTEN-10b a refused new Auflage moves the focus to its Wortlaut', asyn
                 return;
             }
 
-            const response = await pageInsteadOf(route, route.request().url());
-            const json = (await response.json()) as { props: Record<string, unknown> };
-
-            json.props.errors = { text: refusal };
-            await route.fulfill({ response, json });
+            await answerWithDocument(route, id, asDraft, { text_de: refusal });
         },
     );
 
-    await page.goto('/admin/auflagen', { waitUntil: 'domcontentloaded' });
-    await waitForApp(page);
+    await openAsDraft(page, id);
+    await page.locator('#av-new').click();
+    await page.locator('#av-code').fill('QA9');
+    await page.locator('#av-kind').selectOption('hinweis');
 
-    await page.getByRole('button', { name: 'Neue Auflage' }).click();
-
-    const dialog = page.getByRole('dialog', { name: 'Neue Auflage' });
-    await expect(dialog).toBeVisible();
-    await page.locator('#al-code').fill('QA_NIE_GESPEICHERT');
-
-    await dialog.getByRole('button', { name: 'Speichern' }).focus();
+    await page.getByRole('button', { name: 'Code speichern' }).focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('#al-text-err')).toHaveText(refusal);
+    await expect(page.locator('#av-text-err')).toHaveText(refusal);
     await page.waitForTimeout(300);
 
     const on = await focused(page);
-    const onText = await page.evaluate(() => document.activeElement?.id === 'al-text');
+    const onText = await page.evaluate(() => document.activeElement?.id === 'av-text');
 
-    await dialog.screenshot({ path: `${SHOTS}/gutachten-10b-auflage-refused-${info.project.name}.png` });
+    await page.locator('.av__form').screenshot({ path: `${SHOTS}/gutachten-10b-auflage-refused-${info.project.name}.png` });
 
     expect(onText, `after the refusal the focus is on ${on}`).toBe(true);
 });

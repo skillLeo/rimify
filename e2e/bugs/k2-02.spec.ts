@@ -43,8 +43,8 @@ test('K2-02 a PNG whose every pixel is opaque is refused like an RGB one — on 
     await createBrand(page, NAME);
 
     const row = brandRow(page, NAME);
-    let refusal = '';
-    let stored = false;
+    let refusal: string;
+    let stored: boolean;
 
     try {
         await Promise.all([

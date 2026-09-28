@@ -497,6 +497,14 @@ describe('putting every entry into words', function (): void {
                 'Das Dokument „ABE 53810“ wurde freigegeben: 30 Zeilen sind jetzt im Shop. 2 Widersprüche zu anderen Gutachten wurden erkannt.',
                 [],
             ],
+            'approval.entry_overridden' => [
+                ['document' => 'ABE 53810', 'row' => 4, 'override' => 'not_required', 'reason' => 'Der Prüfer verlangt keine Abnahme.'],
+                'In einer Zeile von „ABE 53810“ wurde die Eintragung abweichend von den Codes auf „nicht erforderlich“ gesetzt: „Der Prüfer verlangt keine Abnahme.“.',
+                [],
+            ],
+            'approval.condition_added' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ angelegt.', []],
+            'approval.condition_changed' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ geändert.', []],
+            'approval.condition_removed' => [['document' => 'ABE 53810', 'code' => 'A01'], 'Aus dem Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ entfernt.', []],
             'condition.created' => [['code' => 'RADLAUF', 'text' => 'Bördeln der Radläufe erforderlich.'], 'Die Auflage „Bördeln der Radläufe erforderlich.“ wurde angelegt.', []],
             'condition.updated' => [
                 ['code' => 'RADLAUF', 'old_text' => 'Radlauf bördeln.', 'text' => 'Bördeln der Radläufe erforderlich.'],

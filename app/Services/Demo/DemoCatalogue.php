@@ -32,10 +32,11 @@ final class DemoCatalogue
     /** Child first: every table before the ones it references, so no delete leans on a cascade (R-05). */
     public const TABLES = [
         'fitment_conditions',
+        'fitment_tyre_size_conditions',
         'fitment_tyre_sizes',
         'fitment_conflicts',
         'fitments',
-        'condition_code_aliases',
+        'document_conditions',
         'approval_documents',
         'wheel_configs',
         'wheel_finishes',
@@ -48,10 +49,11 @@ final class DemoCatalogue
     /** How a table reads in the Protokoll's purge entry. */
     public const LABELS = [
         'fitment_conditions' => 'Auflagen an Zeilen der Beispiel-Gutachten',
+        'fitment_tyre_size_conditions' => 'Auflagen an Reifengrößen der Beispiel-Gutachten',
         'fitment_tyre_sizes' => 'Reifengrößen an Zeilen der Beispiel-Gutachten',
         'fitment_conflicts' => 'Konflikte auf Beispielfelgen',
         'fitments' => 'Zeilen der Beispiel-Gutachten',
-        'condition_code_aliases' => 'Auflagen-Kürzel der Beispiel-Gutachten',
+        'document_conditions' => 'Auflagenverzeichnisse der Beispiel-Gutachten',
         'approval_documents' => 'Beispiel-Gutachten',
         'wheel_configs' => 'Größen der Beispielfelgen',
         'wheel_finishes' => 'Farben der Beispielfelgen',
@@ -151,14 +153,17 @@ final class DemoCatalogue
         $fitments = self::rows('fitments')->pluck('id')->all();
         $documents = self::rows('approval_documents')->pluck('id')->all();
 
+        $sizes = self::rows('fitment_tyre_sizes')->pluck('id')->all();
+
         self::deleteIn('fitment_conditions', 'fitment_id', $fitments);
+        self::deleteIn('fitment_tyre_size_conditions', 'fitment_tyre_size_id', $sizes);
         self::deleteIn('fitment_tyre_sizes', 'fitment_id', $fitments);
         self::deleteIn('fitment_conflicts', 'existing_fitment_id', $fitments);
         self::deleteIn('fitment_conflicts', 'candidate_fitment_id', $fitments);
         self::deleteIn('fitment_conflicts', 'wheel_config_id', $configs);
         self::deleteIn('fitments', 'id', $fitments);
 
-        self::deleteIn('condition_code_aliases', 'approval_document_id', $documents);
+        self::deleteIn('document_conditions', 'approval_document_id', $documents);
 
         // A chain among the example documents themselves: unlinked first, so no row is refused for
         // the one that replaces it.
@@ -204,7 +209,8 @@ final class DemoCatalogue
                 ->orWhereIn('existing_fitment_id', self::fitments())
                 ->orWhereIn('candidate_fitment_id', self::fitments())),
             'fitments' => DB::table($table)->whereIn('wheel_config_id', self::configs()),
-            'condition_code_aliases' => DB::table($table)->whereIn('approval_document_id', self::documents()),
+            'fitment_tyre_size_conditions' => DB::table($table)->whereIn('fitment_tyre_size_id', DB::table('fitment_tyre_sizes')->whereIn('fitment_id', self::fitments())->select('id')),
+            'document_conditions' => DB::table($table)->whereIn('approval_document_id', self::documents()),
             'approval_documents' => DB::table($table)->whereIn('id', self::documents()),
             'wheel_configs', 'wheel_finishes' => DB::table($table)->whereIn('wheel_model_id', self::models()),
             'wheel_models', 'tyre_variants' => DB::table($table)->where('is_demo', true),

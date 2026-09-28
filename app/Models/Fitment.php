@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -25,9 +24,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * reader cannot see.
  *
  * @property int $id
+ * @property int $approval_document_id
  * @property Axle $axle
  * @property FitmentStatus $status
- * @property bool $requires_entry
+ * @property bool $requires_entry derived from the codes (or overridden) — written by FitmentRows, never typed
+ * @property string|null $entry_override required | not_required, against the derived value
+ * @property string|null $entry_override_reason
+ * @property int|null $entry_override_by
+ * @property CarbonImmutable|null $entry_override_at
  * @property CarbonImmutable|null $build_from
  * @property CarbonImmutable|null $build_to
  * @property float|null $permitted_width_min
@@ -69,6 +73,7 @@ class Fitment extends Model
             'centre_bore_mm' => 'float',
             'requires_entry' => 'boolean',
             'source_page' => 'integer',
+            'entry_override_at' => 'immutable_datetime',
         ];
     }
 
@@ -120,12 +125,21 @@ class Fitment extends Model
         return $this->hasMany(FitmentTyreSize::class);
     }
 
-    /** @return BelongsToMany<ConditionCode, $this> */
-    public function conditions(): BelongsToMany
+    /**
+     * The codes on the row, as the document prints them; their sentences are the document's own
+     * (DocumentCondition), read through `approvalDocument.conditions`.
+     *
+     * @return HasMany<FitmentCondition, $this>
+     */
+    public function conditionCodes(): HasMany
     {
-        return $this->belongsToMany(ConditionCode::class, 'fitment_conditions')
-            ->withPivot('note_de')
-            ->withTimestamps();
+        return $this->hasMany(FitmentCondition::class)->orderBy('code');
+    }
+
+    /** @return BelongsTo<AdminUser, $this> */
+    public function entryOverrideBy(): BelongsTo
+    {
+        return $this->belongsTo(AdminUser::class, 'entry_override_by');
     }
 
     /** @return BelongsTo<AdminUser, $this> */

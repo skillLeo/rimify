@@ -170,6 +170,48 @@ final readonly class FitmentResolver
                 continue;
             }
 
+            // ── The document's own narrowing, and what we could not read of it ───────────
+            // A body-style or drive code drops a row for a car it excludes; one we cannot decide
+            // (no body style on record, no parameter entered) is never read as a pass.
+            $excludedBy = null;
+            $undecided = null;
+            $admitted = [];
+
+            foreach ($covering[$id] as $row) {
+                $admit = $row->filtersAdmit($vehicle);
+
+                if ($admit === false) {
+                    $excludedBy ??= $row->document;
+                } elseif ($admit === null) {
+                    $undecided ??= $row->document;
+                } else {
+                    $admitted[] = $row;
+                }
+            }
+
+            if ($undecided !== null) {
+                $verdicts[$id] = $this->negative(VerdictStatus::Unknown, $vehicle, $wheel, VerdictReason::of(VerdictReason::BODY_OR_DRIVE_UNKNOWN), $undecided);
+
+                continue;
+            }
+
+            if ($admitted === []) {
+                $verdicts[$id] = $this->negative(VerdictStatus::NotPermitted, $vehicle, $wheel, VerdictReason::of(VerdictReason::BODY_OR_DRIVE_EXCLUDED), $excludedBy);
+
+                continue;
+            }
+
+            // A code its own document does not define: the sentence is missing, so the answer is.
+            foreach ($admitted as $row) {
+                if ($row->unresolvedCodes !== []) {
+                    $verdicts[$id] = $this->negative(VerdictStatus::Unknown, $vehicle, $wheel, VerdictReason::of(VerdictReason::CONDITION_UNRESOLVED), $row->document);
+
+                    continue 2;
+                }
+            }
+
+            $covering[$id] = $admitted;
+
             // ── Steps 4, 5 and 6 · merged toward caution across every covering row ───────
             try {
                 $verdicts[$id] = $this->buildPositiveVerdict($vehicle, $wheel, $covering[$id]);
@@ -211,19 +253,28 @@ final readonly class FitmentResolver
             $conditions = Condition::union($conditions, $row->conditions);
         }
 
-        // The entry flag and the Auflagen about entry must never disagree. An Auflage requiring the
-        // entry requires it; a „Keine Eintragung erforderlich.“ loses to any source that requires one
-        // — the answer shown is the cautious one, never both (R-02: never confidently wrong).
+        $front = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT');
+        $rear = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR');
+
+        // An Auflage the document hangs off one tyre size stays with that size for the customer's
+        // choice, and counts here too: until a size is chosen, the verdict carries every Auflage a
+        // permitted size could bring (union, as above).
+        foreach ([...$front->sizes, ...$rear->sizes] as $size) {
+            $conditions = Condition::union($conditions, $size->conditions);
+            $requiresEntry = $requiresEntry || $size->requiresEntry;
+        }
+
+        // The entry flag and the Auflagen about entry must never disagree. A row's flag is already
+        // derived from its Abnahme codes (or a Prüfer's override with its reason); an Auflage without a
+        // kind — the old catalogue's entry key — still sets it. A „Keine Eintragung erforderlich.“ loses
+        // to any source that requires one — the cautious answer, never both (R-02).
         foreach ($conditions as $condition) {
-            $requiresEntry = $requiresEntry || $condition->code === Condition::ENTRY_REQUIRED;
+            $requiresEntry = $requiresEntry || ($condition->kind === null && $condition->requiresEntry());
         }
 
         if ($requiresEntry) {
             $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
         }
-
-        $front = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT');
-        $rear = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR');
 
         // Step 5's failure mode: the document covers the car but nothing is legally mountable.
         if (! $front->hasPermittedSizes() && ! $rear->hasPermittedSizes()) {
