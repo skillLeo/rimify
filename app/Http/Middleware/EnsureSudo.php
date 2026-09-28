@@ -26,12 +26,40 @@ final class EnsureSudo
             return $next($request);
         }
 
-        // Where to come back to: the page itself, or, for a change, the page it was sent from.
+        // Where to come back to: the page itself, or, for a change, the page it was sent from. It travels
+        // in the address, not only in the session: a request running beside this one (the bell's count,
+        // a deferred prop) saves the session it read before and would take the way back with it.
         $back = $request->isMethod('GET') ? $request->fullUrl() : url()->previous();
         $request->session()->put('url.intended', $back);
+        $path = self::adminPath($back);
 
-        return redirect()->route('admin.bestaetigen')
+        return redirect()->route('admin.bestaetigen', $path === null ? [] : ['weiter' => $path])
             ->with('toast', $request->isMethod('GET') ? null : 'Bestätige bitte dein Passwort noch einmal. Deine Änderung ist noch nicht gespeichert.');
+    }
+
+    /**
+     * A way back that stays inside the admin: its path and query when the address is this site's and
+     * under /admin, else null. Never another host, never `//…` — no open redirect.
+     */
+    public static function adminPath(?string $url): ?string
+    {
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if ($parts === false || (isset($parts['host']) && $parts['host'] !== request()->getHost())) {
+            return null;
+        }
+
+        $path = '/'.ltrim((string) ($parts['path'] ?? ''), '/');
+
+        if (str_starts_with($path, '//') || ! preg_match('#^/admin(/[A-Za-z0-9_\-./]*)?$#', $path) || $path === '/admin/bestaetigen') {
+            return null;
+        }
+
+        return $path.(isset($parts['query']) && $parts['query'] !== '' ? '?'.$parts['query'] : '');
     }
 
     public static function active(Request $request): bool

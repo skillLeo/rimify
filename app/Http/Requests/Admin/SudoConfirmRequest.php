@@ -23,7 +23,7 @@ class SudoConfirmRequest extends FormRequest
     /** @return array<string, list<string>> */
     public function rules(): array
     {
-        return ['password' => ['required', 'string', 'max:200']];
+        return ['password' => ['required', 'string', 'max:200'], 'weiter' => ['nullable', 'string', 'max:2000']];
     }
 
     /** @return array<string, string> */

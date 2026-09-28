@@ -10,9 +10,10 @@ import AdminPage from '../../../Components/Admin/AdminPage.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
-defineProps<{ minutes: number }>()
+const props = defineProps<{ minutes: number; weiter?: string | null }>()
 
-const form = useForm({ password: '' })
+// The way back travels with the answer (EnsureSudo), not only in the session a parallel request may overwrite.
+const form = useForm({ password: '', weiter: props.weiter ?? null })
 
 function confirm(): void {
     form.post('/admin/bestaetigen', { onFinish: () => form.reset('password') })

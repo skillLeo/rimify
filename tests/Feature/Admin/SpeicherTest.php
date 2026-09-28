@@ -82,11 +82,39 @@ describe('who may', function (): void {
         $admin = speicherAdmin();
         $admin->forceFill(['password' => 'richtiges-Passwort-7'])->save();
 
-        $this->actingAs($admin, 'admin')->get(SPEICHER_URL)->assertRedirect('/admin/bestaetigen');
+        $this->actingAs($admin, 'admin')->get(SPEICHER_URL)->assertRedirect('/admin/bestaetigen?weiter='.rawurlencode(SPEICHER_URL));
         $this->actingAs($admin, 'admin')->post('/admin/bestaetigen', ['password' => 'falsch'])->assertSessionHasErrors('password');
         $this->actingAs($admin, 'admin')->post('/admin/bestaetigen', ['password' => 'richtiges-Passwort-7'])->assertRedirect(url(SPEICHER_URL));
         $this->actingAs($admin, 'admin')->get(SPEICHER_URL)->assertOk();
     });
+
+    it('finds the way back from the form when a parallel request took it out of the session', function (): void {
+        $admin = speicherAdmin();
+        $admin->forceFill(['password' => 'richtiges-Passwort-7'])->save();
+
+        // The page carries it: the confirmation page is given the way back, and the form sends it.
+        $this->actingAs($admin, 'admin')->get('/admin/bestaetigen?weiter='.rawurlencode(SPEICHER_URL))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('weiter', SPEICHER_URL));
+
+        // No `url.intended` left in the session (the bell's count saved an older copy over it).
+        $this->actingAs($admin, 'admin')->withSession(['url.intended' => null])
+            ->post('/admin/bestaetigen', ['password' => 'richtiges-Passwort-7', 'weiter' => SPEICHER_URL])
+            ->assertRedirect(SPEICHER_URL);
+    });
+
+    it('never leads out of the admin, whatever the form says', function (string $weiter): void {
+        $admin = speicherAdmin();
+        $admin->forceFill(['password' => 'richtiges-Passwort-7'])->save();
+
+        $this->actingAs($admin, 'admin')
+            ->post('/admin/bestaetigen', ['password' => 'richtiges-Passwort-7', 'weiter' => $weiter])
+            ->assertRedirect('/admin');
+    })->with([
+        'another host' => ['https://beispiel.example/admin/einstellungen/speicher'],
+        'protocol-relative' => ['//beispiel.example/admin'],
+        'the shop' => ['/kasse'],
+        'the question itself' => ['/admin/bestaetigen'],
+    ]);
 
     it('asks again after fifteen minutes, and a save sent then is not saved', function (): void {
         $this->actingAs(speicherAdmin(), 'admin')
