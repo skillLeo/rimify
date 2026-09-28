@@ -18,7 +18,10 @@ seeder, test to follow).
       errors (K2-21); the smaller browser items (K2-06, K2-11, K2-22) — `78fc4049`
 - [x] Every K2 spec green at 1440 and 390 (31 passed with the Katalog specs); the full Pest suite (1805, three failures fixed in `d20884e2`, the files re-run green); BUGS.md updated
 - [x] K2-15 (CSS-styled SVGs) and K2-10 (interrupted upload) left open with a one-line reason each (BUGS.md)
-- [ ] ai-look-critic and interaction-qa on the block
+- [x] ai-look-critic and interaction-qa on the block — both ran (the look pass, and the re-review
+      K2-29 … K2-44); their findings fixed in `a7b2b21e`, `c5e93d76`, `740fb68b`, `a5793e39`; the K2, Marken/Fotos
+      and KATALOG-09 specs green at 1440 and 390 (33 passed, 09d skipped on the phone by design); K2-10, K2-15
+      and K2-24 stay open with their reasons
 
 ## Block B — the Gutachten model corrections
 
