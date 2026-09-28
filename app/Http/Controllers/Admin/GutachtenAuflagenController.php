@@ -7,9 +7,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DocumentConditionBatchRequest;
 use App\Http\Requests\Admin\DocumentConditionRequest;
+use App\Http\Requests\Admin\LoadLimitConfirmRequest;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
 use App\Services\Admin\Approvals\DocumentConditions;
+use App\Services\Admin\Approvals\FitmentRows;
+use App\Services\Admin\AuditTrail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -61,5 +64,31 @@ class GutachtenAuflagenController extends Controller
         $this->conditions->delete($condition, $request->admin());
 
         return back()->with('toast', self::REMOVED);
+    }
+
+    /**
+     * A load-index limit that differs from twice its index's capacity, confirmed as printed with a reason —
+     * shown on the record, audited, and lifting that one release blocker (the second review of C9, §3).
+     */
+    public function confirmLimit(LoadLimitConfirmRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
+    {
+        $reason = trim((string) $request->validated('reason'));
+
+        DB::transaction(static function () use ($condition, $document, $request, $reason): void {
+            $condition->forceFill([
+                'limit_confirmed_reason' => $reason,
+                'limit_confirmed_by' => $request->admin()->id,
+                'limit_confirmed_at' => now(),
+            ])->save();
+
+            AuditTrail::record($request->admin(), 'approval.limit_confirmed', [
+                'document' => FitmentRows::label($document),
+                'code' => $condition->code,
+                'kg' => $condition->max_axle_load_kg,
+                'reason' => $reason,
+            ], $document);
+        });
+
+        return back()->with('toast', 'Zahl bestätigt.');
     }
 }

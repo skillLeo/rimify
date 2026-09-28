@@ -30,6 +30,7 @@ use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\FitmentRows;
+use App\Services\Admin\Approvals\LoadLimitCheck;
 use App\Services\Admin\AuditTrail;
 use App\Services\Storage\PdfUpload;
 use App\Services\Storage\UploadRejected;
@@ -228,7 +229,7 @@ class GutachtenController extends Controller
      * The document's table as the grid shows it: its columns in the order first entered (V, W, Y), its rows
      * by speed, each cell „97“, „–“ or empty.
      *
-     * @return array{sourcePage: int|null, symbols: list<string>, rows: list<array{speed: int, cells: array<string, string>}>}
+     * @return array{sourcePage: int|null, seededFrom: string|null, symbols: list<string>, rows: list<array{speed: int, cells: array<string, string>}>}
      */
     private static function deratingView(ApprovalDocument $document): array
     {
@@ -245,6 +246,7 @@ class GutachtenController extends Controller
 
         return [
             'sourcePage' => $cells->first()?->source_page,
+            'seededFrom' => $cells->first()?->seeded_from,
             'symbols' => array_keys($symbols),
             'rows' => array_map(static fn (int $speed, array $row): array => ['speed' => $speed, 'cells' => $row], array_keys($rows), $rows),
         ];
@@ -422,6 +424,14 @@ class GutachtenController extends Controller
             'maxAxleLoadKg' => $condition->max_axle_load_kg,
             'axle' => $condition->axle,
             'uses' => $uses,
+            // A load-index limit that differs from twice its index's capacity: said, and confirmed with a
+            // reason before release — the document is kept as it stands (the second review of C9, §3).
+            'limitWarning' => app(LoadLimitCheck::class)->warningFor($condition),
+            'limitConfirmed' => $condition->limit_confirmed_at === null ? null : [
+                'reason' => (string) $condition->limit_confirmed_reason,
+                'by' => AdminUser::query()->whereKey($condition->limit_confirmed_by)->value('name'),
+                'at' => $condition->limit_confirmed_at->timezone('Europe/Berlin')->format('d.m.Y'),
+            ],
         ];
     }
 

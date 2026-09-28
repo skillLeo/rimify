@@ -296,6 +296,26 @@ function parameter(condition: DocumentConditionView): string {
 function uses(condition: DocumentConditionView): string {
     return condition.uses === 0 ? '–' : formatNumber(condition.uses)
 }
+
+/* ── A load-index limit that differs from the table: confirmed as printed, with a reason ── */
+
+const limitWarnings = computed(() => props.conditions.filter((condition) => Boolean(condition.limitWarning)))
+const limitReasons = reactive<Record<number, string>>({})
+const limitErrors = reactive<Record<number, string>>({})
+
+function confirmLimit(condition: DocumentConditionView): void {
+    router.post(`/admin/gutachten/${props.documentId}/auflagen/${condition.id}/grenze`, { reason: limitReasons[condition.id] ?? '' }, {
+        preserveScroll: true,
+        errorBag: 'auflagen',
+        onError: (errors) => {
+            limitErrors[condition.id] = (errors as Record<string, string>).reason ?? ''
+            document.getElementById(`av-limit-${condition.id}`)?.focus()
+        },
+        onSuccess: () => {
+            limitErrors[condition.id] = ''
+        },
+    })
+}
 </script>
 
 <template>
@@ -356,6 +376,32 @@ function uses(condition: DocumentConditionView): string {
             </table>
         </div>
         <p v-else class="adm-note">Noch kein Code. Trag die Auflagen so ein, wie das Gutachten sie druckt – einzeln oder als ganze Legende.</p>
+
+        <!-- A load-index limit that is not twice its index's capacity: kept as printed, confirmed with a reason. -->
+        <div v-for="condition in limitWarnings" :key="`limit-${condition.id}`" class="av-limit">
+            <p class="adm-alert" :role="condition.limitConfirmed ? undefined : 'alert'">
+                <span translate="no">{{ condition.code }}</span>: {{ condition.limitWarning }}
+            </p>
+            <p v-if="condition.limitConfirmed" class="adm-note av-limit__done">
+                Bestätigt{{ condition.limitConfirmed.by ? ` von ${condition.limitConfirmed.by}` : '' }} am {{ condition.limitConfirmed.at }}: „{{ condition.limitConfirmed.reason }}“
+            </p>
+            <form v-else-if="editable" class="av-limit__form" novalidate @submit.prevent="confirmLimit(condition)">
+                <label class="form-field__label" :for="`av-limit-${condition.id}`">Warum steht die Zahl so im Gutachten?</label>
+                <textarea
+                    :id="`av-limit-${condition.id}`"
+                    v-model="limitReasons[condition.id]"
+                    class="input"
+                    rows="2"
+                    maxlength="500"
+                    :aria-invalid="limitErrors[condition.id] ? 'true' : undefined"
+                    :aria-describedby="`av-limit-${condition.id}-err`"
+                />
+                <p :id="`av-limit-${condition.id}-err`" class="form-field__error">{{ limitErrors[condition.id] }}</p>
+                <div>
+                    <button class="btn btn--secondary btn--sm" type="submit" :disabled="busy">Zahl bestätigen</button>
+                </div>
+            </form>
+        </div>
 
         <div v-if="editable && !formOpen && !pasteOpen" class="av__actions">
             <button id="av-new" class="btn btn--secondary" type="button" :disabled="busy" @click="openNew">
@@ -509,6 +555,24 @@ function uses(condition: DocumentConditionView): string {
 .av {
     display: grid;
     gap: var(--sp-16);
+}
+
+.av-limit,
+.av-limit__form {
+    display: grid;
+    gap: var(--sp-8);
+}
+
+.av-limit__form {
+    max-width: var(--adm-form-max);
+}
+
+.av-limit__form .form-field__error:empty {
+    display: none;
+}
+
+.av-limit__done {
+    margin: 0;
 }
 
 .av__code {

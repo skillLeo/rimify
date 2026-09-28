@@ -151,11 +151,21 @@ it('gives a definite answer once the figures from the papers are entered, and sh
             'Laut Auflage T88 genügt Tragfähigkeitsindex 88 bis '.kg('1.120').' Achslast.',
             // … the derated requirement, on its own: 550 ÷ 0,95 = 578,9 → LI 89 (580 kg) …
             'Bei 250 km/h trägt ein Reifen mit Geschwindigkeitsindex W nur 95 % seiner Last (Tabelle auf Seite 6 im Gutachten 55255): '
-                .kg('550').' ÷ 0,95 = '.kg('579').' – das verlangt Tragfähigkeitsindex 89 ('.kg('580').').',
+                .kg('550').' ÷ 0,95 = '.kg('578,9').' – das verlangt Tragfähigkeitsindex 89 ('.kg('580').').',
             // … and which one binds.
             'Maßgeblich ist die Minderung bei hoher Geschwindigkeit: mindestens Tragfähigkeitsindex 89, Geschwindigkeitsindex W.',
         ])
         ->and(array_slice($verdict->tyre->lines ?? [], -1))->toBe(['Beide Achsen tragen '.kg('1.100').': vier gleiche Reifen brauchen mindestens Tragfähigkeitsindex 89.']);
+});
+
+it('never passes a table the demo seed wrote off as printed by the document', function (): void {
+    $printed = FitmentFixtures::deratingTable();
+    $seeded = new SpeedDeratingTable($printed->rows, null, 'Demo-Seed: Tabelle der ABE 55255, Seite 6');
+    $lines = implode(' ', decideFor(bmw4er3C(1100, 1100, 250), [tCode(88, 1120)], table: $seeded)->tyre->lines ?? []);
+
+    expect($lines)->toContain('nur 95 % seiner Last (Beispieltabelle aus den Demodaten, nicht aus dem Gutachten 55255)')
+        ->and($lines)->not->toContain('Tabelle auf Seite')
+        ->and($lines)->not->toContain('Tabelle im Gutachten');
 });
 
 it('lets the document’s own load-index limit bind where it is stricter, and says so', function (): void {
@@ -231,7 +241,8 @@ it('rounds the top speed up to the next row, never down and never between rows',
 });
 
 it('raises the speed symbol where the document’s table marks it „–“, and says what is required', function (): void {
-    // A document whose table rules W out at 270 km/h, though a W tyre is rated for 270.
+    // A made-up document whose table rules W out at 270 km/h, though a W tyre is rated for 270 — ABE 55255
+    // does not: it gives W 85 % there (the row-boundary test). This one exercises the „–“ path alone.
     $table = new SpeedDeratingTable([270 => ['V' => null, 'W' => null, 'Y' => 100]], 6);
     $verdict = decideFor(bmw4er3C(1100, 1100, 270), table: $table);
 
@@ -278,11 +289,97 @@ it('finds every load-index Auflage of ABE 55255 exactly twice the capacity of it
     }
 });
 
-it('does not know what the tyres need under a limit that is not twice a capacity', function (): void {
-    $verdict = decideFor(bmw4er3C(1100, 1100, 200), [Condition::ofKind('T88', ConditionKind::ReifenTragfaehigkeit, 'Reifen mit Tragfähigkeitsindex 88 …', null, 6, 1125)]);
+it('reads a load-index limit as the document states it, even where it is not twice the capacity', function (): void {
+    // The document wins (the second review of C9, §3): T88 up to 1.125 kg is LI 88 up to 1.125 kg — the
+    // person who typed it confirmed it with a reason before the document could be released.
+    $verdict = decideFor(bmw4er3C(1122, 1122, 200), [Condition::ofKind('T88', ConditionKind::ReifenTragfaehigkeit, 'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.125 kg zulässig.', null, 6, 1125)]);
 
-    expect($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->reason?->textDe)->toContain('Die Auflage T88 nennt '.kg('1.125'));
+    // 1.122 kg at 200 km/h derives LI 89 (561 kg a tyre > 560); the limit says 88: the derivation binds.
+    expect($verdict->status)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->tyre?->lines)->toContain('Laut Auflage T88 genügt Tragfähigkeitsindex 88 bis '.kg('1.125').' Achslast.')
+        ->and($verdict->front->minLoadIndex)->toBe(89);
+});
+
+it('never reads an axle-load note as a load index, and says so when the axle is above it', function (): void {
+    // ABE 55255's code 140 states 1.400 kg — no load index at all (LI 98 carries 750 kg a tyre).
+    $note = Condition::ofKind('140', ConditionKind::ReifenTragfaehigkeit, 'Das Sonderrad ist in Verbindung mit dieser Reifengröße nur bis zu einer zulässigen Achslast von 1.400 kg zulässig.', null, 7, 1400);
+
+    $within = decideFor(bmw4er3C(1300, 1300, 200), [$note]);
+    $above = decideFor(bmw4er3C(1300, 1500, 200), [$note], new WheelConfigRecord(
+        id: FitmentFixtures::WHEEL_CONFIG_ID, wheelModelId: 23, wheelFinishId: 44, diameterIn: 19.0, widthIn: 8.5, etMm: 35,
+        boltHoles: 5, boltCircleMm: 120.0, centreBoreMm: 72.6, priceCents: 0, stockQty: 0, maxLoadKg: 800,
+    ));
+
+    expect($within->status)->toBe(VerdictStatus::Permitted)
+        ->and(implode(' ', $within->tyre->lines ?? []))->not->toContain('Laut Auflage 140')
+        ->and($above->tyre?->status)->toBe(VerdictStatus::Conditional)
+        ->and($above->tyre?->lines[0])->toBe('Die Auflage 140 nennt eine zulässige Achslast bis '.kg('1.400').'; die Hinterachse trägt laut Fahrzeugpapieren '.kg('1.500').'. Lies die Auflage im Gutachten – ob sie für dein Fahrzeug gilt, klären wir gern mit dir.');
+});
+
+/* ── Whole numbers only: no float decides a tyre ──────────────────────────────────────────────── */
+
+it('decides exactly on the boundary: 1.235 kg at 95 % is carried by LI 93, on every machine', function (): void {
+    $deriver = new LoadIndexDeriver(FitmentFixtures::tables());
+
+    // 2 × 650 × 95 = 123.500 = 100 × 1.235: equal, so 93 — not 94, whatever 617,5 ÷ 0,95 comes to in IEEE 754.
+    expect($deriver->forAxleAt(1235, 95)?->index)->toBe(93)
+        // One kilogram more is over the edge.
+        ->and($deriver->forAxleAt(1236, 95)?->index)->toBe(94)
+        // 2 × 630 × 95 = 119.700 < 121.000 = 100 × 1.210: the front needs 93.
+        ->and($deriver->forAxleAt(1210, 95)?->index)->toBe(93)
+        // No derating: exactly twice a capacity is carried (1.120 kg → LI 88), a kilogram more is not.
+        ->and($deriver->forAxleAt(1120, 100)?->index)->toBe(88)
+        ->and($deriver->forAxleAt(1121, 100)?->index)->toBe(89)
+        ->and($deriver->forAxle(1231)?->index)->toBe(92)
+        // And through the engine, the RS 4's rear: LI 93.
+        ->and(FitmentFixtures::resolver([FitmentFixtures::row()])->resolve(1, FitmentFixtures::WHEEL_CONFIG_ID)->rear->minLoadIndex)->toBe(93);
+});
+
+it('takes the decision in integers — no float, no division, no rounding in the path', function (): void {
+    $method = new ReflectionMethod(LoadIndexDeriver::class, 'forAxleAt');
+
+    foreach ($method->getParameters() as $parameter) {
+        expect((string) $parameter->getType())->toBe('int');
+    }
+
+    $lines = array_slice(file((string) $method->getFileName()) ?: [], $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1);
+    $code = '';
+
+    foreach (token_get_all('<?php '.implode('', $lines)) as $token) {
+        // The source without its comments: the docblock may talk about floats, the code may not use one.
+        if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+            continue;
+        }
+
+        $code .= is_array($token) ? $token[1] : $token;
+    }
+
+    expect($code)->not->toMatch('~(?<![/*])/(?![/*])~')
+        ->and($code)->not->toMatch('/\bfloat\b|\bround\s*\(|\bceil\s*\(|\bfloor\s*\(|\bfdiv\s*\(|\bintdiv\s*\(/i');
+});
+
+/* ── The table's row boundaries, as ABE 55255 prints them ─────────────────────────────────────── */
+
+it('reads the printed rows at 270 and 280 km/h as the document states them', function (): void {
+    $table = FitmentFixtures::deratingTable();
+
+    // 270 km/h: V –, W 85 %, Y 100 %. A W tyre IS permitted there, derated; the V is not.
+    expect($table->lookup(270, 'W')->percent)->toBe(85)
+        ->and($table->lookup(270, 'V')->isNotPermitted())->toBeTrue()
+        ->and($table->lookup(270, 'V')->required)->toBe('W')
+        ->and($table->lookup(270, 'Y')->percent)->toBe(100)
+        // 280 km/h: V –, W –, Y 95 %. The W is not permitted, Y is required.
+        ->and($table->lookup(280, 'W')->isNotPermitted())->toBeTrue()
+        ->and($table->lookup(280, 'W')->required)->toBe('Y')
+        ->and($table->lookup(280, 'Y')->percent)->toBe(95);
+
+    // Through the engine at 270 km/h: the car needs W (rated to 270), at 85 % — never "not permitted".
+    $verdict = decideFor(bmw4er3C(1100, 1100, 270));
+
+    expect($verdict->front->minSpeedSymbol)->toBe('W')
+        ->and($verdict->status)->toBe(VerdictStatus::Permitted)
+        ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('Geschwindigkeitsindex W nur 85 % seiner Last')
+        ->and(implode(' ', $verdict->tyre->lines ?? []))->not->toContain('nicht zulässig');
 });
 
 /* ── The rest ─────────────────────────────────────────────────────────────────────────────────── */

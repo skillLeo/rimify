@@ -59,7 +59,14 @@ final class DocumentConditions
                 throw ValidationException::withMessages(['code' => 'Der Code steht schon in Zeilen des Verwendungsbereichs und bleibt deshalb, wie er ist.']);
             }
 
-            $condition->fill(self::columns($input))->save();
+            $condition->fill(self::columns($input));
+
+            // A confirmed load-index limit is confirmed for the figure it had: a new code or new kilograms ask again.
+            if ($condition->isDirty(['code', 'max_axle_load_kg', 'kind'])) {
+                $condition->forceFill(['limit_confirmed_reason' => null, 'limit_confirmed_by' => null, 'limit_confirmed_at' => null]);
+            }
+
+            $condition->save();
             $document = $condition->document()->firstOrFail();
 
             AuditTrail::record($admin, 'approval.condition_changed', ['document' => FitmentRows::label($document), 'code' => $condition->code, 'kind' => $condition->kind->value], $document);

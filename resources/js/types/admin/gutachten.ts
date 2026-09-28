@@ -157,6 +157,10 @@ export interface DocumentConditionView {
     axle: 'FRONT' | 'REAR' | null
     /** Rows and tyre sizes of this document that carry the code. */
     uses: number
+    /** A load-index limit that is not twice its index's capacity: the warning, in words; null otherwise. */
+    limitWarning?: string | null
+    /** Confirmed as the document prints it, with the reason — shown on the record, lifts the release blocker. */
+    limitConfirmed?: { reason: string; by: string | null; at: string } | null
 }
 
 /** The choices of the Auflagenverzeichnis form. */
@@ -189,6 +193,8 @@ export interface PreviewVerdict {
 /** A document's table of tyre load at speed (ABE 55255, p. 6): each cell „97“, „–“ or absent. */
 export interface DeratingView {
     sourcePage: number | null
+    /** Written by the demo seed, not typed from this document's pages — said on the record. */
+    seededFrom: string | null
     symbols: string[]
     rows: { speed: number; cells: Record<string, string> }[]
 }

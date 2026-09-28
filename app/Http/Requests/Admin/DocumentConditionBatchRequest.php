@@ -8,7 +8,6 @@ use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Services\Admin\Approvals\DocumentConditions;
-use App\Services\Admin\Approvals\LoadLimitCheck;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -113,14 +112,6 @@ class DocumentConditionBatchRequest extends FormRequest
                         $validator->errors()->add("entries.{$i}.kind", 'Diese Art braucht eine Angabe mehr. Trag den Code bitte einzeln ein.');
                     }
 
-                    // Every load-index limit is twice a capacity from the table (the free cross-check).
-                    if ($kind === ConditionKind::ReifenTragfaehigkeit->value && is_numeric($entry['max_axle_load_kg'] ?? null)) {
-                        $problem = app(LoadLimitCheck::class)->problem((string) ($entry['code'] ?? ''), (int) $entry['max_axle_load_kg']);
-
-                        if ($problem !== null) {
-                            $validator->errors()->add("entries.{$i}.max_axle_load_kg", $problem);
-                        }
-                    }
                 }
             },
         ];

@@ -232,6 +232,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/auflagen/stapel', [GutachtenAuflagenController::class, 'batch'])->whereNumber('document')->name('gutachten.auflagen.stapel');
         Route::put('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'update'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.update');
         Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
+        // A load-index limit that differs from the table, confirmed as printed with a reason.
+        Route::post('/gutachten/{document}/auflagen/{condition}/grenze', [GutachtenAuflagenController::class, 'confirmLimit'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.grenze');
         // What it states beside its codes (the corrections memo §4): Befestigungsmittel, Pflichthinweise, Nacharbeit mit Maßen.
         Route::post('/gutachten/{document}/befestigungsmittel', [GutachtenAngabenController::class, 'store'])->whereNumber('document')->name('gutachten.befestigungsmittel.store');
         Route::delete('/gutachten/{document}/befestigungsmittel/{fastener}', [GutachtenAngabenController::class, 'destroyFastener'])->whereNumber(['document', 'fastener'])->name('gutachten.befestigungsmittel.entfernen');

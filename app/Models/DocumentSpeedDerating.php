@@ -17,10 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $symbol
  * @property int|null $percent
  * @property int|null $source_page
+ * @property string|null $seeded_from where the demo seed took the table from; NULL = typed from this document
  */
 class DocumentSpeedDerating extends Model
 {
-    protected $fillable = ['approval_document_id', 'speed_kmh', 'symbol', 'percent', 'source_page'];
+    protected $fillable = ['approval_document_id', 'speed_kmh', 'symbol', 'percent', 'source_page', 'seeded_from'];
 
     /** @return array<string, string> */
     protected function casts(): array

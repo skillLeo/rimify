@@ -25,6 +25,7 @@ use App\Domain\Fitment\Verdict\CentreBoreSource;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\LoadIndexCode;
 use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\TyreCheck;
@@ -471,7 +472,8 @@ final readonly class FitmentResolver
         $over = [];
 
         foreach ([['Vorderachse', $front, (int) $vehicle->axleLoadFrontKg], ['Hinterachse', $rear, (int) $vehicle->axleLoadRearKg]] as [$name, $axle, $load]) {
-            if ($axle->hasPermittedSizes() && $load / 2 > $radlast) {
+            // Whole numbers: half the axle above the tested load is the axle above twice it.
+            if ($axle->hasPermittedSizes() && $load > 2 * $radlast) {
                 $over[$name] = $load;
             }
         }
@@ -489,7 +491,7 @@ final readonly class FitmentResolver
             GermanFormat::kilograms($radlast),
             $name,
             GermanFormat::kilograms($load),
-            GermanFormat::kilograms((int) ceil($load / 2)),
+            self::halfKg($load),
         ));
     }
 
@@ -604,19 +606,10 @@ final readonly class FitmentResolver
     {
         $load = (int) $check['load'];
         $speed = (int) $check['speed'];
-        $perWheel = $load / 2;
-        $lead = sprintf('%s: %s ÷ 2 = %s je Rad.', $name, GermanFormat::kilograms($load), GermanFormat::kilograms((int) ceil($perWheel)));
+        $lead = sprintf('%s: %s ÷ 2 = %s je Rad.', $name, GermanFormat::kilograms($load), self::halfKg($load));
 
         /** @var DeratingLookup|null $lookup */
         $lookup = $check['lookup'];
-
-        if ($check['badLimit'] !== null) {
-            return [VerdictStatus::Unknown, [sprintf(
-                '!Die Auflage %s nennt %s – das ist nicht das Doppelte einer Tragfähigkeit aus der Tabelle. Die Reifen können wir deshalb nicht bestätigen; wir prüfen das Gutachten.',
-                $check['badLimit']['code'],
-                GermanFormat::kilograms($check['badLimit']['kg']),
-            )]];
-        }
 
         if ($lookup !== null && $lookup->isNotPermitted() && $check['raisedFrom'] === null) {
             return [VerdictStatus::NotPermitted, [sprintf('!Bei %s km/h ist laut Tabelle des Gutachtens kein Reifen mit Geschwindigkeitsindex %s zulässig.', GermanFormat::integer($speed), $check['symbol'])]];
@@ -639,6 +632,17 @@ final readonly class FitmentResolver
 
         if ($check['derived'] === null || ! $axle->hasUsableMinimum()) {
             return [VerdictStatus::Unknown, [sprintf('!Für eine Achslast von %s nennt die Tragfähigkeitstabelle keinen Index. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::kilograms($load))]];
+        }
+
+        // An axle-load note of the document this axle is above: said, and the answer stays open.
+        if ($check['axleNote'] !== null) {
+            return [VerdictStatus::Conditional, [sprintf(
+                '!Die Auflage %s nennt eine zulässige Achslast bis %s; die %s trägt laut Fahrzeugpapieren %s. Lies die Auflage im Gutachten – ob sie für dein Fahrzeug gilt, klären wir gern mit dir.',
+                $check['axleNote']['code'],
+                GermanFormat::kilograms((int) $check['axleNote']['kg']),
+                $name,
+                GermanFormat::kilograms($load),
+            )]];
         }
 
         $lines = [$lead];
@@ -674,9 +678,10 @@ final readonly class FitmentResolver
                 $check['symbol'],
                 $percent,
                 $source === null ? '' : ' ('.$source.')',
-                GermanFormat::kilograms((int) ceil($perWheel)),
+                self::halfKg($load),
                 GermanFormat::trimmedDecimal($percent / 100, 2),
-                GermanFormat::kilograms((int) ceil($perWheel * 100 / $percent)),
+                // Display only: the decision was taken in whole numbers (LoadIndexDeriver::forAxleAt()).
+                GermanFormat::trimmedDecimal(round($load * 50 / $percent, 1), 1).GermanFormat::NBSP.'kg',
                 $derived->index,
                 GermanFormat::kilograms($derived->capacityKg),
             );
@@ -690,6 +695,14 @@ final readonly class FitmentResolver
         $lines[] = sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol);
 
         return [VerdictStatus::Permitted, $lines];
+    }
+
+    /** Half an axle load, as read: `550 kg`, `617,5 kg` — display only, never a decision. */
+    private static function halfKg(int $axleLoadKg): string
+    {
+        return $axleLoadKg % 2 === 0
+            ? GermanFormat::kilograms(intdiv($axleLoadKg, 2))
+            : GermanFormat::integer(intdiv($axleLoadKg, 2)).',5'.GermanFormat::NBSP.'kg';
     }
 
     private function sameSizes(AxleRequirement $front, AxleRequirement $rear): bool
@@ -827,35 +840,42 @@ final readonly class FitmentResolver
 
         $derivedLoadIndex = $axleLoadKg === null || $axleLoadKg <= 0 || $lookup === null || $lookup->percent === null
             ? null
-            : $this->loadIndex->forTyreLoad($axleLoadKg / 2 * 100 / $lookup->percent);
+            : $this->loadIndex->forAxleAt($axleLoadKg, $lookup->percent);
 
-        // The limits: the smallest index whose limit reaches this axle's load. A limit that is not twice a
-        // capacity from the table cannot be read; limits that all stop below the load say nothing for it.
+        // The load-index limits: only codes that name an index (T88 → 88), read as the document states them —
+        // the index the code names, up to the axle load it prints; the document wins even where that is not
+        // exactly twice the index's capacity (the second review of C9, §3). The smallest index whose limit
+        // reaches this axle binds; limits that all stop below it say nothing for it. Any other code with a
+        // kilogram figure is an axle-load note: this axle above it is said, never read as a load index.
         $limit = null;
-        $badLimit = null;
         $limitsUncovered = null;
+        $axleNote = null;
 
         if ($axleLoadKg !== null && $axleLoadKg > 0 && $limits !== []) {
             $maxKg = 0;
+            $named = 0;
 
             foreach ($limits as $condition) {
                 $kg = (int) $condition->maxAxleLoadKg;
-                $index = $kg % 2 === 0 ? $this->loadIndex->indexForCapacity(intdiv($kg, 2)) : null;
+                $index = LoadIndexCode::indexNamedBy($condition->code);
 
                 if ($index === null) {
-                    $badLimit ??= ['code' => $condition->code, 'kg' => $kg];
+                    if ($axleLoadKg > $kg) {
+                        $axleNote ??= ['code' => $condition->code, 'kg' => $kg];
+                    }
 
                     continue;
                 }
 
+                $named++;
                 $maxKg = max($maxKg, $kg);
 
-                if ($kg >= $axleLoadKg && ($limit === null || $index->index < $limit['index'])) {
-                    $limit = ['code' => $condition->code, 'kg' => $kg, 'index' => $index->index];
+                if ($kg >= $axleLoadKg && ($limit === null || $index < $limit['index'])) {
+                    $limit = ['code' => $condition->code, 'kg' => $kg, 'index' => $index];
                 }
             }
 
-            if ($limit === null && $badLimit === null) {
+            if ($limit === null && $named > 0) {
                 $limitsUncovered = $maxKg;
             }
         }
@@ -906,15 +926,20 @@ final readonly class FitmentResolver
                 'raisedFrom' => $raisedFrom,
                 'derived' => $derivedLoadIndex,
                 'limit' => $limit,
-                'badLimit' => $badLimit,
+                'axleNote' => $axleNote,
                 'limitsUncovered' => $limitsUncovered,
                 'binding' => $binding,
                 'hasTable' => array_filter($tableList) !== [],
-                'tableSource' => $sourceTable === null ? null : trim(sprintf(
-                    'Tabelle%s im Gutachten %s',
-                    $sourceTable->sourcePage === null ? '' : ' auf Seite '.$sourceTable->sourcePage,
-                    (string) $documentNumber,
-                )),
+                // A table the demo seed wrote is never passed off as printed by this document.
+                'tableSource' => match (true) {
+                    $sourceTable === null => null,
+                    $sourceTable->seededFrom !== null => 'Beispieltabelle aus den Demodaten, nicht aus dem Gutachten '.$documentNumber,
+                    default => trim(sprintf(
+                        'Tabelle%s im Gutachten %s',
+                        $sourceTable->sourcePage === null ? '' : ' auf Seite '.$sourceTable->sourcePage,
+                        (string) $documentNumber,
+                    )),
+                },
             ],
         ];
     }

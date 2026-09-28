@@ -22,10 +22,12 @@ final readonly class SpeedDeratingTable
 
     /**
      * @param  array<int, array<string, int|null>>  $rows  speed → symbol → percent (null = „–“)
+     * @param  string|null  $seededFrom  set when the demo seed wrote the table, not a person from the document's pages
      */
     public function __construct(
         public array $rows,
         public ?int $sourcePage = null,
+        public ?string $seededFrom = null,
     ) {}
 
     public function lookup(int $topSpeedKmh, string $symbol): DeratingLookup

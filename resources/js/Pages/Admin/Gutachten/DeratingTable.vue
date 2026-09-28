@@ -115,7 +115,10 @@ function cellError(i: number, symbol: string): string {
                         </tr>
                     </tbody>
                 </table>
-                <p v-if="derating.sourcePage" class="adm-note">Seite {{ derating.sourcePage }} im Gutachten.</p>
+                <p v-if="derating.seededFrom" class="adm-note">
+                    Beispieltabelle aus den Demodaten ({{ derating.seededFrom }}) – nicht aus diesem Gutachten übertragen.
+                </p>
+                <p v-else-if="derating.sourcePage" class="adm-note">Seite {{ derating.sourcePage }} im Gutachten.</p>
             </div>
 
             <button v-if="editable" id="dt-edit" class="btn btn--ghost" type="button" @click="start">

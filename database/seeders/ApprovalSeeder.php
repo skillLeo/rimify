@@ -68,6 +68,9 @@ class ApprovalSeeder extends Seeder
     /** Every demo document's issuer: no real organisation. */
     public const ISSUER = 'Prüfstelle (Demodaten)';
 
+    /** Where every demo document's table of tyre load at speed comes from — said wherever the table is. */
+    public const DERATING_SEED = 'Demo-Seed: Tabelle der ABE 55255, Seite 6';
+
     /**
      * slot => [report number, the report number it had before, months since issue, page count].
      *
@@ -489,9 +492,10 @@ class ApprovalSeeder extends Seeder
     }
 
     /**
-     * An example document prints the usual table of tyre load at speed, as ABE 55255 prints it on page 6 —
-     * example data like the rest of it. A document holds its own table (the operator's review of C9, §5);
-     * one that already has rows keeps them.
+     * An example document carries the usual table of tyre load at speed, as ABE 55255 prints it on page 6 —
+     * example data like the rest of it, and marked as such (`seeded_from`): the record and the shop name the
+     * demo seed, never this document, as its source (the second review of C9, §4). A document holds its own
+     * table (§5 of the first); one that already has rows keeps them.
      */
     private function seedDerating(ApprovalDocument $document): void
     {
@@ -512,6 +516,7 @@ class ApprovalSeeder extends Seeder
                     'symbol' => $symbol,
                     'percent' => $percent,
                     'source_page' => null,
+                    'seeded_from' => self::DERATING_SEED,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

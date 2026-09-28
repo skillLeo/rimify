@@ -42,6 +42,11 @@ final class DocumentRelease
             $blockers[] = 'Das PDF des Gutachtens fehlt.';
         }
 
+        // A load-index limit that differs from twice its index's capacity stands as the document states it,
+        // once a person has confirmed it with a reason (the second review of C9, §3).
+        foreach (app(LoadLimitCheck::class)->unconfirmedIn($document) as $code) {
+            $blockers[] = "Die Achslast bei {$code} passt nicht zum Tragfähigkeitsindex. Bestätige die Zahl im Auflagenverzeichnis mit einem Satz.";
+        }
         $rows = Fitment::query()->where('approval_document_id', $document->id)->where('status', FitmentStatus::Draft->value);
         $count = (clone $rows)->count();
 

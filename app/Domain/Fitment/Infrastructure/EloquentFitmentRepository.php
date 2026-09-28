@@ -370,13 +370,15 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
     {
         $rows = [];
         $page = null;
+        $seeded = null;
 
         foreach ($document->speedDeratings as $cell) {
             $rows[$cell->speed_kmh][$cell->symbol] = $cell->percent;
             $page ??= $cell->source_page;
+            $seeded ??= $cell->seeded_from;
         }
 
-        return $rows === [] ? null : new SpeedDeratingTable($rows, $page);
+        return $rows === [] ? null : new SpeedDeratingTable($rows, $page, $seeded);
     }
 
     public static function toWheelConfig(WheelConfig $config): WheelConfigRecord

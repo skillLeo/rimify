@@ -5,56 +5,72 @@ declare(strict_types=1);
 namespace App\Services\Admin\Approvals;
 
 use App\Domain\Fitment\Derivation\LoadIndexDeriver;
+use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Domain\Fitment\Verdict\LoadIndexCode;
+use App\Models\ApprovalDocument;
+use App\Models\DocumentCondition;
 use App\Support\GermanFormat;
 
 /**
- * The free cross-check on a load-index Auflage (the operator's review of C9, §3): every limit a Gutachten
- * states is exactly twice the capacity of its load index — T88 → 2 × 560 kg = 1.120 kg, fourteen out of
- * fourteen in ABE 55255. A limit that is not twice a capacity from the table, or not twice the capacity of
- * the index its code names, is a typing error, and it is refused where it is typed, in words.
+ * The free cross-check on a load-index Auflage (the operator's reviews of C9, §3 twice): a limit a Gutachten
+ * states is twice the capacity of the index its code names — T88 → 2 × 560 kg = 1.120 kg, fourteen out of
+ * fourteen in ABE 55255.
+ *
+ * Only codes that name an index are checked; an axle-load note (ABE 55255's `140`, 1.400 kg — no index at
+ * all) never is. And it WARNS, it does not refuse: the document is the truth and must be recordable as it
+ * stands. A mismatch blocks the release until a person confirms the figure with a written reason, shown on
+ * the record and audited.
  */
 final readonly class LoadLimitCheck
 {
     public function __construct(private LoadIndexDeriver $loadIndex) {}
 
-    /** Null when the limit reads; otherwise the sentence the person sees under the field. */
+    /** Null when the limit reads, or is not a load-index code; otherwise the warning in words. */
     public function problem(string $code, int $kg): ?string
     {
-        $named = self::indexNamedBy($code);
+        $named = LoadIndexCode::indexNamedBy($code);
+        $capacity = $named === null ? null : $this->loadIndex->capacityOf($named);
 
-        if ($named !== null) {
-            $capacity = $this->loadIndex->capacityOf($named);
-
-            if ($capacity !== null && $kg !== 2 * $capacity) {
-                return sprintf(
-                    '%s steht für Tragfähigkeitsindex %d: das sind 2 × %s = %s. Bitte prüf die Zahl im Gutachten.',
-                    $code,
-                    $named,
-                    GermanFormat::kilograms($capacity),
-                    GermanFormat::kilograms(2 * $capacity),
-                );
-            }
-
+        if ($capacity === null || $kg === 2 * $capacity) {
             return null;
         }
 
-        if ($kg % 2 !== 0 || $this->loadIndex->indexForCapacity(intdiv($kg, 2)) === null) {
-            return sprintf(
-                '%s ist nicht das Doppelte einer Tragfähigkeit aus der Tabelle — so eine Grenze druckt kein Gutachten. Bitte prüf die Zahl.',
-                GermanFormat::kilograms($kg),
-            );
-        }
-
-        return null;
+        return sprintf(
+            '%s steht für Tragfähigkeitsindex %d: das wären 2 × %s = %s, eingetragen sind %s. Stimmt die Zahl mit dem Gutachten überein, bestätige sie mit einem Satz.',
+            $code,
+            $named,
+            GermanFormat::kilograms($capacity),
+            GermanFormat::kilograms(2 * $capacity),
+            GermanFormat::kilograms($kg),
+        );
     }
 
-    /** The index a code in the usual form names: T88 → 88, T00 → 100; null for any other code. */
-    public static function indexNamedBy(string $code): ?int
+    /** The warning for one Auflage of a document, or null. */
+    public function warningFor(DocumentCondition $condition): ?string
     {
-        if (preg_match('/^T(\d{2})$/', strtoupper(trim($code)), $m) !== 1) {
+        if ($condition->kind !== ConditionKind::ReifenTragfaehigkeit || $condition->max_axle_load_kg === null) {
             return null;
         }
 
-        return (int) $m[1] === 0 ? 100 : (int) $m[1];
+        return $this->problem($condition->code, (int) $condition->max_axle_load_kg);
+    }
+
+    /**
+     * The document's load-index Auflagen that differ from the table and nobody has confirmed — what blocks
+     * its release.
+     *
+     * @return list<string> the codes
+     */
+    public function unconfirmedIn(ApprovalDocument $document): array
+    {
+        $open = [];
+
+        foreach ($document->conditions()->get() as $condition) {
+            if ($condition->limit_confirmed_at === null && $this->warningFor($condition) !== null) {
+                $open[] = $condition->code;
+            }
+        }
+
+        return $open;
     }
 }

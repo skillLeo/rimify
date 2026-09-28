@@ -36,6 +36,8 @@ class GutachtenTabelleController extends Controller
                 'symbol' => $cell['symbol'],
                 'percent' => $cell['percent'],
                 'source_page' => $page,
+                // Typed by a person from the document: whatever the seed wrote before is gone.
+                'seeded_from' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ], $cells));

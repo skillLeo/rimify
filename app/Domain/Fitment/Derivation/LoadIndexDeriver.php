@@ -41,23 +41,31 @@ final readonly class LoadIndexDeriver
             return null;
         }
 
-        // Deliberately not integer division: 1231 kg is 615.5 kg per tyre, and truncating that to
-        // 615 would accept an index rated for exactly 615 when 615.5 is actually carried.
-        return $this->forTyreLoad($axleLoadKg / 2);
+        return $this->forAxleAt($axleLoadKg, 100);
     }
 
     /**
-     * The first index whose capacity reaches a load one tyre must carry — the per-tyre half of an axle,
-     * or that half raised by the speed derating (SpeedDerating). Null beyond the table, never a guess.
+     * The first index whose capacity, at `$percent` of it (the document's table of tyre load at speed),
+     * carries half the axle: `2 × capacity × percent ≥ 100 × axle load`.
+     *
+     * In whole numbers only — no division, no float, no rounding anywhere in the decision (the operator's
+     * second review of C9, §1). 617,5 kg ÷ 0,95 is exactly 650 in arithmetic and not in IEEE 754, where it
+     * comes out a hair above 650 and would demand the next index for a legal tyre. In integers the rear
+     * axle of the RS 4 reads 2 × 650 × 95 = 123.500 against 100 × 1.235 = 123.500: equal, so LI 93 passes,
+     * on every machine. 1231 kg — 615,5 kg a tyre — still needs more than an index rated for exactly 615.
+     *
+     * Null beyond the passenger-car table, never a guess.
      */
-    public function forTyreLoad(float $perTyreKg): ?LoadIndex
+    public function forAxleAt(int $axleLoadKg, int $percent): ?LoadIndex
     {
-        if ($perTyreKg <= 0) {
+        if ($axleLoadKg <= 0 || $percent <= 0 || $percent > 100) {
             return null;
         }
 
+        $needed = 100 * $axleLoadKg;
+
         foreach ($this->tables->loadIndices as $position => $entry) {
-            if ($entry->capacityKg >= $perTyreKg) {
+            if (2 * $entry->capacityKg * $percent >= $needed) {
                 return $this->applyMargin($position);
             }
         }

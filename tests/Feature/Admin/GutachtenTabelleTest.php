@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\DocumentCondition;
 use App\Models\DocumentSpeedDerating;
+use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\LoadLimitCheck;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -87,6 +87,25 @@ it('saves the table as typed — a share, a „–“ as not permitted, an empty
     expect(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->count())->toBe(0);
 });
 
+it('says on the record when a table came from the demo seed, and forgets that once a person types it from the PDF', function (): void {
+    $document = tabelleDraft();
+    DocumentSpeedDerating::query()->create([
+        'approval_document_id' => $document->id, 'speed_kmh' => 250, 'symbol' => 'W', 'percent' => 95,
+        'seeded_from' => 'Demo-Seed: Tabelle der ABE 55255, Seite 6',
+    ]);
+
+    $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('derating.seededFrom', 'Demo-Seed: Tabelle der ABE 55255, Seite 6'));
+
+    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", tabellePayload())
+        ->assertSessionHasNoErrors();
+
+    expect(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->whereNotNull('seeded_from')->count())->toBe(0);
+
+    $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('derating.seededFrom', null)->where('derating.sourcePage', 6));
+});
+
 it('refuses a cell that is not a share, a „–“ or empty, and a speed twice, in words', function (): void {
     $document = tabelleDraft();
     $payload = tabellePayload();
@@ -116,35 +135,67 @@ it('lets no one change the table of a released document, nor a role that may onl
     expect(DocumentSpeedDerating::query()->count())->toBe(0);
 });
 
-it('refuses a load-index Auflage that is not twice the capacity of its index, where it is typed', function (): void {
+it('keeps a load-index limit as the document prints it, warns, and blocks the release until it is confirmed with a reason', function (): void {
     $document = tabelleDraft();
     $entry = ['code' => 'T88', 'kind' => ConditionKind::ReifenTragfaehigkeit->value, 'text_de' => 'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.125 kg zulässig.', 'source_page' => 6, 'max_axle_load_kg' => 1125];
 
-    // The page sends its own error bag in a header; without it the errors land in the default bag.
-    $this->actingAs(tabelleAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", $entry)
-        ->assertSessionHasErrors(['max_axle_load_kg' => "T88 steht für Tragfähigkeitsindex 88: das sind 2 × 560\u{00A0}kg = 1.120\u{00A0}kg. Bitte prüf die Zahl im Gutachten."]);
+    // The document always wins: the figure is stored as printed, never refused.
+    $this->actingAs(tabelleAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", $entry)->assertSessionHasNoErrors();
+    $condition = DocumentCondition::query()->where('approval_document_id', $document->id)->where('code', 'T88')->sole();
 
-    $this->actingAs(tabelleAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['max_axle_load_kg' => 1120] + $entry)
-        ->assertSessionHasNoErrors();
+    expect($condition->max_axle_load_kg)->toBe(1125);
 
-    // A code in another form is read by its kilograms: half of them must be a capacity from the table.
-    $this->actingAs(tabelleAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen/stapel", ['entries' => [
-        ['code' => '140', 'kind' => ConditionKind::ReifenTragfaehigkeit->value, 'text_de' => 'Das Sonderrad ist in Verbindung mit dieser Reifengröße nur bis 1.401 kg Achslast zulässig.', 'max_axle_load_kg' => 1401],
-    ]])->assertSessionHasErrors(['entries.0.max_axle_load_kg']);
+    // Said on the record, in words …
+    $warning = "T88 steht für Tragfähigkeitsindex 88: das wären 2 × 560\u{00A0}kg = 1.120\u{00A0}kg, eingetragen sind 1.125\u{00A0}kg. Stimmt die Zahl mit dem Gutachten überein, bestätige sie mit einem Satz.";
+    $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('conditions.0.limitWarning', $warning)->where('conditions.0.limitConfirmed', null));
+
+    // … and the release waits for it.
+    expect(app(DocumentRelease::class)->check($document))->toContain('Die Achslast bei T88 passt nicht zum Tragfähigkeitsindex. Bestätige die Zahl im Auflagenverzeichnis mit einem Satz.');
+
+    // A reason is needed, a sentence long; a role that may only look cannot give one.
+    $url = "/admin/gutachten/{$document->id}/auflagen/{$condition->id}/grenze";
+    $this->actingAs(tabelleAdmin(), 'admin')->post($url, ['reason' => 'kurz'])->assertSessionHasErrorsIn('auflagen', ['reason']);
+    $this->actingAs(tabelleAdmin('support-agent'), 'admin')->post($url, ['reason' => 'So steht es auf Seite 6 des Gutachtens.'])->assertForbidden();
+
+    $this->actingAs(tabelleAdmin(), 'admin')->post($url, ['reason' => 'So steht es auf Seite 6 des Gutachtens, geprüft am PDF.'])
+        ->assertSessionHasNoErrors()->assertSessionHas('toast', 'Zahl bestätigt.');
+
+    expect(app(DocumentRelease::class)->check($document))->not->toContain('Die Achslast bei T88 passt nicht zum Tragfähigkeitsindex. Bestätige die Zahl im Auflagenverzeichnis mit einem Satz.')
+        ->and(AuditLog::query()->where('description', 'approval.limit_confirmed')->exists())->toBeTrue();
+
+    $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('conditions.0.limitConfirmed.reason', 'So steht es auf Seite 6 des Gutachtens, geprüft am PDF.'));
+
+    // New kilograms ask again.
+    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/auflagen/{$condition->id}", ['max_axle_load_kg' => 1126] + $entry)->assertSessionHasNoErrors();
+
+    expect($condition->refresh()->limit_confirmed_at)->toBeNull();
 });
 
+it('checks only codes that name a load index — an axle-load note is never measured against the table', function (): void {
+    $document = tabelleDraft();
+
+    // ABE 55255's code 140: 1.400 kg — no load index at all. Stored without a warning, and no blocker.
+    $this->actingAs(tabelleAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen/stapel", ['entries' => [
+        ['code' => '140', 'kind' => ConditionKind::ReifenTragfaehigkeit->value, 'text_de' => 'Das Sonderrad ist in Verbindung mit dieser Reifengröße nur bis zu einer zulässigen Achslast von 1.400 kg zulässig.', 'max_axle_load_kg' => 1400],
+    ]])->assertSessionHasNoErrors();
+
+    $condition = DocumentCondition::query()->where('approval_document_id', $document->id)->where('code', '140')->sole();
+
+    expect(app(LoadLimitCheck::class)->warningFor($condition))->toBeNull()
+        ->and(app(LoadLimitCheck::class)->unconfirmedIn($document))->toBe([]);
+});
 it('finds every load-index Auflage of every document exactly twice the capacity of its index', function (): void {
     // The free cross-check, over whatever the database holds: it fails loudly the day a limit is mistyped.
     $check = app(LoadLimitCheck::class);
-    $deriver = app(LoadIndexDeriver::class);
     $checked = 0;
 
     foreach (DocumentCondition::query()->where('kind', ConditionKind::ReifenTragfaehigkeit->value)->whereNotNull('max_axle_load_kg')->get() as $condition) {
         $kg = (int) $condition->max_axle_load_kg;
 
-        expect($check->problem($condition->code, $kg))->toBeNull("{$condition->code} = {$kg} kg")
-            ->and($kg % 2)->toBe(0)
-            ->and($deriver->indexForCapacity(intdiv($kg, 2)))->not->toBeNull();
+        // A load-index code whose figure differs stands only with a person's written reason.
+        expect($check->problem($condition->code, $kg) === null || $condition->limit_confirmed_reason !== null)->toBeTrue("{$condition->code} = {$kg} kg");
 
         $checked++;
     }

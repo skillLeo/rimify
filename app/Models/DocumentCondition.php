@@ -9,6 +9,7 @@ use Database\Factories\DocumentConditionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * One entry of a Gutachten's own Auflagenverzeichnis: the code as the document prints it, what kind of
@@ -27,6 +28,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array{mode: string, drive: string}|null $drive antrieb: only with, or not with, a drive
  * @property int|null $max_axle_load_kg reifen_tragfaehigkeit: the permitted axle load this code allows up to
  * @property string|null $axle reifen_achse: FRONT or REAR
+ * @property string|null $limit_confirmed_reason why a load-index limit that differs from the table stands as the document states it
+ * @property int|null $limit_confirmed_by
+ * @property Carbon|null $limit_confirmed_at
  */
 class DocumentCondition extends Model
 {
@@ -44,6 +48,7 @@ class DocumentCondition extends Model
             'body_forms' => 'array',
             'drive' => 'array',
             'max_axle_load_kg' => 'integer',
+            'limit_confirmed_at' => 'datetime',
         ];
     }
 
