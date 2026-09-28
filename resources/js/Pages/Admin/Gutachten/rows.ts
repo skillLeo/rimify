@@ -40,6 +40,34 @@ export function parseTyre(text: string): ParsedTyre | null {
     }
 }
 
+/**
+ * The kW band as a Gutachten prints it beside a size (Block D): `85-195`, `85 – 195 kW`. Undefined for an empty
+ * field (no band), null for one that does not read — or reads the wrong way round.
+ */
+export function parseKwBand(text: string): { kw_min: number; kw_max: number } | null | undefined {
+    const trimmed = text.replace(/\s+/g, ' ').trim()
+
+    if (trimmed === '') {
+        return undefined
+    }
+
+    const m = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*kW)?$/i)
+
+    if (!m) {
+        return null
+    }
+
+    const [min, max] = [Number(m[1]), Number(m[2])]
+
+    return min >= 1 && max <= 1000 && min <= max ? { kw_min: min, kw_max: max } : null
+}
+
+/** A band as the form shows it: `85-195`. */
+export function kwText(size: { kw_min?: number | null; kw_max?: number | null }): string {
+    // A row saved before the band carries none: nothing, never a band made of blanks.
+    return size.kw_min == null || size.kw_max == null ? '' : `${size.kw_min}-${size.kw_max}`
+}
+
 /** A size as the form shows it, with the document's minimum where it names one: `245/35 R19 93Y`, `… 93`. */
 export function tyreText(size: { width_mm: number; aspect: number; diameter: number; min_load_index: number | null; min_speed_symbol: string }): string {
     const minimum = `${size.min_load_index ?? ''}${size.min_speed_symbol ?? ''}`
@@ -120,7 +148,7 @@ export function derivedEntry(form: RowForm, conditions: DocumentConditionView[])
 }
 
 export function emptySize(axle: AxleValue = 'ALL'): TyreSizeForm {
-    return { text: '', axle, min_load_index: null, min_speed_symbol: '', codes: '' }
+    return { text: '', axle, min_load_index: null, min_speed_symbol: '', kw: '', codes: '' }
 }
 
 export function emptyRow(): RowForm {
@@ -164,6 +192,7 @@ export function formFromRow(row: FitmentRowView): RowForm {
             axle: s.axle,
             min_load_index: s.min_load_index,
             min_speed_symbol: s.min_speed_symbol,
+            kw: kwText(s),
             codes: s.codes.map((c) => c.code).join(' '),
         })),
         notes: Object.fromEntries(row.conditions.filter((c) => c.note !== '').map((c) => [c.code, c.note])),
@@ -175,7 +204,7 @@ export function unreadable(form: RowForm): number[] {
     return form.tyre_sizes.flatMap((size, index) => {
         const text = size.text.trim()
 
-        return (text !== '' && parseTyre(size.text) === null) || (text === '' && size.codes.trim() !== '') ? [index] : []
+        return (text !== '' && parseTyre(size.text) === null) || (text === '' && size.codes.trim() !== '') || parseKwBand(size.kw ?? '') === null ? [index] : []
     })
 }
 
@@ -204,6 +233,8 @@ export function payload(form: RowForm): Record<string, unknown> {
             min_load_index: parsed.min_load_index,
             min_speed_symbol: parsed.min_speed_symbol,
             axle: size.axle,
+            kw_min: parseKwBand(size.kw ?? '')?.kw_min ?? null,
+            kw_max: parseKwBand(size.kw ?? '')?.kw_max ?? null,
             codes: parseCodes(size.codes),
         }))
 

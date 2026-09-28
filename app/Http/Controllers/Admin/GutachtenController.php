@@ -504,9 +504,13 @@ class GutachtenController extends Controller
                 'min_load_index' => $s->min_load_index,
                 'min_speed_symbol' => $s->min_speed_symbol ?? '',
                 'axle' => $s->axle->value,
-                // The document's own minimum stands with the size, as the Gutachten prints it (R-06).
+                'kw_min' => $s->kw_min,
+                'kw_max' => $s->kw_max,
+                // The document's own minimum stands with the size, as the Gutachten prints it (R-06), and so
+                // does its kW band (Block D).
                 'label' => GermanFormat::tyreSize($s->width_mm, $s->aspect, (float) $s->diameter_in)
                     .(($s->min_load_index ?? '').($s->min_speed_symbol ?? '') === '' ? '' : ' '.($s->min_load_index ?? '').($s->min_speed_symbol ?? ''))
+                    .($s->kw_min === null || $s->kw_max === null ? '' : ' · '.GermanFormat::integer($s->kw_min).GermanFormat::ENDASH.GermanFormat::integer($s->kw_max).GermanFormat::NBSP.'kW')
                     .($s->axle->value === 'ALL' ? '' : ' ('.$s->axle->labelDe().')'),
                 'codes' => $s->conditionCodes->map(static fn (FitmentTyreSizeCondition $c): array => $codeView($c->code, null))->values()->all(),
                 'requiresEntry' => $row->entry_override === null ? $abnahme([...$rowCodes, ...$s->conditionCodes->pluck('code')->map(static fn (mixed $c): string => (string) $c)->all()]) !== [] : $row->entry_override === 'required',

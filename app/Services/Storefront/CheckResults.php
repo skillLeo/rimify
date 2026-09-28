@@ -43,6 +43,7 @@ final readonly class CheckResults
                 'axleFrontKg' => $papers->axleFrontKg,
                 'axleRearKg' => $papers->axleRearKg,
                 'topSpeedKmh' => $papers->topSpeedKmh,
+                'powerKw' => $papers->powerKw,
             ],
             'engine_version' => $verdict->snapshot->engineVersion,
             'computed_at' => now(),

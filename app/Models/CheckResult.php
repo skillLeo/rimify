@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $document_revision
  * @property string $verdict_status
  * @property array<string, mixed> $verdict
- * @property array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int}|null $papers
+ * @property array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int, powerKw?: int|null}|null $papers
  * @property string $engine_version
  * @property Carbon $computed_at
  */

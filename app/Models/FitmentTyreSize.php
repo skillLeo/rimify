@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $min_load_index
  * @property string|null $min_speed_symbol
  * @property Axle $axle
+ * @property int|null $kw_min the kW band the document states for this size (Block D); NULL = none stated
+ * @property int|null $kw_max
  */
 class FitmentTyreSize extends Model
 {
@@ -33,6 +35,7 @@ class FitmentTyreSize extends Model
 
     protected $fillable = [
         'fitment_id', 'width_mm', 'aspect', 'diameter_in', 'min_load_index', 'min_speed_symbol', 'axle',
+        'kw_min', 'kw_max',
     ];
 
     /** @return array<string, string> */
@@ -44,6 +47,8 @@ class FitmentTyreSize extends Model
             'diameter_in' => 'float',
             'min_load_index' => 'integer',
             'axle' => Axle::class,
+            'kw_min' => 'integer',
+            'kw_max' => 'integer',
         ];
     }
 

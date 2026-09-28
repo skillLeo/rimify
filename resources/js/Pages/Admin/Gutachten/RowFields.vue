@@ -16,7 +16,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import type { AxleValue, DocumentConditionView, RowForm } from '../../../types/admin/gutachten'
-import { badCodes, derivedEntry, emptySize, parseCodes, parseTyre, sentIndex } from './rows'
+import { badCodes, derivedEntry, emptySize, parseCodes, parseKwBand, parseTyre, sentIndex } from './rows'
 
 const props = defineProps<{
     /** This document's own Auflagenverzeichnis. */
@@ -108,6 +108,19 @@ function textError(index: number): string {
     return sent === null ? '' : (['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean) ?? '')
 }
 
+/** What is wrong with a size line's kW band — marked on its field (Block D). */
+function kwError(index: number): string {
+    const size = form.value.tyre_sizes[index]
+
+    if (size !== undefined && parseKwBand(size.kw ?? '') === null) {
+        return left.value.has(index) ? 'Den kW-Bereich bitte so, wie das Gutachten ihn druckt: 85-195 – der kleinere Wert zuerst.' : ''
+    }
+
+    const sent = sentIndex(form.value, index)
+
+    return sent === null ? '' : (err(`tyre_sizes.${sent}.kw_min`) || err(`tyre_sizes.${sent}.kw_max`))
+}
+
 /** What is wrong with a size line's codes — marked on the codes field. */
 function sizeCodesError(index: number): string {
     const sent = sentIndex(form.value, index)
@@ -117,7 +130,7 @@ function sizeCodesError(index: number): string {
 }
 
 function sizeError(index: number): string {
-    return textError(index) || sizeCodesError(index)
+    return textError(index) || kwError(index) || sizeCodesError(index)
 }
 
 /* ── Codes ─────────────────────────────────────────────────────────────────── */
@@ -242,6 +255,7 @@ function removeSize(index: number): void {
             <!-- The columns named once, above the lines; each field keeps its own label for a screen reader. -->
             <div class="rf-sizes-head" aria-hidden="true">
                 <span>Größe</span>
+                <span>kW-Bereich</span>
                 <span>Achse</span>
                 <span>Codes nur dieser Größe</span>
             </div>
@@ -257,6 +271,23 @@ function removeSize(index: number): void {
                         spellcheck="false"
                         autocomplete="off"
                         :aria-invalid="textError(index) ? 'true' : undefined"
+                        :aria-describedby="`${id(`size-${index}`)}-err`"
+                        @blur="leave(index)"
+                    >
+                </div>
+                <!-- The kW band the document prints beside the size (Block D): `85-195`, or empty. -->
+                <div class="form-field rf-size__kw">
+                    <label class="visually-hidden" :for="id(`size-${index}-kw`)">kW-Bereich der Reifengröße {{ index + 1 }}</label>
+                    <input
+                        :id="id(`size-${index}-kw`)"
+                        v-model="size.kw"
+                        class="input"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="kW, z. B. 85-195"
+                        spellcheck="false"
+                        autocomplete="off"
+                        :aria-invalid="kwError(index) ? 'true' : undefined"
                         :aria-describedby="`${id(`size-${index}`)}-err`"
                         @blur="leave(index)"
                     >
@@ -289,7 +320,7 @@ function removeSize(index: number): void {
                 </p>
                 <p :id="`${id(`size-${index}`)}-err`" class="form-field__error rf-size__err">{{ sizeError(index) }}</p>
             </div>
-            <p class="form-field__help">Nennt das Gutachten einen Mindest-Lastindex oder ein Geschwindigkeitssymbol, steht es hinter der Größe: 245/35 R19 93Y oder 245/35 R19 93. Codes, die das Gutachten nur bei dieser Größe druckt, stehen daneben.</p>
+            <p class="form-field__help">Nennt das Gutachten einen Mindest-Lastindex oder ein Geschwindigkeitssymbol, steht es hinter der Größe: 245/35 R19 93Y oder 245/35 R19 93. Den kW-Bereich, den das Gutachten neben die Größe druckt, trägst du daneben ein – 85-195; nur für diese Leistung gilt die Größe. Codes, die das Gutachten nur bei dieser Größe druckt, stehen dahinter.</p>
             <div>
                 <button class="btn btn--ghost" type="button" @click="addSize">
                     <Icon name="plus" :size="20" />
@@ -447,7 +478,7 @@ function removeSize(index: number): void {
 .rf-size,
 .rf-sizes-head {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 14ch) minmax(0, 16ch) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 12ch) minmax(0, 14ch) minmax(0, 16ch) auto;
     align-items: center;
     gap: var(--sp-8);
 }
@@ -590,6 +621,7 @@ function removeSize(index: number): void {
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
+    .rf-size__kw,
     .rf-size__axle,
     .rf-size__codes {
         grid-column: 1;

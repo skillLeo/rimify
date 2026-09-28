@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { DocumentConditionView, FitmentRowView, TyreSizeForm } from '../../../types/admin/gutachten'
-import { badCodes, derivedEntry, emptyRow, formFromRow, parseCodes, parseTyre, payload, sentIndex, unreadable } from './rows'
+import { badCodes, derivedEntry, emptyRow, formFromRow, kwText, parseCodes, parseKwBand, parseTyre, payload, sentIndex, unreadable } from './rows'
 
-const size = (text: string, axle: TyreSizeForm['axle'] = 'ALL', codes = ''): TyreSizeForm => ({ text, axle, min_load_index: null, min_speed_symbol: '', codes })
+const size = (text: string, axle: TyreSizeForm['axle'] = 'ALL', codes = ''): TyreSizeForm => ({ text, axle, min_load_index: null, min_speed_symbol: '', kw: '', codes })
 
 describe('reading a tyre size as a Gutachten prints it', () => {
     it('reads the usual spellings', () => {
@@ -142,7 +142,7 @@ describe('the row as the server reads it', () => {
         const row = { tyreSizes: [{ width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: '', axle: 'ALL', label: '', codes: [] }], conditions: [], entryOverride: null, entryOverrideReason: '' } as unknown as FitmentRowView
 
         expect(formFromRow(row).tyre_sizes[0]?.text).toBe('245/35 R19 93')
-        expect(payload(formFromRow(row)).tyre_sizes).toEqual([{ width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: '', axle: 'ALL', codes: [] }])
+        expect(payload(formFromRow(row)).tyre_sizes).toEqual([{ width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: '', axle: 'ALL', kw_min: null, kw_max: null, codes: [] }])
     })
 
     it('finds the line the server means, past the lines that are not sent', () => {
@@ -150,5 +150,33 @@ describe('the row as the server reads it', () => {
         form.tyre_sizes = [size(''), size('225/40 R18'), size('225/40 ZR18')]
 
         expect([0, 1, 2].map((i) => sentIndex(form, i))).toEqual([null, 0, 1])
+    })
+})
+
+describe('the kW band a Gutachten prints beside a size (Block D)', () => {
+    it('reads the band as printed, and nothing for an empty field', () => {
+        expect(parseKwBand('85-195')).toEqual({ kw_min: 85, kw_max: 195 })
+        expect(parseKwBand(' 85 – 195 kW ')).toEqual({ kw_min: 85, kw_max: 195 })
+        expect(parseKwBand('')).toBeUndefined()
+    })
+
+    it('refuses a band it cannot read, or one typed the wrong way round', () => {
+        expect(parseKwBand('85')).toBeNull()
+        expect(parseKwBand('195-85')).toBeNull()
+        expect(parseKwBand('85-1195')).toBeNull()
+    })
+
+    it('sends the band with its size, marks an unreadable one, and reads a saved one back', () => {
+        const form = emptyRow()
+        form.tyre_sizes = [{ ...size('215/35 R19'), kw: '85-125' }, { ...size('225/35 R19'), kw: 'viel' }]
+
+        expect(unreadable(form)).toEqual([1])
+
+        form.tyre_sizes[1]!.kw = ''
+        const sent = payload(form).tyre_sizes as { kw_min: number | null; kw_max: number | null }[]
+
+        expect(sent[0]).toMatchObject({ kw_min: 85, kw_max: 125 })
+        expect(sent[1]).toMatchObject({ kw_min: null, kw_max: null })
+        expect(kwText({ kw_min: 85, kw_max: 195 })).toBe('85-195')
     })
 })

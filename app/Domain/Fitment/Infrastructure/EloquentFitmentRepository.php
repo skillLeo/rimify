@@ -293,6 +293,8 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 axle: self::axle($size->axle->value, [...$rowAxles, ...array_filter(array_map($axleOf, $own))]),
                 requiresEntry: $overridden ?? ($rowEntry || array_filter($own, static fn (Condition $c): bool => $c->requiresEntry()) !== []),
                 conditions: $own,
+                kwMin: $size->kw_min,
+                kwMax: $size->kw_max,
             );
         }
 

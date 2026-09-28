@@ -41,12 +41,13 @@ final readonly class PapersBook
         $entries = [];
 
         foreach (explode('_', $payload) as $entry) {
-            if (preg_match('/^([1-9]\d{0,9})\.(\d{3,4})\.(\d{3,4})\.(\d{2,3})$/', $entry, $m) !== 1) {
+            // id.8.1.8.2.T, and P.2 where the customer gave it (Block D).
+            if (preg_match('/^([1-9]\d{0,9})\.(\d{3,4})\.(\d{3,4})\.(\d{2,3})(?:\.(\d{2,4}))?$/', $entry, $m) !== 1) {
                 continue;
             }
 
             $id = (int) $m[1];
-            $figures = PapersFigures::tryFrom((int) $m[2], (int) $m[3], (int) $m[4]);
+            $figures = PapersFigures::tryFrom((int) $m[2], (int) $m[3], (int) $m[4], isset($m[5]) ? (int) $m[5] : null);
 
             if ($figures !== null && ! isset($entries[$id]) && count($entries) < self::LIMIT) {
                 $entries[$id] = $figures;
@@ -61,7 +62,7 @@ final readonly class PapersBook
         $parts = [];
 
         foreach ($this->entries as $id => $f) {
-            $parts[] = $id.'.'.$f->axleFrontKg.'.'.$f->axleRearKg.'.'.$f->topSpeedKmh;
+            $parts[] = $id.'.'.$f->axleFrontKg.'.'.$f->axleRearKg.'.'.$f->topSpeedKmh.($f->powerKw === null ? '' : '.'.$f->powerKw);
         }
 
         return implode('_', $parts);

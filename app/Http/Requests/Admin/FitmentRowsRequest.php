@@ -86,6 +86,9 @@ class FitmentRowsRequest extends FormRequest
             'tyre_sizes.*.min_load_index' => ['nullable', 'integer', Rule::exists('load_index_table', 'load_index')],
             'tyre_sizes.*.min_speed_symbol' => ['nullable', 'string', Rule::exists('speed_symbol_table', 'symbol')],
             'tyre_sizes.*.axle' => ['required', Rule::in($axles)],
+            // The kW band the document prints beside the size (Block D): both ends, or none.
+            'tyre_sizes.*.kw_min' => ['nullable', 'integer', 'min:1', 'max:1000', 'required_with:tyre_sizes.*.kw_max'],
+            'tyre_sizes.*.kw_max' => ['nullable', 'integer', 'min:1', 'max:1000', 'required_with:tyre_sizes.*.kw_min'],
             'tyre_sizes.*.codes' => ['nullable', 'array', 'max:20'],
             'tyre_sizes.*.codes.*' => ['string', 'distinct', 'regex:'.self::CODE],
             'conditions' => ['present', 'array', 'max:30'],
@@ -128,6 +131,8 @@ class FitmentRowsRequest extends FormRequest
             'tyre_sizes.*.min_load_index.*' => 'Diesen Tragfähigkeitsindex gibt es nicht.',
             'tyre_sizes.*.min_speed_symbol.*' => 'Dieses Geschwindigkeitssymbol gibt es nicht.',
             'tyre_sizes.*.axle.*' => 'Bitte wähl die Achse der Reifengröße.',
+            'tyre_sizes.*.kw_min.*' => 'Den kW-Bereich bitte so, wie das Gutachten ihn druckt: zwei ganze Zahlen, etwa 85-195.',
+            'tyre_sizes.*.kw_max.*' => 'Den kW-Bereich bitte so, wie das Gutachten ihn druckt: zwei ganze Zahlen, etwa 85-195.',
             'tyre_sizes.*.codes.max' => 'Höchstens 20 Codes je Reifengröße.',
             'tyre_sizes.*.codes.*.distinct' => 'Dieser Code steht bei der Reifengröße zweimal.',
             'tyre_sizes.*.codes.*' => 'Ein Code besteht aus höchstens acht Buchstaben und Ziffern, so wie im Gutachten – zum Beispiel A01.',
@@ -226,6 +231,12 @@ class FitmentRowsRequest extends FormRequest
                         $validator->errors()->add("tyre_sizes.{$i}.width_mm", 'Diese Reifengröße steht schon in der Liste.');
                     }
 
+                    // A band typed the wrong way round is said here, never left to the table's check constraint.
+                    if (is_numeric($size['kw_min'] ?? null) && is_numeric($size['kw_max'] ?? null) && (int) $size['kw_min'] > (int) $size['kw_max']
+                        && ! $validator->errors()->hasAny(["tyre_sizes.{$i}.kw_min", "tyre_sizes.{$i}.kw_max"])) {
+                        $validator->errors()->add("tyre_sizes.{$i}.kw_max", 'Das Ende des kW-Bereichs ist kleiner als sein Anfang.');
+                    }
+
                     $seen[$key] = true;
                 }
             },
@@ -249,6 +260,8 @@ class FitmentRowsRequest extends FormRequest
                 'min_load_index' => isset($size['min_load_index']) ? (int) $size['min_load_index'] : null,
                 'min_speed_symbol' => isset($size['min_speed_symbol']) && $size['min_speed_symbol'] !== '' ? strtoupper((string) $size['min_speed_symbol']) : null,
                 'axle' => (string) $size['axle'],
+                'kw_min' => isset($size['kw_min']) && $size['kw_min'] !== '' ? (int) $size['kw_min'] : null,
+                'kw_max' => isset($size['kw_max']) && $size['kw_max'] !== '' ? (int) $size['kw_max'] : null,
                 // As printed: `K1c` is not `K1C`.
                 'codes' => array_values(array_map(static fn (mixed $c): string => trim((string) $c), (array) ($size['codes'] ?? []))),
             ];

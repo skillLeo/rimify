@@ -101,6 +101,9 @@ export interface TyreSizeRow {
     min_load_index: number | null
     min_speed_symbol: string
     axle: AxleValue
+    /** The kW band the document prints beside the size (Block D); null on both when it prints none. */
+    kw_min: number | null
+    kw_max: number | null
     label: string
     codes: RowCode[]
     /** Derived from an Abnahme among its codes and the row's — or the override. */
@@ -230,6 +233,8 @@ export interface TyreSizeForm {
     axle: AxleValue
     min_load_index: number | null
     min_speed_symbol: string
+    /** The kW band as typed: `85-195`, `85–195 kW`; empty when the document prints none. */
+    kw: string
     codes: string
 }
 

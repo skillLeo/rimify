@@ -356,8 +356,14 @@ final readonly class FitmentResolver
             $conditions = Condition::union($conditions, $row->conditions);
         }
 
-        [$front, $frontCheck] = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT');
-        [$rear, $rearCheck] = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR');
+        [$front, $frontCheck] = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT', $vehicle->powerKw);
+        [$rear, $rearCheck] = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR', $vehicle->powerKw);
+
+        // A size the document gives only for a kW band, on a car whose power is not known: kept, never
+        // PERMITTED — the band is said, with the field of the papers to compare it with (Block D).
+        if ($vehicle->powerKw === null) {
+            $conditions = Condition::union($conditions, self::powerBandConditions([...$front->sizes, ...$rear->sizes]));
+        }
 
         // An Auflage the document hangs off one tyre size stays with that size for the customer's
         // choice, and counts here too: until a size is chosen, the verdict carries every Auflage a
@@ -426,8 +432,8 @@ final readonly class FitmentResolver
         // vehicle data alone? Then the sum is owed at once, not behind a click (the decision of 29.09.2026).
         if ($vehicle->beforePapers !== null) {
             $before = $vehicle->beforePapers;
-            [$beforeFront, $beforeFrontCheck] = $this->axleRequirement($covering, $before->axleLoadFrontKg, $before->maxSpeedKmh, 'FRONT');
-            [$beforeRear, $beforeRearCheck] = $this->axleRequirement($covering, $before->axleLoadRearKg, $before->maxSpeedKmh, 'REAR');
+            [$beforeFront, $beforeFrontCheck] = $this->axleRequirement($covering, $before->axleLoadFrontKg, $before->maxSpeedKmh, 'FRONT', $before->powerKw);
+            [$beforeRear, $beforeRearCheck] = $this->axleRequirement($covering, $before->axleLoadRearKg, $before->maxSpeedKmh, 'REAR', $before->powerKw);
             $beforeTyre = $this->tyreCheck($before, $wheel, $conditions, $beforeFront, $beforeRear, $beforeFrontCheck, $beforeRearCheck, $document);
             $tyre = $tyre->withStricterByPapers($this->stricter($tyre, $front, $rear, $beforeTyre, $beforeFront, $beforeRear));
         }
@@ -614,6 +620,47 @@ final readonly class FitmentResolver
         }
 
         return new TyreCheck(VerdictStatus::Permitted, $lines, $thresholds, true, $summary, $basis);
+    }
+
+    /**
+     * One sentence per kW band the permitted sizes carry, for a car whose power is not known:
+     * `225/35 R19 und 235/35 R19 sind laut Gutachten nur für Fahrzeuge mit 85–195 kW zugelassen. …`
+     *
+     * @param  list<TyreSize>  $sizes
+     * @return list<Condition>
+     */
+    private static function powerBandConditions(array $sizes): array
+    {
+        $byBand = [];
+
+        foreach ($sizes as $size) {
+            $band = $size->powerBandDe();
+
+            if ($band !== null) {
+                $byBand[$band][$size->key()] = $size->labelDe();
+            }
+        }
+
+        $out = [];
+
+        foreach ($byBand as $band => $labels) {
+            $labels = array_values($labels);
+            $last = (string) array_pop($labels);
+            $list = $labels === [] ? $last : implode(', ', $labels).' und '.$last;
+
+            $out[] = new Condition(
+                code: 'KW '.$band,
+                severity: Severity::Action,
+                textDe: sprintf(
+                    '%s %s laut Gutachten nur für Fahrzeuge mit %s zugelassen. Vergleiche das mit der Leistung in Feld P.2 deiner Zulassungsbescheinigung (im alten Fahrzeugschein Ziffer 7).',
+                    $list,
+                    $labels === [] ? 'ist' : 'sind',
+                    $band,
+                ),
+            );
+        }
+
+        return $out;
     }
 
     /**
@@ -898,6 +945,7 @@ final readonly class FitmentResolver
         ?int $axleLoadKg,
         ?int $maxSpeedKmh,
         string $axle,
+        ?int $powerKw = null,
     ): array {
         $sizes = null;
         $sizeLoadIndex = null;
@@ -913,7 +961,10 @@ final readonly class FitmentResolver
             // Only the sizes the document permits on THIS axle: a size scoped to `FRONT` never
             // lands on the rear, so a staggered line reads as MIXED rather than as four identical
             // wheels the document does not permit.
-            $rowSizes = $row->tyreSizesForAxle($axle);
+            // And only the sizes whose kW band covers the car's power (Block D): a size the document gives
+            // only at 85–125 kW is not offered to a 150 kW car. Power unknown: kept, and the verdict says
+            // which band to compare with field P.2 (buildPositiveVerdict()).
+            $rowSizes = array_values(array_filter($row->tyreSizesForAxle($axle), static fn (TyreSize $size): bool => $size->allowsPower($powerKw)));
 
             // Intersection across documents: a size only one of them permits is not offered.
             $sizes = $sizes === null ? $rowSizes : TyreSize::intersect($sizes, $rowSizes);

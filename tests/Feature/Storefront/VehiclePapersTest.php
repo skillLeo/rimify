@@ -112,6 +112,16 @@ it('refuses, in words, every figure that is not a whole number a road car can ha
     'missing' => [['axle_front_kg' => ''], 'axle_front_kg', 'Trag die zulässige Achslast aus Feld 8.1 ein.'],
 ]);
 
+it('keeps P.2 where it is given, and refuses one no car has', function (): void {
+    $vehicle = Vehicle::factory()->create(['power_kw' => null]);
+
+    $kept = papersCookie($this->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'power_kw' => 140]));
+    expect($kept?->getValue())->toBe("{$vehicle->id}.1100.1100.250.140");
+
+    $this->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'power_kw' => 5000])
+        ->assertSessionHasErrorsIn('papiere', ['power_kw' => 'Die Leistung liegt zwischen 10 und 1.000 kW. Sieh bitte noch einmal in Feld P.2 nach – die erste Zahl vor dem Schrägstrich.']);
+});
+
 it('takes no figures for a car the shop no longer offers', function (): void {
     $vehicle = Vehicle::factory()->create();
     $vehicle->delete();

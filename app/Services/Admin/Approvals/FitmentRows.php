@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\DB;
  * Rows are written only while the document is a draft; they become visible to customers only when the
  * whole document is freigegeben (DocumentRelease), never one by one.
  *
- * @phpstan-type TyreSizeInput array{width_mm: int, aspect: int, diameter_in: string, min_load_index: int|null, min_speed_symbol: string|null, axle: string, codes: list<string>}
+ * @phpstan-type TyreSizeInput array{width_mm: int, aspect: int, diameter_in: string, min_load_index: int|null, min_speed_symbol: string|null, axle: string, kw_min: int|null, kw_max: int|null, codes: list<string>}
  * @phpstan-type RowSpec array{axle: string, entry_override: string|null, entry_override_reason: string|null, entry_note_de: string|null, source_page: int|null, build_from: string|null, build_to: string|null, permitted_width_min: string|null, permitted_width_max: string|null, permitted_et_min: int|null, permitted_et_max: int|null, centre_bore_mm: string|null, tyre_sizes: list<TyreSizeInput>, conditions: list<array{code: string, note: string|null}>}
  */
 final class FitmentRows

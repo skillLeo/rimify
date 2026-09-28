@@ -488,7 +488,7 @@ export interface CheckResultView {
     front: string[]
     rear: string[]
     tyre: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; stricterByPapers: boolean } | null
-    papers: { axleFrontKg: number; axleRearKg: number; topSpeedKmh: number } | null
+    papers: { axleFrontKg: number; axleRearKg: number; topSpeedKmh: number; powerKw?: number | null } | null
     document: { label: string; issuer: string | null; revision: number; page: number | null } | null
     /** Said only when the document has changed since the result was issued. */
     documentToday: string | null

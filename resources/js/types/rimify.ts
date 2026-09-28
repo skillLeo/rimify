@@ -46,6 +46,8 @@ export interface PapersProp {
     axleFrontKg: number
     axleRearKg: number
     topSpeedKmh: number
+    /** P.2, where the customer gave it: a Gutachten's kW band is read against it (Block D). */
+    powerKw?: number | null
     /** Where the vehicle data asks for more than the customer typed, and the answer uses that figure. */
     notes: string[]
 }

@@ -30,6 +30,20 @@ it('keeps each car’s figures under its own id, the latest first, in a compact 
         ->and(rawurlencode($book->encode()))->toBe($book->encode());
 });
 
+it('keeps P.2 as a fifth figure where the customer gave it, and reads an entry without it as before', function (): void {
+    $withPower = PapersFigures::tryFrom(1100, 1100, 250, 140);
+    expect($withPower)->not->toBeNull();
+
+    $book = (new PapersBook)->with(7, $withPower ?? papers())->with(8, papers());
+
+    expect($book->encode())->toBe('8.1100.1100.250_7.1100.1100.250.140')
+        ->and(PapersBook::decode($book->encode())->for(7)?->powerKw)->toBe(140)
+        ->and(PapersBook::decode($book->encode())->for(8)?->powerKw)->toBeNull()
+        // Out of range, the whole entry is dropped, never half kept.
+        ->and(PapersBook::decode('9.1100.1100.250.5')->isEmpty())->toBeTrue()
+        ->and(PapersFigures::tryFrom(1100, 1100, 250, 1001))->toBeNull();
+});
+
 it('replaces a car’s figures in place rather than keeping two, and forgets one car without touching the others', function (): void {
     $book = (new PapersBook)->with(1, papers())->with(2, papers())->with(1, papers(1200, 1200, 280));
 

@@ -13,6 +13,7 @@ use App\Models\AuditLog;
 use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\FitmentConflict;
+use App\Models\FitmentTyreSize;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
@@ -456,4 +457,28 @@ describe('Fahrzeuge', function (): void {
         $this->actingAs(erfassung('content-editor'), 'admin')->get('/admin/fahrzeuge')->assertForbidden();
         $this->actingAs(erfassung('support-agent'), 'admin')->put("/admin/fahrzeuge/{$vehicle->id}", ['axle_load_front_kg' => 1000, 'axle_load_rear_kg' => 1000, 'max_speed_kmh' => 200])->assertForbidden();
     });
+});
+
+it('keeps the kW band the document prints beside a size, and refuses one typed the wrong way round', function (): void {
+    // ABE 55255, page 2: BMW 1er 187 — 215/35R19 at 85–125 kW, 225/35R19 at 85–195 kW (Block D).
+    $document = ApprovalDocument::factory()->draft()->create(['page_count' => 13]);
+    $vehicle = Vehicle::factory()->create();
+    $size = wheelSize(8.5, 35);
+    $sizes = [
+        ['width_mm' => 215, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 125, 'codes' => []],
+        ['width_mm' => 225, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 195, 'codes' => []],
+    ];
+
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size], ['tyre_sizes' => $sizes]))
+        ->assertSessionHasNoErrors();
+
+    expect(FitmentTyreSize::query()->orderBy('width_mm')->get(['width_mm', 'kw_min', 'kw_max'])->map(fn ($s) => [$s->width_mm, $s->kw_min, $s->kw_max])->all())
+        ->toBe([[215, 85, 125], [225, 85, 195]]);
+
+    $this->actingAs(erfassung(), 'admin')->get("/admin/gutachten/{$document->id}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('rows.0.tyreSizes.0.label', fn (string $l) => str_contains($l, '85–125')));
+
+    $reversed = [['width_mm' => 235, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 195, 'kw_max' => 85, 'codes' => []]];
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([Vehicle::factory()->create()], [$size], ['tyre_sizes' => $reversed]))
+        ->assertSessionHasErrors(['tyre_sizes.0.kw_max' => 'Das Ende des kW-Bereichs ist kleiner als sein Anfang.']);
 });

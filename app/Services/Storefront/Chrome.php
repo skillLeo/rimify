@@ -246,7 +246,7 @@ final readonly class Chrome
      * is computed for the larger figure (PapersFigures::applyTo()), and the customer is told which one
      * was used rather than left to wonder why the sum shows a number they did not type.
      *
-     * @return array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int, notes: list<string>}|null
+     * @return array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int, powerKw: int|null, notes: list<string>}|null
      */
     private static function papers(Request $request, Vehicle $vehicle): ?array
     {
@@ -283,6 +283,7 @@ final readonly class Chrome
             'axleFrontKg' => $figures->axleFrontKg,
             'axleRearKg' => $figures->axleRearKg,
             'topSpeedKmh' => $figures->topSpeedKmh,
+            'powerKw' => $figures->powerKw,
             'notes' => $notes,
         ];
     }

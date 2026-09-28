@@ -23,14 +23,20 @@ final readonly class PapersFigures
 
     public const SPEED_MAX_KMH = 420;
 
+    public const POWER_MIN_KW = 10;
+
+    public const POWER_MAX_KW = 1000;
+
     private function __construct(
         public int $axleFrontKg,
         public int $axleRearKg,
         public int $topSpeedKmh,
+        /** P.2, optional: the power a Gutachten's kW band is read against (Block D), where the data has none. */
+        public ?int $powerKw = null,
     ) {}
 
     /** Null when any figure lies outside its range: no figures rather than a wrong one. */
-    public static function tryFrom(int $axleFrontKg, int $axleRearKg, int $topSpeedKmh): ?self
+    public static function tryFrom(int $axleFrontKg, int $axleRearKg, int $topSpeedKmh, ?int $powerKw = null): ?self
     {
         foreach ([$axleFrontKg, $axleRearKg] as $kg) {
             if ($kg < self::AXLE_MIN_KG || $kg > self::AXLE_MAX_KG) {
@@ -42,7 +48,11 @@ final readonly class PapersFigures
             return null;
         }
 
-        return new self($axleFrontKg, $axleRearKg, $topSpeedKmh);
+        if ($powerKw !== null && ($powerKw < self::POWER_MIN_KW || $powerKw > self::POWER_MAX_KW)) {
+            return null;
+        }
+
+        return new self($axleFrontKg, $axleRearKg, $topSpeedKmh, $powerKw);
     }
 
     /**
@@ -69,7 +79,10 @@ final readonly class PapersFigures
             axleLoadFrontKg: max((int) $vehicle->axleLoadFrontKg, $this->axleFrontKg),
             axleLoadRearKg: max((int) $vehicle->axleLoadRearKg, $this->axleRearKg),
             maxSpeedKmh: max((int) $vehicle->maxSpeedKmh, $this->topSpeedKmh),
-            powerKw: $vehicle->powerKw,
+            // The power fills a gap and never replaces the data's: a car typed from a Gutachten has none, and a
+            // size's kW band is read against P.2 then (Block D). Where the data knows it, a different P.2 is
+            // the wrong variant chosen — the form says so — not a figure to answer with.
+            powerKw: $vehicle->powerKw ?? $this->powerKw,
             powerPs: $vehicle->powerPs,
             bodyForm: $vehicle->bodyForm,
             driveAxle: $vehicle->driveAxle,

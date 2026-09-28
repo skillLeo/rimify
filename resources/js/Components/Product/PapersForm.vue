@@ -37,19 +37,25 @@ const open = ref(false)
 const busy = ref(false)
 const errors = ref<Record<string, string>>({})
 
-type FieldKey = 'axle_front_kg' | 'axle_rear_kg' | 'top_speed_kmh'
+type FieldKey = 'axle_front_kg' | 'axle_rear_kg' | 'top_speed_kmh' | 'power_kw'
 
-/* The unit sits in the field's frame; the label keeps it for a screen reader. */
-const FIELDS: { key: FieldKey; label: string; unit: string; min: number; max: number }[] = [
+/*
+ * The unit sits in the field's frame; the label keeps it for a screen reader. P.2 is asked only where the
+ * vehicle data has no power — a car typed from a Gutachten — because a size's kW band is read against it
+ * (Block D). Optional, like the rest.
+ */
+const FIELDS = computed<{ key: FieldKey; label: string; unit: string; min: number; max: number }[]>(() => [
     { key: 'axle_front_kg', label: '8.1 · zulässige Achslast vorn', unit: 'kg', min: 300, max: 4000 },
     { key: 'axle_rear_kg', label: '8.2 · zulässige Achslast hinten', unit: 'kg', min: 300, max: 4000 },
     { key: 'top_speed_kmh', label: 'T · Höchstgeschwindigkeit', unit: 'km/h', min: 60, max: 420 },
-]
+    ...(props.powerKw == null ? [{ key: 'power_kw' as const, label: 'P.2 · Leistung (erste Zahl)', unit: 'kW', min: 10, max: 1000 }] : []),
+])
 
 const form = reactive<Record<FieldKey, number | ''>>({
     axle_front_kg: (props.papers?.axleFrontKg ?? '') as number | '',
     axle_rear_kg: (props.papers?.axleRearKg ?? '') as number | '',
     top_speed_kmh: (props.papers?.topSpeedKmh ?? '') as number | '',
+    power_kw: (props.papers?.powerKw ?? '') as number | '',
 })
 
 const entered = computed(() => props.papers !== null)
@@ -59,6 +65,7 @@ function fromPapers(): void {
     form.axle_front_kg = props.papers?.axleFrontKg ?? ''
     form.axle_rear_kg = props.papers?.axleRearKg ?? ''
     form.top_speed_kmh = props.papers?.topSpeedKmh ?? ''
+    form.power_kw = props.papers?.powerKw ?? ''
     errors.value = {}
 }
 
@@ -90,12 +97,14 @@ const kg = (n: number): string => `${formatNumber(n)}${NBSP}kg`
 
 function save(): void {
     busy.value = true
-    router.post(`/fahrzeug/${props.vehicleId}/papiere`, { ...form }, {
+    // P.2 goes only where it was asked; empty, it is not sent.
+    const { power_kw: power, ...figures } = form
+    router.post(`/fahrzeug/${props.vehicleId}/papiere`, { ...figures, ...(props.powerKw == null && power !== '' ? { power_kw: power } : {}) }, {
         preserveScroll: true,
         errorBag: 'papiere',
         onError: (bag) => {
             errors.value = bag as Record<string, string>
-            const first = ['axle_front_kg', 'axle_rear_kg', 'top_speed_kmh'].find((key) => errors.value[key])
+            const first = ['axle_front_kg', 'axle_rear_kg', 'top_speed_kmh', 'power_kw'].find((key) => errors.value[key])
             document.getElementById(first ? `pp-${first}` : 'pp-save')?.focus()
         },
         onSuccess: () => {
@@ -146,6 +155,10 @@ async function onPhoto(event: Event): Promise<void> {
         form.axle_front_kg = found.axleFrontKg ?? form.axle_front_kg
         form.axle_rear_kg = found.axleRearKg ?? form.axle_rear_kg
         form.top_speed_kmh = found.topSpeedKmh ?? form.top_speed_kmh
+        // P.2 fills its field where it is asked, and is checked against the variant where the data knows it.
+        if (props.powerKw == null) {
+            form.power_kw = found.powerKw ?? form.power_kw
+        }
         readPowerKw.value = found.powerKw
         scan.value = 'read'
         await nextTick()
@@ -164,6 +177,7 @@ function clear(): void {
             form.axle_front_kg = ''
             form.axle_rear_kg = ''
             form.top_speed_kmh = ''
+            form.power_kw = ''
             // What was wrong with figures that are gone is no longer said (C-07).
             errors.value = {}
             open.value = false
@@ -180,7 +194,7 @@ function clear(): void {
     <div class="pp">
         <template v-if="papers && !open">
             <p class="pp__summary">
-                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ papers.topSpeedKmh }}&nbsp;km/h</span>
+                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ papers.topSpeedKmh }}&nbsp;km/h<template v-if="papers.powerKw"> · P.2 {{ papers.powerKw }}&nbsp;kW</template></span>
                 <button id="pp-change" class="btn btn--ghost btn--sm" type="button" @click="change">Ändern</button>
             </p>
             <p v-for="note in papers.notes" :key="note" class="pp__help">{{ note }}</p>

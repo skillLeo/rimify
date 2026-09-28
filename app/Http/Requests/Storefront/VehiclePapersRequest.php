@@ -37,6 +37,8 @@ class VehiclePapersRequest extends FormRequest
             'axle_front_kg' => $axle,
             'axle_rear_kg' => $axle,
             'top_speed_kmh' => ['required', 'integer', 'between:'.PapersFigures::SPEED_MIN_KMH.','.PapersFigures::SPEED_MAX_KMH],
+            // P.2, optional: asked where the vehicle data has no power, for a Gutachten's kW band (Block D).
+            'power_kw' => ['nullable', 'integer', 'between:'.PapersFigures::POWER_MIN_KW.','.PapersFigures::POWER_MAX_KW],
         ];
     }
 
@@ -62,6 +64,8 @@ class VehiclePapersRequest extends FormRequest
             'top_speed_kmh.required' => 'Trag die Höchstgeschwindigkeit aus Feld T ein.',
             'top_speed_kmh.integer' => 'Bitte nur die Zahl in km/h, ohne Punkt und Komma.',
             'top_speed_kmh.between' => 'Eine Höchstgeschwindigkeit liegt zwischen 60 und 420 km/h. Sieh bitte noch einmal in Feld T nach.',
+            'power_kw.integer' => 'Bitte nur die Zahl in kW, ohne Punkt und Komma.',
+            'power_kw.between' => 'Die Leistung liegt zwischen 10 und 1.000 kW. Sieh bitte noch einmal in Feld P.2 nach – die erste Zahl vor dem Schrägstrich.',
         ];
     }
 
@@ -77,10 +81,13 @@ class VehiclePapersRequest extends FormRequest
     /** Validated, so never null: the rules and PapersFigures hold the same ranges. */
     public function figures(): PapersFigures
     {
+        $power = $this->validated('power_kw');
+
         $figures = PapersFigures::tryFrom(
             (int) $this->validated('axle_front_kg'),
             (int) $this->validated('axle_rear_kg'),
             (int) $this->validated('top_speed_kmh'),
+            $power === null || $power === '' ? null : (int) $power,
         );
 
         abort_if($figures === null, 422);
