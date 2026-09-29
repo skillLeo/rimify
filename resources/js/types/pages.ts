@@ -519,6 +519,8 @@ export interface CheckResultView {
     rear: string[]
     tyre: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; stricterByPapers: boolean } | null
     papers: { axleFrontKg: number; axleRearKg: number; topSpeedKmh: number; powerKw?: number | null } | null
+    /** What the answer assumed that the vehicle data does not hold, and from where (G-02). Additive. */
+    build?: { fact: string; value: string; source: string }[]
     document: { label: string; issuer: string | null; revision: number; page: number | null } | null
     /** Said only when the document has changed since the result was issued. */
     documentToday: string | null

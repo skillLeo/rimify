@@ -208,5 +208,7 @@ it('gives a car without key numbers its Feld K range in the garage', function ()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('garage.0.range', "Feld{$nb}K ab{$nb}*04")
             ->where('garage.1.range', "Feld{$nb}K *00 bis{$nb}*03")
+            // With its type: a 1K2 „ab *04“ beside a 1K4 „ab *04“ would read alike (G-07).
+            ->where('garage.0.short', 'BMW 1er-Reihe 1K4')
         );
 });

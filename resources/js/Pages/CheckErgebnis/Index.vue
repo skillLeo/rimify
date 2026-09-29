@@ -138,6 +138,12 @@ const copy = computed<Copy>(() => {
                         <dt>Deine Angaben</dt>
                         <dd>8.1 {{ formatNumber(result.papers.axleFrontKg) }}&nbsp;kg · 8.2 {{ formatNumber(result.papers.axleRearKg) }}&nbsp;kg · T {{ result.papers.topSpeedKmh }}&nbsp;km/h</dd>
                     </div>
+                    <!-- What the answer assumed that our vehicle data does not hold: printed with where it came from,
+                         so the workshop or the Prüfer can catch a wrong one (G-02). -->
+                    <div v-for="line in result.build ?? []" :key="line.fact">
+                        <dt>{{ line.fact }}</dt>
+                        <dd>{{ line.value }} – {{ line.source }}</dd>
+                    </div>
                 </dl>
 
                 <p v-if="result.reason && result.reason !== result.tyre?.summary" class="res__reason">{{ result.reason }}</p>

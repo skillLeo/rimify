@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Database\Seeders\ContentSeeder;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia;
 
@@ -32,6 +33,30 @@ it('answers every designed status with the designed page', function (int $status
                 ->has('isMobile')
         );
 })->with([403, 404, 419, 429, 500]);
+
+/*
+ * G-14: after a form was sent the address bar holds the form's address; „neu laden“ there is a GET the route
+ * refuses. So the page reloads itself after a GET and goes back to the sending page — this shop's only — after
+ * a form.
+ */
+it('reloads the page itself after a GET, and the page a form was sent from after a POST', function (): void {
+    Route::middleware('web')->post('/__fehler/formular', static fn () => abort(500));
+
+    $this->get(wf3Route('/__fehler/get', 500))
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('reloadHref', ''));
+
+    $this->withoutMiddleware(ValidateCsrfToken::class)
+        ->withHeader('Referer', 'http://localhost/felgen/borbet-db8gt2?groesse=18')
+        ->post('/__fehler/formular')
+        ->assertStatus(500)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('reloadHref', '/felgen/borbet-db8gt2?groesse=18'));
+
+    // Another site's page is never where the shop sends anyone.
+    $this->withoutMiddleware(ValidateCsrfToken::class)
+        ->withHeader('Referer', 'https://example.org/boese')
+        ->post('/__fehler/formular')
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('reloadHref', '/'));
+});
 
 it('answers an unknown path with the designed 404, not a framework page', function (): void {
     $this->get('/gibt-es-nicht')

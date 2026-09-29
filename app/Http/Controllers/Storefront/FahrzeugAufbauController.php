@@ -9,6 +9,7 @@ use App\Domain\Storefront\PapersBook;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\VehicleBuildRequest;
 use App\Models\Vehicle;
+use App\Support\VehicleName;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cookie;
 use Symfony\Component\HttpFoundation\Cookie as CookieValue;
@@ -27,7 +28,10 @@ class FahrzeugAufbauController extends Controller
         $given = $request->build();
         $build = VehicleBuild::tryFrom($given->bodyForm ?? $before?->bodyForm, $given->driveAxle ?? $before?->driveAxle) ?? $given;
 
-        return back()->withCookie(self::cookie($book->withBuild((int) $vehicle->id, $build)))->with('toast', 'Angabe übernommen – wir haben neu geprüft.');
+        // The toast names the car: in another tab the page may show a car chosen since (G-10).
+        return back()
+            ->withCookie(self::cookie($book->withBuild((int) $vehicle->id, $build)))
+            ->with('toast', 'Angabe für '.self::name($vehicle).' übernommen und neu geprüft.');
     }
 
     public function destroy(VehicleBuildRequest $request, Vehicle $vehicle): RedirectResponse
@@ -36,7 +40,12 @@ class FahrzeugAufbauController extends Controller
 
         return back()
             ->withCookie($book->isEmpty() ? Cookie::forget(PapersBook::COOKIE) : self::cookie($book))
-            ->with('toast', 'Angaben zu Karosserieform und Antriebsart gelöscht.');
+            ->with('toast', 'Angaben zu Karosserieform und Antriebsart für '.self::name($vehicle).' gelöscht.');
+    }
+
+    private static function name(Vehicle $vehicle): string
+    {
+        return VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation);
     }
 
     private static function book(VehicleBuildRequest $request): PapersBook

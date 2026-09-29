@@ -19,8 +19,9 @@ use Illuminate\Support\Facades\Route;
  * (Block E), where the e2e suite's sudo step answered 429.
  *
  * And the shop counts visitors, not addresses (the operator's last prompt §2): thousands of customers share one
- * mobile carrier's address. A visitor's key (`rmf_geraet`) comes first; the address only for a request without
- * one, at ten times the ceiling, with a warning logged when it fires; the checkout never by address.
+ * mobile carrier's address. A visitor's key (`rmf_geraet`) comes first; the address, at ten times the ceiling,
+ * bounds every request — a key is free to collect (G-06) — with a warning logged when it fires; the checkout never
+ * by address.
  */
 
 /** @return array<string, string> the cookie of one shop visitor */
@@ -101,6 +102,8 @@ it('falls back to the address at ten times the ceiling, and logs when that fires
 
     Log::shouldNotHaveReceived('warning');
 
+    $this->postJson('/api/v1/fitment/notify', [])->assertStatus(429);
+    // A flood is logged once a minute per address and limiter, not at the flood's rate (G-09).
     $this->postJson('/api/v1/fitment/notify', [])->assertStatus(429);
 
     Log::shouldHaveReceived('warning')->once()->withArgs(static fn (string $message, array $context): bool => $context['limiter'] === 'shop-benachrichtigung'

@@ -8,6 +8,7 @@ use App\Domain\Storefront\VisitorKey;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\IpUtils;
@@ -18,8 +19,9 @@ use Symfony\Component\HttpFoundation\IpUtils;
  * afternoon with no explanation. So every limit counts:
  *
  * 1. per visitor, by the key in their `rmf_geraet` cookie (VisitorKey), first;
- * 2. per address only for a request that carries no key yet, at ADDRESS_FACTOR times the ceiling — and a
- *    warning is logged each time that fires, so a shared address being turned away is seen, not guessed;
+ * 2. per address at ADDRESS_FACTOR times the ceiling, over every request — a key costs nothing to get, so the
+ *    address is what bounds a client that keeps collecting new ones (G-06) — and a warning is logged when that
+ *    fires, so a shared address being turned away is seen, not guessed;
  * 3. never per address on the way to paying: the checkout limits count visitors only.
  *
  * Each limiter counts on its own (a named limiter's key carries its name), so searching never costs the
@@ -44,34 +46,46 @@ final class ShopRateLimits
     public static function register(): void
     {
         foreach (self::LIMITS as $name => [$perMinute, $checkout]) {
-            RateLimiter::for($name, static fn (Request $request): Limit => self::limit($request, $name, $perMinute, $checkout));
+            RateLimiter::for($name, static fn (Request $request): Limit|array => self::limit($request, $name, $perMinute, $checkout));
         }
     }
 
-    public static function limit(Request $request, string $name, int $perMinute, bool $checkout): Limit
+    /**
+     * A key is free — the shop hands one to every request that comes without — so a key alone bounds nothing: a
+     * client that never sends the cookie back collects a fresh allowance with every page load (G-06). The address
+     * ceiling therefore stands over every request, keyed or not, at ADDRESS_FACTOR times one visitor's; the key
+     * only keeps visitors behind one address from sharing ONE visitor's allowance. Checkout: the key alone.
+     *
+     * @return Limit|list<Limit>
+     */
+    public static function limit(Request $request, string $name, int $perMinute, bool $checkout): Limit|array
     {
         $visitor = VisitorKey::of($request);
-
-        if ($visitor !== null) {
-            return Limit::perMinute($perMinute)->by('visitor|'.$visitor);
-        }
+        $byVisitor = $visitor === null ? null : Limit::perMinute($perMinute)->by('visitor|'.$visitor);
 
         if ($checkout) {
-            return Limit::none();
+            return $byVisitor ?? Limit::none();
         }
 
-        return Limit::perMinute($perMinute * self::ADDRESS_FACTOR)
+        $byAddress = Limit::perMinute($perMinute * self::ADDRESS_FACTOR)
             ->by('address|'.$request->ip())
             ->response(static function (Request $request, array $headers) use ($name): never {
                 // The address anonymised (the last byte of IPv4, the last 80 bits of IPv6): enough to see a
-                // carrier's shared address being turned away, not enough to follow a person.
-                Log::warning('Shop rate limit reached by an address without a visitor key', [
-                    'limiter' => $name,
-                    'address' => IpUtils::anonymize((string) $request->ip()),
-                    'path' => '/'.$request->path(),
-                ]);
+                // carrier's shared address being turned away, not enough to follow a person. Once a minute per
+                // address and limiter: a flood must not write the log at the flood's rate (G-09).
+                $address = IpUtils::anonymize((string) $request->ip());
+
+                if (Cache::add('shop-limit-warned|'.$name.'|'.$address, true, 60)) {
+                    Log::warning('Shop rate limit reached by an address', [
+                        'limiter' => $name,
+                        'address' => $address,
+                        'path' => '/'.$request->path(),
+                    ]);
+                }
 
                 throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
             });
+
+        return $byVisitor === null ? $byAddress : [$byVisitor, $byAddress];
     }
 }

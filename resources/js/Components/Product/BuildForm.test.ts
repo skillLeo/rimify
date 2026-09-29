@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BuildProp } from '../../types/rimify'
 
 const post = vi.fn()
+const remove = vi.fn()
 
-vi.mock('@inertiajs/vue3', () => ({ router: { post: (...args: unknown[]) => post(...args) } }))
+vi.mock('@inertiajs/vue3', () => ({ router: { post: (...args: unknown[]) => post(...args), delete: (...args: unknown[]) => remove(...args) } }))
 
 const { default: BuildForm } = await import('./BuildForm.vue')
 
@@ -28,6 +29,7 @@ afterEach(() => {
     mounted.forEach((w) => w.unmount())
     mounted = []
     post.mockReset()
+    remove.mockReset()
 })
 
 describe('BuildForm', () => {
@@ -73,6 +75,22 @@ describe('BuildForm', () => {
         expect(wrapper.find('#bf-bodyForm [aria-pressed="true"]').text()).toBe('Kombi')
         await wrapper.findAll('#bf-bodyForm .bf__option').find((o) => o.text() === 'Limousine')!.trigger('click')
         expect(post).toHaveBeenCalledWith('/fahrzeug/82/aufbau', { body_form: 'Limousine' }, expect.anything())
+    })
+
+    it('lets the owner forget their own answers for this car, and only theirs (G-12)', async () => {
+        const own = mountForm({ ...NONE, bodyForm: 'Schrägheck', bodySource: 'customer', driveAxle: 'Allrad', driveSource: 'name', driveWord: 'xDrive20d' }, [])
+
+        await own.find('.bf__forget').trigger('click')
+        expect(remove).toHaveBeenCalledWith('/fahrzeug/82/aufbau', expect.objectContaining({ preserveScroll: true }))
+
+        expect(mountForm({ ...NONE, bodyForm: 'Kombi', bodySource: 'name', bodyWord: 'Touring' }, []).find('.bf__forget').exists()).toBe(false)
+    })
+
+    it('says where the papers may name the body style otherwise (G-11)', () => {
+        const hint = mountForm(NONE, ['bodyForm']).find('#bf-bodyForm-hint')
+
+        expect(hint.text()).toContain('„Kombilimousine“')
+        expect(hint.element.closest('[role="group"]')?.getAttribute('aria-describedby')).toBe('bf-bodyForm-hint')
     })
 
     it('says the owner’s own answer as theirs, and nothing at all for the vehicle data’s', () => {

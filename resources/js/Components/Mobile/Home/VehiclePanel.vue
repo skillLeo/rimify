@@ -674,6 +674,16 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     color: inherit;
 }
 
+/* Name and range on two lines where the row is narrow, never squeezed into each other. */
+.chip:has(.vpanel__chip-range) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 0;
+    column-gap: var(--sp-4);
+    padding-block: var(--sp-4);
+    text-align: start;
+}
+
 .vpanel__doc-toggle {
     margin-bottom: var(--sp-16);
 }

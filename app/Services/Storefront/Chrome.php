@@ -165,12 +165,17 @@ final readonly class Chrome
                 continue;
             }
 
+            $label = VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation);
+            $range = $vehicle->hsn === null ? GermanFormat::egRange($vehicle->eg_nummer_raw, short: true) : null;
+
             $out[] = [
                 'id' => (int) $vehicle->id,
-                'label' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation),
-                'short' => trim($vehicle->make.' '.$vehicle->model),
+                'label' => $label,
+                // A car without key numbers keeps its type on the chip: „1K2“ and „1K4“ share a model and, in
+                // short, a range (G-07). Make and model alone where the key numbers tell cars apart.
+                'short' => $range === null ? trim($vehicle->make.' '.$vehicle->model) : $label,
                 // The halves of a car a Gutachten splits read alike by name: Feld K's range tells them apart.
-                'range' => $vehicle->hsn === null ? GermanFormat::egRange($vehicle->eg_nummer_raw, short: true) : null,
+                'range' => $range,
             ];
         }
 

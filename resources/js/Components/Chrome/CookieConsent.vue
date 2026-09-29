@@ -40,13 +40,13 @@ const sheetVisible = computed(() => consent.decided.value === null)
             <li class="consent__row">
                 <p class="consent__name">Notwendig</p>
                 <span class="small quiet consent__state">Immer aktiv</span>
-                <p class="small muted consent__what">Warenkorb, gewähltes Fahrzeug, Sitzung, deine Cookie-Auswahl.</p>
+                <p class="small muted consent__what">Warenkorb, gewähltes Fahrzeug, Sitzung, deine Cookie-Auswahl – und eine zufällige Kennung für diesen Browser. Sie sorgt dafür, dass unser Schutz vor zu vielen Anfragen dich nicht mit anderen im selben Netz verwechselt, etwa im Mobilfunk.</p>
             </li>
             <li class="consent__row">
                 <p class="consent__name">Funktional</p>
                 <span class="small quiet consent__state">Nur nach Eingabe</span>
                 <p class="small muted consent__what">
-                    Die Werte aus deiner Zulassungsbescheinigung (Achslasten und Höchstgeschwindigkeit), wenn du sie bei einem Fahrzeug einträgst – für bis zu fünf Fahrzeuge, ein Jahr lang.
+                    Die Werte aus deiner Zulassungsbescheinigung (Achslasten und Höchstgeschwindigkeit) sowie Karosserieform und Antriebsart, wenn du sie bei einem Fahrzeug einträgst – jeweils für bis zu fünf Fahrzeuge, ein Jahr lang.
                 </p>
             </li>
         </ul>

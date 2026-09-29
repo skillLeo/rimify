@@ -20,6 +20,9 @@ final readonly class VehicleBuild
 
     public const FROM_NAME = 'name';
 
+    /** The engine's values in the customer's words, where they differ („Coupe“ → „Coupé“, an axle → a drive). */
+    private const WORDS_DE = ['Coupe' => 'Coupé', 'Vorderachse' => 'Frontantrieb', 'Hinterachse' => 'Heckantrieb', 'Allrad' => 'Allradantrieb'];
+
     private function __construct(
         public ?string $bodyForm,
         public ?string $driveAxle,
@@ -49,6 +52,29 @@ final readonly class VehicleBuild
         [$drive, $driveSource] = self::fill($vehicle->driveAxle, $vehicle->driveAxleSource, $answer?->driveAxle, $name['driveAxle']);
 
         return $vehicle->withBuild($body, $bodySource, $drive, $driveSource);
+    }
+
+    /**
+     * What an answer assumed about the car that its data did not hold — the owner's word or the name's — in the
+     * customer's words, for every page that shows or prints the answer (G-02). The data's own values need none.
+     *
+     * @return list<array{fact: string, value: string, source: string}>
+     */
+    public static function assumed(VehicleRecord $vehicle): array
+    {
+        $lines = [];
+
+        foreach ([['Karosserieform', $vehicle->bodyForm, $vehicle->bodyFormSource], ['Antriebsart', $vehicle->driveAxle, $vehicle->driveAxleSource]] as [$fact, $value, $source]) {
+            if ($value !== null && in_array($source, [self::FROM_CUSTOMER, self::FROM_NAME], true)) {
+                $lines[] = [
+                    'fact' => $fact,
+                    'value' => self::WORDS_DE[$value] ?? $value,
+                    'source' => $source === self::FROM_CUSTOMER ? 'nach deiner Angabe' : 'erkannt am Fahrzeugnamen',
+                ];
+            }
+        }
+
+        return $lines;
     }
 
     /** @return array{0: string|null, 1: string|null} */

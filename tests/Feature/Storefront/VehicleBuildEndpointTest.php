@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Storefront\PapersBook;
 use App\Models\Vehicle;
+use App\Support\VehicleName;
 use Illuminate\Testing\TestResponse;
 
 /*
@@ -23,12 +24,14 @@ function buildCookieOf(TestResponse $response): ?string
 
 it('keeps the answer beside the figures, and a second answer for one of the two keeps the other', function (): void {
     $vehicle = Vehicle::factory()->create(['hsn' => null, 'tsn' => null, 'body_form' => null, 'drive_axle' => null]);
+    // The toast names the car the answer went to: another tab may show a car chosen since (G-10).
+    $name = VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation);
 
     $first = $this->withUnencryptedCookie(PapersBook::COOKIE, "{$vehicle->id}.1100.1100.250")
         ->from('/felgen')->post("/fahrzeug/{$vehicle->id}/aufbau", ['body_form' => 'Kombi'])
         ->assertRedirect('/felgen')
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('toast', 'Angabe übernommen – wir haben neu geprüft.');
+        ->assertSessionHas('toast', "Angabe für {$name} übernommen und neu geprüft.");
 
     expect(buildCookieOf($first))->toBe("{$vehicle->id}.1100.1100.250_{$vehicle->id}-k20");
 
@@ -40,7 +43,7 @@ it('keeps the answer beside the figures, and a second answer for one of the two 
     // Forgotten again: the figures stay.
     $gone = $this->withUnencryptedCookie(PapersBook::COOKIE, (string) buildCookieOf($second))
         ->delete("/fahrzeug/{$vehicle->id}/aufbau")
-        ->assertSessionHas('toast', 'Angaben zu Karosserieform und Antriebsart gelöscht.');
+        ->assertSessionHas('toast', "Angaben zu Karosserieform und Antriebsart für {$name} gelöscht.");
 
     expect(buildCookieOf($gone))->toBe("{$vehicle->id}.1100.1100.250");
 });

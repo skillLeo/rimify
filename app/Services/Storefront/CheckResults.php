@@ -6,6 +6,7 @@ namespace App\Services\Storefront;
 
 use App\Domain\Fitment\Data\PapersFigures;
 use App\Domain\Fitment\Data\TyreSize;
+use App\Domain\Fitment\Data\VehicleBuild;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
@@ -90,6 +91,8 @@ final readonly class CheckResults
                 'stricterByPapers' => $verdict->tyre->stricterByPapers,
             ],
             'papers' => $result->papers,
+            // What the answer assumed that the vehicle data does not hold: printed, so the Prüfer can catch it.
+            'build' => VehicleBuild::assumed($verdict->vehicle),
             'document' => $document === null ? null : [
                 'label' => trim($kind.' '.($document->number ?? '')),
                 'issuer' => $document->issuer,

@@ -82,6 +82,7 @@ function labelOf(fact: Fact, value: string): string {
 const changing = ref<Fact | null>(null)
 /* The option just chosen: pressed at once and turning while the answer is given again; the others step back. */
 const sending = ref<{ fact: Fact; value: string } | null>(null)
+const deleting = ref(false)
 const error = ref('')
 
 const shown = computed<Fact[]>(() => (changing.value === null ? asked.value : [changing.value]))
@@ -107,34 +108,93 @@ function change(fact: Fact): void {
     focusSoon(`#bf-${fact} [aria-pressed="true"], #bf-${fact} button`)
 }
 
+/* „Abbrechen“ or Esc: the choice closes and the keyboard goes back to the „Ändern“ it came from (G-04). */
+function cancel(): void {
+    const fact = changing.value
+
+    if (fact === null || sending.value !== null) {
+        return
+    }
+
+    changing.value = null
+    focusSoon(`#bf-given-${fact} button`)
+}
+
+/* Offline, an expired page, too many tries, a fault: said at the question, the page and the choice kept (G-05). */
+const OFFLINE = 'Keine Verbindung zum Server. Deine Änderung ist nicht gespeichert – prüf die Verbindung und versuch es noch einmal.'
+
+function refusal(status: number): string {
+    switch (status) {
+        case 404:
+            return 'Dieses Fahrzeug gibt es bei uns nicht mehr. Wähl dein Fahrzeug bitte neu.'
+        case 419:
+            return 'Die Seite war zu lange offen, deshalb ist nichts gespeichert. Lade sie neu und versuch es noch einmal.'
+        case 429:
+            return 'Zu viele Versuche in kurzer Zeit. Bitte warte eine Minute und versuch es dann noch einmal.'
+        default:
+            return 'Deine Änderung ließ sich gerade nicht speichern. Versuch es gleich noch einmal.'
+    }
+}
+
+const visit = {
+    preserveScroll: true,
+    errorBag: 'aufbau',
+    onError: (bag: Record<string, string>) => {
+        error.value = Object.values(bag)[0] ?? ''
+    },
+    onHttpException: (response: { status: number }) => {
+        error.value = refusal(response.status)
+
+        return false
+    },
+    onNetworkError: () => {
+        error.value = OFFLINE
+
+        return false
+    },
+    onFinish: () => {
+        sending.value = null
+        deleting.value = false
+    },
+}
+
 function choose(fact: Fact, value: string): void {
-    if (sending.value !== null) {
+    if (sending.value !== null || deleting.value) {
         return
     }
 
     sending.value = { fact, value }
     error.value = ''
     router.post(`/fahrzeug/${props.vehicleId}/aufbau`, fact === 'bodyForm' ? { body_form: value } : { drive_axle: value }, {
-        preserveScroll: true,
-        errorBag: 'aufbau',
-        onError: (bag) => {
-            error.value = Object.values(bag as Record<string, string>)[0] ?? ''
-        },
+        ...visit,
         onSuccess: () => {
             changing.value = null
             // The question has gone; the answer stands in its place, and focus with it.
             focusSoon(`#bf-given-${fact}`)
         },
-        onFinish: () => {
-            sending.value = null
-        },
+    })
+}
+
+/* The owner's answers for this car, forgotten (G-12): the question comes back where the answer waits for it. */
+const ownAnswers = computed(() => given.value.some((line) => line.source === 'customer'))
+
+function forget(): void {
+    if (sending.value !== null || deleting.value) {
+        return
+    }
+
+    deleting.value = true
+    error.value = ''
+    router.delete(`/fahrzeug/${props.vehicleId}/aufbau`, {
+        ...visit,
+        onSuccess: () => focusSoon('.bf__lead, .bf__given'),
     })
 }
 </script>
 
 <template>
-    <div v-if="asked.length || given.length" class="bf">
-        <p v-if="asked.length && changing === null" class="bf__lead">{{ lead }}</p>
+    <div v-if="asked.length || given.length" class="bf" @keydown.esc="cancel">
+        <p v-if="asked.length && changing === null" class="bf__lead" tabindex="-1">{{ lead }}</p>
 
         <template v-if="changing === null">
             <p v-for="line in given" :id="`bf-given-${line.fact}`" :key="line.fact" class="bf__given" tabindex="-1">
@@ -143,12 +203,19 @@ function choose(fact: Fact, value: string): void {
                     <template v-if="line.source === 'name'"> – erkannt an „{{ line.word }}“ im Fahrzeugnamen. Stimmt das?</template>
                     <template v-else> – nach deiner Angabe.</template>
                 </span>
-                <button class="link" type="button" :disabled="sending !== null" :aria-label="`${NAMES[line.fact]} ändern`" @click="change(line.fact)">Ändern</button>
+                <button class="link" type="button" :disabled="sending !== null || deleting" :aria-label="`${NAMES[line.fact]} ändern`" @click="change(line.fact)">Ändern</button>
             </p>
+            <button v-if="ownAnswers" class="link bf__forget" type="button" :disabled="sending !== null || deleting" :aria-busy="deleting ? 'true' : undefined" @click="forget">
+                Meine Angaben zu Karosserieform und Antriebsart löschen
+            </button>
         </template>
 
-        <div v-for="fact in shown" :id="`bf-${fact}`" :key="fact" class="bf__group" role="group" :aria-labelledby="`bf-${fact}-h`">
+        <div v-for="fact in shown" :id="`bf-${fact}`" :key="fact" class="bf__group" role="group" :aria-labelledby="`bf-${fact}-h`" :aria-describedby="fact === 'bodyForm' ? 'bf-bodyForm-hint' : undefined">
             <p :id="`bf-${fact}-h`" class="bf__label">{{ NAMES[fact] }}</p>
+            <!-- The papers name a body style in their own words: the drawing is the one to go by (G-11). -->
+            <p v-if="fact === 'bodyForm'" id="bf-bodyForm-hint" class="bf__hint">
+                Wähl die Form, die dein Auto hat. In der Zulassungsbescheinigung heißt auch manches Schrägheck „Kombilimousine“.
+            </p>
             <div class="bf__options" :class="fact === 'bodyForm' ? 'bf__options--body' : 'bf__options--drive'">
                 <template v-if="fact === 'bodyForm'">
                     <button
@@ -190,7 +257,7 @@ function choose(fact: Fact, value: string): void {
             </div>
         </div>
 
-        <button v-if="changing !== null" class="link bf__cancel" type="button" :disabled="sending !== null" @click="changing = null">Abbrechen</button>
+        <button v-if="changing !== null" class="link bf__cancel" type="button" :disabled="sending !== null" @click="cancel">Abbrechen</button>
         <p v-if="error" class="form-field__error" role="alert">{{ error }}</p>
         <p class="visually-hidden" role="status">{{ sending ? 'Wird geprüft …' : '' }}</p>
     </div>
@@ -249,6 +316,28 @@ function choose(fact: Fact, value: string): void {
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     color: var(--c-ink-2);
+}
+
+.bf__hint {
+    max-width: 60ch;
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
+}
+
+.bf__lead:focus {
+    outline: none;
+}
+
+.bf > .bf__given + .bf__forget {
+    margin-top: var(--sp-8);
+}
+
+.bf__forget {
+    align-self: flex-start;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
 }
 
 /* A narrow panel: rows a thumb's height, the drawing beside its word — two across for the body styles, the three

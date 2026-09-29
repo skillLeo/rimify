@@ -82,7 +82,16 @@ describe('CheckErgebnis — "no document" leads to e-mail, not to the old form',
                 stricterByPapers: true,
             },
             papers: { axleFrontKg: 1210, axleRearKg: 1235, topSpeedKmh: 280 },
+            build: [
+                { fact: 'Karosserieform', value: 'Schrägheck', source: 'nach deiner Angabe' },
+                { fact: 'Antriebsart', value: 'Allradantrieb', source: 'erkannt am Fahrzeugnamen' },
+            ],
         })
+
+        // What the answer assumed about the car is printed with where it came from (G-02).
+        const facts = wrapper.findAll('.res__facts > div').map((row) => [row.find('dt').text(), row.find('dd').text()])
+        expect(facts).toContainEqual(['Karosserieform', 'Schrägheck – nach deiner Angabe'])
+        expect(facts).toContainEqual(['Antriebsart', 'Allradantrieb – erkannt am Fahrzeugnamen'])
 
         expect(wrapper.find('.res__summary').text()).toBe('Hinterachse mit 1.235 kg: mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.')
         expect(wrapper.findAll('.res__sum li').map((li) => li.text())).toEqual(lines)

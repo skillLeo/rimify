@@ -40,6 +40,13 @@ const heading = computed(() =>
     vehicle.value === null ? 'Alle Felgen' : `Felgen für deinen ${vehicle.value.short}`
 )
 
+/** A body style or drive the owner gave or the car's name did: the grid rests on it, so the page says it. */
+const buildGiven = computed(() => {
+    const build = vehicle.value?.build
+
+    return build != null && [build.bodySource, build.driveSource].some((source) => source === 'name' || source === 'customer')
+})
+
 const appliedCount = computed(
     () =>
         Object.entries(props.filters).filter(
@@ -103,9 +110,11 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- The chosen car lacks what the answers wait for: asked by name the moment it is chosen, answered
-                 in place — never a list of „Keine Freigabe hinterlegt“ with no way on (EF-01, §1.1). -->
-            <div v-if="hasVehicle && vehicle && missing?.length" class="plp__ask">
-                <BuildForm :vehicle-id="vehicle.id" :build="vehicle.build ?? null" :missing="missing" />
+                 in place — never a list of „Keine Freigabe hinterlegt“ with no way on (EF-01, §1.1). Once answered,
+                 or read from the name, what every answer below rests on stays said, one click from changing (G-01). -->
+            <div v-if="hasVehicle && vehicle && (missing?.length || buildGiven)" class="plp__ask" :class="{ 'plp__ask--said': !missing?.length }">
+                <!-- Keyed by the car: another car chosen meanwhile gets a fresh question, never this one's state (G-10). -->
+                <BuildForm :key="`build-${vehicle.id}`" :vehicle-id="vehicle.id" :build="vehicle.build ?? null" :missing="missing ?? []" />
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->
@@ -260,6 +269,12 @@ onBeforeUnmount(() => {
 
 .plp__ask :deep(.bf) {
     margin-block: 0;
+}
+
+/* Nothing asked, only said: a line under the count, not a panel. „Ändern“ opens the choice on the band. */
+.plp__ask--said:not(:has(.bf__group)) {
+    padding: 0;
+    background: none;
 }
 
 .plp__notice {

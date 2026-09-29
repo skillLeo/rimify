@@ -1075,6 +1075,16 @@ onBeforeUnmount(() => treeController?.abort())
     color: inherit;
 }
 
+/* Name and range on two lines where the row is narrow, never squeezed into each other. */
+.chip:has(.sel__chip-range) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 0;
+    column-gap: var(--sp-4);
+    padding-block: var(--sp-4);
+    text-align: start;
+}
+
 /* With a vehicle */
 .sel--vehicle {
     display: grid;
