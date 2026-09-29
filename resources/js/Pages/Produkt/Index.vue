@@ -71,6 +71,24 @@ const shot = computed(() => shots.value[shotIndex.value] ?? null)
 // An uploaded photo carries the sentence the admin wrote for it; a studio shot is named by its angle.
 const shotAlt = computed(() => shot.value?.alt ?? `${props.product.brandName} ${props.product.modelName} in ${finish.value?.name ?? ''}, ${shot.value?.label ?? ''}`)
 
+/*
+ * A photograph shows the wheel whose approval is stamped on it (the manifest's `stamp`). Where the size on
+ * screen carries another number, the page says which size the picture is of: the Borbet DB8GT2's photographs
+ * are of the 18-inch wheel (KBA 53841), and the 19-inch has its own approval, ABE 55255 (Block D, item 12).
+ */
+const photoNote = computed(() => {
+    const stamp = finish.value?.image?.stamp
+    const current = selected.value
+
+    if (!stamp || current === null || !current.kbaNumber || current.kbaNumber === stamp) {
+        return null
+    }
+
+    const pictured = props.configs.find((c) => c.kbaNumber === stamp)
+
+    return pictured ? `Abbildung zeigt die ${decimal(pictured.diameterIn, Number.isInteger(pictured.diameterIn) ? 0 : 1)}-Zoll-Ausführung.` : null
+})
+
 // Another finish starts on its own front view.
 watch(
     () => config.finishId.value,
@@ -257,6 +275,8 @@ onBeforeUnmount(() => observer?.disconnect())
                             <Picture :image="view" alt="" sizes="72px" class="pdp__thumb-picture" />
                         </button>
                     </div>
+
+                    <p v-if="photoNote" class="t-small quiet pdp__photo-note">{{ photoNote }}</p>
 
                     <!-- The large view. Reka traps the focus, closes on Escape and on the scrim,
                          and hands the focus back to the photograph. -->
@@ -578,6 +598,12 @@ onBeforeUnmount(() => observer?.disconnect())
     justify-content: center;
     gap: var(--sp-8);
     margin-top: var(--sp-12);
+}
+
+/* Which size the photograph is of, under it: said where the size on screen is another. */
+.pdp__photo-note {
+    margin: var(--sp-8) 0 0;
+    text-align: center;
 }
 
 .pdp__thumb {
