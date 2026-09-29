@@ -64,6 +64,21 @@ describe('FitmentPanel', () => {
         expect(wrapper.find('.fit__tyre-lines').text()).toBe(line)
     })
 
+    it('calls an answer that waits for the body style or drive open, not absent, and asks for it right below', () => {
+        const waiting = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Unbekannt', sellable: false, reason: 'Das Gutachten unterscheidet nach Karosserieform.', missing: ['bodyForm'] }) },
+        })
+
+        expect(waiting.find('.rcheck-panel__vehicle').text()).toBe('Noch offen für BMW 3er Coupe')
+        expect(waiting.find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlt die Karosserieform. Trag sie ein und wir prüfen sofort.')
+        // The vaguer reason gives way to the question.
+        expect(waiting.find('.fit__reason').exists()).toBe(false)
+
+        const unknown = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Unbekannt', sellable: false }) } })
+
+        expect(unknown.find('.rcheck-panel__vehicle').text()).toBe('Keine Freigabe hinterlegt für BMW 3er Coupe')
+    })
+
     it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', async () => {
         const tyre = { status: 'CONDITIONAL' as const, label: 'Mit deinen Fahrzeugpapieren prüfen', lines: ['…'], thresholds: [], fromVehicleData: false }
         const empty = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })

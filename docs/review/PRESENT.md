@@ -65,11 +65,14 @@ sie im Shop.
    neben jeder Variante, was in Feld K der Zulassungsbescheinigung stehen muss:
    „Feld K: e1*2007/46*0283, *00 bis *03“ und „Feld K: e1*2007/46*0283, ab *04“.
 
-**Was du dabei oft sehen wirst: „wissen wir nicht“.** Viele Zeilen der beiden Gutachten gelten nur für eine
-bestimmte Karosserieform oder einen bestimmten Antrieb, etwa „nur Limousine“ oder „nicht für Allrad“. Solange
-wir das vom Fahrzeug nicht wissen, zeigt RIMIFY bei der Felge „Keine Freigabe hinterlegt“, statt zu raten. Das
-betrifft heute die meisten Fahrzeuge der beiden Gutachten. Wie wir die Kundschaft nach Karosserieform und
-Antrieb fragen, klären wir mit dir.
+**Was du dabei oft sehen wirst: die Frage nach Karosserieform und Antriebsart.** Viele Zeilen der beiden
+Gutachten gelten nur für eine bestimmte Karosserieform oder einen bestimmten Antrieb, etwa „nur Limousine“ oder
+„nicht für Allrad“, und unsere Fahrzeugdaten kennen beides bei den meisten Fahrzeugen der beiden Gutachten nicht.
+Steht es eindeutig im Namen – „Touring“, „xDrive“, „quattro“ –, übernimmt RIMIFY es und schreibt dazu „erkannt an
+„Touring“ im Fahrzeugnamen. Stimmt das?“, mit einem Klick zum Ändern. Sonst steht über der Antwort „Noch offen
+für …“ und darunter: „Für dieses Fahrzeug fehlt die Karosserieform. Trag sie ein und wir prüfen sofort.“ Ein
+Klick auf die passende Form, und die Antwort steht da – geraten wird nie. Die Angabe gilt nur für dieses
+Fahrzeug in diesem Browser und steht mit ihrer Herkunft im Prüfnachweis jeder Bestellung.
 
 Sobald die Felge einen Preis hat, laufen Warenkorb, Kasse mit Testzahlung und die Bestellung mit ihrem
 eingefrorenen Prüfnachweis wie bei jeder anderen Felge. Die Bilder in [`GOLDEN-RECORD.md`](GOLDEN-RECORD.md)

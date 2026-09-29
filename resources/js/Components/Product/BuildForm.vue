@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Karosserieform and Antrieb, where the vehicle data has neither (the operator's last prompt §1.1).
+ * Karosserieform and Antriebsart, where the vehicle data has neither (the operator's last prompt §1.1).
  *
  * Derived first, asked second. What an unambiguous word of the car's name gives (`Touring` → Kombi) stands as a
  * filled answer with „stimmt das?“ and one click to change it. What the answer waits for and nothing gives is
@@ -22,18 +22,19 @@ const props = defineProps<{
     missing: string[]
 }>()
 
-/* Side views on a 48 × 24 grid, each with the one line that tells it apart: the boot's step, the long roof, the
-   sloping hatch, the low fastback, no roof, a short open two-seater, the tall body, the single box. The wheels are
-   drawn over the body (WHEELS). */
+/* Side views on a 48 × 24 grid, the front to the left, drawn as the icon set is drawn (1,5 px, square ends, mitred
+   corners). Each carries the one line that tells it apart at 48 px: the flat boot deck, the long roof, the steep
+   short tail, the low roof in one long slope, the top folded at the back, the hoop behind the seats, the tall body,
+   the single box. The wheels are drawn over the body (WHEELS). */
 const BODIES: { value: string; label: string; path: string }[] = [
-    { value: 'Limousine', label: 'Limousine', path: 'M2 19v-5q0-2 3-2l8-1 5-5h12l5 5 9 1q2 0 2 2v5z' },
-    { value: 'Kombi', label: 'Kombi', path: 'M2 19v-5q0-2 3-2l8-1 5-5h24l3 5v8z' },
-    { value: 'Schrägheck', label: 'Schrägheck', path: 'M2 19v-5q0-2 3-2l8-1 5-5h15l11 6q2 .5 2 2v5z' },
-    { value: 'Coupe', label: 'Coupé', path: 'M2 19v-4q0-2 3-2l9-1 6-5h9l8 5 7 1q2 0 2 2v4z' },
-    { value: 'Cabrio', label: 'Cabrio', path: 'M2 19v-5q0-2 3-2h39q2 0 2 2v5zM17 12l3-5M30 12q3-3 6 0' },
-    { value: 'Roadster', label: 'Roadster', path: 'M4 19v-4q0-2 3-2h34q3 0 3 2v4zM21 13l3-5' },
-    { value: 'SUV', label: 'SUV', path: 'M2 19v-7q0-2 3-2l7-1 5-5h24l4 5v10z' },
-    { value: 'Van', label: 'Van', path: 'M2 19V9l7-6h36v16z' },
+    { value: 'Limousine', label: 'Limousine', path: 'M2 19V14L4 12H13L18 7H30L35 12H45L46 13V19Z' },
+    { value: 'Kombi', label: 'Kombi', path: 'M2 19V14L4 12H13L18 7H44L46 10V19Z' },
+    { value: 'Schrägheck', label: 'Schrägheck', path: 'M4 19V14L6 12H14L19 7H32L41 11V19Z' },
+    { value: 'Coupe', label: 'Coupé', path: 'M2 19V14L4 12H15L21 8.5H27L40 12H45L46 13V19Z' },
+    { value: 'Cabrio', label: 'Cabrio', path: 'M2 19V14L4 12H45L46 13V19ZM15 12L18 8M31 12L32 10H38L39 12' },
+    { value: 'Roadster', label: 'Roadster', path: 'M5 19V14L7 12H42L43 13V19ZM18 12L21 8M27 12V8.5H30V12' },
+    { value: 'SUV', label: 'SUV', path: 'M2 19V11L4 9H12L17 4H42L45 8V19Z' },
+    { value: 'Van', label: 'Van', path: 'M2 19V10L9 3H45V19Z' },
 ]
 
 const WHEELS = [12, 36]
@@ -79,22 +80,39 @@ function labelOf(fact: Fact, value: string): string {
 
 /* „Ändern“: the choice for that one fact opens in place, the current value pressed. */
 const changing = ref<Fact | null>(null)
-const busy = ref(false)
+/* The option just chosen: pressed at once and turning while the answer is given again; the others step back. */
+const sending = ref<{ fact: Fact; value: string } | null>(null)
 const error = ref('')
 
 const shown = computed<Fact[]>(() => (changing.value === null ? asked.value : [changing.value]))
 
 function current(fact: Fact): string | null {
+    if (sending.value?.fact === fact) {
+        return sending.value.value
+    }
+
     return fact === 'bodyForm' ? (props.build?.bodyForm ?? null) : (props.build?.driveAxle ?? null)
+}
+
+function isSending(fact: Fact, value: string): boolean {
+    return sending.value?.fact === fact && sending.value.value === value
+}
+
+function focusSoon(selector: string): void {
+    void nextTick(() => document.querySelector<HTMLElement>(selector)?.focus())
 }
 
 function change(fact: Fact): void {
     changing.value = fact
-    void nextTick(() => document.querySelector<HTMLElement>(`#bf-${fact} [aria-pressed="true"], #bf-${fact} button`)?.focus())
+    focusSoon(`#bf-${fact} [aria-pressed="true"], #bf-${fact} button`)
 }
 
 function choose(fact: Fact, value: string): void {
-    busy.value = true
+    if (sending.value !== null) {
+        return
+    }
+
+    sending.value = { fact, value }
     error.value = ''
     router.post(`/fahrzeug/${props.vehicleId}/aufbau`, fact === 'bodyForm' ? { body_form: value } : { drive_axle: value }, {
         preserveScroll: true,
@@ -104,9 +122,11 @@ function choose(fact: Fact, value: string): void {
         },
         onSuccess: () => {
             changing.value = null
+            // The question has gone; the answer stands in its place, and focus with it.
+            focusSoon(`#bf-given-${fact}`)
         },
         onFinish: () => {
-            busy.value = false
+            sending.value = null
         },
     })
 }
@@ -117,19 +137,19 @@ function choose(fact: Fact, value: string): void {
         <p v-if="asked.length && changing === null" class="bf__lead">{{ lead }}</p>
 
         <template v-if="changing === null">
-            <p v-for="line in given" :key="line.fact" class="bf__given">
+            <p v-for="line in given" :id="`bf-given-${line.fact}`" :key="line.fact" class="bf__given" tabindex="-1">
                 <span>
                     {{ NAMES[line.fact] }}: <strong>{{ line.value }}</strong>
                     <template v-if="line.source === 'name'"> – erkannt an „{{ line.word }}“ im Fahrzeugnamen. Stimmt das?</template>
                     <template v-else> – nach deiner Angabe.</template>
                 </span>
-                <button class="btn btn--ghost btn--sm" type="button" :disabled="busy" :aria-label="`${NAMES[line.fact]} ändern`" @click="change(line.fact)">Ändern</button>
+                <button class="link" type="button" :disabled="sending !== null" :aria-label="`${NAMES[line.fact]} ändern`" @click="change(line.fact)">Ändern</button>
             </p>
         </template>
 
         <div v-for="fact in shown" :id="`bf-${fact}`" :key="fact" class="bf__group" role="group" :aria-labelledby="`bf-${fact}-h`">
             <p :id="`bf-${fact}-h`" class="bf__label">{{ NAMES[fact] }}</p>
-            <div class="bf__options" :class="{ 'bf__options--drive': fact === 'driveAxle' }">
+            <div class="bf__options" :class="fact === 'bodyForm' ? 'bf__options--body' : 'bf__options--drive'">
                 <template v-if="fact === 'bodyForm'">
                     <button
                         v-for="body in BODIES"
@@ -137,14 +157,19 @@ function choose(fact: Fact, value: string): void {
                         class="bf__option"
                         type="button"
                         :aria-pressed="current(fact) === body.value ? 'true' : 'false'"
-                        :disabled="busy"
+                        :aria-busy="isSending(fact, body.value) ? 'true' : undefined"
+                        :disabled="sending !== null && !isSending(fact, body.value)"
                         @click="choose(fact, body.value)"
                     >
-                        <svg class="bf__shape" viewBox="0 0 48 24" aria-hidden="true" focusable="false">
-                            <path :d="body.path" />
-                            <circle v-for="x in WHEELS" :key="x" :cx="x" cy="19" r="3.5" />
-                        </svg>
-                        <span>{{ body.label }}</span>
+                        <!-- While it is sent, the turning mark takes the drawing's place: the word never moves. -->
+                        <span class="bf__art" aria-hidden="true">
+                            <span v-if="isSending(fact, body.value)" class="spinner bf__spinner" />
+                            <svg v-else class="bf__shape" viewBox="0 0 48 24" focusable="false">
+                                <path :d="body.path" />
+                                <circle v-for="x in WHEELS" :key="x" :cx="x" cy="19" r="3.5" />
+                            </svg>
+                        </span>
+                        <span class="bf__word">{{ body.label }}</span>
                     </button>
                 </template>
                 <template v-else>
@@ -154,43 +179,64 @@ function choose(fact: Fact, value: string): void {
                         class="bf__option bf__option--text"
                         type="button"
                         :aria-pressed="current(fact) === drive.value ? 'true' : 'false'"
-                        :disabled="busy"
+                        :aria-busy="isSending(fact, drive.value) ? 'true' : undefined"
+                        :disabled="sending !== null && !isSending(fact, drive.value)"
                         @click="choose(fact, drive.value)"
                     >
-                        {{ drive.label }}
+                        <span class="bf__word">{{ drive.label }}</span>
+                        <span v-if="isSending(fact, drive.value)" class="spinner bf__spinner" aria-hidden="true" />
                     </button>
                 </template>
             </div>
         </div>
 
-        <button v-if="changing !== null" class="btn btn--ghost btn--sm bf__cancel" type="button" :disabled="busy" @click="changing = null">Abbrechen</button>
+        <button v-if="changing !== null" class="link bf__cancel" type="button" :disabled="sending !== null" @click="changing = null">Abbrechen</button>
         <p v-if="error" class="form-field__error" role="alert">{{ error }}</p>
-        <p v-if="busy" class="visually-hidden" role="status">Wird geprüft …</p>
+        <p class="visually-hidden" role="status">{{ sending ? 'Wird geprüft …' : '' }}</p>
     </div>
 </template>
 
 <style scoped>
-/* The same room as the papers form beside it: laid out by the panel's width, never the window's. */
+/* The same room as the papers form beside it: laid out by the panel's width, never the window's. Spaced by what
+   belongs together: 8 inside a group, 16 from the question to its first choice, 24 between the groups. */
 .bf {
     container-type: inline-size;
-    display: grid;
-    gap: var(--sp-12);
+    display: flex;
+    flex-direction: column;
     margin-block: var(--sp-16);
 }
 
-.bf__lead {
+.bf > * {
     margin: 0;
-    font-weight: 600;
+}
+
+.bf > * + * {
+    margin-top: var(--sp-16);
+}
+
+.bf > .bf__group + .bf__group {
+    margin-top: var(--sp-24);
+}
+
+.bf > .bf__given + .bf__given {
+    margin-top: var(--sp-8);
+}
+
+.bf__lead {
+    max-width: 54ch;
 }
 
 .bf__given {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-8);
-    margin: 0;
+    align-items: baseline;
+    column-gap: var(--sp-12);
     font-size: var(--fs-small);
     line-height: var(--lh-small);
+}
+
+.bf__given:focus {
+    outline: none;
 }
 
 .bf__group {
@@ -205,29 +251,24 @@ function choose(fact: Fact, value: string): void {
     color: var(--c-ink-2);
 }
 
-/* Four across where there is room, two on a narrow panel: every option a finger's width. */
+/* A narrow panel: rows a thumb's height, the drawing beside its word — two across for the body styles, the three
+   drives one under the other, so none stands alone at half width. */
 .bf__options {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sp-8);
 }
 
-@container (min-width: 400px) {
-    .bf__options {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .bf__options--drive {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+.bf__options--body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .bf__option {
-    display: grid;
-    justify-items: center;
-    gap: var(--sp-4);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
     min-height: 44px;
-    padding: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
     border: 1px solid var(--c-line);
     border-radius: var(--r-control);
     background: var(--c-surface);
@@ -235,50 +276,132 @@ function choose(fact: Fact, value: string): void {
     font: inherit;
     font-size: var(--fs-small);
     line-height: var(--lh-small);
+    text-align: start;
     cursor: pointer;
+    transition: background-color var(--d-1) var(--ease-std), border-color var(--d-1) var(--ease-std), color var(--d-1) var(--ease-std);
 }
 
-.bf__option--text {
-    align-content: center;
+/* From 400 px of panel: the body styles as four tiles, drawing above word, the drives three across. */
+@container (min-width: 400px) {
+    .bf__options--body {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .bf__options--drive {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .bf__options--body .bf__option {
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--sp-4);
+        text-align: center;
+    }
+
+    .bf__option--text {
+        justify-content: center;
+        text-align: center;
+    }
 }
 
-/* Pressed as every chip of the shop is pressed (components.css `.chip`). */
+/* Hover and press as every chip of the shop has them (components.css `.chip`, `.btn--secondary:active`). */
+@media (hover: hover) and (pointer: fine) {
+    .bf__option:hover:not(:disabled) {
+        border-color: var(--c-ink-3);
+    }
+}
+
+.bf__option:active:not(:disabled) {
+    background: var(--c-band);
+}
+
 .bf__option[aria-pressed='true'] {
     background: var(--c-blue-tint);
     border-color: var(--c-blue);
     color: var(--c-blue);
 }
 
-.bf__option[aria-pressed='true'] .bf__shape circle {
-    fill: var(--c-blue-tint);
+/* While one choice is sent, the others step back — a band fill and quieter words, never faded (components.css,
+   `.btn:disabled`); the one chosen keeps its press and turns. */
+.bf__option:disabled {
+    background: var(--c-band);
+    color: var(--c-ink-3);
+    cursor: not-allowed;
 }
 
-@media (hover: hover) and (pointer: fine) {
-    .bf__option:hover:not(:disabled) {
-        border-color: var(--c-ink-2);
+.bf__option[aria-busy='true'] {
+    cursor: progress;
+}
+
+.bf__spinner {
+    width: 16px;
+    height: 16px;
+}
+
+/* A drive has no drawing: its mark sits at the row's end, or in the tile's corner. */
+.bf__option--text .bf__spinner {
+    margin-inline-start: auto;
+}
+
+@container (min-width: 400px) {
+    .bf__option--text .bf__spinner {
+        position: absolute;
+        inset-block-start: calc(50% - 8px);
+        inset-inline-end: var(--sp-12);
+        margin: 0;
     }
 }
 
-.bf__option:disabled {
-    cursor: default;
-    opacity: 0.6;
+.bf__art {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 24px;
 }
 
 .bf__shape {
-    width: 64px;
-    height: auto;
+    width: 100%;
+    height: 100%;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
 }
 
+.bf__shape path,
+.bf__shape circle {
+    vector-effect: non-scaling-stroke;
+}
+
+@container (min-width: 400px) {
+    .bf__art {
+        width: 64px;
+        height: 32px;
+    }
+}
+
+/* The wheels cover the body's floor line, on whatever fill the option has. */
 .bf__shape circle {
     fill: var(--c-surface);
 }
 
+.bf__option[aria-pressed='true'] .bf__shape circle {
+    fill: var(--c-blue-tint);
+}
+
+.bf__option:disabled .bf__shape circle {
+    fill: var(--c-band);
+}
+
 .bf__cancel {
-    justify-self: start;
+    align-self: flex-start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bf__option {
+        transition: none;
+    }
 }
 </style>

@@ -249,15 +249,13 @@ onBeforeUnmount(() => {
     color: var(--ink2);
 }
 
-/* The question about the car, above the grid it decides: a surface, so its options (drawn on --c-surface)
-   read as buttons, at the width of the page's reading column. */
+/* The question about the car, above the grid it decides: set on the band as the notice without a car is, the
+   full width of the page, so its white options read as the buttons they are (DIRECTION §4: no bordered card). */
 .plp__ask {
-    max-width: 720px;
     margin-bottom: var(--space-5);
     padding: var(--space-4);
-    border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: var(--surface);
+    background: var(--band);
 }
 
 .plp__ask :deep(.bf) {

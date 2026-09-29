@@ -39,7 +39,7 @@ describe('BuildForm', () => {
         expect(both.findAll('#bf-bodyForm .bf__option').map((o) => o.text())).toEqual(['Limousine', 'Kombi', 'Schrägheck', 'Coupé', 'Cabrio', 'Roadster', 'SUV', 'Van'])
         expect(both.findAll('#bf-driveAxle .bf__option').map((o) => o.text())).toEqual(['Frontantrieb', 'Heckantrieb', 'Allradantrieb'])
         // Every body style with its silhouette, hidden from a screen reader: the word is the name.
-        expect(both.findAll('#bf-bodyForm svg[aria-hidden="true"]')).toHaveLength(8)
+        expect(both.findAll('#bf-bodyForm [aria-hidden="true"] > svg')).toHaveLength(8)
 
         expect(mountForm(NONE, ['bodyForm']).find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlt die Karosserieform. Trag sie ein und wir prüfen sofort.')
         expect(mountForm(NONE, ['driveAxle']).find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlt die Antriebsart. Trag sie ein und wir prüfen sofort.')
@@ -51,6 +51,15 @@ describe('BuildForm', () => {
         await wrapper.findAll('#bf-bodyForm .bf__option').find((o) => o.text() === 'Schrägheck')!.trigger('click')
 
         expect(post).toHaveBeenCalledWith('/fahrzeug/82/aufbau', { body_form: 'Schrägheck' }, expect.objectContaining({ preserveScroll: true, errorBag: 'aufbau' }))
+
+        // Pressed at once and turning; the others step back and take no second tap until the answer is back.
+        const chosen = wrapper.find('#bf-bodyForm [aria-busy="true"]')
+        expect(chosen.text()).toBe('Schrägheck')
+        expect(chosen.attributes('aria-pressed')).toBe('true')
+        expect(chosen.attributes('disabled')).toBeUndefined()
+        expect(wrapper.findAll('#bf-bodyForm .bf__option:disabled')).toHaveLength(7)
+        await chosen.trigger('click')
+        expect(post).toHaveBeenCalledTimes(1)
     })
 
     it('shows a derived value as such — stimmt das? — and changes it with one click', async () => {

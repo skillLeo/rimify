@@ -1063,9 +1063,16 @@ onBeforeUnmount(() => treeController?.abort())
 }
 
 /* Feld K's range beside the name, quieter: what tells two halves of one car apart. */
+/* Quieter than the name, never darker (a disabled chip's name is --c-ink-3), and never broken inside. */
 .sel__chip-range {
     color: var(--c-ink-2);
     font-weight: 400;
+    white-space: nowrap;
+}
+
+.chip:disabled .sel__chip-range,
+.chip[aria-pressed='true'] .sel__chip-range {
+    color: inherit;
 }
 
 /* With a vehicle */

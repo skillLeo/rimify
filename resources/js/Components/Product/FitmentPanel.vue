@@ -175,7 +175,11 @@ const headline = computed(() => {
         case 'NOT_PERMITTED':
             return `Nicht freigegeben für ${props.vehicle.label}`
         default:
-            return `Keine Freigabe hinterlegt für ${props.vehicle.label}`
+            // Where the answer waits for the car's body style or drive, it is not „none on file“ but not yet
+            // given: the question right below says what it waits for (the operator's ruling on EF-01, D-041).
+            return (props.verdict.missing ?? []).length > 0
+                ? `Noch offen für ${props.vehicle.label}`
+                : `Keine Freigabe hinterlegt für ${props.vehicle.label}`
     }
 })
 </script>
