@@ -135,7 +135,13 @@ seeder, test to follow).
       CLAUDE.md — `e8f807b2`, `16249b5a` (before)
 - [x] 24 · COMPLIANCE.md, all 32 rows answered; row 13: **RESTRICT**, not an S1, pinned by a test —
       `16249b5a`, `0e472447` (before)
-- [ ] 25 · The final gates on every page: G1, G4, G5, G6 at twelve widths, three browsers, the OKLab check
+- [x] 25 · The final gates on every page: G1, G4, G5, G6 at twelve widths, three browsers, the OKLab check —
+      `npm run qa` clean, OKLab in Vitest (palette.test.ts), every suite green (STATUS item 10). The first full
+      run failed 23 tests; four were real bugs, fixed: the collapsed admin rail's toggle could not be clicked
+      (`7cbac119`); the verdicts widget shrank under its skeleton (`c0214ee4`); the mobile homepage jumped up
+      to 634 px under the finger on iPhones, so taps landed elsewhere (`736d250e`); every rate limit shared
+      one counter per user or IP, so searching could lock a customer out of „Bestellen“ (`b1df00f3`). The rest
+      were specs behind the product's own changes (`39cf74f7`, `a2ed0bc2`), the proof shots retaken (`0adec718`)
 
 ## Block F — go live
 
@@ -147,7 +153,15 @@ seeder, test to follow).
 - [x] 28 · PRESENT.md — the walkthrough on the Borbet golden record (`b876ad50`); it found that the chooser
       showed a split car's halves alike (fixed, `2aa57bb3`) and that most cars of the two documents answer
       „Keine Freigabe hinterlegt“ until body style and drive are known — a decision for the operator
-- [ ] ai-look-critic and interaction-qa on the block
+- [x] ai-look-critic and interaction-qa on Blocks E and F — the look review (Feld K squeezed, cut mid-number,
+      „und später“ read as a date, not in one helper) fixed in `bcaa1eae`, checked by eye at 375, 900, 1024
+      and 1440. The interaction review: EF-01 (S1, no car a Gutachten names could be chosen on the homepage —
+      needs_review rows were refused; now named, not refused, as /felgen-suchen does), EF-02, EF-03 and part
+      of EF-06 in `f6d0115f`; EF-04 `4ccb295a`; EF-05 and EF-07 `ec7f8ea4`; EF-09, EF-10, EF-11 `7b23cc73`.
+      Its specs e2e/bugs/ef-01…05 pass (not seen failing first: the reviewer had no shell; the Vitest and
+      Pest regressions do fail on the old code). Open: EF-06's garage chips (both halves read „BMW 1er-Reihe“
+      if one customer chose both), EF-08 (storefront limits are per IP — a carrier's shared address shares
+      them; inherent to limiting guests)
 
 ## Block G — payments
 

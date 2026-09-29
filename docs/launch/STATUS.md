@@ -38,7 +38,11 @@ Remaining, in the order the user set on 2026-09-28 (then the Stripe brief, with 
       dump 0,4 s, restore 2,5 s, caches and renderer 1,5 s, down to the smoke test's last row **6,8 s**, smoke
       7/7. The run found GO-LIVE's fixed trigger count stale (13; 14 since `0ed8bb30`): §1 now compares the
       dump with the live database. The host's own timing stays with the user (BLOCKED row 13)
-10. [ ] Final gates: full Pest, Vitest, lint, types, Larastan, Pint; the device lab once
+10. [x] Final gates (29.09.2026, at `7b23cc73`, after both reviews' fixes): Pest 1.956/1.956, Vitest 1.286/1.286,
+      Larastan, Pint, ESLint (0 errors), stylelint, vue-tsc; Playwright 312 passed, 70 skipped by project
+      (desktop- or phone-only specs); the device lab 178 passed, 14 skipped by viewport; `npm run qa` —
+      overflow at 12 widths, console in Chromium, WebKit and Firefox, axe 0, style inventory — clean. The
+      first run had 12 + 11 failures; what they found is in REMAINING item 25
 
 **The corrections memo (2026-09-28), §7's order:**
 
