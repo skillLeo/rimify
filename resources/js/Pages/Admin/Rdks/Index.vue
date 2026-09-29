@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * RDKS-Sensorpreise je Marke.
+ * Einstellungen › Zubehörpreise › RDKS-Sensorpreise je Marke.
  *
  * What one tyre-pressure sensor costs for one car make — per sensor, never per set: the checkout
- * multiplies by the number of Komplettrad wheels and shows `4 × 49,00 €`. A make without a row is a
- * make whose price nobody has confirmed, and the checkout says so rather than charging a number;
- * the empty state names that consequence.
+ * multiplies by the number of Komplettrad wheels and shows `4 × 49,00 €`. The default price is the
+ * rule; the rows are its exceptions. A make with neither is a make whose price nobody has confirmed,
+ * and the checkout says so rather than charging a number.
  *
  * The make is free text with a datalist of the makes the vehicle table holds. The server keys it
  * (MakeName::key) so `VW`, `vw` and `Volkswagen` are one make, and the table shows that key beside
@@ -14,9 +14,13 @@
  * (R-11); `can` only decides what is drawn.
  */
 
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { computed, reactive, ref } from 'vue'
-import Dialog from '../../../Components/Ui/Dialog.vue'
+import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
+import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminSectionTabs from '../../../Components/Admin/AdminSectionTabs.vue'
+import AdminState from '../../../Components/Admin/AdminState.vue'
+import { ZUBEHOER_TABS } from '../../../Components/Admin/sectionTabs'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminRdksProps } from '../../../types/pages'
 
@@ -32,14 +36,11 @@ interface PriceForm {
     active: boolean
 }
 
-const BASE = '/admin/rdks-preise'
+const BASE = '/admin/zubehoerpreise/rdks'
 
-const EMPTY_TEXT =
-    'Noch kein Preis hinterlegt. Wir fragen RDKS-Sensoren an der Kasse zwar ab, können sie aber für keine Marke berechnen.'
-const CONFIRM_TEXT =
-    'Preis wirklich löschen? An der Kasse können wir für diese Marke dann keine Sensoren mehr berechnen.'
-const MONEY_HINT = 'Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.'
-const DEFAULT_HINT = 'Preis je Sensor, deutsch geschrieben – zum Beispiel 15,00. Leer lassen heißt: kein Standardpreis.'
+const EMPTY_TEXT = 'Noch kein Preis hinterlegt. Wir fragen RDKS-Sensoren an der Kasse zwar ab, können sie aber für keine Marke berechnen.'
+const MONEY_HINT = 'Preis in Euro, mit Komma – zum Beispiel 49,00.'
+const DEFAULT_HINT = 'Preis je Sensor, mit Komma – zum Beispiel 15,00. Leer lassen heißt: kein Standardpreis.'
 const DEFAULT_OPEN =
     'Ohne Standardpreis bieten wir RDKS-Sensoren nur für die Marken unten an. Allen anderen sagen wir an der Kasse, dass wir den Preis noch nicht haben.'
 
@@ -61,7 +62,6 @@ const sent = ref(false)
 const busy = ref(false)
 const confirming = ref<Price | null>(null)
 
-/** The server's validation messages, keyed by field. */
 /** Everything the server said about the last request, whichever form sent it. */
 const bag = computed<Record<string, string>>(() => {
     const raw: unknown = page.props.errors
@@ -69,9 +69,10 @@ const bag = computed<Record<string, string>>(() => {
     return raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {}
 })
 
+/** The server's validation messages, keyed by field. */
 const errors = computed<Record<string, string>>(() => (sent.value ? bag.value : {}))
 
-/* ── The default price: the rule, with the rows above as its exceptions (§13, D-030) ── */
+/* ── The default price: the rule, with the rows below as its exceptions (§13, D-030) ── */
 
 const fallback = reactive({ typed: props.default.typed })
 const defaultSent = ref(false)
@@ -99,10 +100,17 @@ function saveDefault(): void {
 const editingPrice = computed(() => props.prices.find((p) => p.id === editing.value) ?? null)
 const canWrite = computed(() => props.can.create || props.can.update)
 const canAct = computed(() => props.can.update || props.can.delete)
-const formTitle = computed(() =>
-    editingPrice.value === null ? 'Neuer Preis' : `Preis bearbeiten: ${editingPrice.value.makeLabelDe}`
-)
+const formTitle = computed(() => (editingPrice.value === null ? 'Neuer Preis' : `Preis bearbeiten: ${editingPrice.value.makeLabelDe}`))
+/** The page's one primary action says what it does: add a make's price, or keep the edit. */
+const submitLabel = computed(() => (editing.value === null ? 'Preis anlegen' : 'Änderungen speichern'))
 const makeError = computed(() => errors.value.makeKey ?? errors.value.makeLabelDe ?? '')
+
+const context = computed(() => {
+    const total = props.prices.length
+    const rule = props.default.cents === null ? 'kein Standardpreis' : `Standard ${props.default.typed} je Sensor`
+
+    return `${total === 0 ? 'Noch keine Marke' : `${total} ${total === 1 ? 'Marke' : 'Marken'} mit eigenem Preis`} · ${rule}`
+})
 
 const confirmOpen = computed({
     get: () => confirming.value !== null,
@@ -112,6 +120,13 @@ const confirmOpen = computed({
         }
     },
 })
+
+/** What the checkout does for this make once its own price is gone. */
+const confirmBody = computed(() =>
+    props.default.cents === null
+        ? 'An der Kasse können wir für diese Marke dann keine Sensoren mehr berechnen.'
+        : `An der Kasse gilt für diese Marke dann der Standardpreis von ${props.default.typed} je Sensor.`
+)
 
 function reset(): void {
     Object.assign(form, blank())
@@ -173,309 +188,188 @@ function remove(): void {
 </script>
 
 <template>
-    <Head title="RDKS-Sensorpreise je Marke" />
+    <AdminPage title="Zubehörpreise" :context="context" :read-only="!canWrite">
+        <AdminSectionTabs label="Zubehörpreise" :items="ZUBEHOER_TABS" />
 
-    <div class="rd__head">
-        <h1 class="t-h1">RDKS-Sensorpreise je Marke</h1>
-        <p class="rd__lead">
-            Der Preis gilt je Sensor; an der Kasse rechnen wir ihn mit der Zahl der Kompletträder hoch. Für eine
-            Marke ohne Preis bieten wir keine Sensoren an.
+        <p class="adm-note rd__lead">
+            Der Preis gilt je Sensor; an der Kasse rechnen wir ihn mit der Zahl der Kompletträder hoch. Für eine Marke
+            ohne Preis bieten wir keine Sensoren an.
         </p>
-    </div>
 
-    <!-- The rule, above its exceptions: what a make with no row of its own is charged. -->
-    <form
-        v-if="can.update"
-        class="rd__form rd__form--default"
-        :aria-busy="defaultBusy ? 'true' : undefined"
-        @submit.prevent="saveDefault"
-    >
-        <h2 class="t-h3 rd__form-title">Standardpreis je Sensor</h2>
+        <!-- The rule, above its exceptions: what a make with no row of its own is charged. -->
+        <section v-if="can.update" class="adm-section" aria-labelledby="rd-default-title">
+            <form class="rd__form rd__form--default" :aria-busy="defaultBusy ? 'true' : undefined" @submit.prevent="saveDefault">
+                <h2 id="rd-default-title" class="adm-section__title rd__form-title">Standardpreis je Sensor</h2>
 
-        <div class="rd__default">
-            <div class="rd__field rd__field--narrow">
-                <label class="field-label" for="rd-default">Gilt für jede Marke ohne eigenen Preis</label>
-                <input
-                    id="rd-default"
-                    v-model="fallback.typed"
-                    class="field tabular"
-                    :class="{ 'field--error': defaultError }"
-                    type="text"
-                    inputmode="decimal"
-                    autocomplete="off"
-                    maxlength="32"
-                    aria-describedby="rd-default-help rd-default-err"
-                    :aria-invalid="defaultError ? 'true' : undefined"
-                />
-                <p id="rd-default-help" class="field-help">{{ DEFAULT_HINT }}</p>
-                <span id="rd-default-err" class="field-error">{{ defaultError }}</span>
+                <div class="form-field">
+                    <label class="form-field__label" for="rd-default">Gilt für jede Marke ohne eigenen Preis</label>
+                    <div class="adm-inline">
+                        <input
+                            id="rd-default"
+                            v-model="fallback.typed"
+                            class="input rd__num"
+                            :class="{ 'input--error': defaultError }"
+                            type="text"
+                            inputmode="decimal"
+                            autocomplete="off"
+                            maxlength="32"
+                            aria-describedby="rd-default-help rd-default-err"
+                            :aria-invalid="defaultError ? 'true' : undefined"
+                        >
+                        <button class="btn btn--secondary" type="submit" :disabled="defaultBusy">Standardpreis speichern</button>
+                    </div>
+                    <p id="rd-default-help" class="form-field__help">{{ DEFAULT_HINT }}</p>
+                    <p id="rd-default-err" class="form-field__error">{{ defaultError }}</p>
+                </div>
+
+                <p v-if="props.default.cents === null" class="adm-note rd__default-open">{{ DEFAULT_OPEN }}</p>
+            </form>
+        </section>
+
+        <section v-if="canWrite" class="adm-section" aria-labelledby="rd-form-title">
+            <form class="rd__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
+                <h2 id="rd-form-title" class="adm-section__title rd__form-title">{{ formTitle }}</h2>
+
+                <div class="adm-fields rd__fields">
+                    <div class="form-field">
+                        <label class="form-field__label" for="rd-make">Automarke</label>
+                        <input
+                            id="rd-make"
+                            ref="makeField"
+                            v-model="form.make"
+                            class="input"
+                            :class="{ 'input--error': makeError }"
+                            type="text"
+                            maxlength="64"
+                            autocomplete="off"
+                            list="rd-makes"
+                            aria-required="true"
+                            aria-describedby="rd-make-err"
+                            :aria-invalid="makeError ? 'true' : undefined"
+                        >
+                        <datalist id="rd-makes">
+                            <option v-for="make in makes" :key="make" :value="make" />
+                        </datalist>
+                        <p id="rd-make-err" class="form-field__error">{{ makeError }}</p>
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-field__label" for="rd-price">Preis je Sensor</label>
+                        <input
+                            id="rd-price"
+                            v-model="form.price"
+                            class="input rd__num rd__money"
+                            :class="{ 'input--error': errors.priceCents }"
+                            type="text"
+                            inputmode="decimal"
+                            autocomplete="off"
+                            aria-required="true"
+                            aria-describedby="rd-price-help rd-price-err"
+                            :aria-invalid="errors.priceCents ? 'true' : undefined"
+                        >
+                        <p id="rd-price-help" class="form-field__help">{{ MONEY_HINT }}</p>
+                        <p id="rd-price-err" class="form-field__error">{{ errors.priceCents ?? '' }}</p>
+                    </div>
+
+                    <div class="adm-fields__checks rd__checks">
+                        <label class="check">
+                            <input v-model="form.active" type="checkbox">
+                            Aktiv
+                        </label>
+                        <p class="form-field__error">{{ errors.active ?? '' }}</p>
+                    </div>
+                </div>
+
+                <div class="adm-fields__actions">
+                    <button class="btn btn--primary" type="submit" :disabled="busy">{{ submitLabel }}</button>
+                    <button v-if="editing !== null" class="btn btn--secondary" type="button" @click="reset">Abbrechen</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="adm-section" aria-labelledby="rd-list-title">
+            <div class="adm-section__head">
+                <h2 id="rd-list-title" class="adm-section__title">Preise je Marke</h2>
             </div>
 
-            <button class="btn btn--primary" type="submit" :disabled="defaultBusy">Speichern</button>
-        </div>
-
-        <p v-if="props.default.cents === null" class="rd__default-open small">{{ DEFAULT_OPEN }}</p>
-    </form>
-
-    <form v-if="canWrite" class="rd__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
-        <h2 class="t-h3 rd__form-title">{{ formTitle }}</h2>
-
-        <div class="rd__fields">
-            <div class="rd__field">
-                <label class="field-label" for="rd-make">Automarke <span class="field-label__req">*</span></label>
-                <input
-                    id="rd-make"
-                    ref="makeField"
-                    v-model="form.make"
-                    class="field"
-                    :class="{ 'field--error': makeError }"
-                    type="text"
-                    maxlength="64"
-                    autocomplete="off"
-                    list="rd-makes"
-                    aria-describedby="rd-make-err"
-                    :aria-invalid="makeError ? 'true' : undefined"
-                />
-                <datalist id="rd-makes">
-                    <option v-for="make in makes" :key="make" :value="make" />
-                </datalist>
-                <span id="rd-make-err" class="field-error">{{ makeError }}</span>
+            <div v-if="prices.length > 0" class="adm-panel">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Automarke</th>
+                            <th scope="col" class="num">Preis je Sensor</th>
+                            <th scope="col">Aktiv</th>
+                            <th v-if="canAct" scope="col"><span class="visually-hidden">Aktionen</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="price in prices" :key="price.id" :aria-current="editing === price.id ? 'true' : undefined">
+                            <td data-label="Automarke">
+                                <span class="adm-table__key">{{ price.makeLabelDe }}</span>
+                                <span class="adm-table__sub rd__key">{{ keyNote(price.makeKey) }}</span>
+                            </td>
+                            <td data-label="Preis je Sensor" class="num">{{ price.price }}</td>
+                            <td data-label="Aktiv" data-phone="status">
+                                <template v-if="price.active">Aktiv</template>
+                                <span v-else class="adm-tag adm-tag--neutral">Inaktiv</span>
+                            </td>
+                            <td v-if="canAct" data-label="Aktionen">
+                                <div class="adm-table__actions">
+                                    <button v-if="can.update" class="btn btn--secondary btn--sm" type="button" @click="edit(price)">
+                                        Bearbeiten<span class="visually-hidden">: {{ price.makeLabelDe }}</span>
+                                    </button>
+                                    <button v-if="can.delete" class="btn btn--secondary btn--sm adm-btn--danger" type="button" @click="confirming = price">
+                                        Löschen<span class="visually-hidden">: {{ price.makeLabelDe }}</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <div class="rd__field">
-                <label class="field-label" for="rd-price">Preis je Sensor <span class="field-label__req">*</span></label>
-                <input
-                    id="rd-price"
-                    v-model="form.price"
-                    class="field tabular"
-                    :class="{ 'field--error': errors.priceCents }"
-                    type="text"
-                    inputmode="decimal"
-                    autocomplete="off"
-                    aria-describedby="rd-price-help rd-price-err"
-                    :aria-invalid="errors.priceCents ? 'true' : undefined"
-                />
-                <p id="rd-price-help" class="field-help">{{ MONEY_HINT }}</p>
-                <span id="rd-price-err" class="field-error">{{ errors.priceCents ?? '' }}</span>
-            </div>
+            <AdminState v-else kind="empty" :text="EMPTY_TEXT" />
+        </section>
 
-            <div class="rd__checks">
-                <label class="check">
-                    <input v-model="form.active" type="checkbox" />
-                    Aktiv
-                </label>
-                <span class="field-error">{{ errors.active ?? '' }}</span>
-            </div>
-        </div>
-
-        <div class="rd__actions">
-            <button class="btn btn--primary" type="submit" :disabled="busy">Speichern</button>
-            <button v-if="editing !== null" class="btn btn--secondary" type="button" @click="reset">Abbrechen</button>
-        </div>
-    </form>
-
-    <div class="rd__box">
-        <table v-if="prices.length > 0" class="table table--rows rd__table">
-            <thead>
-                <tr>
-                    <th scope="col">Automarke</th>
-                    <th scope="col" class="num">Preis je Sensor</th>
-                    <th scope="col">Aktiv</th>
-                    <th v-if="canAct" scope="col"><span class="visually-hidden">Aktionen</span></th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="price in prices" :key="price.id" :aria-current="editing === price.id ? 'true' : undefined">
-                    <td data-label="Automarke">
-                        <span class="rd__make">{{ price.makeLabelDe }}</span>
-                        <span class="micro quiet rd__key">{{ keyNote(price.makeKey) }}</span>
-                    </td>
-                    <td data-label="Preis je Sensor" class="num tabular">{{ price.price }}</td>
-                    <td data-label="Aktiv">
-                        <span class="tag" :class="price.active ? 'tag--ok' : 'tag--unknown'">
-                            {{ price.active ? 'Aktiv' : 'Inaktiv' }}
-                        </span>
-                    </td>
-                    <td v-if="canAct" data-label="Aktionen">
-                        <div class="rd__row-actions">
-                            <button v-if="can.update" class="btn btn--secondary btn--sm" type="button" @click="edit(price)">
-                                Bearbeiten<span class="visually-hidden">: {{ price.makeLabelDe }}</span>
-                            </button>
-                            <button v-if="can.delete" class="btn btn--ghost btn--sm" type="button" @click="confirming = price">
-                                Löschen<span class="visually-hidden">: {{ price.makeLabelDe }}</span>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div v-else class="state rd__empty">
-            <p class="state__title">{{ EMPTY_TEXT }}</p>
-        </div>
-    </div>
-
-    <Dialog v-model:open="confirmOpen" title="Preis löschen" :description="CONFIRM_TEXT">
-        <template #actions>
-            <button class="btn btn--secondary" type="button" @click="confirming = null">Abbrechen</button>
-            <button class="btn btn--primary rd__confirm" type="button" :disabled="busy" @click="remove">
-                Löschen
-            </button>
-        </template>
-    </Dialog>
+        <AdminConfirm
+            v-model:open="confirmOpen"
+            :title="`Preis für ${confirming?.makeLabelDe ?? ''} löschen?`"
+            :body="confirmBody"
+            :busy="busy"
+            @confirm="remove"
+        />
+    </AdminPage>
 </template>
 
 <style scoped>
-.rd__head {
+.rd__lead {
     margin-bottom: var(--sp-24);
 }
 
-.rd__lead {
-    margin-top: var(--sp-4);
-    max-width: 54ch;
-    color: var(--c-ink-2);
-}
-
+/* A form sits on the page under its heading, one column (§8.2), no card around it. */
 .rd__form {
-    margin-bottom: var(--sp-32);
-    padding: var(--sp-20) var(--sp-24);
-    background: var(--c-surface);
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-tile);
+    max-width: var(--adm-form-max);
 }
 
 .rd__form-title {
     margin-bottom: var(--sp-16);
 }
 
-.rd__fields {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--sp-16);
-    align-items: start;
+.rd__default-open {
+    max-width: 54ch;
+    margin-top: var(--sp-12);
 }
 
-.rd__field {
-    min-width: 0;
-}
-
-/* A price is four characters wide; a field the width of the screen invites a sentence. */
-.rd__field--narrow {
+/* A price is a few characters wide; a field the width of the form invites a sentence. */
+.rd__money {
     max-width: 22ch;
 }
 
-/* One field and its button on a line, the button aligned to the field rather than its help text. */
-.rd__default {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: start;
-    gap: var(--sp-16);
-}
-
-.rd__default .btn {
-    margin-top: calc(var(--lh-small) + var(--sp-4));
-}
-
-.rd__default-open {
-    max-width: 62ch;
-    margin-top: var(--sp-12);
-    color: var(--c-ink-2);
-}
-
-.rd__checks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 var(--sp-16);
-}
-
-.rd__checks .field-error {
-    flex-basis: 100%;
-}
-
-.rd__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-8);
-    margin-top: var(--sp-16);
-}
-
-.rd__box {
-    background: var(--c-surface);
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-tile);
-    overflow: hidden;
-}
-
-.rd__make {
-    display: block;
-    font-weight: 600;
+.rd__num {
+    font-variant-numeric: tabular-nums;
 }
 
 .rd__key {
-    display: block;
     max-width: 54ch;
-}
-
-.rd__row-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-8);
-}
-
-.rd__empty {
-    padding: var(--sp-32) var(--sp-24);
-}
-
-.rd__empty .state__title {
-    max-width: 54ch;
-}
-
-@media (min-width: 900px) {
-    .rd__fields {
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) auto;
-    }
-
-    .rd__checks {
-        padding-top: var(--sp-24);
-    }
-}
-
-/* Below 900px each row is a block, every value labelled with its column name. */
-@media (max-width: 899px) {
-    .rd__table thead {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-    }
-
-    .rd__table,
-    .rd__table tbody,
-    .rd__table tr,
-    .rd__table td {
-        display: block;
-    }
-
-    .rd__table tr {
-        padding: var(--sp-12) var(--sp-16);
-        border-bottom: 1px solid var(--c-line);
-    }
-
-    .rd__table td {
-        display: grid;
-        grid-template-columns: 120px minmax(0, 1fr);
-        gap: var(--sp-12);
-        height: auto;
-        padding: var(--sp-4) 0;
-        border: 0;
-        text-align: left;
-    }
-
-    .rd__table td::before {
-        content: attr(data-label);
-        font-size: var(--fs-small);
-        color: var(--c-ink-2);
-    }
 }
 </style>

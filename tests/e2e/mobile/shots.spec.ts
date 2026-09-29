@@ -36,8 +36,8 @@ test.describe('screenshots', () => {
         // The search sheet.
         await page.getByRole('button', { name: 'Suche' }).click()
         const search = page.getByRole('dialog', { name: 'Suche' })
-        await search.getByRole('searchbox', { name: 'Suche' }).fill('motec')
-        await expect(search.getByRole('link', { name: /MOTEC/ }).first()).toBeVisible()
+        await search.getByRole('searchbox', { name: 'Suche' }).fill('bergsteig')
+        await expect(search.getByRole('link', { name: /Bergsteig/ }).first()).toBeVisible()
         await page.waitForTimeout(300)
         await page.screenshot({ path: `${SHOTS}/shell/${device}-search.png`, animations: 'disabled' })
         await page.goBack()

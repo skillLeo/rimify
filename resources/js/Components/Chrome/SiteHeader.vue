@@ -96,7 +96,7 @@ function removeVehicle(): void {
                     </DropdownMenuTrigger>
                     <DropdownMenuPortal>
                         <DropdownMenuContent class="popover sh__vmenu" align="end" :side-offset="8">
-                            <p class="menu__label num">{{ vehicle.label }} · {{ vehicle.keyNumbers }}</p>
+                            <p class="menu__label num">{{ vehicle.label }} · {{ vehicle.approval ?? vehicle.keyNumbers }}</p>
                             <DropdownMenuItem as-child>
                                 <Link href="/felgen" class="menu__item" prefetch><Icon name="wheel" :size="20" />Passende Felgen anzeigen</Link>
                             </DropdownMenuItem>

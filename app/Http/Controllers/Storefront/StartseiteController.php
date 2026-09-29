@@ -10,10 +10,12 @@ use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Fitment;
+use App\Models\Page;
 use App\Models\Setting;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Content\PageContent;
 use App\Services\Storefront\CalculatorPrefill;
 use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
@@ -65,6 +67,7 @@ class StartseiteController extends Controller
         private readonly VehicleResolver $resolver,
         private readonly ListingQuery $listing,
         private readonly CalculatorPrefill $calculatorPrefill,
+        private readonly PageContent $content,
     ) {}
 
     public function index(Request $request): Response
@@ -80,8 +83,9 @@ class StartseiteController extends Controller
             'hero' => [
                 'title' => (string) ($blocks['hero']['headline'] ?? 'Felgen, die an dein Auto dürfen.'),
                 'subline' => (string) ($blocks['hero']['sub'] ?? ''),
-                // The phone document's shorter sentence; the desktop one stays the fallback.
-                'sublineMobile' => (string) ($blocks['hero']['sub_mobile'] ?? $blocks['hero']['sub'] ?? ''),
+                // The phone document's own sentence (required in the editor). Absent or empty, the
+                // phone keeps its short default rather than the desktop's five lines (Mobile.vue).
+                'sublineMobile' => trim((string) ($blocks['hero']['sub_mobile'] ?? '')),
                 'product' => $this->heroProduct(),
                 'stats' => $this->stats->counts(),
             ],
@@ -107,7 +111,8 @@ class StartseiteController extends Controller
             'faq' => $this->faqPreview(),
             // Seeded demonstration rows are on the page: it says so (OVERHAUL.md §2), and the
             // flag leaves with the rows before launch.
-            'demo' => WheelModel::query()->where('is_demo', true)->exists(),
+            // Only a demo row on show counts — and none can be (the review release §2).
+            'demo' => WheelModel::query()->where('is_demo', true)->where('status', CatalogueStatus::Published->value)->exists(),
         ]);
     }
 
@@ -129,10 +134,16 @@ class StartseiteController extends Controller
     {
         $chosen = Setting::get('hero_product_id');
 
+        // The chosen wheel is shown while it is still a draft — the photograph and the document's values,
+        // never a price or a link — so the hero is the real product from the day it is entered. Never a
+        // demo row, never an archived one.
         $model = WheelModel::query()
             ->with(['brand'])
-            ->where('status', CatalogueStatus::Published->value)
-            ->when(is_int($chosen) || is_numeric($chosen), fn ($q) => $q->where('id', (int) $chosen))
+            ->when(
+                is_int($chosen) || is_numeric($chosen),
+                fn ($q) => $q->where('id', (int) $chosen)->where('is_demo', false)->where('status', '<>', CatalogueStatus::Archived->value),
+                fn ($q) => $q->where('status', CatalogueStatus::Published->value),
+            )
             ->orderBy('id')
             ->first();
 
@@ -159,6 +170,8 @@ class StartseiteController extends Controller
 
         $finish = WheelFinish::query()->find($config->wheel_finish_id);
         $manifest = $manifests[(int) $config->wheel_finish_id] ?? null;
+        // Bought and linked only when it is in the shop at a price; a draft is shown, never offered.
+        $published = $model->status === CatalogueStatus::Published && (int) $config->price_cents > 0;
 
         return [
             'slug' => (string) $model->slug,
@@ -179,6 +192,7 @@ class StartseiteController extends Controller
             ],
             // No photograph of this product: the hero draws the outline and names no product.
             'symbolic' => $manifest === null,
+            'published' => $published,
             'facts' => $this->heroFacts($config, $kba),
         ];
     }
@@ -568,22 +582,16 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The homepage's content blocks, keyed by type.
+     * The homepage's content blocks, keyed by type — the live words, or the draft in a preview.
      *
      * @return array<string, array<string, mixed>>
      */
     private function blocks(): array
     {
-        $rows = DB::table('page_blocks as b')
-            ->join('pages as p', 'p.id', '=', 'b.page_id')
-            ->where('p.slug', 'startseite')
-            ->get(['b.type', 'b.data']);
-
         $blocks = [];
 
-        foreach ($rows as $row) {
-            $data = json_decode((string) $row->data, true);
-            $blocks[(string) $row->type] = is_array($data) ? $data : [];
+        foreach ($this->content->page(Page::HOME_SLUG)['blocks'] ?? [] as $block) {
+            $blocks[$block['type']] = $block['data'];
         }
 
         return $blocks;

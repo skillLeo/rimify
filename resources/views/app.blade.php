@@ -26,15 +26,19 @@
         @php
             $heroManifest = $page['props']['hero']['product']['imageManifest'] ?? null;
             $heroPicture = is_array($heroManifest) && is_array($heroManifest['bare'] ?? null) ? $heroManifest['bare'] : $heroManifest;
+            // The best format the picture offers (Picture.vue's `formats`, AVIF by default); a drawing
+            // with none offers its fallback (`svg`).
+            $heroFormat = is_array($heroPicture) ? (is_array($heroPicture['formats'] ?? null) ? ($heroPicture['formats'][0] ?? ($heroPicture['fallback'] ?? 'jpg')) : 'avif') : null;
             $heroSet = is_array($heroPicture) && isset($heroPicture['base'], $heroPicture['widths']) && is_array($heroPicture['widths'])
-                ? implode(', ', array_map(fn ($w) => $heroPicture['base'].'-'.$w.'.avif '.$w.'w', $heroPicture['widths']))
+                ? implode(', ', array_map(fn ($w) => $heroPicture['base'].'-'.$w.'.'.$heroFormat.' '.$w.'w', $heroPicture['widths']))
                 : null;
+            $heroType = $heroFormat === null ? null : (['avif' => 'image/avif', 'webp' => 'image/webp', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'svg' => 'image/svg+xml'][$heroFormat] ?? null);
             $heroSizes = ($page['component'] ?? '') === 'Startseite/Mobile'
                 ? '(min-width: 768px) calc(77vw - 49px), calc(77vw - 31px)'
                 : '(min-width: 1280px) 500px, (min-width: 1024px) 33vw, (min-width: 768px) 373px, calc(67vw - 27px)';
         @endphp
-        @if ($heroSet !== null)
-            <link rel="preload" as="image" fetchpriority="high" type="image/avif"
+        @if ($heroSet !== null && $heroType !== null)
+            <link rel="preload" as="image" fetchpriority="high" type="{{ $heroType }}"
                   imagesrcset="{{ $heroSet }}"
                   imagesizes="{{ $heroSizes }}">
         @endif
@@ -52,5 +56,27 @@
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}
 <body class="{{ ($page['props']['isMobile'] ?? false) ? 'is-mobile' : 'is-desktop' }}">
     @inertia
+    @if (str_starts_with($page['component'] ?? '', 'Admin/'))
+        {{-- The admin's content keeps 960 px. Before the first paint — the same answer the layout then
+             starts from, so nothing opens and snaps shut (AdminLayout, railResize.ts): in a window
+             without room for the rail at the width this person gave it, the rail is drawn as wide as
+             there is room for; without room even for its narrowest 232 px, it is collapsed by the
+             window, with no handle to pull at. --}}
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+            (function () {
+                var shell = document.querySelector('.adm');
+                if (!shell || !window.matchMedia('(min-width: 1024px)').matches) return;
+                var room = Math.min(400, shell.clientWidth - 960);
+                var width = parseInt(shell.style.getPropertyValue('--rail-w'), 10) || 260;
+                if (room < 232) {
+                    shell.setAttribute('data-rail', 'collapsed');
+                    shell.setAttribute('data-rail-forced', '');
+                } else if (room < width) {
+                    shell.style.setProperty('--rail-w', room + 'px');
+                    shell.setAttribute('data-labels', room < 248 ? 'short' : 'full');
+                }
+            })();
+        </script>
+    @endif
 </body>
 </html>

@@ -11,7 +11,7 @@
  */
 
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
 import BrandWall from '../../Components/Home/BrandWall.vue'
 import RimCode from '../../Components/Home/RimCode.vue'
@@ -45,16 +45,14 @@ const service = computed(() => shared.value.serviceStatus ?? null)
 
 /* ── H2 ─────────────────────────────────────────────────────────────────────── */
 
-/** The phone sentence from home.md, used while the CMS block only echoes the desktop one. */
+/** The phone sentence from home.md, for a homepage whose block carries no phone sentence of its own. */
 const PHONE_SUBLINE = 'Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.'
 
 const title = computed(() => (vehicle.value ? `Felgen, die an deinen ${vehicle.value.short} dürfen.` : props.hero.title))
-const subline = computed(() => {
-    const mobile = props.hero.sublineMobile
 
-    // A server that falls back to the desktop sentence would put five lines above the panel.
-    return mobile && mobile !== props.hero.subline ? mobile : PHONE_SUBLINE
-})
+/* The team's own phone sentence (Inhalte › Seiten, at most 110 characters). Never the desktop one:
+   its five lines would push the vehicle selector below the fold. */
+const subline = computed(() => props.hero.sublineMobile || PHONE_SUBLINE)
 
 /** F1 for the shared vehicle, in the first paint; the listing's total is the same figure's fallback. */
 const vehicleCount = computed(() => props.fitmentCount?.count ?? props.popular.total)
@@ -206,11 +204,59 @@ const rendered = computed(() => {
 })
 
 const cls = (id: string): string => rendered.value[id] ?? 'surface section'
+
+/*
+ * Laid out once, for one frame, right after the page is up: `contain-intrinsic-size: auto` then remembers each
+ * section's real height, and the sections go back to skipping their layout until they scroll near. A section
+ * met for the first time otherwise grew or shrank from its placeholder under the finger — no estimate fits
+ * every width (a phone turned sideways least of all), and WebKit has no scroll anchoring to hide the jump.
+ */
+function measure(): void {
+    const sections = [...document.querySelectorAll<HTMLElement>('.home-below')]
+    // The reader's place, kept by hand — WebKit has no scroll anchoring: the first section still on screen
+    // stays where it was while the ones above it take their real heights (a reload mid-page, /#h11).
+    const anchor = [...document.querySelectorAll<HTMLElement>('main section[id]')].find((s) => s.getBoundingClientRect().bottom > 0)
+    const before = anchor?.getBoundingClientRect().top ?? 0
+
+    sections.forEach((section) => section.classList.add('home-below--measured'))
+
+    if (anchor !== undefined && window.scrollY > 0) {
+        window.scrollBy(0, anchor.getBoundingClientRect().top - before)
+    }
+
+    // Two frames: the size is recorded at the rendering update after the sections were laid out.
+    requestAnimationFrame(() => requestAnimationFrame(() => sections.forEach((section) => section.classList.remove('home-below--measured'))))
+}
+
+/* A phone turned sideways re-flows every section: the remembered heights are taken again at the new width. */
+let width = 0
+let again: ReturnType<typeof setTimeout> | undefined
+
+function onResize(): void {
+    if (window.innerWidth === width) {
+        return
+    }
+
+    width = window.innerWidth
+    clearTimeout(again)
+    again = setTimeout(measure, 150)
+}
+
+onMounted(() => {
+    width = window.innerWidth
+    measure()
+    window.addEventListener('resize', onResize)
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', onResize)
+    clearTimeout(again)
+})
 </script>
 
 <template>
     <Head :title="TITLE">
-        <meta name="description" :content="DESCRIPTION" head-key="description" />
+        <meta name="description" :content="DESCRIPTION" head-key="description">
     </Head>
 
     <!-- H2 · The question, and the panel that answers it. -->
@@ -338,7 +384,7 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
     <!-- H7 · The one dark band: what a Komplettrad is, and its tyre's regulated facts. -->
     <section v-if="tyre" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
-            <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br />montiert und gewuchtet.</h2>
+            <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br>montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
 
             <KomplettradWheel class="home-komplett__wheel" />
@@ -437,6 +483,42 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 .home-below {
     content-visibility: auto;
     contain-intrinsic-size: auto 800px;
+}
+
+/*
+ * Each section's own placeholder, its content height measured at 393 px (iPhone 16, 29.09.2026). One
+ * 800 px for all was up to 700 px wrong: the Gutachten story grew by 634 px the first time it rendered,
+ * the page jumped under the finger — WebKit has no scroll anchoring to hide it — and a tap made during
+ * the jump landed on whatever had moved there. Off by at most ~120 px now (the SE's story), and once:
+ * `auto` keeps the real size after the first render.
+ */
+#h4.home-below {
+    contain-intrinsic-size: auto 1440px;
+}
+
+#h5.home-below {
+    contain-intrinsic-size: auto 690px;
+}
+
+#h6.home-below {
+    contain-intrinsic-size: auto 1310px;
+}
+
+#h8.home-below {
+    contain-intrinsic-size: auto 1330px;
+}
+
+#h10.home-below {
+    contain-intrinsic-size: auto 110px;
+}
+
+#h11.home-below {
+    contain-intrinsic-size: auto 680px;
+}
+
+/* For the one frame after mount in which the real heights are taken (the script above). */
+.home-below.home-below--measured {
+    content-visibility: visible;
 }
 
 .home-lead {

@@ -89,16 +89,16 @@ it('writes the cell even where the role never had a row for it, so absence is ne
     DB::table('role_permissions')
         ->where('role_id', $role)
         ->where('module', 'imports')
-        ->where('action', 'export')
+        ->where('action', 'create')
         ->delete();
 
-    expect(cell('support-agent', PermissionModule::Imports, PermissionAction::Export))->toBeNull();
+    expect(cell('support-agent', PermissionModule::Imports, PermissionAction::Create))->toBeNull();
 
     $this->actingAs(rolesAdmin(), 'admin')
-        ->patch("/admin/rollen/{$role}/rechte", ['module' => 'imports', 'action' => 'export', 'allowed' => false])
+        ->patch("/admin/rollen/{$role}/rechte", ['module' => 'imports', 'action' => 'create', 'allowed' => false])
         ->assertRedirect();
 
-    expect(cell('support-agent', PermissionModule::Imports, PermissionAction::Export))->toBeFalse();
+    expect(cell('support-agent', PermissionModule::Imports, PermissionAction::Create))->toBeFalse();
 });
 
 it('refuses a role that may not edit roles, and changes nothing', function (): void {
@@ -136,18 +136,21 @@ it('answers a role that does not exist with a 404', function (): void {
 });
 
 it('will not let the last account that can edit roles have it taken away', function (): void {
-    $superAdmin = roleId('super-admin');
+    $manager = roleId('catalogue-manager');
 
-    // Every other role that can edit roles goes first, so the Super Admin is genuinely the last.
-    DB::table('role_permissions')
-        ->where('module', PermissionModule::Roles->value)
-        ->where('action', PermissionAction::Edit->value)
-        ->where('role_id', '!=', $superAdmin)
-        ->update(['allowed' => false]);
+    /*
+     * The Super-Admin role is fixed and always can, so the last way in has to be another one: the
+     * Katalog is given the right, and the one Super-Admin account is left holding no role at all.
+     */
+    DB::table('role_permissions')->updateOrInsert(
+        ['role_id' => $manager, 'module' => 'roles', 'action' => 'edit'],
+        ['allowed' => true],
+    );
+    rolesAdmin()->syncRoles([]);
 
-    $this->actingAs(rolesAdmin(), 'admin')
+    $this->actingAs(rolesAdmin('catalogue-manager'), 'admin')
         ->from('/admin/rollen')
-        ->patch("/admin/rollen/{$superAdmin}/rechte", [
+        ->patch("/admin/rollen/{$manager}/rechte", [
             'module' => 'roles',
             'action' => 'edit',
             'allowed' => false,
@@ -155,28 +158,27 @@ it('will not let the last account that can edit roles have it taken away', funct
         ->assertSessionHasErrors(['allowed' => RollenController::LOCKOUT_REFUSAL]);
 
     // Rolled all the way back: the right is still there, and the panel is still reachable.
-    expect(cell('super-admin', PermissionModule::Roles, PermissionAction::Edit))->toBeTrue();
+    expect(cell('catalogue-manager', PermissionModule::Roles, PermissionAction::Edit))->toBeTrue();
 });
 
 it('allows it while another role can still edit roles, because nobody is locked out', function (): void {
-    $superAdmin = roleId('super-admin');
-    $accountant = roleId('accountant');
+    $manager = roleId('catalogue-manager');
 
-    // A second way in, held by a real account.
     DB::table('role_permissions')->updateOrInsert(
-        ['role_id' => $accountant, 'module' => 'roles', 'action' => 'edit'],
+        ['role_id' => $manager, 'module' => 'roles', 'action' => 'edit'],
         ['allowed' => true],
     );
 
+    // The Super-Admin account is still a way in, so taking the Katalog's right locks nobody out.
     $this->actingAs(rolesAdmin(), 'admin')
-        ->patch("/admin/rollen/{$superAdmin}/rechte", [
+        ->patch("/admin/rollen/{$manager}/rechte", [
             'module' => 'roles',
             'action' => 'edit',
             'allowed' => false,
         ])
         ->assertRedirect();
 
-    expect(cell('super-admin', PermissionModule::Roles, PermissionAction::Edit))->toBeFalse();
+    expect(cell('catalogue-manager', PermissionModule::Roles, PermissionAction::Edit))->toBeFalse();
 });
 
 it('leaves an audit entry naming the cell and what it was before', function (): void {
@@ -202,6 +204,19 @@ it('tells the page whether this admin may edit, so a reader is not shown control
     $this->actingAs(rolesAdmin(), 'admin')->get('/admin/rollen')
         ->assertInertia(fn ($page) => $page->where('can.update', true));
 
-    $this->actingAs(rolesAdmin('accountant'), 'admin')->get('/admin/rollen')
+    // A reader: may look at the roles, may not change them.
+    DB::table('role_permissions')->updateOrInsert(
+        ['role_id' => roleId('support-agent'), 'module' => 'roles', 'action' => 'view'],
+        ['allowed' => true],
+    );
+
+    $this->actingAs(rolesAdmin('support-agent'), 'admin')->get('/admin/rollen')
+        ->assertOk()
         ->assertInertia(fn ($page) => $page->where('can.update', false));
+});
+
+it('refuses the page to a role without roles × view, and sends none of the roles', function (): void {
+    $this->actingAs(rolesAdmin('accountant'), 'admin')->get('/admin/rollen')
+        ->assertForbidden()
+        ->assertInertia(fn ($page) => $page->component('Admin/Fehler/Index')->where('area', 'Rollen & Rechte')->missing('roles'));
 });

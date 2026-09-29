@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Models\FitmentSubscription;
+use App\Support\VehicleName;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -34,7 +35,7 @@ class SubscriptionConfirmationMail extends Mailable
         return new Content(
             markdown: 'mail.subscription.confirm',
             with: [
-                'vehicleLabel' => trim($vehicle->make.' '.$vehicle->variant),
+                'vehicleLabel' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation),
                 'confirmUrl' => $this->subscription->confirmUrl(),
             ],
         );

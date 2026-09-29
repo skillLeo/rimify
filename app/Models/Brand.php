@@ -19,6 +19,9 @@ class Brand extends Model
 
     protected $fillable = ['name', 'slug', 'logo_path', 'is_wheel_brand', 'sort_order'];
 
+    /** The generated columns that carry the unique keys among live brands (K2-01): never written, never shown. */
+    protected $hidden = ['live_name', 'live_slug'];
+
     /** @return array<string, string> */
     protected function casts(): array
     {

@@ -170,10 +170,14 @@ watch(
 
 function variantLabel(v: VariantRow): string {
     const power = v.powerPs === null ? null : `${decimal(Math.round(v.powerPs * 0.7355), 0)} kW`
-    const parts = [v.variant, power, v.buildWindow].filter((p): p is string => p !== null && p !== '')
+    // Feld K's range tells apart the halves a Gutachten splits one car into, where no key numbers do yet — and
+    // it stands where a closed select and the picker wheel still show it, in place of the unknown build window.
+    const parts = [v.variant, power, v.approvalShort ?? v.buildWindow].filter((p): p is string => p !== null && p !== '')
 
     return `${parts.join(' · ')}${v.needsReview ? ' (unvollständige Daten)' : ''}`
 }
+
+const chosenApproval = computed(() => picker.variants.value.find((v) => v.id === picker.variantId.value)?.approval ?? null)
 
 /* ── The count and the button ──────────────────────────────────────────────── */
 
@@ -311,7 +315,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     <div v-if="vehicle" class="vpanel vpanel--vehicle">
         <span class="label">Dein Fahrzeug</span>
         <p class="h3">{{ vehicle.label }}</p>
-        <p class="small num muted">{{ vehicle.keyNumbers }} · {{ vehicle.buildWindow }}</p>
+        <!-- Feld K first where it is what tells the car apart; the unknown build window then says nothing. -->
+        <p class="small num muted">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
         <p v-if="totalLabel !== null" class="small num vpanel__count">
             <strong>{{ totalLabel }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
         </p>
@@ -414,9 +419,13 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                     :aria-busy="picker.variantsLoading.value ? 'true' : undefined"
                 >
                     <option :value="null">{{ picker.variantsLoading.value ? 'Wird geladen …' : 'Variante, Baujahr, kW' }}</option>
-                    <option v-for="v in picker.variants.value" :key="v.id" :value="v.id" :disabled="v.needsReview">{{ variantLabel(v) }}</option>
+                    <!-- Incomplete data is said, not refused: the wheel is answered from its Gutachten, and the
+                         tyres wait for the papers (R-03 as amended) — as /felgen-suchen offers the same cars. -->
+                    <option v-for="v in picker.variants.value" :key="v.id" :value="v.id">{{ variantLabel(v) }}</option>
                 </select>
                 <p v-if="picker.variantsFailed.value" class="form-field__error">Die Varianten lassen sich gerade nicht laden.</p>
+                <!-- The whole Feld K line under the select once a variant is picked: the option has room for its range only. -->
+                <p v-else-if="chosenApproval" class="form-field__help num">{{ chosenApproval }}</p>
             </div>
         </div>
 
@@ -539,7 +548,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
         <div v-if="garage.length" class="vpanel__garage">
             <span class="label">Zuletzt gewählt:</span>
             <div class="chip-row">
-                <button v-for="entry in garage" :key="entry.id" class="chip m-press" type="button" :aria-label="entry.label" @click="pick(entry.id)">{{ entry.short }}</button>
+                <button v-for="entry in garage" :key="entry.id" class="chip m-press" type="button" :aria-label="entry.range ? `${entry.label} · ${entry.range}` : entry.label" @click="pick(entry.id)">{{ entry.short }}<span v-if="entry.range" class="vpanel__chip-range num"> · {{ entry.range }}</span></button>
             </div>
         </div>
     </div>
@@ -650,6 +659,29 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     display: grid;
     gap: var(--sp-8);
     padding-top: var(--sp-4);
+}
+
+/* Feld K's range beside the name, quieter: what tells two halves of one car apart. */
+/* Quieter than the name, never darker (a disabled chip's name is --c-ink-3), and never broken inside. */
+.vpanel__chip-range {
+    color: var(--c-ink-2);
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.chip:disabled .vpanel__chip-range,
+.chip[aria-pressed='true'] .vpanel__chip-range {
+    color: inherit;
+}
+
+/* Name and range on two lines where the row is narrow, never squeezed into each other. */
+.chip:has(.vpanel__chip-range) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 0;
+    column-gap: var(--sp-4);
+    padding-block: var(--sp-4);
+    text-align: start;
 }
 
 .vpanel__doc-toggle {

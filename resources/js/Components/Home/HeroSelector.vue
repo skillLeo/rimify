@@ -39,6 +39,7 @@ import DocumentScan from './DocumentScan.vue'
 import type { DocVariant } from '../../art'
 import { useFitmentCount, type FitmentCountQuery } from '../../composables/useFitmentCount'
 import { withUnit } from '../../format'
+import { formatNumber } from '../../lib/num'
 import { cleanHsn, cleanTsn, isHsn, isTsn } from '../../lib/fahrzeugschein'
 import type { LookupResult, MakeOption, ModelOption, VariantOption } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
@@ -173,7 +174,11 @@ function variantLabel(v: VariantOption): string {
         parts.push(withUnit(Math.round(v.powerPs * KW_PER_PS), 'kW'))
     }
 
-    if (v.buildWindow !== '') {
+    // Feld K's range tells apart the halves a Gutachten splits one car into, where no key numbers do yet; in
+    // place of the build window, which such a car does not have.
+    if (v.approvalShort) {
+        parts.push(v.approvalShort)
+    } else if (v.buildWindow !== '') {
         parts.push(v.buildWindow)
     }
 
@@ -516,13 +521,14 @@ onBeforeUnmount(() => treeController?.abort())
     <div v-if="vehicle" class="sel sel--vehicle">
         <p class="label">Dein Fahrzeug</p>
         <p class="h3 sel__vehicle">{{ vehicle.label }}</p>
-        <p class="small num muted">{{ vehicle.keyNumbers }} · {{ vehicle.buildWindow }}</p>
+        <!-- Feld K first where it is what tells the car apart; the unknown build window then says nothing. -->
+        <p class="small num muted">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
 
         <p class="small num muted sel__count" aria-live="polite">
             <Skeleton v-if="count.loading.value" width="60%" height="var(--lh-small)" />
             <template v-else-if="count.failed.value">Die Anzahl lässt sich gerade nicht laden.</template>
             <template v-else-if="counted && counted.count > 0">
-                <strong class="sel__n">{{ counted.count }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
+                <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
             </template>
         </p>
 
@@ -538,8 +544,8 @@ onBeforeUnmount(() => treeController?.abort())
         <div v-if="garage.length" class="sel__garage">
             <p class="label">Zuletzt gewählt:</p>
             <div class="chip-row">
-                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" @click="choose(g.id)">
-                    {{ g.short }}
+                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" :aria-label="g.range ? `${g.label} · ${g.range}` : g.label" @click="choose(g.id)">
+                    {{ g.short }}<span v-if="g.range" class="sel__chip-range num"> · {{ g.range }}</span>
                 </button>
             </div>
         </div>
@@ -653,8 +659,6 @@ onBeforeUnmount(() => treeController?.abort())
                                             :key="v.id"
                                             :value="v.id"
                                             :text-value="variantLabel(v)"
-                                            :disabled="v.needsReview"
-                                            :aria-disabled="v.needsReview ? 'true' : undefined"
                                             class="menu__item sel__item num"
                                         >
                                             {{ variantLabel(v) }}
@@ -846,7 +850,7 @@ onBeforeUnmount(() => treeController?.abort())
                 <Skeleton v-if="count.loading.value" width="60%" height="var(--lh-small)" />
                 <template v-else-if="count.failed.value">Die Anzahl lässt sich gerade nicht laden.</template>
                 <template v-else-if="counted && counted.count > 0">
-                    <strong class="sel__n">{{ counted.count }}</strong> Felgen mit Gutachten für {{ counted.vehicle?.label }}
+                    <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> Felgen mit Gutachten für {{ counted.vehicle?.label }}
                 </template>
             </p>
 
@@ -868,8 +872,8 @@ onBeforeUnmount(() => treeController?.abort())
         <div v-if="garage.length" class="sel__garage">
             <p class="label">Zuletzt gewählt:</p>
             <div class="chip-row">
-                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" @click="choose(g.id)">
-                    {{ g.short }}
+                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" :aria-label="g.range ? `${g.label} · ${g.range}` : g.label" @click="choose(g.id)">
+                    {{ g.short }}<span v-if="g.range" class="sel__chip-range num"> · {{ g.range }}</span>
                 </button>
             </div>
         </div>
@@ -1056,6 +1060,29 @@ onBeforeUnmount(() => treeController?.abort())
     display: grid;
     gap: var(--sp-8);
     margin-top: var(--sp-16);
+}
+
+/* Feld K's range beside the name, quieter: what tells two halves of one car apart. */
+/* Quieter than the name, never darker (a disabled chip's name is --c-ink-3), and never broken inside. */
+.sel__chip-range {
+    color: var(--c-ink-2);
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.chip:disabled .sel__chip-range,
+.chip[aria-pressed='true'] .sel__chip-range {
+    color: inherit;
+}
+
+/* Name and range on two lines where the row is narrow, never squeezed into each other. */
+.chip:has(.sel__chip-range) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 0;
+    column-gap: var(--sp-4);
+    padding-block: var(--sp-4);
+    text-align: start;
 }
 
 /* With a vehicle */

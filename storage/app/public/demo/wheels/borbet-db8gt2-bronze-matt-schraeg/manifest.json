@@ -1,0 +1,48 @@
+{
+  "name": "borbet-db8gt2-bronze-matt-schraeg",
+  "base": "/storage/demo/wheels/borbet-db8gt2-bronze-matt-schraeg/borbet-db8gt2-bronze-matt-schraeg",
+  "width": 1080,
+  "height": 1080,
+  "widths": [
+    480,
+    768,
+    1080
+  ],
+  "fallback": "png",
+  "placeholder": "data:image/png;base64,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",
+  "wide": {
+    "name": "borbet-db8gt2-bronze-matt-schraeg-4x3",
+    "base": "/storage/demo/wheels/borbet-db8gt2-bronze-matt-schraeg/borbet-db8gt2-bronze-matt-schraeg-4x3",
+    "width": 1080,
+    "height": 810,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAYAAABB7B6eAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAD60lEQVQ4jZ1VbUyTZxR9q2ZhJNti/EGGomHJMsLQhQ9tMJo6kLmFukGgAxmiUEe7tlhKwZYW+tLWftiWWrBgsZQvbcGuOH4M6HRbN0LAucx9ONAtThI2l5ioW8zcwtr3PctbJCFOGuJNbp7kyb3nPPecmzwEESNIklzD5PI7v9+/lkmSJNcxJ0EQrFgYMcGZEwDr4fVvEn8cOZ36w8ed6x+vA0muYWqeCny8x57hapIHTZLqv11kA+1r1dz5pK91YLSvYyDQYToT9JzgAmBqWasmWQL3WRU5VnHJg2Z+KQKeAXr6s0nMzV5DqM+EyYAbo+cGaI9RjZFO7fDdy5efX5o2JjiwqCcjhVVS+rNVVIwuZfm/gW4P/fCvBfrG1Bh13q4I37oxE/4y0BNWiarDvcflmPC2Dj2CiE3g9/MY04h+bU2tTVKCPrM2fFYrQLdWjPv37qLfKMOg0wwm/rh9E26djNZJheFL/VZ8G+wtWMSIGr9iRF/gbKgM2mXlsDepI57jSpxRV8Gh+gC22nJMfToWJQBN4fPBU9CKD4V9jhZM+B3RKR7fuv/Jc31y5Dm7lPeTueYALPViSi+pgKYqH83CEjTz38bFwFlQkXCU40pwCDpRGXVSJYbPIpvB/NSzK3qxdMnof1JaPG+RvIvg6WPUmLMOisP5yN6WgTfZr6JTI4HPQeJCmxJt8gMwHj1E6yUHcUJS9JvfrHhh+WOfSAAg3qWqmtELi2GtF1JOtQhdGgFEJfkQFO6Bt92I2SsT+H4iCJ9dBXNtJWWSHYFBUDg7P+VfnGAls5f0++iUenjY3gCdTBpxkgpM+mxoaxTAJi3F16FHHgD4ItCNLp0i3GNQwqXiDy5iEE/2YPkGXPSYK4csMnjbLJEL7ST6TfWY/e4qvJZ6XDrviYI/uH8HQ44Wus9mirhJCbwm+f4oBm9xE2MaDdyO97RIrnr0MnSohBGPvR2/zv2O0IfdGLQpsbCwQH81HqB6LYZIl7YBdnlF7/ItjBlLMgXdrTs6lEfu6QQ8TAfHI7dmblLXpqepdvl7tFP9Pm2s5UMtOPhPM/8dx1woFLdqAiY4HE60waGtyzPUlP3SpqhGj6mJ7jY0wqWpofVy8Z/78/ae25e9fR+XWx2/ZQsnLjWV98yqwAkOZ11yGjshM/uNlE1puzjsPdyjZUVF7sO8gkBdddVo47Emf15hhYmdW1CXvvMtYUZ2Lndr1uuvJKflJDC9q6FgZWZmxqek5G5I37k38eXXcjYSSemJxMYdm4j1u5OIuBc3J2zelrw1a9dLWVm7k9LYOQkp23M3MD1P+zewGF94PN5aJpktIYmoT6sC+w85XytzWPqCbgAAAABJRU5ErkJggg=="
+  },
+  "bare": {
+    "name": "borbet-db8gt2-bronze-matt-schraeg-bare",
+    "base": "/storage/demo/wheels/borbet-db8gt2-bronze-matt-schraeg/borbet-db8gt2-bronze-matt-schraeg-bare",
+    "width": 1080,
+    "height": 1080,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,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"
+  },
+  "source": "client-borbet-db8gt2-bronze-angle.jpg",
+  "credit": {
+    "source": "Kunde",
+    "photographer": "Borbet (Herstellerbild)",
+    "licence": "Vom Kunden bereitgestellt",
+    "url": ""
+  },
+  "pipeline": 5,
+  "fingerprint": "8e79d41fe34fc14fd4e7726cf65c0a110fe544bc"
+}

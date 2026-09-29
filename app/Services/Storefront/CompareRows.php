@@ -217,9 +217,10 @@ final readonly class CompareRows
 
             [$label, $number] = match ($kind) {
                 ApprovalKind::Abe => ['ABE', $row->kba_number],
+                ApprovalKind::Nachtrag => ['Nachtrag', $row->report_number],
                 ApprovalKind::Teilegutachten => ['Teilegutachten', $row->report_number],
                 ApprovalKind::Ece => ['ECE', $row->approval_mark],
-                ApprovalKind::Ec => ['EG-Genehmigung', $row->approval_mark ?? $row->report_number],
+                ApprovalKind::Ec => ['EG-Typgenehmigung', $row->approval_mark ?? $row->report_number],
                 null => [(string) $row->kind, null],
             };
 

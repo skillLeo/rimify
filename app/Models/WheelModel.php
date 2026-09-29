@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $slug
  * @property string|null $type_designation
  * @property string|null $description_de
+ * @property string|null $seo_title
+ * @property string|null $seo_description
  * @property CatalogueStatus $status
  * @property int $spoke_count
  * @property float|null $rating
@@ -35,7 +37,7 @@ class WheelModel extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'status',
+        'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'seo_title', 'seo_description', 'status',
         'spoke_count', 'rating', 'rating_count', 'is_demo',
     ];
 

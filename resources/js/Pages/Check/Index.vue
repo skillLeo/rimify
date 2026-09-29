@@ -117,7 +117,7 @@ const STATES = [
                     <div class="chk__done-text">
                         <span class="micro">Fahrzeug</span>
                         <p class="chk__vehicle">{{ vehicle.label }}</p>
-                        <p class="data">{{ vehicle.keyNumbers }} · {{ vehicle.buildWindow }}</p>
+                        <p class="data">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
                     </div>
                     <button class="btn btn--quiet" type="button" @click="changing = true">
                         Ändern<span class="visually-hidden"> (Fahrzeug)</span>

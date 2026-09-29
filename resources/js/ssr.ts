@@ -1,9 +1,10 @@
-import { createSSRApp, h, type DefineComponent } from 'vue';
+import { createSSRApp, type DefineComponent } from 'vue';
 import { renderToString } from '@vue/server-renderer';
 import { createInertiaApp } from '@inertiajs/vue3';
 import createServer from '@inertiajs/vue3/server';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
+import { root } from './root';
 
 const appName = process.env.VITE_APP_NAME || 'RIMIFY';
 
@@ -18,12 +19,14 @@ createServer((page) =>
         resolve: (name) =>
             resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob<DefineComponent>('./Pages/**/*.vue')),
         setup({ App, props, plugin }) {
-            return createSSRApp({ render: () => h(App, props) })
+            return createSSRApp({ render: () => root(App, props) })
                 .use(plugin)
                 .use(createPinia());
         },
     }),
     // On a shared host the default port may already belong to another application, so it is
-    // configurable. INERTIA_SSR_URL in .env must point at the same port.
-    { port: Number(process.env.INERTIA_SSR_PORT ?? 13714) },
+    // configurable. INERTIA_SSR_URL in .env must point at the same port. Only this machine may ask
+    // for a render: the default would listen on every interface. No cluster: it forks one renderer
+    // per visible CPU, which on a shared host runs into its process and memory limits.
+    { port: Number(process.env.INERTIA_SSR_PORT ?? 13714), host: '127.0.0.1' },
 );

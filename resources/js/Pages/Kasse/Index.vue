@@ -41,6 +41,8 @@ const props = defineProps<{
     contact: ContactProp
     /** Why an order cannot be placed right now, or null. */
     orderRefusal?: string | null
+    /** The review's test payment stands in for a provider: no money moves. */
+    sandbox?: boolean
 }>()
 
 const shared = useShared()
@@ -765,6 +767,9 @@ const VERDICT_TONE: Record<string, string> = {
                                 <p v-if="orderRefusal" id="ko-refusal" class="ko__refusal" role="status">
                                     {{ orderRefusal }}
                                 </p>
+                                <p v-else-if="sandbox" id="ko-sandbox" class="tag tag--unknown ko__sandbox">
+                                    Testbestellung – im nächsten Schritt wählst du, wie die Testzahlung ausgeht. Es wird kein Geld bewegt.
+                                </p>
 
                                 <div class="ko__final">
                                     <p class="ko__final-total">
@@ -1273,6 +1278,11 @@ const VERDICT_TONE: Record<string, string> = {
 
 .ko__refusal--after {
     margin-top: var(--space-3);
+}
+
+.ko__sandbox {
+    margin-top: var(--space-3);
+    white-space: normal;
 }
 
 .ko__final {

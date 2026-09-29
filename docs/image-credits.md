@@ -1,15 +1,31 @@
 # Image credits
 
 A real brand or model name appears only on a photograph of that exact product
-(`docs/phase0/ACCURACY.md` D1). The only product photographs on the site are the client's own studio
-shots of the MOTEC MCR4 Ultimate. Every free-licence photograph of a wheel is retired: each showed
-another maker's wheel on a car, brake disc included, and stood for a demo model it did not depict.
-A finish without a photograph draws the line-art outline. The client's legal review of imagery is
+(`docs/phase0/ACCURACY.md` D1). The product photographs on the site are the client's official Borbet
+DB8GT2 pictures (the golden record, since 28.09.2026). Placeholder drawings are for demo catalogue
+entries only (CLAUDE.md); the homepage's photographs are protected elements (`docs/design/PROTECTED.md`).
+Every free-licence photograph of a wheel is retired: each showed another maker's wheel on a car, brake
+disc included, and stood for a demo model it did not depict. The client's legal review of imagery is
 listed under "Before launch" in `docs/phase0/OVERHAUL.md`.
 
 No image on the site is AI-generated.
 
-## Client-supplied studio shots (`database/seeders/content/client-photos/`)
+## Borbet DB8GT2 (`database/seeders/content/client-photos/`, 28.09.2026)
+
+The four official pictures the client sent on 27.09.2026 (WhatsApp, 1080 px): matt black and matt bronze,
+each from the front and at an angle. Each mask is the silhouette on the white studio background (flood
+fill from the edges; the front shots clipped to the rim so the floor reflection is not part of the wheel).
+The front shots are measured for the hero and the numbers section (`wheel-photos.php`, `anchors`), and
+carry the stamp legible on the angle shots, KBA 53841 — the 18-inch approval.
+
+| File | Stands for | Source | Use |
+|---|---|---|---|
+| `client-borbet-db8gt2-schwarz-front.jpg` | Borbet DB8GT2 · Schwarz matt, front view | Borbet (Herstellerbild), vom Kunden bereitgestellt | Hero, numbers section, card, product page |
+| `client-borbet-db8gt2-schwarz-angle.jpg` | the same, *Schräg von vorn* | as above | Product page thumbnail |
+| `client-borbet-db8gt2-bronze-front.jpg` | Borbet DB8GT2 · Bronze matt, front view | as above | Card, product page |
+| `client-borbet-db8gt2-bronze-angle.jpg` | the same, *Schräg von vorn* | as above | Product page thumbnail |
+
+## Client-supplied studio shots, MOTEC (kept, not shown since 27.09.2026)
 
 Manufacturer renders the client sent as example photographs (2026-09-22). They have no public URL,
 so they live in the repository; `wheels:fetch-photos` copies them into place. Each comes with a

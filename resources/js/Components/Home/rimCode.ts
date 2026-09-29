@@ -247,6 +247,8 @@ export type PhotoShape =
     | { key: 'lk'; kind: 'circle'; dashed: true; cx: number; cy: number; r: number; label: string }
     | { key: 'mlb'; kind: 'circle'; dashed: false; cx: number; cy: number; r: number; label: string }
     | { key: 'kba'; kind: 'rect'; x: number; y: number; width: number; height: number; label: string }
+    /** A dimension: a line with a tick across each end — the bead-seat diameter, the barrel's width. */
+    | { key: 'diameter' | 'width'; kind: 'line'; x1: number; y1: number; x2: number; y2: number; label: string }
 
 /** The label under a highlighted feature, as fractions of the frame (left edge centred on `x`). */
 export interface PhotoLabel {
@@ -262,9 +264,13 @@ export interface PhotoLabel {
  * - Lochkreis: a dashed circle through the bolt-hole centres (`pcd`);
  * - Mittenlochbohrung: the cap that covers it (`bore`) — the bore itself is behind the cap;
  * - KBA: a box around the stamp (`kba`), a little larger than the stamp so it frames it, and only
- *   when the stamp on the photograph is the number the token explains.
+ *   when the stamp on the photograph is the number the token explains;
+ * - Felgendurchmesser: a vertical dimension line at the bead seat (`bead`);
+ * - Maulweite: a dimension across the barrel between the Felgenhörner, where the photograph shows it
+ *   (`flanges`).
  *
- * Width, diameter and ET have no feature a front view shows: null.
+ * The ET has no feature a front view shows: null — the cross-section explains it. So does any value
+ * whose anchor was not measured.
  */
 export function photoShape(key: RimKey, frame: PhotoFrame | null, kba: string | null = null): PhotoShape | null {
     if (frame === null) {
@@ -280,6 +286,20 @@ export function photoShape(key: RimKey, frame: PhotoFrame | null, kba: string | 
 
     if (key === 'mlb' && a.bore !== undefined && circleOk(a.bore)) {
         return { key, kind: 'circle', dashed: false, cx: a.bore.x * w, cy: a.bore.y * h, r: a.bore.r * w, label: 'hinter der Nabenkappe' }
+    }
+
+    // The Felgendurchmesser: vertical, the one axis a wheel turned sideways does not foreshorten.
+    if (key === 'diameter' && a.bead !== undefined && finitePoint(a.bead) && Number.isFinite(a.bead.h) && a.bead.h > 0) {
+        const half = (a.bead.h * h) / 2
+
+        return { key, kind: 'line', x1: a.bead.x * w, y1: a.bead.y * h - half, x2: a.bead.x * w, y2: a.bead.y * h + half, label: 'am Wulstsitz' }
+    }
+
+    // The Maulweite: the barrel between the two Felgenhörner, where the angle shows it.
+    if (key === 'width' && a.flanges !== undefined && finitePoint(a.flanges) && Number.isFinite(a.flanges.w) && a.flanges.w > 0) {
+        const half = (a.flanges.w * w) / 2
+
+        return { key, kind: 'line', x1: a.flanges.x * w - half, y1: a.flanges.y * h, x2: a.flanges.x * w + half, y2: a.flanges.y * h, label: 'Maulweite' }
     }
 
     if (key === 'kba' && a.kba !== undefined && kba !== null && frame.stamp === kba && boxOk(a.kba)) {
@@ -302,12 +322,31 @@ function boxOk(b: { x: number; y: number; w: number; h: number }): boolean {
     return finitePoint(b) && Number.isFinite(b.w) && Number.isFinite(b.h) && b.w > 0 && b.h > 0
 }
 
+/**
+ * Half the length of a dimension line's end ticks, in the frame's pixels: 2 % of the frame at most and
+ * never more than 30 % of the line, so a short span reads as a dimension rather than as a letter.
+ */
+export function dimensionTick(shape: Extract<PhotoShape, { kind: 'line' }>, frameWidth: number): number {
+    const length = Math.hypot(shape.x2 - shape.x1, shape.y2 - shape.y1)
+
+    return Math.min(frameWidth * 0.02, length * 0.3)
+}
+
 /** Where the shape's label sits: centred under the shape, as fractions of the frame. */
 export function photoLabel(shape: PhotoShape, frame: PhotoFrame): PhotoLabel {
     const { width: w, height: h } = frame.image
 
     if (shape.kind === 'circle') {
         return { text: shape.label, x: shape.cx / w, y: (shape.cy + shape.r) / h }
+    }
+
+    if (shape.kind === 'line') {
+        // A vertical line is labelled a quarter up from its lower end, clear of the hub; a horizontal
+        // one just under itself, pulled in from the frame's edge so the plate stays on the picture.
+        // Under a horizontal one the plate starts below the ticks, never on them.
+        return shape.x1 === shape.x2
+            ? { text: shape.label, x: shape.x1 / w, y: (shape.y1 + 0.72 * (shape.y2 - shape.y1)) / h }
+            : { text: shape.label, x: Math.min((shape.x1 + shape.x2) / 2 / w, 0.86), y: (shape.y1 + dimensionTick(shape, w)) / h }
     }
 
     return { text: shape.label, x: (shape.x + shape.width / 2) / w, y: (shape.y + shape.height) / h }
@@ -325,9 +364,13 @@ export function photoLabel(shape: PhotoShape, frame: PhotoFrame): PhotoLabel {
 export function photoHint(key: RimKey, marked: boolean, etDrawn = true): string {
     switch (key) {
         case 'width':
-            return 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Maulweite.'
+            return marked
+                ? 'Markiert: das Felgenbett zwischen den beiden Felgenhörnern – rechts, wo das Rad schräg steht.'
+                : 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Maulweite.'
         case 'diameter':
-            return 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt den Felgendurchmesser.'
+            return marked
+                ? 'Markiert: der Durchmesser am Wulstsitz, knapp innerhalb des Felgenhorns.'
+                : 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt den Felgendurchmesser.'
         case 'et':
             return etDrawn ? 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Einpresstiefe.' : 'Auf dem Foto nicht zu sehen.'
         case 'lk':

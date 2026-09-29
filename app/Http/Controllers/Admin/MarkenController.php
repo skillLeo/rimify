@@ -1,0 +1,227 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Admin;
+
+use App\Enums\PermissionAction;
+use App\Enums\PermissionModule;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\BrandLogoRequest;
+use App\Http\Requests\Admin\BrandRequest;
+use App\Models\AdminUser;
+use App\Models\Brand;
+use App\Services\Admin\AuditTrail;
+use App\Services\Admin\Catalogue\BrandLogoStore;
+use App\Support\BrandLogos;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+
+/**
+ * Katalog › Marken: every brand the shop knows — its name, whether it is a wheel brand on the homepage's
+ * brand wall, its place there, and its logo. Until now a brand came only from the import or the Felge
+ * form, and a logo only from a script (BrandLogoSeeder); a real supplier's brand arrived without one.
+ *
+ * Every write is authorised by BrandPolicy (R-11), runs in one transaction and leaves one Protokoll entry.
+ * A brand that still carries a wheel or a tyre is never removed.
+ */
+class MarkenController extends Controller
+{
+    public const SAVED = 'Gespeichert.';
+
+    public const LOGO_SAVED = 'Logo gespeichert. Die Markenwand zeigt es ab jetzt.';
+
+    public const LOGO_REMOVED = 'Logo entfernt. Die Markenwand zeigt den Namen.';
+
+    public const DELETED = 'Marke entfernt.';
+
+    public const RESTORED = 'Die entfernte Marke ist wieder da.';
+
+    public const RESTORED_WITH_LOGO = 'Die entfernte Marke ist wieder da, mit ihrem früheren Logo.';
+
+    public function __construct(private readonly BrandLogoStore $logos) {}
+
+    public function index(Request $request): Response
+    {
+        $this->authorize('viewAny', Brand::class);
+        $admin = self::admin($request);
+
+        $brands = Brand::query()
+            // Removed Felgen count too: they keep their brand (BrandPolicy), and the list must not
+            // offer an „Entfernen“ the server refuses (K2-16).
+            ->withCount([
+                'wheelModels',
+                'tyreVariants',
+                'wheelModels as removed_wheels_count' => static fn (Builder $q) => $q->withoutGlobalScope(SoftDeletingScope::class)->whereNotNull('wheel_models.deleted_at'),
+            ])
+            ->orderBy('sort_order')->orderBy('name')
+            ->get()
+            ->map(static fn (Brand $brand): array => self::row($brand))
+            ->all();
+
+        return Inertia::render('Admin/Marken/Index', [
+            'brands' => $brands,
+            // A new brand joins the wall at its end, as the Felge form and the import place one (K2-12).
+            'nextSortOrder' => (int) Brand::query()->max('sort_order') + 10,
+            'can' => [
+                'create' => $admin->can('create', Brand::class),
+                'update' => $admin->may(PermissionModule::Catalogue, PermissionAction::Edit),
+                'delete' => $admin->may(PermissionModule::Catalogue, PermissionAction::Delete),
+            ],
+        ]);
+    }
+
+    public function store(BrandRequest $request): RedirectResponse
+    {
+        $attributes = $request->attributesForBrand();
+
+        $toast = self::saying(static fn (): string => DB::transaction(static function () use ($attributes, $request): string {
+            // A removed brand of the same name comes back — with its id, its history and its logo —
+            // instead of a second row; and says so, in the toast and in the Protokoll (K2-13). Its name,
+            // place and wall setting are what the form says now; only the logo is what it had (K2-34).
+            $brand = Brand::onlyTrashed()->where('slug', $attributes['slug'])->latest('deleted_at')->first();
+
+            if ($brand instanceof Brand) {
+                $brand->restore();
+                $brand->fill($attributes)->save();
+                $withLogo = $brand->logo_path !== null && $brand->logo_path !== '';
+                AuditTrail::record($request->admin(), 'brand.restored', ['brand_id' => $brand->id, 'name' => $brand->name, 'with_logo' => $withLogo], $brand);
+
+                return $withLogo ? self::RESTORED_WITH_LOGO : self::RESTORED;
+            }
+
+            $brand = Brand::query()->create($attributes);
+            AuditTrail::record($request->admin(), 'brand.created', ['brand_id' => $brand->id, 'name' => $brand->name], $brand);
+
+            return self::SAVED;
+        }));
+
+        return back()->with('toast', $toast);
+    }
+
+    public function update(BrandRequest $request, Brand $brand): RedirectResponse
+    {
+        $attributes = $request->attributesForBrand();
+
+        self::saying(static fn () => DB::transaction(static function () use ($attributes, $request, $brand): void {
+            $old = $brand->only(['name', 'is_wheel_brand', 'sort_order']);
+            $brand->fill($attributes)->save();
+            AuditTrail::record($request->admin(), 'brand.updated', ['brand_id' => $brand->id, 'old' => $old, 'new' => $brand->only(['name', 'is_wheel_brand', 'sort_order'])], $brand);
+        }));
+
+        return back()->with('toast', self::SAVED);
+    }
+
+    /**
+     * A name another request took in between the check and the write is said under Name — never a
+     * server error (K2-01).
+     *
+     * @template T
+     *
+     * @param  callable(): T  $write
+     * @return T
+     */
+    private static function saying(callable $write): mixed
+    {
+        try {
+            return $write();
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['name' => 'Diese Marke gibt es schon.']);
+        }
+    }
+
+    public function logo(BrandLogoRequest $request, Brand $brand): RedirectResponse
+    {
+        $result = $this->logos->store($brand, $request->logo());
+
+        if ($result['refusal'] !== null) {
+            return back()->withErrors(['logo' => $result['refusal']]);
+        }
+
+        $previous = $brand->logo_path;
+
+        DB::transaction(static function () use ($brand, $result, $request, $previous): void {
+            $brand->forceFill(['logo_path' => $result['path']])->save();
+            AuditTrail::record($request->admin(), 'brand.logo_changed', ['brand_id' => $brand->id, 'name' => $brand->name, 'had_logo' => $previous !== null], $brand);
+        });
+
+        if ($previous !== $result['path']) {
+            $this->logos->forget($previous);
+        }
+
+        return back()->with('toast', self::LOGO_SAVED);
+    }
+
+    public function removeLogo(Request $request, Brand $brand): RedirectResponse
+    {
+        $this->authorize('update', $brand);
+        $previous = $brand->logo_path;
+
+        DB::transaction(static function () use ($brand, $request): void {
+            $brand->forceFill(['logo_path' => null])->save();
+            AuditTrail::record(self::admin($request), 'brand.logo_removed', ['brand_id' => $brand->id, 'name' => $brand->name], $brand);
+        });
+
+        $this->logos->forget($previous);
+
+        return back()->with('toast', self::LOGO_REMOVED);
+    }
+
+    public function destroy(Request $request, Brand $brand): RedirectResponse
+    {
+        $admin = self::admin($request);
+        $decision = Gate::forUser($admin)->inspect('delete', $brand);
+
+        // Who may remove brands but hits one still in use is told why, in the Policy's own words —
+        // not a „Dafür fehlt dir das Recht“ they do have (K2-16). Who may not remove at all gets 403.
+        if ($decision->denied()) {
+            if ($admin->may(PermissionModule::Catalogue, PermissionAction::Delete)) {
+                throw ValidationException::withMessages(['brand' => (string) $decision->message()]);
+            }
+
+            $decision->authorize();
+        }
+
+        DB::transaction(static function () use ($brand, $request): void {
+            AuditTrail::record(self::admin($request), 'brand.deleted', ['brand_id' => $brand->id, 'name' => $brand->name], $brand);
+            $brand->delete();
+        });
+
+        return back()->with('toast', self::DELETED);
+    }
+
+    /** @return array<string, mixed> */
+    private static function row(Brand $brand): array
+    {
+        $logo = BrandLogos::resolve((string) $brand->slug, $brand->logo_path);
+
+        return [
+            'id' => (int) $brand->id,
+            'name' => (string) $brand->name,
+            'slug' => (string) $brand->slug,
+            'isWheelBrand' => (bool) $brand->is_wheel_brand,
+            'sortOrder' => (int) $brand->sort_order,
+            'logo' => $logo,
+            // Set but not drawable: the file is missing or cannot be sized — said, not hidden.
+            'logoBroken' => $logo === null && $brand->logo_path !== null && $brand->logo_path !== '',
+            'wheels' => (int) $brand->getAttribute('wheel_models_count'),
+            'removedWheels' => (int) $brand->getAttribute('removed_wheels_count'),
+            'tyres' => (int) $brand->getAttribute('tyre_variants_count'),
+        ];
+    }
+
+    private static function admin(Request $request): AdminUser
+    {
+        $user = $request->user('admin');
+
+        return $user instanceof AdminUser ? $user : abort(403);
+    }
+}

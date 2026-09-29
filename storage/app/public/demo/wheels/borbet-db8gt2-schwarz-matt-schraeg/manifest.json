@@ -1,0 +1,48 @@
+{
+  "name": "borbet-db8gt2-schwarz-matt-schraeg",
+  "base": "/storage/demo/wheels/borbet-db8gt2-schwarz-matt-schraeg/borbet-db8gt2-schwarz-matt-schraeg",
+  "width": 1080,
+  "height": 1080,
+  "widths": [
+    480,
+    768,
+    1080
+  ],
+  "fallback": "png",
+  "placeholder": "data:image/png;base64,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",
+  "wide": {
+    "name": "borbet-db8gt2-schwarz-matt-schraeg-4x3",
+    "base": "/storage/demo/wheels/borbet-db8gt2-schwarz-matt-schraeg/borbet-db8gt2-schwarz-matt-schraeg-4x3",
+    "width": 1080,
+    "height": 810,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAASCAYAAABB7B6eAAAACXBIWXMAAAPoAAAD6AG1e1JrAAADdklEQVQ4jZ1VTUgjZxie1N1uKmI3yRDzM80wJsYkZsYkXzIx0/lZkq4GdIXIRhck9FKUJqjVgyJ7CNpLDxbxsNeCILQEim2hXmwvggdBkO4KPVgP7nZPXhVkk5m3vMO6SLGa7gszH3zzvs/78zzffBR1s7VQFGX5154FACzFYrFF07Q713xv2j7A19bW1j1JkpKCIOTD4XAXgl/jZ3kvcFEU+30+3wuWZaGvrw9UVX0jy/L26Ojoz8PDw7VMJlNaW1u7d9nZ/wLnef6xzWZrdHV1werqqrG7u4sPCIIAIyMjMDs7q2ezWSCE/F4oFJzNJjEd4vG4h2GY1y6XC+x2e31+ft64uLgwyuWyEYvFGicnJ41KpVJPp9Nvent7QRTFX6+M7sYkSBrl9/sXPR4PVlqnaRpSqRQcHR0BwzBQqVQA7eDgAGKxmEEIqauqCoODg08wFsm/qXozu9fr/Y3jOCgUCo1MJgNerxfi8Tg4HA6o1WpwaaVSCTiOa8iyDIqi/Hh1xP85HlEU2202219IrCAIOq52ux0+lWXo7u6G5eVlOD09hbOzM1hcXASn06nzPI/f/pyYmGi9aUzmJs/zNofD8aq9vR1omtadTidWCSOPHkEyQcAfCKCawO/3Q1tbG3ZnFkHT9N+EkI9vTVCtVq2dnZ3PETSRSOhIIlaIo8K96elp2N7ehs3NTRwhsCyrRyIRTPDH1NTUrZI1CSKE/IDAAwMDDZSioiggSZLJwcbGxjsOZmZmIJfLmSRzHPfdVYxr7VIBkiSNof6LxWIjGo2aBO/t7ZmdzM3NmeDHx8fQ39+vj4+P6z09PXoymdRuI/lda/v7+3dDodAOAgaDwfrS0hIcHh7C5OSkeaLPz89hYWHBGBsb01FBHMd90ww4ddUpn89HOI57GQgEYGVlRd/Z2dHX19d1l8ulh8NhQ+B55Oi12+3+6u0ha/5/xLKsFVdZfpD2B4IHKE9FkQ1Zlg1VVY0vy2UYL32+Tt29L8x+W/vI7SatkUjkw+bQNe0Ol0539MTVcCLzMJt+MFROSdln3dHE97L28Ken1a9/mZp7+kwdeDwvKkOVRCY3JKRyQS6a7cDYZlJYCCGtoVTOESKKO8BrTFwa9mj5LxjyWdFntXo+oaz3WV9Q5HheY6LpbAf6Ysz73g0YhLygwlpQadVqtek74B/kMWo1AM5XGAAAAABJRU5ErkJggg=="
+  },
+  "bare": {
+    "name": "borbet-db8gt2-schwarz-matt-schraeg-bare",
+    "base": "/storage/demo/wheels/borbet-db8gt2-schwarz-matt-schraeg/borbet-db8gt2-schwarz-matt-schraeg-bare",
+    "width": 1080,
+    "height": 1080,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE40lEQVRIiZ1WW0hjVxT1kVaihvhKYox5aLyaaxI10RjfwWh81wd6fYMi+RgEi4IQrIqlPyLKiD8WoehPtSCCFpWmI1Qc6odPpC1UQfohfknpx1At5t7cXfYZY1OrM2MPXM/leM5ee6+19j0JCHh6BAcEBAQ9XGQYJhgfm80mwPmxPe8bgb5DABDY2dkpbWxs1Le0tGiWl5c/fk4y7wxus9kq0tPTXyUlJb3RaDRerVbr0ev1vzocjpG6urp2i8XyqdFoZJxOZ7zvLCb0XgDcZDAYXiqVSoiOjuaTk5Ohu7sbXC4XeSwWCxQWFsLY2BiP65mZmX86HI4vsdK7GE9WQv6h0+kmY2NjITAwkG1qamJ3dnb47e1t/urqit/d3fWmp6dzycnJXoZhOJfL5W1sbMQ1yMvLO6utrU3BGGNjY0GPcRiQlpZWExcXBzExMZxQKORTU1NhdHQU1tbWAEd9fT2IRCJYXFyE4+NjKC4u5h0Ohzc/P/82ISEBQX4aGBiI8qP7nxekJjEx8XVMTAzk5ORwaWlpgMtIB46DgwMICwuDpKQkuLy8JGubm5ug0+kwMGRkZHiQvurq6pcPqSIvJpMpF3mXyWR8R0cHboSIiAiQSqWwsbEBU1NTBLC9vZ0E5zgOWJaF1tZWoCgKrFYrX1BQgFX90dPTo/anSoB/KIr6DOlRKBRcc3MzbgSTyQQqlQopA6QrPDwcxsfHCcDNzQ2ZZ2dnATVDHbKzszmsprKy8sWdEwX3/CsUiq8jIyNBr9ezJSUlJLherye02Gw20NE6kunQ0BAJ7PF4yLy3twfIP7oNz2ZlZSHYV/7aEg2kUul3mKFcLucwI4VCAWKxGEJDQ9GKwDAMGI1G5BpmZmZgfn6eaDA5OQnx8fGg0WhQDw4rViqV7ofNhRV8jw4RiUQcBsYDEokEUnQ6qCkrh09Ky4B6myXk5uYSMKFQiHaGqKgoDAparZZD3SQSyQ//8X9qauo3KKharWbNZjOkpKQAOgldkp+fD0gbUlFeXg4TExMwPT1NhG9paSFG0Gq1eIbDpCQSyfJ98j4hioqKvkAhkceKigqSYWlpKaEnMSER0CECgQBGRkYI97e3t2Te398n/KMpioqKWLVajVp9fgcgIF9HfKuuri5FJ1AUxdfV1ZGM8RDOvnek0AdwfX1N5rm5OaBpGrq6usBut/MqlcpbVlaW529TosHAwIDQbDb/jFy2tbV5a2trSdkKhQJOTk5gdXUVQkJCSDf7+gAHio8VO51OFvWhadpf4Lfd7KvCbre/QAC73U50QNtiwy0tLcHZ2RkYDAbSF6enpyT4wsICfvz4wcFBFilUqVRvampqLI999AjS9va2wGQyvUIQpVLpqaqq4o+OjmBrawtw7uvrI82GNnW73SR4b28vj1rJ5fK/srOzmx4L/i+QhoaGeLPZ/ItMJsNy2eHhYXZ9fd17fn7uXVlZ4TUaDS8WizmRSMRqtVovViWVSl9brVarf3M9NQhyQ0ODnKbpdewFo9HIW61WIjQ6Cm1osVi8/f390Nzc/C06/PDw8KN3Zf4YCF48QWazuYam6UWDwXBEUdRvBQUFv7tcLo/b7f7x4uLCCQDxfm551t388EAwwzDCw8NDMQDIAMB3N99fsf9nBD71qwHvDjTEh9zBHwzmezDocwL/DQ08mgfUBh4sAAAAAElFTkSuQmCC"
+  },
+  "source": "client-borbet-db8gt2-schwarz-angle.jpg",
+  "credit": {
+    "source": "Kunde",
+    "photographer": "Borbet (Herstellerbild)",
+    "licence": "Vom Kunden bereitgestellt",
+    "url": ""
+  },
+  "pipeline": 5,
+  "fingerprint": "ed555792dc37ed219da028dba5af73460cae0d97"
+}

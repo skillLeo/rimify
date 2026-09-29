@@ -33,7 +33,7 @@ import ValueText from '../Ui/ValueText.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
 import { DESKTOP_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
-import { euro } from '../../format'
+import { formatMoney } from '../../lib/num'
 import type { MakeOption, StartseiteProps } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
 
@@ -65,14 +65,16 @@ const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
  * One link, to the product, whenever the product is named — and it is named only over its own
  * photograph: never under the outline, whether the product is symbolic or its photograph failed.
  */
-const linked = computed(() => product.value !== null && !product.value.symbolic && photo.value !== null)
+const linked = computed(() => product.value !== null && !product.value.symbolic && photo.value !== null && product.value.published !== false)
+/* Named over its own photograph; a draft is named without a price (it is shown, not offered). */
+const named = computed(() => product.value !== null && !product.value.symbolic && photo.value !== null)
 
 const title = computed(() =>
     vehicle.value === null ? props.hero.title : `Felgen, die an deinen ${vehicle.value.short} dürfen.`
 )
 const subline = computed(() => (props.hero.subline.trim() === '' ? SUBLINE : props.hero.subline))
 const alt = computed(() => (product.value === null ? '' : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`))
-const perWheel = computed(() => (product.value === null ? '' : euro(Math.round(product.value.fromPriceCents / 4))))
+const perWheel = computed(() => (product.value === null ? '' : formatMoney(product.value.fromPriceCents)))
 
 /* The layout's geometry for the stylesheet, and the leaders' start after the roll (none without one). */
 const stageStyle = computed(() => ({ ...frameStyle(DESKTOP_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))
@@ -144,11 +146,11 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <span v-if="linked && product" class="hero__caption">
+                    <span v-if="named && product" class="hero__caption">
                         <!-- Brand, model and finish are names, the price is a figure: neither is
                              translated. *ab* and *pro Felge* are German and stay translatable. -->
                         <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
-                        <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
+                        <span v-if="linked" class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
                     </span>
                 </component>
 
@@ -240,6 +242,7 @@ onMounted(() => {
  */
 .hero__frame {
     --callout-ink: var(--c-ink);
+    --callout-casing: var(--c-surface);
 
     position: relative;
     width: 100%;
@@ -345,7 +348,7 @@ onMounted(() => {
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .hero__link:hover .hero__caption-name {
+    a.hero__link:hover .hero__caption-name {
         text-decoration: underline;
         text-underline-offset: 3px;
     }

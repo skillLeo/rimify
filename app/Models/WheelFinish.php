@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $art_finish
  * @property int $sort_order
  * @property array<string, mixed>|null $image_manifest
+ * @property string|null $image_alt_de
  */
 class WheelFinish extends Model
 {
@@ -36,7 +37,7 @@ class WheelFinish extends Model
 
     protected $table = 'wheel_finishes';
 
-    protected $fillable = ['wheel_model_id', 'name_de', 'name_en', 'hex', 'art_finish', 'sort_order', 'image_manifest'];
+    protected $fillable = ['wheel_model_id', 'name_de', 'name_en', 'hex', 'art_finish', 'sort_order', 'image_manifest', 'image_alt_de'];
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -60,5 +61,15 @@ class WheelFinish extends Model
     public function configs(): HasMany
     {
         return $this->hasMany(WheelConfig::class);
+    }
+
+    /**
+     * The colour's photographs, in the order a person set (FinishImages); the first is the cover.
+     *
+     * @return HasMany<WheelFinishImage, $this>
+     */
+    public function images(): HasMany
+    {
+        return $this->hasMany(WheelFinishImage::class)->orderBy('position')->orderBy('id');
     }
 }

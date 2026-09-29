@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Setting;
+use App\Services\Demo\DemoPurge;
+use App\Services\Demo\DemoTables;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\ContentSeeder;
+use Database\Seeders\GoldenRecordSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Database\Seeders\VehicleSeeder;
 use Illuminate\Console\Command;
@@ -38,8 +41,24 @@ final class ReleaseSeed extends Command
      * document that states no bore must leave it empty — but it means an existing database keeps
      * NULL everywhere and the product page goes on showing only the rim's own figure. The bore the
      * documents state is seeded data, so ApprovalSeeder has to run once more to write it.
+     *
+     * v4: the invented example catalogue (the review release §2) — brands and models renamed in place,
+     * drafts only, placeholder drawings — and a demo set written again where one is kept (a staging
+     * preview): its order lines froze the old names, and frozen rows are renewed, never edited (R-12).
+     *
+     * v5: the golden record's wheel, the Borbet DB8GT2 (GoldenRecordSeeder) — a real product, a draft
+     * until a person prices it, and the hero's wheel with the client's official photographs.
+     *
+     * v6: the tables of tyre load at speed (C9). A document without one answers UNKNOWN above 210 km/h, so
+     * an existing preview would show every fast car „we do not know“. The example documents get ABE 55255's
+     * table marked as the demo seed's — all but DEMO-0007, kept without on purpose so the honest UNKNOWN
+     * stays demonstrable — and so does the walkthrough's placeholder document (the operator's decision of
+     * 29.09.2026). The live shop is untouched: ApprovalSeeder and PlaceholderTables never run there.
      */
-    public const VERSION = 3;
+    public const VERSION = 6;
+
+    /** From this version on, a kept demo set is written again once, so its frozen labels match. */
+    public const DEMO_RENEWED_AT = 4;
 
     /** The idempotent seeders a release may re-apply, in dependency order. */
     public const SEEDERS = [
@@ -47,6 +66,7 @@ final class ReleaseSeed extends Command
         VehicleSeeder::class,
         CatalogueSeeder::class,
         BrandLogoSeeder::class,
+        GoldenRecordSeeder::class,
         ApprovalSeeder::class,
         ContentSeeder::class,
     ];
@@ -75,6 +95,14 @@ final class ReleaseSeed extends Command
 
                 return self::FAILURE;
             }
+        }
+
+        // A demo set kept on this database (only a staging preview keeps one; the live shop holds none,
+        // demo:assert-clean) froze names the seeders above just changed: its figures taken away and
+        // written anew, on the example catalogue the seeders just renewed.
+        if ($applied < self::DEMO_RENEWED_AT && DemoTables::setTotal() > 0) {
+            app(DemoPurge::class)->run(DemoPurgeCommand::operator('rimify:release-seed'), catalogue: false);
+            $this->call('demo:seed', ['--no-interaction' => true]);
         }
 
         Setting::set(self::SETTING, self::VERSION);

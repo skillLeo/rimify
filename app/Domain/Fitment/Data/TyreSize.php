@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fitment\Data;
 
+use App\Domain\Fitment\Verdict\Condition;
 use App\Support\GermanFormat;
 
 /**
@@ -19,6 +20,7 @@ use App\Support\GermanFormat;
  */
 final readonly class TyreSize
 {
+    /** @param list<Condition> $conditions the Auflagen the document hangs off this size itself */
     public function __construct(
         public int $widthMm,
         public int $aspect,
@@ -26,7 +28,108 @@ final readonly class TyreSize
         public ?int $documentMinLoadIndex = null,
         public ?string $documentMinSpeedSymbol = null,
         public string $axle = 'ALL',
+        /**
+         * Whether this size needs the Eintragung: derived from an Abnahme among its own Auflagen and
+         * the row's, or set by a person with a reason (the corrections memo §2). Never typed.
+         */
+        public bool $requiresEntry = false,
+        public array $conditions = [],
+        /**
+         * The kW band the document states for this size (Block D; the Borbet brief §2.6) — ABE 55255 gives
+         * BMW 1er 187 its 215/35R19 at 85–125 kW, its 225/35R19 at 85–195 kW. Null: no band stated.
+         */
+        public ?int $kwMin = null,
+        public ?int $kwMax = null,
+        /**
+         * The size's own body-style and drive codes (ABE 55255 prints `Car Lim` or `Cbo Cpe` beside a size):
+         * they narrow which cars get the size, never the row (FitmentRow::withTyreSizes()).
+         *
+         * @var list<RowFilter>
+         */
+        public array $filters = [],
+        /**
+         * Where one size is printed more than once for a car — ABE 55255 gives BMW 5er ActiveHybrid its sizes
+         * at „225, 235“ kW, BMW Z3 its 225/35R19 at 85–110 and 85–125 kW — the bands of every entry, read
+         * together (FitmentResolver). Empty: the one band above, or none.
+         *
+         * @var list<array{0: int, 1: int}>
+         */
+        public array $powerBands = [],
     ) {}
+
+    public function hasPowerBand(): bool
+    {
+        return $this->bands() !== [];
+    }
+
+    /** @return list<array{0: int, 1: int}> */
+    public function bands(): array
+    {
+        if ($this->powerBands !== []) {
+            return $this->powerBands;
+        }
+
+        return $this->kwMin !== null && $this->kwMax !== null ? [[$this->kwMin, $this->kwMax]] : [];
+    }
+
+    /**
+     * Whether a car of this power may carry the size: yes where no band is stated, and yes — for now — where
+     * the car's power is not known; the verdict then says which band to compare with field P.2 and is never
+     * PERMITTED (the resolver). A known power outside every band: no.
+     */
+    public function allowsPower(?int $powerKw): bool
+    {
+        if (! $this->hasPowerBand() || $powerKw === null) {
+            return true;
+        }
+
+        foreach ($this->bands() as [$min, $max]) {
+            if ($powerKw >= $min && $powerKw <= $max) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Whether the size's own body-style and drive codes let this vehicle in (RowFilter::admitAll()). */
+    public function filtersAdmit(VehicleRecord $vehicle): ?bool
+    {
+        return $this->filters === [] ? true : RowFilter::admitAll($this->filters, $vehicle);
+    }
+
+    /** `85–195 kW`; several: `225 kW oder 235 kW`, overlapping ones joined: `85–125 kW`. */
+    public function powerBandDe(): ?string
+    {
+        $bands = $this->bands();
+
+        if ($bands === []) {
+            return null;
+        }
+
+        usort($bands, static fn (array $a, array $b): int => $a <=> $b);
+        $joined = [];
+
+        foreach ($bands as [$min, $max]) {
+            $last = array_key_last($joined);
+
+            if ($last !== null && $min <= $joined[$last][1] + 1) {
+                $joined[$last][1] = max($joined[$last][1], $max);
+
+                continue;
+            }
+
+            $joined[] = [$min, $max];
+        }
+
+        $parts = array_map(
+            static fn (array $band): string => ($band[0] === $band[1] ? GermanFormat::integer($band[0]) : GermanFormat::integer($band[0]).GermanFormat::ENDASH.GermanFormat::integer($band[1])).GermanFormat::NBSP.'kW',
+            $joined,
+        );
+        $last = (string) array_pop($parts);
+
+        return $parts === [] ? $last : implode(', ', $parts).' oder '.$last;
+    }
 
     /** Identity for set operations: the size itself, not the minima or the axle attached to it. */
     public function key(): string
@@ -57,7 +160,9 @@ final readonly class TyreSize
      *
      * @return array{
      *     width: int, aspect: int, diameter: float,
-     *     documentMinLoadIndex: int|null, documentMinSpeedSymbol: string|null, axle: string
+     *     documentMinLoadIndex: int|null, documentMinSpeedSymbol: string|null, axle: string,
+     *     requiresEntry: bool, conditions: list<array<string, mixed>>, kwMin: int|null, kwMax: int|null,
+     *     powerBands: list<array{0: int, 1: int}>
      * }
      */
     public function toArray(): array
@@ -69,13 +174,20 @@ final readonly class TyreSize
             'documentMinLoadIndex' => $this->documentMinLoadIndex,
             'documentMinSpeedSymbol' => $this->documentMinSpeedSymbol,
             'axle' => $this->axle,
+            'requiresEntry' => $this->requiresEntry,
+            'conditions' => array_map(static fn (Condition $c): array => $c->toArray(), $this->conditions),
+            'kwMin' => $this->kwMin,
+            'kwMax' => $this->kwMax,
+            'powerBands' => $this->powerBands,
         ];
     }
 
     /**
      * @param array{
      *     width: int, aspect: int, diameter: float|int|string,
-     *     documentMinLoadIndex?: int|null, documentMinSpeedSymbol?: string|null, axle?: string
+     *     documentMinLoadIndex?: int|null, documentMinSpeedSymbol?: string|null, axle?: string,
+     *     requiresEntry?: bool, conditions?: list<array{code: string, severity: string, textDe: string}>,
+     *     kwMin?: int|null, kwMax?: int|null, powerBands?: list<array{0: int, 1: int}>
      * } $data
      */
     public static function fromArray(array $data): self
@@ -87,6 +199,12 @@ final readonly class TyreSize
             documentMinLoadIndex: $data['documentMinLoadIndex'] ?? null,
             documentMinSpeedSymbol: $data['documentMinSpeedSymbol'] ?? null,
             axle: $data['axle'] ?? 'ALL',
+            requiresEntry: (bool) ($data['requiresEntry'] ?? false),
+            conditions: array_map(static fn (array $c): Condition => Condition::fromArray($c), $data['conditions'] ?? []),
+            // Additive: a snapshot frozen before the band reads without one.
+            kwMin: isset($data['kwMin']) ? (int) $data['kwMin'] : null,
+            kwMax: isset($data['kwMax']) ? (int) $data['kwMax'] : null,
+            powerBands: array_map(static fn (array $b): array => [(int) $b[0], (int) $b[1]], $data['powerBands'] ?? []),
         );
     }
 

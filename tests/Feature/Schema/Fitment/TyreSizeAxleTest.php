@@ -7,6 +7,7 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Enums\Axle;
+use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Models\FitmentTyreSize;
 use App\Models\TyreVariant;
@@ -30,7 +31,8 @@ it('carries a size\'s own axle from the table into the verdict, so a rear-only s
 
     $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
     $config = WheelConfig::factory()->havanna85x18()->create();
-    $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id]);
+    // An RS 4 runs 280 km/h: its document prints the table of tyre load at speed, or the tyre half is UNKNOWN.
+    $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => ApprovalDocument::factory()->printingDeratingTable()]);
 
     FitmentTyreSize::factory()->for($fitment)->size(245, 40, 18.0)->forAxle(Axle::Front)->create();
     FitmentTyreSize::factory()->for($fitment)->size(275, 35, 18.0)->forAxle(Axle::Rear)->create();

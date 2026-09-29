@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { decimal, euro, felgen, NNBSP, withUnit, zoll } from './format'
+import { decimal, felgen, NNBSP, paragraphs, withUnit, zoll } from './format'
 
 describe('format', () => {
+    it('reads a typed text as its paragraphs: a blank line starts a new one', () => {
+        expect(paragraphs('Erster Absatz.\n\nZweiter Absatz,\nmit Umbruch.')).toEqual(['Erster Absatz.', 'Zweiter Absatz,\nmit Umbruch.'])
+        expect(paragraphs('Windows\r\n\r\nZeilen')).toEqual(['Windows', 'Zeilen'])
+        expect(paragraphs('Leerzeile mit Leerzeichen\n   \nweiter')).toEqual(['Leerzeile mit Leerzeichen', 'weiter'])
+        expect(paragraphs('')).toEqual([])
+        expect(paragraphs(null)).toEqual([])
+    })
+
     it('counts wheels in one spelling', () => {
         expect(felgen(1)).toBe(`1${NNBSP}Felge`)
         expect(felgen(12)).toBe(`12${NNBSP}Felgen`)
         expect(felgen(0)).toBe(`0${NNBSP}Felgen`)
         expect(felgen(1234)).toBe(`1.234${NNBSP}Felgen`)
-    })
-
-    it('writes prices the German way, with the euro sign held to the number', () => {
-        expect(euro(123400)).toBe(`1.234,00${NNBSP}€`)
-        expect(euro(18900)).toBe(`189,00${NNBSP}€`)
-        expect(euro(5)).toBe(`0,05${NNBSP}€`)
     })
 
     it('joins a measure and its unit with a narrow no-break space', () => {

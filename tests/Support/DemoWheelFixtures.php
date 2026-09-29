@@ -18,7 +18,7 @@ final class DemoWheelFixtures
     {
         $dir = storage_path('framework/testing/demo-wheels-'.bin2hex(random_bytes(4)));
         File::ensureDirectoryExists($dir);
-        config(['rimify.demo.wheels_dir' => $dir]);
+        config(['rimify.demo.wheels_dir' => $dir, 'rimify.demo.placeholders_dir' => $dir.DIRECTORY_SEPARATOR.'placeholders']);
 
         return $dir;
     }
@@ -59,6 +59,33 @@ final class DemoWheelFixtures
                 (string) json_encode(self::manifest($slug), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
             );
         }
+    }
+
+    /**
+     * A photograph map of the test's own, and the config pointed at it — the shipped map is empty.
+     *
+     * @param  array<string, array<string, mixed>>  $entries  file => entry, as in wheel-photos.php
+     */
+    public static function photoMap(string $dir, array $entries): void
+    {
+        $file = $dir.DIRECTORY_SEPARATOR.'wheel-photos.php';
+        File::put($file, '<?php return '.var_export($entries, true).';');
+        config(['rimify.demo.photos_file' => $file]);
+    }
+
+    /**
+     * A front view and a further angle of one finish, in the map's shape.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function photoPair(string $model, string $finish): array
+    {
+        $credit = ['source' => 'Test', 'photographer' => 'Test', 'licence' => 'Test', 'url' => 'https://example.test'];
+
+        return [
+            'fixture-front.jpg' => ['slug' => $model.'-front', 'model' => $model, 'finish' => $finish, 'circle' => [540, 540, 500], 'hub' => null, 'credit' => $credit],
+            'fixture-angle.jpg' => ['slug' => $model.'-angle', 'model' => $model, 'finish' => $finish, 'circle' => [540, 540, 500], 'view' => 'Schräg von vorn', 'hub' => null, 'credit' => $credit],
+        ];
     }
 
     public static function remove(string $dir): void

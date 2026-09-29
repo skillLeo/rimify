@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
@@ -15,7 +16,10 @@ use DateTimeZone;
  * across machines and a test can assert the exact code points. Three of those code points are
  * invisible in a diff and each of them matters:
  *
- *   U+00A0 NO-BREAK SPACE     between a value and `€`, so a price never wraps across lines
+ *   U+202F NARROW NO-BREAK    between an amount and `€` (DIRECTION.md: a number and its unit), the
+ *          SPACE              same code point as the browser's num.ts, so a price reads alike
+ *                             whichever side wrote it and never wraps across lines
+ *   U+00A0 NO-BREAK SPACE     between a measure and its unit (`66,6 mm`, `ET 35`)
  *   U+00D7 MULTIPLICATION     in `8,5J × 18`, which is not the letter x
  *   U+2013 EN DASH            in a build period `03/2018–11/2019`, which is not a hyphen
  *
@@ -25,6 +29,8 @@ use DateTimeZone;
 final class GermanFormat
 {
     public const NBSP = "\u{00A0}";
+
+    public const NNBSP = "\u{202F}";
 
     public const TIMES = "\u{00D7}";
 
@@ -36,7 +42,10 @@ final class GermanFormat
 
     public const TIMEZONE = 'Europe/Berlin';
 
-    /** `1.425,00 €` — thousands point, decimal comma, non-breaking space before the symbol. */
+    /**
+     * `1.425,00 €` — thousands point, decimal comma, a narrow no-break space before the symbol. Integer
+     * digits only: the cents are never divided into a float (the launch release §4).
+     */
     public static function money(int $cents, string $currency = 'EUR'): string
     {
         $symbol = match ($currency) {
@@ -47,10 +56,16 @@ final class GermanFormat
 
         $sign = $cents < 0 ? self::MINUS : '';
         $absolute = abs($cents);
+        $units = self::grouped((string) intdiv($absolute, 100));
+        $fraction = str_pad((string) ($absolute % 100), 2, '0', STR_PAD_LEFT);
 
-        $value = number_format($absolute / 100, 2, ',', '.');
+        return $sign.$units.','.$fraction.self::NNBSP.$symbol;
+    }
 
-        return $sign.$value.self::NBSP.$symbol;
+    /** `1425` → `1.425`: thousands points on a string of digits, without a number in between. */
+    public static function grouped(string $digits): string
+    {
+        return strrev(implode('.', str_split(strrev($digits), 3)));
     }
 
     /** A plain German decimal: comma separator, thousands point, fixed places. */
@@ -168,16 +183,62 @@ final class GermanFormat
         return DateTimeImmutable::createFromInterface($at)->setTimezone(new DateTimeZone(self::TIMEZONE));
     }
 
+    /** `21.11.` — a day within a period that already names its year. */
+    public static function dayMonth(?DateTimeInterface $date): ?string
+    {
+        return $date === null ? null : self::inBerlin($date)->format('d.m.');
+    }
+
     /** `21.11.2025`, rendered in Europe/Berlin whatever zone the instant was stored in. */
     public static function date(?DateTimeInterface $date): ?string
     {
         return $date === null ? null : self::inBerlin($date)->format('d.m.Y');
     }
 
-    /** `21.11.2025, 14:22 Uhr` */
+    /** `21.11.2025, 14:22 Uhr` — a no-break space before `Uhr`, so the time never wraps from its unit. */
     public static function dateTime(?DateTimeInterface $at): ?string
     {
-        return $at === null ? null : self::inBerlin($at)->format('d.m.Y, H:i').' Uhr';
+        return $at === null ? null : self::inBerlin($at)->format('d.m.Y, H:i').self::NBSP.'Uhr';
+    }
+
+    /** `14:22 Uhr`, in Europe/Berlin — the time alone, under a day heading that already names the date. */
+    public static function time(?DateTimeInterface $at): ?string
+    {
+        return $at === null ? null : self::inBerlin($at)->format('H:i').self::NBSP.'Uhr';
+    }
+
+    /**
+     * How long ago, the way a colleague says it: `gerade eben`, `vor 5 Min.`, `vor 2 Std.`, `gestern`,
+     * `vor 3 Tagen`, and past `maxDays` (a month) the date itself. Days are Berlin calendar days, so "gestern"
+     * at 00:30 means the day before, not 24 hours before.
+     */
+    public static function ago(?DateTimeInterface $at, ?DateTimeInterface $now = null, int $maxDays = 30): ?string
+    {
+        if ($at === null) {
+            return null;
+        }
+
+        $then = self::inBerlin($at);
+        // Carbon's clock, not PHP's: the one the app (and every test) agrees on.
+        $now = self::inBerlin($now ?? CarbonImmutable::now());
+        $minutes = intdiv(max(0, $now->getTimestamp() - $then->getTimestamp()), 60);
+
+        if ($minutes < 1) {
+            return 'gerade eben';
+        }
+
+        if ($minutes < 60) {
+            return "vor {$minutes}".self::NBSP.'Min.';
+        }
+
+        $days = (int) $then->setTime(0, 0)->diff($now->setTime(0, 0))->days;
+
+        return match (true) {
+            $days === 0 => 'vor '.intdiv($minutes, 60).self::NBSP.'Std.',
+            $days === 1 => 'gestern',
+            $days <= $maxDays => "vor {$days} Tagen",
+            default => (string) self::date($at),
+        };
     }
 
     /** `03/2018` */
@@ -208,16 +269,58 @@ final class GermanFormat
         return $start.self::ENDASH.($end ?? 'heute');
     }
 
-    /** HSN keeps its leading zeros: `5` renders as `0005`, never as `5`. */
-    public static function hsn(string $hsn): string
+    /**
+     * HSN keeps its leading zeros: `5` renders as `0005`, never as `5`. A car without one (typed from a
+     * Gutachten, Block C item 7) renders as nothing — never as `0000`, a number no one issued.
+     */
+    public static function hsn(?string $hsn): string
     {
-        return str_pad(mb_strtoupper(trim($hsn)), 4, '0', STR_PAD_LEFT);
+        $hsn = trim((string) $hsn);
+
+        return $hsn === '' ? '' : str_pad(mb_strtoupper($hsn), 4, '0', STR_PAD_LEFT);
     }
 
-    /** `HSN 0005 · TSN 582` */
-    public static function keyNumbers(string $hsn, string $tsn): string
+    /** What every surface says for a car whose key numbers no source has given yet. */
+    public const KEY_NUMBERS_MISSING = 'HSN/TSN noch nicht hinterlegt';
+
+    /** `HSN 0005 · TSN 582`, or that they are not known yet — never a made-up pair. */
+    public static function keyNumbers(?string $hsn, ?string $tsn): string
     {
-        return sprintf('HSN %s %s TSN %s', self::hsn($hsn), self::MIDDOT, mb_strtoupper(trim($tsn)));
+        if (trim((string) $hsn) === '' || trim((string) $tsn) === '') {
+            return self::KEY_NUMBERS_MISSING;
+        }
+
+        return sprintf('HSN %s %s TSN %s', self::hsn($hsn), self::MIDDOT, mb_strtoupper(trim((string) $tsn)));
+    }
+
+    /**
+     * What Feld K of the papers must show for a car a Gutachten names by its EG type approval — the one thing
+     * that tells apart the halves a document splits a car into (`e1*2007/46*0283, ab *04`), with the range set
+     * off from the number so that „ab“ never reads as a date. `$short` is the range alone, for a line with no
+     * room (`Feld K ab *04`): null there when the number covers every extension. Null without a readable number.
+     */
+    public static function egRange(mixed $raw, bool $short = false): ?string
+    {
+        $eg = EgNumber::parse(is_string($raw) ? $raw : null);
+
+        if ($eg === null) {
+            return null;
+        }
+
+        $ext = static fn (int $n): string => '*'.str_pad((string) $n, 2, '0', STR_PAD_LEFT);
+        $range = match (true) {
+            $eg->from === null => null,
+            $eg->to === null => 'ab'.self::NBSP.$ext($eg->from),
+            $eg->to === $eg->from => $ext($eg->from),
+            default => $ext($eg->from).' bis'.self::NBSP.$ext($eg->to),
+        };
+        $field = 'Feld'.self::NBSP.'K';
+
+        if ($short) {
+            return $range === null ? null : $field.' '.$range;
+        }
+
+        return $field.': '.$eg->base.($range === null ? '' : ', '.$range);
     }
 
     /** `4,8 (555 Bewertungen)`, with the singular handled. */
@@ -228,8 +331,11 @@ final class GermanFormat
         return self::decimal($rating, 1).' ('.number_format($reviews, 0, ',', '.').' '.$noun.')';
     }
 
-    /** `+12 %` / `−3 %` — a non-breaking space before the sign, per German typography. */
-    public static function percent(int|float $value, bool $withSign = true): string
+    /**
+     * `+12 %` / `−3 %` — a non-breaking space before the sign, per German typography. `$places` fixes
+     * the decimals (`+15,0 %`), where figures side by side must read alike.
+     */
+    public static function percent(int|float $value, bool $withSign = true, ?int $places = null): string
     {
         $sign = '';
 
@@ -237,7 +343,9 @@ final class GermanFormat
             $sign = $value > 0 ? '+' : ($value < 0 ? self::MINUS : '');
         }
 
-        return $sign.self::trimmedDecimal(abs($value), 1).self::NBSP.'%';
+        $figure = $places === null ? self::trimmedDecimal(abs($value), 1) : self::decimal(abs($value), $places);
+
+        return $sign.$figure.self::NBSP.'%';
     }
 
     /** `1.234` — an integer quantity with a thousands point. */

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
+use App\Models\Page;
+use App\Services\Content\PageContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -22,17 +24,19 @@ class RechtlichesController extends Controller
     /** The rail, in the order the footer lists them. */
     private const TABS = ['impressum', 'datenschutz', 'agb', 'widerrufsbelehrung', 'versand'];
 
+    public function __construct(private readonly PageContent $content) {}
+
     public function __invoke(Request $request, ?string $slug = null): Response
     {
         $slug = in_array($slug, self::TABS, true) ? $slug : self::TABS[0];
 
         $pages = DB::table('pages')
             ->whereIn('slug', self::TABS)
-            ->where('kind', 'legal')
+            ->where('kind', Page::KIND_LEGAL)
             ->get(['id', 'slug', 'title']);
 
         $tabs = [];
-        $pageId = null;
+        $present = false;
 
         foreach (self::TABS as $tab) {
             $row = $pages->firstWhere('slug', $tab);
@@ -41,44 +45,18 @@ class RechtlichesController extends Controller
                 continue;
             }
 
-            $tabs[] = ['slug' => $tab, 'title' => (string) $row->title];
-
-            if ($tab === $slug) {
-                $pageId = (int) $row->id;
-            }
+            // A previewed page carries its drafted name in the rail as well as in the heading.
+            $tabs[] = ['slug' => $tab, 'title' => $this->content->titleOf($tab, (string) $row->title)];
+            $present = $present || $tab === $slug;
         }
 
-        $blocks = $pageId === null ? [] : $this->blocks($pageId);
+        // The words — live, or the draft in a signed preview (PageContent).
+        $blocks = $present ? ($this->content->page($slug)['blocks'] ?? []) : [];
 
         return Inertia::render('Rechtliches/Index', [
             'tabs' => $tabs,
             'active' => $slug,
             'blocks' => $blocks,
         ]);
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function blocks(int $pageId): array
-    {
-        $rows = DB::table('page_blocks')
-            ->where('page_id', $pageId)
-            ->orderBy('sort_order')
-            ->get(['id', 'type', 'data']);
-
-        $blocks = [];
-
-        foreach ($rows as $row) {
-            $data = json_decode((string) $row->data, true);
-
-            $blocks[] = [
-                'id' => (int) $row->id,
-                'type' => (string) $row->type,
-                'data' => is_array($data) ? $data : [],
-            ];
-        }
-
-        return $blocks;
     }
 }

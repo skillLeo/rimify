@@ -27,6 +27,22 @@ enum VerdictStatus: string
     /** We hold no document, or the vehicle record is incomplete under R-03. */
     case Unknown = 'UNKNOWN';
 
+    /**
+     * The weaker of two halves of one answer (the wheel and the tyres, R-03): NOT_PERMITTED, then
+     * UNKNOWN, then CONDITIONAL, then PERMITTED. PERMITTED only when both are.
+     */
+    public static function weaker(self $a, self $b): self
+    {
+        $rank = static fn (self $s): int => match ($s) {
+            self::NotPermitted => 0,
+            self::Unknown => 1,
+            self::Conditional => 2,
+            self::Permitted => 3,
+        };
+
+        return $rank($a) <= $rank($b) ? $a : $b;
+    }
+
     /** May the customer put this in the basket at all? */
     public function isSellable(): bool
     {

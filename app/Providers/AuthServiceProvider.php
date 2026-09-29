@@ -5,14 +5,48 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\AdminUser;
+use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Models\Brand;
+use App\Models\CatalogueImport;
+use App\Models\DemandMark;
+use App\Models\FaqEntry;
+use App\Models\FitmentConflict;
+use App\Models\NavItem;
+use App\Models\Order;
+use App\Models\Page;
+use App\Models\ReviewFeedback;
+use App\Models\SavedView;
+use App\Models\StorageSetting;
 use App\Models\TpmsSensorPrice;
+use App\Models\Vehicle;
+use App\Models\WheelModel;
+use App\Policies\AdminNotificationPolicy;
+use App\Policies\ApprovalDocumentPolicy;
 use App\Policies\BalanceWeightColourPolicy;
+use App\Policies\BrandPolicy;
+use App\Policies\CatalogueImportPolicy;
+use App\Policies\DemandMarkPolicy;
+use App\Policies\DemoDataPolicy;
+use App\Policies\DocumentUploadPolicy;
+use App\Policies\FaqEntryPolicy;
+use App\Policies\FitmentConflictPolicy;
+use App\Policies\NavItemPolicy;
+use App\Policies\OrderPolicy;
+use App\Policies\PagePolicy;
+use App\Policies\ReviewFeedbackPolicy;
+use App\Policies\SavedViewPolicy;
+use App\Policies\StorageSettingPolicy;
 use App\Policies\TpmsSensorPricePolicy;
+use App\Policies\VehiclePolicy;
+use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
+use App\Services\Demo\DemoTables;
+use App\Services\Storage\PdfUpload;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +70,25 @@ final class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         BalanceWeightColour::class => BalanceWeightColourPolicy::class,
         TpmsSensorPrice::class => TpmsSensorPricePolicy::class,
+        Page::class => PagePolicy::class,
+        FaqEntry::class => FaqEntryPolicy::class,
+        NavItem::class => NavItemPolicy::class,
+        DatabaseNotification::class => AdminNotificationPolicy::class,
+        Order::class => OrderPolicy::class,
+        DemandMark::class => DemandMarkPolicy::class,
+        SavedView::class => SavedViewPolicy::class,
+        // Not a model: the demo set as a whole (DemoTables), taken away from the rail's strip.
+        DemoTables::class => DemoDataPolicy::class,
+        StorageSetting::class => StorageSettingPolicy::class,
+        // Not a model: a PDF upload before its row exists (PdfUpload).
+        PdfUpload::class => DocumentUploadPolicy::class,
+        WheelModel::class => WheelModelPolicy::class,
+        Brand::class => BrandPolicy::class,
+        CatalogueImport::class => CatalogueImportPolicy::class,
+        ApprovalDocument::class => ApprovalDocumentPolicy::class,
+        FitmentConflict::class => FitmentConflictPolicy::class,
+        Vehicle::class => VehiclePolicy::class,
+        ReviewFeedback::class => ReviewFeedbackPolicy::class,
     ];
 
     public function register(): void

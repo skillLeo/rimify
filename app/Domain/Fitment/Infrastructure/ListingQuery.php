@@ -236,11 +236,8 @@ final readonly class ListingQuery
             'wm.status = ?',
             'wc.deleted_at IS NULL',
             'wm.deleted_at IS NULL',
-            // R-03: a vehicle we cannot characterise never appears in a listing as permitted.
-            'v.needs_review = 0',
-            'v.axle_load_front_kg IS NOT NULL',
-            'v.axle_load_rear_kg IS NOT NULL',
-            'v.max_speed_kmh IS NOT NULL',
+            // R-03 as amended on 28.09.2026: a car without axle loads or top speed is still listed — its
+            // wheels rest on the document — and each card's verdict keeps the tyre half open (the resolver).
             // The document's own build-window scope against the vehicle's, written once.
             '('.RangeSql::windowsOverlapExpression('f', 'v').')',
             // The wheel's actual geometry inside what the row permits, written once.

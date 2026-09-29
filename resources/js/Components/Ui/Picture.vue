@@ -6,7 +6,7 @@
  * below the fold is lazy.
  */
 
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 /**
  * Anchor points measured on the photograph, normalised to this frame: x and y are fractions of the
@@ -16,7 +16,7 @@ import { computed, ref } from 'vue'
  */
 export interface WheelAnchors {
     centre: { x: number; y: number }
-    /** The rim's outer lip, derived from the cut-out, never typed in. */
+    /** The rim's outer lip: derived from the cut-out, or measured where the cut-out shows the barrel too. */
     wheel?: { x: number; y: number; r: number }
     /** The circle through the bolt-hole centres (Lochkreis). */
     pcd?: { x: number; y: number; r: number }
@@ -25,6 +25,10 @@ export interface WheelAnchors {
     valve?: { x: number; y: number }
     /** The stamped approval mark: its centre, width and height. */
     kba?: { x: number; y: number; w: number; h: number }
+    /** The diameter at the bead seat: a vertical line through its centre, `h` long. */
+    bead?: { x: number; y: number; h: number }
+    /** The barrel between the two Felgenhörner where the photograph shows it: a span through its centre, `w` wide. */
+    flanges?: { x: number; y: number; w: number }
 }
 
 export interface ImageManifest {
@@ -34,8 +38,13 @@ export interface ImageManifest {
     height: number
     widths: number[]
     placeholder: string
-    /** The format of the `<img>` fallback: `jpg` (the default) or `png` for a transparent cut-out. */
+    /** The format of the `<img>` fallback: `jpg` (the default), `png` for a transparent cut-out, `svg` for a drawing. */
     fallback?: string
+    /**
+     * The formats offered before the fallback, best first (default AVIF, then WebP). A drawn
+     * placeholder (DemoPlaceholders) is one SVG and offers none.
+     */
+    formats?: string[]
     /**
      * Further photographs of the same finish from other angles, in the order they were shot
      * (front view first is the manifest itself). Only real studio shots: never a drawing.
@@ -49,6 +58,12 @@ export interface ImageManifest {
     bare?: ImageManifest
     /** The approval number the photograph shows (`53810`), when one was read off it. */
     stamp?: string
+    /**
+     * An uploaded photograph's own sentence, as a person wrote it in the admin (FinishImages) — the
+     * alt text wherever it is shown, and its thumbnail's name as `label`.
+     */
+    alt?: string
+    label?: string
 }
 
 /** One more angle of the same finish, and how to name it (`Schräg von vorn`). */
@@ -67,11 +82,20 @@ const props = withDefaults(
     { sizes: '100vw', eager: false }
 )
 
-const emit = defineEmits<{ (e: 'loaded'): void }>()
+const emit = defineEmits<{ (e: 'loaded'): void; (e: 'failed'): void }>()
 
 const loaded = ref(false)
+const img = ref<HTMLImageElement | null>(null)
+
+/* A file that failed before the page was hydrated fired its error with nobody listening: asked once here. */
+onMounted(() => {
+    if (img.value?.complete && img.value.naturalWidth === 0 && img.value.currentSrc !== '') {
+        emit('failed')
+    }
+})
 
 const srcset = (ext: string): string => props.image.widths.map((w) => `${props.image.base}-${w}.${ext} ${w}w`).join(', ')
+const formats = computed(() => props.image.formats ?? ['avif', 'webp'])
 // The manifest names its own fallback format: a cut-out with transparency ships PNG, a photo JPEG.
 const fallbackExt = computed(() => props.image.fallback ?? 'jpg')
 const fallback = computed(() => `${props.image.base}-${props.image.widths[props.image.widths.length - 1]}.${fallbackExt.value}`)
@@ -86,9 +110,9 @@ function onLoad(): void {
     <!-- A transparent cut-out gets no blurred placeholder: an opaque square behind it would
          show as a box until the file paints. -->
     <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="fallbackExt === 'png' ? undefined : { backgroundImage: `url(${image.placeholder})` }">
-        <source type="image/avif" :srcset="srcset('avif')" :sizes="sizes" />
-        <source type="image/webp" :srcset="srcset('webp')" :sizes="sizes" />
+        <source v-for="format in formats" :key="format" :type="`image/${format}`" :srcset="srcset(format)" :sizes="sizes">
         <img
+            ref="img"
             :src="fallback"
             :srcset="srcset(fallbackExt)"
             :sizes="sizes"
@@ -99,7 +123,8 @@ function onLoad(): void {
             :fetchpriority="eager ? 'high' : undefined"
             decoding="async"
             @load="onLoad"
-        />
+            @error="emit('failed')"
+        >
     </picture>
 </template>
 

@@ -145,6 +145,13 @@ it('reads the rows and the configurations once for the whole batch', function ()
 
             return $this->inner->findWheelConfigs($wheelConfigIds);
         }
+
+        public function conflictDecisionsFor(int $vehicleId, array $wheelConfigIds): array
+        {
+            $this->calls['decisions'] = ($this->calls['decisions'] ?? 0) + 1;
+
+            return $this->inner->conflictDecisionsFor($vehicleId, $wheelConfigIds);
+        }
     };
 
     $resolver = new FitmentResolver(

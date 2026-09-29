@@ -86,7 +86,7 @@ final readonly class VehicleTree
             ->orderByRaw('build_from IS NULL, build_from')
             ->get([
                 'id', 'variant', 'type_designation', 'hsn', 'tsn', 'vsn',
-                'build_from', 'build_to', 'power_ps', 'body_form', 'needs_review',
+                'build_from', 'build_to', 'power_ps', 'body_form', 'needs_review', 'eg_nummer_raw',
             ]);
 
         $out = [];
@@ -104,11 +104,19 @@ final readonly class VehicleTree
                     $row->build_from === null ? null : new \DateTimeImmutable((string) $row->build_from),
                     $row->build_to === null ? null : new \DateTimeImmutable((string) $row->build_to),
                 ),
+                // Whether the window above says anything: beside a Feld K line an unknown one is left out.
+                'buildKnown' => $row->build_from !== null || $row->build_to !== null,
                 'powerPs' => $row->power_ps === null ? null : (int) $row->power_ps,
                 'bodyForm' => $row->body_form,
                 // Shown, not hidden: the customer is told plainly that this row is incomplete,
                 // rather than being given a confident answer derived from missing data (R-03).
                 'needsReview' => (bool) $row->needs_review,
+                // A car known only from a Gutachten has no key numbers and no build window yet; a document
+                // may split it at an extension of its EG type approval, and the halves carry different
+                // rows — different bolt sets. Feld K is then the one thing that tells them apart.
+                'approval' => $row->hsn === null ? GermanFormat::egRange($row->eg_nummer_raw) : null,
+                // The range alone, for the phone's select, where the whole line does not fit.
+                'approvalShort' => $row->hsn === null ? GermanFormat::egRange($row->eg_nummer_raw, short: true) : null,
             ];
         }
 

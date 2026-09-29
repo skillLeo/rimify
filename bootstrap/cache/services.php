@@ -43,6 +43,7 @@
     39 => 'App\\Providers\\AppServiceProvider',
     40 => 'App\\Providers\\AuthServiceProvider',
     41 => 'App\\Providers\\FitmentServiceProvider',
+    42 => 'App\\Providers\\StorageServiceProvider',
   ),
   'eager' => 
   array (
@@ -72,6 +73,7 @@
     23 => 'Tighten\\Ziggy\\ZiggyServiceProvider',
     24 => 'App\\Providers\\AppServiceProvider',
     25 => 'App\\Providers\\AuthServiceProvider',
+    26 => 'App\\Providers\\StorageServiceProvider',
   ),
   'deferred' => 
   array (
@@ -236,6 +238,7 @@
     'validation.presence' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'Illuminate\\Contracts\\Validation\\UncompromisedVerifier' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
+    'App\\Domain\\Fitment\\Contracts\\PapersSource' => 'App\\Providers\\FitmentServiceProvider',
     'App\\Domain\\Fitment\\Contracts\\VehicleRepository' => 'App\\Providers\\FitmentServiceProvider',
     'App\\Domain\\Fitment\\Contracts\\FitmentRepository' => 'App\\Providers\\FitmentServiceProvider',
     'App\\Domain\\Fitment\\Contracts\\TyreCatalogue' => 'App\\Providers\\FitmentServiceProvider',

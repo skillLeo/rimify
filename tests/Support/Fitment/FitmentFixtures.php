@@ -6,6 +6,8 @@ namespace Tests\Support\Fitment;
 
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
+use App\Domain\Fitment\Data\RowFilter;
+use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Derivation\IndexTables;
@@ -47,7 +49,11 @@ final class FitmentFixtures
         );
     }
 
-    public static function document(int $revision = 2, string $kind = 'TEILEGUTACHTEN'): DocumentRecord
+    /**
+     * The fixture document prints the table of tyre load at speed that ABE 55255 prints on its page 6 — a
+     * document without one answers UNKNOWN above 210 km/h (pass `withTable: false`).
+     */
+    public static function document(int $revision = 2, string $kind = 'TEILEGUTACHTEN', bool $withTable = true): DocumentRecord
     {
         return new DocumentRecord(
             id: 57,
@@ -58,7 +64,17 @@ final class FitmentFixtures
             pdfKey: 'gutachten/tg-2024-11-0093.pdf',
             pdfSha256: str_repeat('9f2c', 16),
             sourcePage: 7,
+            speedDerating: $withTable ? self::deratingTable() : null,
         );
+    }
+
+    /** ABE 55255's table, from the one file it is transcribed in (database/seeders/content). */
+    public static function deratingTable(): SpeedDeratingTable
+    {
+        /** @var array{source_page: int, rows: array<int, array<string, int|null>>} $printed */
+        $printed = require __DIR__.'/../../../database/seeders/content/derating-abe-55255.php';
+
+        return new SpeedDeratingTable($printed['rows'], $printed['source_page']);
     }
 
     public static function entryRequired(): Condition
@@ -107,6 +123,7 @@ final class FitmentFixtures
      *
      * @param  list<TyreSize>|null  $sizes
      * @param  list<Condition>  $conditions
+     * @param  list<RowFilter>  $filters
      */
     public static function row(
         int $vehicleId = 1,
@@ -122,6 +139,7 @@ final class FitmentFixtures
         ?DocumentRecord $document = null,
         string $axle = 'ALL',
         ?float $centreBoreMm = null,
+        array $filters = [],
     ): FitmentRow {
         return new FitmentRow(
             id: $id,
@@ -141,6 +159,7 @@ final class FitmentFixtures
             // Null by default: most rows state no bore of their own, which is the shape every
             // other test in this suite was written against.
             centreBoreMm: $centreBoreMm,
+            filters: $filters,
         );
     }
 

@@ -9,6 +9,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Ui/Icon.vue'
+import { paragraphs } from '../../format'
 
 defineOptions({ layout: AppLayout })
 
@@ -26,19 +27,12 @@ const props = defineProps<{
 
 const description = computed(() => props.guide.metaDescription || props.guide.teaser)
 
-/** Paragraphs are separated by a blank line in the seeded text. */
-function paragraphs(text: string | undefined): string[] {
-    return (text ?? '')
-        .split(/\n{2,}/)
-        .map((p) => p.trim())
-        .filter((p) => p !== '')
-}
 </script>
 
 <template>
     <Head>
         <title>{{ guide.title }} – Ratgeber</title>
-        <meta name="description" :content="description" />
+        <meta name="description" :content="description">
     </Head>
 
     <article class="container guide" aria-labelledby="guide-title">
@@ -55,7 +49,7 @@ function paragraphs(text: string | undefined): string[] {
         <div class="prose guide__body">
             <template v-for="(block, index) in guide.blocks" :key="index">
                 <h2 v-if="block.data.heading" class="h3">{{ block.data.heading }}</h2>
-                <p v-for="(paragraph, p) in paragraphs(block.data.text)" :key="p">{{ paragraph }}</p>
+                <p v-for="(paragraph, p) in paragraphs(block.data.text)" :key="p" class="guide__para">{{ paragraph }}</p>
             </template>
         </div>
 
@@ -79,6 +73,11 @@ function paragraphs(text: string | undefined): string[] {
 <style scoped>
 .guide {
     padding-block: var(--sp-48) var(--sp-96);
+}
+
+/* A line break the team typed inside a paragraph stays one, as on the legal pages and the FAQ. */
+.guide__para {
+    white-space: pre-line;
 }
 
 .guide__head {

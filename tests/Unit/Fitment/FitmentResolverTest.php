@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Data\ConflictDecision;
+use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Support\BuildWindow;
+use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
+use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use Tests\Support\Fitment\FitmentFixtures;
@@ -73,14 +77,17 @@ it('flags a workshop condition as needing explicit acknowledgement', function ()
  * UNKNOWN — we do not know. Distinct from "we checked and the answer is no".
  */
 
-it('yields UNKNOWN for a vehicle whose legal data could not be parsed', function (): void {
-    // R-03 outranks everything: no derivation, no positive verdict, whatever the document says.
+it('gives a vehicle whose legal data could not be parsed its wheel verdict, and never a positive tyre half', function (): void {
+    // R-03 as amended on 28.09.2026: the wheel rests on the document; the tyres wait for the papers.
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: NEEDS_REVIEW)])
         ->resolve(NEEDS_REVIEW, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    expect($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->reason?->code)->toBe(VerdictReason::VEHICLE_INCOMPLETE)
-        ->and($verdict->isSellable())->toBeFalse();
+    expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Conditional)
+        ->and($verdict->status)->toBe(VerdictStatus::Conditional)
+        // No minimum is stated without the figures, so no tyre can be offered on it.
+        ->and($verdict->front->minLoadIndex)->toBeNull()
+        ->and($verdict->front->minSpeedSymbol)->toBeNull();
 });
 
 it('yields UNKNOWN when no document mentions the wheel at all', function (): void {
@@ -163,9 +170,10 @@ it('derives the minimum when the document is silent', function (): void {
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row()])
         ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    // 1210 kg front → 605.0 per tyre → 91; 1235 kg rear → 617.5 → 92; 280 km/h → Y.
-    expect($verdict->front->minLoadIndex)->toBe(91)
-        ->and($verdict->rear->minLoadIndex)->toBe(92)
+    // 280 km/h → Y, and at 280 km/h a Y tyre carries 95 % of its load (ABE 55255, p. 6).
+    // 1210 kg front → 605,0 per tyre ÷ 0,95 = 636,8 → 93 (650); 1235 kg rear → 617,5 ÷ 0,95 = 650,0 → 93.
+    expect($verdict->front->minLoadIndex)->toBe(93)
+        ->and($verdict->rear->minLoadIndex)->toBe(93)
         ->and($verdict->front->minSpeedSymbol)->toBe('Y')
         ->and($verdict->front->minSource)->toBe(MinSource::Derived);
 });
@@ -184,7 +192,7 @@ it('ignores a laxer document minimum — the derivation is the floor', function 
         FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinLoadIndex: 80)]),
     ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    expect($verdict->front->minLoadIndex)->toBe(91)
+    expect($verdict->front->minLoadIndex)->toBe(93)
         ->and($verdict->front->minSource)->toBe(MinSource::Derived);
 });
 
@@ -199,17 +207,19 @@ it('ignores a document speed symbol it does not recognise, rather than relaxing'
 });
 
 it('derives front and rear separately', function (): void {
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row()])
-        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+    // The BMW 3er, 225 km/h → V at 94 %: 900 kg → 450 ÷ 0,94 = 478,7 → 83; 1020 kg → 510 ÷ 0,94 = 542,6 → 87.
+    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 3)])
+        ->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
 
-    expect($verdict->front->minLoadIndex)->not->toBe($verdict->rear->minLoadIndex);
+    expect($verdict->front->minLoadIndex)->toBe(83)
+        ->and($verdict->rear->minLoadIndex)->toBe(87);
 });
 
 /*
- * Merging several covering rows — always toward caution.
+ * Several rows of ONE document — read together, always toward caution.
  */
 
-it('requires entry if ANY covering document requires it', function (): void {
+it('requires entry if ANY covering row of the document requires it', function (): void {
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, requiresEntry: false),
         FitmentFixtures::row(id: 2, requiresEntry: true, document: FitmentFixtures::document(revision: 3)),
@@ -219,7 +229,7 @@ it('requires entry if ANY covering document requires it', function (): void {
         ->and($verdict->status)->toBe(VerdictStatus::Conditional);
 });
 
-it('shows the union of conditions across covering documents', function (): void {
+it('shows the union of conditions across the document’s covering rows', function (): void {
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, conditions: [FitmentFixtures::specificBolts()]),
         FitmentFixtures::row(id: 2, conditions: [FitmentFixtures::archRolling()]),
@@ -230,7 +240,7 @@ it('shows the union of conditions across covering documents', function (): void 
     expect($codes)->toContain('SPECIFIC_BOLTS')->toContain('ARCH_ROLLING');
 });
 
-it('offers only the intersection of tyre sizes across covering documents', function (): void {
+it('offers only the intersection of tyre sizes across the document’s covering rows', function (): void {
     // A size only one document permits is the permissive answer, and is not offered.
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, sizes: [new TyreSize(245, 45, 18.0), new TyreSize(255, 40, 18.0)]),
@@ -241,7 +251,7 @@ it('offers only the intersection of tyre sizes across covering documents', funct
         ->and($verdict->front->sizes[0]->widthMm)->toBe(245);
 });
 
-it('reports the newest revision among the covering documents', function (): void {
+it('reports the newest revision among the covering rows', function (): void {
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(id: 1, document: FitmentFixtures::document(revision: 1)),
         FitmentFixtures::row(id: 2, document: FitmentFixtures::document(revision: 4)),
@@ -249,6 +259,68 @@ it('reports the newest revision among the covering documents', function (): void
 
     expect($verdict->document?->revision)->toBe(4)
         ->and($verdict->snapshot->documentRevision)->toBe(4);
+});
+
+/*
+ * Several DOCUMENTS — one verdict each, never blended by the engine (the corrections memo §3).
+ */
+
+/** A second document, issued later than the fixture's own. */
+function laterDocument(): DocumentRecord
+{
+    return new DocumentRecord(id: 58, kind: 'ABE', number: '55255', revision: 1, issuedOn: new DateTimeImmutable('2025-06-02'), sourcePage: 4, speedDerating: FitmentFixtures::deratingTable());
+}
+
+it('names every document that agrees, the newest first', function (): void {
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(id: 1),
+        FitmentFixtures::row(id: 2, document: laterDocument()),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->document?->id)->toBe(58)
+        ->and(array_map(fn ($d): int => $d->id, $verdict->documents))->toBe([58, 57])
+        ->and($verdict->toArray()['documents'])->toHaveCount(2);
+});
+
+it('answers UNKNOWN where two documents disagree, until a person decides', function (): void {
+    $rows = [
+        FitmentFixtures::row(id: 1, requiresEntry: true),
+        FitmentFixtures::row(id: 2, document: laterDocument()),
+    ];
+
+    $verdict = FitmentFixtures::resolver($rows)->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->reason?->code)->toBe(VerdictReason::DOCUMENTS_DISAGREE)
+        ->and($verdict->document?->id)->toBe(58)
+        ->and($verdict->isSellable())->toBeFalse();
+
+    // Other Auflagen, or other tyre sizes, disagree just as well.
+    $conditions = FitmentFixtures::resolver([FitmentFixtures::row(id: 1, conditions: [FitmentFixtures::archRolling()]), FitmentFixtures::row(id: 2, document: laterDocument())])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+    $sizes = FitmentFixtures::resolver([FitmentFixtures::row(id: 1, sizes: [new TyreSize(255, 40, 18.0)]), FitmentFixtures::row(id: 2, document: laterDocument())])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($conditions->reason?->code)->toBe(VerdictReason::DOCUMENTS_DISAGREE)
+        ->and($sizes->reason?->code)->toBe(VerdictReason::DOCUMENTS_DISAGREE);
+});
+
+it('reads the decided document alone, or both toward caution, as a person decided', function (): void {
+    $rows = [
+        FitmentFixtures::row(id: 1, requiresEntry: true),
+        FitmentFixtures::row(id: 2, document: laterDocument()),
+    ];
+
+    $only = FitmentFixtures::resolver([], (new InMemoryFitmentRepository($rows, [FitmentFixtures::wheel()]))->withDecision(FitmentFixtures::WHEEL_CONFIG_ID, ConflictDecision::only(58)))
+        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+    $each = FitmentFixtures::resolver([], (new InMemoryFitmentRepository($rows, [FitmentFixtures::wheel()]))->withDecision(FitmentFixtures::WHEEL_CONFIG_ID, ConflictDecision::each()))
+        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($only->status)->toBe(VerdictStatus::Permitted)
+        ->and($only->document?->id)->toBe(58)
+        ->and($only->documents)->toBe([])
+        ->and($each->status)->toBe(VerdictStatus::Conditional)
+        ->and($each->requiresEntry)->toBeTrue()
+        ->and(array_map(fn ($d): int => $d->id, $each->documents))->toBe([58, 57]);
 });
 
 /*
@@ -261,7 +333,7 @@ it('carries a snapshot identifying the row, revision, time and engine build', fu
 
     expect($verdict->snapshot->fitmentId)->toBe(20431)
         ->and($verdict->snapshot->documentRevision)->toBe(2)
-        ->and($verdict->snapshot->engineVersion)->toBe('1.0.0')
+        ->and($verdict->snapshot->engineVersion)->toBe('1.2.0')
         ->and($verdict->snapshot->toArray()['computedAt'])->toBe('2026-09-21T14:22:31Z');
 });
 
@@ -350,4 +422,29 @@ it('resolves the two RS4 variants independently of each other', function (): voi
         ->toBe(VerdictStatus::Permitted)
         ->and($resolver->resolve(RS4_SECOND, FitmentFixtures::WHEEL_CONFIG_ID)->status)
         ->toBe(VerdictStatus::NotPermitted);
+});
+
+it('never says both: an Auflage requiring entry sets the flag, and „keine Eintragung“ gives way to it', function (): void {
+    $noEntry = new Condition(code: Condition::NO_ENTRY_REQUIRED, severity: Severity::Info, textDe: 'Keine Eintragung erforderlich.');
+
+    // The row forgot the flag, its Auflage did not: entry is required.
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(requiresEntry: false, conditions: [FitmentFixtures::entryRequired()]),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->requiresEntry)->toBeTrue()->and($verdict->status->value)->toBe('CONDITIONAL');
+
+    // One document requires the entry, another says none is needed: the cautious answer alone.
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(id: 1, requiresEntry: true),
+        FitmentFixtures::row(id: 2, requiresEntry: false, conditions: [$noEntry]),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->requiresEntry)->toBeTrue()
+        ->and(array_map(static fn (Condition $c): string => $c->code, $verdict->conditions))->not->toContain(Condition::NO_ENTRY_REQUIRED);
+
+    // Where nothing requires it, the sentence stands.
+    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(conditions: [$noEntry])])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->requiresEntry)->toBeFalse()->and($verdict->conditions)->toHaveCount(1);
 });

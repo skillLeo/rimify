@@ -28,10 +28,45 @@ export interface VehicleProp {
     label: string
     /** `Audi RS 4` — the phone-width truncation, which must never wrap to two lines. */
     short: string
-    hsn: string
-    tsn: string
+    /** Null, with the TSN, for a car typed from a Gutachten until a vehicle dataset brings them. */
+    hsn: string | null
+    tsn: string | null
     keyNumbers: string
     buildWindow: string
+    /** `Feld K: e1*2007/46*0283, ab *04` — for a car without key numbers only; tells a Gutachten's halves of it apart. */
+    approval?: string | null
+    /**
+     * The figures the customer typed from their own papers for THIS car (8.1, 8.2, T), kept in the browser
+     * with the car until customer accounts exist; null when none were entered. Additive.
+     */
+    papers?: PapersProp | null
+    /** The variant's power in kW, for the P.2 check on a photographed Zulassungsbescheinigung. Additive. */
+    powerKw?: number | null
+    /** Karosserieform and Antrieb as every answer reads them, and where each came from (§1.1). Additive. */
+    build?: BuildProp | null
+}
+
+/**
+ * A car's body style and drive: `data` — the vehicle data's own; `customer` — the owner said so; `name` — an
+ * unambiguous word of the car's name (`bodyWord`, `driveWord`), shown with „stimmt das?“.
+ */
+export interface BuildProp {
+    bodyForm: string | null
+    bodySource: 'data' | 'customer' | 'name' | null
+    bodyWord: string | null
+    driveAxle: string | null
+    driveSource: 'data' | 'customer' | 'name' | null
+    driveWord: string | null
+}
+
+export interface PapersProp {
+    axleFrontKg: number
+    axleRearKg: number
+    topSpeedKmh: number
+    /** P.2, where the customer gave it: a Gutachten's kW band is read against it (Block D). */
+    powerKw?: number | null
+    /** Where the vehicle data asks for more than the customer typed, and the answer uses that figure. */
+    notes: string[]
 }
 
 export interface NavItem {
@@ -89,6 +124,8 @@ export interface GarageVehicle {
     id: number
     label: string
     short: string
+    /** `Feld K ab *04` — for a car without key numbers, the range that tells a Gutachten's halves of it apart. */
+    range?: string | null
 }
 
 export interface ServiceStatusProp {

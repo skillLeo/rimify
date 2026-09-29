@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\TpmsSensorPriceRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\TpmsSensorPrice;
+use App\Services\Admin\AdminNavigation;
 use App\Services\Commerce\KomplettradSettings;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
@@ -57,6 +58,8 @@ class RdksPreiseController extends Controller
         }
 
         $default = $this->settings->tpmsDefaultCents();
+
+        $request->attributes->set(AdminNavigation::RECORD, 'RDKS-Sensoren');
 
         return Inertia::render('Admin/Rdks/Index', [
             'prices' => $rows,

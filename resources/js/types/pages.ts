@@ -36,10 +36,16 @@ export interface VariantOption {
     tsn: string
     vsn: string | null
     buildWindow: string
+    /** Whether `buildWindow` names one; beside a Feld K line an unknown one is left out. */
+    buildKnown?: boolean
     powerPs: number | null
     bodyForm: string | null
     /** Shown, never hidden: an incomplete row is named as incomplete rather than guessed at. */
     needsReview: boolean
+    /** `Feld K: e1*2007/46*0283, ab *04` — a car without key numbers, told apart from its twin by its papers. */
+    approval?: string | null
+    /** `Feld K ab *04` — the range alone, where a line has no room for the number. */
+    approvalShort?: string | null
     [key: string]: unknown
 }
 
@@ -63,6 +69,11 @@ export interface HeroProduct {
     imageManifest?: ImageManifest | null
     /** True when there is no photograph of this product: the outline is drawn and no product is named. */
     symbolic: boolean
+    /**
+     * In the shop at a price. False for the chosen wheel while it is a draft: its photograph and its
+     * values are shown, never a price or a link. Absent (an older fixture) reads as true.
+     */
+    published?: boolean
     config: {
         widthIn: number
         diameterIn: number
@@ -252,6 +263,8 @@ export interface FelgenProps {
     page?: number
     /** True while any published wheel model is seeded demo data; the listing shows the *Demodaten* note. */
     demo: boolean
+    /** What of the chosen car the page's answers wait for — `bodyForm`, `driveAxle` (§1.1). Additive. */
+    missing?: string[]
 }
 
 export interface ProduktProps {
@@ -287,8 +300,11 @@ export interface ProduktConfig {
     centreBore: string
     /** `H2` — the hump designation the wheel's approval prints; null where the record holds none. */
     hump?: string | null
+    /** ONE rim (docs/specs/komplettrad.md §9). */
     priceCents: number
     price: string
+    /** The set of four, formatted on the server; the page never multiplies cents. */
+    priceForFour?: string
     stockQty: number
     inStock: boolean
     kbaNumber: string | null
@@ -303,11 +319,31 @@ export interface ProduktConfig {
     komplettrad?: KomplettradOfferProp | null
 }
 
+/**
+ * What the Gutachten asks of this car, as the customer works through it (Block D, item 15): the Auflagen by
+ * section — Abnahme, Arbeiten am Fahrzeug (with the millimetres for this Fahrzeugtyp), Befestigung, Reifen,
+ * Hinweise — the bolts with their torque, each tyre size with its axle and printed minimum, and the document's
+ * notes. Every line is a sentence of the answer's own documents.
+ */
+export interface FitmentDetailView {
+    /**
+     * `sizes`: the sizes a sentence belongs to where the document hangs it off some of the car's sizes, not all
+     * (empty: every size). `own`: RIMIFY's sentence (the kW band), not the document's.
+     */
+    sections: { title: string; items: { text: string; measures: string[]; sizes?: string[]; own?: boolean }[] }[]
+    /** `number`: the code the document's sentence names the set by (`S01`), null where it names it by type. */
+    fasteners: { number?: string | null; thread: string; label: string; torque: string | null; article: string | null; limit: string | null }[]
+    tyres: { label: string; axle: string; minimum: string | null; band: string | null }[]
+    notices: string[]
+}
+
 export interface ConfigVerdict {
     status: VerdictStatus
     label: string
     sellable: boolean
     requiresEntry: boolean
+    /** Additive: null for a wheel that may not go on the car, absent in an older payload. */
+    detail?: FitmentDetailView | null
     entryNoteDe: string | null
     /** Full German sentences, never codes such as A02 (R-15). */
     conditions: string[]
@@ -321,7 +357,22 @@ export interface ConfigVerdict {
     centreBoreSource?: 'DOCUMENT' | 'UNSTATED' | 'CONFLICTING'
     reason: string | null
     reasonCode: string | null
-    document: { number: string | null; issuer: string | null; kind: string } | null
+    /** What of the car an UNKNOWN answer waits for — `bodyForm`, `driveAxle` — asked for by name (§1.1). Additive. */
+    missing?: string[]
+    /**
+     * pdf: the Gutachten itself, at the page the answer stands on; absent where no file is stored.
+     * others: the further documents the answer rests on, named (the corrections memo §3).
+     * notes: full sentences about the document itself — a Nachtrag without its base, the month a wheel
+     * must be made from (§4).
+     */
+    document: {
+        number: string | null
+        issuer: string | null
+        kind: string
+        pdf?: { url: string; page: number | null } | null
+        others?: string[]
+        notes?: string[]
+    } | null
     tyreSizes: string[]
     /* docs/specs/komplettrad.md §3.4 — the tyre side of the verdict, additive and optional. */
     /** `245/45 R18` per axle; `tyreSizes` above stays the front list. */
@@ -337,6 +388,27 @@ export interface ConfigVerdict {
     minSpeedSource?: 'DOCUMENT' | 'DERIVED'
     /** `Für dein Fahrzeug brauchen die Reifen mindestens …` — a full sentence, never a bare number pair. */
     minSentence?: string | null
+    /**
+     * The two halves of the answer (R-03 as amended on 28.09.2026): the wheel, from the document alone,
+     * and the tyres, from the car's axle loads (8.1, 8.2) and top speed (T). `status` is the weaker.
+     * Absent on a negative verdict.
+     */
+    wheelStatus?: VerdictStatus | null
+    wheelLabel?: string | null
+    tyre?: {
+        status: VerdictStatus
+        label: string
+        /** Full German sentences: the document's limits and the fields to compare, or the sum. */
+        lines: string[]
+        thresholds: { text: string; maxAxleLoad: string }[]
+        fromVehicleData: boolean
+        /** Always shown, with the car's figures: the binding axle and what it asks for — or why not. */
+        summary?: string | null
+        /** The document it came from: `Grundlage: Tabelle auf Seite 6 im Gutachten 55255.` */
+        basis?: string | null
+        /** The sum („So haben wir gerechnet“) open at once: a no, or the customer's figures made it stricter. */
+        open?: boolean
+    } | null
 }
 
 /**
@@ -348,6 +420,8 @@ export type KomplettradRefusalCode =
     | 'NO_VEHICLE'
     | 'VERDICT_NOT_PERMITTED'
     | 'VERDICT_UNKNOWN'
+    | 'TYRES_UNKNOWN'
+    | 'TYRES_NOT_PERMITTED'
     | 'VERDICT_RESTORED'
     | 'NO_PERMITTED_SIZES'
     | 'NO_USABLE_MINIMUM'
@@ -429,9 +503,33 @@ export interface VergleichProps {
     demo: boolean
 }
 
+/** A printable RIMIFY-Check as it was issued: frozen whole, every sentence of it (29.09.2026). */
+export interface CheckResultView {
+    status: VerdictStatus
+    statusLabel: string
+    vehicle: string | null
+    wheel: string | null
+    /** The wheel half, where the verdict has one. */
+    wheelLabel: string | null
+    reason: string | null
+    requiresEntry: boolean
+    entryNote: string | null
+    conditions: string[]
+    front: string[]
+    rear: string[]
+    tyre: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; stricterByPapers: boolean } | null
+    papers: { axleFrontKg: number; axleRearKg: number; topSpeedKmh: number; powerKw?: number | null } | null
+    /** What the answer assumed that the vehicle data does not hold, and from where (G-02). Additive. */
+    build?: { fact: string; value: string; source: string }[]
+    document: { label: string; issuer: string | null; revision: number; page: number | null } | null
+    /** Said only when the document has changed since the result was issued. */
+    documentToday: string | null
+    issuedAt: string | null
+}
+
 export interface CheckErgebnisProps {
     token: string
-    result: { status: VerdictStatus } | null
+    result: CheckResultView | null
 }
 
 export interface BasketProps {
@@ -500,16 +598,11 @@ export interface AdminAnmeldenProps {
     stage: string
 }
 
-export interface AdminDashboardProps {
-    tiles: { key: string; label: string; value: string }[]
-    revenue: { label: string; value: number }[]
-    conflicts: {
-        id: number
-        kind: string
-        blocking: boolean
-        vehicle: string
-        keyNumbers: string
-    }[]
+export interface AdminUebersichtProps {
+    /** Only the figures of areas the viewer may open; `href` only where the list exists. */
+    tiles: { key: string; label: string; value: string; hint: string; href: string | null }[]
+    /** `26.09.2026, 13:40 Uhr` in Europe/Berlin — when the figures were counted. */
+    asOf: string
 }
 
 export interface AdminGutachtenProps {
@@ -525,10 +618,14 @@ export interface AdminGutachtenProps {
         pageCount: number | null
         fitmentCount: number
         publishedCount: number
+        href: string
     }[]
+    can: { create: boolean }
 }
 
 export interface AdminBenachrichtigungenProps {
+    /** `waiting`: confirmed, still subscribed, not yet told — the rail's count. `limit`: the list's cap. */
+    summary: { waiting: number; total: number; limit: number }
     subscriptions: {
         id: number
         email: string
@@ -613,4 +710,16 @@ export interface AdminRdksProps {
      */
     default: { cents: number | null; typed: string }
     can: { create: boolean; update: boolean; delete: boolean }
+}
+
+export interface AdminProfilProps {
+    profile: {
+        name: string
+        email: string
+        /** The German role label; null means the address stands in for it. */
+        role: string | null
+        /** `26.09.2026, 13:10` in Europe/Berlin, or null before the first sign-in was recorded. */
+        lastLogin: string | null
+        twoFactor: boolean
+    }
 }

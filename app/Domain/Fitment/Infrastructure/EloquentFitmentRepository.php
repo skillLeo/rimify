@@ -5,22 +5,26 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Infrastructure;
 
 use App\Domain\Fitment\Contracts\FitmentRepository;
+use App\Domain\Fitment\Data\ConflictDecision;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
+use App\Domain\Fitment\Data\RowFilter;
+use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Verdict\Condition;
-use App\Domain\Fitment\Verdict\Severity;
+use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\ApprovalDocument;
-use App\Models\ConditionCode;
+use App\Models\DocumentCondition;
 use App\Models\Fitment;
-use App\Models\FitmentTyreSize;
 use App\Models\WheelConfig;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The engine's approval contract, over Eloquent.
@@ -29,9 +33,54 @@ use Illuminate\Database\Eloquent\Builder;
  * published rows of published documents inside their validity window. A superseded revision, a
  * withdrawn document or a retired row is not "filtered out later" — it never crosses this
  * boundary, so no surface can forget to exclude it.
+ *
+ * One exception, and only by construction: the admin's preview of a document before it is freigegeben
+ * (forPreviewOf) reads that document's own draft rows as if they were published — and hides the
+ * revision it replaces — so the team sees exactly what the shop will say once they release it. No
+ * customer-facing surface ever builds a repository that way; the container binds the plain one.
  */
 final readonly class EloquentFitmentRepository implements FitmentRepository
 {
+    public function __construct(private ?int $previewDocumentId = null, private ?int $previewHidesDocumentId = null) {}
+
+    /** What the shop would read once this document is freigegeben — for the admin's preview only. */
+    public static function forPreviewOf(ApprovalDocument $document): self
+    {
+        return new self((int) $document->id, $document->supersedes_id);
+    }
+
+    /**
+     * Published rows of currently valid documents — and, in a preview, the previewed document's rows.
+     *
+     * @param  Builder<Fitment>  $query
+     */
+    private function visible(Builder $query): void
+    {
+        $preview = $this->previewDocumentId;
+        $hidden = $this->previewHidesDocumentId;
+
+        if ($preview === null) {
+            $query->where('fitments.status', FitmentStatus::Published->value)
+                ->whereHas('approvalDocument', $this->currentlyValid(...));
+
+            return;
+        }
+
+        $query->where(function (Builder $either) use ($preview): void {
+            $either->where(function (Builder $published): void {
+                $published->where('fitments.status', FitmentStatus::Published->value)
+                    ->whereHas('approvalDocument', $this->currentlyValid(...));
+            })->orWhere(static function (Builder $draft) use ($preview): void {
+                $draft->where('fitments.approval_document_id', $preview)
+                    ->where('fitments.status', '<>', FitmentStatus::Retired->value);
+            });
+        });
+
+        if ($hidden !== null) {
+            $query->where('fitments.approval_document_id', '<>', $hidden);
+        }
+    }
+
     /**
      * @param  list<int>  $wheelConfigIds
      * @return array<int, list<FitmentRow>>
@@ -45,11 +94,10 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument', 'tyreSizes', 'conditions'])
+            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'tyreSizes.conditionCodes', 'conditionCodes'])
             ->where('fitments.vehicle_id', $vehicleId)
-            ->where('fitments.status', FitmentStatus::Published->value)
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
-            ->whereHas('approvalDocument', $this->currentlyValid(...))
+            ->tap($this->visible(...))
             ->orderBy('fitments.id')
             ->get();
 
@@ -72,8 +120,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         return Fitment::query()
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
-            ->where('fitments.status', FitmentStatus::Published->value)
-            ->whereHas('approvalDocument', $this->currentlyValid(...))
+            ->tap($this->visible(...))
             ->distinct()
             ->pluck('fitments.wheel_config_id')
             ->map(static fn (mixed $id): int => (int) $id)
@@ -106,6 +153,49 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
     }
 
     /**
+     * What a person decided on the Konflikte page, per configuration: the newest decision for the pair,
+     * unless a conflict about it is still open — then it is undecided again, and absent here.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, ConflictDecision>
+     */
+    public function conflictDecisionsFor(int $vehicleId, array $wheelConfigIds): array
+    {
+        if ($wheelConfigIds === []) {
+            return [];
+        }
+
+        $conflicts = DB::table('fitment_conflicts')
+            ->where('vehicle_id', $vehicleId)
+            ->whereIn('wheel_config_id', $wheelConfigIds)
+            ->orderBy('resolved_at')
+            ->orderBy('id')
+            ->get(['wheel_config_id', 'status', 'prevailing_document_id']);
+
+        $decisions = [];
+        $open = [];
+
+        foreach ($conflicts as $conflict) {
+            $config = (int) $conflict->wheel_config_id;
+
+            $decision = match ($conflict->status) {
+                ConflictStatus::Open->value => null,
+                ConflictStatus::ResolvedSupersede->value => $conflict->prevailing_document_id === null ? null : ConflictDecision::only((int) $conflict->prevailing_document_id),
+                // Both stand, or there was nothing between them: read together, toward caution.
+                default => ConflictDecision::each(),
+            };
+
+            if ($decision === null) {
+                $open[$config] = true;
+            } else {
+                $decisions[$config] = $decision;
+            }
+        }
+
+        return array_diff_key($decisions, $open);
+    }
+
+    /**
      * Published, and inside its validity window on both sides. A null bound is unbounded — a
      * document with no `valid_to` is the current revision, not one that expired at midnight.
      *
@@ -121,9 +211,108 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             ->where(fn ($q) => $q->whereNull('valid_to')->orWhere('valid_to', '>=', $today));
     }
 
+    /**
+     * A row as the engine reads it. Its codes are looked up in its OWN document's Auflagenverzeichnis and
+     * nowhere else (the corrections memo §1): a code the document does not define is kept as unresolved —
+     * the verdict is UNKNOWN — and a body-style or drive code becomes a filter, not a sentence. The
+     * Eintragung is derived per tyre size from an Abnahme among its codes and the row's (§2), unless a
+     * person overrode it with a reason, which the customer then reads as the Prüfer's.
+     */
     private function toRow(Fitment $fitment): FitmentRow
     {
         $document = $fitment->approvalDocument;
+        /** @var array<string, DocumentCondition> $defined */
+        $defined = $document->conditions->keyBy('code')->all();
+        $unresolved = [];
+        $filters = [];
+
+        // A body-style or drive code narrows where it is printed: on the row, the row; beside a size, that
+        // size (FitmentRow::withTyreSizes()).
+        $read = static function (string $code, ?string $note, array &$into) use ($defined, &$unresolved): ?Condition {
+            $definition = $defined[$code] ?? null;
+
+            if (! $definition instanceof DocumentCondition) {
+                $unresolved[$code] = true;
+
+                return null;
+            }
+
+            if ($definition->kind->isFilter()) {
+                $into[$code] = new RowFilter(
+                    code: $code,
+                    kind: $definition->kind->value,
+                    bodyForms: $definition->body_forms ?? [],
+                    driveMode: is_array($definition->drive) ? ($definition->drive['mode'] ?? null) : null,
+                    drive: is_array($definition->drive) ? ($definition->drive['drive'] ?? null) : null,
+                );
+
+                return null;
+            }
+
+            return Condition::ofKind($code, $definition->kind, $definition->text_de, $note, $definition->source_page, $definition->max_axle_load_kg);
+        };
+
+        $rowConditions = [];
+
+        foreach ($fitment->conditionCodes as $code) {
+            $condition = $read($code->code, $code->note_de, $filters);
+
+            if ($condition !== null) {
+                $rowConditions[] = $condition;
+            }
+        }
+
+        $override = $fitment->entry_override;
+        $overridden = $override === 'required' ? true : ($override === 'not_required' ? false : null);
+        // The stored flag is FitmentRows' own derivation; read as a floor only, so a stale one can make
+        // the answer stricter, never looser — and a row written by an import or a seed keeps its word.
+        $rowEntry = $fitment->requires_entry || array_filter($rowConditions, static fn (Condition $c): bool => $c->requiresEntry()) !== [];
+        $axleOf = static fn (Condition $c): ?string => $c->kind === ConditionKind::ReifenAchse ? ($defined[$c->code]->axle ?? null) : null;
+        $rowAxles = array_values(array_filter(array_map($axleOf, $rowConditions)));
+
+        $sizes = [];
+
+        foreach ($fitment->tyreSizes as $size) {
+            $own = [];
+            $sizeFilters = [];
+
+            foreach ($size->conditionCodes as $code) {
+                $condition = $read($code->code, null, $sizeFilters);
+
+                if ($condition !== null) {
+                    $own[] = $condition;
+                }
+            }
+
+            $sizes[] = new TyreSize(
+                widthMm: $size->width_mm,
+                aspect: $size->aspect,
+                diameterIn: $size->diameter_in,
+                documentMinLoadIndex: $size->min_load_index,
+                documentMinSpeedSymbol: $size->min_speed_symbol,
+                // The axle the document scoped this size to — narrowed further by a „nur Vorderachse“
+                // code on it or on the row. Dropping it here is how a rear-only 275/35 would be
+                // offered as a four-wheel set.
+                axle: self::axle($size->axle->value, [...$rowAxles, ...array_filter(array_map($axleOf, $own))]),
+                requiresEntry: $overridden ?? ($rowEntry || array_filter($own, static fn (Condition $c): bool => $c->requiresEntry()) !== []),
+                conditions: $own,
+                kwMin: $size->kw_min,
+                kwMax: $size->kw_max,
+                filters: array_values($sizeFilters),
+            );
+        }
+
+        $requiresEntry = $overridden ?? ($rowEntry || array_filter($sizes, static fn (TyreSize $s): bool => $s->requiresEntry) !== []);
+        $note = $fitment->entry_note_de;
+
+        if ($overridden === true) {
+            $note = trim(($note ?? '').' Laut Prüfer: '.trim((string) $fitment->entry_override_reason));
+        }
+
+        if ($overridden === false) {
+            // Said, not hidden: the Prüfer's word stands where the Eintragung would have.
+            $rowConditions[] = Condition::ofKind('EINTRAGUNG', ConditionKind::Hinweis, 'Laut Prüfer ist keine Eintragung erforderlich: '.trim((string) $fitment->entry_override_reason));
+        }
 
         return new FitmentRow(
             id: $fitment->id,
@@ -139,6 +328,8 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 pdfSha256: $document->pdf_sha256,
                 sourcePage: $fitment->source_page,
                 issuer: $document->issuer,
+                notesDe: array_values(array_filter([$document->baseMissingDe(), $document->productionFromDe()])),
+                speedDerating: self::speedDerating($document),
             ),
             vehicleId: $fitment->vehicle_id,
             wheelConfigId: $fitment->wheel_config_id,
@@ -148,44 +339,53 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             permittedWidthMax: $fitment->permitted_width_max,
             permittedEtMin: $fitment->permitted_et_min,
             permittedEtMax: $fitment->permitted_et_max,
-            requiresEntry: $fitment->requires_entry,
-            entryNoteDe: $fitment->entry_note_de,
+            requiresEntry: $requiresEntry,
+            entryNoteDe: $note === null || trim($note) === '' ? null : $note,
             // The document's own bore for this vehicle, read off the row and never off the wheel:
             // `toWheelConfig()` below keeps the rim's figure, and the two are different claims.
             centreBoreMm: $fitment->centre_bore_mm,
-            tyreSizes: $fitment->tyreSizes
-                ->map(static fn (FitmentTyreSize $size): TyreSize => new TyreSize(
-                    widthMm: $size->width_mm,
-                    aspect: $size->aspect,
-                    diameterIn: $size->diameter_in,
-                    documentMinLoadIndex: $size->min_load_index,
-                    documentMinSpeedSymbol: $size->min_speed_symbol,
-                    // The axle the document scoped this size to. Dropping it here is how a
-                    // rear-only 275/35 would be offered as a four-wheel set.
-                    axle: $size->axle->value,
-                ))
-                ->values()
-                ->all(),
-            conditions: $fitment->conditions
-                ->map(static function (ConditionCode $code): Condition {
-                    $noteDe = $code->pivot?->getAttribute('note_de');
-
-                    return new Condition(
-                        code: $code->code,
-                        // The application enum and the engine's own Severity carry identical
-                        // values by design; a test asserts they stay identical.
-                        severity: Severity::from($code->severity->value),
-                        textDe: $code->text_de,
-                        textEn: $code->text_en,
-                        affectsTyreChoice: $code->affects_tyre_choice,
-                        affectsPurchase: $code->affects_purchase,
-                        requiresAcknowledgement: $code->requires_acknowledgement,
-                        noteDe: is_string($noteDe) ? $noteDe : null,
-                    );
-                })
-                ->values()
-                ->all(),
+            tyreSizes: $sizes,
+            conditions: $rowConditions,
+            unresolvedCodes: array_keys($unresolved),
+            filters: array_values($filters),
+            ownRequiresEntry: $overridden ?? $rowEntry,
         );
+    }
+
+    /**
+     * A size's axle, narrowed by the axle codes on it and on its row: a size for all axles under a
+     * „nur Hinterachse“ code is a rear size; a size the document scoped to the front under a rear-only
+     * code is on no axle at all (`NONE`) — never offered anywhere.
+     *
+     * @param  list<string>  $limits
+     */
+    private static function axle(string $scoped, array $limits): string
+    {
+        foreach (array_unique($limits) as $limit) {
+            if ($scoped === 'ALL') {
+                $scoped = $limit;
+            } elseif ($scoped !== $limit) {
+                return 'NONE';
+            }
+        }
+
+        return $scoped;
+    }
+
+    /** The document's table of tyre load at speed, as the engine reads it; null when it prints none. */
+    private static function speedDerating(ApprovalDocument $document): ?SpeedDeratingTable
+    {
+        $rows = [];
+        $page = null;
+        $seeded = null;
+
+        foreach ($document->speedDeratings as $cell) {
+            $rows[$cell->speed_kmh][$cell->symbol] = $cell->percent;
+            $page ??= $cell->source_page;
+            $seeded ??= $cell->seeded_from;
+        }
+
+        return $rows === [] ? null : new SpeedDeratingTable($rows, $page, $seeded);
     }
 
     public static function toWheelConfig(WheelConfig $config): WheelConfigRecord
@@ -206,6 +406,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             modelName: $config->relationLoaded('wheelModel') ? $config->wheelModel?->name : null,
             brandName: $config->relationLoaded('wheelModel') ? $config->wheelModel?->brand?->name : null,
             finishNameDe: $config->relationLoaded('wheelFinish') ? $config->wheelFinish?->name_de : null,
+            maxLoadKg: $config->max_load_kg,
         );
     }
 }

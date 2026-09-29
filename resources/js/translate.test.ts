@@ -18,7 +18,8 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { euro, felgen, NNBSP } from './format'
+import { felgen, NNBSP } from './format'
+import { formatMoney } from './lib/num'
 import type { Brand } from './Components/Home/brandWall'
 import type { ProductCardProp, VehicleProp } from './types/rimify'
 
@@ -202,7 +203,7 @@ describe('ProductTile', () => {
             rating: null,
             ratingCount: 0,
             ratingLabel: null,
-            fromPriceCents: 75600,
+            fromPriceCents: 18900,
             fromPrice: '',
             inStock: true,
             stockQty: 8,
@@ -236,7 +237,7 @@ describe('ProductTile', () => {
         }
 
         expect(wrapper.find('.tile__sizes').text()).toContain('Zoll')
-        expect(untranslated(wrapper, '.tile__price')).toEqual([euro(18900)])
+        expect(untranslated(wrapper, '.tile__price')).toEqual([formatMoney(18900)])
     })
 
     it('leaves the words around the price and the legal line to the translator', () => {

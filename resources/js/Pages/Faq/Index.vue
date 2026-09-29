@@ -14,6 +14,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
+import { paragraphs } from '../../format'
 import type { FaqProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -70,7 +71,7 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                         type="search"
                         placeholder="Suchen"
                         autocomplete="off"
-                    />
+                    >
                 </form>
 
                 <div v-for="group in visibleGroups" :key="group.key" class="faq__group">
@@ -90,7 +91,8 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                             </span>
                         </button>
                         <div v-show="open === entry.id" :id="`faq-a-${entry.id}`" class="acc__body t-body">
-                            {{ entry.answer }}
+                            <!-- The answer's own paragraphs, as the team typed them in Inhalte › FAQ. -->
+                            <p v-for="(paragraph, p) in paragraphs(entry.answer)" :key="p" class="faq__para">{{ paragraph }}</p>
                         </div>
                     </div>
                 </div>
@@ -139,7 +141,7 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                     </li>
                 </ul>
 
-                <hr class="hr faq__rule" />
+                <hr class="hr faq__rule">
 
                 <p class="faq__promo">Kompatibilität sofort prüfen</p>
                 <Link href="/rimify-check" class="btn btn--secondary btn--block">RIMIFY-CHECK öffnen</Link>
@@ -176,6 +178,16 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
 
 .faq__input {
     padding-left: 44px;
+}
+
+/* The answer as the team typed it in Inhalte › FAQ: its paragraphs, and its line breaks. */
+.acc__body,
+.faq__para {
+    white-space: pre-line;
+}
+
+.faq__para + .faq__para {
+    margin-top: var(--space-3);
 }
 
 .faq__group {

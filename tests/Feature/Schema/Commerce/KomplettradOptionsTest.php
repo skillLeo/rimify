@@ -7,6 +7,7 @@ use App\Models\BalanceWeightColour;
 use App\Models\TpmsSensorPrice;
 use App\Models\WheelModel;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\GoldenRecordSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -339,8 +340,11 @@ it('seeds no colour outside the local and testing environments', function (): vo
         $this->artisan('db:seed', ['--class' => DatabaseSeeder::class, '--force' => true])->assertSuccessful();
         expect(BalanceWeightColour::withTrashed()->count())->toBe(0)
             ->and(TpmsSensorPrice::withTrashed()->count())->toBe(0)
-            // The catalogue is still seeded: only the Komplettrad options are held back.
-            ->and(WheelModel::query()->count())->toBeGreaterThan(0);
+            // The reference data is seeded; the example catalogue is held back too (e11d06a4). The one
+            // wheel is the golden record's, real and a draft.
+            ->and(DB::table('load_index_table')->count())->toBeGreaterThan(0)
+            ->and(WheelModel::query()->where('is_demo', true)->count())->toBe(0)
+            ->and(WheelModel::query()->pluck('slug')->all())->toBe([GoldenRecordSeeder::SLUG]);
     });
 
     // And never on a live database through the release seed either.

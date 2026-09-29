@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\ApprovalDocument;
 use App\Models\FitmentSubscription;
+use App\Support\VehicleName;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -40,7 +41,7 @@ class FitmentAvailableMail extends Mailable
         return new Content(
             markdown: 'mail.subscription.available',
             with: [
-                'vehicleLabel' => trim($vehicle->make.' '.$vehicle->variant),
+                'vehicleLabel' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation),
                 'wheelCount' => $this->wheelCount,
                 'listingUrl' => route('felgen.suchen', ['marke' => $vehicle->make, 'modell' => $vehicle->model]),
                 'unsubscribeUrl' => $this->subscription->unsubscribeUrl(),

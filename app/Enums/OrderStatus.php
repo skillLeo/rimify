@@ -50,6 +50,62 @@ enum OrderStatus: string
         };
     }
 
+    /**
+     * The money half of the status, as Verkauf › Bestellungen shows it in its own column. `tone`
+     * is the state tag's colour: only the exception is tagged (admin-shell.md §6.4).
+     *
+     * @return array{label: string, tone: 'plain'|'warn'|'bad'|'neutral'}
+     */
+    public function paymentState(): array
+    {
+        return match ($this) {
+            self::Draft, self::PendingPayment => ['label' => 'Offen', 'tone' => 'warn'],
+            self::Paid, self::InFulfilment, self::Shipped, self::Completed => ['label' => 'Bezahlt', 'tone' => 'plain'],
+            self::Refunded => ['label' => 'Erstattet', 'tone' => 'neutral'],
+            self::Failed => ['label' => 'Fehlgeschlagen', 'tone' => 'bad'],
+            self::Expired => ['label' => 'Abgelaufen', 'tone' => 'neutral'],
+            self::Cancelled => ['label' => 'Storniert', 'tone' => 'neutral'],
+        };
+    }
+
+    /**
+     * The goods half: whether the wheels have left. An order that was never paid has nothing to send,
+     * and says so with a dash rather than "offen", which would read as work waiting.
+     *
+     * @return array{label: string, tone: 'plain'|'warn'|'bad'|'neutral'}
+     */
+    public function fulfilmentState(): array
+    {
+        return match ($this) {
+            self::Paid => ['label' => 'Zu versenden', 'tone' => 'warn'],
+            self::InFulfilment => ['label' => 'In Bearbeitung', 'tone' => 'plain'],
+            self::Shipped => ['label' => 'Versendet', 'tone' => 'plain'],
+            self::Completed => ['label' => 'Abgeschlossen', 'tone' => 'plain'],
+            self::Draft, self::PendingPayment, self::Failed, self::Expired, self::Cancelled, self::Refunded => ['label' => '–', 'tone' => 'plain'],
+        };
+    }
+
+    /**
+     * The statuses whose money stayed with the shop: paid and not refunded. What the Übersicht counts
+     * as Umsatz and as Bestellungen.
+     *
+     * @return list<self>
+     */
+    public static function revenue(): array
+    {
+        return [self::Paid, self::InFulfilment, self::Shipped, self::Completed];
+    }
+
+    /**
+     * The statuses whose orders the team still has to send: the Übersicht's "Offene Bestellungen".
+     *
+     * @return list<self>
+     */
+    public static function open(): array
+    {
+        return [self::Paid, self::InFulfilment];
+    }
+
     /** @return list<string> */
     public static function values(): array
     {

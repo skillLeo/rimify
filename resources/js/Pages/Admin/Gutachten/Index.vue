@@ -1,26 +1,32 @@
 <script setup lang="ts">
 /**
- * Gutachten-Erfassung, list view.
+ * Gutachten › Dokumente: every approval document on file.
  *
- * The Freigaben column shows published against total on purpose: a document with twenty rows
- * entered and none published is the most common half-finished state in this workflow, and it is
+ * The „Zeilen im Shop“ column shows released rows against all rows on purpose: a document with twenty
+ * rows entered and none released is the most common half-finished state in this workflow, and it is
  * invisible unless the list says so.
  *
- * Status and type narrow the list in place. A draft renders neutral, never red: "not yet checked"
- * is not "refused" (R-03, R-07).
- *
- * One table for every width. Below 900px each row lays itself out as a block — same fields, same
- * order — with its column name beside each value.
+ * Only the exception is tagged: a released document says so in plain text, a draft is neutral
+ * (never red — "not yet checked" is not "refused", R-03, R-07), a superseded one a warning and a
+ * withdrawn one the failure tone. Status and type narrow the list in place, and a filter appears only
+ * where there is something to choose between. Nothing on file and nothing matching the filters are two
+ * different states with two different sentences (admin-shell.md §9.3).
  */
 
-import { Head } from '@inertiajs/vue3'
+import { Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminState from '../../../Components/Admin/AdminState.vue'
+import { decimal } from '../../../format'
 import type { AdminGutachtenProps } from '../../../types/pages'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminGutachtenProps>()
+
+type Document = AdminGutachtenProps['documents'][number]
 
 const KIND_LABEL: Record<string, string> = {
     ABE: 'ABE',
@@ -29,15 +35,16 @@ const KIND_LABEL: Record<string, string> = {
     EC: 'EG-Genehmigung',
 }
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-    published: { label: 'Veröffentlicht', cls: 'tag--ok' },
-    draft: { label: 'Entwurf', cls: 'tag--unknown' },
-    superseded: { label: 'Ersetzt', cls: 'tag--warn' },
-    withdrawn: { label: 'Zurückgezogen', cls: 'tag--danger' },
+/** `tag: null` is the normal state, printed as plain text. */
+const STATUS: Record<string, { label: string; tag: string | null }> = {
+    published: { label: 'Freigegeben', tag: null },
+    draft: { label: 'Entwurf', tag: 'adm-tag--neutral' },
+    superseded: { label: 'Ersetzt', tag: 'adm-tag--warn' },
+    withdrawn: { label: 'Zurückgezogen', tag: 'adm-tag--bad' },
 }
 
-function statusOf(status: string): { label: string; cls: string } {
-    return STATUS[status] ?? { label: status, cls: 'tag--unknown' }
+function statusOf(status: string): { label: string; tag: string | null } {
+    return STATUS[status] ?? { label: status, tag: 'adm-tag--neutral' }
 }
 
 const status = ref<string | null>(null)
@@ -47,7 +54,11 @@ const kind = ref<string | null>(null)
 const statusOptions = computed(() => countBy((d) => d.status))
 const kindOptions = computed(() => countBy((d) => d.kind))
 
-function countBy(key: (d: AdminGutachtenProps['documents'][number]) => string): { value: string; count: number }[] {
+/** A filter with one value filters nothing, so it is not drawn. */
+const showStatus = computed(() => statusOptions.value.length >= 2)
+const showKind = computed(() => kindOptions.value.length >= 2)
+
+function countBy(key: (d: Document) => string): { value: string; count: number }[] {
     const counts = new Map<string, number>()
 
     for (const doc of props.documents) {
@@ -67,218 +78,115 @@ const rows = computed(() =>
         (d) => (status.value === null || d.status === status.value) && (kind.value === null || d.kind === kind.value)
     )
 )
+
+const context = computed(() => {
+    const total = props.documents.length
+
+    if (total === 0) {
+        return 'Noch kein Dokument erfasst'
+    }
+
+    const published = props.documents.filter((d) => d.status === 'published').length
+
+    return `${decimal(total, 0)} ${total === 1 ? 'Dokument' : 'Dokumente'} · ${decimal(published, 0)} freigegeben`
+})
 </script>
 
 <template>
-    <Head title="Gutachten" />
+    <AdminPage title="Dokumente" :context="context">
+        <template v-if="can.create" #primary>
+            <Link href="/admin/gutachten/neu" class="btn btn--primary">
+                <Icon name="plus" :size="20" />
+                Neues Gutachten
+            </Link>
+        </template>
 
-    <div class="gut__head">
-        <h1 class="t-h1">Gutachten</h1>
-        <p class="gut__count"><span class="tabular">{{ documents.length }}</span> Dokumente erfasst</p>
-    </div>
+        <div v-if="showStatus || showKind" class="adm-filters">
+            <div v-if="showStatus" class="adm-filter" role="group" aria-label="Status">
+                <span class="adm-filter__label" aria-hidden="true">Status</span>
+                <button class="adm-chip" type="button" :aria-pressed="status === null" @click="status = null">Alle</button>
+                <button
+                    v-for="option in statusOptions"
+                    :key="option.value"
+                    class="adm-chip"
+                    type="button"
+                    :aria-pressed="status === option.value"
+                    @click="status = status === option.value ? null : option.value"
+                >
+                    {{ statusOf(option.value).label }}
+                    <span class="adm-chip__n">{{ decimal(option.count, 0) }}</span>
+                </button>
+            </div>
 
-    <div v-if="documents.length > 0" class="gut__filters">
-        <div class="gut__filter" role="group" aria-label="Status">
-            <span class="gut__filter-label">Status</span>
-            <button
-                class="pill"
-                :class="{ 'pill--on': status === null }"
-                type="button"
-                :aria-pressed="status === null"
-                @click="status = null"
-            >
-                Alle
-            </button>
-            <button
-                v-for="option in statusOptions"
-                :key="option.value"
-                class="pill"
-                :class="{ 'pill--on': status === option.value }"
-                type="button"
-                :aria-pressed="status === option.value"
-                @click="status = status === option.value ? null : option.value"
-            >
-                {{ statusOf(option.value).label }}
-                <span class="gut__n tabular">{{ option.count }}</span>
-            </button>
+            <div v-if="showKind" class="adm-filter" role="group" aria-label="Art">
+                <span class="adm-filter__label" aria-hidden="true">Art</span>
+                <button class="adm-chip" type="button" :aria-pressed="kind === null" @click="kind = null">Alle</button>
+                <button
+                    v-for="option in kindOptions"
+                    :key="option.value"
+                    class="adm-chip"
+                    type="button"
+                    :aria-pressed="kind === option.value"
+                    @click="kind = kind === option.value ? null : option.value"
+                >
+                    {{ KIND_LABEL[option.value] ?? option.value }}
+                    <span class="adm-chip__n">{{ decimal(option.count, 0) }}</span>
+                </button>
+            </div>
         </div>
 
-        <div class="gut__filter" role="group" aria-label="Art">
-            <span class="gut__filter-label">Art</span>
-            <button
-                class="pill"
-                :class="{ 'pill--on': kind === null }"
-                type="button"
-                :aria-pressed="kind === null"
-                @click="kind = null"
-            >
-                Alle
-            </button>
-            <button
-                v-for="option in kindOptions"
-                :key="option.value"
-                class="pill"
-                :class="{ 'pill--on': kind === option.value }"
-                type="button"
-                :aria-pressed="kind === option.value"
-                @click="kind = kind === option.value ? null : option.value"
-            >
-                {{ KIND_LABEL[option.value] ?? option.value }}
-                <span class="gut__n tabular">{{ option.count }}</span>
-            </button>
+        <div v-if="rows.length > 0" class="adm-panel">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Nummer</th>
+                        <th scope="col">Art</th>
+                        <th scope="col">Aussteller</th>
+                        <th scope="col" class="num">Ausgestellt</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="num">Zeilen im Shop</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="doc in rows" :key="doc.id">
+                        <td data-label="Nummer">
+                            <Link :href="doc.href" class="adm-table__key gd-link">{{ doc.reportNumber }}</Link>
+                            <span v-if="doc.kbaNumber" class="adm-table__sub">KBA {{ doc.kbaNumber }}</span>
+                        </td>
+                        <td data-label="Art" data-phone="hide">{{ KIND_LABEL[doc.kind] ?? doc.kind }}</td>
+                        <td data-label="Aussteller" data-phone="hide">{{ doc.issuer }}</td>
+                        <td data-label="Ausgestellt" class="num">{{ doc.issuedOn ?? '–' }}</td>
+                        <td data-label="Status" data-phone="status">
+                            <span>
+                                <span v-if="statusOf(doc.status).tag" class="adm-tag" :class="statusOf(doc.status).tag">{{ statusOf(doc.status).label }}</span>
+                                <template v-else>{{ statusOf(doc.status).label }}</template>
+                                <span class="adm-table__sub">Fassung {{ doc.revision }}</span>
+                            </span>
+                        </td>
+                        <td data-label="Zeilen im Shop" class="num">{{ decimal(doc.publishedCount, 0) }} von {{ decimal(doc.fitmentCount, 0) }}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
-    </div>
 
-    <div class="gut__box">
-        <table v-if="rows.length > 0" class="table gut__table">
-            <thead>
-                <tr>
-                    <th scope="col">Nummer</th>
-                    <th scope="col">Art</th>
-                    <th scope="col">Aussteller</th>
-                    <th scope="col" class="num">Ausgestellt</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" class="num">Freigaben</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="doc in rows" :key="doc.id">
-                    <td data-label="Nummer">
-                        <div>
-                            <span class="gut__num">{{ doc.reportNumber }}</span>
-                            <span v-if="doc.kbaNumber" class="data gut__kba">KBA {{ doc.kbaNumber }}</span>
-                        </div>
-                    </td>
-                    <td data-label="Art">{{ KIND_LABEL[doc.kind] ?? doc.kind }}</td>
-                    <td data-label="Aussteller">{{ doc.issuer }}</td>
-                    <td data-label="Ausgestellt" class="num data">{{ doc.issuedOn ?? '–' }}</td>
-                    <td data-label="Status">
-                        <div>
-                            <span class="tag" :class="statusOf(doc.status).cls">{{ statusOf(doc.status).label }}</span>
-                            <span class="data gut__rev">Fassung {{ doc.revision }}</span>
-                        </div>
-                    </td>
-                    <td data-label="Freigaben" class="num data">
-                        {{ doc.publishedCount }} von {{ doc.fitmentCount }} veröffentlicht
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <AdminState v-else-if="documents.length === 0" kind="empty" text="Gutachten erfasst das Compliance-Team; jedes erscheint hier mit seinen Freigaben.">
+            <Link v-if="can.create" href="/admin/gutachten/neu" class="btn btn--primary">Erstes Gutachten anlegen</Link>
+        </AdminState>
 
-        <div v-else class="state gut__empty">
-            <p class="state__title">
-                {{ documents.length === 0 ? 'Noch keine Gutachten erfasst.' : 'Kein Gutachten passt zu diesen Filtern.' }}
-            </p>
-            <button
-                v-if="documents.length > 0"
-                class="btn btn--secondary"
-                type="button"
-                @click="resetFilters"
-            >
-                Filter zurücksetzen
-            </button>
-        </div>
-    </div>
+        <AdminState v-else kind="filtered" :total="documents.length" @reset="resetFilters" />
+    </AdminPage>
 </template>
 
 <style scoped>
-.gut__head {
-    margin-bottom: var(--space-4);
+.gd-link {
+    color: var(--c-ink);
+    text-decoration: none;
 }
 
-.gut__count {
-    margin-top: var(--space-1);
-    color: var(--ink2);
-}
-
-.gut__filters {
-    display: grid;
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
-}
-
-.gut__filter {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.gut__filter-label {
-    min-width: 56px;
-    font-size: var(--text-small);
-    font-weight: 700;
-    color: var(--ink2);
-}
-
-.gut__n {
-    font-family: var(--mono);
-    font-weight: 500;
-    color: var(--ink3);
-}
-
-.pill--on .gut__n {
-    color: inherit;
-}
-
-.gut__box {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.gut__num {
-    display: block;
-    font-weight: 700;
-}
-
-.gut__kba,
-.gut__rev {
-    display: block;
-    margin-top: var(--space-1);
-}
-
-.gut__empty {
-    padding: var(--space-6) var(--space-5);
-}
-
-/* Below 900px: each row is a block, every value labelled with its column name. */
-@media (max-width: 899px) {
-    .gut__table thead {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-    }
-
-    .gut__table,
-    .gut__table tbody,
-    .gut__table tr,
-    .gut__table td {
-        display: block;
-    }
-
-    .gut__table tr {
-        padding: var(--space-3) var(--space-4);
-        border-bottom: 1px solid var(--line);
-    }
-
-    .gut__table td {
-        display: grid;
-        grid-template-columns: 110px minmax(0, 1fr);
-        gap: var(--space-3);
-        height: auto;
-        padding: var(--space-1) 0;
-        border: 0;
-        text-align: left;
-    }
-
-    .gut__table td::before {
-        content: attr(data-label);
-        font-size: var(--text-small);
-        color: var(--ink2);
+@media (hover: hover) and (pointer: fine) {
+    .gd-link:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
     }
 }
 </style>

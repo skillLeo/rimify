@@ -9,6 +9,7 @@ use App\Enums\PermissionModule;
 use App\Models\AdminUser;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * One cell of the permission matrix: a role, a module, an action, allowed or not.
@@ -49,6 +50,36 @@ class RolePermissionRequest extends FormRequest
             'module.in' => 'Dieses Modul gibt es nicht.',
             'action.in' => 'Diese Aktion gibt es nicht.',
         ];
+    }
+
+    /**
+     * Both halves can exist and the pair still not: the Protokoll has no *Löschen*. Such a cell is
+     * refused like an unknown one, because nothing would ever ask about it.
+     *
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+
+                $module = PermissionModule::tryFrom((string) $this->input('module'));
+                $action = PermissionAction::tryFrom((string) $this->input('action'));
+
+                if ($module !== null && $action !== null && ! $module->hasAction($action)) {
+                    $validator->errors()->add('action', self::unrealCell($module, $action));
+                }
+            },
+        ];
+    }
+
+    /** The sentence for a cell whose module and action both exist, but not together. */
+    public static function unrealCell(PermissionModule $module, PermissionAction $action): string
+    {
+        return sprintf('„%s“ gibt es im Bereich „%s“ nicht.', $action->labelDe(), $module->labelDe());
     }
 
     public function module(): PermissionModule

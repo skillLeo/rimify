@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Services\Storage\StorageSettings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
@@ -16,10 +17,17 @@ use Symfony\Component\HttpFoundation\Response;
  * The CSP is nonce-based: the Vite tags carry the nonce, nothing else may execute. Stripe Checkout is hosted (a redirect, never an embedded script), so the only
  * third-party script origin is none at all.
  *
- * `img-src` is `'self' data: blob:`, widened to named hosts only when config/rimify.php lists any.
+ * `img-src` is `'self' data: blob:`, widened to named hosts only when config/rimify.php lists any,
+ * and to the media bucket's own origins when one is in force (also in `connect-src`, for uploads).
  */
 final class SecurityHeaders
 {
+    /**
+     * Set by a controller whose response our own pages frame — only the signed page preview, which
+     * the Inhalte editor shows beside its fields. Every other response keeps `DENY`.
+     */
+    public const FRAME_SAME_ORIGIN = 'security.frame_same_origin';
+
     public function handle(Request $request, Closure $next): Response
     {
         $nonce = Vite::useCspNonce();
@@ -27,10 +35,12 @@ final class SecurityHeaders
         /** @var Response $response */
         $response = $next($request);
 
-        $response->headers->set('Content-Security-Policy', $this->policy($nonce));
+        $sameOrigin = $request->attributes->get(self::FRAME_SAME_ORIGIN) === true;
+
+        $response->headers->set('Content-Security-Policy', $this->policy($nonce, $sameOrigin));
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('X-Frame-Options', 'DENY');
+        $response->headers->set('X-Frame-Options', $sameOrigin ? 'SAMEORIGIN' : 'DENY');
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self)');
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
@@ -41,7 +51,7 @@ final class SecurityHeaders
         return $response;
     }
 
-    private function policy(string $nonce): string
+    private function policy(string $nonce, bool $sameOrigin): string
     {
         $connect = ["'self'"];
         // `'wasm-unsafe-eval'` lets the on-device OCR (F5) instantiate its WebAssembly core
@@ -62,6 +72,12 @@ final class SecurityHeaders
             $hosts = config('rimify.photography.hosts', []);
             $img = [...$img, ...$hosts];
         }
+
+        // The media bucket in force (Einstellungen › Medien und Speicher): its pictures are shown, and
+        // the Gutachten upload posts to it. Its own named origins — never a wildcard of amazonaws.com.
+        $bucket = app(StorageSettings::class)->current()->origins();
+        $img = array_values(array_unique([...$img, ...$bucket]));
+        $connect = [...$connect, ...$bucket];
 
         // The Vite dev server only exists locally; production never widens the policy.
         if (app()->environment('local') && Vite::isRunningHot()) {
@@ -85,7 +101,7 @@ final class SecurityHeaders
             // The OCR worker and the service worker are our own files, never a blob.
             "worker-src 'self'",
             "form-action 'self' https://checkout.stripe.com",
-            "frame-ancestors 'none'",
+            $sameOrigin ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
             "base-uri 'self'",
             "object-src 'none'",
         ]);

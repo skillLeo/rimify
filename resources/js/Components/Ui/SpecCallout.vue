@@ -51,7 +51,14 @@ function ux(percent: number): number {
     return Math.round(((percent / 100) * width.value) * 100) / 100
 }
 
-const start = computed(() => ({ x: props.side === 'right' ? ux(100 - props.x) : ux(props.x), y: props.y }))
+/* One unit inside the box, so the line's end never shows as a tick past the plate's edge. */
+const start = computed(() => {
+    if (props.side === 'right') {
+        return { x: ux(100 - props.x) - 1, y: props.y }
+    }
+
+    return { x: props.side === 'left' ? ux(props.x) + 1 : ux(props.x), y: props.y }
+})
 const end = computed(() => ({ x: ux(props.tx), y: props.ty }))
 
 const d = computed(() => {
@@ -80,6 +87,11 @@ const boxStyle = computed(() => {
             focusable="false"
             :style="{ '--callout-weight': weight }"
         >
+            <!-- Each mark twice: a casing in the colour the ink is not, then the ink on it, so a leader
+                 stays legible over any part of the photograph — a matt black spoke included. -->
+            <circle v-if="ring" class="callout__casing callout__casing--ring" :cx="ux(ring.cx)" :cy="ring.cy" :r="ring.r" pathLength="60" />
+            <path class="callout__casing callout__casing--leader" :d="d" pathLength="1" />
+            <circle class="callout__casing callout__casing--dot" :cx="end.x" :cy="end.y" :r="dot" />
             <circle v-if="ring" class="callout__ring" :cx="ux(ring.cx)" :cy="ring.cy" :r="ring.r" pathLength="60" />
             <path class="callout__leader" :d="d" pathLength="1" />
             <circle class="callout__dot" :cx="end.x" :cy="end.y" :r="dot" />
@@ -125,7 +137,8 @@ const boxStyle = computed(() => {
 }
 
 /* The host picks the ink (`--callout-ink`); white on a dark photograph is the default. */
-.callout__leader {
+.callout__leader,
+.callout__casing--leader {
     fill: none;
     stroke: var(--callout-ink, var(--c-surface));
     stroke-width: var(--callout-weight);
@@ -135,7 +148,8 @@ const boxStyle = computed(() => {
     animation: callout-draw var(--d-4) var(--ease-out) var(--callout-delay, 0ms) both;
 }
 
-.callout__ring {
+.callout__ring,
+.callout__casing--ring {
     fill: none;
     stroke: var(--callout-ink, var(--c-surface));
     stroke-width: var(--callout-weight);
@@ -144,10 +158,24 @@ const boxStyle = computed(() => {
     animation: callout-appear var(--d-2) var(--ease-out) calc(var(--callout-delay, 0ms) + var(--d-4)) both;
 }
 
-.callout__dot {
+.callout__dot,
+.callout__casing--dot {
     fill: var(--callout-ink, var(--c-surface));
     stroke: none;
     animation: callout-appear var(--d-2) var(--ease-out) calc(var(--callout-delay, 0ms) + var(--d-4)) both;
+}
+
+/* The casing: the same marks in the colour the ink is not (the host sets `--callout-casing`), two and a half times as wide. */
+.callout__casing--leader,
+.callout__casing--ring {
+    stroke: var(--callout-casing, var(--c-ink));
+    stroke-width: calc(2.5 * var(--callout-weight));
+}
+
+.callout__casing--dot {
+    fill: var(--callout-casing, var(--c-ink));
+    stroke: var(--callout-casing, var(--c-ink));
+    stroke-width: var(--callout-weight);
 }
 
 @keyframes callout-draw {
@@ -167,7 +195,8 @@ const boxStyle = computed(() => {
     .callout,
     .callout__leader,
     .callout__ring,
-    .callout__dot {
+    .callout__dot,
+    .callout__casing {
         animation: none;
     }
 }

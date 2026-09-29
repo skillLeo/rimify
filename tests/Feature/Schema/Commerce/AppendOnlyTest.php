@@ -102,6 +102,34 @@ it('closes the cascade path: deleting the order line cannot take the snapshot wi
     expect(DB::table('order_line_fitments')->where('order_line_id', $line->id)->exists())->toBeTrue();
 });
 
+it('closes it one level up too: deleting the order cascades to its lines and stops at the snapshot', function (): void {
+    // orders → order_lines is CASCADE; order_lines ← order_line_fitments is RESTRICT, so the whole
+    // statement fails and the order, its line and the snapshot all stay (COMPLIANCE.md row 13).
+    $line = OrderLine::factory()->create();
+    snapshotFor($line);
+
+    expect(fn () => DB::statement('DELETE FROM orders WHERE id = ?', [$line->order_id]))
+        ->toThrow(QueryException::class);
+
+    expect(DB::table('orders')->where('id', $line->order_id)->exists())->toBeTrue()
+        ->and(DB::table('order_lines')->where('id', $line->id)->exists())->toBeTrue()
+        ->and(DB::table('order_line_fitments')->where('order_line_id', $line->id)->exists())->toBeTrue();
+});
+
+it('has exactly one foreign key on the two immutable tables, and it is RESTRICT', function (): void {
+    // Nothing references order_line_fitments or audit_logs; audit_logs references nothing. The one
+    // key is the snapshot's own line — and it may never cascade (R-12: MySQL fires no trigger on a cascade).
+    $keys = DB::select("
+        SELECT rc.TABLE_NAME AS t, rc.REFERENCED_TABLE_NAME AS r, rc.DELETE_RULE AS d
+        FROM information_schema.REFERENTIAL_CONSTRAINTS rc
+        WHERE rc.CONSTRAINT_SCHEMA = DATABASE()
+          AND (rc.TABLE_NAME IN ('order_line_fitments', 'audit_logs') OR rc.REFERENCED_TABLE_NAME IN ('order_line_fitments', 'audit_logs'))
+    ");
+
+    expect(array_map(static fn (object $k): string => "{$k->t}->{$k->r}:{$k->d}", $keys))
+        ->toBe(['order_line_fitments->order_lines:RESTRICT']);
+});
+
 it('refuses an update or delete of an audit entry, at both layers', function (): void {
     $entry = AuditLog::create([
         'log_name' => 'default',

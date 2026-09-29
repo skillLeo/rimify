@@ -16,11 +16,13 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FilterBar from '../../Components/Listing/FilterBar.vue'
+import BuildForm from '../../Components/Product/BuildForm.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ProductTile from '../../Components/Ui/ProductTile.vue'
 import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
+import { formatNumber } from '../../lib/num'
 import type { FelgenProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
@@ -37,6 +39,13 @@ const sheetOpen = ref(false)
 const heading = computed(() =>
     vehicle.value === null ? 'Alle Felgen' : `Felgen für deinen ${vehicle.value.short}`
 )
+
+/** A body style or drive the owner gave or the car's name did: the grid rests on it, so the page says it. */
+const buildGiven = computed(() => {
+    const build = vehicle.value?.build
+
+    return build != null && [build.bodySource, build.driveSource].some((source) => source === 'name' || source === 'customer')
+})
 
 const appliedCount = computed(
     () =>
@@ -92,12 +101,20 @@ onBeforeUnmount(() => {
                 </h1>
                 <p class="plp__count">
                     <template v-if="total !== null">
-                        <strong class="tabular">{{ total }}</strong>
+                        <strong class="tabular">{{ formatNumber(total ?? 0) }}</strong>
                         {{ total === 1 ? 'Felge' : 'Felgen' }} mit gültigem Gutachten für dieses Fahrzeug
                     </template>
                     <template v-else>{{ cards.length }} Felgen im Sortiment</template>
                 </p>
                 <p v-if="demo" class="micro quiet">Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>
+            </div>
+
+            <!-- The chosen car lacks what the answers wait for: asked by name the moment it is chosen, answered
+                 in place — never a list of „Keine Freigabe hinterlegt“ with no way on (EF-01, §1.1). Once answered,
+                 or read from the name, what every answer below rests on stays said, one click from changing (G-01). -->
+            <div v-if="hasVehicle && vehicle && (missing?.length || buildGiven)" class="plp__ask" :class="{ 'plp__ask--said': !missing?.length }">
+                <!-- Keyed by the car: another car chosen meanwhile gets a fresh question, never this one's state (G-10). -->
+                <BuildForm :key="`build-${vehicle.id}`" :vehicle-id="vehicle.id" :build="vehicle.build ?? null" :missing="missing ?? []" />
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->
@@ -209,7 +226,7 @@ onBeforeUnmount(() => {
             />
             <div class="plp__apply">
                 <button class="btn btn--primary btn--block" type="button" @click="sheetOpen = false">
-                    {{ total ?? 0 }} {{ total === 1 ? 'Felge' : 'Felgen' }} anzeigen
+                    {{ formatNumber(total ?? 0) }} {{ total === 1 ? 'Felge' : 'Felgen' }} anzeigen
                 </button>
             </div>
         </div>
@@ -239,6 +256,25 @@ onBeforeUnmount(() => {
 .plp__count {
     margin-top: var(--space-2);
     color: var(--ink2);
+}
+
+/* The question about the car, above the grid it decides: set on the band as the notice without a car is, the
+   full width of the page, so its white options read as the buttons they are (DIRECTION §4: no bordered card). */
+.plp__ask {
+    margin-bottom: var(--space-5);
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--band);
+}
+
+.plp__ask :deep(.bf) {
+    margin-block: 0;
+}
+
+/* Nothing asked, only said: a line under the count, not a panel. „Ändern“ opens the choice on the band. */
+.plp__ask--said:not(:has(.bf__group)) {
+    padding: 0;
+    background: none;
 }
 
 .plp__notice {

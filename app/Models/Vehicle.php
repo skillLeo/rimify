@@ -20,8 +20,8 @@ use Illuminate\Support\Carbon;
  * orders stay readable.
  *
  * @property int $id
- * @property string $hsn
- * @property string $tsn
+ * @property string|null $hsn null, with the TSN, for a car typed from a Gutachten until a dataset brings them
+ * @property string|null $tsn
  * @property string|null $vsn
  * @property string $make
  * @property string $model
@@ -32,6 +32,11 @@ use Illuminate\Support\Carbon;
  * @property int|null $axle_load_rear_kg
  * @property int|null $max_speed_kmh
  * @property bool $needs_review
+ * @property string $source one of VehicleSource: an import, `gutachten`, `manuell_geprueft` or `entwicklung`
+ * @property int|null $source_document_id the Gutachten a `gutachten` car was typed from
+ * @property int|null $source_page the page of that Gutachten
+ * @property bool $is_demo
+ * @property string|null $demo_ref
  */
 class Vehicle extends Model
 {
@@ -46,6 +51,8 @@ class Vehicle extends Model
         'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh',
         'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
         'needs_review', 'raw', 'imported_at',
+        // Fixed at insert (trg_veh_demo_fixed): where the car came from, and whether it is demo data.
+        'source', 'is_demo', 'demo_ref', 'source_document_id', 'source_page',
     ];
 
     /** @return array<string, string> */
@@ -63,6 +70,7 @@ class Vehicle extends Model
             'doors' => 'integer',
             'seats' => 'integer',
             'needs_review' => 'boolean',
+            'is_demo' => 'boolean',
             'raw' => 'array',
             'imported_at' => 'immutable_datetime',
         ];

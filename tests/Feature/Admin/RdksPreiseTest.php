@@ -54,10 +54,10 @@ function rdksAudit(string $event): Builder
 it('sends a guest to the sign-in screen for every route', function (): void {
     $price = TpmsSensorPrice::factory()->create();
 
-    $this->get('/admin/rdks-preise')->assertRedirect('/admin/anmelden');
-    $this->post('/admin/rdks-preise', rdksPayload())->assertRedirect('/admin/anmelden');
-    $this->patch('/admin/rdks-preise/'.$price->getKey(), rdksPayload())->assertRedirect('/admin/anmelden');
-    $this->delete('/admin/rdks-preise/'.$price->getKey())->assertRedirect('/admin/anmelden');
+    $this->get('/admin/zubehoerpreise/rdks')->assertRedirect('/admin/anmelden');
+    $this->post('/admin/zubehoerpreise/rdks', rdksPayload())->assertRedirect('/admin/anmelden');
+    $this->patch('/admin/zubehoerpreise/rdks/'.$price->getKey(), rdksPayload())->assertRedirect('/admin/anmelden');
+    $this->delete('/admin/zubehoerpreise/rdks/'.$price->getKey())->assertRedirect('/admin/anmelden');
 
     expect(TpmsSensorPrice::query()->count())->toBe(1);
 });
@@ -66,9 +66,9 @@ it('lets a writing role create, edit and delete a price', function (string $role
     $admin = rdksAdmin($role);
 
     $this->actingAs($admin, 'admin')
-        ->from('/admin/rdks-preise')
-        ->post('/admin/rdks-preise', rdksPayload(['make' => 'vw']))
-        ->assertRedirect('/admin/rdks-preise')
+        ->from('/admin/zubehoerpreise/rdks')
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['make' => 'vw']))
+        ->assertRedirect('/admin/zubehoerpreise/rdks')
         ->assertSessionHasNoErrors()
         ->assertSessionHas('toast', 'Gespeichert.');
 
@@ -82,9 +82,9 @@ it('lets a writing role create, edit and delete a price', function (string $role
         ->and($price->active)->toBeTrue();
 
     $this->actingAs($admin, 'admin')
-        ->from('/admin/rdks-preise')
-        ->patch('/admin/rdks-preise/'.$price->getKey(), rdksPayload(['make' => 'Volkswagen', 'price' => '59,00', 'active' => false]))
-        ->assertRedirect('/admin/rdks-preise')
+        ->from('/admin/zubehoerpreise/rdks')
+        ->patch('/admin/zubehoerpreise/rdks/'.$price->getKey(), rdksPayload(['make' => 'Volkswagen', 'price' => '59,00', 'active' => false]))
+        ->assertRedirect('/admin/zubehoerpreise/rdks')
         ->assertSessionHasNoErrors()
         ->assertSessionHas('toast', 'Gespeichert.');
 
@@ -96,9 +96,9 @@ it('lets a writing role create, edit and delete a price', function (string $role
         ->and($price->active)->toBeFalse();
 
     $this->actingAs($admin, 'admin')
-        ->from('/admin/rdks-preise')
-        ->delete('/admin/rdks-preise/'.$price->getKey())
-        ->assertRedirect('/admin/rdks-preise')
+        ->from('/admin/zubehoerpreise/rdks')
+        ->delete('/admin/zubehoerpreise/rdks/'.$price->getKey())
+        ->assertRedirect('/admin/zubehoerpreise/rdks')
         ->assertSessionHas('toast', 'Gelöscht.');
 
     // Soft-deleted, never gone: an order line may still point at this id.
@@ -110,12 +110,12 @@ it('refuses the index and every mutation to a role without the catalogue module'
     $existing = TpmsSensorPrice::factory()->ofMake('porsche', 'Porsche')->create(['price_cents' => 18900]);
     $admin = rdksAdmin($role);
 
-    $this->actingAs($admin, 'admin')->get('/admin/rdks-preise')->assertForbidden();
-    $this->actingAs($admin, 'admin')->post('/admin/rdks-preise', rdksPayload())->assertForbidden();
+    $this->actingAs($admin, 'admin')->get('/admin/zubehoerpreise/rdks')->assertForbidden();
+    $this->actingAs($admin, 'admin')->post('/admin/zubehoerpreise/rdks', rdksPayload())->assertForbidden();
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/rdks-preise/'.$existing->getKey(), rdksPayload(['make' => 'Porsche', 'price' => '1,00']))
+        ->patch('/admin/zubehoerpreise/rdks/'.$existing->getKey(), rdksPayload(['make' => 'Porsche', 'price' => '1,00']))
         ->assertForbidden();
-    $this->actingAs($admin, 'admin')->delete('/admin/rdks-preise/'.$existing->getKey())->assertForbidden();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/rdks/'.$existing->getKey())->assertForbidden();
 
     $existing->refresh();
 
@@ -129,7 +129,7 @@ it('lets a reading role view the list and refuses every write', function (string
     $admin = rdksAdmin($role);
 
     $this->actingAs($admin, 'admin')
-        ->get('/admin/rdks-preise')
+        ->get('/admin/zubehoerpreise/rdks')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Rdks/Index')
@@ -139,11 +139,11 @@ it('lets a reading role view the list and refuses every write', function (string
             ->where('can.delete', false)
         );
 
-    $this->actingAs($admin, 'admin')->post('/admin/rdks-preise', rdksPayload())->assertForbidden();
+    $this->actingAs($admin, 'admin')->post('/admin/zubehoerpreise/rdks', rdksPayload())->assertForbidden();
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/rdks-preise/'.$existing->getKey(), rdksPayload(['make' => 'Porsche', 'price' => '1,00']))
+        ->patch('/admin/zubehoerpreise/rdks/'.$existing->getKey(), rdksPayload(['make' => 'Porsche', 'price' => '1,00']))
         ->assertForbidden();
-    $this->actingAs($admin, 'admin')->delete('/admin/rdks-preise/'.$existing->getKey())->assertForbidden();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/rdks/'.$existing->getKey())->assertForbidden();
 
     $existing->refresh();
 
@@ -156,10 +156,10 @@ it('keys VW and Volkswagen to one make and refuses the second with the German se
     $admin = rdksAdmin('super-admin');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['make' => 'VW']))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['make' => 'VW']))
         ->assertSessionHasNoErrors();
     $this->actingAs($admin, 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['make' => 'Volkswagen', 'price' => '99,00']))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['make' => 'Volkswagen', 'price' => '99,00']))
         ->assertSessionHasErrors([
             'makeKey' => 'Für diese Marke ist schon ein Preis hinterlegt – bearbeite ihn dort.',
         ]);
@@ -174,18 +174,18 @@ it('restores a deleted make instead of colliding with it', function (): void {
     $admin = rdksAdmin('super-admin');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['make' => 'Porsche', 'price' => '189,00']))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['make' => 'Porsche', 'price' => '189,00']))
         ->assertSessionHasNoErrors();
 
     $porsche = TpmsSensorPrice::query()->sole();
 
-    $this->actingAs($admin, 'admin')->delete('/admin/rdks-preise/'.$porsche->getKey())->assertRedirect();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/rdks/'.$porsche->getKey())->assertRedirect();
 
     expect(TpmsSensorPrice::onlyTrashed()->count())->toBe(1)
         ->and(TpmsSensorPrice::forMake('Porsche'))->toBeNull();
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['make' => 'porsche', 'price' => '199,00']))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['make' => 'porsche', 'price' => '199,00']))
         ->assertSessionHasNoErrors();
 
     $restored = TpmsSensorPrice::query()->sole();
@@ -200,7 +200,7 @@ it('restores a deleted make instead of colliding with it', function (): void {
 
 it('refuses a price of 0,00 because it would claim the sensors are free', function (string $input): void {
     $this->actingAs(rdksAdmin('super-admin'), 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['price' => $input]))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['price' => $input]))
         ->assertSessionHasErrors([
             'priceCents' => 'Ein Preis von 0,00 € würde behaupten, die Sensoren wären kostenlos. Lass die Marke lieber ganz weg.',
         ]);
@@ -210,7 +210,7 @@ it('refuses a price of 0,00 because it would claim the sensors are free', functi
 
 it('refuses an ambiguous price with the sentence that names the fix', function (string $input): void {
     $this->actingAs(rdksAdmin('super-admin'), 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['price' => $input]))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['price' => $input]))
         ->assertSessionHasErrors(['priceCents' => 'Bitte schreib den Preis deutsch, zum Beispiel 49,00.']);
 
     expect(TpmsSensorPrice::query()->count())->toBe(0);
@@ -218,7 +218,7 @@ it('refuses an ambiguous price with the sentence that names the fix', function (
 
 it('refuses an empty make', function (): void {
     $this->actingAs(rdksAdmin('super-admin'), 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['make' => '   ']))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['make' => '   ']))
         ->assertSessionHasErrors(['makeKey' => 'Bitte gib die Automarke an.']);
 
     expect(TpmsSensorPrice::query()->count())->toBe(0);
@@ -226,7 +226,7 @@ it('refuses an empty make', function (): void {
 
 it('parses German money input: 1.425,00 € becomes 142500 cents', function (): void {
     $this->actingAs(rdksAdmin('super-admin'), 'admin')
-        ->post('/admin/rdks-preise', rdksPayload(['price' => "1.425,00\u{00A0}€"]))
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload(['price' => "1.425,00\u{00A0}€"]))
         ->assertSessionHasNoErrors();
 
     expect(TpmsSensorPrice::query()->sole()->price_cents)->toBe(142500);
@@ -245,7 +245,7 @@ it('never changes a placed order when the price changes', function (): void {
     ]);
 
     $this->actingAs(rdksAdmin('super-admin'), 'admin')
-        ->patch('/admin/rdks-preise/'.$price->getKey(), rdksPayload(['price' => '189,00']))
+        ->patch('/admin/zubehoerpreise/rdks/'.$price->getKey(), rdksPayload(['price' => '189,00']))
         ->assertSessionHasNoErrors();
 
     $line->refresh();
@@ -261,10 +261,10 @@ it('refuses renaming a make onto a deleted one and names the route forward', fun
     $porsche = TpmsSensorPrice::factory()->ofMake('porsche', 'Porsche')->create(['price_cents' => 18900]);
     $audi = TpmsSensorPrice::factory()->ofMake('audi', 'Audi')->create(['price_cents' => 5900]);
 
-    $this->actingAs($admin, 'admin')->delete('/admin/rdks-preise/'.$porsche->getKey())->assertRedirect();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/rdks/'.$porsche->getKey())->assertRedirect();
 
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/rdks-preise/'.$audi->getKey(), rdksPayload(['make' => 'Porsche', 'price' => '59,00']))
+        ->patch('/admin/zubehoerpreise/rdks/'.$audi->getKey(), rdksPayload(['make' => 'Porsche', 'price' => '59,00']))
         ->assertSessionHasErrors([
             'makeKey' => 'Für diese Marke gab es schon einmal einen Preis. Leg ihn als neuen Preis an – dann stellen wir den gelöschten wieder her.',
         ]);
@@ -274,7 +274,7 @@ it('refuses renaming a make onto a deleted one and names the route forward', fun
 
 it('logs a denied write to audit_logs with its ability and route', function (): void {
     $this->actingAs(rdksAdmin('accountant'), 'admin')
-        ->post('/admin/rdks-preise', rdksPayload())
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload())
         ->assertForbidden();
 
     $entry = rdksAudit('permission.denied')->sole();
@@ -289,7 +289,7 @@ it('writes an audit entry for create, update and delete', function (): void {
     $admin = rdksAdmin('catalogue-manager');
 
     $this->actingAs($admin, 'admin')
-        ->post('/admin/rdks-preise', rdksPayload())
+        ->post('/admin/zubehoerpreise/rdks', rdksPayload())
         ->assertSessionHasNoErrors();
 
     $price = TpmsSensorPrice::query()->sole();
@@ -302,7 +302,7 @@ it('writes an audit entry for create, update and delete', function (): void {
         ->and($created->properties->get('price_cents'))->toBe(4900);
 
     $this->actingAs($admin, 'admin')
-        ->patch('/admin/rdks-preise/'.$price->getKey(), rdksPayload(['price' => '59,00']))
+        ->patch('/admin/zubehoerpreise/rdks/'.$price->getKey(), rdksPayload(['price' => '59,00']))
         ->assertSessionHasNoErrors();
 
     $updated = rdksAudit('tpms_price.updated')->sole();
@@ -311,7 +311,7 @@ it('writes an audit entry for create, update and delete', function (): void {
         ->and($updated->properties->get('old'))->toBe(['price_cents' => 4900])
         ->and($updated->properties->get('new'))->toBe(['price_cents' => 5900]);
 
-    $this->actingAs($admin, 'admin')->delete('/admin/rdks-preise/'.$price->getKey())->assertRedirect();
+    $this->actingAs($admin, 'admin')->delete('/admin/zubehoerpreise/rdks/'.$price->getKey())->assertRedirect();
 
     $deleted = rdksAudit('tpms_price.deleted')->sole();
 
@@ -325,7 +325,7 @@ it('ships the prices with formatted money, the makes of the vehicle table and th
     $vehicle = Vehicle::factory()->create();
 
     $this->actingAs(rdksAdmin('super-admin'), 'admin')
-        ->get('/admin/rdks-preise')
+        ->get('/admin/zubehoerpreise/rdks')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Rdks/Index')

@@ -4,16 +4,17 @@
  * over it an SVG in the picture's own coordinate box (its viewBox is the frame's pixel size), so a
  * shape drawn from a measured anchor lands exactly where the anchor was measured, at any width.
  *
- * Only what a front view shows is marked: the Lochkreis as a dashed circle through the bolt-hole
- * centres, the cap that covers the Mittenlochbohrung (labelled *hinter der Nabenkappe*), and the
- * KBA stamp in a box. For the other values the line under the photograph says that the
- * cross-section shows them. Nothing is marked without a measured anchor.
+ * Only what the photograph shows is marked: the Felgendurchmesser at the bead seat and the Maulweite
+ * across the barrel, as dimension lines; the Lochkreis as a dashed circle through the bolt-hole
+ * centres; the cap that covers the Mittenlochbohrung (labelled *hinter der Nabenkappe*); and the KBA
+ * stamp in a box. For the ET the line under the photograph says that the cross-section shows it.
+ * Nothing is marked without a measured anchor.
  */
 
 import { computed } from 'vue'
 import Picture from '../Ui/Picture.vue'
 import ValueText from '../Ui/ValueText.vue'
-import { photoHint, photoLabel, photoShape, type PhotoFrame, type RimKey } from './rimCode'
+import { dimensionTick, photoHint, photoLabel, photoShape, type PhotoFrame, type RimKey } from './rimCode'
 
 const props = withDefaults(
     defineProps<{
@@ -36,6 +37,24 @@ const shape = computed(() => photoShape(props.active, props.frame, props.kba))
 const label = computed(() => (shape.value === null ? null : photoLabel(shape.value, props.frame)))
 const hint = computed(() => photoHint(props.active, shape.value !== null, props.showEt))
 
+/*
+ * A dimension line with a tick across each end: 2 % of the frame at most, and never more than 30 % of
+ * the line itself, so a short span reads as a dimension and not as a letter.
+ */
+const dimension = computed(() => {
+    const s = shape.value
+
+    if (s === null || s.kind !== 'line') {
+        return ''
+    }
+
+    const t = dimensionTick(s, props.frame.image.width)
+    const vertical = s.x1 === s.x2
+    const tick = (x: number, y: number): string => (vertical ? `M${x - t} ${y}H${x + t}` : `M${x} ${y - t}V${y + t}`)
+
+    return `M${s.x1} ${s.y1}L${s.x2} ${s.y2}${tick(s.x1, s.y1)}${tick(s.x2, s.y2)}`
+})
+
 const box = computed(() => `0 0 ${props.frame.image.width} ${props.frame.image.height}`)
 const ratio = computed(() => `${props.frame.image.width} / ${props.frame.image.height}`)
 const labelStyle = computed(() =>
@@ -49,6 +68,12 @@ const labelStyle = computed(() =>
             <Picture class="rc-photo__picture" :image="frame.image" :alt="alt" :sizes="sizes" />
 
             <svg class="rc-photo__overlay" :viewBox="box" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <!-- A casing in the surface colour under the mark, so it reads on a matt black wheel. -->
+                <g v-if="shape" class="rc-photo__casing" :class="{ 'rc-photo__shape--dashed': shape.kind === 'circle' && shape.dashed }">
+                    <circle v-if="shape.kind === 'circle'" :cx="shape.cx" :cy="shape.cy" :r="shape.r" />
+                    <rect v-else-if="shape.kind === 'rect'" :x="shape.x" :y="shape.y" :width="shape.width" :height="shape.height" />
+                    <path v-else :d="dimension" />
+                </g>
                 <circle
                     v-if="shape?.kind === 'circle'"
                     class="rc-photo__shape"
@@ -67,6 +92,7 @@ const labelStyle = computed(() =>
                     :width="shape.width"
                     :height="shape.height"
                 />
+                <path v-else-if="shape?.kind === 'line'" class="rc-photo__shape" :data-shape="shape.key" :d="dimension" />
             </svg>
 
             <!-- The overlay label is a term (`Lochkreis`, `hinter der Nabenkappe`) or a number
@@ -119,7 +145,15 @@ const labelStyle = computed(() =>
     vector-effect: non-scaling-stroke;
 }
 
-.rc-photo__shape--dashed {
+.rc-photo__casing > * {
+    fill: none;
+    stroke: var(--c-surface);
+    stroke-width: 6;
+    vector-effect: non-scaling-stroke;
+}
+
+.rc-photo__shape--dashed,
+.rc-photo__shape--dashed > * {
     stroke-dasharray: 6 4;
 }
 

@@ -9,7 +9,6 @@ use App\Models\Order;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,9 +18,24 @@ use Inertia\Response;
  * It shows the frozen verdict per line, not a freshly computed one: this page is the customer's
  * receipt for what they were told, and re-deriving it would mean the page could one day disagree
  * with the email they were sent.
+ *
+ * An order number counts up, so it is no secret: a real order is shown only to the browser that
+ * placed it, or through a signed link. Anyone else gets the same 404 as an order that does not exist.
  */
 class BestellungController extends Controller
 {
+    /** The session key holding the order numbers this browser placed. */
+    public const SESSION_PLACED = 'orders.placed';
+
+    /** Remembers that this browser placed the order, so its confirmation page opens for it. */
+    public static function remember(Request $request, string $number): void
+    {
+        $placed = $request->session()->get(self::SESSION_PLACED);
+        $placed = is_array($placed) ? array_values(array_filter($placed, 'is_string')) : [];
+
+        $request->session()->put(self::SESSION_PLACED, array_slice(array_values(array_unique([...$placed, $number])), -10));
+    }
+
     public function show(Request $request, string $order): Response
     {
         $record = Order::query()
@@ -29,7 +43,13 @@ class BestellungController extends Controller
             ->where('order_number', $order)
             ->firstOrFail();
 
-        $demo = $this->isDemo($record);
+        $demo = $record->isDemo();
+        $placed = $request->session()->get(self::SESSION_PLACED);
+
+        abort_unless(
+            $demo || $request->hasValidSignature() || (is_array($placed) && in_array($record->order_number, $placed, true)),
+            404,
+        );
         $lines = [];
 
         foreach ($record->lines as $line) {
@@ -79,20 +99,5 @@ class BestellungController extends Controller
             // then offers the e-mail.
             'contact' => Chrome::contact(),
         ]);
-    }
-
-    /**
-     * Whether an order is seeded demonstration data: any of its lines is a wheel from a demo
-     * model. Every order CommerceSeeder writes has such a line, and a demo model can never be
-     * ordered (KasseController refuses it), so a real order never matches.
-     */
-    private function isDemo(Order $order): bool
-    {
-        return DB::table('order_lines as ol')
-            ->join('wheel_configs as wc', 'wc.id', '=', 'ol.wheel_config_id')
-            ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
-            ->where('ol.order_id', $order->id)
-            ->where('wm.is_demo', true)
-            ->exists();
     }
 }

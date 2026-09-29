@@ -111,7 +111,7 @@ const VERDICT_TONE: Record<string, string> = {
                 <p v-if="lines.length > 0" class="cart__count">
                     <span class="tabular">{{ totals.count }}</span> Artikel
                     <template v-if="vehicle">
-                        für {{ vehicle.label }} <span class="data">({{ vehicle.keyNumbers }})</span>
+                        für {{ vehicle.label }} <span class="data">({{ vehicle.approval ?? vehicle.keyNumbers }})</span>
                     </template>
                 </p>
             </div>

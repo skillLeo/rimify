@@ -70,10 +70,16 @@ export function routesFrom(args) {
     return typeof args.routes === 'string' ? args.routes.split(',').map((r) => r.trim()) : ROUTES
 }
 
+/**
+ * An admin session for the admin's routes, when one was saved (QA_STORAGE_STATE — written by
+ * e2e/qa-session.spec.ts with the e2e sign-in, so no gate script ever holds a password).
+ */
+const SESSION = process.env.QA_STORAGE_STATE ? { storageState: process.env.QA_STORAGE_STATE } : {}
+
 export function contextOptions(width, height, mobile) {
     return mobile
-        ? { viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: MOBILE_UA, locale: 'de-DE' }
-        : { viewport: { width, height }, locale: 'de-DE' }
+        ? { viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: MOBILE_UA, locale: 'de-DE', ...SESSION }
+        : { viewport: { width, height }, locale: 'de-DE', ...SESSION }
 }
 
 /**

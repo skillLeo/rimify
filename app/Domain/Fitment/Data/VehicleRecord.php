@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Data;
 
 use App\Domain\Fitment\Support\BuildWindow;
+use App\Support\VehicleName;
 
 /**
  * A vehicle variant, as the engine sees it.
@@ -19,10 +20,14 @@ use App\Domain\Fitment\Support\BuildWindow;
  */
 final readonly class VehicleRecord
 {
+    /**
+     * @param  string|null  $hsn  null, with $tsn, for a car typed from a Gutachten until a vehicle dataset
+     *                            brings its key numbers (Block C, item 7) — never invented
+     */
     public function __construct(
         public int $id,
-        public string $hsn,
-        public string $tsn,
+        public ?string $hsn,
+        public ?string $tsn,
         public ?string $vsn,
         public string $make,
         public string $model,
@@ -40,7 +45,51 @@ final readonly class VehicleRecord
         public ?int $seats = null,
         public bool $needsReview = false,
         public bool $isDeleted = false,
+        /**
+         * The car as the vehicle data has it, when the customer's own figures were laid over it (C10) — so
+         * the verdict can say whether their figures made the answer stricter, and open its sum (the
+         * operator's decision of 29.09.2026).
+         */
+        public ?VehicleRecord $beforePapers = null,
+        /**
+         * Where `bodyForm` and `driveAxle` came from, where the vehicle data held none (the operator's last
+         * prompt §1.1): VehicleBuild::FROM_CUSTOMER — the owner said so; VehicleBuild::FROM_NAME — derived from
+         * an unambiguous word of the car's name. Null: the vehicle data's own, or not known. Frozen with every
+         * verdict, so a wrong answer can be traced to the assumption that produced it.
+         */
+        public ?string $bodyFormSource = null,
+        public ?string $driveAxleSource = null,
     ) {}
+
+    /** This car with its body style and drive as given, and where each came from (VehicleBuild::overlay()). */
+    public function withBuild(?string $bodyForm, ?string $bodyFormSource, ?string $driveAxle, ?string $driveAxleSource): self
+    {
+        return new self(
+            id: $this->id,
+            hsn: $this->hsn,
+            tsn: $this->tsn,
+            vsn: $this->vsn,
+            make: $this->make,
+            model: $this->model,
+            variant: $this->variant,
+            typeDesignation: $this->typeDesignation,
+            buildWindow: $this->buildWindow,
+            axleLoadFrontKg: $this->axleLoadFrontKg,
+            axleLoadRearKg: $this->axleLoadRearKg,
+            maxSpeedKmh: $this->maxSpeedKmh,
+            powerKw: $this->powerKw,
+            powerPs: $this->powerPs,
+            bodyForm: $bodyForm,
+            driveAxle: $driveAxle,
+            doors: $this->doors,
+            seats: $this->seats,
+            needsReview: $this->needsReview,
+            isDeleted: $this->isDeleted,
+            beforePapers: $this->beforePapers,
+            bodyFormSource: $bodyFormSource,
+            driveAxleSource: $driveAxleSource,
+        );
+    }
 
     /**
      * R-03, asked before anything else: a vehicle whose axle loads or top speed could not be
@@ -56,12 +105,16 @@ final readonly class VehicleRecord
             && $this->maxSpeedKmh !== null && $this->maxSpeedKmh > 0;
     }
 
-    /** `Audi RS 4 Avant Quattro (B9)` */
+    /**
+     * `Audi RS 4 Avant Quattro (B9)`. A car typed from a Gutachten is named by its Fahrzeugtyp, so it keeps its
+     * model and needs no type after it: `BMW 1er-Reihe 187`, never `BMW 187 (187)` (Block D, D-02).
+     */
     public function label(): string
     {
-        $label = trim($this->make.' '.$this->variant);
+        $label = VehicleName::forShop($this->make, $this->model, $this->variant, $this->typeDesignation);
+        $type = trim((string) $this->typeDesignation);
 
-        return $this->typeDesignation === null ? $label : $label.' ('.$this->typeDesignation.')';
+        return $type === '' || str_starts_with(trim($this->variant), $type) ? $label : $label.' ('.$type.')';
     }
 
     /** `Audi RS 4 Avant Quattro (B9), 03/2018–11/2019` — what the chooser shows. */
@@ -70,8 +123,9 @@ final readonly class VehicleRecord
         return $this->label().', '.$this->buildWindow->labelDe();
     }
 
-    public function keyNumbers(): string
+    /** `0005/BGU`, or null while no source has given the key numbers. */
+    public function keyNumbers(): ?string
     {
-        return $this->hsn.'/'.$this->tsn;
+        return $this->hsn === null || $this->tsn === null ? null : $this->hsn.'/'.$this->tsn;
     }
 }

@@ -15,10 +15,12 @@ use Database\Seeders\CommerceSeeder;
 use Inertia\Testing\AssertableInertia;
 
 /**
- * ACCURACY.md D4: the checkout can be walked, and nothing binding happens. The server refuses to
- * place an order while any basket line is a demo model, while shipping is unconfigured, and — with
- * no payment integration yet — in any case. Every refusal is a friendly German sentence and writes
- * no row.
+ * The checkout can be walked, and nothing binding happens. The server refuses to place an order while
+ * any basket line is a demo model (a stale basket: a demo wheel is in no shop and cannot be added —
+ * the review release §2), while shipping is unconfigured, and — with no payment integration yet — in
+ * any case. Every refusal is a friendly German sentence and writes no row.
+ *
+ * The seeded catalogue is this file's shop (tests/Pest.php): published and not demo.
  */
 beforeEach(function (): void {
     $this->seed(CommerceSeeder::class);
@@ -40,6 +42,12 @@ function kasseForm(array $overrides = []): array
         'shipping' => 'standard',
         ...$overrides,
     ];
+}
+
+/** Turns the model of a configuration into a demonstration row — out of the shop, as the rule has it. */
+function kasseMakeDemo(WheelConfig $config): void
+{
+    WheelModel::query()->whereKey($config->wheel_model_id)->update(['is_demo' => true, 'status' => 'draft']);
 }
 
 /** A basket of four of one in-stock configuration, as the session holds it. */
@@ -67,9 +75,9 @@ function kasseInStockConfig(): WheelConfig
     return WheelConfig::query()->where('stock_qty', '>', 4)->orderBy('id')->firstOrFail();
 }
 
-it('refuses an order with a demo line, in German, and creates nothing', function (): void {
+it('refuses an order with a demo line left in a stale basket, in German, and creates nothing', function (): void {
     $config = kasseInStockConfig();
-    expect(WheelModel::query()->whereKey($config->wheel_model_id)->value('is_demo'))->toBeTrue();
+    kasseMakeDemo($config);
 
     config(['rimify.shipping.cost_cents' => 990]);
     $before = commerceRowCounts();
@@ -85,7 +93,6 @@ it('refuses an order with a demo line, in German, and creates nothing', function
 
 it('refuses an order while no shipping price is configured', function (): void {
     $config = kasseInStockConfig();
-    WheelModel::query()->whereKey($config->wheel_model_id)->update(['is_demo' => false]);
     $before = commerceRowCounts();
 
     $this->withSession(kasseBasket($config))
@@ -99,7 +106,6 @@ it('refuses an order while no shipping price is configured', function (): void {
 
 it('still places nothing when the basket is fine: there is no payment yet', function (): void {
     $config = kasseInStockConfig();
-    WheelModel::query()->whereKey($config->wheel_model_id)->update(['is_demo' => false]);
     config(['rimify.shipping.cost_cents' => 990, 'rimify.shipping.free_from_cents' => 50_000]);
     $before = commerceRowCounts();
 
@@ -135,6 +141,7 @@ it('checks the address on the server, with the page\'s own German sentences', fu
 
 it('tells the checkout page the refusal before anyone presses the button', function (): void {
     $config = kasseInStockConfig();
+    kasseMakeDemo($config);
 
     $this->withSession(kasseBasket($config))
         ->get('/kasse')
@@ -145,14 +152,14 @@ it('tells the checkout page the refusal before anyone presses the button', funct
             ->where('lines.0.demo', true)
         );
 
-    WheelModel::query()->whereKey($config->wheel_model_id)->update(['is_demo' => false]);
+    WheelModel::query()->whereKey($config->wheel_model_id)->update(['is_demo' => false, 'status' => 'published']);
 
     $this->withSession(kasseBasket($config))
         ->get('/kasse')
         ->assertInertia(fn (AssertableInertia $page) => $page->where('orderRefusal', Basket::SHIPPING_REFUSAL));
 });
 
-it('keeps a demo wheel addable, so the flow can be reviewed', function (): void {
+it('adds a wheel that is in the shop, and refuses one that is not — a demo or a draft model', function (): void {
     $config = kasseInStockConfig();
 
     $this->from('/felgen')
@@ -160,9 +167,20 @@ it('keeps a demo wheel addable, so the flow can be reviewed', function (): void 
         ->assertSessionHasNoErrors()
         ->assertSessionHas('toast', 'Zum Warenkorb hinzugefügt.');
 
+    $demo = WheelConfig::query()->where('wheel_model_id', '!=', $config->wheel_model_id)->where('stock_qty', '>', 4)->orderBy('id')->firstOrFail();
+    kasseMakeDemo($demo);
+    $draft = WheelConfig::query()->whereNotIn('wheel_model_id', [$config->wheel_model_id, $demo->wheel_model_id])->where('stock_qty', '>', 4)->orderBy('id')->firstOrFail();
+    WheelModel::query()->whereKey($draft->wheel_model_id)->update(['status' => 'draft']);
+
+    foreach ([$demo, $draft] as $gone) {
+        $this->from('/felgen')
+            ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $gone->id, 'quantity' => 4])
+            ->assertSessionHasErrors();
+    }
+
     $this->get('/warenkorb')->assertInertia(fn (AssertableInertia $page) => $page
         ->has('lines', 1)
-        ->where('lines.0.demo', true)
+        ->where('lines.0.demo', false)
     );
 });
 

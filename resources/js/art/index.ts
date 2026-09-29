@@ -9,7 +9,7 @@
 
 export { brandBannerSVG, type BannerOptions } from './banner'
 export { carSVG, type CarOptions, type CarVariant } from './car'
-export { docSVG, type DocOptions, type DocVariant } from './doc'
+export { docSVG, papersSVG, type DocOptions, type DocVariant } from './doc'
 export { heroSceneSVG, type HeroOptions } from './hero'
 export { ICON_NAMES, icon, isIconName, type IconName, type IconOptions } from './icons'
 export {

@@ -109,6 +109,7 @@ final readonly class ErrorPage
             // Not printed anywhere: it travels only in the prepared e-mail, so that a report tells
             // us which address failed without the page reflecting whatever was in the URL.
             'failedPath' => $this->failedPath($request),
+            'reloadHref' => $this->reloadHref($request),
         ])
             ->toResponse($request)
             ->setStatusCode($status);
@@ -219,6 +220,29 @@ final readonly class ErrorPage
         $seconds = (int) $header;
 
         return $seconds > 0 ? $seconds : null;
+    }
+
+    /**
+     * Where „Diese Seite neu laden“ leads. After a GET, the page itself (an empty href). After a form was sent,
+     * the address bar holds the form's address, and loading that is a GET the route refuses (405, G-14): the
+     * page the form was sent from instead — only ever one of this shop's own, else the start page.
+     */
+    private function reloadHref(Request $request): string
+    {
+        if ($request->isMethodSafe()) {
+            return '';
+        }
+
+        $referer = (string) $request->headers->get('referer', '');
+        $parts = parse_url($referer);
+
+        if (! is_array($parts) || ($parts['host'] ?? null) !== $request->getHost()) {
+            return '/';
+        }
+
+        $path = $parts['path'] ?? '/';
+
+        return mb_substr($path.(isset($parts['query']) ? '?'.$parts['query'] : ''), 0, 500);
     }
 
     private function failedPath(Request $request): string

@@ -12,7 +12,8 @@
 # brings the site back with `artisan up` as its LAST step. `set -e` means any failure stops here with
 # the site still in maintenance: a maintenance page, never new code on an unmigrated schema.
 #
-# By hand: `php artisan down`, then pull, then `bash deploy/remote.sh`.
+# By hand: `php artisan down --render="errors::503"`, then pull, then `bash deploy/remote.sh` —
+# docs/launch/GO-LIVE.md is the full runbook, backup and rollback included.
 
 set -euo pipefail
 
@@ -21,12 +22,21 @@ PHP="${PHP_BIN:-/opt/alt/php84/usr/bin/php}"
 NODE="${NODE_BIN:-/opt/alt/alt-nodejs22/root/usr/bin/node}"
 SSR_PORT="${SSR_PORT:-13714}"
 
+# What this host is. `production` (the default): the client's shop — no demo row, ever (R-12), and
+# the release stops if it finds one. `staging`: a review preview — the admin is on, and its
+# demonstration data is written once, flagged as such on every screen (DemoGuard allows it there).
+TARGET_ENV="${TARGET_ENV:-production}"
+case "$TARGET_ENV" in
+    production|staging) ;;
+    *) echo "== TARGET_ENV must be production or staging, not $TARGET_ENV"; exit 1 ;;
+esac
+
 cd "$APP"
 echo "== code: $(git log -1 --format='%h %s')"
 
 # A manual run may not have taken the site down first. This covers that case; it is a no-op when
 # the workflow already did. It may fail before composer has run, hence `|| true`.
-"$PHP" artisan down --retry=60 > /dev/null 2>&1 || true
+"$PHP" artisan down --render="errors::503" --retry=60 > /dev/null 2>&1 || true
 
 # ── Environment ────────────────────────────────────────────────────────────────
 if [ ! -f .env ]; then
@@ -35,7 +45,23 @@ if [ ! -f .env ]; then
 fi
 
 set_env() { "$PHP" deploy/env.php "$1" "${2:-}"; }
-set_env APP_ENV production
+set_env APP_ENV "$TARGET_ENV"
+if [ "$TARGET_ENV" = staging ]; then
+    set_env DEMO_DATA 1
+    set_env RIMIFY_ADMIN_ENABLED true
+    # The client's review: the board, the feedback button and the review accounts.
+    set_env RIMIFY_REVIEW true
+    # Test orders end to end: a page that says it is a test chooses how the payment ends.
+    set_env RIMIFY_PAYMENTS sandbox
+    # A preview sends no mail: every message goes to the log.
+    set_env MAIL_MAILER log
+else
+    set_env DEMO_DATA 0
+    set_env RIMIFY_REVIEW false
+    set_env RIMIFY_PAYMENTS none
+    # Production's mail settings are the operator's (.env, GO-LIVE.md): never overwritten here, and
+    # rimify:preflight refuses a production that only writes its mail to the log.
+fi
 set_env APP_DEBUG false
 set_env APP_URL "${APP_URL:-https://rimify.skillleo.com}"
 set_env LOG_STACK daily
@@ -43,7 +69,6 @@ set_env LOG_LEVEL warning
 set_env SESSION_DRIVER file
 set_env CACHE_STORE file
 set_env QUEUE_CONNECTION sync
-set_env MAIL_MAILER log
 set_env DB_HOST "${DB_HOST:-localhost}"
 set_env DB_PORT "${DB_PORT:-3306}"
 set_env DB_DATABASE "${DB_DATABASE:-}"
@@ -60,12 +85,19 @@ chmod -R ug+rwX storage bootstrap/cache
 # ── PHP dependencies and schema ────────────────────────────────────────────────
 COMPOSER="$(command -v composer || echo /usr/local/bin/composer)"
 "$PHP" "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction --no-progress 2>&1 | tail -1
+# R-12: a production database holds no demo rows. Found any, the release stops here, still in
+# maintenance. A staging preview holds them on purpose.
+if [ "$TARGET_ENV" = production ]; then
+    "$PHP" artisan demo:assert-clean --no-interaction
+fi
 "$PHP" artisan migrate --force --no-interaction
 
-# A brand-new database gets the reference data and the demonstration catalogue once. An existing
-# one is never re-seeded: that would overwrite whatever has been edited since.
-VEHICLES="$("$PHP" artisan tinker --execute='echo \Illuminate\Support\Facades\DB::table("vehicles")->count();' 2>/dev/null | tail -1)"
-if [ "$VEHICLES" = "0" ]; then
+# A brand-new database gets the reference data once — and, on staging only, the development cars
+# and the example catalogue (the seeders refuse both in production: the live shop's cars come from
+# the vehicle data import). An existing one is never re-seeded: that would overwrite whatever has been
+# edited since. "Brand-new" is read from the reference data, which every environment gets.
+SEEDED="$("$PHP" artisan tinker --execute='echo \Illuminate\Support\Facades\DB::table("load_index_table")->count();' 2>/dev/null | tail -1)"
+if [ "$SEEDED" = "0" ]; then
     echo "== empty database: seeding"
     "$PHP" artisan db:seed --force --no-interaction
 fi
@@ -73,6 +105,22 @@ fi
 # The seeded data this release changes (renamed demo catalogue, retired fitments, corrected
 # content), applied once per release and recorded. A no-op on every later deploy.
 "$PHP" artisan rimify:release-seed --no-interaction
+
+# Staging: the admin's demonstration data, written once — the Übersicht, the orders, the Protokoll.
+# Never again on a later deploy: its frozen snapshots may not be rewritten (R-12), and a set that is
+# there is kept (`demo:reanchor` moves its dates, `demo:purge` takes it away).
+if [ "$TARGET_ENV" = staging ]; then
+    DEMO_ROWS="$("$PHP" artisan tinker --execute='echo \App\Services\Demo\DemoTables::setTotal();' 2>/dev/null | tail -1)"
+    if [ "$DEMO_ROWS" = "0" ]; then
+        echo "== staging: writing the demonstration data"
+        "$PHP" artisan demo:seed --no-interaction | tail -2
+    else
+        echo "== staging: demonstration data present ($DEMO_ROWS rows)"
+    fi
+
+    # The review accounts (docs/review/ACCOUNTS.md): made or refreshed on every staging deploy.
+    "$PHP" artisan db:seed --class=ReviewAccountsSeeder --force --no-interaction
+fi
 
 # The demo imagery is served from storage/app/public through the public/storage link. Made with
 # `ln`, not `artisan storage:link`: this shared host disables PHP's `exec()`, and Laravel's
@@ -93,8 +141,36 @@ for pid in $(pgrep -u "$(id -u)" -x node || true); do
 done
 sleep 1
 INERTIA_SSR_PORT="$SSR_PORT" nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" > storage/logs/ssr.log 2>&1 < /dev/null &
-sleep 3
-grep -q 'started' storage/logs/ssr.log && echo "== renderer running on $SSR_PORT" || { echo "== renderer did not start"; tail -5 storage/logs/ssr.log; }
+
+# Readiness: the site is not opened before the renderer answers. Up to 30 seconds; if it never does,
+# the release stops here with the site still in maintenance (set -e) — a page without server
+# rendering is empty for search engines, and that is not how a release goes live.
+READY=0
+for _ in $(seq 1 30); do
+    if curl -s -m 2 -o /dev/null "http://127.0.0.1:$SSR_PORT/health"; then READY=1; break; fi
+    sleep 1
+done
+if [ "$READY" = 1 ]; then
+    echo "== renderer ready on $SSR_PORT"
+else
+    echo "== renderer NOT ready after 30 s — the site stays in maintenance. storage/logs/ssr.log:"
+    tail -5 storage/logs/ssr.log
+    exit 1
+fi
+
+# Two lines in cron, every minute (docs/launch/GO-LIVE.md §6). The host may stop the renderer between
+# releases: the watchdog starts it again within a minute (deploy/ssr-watch.sh; it does nothing while
+# the renderer answers). The scheduler runs what routes/console.php plans — demo:assert-clean daily in
+# production (R-12). Idempotent: this app's two lines replaced, every other line on the account kept.
+WATCH="* * * * * SSR_PORT=$SSR_PORT NODE_BIN=$NODE bash $APP/deploy/ssr-watch.sh > /dev/null 2>&1"
+SCHEDULE="* * * * * cd $APP && $PHP artisan schedule:run > /dev/null 2>&1"
+if command -v crontab > /dev/null 2>&1 && { crontab -l 2> /dev/null | grep -v -F "$APP/deploy/ssr-watch.sh" | grep -v -F "cd $APP && "; echo "$WATCH"; echo "$SCHEDULE"; } | crontab - 2> /dev/null; then
+    echo "== renderer watchdog and scheduler in cron"
+else
+    echo "== add these two lines in hPanel → Erweitert → Cron-Jobs (every minute):"
+    echo "   SSR_PORT=$SSR_PORT NODE_BIN=$NODE bash $APP/deploy/ssr-watch.sh"
+    echo "   cd $APP && $PHP artisan schedule:run"
+fi
 
 # ── Live ───────────────────────────────────────────────────────────────────────
 # Last, and only when everything above succeeded (set -e).
@@ -102,6 +178,7 @@ grep -q 'started' storage/logs/ssr.log && echo "== renderer running on $SSR_PORT
 echo "== site is up"
 
 # ── Smoke ──────────────────────────────────────────────────────────────────────
-for path in / /felgen /faq /rechtliches/impressum; do
-    printf '   %-26s %s\n' "$path" "$(curl -s -o /dev/null --max-time 30 -w '%{http_code}' "${APP_URL:-https://rimify.skillleo.com}$path")"
-done
+# The shop as a visitor without JavaScript sees it, the lookup, the PDF, the admin's sign-in, the
+# storage prefixes — and a test order where the sandbox is on. Non-zero on any failure: then follow
+# GO-LIVE.md's rollback.
+"$PHP" artisan rimify:smoke --no-interaction

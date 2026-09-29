@@ -110,7 +110,7 @@ function product(overrides: Partial<HeroProduct> = {}): HeroProduct {
         name: 'MCR4 Ultimate',
         brand: 'MOTEC',
         finish: 'Light Grey D5',
-        fromPriceCents: 75600,
+        fromPriceCents: 18900,
         fromPrice: `756,00${NBSP}€`,
         imageManifest: manifest(),
         symbolic: false,
@@ -466,6 +466,17 @@ describe('HeroFrame · the lines under the frame', () => {
 
         expect(wrapper.findAll('.demo-note')).toHaveLength(1)
         expect(wrapper.find('.demo-note').text()).toBe(DEMO)
+    })
+
+    it('shows a draft over its own photograph and names it, but offers no price and no link', () => {
+        const wrapper = mountFrame(product({ published: false }))
+
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.find('.hero-frame').element.tagName).toBe('DIV')
+        expect(wrapper.find('.hero-frame img').exists()).toBe(true)
+        expect(wrapper.find('.hero-mobile__name').text()).toBe('MOTEC MCR4 Ultimate · Light Grey D5')
+        expect(wrapper.text()).not.toContain('pro Felge')
+        expect(wrapper.find('.hero-mobile__shown').text()).toBe(CAPTION)
     })
 
     it('names no brand, no price and no link for a symbolic product', () => {

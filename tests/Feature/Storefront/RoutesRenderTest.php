@@ -8,6 +8,7 @@ use App\Models\WheelModel;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
+use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -146,7 +147,10 @@ it('renders a product page with its finishes and configurations', function (): v
 it('renders an order with its frozen verdict per line', function (): void {
     $order = Order::query()->firstOrFail();
 
-    $this->get('/bestellung/'.$order->order_number)
+    // A real order opens for the browser that placed it, or through a signed link.
+    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
+
+    $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page
@@ -168,7 +172,7 @@ it('renders the admin panel for a signed-in staff account', function (string $pa
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component($component));
 })->with([
-    'dashboard' => ['/admin', 'Admin/Dashboard/Index'],
+    'uebersicht' => ['/admin', 'Admin/Uebersicht/Index'],
     'gutachten' => ['/admin/gutachten', 'Admin/Gutachten/Index'],
     'rollen' => ['/admin/rollen', 'Admin/Rollen/Index'],
 ]);
@@ -187,19 +191,33 @@ it('renders a designed 404 rather than a framework page', function (): void {
         );
 });
 
-it('fills the dashboard from real queries', function (): void {
-    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+it('fills the Übersicht from real queries', function (): void {
+    $owner = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+    $gutachten = AdminUser::query()->where('email', 'compliance-editor@rimify.test')->firstOrFail();
 
-    $this->actingAs($admin, 'admin')
+    // The owner's figures are the shop's sales, every one computed, none of them a placeholder.
+    $this->actingAs($owner, 'admin')
         ->get('/admin')
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page
-                ->has('tiles', 6)
-                // Twelve months, zeros included, so the line has a shape rather than a gap.
-                ->has('revenue', 12)
-                // The seed plants one deliberate entry-requirement disagreement.
-                ->has('conflicts', 1)
-                ->where('conflicts.0.blocking', true)
+                ->component('Admin/Uebersicht/Index')
+                ->where('variant', 'verkauf')
+                ->has('kpis', 4)
+                ->where('kpis.0.key', 'umsatz')
+                ->where('kpis.3.key', 'offen')
+        );
+
+    // The Gutachten role's figures are its documents: the seed plants one deliberate
+    // entry-requirement disagreement, and the Übersicht counts it.
+    $this->actingAs($gutachten, 'admin')
+        ->get('/admin')
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->where('variant', 'gutachten')
+                ->where('kpis.1.key', 'conflicts')
+                // A figure goes out as a number; the page writes it (num.ts).
+                ->where('kpis.1.value', 1)
         );
 });

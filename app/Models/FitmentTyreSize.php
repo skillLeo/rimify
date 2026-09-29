@@ -9,6 +9,7 @@ use Database\Factories\FitmentTyreSizeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A tyre size a document permits on a fitment, per axle — front and rear can differ.
@@ -22,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $min_load_index
  * @property string|null $min_speed_symbol
  * @property Axle $axle
+ * @property int|null $kw_min the kW band the document states for this size (Block D); NULL = none stated
+ * @property int|null $kw_max
  */
 class FitmentTyreSize extends Model
 {
@@ -32,6 +35,7 @@ class FitmentTyreSize extends Model
 
     protected $fillable = [
         'fitment_id', 'width_mm', 'aspect', 'diameter_in', 'min_load_index', 'min_speed_symbol', 'axle',
+        'kw_min', 'kw_max',
     ];
 
     /** @return array<string, string> */
@@ -43,6 +47,8 @@ class FitmentTyreSize extends Model
             'diameter_in' => 'float',
             'min_load_index' => 'integer',
             'axle' => Axle::class,
+            'kw_min' => 'integer',
+            'kw_max' => 'integer',
         ];
     }
 
@@ -50,5 +56,15 @@ class FitmentTyreSize extends Model
     public function fitment(): BelongsTo
     {
         return $this->belongsTo(Fitment::class);
+    }
+
+    /**
+     * The codes the document hangs off this size, as printed.
+     *
+     * @return HasMany<FitmentTyreSizeCondition, $this>
+     */
+    public function conditionCodes(): HasMany
+    {
+        return $this->hasMany(FitmentTyreSizeCondition::class, 'fitment_tyre_size_id')->orderBy('code');
     }
 }

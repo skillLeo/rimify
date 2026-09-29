@@ -23,7 +23,7 @@ import Picture from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
 import ValueText from '../../Ui/ValueText.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
-import { euro } from '../../../format'
+import { formatMoney } from '../../../lib/num'
 import type { HeroProduct } from '../../../types/pages'
 import { frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_LAYOUT, rollStyle } from './calloutSlots'
 
@@ -43,12 +43,13 @@ const photo = computed(() => (failed.value ? null : scene.value.picture))
 const callouts = computed(() => (photo.value === null ? [] : scene.value.callouts))
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
-/* The product is named, and linked, only over its own photograph: never under the outline. */
+/* The product is named only over its own photograph, never under the outline; linked and priced only in the shop. */
 const named = computed(() => !props.product.symbolic && photo.value !== null)
+const linked = computed(() => named.value && props.product.published !== false)
 
 const href = computed(() => `/felgen/${props.product.slug}`)
 const alt = computed(() => `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`)
-const perWheel = computed(() => euro(Math.round(props.product.fromPriceCents / 4)))
+const perWheel = computed(() => formatMoney(props.product.fromPriceCents))
 
 const frameVars = computed(() => ({ ...frameStyle(PHONE_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))
 const pictureStyle = computed(() => rollStyle(scene.value))
@@ -68,11 +69,11 @@ onMounted(() => {
 <template>
     <div ref="root" class="hero-mobile">
         <component
-            :is="named ? Link : 'div'"
-            :href="named ? href : undefined"
+            :is="linked ? Link : 'div'"
+            :href="linked ? href : undefined"
             class="frame hero-frame"
             :style="frameVars"
-            :prefetch="named ? true : undefined"
+            :prefetch="linked ? true : undefined"
         >
             <span class="hero-studio" aria-hidden="true" />
 
@@ -118,10 +119,13 @@ onMounted(() => {
             {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
         </p>
 
-        <Link v-if="named" :href="href" class="hero-mobile__caption" prefetch>
+        <Link v-if="linked" :href="href" class="hero-mobile__caption" prefetch>
             <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
             <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
         </Link>
+        <p v-else-if="named" class="hero-mobile__caption">
+            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
+        </p>
         <p v-if="photo" class="micro quiet hero-mobile__shown">{{ CAPTION }}</p>
         <p v-else class="micro quiet hero-mobile__symbolic">{{ SYMBOLIC }}</p>
         <!-- Seeded demonstration rows: the page says so, once (OVERHAUL.md §2). -->
@@ -138,6 +142,7 @@ onMounted(() => {
 /* The layout's ratio (7 : 6); the leaders (`--z-base`) over the picture, the boxes (`--z-raised`) over them. */
 .hero-frame {
     --callout-ink: var(--c-ink);
+    --callout-casing: var(--c-surface);
 
     position: relative;
     display: block;
@@ -232,10 +237,15 @@ onMounted(() => {
 .hero-mobile__caption {
     display: grid;
     gap: var(--sp-4);
-    min-height: 44px;
+    margin: 0;
     padding-inline: var(--sp-4);
     color: var(--c-ink);
     text-decoration: none;
+}
+
+/* A target to tap only where there is one: the linked caption. */
+a.hero-mobile__caption {
+    min-height: 44px;
 }
 
 .hero-mobile__name {
@@ -243,7 +253,7 @@ onMounted(() => {
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .hero-mobile__caption:hover .hero-mobile__name {
+    a.hero-mobile__caption:hover .hero-mobile__name {
         text-decoration: underline;
         text-underline-offset: 3px;
     }

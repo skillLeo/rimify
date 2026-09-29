@@ -30,6 +30,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
@@ -64,11 +65,51 @@ const shots = computed<ImageView[]>(() => {
 
     const { views = [], ...front } = image
 
-    return [{ ...front, label: 'Ansicht von vorn' }, ...views]
+    return [{ ...front, label: front.label ?? 'Ansicht von vorn' }, ...views]
 })
 const shotIndex = ref(0)
 const shot = computed(() => shots.value[shotIndex.value] ?? null)
-const shotAlt = computed(() => `${props.product.brandName} ${props.product.modelName} in ${finish.value?.name ?? ''}, ${shot.value?.label ?? ''}`)
+// An uploaded photo carries the sentence the admin wrote for it; a studio shot is named by its angle.
+const shotAlt = computed(() => shot.value?.alt ?? `${props.product.brandName} ${props.product.modelName} in ${finish.value?.name ?? ''}, ${shot.value?.label ?? ''}`)
+
+/*
+ * A photograph shows the wheel whose approval is stamped on it (the manifest's `stamp`). Where the size on
+ * screen carries another number, the page says which size the picture is of: the Borbet DB8GT2's photographs
+ * are of the 18-inch wheel (KBA 53841), and the 19-inch has its own approval, ABE 55255 (Block D, item 12).
+ */
+const photoNote = computed(() => {
+    const stamp = finish.value?.image?.stamp
+    const current = selected.value
+
+    if (!stamp || current === null || !current.kbaNumber || current.kbaNumber === stamp) {
+        return null
+    }
+
+    const pictured = props.configs.find((c) => c.kbaNumber === stamp)
+
+    return pictured ? `Abbildung zeigt die ${decimal(pictured.diameterIn, Number.isInteger(pictured.diameterIn) ? 0 : 1)}-Zoll-Ausführung.` : null
+})
+
+/*
+ * Why a size is struck through, as true as the answer behind it (R-07): „nicht freigegeben“ only where a
+ * document says no; where we hold no answer for the car, that is what is said.
+ */
+const blockedNote = computed(() => {
+    const statuses = new Set(config.sizes.value.filter((s) => s.blocked).map((s) => s.config.verdict?.status))
+
+    if (statuses.size === 0) {
+        return null
+    }
+
+    const refused = statuses.has('NOT_PERMITTED')
+    const open = [...statuses].some((status) => status !== 'NOT_PERMITTED')
+
+    if (refused && open) {
+        return 'Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben, oder uns liegt für sie keine Freigabe vor.'
+    }
+
+    return refused ? 'Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.' : 'Für durchgestrichene Größen liegt uns für dein Fahrzeug keine Freigabe vor.'
+})
 
 // Another finish starts on its own front view.
 watch(
@@ -257,6 +298,8 @@ onBeforeUnmount(() => observer?.disconnect())
                         </button>
                     </div>
 
+                    <p v-if="photoNote" class="t-small quiet pdp__photo-note">{{ photoNote }}</p>
+
                     <!-- The large view. Reka traps the focus, closes on Escape and on the scrim,
                          and hands the focus back to the photograph. -->
                     <DialogRoot v-model:open="zoomOpen">
@@ -342,20 +385,20 @@ onBeforeUnmount(() => observer?.disconnect())
                         </div>
 
                         <!-- Shown, not hidden: it tells the customer something true about their car. -->
-                        <p v-if="config.sizes.value.some((s) => s.blocked)" class="t-small quiet pdp__note">
-                            Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.
-                        </p>
+                        <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
                     </div>
 
-                    <FitmentPanel class="pdp__fit" :verdict="selected?.verdict ?? null" :vehicle="shared.vehicle">
+                    <FitmentPanel class="pdp__fit" :verdict="selected?.verdict ?? null" :vehicle="shared.vehicle" :config-id="selected?.id ?? null">
                         <Link v-if="!hasVehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm pdp__fit-cta">
                             Fahrzeug wählen
                         </Link>
                     </FitmentPanel>
 
                     <div class="pdp__price">
+                        <!-- One rim, as the basket charges it; the set of four stands beside it. -->
                         <p class="price price--lg" translate="no">{{ selected?.price ?? config.fromPrice.value }}</p>
-                        <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
+                        <p class="price-note">pro Felge, inkl. MwSt., zzgl. Versand</p>
+                        <p v-if="selected?.priceForFour" class="price-note pdp__four">4 Felgen: <span class="num" translate="no">{{ selected.priceForFour }}</span></p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
                         <p v-if="demo" class="t-small pdp__demo">
                             Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
@@ -376,6 +419,13 @@ onBeforeUnmount(() => observer?.disconnect())
                     </div>
                 </div>
             </div>
+
+            <!-- What the Gutachten asks of the car, in full: the panel above gives the overview and links here. -->
+            <FitmentDetail
+                v-if="selected?.verdict?.detail && shared.vehicle"
+                :detail="selected.verdict.detail"
+                :vehicle-label="shared.vehicle.label"
+            />
 
             <!-- The same size as a Komplettrad: only what the verdict permits, priced on the
                  server, or one sentence and a way forward. Absent only in fixtures. -->
@@ -469,7 +519,7 @@ onBeforeUnmount(() => observer?.disconnect())
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div class="pdp__sticky-price">
             <p class="price" translate="no">{{ selected.price }}</p>
-            <p class="price-note">für 4 Felgen, inkl. MwSt., zzgl. Versand</p>
+            <p class="price-note">pro Felge, inkl. MwSt., zzgl. Versand</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"
@@ -575,6 +625,12 @@ onBeforeUnmount(() => observer?.disconnect())
     justify-content: center;
     gap: var(--sp-8);
     margin-top: var(--sp-12);
+}
+
+/* Which size the photograph is of, under it: said where the size on screen is another. */
+.pdp__photo-note {
+    margin: var(--sp-8) 0 0;
+    text-align: center;
 }
 
 .pdp__thumb {

@@ -2,13 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Domain\Storefront\PapersBook;
+use App\Http\Middleware\AssignVisitorKey;
 use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
+use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
+use App\Services\Admin\AdminErrorPage;
 use App\Services\Storefront\Chrome;
 use App\Services\Storefront\ErrorPage;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -43,8 +48,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: [SecurityHeaders::class, EnsureAdminPanelEnabled::class]);
 
         // The device split reads a cookie, so it can only run once the cookies are decrypted.
+        // An admin session that was revoked or whose account was suspended ends here, after the
+        // session has started and before any shared prop names the person or draws their rail.
         $middleware->web(append: [
             DetectDevice::class,
+            // The shop visitor's rate-limit key (VisitorKey), minted on the first request that has none.
+            AssignVisitorKey::class,
+            EnsureAdminSessionValid::class,
             HandleInertiaRequests::class,
         ]);
 
@@ -53,14 +63,35 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // rmf_view is a harmless layout preference for client demos and rmf_consent is the cookie
         // choice, written by the browser itself; rmf_vehicle stays encrypted and authenticated.
-        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE]);
+        // rmf_papiere holds only a car's own figures, re-checked on every read and able only to make an
+        // answer stricter; plain, it stays far below its 500 bytes (PapersBook).
+        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE, PapersBook::COOKIE]);
 
         $middleware->redirectGuestsTo(fn (): string => '/admin/anmelden');
+
+        // Somebody already signed into the admin who opens its sign-in page or an invitation link is
+        // sent into the admin, never to the shop's home page.
+        $middleware->redirectUsersTo(fn (Request $request): string => $request->is('admin', 'admin/*') ? '/admin' : '/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // A refused form is sent back with what was typed — never the storage keys (Medien und
+        // Speicher): they would sit in the session store in clear text until the next request.
+        $exceptions->dontFlash(['access_key', 'secret']);
+
+        /*
+         * A save from an admin page after the sign-in ran out. Same-origin requests pass the CSRF
+         * check, so it is the sign-in that refuses — and its redirect to /admin/anmelden would
+         * replace the page and everything typed on it. The page gets one sentence instead and stays.
+         */
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            $admin = app(AdminErrorPage::class);
+
+            return $admin->keepsTheForm($request, 401) ? $admin->formFailure(401) : null;
+        });
 
         /*
          * Every failure state is built in one place — App\Services\Storefront\ErrorPage — which
@@ -72,6 +103,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return $response;
+            }
+
+            // Inside the admin, for somebody signed into it: the admin's own frame (AdminErrorPage).
+            $admin = app(AdminErrorPage::class);
+
+            // A failed save from an admin page: one sentence, never a page over the typed words.
+            if ($admin->keepsTheForm($request, $response->getStatusCode())) {
+                return $admin->formFailure($response->getStatusCode());
+            }
+
+            if ($admin->handles($request, $response->getStatusCode())) {
+                return $admin->render($request, $response);
             }
 
             $pages = app(ErrorPage::class);

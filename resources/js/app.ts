@@ -1,12 +1,17 @@
 import '../css/app.css';
 
-import { createApp, createSSRApp, h, type DefineComponent } from 'vue';
+import { createApp, createSSRApp, type DefineComponent } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
+import { installPopstateGuard } from './composables/admin/popstateGuard';
+import { root } from './root';
 
 // `||`, not `??`: an empty VITE_APP_NAME would otherwise leave every tab title ending in " ·".
 const appName = import.meta.env.VITE_APP_NAME || 'RIMIFY';
+
+// Before the app starts, so its listener runs ahead of Inertia's on Back (popstateGuard.ts).
+installPopstateGuard();
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ${appName}` : appName),
@@ -19,7 +24,7 @@ createInertiaApp({
         // arrives without server HTML (SSR down) still mounts from scratch.
         const hasServerHtml = el !== null && el.hasChildNodes();
 
-        (hasServerHtml ? createSSRApp : createApp)({ render: () => h(App, props) })
+        (hasServerHtml ? createSSRApp : createApp)({ render: () => root(App, props) })
             .use(plugin)
             .use(createPinia())
             .mount(el);

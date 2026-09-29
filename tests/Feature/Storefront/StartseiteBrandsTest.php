@@ -51,21 +51,24 @@ function homepageBrands(): array
     return collect(is_array($brands) ? $brands : [])->keyBy('slug')->all();
 }
 
-it('ships the processed logo and its aspect, and never one for the sample range', function (): void {
+it('ships the processed logo and its aspect, and no mark for a brand that has none', function (): void {
     BrandLogoFixtures::svg($this->logos, 'motec', 420.0, 100.0, 'a1b2c3d4');
     $this->seed(BrandLogoSeeder::class);
 
     $brands = homepageBrands();
 
+    // A researched brand with its processed logo, waiting for its catalogue: greyed, no link.
     expect($brands)->toHaveKey('motec')
         ->and($brands['motec']['logo'])->toBe('/images/brands/motec.svg?v=a1b2c3d4')
         ->and($brands['motec']['logoAspect'])->toEqual(4.2)
-        ->and($brands['motec']['count'])->toBeGreaterThanOrEqual(1)
-        ->and($brands['motec']['href'])->toBe('/felgen?marke=motec')
-        // Beispielsortiment: a range, never a make, so never a mark of its own.
-        ->and($brands)->toHaveKey('demo')
-        ->and($brands['demo']['logo'])->toBeNull()
-        ->and($brands['demo']['logoAspect'])->toBeNull();
+        ->and($brands['motec']['count'])->toBe(0)
+        ->and($brands['motec']['href'])->toBeNull()
+        // A brand of this shop without a processed logo: its name is the mark.
+        ->and($brands)->toHaveKey('nordfelge')
+        ->and($brands['nordfelge']['logo'])->toBeNull()
+        ->and($brands['nordfelge']['logoAspect'])->toBeNull()
+        ->and($brands['nordfelge']['count'])->toBeGreaterThanOrEqual(1)
+        ->and($brands['nordfelge']['href'])->toBe('/felgen?marke=nordfelge');
 
     foreach ($brands as $slug => $brand) {
         expect($brand['logo'] === null)->toBe($brand['logoAspect'] === null, "{$slug}: a logo without an aspect, or the other way round");
@@ -87,18 +90,19 @@ it('lists every researched wheel brand in order, with its logo, whether or not i
 
     $brands = homepageBrands();
 
-    // brands.sort_order: MOTEC and the sample range from the catalogue seed, then the researched brands by rank.
-    expect(array_keys($brands))->toBe(['motec', 'demo', 'bbs', 'borbet', 'oz-racing', 'ronal', 'aez', 'rial', 'dezent', 'dotz', 'alutec', 'ats', 'brock', 'cms'])
+    // brands.sort_order: the supplier's slot, the shop's own brands from the catalogue seed, then the
+    // researched brands by rank.
+    expect(array_keys($brands))->toBe(['motec', 'nordfelge', 'kraftrad', 'stahlwerk-19', 'aventin', 'bergsteig', 'bbs', 'borbet', 'oz-racing', 'ronal', 'aez', 'rial', 'dezent', 'dotz', 'alutec', 'ats', 'brock', 'cms'])
         // A researched brand waiting for its catalogue: its logo, no wheel, no link.
         ->and($brands['bbs'])->toMatchArray(['name' => 'BBS', 'logo' => '/images/brands/bbs.svg', 'count' => 0, 'href' => null])
         ->and($brands['bbs']['logoAspect'])->toEqual(4.0)
         // One without a processed logo: the name is the mark, and still no link.
         ->and($brands['borbet'])->toMatchArray(['name' => 'BORBET', 'logo' => null, 'logoAspect' => null, 'count' => 0, 'href' => null])
         // The ones with wheels on stock are linked, with their counts.
-        ->and($brands['motec']['count'])->toBeGreaterThanOrEqual(1)
-        ->and($brands['motec']['href'])->toBe('/felgen?marke=motec')
-        ->and($brands['demo']['count'])->toBeGreaterThanOrEqual(1)
-        ->and($brands['demo']['href'])->toBe('/felgen?marke=demo');
+        ->and($brands['nordfelge']['count'])->toBeGreaterThanOrEqual(1)
+        ->and($brands['nordfelge']['href'])->toBe('/felgen?marke=nordfelge')
+        ->and($brands['bergsteig']['count'])->toBeGreaterThanOrEqual(1)
+        ->and($brands['bergsteig']['href'])->toBe('/felgen?marke=bergsteig');
 
     foreach ($brands as $slug => $brand) {
         expect($brand['count'] > 0)->toBe($brand['href'] !== null, "{$slug}: a link without stock, or stock without a link");
@@ -141,24 +145,25 @@ it('counts and links a wheel brand only once it has a published wheel in stock',
         ->and($brands['borbet'])->toMatchArray(['count' => 0, 'href' => null]);
 });
 
-it('links a brand with wheels on stock even when nobody flagged it — MOTEC and the sample range on a fresh database', function (): void {
+it('links a brand with wheels on stock even when nobody flagged it — the shop brands on a fresh database', function (): void {
     // A fresh database: the migration backfill found no rows and BrandLogoSeeder has not run.
-    expect(Brand::query()->whereIn('slug', ['motec', 'demo'])->where('is_wheel_brand', true)->exists())->toBeFalse();
+    expect(Brand::query()->whereIn('slug', ['nordfelge', 'kraftrad', 'stahlwerk-19', 'aventin', 'bergsteig'])->where('is_wheel_brand', true)->exists())->toBeFalse();
 
     $brands = homepageBrands();
 
-    expect(array_keys($brands))->toBe(['motec', 'demo'])
-        ->and($brands['motec']['count'])->toBeGreaterThanOrEqual(1)
-        ->and($brands['motec']['href'])->toBe('/felgen?marke=motec')
-        ->and($brands['demo']['count'])->toBeGreaterThanOrEqual(1)
-        ->and($brands['demo']['href'])->toBe('/felgen?marke=demo');
+    expect(array_keys($brands))->toBe(['nordfelge', 'kraftrad', 'stahlwerk-19', 'aventin', 'bergsteig']);
+
+    foreach ($brands as $slug => $brand) {
+        expect($brand['count'])->toBeGreaterThanOrEqual(1)
+            ->and($brand['href'])->toBe('/felgen?marke='.$slug);
+    }
 });
 
 it('never lists a tyre brand, and never a retired one', function (): void {
-    // The seeded tyre brands carry tyres with verified labels and not one wheel.
-    $tyreBrands = Brand::query()->whereIn('slug', ['bridgestone', 'continental', 'michelin'])->get();
+    // The seeded tyre maker carries tyres and not one wheel.
+    $tyreBrands = Brand::query()->whereIn('slug', ['laufwerk'])->get();
 
-    expect($tyreBrands)->toHaveCount(3);
+    expect($tyreBrands)->toHaveCount(1);
 
     foreach ($tyreBrands as $tyreBrand) {
         expect($tyreBrand->is_wheel_brand)->toBeFalse()
@@ -169,9 +174,7 @@ it('never lists a tyre brand, and never a retired one', function (): void {
     TyreVariant::factory()->create(['brand_id' => $reifenwerk->id]);
 
     expect(homepageBrands())
-        ->not->toHaveKey('bridgestone')
-        ->not->toHaveKey('continental')
-        ->not->toHaveKey('michelin')
+        ->not->toHaveKey('laufwerk')
         ->not->toHaveKey('reifenwerk');
 
     // A flagged wheel brand is on the wall until it is retired (R-04: retired, never hard-deleted).
@@ -210,13 +213,13 @@ it('marks every brand with a wheel model a wheel brand when the column arrives, 
 
     $flag = static fn (string $slug): bool => (bool) Brand::query()->where('slug', $slug)->value('is_wheel_brand');
 
-    expect($flag('motec'))->toBeTrue()
-        ->and($flag('demo'))->toBeTrue()
+    expect($flag('nordfelge'))->toBeTrue()
+        ->and($flag('bergsteig'))->toBeTrue()
         // Any wheel_models row counts: a draft, and one that was retired.
         ->and($flag('entwurf-ag'))->toBeTrue()
         ->and($flag('altrad'))->toBeTrue()
         // Tyres are not wheels; nothing at all is nothing.
-        ->and($flag('bridgestone'))->toBeFalse()
+        ->and($flag('laufwerk'))->toBeFalse()
         ->and($flag('reifenwerk'))->toBeFalse()
         ->and($flag('leer'))->toBeFalse();
 });

@@ -16,7 +16,8 @@ use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
-use App\Support\GermanFormat;
+use App\Support\Money;
+use App\Support\OrderLineLabel;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -197,7 +198,7 @@ class CommerceSeeder extends Seeder
             $total = $subtotal + $shipping;
             // German VAT is included in the displayed price, so the tax figure is extracted from
             // the gross total rather than added to it.
-            $tax = (int) round($total - ($total / 1.19));
+            $tax = Money::fromMinor($total)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor();
 
             $placedAt = now()->subDays(90 - $index * 4);
 
@@ -220,6 +221,12 @@ class CommerceSeeder extends Seeder
                     'tax_cents' => $tax,
                     'total_cents' => $total,
                     'currency' => 'EUR',
+                    // How a demo order was paid, where it got as far as a payment: mostly card, some
+                    // PayPal, so the list's Zahlart filter has something to show. Shipping methods
+                    // stay empty until the client names theirs (Einstellungen › Versand).
+                    'payment_method' => $status->isPaid() || $status === OrderStatus::Failed
+                        ? ($index % 4 === 1 ? 'paypal' : 'card')
+                        : null,
                     'placed_at' => $status === OrderStatus::Draft ? null : $placedAt,
                     'paid_at' => $status->isPaid() ? $placedAt->copy()->addMinutes(3) : null,
                     'shipped_at' => in_array($status, [OrderStatus::Shipped, OrderStatus::Completed], true)
@@ -239,11 +246,11 @@ class CommerceSeeder extends Seeder
                     'package_group' => $group,
                     // Frozen at purchase: joining to the catalogue would answer what the product
                     // is called today, which is the wrong question on an invoice.
-                    'label' => $this->wheelLabel($config),
+                    'label' => OrderLineLabel::wheel($config),
                     'quantity' => $quantity,
                     'unit_price_cents' => $config->price_cents,
                     'line_total_cents' => $wheelTotal,
-                    'tax_rate_bp' => 1900,
+                    'tax_rate_bp' => Money::VAT_STANDARD_BP,
                     'currency' => 'EUR',
                 ],
             );
@@ -255,11 +262,11 @@ class CommerceSeeder extends Seeder
                     ['order_id' => $order->id, 'kind' => OrderLineKind::Tyre->value, 'tyre_variant_id' => $tyre->id],
                     [
                         'package_group' => $group,
-                        'label' => $this->tyreLabel($tyre),
+                        'label' => OrderLineLabel::tyre($tyre),
                         'quantity' => $quantity,
                         'unit_price_cents' => $tyre->price_cents,
                         'line_total_cents' => $tyreTotal,
-                        'tax_rate_bp' => 1900,
+                        'tax_rate_bp' => Money::VAT_STANDARD_BP,
                         'currency' => 'EUR',
                     ],
                 );
@@ -272,7 +279,7 @@ class CommerceSeeder extends Seeder
                         'quantity' => $quantity,
                         'unit_price_cents' => 1_900,
                         'line_total_cents' => $serviceTotal,
-                        'tax_rate_bp' => 1900,
+                        'tax_rate_bp' => Money::VAT_STANDARD_BP,
                         'currency' => 'EUR',
                     ],
                 );
@@ -312,45 +319,6 @@ class CommerceSeeder extends Seeder
             'engine_version' => $verdict->snapshot->engineVersion,
             'computed_at' => $verdict->snapshot->computedAt,
         ]);
-    }
-
-    /** `8,5J × 18 · ET 35 · 5/112` — the description as the customer read it. */
-    private function wheelLabel(WheelConfig $config): string
-    {
-        $model = $config->wheelModel;
-        $finish = $config->wheelFinish;
-
-        return trim(sprintf(
-            '%s %s · %s · %s',
-            $model->brand->name,
-            $model->name,
-            $finish->name_de,
-            GermanFormat::wheelLabel(
-                (float) $config->width_in,
-                (float) $config->diameter_in,
-                (int) $config->et_mm,
-                (int) $config->bolt_holes,
-                (float) $config->bolt_circle_mm,
-                (float) $config->centre_bore_mm,
-            ),
-        ));
-    }
-
-    private function tyreLabel(TyreVariant $tyre): string
-    {
-        return trim(sprintf(
-            '%s %s · %s · %s',
-            $tyre->brand->name,
-            $tyre->name,
-            ucfirst($tyre->season),
-            GermanFormat::tyreSize(
-                (int) $tyre->width_mm,
-                (int) $tyre->aspect,
-                (float) $tyre->diameter_in,
-                (int) $tyre->load_index,
-                $tyre->speed_symbol,
-            ),
-        ));
     }
 
     /** Email-safe local parts: `Krüger` must not become an invalid address. */

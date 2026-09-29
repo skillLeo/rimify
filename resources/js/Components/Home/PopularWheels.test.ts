@@ -2,7 +2,8 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
-import { euro, NNBSP } from '../../format'
+import { NNBSP } from '../../format'
+import { formatMoney } from '../../lib/num'
 import type { StartseiteProps } from '../../types/pages'
 import type { ProductCardProp, VehicleProp } from '../../types/rimify'
 
@@ -42,7 +43,7 @@ function card(n: number, overrides: Partial<ProductCardProp> = {}): ProductCardP
         rating: 4.5,
         ratingCount: 12,
         ratingLabel: 'Sehr gut',
-        fromPriceCents: 75600 + n * 400,
+        fromPriceCents: 18900 + n * 100,
         fromPrice: '',
         inStock: true,
         stockQty: 8,
@@ -129,7 +130,7 @@ describe('PopularWheels', () => {
             expect(tile.find('input.tile__compare-input').exists()).toBe(true)
         }
 
-        expect(wrapper.find('#h5 .tile__price').text()).toBe(`ab ${euro(19000)} pro Felge`)
+        expect(wrapper.find('#h5 .tile__price').text()).toBe(`ab ${formatMoney(19000)} pro Felge`)
         expect(wrapper.text()).not.toMatch(/Details(?! ansehen)/)
         expect(wrapper.text()).not.toContain('Sehr gut')
         expect(wrapper.find('h2').text()).toBe('Felgen mit den meisten Freigaben')

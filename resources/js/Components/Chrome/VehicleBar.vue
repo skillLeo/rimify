@@ -24,7 +24,8 @@ const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BO
             <p class="vbar__text">
                 <span class="vbar__lead">Dein Fahrzeug:</span>
                 <span class="vbar__name">{{ vehicle.label }}</span>
-                <span class="vbar__meta num">· {{ vehicle.buildWindow }} · {{ vehicle.keyNumbers }}</span>
+                <!-- Feld K alone where it is what tells the car apart; the unknown build window says nothing then. -->
+                <span class="vbar__meta num">· {{ vehicle.approval ?? `${vehicle.buildWindow} · ${vehicle.keyNumbers}` }}</span>
             </p>
             <Link href="/felgen-suchen" class="vbar__link">Ändern</Link>
             <Link v-if="mode === 'BLUE_BAR'" href="/felgen" class="vbar__link vbar__link--cta" prefetch>Passende Felgen anzeigen</Link>
@@ -60,14 +61,24 @@ const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BO
     color: var(--c-ink-2);
 }
 
+/* The car's name is what the bar is for: it keeps its width, and what follows it gives way — with an
+   ellipsis, so a number cut short never passes for a whole one. */
 .vbar__name {
+    flex: none;
     font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .vbar__meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--c-ink-2);
+}
+
+@media (max-width: 1023px) {
+    .vbar__lead {
+        display: none;
+    }
 }
 
 .vbar__link {
@@ -96,6 +107,13 @@ const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BO
     .vbar__lead,
     .vbar__meta {
         display: none;
+    }
+
+    /* Alone on a phone, the name is what gives way. */
+    .vbar__name {
+        flex: 0 1 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .vbar__link--cta {

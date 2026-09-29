@@ -1,42 +1,10 @@
+import { i as __reExport, r as __exportAll, s as __toESM, t as __commonJSMin } from "./assets/rolldown-runtime-Dr7-SnC6.js";
 import { createServer } from "http";
 import cluster from "node:cluster";
 import { existsSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import path from "node:path";
 import * as process2 from "process";
-//#region \0rolldown/runtime.js
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod), cb = null), mod.exports);
-var __exportAll = (all, no_symbols) => {
-	let target = {};
-	for (var name in all) __defProp(target, name, {
-		get: all[name],
-		enumerable: true
-	});
-	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
-	return target;
-};
-var __copyProps = (to, from, except, desc) => {
-	if (from && typeof from === "object" || typeof from === "function") for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {
-		key = keys[i];
-		if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
-			get: ((k) => from[k]).bind(null, key),
-			enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
-		});
-	}
-	return to;
-};
-var __reExport = (target, mod, secondTarget) => (__copyProps(target, mod, "default"), secondTarget && __copyProps(secondTarget, mod, "default"));
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
-	value: mod,
-	enumerable: true
-}) : target, mod));
-//#endregion
 //#region node_modules/@vue/shared/dist/shared.cjs.prod.js
 /**
 * @vue/shared v3.5.43
@@ -30208,6 +30176,7 @@ var require_server_renderer_cjs_prod = /* @__PURE__ */ __commonJSMin(((exports) 
 	Vue.initDirectivesForSSR();
 	exports.ssrIncludeBooleanAttr = shared.includeBooleanAttr;
 	exports.renderToString = renderToString;
+	exports.ssrGetDynamicModelProps = ssrGetDynamicModelProps;
 	exports.ssrInterpolate = ssrInterpolate;
 	exports.ssrLooseContain = ssrLooseContain;
 	exports.ssrLooseEqual = ssrLooseEqual;
@@ -34423,7 +34392,7 @@ var httpClient = new XhrHttpClient();
 function isHttpClientOptions(client) {
 	return !("request" in client);
 }
-var http = {
+var http$1 = {
 	/**
 	* Get the current HTTP client
 	*/
@@ -35080,7 +35049,7 @@ var Request = class _Request {
 			onUploadProgress: this.onProgress.bind(this)
 		};
 		const processedConfig = await interceptors.processRequest(this.requestParams.all(), config2);
-		return http.getClient().request(processedConfig).then((response) => {
+		return http$1.getClient().request(processedConfig).then((response) => {
 			this.response = Response.create(this.requestParams, response, this.page);
 			return this.response.handle();
 		}).catch((error) => {
@@ -37500,7 +37469,7 @@ function usePage() {
 async function createInertiaApp({ id = "app", resolve, setup, title, progress: progress2 = {}, page: page2, render, defaults = {}, nonce, http: http3, layout: layout2, serverHead, withApp, dev = false } = {}) {
 	config.replace(defaults);
 	if (nonce) config.set("nonce", nonce);
-	if (http3) http.setClient(http3);
+	if (http3) http$1.setClient(http3);
 	if (dev) exposeInterceptors();
 	const isServer = typeof window === "undefined";
 	const resolveComponent = (name, page3) => Promise.resolve(resolve(name, page3)).then((module) => module.default || module);
@@ -40098,6 +40067,98 @@ function defineStore(id, setup, setupOptions) {
 	return useStore;
 }
 //#endregion
+//#region node_modules/reka-ui/dist/shared/createContext.js
+/**
+* @param providerComponentName - The name(s) of the component(s) providing the context.
+*
+* There are situations where context can come from multiple components. In such cases, you might need to give an array of component names to provide your context, instead of just a single string.
+*
+* @param contextName The description for injection key symbol.
+*/
+function createContext(providerComponentName, contextName) {
+	const symbolDescription = typeof providerComponentName === "string" && !contextName ? `${providerComponentName}Context` : contextName;
+	const injectionKey = Symbol(symbolDescription);
+	/**
+	* @param fallback The context value to return if the injection fails.
+	*
+	* @throws When context injection failed and no fallback is specified.
+	* This happens when the component injecting the context is not a child of the root component providing the context.
+	*/
+	const injectContext = (fallback) => {
+		const context = (0, vue_exports.inject)(injectionKey, fallback);
+		if (context) return context;
+		if (context === null) return context;
+		throw new Error(`Injection \`${injectionKey.toString()}\` not found. Component must be used within ${Array.isArray(providerComponentName) ? `one of the following components: ${providerComponentName.join(", ")}` : `\`${providerComponentName}\``}`);
+	};
+	const provideContext = (contextValue) => {
+		(0, vue_exports.provide)(injectionKey, contextValue);
+		return contextValue;
+	};
+	return [injectContext, provideContext];
+}
+//#endregion
+//#region node_modules/reka-ui/dist/ConfigProvider/ConfigProvider.js
+var [injectConfigProviderContext, provideConfigProviderContext] = /*#__PURE__*/ createContext("ConfigProvider");
+var ConfigProvider_default = /* @__PURE__ */ (0, vue_exports.defineComponent)({
+	inheritAttrs: false,
+	__name: "ConfigProvider",
+	props: {
+		dir: {
+			type: String,
+			required: false,
+			default: "ltr"
+		},
+		locale: {
+			type: String,
+			required: false,
+			default: "en"
+		},
+		scrollBody: {
+			type: [Boolean, Object],
+			required: false,
+			default: true
+		},
+		nonce: {
+			type: String,
+			required: false,
+			default: void 0
+		},
+		teleportTo: {
+			type: null,
+			required: false,
+			default: void 0
+		},
+		useId: {
+			type: Function,
+			required: false,
+			default: void 0
+		}
+	},
+	setup(__props) {
+		const props = __props;
+		const { dir, locale, scrollBody, nonce, teleportTo } = (0, vue_exports.toRefs)(props);
+		provideConfigProviderContext({
+			dir,
+			locale,
+			scrollBody,
+			nonce,
+			teleportTo,
+			useId: props.useId
+		});
+		return (_ctx, _cache) => {
+			return (0, vue_exports.renderSlot)(_ctx.$slots, "default");
+		};
+	}
+});
+//#endregion
+//#region resources/js/root.ts
+function root(App, props) {
+	return (0, vue_exports.h)(ConfigProvider_default, { scrollBody: {
+		padding: 0,
+		margin: 0
+	} }, { default: () => (0, vue_exports.h)(App, { ...props }) });
+}
+//#endregion
 //#region resources/js/ssr.ts
 var appName = process.env.VITE_APP_NAME || "RIMIFY";
 server_default((page) => createInertiaApp({
@@ -40105,37 +40166,90 @@ server_default((page) => createInertiaApp({
 	render: import_server_renderer_cjs_prod.renderToString,
 	title: (title) => title ? `${title} · ${appName}` : appName,
 	resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, /* #__PURE__ */ Object.assign({
-		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-DGfHBdSS.js"),
-		"./Pages/Admin/Benachrichtigungen/Index.vue": () => import("./assets/Index-CHvrNn3e.js"),
-		"./Pages/Admin/Dashboard/Index.vue": () => import("./assets/Index-BXGabi6w.js"),
-		"./Pages/Admin/Gutachten/Index.vue": () => import("./assets/Index-CeYqYR41.js"),
-		"./Pages/Admin/Rdks/Index.vue": () => import("./assets/Index-BWQ84X_8.js"),
-		"./Pages/Admin/Rollen/Index.vue": () => import("./assets/Index-fkNhsLzI.js"),
-		"./Pages/Admin/Wuchtgewichte/Index.vue": () => import("./assets/Index-D3kNaJs_.js"),
-		"./Pages/Bestellung/Index.vue": () => import("./assets/Index-CFkPHjkl.js"),
-		"./Pages/Check/Index.vue": () => import("./assets/Index-8Bvh_eDz.js"),
-		"./Pages/CheckErgebnis/Index.vue": () => import("./assets/Index-xRq6pfy-.js"),
-		"./Pages/Design/Index.vue": () => import("./assets/Index-BLTt3-U_.js"),
-		"./Pages/Faq/Index.vue": () => import("./assets/Index-FH15_2lh.js"),
-		"./Pages/Fehler/Index.vue": () => import("./assets/Index-TpAvvb-v.js"),
-		"./Pages/Felgen/Index.vue": () => import("./assets/Index-OGKxh_4M.js"),
-		"./Pages/FelgenSuchen/Index.vue": () => import("./assets/Index-zHt7fYO-.js"),
-		"./Pages/Felgenrechner/Desktop.vue": () => import("./assets/Desktop-CPhTV96h.js"),
-		"./Pages/Felgenrechner/Mobile.vue": () => import("./assets/Mobile-BLkhcpSN.js"),
-		"./Pages/Kasse/Index.vue": () => import("./assets/Index-BLZujnLm.js"),
-		"./Pages/Kontakt/Index.vue": () => import("./assets/Index-DBjJyJoP.js"),
-		"./Pages/Produkt/Index.vue": () => import("./assets/Index-CEtF2SrJ.js"),
-		"./Pages/Ratgeber/Desktop.vue": () => import("./assets/Desktop-BSZxuy9k.js"),
-		"./Pages/Rechtliches/Index.vue": () => import("./assets/Index-CXnZwifO.js"),
-		"./Pages/Startseite/Desktop.vue": () => import("./assets/Desktop-CucnRELA.js"),
-		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-z5YZ88sE.js"),
-		"./Pages/Vergleich/Desktop.vue": () => import("./assets/Desktop-DJPNps8m.js"),
-		"./Pages/Vergleich/Mobile.vue": () => import("./assets/Mobile-zWw3Vm9K.js"),
-		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-DY5HSCQp.js")
+		"./Pages/Admin/Abdeckung/Index.vue": () => import("./assets/Index-DkOy7fj1.js"),
+		"./Pages/Admin/Anfragen/Index.vue": () => import("./assets/Index-Dy1QJcup.js"),
+		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-F1ew0nHf.js"),
+		"./Pages/Admin/Auflagen/Index.vue": () => import("./assets/Index-CsRMdxM4.js"),
+		"./Pages/Admin/Benachrichtigungen/Index.vue": () => import("./assets/Index-y-8tkL56.js"),
+		"./Pages/Admin/Benutzer/Index.vue": () => import("./assets/Index-BpCZKAA0.js"),
+		"./Pages/Admin/Bestaetigen/Index.vue": () => import("./assets/Index-_Sw-TiDU.js"),
+		"./Pages/Admin/Bestellungen/FilterFields.vue": () => import("./assets/FilterFields-DAAZfKEH.js").then((n) => n.n),
+		"./Pages/Admin/Bestellungen/Index.vue": () => import("./assets/Index-CUq4RBYl.js"),
+		"./Pages/Admin/Bestellungen/Show.vue": () => import("./assets/Show-FsTWEKW0.js"),
+		"./Pages/Admin/Einladung/Index.vue": () => import("./assets/Index-CxJGRKcT.js"),
+		"./Pages/Admin/Einstellungen/Speicher.vue": () => import("./assets/Speicher-Bk0GNdMP.js"),
+		"./Pages/Admin/Fahrzeuge/Index.vue": () => import("./assets/Index-CO38Cv6A.js"),
+		"./Pages/Admin/Fahrzeuge/Show.vue": () => import("./assets/Show-QD6Mi2sF.js"),
+		"./Pages/Admin/Faq/Index.vue": () => import("./assets/Index-CqAQZ4-v.js"),
+		"./Pages/Admin/Fehler/Index.vue": () => import("./assets/Index-DL1AH-on.js"),
+		"./Pages/Admin/Felgen/Edit.vue": () => import("./assets/Edit-Dbf45fIH.js"),
+		"./Pages/Admin/Felgen/FinishPhotos.vue": () => import("./assets/FinishPhotos-CKbNfWsm.js").then((n) => n.n),
+		"./Pages/Admin/Felgen/Index.vue": () => import("./assets/Index-ppab51_w.js"),
+		"./Pages/Admin/Felgen/MatrixPanel.vue": () => import("./assets/MatrixPanel-DRA8wfwU.js").then((n) => n.n),
+		"./Pages/Admin/Felgen/SizesTable.vue": () => import("./assets/SizesTable-DBf53eW_.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/Auflagenverzeichnis.vue": () => import("./assets/Auflagenverzeichnis-DR-NpR2o.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/DeratingTable.vue": () => import("./assets/DeratingTable-DAzeax0A.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/DocumentExtras.vue": () => import("./assets/DocumentExtras-BZK-y4xL.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/FactsDialog.vue": () => import("./assets/FactsDialog-BK0oZk6L.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/Index.vue": () => import("./assets/Index-Bljr3gDF.js"),
+		"./Pages/Admin/Gutachten/Neu.vue": () => import("./assets/Neu-Co9bBilB.js"),
+		"./Pages/Admin/Gutachten/RecordFields.vue": () => import("./assets/RecordFields-CHwoxlWo.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/RowComposer.vue": () => import("./assets/RowComposer-Ckj6VPl4.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/RowFields.vue": () => import("./assets/RowFields-CV3M8MYk.js").then((n) => n.n),
+		"./Pages/Admin/Gutachten/Show.vue": () => import("./assets/Show-UElwGHEA.js"),
+		"./Pages/Admin/Gutachten/VehicleFromDocument.vue": () => import("./assets/VehicleFromDocument-B_4gytJh.js").then((n) => n.n),
+		"./Pages/Admin/Katalog/Import.vue": () => import("./assets/Import-CDCs-9dm.js"),
+		"./Pages/Admin/Katalog/ImportRun.vue": () => import("./assets/ImportRun-C1hW4oBR.js"),
+		"./Pages/Admin/Konflikte/Index.vue": () => import("./assets/Index-CEGj30Wh.js"),
+		"./Pages/Admin/Marken/Index.vue": () => import("./assets/Index-8nkeE5xY.js"),
+		"./Pages/Admin/Nachfrage/Index.vue": () => import("./assets/Index-D-GMjThP.js"),
+		"./Pages/Admin/Nachfrage/RequestDialog.vue": () => import("./assets/RequestDialog-BndKdit8.js").then((n) => n.n),
+		"./Pages/Admin/Navigation/Index.vue": () => import("./assets/Index-D0KJsicL.js"),
+		"./Pages/Admin/Profil/Index.vue": () => import("./assets/Index-BqZiEvku.js"),
+		"./Pages/Admin/Protokoll/FilterFields.vue": () => import("./assets/FilterFields-B3sizF8g.js").then((n) => n.n),
+		"./Pages/Admin/Protokoll/Index.vue": () => import("./assets/Index-CwCfWvsO.js"),
+		"./Pages/Admin/Rdks/Index.vue": () => import("./assets/Index-BufIIqLw.js"),
+		"./Pages/Admin/Review/Board.vue": () => import("./assets/Board-BGQwzMkr.js"),
+		"./Pages/Admin/Review/Feedback.vue": () => import("./assets/Feedback-hslN4fdW.js"),
+		"./Pages/Admin/Rollen/Index.vue": () => import("./assets/Index-C1hR91R8.js"),
+		"./Pages/Admin/Rollen/RightBox.vue": () => import("./assets/RightBox-WUmoysF5.js").then((n) => n.n),
+		"./Pages/Admin/Rollen/RoleDiffList.vue": () => import("./assets/RoleDiffList-B56JMYgR.js").then((n) => n.n),
+		"./Pages/Admin/Seiten/Bearbeiten.vue": () => import("./assets/Bearbeiten-D90BBFWS.js"),
+		"./Pages/Admin/Seiten/DiffList.vue": () => import("./assets/DiffList-DKPKL-HB.js").then((n) => n.n),
+		"./Pages/Admin/Seiten/FieldInput.vue": () => import("./assets/FieldInput-CkZiaH2A.js").then((n) => n.n),
+		"./Pages/Admin/Seiten/Index.vue": () => import("./assets/Index-CjofyMyg.js"),
+		"./Pages/Admin/Seiten/PreviewFrame.vue": () => import("./assets/PreviewFrame-BGepfi6n.js").then((n) => n.n),
+		"./Pages/Admin/System/Index.vue": () => import("./assets/Index-DD14KHWJ.js"),
+		"./Pages/Admin/Uebersicht/Index.vue": () => import("./assets/Index-CGKQgxcH.js"),
+		"./Pages/Admin/Wuchtgewichte/Index.vue": () => import("./assets/Index-CgaY7qnp.js"),
+		"./Pages/Bestellung/Index.vue": () => import("./assets/Index-647eks6x.js"),
+		"./Pages/Check/Index.vue": () => import("./assets/Index-D73fVNWy.js"),
+		"./Pages/CheckErgebnis/Index.vue": () => import("./assets/Index-BLlgPUAV.js"),
+		"./Pages/Design/Index.vue": () => import("./assets/Index-ByyVyGid.js"),
+		"./Pages/Faq/Index.vue": () => import("./assets/Index-BjA2LYXd.js"),
+		"./Pages/Fehler/Index.vue": () => import("./assets/Index-DkfaBCqf.js"),
+		"./Pages/Felgen/Index.vue": () => import("./assets/Index-C1cE21pn.js"),
+		"./Pages/FelgenSuchen/Index.vue": () => import("./assets/Index-BRGM7cix.js"),
+		"./Pages/Felgenrechner/Desktop.vue": () => import("./assets/Desktop-BoNYXeuB.js"),
+		"./Pages/Felgenrechner/Mobile.vue": () => import("./assets/Mobile-B9Zt_9Ta.js"),
+		"./Pages/Kasse/Index.vue": () => import("./assets/Index-Ckdj96da.js"),
+		"./Pages/Kasse/Testzahlung.vue": () => import("./assets/Testzahlung-CuJcsD3X.js"),
+		"./Pages/Kontakt/Index.vue": () => import("./assets/Index-CdX7JTjr.js"),
+		"./Pages/Produkt/Index.vue": () => import("./assets/Index-DFW_9nQ4.js"),
+		"./Pages/Ratgeber/Desktop.vue": () => import("./assets/Desktop-BCZnmmJA.js"),
+		"./Pages/Rechtliches/Index.vue": () => import("./assets/Index-3TJz_yH8.js"),
+		"./Pages/Startseite/Desktop.vue": () => import("./assets/Desktop-BtbMaz3H.js"),
+		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-DgV-LaGw.js"),
+		"./Pages/Vergleich/Desktop.vue": () => import("./assets/Desktop-BtGAvL9A.js"),
+		"./Pages/Vergleich/Mobile.vue": () => import("./assets/Mobile-DFTub5i_.js"),
+		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-D7EAuNVx.js")
 	})),
 	setup({ App, props, plugin }) {
-		return (0, vue_exports.createSSRApp)({ render: () => (0, vue_exports.h)(App, props) }).use(plugin).use(createPinia());
+		return (0, vue_exports.createSSRApp)({ render: () => root(App, props) }).use(plugin).use(createPinia());
 	}
-}), { port: Number(process.env.INERTIA_SSR_PORT ?? 13714) });
+}), {
+	port: Number(process.env.INERTIA_SSR_PORT ?? 13714),
+	host: "127.0.0.1"
+});
 //#endregion
-export { usePage as a, vue_exports as c, __toESM as d, useForm as i, __exportAll as l, head_default as n, router as o, link_default as r, require_server_renderer_cjs_prod as s, defineStore as t, __reExport as u };
+export { link_default as a, router as c, head_default as i, require_server_renderer_cjs_prod as l, createContext as n, useForm as o, defineStore as r, usePage as s, injectConfigProviderContext as t, vue_exports as u };

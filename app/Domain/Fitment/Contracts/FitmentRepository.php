@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fitment\Contracts;
 
+use App\Domain\Fitment\Data\ConflictDecision;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 
@@ -46,4 +47,14 @@ interface FitmentRepository
      * @return array<int, WheelConfigRecord> keyed by configuration id; an unknown id is absent
      */
     public function findWheelConfigs(array $wheelConfigIds): array;
+
+    /**
+     * What a person decided where documents disagree about this vehicle and these configurations (the
+     * corrections memo §3). A configuration with no decision — or with a conflict still open — is absent:
+     * undecided, and a disagreement there stays UNKNOWN.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, ConflictDecision> keyed by configuration id
+     */
+    public function conflictDecisionsFor(int $vehicleId, array $wheelConfigIds): array;
 }

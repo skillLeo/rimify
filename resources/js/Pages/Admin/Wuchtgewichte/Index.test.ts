@@ -110,12 +110,41 @@ describe('Wuchtgewichte-Farben', () => {
         expect(rows[0]!.text()).toContain('silber')
         expect(rows[0]!.text()).toContain('0,00 €')
         expect(rows[0]!.find('.wg__yes').exists()).toBe(true)
-        expect(rows[0]!.find('.tag').text()).toBe('Aktiv')
+        // The normal state is plain text; only the exception wears a tag.
+        expect(rows[0]!.find('.adm-tag').exists()).toBe(false)
+        expect(rows[0]!.find('[data-label="Aktiv"]').text()).toBe('Aktiv')
         expect(rows[1]!.text()).toContain('2,50 €')
         expect(rows[1]!.find('.wg__yes').exists()).toBe(false)
-        expect(rows[1]!.find('.tag').text()).toBe('Inaktiv')
+        expect(rows[1]!.find('.adm-tag.adm-tag--neutral').text()).toBe('Inaktiv')
         // The cents travel as data and are never printed or multiplied here.
         expect(wrapper.text()).not.toContain('250')
+    })
+
+    it('has one primary action, and every save button says what it saves', async () => {
+        const wrapper = mountPage()
+        const primaries = wrapper.findAll('.btn--primary')
+
+        expect(primaries).toHaveLength(1)
+        expect(primaries[0]!.text()).toBe('Farbe anlegen')
+
+        const fee = wrapper.find('form.wg__form--fee button[type="submit"]')
+        expect(fee.text()).toBe('Montagepreis speichern')
+        expect(fee.classes()).toContain('btn--secondary')
+        expect(wrapper.text()).toContain('Preis je Rad, mit Komma – zum Beispiel 19,90.')
+
+        // The forms sit on the page, not in a card.
+        expect(wrapper.find('form.adm-panel').exists()).toBe(false)
+
+        await button(wrapper, 'Bearbeiten')!.trigger('click')
+
+        expect(wrapper.find('.btn--primary').text()).toBe('Änderungen speichern')
+    })
+
+    it('marks what a phone card leaves out and what joins its key line', () => {
+        const row = mountPage().find('tbody tr')
+
+        expect(row.find('[data-label="Farbwert (Hex)"]').attributes('data-phone')).toBe('hide')
+        expect(row.find('[data-label="Aktiv"]').attributes('data-phone')).toBe('status')
     })
 
     it('names the consequence when no colour exists and still offers the form to a writer', () => {
@@ -141,7 +170,7 @@ describe('Wuchtgewichte-Farben', () => {
     it('posts a new colour as typed, without touching the money string', async () => {
         const wrapper = mountPage()
 
-        expect(wrapper.text()).toContain('Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.')
+        expect(wrapper.text()).toContain('Preis in Euro, mit Komma – zum Beispiel 49,00.')
 
         await wrapper.find('#wg-name').setValue('Schwarz')
         await wrapper.find('#wg-hex').setValue('#1A1C20')
@@ -153,7 +182,7 @@ describe('Wuchtgewichte-Farben', () => {
         await colourForm(wrapper).trigger('submit')
 
         expect(router.post).toHaveBeenCalledWith(
-            '/admin/wuchtgewichte',
+            '/admin/zubehoerpreise/wuchtgewichte',
             { nameDe: 'Schwarz', swatchHex: '#1A1C20', surcharge: '2,50', isDefault: false, active: true, sortOrder: 20 },
             expect.objectContaining({ preserveScroll: true })
         )
@@ -174,7 +203,7 @@ describe('Wuchtgewichte-Farben', () => {
         await colourForm(wrapper).trigger('submit')
 
         expect(router.patch).toHaveBeenCalledWith(
-            '/admin/wuchtgewichte/1',
+            '/admin/zubehoerpreise/wuchtgewichte/1',
             expect.objectContaining({ nameDe: 'Silber', surcharge: '1,00', isDefault: true }),
             expect.objectContaining({ preserveScroll: true })
         )
@@ -186,21 +215,35 @@ describe('Wuchtgewichte-Farben', () => {
         expect((wrapper.find('#wg-name').element as HTMLInputElement).value).toBe('')
     })
 
-    it('asks before deleting and only then sends the request', async () => {
-        const wrapper = mountPage()
+    it('asks before deleting, naming the colour, and only then sends the request', async () => {
+        const wrapper = mountPage({
+            colours: [colour(), colour({ id: 2, nameDe: 'Schwarz', slug: 'schwarz', isDefault: false })],
+        })
 
         expect(wrapper.find('.dialog-stub').exists()).toBe(false)
 
         await button(wrapper, 'Löschen')!.trigger('click')
 
-        expect(wrapper.find('.dialog-stub').text()).toContain(
-            'Farbe wirklich löschen? Bestellungen behalten die Farbe, die sie hatten.'
-        )
+        const dialog = wrapper.find('.dialog-stub')
+        expect(dialog.find('h3').text()).toBe('Farbe „Silber“ löschen?')
+        expect(dialog.text()).toContain('Bestellungen behalten die Farbe, mit der sie verkauft wurden.')
+        // Another active colour remains, so the storefront keeps selling Kompletträder.
+        expect(dialog.text()).not.toContain('keine aktive Farbe mehr')
         expect(router.delete).not.toHaveBeenCalled()
 
-        await wrapper.find('.wg__confirm').trigger('click')
+        await dialog.find('.adm-btn--danger').trigger('click')
 
-        expect(router.delete).toHaveBeenCalledWith('/admin/wuchtgewichte/1', expect.objectContaining({ preserveScroll: true }))
+        expect(router.delete).toHaveBeenCalledWith('/admin/zubehoerpreise/wuchtgewichte/1', expect.objectContaining({ preserveScroll: true }))
+    })
+
+    it('says so when deleting the last active colour would stop Komplettrad orders', async () => {
+        const wrapper = mountPage()
+
+        await button(wrapper, 'Löschen')!.trigger('click')
+
+        expect(wrapper.find('.dialog-stub').text()).toContain(
+            'Danach ist keine aktive Farbe mehr übrig – Kompletträder lassen sich dann nicht bestellen.'
+        )
     })
 
     it('shows the server\'s message under the field it belongs to', async () => {

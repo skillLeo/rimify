@@ -59,7 +59,7 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                 </p>
                 <p class="t-small kon__hint">
                     <template v-if="vehicle">
-                        Dein Fahrzeug steht schon in der E-Mail: {{ vehicle.label }} ({{ vehicle.keyNumbers }}).
+                        Dein Fahrzeug steht schon in der E-Mail: {{ vehicle.label }} ({{ vehicle.approval ?? vehicle.keyNumbers }}).
                     </template>
                     <template v-else>Wenn es um die Passform geht, gern mit HSN, TSN und Modell.</template>
                 </p>

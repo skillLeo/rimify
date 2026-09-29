@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\DetectDevice;
+use App\Services\Storage\StorageSettings;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -58,6 +59,23 @@ it('narrows img-src back to the origin when photography is off', function (): vo
     expect($csp)
         ->toContain("img-src 'self' data: blob:")
         ->not->toContain('unsplash');
+});
+
+it('lets pictures come from the media bucket in force, and the upload post to it — by name only', function (): void {
+    config(['media.s3' => ['key' => 'FAKEKEYFORTESTS0AB12', 'secret' => 'fake/secret/for/tests/only/0000X9Y8', 'region' => 'eu-north-1', 'bucket' => 'rimify-media-test', 'url' => 'https://cdn.rimify.test/medien', 'endpoint' => null, 'path_style' => false]]);
+    app(StorageSettings::class)->flush();
+
+    $csp = (string) $this->get('/_probe')->headers->get('Content-Security-Policy');
+
+    expect($csp)
+        ->toContain("img-src 'self' data: blob: https://cdn.rimify.test https://rimify-media-test.s3.eu-north-1.amazonaws.com;")
+        ->toContain("connect-src 'self' https://cdn.rimify.test https://rimify-media-test.s3.eu-north-1.amazonaws.com")
+        ->not->toContain('*');
+
+    config(['media.s3.bucket' => null]);
+    app(StorageSettings::class)->flush();
+
+    expect((string) $this->get('/_probe')->headers->get('Content-Security-Policy'))->not->toContain('amazonaws');
 });
 
 it('uses a fresh CSP nonce per response', function (): void {

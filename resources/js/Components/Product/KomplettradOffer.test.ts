@@ -157,6 +157,24 @@ describe('KomplettradOffer', () => {
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
         expect(wrapper.find('.kr__refusal a[href="mailto:hallo@beispiel.de"]').text()).toBe('Schreib uns')
         expect(wrapper.find('a[href="/felgen-suchen"]').exists()).toBe(false)
+        // An UNKNOWN verdict does not sell the rim either: no link to a button that cannot be pressed.
+        expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
+    })
+
+    it('says the wheel is approved and the tyres are not settled, and offers a person, not the rim alone', () => {
+        const sentence =
+            'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.'
+        const wrapper = mountOffer({ offer: refused('TYRES_UNKNOWN', sentence) })
+
+        expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
+        expect(wrapper.find('.kr__refusal a[href^="mailto:"]').exists()).toBe(true)
+        expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
+    })
+
+    it('still offers the rim alone where only the Komplettrad is refused', () => {
+        const sentence = 'Passende Reifen für diese Größe haben wir gerade nicht vorrätig. Die Felge allein kannst du bestellen.'
+        const wrapper = mountOffer({ offer: refused('NO_TYRE_AVAILABLE', sentence) })
+
         expect(wrapper.find('.kr__wheels-only').exists()).toBe(true)
     })
 

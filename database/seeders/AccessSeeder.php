@@ -18,18 +18,23 @@ use Spatie\Permission\Models\Role;
  * role so the panel can be reviewed as each of them.
  *
  * A permission here is a VERB ON A MODULE, never a role name in an if-statement. That distinction
- * is the whole reason the Super Admin can later let a Content Editor publish FAQ entries but not
- * legal pages without a developer and without a deployment — `role_permissions.constraints` narrows
- * within a module, and nothing in the application asks "is this user a Content Editor".
+ * is the whole reason the Super-Admin can later let the Inhalte publish FAQ entries but not legal
+ * pages without a developer and without a deployment — `role_permissions.constraints` narrows
+ * within a module, and nothing in the application asks "is this user in the Inhalte role".
  *
- * The roles are templates, not a fixed taxonomy: every one of them can be renamed, cloned,
- * restricted or deleted from the panel.
+ * These are the standard roles (`is_system`): the panel keeps their names and never deletes them,
+ * but their rights can be widened or narrowed, and any of them can be duplicated into a role of the
+ * client's own. The Super-Admin alone is fixed: it is always every right there is.
  */
 class AccessSeeder extends Seeder
 {
     private const GUARD = 'admin';
 
-    /** Everything a module can be asked to do, for the roles that may do all of it. */
+    /**
+     * Everything a module can be asked to do, for the roles that may do all of it. Only the actions
+     * the module really has are written (PermissionModule::actions()), so ALL on the Inhalte means
+     * everything but *Exportieren*, which the Inhalte do not have.
+     */
     private const ALL = ['view', 'create', 'edit', 'delete', 'publish', 'export'];
 
     private const READ = ['view'];
@@ -44,17 +49,21 @@ class AccessSeeder extends Seeder
      * A module absent from a role's map is not merely hidden from that role — nothing in the panel
      * queries it, and the nav item is never rendered rather than rendered and disabled.
      *
+     * The labels are the brief's German names (BRIEF.md §2). A database seeded before them is moved
+     * over by the migration `2026_09_26_000200_german_role_labels`, which leaves alone any label the
+     * client renamed.
+     *
      * @var array<string, array{label: string, who: string, person: string, modules: array<string, list<string>>}>
      */
     private const ROLES = [
         'super-admin' => [
-            'label' => 'Super Admin',
+            'label' => 'Super-Admin',
             'who' => 'Inhaber',
             'person' => 'Sabine Roth',
-            'modules' => [], // Filled with every module × every action in run().
+            'modules' => [], // Filled with every real cell in run().
         ],
         'catalogue-manager' => [
-            'label' => 'Katalog-Manager',
+            'label' => 'Katalog',
             'who' => 'Einkauf und Produktleitung',
             'person' => 'Tobias Lenz',
             'modules' => [
@@ -66,7 +75,7 @@ class AccessSeeder extends Seeder
             ],
         ],
         'compliance-editor' => [
-            'label' => 'Compliance Editor',
+            'label' => 'Gutachten',
             'who' => 'Verantwortung für die Gutachten',
             'person' => 'Dr. Mirjam Halbach',
             'modules' => [
@@ -80,7 +89,7 @@ class AccessSeeder extends Seeder
             ],
         ],
         'order-manager' => [
-            'label' => 'Bestell-Manager',
+            'label' => 'Bestellungen',
             'who' => 'Versand und Abwicklung',
             'person' => 'Kerem Yildiz',
             'modules' => [
@@ -91,7 +100,7 @@ class AccessSeeder extends Seeder
             ],
         ],
         'content-editor' => [
-            'label' => 'Content Editor',
+            'label' => 'Inhalte',
             'who' => 'Marketing',
             'person' => 'Lea Brandt',
             'modules' => [
@@ -100,7 +109,7 @@ class AccessSeeder extends Seeder
             ],
         ],
         'support-agent' => [
-            'label' => 'Support Agent',
+            'label' => 'Support',
             'who' => 'Kundenbetreuung',
             'person' => 'Nils Fuchs',
             'modules' => [
@@ -143,23 +152,29 @@ class AccessSeeder extends Seeder
         }
     }
 
-    /** @return array<string, list<string>> */
+    /**
+     * Every real cell of the grid: the Super-Admin is always everything there is.
+     *
+     * @return array<string, list<string>>
+     */
     private function everything(): array
     {
         $all = [];
 
-        foreach (PermissionModule::values() as $module) {
-            $all[$module] = PermissionAction::values();
+        foreach (PermissionModule::cases() as $module) {
+            $all[$module->value] = array_map(static fn (PermissionAction $action): string => $action->value, $module->actions());
         }
 
         return $all;
     }
 
     /**
-     * Every cell of the grid is written, allowed or not.
+     * Every real cell of the grid is written, allowed or not; nothing else is.
      *
      * A missing row and a denied row are not the same thing: the panel renders a matrix of
-     * switches, and an absent row would render as an empty cell that nobody can reason about.
+     * switches, and an absent row would render as an empty cell that nobody can reason about. A
+     * cell for an action the module does not have (PermissionModule::actions()) is no right at all,
+     * so a row left over from an older seed is removed rather than kept as a promise.
      *
      * @param  array<string, list<string>>  $modules
      */
@@ -168,13 +183,13 @@ class AccessSeeder extends Seeder
         $now = now();
         $rows = [];
 
-        foreach (PermissionModule::values() as $module) {
-            foreach (PermissionAction::values() as $action) {
+        foreach (PermissionModule::cases() as $module) {
+            foreach ($module->actions() as $action) {
                 $rows[] = [
                     'role_id' => $role->id,
-                    'module' => $module,
-                    'action' => $action,
-                    'allowed' => in_array($action, $modules[$module] ?? [], true),
+                    'module' => $module->value,
+                    'action' => $action->value,
+                    'allowed' => in_array($action->value, $modules[$module->value] ?? [], true),
                     'constraints' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -182,14 +197,22 @@ class AccessSeeder extends Seeder
             }
         }
 
-        // One upsert for the role's 72 cells rather than 72 select-then-write pairs. The matrix is
-        // rewritten wholesale on every run, which is correct: it is derived from the template above
-        // and a cell that has drifted should be corrected, not preserved.
+        // One upsert for the role's real cells rather than a select-then-write pair each. The matrix
+        // is rewritten wholesale on every run, which is correct: it is derived from the template
+        // above and a cell that has drifted should be corrected, not preserved.
         RolePermission::query()->upsert(
             $rows,
             ['role_id', 'module', 'action'],
             ['allowed', 'constraints', 'updated_at'],
         );
+
+        foreach (PermissionModule::cases() as $module) {
+            RolePermission::query()
+                ->where('role_id', $role->id)
+                ->where('module', $module->value)
+                ->whereNotIn('action', array_map(static fn (PermissionAction $action): string => $action->value, $module->actions()))
+                ->delete();
+        }
     }
 
     /**

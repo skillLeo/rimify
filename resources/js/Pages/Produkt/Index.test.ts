@@ -343,6 +343,36 @@ describe('Produkt page', () => {
         expect(document.querySelector('[role="dialog"]')).toBeNull()
     })
 
+    it('says which size the photograph is of when the size on screen carries another approval', async () => {
+        // The Borbet DB8GT2's photographs show KBA 53841 on the wheel: the 18-inch. The 19-inch is ABE 55255.
+        const wrapper = mountPage({
+            finishes: [{ id: 1, name: 'Schwarz matt', hex: null, artFinish: 'black', image: { ...photo, stamp: '53841' } }],
+            configs: [
+                config({ id: 12, diameterIn: 19, sizeLabel: '8,5J × 19 · ET 35', kbaNumber: '55255' }),
+                config({ id: 11, diameterIn: 18, sizeLabel: '8,5J × 18 · ET 35', kbaNumber: '53841', sku: 'BOR-18' }),
+            ],
+        })
+
+        const note = () => wrapper.find('.pdp__photo-note')
+
+        await wrapper.findAll('button[aria-pressed]').find((b) => b.text().includes('18'))?.trigger('click')
+        expect(note().exists()).toBe(false)
+
+        await wrapper.findAll('button[aria-pressed]').find((b) => b.text().includes('19'))?.trigger('click')
+        expect(note().text()).toBe('Abbildung zeigt die 18-Zoll-Ausführung.')
+    })
+
+    it('says a struck-through size is not approved only where a document says so (R-07)', () => {
+        const note = (status: 'NOT_PERMITTED' | 'UNKNOWN'): string =>
+            mountPage({
+                hasVehicle: true,
+                configs: [config({ id: 12, diameterIn: 19, verdict: verdict({ status, label: status, sellable: false }) }), config({ id: 11, diameterIn: 18, sizeLabel: '8,5J × 18 · ET 45', sku: 'X-18', verdict: verdict() })],
+            }).find('.pdp__note').text()
+
+        expect(note('NOT_PERMITTED')).toBe('Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.')
+        expect(note('UNKNOWN')).toBe('Für durchgestrichene Größen liegt uns für dein Fahrzeug keine Freigabe vor.')
+    })
+
     it('draws the wheel without a zoom when there is no photograph', () => {
         const wrapper = mountPage({ finishes: [{ id: 1, name: 'Silber', hex: null, artFinish: 'silver', image: null }] })
 

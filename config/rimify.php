@@ -140,8 +140,36 @@ return [
     | on the preview server while the panel is being built: a client shown a half-finished screen
     | reads it as a finished one and reports its gaps as faults.
     */
+    // The client's review of the admin (the review release §3): the review board, the feedback button
+    // and its list. On wherever the shop is not live; the live shop never shows it.
+    'review' => [
+        'enabled' => filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL),
+    ],
+
+    // How orders are paid (App\Payments\Payments). `none` until a provider is configured (BLOCKED #3):
+    // the shop then takes no orders. `sandbox` runs test orders end to end, and is the default where the
+    // review is on (Payments refuses it anywhere else, whatever this says).
+    'payments' => [
+        'driver' => env('RIMIFY_PAYMENTS', filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL) ? 'sandbox' : 'none'),
+    ],
+
+    // Server-side rendering's bounds (App\Support\Ssr\BoundedSsrGateway), in seconds: how long to
+    // wait for the renderer to answer the phone, how long for a page, and how long to leave it alone
+    // after it failed. The browser renders meanwhile; nothing on the page depends on which one drew it.
+    'ssr' => [
+        'connect_timeout' => (float) env('RIMIFY_SSR_CONNECT_TIMEOUT', 0.5),
+        'timeout' => (float) env('RIMIFY_SSR_TIMEOUT', 2.5),
+        'pause' => (int) env('RIMIFY_SSR_PAUSE', 30),
+    ],
+
+    // A query at least this slow is written to storage/logs/slow-queries-*.log (SlowQueries).
+    'slow_query_ms' => (int) env('RIMIFY_SLOW_QUERY_MS', 500),
+
     'admin' => [
         'enabled' => filter_var(env('RIMIFY_ADMIN_ENABLED', true), FILTER_VALIDATE_BOOL),
+        // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody
+        // was asked to read is not offered (docs/design/sections/admin-shell.md §6.4).
+        'support_email' => env('RIMIFY_ADMIN_SUPPORT_EMAIL'),
     ],
 
     /*
@@ -209,6 +237,10 @@ return [
         'public_base' => env('RIMIFY_DEMO_WHEELS_URL', '/storage/demo/wheels'),
         // The free-licence source photographs, credited in docs/image-credits.md.
         'sources_dir' => env('RIMIFY_DEMO_SOURCES_DIR', 'storage/app/public/placeholder'),
+        // The example finishes' placeholder drawings (DemoPlaceholders); `demo:purge` removes them
+        // with the catalogue. The test suite writes its own elsewhere (phpunit.xml).
+        'placeholders_dir' => env('RIMIFY_DEMO_PLACEHOLDERS_DIR', 'storage/app/public/demo/placeholders'),
+        'placeholders_base' => env('RIMIFY_DEMO_PLACEHOLDERS_URL', '/storage/demo/placeholders'),
     ],
 
     /*

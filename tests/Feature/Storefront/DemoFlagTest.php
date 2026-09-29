@@ -4,42 +4,27 @@ declare(strict_types=1);
 
 use App\Models\WheelModel;
 use Database\Seeders\ContentSeeder;
-use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Database\QueryException;
 use Inertia\Testing\AssertableInertia;
 
 /*
- * The site-wide Demodaten badge (docs/phase0/ACCURACY.md D4) hangs on one shared prop, computed on
- * the server for every page: `demoBadge` is true while any published wheel model is a demonstration row.
+ * Example data never reaches the storefront (the review release §2, superseding ACCURACY D4's badged
+ * demo shop): a demo model cannot be published — the table refuses it — so the site-wide Demodaten
+ * badge (`demoBadge`, one shared prop) can never be raised. It stays as the page's last line of
+ * defence: were a demo row ever on show, every page would say so.
  */
 
 beforeEach(function (): void {
     $this->seed(ContentSeeder::class);
 });
 
-it('shares demo = true on every page while a published demo model exists', function (string $path): void {
-    WheelModel::factory()->create(['is_demo' => true]);
-
-    $this->get($path)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('demoBadge', true));
-})->with(['/kontakt', '/faq', '/rimify-check', '/rechtliches/impressum']);
-
-it('keeps the badge on a page that passes a demo prop of its own', function (): void {
-    // /vergleich with nothing to compare passes `demo = false` for its own rows. A page prop named
-    // like the shared one would replace it, which is why the badge has its own key. The page asks
-    // the fitment engine, which fails closed without its reference tables.
-    $this->seed(ReferenceDataSeeder::class);
-    WheelModel::factory()->create(['is_demo' => true]);
-
-    $this->get('/vergleich')
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('demoBadge', true)->where('demo', false));
+it('refuses to publish a demo model at all', function (): void {
+    expect(fn () => WheelModel::factory()->create(['is_demo' => true]))->toThrow(QueryException::class);
 });
 
-it('shares demo = false when no demo model is published', function (): void {
-    $this->get('/kontakt')->assertInertia(fn (AssertableInertia $page) => $page->where('demoBadge', false));
-
-    // A draft demo row is not on show, and a real model is not demonstration data.
+it('shares demo = false on every page: a draft demo row is not on show, and a real model is not demonstration data', function (string $path): void {
     WheelModel::factory()->draft()->create(['is_demo' => true]);
     WheelModel::factory()->create(['is_demo' => false]);
 
-    $this->get('/kontakt')->assertInertia(fn (AssertableInertia $page) => $page->where('demoBadge', false));
-});
+    $this->get($path)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('demoBadge', false));
+})->with(['/kontakt', '/faq', '/rimify-check', '/rechtliches/impressum']);

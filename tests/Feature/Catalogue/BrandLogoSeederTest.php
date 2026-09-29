@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Console\Commands\ReleaseSeed;
+use App\Models\AdminUser;
 use App\Models\Brand;
 use App\Models\WheelModel;
+use App\Services\Admin\AuditTrail;
 use App\Support\MakeName;
 use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
@@ -173,4 +175,26 @@ it('reaches an existing database through the release seed', function (): void {
 
     expect(Brand::query()->where('slug', 'bbs')->exists())->toBeTrue()
         ->and(Brand::query()->where('slug', 'motec')->value('logo_path'))->toBe('/images/brands/motec.svg');
+});
+
+it('never undoes what a person did in Katalog › Marken (K2-17)', function (): void {
+    $this->seed(BrandLogoSeeder::class);
+    $admin = AdminUser::factory()->create();
+    $borbet = Brand::query()->where('slug', 'borbet')->firstOrFail();
+    $bbs = Brand::query()->where('slug', 'bbs')->firstOrFail();
+
+    // Renamed and moved by a person, its logo taken off; another one removed.
+    $borbet->forceFill(['name' => 'Borbet', 'sort_order' => 5, 'logo_path' => null])->save();
+    AuditTrail::record($admin, 'brand.updated', ['brand_id' => $borbet->id], $borbet);
+    AuditTrail::record($admin, 'brand.logo_removed', ['brand_id' => $borbet->id], $borbet);
+    $bbs->delete();
+    AuditTrail::record($admin, 'brand.deleted', ['brand_id' => $bbs->id], $bbs);
+
+    // The next release seed leaves all of it as the team set it.
+    $this->seed(BrandLogoSeeder::class);
+
+    expect($borbet->fresh()?->name)->toBe('Borbet')
+        ->and($borbet->fresh()?->sort_order)->toBe(5)
+        ->and($borbet->fresh()?->logo_path)->toBeNull()
+        ->and(Brand::withTrashed()->find($bbs->id)?->trashed())->toBeTrue();
 });

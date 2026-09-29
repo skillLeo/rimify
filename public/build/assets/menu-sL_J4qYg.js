@@ -1,0 +1,1 @@
+var e={top:16,right:16,bottom:72,left:16};export{e as t};

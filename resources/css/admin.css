@@ -1,0 +1,3027 @@
+/*
+ * The admin shell — loaded only by AdminLayout, so nothing here reaches a storefront page.
+ *
+ * The same system as the shop, one notch tighter (docs/design/sections/admin-shell.md §2): every
+ * value is a token, every selector starts with `.adm`, and nothing here redefines a :root token or a
+ * storefront class's own definition. The rail follows the client's decisions in DIRECTION §8a: light,
+ * a hairline on its right edge, labelled groups, 36 px items with a tint and a 2 px indicator.
+ */
+
+/* ── The frame ─────────────────────────────────────────────────────────────────── */
+
+/* One custom property drives the rail's width: --rail-w, set on this element from the account's own
+   width (AdminLayout) and moved by the handle. Nothing else sets a width on the rail's children. */
+.adm {
+    display: grid;
+    grid-template-columns: var(--rail-w, var(--adm-rail-w)) minmax(0, 1fr);
+    min-height: 100dvh;
+    overflow-x: clip;
+    background: var(--c-surface);
+    color: var(--c-ink);
+}
+
+.adm[data-rail='collapsed'] {
+    grid-template-columns: var(--adm-rail-w-min) minmax(0, 1fr);
+}
+
+/* 768–1023: the rail is always collapsed — there is no room to honour a choice to open it. */
+@media (max-width: 1023px) {
+    .adm {
+        grid-template-columns: var(--adm-rail-w-min) minmax(0, 1fr);
+    }
+}
+
+/* Below 768 there is no rail at all; the phone has its bottom bar. */
+@media (max-width: 767px) {
+    .adm,
+    .adm[data-rail='collapsed'] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.adm-skip {
+    position: absolute;
+    top: var(--sp-8);
+    left: var(--sp-8);
+    z-index: var(--z-skip);
+    padding: var(--sp-8) var(--sp-12);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    transform: translateY(-200%);
+}
+
+.adm-skip:focus-visible {
+    transform: none;
+}
+
+/* Its own ground: while it slides over the rail's labels (collapse, expand, reset), it covers them. */
+.adm-work {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--c-surface);
+}
+
+/* ── The rail ──────────────────────────────────────────────────────────────────── */
+
+/* The rail is navigation that scrolls, above a foot that does not (AdminRailFoot). */
+.adm-rail {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    padding: 0 var(--sp-12);
+    background: var(--c-surface);
+    border-right: 1px solid var(--c-line);
+}
+
+@media (max-width: 767px) {
+    .adm-rail {
+        display: none;
+    }
+}
+
+/* Exactly the top bar's height, so the wordmark sits on the breadcrumbs' centre line. The toggle sits
+   4 px from the edge, which puts its chevron on the column the counts and the profile's chevron end on. */
+.adm-rail__brand {
+    /* Never shrinks: its min-height replaces flex's own minimum, so once the navigation outgrew the
+       window the collapsed rail's stacked toggle spilled under the first item and could not be clicked. */
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-height: var(--adm-topbar-h);
+    padding: 0 var(--sp-4) 0 var(--sp-8);
+}
+
+/* At its narrowest the rail keeps the wordmark, the environment and the toggle on one line. */
+.adm[data-labels='short'] .adm-rail__brand {
+    gap: var(--sp-4);
+}
+
+/* The logo: black, a 20 px cap height, the storefront wordmark's own weight and tracking. */
+.adm-wordmark {
+    font-size: var(--adm-wordmark-size);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    color: var(--c-ink);
+    text-decoration: none;
+}
+
+/* Scoped so it outranks `.adm-iconbtn`'s own display, which the mark also wears. */
+.adm-rail .adm-wordmark--mark {
+    display: none;
+}
+
+.adm-rail__toggle {
+    margin-left: auto;
+}
+
+.adm-rail__nav {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    margin-inline: calc(-1 * var(--sp-12));
+    padding: 0 var(--sp-12) var(--sp-16);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* A thin, quiet scrollbar. Its room is kept in the navigation alone, whether it scrolls or not, so
+       nothing in the list moves the moment it starts to scroll (classic scrollbars: 10 px). The foot
+       keeps its full width — a gutter there cut the health line short. */
+    scrollbar-color: var(--c-line-2) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+}
+
+/* ── The rail's resize handle (AdminRailHandle) ─────────────────────────────────────
+   An 8 px grip over the rail's edge — the edge's 4 px, widened invisibly — that shows nothing at
+   rest, a 2 px blue line after 120 ms of hovering, and the line for as long as a drag lasts. */
+
+.adm-handle {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--rail-w, var(--adm-rail-w)) - 4px);
+    /* Above the sticky top bar beside it, or its top 56 px would be half a grip and half a line. */
+    z-index: var(--z-header);
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+}
+
+.adm[data-rail='collapsed'] .adm-handle {
+    left: calc(var(--adm-rail-w-min) - 4px);
+}
+
+.adm-handle::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    background: var(--c-blue);
+    opacity: 0;
+    transition: opacity var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-handle:hover::after {
+        opacity: 1;
+        transition-delay: var(--d-1);
+    }
+}
+
+.adm-handle:focus-visible::after,
+.adm[data-resizing] .adm-handle::after {
+    opacity: 1;
+    transition-delay: 0s;
+}
+
+/* While the content slides to the rail's new edge the line waits there unseen, not ahead of it. */
+.adm[data-sliding] .adm-handle::after {
+    opacity: 0;
+    transition: none;
+}
+
+/* No room for the rail even at 232 px beside the content: it is the icon rail, nothing to pull. */
+.adm[data-rail-forced] .adm-handle {
+    display: none;
+}
+
+/* A card holding a chart keeps the chart inside it: while the rail is dragged a chart keeps its last
+   measured drawing (it redraws once, after the drag) and scales it down to its box through its
+   viewBox — nothing of it ever lies across the neighbouring card. Its menu is portalled, its focus
+   ring falls inside the card's padding. */
+.adm .widget:has(.lc, .sb__plot) {
+    overflow: hidden;
+}
+
+/* A contrast theme drops colour changes: focus is an outline in the theme's own text colour, and the
+   line takes the system's highlight rather than a background painted over as Canvas. */
+@media (forced-colors: active) {
+    .adm-handle:focus-visible {
+        outline: 2px solid CanvasText;
+    }
+
+    .adm-handle::after {
+        background: Highlight;
+        forced-color-adjust: none;
+    }
+}
+
+/* While dragging: the cursor is col-resize over the whole window, and nothing gets selected. */
+:root[data-rail-resizing],
+:root[data-rail-resizing] * {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+
+/* No resizing below 1024 px: a tablet's rail is the icon rail, a phone has the bottom bar. */
+@media (max-width: 1023px) {
+    .adm-handle {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-handle::after {
+        transition: none;
+    }
+}
+
+/* Collapsed by the window (no room for the rail beside 960 px of content): the toggle stays, quieter,
+   and its tooltip says why it cannot open. */
+/* Scoped to the rail so it outranks `.adm-iconbtn[aria-disabled='true']`, which comes later (EF-10). */
+.adm-rail .adm-rail__toggle[aria-disabled='true'] {
+    color: var(--c-ink-3);
+    cursor: default;
+}
+
+/* Below 248 px the group labels take their own short word (AdminNavigation's `short`), never a label
+   cut mid-word; a screen reader keeps hearing the full one. */
+.adm-rail__label-short {
+    display: none;
+}
+
+.adm[data-labels='short'] .adm-rail__label-full {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.adm[data-labels='short'] .adm-rail__label-short {
+    display: inline;
+}
+/* ── The rail's foot: health, Neu, the account ─────────────────────────────────────── */
+
+.adm-foot {
+    display: grid;
+    flex: none;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-8);
+    margin-inline: calc(-1 * var(--sp-12));
+    padding: var(--sp-12);
+    border-top: 1px solid var(--c-line);
+}
+
+/* Demodaten: the warning colour, words and dot alike — a state nobody should overlook — on the
+   health line's grid (the dot on the icons' column, the words on the labels' line); wrapping to a
+   second line rather than cutting the count. */
+.adm-foot__demo {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-12);
+    min-height: var(--sp-32);
+    margin: 0;
+    padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-12);
+    border-radius: var(--r-control);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-warn);
+}
+
+.adm-foot__demo-dot {
+    flex: none;
+    width: var(--sp-8);
+    height: var(--sp-8);
+    margin: calc((var(--lh-micro) - var(--sp-8)) / 2) calc((var(--sp-20) - var(--sp-8)) / 2) 0;
+    border-radius: var(--r-round);
+    background: var(--c-warn);
+}
+
+.adm-foot__demo-purge {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+/* One quiet line, 32 px, never wrapping: the dot carries the colour, the words stay the rail's own
+   grey, and a long label gives way with „…“ (the whole sentence is the tooltip). */
+.adm-foot__health {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    height: var(--sp-32);
+    margin: 0;
+    /* The words start on the labels' line (56 px); the row gives them its right-hand room, so the
+       short label and its count fit whole at the rail's default width. */
+    padding-inline: var(--sp-12) var(--sp-4);
+    border-radius: var(--r-control);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.adm-foot__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The count may take the state's colour — it is the one figure worth the eye. It follows the label
+   at a word's distance („Warteschlange stockt · 12 Std“), not the row's gap. */
+.adm-foot__count {
+    flex: none;
+    margin-left: calc(-1 * var(--sp-8));
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-foot__count--warn {
+    color: var(--c-warn);
+}
+
+.adm-foot__count--bad {
+    color: var(--c-bad);
+}
+
+/* The dot on the icons' column (centred in their 20 px), the words on the labels' line (56 px). */
+.adm-foot__health .adm-health__dot {
+    margin-inline: calc((var(--sp-20) - var(--sp-8)) / 2);
+}
+
+a.adm-foot__health {
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+/* The review's „Rückmeldung geben“: a quiet row like the health line, the icon on the icons' column. */
+.adm-foot__feedback {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    width: 100%;
+    height: var(--sp-32);
+    padding-inline: var(--sp-8) var(--sp-4);
+    border: 0;
+    border-radius: var(--r-control);
+    background: none;
+    color: var(--c-ink-2);
+    font: inherit;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-foot__feedback:hover {
+        background: var(--c-band);
+        color: var(--c-ink);
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+    a.adm-foot__health:hover {
+        background: var(--c-band);
+    }
+}
+
+
+
+/* The one dot of a state: 8 px, the state's own colour, never alone without its word. */
+.adm-health__dot {
+    flex: none;
+    width: var(--sp-8);
+    height: var(--sp-8);
+    border-radius: var(--r-round);
+}
+
+.adm-health__dot--ok {
+    background: var(--c-ok);
+}
+
+.adm-health__dot--warn {
+    background: var(--c-warn);
+}
+
+.adm-health__dot--bad {
+    background: var(--c-bad);
+}
+
+.adm-foot__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+/* „Neu“ gives way first, so the shortcut beside it is never pushed out of the rail, whatever the
+   font the browser ends up with. */
+.adm-foot__new {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+}
+
+.adm-foot__new svg {
+    flex: none;
+}
+
+/* The palette's shortcut, quiet at the end of the row: a hint that is also a button. */
+.adm-foot__kbd {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-8);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink-3);
+    cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-foot__kbd:hover {
+        background: var(--c-band);
+        color: var(--c-ink-2);
+    }
+}
+
+.adm-foot__profile {
+    display: grid;
+    grid-template-columns: var(--sp-32) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sp-12);
+    width: 100%;
+    min-height: var(--adm-row-h-lg);
+    padding: var(--sp-8) var(--sp-12);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--d-1) var(--ease-out);
+}
+
+.adm-foot__profile[data-state='open'] {
+    background: var(--c-band);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-foot__profile:hover {
+        background: var(--c-band);
+    }
+}
+
+/* A monogram tile where a photo would be: the initials, the accent's tint and ink. */
+.adm-avatar {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: var(--sp-32);
+    height: var(--sp-32);
+    border-radius: var(--r-tile);
+    background: var(--c-blue-tint);
+    color: var(--c-blue);
+    font-size: var(--fs-micro);
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.adm-foot__who {
+    display: grid;
+    min-width: 0;
+}
+
+.adm-foot__name,
+.adm-foot__role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-foot__name {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+}
+
+.adm-foot__role {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-foot__chevron {
+    color: var(--c-ink-3);
+}
+
+.adm-foot__menu {
+    min-width: 256px;
+}
+
+/* Collapsed (by choice, or by force at 768–1023): the dot, a +, the avatar — the words become the
+   tooltips and stay the controls' names for a screen reader. */
+.adm[data-rail='collapsed'] .adm-foot__demo,
+.adm[data-rail='collapsed'] .adm-foot__health,
+.adm[data-rail='collapsed'] .adm-foot__profile {
+    justify-content: center;
+    padding-inline: 0;
+}
+
+.adm[data-rail='collapsed'] .adm-foot__profile {
+    display: flex;
+}
+
+.adm[data-rail='collapsed'] .adm-foot__demo-text,
+.adm[data-rail='collapsed'] .adm-foot__label,
+.adm[data-rail='collapsed'] .adm-foot__count,
+.adm[data-rail='collapsed'] .adm-foot__new-label,
+.adm[data-rail='collapsed'] .adm-foot__feedback-label,
+.adm[data-rail='collapsed'] .adm-foot__who {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.adm[data-rail='collapsed'] .adm-foot__kbd,
+.adm[data-rail='collapsed'] .adm-foot__chevron {
+    display: none;
+}
+
+/* The words stay a name for a screen reader; the control inside them does not stay a Tab stop
+   nobody can see (M1-02). The purge is offered again with the rail open. */
+.adm[data-rail='collapsed'] .adm-foot__demo-purge {
+    visibility: hidden;
+}
+
+.adm[data-rail='collapsed'] .adm-foot .adm-foot__new {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    margin-inline: auto;
+    padding: 0;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .adm .adm-foot__demo,
+    .adm .adm-foot__health,
+    .adm .adm-foot__profile {
+        justify-content: center;
+        padding-inline: 0;
+    }
+
+    .adm .adm-foot__profile {
+        display: flex;
+    }
+
+    .adm .adm-foot__demo-text,
+    .adm .adm-foot__label,
+    .adm .adm-foot__count,
+    .adm .adm-foot__new-label,
+    .adm .adm-foot__feedback-label,
+    .adm .adm-foot__who {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .adm .adm-foot__kbd,
+    .adm .adm-foot__chevron {
+        display: none;
+    }
+
+    .adm .adm-foot__demo-purge {
+        visibility: hidden;
+    }
+
+    .adm .adm-foot .adm-foot__new {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        margin-inline: auto;
+        padding: 0;
+    }
+}
+
+.adm-rail__group + .adm-rail__group {
+    margin-top: var(--sp-16);
+}
+
+/* 12 px, --c-ink-3, sentence case — and never uppercase, never tracked (DIRECTION §3). */
+.adm-rail__label {
+    margin: 0 0 var(--sp-4);
+    padding-inline: var(--sp-12);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-rail__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.adm-rail__item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-12);
+    border-radius: var(--r-tile);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    text-decoration: none;
+    transition:
+        background-color var(--d-1) var(--ease-out),
+        color var(--d-1) var(--ease-out);
+}
+
+.adm-rail__item .icon {
+    flex: none;
+}
+
+/* A label that does not fit ends in „…“ — never wraps — with the whole of it in the tooltip; the
+   count beside it keeps its place at the right edge and never gives way. */
+.adm-rail__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-rail__item:hover {
+        background: var(--c-band);
+    }
+}
+
+/* Where you are: the tint, ink text, and a 2 px indicator inset 8 px top and bottom. */
+.adm-rail__item[aria-current='page'] {
+    background: var(--c-blue-tint);
+    color: var(--c-ink);
+}
+
+.adm-rail__item[aria-current='page']::before {
+    content: '';
+    position: absolute;
+    top: var(--sp-8);
+    bottom: var(--sp-8);
+    left: 0;
+    width: 2px;
+    background: var(--c-blue);
+}
+
+/* A queue of work: a figure, not a pill. Neutral unless something broke. */
+.adm-rail__count {
+    flex: none;
+    margin-left: auto;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+}
+
+.adm-rail__count--bad {
+    color: var(--c-bad);
+    font-weight: 500;
+}
+
+/* ── The collapsed rail: icons with tooltips ───────────────────────────────────────
+ * Written twice on purpose — once for the viewer's own choice, once for 768–1023 where the rail is
+ * forced collapsed — because CSS has no way to say "either".                                  */
+
+.adm[data-rail='collapsed'] .adm-rail__brand {
+    flex-direction: column;
+    padding: var(--sp-12) 0;
+}
+
+.adm[data-rail='collapsed'] .adm-wordmark--full,
+.adm[data-rail='collapsed'] .adm-rail__brand .adm-env,
+.adm[data-rail='collapsed'] .adm-rail__label,
+.adm[data-rail='collapsed'] .adm-rail__count {
+    display: none;
+}
+
+/* The label leaves the screen but not the link: hidden with display it would leave an icon-only link
+   with no name at all, and a screen reader would announce only "Link". */
+.adm[data-rail='collapsed'] .adm-rail__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.adm[data-rail='collapsed'] .adm-wordmark--mark {
+    display: inline-flex;
+}
+
+.adm[data-rail='collapsed'] .adm-rail__toggle {
+    margin-left: 0;
+}
+
+.adm[data-rail='collapsed'] .adm-rail__group + .adm-rail__group {
+    margin-top: var(--sp-8);
+}
+
+.adm[data-rail='collapsed'] .adm-rail__item {
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin-inline: auto;
+}
+
+/* The icon rail has no room for a scrollbar beside its 40 px icons: it scrolls without one. */
+.adm[data-rail='collapsed'] .adm-rail__nav {
+    scrollbar-width: none;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .adm .adm-rail__brand {
+        flex-direction: column;
+        padding: var(--sp-12) 0;
+    }
+
+    .adm .adm-wordmark--full,
+    .adm .adm-rail__brand .adm-env,
+    .adm .adm-rail__label,
+    .adm .adm-rail__count,
+    .adm .adm-rail__toggle {
+        display: none;
+    }
+
+    .adm .adm-rail__text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .adm .adm-wordmark--mark {
+        display: inline-flex;
+    }
+
+    .adm .adm-rail__group + .adm-rail__group {
+        margin-top: var(--sp-8);
+    }
+
+    .adm .adm-rail__item {
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        margin-inline: auto;
+    }
+
+    .adm .adm-rail__nav {
+        scrollbar-width: none;
+    }
+}
+
+/* A count, collapsed: a 6 px dot at the icon's top-right. The number stays in the tooltip and in
+   the link's accessible name. */
+.adm-rail__dot {
+    display: none;
+    position: absolute;
+    top: var(--sp-4);
+    right: var(--sp-4);
+    width: 6px;
+    height: 6px;
+    border-radius: var(--r-round);
+    background: var(--c-ink-2);
+}
+
+.adm-rail__dot--bad {
+    background: var(--c-bad);
+}
+
+.adm[data-rail='collapsed'] .adm-rail__dot {
+    display: block;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .adm .adm-rail__dot {
+        display: block;
+    }
+}
+
+/* The collapsed rail's label, on the same surface as a menu — a light card, never a dark chip. */
+.adm-tooltip {
+    z-index: var(--z-dropdown);
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    box-shadow: var(--e-2);
+}
+
+/* ── The environment badge ─────────────────────────────────────────────────────── */
+
+.adm-env {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding-inline: var(--sp-8);
+    border-radius: var(--r-control);
+    background: var(--c-warn-tint);
+    color: var(--c-ink);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* The topbar's copy of the badge shows only when the rail's copy is hidden. */
+.adm-topbar .adm-env {
+    display: none;
+}
+
+.adm[data-rail='collapsed'] .adm-topbar .adm-env {
+    display: inline-flex;
+}
+
+@media (max-width: 1023px) {
+    .adm .adm-topbar .adm-env {
+        display: inline-flex;
+    }
+}
+
+/* ── The topbar ────────────────────────────────────────────────────────────────── */
+
+.adm-topbar {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 480px) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--sp-16);
+    height: var(--adm-topbar-h);
+    padding-inline: var(--sp-32);
+    background: var(--c-surface);
+    border-bottom: 1px solid var(--c-line);
+}
+
+/* A visit longer than 300 ms turns the topbar's own hairline blue. Nothing moves (§6.6). */
+.adm[data-busy] .adm-topbar {
+    border-bottom-color: var(--c-blue);
+}
+
+.adm-topbar__start {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    min-width: 0;
+}
+
+.adm-topbar__end {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    gap: var(--sp-4);
+}
+
+@media (max-width: 1279px) {
+    .adm-topbar {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 320px) minmax(0, 1fr);
+        padding-inline: var(--sp-24);
+    }
+}
+
+@media (max-width: 1023px) {
+    .adm-topbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding-inline: var(--sp-20);
+    }
+}
+
+@media (max-width: 767px) {
+    .adm-topbar {
+        display: none;
+    }
+}
+
+/* Breadcrumbs: ancestors quiet, the current page named, nothing a link that goes nowhere. */
+.adm-crumbs {
+    min-width: 0;
+}
+
+.adm-crumbs ol {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+/* The ancestors keep their whole names; only the last crumb — the record — gives way when space runs out. */
+.adm-crumbs li {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--sp-4);
+    color: var(--c-ink-3);
+}
+
+.adm-crumbs li:last-child {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.adm-crumbs li > span,
+.adm-crumbs li > a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-crumbs a {
+    color: var(--c-ink-3);
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-crumbs a:hover {
+        color: var(--c-ink);
+        text-decoration: underline;
+    }
+}
+
+.adm-crumbs [aria-current='page'] {
+    color: var(--c-ink-2);
+    font-weight: 500;
+}
+
+.adm-crumbs__sep {
+    flex: none;
+    color: var(--c-line-2);
+}
+
+/* The search is a button that looks like a field: one search, one focus model (§6.2). */
+.adm-search {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    width: 100%;
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-12);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    color: var(--c-ink-3);
+    font: inherit;
+    font-size: var(--fs-small);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--d-1) var(--ease-out);
+}
+
+.adm-search__label {
+    flex: 1;
+}
+
+.adm-search__kbd {
+    min-width: 56px;
+    text-align: right;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-search:hover {
+        border-color: var(--c-line-2);
+    }
+}
+
+.adm-search:active {
+    background: var(--c-band);
+}
+
+/* Scoped so it outranks `.adm-iconbtn`'s own display, which the icon also wears. */
+.adm-topbar .adm-search--icon {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    .adm-search--field {
+        display: none;
+    }
+
+    .adm-topbar .adm-search--icon {
+        display: inline-flex;
+    }
+}
+
+.adm-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: var(--adm-control-h);
+    height: var(--adm-control-h);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink-2);
+    cursor: pointer;
+    transition:
+        background-color var(--d-1) var(--ease-out),
+        color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-iconbtn:hover:not(:disabled, [aria-disabled='true']) {
+        background: var(--c-band);
+        color: var(--c-ink);
+    }
+}
+
+.adm-iconbtn:active:not(:disabled, [aria-disabled='true']) {
+    background: var(--c-line);
+}
+
+/* A move that cannot happen here (the first row up, the last row down) looks it: no fill, no hand.
+   `aria-disabled` keeps the button focusable, so its reason can still be heard. */
+.adm-iconbtn:disabled,
+.adm-iconbtn[aria-disabled='true'] {
+    color: var(--c-line-2);
+    cursor: default;
+}
+
+/* Sibling pages under one rail item (AdminSectionTabs): a hairline row, the current one underlined
+   in ink. Links, not ARIA tabs — each is its own page.
+
+   The hairline is drawn inside the row, under the tabs, rather than as the row's border with the
+   tabs pulled over it: a row that scrolls sideways clips whatever reaches past its edge, and a tab
+   hanging 1 px below it made the row scroll up and down as well. */
+.adm-tabs {
+    position: relative;
+    display: flex;
+    gap: var(--sp-24);
+    margin-bottom: var(--sp-24);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.adm-tabs::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: var(--c-line);
+}
+
+.adm-tabs__item {
+    position: relative;
+    z-index: var(--z-raised);
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--adm-row-h);
+    border-bottom: 2px solid transparent;
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-tabs__item:hover {
+        color: var(--c-ink);
+    }
+}
+
+.adm-tabs__item:active {
+    color: var(--c-ink);
+}
+
+.adm-tabs__item[aria-current='page'] {
+    border-bottom-color: var(--c-ink);
+    color: var(--c-ink);
+}
+
+/* The row scrolls sideways on a phone, which clips anything drawn outside it: the ring goes inside. */
+.adm-tabs__item:focus-visible {
+    outline-offset: -2px;
+}
+
+/* A short word („Alle“) still makes a whole touch target. */
+@media (pointer: coarse) {
+    .adm-tabs__item {
+        min-width: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
+/* A row's up/down pair. Below 768 px there is no room beside the row's words: the pair steps aside
+   in CSS — never by a script after hydration, which made the list jump — and the same moves stay in
+   the row's menu, where they always are. */
+.adm-row-arrows {
+    display: flex;
+    gap: var(--sp-4);
+}
+
+@media (max-width: 767px) {
+    .adm-row-arrows {
+        display: none;
+    }
+}
+
+/* A row just created, moved or changed: one tint that fades, so the eye finds what it did. */
+.adm-row--fresh {
+    animation: adm-row-fresh var(--adm-d-row-flash) var(--ease-out);
+}
+
+@keyframes adm-row-fresh {
+    from {
+        background: var(--c-blue-tint);
+    }
+
+    to {
+        background: transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-row--fresh {
+        animation: none;
+    }
+}
+
+/* A checkbox in a dialog is a field's label, the same size as the labels above it. */
+.adm-dialog .check {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+/* ── Below 768: the app bar, the bottom bar, Mehr (§11) ──────────────────────────── */
+
+.adm-appbar,
+.adm-tabbar {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    /* The wordmark and the title share one cell and cross-fade; the badge keeps the other. */
+    .adm-appbar {
+        position: sticky;
+        top: 0;
+        z-index: var(--z-header);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: var(--sp-12);
+        height: calc(var(--header-h-m) + env(safe-area-inset-top));
+        padding: env(safe-area-inset-top) var(--sp-16) 0;
+        background: var(--c-surface);
+        border-bottom: 1px solid var(--c-line);
+    }
+
+    /* The page's title has scrolled under the bar: the bar takes it over from the wordmark. */
+    .adm-appbar__brand,
+    .adm-appbar__title {
+        grid-area: 1 / 1;
+        justify-self: start;
+        max-width: 100%;
+        transition: opacity var(--d-1) var(--ease-out);
+    }
+
+    /* The wordmark is a link home, so it gets a full 44 px target, not the height of its letters. */
+    .adm-appbar__brand {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--adm-control-h-lg);
+        font-size: var(--fs-h4);
+    }
+
+    .adm-appbar__title {
+        margin: 0;
+        overflow: hidden;
+        font-size: var(--fs-h4);
+        line-height: var(--lh-h4);
+        font-weight: 600;
+        color: var(--c-ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .adm-appbar[data-titled] .adm-appbar__brand {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .adm-appbar[data-titled] .adm-appbar__title {
+        opacity: 1;
+    }
+
+    /* The bell's glyph lines up with the page margin, as the wordmark does on the left: the button
+       around it reaches past the margin by the part of it that is only touch target. */
+    .adm-appbar__end {
+        grid-column: 2;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-8);
+        margin-right: calc(-1 * var(--sp-8));
+    }
+
+    @media (pointer: coarse) {
+        .adm-appbar__end {
+            margin-right: calc(-1 * var(--sp-12));
+        }
+    }
+
+    .adm-tabbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: var(--z-header);
+        display: flex;
+        height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+        padding-bottom: env(safe-area-inset-bottom);
+        background: var(--c-surface);
+        border-top: 1px solid var(--c-line);
+    }
+
+    /* The on-screen keyboard owns the bottom edge while it is up; the save bar rides on it. */
+    :root.is-keyboard .adm-tabbar {
+        display: none;
+    }
+
+    .adm-tabbar__item {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--sp-4);
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--c-ink-3);
+        font: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .adm-tabbar__item[aria-current='page'] {
+        color: var(--c-blue);
+    }
+
+    .adm-tabbar__item:active {
+        background: var(--c-band);
+    }
+
+    .adm-tabbar__label {
+        max-width: 100%;
+        overflow: hidden;
+        font-size: var(--fs-micro);
+        line-height: var(--lh-micro);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .adm-tabbar__icon {
+        position: relative;
+        display: inline-flex;
+    }
+
+    /* A queue on a tab: a small neutral figure at the icon's shoulder, red only for failures. */
+    .adm-tabbar__badge {
+        position: absolute;
+        top: calc(-1 * var(--sp-4));
+        left: calc(100% - var(--sp-8));
+        min-width: var(--sp-16);
+        height: var(--sp-16);
+        padding-inline: var(--sp-4);
+        border-radius: var(--r-round);
+        background: var(--c-ink-2);
+        color: var(--c-surface);
+        font-size: var(--fs-micro);
+        line-height: var(--sp-16);
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+    }
+
+    .adm-tabbar__badge--bad {
+        background: var(--c-bad);
+    }
+}
+
+.adm-more {
+    margin-inline: calc(-1 * var(--page-margin));
+}
+
+.adm-more__account {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    padding: var(--sp-24) var(--page-margin) var(--sp-8);
+    border-top: 1px solid var(--c-line);
+    margin-top: var(--sp-16);
+}
+
+.adm-more__account .adm-avatar {
+    width: var(--adm-control-h-lg);
+    height: var(--adm-control-h-lg);
+    font-size: var(--fs-small);
+}
+
+.adm-more__name,
+.adm-more__role {
+    display: block;
+    margin: 0;
+}
+
+/* The health line opens the sheet, a full row at the phone's touch height. */
+.adm-more__health {
+    min-height: var(--adm-control-h-lg);
+    margin: 0 var(--page-margin) var(--sp-8);
+}
+
+/* The rail foot's demo line, on a phone: the same words, a finger's height for „entfernen“. */
+.adm-more__demo {
+    align-items: center;
+    min-height: var(--adm-control-h-lg);
+    margin: 0 var(--page-margin) var(--sp-8);
+}
+
+.adm-more__demo .adm-foot__demo-purge {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--adm-control-h-lg);
+    vertical-align: middle;
+}
+
+.adm-more__caption {
+    margin: var(--sp-16) var(--page-margin) var(--sp-4);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-more__signout .mrow__title,
+.adm-more__signout .mrow__lead {
+    color: var(--c-bad);
+}
+
+.adm-more__name {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-more__role {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
+    overflow-wrap: anywhere;
+}
+
+/* ── Menus (portalled, so they carry their own prefix rather than sitting under .adm) ─ */
+
+.adm-menu {
+    /* Above a toast: a menu is open because the person just asked for it, and the toast from the last
+       action must not cover what they are about to choose (at 390 it sat over „Logo ersetzen“). */
+    z-index: calc(var(--z-toast) + 1);
+    min-width: 240px;
+    padding: var(--sp-4);
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    box-shadow: var(--e-2);
+}
+
+.adm-menu__head {
+    padding: var(--sp-8) var(--sp-12) var(--sp-12);
+}
+
+.adm-menu__name {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-menu__meta {
+    margin: 0;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+    overflow-wrap: anywhere;
+}
+
+.adm-menu__item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    width: 100%;
+    height: var(--adm-row-h);
+    padding-inline: var(--sp-12);
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--c-ink);
+    font: inherit;
+    font-size: var(--fs-small);
+    text-decoration: none;
+    text-align: left;
+    cursor: pointer;
+    outline: none;
+}
+
+.adm-menu__item[data-highlighted] {
+    background: var(--c-band);
+}
+
+.adm-menu__item[data-disabled] {
+    color: var(--c-ink-3);
+    /* An item that cannot be used now is not busy: the plain cursor, as a disabled icon button has. */
+    cursor: default;
+}
+
+.adm-menu__sep {
+    height: 1px;
+    margin: var(--sp-4) calc(-1 * var(--sp-4));
+    background: var(--c-line);
+}
+
+.adm-menu__caption {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+/* ── The bell (AdminBell) ───────────────────────────────────────────────────────────
+ * The count wears the phone tab bar's badge, not red: an unread alert is news, not a failure, and
+ * red is kept for things that broke. Unread has one cue — a dot in ink — and read alerts stay in
+ * the list unchanged, so the menu is also the recent history. Each alert is two lines at most:
+ * the sentence with its time on the right, the facts beneath (§6.3). */
+
+.adm-bell {
+    position: relative;
+}
+
+/* Anchored at the bell's centre line and growing to the right, so `99+` covers the bell's shoulder,
+   never the bell. */
+.adm-bell__count {
+    position: absolute;
+    top: var(--sp-4);
+    left: 50%;
+    z-index: var(--z-raised);
+    min-width: var(--sp-16);
+    height: var(--sp-16);
+    padding-inline: var(--sp-4);
+    border-radius: var(--r-round);
+    background: var(--c-ink-2);
+    /* A ring in the bar's own colour, so the count sits clear of the bell's outline. */
+    outline: 2px solid var(--c-surface);
+    color: var(--c-surface);
+    font-size: var(--fs-micro);
+    line-height: var(--sp-16);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    pointer-events: none;
+}
+
+.adm-alerts {
+    width: min(400px, calc(100vw - 2 * var(--sp-16)));
+    max-height: min(640px, calc(100dvh - var(--sp-96)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.adm-alerts__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    margin: 0 calc(-1 * var(--sp-4)) var(--sp-4);
+    padding: var(--sp-8) var(--sp-16) var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+}
+
+.adm-alerts__title {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+}
+
+.adm-alerts__unread {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+}
+
+.adm-alerts__state {
+    display: grid;
+    gap: var(--sp-8);
+    padding: var(--sp-4) var(--sp-12) var(--sp-8);
+}
+
+/* A loading row is an alert's size, so nothing jumps when the alerts land. */
+.adm-alerts__skel {
+    display: grid;
+    align-content: center;
+    gap: var(--sp-8);
+    min-height: var(--adm-row-h-lg);
+    padding-left: var(--sp-20);
+}
+
+.adm-alerts__note {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-alerts__state .adm-menu__item {
+    margin-inline: calc(-1 * var(--sp-12));
+    width: calc(100% + 2 * var(--sp-12));
+}
+
+.adm-bellitem {
+    display: grid;
+    grid-template-columns: var(--sp-8) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--sp-12);
+    min-height: var(--adm-row-h-lg);
+    padding: var(--sp-8) var(--sp-12);
+    border-radius: var(--r-control);
+    color: var(--c-ink);
+    cursor: pointer;
+    outline: none;
+}
+
+.adm-bellitem[data-highlighted] {
+    background: var(--c-band);
+}
+
+/* Centred on the first line of the sentence. */
+.adm-bellitem__dot {
+    width: var(--sp-8);
+    height: var(--sp-8);
+    margin-top: calc((var(--lh-small) - var(--sp-8)) / 2);
+    border-radius: var(--r-round);
+}
+
+.adm-bellitem--unread .adm-bellitem__dot {
+    background: var(--c-ink);
+}
+
+.adm-bellitem__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sp-12);
+    min-width: 0;
+}
+
+.adm-bellitem__title {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-bellitem__detail {
+    grid-column: 1 / -1;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-2);
+    overflow-wrap: anywhere;
+}
+
+.adm-bellitem__time {
+    grid-row: 1;
+    grid-column: 2;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-small);
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+    white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+    .adm-bellitem {
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
+/* ── Dialogs: the storefront's surface, the admin's quicker motion (BRIEF-2 §4) ───── */
+
+.adm-dialog,
+.adm-dialog[data-state='closed'] {
+    animation-duration: var(--adm-d-dialog);
+}
+
+/* A dialog title is a block heading in the admin (§2.1), and its sentence is body text. */
+.adm-dialog .dialog__head .h3 {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.adm-dialog .dialog__description {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+/* In a dialog an error line takes room only when there is an error: a short form keeps one even
+   rhythm between its fields instead of a gap reserved under every one of them. */
+.adm-dialog .form-field__error:empty {
+    display: none;
+}
+
+/* A select still showing its "… wählen" prompt reads as a prompt, not as a choice already made. */
+.adm-dialog select.input:has(option[value=''][disabled]:checked),
+.adm select.input:has(option[value=''][disabled]:checked) {
+    color: var(--c-ink-3);
+}
+
+/* ── The palette (§7) ──────────────────────────────────────────────────────────────
+ * Near the top of the screen, so the first result sits under the eye that pressed the shortcut.
+ * Centred with auto margins rather than a translate, so the entrance can scale without fighting it. */
+
+.adm-palette__scrim {
+    animation-duration: var(--adm-d-dialog);
+}
+
+.adm-palette {
+    position: fixed;
+    top: var(--sp-40);
+    left: 0;
+    right: 0;
+    z-index: var(--z-dialog);
+    display: flex;
+    flex-direction: column;
+    width: min(640px, calc(100vw - 2 * var(--sp-20)));
+    max-height: calc(100dvh - 2 * var(--sp-40));
+    margin-inline: auto;
+    overflow: hidden;
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    box-shadow: var(--e-3);
+    animation: adm-palette-in var(--adm-d-dialog) var(--ease-out);
+}
+
+.adm-palette[data-state='closed'] {
+    animation: adm-palette-out var(--adm-d-dialog) var(--ease-in);
+}
+
+@keyframes adm-palette-in {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+@keyframes adm-palette-out {
+    to {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+.adm-palette__field {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    flex: none;
+    height: var(--adm-control-h-lg);
+    padding-inline: var(--sp-16);
+    border-bottom: 1px solid var(--c-line);
+    color: var(--c-ink-3);
+}
+
+/* The one field typed into without looking: body size at every width (§2.1's exception). */
+.adm-palette__input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--c-ink);
+    font: inherit;
+    font-size: var(--fs-body);
+    outline: none;
+}
+
+.adm-palette__input::placeholder {
+    color: var(--c-ink-3);
+}
+
+.adm-palette__cancel {
+    display: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--c-blue);
+    font: inherit;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.adm-palette__results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp-4) var(--sp-8) var(--sp-8);
+}
+
+.adm-palette__heading {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-12) var(--sp-4);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 500;
+    color: var(--c-ink-3);
+}
+
+.adm-palette__row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    min-height: var(--adm-row-h);
+    padding-inline: var(--sp-12);
+    border-radius: var(--r-control);
+    color: var(--c-ink-3);
+    cursor: pointer;
+}
+
+.adm-palette__row--two {
+    min-height: var(--adm-row-h-lg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-palette__row:hover {
+        background: var(--c-band);
+    }
+}
+
+.adm-palette__row[aria-selected='true'] {
+    background: var(--c-blue-tint);
+}
+
+.adm-palette__row:active {
+    background: var(--c-line);
+}
+
+.adm-palette__text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.adm-palette__key,
+.adm-palette__sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-palette__key {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.adm-palette__sub {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-palette__meta {
+    flex: none;
+}
+
+.adm-palette__none {
+    padding: var(--sp-16) var(--sp-20) var(--sp-20);
+}
+
+.adm-palette__none-title,
+.adm-palette__none-hint {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-palette__none-title {
+    color: var(--c-ink);
+}
+
+.adm-palette__none-hint {
+    margin-top: var(--sp-4);
+    color: var(--c-ink-2);
+}
+
+.adm-palette__foot {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    flex: none;
+    padding: var(--sp-8) var(--sp-16);
+    border-top: 1px solid var(--c-line);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+/* Below 768: a full-screen sheet as tall as the visible viewport, so no result sits under the
+   keyboard; the hints give way to an explicit Abbrechen. */
+@media (max-width: 767px) {
+    .adm-palette {
+        top: 0;
+        width: 100%;
+        height: var(--vv-h, 100dvh);
+        max-height: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    /* A thumb's worth, at least (WCAG 2.5.8, and the 44 px the phone shell promises). */
+    .adm-palette__cancel {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--adm-control-h-lg);
+        padding-inline: var(--sp-8);
+        margin-right: calc(-1 * var(--sp-8));
+    }
+
+    .adm-palette__row {
+        min-height: var(--adm-control-h-lg);
+    }
+
+    .adm-palette__foot {
+        display: none;
+    }
+
+    /* The toast rides above the bottom bar, never on it (and above the save bar on a form page). */
+    .adm ~ .toast-viewport {
+        bottom: calc(var(--bottomnav-h) + var(--sp-12) + env(safe-area-inset-bottom));
+    }
+
+    .adm:has(.adm-savebar) ~ .toast-viewport {
+        bottom: calc(var(--bottomnav-h) + var(--stickybar-h) + var(--sp-12) + env(safe-area-inset-bottom));
+    }
+
+    :root.is-keyboard .adm ~ .toast-viewport {
+        bottom: calc(var(--kb-inset, 0px) + var(--stickybar-h) + var(--sp-12));
+    }
+}
+
+/* From 768 the toast sits bottom left, where the save bar says what state the form is in: on a form
+   page it rides above the bar, so the confirmation never hides the status it confirms. */
+@media (min-width: 768px) {
+    .adm:has(.adm-savebar) ~ .toast-viewport {
+        bottom: calc(var(--adm-topbar-h) + var(--sp-12));
+    }
+}
+
+/* ── Tastenkürzel ──────────────────────────────────────────────────────────────── */
+
+.adm-keys + .adm-keys {
+    margin-top: var(--sp-24);
+}
+
+.adm-keys__title {
+    margin: 0 0 var(--sp-8);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-keys__list {
+    margin: 0;
+}
+
+.adm-keys__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    min-height: var(--adm-row-h);
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-keys__row dt {
+    color: var(--c-ink-2);
+}
+
+.adm-keys__row dd {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    flex: none;
+    margin: 0;
+}
+
+.adm-keys__or {
+    font-size: var(--fs-micro);
+    color: var(--c-ink-3);
+}
+
+.adm-keys__note {
+    margin: var(--sp-16) 0 0;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}
+
+/* ── The work area ─────────────────────────────────────────────────────────────────
+ * `--adm-page-pad` and `--adm-page-gap` are this element's own measures (§2.2), set once per width
+ * so the save bar can reach the edges by exactly the page's padding.                           */
+
+.adm-page {
+    --adm-page-pad: var(--sp-32);
+    --adm-page-gap: var(--sp-40);
+
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    max-width: var(--adm-work-max);
+    padding: var(--adm-page-pad);
+}
+
+.adm-page:focus {
+    outline: none;
+}
+
+@media (max-width: 1279px) {
+    .adm-page {
+        --adm-page-pad: var(--sp-24);
+        --adm-page-gap: var(--sp-32);
+    }
+}
+
+@media (max-width: 1023px) {
+    .adm-page {
+        --adm-page-pad: var(--sp-20);
+    }
+}
+
+@media (max-width: 767px) {
+    .adm-page {
+        --adm-page-pad: var(--sp-16);
+        --adm-page-gap: var(--sp-24);
+    }
+}
+
+/* A finger's target in the rail too: on a touch tablet (768–1023, the rail collapsed by the width)
+   every item and „Neu“ are 44 px, not the pointer's 36. */
+@media (pointer: coarse) {
+    .adm-rail__item,
+    .adm .adm-foot .adm-foot__new {
+        height: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
+    }
+}
+/* The banner for an urgent system problem (AdminHealthBanner): a strip across the top of the work
+   area, the state's tint behind ink words, its dot the one saturated mark. Never a gradient, never
+   a cross to close it. */
+.adm-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-8) var(--sp-12);
+    padding: var(--sp-12) var(--adm-page-pad, var(--sp-32));
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.adm-banner--warn {
+    background: var(--c-warn-tint);
+}
+
+.adm-banner--bad {
+    background: var(--c-bad-tint);
+}
+
+.adm-banner__text {
+    flex: 1 1 24ch;
+    margin: 0;
+}
+
+.adm-banner__actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+}
+/* The Übersicht and the pages beneath it: head and body 1440 px wide at most, centred in the work
+   area together, so a wide screen shows the grid in the middle, never beside a half-empty band. */
+.adm-page__part--dash {
+    width: 100%;
+    max-width: var(--adm-dash-max);
+    margin-inline: auto;
+}
+
+/* The header (§8.1): what this is, one fact about it, and what you can make here. */
+.adm-page__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-16) var(--sp-24);
+    margin-bottom: var(--adm-page-gap);
+}
+
+.adm-page__titles {
+    min-width: 0;
+}
+
+.adm-page__title {
+    margin: 0;
+    font-size: var(--fs-h3);
+    line-height: var(--lh-h3);
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--c-ink);
+    text-wrap: balance;
+}
+
+.adm-page__context {
+    max-width: 54ch;
+    margin: var(--sp-4) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-page__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.adm-page__more .icon {
+    margin-right: calc(-1 * var(--sp-4));
+}
+
+.adm-page__readonly {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin: calc(-1 * var(--adm-page-gap) + var(--sp-16)) 0 var(--sp-24);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-page__body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Below 768 the title and context stack, and the one primary action takes the full width. */
+@media (max-width: 767px) {
+    .adm-page__head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .adm-page__actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .adm-page__actions .btn {
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
+/* ── Forms (§8.2): one column, label above field, 720 px at most ─────────────────── */
+
+.adm-form {
+    display: grid;
+    gap: var(--sp-32);
+    max-width: var(--adm-form-max);
+}
+
+.adm-form__group {
+    display: grid;
+    gap: var(--sp-16);
+    min-width: 0;
+}
+
+.adm-form__heading {
+    margin: 0 0 calc(var(--sp-12) - var(--sp-16));
+    font-size: var(--fs-h4);
+    line-height: var(--lh-h4);
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--c-ink);
+}
+
+.adm-form__note {
+    max-width: 54ch;
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
+}
+
+@media (max-width: 1023px) {
+    .adm-form {
+        gap: var(--sp-24);
+    }
+}
+
+/* Facts about a record, read-only: label left, value right of it, one hairline per row. */
+.adm-facts {
+    margin: 0;
+    border-top: 1px solid var(--c-line);
+}
+
+.adm-facts__row {
+    display: grid;
+    grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+    gap: var(--sp-16);
+    align-items: center;
+    min-height: var(--adm-row-h);
+    padding-block: var(--sp-8);
+    border-bottom: 1px solid var(--c-line);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-facts__row dt {
+    color: var(--c-ink-2);
+    font-weight: 500;
+}
+
+.adm-facts__row dd {
+    margin: 0;
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+    .adm-facts__row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+}
+
+/* A destructive label: a secondary button or a menu row, only its words in the failure colour. */
+.adm-btn--danger,
+.adm-menu__item--danger {
+    color: var(--c-bad);
+}
+
+/* ── The save bar (§8.3) ───────────────────────────────────────────────────────────
+ * The last thing on a form page, sticky to the bottom of the screen, out to the work area's edges.
+ * In the flow rather than fixed, so the end of the form is never under it.                      */
+
+/* On a short form the bar still sits at the foot of the work area, not straight under the last
+   field: the body becomes a column and the bar takes the space that is left above it. */
+.adm-page__body:has(> .adm-savebar) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-32);
+}
+
+.adm-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    height: var(--adm-topbar-h);
+    margin: auto calc(-1 * var(--adm-page-pad)) calc(-1 * var(--adm-page-pad));
+    padding-inline: var(--adm-page-pad);
+    background: var(--c-surface);
+    border-top: 1px solid var(--c-line);
+}
+
+.adm-savebar__status {
+    min-width: 0;
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.adm-savebar[data-state='dirty'] .adm-savebar__status,
+.adm-savebar[data-state='saving'] .adm-savebar__status {
+    color: var(--c-ink-2);
+}
+
+.adm-savebar[data-state='failed'] .adm-savebar__status {
+    color: var(--c-bad);
+}
+
+.adm-savebar__actions {
+    display: flex;
+    gap: var(--sp-8);
+    flex: none;
+}
+
+.adm .adm-savebar .btn {
+    min-height: var(--adm-control-h-lg);
+}
+
+/* Below 768: no status line, two big buttons, Speichern taking the rest. The page keeps clear of the
+   bottom bar and the save bar sits on top of it — or, while the keyboard is up, on the keyboard. */
+@media (max-width: 767px) {
+    .adm-page {
+        padding-bottom: calc(var(--adm-page-pad) + var(--bottomnav-h) + env(safe-area-inset-bottom));
+    }
+
+    .adm-savebar {
+        bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+        height: var(--stickybar-h);
+    }
+
+    :root.is-keyboard .adm-savebar {
+        bottom: var(--kb-inset, 0px);
+    }
+
+    .adm-savebar__status {
+        display: none;
+    }
+
+    .adm-savebar__actions {
+        flex: 1;
+    }
+
+    .adm-savebar__save {
+        flex: 1;
+    }
+}
+
+/* ── Blocks on a page: sections, panels, notes ─────────────────────────────────────── */
+
+.adm-section + .adm-section {
+    margin-top: var(--sp-32);
+}
+
+.adm-section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-8) var(--sp-16);
+    margin-bottom: var(--sp-12);
+}
+
+.adm-section__title {
+    margin: 0;
+    font-size: var(--fs-h4);
+    line-height: var(--lh-h4);
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--c-ink);
+}
+
+.adm-note {
+    max-width: 54ch;
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-note + .adm-note,
+.adm-section__head + .adm-note {
+    margin-top: var(--sp-4);
+}
+
+/* A refusal the server made about the block it sits above: said once, read before the retry. */
+.adm-alert {
+    max-width: 54ch;
+    margin: var(--sp-12) 0;
+    padding: var(--sp-12) var(--sp-16);
+    /* The tint says it; a red frame around a red field says it twice. */
+    border-radius: var(--r-control);
+    background: var(--c-bad-tint);
+    color: var(--c-ink);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+/* Not everything is a card: a table sits on the page under one hairline, the same rule its rows use.
+   Wider than the work area (768–1023 with many columns), it scrolls inside itself, never the page. */
+/* Positioned so the visually hidden labels in its cells (absolute) belong to it: without, they escape
+   its scroll box and widen the whole page by the table's width (Felgen › Größen, 768–1024 px). */
+.adm-panel {
+    position: relative;
+    border-top: 1px solid var(--c-line);
+    background: var(--c-surface);
+    overflow-x: auto;
+}
+
+/* Kept for anything still wearing it: a little air under the hairline, no box, no inset. */
+.adm-panel--pad {
+    padding-top: var(--sp-16);
+    overflow: visible;
+}
+
+/* A small form's fields: one column (§8.2), label above field, within the form's reading width. */
+.adm-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-16);
+    align-items: start;
+}
+
+.adm-fields__narrow {
+    max-width: 22ch;
+}
+
+.adm-fields__checks {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--sp-16);
+}
+
+.adm-fields__checks .form-field__error {
+    flex-basis: 100%;
+}
+
+.adm-fields__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+    margin-top: var(--sp-16);
+}
+
+/* One short field and its button on one line, under the field's label; help runs full width below.
+   A price is a few characters wide, and a field the width of the screen invites a sentence. */
+.adm-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.adm-inline > .input {
+    flex: 0 1 22ch;
+    min-width: 0;
+}
+
+.adm-inline > .btn {
+    flex: none;
+}
+
+/* Running text under a field keeps a reading width, however wide the field's column is. */
+.adm .form-field__help {
+    max-width: 54ch;
+}
+
+/* A checkbox label is a field's label, not body copy: the admin's one notch smaller. */
+.adm .check {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+/* ── Filters (§8.1: at the top of the body, never in the header) ─────────────────────── */
+
+.adm-filters {
+    display: grid;
+    gap: var(--sp-8);
+    margin-bottom: var(--sp-16);
+}
+
+.adm-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.adm-filter__label {
+    min-width: 56px;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    color: var(--c-ink-2);
+}
+
+.adm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+    height: var(--adm-control-h);
+    padding-inline: var(--sp-12);
+    border: 1px solid var(--c-line-2);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    color: var(--c-ink-2);
+    font: inherit;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    cursor: pointer;
+    transition:
+        background-color var(--d-1) var(--ease-out),
+        border-color var(--d-1) var(--ease-out),
+        color var(--d-1) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-chip:hover {
+        border-color: var(--c-ink-3);
+    }
+}
+
+/* Chosen: the tint alone, its edge in the same tint — one signal, not a blue ring around a fill.
+   A chip may also be the label of a radio button, where only one of a set can be chosen. */
+.adm-chip[aria-pressed='true'],
+.adm-chip:has(> input[type='radio']:checked) {
+    border-color: var(--c-blue-tint);
+    background: var(--c-blue-tint);
+    color: var(--c-ink);
+}
+
+.adm-chip__n {
+    font-variant-numeric: tabular-nums;
+    color: var(--c-ink-3);
+}
+
+@media (max-width: 767px) {
+    .adm-chip {
+        height: var(--adm-control-h-lg);
+    }
+}
+
+/* ── Tables (§9.6): hairlines, no zebra, no vertical rules; a card per row below 768 ───── */
+
+.adm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.adm-table th {
+    height: var(--adm-row-h);
+    padding: 0 var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+    background: var(--c-surface);
+    font-weight: 500;
+    color: var(--c-ink-2);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.adm-table td {
+    height: var(--adm-row-h);
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+    vertical-align: middle;
+    color: var(--c-ink);
+}
+
+.adm-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.adm-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-table__key {
+    display: block;
+    font-weight: 600;
+}
+
+.adm-table__sub {
+    display: block;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-table__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--sp-8);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-table tbody tr:hover td {
+        background: var(--c-band);
+    }
+}
+
+.adm-table tr[aria-current='true'] td {
+    background: var(--c-blue-tint);
+}
+
+/* ── Status tags: only the exception is tagged; the normal state is plain text ─────── */
+
+.adm-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding-inline: var(--sp-8);
+    border-radius: var(--r-control);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Not yet, or not any more — a state to notice, not a fault. */
+.adm-tag--neutral {
+    background: var(--c-band);
+    color: var(--c-ink-2);
+}
+
+/* Still on file, but something newer governs. */
+.adm-tag--warn {
+    background: var(--c-warn-tint);
+    color: var(--c-ink);
+}
+
+/* Withdrawn or failed: the one tone that means something is wrong. */
+.adm-tag--bad {
+    background: var(--c-bad-tint);
+    color: var(--c-bad);
+}
+
+/* Below 768 each row is a card: the first cell is its key line, every other value labelled.
+   A cell marked `data-phone="status"` joins the key line on the right; one marked
+   `data-phone="hide"` is left out, so a card carries three facts at most. */
+@media (max-width: 767px) {
+    .adm-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .adm-table,
+    .adm-table tbody,
+    .adm-table tr,
+    .adm-table td {
+        display: block;
+    }
+
+    /* The card: every cell a full-width line, except the key line and its status, which share the
+       first. */
+    .adm-table tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: var(--sp-12);
+        padding: var(--sp-12) 0;
+        border-bottom: 1px solid var(--c-line);
+    }
+
+    .adm-table tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .adm-table td {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
+        gap: var(--sp-12);
+        height: auto;
+        padding: var(--sp-4) 0;
+        border: 0;
+        text-align: left;
+    }
+
+    /* A value is as wide as it is — a tag or a button row never stretches to the card's edge. */
+    .adm-table td > * {
+        justify-self: start;
+    }
+
+    .adm-table td[data-phone='hide'] {
+        display: none;
+    }
+
+    .adm-table td.num {
+        text-align: left;
+    }
+
+    .adm-table td::before {
+        content: attr(data-label);
+        color: var(--c-ink-2);
+    }
+
+    /* The key line reads as the card's title, not as one more labelled value. */
+    .adm-table td:first-child {
+        display: block;
+        grid-row: 1;
+        grid-column: 1;
+        align-self: baseline;
+        padding-bottom: var(--sp-8);
+        font-size: var(--fs-body);
+        line-height: var(--lh-body);
+    }
+
+    .adm-table td:first-child::before {
+        content: none;
+    }
+
+    /* The row's state sits at the end of its key line, where the eye lands after the name. */
+    .adm-table td[data-phone='status'] {
+        display: block;
+        grid-row: 1;
+        grid-column: 2;
+        align-self: baseline;
+        padding-bottom: var(--sp-8);
+        text-align: right;
+    }
+
+    .adm-table td[data-phone='status']::before {
+        content: none;
+    }
+
+    .adm-table td[data-label='Aktionen'] {
+        display: block;
+        padding-top: var(--sp-8);
+    }
+
+    /* A row's "…" menu sits beside the name, level with it, never alone on a line of its own. */
+    .adm-table td[data-phone='menu'] {
+        display: block;
+        grid-row: 1;
+        grid-column: 2;
+        align-self: start;
+        padding: 0;
+    }
+
+    .adm-table td[data-phone='menu']::before {
+        content: none;
+    }
+
+    /* The card's „⋯“ stands at the panel's right edge, which scrolls sideways and so clips anything
+       outside it: its focus ring is drawn inside the button there, whole (K2-31). */
+    .adm-table td[data-phone='menu'] :focus-visible {
+        outline-offset: -2px;
+    }
+
+    .adm-table td[data-label='Aktionen']::before {
+        content: none;
+    }
+
+    .adm-table__actions {
+        justify-content: flex-start;
+    }
+
+    /* A record's key link is its card: stretched over the whole row, so a finger can tap anywhere on
+       it (WCAG 2.5.8). The row's own controls stay above the stretch and keep their own taps. */
+    .adm-table tbody tr {
+        position: relative;
+    }
+
+    :is(.adm-table__key, .fz-name, .fg-name, .ob-number)::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+
+    /* Its key line is at least a finger high, too. */
+    .adm-table tbody td:first-child:has(> :is(.adm-table__key, .fz-name, .fg-name, .ob-number)) {
+        min-height: var(--adm-control-h-lg);
+    }
+
+    .adm-table tbody td :is(button, input, select, textarea, label, a):not(.adm-table__key, .fz-name, .fg-name, .ob-number) {
+        position: relative;
+        z-index: var(--z-raised);
+    }
+
+    /* The column heads are read out, not shown: their sort buttons are no invisible tab stops. */
+    .adm-table thead :is(button, a, input) {
+        visibility: hidden;
+    }
+
+    /* A link standing on its own — not inside a sentence — is a target of its own: 44 px. */
+    .adm-facts dd > a:only-child,
+    :is(.fs-link, .rb-label, .rb-open, .im-link, .bs-back > a) {
+        display: inline-flex;
+        align-items: center;
+        min-width: var(--adm-control-h-lg);
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
+/*
+ * ── The Übersicht's cards: one grid of twelve columns (the density brief) ──
+ * Rows as tall as their tallest card, every card as tall as its own content (align-items: start) —
+ * no card carries a minimum; only a plot has one (--adm-plot-h). Each card's span is placed by
+ * layout.ts (--span-wide from 1280, --span-mid below); the gutter is --adm-dash-gap (24 / 16 px);
+ * below 900 one column, with Heute straight after the figures.
+ */
+.dash__grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: min-content;
+    align-items: start;
+    gap: var(--adm-dash-gap);
+}
+
+.dash__cell {
+    grid-column: span var(--span-wide, 12);
+}
+
+@media (max-width: 1279px) {
+    .dash__cell {
+        grid-column: span var(--span-mid, 12);
+    }
+}
+
+@media (max-width: 899px) {
+    /* One column, in the order of the page: no card is lifted with `order`, which moves the box but
+       not the Tab order (M1-04). */
+    .dash__grid > * {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ── The Übersicht's grid: a row of widgets on twelve columns, each saying how many it takes ── */
+
+.dash__row {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--sp-24);
+}
+
+.dash__col-4 {
+    grid-column: span 4;
+}
+
+.dash__col-5 {
+    grid-column: span 5;
+}
+
+.dash__col-6 {
+    grid-column: span 6;
+}
+
+.dash__col-7 {
+    grid-column: span 7;
+}
+
+.dash__col-8 {
+    grid-column: span 8;
+}
+
+.dash__col-12 {
+    grid-column: 1 / -1;
+}
+
+/* Two by two up to where four no longer fit beside each other; one column on a phone. */
+@media (max-width: 1279px) {
+    .dash__col-4 {
+        grid-column: span 6;
+    }
+
+    .dash__col-5,
+    .dash__col-6,
+    .dash__col-7,
+    .dash__col-8 {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 767px) {
+    .dash__row {
+        gap: var(--sp-16);
+    }
+
+    .dash__col-4 {
+        grid-column: 1 / -1;
+    }
+}
+
+/* A row whose widgets do not fit side by side below 1440 stacks there rather than squeeze: every
+   column of both tables stays in view, nothing is cut to make room. */
+@media (max-width: 1439px) {
+    .dash__row--stack-below-wide > * {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ── Print: the Übersicht as a page — the content, without the frame around it ────── */
+
+@media print {
+    .adm-rail,
+    .adm-topbar,
+    .adm-appbar,
+    .adm-tabbar,
+    .adm-page__actions {
+        display: none;
+    }
+}
+
+/* ── The four other states (§9) ────────────────────────────────────────────────────
+ * On the page's reading line, where the content would be — never centred in an empty box.       */
+
+.adm-state {
+    display: grid;
+    justify-items: start;
+    gap: var(--sp-8);
+    max-width: 54ch;
+    padding-block: var(--sp-32);
+}
+
+.adm-state__icon {
+    color: var(--c-ink-3);
+}
+
+.adm-state--error .adm-state__icon {
+    color: var(--c-bad);
+}
+
+.adm-state__heading {
+    margin: 0;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    color: var(--c-ink);
+}
+
+.adm-state__text {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-state__action {
+    margin-top: var(--sp-8);
+}
+
+/* Loading rows (§9.2): the table's own tracks and heights, a bar in each cell. */
+.adm-skel__row {
+    display: grid;
+    align-items: center;
+    gap: var(--sp-12);
+    height: var(--adm-row-h);
+    padding-inline: var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+}
+
+.adm-skel__row--two {
+    height: var(--adm-row-h-lg);
+}
+
+.adm-skel__cell {
+    display: grid;
+    gap: var(--sp-8);
+    min-width: 0;
+}
+
+.adm-skel__bar {
+    display: block;
+    width: 64%;
+    height: var(--sp-12);
+}
+
+.adm-skel__bar--sub {
+    width: 40%;
+}
+
+/* ── Confirmations ─────────────────────────────────────────────────────────────── */
+
+.adm-dialog--narrow {
+    max-width: 440px;
+}
+
+.adm-confirm__body {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.adm-confirm__word {
+    margin-top: var(--sp-16);
+}
+
+/* ── Density: the workbench, one notch tighter than the showroom (§2) ─────────────── */
+
+/* `.adm-dialog` is listed beside `.adm` because a dialog is portalled out of the frame. */
+@media (min-width: 768px) {
+    .adm .btn,
+    .adm-dialog .btn {
+        min-height: var(--adm-control-h);
+        padding-inline: var(--sp-16);
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+    }
+
+    /* Typed into at 14 px from 768; below it the storefront's 16 px stays, or iOS zooms. */
+    .adm .input,
+    .adm-dialog .input {
+        min-height: var(--adm-control-h);
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+    }
+}
+
+/* ── Touch: a thumb's target on every touch screen, whatever its width (WCAG 2.5.8) ──
+ * The workbench density above is for a mouse. A tablet held in the hand gets 44 px controls even
+ * where the layout is the desktop one.                                                          */
+
+@media (pointer: coarse) {
+    .adm .btn,
+    .adm-dialog .btn,
+    .adm .input,
+    .adm-dialog .input {
+        min-height: var(--adm-control-h-lg);
+    }
+
+    .adm .adm-iconbtn,
+    .adm-dialog .adm-iconbtn {
+        width: var(--adm-control-h-lg);
+        height: var(--adm-control-h-lg);
+    }
+
+    .adm-menu__item {
+        height: auto;
+        min-height: var(--adm-control-h-lg);
+    }
+}
+
+/* ── Reduced motion: every duration to zero, the end state kept ────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .adm *,
+    .adm-menu,
+    .adm-tooltip,
+    .adm-dialog,
+    .adm-palette,
+    .adm-palette__scrim {
+        transition-duration: 0ms !important;
+        animation-duration: 0ms !important;
+    }
+}

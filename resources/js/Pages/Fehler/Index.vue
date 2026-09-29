@@ -41,8 +41,10 @@ const props = withDefaults(
         retryAfter?: number | null
         /** Never printed: it travels only in the prepared e-mail, so nothing from the URL is reflected. */
         failedPath?: string | null
+        /** Where „neu laden“ goes: empty after a GET (the page itself), the sending page after a form (G-14). */
+        reloadHref?: string
     }>(),
-    { status: 404, isMobile: false, retryAfter: null, failedPath: null }
+    { status: 404, isMobile: false, retryAfter: null, failedPath: null, reloadHref: '' }
 )
 
 type Tone = 'primary' | 'secondary' | 'ghost'
@@ -103,8 +105,9 @@ const signIn = (tone: Tone): Route => ({
     tone,
 })
 
-/* An empty href is the current document: "try this again" with no JavaScript and no guesswork. */
-const reload = (tone: Tone): Route => ({ key: 'reload', label: 'Diese Seite neu laden', href: '', tone, plain: true })
+/* An empty href is the current document: "try this again" with no JavaScript and no guesswork. After a form was
+   sent, the server names the page it came from: the form's own address would answer a GET with a 405. */
+const reload = (tone: Tone): Route => ({ key: 'reload', label: 'Diese Seite neu laden', href: props.reloadHref, tone, plain: true })
 
 const ask = (tone: Tone): Route => ({
     key: 'kontakt',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
+use App\Models\FaqEntry;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,11 +24,17 @@ class FaqController extends Controller
     {
         $rows = DB::table('faq_entries')
             ->where('published', true)
-            ->orderBy('group_key')
             ->orderBy('sort_order')
+            ->orderBy('id')
             ->get(['id', 'group_key', 'question_de', 'answer_de']);
 
+        // The groups in their fixed order (FaqEntry::GROUPS) — not alphabetical, which put
+        // „Bestellung & Versand" first — and any other group after them.
         $groups = [];
+
+        foreach (FaqEntry::GROUPS as $key) {
+            $groups[$key] = ['key' => $key, 'entries' => []];
+        }
 
         foreach ($rows as $row) {
             $key = (string) $row->group_key;
@@ -44,7 +51,8 @@ class FaqController extends Controller
         }
 
         return Inertia::render('Faq/Index', [
-            'groups' => array_values($groups),
+            // A group with nothing visible is not a heading over an empty list.
+            'groups' => array_values(array_filter($groups, static fn (array $group): bool => $group['entries'] !== [])),
             // The shared shape, whole: a page prop named `contact` replaces the shared one for the
             // header and the footer too. The phone is null until the client gives one, and the help
             // card then offers the e-mail.

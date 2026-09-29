@@ -114,6 +114,21 @@ it('mails confirmed subscribers of the named vehicle on publish, and nobody else
     Mail::assertSent(FitmentAvailableMail::class, 1);
 });
 
+// D-02: a car typed from a Gutachten is named by model and type — „BMW 1er-Reihe 187“, never „BMW 187“.
+it('names a car from a Gutachten in both mails as the shop names it', function (): void {
+    $car = Vehicle::factory()->create([
+        'hsn' => null, 'tsn' => null, 'vsn' => null, 'make' => 'BMW', 'model' => '1er-Reihe', 'variant' => '187',
+        'type_designation' => '187', 'build_from' => null, 'build_to' => null, 'eg_nummer_raw' => 'e1*2001/116*0287*00-09',
+    ]);
+    $subscription = FitmentSubscription::query()->create(['email' => 'ja@example.de', 'vehicle_id' => $car->id]);
+
+    $confirm = (new SubscriptionConfirmationMail($subscription))->render();
+    $available = (new FitmentAvailableMail($subscription, ApprovalDocument::query()->firstOrFail(), 3))->render();
+
+    expect($confirm)->toContain('BMW 1er-Reihe 187')->not->toContain('BMW 187')
+        ->and($available)->toContain('BMW 1er-Reihe 187')->not->toContain('BMW 187');
+});
+
 it('lists the requests and the demand for the admin', function (): void {
     $subscription = FitmentSubscription::query()->create(['email' => 'ja@example.de', 'vehicle_id' => bmw()->id]);
     $subscription->forceFill(['confirmed_at' => now()])->save();
@@ -122,13 +137,13 @@ it('lists the requests and the demand for the admin', function (): void {
     $admin = AdminUser::query()->firstOrFail();
 
     // A guest is sent to the sign-in; checked before signing in, because the session then persists.
-    $this->get('/admin/benachrichtigungen')->assertRedirect('/admin/anmelden');
+    $this->get('/admin/anfragen')->assertRedirect('/admin/anmelden');
 
     $this->actingAs($admin, 'admin')
-        ->get('/admin/benachrichtigungen')
+        ->get('/admin/anfragen')
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Admin/Benachrichtigungen/Index')
+            ->component('Admin/Anfragen/Index')
             ->has('subscriptions', 1)
             ->where('subscriptions.0.status', 'Wartet')
             ->where('demand.0.waiting', 1)

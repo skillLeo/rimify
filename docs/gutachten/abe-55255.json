@@ -1,0 +1,3859 @@
+{
+ "source": "Borbet DB8GT2_19_ABE_BMW.pdf",
+ "configs": [
+  "BOR-DB8GT2-8519-SM",
+  "BOR-DB8GT2-8519-BM"
+ ],
+ "document": {
+  "kind": "ABE",
+  "kba_number": "55255",
+  "issuer": "TÜV Rheinland Kraftfahrt GmbH",
+  "issued_on": "2023-11-29",
+  "page_count": 13,
+  "annex": "19",
+  "test_report_number": "55051823",
+  "copy_number": "1",
+  "designation_number": "KBA-P 00010-96",
+  "test_site": "Lambsheim",
+  "test_date": "2023-11-29",
+  "valid_from_production": "02.2023"
+ },
+ "read": [
+  "Seite 1: Anlage 19 zum Prüfbericht Nr. 55051823 (1. Ausfertigung); PKW-Sonderrad 8.5JX19 H2 Typ DB8GT2-8519; LK120, 5/120/72,6, ET 35, Radlast 700 kg, Abrollumfang 2260 mm; Kennzeichnung „DB8GT2-8519 LK120 / ohne Ring“.",
+  "Seite 12: „Die Verwendungsprüfung fand am 29. November 2023 in Lambsheim statt.“ Seite 13: „Lambsheim, 29. November 2023“; „gilt für Sonderräder ab Herstellungsdatum Februar 2023“; benannt unter KBA-P 00010-96.",
+  "Aussteller: der Technische Dienst der TÜV Rheinland Kraftfahrt GmbH (Seite 13). Ein Stand-Datum druckt das Gutachten nicht."
+ ],
+ "conditions": [
+  {
+   "code": "140",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Das Sonderrad (gepr. Radlast) ist in Verbindung mit dieser Reifengröße nur zulässig bis zu einer zul. Achslast von 1400 kg. Eine erhöhte zulässige Achslast bei Anhängerbetrieb (siehe Ziff. 33 zu Ziff. 16 h bzw. Feld 22 zu Feld 7.1-8.3 in den Fahrzeugpapieren) ist zu beachten.",
+   "source_page": 7,
+   "max_axle_load_kg": 1400
+  },
+  {
+   "code": "A01",
+   "kind": "abnahme",
+   "text_de": "Nach Durchführung der Technischen Änderung ist das Fahrzeug unter Vorlage der vorliegenden ABE unverzüglich einem amtlich anerkannten Sachverständigen oder Prüfer für den Kraftfahrzeugverkehr oder einem Prüfingenieur einer Überwachungsorganisation nach Nummer 4 der Anlage VIIIb zur StVZO zur Durchführung und Bestätigung der in der ABE vorgeschriebenen Änderungsabnahme vorzuführen.",
+   "source_page": 7
+  },
+  {
+   "code": "A10",
+   "kind": "verbot",
+   "text_de": "Es dürfen nur feingliedrige bzw. die lt. Betriebsanleitung/Handbuch vorgeschriebenen Schneeketten an der Hinterachse verwendet werden.",
+   "source_page": 7
+  },
+  {
+   "code": "A12",
+   "kind": "verbot",
+   "text_de": "Die Verwendung von Schneeketten ist nicht zulässig.",
+   "source_page": 7
+  },
+  {
+   "code": "A14",
+   "kind": "hinweis",
+   "text_de": "Zum Auswuchten der Räder dürfen an der Felgenaußenseite nur Klebegewichte unterhalb der Felgenschulter oder des Tiefbettes angebracht werden. Bei Anbringung der Klebegewichte im Felgenbett ist auf einen Mindestabstand von 2 mm zum Bremssattel zu achten.",
+   "source_page": 7
+  },
+  {
+   "code": "A18",
+   "kind": "hinweis",
+   "text_de": "Es sind nur schlauchlose Reifen zulässig. Werden keine Ventile mit TPMS-Sensoren verwendet, sind ausschließlich Metallschraubventile mit Befestigung von außen, die den Normen DIN, E.T.R.T.O oder Tire and Rim entsprechen, zulässig. Werden Ventile mit TPMS-Sensoren verwendet, so sind die Hinweise und Vorgaben der Hersteller zu beachten. Die Ventile und Sensoren müssen für den vorgeschriebenen Luftdruck und die bauartbedingte Höchstgeschwindigkeit geeignet sein. Die Ventile dürfen nicht über den Felgenrand hinausragen.",
+   "source_page": 7
+  },
+  {
+   "code": "A32",
+   "kind": "verbot",
+   "text_de": "Es dürfen nur feingliedrige Schneeketten, die nicht mehr als 12 mm einschließlich Kettenschloss auftragen, an der Hinterachse verwendet werden.",
+   "source_page": 7
+  },
+  {
+   "code": "A56",
+   "kind": "antrieb",
+   "text_de": "Die Rad-/Reifen-Kombination ist nur zulässig an Fahrzeugausführungen mit Allradantrieb (z.B. 4WD, Quattro, Syncro, 4-Matic, 4x4, o.ä.)",
+   "source_page": 7,
+   "drive": {
+    "mode": "only",
+    "drive": "Allrad"
+   }
+  },
+  {
+   "code": "A57",
+   "kind": "hinweis",
+   "text_de": "Diese Rad-/Reifen-Kombination(en) ist (sind) zulässig an Fahrzeugausführungen mit Front bzw. Heck-Antrieb und Allradantrieb (z.B. 2WD, 4WD, Quattro, Syncro, 4-Matic, 4x4, o.ä.)",
+   "source_page": 7
+  },
+  {
+   "code": "A58",
+   "kind": "antrieb",
+   "text_de": "Rad-Reifen-Kombination(en) nicht zulässig an Fahrzeugen mit Allradantrieb.",
+   "source_page": 7,
+   "drive": {
+    "mode": "not",
+    "drive": "Allrad"
+   }
+  },
+  {
+   "code": "B90",
+   "kind": "verbot",
+   "text_de": "Räder nicht zulässig an Fahrzeugausführungen mit Bremsscheibendurchmesser 356 mm an Achse 1.",
+   "source_page": 7
+  },
+  {
+   "code": "Car",
+   "kind": "karosserieform",
+   "text_de": "Die Rad-/Reifen-Kombination ist zulässig für Fahrzeugausführungen der Karosserieform Kombilimousine (Avant, Break, Caravan, Grandtour, Kombi, Sportswagon, T-Modell, Touring, Tourer, Turnier, Variant, …).",
+   "source_page": 7,
+   "body_forms": [
+    "Kombi"
+   ]
+  },
+  {
+   "code": "Cbo",
+   "kind": "karosserieform",
+   "text_de": "Die Rad-/Reifen-Kombination ist zulässig für Fahrzeugausführungen der Karosserieform Cabrio-Limousine, Roadster.",
+   "source_page": 7,
+   "body_forms": [
+    "Cabrio",
+    "Roadster"
+   ]
+  },
+  {
+   "code": "Cpe",
+   "kind": "karosserieform",
+   "text_de": "Die Rad-/Reifen-Kombination ist zulässig für Fahrzeugausführungen der Karosserieform Coupé.",
+   "source_page": 7,
+   "body_forms": [
+    "Coupe"
+   ]
+  },
+  {
+   "code": "F40",
+   "kind": "verbot",
+   "text_de": "Rad/Reifenkombination nur zulässig an Fahrzeugausführungen mit Luftfederung an Achse 2.",
+   "source_page": 7
+  },
+  {
+   "code": "Flh",
+   "kind": "karosserieform",
+   "text_de": "Die Rad-/Reifen-Kombination ist zulässig für Fahrzeugausführungen der Karosserieform Schräghecklimousine (Fließheck, 3-türig und 5-türig).",
+   "source_page": 7,
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "G01",
+   "kind": "tacho",
+   "text_de": "Es ist der Nachweis zu erbringen, dass die Anzeige des Geschwindigkeitsmessers und Wegstreckenzählers innerhalb der Toleranzen (75/443/EWG, ECE-R39, § 57 StVZO) liegt. Wird die Anzeige angeglichen, sind die in den Fahrzeugpapieren (u. a. Fahrzeugschein, Zulassungsbescheinigung I oder COC-Papier) eingetragenen Reifengrößen zu überprüfen.",
+   "source_page": 8
+  },
+  {
+   "code": "G73",
+   "kind": "tacho",
+   "text_de": "Ist 18 Zoll keine Serien-Bereifung (u. a. Fahrzeugschein, Zulassungsbescheinigung I, COC-Papier oder Bedienungsanleitung), so ist der Nachweis zu erbringen, dass die Anzeige des Geschwindigkeitsmessers und Wegstreckenzählers innerhalb der Toleranzen (75/443/EWG, ECE-R39, § 57 StVZO) liegt. Wird die Anzeige angeglichen, sind die in den Fahrzeugpapieren (u. a. Fahrzeugschein, Zulassungsbescheinigung I oder COC-Papier) eingetragenen Reifengrößen zu überprüfen.",
+   "source_page": 8
+  },
+  {
+   "code": "K14",
+   "kind": "karosseriearbeit",
+   "text_de": "An der Vorderachse ist durch Nacharbeit der Frontschürze am Übergang zum Kotflügel eine ausreichende Freigängigkeit der Rad-/ Reifenkombination herzustellen.",
+   "source_page": 8
+  },
+  {
+   "code": "K1a",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen der Frontschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 0° bis 30° vor Radmitte herzustellen. Die gesamte Breite der Rad-/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04-fache der Nennbreite des Reifens), in dem oben genannten Bereich abgedeckt sein.",
+   "source_page": 8
+  },
+  {
+   "code": "K1b",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 0° bis 50° hinter Radmitte herzustellen. Die gesamte Breite der Rad-/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04-fache der Nennbreite des Reifens), in dem oben genannten Bereich abgedeckt sein.",
+   "source_page": 8
+  },
+  {
+   "code": "K1c",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen der Frontschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30° vor bis 50° hinter Radmitte herzustellen. Die gesamte Breite der Rad-/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04-fache der Nennbreite des Reifens), in dem oben genannten Bereich abgedeckt sein.",
+   "source_page": 8
+  },
+  {
+   "code": "K2a",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 0° bis 30° vor Radmitte herzustellen. Die gesamte Breite der Rad-/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04-fache der Nennbreite des Reifens), in dem oben genannten Bereich abgedeckt sein.",
+   "source_page": 8
+  },
+  {
+   "code": "K2b",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen der Heckschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 0° bis 50° hinter Radmitte herzustellen. Die gesamte Breite der Rad-/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04-fache der Nennbreite des Reifens), in dem oben genannten Bereich abgedeckt sein.",
+   "source_page": 8
+  },
+  {
+   "code": "K2c",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen der Heckschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30° vor bis 50° hinter Radmitte herzustellen. Die gesamte Breite der Rad-/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04-fache der Nennbreite des Reifens), in dem oben genannten Bereich abgedeckt sein.",
+   "source_page": 8
+  },
+  {
+   "code": "K41",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 1 ist durch Nacharbeiten der Radhausausschnittkanten eine ausreichende Freigängigkeit der Rad-Reifenkombination herzustellen.",
+   "source_page": 8
+  },
+  {
+   "code": "K42",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 ist durch Nacharbeiten der Radhausausschnittkanten eine ausreichende Freigängigkeit der Rad-Reifenkombination herzustellen.",
+   "source_page": 8
+  },
+  {
+   "code": "K43",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 1 ist durch Aufweiten der Kotflügel bzw. inneren Seitenteile eine ausreichende Freigängigkeit der Rad-Reifen-Kombination herzustellen.",
+   "source_page": 9
+  },
+  {
+   "code": "K44",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 ist durch Aufweiten der Kotflügel bzw. inneren Seitenteile eine ausreichende Freigängigkeit der Rad-Reifenkombination herzustellen.",
+   "source_page": 9
+  },
+  {
+   "code": "K45",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 1 ist durch Nacharbeiten der Radhausinnenkotflügel, Kunststoffeinsätze bzw. deren Befestigungsteile eine ausreichende Freigängigkeit der Rad-Reifenkombination herzustellen. Ein evtl. vorhandener Spritzschutz für den Ansaugweg des Luftfilters muss erhalten bleiben.",
+   "source_page": 9
+  },
+  {
+   "code": "K46",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 ist durch Nacharbeiten der Radhausinnenkotflügel, Kunststoffeinsätze bzw. deren Befestigungsteile eine ausreichende Freigängigkeit der Rad-Reifenkombination herzustellen.",
+   "source_page": 9
+  },
+  {
+   "code": "K56",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Nacharbeit der Heckschürze am Übergang zum Radhausausschnitt ist eine ausreichende Freigängigkeit der Rad-Reifenkombination herzustellen.",
+   "source_page": 9
+  },
+  {
+   "code": "K5d",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 1 sind die Radhausausschnittkanten im Bereich 200 mm vor bis 200 mm hinter Radmitte vollständig umzulegen.",
+   "source_page": 9
+  },
+  {
+   "code": "K5i",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 1 sind die in das Radhaus ragenden Kanten der Frontschürze auf einer Länge von 100 mm bis auf die Innenkontur des umgelegten Radlaufes folgend zu kürzen.",
+   "source_page": 9
+  },
+  {
+   "code": "K6a",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 sind die Radhausausschnittkanten im Bereich 100 mm vor bis 100 mm hinter Radmitte vollständig umzulegen.",
+   "source_page": 9
+  },
+  {
+   "code": "K6g",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 ist die Befestigungslasche der Heckschürze am Übergang zur Radhausausschnittkante um 5 mm zu kürzen oder um das gleiche Maß nach hinten/oben zu biegen.",
+   "source_page": 9
+  },
+  {
+   "code": "K6i",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 sind die in das Radhaus ragenden Kanten der Heckschürze auf einer Länge von 100 mm bis auf die Innenkontur des umgelegten Radlaufes folgend zu kürzen.",
+   "source_page": 9
+  },
+  {
+   "code": "K6v",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 sind die Kunststoff-Radhausausschnittkanten im Bereich 100 mm vor bis 100 mm hinter Radmitte um 5 mm auszuschneiden bzw. zu kürzen.",
+   "source_page": 9
+  },
+  {
+   "code": "K71",
+   "kind": "karosseriearbeit",
+   "text_de": "An der Vorderachse ist die Frontschürze am Übergang zum Radhausauschnitt nachzuarbeiten.",
+   "source_page": 9
+  },
+  {
+   "code": "K7a",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 1 sind die Radhausausschnittkanten im Bereich 100 mm vor bis 100 mm hinter Radmitte um 5 mm aufzuweiten.",
+   "source_page": 9
+  },
+  {
+   "code": "K8e",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 sind die Radhausausschnittkanten im Bereich 200 mm vor bis 200 mm hinter Radmitte um 5 mm aufzuweiten.",
+   "source_page": 9
+  },
+  {
+   "code": "K8m",
+   "kind": "karosseriearbeit",
+   "text_de": "An Achse 2 sind die Radhausausschnittkanten im Bereich 300 mm vor bis 200 mm hinter Radmitte um 10 mm aufzuweiten.",
+   "source_page": 9
+  },
+  {
+   "code": "KMV",
+   "kind": "hinweis",
+   "text_de": "Betrifft nur Fahrzeugvarianten mit serienmäßigen Kunststoffverbreiterungen bzw. mit zusätzlichen Kotflügelverbreiterungen (Radlaufleisten).",
+   "source_page": 9
+  },
+  {
+   "code": "L02",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Begrenzung des Lenkeinschlages ist eine ausreichende Freigängigkeit der Rad- / Reifenkombination herzustellen.",
+   "source_page": 9
+  },
+  {
+   "code": "L04",
+   "kind": "verbot",
+   "text_de": "Die Verwendung dieser Rad-/Reifen-Kombination(en) ist(sind) nur zulässig an Fahrzeugen mit Allradlenkung (4WS).",
+   "source_page": 9
+  },
+  {
+   "code": "L05",
+   "kind": "verbot",
+   "text_de": "Die Verwendung dieser Rad-/Reifen-Kombination(en) ist(sind) nicht zulässig an Fahrzeugen mit Allradlenkung (4WS).",
+   "source_page": 10
+  },
+  {
+   "code": "L06",
+   "kind": "hinweis",
+   "text_de": "Diese Rad-/Reifen-Kombination(en) ist (sind) zulässig an Fahrzeugausführungen mit und ohne Allradlenkung (4WS).",
+   "source_page": 10
+  },
+  {
+   "code": "Lim",
+   "kind": "karosserieform",
+   "text_de": "Die Rad-/Reifen-Kombination ist zulässig für Fahrzeugausführungen der Karosserieform Limousine.",
+   "source_page": 10,
+   "body_forms": [
+    "Limousine"
+   ]
+  },
+  {
+   "code": "R02",
+   "kind": "reifen_achse",
+   "text_de": "Diese Reifengröße ist nur an Achse 1 zulässig.",
+   "source_page": 10,
+   "axle": "FRONT"
+  },
+  {
+   "code": "R03",
+   "kind": "reifen_achse",
+   "text_de": "Diese Reifengröße ist nur an Achse 2 zulässig.",
+   "source_page": 10,
+   "axle": "REAR"
+  },
+  {
+   "code": "R37",
+   "kind": "reifen_kombination",
+   "text_de": "Diese Reifengröße ist nicht geprüft für Fahrzeuge, die serienmäßig ausschließlich mit größeren und/oder breiteren Reifengrößen (u. a. Fahrzeugschein, Zulassungsbescheinigung I, COC-Papier oder Bedienungsanleitung) ausgerüstet sind.",
+   "source_page": 10
+  },
+  {
+   "code": "R70",
+   "kind": "reifen_kombination",
+   "text_de": "Für das Fahrzeug ist die Reifengröße auf der im Gutachten genannten Radgröße durch den Reifenhersteller zu bestätigen. Diese Bestätigung ist vom Führer des Fahrzeugs mitzuführen.",
+   "source_page": 10
+  },
+  {
+   "code": "S01",
+   "kind": "befestigung",
+   "text_de": "Zur Befestigung der Räder dürfen nur die mitgelieferten Befestigungsmittel Nr. S01 (siehe Seite 1) verwendet werden.",
+   "source_page": 10
+  },
+  {
+   "code": "S02",
+   "kind": "befestigung",
+   "text_de": "Zur Befestigung der Räder dürfen nur die mitgelieferten Befestigungsmittel Nr. S02 (siehe Seite 1) verwendet werden.",
+   "source_page": 10
+  },
+  {
+   "code": "S03",
+   "kind": "befestigung",
+   "text_de": "Zur Befestigung der Räder dürfen nur die mitgelieferten Befestigungsmittel Nr. S03 (siehe Seite 1) verwendet werden.",
+   "source_page": 10
+  },
+  {
+   "code": "S04",
+   "kind": "befestigung",
+   "text_de": "Zur Befestigung der Räder dürfen nur die mitgelieferten Befestigungsmittel Nr. S04 (siehe Seite 1) verwendet werden.",
+   "source_page": 10
+  },
+  {
+   "code": "S05",
+   "kind": "befestigung",
+   "text_de": "Zur Befestigung der Räder dürfen nur die mitgelieferten Befestigungsmittel Nr. S05 (siehe Seite 1) verwendet werden.",
+   "source_page": 10
+  },
+  {
+   "code": "S06",
+   "kind": "befestigung",
+   "text_de": "Zur Befestigung der Räder dürfen nur die mitgelieferten Befestigungsmittel Nr. S06 (siehe Seite 1) verwendet werden.",
+   "source_page": 10
+  },
+  {
+   "code": "T00",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 100) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1600 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 10,
+   "max_axle_load_kg": 1600
+  },
+  {
+   "code": "T84",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 84) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1000 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 10,
+   "max_axle_load_kg": 1000
+  },
+  {
+   "code": "T85",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 85) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1030 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 10,
+   "max_axle_load_kg": 1030
+  },
+  {
+   "code": "T87",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 87) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1090 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1090
+  },
+  {
+   "code": "T88",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 88) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1120 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1120
+  },
+  {
+   "code": "T89",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 89) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1160 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1160
+  },
+  {
+   "code": "T91",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 91) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1230 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1230
+  },
+  {
+   "code": "T92",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 92) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1260 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1260
+  },
+  {
+   "code": "T93",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 93) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1300 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1300
+  },
+  {
+   "code": "T94",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 94) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1340 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1340
+  },
+  {
+   "code": "T95",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 95) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1380 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1380
+  },
+  {
+   "code": "T96",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 96) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1420 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1420
+  },
+  {
+   "code": "T98",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 98) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1500 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1500
+  },
+  {
+   "code": "T99",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Reifen (LI 99) nur zulässig für Fahrzeuge mit zul. Achslasten bis 1550 kg (Fzg.-Schein, Ziff. 16 bzw. Zulassungsbescheinigung Feld 8). Abschläge der Tragfähigkeit aufgrund der Bauartbedingten Höchstgeschwindigkeit (Fzg.-Schein, Ziff. 6 bzw. Zulassungsbescheinigung Feld T) sind zu berücksichtigen.",
+   "source_page": 11,
+   "max_axle_load_kg": 1550
+  },
+  {
+   "code": "V19",
+   "kind": "reifen_kombination",
+   "text_de": "Bei Verwendung verschiedener Reifengrößen an Vorder- und Hinterachse sind folgende Reifenkombinationen, sofern die Reifengrößen in der Spalte \"Reifen\" aufgeführt sind, möglich: (Vorderachse – Hinterachse) Nr. 1: 215/35R19 – 245/30R19, 255/30R19; Nr. 2: 225/35R19 – 245/30R19, 255/30R19, 265/30R19, 305/25R19; Nr. 3: 225/40R19 – 245/35R19, 255/35R19; Nr. 4: 225/45R19 – 245/40R19, 255/40R19; Nr. 5: 225/55R19 – 275/45R19; Nr. 6: 235/35R19 – 255/30R19, 265/30R19, 275/30R19, 315/25R19; Nr. 7: 235/40R19 – 265/35R19, 275/35R19; Nr. 8: 235/45R19 – 255/40R19, 265/40R19; Nr. 9: 235/50R19 – 255/45R19, 265/45R19; Nr. 10: 235/55R19 – 255/50R19, 285/45R19, 295/45R19; Nr. 11: 245/30R19 – 305/25R19; Nr. 12: 245/35R19 – 255/35R19, 275/30R19, 285/30R19; Nr. 13: 245/40R19 – 275/35R19, 285/35R19; Nr. 14: 245/45R19 – 275/40R19; Nr. 15: 245/50R19 – 275/45R19; Nr. 16: 255/30R19 – 305/25R19, 315/25R19; Nr. 17: 255/35R19 – 285/30R19, 295/30R19, 305/30R19; Nr. 18: 255/40R19 – 285/35R19, 295/35R19; Nr. 19: 255/45R19 – 285/40R19; Nr. 20: 255/50R19 – 275/45R19, 285/45R19, 295/45R19; Nr. 21: 255/55R19 – 275/50R19; Nr. 22: 265/30R19 – 305/25R19, 315/25R19; Nr. 23: 265/35R19 – 295/30R19, 305/30R19; Nr. 24: 265/40R19 – 295/35R19; Nr. 25: 265/45R19 – 295/40R19; Nr. 26: 265/50R19 – 295/45R19; Nr. 27: 275/30R19 – 315/25R19. Es sind nur Reifen eines Herstellers und achsweise eines Profiltyps zulässig, für die der Reifen- oder Fahrzeughersteller die Eignung für das jeweilige Fahrzeug bestätigt. Diese Bestätigung ist vom Führer des Fahrzeugs mitzuführen.",
+   "source_page": 12
+  },
+  {
+   "code": "Y84",
+   "kind": "karosserieform",
+   "text_de": "Die Rad-/Reifen-Kombination ist zulässig für 3-türige Fahrzeugausführungen der Karosserieform Fließheck.",
+   "source_page": 12,
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "Y85",
+   "kind": "karosserieform",
+   "text_de": "Die Rad-/Reifen-Kombination ist zulässig für 5-türige Fahrzeugausführungen der Karosserieform Schräghecklimousine (Fließheck).",
+   "source_page": 12,
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "Z3N",
+   "kind": "verbot",
+   "text_de": "Diese Rad- / Reifenkombination ist nur zulässig für Fahrzeuge ab einschließlich EG-Typgenehmigungs-Nr. e1*93/81*0029*08 (Facelift 1999, mit breiter Karosserie an Achse 2).",
+   "source_page": 12
+  }
+ ],
+ "fasteners": [
+  {
+   "number": "S01",
+   "thread": "Schraube M12x1,5",
+   "seat": "Kegel 60°",
+   "torque_nm": 110,
+   "shaft_length_mm": 30,
+   "article_number": "5248",
+   "vehicle_types": null,
+   "source_page": 1
+  },
+  {
+   "number": "S02",
+   "thread": "Schraube M14x1,25",
+   "seat": "Kegel 60°",
+   "torque_nm": 130,
+   "shaft_length_mm": 30,
+   "article_number": "5276",
+   "vehicle_types": null,
+   "source_page": 1
+  },
+  {
+   "number": "S03",
+   "thread": "Schraube M14x1,5",
+   "seat": "Kegel 60°",
+   "torque_nm": 140,
+   "shaft_length_mm": 30,
+   "article_number": "5284",
+   "vehicle_types": null,
+   "source_page": 1
+  },
+  {
+   "number": "S04",
+   "thread": "Schraube M14x1,25",
+   "seat": "Kegel 60°",
+   "torque_nm": 140,
+   "shaft_length_mm": 30,
+   "article_number": "5276",
+   "vehicle_types": null,
+   "source_page": 1
+  },
+  {
+   "number": "S05",
+   "thread": "Schraube M12x1,5",
+   "seat": "Kegel 60°",
+   "torque_nm": 120,
+   "shaft_length_mm": 30,
+   "article_number": "5248",
+   "vehicle_types": null,
+   "source_page": 1
+  },
+  {
+   "number": "S06",
+   "thread": "Schraube M14x1,25",
+   "seat": "Kegel 60°",
+   "torque_nm": 130,
+   "shaft_length_mm": 35,
+   "article_number": "5275",
+   "vehicle_types": null,
+   "source_page": 1
+  }
+ ],
+ "notices": [
+  {
+   "text_de": "Im Fahrzeug vorgeschriebene Fahrzeugsysteme, z. B. Reifendruckkontrollsysteme, müssen nach Anbau der Räder funktionsfähig bleiben.",
+   "source_page": 6
+  },
+  {
+   "text_de": "Wird eine in diesem Gutachten aufgeführte Reifengröße verwendet, die nicht bereits in den Fahrzeugpapieren (u. a. Fahrzeugschein, Zulassungsbescheinigung I oder COC-Papier) genannt ist, so sind die Angaben über die Reifengröße in den Fahrzeugpapieren (Fahrzeugschein bzw. -brief, Zulassungsbescheinigung I) durch die Zulassungsstelle berichtigen zu lassen. Diese Berichtigung ist dann nicht erforderlich, wenn die ABE des Sonderrades eine Freistellung von der Pflicht zur Berichtigung der Fahrzeugpapiere enthält.",
+   "source_page": 6
+  },
+  {
+   "text_de": "Die mindestens erforderlichen Geschwindigkeitsbereiche (mit Ausnahme der M+S-Profile) und Tragfähigkeiten der zu verwendenden Reifen sind den Fahrzeugpapieren (Fahrzeugbrief und -schein, Zulassungsbescheinigung I) zu entnehmen. Abschläge der Tragfähigkeit aufgrund der Fahrzeughöchstgeschwindigkeit sind zu berücksichtigen.",
+   "source_page": 6
+  },
+  {
+   "text_de": "Ferner sind nur Reifen einer Bauart und achsweise eines Reifentyps zulässig. Bei Verwendung unterschiedlicher Reifentypen auf Vorder- und Hinterachse sind die Hinweise des Fahrzeug- und / oder Reifenherstellers zu beachten.",
+   "source_page": 6
+  },
+  {
+   "text_de": "Das Fahrwerk und die Bremsaggregate müssen, mit Ausnahme der in der entsprechenden Auflage aufgeführten Umrüstmaßnahmen, dem Serienstand entsprechen. Die Zulässigkeit weiterer Veränderungen ist gesondert zu beurteilen.",
+   "source_page": 6
+  },
+  {
+   "text_de": "Wird das serienmäßige Ersatzrad verwendet, soll mit mäßiger Geschwindigkeit und nicht länger als erforderlich gefahren werden. Es müssen die serienmäßigen Befestigungsteile verwendet werden. Bei Fahrzeugen mit Allradantrieb darf nur ein Ersatzrad mit gleicher Reifengröße bzw. gleichem Abrollumfang verwendet werden.",
+   "source_page": 6
+  },
+  {
+   "text_de": "Die Bezieher der Räder sind darauf hinzuweisen, dass der vom Reifenhersteller vorgeschriebene Reifenfülldruck zu beachten ist.",
+   "source_page": 6
+  }
+ ],
+ "derating": {
+  "source_page": 6,
+  "symbols": [
+   "V",
+   "W",
+   "Y"
+  ],
+  "rows": [
+   {
+    "speed_kmh": 210,
+    "cells": {
+     "V": "100",
+     "W": "100",
+     "Y": "100"
+    }
+   },
+   {
+    "speed_kmh": 220,
+    "cells": {
+     "V": "97",
+     "W": "100",
+     "Y": "100"
+    }
+   },
+   {
+    "speed_kmh": 230,
+    "cells": {
+     "V": "94",
+     "W": "100",
+     "Y": "100"
+    }
+   },
+   {
+    "speed_kmh": 240,
+    "cells": {
+     "V": "91",
+     "W": "100",
+     "Y": "100"
+    }
+   },
+   {
+    "speed_kmh": 250,
+    "cells": {
+     "V": "–",
+     "W": "95",
+     "Y": "100"
+    }
+   },
+   {
+    "speed_kmh": 260,
+    "cells": {
+     "V": "–",
+     "W": "90",
+     "Y": "100"
+    }
+   },
+   {
+    "speed_kmh": 270,
+    "cells": {
+     "V": "–",
+     "W": "85",
+     "Y": "100"
+    }
+   },
+   {
+    "speed_kmh": 280,
+    "cells": {
+     "V": "–",
+     "W": "–",
+     "Y": "95"
+    }
+   },
+   {
+    "speed_kmh": 290,
+    "cells": {
+     "V": "–",
+     "W": "–",
+     "Y": "90"
+    }
+   },
+   {
+    "speed_kmh": 300,
+    "cells": {
+     "V": "–",
+     "W": "–",
+     "Y": "85"
+    }
+   }
+  ]
+ },
+ "reworks": [],
+ "groups": [
+  {
+   "page": 2,
+   "printed": "BMW 1er-Reihe | 182, 1C | e1*2001/116*0352*.., e1*2007/46*0277*00-07 | - Coupé, Cabrio - incl. Facelift 2011",
+   "cars": [
+    "1er-182",
+    "1er-1C-00-07"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "Cbo",
+    "Cpe",
+    "K1c",
+    "K42",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 215,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 160,
+     "codes": [
+      "K2b",
+      "K41",
+      "K46",
+      "T85"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "K2b",
+      "K41",
+      "K43",
+      "K46",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "G73",
+      "K14",
+      "K2b",
+      "K41",
+      "K43",
+      "K46",
+      "T87"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "K2c",
+      "K44",
+      "K46",
+      "R03",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 1er-Reihe | 187 | e1*2001/116*0287*00-09",
+   "cars": [
+    "1er-187-00-09"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "K1c",
+    "K42",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 215,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 125,
+     "codes": [
+      "K2b",
+      "K41",
+      "K46",
+      "T85"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 195,
+     "codes": [
+      "K2b",
+      "K41",
+      "K43",
+      "K46",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 195,
+     "codes": [
+      "G73",
+      "K14",
+      "K2b",
+      "K41",
+      "K43",
+      "K46",
+      "T87"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 195,
+     "codes": [
+      "K2c",
+      "K44",
+      "K46",
+      "R03",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 1er-Reihe | 187, 1K2, 1K4 | e1*2001/116*0287*10-.., e1*2007/46*0273*00-03, 0283*00-03 | - ab Facelift 2007",
+   "cars": [
+    "1er-187-10",
+    "1er-1K2-00-03",
+    "1er-1K4-00-03"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "K1c",
+    "K42",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 215,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 125,
+     "codes": [
+      "K2b",
+      "K41",
+      "K46",
+      "T85"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 195,
+     "codes": [
+      "K2b",
+      "K41",
+      "K43",
+      "K46",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 195,
+     "codes": [
+      "G73",
+      "K14",
+      "K2b",
+      "K41",
+      "K43",
+      "K46",
+      "T87"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 66,
+     "kw_max": 195,
+     "codes": [
+      "K2c",
+      "K44",
+      "K46",
+      "R03",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 1er-Reihe | 1K2 | e1*2007/46*0273*04-.. | - ab Modelljahr 2013 - incl. Facelift 2015 - 3 Türer",
+   "cars": [
+    "1er-1K2-04"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "V19",
+    "Y84",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 70,
+     "kw_max": 175,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K5d",
+      "K6i",
+      "K8e",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 70,
+     "kw_max": 175,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K5d",
+      "K5i",
+      "K6i",
+      "K7a",
+      "K8e",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 70,
+     "kw_max": 175,
+     "codes": [
+      "K2c",
+      "K6g",
+      "K6i",
+      "K8m",
+      "R03",
+      "T89"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 1er-Reihe | 1K4 | e1*2007/46*0283*04-.. | - ab Modelljahr 2012 - incl. Facelift 2015 - 5 Türer",
+   "cars": [
+    "1er-1K4-04"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "V19",
+    "Y85",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 70,
+     "kw_max": 175,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K5d",
+      "K6i",
+      "K8e",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 70,
+     "kw_max": 175,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K5d",
+      "K5i",
+      "K6i",
+      "K7a",
+      "K8e",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 70,
+     "kw_max": 175,
+     "codes": [
+      "K2c",
+      "K6g",
+      "K6i",
+      "K8m",
+      "R03",
+      "T89"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 2er-Reihe | 1C | e1*2007/46*0277*08-..",
+   "cars": [
+    "2er-1C-08"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Cbo",
+    "Cpe",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K5d",
+      "K6i",
+      "K8e",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K5d",
+      "K5i",
+      "K6i",
+      "K7a",
+      "K8e"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "K2c",
+      "K6g",
+      "K6i",
+      "K8m",
+      "R03"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 3er GT | 3-V, 3K-N1 | e1*2007/46*0559*..; e24*2007/46*0022*05-..",
+   "cars": [
+    "3gt-3V",
+    "3gt-3KN1"
+   ],
+   "codes": [
+    "A14",
+    "A18",
+    "A57",
+    "Flh",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A10",
+      "T92",
+      "T96"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A32",
+      "T92",
+      "T96"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A12"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "A12",
+      "K1a",
+      "K2b"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 3er-Allrad (IV) | 346X | e1*98/14*,2001/116*0144*..",
+   "cars": [
+    "3allrad-346X-98",
+    "3allrad-346X-2001"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "Car",
+    "Lim",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "K1c",
+      "K2b",
+      "K41",
+      "K42",
+      "K44",
+      "K56",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "G01",
+      "K1c",
+      "K2b",
+      "K41",
+      "K42",
+      "K44",
+      "K56",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K41",
+      "K42",
+      "K44",
+      "K56",
+      "T89"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "K2c",
+      "K42",
+      "K44",
+      "K56",
+      "R03",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW 3er-Compact (IV) | 346K | e1*98/14*0167*.., e1*2001/116*0167*..",
+   "cars": [
+    "3compact-346K-98",
+    "3compact-346K-2001"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "K1c",
+    "K2c",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 141,
+     "codes": [
+      "K41",
+      "K42",
+      "K56",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 141,
+     "codes": [
+      "G01",
+      "K41",
+      "K42",
+      "K45",
+      "K56",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 141,
+     "codes": [
+      "K41",
+      "K42",
+      "K44",
+      "K56",
+      "T89"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 141,
+     "codes": [
+      "K42",
+      "K44",
+      "K56",
+      "R03"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 3er-Reihe (IV) | 346C, 346R | e1*98/14,2001/116*0112, 0146*..",
+   "cars": [
+    "3iv-346C-98",
+    "3iv-346C-2001",
+    "3iv-346R-98",
+    "3iv-346R-2001"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "Cbo",
+    "Cpe",
+    "K1c",
+    "K42",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "K2b",
+      "K41",
+      "K44",
+      "K56",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "G01",
+      "K2b",
+      "K41",
+      "K44",
+      "K56",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "K2c",
+      "K41",
+      "K44",
+      "K56",
+      "T89"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "K2c",
+      "K44",
+      "K56",
+      "R03",
+      "T87",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 3er-Reihe (IV) | 346L | e1*97/27*0097*.., e1*98/14*0097*..",
+   "cars": [
+    "3iv-346L-97",
+    "3iv-346L-98"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "Car",
+    "K1c",
+    "K42",
+    "Lim",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "K2b",
+      "K41",
+      "K44",
+      "K56",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "G01",
+      "K2b",
+      "K41",
+      "K44",
+      "K56",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "K2c",
+      "K41",
+      "K44",
+      "K56",
+      "T89"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "K2c",
+      "K44",
+      "K56",
+      "R03",
+      "T87",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 3er-Reihe (V) | 390L, -/X | e1*2001/116*0308*00-08, 0344*00-05",
+   "cars": [
+    "3v-390L-00-08",
+    "3v-390X-00-05"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "Car",
+      "Lim",
+      "R02",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "Lim",
+      "R03",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "A01",
+      "Car",
+      "G01",
+      "Lim",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "Car",
+      "Lim",
+      "R03",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 3er-Reihe (V) | 390L, -/X, 3L, 3K, 3K-N1 | e1*2001/116*0308*09-..,0344*06-.. e1*2007/46*0314*00-04; 0315*00-05; e24*2007/46*0022*00-02 | - ab Facelift 2008",
+   "cars": [
+    "3v-390L-09",
+    "3v-390X-06",
+    "3v-3L-00-04",
+    "3v-3K-00-05",
+    "3v-3KN1-00-02"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 240,
+     "codes": [
+      "Car",
+      "Lim",
+      "R02",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 240,
+     "codes": [
+      "Lim",
+      "R03",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 240,
+     "codes": [
+      "A01",
+      "Car",
+      "G01",
+      "Lim",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 240,
+     "codes": [
+      "A01",
+      "Car",
+      "K2b",
+      "K6a",
+      "Lim",
+      "R03",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 3er-Reihe (V) | 392C, 390X, 3C | e1*2001/116*0346*.., e1*2001/116*0344*..; e1*2007/46*0316*00-07 | - Coupé/Cabrio",
+   "cars": [
+    "3v-392C",
+    "3v-390X-00-05",
+    "3v-390X-06",
+    "3v-3C-00-07"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 90,
+     "kw_max": 240,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "R02",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 90,
+     "kw_max": 240,
+     "codes": [
+      "Cpe",
+      "R03",
+      "T84",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 90,
+     "kw_max": 240,
+     "codes": [
+      "A01",
+      "Cbo",
+      "Cpe",
+      "G01",
+      "K1c",
+      "T87",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 90,
+     "kw_max": 240,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "R03",
+      "T91"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 3er-Reihe (VI) | 3L | e1*2007/46*0314*05-.. | - ab Modell 2012 - incl. Facelift 2015",
+   "cars": [
+    "3vi-3L-05"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Lim",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "R02",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "T89",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K2b"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K1b",
+      "K2b",
+      "T89",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K2a",
+      "K2b",
+      "R03",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K2a",
+      "K2b",
+      "R03"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 3er-Touring (VI) | 3K, 3K-N1 | e1*2007/46*0315*06-.. e24*2007/46*0022*03- | - ab Modell 2013 - incl. Facelift 2015",
+   "cars": [
+    "3tvi-3K-06",
+    "3tvi-3KN1-03"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Car",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "R02",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K2b",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K1b",
+      "K2b",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K2a",
+      "K2b",
+      "R03",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K2a",
+      "K2b",
+      "R03"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 4er-GranCoupé | 3C | e1*2007/46*0316*10-..",
+   "cars": [
+    "4gc-3C-10"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Lim",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "R02",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K1a",
+      "K2b",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K1a",
+      "K2b",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "K1a",
+      "K2b"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 4er-Reihe | 3C | e1*2007/46*0316*08-..",
+   "cars": [
+    "4-3C-08",
+    "4-3C-09"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "R02",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "Cpe",
+      "R03",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "T89",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "Cbo",
+      "Cpe",
+      "K1a",
+      "K2b",
+      "T89",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "Cbo",
+      "Cpe",
+      "K1a",
+      "K2b",
+      "T91"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "A01",
+      "Cbo",
+      "Cpe",
+      "K1a",
+      "K2b"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 5er ActiveHybrid | HY | e1*2007/46*0323*.. | - ohne Allradlenkung",
+   "cars": [
+    "5ah-HY"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A58",
+    "L05",
+    "Lim",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 225,
+     "kw_max": 225,
+     "codes": [
+      "T96"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 235,
+     "kw_max": 235,
+     "codes": [
+      "T96"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 225,
+     "kw_max": 225,
+     "codes": [
+      "T96"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 235,
+     "kw_max": 235,
+     "codes": [
+      "T96"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 225,
+     "kw_max": 225,
+     "codes": [
+      "T98"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 235,
+     "kw_max": 235,
+     "codes": [
+      "T98"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 5er-Reihe | 5L | e1*2007/46*0363*.. | - ohne Allradlenkung",
+   "cars": [
+    "5-5L-ohne"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "L05",
+    "Lim",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 330,
+     "codes": [
+      "T94",
+      "T98",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 5er-Reihe | 5L | e1*2007/46*0363*.. | - mit Allradlenkung",
+   "cars": [
+    "5-5L-mit"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A58",
+    "L04",
+    "Lim",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 330,
+     "codes": [
+      "T94",
+      "T98",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 5er-Reihe 4x4 | 560X | e1*2001/116*0322*..",
+   "cars": [
+    "5x4-560X"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A56",
+    "Lim",
+    "S05"
+   ],
+   "sizes": [
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "K1a",
+      "K1b",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "K1c",
+      "K2b",
+      "K41",
+      "K42",
+      "K56",
+      "T92",
+      "T96"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 5er-Touring | 5K, K-N1 | e1*2007/46*0455*.., e1*2007/46*0508*.. | - ohne Allradlenkung",
+   "cars": [
+    "5t-5K-ohne",
+    "5t-KN1-ohne"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Car",
+    "F40",
+    "L05",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 330,
+     "codes": [
+      "T98",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 5er-Touring | 5K, K-N1 | e1*2007/46*0455*.., e1*2007/46*0508*.. | - mit Allradlenkung",
+   "cars": [
+    "5t-5K-mit",
+    "5t-KN1-mit"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "A58",
+    "Car",
+    "F40",
+    "L04",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "R37",
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 330,
+     "codes": [
+      "T98",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 5er-Touring 4x4 | 560X | e1*2001/116*0322*..",
+   "cars": [
+    "5tx4-560X"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A56",
+    "Car",
+    "S05"
+   ],
+   "sizes": [
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "K1a",
+      "K1b",
+      "T93",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "K1c",
+      "K2b",
+      "K41",
+      "K42",
+      "K56",
+      "T96",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 6er-Reihe | 6C | e1*2007/46*0562*..",
+   "cars": [
+    "6-6C"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "Cbo",
+    "Cpe",
+    "L06",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 230,
+     "kw_max": 230,
+     "codes": [
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 235,
+     "kw_max": 235,
+     "codes": [
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 230,
+     "kw_max": 230,
+     "codes": [
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 235,
+     "kw_max": 235,
+     "codes": [
+      "T96",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 230,
+     "kw_max": 330,
+     "codes": [
+      "T94",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW M135i /M140i | 1K2/1K4 | e1*2007/46*0273*04-.. e1*2007/46*0283*04-.. | - incl. Facelift 2015",
+   "cars": [
+    "m135-1K2",
+    "m135-1K4"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Flh",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 235,
+     "kw_max": 250,
+     "codes": [
+      "K1c",
+      "K5d",
+      "R02",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 235,
+     "kw_max": 250,
+     "codes": [
+      "K2c",
+      "K6g",
+      "K6i",
+      "K8m",
+      "R03",
+      "T89"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW M235i /M240i | 1C | e1*2007/46*0277*08-..",
+   "cars": [
+    "m235-1C"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Cbo",
+    "Cpe",
+    "V19",
+    "S02"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 240,
+     "kw_max": 240,
+     "codes": [
+      "K1c",
+      "K5d",
+      "R02"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 250,
+     "kw_max": 250,
+     "codes": [
+      "K1c",
+      "K5d",
+      "R02"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 240,
+     "kw_max": 240,
+     "codes": [
+      "K2c",
+      "K6g",
+      "K6i",
+      "K8m",
+      "R03",
+      "T89"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 250,
+     "kw_max": 250,
+     "codes": [
+      "K2c",
+      "K6g",
+      "K6i",
+      "K8m",
+      "R03",
+      "T89"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW X1 | X1, X-N1, X1-N1 | e1*2007/46*0275*..; e1*2007/46*0454*..; e24*2007/46*0024*..",
+   "cars": [
+    "x1-X1",
+    "x1-XN1",
+    "x1-X1N1"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "V19",
+    "S05"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 190,
+     "codes": [
+      "T89",
+      "T93"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 190,
+     "codes": [
+      "A01",
+      "K2b",
+      "R03",
+      "T92",
+      "T96"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW X3 | X3, X-N1 | e1*2007/46*0512*..; e1*2007/46*0454*.. | - incl. Facelift 2014",
+   "cars": [
+    "x3-X3",
+    "x3-XN1"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "B90",
+    "S06"
+   ],
+   "sizes": [
+    {
+     "width_mm": 235,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "R37",
+      "T95",
+      "T99",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 230,
+     "codes": [
+      "140"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 230,
+     "codes": [
+      "A01",
+      "K1a",
+      "K2b",
+      "T00",
+      "T96",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW X3 | X83 | e1*2001/116*0249*..",
+   "cars": [
+    "x3-X83"
+   ],
+   "codes": [
+    "A14",
+    "A18",
+    "V19",
+    "S03"
+   ],
+   "sizes": [
+    {
+     "width_mm": 235,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "A10",
+      "T95",
+      "T99"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "A10",
+      "T94",
+      "T98"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "A01",
+      "A12",
+      "K1b",
+      "K2b"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW X4 | X3, X-N1 | e1*2007/46*0512*11-..; e1*2007/46*0454*13-..",
+   "cars": [
+    "x4-X3",
+    "x4-XN1"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "B90",
+    "S06"
+   ],
+   "sizes": [
+    {
+     "width_mm": 235,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "R37",
+      "T95",
+      "T99",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 230,
+     "codes": [
+      "140"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 230,
+     "codes": [
+      "A01",
+      "K1a",
+      "K2b",
+      "T00",
+      "T96",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW X4 | X3, X-N1 | e1*2007/46*0512*11-..; e1*2007/46*0454*13-.. | - mit M-Paket - Verbreiterungen",
+   "cars": [
+    "x4m-X3",
+    "x4m-XN1"
+   ],
+   "codes": [
+    "A12",
+    "A14",
+    "A18",
+    "B90",
+    "KMV",
+    "S06"
+   ],
+   "sizes": [
+    {
+     "width_mm": 235,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "R37",
+      "T95",
+      "T99",
+      "140"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 45,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 230,
+     "codes": [
+      "140"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 230,
+     "codes": [
+      "T00",
+      "T96",
+      "140"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW Z3 | R/C | e1*93/81*0029*.., e1*98/14*0029*..",
+   "cars": [
+    "z3-9381-00-07",
+    "z3-9381-08",
+    "z3-9814"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "K1c",
+    "K43",
+    "K45",
+    "K71",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 141,
+     "kw_max": 170,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "L02"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 141,
+     "kw_max": 170,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "G01",
+      "L02"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 141,
+     "kw_max": 170,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "K42",
+      "R03"
+     ]
+    },
+    {
+     "width_mm": 265,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 141,
+     "kw_max": 170,
+     "codes": [
+      "Cbo",
+      "Cpe",
+      "G01",
+      "K42",
+      "K56",
+      "R03",
+      "R70"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 110,
+     "codes": [
+      "Cbo",
+      "K2b",
+      "K42",
+      "K46",
+      "L02"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 110,
+     "codes": [
+      "Cbo",
+      "G01",
+      "K2b",
+      "K42",
+      "K46",
+      "L02"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 125,
+     "codes": [
+      "Cbo",
+      "L02",
+      "R70"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 125,
+     "codes": [
+      "Cbo",
+      "G01",
+      "L02"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 125,
+     "codes": [
+      "Cbo",
+      "K42",
+      "R03",
+      "Z3N"
+     ]
+    },
+    {
+     "width_mm": 265,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 125,
+     "codes": [
+      "Cbo",
+      "G01",
+      "K42",
+      "K56",
+      "R03",
+      "R70",
+      "Z3N"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW Z4 | Z85 | e1*2001/116*0219*..",
+   "cars": [
+    "z4-Z85"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "Cbo",
+    "Cpe",
+    "V19",
+    "S01"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "K14",
+      "K1c",
+      "K2b"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "G01",
+      "K14",
+      "K1c",
+      "K2b",
+      "K41"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "K14",
+      "K1c",
+      "K2c",
+      "K42"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "K2c",
+      "K42",
+      "K56",
+      "R03"
+     ]
+    },
+    {
+     "width_mm": 265,
+     "aspect": 30,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "K2c",
+      "K42",
+      "K56",
+      "R03",
+      "R70"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "Mini Countryman | UKL/X, -/N1 | e1*2007/46*0496*..; e24*2007/46*0023*.. | - One, Cooper, -/D/-S/-SD",
+   "cars": [
+    "cm-UKLX",
+    "cm-UKLN1"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Y85",
+    "S04"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 140,
+     "codes": [
+      "K1c",
+      "K2c",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 140,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K6v"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "Mini Countryman JCW | UKL/X | e1*2007/46*0496*.. | - John Cooper Works",
+   "cars": [
+    "cmjcw-UKLX"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A56",
+    "Y85",
+    "S04"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 160,
+     "kw_max": 160,
+     "codes": [
+      "K1c",
+      "K2c",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 160,
+     "kw_max": 160,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K6v"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "Mini Paceman | UKL-C/X | e1*2007/46*0563*..; | - Cooper -/D/-S/-SD",
+   "cars": [
+    "pm-UKLCX-00",
+    "pm-UKLCX-01"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A57",
+    "Cpe",
+    "S04"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 82,
+     "kw_max": 140,
+     "codes": [
+      "K1c",
+      "K2c",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 82,
+     "kw_max": 140,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K6v"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 6,
+   "printed": "Mini Paceman JCW | UKL-C/X | e1*2007/46*0563*.. | - John Cooper Works",
+   "cars": [
+    "pmjcw-UKLCX-00",
+    "pmjcw-UKLCX-01"
+   ],
+   "codes": [
+    "A01",
+    "A12",
+    "A14",
+    "A18",
+    "A56",
+    "S04"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 35,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 160,
+     "kw_max": 160,
+     "codes": [
+      "K1c",
+      "K2c",
+      "T88"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 19,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 160,
+     "kw_max": 160,
+     "codes": [
+      "K1c",
+      "K2c",
+      "K6v"
+     ]
+    }
+   ]
+  }
+ ],
+ "notEntered": []
+}

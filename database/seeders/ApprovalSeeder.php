@@ -11,12 +11,13 @@ use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\ApprovalDocument;
-use App\Models\ConditionCode;
+use App\Models\DocumentSpeedDerating;
 use App\Models\Fitment;
 use App\Models\FitmentConflict;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Demo\PlaceholderTables;
 use App\Support\MakeName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -38,16 +39,16 @@ use Illuminate\Support\Facades\DB;
  * Demo fitments are still physically honest. A wheel is paired only with a vehicle whose factory
  * bolt pattern it shares and whose hub fits through its centre bore (VEHICLES, from
  * docs/reviews/accuracy-map-calculator-catalogue.md §3.1); a vehicle whose pattern or hub is not
- * known gets no fitment at all. The MOTEC is further limited to the makes its real ABE 53810 names
- * for that bolt pattern (docs/reviews/accuracy-research-motec.md §2.4). On a database seeded before
- * the filter, a demo fitment that fails it is set to `retired`, never deleted: fitments are RESTRICT
- * (R-05) and frozen order snapshots name some of them (R-12).
+ * known gets no fitment at all. The ninth document is further limited to the makes it names per
+ * bolt pattern — the way a real ABE's annexes do. On a database seeded before a filter, a demo
+ * fitment that fails it is set to `retired`, never deleted: fitments are RESTRICT (R-05) and frozen
+ * order snapshots name some of them (R-12).
  *
  * A fitment row also carries the Mittenlochbohrung its document states for that vehicle, because
- * the bore is a relationship and not a rim attribute (CLAUDE.md §1): the MOTEC's 5 × 112 executions
- * are catalogued at 66,5 mm and its ABE prints 66,6 mm for the cars it covers without a centring
- * ring, and a customer with such a car must read the document's figure. Every other demo document
- * states none, and NULL is exactly that statement (documentCentreBore()).
+ * the bore is a relationship and not a rim attribute (CLAUDE.md §1): the ninth document states
+ * 66,6 mm for some makes' cars in the 5 × 112 execution of a rim catalogued at 66,5 mm, so the
+ * product page must read the document's figure for those cars. Every other demo document states
+ * none, and NULL is exactly that statement (documentCentreBore()).
  *
  * Tyre sizes are no longer taken from the rim diameter alone (a 205/55 R16 "approved" on a
  * Cayenne). A size is seeded only when the rim is at least the car's smallest factory rim, the
@@ -61,13 +62,23 @@ use Illuminate\Support\Facades\DB;
  * with "you do not". It is seeded as a DRAFT row plus an open, blocking conflict, so the
  * storefront is unaffected and the admin panel has a genuine unresolved conflict on day one.
  *
- * The last four cover the demo catalogue's remaining ranges, so a model with a photograph (the
- * MCR4) also has a car it may go on.
+ * The last four cover the demo catalogue's remaining ranges, so every model has a car it may go on.
  */
 class ApprovalSeeder extends Seeder
 {
     /** Every demo document's issuer: no real organisation. */
     public const ISSUER = 'Prüfstelle (Demodaten)';
+
+    /** Where every demo document's table of tyre load at speed comes from — said wherever the table is. */
+    public const DERATING_SEED = 'Demo-Seed: Tabelle der ABE 55255, Seite 6';
+
+    /**
+     * The one example document left deliberately WITHOUT a table (the operator's decision of 29.09.2026):
+     * DEMO-0007, Stahlwerk 19 Kontur X and Aventin Linea 10. Every car above 210 km/h gets an honest UNKNOWN
+     * on it — „Das Gutachten druckt keine Tabelle …“ — so the demo shows that RIMIFY says it does not know
+     * when it does not, beside the documents that answer.
+     */
+    public const WITHOUT_DERATING = 'range7';
 
     /**
      * slot => [report number, the report number it had before, months since issue, page count].
@@ -83,7 +94,7 @@ class ApprovalSeeder extends Seeder
         'range6' => ['DEMO-0006', 'TG-2026-0006', 6, 12],
         'range7' => ['DEMO-0007', 'TG-2026-0007', 5, 10],
         'range8' => ['DEMO-0008', 'TG-2026-0008', 4, 16],
-        'motec' => ['DEMO-0009', 'TG-2026-0009', 2, 12],
+        'range9' => ['DEMO-0009', 'TG-2026-0009', 2, 12],
     ];
 
     /**
@@ -96,15 +107,15 @@ class ApprovalSeeder extends Seeder
      * @var array<string, list<string>>
      */
     public const COVERAGE = [
-        'range1' => ['demo-fuenfspeiche-f-01', 'demo-zehnspeiche-z-02'],
-        'range2' => ['demo-zehnspeiche-z-03', 'demo-siebenspeiche-s-04', 'demo-fuenfspeiche-f-05', 'demo-fuenfspeiche-f-06', 'demo-fuenfspeiche-f-20'],
-        'range3' => ['demo-zehnspeiche-z-07', 'demo-zehnspeiche-z-08'],
-        'range4' => ['demo-vielspeiche-v-09', 'demo-vielspeiche-v-10', 'demo-fuenfspeiche-f-11', 'demo-siebenspeiche-s-12'],
-        'conflicting' => ['demo-fuenfspeiche-f-01', 'demo-zehnspeiche-z-02'],
-        'range6' => ['demo-zehnspeiche-z-13', 'demo-fuenfspeiche-f-14'],
-        'range7' => ['demo-fuenfspeiche-f-15', 'demo-zehnspeiche-z-16'],
-        'range8' => ['demo-fuenfspeiche-f-17', 'demo-zehnspeiche-z-18', 'demo-zehnspeiche-z-19'],
-        'motec' => ['motec-mcr4-ultimate'],
+        'range1' => ['nordfelge-fjord', 'nordfelge-skagen'],
+        'range2' => ['kraftrad-kr-10', 'nordfelge-aero-7', 'kraftrad-kr-5', 'stahlwerk-19-kontur-s', 'kraftrad-kr-5-s'],
+        'range3' => ['bergsteig-grat', 'bergsteig-kamm'],
+        'range4' => ['aventin-mesh-20', 'aventin-mesh-20-r', 'aventin-linea-5', 'stahlwerk-19-profil-7'],
+        'conflicting' => ['nordfelge-fjord', 'nordfelge-skagen'],
+        'range6' => ['kraftrad-kr-9', 'bergsteig-pass-5'],
+        'range7' => ['stahlwerk-19-kontur-x', 'aventin-linea-10'],
+        'range8' => ['nordfelge-fjord-s', 'stahlwerk-19-raster-10', 'bergsteig-sattel'],
+        'range9' => ['bergsteig-gipfel'],
     ];
 
     /**
@@ -218,13 +229,13 @@ class ApprovalSeeder extends Seeder
     ];
 
     /**
-     * The makes ABE 53810 names for each MCR4 execution, by bolt circle (research report §2.4,
-     * the annexes' "Hersteller" lines). Stricter than the union of all 34 makes: a make counts
-     * only for the execution its own annex covers. Porsche is in none of them.
+     * The makes the ninth demo document names for each execution of Bergsteig Gipfel, by bolt
+     * circle — per pattern, as a real ABE's annexes list their "Hersteller": a make counts only for
+     * the execution its own list covers. Demonstration data, like the document.
      *
      * @var array<string, list<string>>
      */
-    public const MOTEC_MAKES = [
+    public const RANGE9_MAKES = [
         '112.0' => ['Audi', 'BMW', 'Infiniti', 'Mercedes-Benz', 'MG', 'MINI', 'SEAT', 'Škoda', 'Ssangyong', 'Toyota', 'Volkswagen'],
         '108.0' => ['Citroën', 'DS', 'Ford', 'Jaguar', 'Lynk & Co', 'Opel', 'Peugeot', 'Volvo'],
         '114.3' => ['Chrysler', 'Citroën', 'Dacia', 'Dodge', 'Fiat', 'Ford', 'Honda', 'Hyundai', 'Kia', 'Lancia', 'Lexus', 'Mazda', 'Mitsubishi', 'Nissan', 'Peugeot', 'Renault', 'Suzuki', 'Tesla', 'Toyota'],
@@ -232,27 +243,21 @@ class ApprovalSeeder extends Seeder
     ];
 
     /**
-     * The makes whose annexes use an MCR4 5 × 112 execution WITHOUT a centring ring. For those cars
-     * the ABE prints its own Mittenloch-ø in the marking `5/112/66,6`, and that figure — not the
-     * 66,5 mm of Motec's catalogue — is what the document states about this wheel on that car
-     * (accuracy-research-motec.md §2.4, "Executions covered" and the annex table: annexes 4, 5, 6
-     * and 7 read "no ring"; §2.5.1 records the two figures and their sources).
+     * The makes for whose cars the ninth demo document states its own Mittenloch-ø in the 5 × 112
+     * execution (a marking such as `5/112/66,6`): for those cars that figure — not the rim's
+     * catalogued 66,5 mm — is what the document says about this wheel on that car, and the product
+     * page shows it (R-06: the document wins).
      *
-     * Audi is deliberately absent although two no-ring annexes name it: the same make also appears
-     * in the ringed annexes (2, 3 and 14), so the document does not say which of the two applies to
-     * a given Audi. Where a document is ambiguous the row states no bore at all, and the storefront
-     * shows the rim's own figure labelled as the rim's (CLAUDE.md §2).
-     *
-     * A ringed annex is never a bore. "Ø66,45 → Ø57,1" is the centring ring's diameter, not the
-     * wheel's Mittenlochbohrung, and seeding it as one would print a figure on the product page
-     * that no document states about the rim.
+     * A make the document leaves ambiguous is absent: where a document does not say which figure
+     * applies, the row states no bore at all, and the storefront shows the rim's own figure labelled
+     * as the rim's (CLAUDE.md §2). A centring ring's diameter is never a bore.
      *
      * @var list<string>
      */
-    public const MOTEC_NO_RING_MAKES = ['BMW', 'Infiniti', 'Mercedes-Benz', 'MINI', 'Ssangyong', 'Toyota'];
+    public const RANGE9_STATED_BORE_MAKES = ['BMW', 'Infiniti', 'Mercedes-Benz', 'MINI', 'Ssangyong', 'Toyota'];
 
-    /** The bore those annexes print for the 5 × 112 executions, in millimetres. */
-    public const MOTEC_NO_RING_BORE_MM = 66.60;
+    /** The bore the ninth document states for those cars in the 5 × 112 execution, in millimetres. */
+    public const RANGE9_STATED_BORE_MM = 66.60;
 
     /**
      * Common car tyre sizes per rim diameter, [width, aspect]: the pool a demo fitment's sizes are
@@ -276,6 +281,11 @@ class ApprovalSeeder extends Seeder
 
     public function run(): void
     {
+        // The example Gutachten belong to the example catalogue: demo, never written to the live shop.
+        if (app()->environment('production')) {
+            return;
+        }
+
         // Guarded on the data rather than on `callOnce`, which Laravel tracks in a process-static
         // array and which therefore lies to the second test of a RefreshDatabase run.
         if (WheelConfig::query()->doesntExist()) {
@@ -308,8 +318,8 @@ class ApprovalSeeder extends Seeder
 
     /**
      * Whether a demo document may pair this wheel with this vehicle: the same factory bolt
-     * pattern, a known hub that fits through the wheel's centre bore, and — for the MCR4 — a make
-     * its ABE names for that pattern. Anything not known answers no.
+     * pattern, a known hub that fits through the wheel's centre bore, and — for the ninth
+     * document — a make it names for that pattern. Anything not known answers no.
      */
     public static function compatible(
         string $make,
@@ -318,7 +328,7 @@ class ApprovalSeeder extends Seeder
         int $boltHoles,
         float $boltCircleMm,
         float $centreBoreMm,
-        bool $motec = false,
+        bool $range9 = false,
     ): bool {
         $factory = self::VEHICLES[$make.'|'.$model.'|'.($type ?? '')] ?? null;
 
@@ -336,15 +346,15 @@ class ApprovalSeeder extends Seeder
         // open a smaller one. The bore compared is the one the document states for THIS car where
         // it states one: the rim's catalogue figure is not the document's claim, and where the two
         // differ the document wins (R-06).
-        if ((self::documentCentreBore($make, $boltCircleMm, $motec) ?? $centreBoreMm) + 0.005 < $hub) {
+        if ((self::documentCentreBore($make, $boltCircleMm, $range9) ?? $centreBoreMm) + 0.005 < $hub) {
             return false;
         }
 
-        if (! $motec) {
+        if (! $range9) {
             return true;
         }
 
-        foreach (self::MOTEC_MAKES[number_format($boltCircleMm, 1, '.', '')] ?? [] as $allowed) {
+        foreach (self::RANGE9_MAKES[number_format($boltCircleMm, 1, '.', '')] ?? [] as $allowed) {
             if (MakeName::same(MakeName::normalise($allowed), MakeName::normalise($make))) {
                 return true;
             }
@@ -358,20 +368,19 @@ class ApprovalSeeder extends Seeder
      * none — which is the common case and the honest one.
      *
      * The bore is a relationship, not a rim attribute (CLAUDE.md §1): the same casting is measured
-     * against the car it was tested on, so the figure belongs on the fitment row. Only the MOTEC
-     * document states one here, and only for the makes its 5 × 112 annexes cover without a centring
-     * ring; every other demo document is silent, and silence is what `fitments.centre_bore_mm`
-     * records as NULL.
+     * against the car it was tested on, so the figure belongs on the fitment row. Only the ninth
+     * document states one here, and only for the makes it lists in its 5 × 112 execution; every
+     * other demo document is silent, and silence is what `fitments.centre_bore_mm` records as NULL.
      */
-    public static function documentCentreBore(string $make, float $boltCircleMm, bool $motec = false): ?float
+    public static function documentCentreBore(string $make, float $boltCircleMm, bool $range9 = false): ?float
     {
-        if (! $motec || abs($boltCircleMm - 112.0) > 0.05) {
+        if (! $range9 || abs($boltCircleMm - 112.0) > 0.05) {
             return null;
         }
 
-        foreach (self::MOTEC_NO_RING_MAKES as $allowed) {
+        foreach (self::RANGE9_STATED_BORE_MAKES as $allowed) {
             if (MakeName::same(MakeName::normalise($allowed), MakeName::normalise($make))) {
-                return self::MOTEC_NO_RING_BORE_MM;
+                return self::RANGE9_STATED_BORE_MM;
             }
         }
 
@@ -442,7 +451,7 @@ class ApprovalSeeder extends Seeder
      *     range6: ApprovalDocument,
      *     range7: ApprovalDocument,
      *     range8: ApprovalDocument,
-     *     motec: ApprovalDocument
+     *     range9: ApprovalDocument
      * }
      */
     private function seedDocuments(): array
@@ -451,9 +460,19 @@ class ApprovalSeeder extends Seeder
 
         foreach (self::DOCUMENTS as $slot => [$reportNumber, $formerNumber, $months, $pages]) {
             $out[$slot] = $this->document($reportNumber, $formerNumber, now()->subMonths($months)->toDateString(), $pages);
+
+            if ($slot === self::WITHOUT_DERATING) {
+                // Only what the seed wrote goes; a table a person typed from a PDF is never touched.
+                $out[$slot]->speedDeratings()->whereNotNull('seeded_from')->delete();
+            } else {
+                $this->seedDerating($out[$slot]);
+            }
         }
 
-        /** @var array{range1: ApprovalDocument, range2: ApprovalDocument, range3: ApprovalDocument, range4: ApprovalDocument, conflicting: ApprovalDocument, range6: ApprovalDocument, range7: ApprovalDocument, range8: ApprovalDocument, motec: ApprovalDocument} $out */
+        // The walkthrough's placeholder document gets the same example table, marked as the demo seed's.
+        PlaceholderTables::seed();
+
+        /** @var array{range1: ApprovalDocument, range2: ApprovalDocument, range3: ApprovalDocument, range4: ApprovalDocument, conflicting: ApprovalDocument, range6: ApprovalDocument, range7: ApprovalDocument, range8: ApprovalDocument, range9: ApprovalDocument} $out */
         return $out;
     }
 
@@ -487,6 +506,41 @@ class ApprovalSeeder extends Seeder
         ])->save();
 
         return $document;
+    }
+
+    /**
+     * An example document carries the usual table of tyre load at speed, as ABE 55255 prints it on page 6 —
+     * example data like the rest of it, and marked as such (`seeded_from`): the record and the shop name the
+     * demo seed, never this document, as its source (the second review of C9, §4). A document holds its own
+     * table (§5 of the first); one that already has rows keeps them.
+     */
+    public static function seedDerating(ApprovalDocument $document): void
+    {
+        if ($document->speedDeratings()->exists()) {
+            return;
+        }
+
+        /** @var array{source_page: int, rows: array<int, array<string, int|null>>} $printed */
+        $printed = require __DIR__.'/content/derating-abe-55255.php';
+        $now = now();
+        $cells = [];
+
+        foreach ($printed['rows'] as $speed => $row) {
+            foreach ($row as $symbol => $percent) {
+                $cells[] = [
+                    'approval_document_id' => $document->id,
+                    'speed_kmh' => $speed,
+                    'symbol' => $symbol,
+                    'percent' => $percent,
+                    'source_page' => null,
+                    'seeded_from' => self::DERATING_SEED,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        DocumentSpeedDerating::query()->insert($cells);
     }
 
     /**
@@ -529,7 +583,7 @@ class ApprovalSeeder extends Seeder
         }
 
         $draft = $slot === 'conflicting';
-        $motec = $slot === 'motec';
+        $range9 = $slot === 'range9';
         $now = now();
 
         // Which rows this document already has, as one query. Written as a bulk insert rather than
@@ -554,7 +608,7 @@ class ApprovalSeeder extends Seeder
                     (int) $config->bolt_holes,
                     (float) $config->bolt_circle_mm,
                     (float) $config->centre_bore_mm,
-                    $motec,
+                    $range9,
                 )) {
                     $matching[] = [$position, $config];
                 }
@@ -601,7 +655,7 @@ class ApprovalSeeder extends Seeder
                     // What THIS document says the bore is on THIS car, or NULL where it says
                     // nothing. Never the rim's own figure copied across: that would turn a
                     // catalogue number into a document's statement.
-                    'centre_bore_mm' => self::documentCentreBore($vehicle->make, (float) $config->bolt_circle_mm, $motec),
+                    'centre_bore_mm' => self::documentCentreBore($vehicle->make, (float) $config->bolt_circle_mm, $range9),
                     'requires_entry' => $requiresEntry,
                     'entry_note_de' => $requiresEntry
                         ? 'Eintragung durch eine amtlich anerkannte Prüfstelle erforderlich.'
@@ -626,7 +680,7 @@ class ApprovalSeeder extends Seeder
             return;
         }
 
-        $this->seedConditions($this->fitmentIds($document->id), $meta, $now);
+        $this->seedConditions($document, $this->fitmentIds($document->id), $meta, $now);
     }
 
     /**
@@ -636,7 +690,7 @@ class ApprovalSeeder extends Seeder
      */
     private function reconcile(ApprovalDocument $document, string $slot): void
     {
-        $motec = $slot === 'motec';
+        $range9 = $slot === 'range9';
         $live = $slot === 'conflicting' ? FitmentStatus::Draft->value : FitmentStatus::Published->value;
         $now = now();
 
@@ -668,7 +722,7 @@ class ApprovalSeeder extends Seeder
                     (int) $row->bolt_holes,
                     (float) $row->bolt_circle_mm,
                     (float) $row->centre_bore_mm,
-                    $motec,
+                    $range9,
                 );
 
             if (! $ok) {
@@ -686,7 +740,7 @@ class ApprovalSeeder extends Seeder
             // A database seeded before the column existed carries NULL on every row; the document's
             // own bore for this car is written here, once, and cleared again where the document
             // turns out to state none.
-            $stated = self::documentCentreBore((string) $row->make, (float) $row->bolt_circle_mm, $motec);
+            $stated = self::documentCentreBore((string) $row->make, (float) $row->bolt_circle_mm, $range9);
             $current = $row->stated_bore_mm === null ? null : (float) $row->stated_bore_mm;
 
             if ($stated !== $current) {
@@ -797,12 +851,26 @@ class ApprovalSeeder extends Seeder
     }
 
     /**
+     * The demo document's own Auflagenverzeichnis, and its rows' codes. A demo document prints three codes,
+     * with the sentences the old starter catalogue used; a real document brings its own list, entered by a
+     * person from its PDF (DocumentConditions).
+     *
      * @param  array<string, int>  $ids
      * @param  array<string, array{entry: bool, offset: int}>  $meta
      */
-    private function seedConditions(array $ids, array $meta, \DateTimeInterface $now): void
+    private function seedConditions(ApprovalDocument $document, array $ids, array $meta, \DateTimeInterface $now): void
     {
-        $codes = $this->conditionCodes();
+        foreach (self::DEMO_CONDITIONS as $code => [$kind, $text]) {
+            DB::table('document_conditions')->insertOrIgnore([
+                'approval_document_id' => $document->id,
+                'code' => $code,
+                'kind' => $kind,
+                'text_de' => $text,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
         $rows = [];
 
         foreach ($meta as $key => $row) {
@@ -812,24 +880,24 @@ class ApprovalSeeder extends Seeder
 
             $attach = [];
 
-            if ($row['entry'] && $codes['entry'] !== null) {
-                $attach[$codes['entry']->id] = null;
+            if ($row['entry']) {
+                $attach['A01'] = null;
             }
 
             // A share of fitments carries conditions, which is what the Auflagen panel and the
             // amber CONDITIONAL verdict exist for.
-            if ($row['offset'] % 3 === 0 && $codes['bolts'] !== null) {
-                $attach[$codes['bolts']->id] = null;
+            if ($row['offset'] % 3 === 0) {
+                $attach['S01'] = null;
             }
 
-            if ($row['offset'] % 5 === 2 && $codes['arch'] !== null) {
-                $attach[$codes['arch']->id] = 'Nur an der Hinterachse.';
+            if ($row['offset'] % 5 === 2) {
+                $attach['K1'] = 'Nur an der Hinterachse.';
             }
 
-            foreach ($attach as $conditionCodeId => $note) {
+            foreach ($attach as $code => $note) {
                 $rows[] = [
                     'fitment_id' => $ids[$key],
-                    'condition_code_id' => $conditionCodeId,
+                    'code' => $code,
                     'note_de' => $note,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -842,15 +910,12 @@ class ApprovalSeeder extends Seeder
         }
     }
 
-    /** @return array<string, ConditionCode|null> */
-    private function conditionCodes(): array
-    {
-        return [
-            'entry' => ConditionCode::query()->where('code', 'ENTRY_REQUIRED')->first(),
-            'bolts' => ConditionCode::query()->where('code', 'SPECIFIC_BOLTS')->first(),
-            'arch' => ConditionCode::query()->where('code', 'ARCH_ROLLING')->first(),
-        ];
-    }
+    /** @var array<string, array{0: string, 1: string}> code => [kind, sentence] */
+    private const DEMO_CONDITIONS = [
+        'A01' => ['abnahme', 'Eintragung in die Fahrzeugpapiere erforderlich.'],
+        'S01' => ['befestigung', 'Nur mit den angegebenen Radschrauben zulässig.'],
+        'K1' => ['karosseriearbeit', 'Bördeln der Radläufe erforderlich.'],
+    ];
 
     /**
      * The disagreement, recorded as a row with a status rather than announced and forgotten.

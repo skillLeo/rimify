@@ -110,12 +110,34 @@ describe('RDKS-Sensorpreise je Marke', () => {
             'Wir merken uns die Marke als volkswagen – so finden wir sie auch bei anderer Schreibweise wieder.'
         )
         expect(rows[0]!.text()).toContain('49,00 €')
-        expect(rows[0]!.find('.tag').text()).toBe('Aktiv')
+        // The normal state is plain text; only the exception wears a tag.
+        expect(rows[0]!.find('.adm-tag').exists()).toBe(false)
+        expect(rows[0]!.find('[data-label="Aktiv"]').text()).toBe('Aktiv')
         expect(rows[1]!.text()).toContain('189,00 €')
-        expect(rows[1]!.find('.tag').text()).toBe('Inaktiv')
+        expect(rows[1]!.find('.adm-tag.adm-tag--neutral').text()).toBe('Inaktiv')
         // The cents travel as data and are never printed or multiplied here.
         expect(wrapper.text()).not.toContain('4900')
         expect(wrapper.text()).not.toContain('196,00')
+    })
+
+    it('has one primary action, and every save button says what it saves', async () => {
+        const wrapper = mountPage()
+        const primaries = wrapper.findAll('.btn--primary')
+
+        expect(primaries).toHaveLength(1)
+        expect(primaries[0]!.text()).toBe('Preis anlegen')
+
+        const fallback = wrapper.find('form.rd__form--default button[type="submit"]')
+        expect(fallback.text()).toBe('Standardpreis speichern')
+        expect(fallback.classes()).toContain('btn--secondary')
+        expect(wrapper.text()).toContain('Preis je Sensor, mit Komma – zum Beispiel 15,00.')
+
+        // The forms sit on the page, not in a card.
+        expect(wrapper.find('form.adm-panel').exists()).toBe(false)
+
+        await button(wrapper, 'Bearbeiten')!.trigger('click')
+
+        expect(wrapper.find('.btn--primary').text()).toBe('Änderungen speichern')
     })
 
     it('names the consequence when no price exists and offers the makes of the vehicle table', () => {
@@ -141,14 +163,14 @@ describe('RDKS-Sensorpreise je Marke', () => {
     it('posts a new price as typed, without touching the money string', async () => {
         const wrapper = mountPage()
 
-        expect(wrapper.text()).toContain('Preis in Euro, deutsch geschrieben – zum Beispiel 49,00.')
+        expect(wrapper.text()).toContain('Preis in Euro, mit Komma – zum Beispiel 49,00.')
 
         await wrapper.find('#rd-make').setValue('Porsche')
         await wrapper.find('#rd-price').setValue('189,00')
         await priceForm(wrapper).trigger('submit')
 
         expect(router.post).toHaveBeenCalledWith(
-            '/admin/rdks-preise',
+            '/admin/zubehoerpreise/rdks',
             { make: 'Porsche', price: '189,00', active: true },
             expect.objectContaining({ preserveScroll: true })
         )
@@ -169,7 +191,7 @@ describe('RDKS-Sensorpreise je Marke', () => {
         await priceForm(wrapper).trigger('submit')
 
         expect(router.patch).toHaveBeenCalledWith(
-            '/admin/rdks-preise/7',
+            '/admin/zubehoerpreise/rdks/7',
             { make: 'Volkswagen', price: '59,00', active: true },
             expect.objectContaining({ preserveScroll: true })
         )
@@ -181,21 +203,29 @@ describe('RDKS-Sensorpreise je Marke', () => {
         expect((wrapper.find('#rd-make').element as HTMLInputElement).value).toBe('')
     })
 
-    it('asks before deleting and only then sends the request', async () => {
-        const wrapper = mountPage()
+    it('asks before deleting, naming the make and what the checkout then does, and only then sends the request', async () => {
+        const wrapper = mountPage({ default: { cents: null, typed: '' } })
 
         expect(wrapper.find('.dialog-stub').exists()).toBe(false)
 
         await button(wrapper, 'Löschen')!.trigger('click')
 
-        expect(wrapper.find('.dialog-stub').text()).toContain(
-            'Preis wirklich löschen? An der Kasse können wir für diese Marke dann keine Sensoren mehr berechnen.'
-        )
+        const dialog = wrapper.find('.dialog-stub')
+        expect(dialog.find('h3').text()).toBe('Preis für Volkswagen löschen?')
+        expect(dialog.text()).toContain('An der Kasse können wir für diese Marke dann keine Sensoren mehr berechnen.')
         expect(router.delete).not.toHaveBeenCalled()
 
-        await wrapper.find('.rd__confirm').trigger('click')
+        await dialog.find('.adm-btn--danger').trigger('click')
 
-        expect(router.delete).toHaveBeenCalledWith('/admin/rdks-preise/7', expect.objectContaining({ preserveScroll: true }))
+        expect(router.delete).toHaveBeenCalledWith('/admin/zubehoerpreise/rdks/7', expect.objectContaining({ preserveScroll: true }))
+    })
+
+    it('says the default price takes over when one is set', async () => {
+        const wrapper = mountPage({ default: { cents: 1500, typed: '15,00 €' } })
+
+        await button(wrapper, 'Löschen')!.trigger('click')
+
+        expect(wrapper.find('.dialog-stub').text()).toContain('An der Kasse gilt für diese Marke dann der Standardpreis von 15,00 € je Sensor.')
     })
 
     it('shows the server\'s message under the field it belongs to', async () => {

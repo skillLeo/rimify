@@ -2,66 +2,94 @@
 
 declare(strict_types=1);
 
-// The demo wheels' photographs: which picture stands for which finish, where the wheel is in it,
-// and who took it. Data only — `wheels:process-images` renders from it and CatalogueSeeder attaches
-// the results; docs/image-credits.md is written from the same credits.
+// The wheels' photographs: which picture stands for which finish, where the wheel is in it, and who
+// took it. Data only — `wheels:process-images` renders from it, and CatalogueSeeder and
+// GoldenRecordSeeder attach the results; docs/image-credits.md is written from the same credits.
 //
-// A real brand or model name appears only on a photograph of that exact product
-// (docs/phase0/ACCURACY.md D1). So only the client's own studio shots of the MOTEC MCR4 Ultimate
-// remain. Every free-licence photograph is retired — each showed another maker's wheel on a car,
-// brake disc included — and its credit is kept under "Retired" in docs/image-credits.md. A finish
-// without a photograph draws the line-art outline.
+// Real products only (the review release §2 and CLAUDE.md, "Placeholder imagery"): example data never
+// carries a maker's photograph, and a real product carries only its own. The entries are the four
+// official Borbet DB8GT2 pictures the client sent on 27.09.2026 (matt black and matt bronze, from the
+// front and at an angle), licensed to the client for selling the wheel. The MOTEC studio shots stay in
+// client-photos/ for the day that product comes back.
 //
-// Keyed by the file name. Studio shots the client supplies (`credit.source` = `Kunde`, files named
-// `client-…`) live in database/seeders/content/client-photos/ — they have no public URL to fetch
-// them from — and come with a `mask`: a grey image of the background-removal service's alpha, next
-// to the photograph. `slug` names the output directory under storage/app/public/demo/wheels/ and is
-// `<model slug>-<finish>`. `hub` is null: the cap carries the product brand's own mark and is left
-// as photographed. `colour` is `none`: a studio shot has no daylight cast to correct. An entry with
-// a `view` is a further angle of a finish that already has its front view, and is attached to it as
-// a labelled thumbnail.
+// Keyed by the file name. Client studio shots (`credit.source` = `Kunde`, files named `client-…`) live
+// in database/seeders/content/client-photos/ with a `mask` beside each: a grey image of the wheel's
+// silhouette, cut from the white studio background (the barrel seen through the spokes stays in).
+// `slug` names the output directory and is `<model slug>-<finish>`. `hub` is null: the cap carries
+// Borbet's own mark and is left as photographed. `colour` is `none`: a studio shot has no daylight
+// cast to correct. An entry with a `view` is a further angle of a finish that already has its front
+// view, and is attached to it as a labelled thumbnail.
 //
-// `anchors` are measured on the front shot, in source pixels (1080 × 1080): `centre` [x, y]; `pcd`
-// [x, y, r], r the radius through the bolt-hole centres; `bore` [x, y, r], the cap covering the
-// centre bore; `valve` [x, y]; `kba` [x, y, width, height], the stamped approval mark. The `wheel`
-// anchor (the outer lip) is not typed in: scripts/wheel-image.mjs derives it from the mask. `stamp`
-// is the approval number the photograph shows (ABE 53810 → 8,5J × 19).
+// `anchors` are measured on the front shots, in source pixels (1080 × 1080): `centre` [x, y], the
+// centre of the bolt circle; `wheel` [x, y, r], the front Felgenhorn's outer edge (typed in: the
+// mask's box would include the barrel the angle shows on the right); `pcd` [x, y, r], r the radius
+// through the bolt-hole centres; `bore` [x, y, r], the cap covering the centre bore; `valve` [x, y];
+// `kba` [x, y, width, height], the stamped approval mark on the inner lip; `bead` [x, y, height], the
+// diameter at the bead seat as a vertical line — the Felgenhorn's outer edge less its 17,5 mm height
+// (ETRTO, J flange) top and bottom, at the photograph's own scale; `flanges` [x, y, width], the barrel
+// between the two Felgenhörner where the photograph shows it, on the right. `stamp` is the approval
+// number on the wheel:
+// "KBA 53841", legible on both angle shots of the same wheels (docs/review/DATA-CONFLICTS.md, conflict
+// 4) — the 18-inch approval, so the hero states the 18-inch configuration's values.
 return [
-    'client-motec-mcr4-ultimate-front.jpg' => [
-        'slug' => 'motec-mcr4-ultimate-light-grey',
-        'model' => 'motec-mcr4-ultimate',
-        'finish' => 'Light Grey D5',
-        'mask' => 'client-motec-mcr4-ultimate-front.mask.png',
+    'client-borbet-db8gt2-bronze-front.jpg' => [
+        'slug' => 'borbet-db8gt2-bronze-matt',
+        'model' => 'borbet-db8gt2',
+        'finish' => 'Bronze matt',
+        'mask' => 'client-borbet-db8gt2-bronze-front.mask.png',
         'hub' => null,
         'colour' => 'none',
         'anchors' => [
-            'centre' => [539, 534],
-            'pcd' => [539, 534, 108],
-            'bore' => [540, 537, 70],
-            'valve' => [537, 972],
-            'kba' => [540, 1013, 88, 18],
+            'centre' => [523, 535],
+            'wheel' => [498, 540, 513],
+            'pcd' => [523, 535, 109],
+            'bore' => [507, 540, 66],
+            'valve' => [508, 979],
+            'kba' => [158, 746, 48, 78],
+            'bead' => [498, 540, 954],
+            'flanges' => [1006, 540, 48],
         ],
-        'stamp' => '53810',
-        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
+        'stamp' => '53841',
+        'credit' => ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
     ],
-    'client-motec-mcr4-ultimate-angle.jpg' => [
-        'slug' => 'motec-mcr4-ultimate-light-grey-schraeg',
-        'model' => 'motec-mcr4-ultimate',
-        'finish' => 'Light Grey D5',
+    'client-borbet-db8gt2-bronze-angle.jpg' => [
+        'slug' => 'borbet-db8gt2-bronze-matt-schraeg',
+        'model' => 'borbet-db8gt2',
+        'finish' => 'Bronze matt',
         'view' => 'Schräg von vorn',
-        'mask' => 'client-motec-mcr4-ultimate-angle.mask.png',
+        'mask' => 'client-borbet-db8gt2-bronze-angle.mask.png',
         'hub' => null,
         'colour' => 'none',
-        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
+        'credit' => ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
     ],
-    'client-motec-mcr4-ultimate-rear.jpg' => [
-        'slug' => 'motec-mcr4-ultimate-light-grey-hinten',
-        'model' => 'motec-mcr4-ultimate',
-        'finish' => 'Light Grey D5',
-        'view' => 'Schräg von hinten',
-        'mask' => 'client-motec-mcr4-ultimate-rear.mask.png',
+    'client-borbet-db8gt2-schwarz-front.jpg' => [
+        'slug' => 'borbet-db8gt2-schwarz-matt',
+        'model' => 'borbet-db8gt2',
+        'finish' => 'Schwarz matt',
+        'mask' => 'client-borbet-db8gt2-schwarz-front.mask.png',
         'hub' => null,
         'colour' => 'none',
-        'credit' => ['source' => 'Kunde', 'photographer' => 'MOTEC (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
+        'anchors' => [
+            'centre' => [526, 533],
+            'wheel' => [504, 540, 523],
+            'pcd' => [526, 533, 107],
+            'bore' => [508, 539, 67],
+            'valve' => [509, 989],
+            'kba' => [156, 748, 56, 75],
+            'bead' => [504, 540, 971],
+            'flanges' => [1024, 540, 42],
+        ],
+        'stamp' => '53841',
+        'credit' => ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
+    ],
+    'client-borbet-db8gt2-schwarz-angle.jpg' => [
+        'slug' => 'borbet-db8gt2-schwarz-matt-schraeg',
+        'model' => 'borbet-db8gt2',
+        'finish' => 'Schwarz matt',
+        'view' => 'Schräg von vorn',
+        'mask' => 'client-borbet-db8gt2-schwarz-angle.mask.png',
+        'hub' => null,
+        'colour' => 'none',
+        'credit' => ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
     ],
 ];

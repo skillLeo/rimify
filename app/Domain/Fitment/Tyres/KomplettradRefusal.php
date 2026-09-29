@@ -18,6 +18,10 @@ enum KomplettradRefusal: string
     case NoVehicle = 'NO_VEHICLE';
     case VerdictNotPermitted = 'VERDICT_NOT_PERMITTED';
     case VerdictUnknown = 'VERDICT_UNKNOWN';
+    /** The wheel is approved, the tyres are not settled (R-03 split): never „kein Gutachten“ about a car the document names. */
+    case TyresUnknown = 'TYRES_UNKNOWN';
+    /** The wheel is approved, no tyre the document names may go on the car. */
+    case TyresNotPermitted = 'TYRES_NOT_PERMITTED';
     case VerdictRestored = 'VERDICT_RESTORED';
     case NoPermittedSizes = 'NO_PERMITTED_SIZES';
     case NoUsableMinimum = 'NO_USABLE_MINIMUM';
@@ -35,6 +39,8 @@ enum KomplettradRefusal: string
             self::NoVehicle => 'Für ein Komplettrad brauchen wir zuerst dein Fahrzeug – erst dann wissen wir, welche Reifengrößen für dich freigegeben sind.',
             self::VerdictNotPermitted => 'Diese Felge ist für dein Fahrzeug nicht freigegeben. Ein Komplettrad können wir dir dazu deshalb nicht anbieten.',
             self::VerdictUnknown => 'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
+            self::TyresUnknown => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
+            self::TyresNotPermitted => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Ein Komplettrad können wir dir deshalb nicht anbieten.',
             self::VerdictRestored => 'Diese Zusammenstellung können wir dir gerade nicht neu prüfen. Bitte wähl dein Fahrzeug noch einmal aus.',
             self::NoPermittedSizes => 'Für diese Kombination nennt das Gutachten keine Reifengröße. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
             self::NoUsableMinimum => 'Für dein Fahrzeug fehlen uns Achslast oder Höchstgeschwindigkeit. Ohne diese Werte sagen wir dir nicht, welcher Reifen passt – die Felge allein kannst du bestellen.',

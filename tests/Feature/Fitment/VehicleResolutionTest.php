@@ -8,6 +8,7 @@ use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Exceptions\ReferenceDataMissing;
 use App\Domain\Fitment\Infrastructure\EloquentVehicleRepository;
+use App\Domain\Fitment\Infrastructure\PapersVehicleRepository;
 use App\Domain\Fitment\Resolver\VehicleDisambiguator;
 use App\Domain\Fitment\Resolver\VehicleResolver;
 use App\Models\Vehicle;
@@ -26,9 +27,14 @@ beforeEach(function (): void {
     $this->resolver = new VehicleResolver(app(VehicleRepository::class));
 });
 
-it('binds the engine contracts to their Eloquent implementations', function (): void {
-    expect(app(VehicleRepository::class))
-        ->toBeInstanceOf(EloquentVehicleRepository::class);
+it('binds the engine contracts to their Eloquent implementations, with the customer’s own figures laid over them', function (): void {
+    // Every surface reads the car through the one repository, and so through the figures from the papers (C10).
+    expect(app(VehicleRepository::class))->toBeInstanceOf(PapersVehicleRepository::class);
+
+    $vehicle = Vehicle::factory()->create();
+
+    // No figures typed: exactly the Eloquent record.
+    expect(app(VehicleRepository::class)->find($vehicle->id))->toEqual(EloquentVehicleRepository::toRecord($vehicle->fresh() ?? $vehicle));
 });
 
 it('resolves 1860/AAS to two vehicles from the database', function (): void {

@@ -26,6 +26,19 @@ final readonly class DocumentRecord
         public ?string $pdfSha256 = null,
         public ?int $sourcePage = null,
         public ?string $issuer = null,
+        /**
+         * Full sentences about the document itself, shown wherever it is named (the corrections memo
+         * §4): a Nachtrag whose base we do not hold, the month a wheel must be made from.
+         *
+         * @var list<string>
+         */
+        public array $notesDe = [],
+        /**
+         * The document's own table of tyre load at speed; null when it prints none — then above 210 km/h
+         * its tyre answer is UNKNOWN, never borrowed from another document. Not frozen onto a snapshot: the
+         * sum it produced is, in the verdict's tyre lines.
+         */
+        public ?SpeedDeratingTable $speedDerating = null,
     ) {}
 
     /**
@@ -46,13 +59,16 @@ final readonly class DocumentRecord
             'pdfUrl' => $this->pdfKey,
             'pdfSha256' => $this->pdfSha256,
             'sourcePage' => $this->sourcePage,
+            // Additive, and only where there is something to say.
+            ...($this->notesDe === [] ? [] : ['notes' => $this->notesDe]),
         ];
     }
 
     /**
      * @param array{
      *     id: string|int, kind: string, number: string|null, revision: int,
-     *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null
+     *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
+     *     notes?: list<string>
      * } $data
      */
     public static function fromArray(array $data): self
@@ -68,6 +84,7 @@ final readonly class DocumentRecord
             pdfKey: $data['pdfUrl'] ?? null,
             pdfSha256: $data['pdfSha256'] ?? null,
             sourcePage: $data['sourcePage'] ?? null,
+            notesDe: $data['notes'] ?? [],
         );
     }
 }

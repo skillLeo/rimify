@@ -31,11 +31,13 @@ it('carries a full German sentence for every refusal, naming no code and no cont
         ->and($sentence)->not->toMatch('/\b(Sie|Ihr|Ihre|Ihrem|Ihren|Ihnen)\b/u');
 })->with($everyCase);
 
-it('has exactly the thirteen cases the specification names, in its order', function (): void {
+it('has exactly the fifteen cases — the specification’s thirteen and the two halves of R-03 — in its order', function (): void {
     expect(KomplettradRefusal::values())->toBe([
         'NO_VEHICLE',
         'VERDICT_NOT_PERMITTED',
         'VERDICT_UNKNOWN',
+        'TYRES_UNKNOWN',
+        'TYRES_NOT_PERMITTED',
         'VERDICT_RESTORED',
         'NO_PERMITTED_SIZES',
         'NO_USABLE_MINIMUM',
@@ -46,7 +48,17 @@ it('has exactly the thirteen cases the specification names, in its order', funct
         'BELOW_MINIMUM',
         'OUT_OF_STOCK',
         'NO_TYRE_AVAILABLE',
-    ])->and(KomplettradRefusal::cases())->toHaveCount(13);
+    ])->and(KomplettradRefusal::cases())->toHaveCount(15);
+});
+
+it('never says „kein Gutachten“ when the wheel is approved and only the tyres are open (R-03 split)', function (): void {
+    foreach ([KomplettradRefusal::TyresUnknown, KomplettradRefusal::TyresNotPermitted] as $tyres) {
+        expect($tyres->sentenceDe())->toContain('Die Felge ist für dein Fahrzeug freigegeben')
+            ->and($tyres->sentenceDe())->not->toContain('kein Gutachten');
+    }
+
+    expect(KomplettradRefusal::TyresUnknown->sentenceDe())->toContain('nicht bestätigen')
+        ->and(KomplettradRefusal::TyresUnknown->sentenceDe())->toContain('schreib uns');
 });
 
 it('keeps UNKNOWN apart from NOT_PERMITTED — R-07', function (): void {

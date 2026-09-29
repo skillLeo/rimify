@@ -19,6 +19,7 @@ import {
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import { resolveHref, useMenus, useShared } from '../../composables/useShared'
+import { formatNumber } from '../../lib/num'
 
 const shared = useShared()
 const menus = useMenus()
@@ -63,7 +64,7 @@ const mega = computed(() => shared.value.mega)
                                         <NavigationMenuLink as-child>
                                             <Link :href="size.href" class="mega__link" prefetch>
                                                 <span class="num">{{ size.label }}</span>
-                                                <span class="small quiet num">{{ size.count }} {{ size.count === 1 ? 'Modell' : 'Modelle' }}</span>
+                                                <span class="small quiet num">{{ formatNumber(size.count ?? 0) }} {{ size.count === 1 ? 'Modell' : 'Modelle' }}</span>
                                             </Link>
                                         </NavigationMenuLink>
                                     </li>

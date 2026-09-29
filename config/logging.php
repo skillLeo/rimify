@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Logging\RedactSecrets;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -61,6 +62,7 @@ return [
         ],
 
         'single' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -68,6 +70,7 @@ return [
         ],
 
         'daily' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -75,7 +78,19 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // The slow query log (SlowQueries): the statement without its values — no customer data —
+        // its time and the page that ran it. The shared host keeps no database slow log of its own.
+        'slow_queries' => [
+            'tap' => [RedactSecrets::class],
+            'driver' => 'daily',
+            'path' => storage_path('logs/slow-queries.log'),
+            'level' => 'warning',
+            'max_files' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'monthly' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'monthly',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -84,6 +99,7 @@ return [
         ],
 
         'slack' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
             'username' => env('LOG_SLACK_USERNAME', env('APP_NAME', 'Laravel')),
@@ -93,6 +109,7 @@ return [
         ],
 
         'papertrail' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => env('LOG_PAPERTRAIL_HANDLER', SyslogUdpHandler::class),
@@ -105,6 +122,7 @@ return [
         ],
 
         'stderr' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
@@ -116,6 +134,7 @@ return [
         ],
 
         'syslog' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
@@ -123,6 +142,7 @@ return [
         ],
 
         'errorlog' => [
+            'tap' => [RedactSecrets::class],
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,

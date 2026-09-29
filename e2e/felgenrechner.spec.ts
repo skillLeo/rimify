@@ -1,5 +1,9 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './fixtures';
 import { consentGiven, expectNoHorizontalOverflow, open } from './support';
+import { SHOP } from './shop';
+
+// A storefront spec: the shop with wheels in it (e2e/shop.ts).
+test.use({ baseURL: SHOP });
 
 /*
  * /felgenrechner's rear view (ACCURACY.md §6, brief W6), measured in the browser on both documents:
@@ -258,6 +262,9 @@ test.describe('Felgenrechner rear view', () => {
 
             for (const width of ALSO_AT[info.project.name] ?? []) {
                 await page.setViewportSize({ width, height: viewport?.height ?? 900 });
+                // The drawing places its labels after the resize, on the next frames: measured then, not
+                // in between (under load the in-between state was measured once as an overlap).
+                await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
                 await expectLabelsApart(page, `${info.project.name} at ${width}`);
             }
         });
@@ -283,7 +290,8 @@ test.describe('Felgenrechner rear view', () => {
             await expect(select).toHaveAttribute('translate', 'no');
         }
 
-        await expect(page.locator('[data-result="lage"] [translate="no"]').first()).toHaveText(/^23\smm$/);
+        // A value's surrounding spaces live inside its span since 94418abf — a translator trims a span's edges.
+        await expect(page.locator('[data-result="lage"] [translate="no"]').first()).toHaveText(/^\s?23\smm\s?$/);
     });
 
     test('says in one sentence that a tyre and its rim do not belong together, and draws and prints nothing for it', async ({ page }) => {

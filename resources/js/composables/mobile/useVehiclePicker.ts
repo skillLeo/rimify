@@ -23,6 +23,9 @@ export interface VariantRow {
     buildWindow: string
     powerPs: number | null
     needsReview: boolean
+    /** Feld K, for a car without key numbers (GermanFormat::egRange); `approvalShort` its range alone, for the select. */
+    approval?: string | null
+    approvalShort?: string | null
 }
 
 export type CountState =

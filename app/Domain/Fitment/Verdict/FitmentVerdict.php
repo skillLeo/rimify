@@ -67,7 +67,62 @@ final readonly class FitmentVerdict
          * input to a fresh decision, and `TyreEligibility` refuses it outright.
          */
         public bool $restored = false,
+        /**
+         * Every document the answer rests on, the newest first (the corrections memo §3). One document
+         * alone: just `$document`. Several that agree, or that a person decided both stand: each named.
+         * Empty means `$document` alone.
+         *
+         * @var list<DocumentRecord>
+         */
+        public array $documents = [],
+        /**
+         * The two halves `status` is the weaker of (R-03 as amended on 28.09.2026): the wheel, from the
+         * document alone, and the tyres, from the car's axle loads and top speed. Null on a negative
+         * verdict and on a snapshot frozen before the split.
+         */
+        public ?VerdictStatus $wheelStatus = null,
+        public ?TyreCheck $tyre = null,
+        /**
+         * What of the car the answer waits for (the operator's last prompt §1.1): `bodyForm`, `driveAxle` — the
+         * document narrows by it and the car does not have it. Only on UNKNOWN, so the customer is asked for
+         * exactly that: „Für dieses Fahrzeug fehlt die Karosserieform. Trag sie ein und wir prüfen sofort.“
+         *
+         * @var list<string>
+         */
+        public array $missingFacts = [],
     ) {}
+
+    /**
+     * This verdict, naming every document it rests on — newest first, the first being `$document`.
+     *
+     * @param  list<DocumentRecord>  $documents
+     */
+    public function withDocuments(array $documents): self
+    {
+        return new self(
+            status: $this->status,
+            vehicle: $this->vehicle,
+            wheel: $this->wheel,
+            document: $documents[0] ?? $this->document,
+            requiresEntry: $this->requiresEntry,
+            entryNoteDe: $this->entryNoteDe,
+            conditions: $this->conditions,
+            front: $this->front,
+            rear: $this->rear,
+            reason: $this->reason,
+            snapshot: $this->snapshot,
+            documentCentreBoreMm: $this->documentCentreBoreMm,
+            centreBoreSource: $this->centreBoreSource,
+            vehicleLabel: $this->vehicleLabel,
+            buildWindowLabel: $this->buildWindowLabel,
+            wheelLabel: $this->wheelLabel,
+            restored: $this->restored,
+            documents: count($documents) > 1 ? $documents : [],
+            wheelStatus: $this->wheelStatus,
+            tyre: $this->tyre,
+            missingFacts: $this->missingFacts,
+        );
+    }
 
     /** `SAME` unless the permitted sizes actually differ between the axles. */
     public function tyreLayout(): string
@@ -119,6 +174,13 @@ final readonly class FitmentVerdict
                 'maxSpeedKmh' => $this->vehicle->maxSpeedKmh,
                 'axleLoadFrontKg' => $this->vehicle->axleLoadFrontKg,
                 'axleLoadRearKg' => $this->vehicle->axleLoadRearKg,
+                // Additive: the body style and drive the answer was given for, and where each came from — the
+                // vehicle data (null), the owner (`customer`) or a word of the name (`name`). A wrong answer
+                // can always be traced to the assumption that produced it.
+                'bodyForm' => $this->vehicle->bodyForm,
+                'bodyFormSource' => $this->vehicle->bodyForm === null ? null : $this->vehicle->bodyFormSource,
+                'driveAxle' => $this->vehicle->driveAxle,
+                'driveAxleSource' => $this->vehicle->driveAxle === null ? null : $this->vehicle->driveAxleSource,
             ],
             'wheel' => $this->wheel === null ? null : [
                 'configId' => (string) $this->wheel->id,
@@ -128,6 +190,8 @@ final readonly class FitmentVerdict
                 'etMm' => $this->wheel->etMm,
             ],
             'document' => $this->document?->toArray(),
+            // Additive: several documents the answer rests on, the newest first; absent for one.
+            ...($this->documents === [] ? [] : ['documents' => array_map(static fn (DocumentRecord $d): array => $d->toArray(), $this->documents)]),
             'requiresEntry' => $this->requiresEntry,
             'entryNoteDe' => $this->entryNoteDe,
             // Additive, like the tyre-size keys before them: a snapshot written without these two
@@ -142,6 +206,11 @@ final readonly class FitmentVerdict
             ],
             'reason' => $this->reason?->toArray(),
             'snapshot' => $this->snapshot->toArray(),
+            // Additive: the two halves; a snapshot written before the split has neither.
+            ...($this->wheelStatus === null ? [] : ['wheelStatus' => $this->wheelStatus->value]),
+            ...($this->tyre === null ? [] : ['tyreCheck' => $this->tyre->toArray()]),
+            // Additive: what of the car an UNKNOWN answer waits for.
+            ...($this->missingFacts === [] ? [] : ['missingFacts' => $this->missingFacts]),
         ];
     }
 
@@ -163,8 +232,9 @@ final readonly class FitmentVerdict
 
         $vehicle = new VehicleRecord(
             id: (int) $vehicleData['id'],
-            hsn: (string) $vehicleData['hsn'],
-            tsn: (string) $vehicleData['tsn'],
+            // A car from a Gutachten has no key numbers yet: its snapshot reads back without them, never as ''.
+            hsn: isset($vehicleData['hsn']) ? (string) $vehicleData['hsn'] : null,
+            tsn: isset($vehicleData['tsn']) ? (string) $vehicleData['tsn'] : null,
             vsn: $vehicleData['vsn'] === null ? null : (string) $vehicleData['vsn'],
             make: '',
             model: '',
@@ -174,6 +244,11 @@ final readonly class FitmentVerdict
             axleLoadFrontKg: $vehicleData['axleLoadFrontKg'] === null ? null : (int) $vehicleData['axleLoadFrontKg'],
             axleLoadRearKg: $vehicleData['axleLoadRearKg'] === null ? null : (int) $vehicleData['axleLoadRearKg'],
             maxSpeedKmh: $vehicleData['maxSpeedKmh'] === null ? null : (int) $vehicleData['maxSpeedKmh'],
+            // A snapshot written before these were carried reads back without them.
+            bodyForm: is_string($vehicleData['bodyForm'] ?? null) ? $vehicleData['bodyForm'] : null,
+            driveAxle: is_string($vehicleData['driveAxle'] ?? null) ? $vehicleData['driveAxle'] : null,
+            bodyFormSource: is_string($vehicleData['bodyFormSource'] ?? null) ? $vehicleData['bodyFormSource'] : null,
+            driveAxleSource: is_string($vehicleData['driveAxleSource'] ?? null) ? $vehicleData['driveAxleSource'] : null,
         );
 
         $wheel = $wheelData === null ? null : new WheelConfigRecord(
@@ -225,12 +300,24 @@ final readonly class FitmentVerdict
             wheelLabel: $wheelData === null ? null : (string) $wheelData['label'],
             // The only construction site that passes true.
             restored: true,
+            documents: array_values(array_map(
+                static fn (mixed $d): DocumentRecord => DocumentRecord::fromArray((array) $d),
+                is_array($data['documents'] ?? null) ? $data['documents'] : [],
+            )),
+            wheelStatus: isset($data['wheelStatus']) ? VerdictStatus::tryFrom((string) $data['wheelStatus']) : null,
+            tyre: is_array($data['tyreCheck'] ?? null) ? TyreCheck::fromArray($data['tyreCheck']) : null,
+            missingFacts: array_values(array_filter(
+                is_array($data['missingFacts'] ?? null) ? $data['missingFacts'] : [],
+                static fn (mixed $fact): bool => is_string($fact),
+            )),
         );
     }
 
     /**
      * The shape every negative answer takes. Kept as one constructor so a new failure path cannot
      * accidentally produce a verdict that looks positive because a field was forgotten.
+     *
+     * @param  list<string>  $missingFacts
      */
     public static function negative(
         VerdictStatus $status,
@@ -240,6 +327,7 @@ final readonly class FitmentVerdict
         DateTimeImmutable $computedAt,
         string $engineVersion,
         ?DocumentRecord $document = null,
+        array $missingFacts = [],
     ): self {
         return new self(
             status: $status,
@@ -255,6 +343,7 @@ final readonly class FitmentVerdict
             rear: AxleRequirement::none(),
             reason: $reason,
             snapshot: new VerdictSnapshot(null, $document?->revision, $computedAt, $engineVersion),
+            missingFacts: $missingFacts,
         );
     }
 }

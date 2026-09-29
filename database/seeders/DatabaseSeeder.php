@@ -17,7 +17,8 @@ use Illuminate\Database\Seeder;
  *
  * The orders are demonstration data and are seeded only in the local and testing environments:
  * on any other database an invented order with an invented tracking number would read as a real
- * one (ACCURACY.md §7).
+ * one (ACCURACY.md §7). The example catalogue and its Gutachten are demo too: never in production
+ * (the seeders refuse it themselves; `demo:purge` takes them away where they are).
  *
  * Every seeder below is idempotent, so this can be re-run against a populated database without
  * duplicating a row — which matters because the one table that must never be rewritten,
@@ -37,6 +38,12 @@ class DatabaseSeeder extends Seeder
             BrandLogoSeeder::class,
             ApprovalSeeder::class,
         ]);
+
+        // The golden record's wheel, a real product (a draft until priced) and the hero's wheel. Not in
+        // the test database, whose storefront tests count the seeded shop and choose their own hero.
+        if (! app()->environment('testing')) {
+            $this->call(GoldenRecordSeeder::class);
+        }
 
         if (app()->environment(['local', 'testing'])) {
             $this->call(CommerceSeeder::class);

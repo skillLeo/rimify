@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
+use App\Domain\Fitment\Data\BuildFromName;
+use App\Domain\Fitment\Data\VehicleBuild;
 use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\HeaderMode;
 use App\Domain\Storefront\HeaderModeResolver;
+use App\Domain\Storefront\PapersBook;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +62,7 @@ final readonly class Chrome
         $hasEnteredBooking = false;
 
         if ($context !== null) {
-            $vehicle = $this->vehicle($context->vehicleId);
+            $vehicle = $this->vehicle($context->vehicleId, $request);
             $hasEnteredBooking = $context->hasEnteredBooking;
         }
 
@@ -139,7 +143,7 @@ final readonly class Chrome
     }
 
     /**
-     * @return list<array{id: int, label: string, short: string}>
+     * @return list<array{id: int, label: string, short: string, range: string|null}>
      */
     private function garage(Request $request): array
     {
@@ -161,10 +165,17 @@ final readonly class Chrome
                 continue;
             }
 
+            $label = VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation);
+            $range = $vehicle->hsn === null ? GermanFormat::egRange($vehicle->eg_nummer_raw, short: true) : null;
+
             $out[] = [
                 'id' => (int) $vehicle->id,
-                'label' => trim($vehicle->make.' '.$vehicle->variant),
-                'short' => trim($vehicle->make.' '.$vehicle->model),
+                'label' => $label,
+                // A car without key numbers keeps its type on the chip: „1K2“ and „1K4“ share a model and, in
+                // short, a range (G-07). Make and model alone where the key numbers tell cars apart.
+                'short' => $range === null ? trim($vehicle->make.' '.$vehicle->model) : $label,
+                // The halves of a car a Gutachten splits read alike by name: Feld K's range tells them apart.
+                'range' => $range,
             ];
         }
 
@@ -212,7 +223,7 @@ final readonly class Chrome
      *
      * @return array<string, mixed>|null
      */
-    private function vehicle(int $id): ?array
+    private function vehicle(int $id, Request $request): ?array
     {
         $vehicle = Vehicle::query()->find($id);
 
@@ -227,13 +238,105 @@ final readonly class Chrome
             'variant' => $vehicle->variant,
             // How a Gutachten names the car; the story's marked row shows it.
             'typeDesignation' => $vehicle->type_designation,
-            'label' => trim($vehicle->make.' '.$vehicle->variant),
+            'label' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation),
             'short' => trim($vehicle->make.' '.$vehicle->model),
             'hsn' => $vehicle->hsn,
             'tsn' => $vehicle->tsn,
             'keyNumbers' => GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn),
             'buildWindow' => GermanFormat::buildPeriod($vehicle->build_from, $vehicle->build_to),
+            // Without key numbers, Feld K says which of a Gutachten's halves of the car this is (VehicleTree).
+            'approval' => $vehicle->hsn === null ? GermanFormat::egRange($vehicle->eg_nummer_raw) : null,
+            // 8.1, 8.2 and T as the customer typed them for this car (Block C, item 10), and the power a
+            // photographed P.2 is checked against — the wheel answer rests on the variant.
+            'papers' => self::papers($request, $vehicle),
+            'powerKw' => $vehicle->power_kw,
+            // Body style and drive as the answers read them, and where each came from (§1.1): shown where the
+            // owner gave or may correct them — a derived one with „stimmt das?“.
+            'build' => self::build($request, $vehicle),
         ];
+    }
+
+    /**
+     * The car's body style and drive as every answer reads them (VehicleBuild::overlay()): the vehicle data's,
+     * else the owner's, else an unambiguous word of the name — with the source, and for a derived one the word.
+     *
+     * @return array{bodyForm: string|null, bodySource: string|null, bodyWord: string|null, driveAxle: string|null, driveSource: string|null, driveWord: string|null}
+     */
+    private static function build(Request $request, Vehicle $vehicle): array
+    {
+        $raw = $request->cookie(PapersBook::COOKIE);
+        $answer = PapersBook::decode(is_string($raw) ? $raw : null)->buildFor((int) $vehicle->id);
+        $name = BuildFromName::of($vehicle->model, $vehicle->variant);
+        $pick = static fn (?string $data, ?string $given, ?string $derived, ?string $word): array => match (true) {
+            $data !== null && $data !== '' => [$data, 'data', null],
+            $given !== null => [$given, VehicleBuild::FROM_CUSTOMER, null],
+            $derived !== null => [$derived, VehicleBuild::FROM_NAME, $word],
+            default => [null, null, null],
+        };
+        [$body, $bodySource, $bodyWord] = $pick($vehicle->body_form, $answer?->bodyForm, $name['bodyForm'], $name['bodyWord']);
+        [$drive, $driveSource, $driveWord] = $pick($vehicle->drive_axle, $answer?->driveAxle, $name['driveAxle'], $name['driveWord']);
+
+        return [
+            'bodyForm' => $body,
+            'bodySource' => $bodySource,
+            'bodyWord' => $bodyWord,
+            'driveAxle' => $drive,
+            'driveSource' => $driveSource,
+            'driveWord' => $driveWord,
+        ];
+    }
+
+    /**
+     * The figures the customer typed for this car, and where the vehicle data asks for more. Every answer
+     * is computed for the larger figure (PapersFigures::applyTo()), and the customer is told which one
+     * was used rather than left to wonder why the sum shows a number they did not type.
+     *
+     * @return array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int, powerKw: int|null, notes: list<string>}|null
+     */
+    private static function papers(Request $request, Vehicle $vehicle): ?array
+    {
+        $raw = $request->cookie(PapersBook::COOKIE);
+        $figures = PapersBook::decode(is_string($raw) ? $raw : null)->for((int) $vehicle->id);
+
+        if ($figures === null) {
+            return null;
+        }
+
+        $notes = [];
+
+        foreach ([['Vorderachse', '8.1', $figures->axleFrontKg, $vehicle->axle_load_front_kg], ['Hinterachse', '8.2', $figures->axleRearKg, $vehicle->axle_load_rear_kg]] as [$axle, $field, $theirs, $data]) {
+            if ($data !== null && $data > $theirs) {
+                $notes[] = sprintf(
+                    'Für die %s rechnen wir mit %s aus unseren Fahrzeugdaten – mehr als deine %s aus Feld %s. So bist du auf der sicheren Seite.',
+                    $axle,
+                    GermanFormat::kilograms($data),
+                    GermanFormat::kilograms($theirs),
+                    $field,
+                );
+            }
+        }
+
+        if ($vehicle->max_speed_kmh !== null && $vehicle->max_speed_kmh > $figures->topSpeedKmh) {
+            $notes[] = sprintf(
+                'Als Höchstgeschwindigkeit rechnen wir mit %s km/h aus unseren Fahrzeugdaten – mehr als deine %s km/h aus Feld T. So bist du auf der sicheren Seite.',
+                GermanFormat::integer($vehicle->max_speed_kmh),
+                GermanFormat::integer($figures->topSpeedKmh),
+            );
+        }
+
+        return [
+            'axleFrontKg' => $figures->axleFrontKg,
+            'axleRearKg' => $figures->axleRearKg,
+            'topSpeedKmh' => $figures->topSpeedKmh,
+            'powerKw' => $figures->powerKw,
+            'notes' => $notes,
+        ];
+    }
+
+    /** Drops the cached menus: a change in Inhalte › Navigation shows on the very next page. */
+    public static function forgetMenus(): void
+    {
+        Cache::forget(self::MENU_CACHE_KEY);
     }
 
     /**

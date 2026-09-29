@@ -1,0 +1,4792 @@
+{
+ "source": "Borbet DB8GT2_18_ABE_BMW.pdf",
+ "configs": [
+  "BOR-DB8GT2-8518-SM",
+  "BOR-DB8GT2-8518-BM"
+ ],
+ "document": {
+  "kind": "NACHTRAG",
+  "report_number": "366-0350-21-WIRD/N1",
+  "supplement_to_number": "ABE 53841",
+  "issuer": "TÜV AUSTRIA GMBH",
+  "issued_on": "",
+  "page_count": 24,
+  "annex": "16",
+  "designation_number": "KBA-P 00126-00",
+  "revision_date": "2025-07-02",
+  "valid_from_production": "02.2021"
+ },
+ "read": [
+  "Seite 1: Gutachten 366-0350-21-WIRD/N1 zur Erteilung eines Nachtrags zur ABE 53841, Anlage 16, Radtyp DB8GT2-8518, Stand 02.07.2025; 8 1/2 J X 18 H2, ET 35, 120/5, Mittenzentrierung; Ausführung 512035725, „DB8GT2-8518 LK120 / Ø72,5-60,1“, Zentrierring ohne, Mittenloch 72,5, Radlast 650 kg, Abrollumfang 2200 mm, gültig ab Fertigungsdatum 02/21 (eingetragen als 02.2021).",
+  "Ein Ausstellungsdatum druckt der Nachtrag nicht, nur „Stand: 02.07.2025“; Prüfort und Prüfdatum ebenso nicht. Aussteller: TÜV AUSTRIA GMBH, Räder und Reifenprüfung, Wien (Seite 24). Benannt unter KBA-P 00126-00.",
+  "Eine eigene Tabelle der Tragfähigkeit bei Geschwindigkeit druckt der Nachtrag nicht (Seiten 1–24). Er druckt den Lastindex und oft das Geschwindigkeitssymbol je Reifengröße; nach 10B beschreibt der gedruckte Lastindex die mindesterforderliche Tragfähigkeit.",
+  "Seiten 19–23: „Nacharbeitsprofile Fahrzeug“ für die Typen 3C, 1C, 3L, 1K4 und 3K. Für 1K2 druckt der Nachtrag kein Profil, obwohl dessen Zeile (Seite 3) 26B, 26N, 26J, 27F und 27H nennt.",
+  "Die Befestigungsteile nummeriert der Nachtrag nicht; sie stehen hier unter ihrem Zubehör-Set und dem Anzugsmoment, das er je Typ nennt (Seiten 1 und 2).",
+  "Seite 4: „215/40R18 M+S“ und „235/35R18 M+S“ tragen 52J (nur mit Winterprofil); eingetragen ohne Lastindex, wie gedruckt.",
+  "Seite 8: „225/40R18 88W | 57E; 68B“ und „225/40R18 88W | 57E; 68B; 68T“ stehen untereinander bei 90–225 kW – ein Eintrag mit beiden Codes-Listen vereint."
+ ],
+ "conditions": [
+  {
+   "code": "10B",
+   "kind": "hinweis",
+   "text_de": "Die mindestens erforderlichen Geschwindigkeitsbereiche der zu verwendenden Reifen sind, mit Ausnahme der Winterreifen Profile, den Fahrzeugpapieren zu entnehmen. Die für gesetzeskonforme Winterreifen zulässige Höchstgeschwindigkeit ist im Blickfeld des Fahrzeugführer sinnfällig anzugeben und im Betrieb nicht zu überschreiten.Die zulässige Achslast des Fahrzeuges darf nicht größer sein als das Zweifache der auf Seite 1 dieser Anlage angegebenen Radlast unter Berücksichtigung des angegebenen Abrollumfanges. Der beim Reifen angeführte Lastindex beschreibt die mindesterforderliche Tragfähigkeit, es sind Reifen mit höherem Lastindex zulässig, die max. Achslast ist mit diesem Lastindex zu vergleichen wodurch eventuell vorhandene Achslastauflagen entfallen können.",
+   "source_page": 10
+  },
+  {
+   "code": "10N",
+   "kind": "reifen_kombination",
+   "text_de": "Gegebenenfalls aufgeführte Fabrikatsbindungen/-empfehlungen in den Fahrzeugpapieren bzw. der Betriebsanleitung sind zu beachten oder es dürfen nur die vom Fahrzeughersteller freigegebenen Reifenfabrikate verwendet werden.",
+   "source_page": 10
+  },
+  {
+   "code": "11A",
+   "kind": "abnahme",
+   "text_de": "Der vorschriftsmäßige Zustand des Fahrzeuges ist durch einen amtlich anerkannten Sachverständigen oder Prüfer für den Kraftfahrzeugverkehr oder einen Prüfingenieur einer Überwachungsorganisation oder einen Angestellten nach Abschnitt 4 der Anlage VIIIb zur StVZO unter Angabe von FAHRZEUGHERSTELLER, FAHRZEUGTYP und FAHRZEUGIDENTIFIZIERUNGSNUMMER auf einem Nachweis entsprechend dem im Beispielkatalog zum §19 StVZO veröffentlichten Muster bescheinigen zu lassen.",
+   "source_page": 10
+  },
+  {
+   "code": "11B",
+   "kind": "hinweis",
+   "text_de": "Wird eine in diesem Gutachten aufgeführte Reifengröße verwendet, die nicht bereits in der Fahrzeuggenehmigung für diesen Fahrzeug-Typ/ -Variante/ -Version bzw. Fahrzeugausführung genannt ist, so sind die Angaben über die Reifengrößen in den Fahrzeugpapieren bei der nächsten Befassung mit den Fahrzeugpapieren durch die Zulassungsstelle berichtigen zu lassen. Diese Berichtigung ist dann nicht erforderlich, wenn die ABE/TTG des Sonderrades eine Freistellung von der Pflicht zur Berichtigung der Fahrzeugpapiere enthält.",
+   "source_page": 11
+  },
+  {
+   "code": "11G",
+   "kind": "hinweis",
+   "text_de": "Die Brems-, Lenkungsaggregate und das Fahrwerk mit Ausnahme von Sonder-Fahrwerksfedern müssen, sofern diese durch keine weiteren Auflagen berührt werden, dem Serienstand entsprechen. Für die Sonder-Fahrwerksfedern muß eine Allgemeine Betriebserlaubnis bzw. Teiletypgenehmigung oder ein Teilegutachten vorliegen; gegen die Verwendung der Rad/Reifenkombination dürfen keine technischen Bedenken bestehen. Wird gleichzeitig mit dem Anbau der Sonderräder eine Fahrwerksänderung vorgenommen und/oder optionale Brems- bzw. Lenkungsaggregate verbaut, so ist diese und ihre Auswirkung auf den Anbau der Sonderräder gesondert zu beurteilen.",
+   "source_page": 11
+  },
+  {
+   "code": "11H",
+   "kind": "hinweis",
+   "text_de": "Wird das serienmäßige Ersatzrad verwendet, soll mit mäßiger Geschwindigkeit und nicht länger als erforderlich gefahren werden. Hierbei müssen die serienmäßigen Befestigungsteile verwendet werden. Bei Fahrzeugausführungen mit Allradantrieb ist bei Verwendung des Ersatzrades darauf zu achten, daß nur Reifen mit gleich großem Abrollumfang zulässig sind.",
+   "source_page": 11
+  },
+  {
+   "code": "12A",
+   "kind": "verbot",
+   "text_de": "Die Verwendung von Schneeketten ist nicht möglich, es sei denn, dass für den hier aufgeführten Fahrzeugtyp eine weitere Umrüstmöglichkeit im Gutachten aufgeführt ist. Für diese Umrüstung mit der Einschränkung in Spalte Auflagen \"Auflagen zu Reifen\" sind die dort aufgeführten Auflagen und Hinweise zu beachten.",
+   "source_page": 11
+  },
+  {
+   "code": "21B",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Anlegen der vorderen Radhausausschnittkanten und Kunststoffinnenkotflügel über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "21J",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Aufweiten bzw. Bearbeiten der vorderen Radhäuser im Bereich der Radaußenseite über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "21L",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Nacharbeit der vorderen Radhäuser im Bereich über der Reifenlauffläche ist eine ausreichende Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "21N",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der vorderen Radhäuser im Bereich der Radaußenseite über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "21P",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Anlegen bzw. Bearbeiten der vorderen Radhausausschnittkanten und Kunststoffinnenkotflügel über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "22B",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Anlegen bzw. Bearbeiten der hinteren Radhausausschnittkanten und Kunststoffinnenkotflügel über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "22F",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser im Bereich der Radaußenseite über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "22H",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser im Bereich der Radaußenseite über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "22I",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Anlegen bzw. Bearbeiten der hinteren Radhausausschnittkanten und Kunststoffinnenkotflügel über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen.",
+   "source_page": 11
+  },
+  {
+   "code": "22L",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Kürzen bis zum Schraubenkopf und komplettes Umbiegen der Befestigungslasche der Heckschürzenbefestigung ist eine ausreichende Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 12
+  },
+  {
+   "code": "22M",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Kürzen bis zum Schraubenkopf und komplettes Umbiegen der Befestigungslasche der Heckschürzenbefestigung ist eine ausreichende Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen.",
+   "source_page": 12
+  },
+  {
+   "code": "22P",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch vollkommenes Anlegen der Kunststoffinnenkotflügel der Hinterachse auf der Radaußenseite an die Radhauswand über die gesamte Radhausausschnittkantenlänge ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen.",
+   "source_page": 12
+  },
+  {
+   "code": "241",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen der Frontschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30 Grad vor der Radmitte herzustellen. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 12
+  },
+  {
+   "code": "244",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen der Heckschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 50 Grad hinter der Radmitte herzustellen. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 12
+  },
+  {
+   "code": "245",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen der Frontschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30 Grad vor der Radmitte herzustellen. Je nach Rüstzustand des Fahrzeuges (z. B. Fahrzeugtieferlegung, Radabdeckungsverbreiterung, usw.) kann es möglich sein, dass die Radabdeckung ausreichend ist. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 12
+  },
+  {
+   "code": "246",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 50 Grad hinter der Radmitte herzustellen. Je nach Rüstzustand des Fahrzeuges (z. B. Fahrzeugtieferlegung, Radabdeckungsverbreiterung, usw.) kann es möglich sein, dass die Radabdeckung ausreichend ist. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 12
+  },
+  {
+   "code": "247",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30 Grad vor der Radmitte herzustellen. Je nach Rüstzustand des Fahrzeuges (z. B. Fahrzeugtieferlegung, Radabdeckungsverbreiterung, usw.) kann es möglich sein, dass die Radabdeckung ausreichend ist. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 12
+  },
+  {
+   "code": "248",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen der Heckschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 50 Grad hinter der Radmitte herzustellen. Je nach Rüstzustand des Fahrzeuges (z. B. Fahrzeugtieferlegung, Radabdeckungsverbreiterung, usw. ) kann es möglich sein, dass die Radabdeckung ausreichend ist. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 12
+  },
+  {
+   "code": "24C",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen der Frontschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30 Grad vor der Radmitte und 50 Grad hinter der Radmitte herzustellen. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 12
+  },
+  {
+   "code": "24D",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen der Heckschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30 Grad vor der Radmitte und 50 Grad hinter der Radmitte herzustellen. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 13
+  },
+  {
+   "code": "24J",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 1 ist durch Ausstellen der Frontschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30 Grad vor der Radmitte und 50 Grad hinter der Radmitte herzustellen. Je nach Rüstzustand des Fahrzeuges (z. B. Fahrzeugtieferlegung, Radabdeckungsverbreiterung, usw.) kann es möglich sein, dass die Radabdeckung ausreichend ist. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 13
+  },
+  {
+   "code": "24M",
+   "kind": "karosseriearbeit",
+   "text_de": "Die Radabdeckung an Achse 2 ist durch Ausstellen der Heckschürze und des Kotflügels oder durch Anbau von dauerhaft befestigten Karosserieteilen im Bereich 30 Grad vor der Radmitte und 50 Grad hinter der Radmitte herzustellen. Je nach Rüstzustand des Fahrzeuges (z. B. Fahrzeugtieferlegung, Radabdeckungsverbreiterung, usw.) kann es möglich sein, dass die Radabdeckung ausreichend ist. Die gesamte Breite der Rad/Reifenkombination muss, unter Beachtung des maximal möglichen Betriebsmaßes des Reifens (1,04 fache der Nennbreite des Reifens), im oben genannten Bereich abgedeckt sein.",
+   "source_page": 13
+  },
+  {
+   "code": "26B",
+   "kind": "nacharbeitsprofil",
+   "text_de": "Durch Anlegen der vorderen Radhausausschnittkanten und Kunststoffinnenkotflügel ist die Freigängigkeit der Rad/Reifen-Kombination herzustellen. Die genauen Maße / Bereiche sind dem beigefügten Anhang / Hinweisblatt \"Nacharbeitsprofile Fahrzeug\" am Ende dieser Anlage zu entnehmen.",
+   "source_page": 13
+  },
+  {
+   "code": "26J",
+   "kind": "nacharbeitsprofil",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der vorderen Radhäuser ist die Freigängigkeit der Rad/Reifen-Kombination herzustellen. Die genauen Maße / Bereiche sind dem beigefügten Anhang / Hinweisblatt \"Nacharbeitsprofile Fahrzeug\" am Ende dieser Anlage zu entnehmen.",
+   "source_page": 13
+  },
+  {
+   "code": "26N",
+   "kind": "nacharbeitsprofil",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der vorderen Radhäuser ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen. Die genauen Maße / Bereiche sind dem beigefügten Anhang / Hinweisblatt \"Nacharbeitsprofile Fahrzeug\" am Ende dieser Anlage zu entnehmen.",
+   "source_page": 13
+  },
+  {
+   "code": "26P",
+   "kind": "nacharbeitsprofil",
+   "text_de": "Durch Anlegen der vorderen Radhausausschnittkanten und Kunststoffinnenkotflügel ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen. Die genauen Maße / Bereiche sind dem beigefügten Anhang / Hinweisblatt \"Nacharbeitsprofile Fahrzeug\" am Ende dieser Anlage zu entnehmen.",
+   "source_page": 13
+  },
+  {
+   "code": "270",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser im Bereich der Radaußenseite über die gesamte Radhausausschnittkantenlänge um 8,0 mm ist eine ausreichende Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen.",
+   "source_page": 13
+  },
+  {
+   "code": "272",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser im Bereich der Radaußenseite über die gesamte Radhausausschnittkantenlänge um 18,0 mm ist eine ausreichende Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 13
+  },
+  {
+   "code": "273",
+   "kind": "karosseriearbeit",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser im Bereich der Radaußenseite über die gesamte Radhausausschnittkantenlänge um 23,0 mm ist eine ausreichende Freigängigkeit der Rad/Reifen-Kombination herzustellen.",
+   "source_page": 13
+  },
+  {
+   "code": "27F",
+   "kind": "nacharbeitsprofil",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser ist die Freigängigkeit der Rad/Reifen-Kombination herzustellen. Die genauen Maße / Bereiche sind dem beigefügten Anhang / Hinweisblatt \"Nacharbeitsprofile Fahrzeug\" am Ende dieser Anlage zu entnehmen.",
+   "source_page": 13
+  },
+  {
+   "code": "27H",
+   "kind": "nacharbeitsprofil",
+   "text_de": "Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen. Die genauen Maße / Bereiche sind dem beigefügten Anhang / Hinweisblatt \"Nacharbeitsprofile Fahrzeug\" am Ende dieser Anlage zu entnehmen.",
+   "source_page": 13
+  },
+  {
+   "code": "27I",
+   "kind": "nacharbeitsprofil",
+   "text_de": "Durch Anlegen der hinteren Radhausausschnittkanten und Kunststoffinnenkotflügel ist die Freigängigkeit der Rad/Reifen-Kombination unter Berücksichtigung der maximal zulässigen Betriebsbreite nach ETRTO bzw. WdK (1,04 fache Nennbreite des Reifens) herzustellen. Die genauen Maße / Bereiche sind dem beigefügten Anhang / Hinweisblatt \"Nacharbeitsprofile Fahrzeug\" am Ende dieser Anlage zu entnehmen.",
+   "source_page": 14
+  },
+  {
+   "code": "512",
+   "kind": "verbot",
+   "text_de": "Die Verwendung dieser Reifengröße ist nicht zulässig an Fahrzeugausführungen, die serienmäßig nur mit 16-Zoll-Reifen ausgerüstet sind.",
+   "source_page": 14
+  },
+  {
+   "code": "51A",
+   "kind": "hinweis",
+   "text_de": "Der vom Fahrzeughersteller (siehe Betriebsanleitung oder Reifenfülldruckhinweis am Fahrzeug) bzw. Reifenhersteller vorgeschriebene Reifenfülldruck ist zu beachten. Die Verwendung von Reifen mit Notlaufeigenschaften ist laut Hersteller nur mit Reifenfülldrucküberwachungssystem zulässig.",
+   "source_page": 14
+  },
+  {
+   "code": "51G",
+   "kind": "reifen_kombination",
+   "text_de": "Die Verwendung dieser Rad/Reifen-Kombination ist nur zulässig, wenn diese Reifendimension in den Fahrzeugpapieren bereits serienmäßig eingetragen oder vom Fahrzeughersteller, s. Auszug aus der EG-Genehmigung des Fahrzeuges (EG-Übereinstimmungsbescheinigung), freigegeben ist. Der Loadindex, das Geschwindigkeitssymbol, das Reifenprofil, die Hinweise und die Empfehlungen des Fahrzeugherstellers sind bei Verwendung dieser Reifengröße zu beachten.",
+   "source_page": 14
+  },
+  {
+   "code": "52J",
+   "kind": "reifen_kombination",
+   "text_de": "Diese Reifengröße ist nur mit Profil für winterliche Wetterverhältnisse, mit dem Alpine Symbol nach ECE R-117, zulässig. Die Bereifung und Lauffläche sind dabei so konzipiert, dass sie vor allem bei winterlichen Straßenverhältnissen bessere Fahreigenschaften gewährleisten.",
+   "source_page": 14
+  },
+  {
+   "code": "54A",
+   "kind": "tacho",
+   "text_de": "Es ist der Nachweis zu erbringen, daß die Anzeigen von Geschwindigkeitsmesser und Wegstreckenzähler innerhalb der zulässigen Toleranzen liegen. Sofern eine Angleichung durchgeführt wird, ist dies bei der Beurteilung weiterer Rad/Reifen-Kombinationen in den Fahrzeugpapieren zu berücksichtigen.",
+   "source_page": 14
+  },
+  {
+   "code": "570",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 215/40R18 Hinterachse: 245/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 14
+  },
+  {
+   "code": "573",
+   "kind": "reifen_kombination",
+   "text_de": "Die Verwendung unterschiedlicher Reifengrößen an Vorder- und Hinterachse ist an Fahrzeugen mit Allradantrieb nur zulässig, wenn deren Abrollumfänge gleich sind. Es ist eine Bestätigung des Reifenherstellers über die tatsächlichen Abrollumfänge erforderlich, es wird empfohlen den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 14
+  },
+  {
+   "code": "57E",
+   "kind": "reifen_achse",
+   "text_de": "Die Verwendung der angegebenen Reifengröße ist auf dieser Radgröße nur an der Vorderachse zulässig. Sie kann jedoch im Einzelfall auf einer anderen Radgröße an der Hinterachse kombiniert werden. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 14,
+   "axle": "FRONT"
+  },
+  {
+   "code": "57F",
+   "kind": "reifen_achse",
+   "text_de": "Die Verwendung der angegebenen Reifengröße ist auf dieser Radgröße nur an der Hinterachse zulässig. Sie kann jedoch im Einzelfall auf einer anderen Radgröße an der Vorderachse kombiniert werden. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 14,
+   "axle": "REAR"
+  },
+  {
+   "code": "5FE",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Die Verwendung dieser Reifengröße ist nur zulässig an Fahrzeugausführungen bis zu einer zulässigen Achslast von 1120kg.",
+   "source_page": 14,
+   "max_axle_load_kg": 1120
+  },
+  {
+   "code": "5GA",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Die Verwendung dieser Reifengröße ist nur zulässig an Fahrzeugausführungen bis zu einer zulässigen Achslast von 1200kg.",
+   "source_page": 14,
+   "max_axle_load_kg": 1200
+  },
+  {
+   "code": "5GG",
+   "kind": "reifen_tragfaehigkeit",
+   "text_de": "Die Verwendung dieser Reifengröße ist nur zulässig an Fahrzeugausführungen bis zu einer zulässigen Achslast von 1230kg.",
+   "source_page": 15,
+   "max_axle_load_kg": 1230
+  },
+  {
+   "code": "631",
+   "kind": "reifen_kombination",
+   "text_de": "Die Eignung von \"ZR\"-Reifen ist durch eine Bestätigung des Reifenherstellers über die ausreichende Tragfähigkeit der Reifengröße sicherzustellen. Es wird empfohlen den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen.",
+   "source_page": 15
+  },
+  {
+   "code": "688",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 245/40R18 Hinterachse: 275/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. An Fahrzeugausführungen mit automatischem Blockierverhinderer (ABV) bzw. Antriebsschlupfregelung (ASR) dürfen nur Reifen verwendet werden, deren Differenz im Abrollumfang kleiner als 1% ist. Es ist eine Bestätigung des Reifenherstellers über die tatsächlichen Abrollumfänge erforderlich; es wird empfohlen den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 15
+  },
+  {
+   "code": "689",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 235/40R18 Hinterachse: 265/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. An Fahrzeugausführungen mit automatischem Blockierverhinderer (ABV) bzw. Antriebsschlupfregelung (ASR) dürfen nur Reifen verwendet werden, deren Differenz im Abrollumfang kleiner als 1% ist. Es ist eine Bestätigung des Reifenherstellers über die tatsächlichen Abrollumfänge erforderlich; es wird empfohlen den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 15
+  },
+  {
+   "code": "68B",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 225/40R18 Hinterachse: 255/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. An Fahrzeugausführungen mit automatischem Blockierverhinderer (ABV) bzw. Antriebsschlupfregelung (ASR) dürfen nur Reifen verwendet werden, deren Differenz im Abrollumfang kleiner als 1% ist. Es ist eine Bestätigung des Reifenherstellers über die tatsächlichen Abrollumfänge erforderlich; es wird empfohlen den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 15
+  },
+  {
+   "code": "68L",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 245/35R18 Hinterachse: 255/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. An Fahrzeugausführungen mit automatischem Blockierverhinderer (ABV) bzw. Antriebsschlupfregelung (ASR) dürfen nur Reifen verwendet werden, deren Differenz im Abrollumfang kleiner als 1% ist. Es ist eine Bestätigung des Reifenherstellers über die tatsächlichen Abrollumfänge erforderlich; es wird empfohlen den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 15
+  },
+  {
+   "code": "68T",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 225/40R18 Hinterachse: 245/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. An Fahrzeugausführungen mit automatischem Blockierverhinderer (ABV) bzw. Antriebsschlupfregelung (ASR) dürfen nur Reifen verwendet werden, deren Differenz im Abrollumfang kleiner als 1% ist. Es ist eine Bestätigung des Reifenherstellers über die tatsächlichen Abrollumfänge erforderlich; es wird empfohlen den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 16
+  },
+  {
+   "code": "6A9",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 225/45R18 Hinterachse: 245/40R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 16
+  },
+  {
+   "code": "6AA",
+   "kind": "reifen_kombination",
+   "text_de": "Die Verwendung unterschiedlicher Reifengrößen an Vorder- und Hinterachse ist nur zulässig, wenn deren Abrollumfänge gleich sind, oder diese der Serienkombination entsprechen. Es wird empfohlen eine Bestätigung des Reifenherstellers über die tatsächlichen Abrollumfänge einzuholen und den Nachweis der Eignung bei den Fahrzeugpapieren mitzuführen. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 16
+  },
+  {
+   "code": "6AB",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 235/40R18 Hinterachse: 255/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 16
+  },
+  {
+   "code": "71C",
+   "kind": "hinweis",
+   "text_de": "Zum Auswuchten der Sonderräder dürfen an der Felgeninnenseite nur Klebegewichte angebracht werden.",
+   "source_page": 16
+  },
+  {
+   "code": "71K",
+   "kind": "hinweis",
+   "text_de": "Zum Auswuchten dürfen nur Klebegewichte unterhalb des Tiefbetts an der Felgeninnenseite angebracht werden.",
+   "source_page": 16
+  },
+  {
+   "code": "721",
+   "kind": "hinweis",
+   "text_de": "Es ist nur die Verwendung von Gummiventilen oder Metallschraubventilen mit Überwurfmutter von außen, die weitgehend den Normen (DIN, E.T.R.T.O. bzw. Tire and Rim) entsprechen und die für einen Ventilloch-Nenndurchmesser von 11,3 mm geeignet sind, zulässig. Das Ventil darf nicht über den Felgenrand hinausragen. Es sind die Montagehinweise des Ventilherstellers zu beachten.",
+   "source_page": 16
+  },
+  {
+   "code": "725",
+   "kind": "hinweis",
+   "text_de": "Bei Fahrzeugen mit einer bauartbedingten Höchstgeschwindigkeit über 210 km/h sind nur Metallschraubventile zulässig. Es sind die Montagehinweise des Ventilherstellers zu beachten.",
+   "source_page": 16
+  },
+  {
+   "code": "729",
+   "kind": "hinweis",
+   "text_de": "Bei Fahrzeugen mit serienmäßigen Reifenfülldruckkontrollsystem mit Druckmesssensor am Rad kann das serienmäßige System verwendet werden, wenn beim Einbau in Sonderräder die Hinweise des Fahrzeugherstellers bzw. des Systemherstellers und bei nachgerüsteten Reifenfülldrucksensoren die Einbauanleitung des Teileherstellers beachtet werden.",
+   "source_page": 16
+  },
+  {
+   "code": "73C",
+   "kind": "hinweis",
+   "text_de": "Es ist nur die Verwendung von schlauchlosen Reifen zulässig.",
+   "source_page": 16
+  },
+  {
+   "code": "744",
+   "kind": "befestigung",
+   "text_de": "Das Anzugsmoment der Befestigungsteile der Räder ist der Betriebsanleitung des Fahrzeuges zu entnehmen.",
+   "source_page": 17
+  },
+  {
+   "code": "74A",
+   "kind": "befestigung",
+   "text_de": "Es dürfen nur die vom Radhersteller mitzuliefernden Radbefestigungsteile verwendet werden, dabei ist die Gewindegröße der serienmäßigen Befestigungsteile zu beachten. Bei Verwendung von Radschrauben, ist die, in der Anlage zum Gutachten, dem Fahrzeug zugeordnete Schaftlänge zu beachten.",
+   "source_page": 17
+  },
+  {
+   "code": "75I",
+   "kind": "hinweis",
+   "text_de": "Die zulässige Achslast des Fahrzeugs darf nicht größer sein als das Zweifache der auf Seite 1 dieser Anlage angegebenen Radlast unter Berücksichtigung des angegebenen Abrollumfanges, gegebenenfalls ist die erhöhte Achslast im Anhängerbetrieb anzupassen oder zu streichen.",
+   "source_page": 17
+  },
+  {
+   "code": "76O",
+   "kind": "verbot",
+   "text_de": "Die Verwendung dieser Radgröße ist nicht zulässig an Fahrzeugausführungen, die serienmäßig laut COC-Papier (EG-Übereinstimmungserklärung) als kleinste Radgröße mit 19-Zoll-Rädern ausgerüstet sind.",
+   "source_page": 17
+  },
+  {
+   "code": "76R",
+   "kind": "verbot",
+   "text_de": "Die Verwendung dieser Radgröße ist nur zulässig, wenn die Felgenbreite des Serienrades nicht unterschritten wird.",
+   "source_page": 17
+  },
+  {
+   "code": "83H",
+   "kind": "verbot",
+   "text_de": "Die Verwendung der Räder ist an Fahrzeugausführungen, die mit M-Sportbremse ausgerüstet sind, nicht zulässig.",
+   "source_page": 17
+  },
+  {
+   "code": "861",
+   "kind": "verbot",
+   "text_de": "Die Verwendung der Räder ist an Fahrzeugausführungen mit Bremsscheibendurchmesser 348mm an der Vorderachse nicht zulässig.",
+   "source_page": 17
+  },
+  {
+   "code": "97K",
+   "kind": "reifen_kombination",
+   "text_de": "Bei Verwendung von verschiedenen Reifengrößen auf Vorder- und Hinterachse muss die Maulweite des Sonderrades an der Hinterachse mindestens 1/2 Zoll größer sein als die des Sonderrades der Vorderachse.",
+   "source_page": 17
+  },
+  {
+   "code": "BDC",
+   "kind": "verbot",
+   "text_de": "Die Verwendung dieser Reifengröße ist nur in Verbindung mit M-TECHNIK-FAHRWERK oder mit einem für diese Reifengröße geprüften Sportfahrwerk zulässig, bei Fahrzeugen ab Modelljahr 1993 ist dies nicht mehr erforderlich.",
+   "source_page": 17
+  },
+  {
+   "code": "GA2",
+   "kind": "reifen_kombination",
+   "text_de": "Es sind die serienmäßigen Reifen-Kombinationen zulässig. Reifengröße: Vorderachse: 225/40R18 Hinterachse: 245/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die Hinweise und Empfehlungen des Fahrzeugherstellers sind bei Verwendung dieser Reifengröße zu beachten. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten.",
+   "source_page": 17
+  },
+  {
+   "code": "GA3",
+   "kind": "reifen_kombination",
+   "text_de": "Es sind die serienmäßigen Reifen-Kombinationen zulässig. Reifengröße: Vorderachse: 225/45R18 Hinterachse: 255/40R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die Hinweise und Empfehlungen des Fahrzeugherstellers sind bei Verwendung dieser Reifengröße zu beachten. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten.",
+   "source_page": 17
+  },
+  {
+   "code": "GB3",
+   "kind": "reifen_kombination",
+   "text_de": "Es sind die serienmäßigen Reifen-Kombinationen zulässig. Reifengröße: Vorderachse: 215/40R18 Hinterachse: 245/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die Hinweise und Empfehlungen des Fahrzeugherstellers sind bei Verwendung dieser Reifengröße zu beachten. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten.",
+   "source_page": 17
+  },
+  {
+   "code": "GB4",
+   "kind": "reifen_kombination",
+   "text_de": "Es sind die serienmäßigen Reifen-Kombinationen zulässig. Reifengröße: Vorderachse: 205/45R18 Hinterachse: 225/40R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die Hinweise und Empfehlungen des Fahrzeugherstellers sind bei Verwendung dieser Reifengröße zu beachten. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten.",
+   "source_page": 18
+  },
+  {
+   "code": "GB6",
+   "kind": "reifen_kombination",
+   "text_de": "Es sind die serienmäßigen Reifen-Kombinationen zulässig. Reifengröße: Vorderachse: 225/40R18 Hinterachse: 255/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig. Die Hinweise und Empfehlungen des Fahrzeugherstellers sind bei Verwendung dieser Reifengröße zu beachten. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten.",
+   "source_page": 18
+  },
+  {
+   "code": "YDM",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 225/40R18 Hinterachse: 225/40R18. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 18
+  },
+  {
+   "code": "YDO",
+   "kind": "reifen_kombination",
+   "text_de": "Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 235/40R18 Hinterachse: 235/40R18. Die erforderlichen Auflagen und Hinweise sind achsweise zu beachten. Alle an ein und derselben Achse montierten Reifen müssen vom gleichen Reifentyp sein.",
+   "source_page": 18
+  },
+  {
+   "code": "Cabrio",
+   "kind": "karosserieform",
+   "source_page": 2,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Cabrio“.",
+   "body_forms": [
+    "Cabrio",
+    "Roadster"
+   ]
+  },
+  {
+   "code": "Coupe",
+   "kind": "karosserieform",
+   "source_page": 3,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Coupe“.",
+   "body_forms": [
+    "Coupe"
+   ]
+  },
+  {
+   "code": "Heckantrieb",
+   "kind": "antrieb",
+   "source_page": 3,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Heckantrieb“.",
+   "drive": {
+    "mode": "only",
+    "drive": "Hinterachse"
+   }
+  },
+  {
+   "code": "Allradantrieb",
+   "kind": "antrieb",
+   "source_page": 3,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Allradantrieb“.",
+   "drive": {
+    "mode": "only",
+    "drive": "Allrad"
+   }
+  },
+  {
+   "code": "Kombilimousine",
+   "kind": "karosserieform",
+   "source_page": 3,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Kombilimousine“.",
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "Schrägheck 2-türig",
+   "kind": "karosserieform",
+   "source_page": 4,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Schrägheck 2-türig“.",
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "Schrägheck 4-türig",
+   "kind": "karosserieform",
+   "source_page": 4,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Schrägheck 4-türig“.",
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "4-türig",
+   "kind": "verbot",
+   "source_page": 4,
+   "text_de": "Gilt laut Gutachten nur für die 4-türige Ausführung (im Gutachten: „4-türig“)."
+  },
+  {
+   "code": "Pkw geschlossen",
+   "kind": "karosserieform",
+   "source_page": 5,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Pkw geschlossen“.",
+   "body_forms": [
+    "Limousine",
+    "Kombi",
+    "Coupe",
+    "Schrägheck",
+    "SUV",
+    "Van"
+   ]
+  },
+  {
+   "code": "Touring",
+   "kind": "karosserieform",
+   "source_page": 5,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Touring“.",
+   "body_forms": [
+    "Kombi"
+   ]
+  },
+  {
+   "code": "Limousine",
+   "kind": "karosserieform",
+   "source_page": 5,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Limousine“.",
+   "body_forms": [
+    "Limousine"
+   ]
+  },
+  {
+   "code": "Stufenheck",
+   "kind": "karosserieform",
+   "source_page": 5,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Stufenheck“.",
+   "body_forms": [
+    "Limousine"
+   ]
+  },
+  {
+   "code": "Compact",
+   "kind": "karosserieform",
+   "source_page": 5,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Compact“.",
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "Kompakt",
+   "kind": "karosserieform",
+   "source_page": 6,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Kompakt“.",
+   "body_forms": [
+    "Schrägheck"
+   ]
+  },
+  {
+   "code": "Stufenheck 4-türig",
+   "kind": "karosserieform",
+   "source_page": 6,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Stufenheck 4-türig“.",
+   "body_forms": [
+    "Limousine"
+   ]
+  },
+  {
+   "code": "Kombi",
+   "kind": "karosserieform",
+   "source_page": 7,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „Kombi“.",
+   "body_forms": [
+    "Kombi"
+   ]
+  },
+  {
+   "code": "Nicht 330D",
+   "kind": "verbot",
+   "source_page": 7,
+   "text_de": "Diese Reifengröße ist nicht für den 330d zugelassen (im Gutachten: „Nicht 330D“)."
+  },
+  {
+   "code": "nur Limousine",
+   "kind": "karosserieform",
+   "source_page": 9,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „nur Limousine“.",
+   "body_forms": [
+    "Limousine"
+   ]
+  },
+  {
+   "code": "nur Kombi",
+   "kind": "karosserieform",
+   "source_page": 9,
+   "text_de": "Ohne Erläuterung in der Spalte „Auflagen“ gedruckt: „nur Kombi“.",
+   "body_forms": [
+    "Kombi"
+   ]
+  }
+ ],
+ "fasteners": [
+  {
+   "seat": "Kegel 60°",
+   "shaft_length_mm": 30,
+   "article_number": "Set Nr. 5248",
+   "source_page": 2,
+   "number": "5248 · 100 Nm",
+   "torque_nm": 100,
+   "thread": "Kegelbundschraube M12x1,5",
+   "vehicle_types": "346C; 346K; 346L; 346R; 346X"
+  },
+  {
+   "seat": "Kegel 60°",
+   "shaft_length_mm": 30,
+   "article_number": "Set Nr. 5248",
+   "source_page": 2,
+   "number": "5248 · 110 Nm",
+   "torque_nm": 110,
+   "thread": "Kegelbundschraube M12x1,5",
+   "vehicle_types": "M3B; R/C; 3 B; 3/B; 3/C; 3/CG"
+  },
+  {
+   "seat": "Kegel 60°",
+   "shaft_length_mm": 30,
+   "article_number": "Set Nr. 5248",
+   "source_page": 2,
+   "number": "5248 · 120 Nm",
+   "torque_nm": 120,
+   "thread": "Kegelbundschraube M12x1,5",
+   "vehicle_types": "ZR; Z85; Z89; 1C; 182; 187; 3C; 3K; 3K-N1; 3L; 390L; 390X; 392C; 560X; 1K2 (nur bis Nachtrag 03); 1K4 (nur bis Nachtrag 03)"
+  },
+  {
+   "seat": "Kegel 60°",
+   "shaft_length_mm": 30,
+   "article_number": "Set Nr. 5276",
+   "source_page": 2,
+   "number": "5276 · 140 Nm",
+   "torque_nm": 140,
+   "thread": "Kegelbundschraube M14x1,25",
+   "vehicle_types": "3L (nur BMW 3er (F30) ab 2012); 3K (nur BMW 3er (F31) ab 2012); 3K-N1 (nur BMW 3er (F31) ab 2012); 1K2 (ab Nachtrag 04); 1K4 (ab Nachtrag 04); 1C; UKL-N1; UKL-C/X; UKL/X; 3C"
+  },
+  {
+   "seat": "Kegel 60°",
+   "shaft_length_mm": 30,
+   "article_number": "Set Nr. 5284",
+   "source_page": 2,
+   "number": "5284 · 140 Nm",
+   "torque_nm": 140,
+   "thread": "Kegelbundschraube M14x1,5",
+   "vehicle_types": "X83"
+  }
+ ],
+ "notices": [
+  {
+   "text_de": "Im Fahrzeug vorgeschriebene Fahrzeugsysteme, z. B. Reifendruckkontrollsysteme, müssen nach Anbau der Sonderräder funktionsfähig bleiben.",
+   "source_page": 1
+  },
+  {
+   "text_de": "Der Fahrzeughalter muss auf die Kontrolle des Anzugsmoments der Befestigungsmittel nach einer Wegstrecke von 50km hingewiesen werden.",
+   "source_page": 1
+  },
+  {
+   "text_de": "Hinweis zum Verwendungsbereich: Ohne Genehmigung nach UN-Regelung Nr. 124 ist die Verwendung dieser Rad-/Reifen Kombinationen nur zulässig, wenn sie nicht serienmäßig vom Fahrzeughersteller freigegeben sind (z. B. EU-Übereinstimmungsbescheinigung (COC) oder Fahrzeugpapiere).",
+   "source_page": 1
+  }
+ ],
+ "derating": null,
+ "reworks": [
+  {
+   "code": "26B",
+   "vehicle_type": "3C",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0316*.., BMW 4ER REIHE; Variante(n): ab e1*2007/46*0316*08, ab e1*2007/46*0316*09, ab e1*2007/46*0316*10, Allradantrieb, Cabrio, Coupe, Heckantrieb (Seite 19)"
+  },
+  {
+   "code": "26P",
+   "vehicle_type": "3C",
+   "axle": "FRONT",
+   "from_mm": "175",
+   "to_mm": "270",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0316*.., BMW 4ER REIHE; Variante(n): ab e1*2007/46*0316*08, ab e1*2007/46*0316*09, ab e1*2007/46*0316*10, Allradantrieb, Cabrio, Coupe, Heckantrieb (Seite 19)"
+  },
+  {
+   "code": "27I",
+   "vehicle_type": "3C",
+   "axle": "REAR",
+   "from_mm": "170",
+   "to_mm": "260",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0316*.., BMW 4ER REIHE; Variante(n): ab e1*2007/46*0316*08, ab e1*2007/46*0316*09, ab e1*2007/46*0316*10, Allradantrieb, Cabrio, Coupe, Heckantrieb (Seite 19)"
+  },
+  {
+   "code": "27F",
+   "vehicle_type": "3C",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "310",
+   "flare_mm": "33",
+   "note_de": "Genehm.Nr. e1*2007/46*0316*.., BMW 4ER REIHE; Variante(n): ab e1*2007/46*0316*08, ab e1*2007/46*0316*09, ab e1*2007/46*0316*10, Allradantrieb, Cabrio, Coupe, Heckantrieb (Seite 19)"
+  },
+  {
+   "code": "27H",
+   "vehicle_type": "3C",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "310",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0316*.., BMW 4ER REIHE; Variante(n): ab e1*2007/46*0316*08, ab e1*2007/46*0316*09, ab e1*2007/46*0316*10, Allradantrieb, Cabrio, Coupe, Heckantrieb (Seite 19)"
+  },
+  {
+   "code": "26J",
+   "vehicle_type": "3C",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "12",
+   "note_de": "Genehm.Nr. e1*2007/46*0316*.., BMW 4ER REIHE; Variante(n): ab e1*2007/46*0316*08, ab e1*2007/46*0316*09, ab e1*2007/46*0316*10, Allradantrieb, Cabrio, Coupe, Heckantrieb (Seite 19)"
+  },
+  {
+   "code": "26N",
+   "vehicle_type": "3C",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0316*.., BMW 4ER REIHE; Variante(n): ab e1*2007/46*0316*08, ab e1*2007/46*0316*09, ab e1*2007/46*0316*10, Allradantrieb, Cabrio, Coupe, Heckantrieb (Seite 19)"
+  },
+  {
+   "code": "26B",
+   "vehicle_type": "1C",
+   "axle": "FRONT",
+   "from_mm": "250",
+   "to_mm": "250",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0277*.., BMW 2ER REIHE; Variante(n): Coupe, Heckantrieb (Seite 20)"
+  },
+  {
+   "code": "26P",
+   "vehicle_type": "1C",
+   "axle": "FRONT",
+   "from_mm": "200",
+   "to_mm": "200",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0277*.., BMW 2ER REIHE; Variante(n): Coupe, Heckantrieb (Seite 20)"
+  },
+  {
+   "code": "27F",
+   "vehicle_type": "1C",
+   "axle": "REAR",
+   "from_mm": "280",
+   "to_mm": "370",
+   "flare_mm": "30",
+   "note_de": "Genehm.Nr. e1*2007/46*0277*.., BMW 2ER REIHE; Variante(n): Coupe, Heckantrieb (Seite 20)"
+  },
+  {
+   "code": "27H",
+   "vehicle_type": "1C",
+   "axle": "REAR",
+   "from_mm": "280",
+   "to_mm": "370",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0277*.., BMW 2ER REIHE; Variante(n): Coupe, Heckantrieb (Seite 20)"
+  },
+  {
+   "code": "26J",
+   "vehicle_type": "1C",
+   "axle": "FRONT",
+   "from_mm": "250",
+   "to_mm": "250",
+   "flare_mm": "30",
+   "note_de": "Genehm.Nr. e1*2007/46*0277*.., BMW 2ER REIHE; Variante(n): Coupe, Heckantrieb (Seite 20)"
+  },
+  {
+   "code": "26N",
+   "vehicle_type": "1C",
+   "axle": "FRONT",
+   "from_mm": "250",
+   "to_mm": "250",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0277*.., BMW 2ER REIHE; Variante(n): Coupe, Heckantrieb (Seite 20)"
+  },
+  {
+   "code": "26P",
+   "vehicle_type": "3L",
+   "axle": "FRONT",
+   "from_mm": "175",
+   "to_mm": "270",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0314*.., BMW 3ER REIHE; Variante(n): Ab e1*2007/46*0314*05, Heckantrieb, Limousine, Nur BMW 3er (F30) ab 2012, Stufenheck (Seite 21)"
+  },
+  {
+   "code": "26B",
+   "vehicle_type": "3L",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0314*.., BMW 3ER REIHE; Variante(n): Ab e1*2007/46*0314*05, Heckantrieb, Limousine, Nur BMW 3er (F30) ab 2012, Stufenheck (Seite 21)"
+  },
+  {
+   "code": "27I",
+   "vehicle_type": "3L",
+   "axle": "REAR",
+   "from_mm": "170",
+   "to_mm": "260",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0314*.., BMW 3ER REIHE; Variante(n): Ab e1*2007/46*0314*05, Heckantrieb, Limousine, Nur BMW 3er (F30) ab 2012, Stufenheck (Seite 21)"
+  },
+  {
+   "code": "27H",
+   "vehicle_type": "3L",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "310",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0314*.., BMW 3ER REIHE; Variante(n): Ab e1*2007/46*0314*05, Heckantrieb, Limousine, Nur BMW 3er (F30) ab 2012, Stufenheck (Seite 21)"
+  },
+  {
+   "code": "27F",
+   "vehicle_type": "3L",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "310",
+   "flare_mm": "25",
+   "note_de": "Genehm.Nr. e1*2007/46*0314*.., BMW 3ER REIHE; Variante(n): Ab e1*2007/46*0314*05, Heckantrieb, Limousine, Nur BMW 3er (F30) ab 2012, Stufenheck (Seite 21)"
+  },
+  {
+   "code": "26J",
+   "vehicle_type": "3L",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "23",
+   "note_de": "Genehm.Nr. e1*2007/46*0314*.., BMW 3ER REIHE; Variante(n): Ab e1*2007/46*0314*05, Heckantrieb, Limousine, Nur BMW 3er (F30) ab 2012, Stufenheck (Seite 21)"
+  },
+  {
+   "code": "26N",
+   "vehicle_type": "3L",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0314*.., BMW 3ER REIHE; Variante(n): Ab e1*2007/46*0314*05, Heckantrieb, Limousine, Nur BMW 3er (F30) ab 2012, Stufenheck (Seite 21)"
+  },
+  {
+   "code": "26B",
+   "vehicle_type": "1K4",
+   "axle": "FRONT",
+   "from_mm": "190",
+   "to_mm": "220",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0283*.., BMW 1ER REIHE; Variante(n): Heckantrieb, Limousine (Seite 22)"
+  },
+  {
+   "code": "26P",
+   "vehicle_type": "1K4",
+   "axle": "FRONT",
+   "from_mm": "140",
+   "to_mm": "170",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0283*.., BMW 1ER REIHE; Variante(n): Heckantrieb, Limousine (Seite 22)"
+  },
+  {
+   "code": "27I",
+   "vehicle_type": "1K4",
+   "axle": "REAR",
+   "from_mm": "170",
+   "to_mm": "240",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0283*.., BMW 1ER REIHE; Variante(n): Heckantrieb, Limousine (Seite 22)"
+  },
+  {
+   "code": "27H",
+   "vehicle_type": "1K4",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "270",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0283*.., BMW 1ER REIHE; Variante(n): Heckantrieb, Limousine (Seite 22)"
+  },
+  {
+   "code": "26J",
+   "vehicle_type": "1K4",
+   "axle": "FRONT",
+   "from_mm": "190",
+   "to_mm": "220",
+   "flare_mm": "25",
+   "note_de": "Genehm.Nr. e1*2007/46*0283*.., BMW 1ER REIHE; Variante(n): Heckantrieb, Limousine (Seite 22)"
+  },
+  {
+   "code": "26N",
+   "vehicle_type": "1K4",
+   "axle": "FRONT",
+   "from_mm": "190",
+   "to_mm": "220",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0283*.., BMW 1ER REIHE; Variante(n): Heckantrieb, Limousine (Seite 22)"
+  },
+  {
+   "code": "27F",
+   "vehicle_type": "1K4",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "270",
+   "flare_mm": "30",
+   "note_de": "Genehm.Nr. e1*2007/46*0283*.., BMW 1ER REIHE; Variante(n): Heckantrieb, Limousine (Seite 22)"
+  },
+  {
+   "code": "26P",
+   "vehicle_type": "3K",
+   "axle": "FRONT",
+   "from_mm": "175",
+   "to_mm": "270",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0315*.., BMW 3ER REIHE; Variante(n): keine genannt (Seite 23)"
+  },
+  {
+   "code": "26B",
+   "vehicle_type": "3K",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0315*.., BMW 3ER REIHE; Variante(n): keine genannt (Seite 23)"
+  },
+  {
+   "code": "27I",
+   "vehicle_type": "3K",
+   "axle": "REAR",
+   "from_mm": "170",
+   "to_mm": "260",
+   "flare_mm": "",
+   "note_de": "Genehm.Nr. e1*2007/46*0315*.., BMW 3ER REIHE; Variante(n): keine genannt (Seite 23)"
+  },
+  {
+   "code": "27H",
+   "vehicle_type": "3K",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "310",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0315*.., BMW 3ER REIHE; Variante(n): keine genannt (Seite 23)"
+  },
+  {
+   "code": "27F",
+   "vehicle_type": "3K",
+   "axle": "REAR",
+   "from_mm": "220",
+   "to_mm": "310",
+   "flare_mm": "25",
+   "note_de": "Genehm.Nr. e1*2007/46*0315*.., BMW 3ER REIHE; Variante(n): keine genannt (Seite 23)"
+  },
+  {
+   "code": "26N",
+   "vehicle_type": "3K",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "8",
+   "note_de": "Genehm.Nr. e1*2007/46*0315*.., BMW 3ER REIHE; Variante(n): keine genannt (Seite 23)"
+  },
+  {
+   "code": "26J",
+   "vehicle_type": "3K",
+   "axle": "FRONT",
+   "from_mm": "225",
+   "to_mm": "320",
+   "flare_mm": "25",
+   "note_de": "Genehm.Nr. e1*2007/46*0315*.., BMW 3ER REIHE; Variante(n): keine genannt (Seite 23)"
+  }
+ ],
+ "groups": [
+  {
+   "page": 2,
+   "printed": "BMW X3 | X83 | e1*2001/116*0249*..",
+   "cars": [
+    "x3-X83"
+   ],
+   "codes": [
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "75I"
+   ],
+   "sizes": [
+    {
+     "width_mm": 235,
+     "aspect": 50,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "11A",
+      "24J",
+      "24M",
+      "51G"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 100,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "11A",
+      "24J",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 96,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "11A",
+      "24J",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 99,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 210,
+     "codes": [
+      "11A",
+      "24J",
+      "24M"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "printed": "BMW Z3 | R/C | e1*93/81*0029*.., e1*98/14*0029*.. | ab e1*93/81*0029*08; Cabrio;",
+   "cars": [
+    "z3-9381-08",
+    "z3-9814"
+   ],
+   "codes": [
+    "Cabrio",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 142,
+     "codes": [
+      "11A",
+      "21B",
+      "22B",
+      "24C",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "24M",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "24M",
+      "57F",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 170,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "21B",
+      "24C",
+      "57E",
+      "68B",
+      "68T"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW Z3 | R/C | e1*93/81*0029*.. | nur bis e1*93/81*0029*07; Cabrio;",
+   "cars": [
+    "z3-9381-00-07"
+   ],
+   "codes": [
+    "Cabrio",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 103,
+     "codes": [
+      "11A",
+      "21B",
+      "22B",
+      "24D",
+      "24J",
+      "631"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 103,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "57F",
+      "631",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW Z3 | R/C | e1*93/81*0029*.. | nur bis e1*93/81*0029*07; Cabrio;",
+   "cars": [
+    "z3-9381-00-07"
+   ],
+   "codes": [
+    "Cabrio",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 110,
+     "kw_max": 142,
+     "codes": [
+      "11A",
+      "21B",
+      "22B",
+      "24C",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 110,
+     "kw_max": 142,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "24M",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW Z4/Z REIHE | Z85 | e1*2001/116*0219*.. | Cabrio; Coupe;",
+   "cars": [
+    "z4-Z85"
+   ],
+   "codes": [
+    "Cabrio",
+    "Coupe",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "24J",
+      "24M",
+      "68B",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "21B",
+      "21L",
+      "24J",
+      "24M",
+      "54A",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "24M",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 110,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "22B",
+      "22L",
+      "24D",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW Z4/Z REIHE | ZR, Z89 | e1*2007/46*0373*.., e1*2001/116*0499*.. | Cabrio; Heckantrieb;",
+   "cars": [
+    "z4-ZR",
+    "z4-Z89"
+   ],
+   "codes": [
+    "Cabrio",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "76O",
+    "97K"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 115,
+     "kw_max": 190,
+     "codes": []
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 115,
+     "kw_max": 225,
+     "codes": []
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 115,
+     "kw_max": 250,
+     "codes": [
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 115,
+     "kw_max": 250,
+     "codes": [
+      "57E",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 115,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "22I",
+      "248",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "printed": "BMW 1ER REIHE | 1K2, 1K4 | e1*2007/46*0273*.., e1*2007/46*0283*.. | BMW 1er (F20 2011); BMW 1er (F21 2012); Ab e1*2007/46*0283*04; Ab e1*2007/46*0273*04; Kombilimousine; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "1er-1K2-04",
+    "1er-1K4-04",
+    "m135-1K2",
+    "m135-1K4"
+   ],
+   "codes": [
+    "Kombilimousine",
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "6AA",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 70,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "24J",
+      "244",
+      "247",
+      "26B",
+      "26N",
+      "27H",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 70,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "22M",
+      "241",
+      "244",
+      "246",
+      "247",
+      "26B",
+      "26J",
+      "27F",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 70,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "22M",
+      "244",
+      "247",
+      "27F",
+      "57F",
+      "570",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": "W",
+     "axle": "REAR",
+     "kw_min": 70,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "22L",
+      "24D",
+      "27F",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 1ER REIHE | 1C, 182 | e1*2007/46*0277*.., e1*2001/116*0352*.. | 1ER REIHE; bis e1*2007/46*0277*07; Cabrio; Coupe; Heckantrieb;",
+   "cars": [
+    "1er-1C-00-07",
+    "1er-182"
+   ],
+   "codes": [
+    "Cabrio",
+    "Coupe",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "744",
+    "76R"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 160,
+     "codes": [
+      "YDM",
+      "11A",
+      "21B",
+      "21N",
+      "22I",
+      "24C",
+      "24D"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 160,
+     "codes": [
+      "YDO",
+      "11A",
+      "22B",
+      "24D",
+      "57F"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "11A",
+      "21B",
+      "21N",
+      "24C",
+      "57E",
+      "68B",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "GB3",
+      "11A",
+      "22B",
+      "24D",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 94,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 240,
+     "codes": [
+      "11A",
+      "22B",
+      "24D",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 1ER REIHE | 1K2, 1K4, 187 | e1*2007/46*0273*.., e1*2007/46*0283*.., e1*2001/116*0287*.. | Nur bis e1*2007/46*0283*03; Nur bis e1*2007/46*0273*03; Ab e1*2001/116*0287*10; Schrägheck 2-türig; Schrägheck 4-türig;",
+   "cars": [
+    "1er-1K2-00-03",
+    "1er-1K4-00-03",
+    "1er-187-10"
+   ],
+   "codes": [
+    "Schrägheck 2-türig",
+    "Schrägheck 4-türig",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "744"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 195,
+     "codes": [
+      "GB4",
+      "11A",
+      "21P",
+      "22B",
+      "22L",
+      "24C",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "21B",
+      "22B",
+      "22L",
+      "24C",
+      "24M",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 66,
+     "kw_max": 195,
+     "codes": [
+      "GB3",
+      "11A",
+      "22B",
+      "22L",
+      "24D",
+      "270",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 66,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "22B",
+      "22L",
+      "24D",
+      "270",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 1ER REIHE | 187 | e1*2001/116*0287*.. | Nur bis e1*2001/116*0287*09; 4-türig;",
+   "cars": [
+    "1er-187-00-09"
+   ],
+   "codes": [
+    "4-türig",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "744"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "21P",
+      "22B",
+      "22L",
+      "24C",
+      "24D"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "21B",
+      "22B",
+      "22L",
+      "24C",
+      "24D"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "22B",
+      "22H",
+      "22L",
+      "24D",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 195,
+     "codes": [
+      "11A",
+      "22B",
+      "22H",
+      "22L",
+      "24D",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "printed": "BMW 2ER REIHE | 1C | e1*2007/46*0277*.. | 2ER REIHE; ab e1*2007/46*0277*08; Cabrio; Coupe; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "2er-1C-08",
+    "m235-1C"
+   ],
+   "codes": [
+    "Cabrio",
+    "Coupe",
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "6AA",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 215,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "245",
+      "248",
+      "26P",
+      "52J"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "GA2",
+      "11A",
+      "245",
+      "26N",
+      "26P",
+      "57E"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "245",
+      "26B",
+      "26J",
+      "57E",
+      "6A9"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "241",
+      "244",
+      "246",
+      "247",
+      "26B",
+      "26N",
+      "52J"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "241",
+      "246",
+      "26B",
+      "26J",
+      "57E",
+      "6AB"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "GA2",
+      "11A",
+      "244",
+      "247",
+      "27H",
+      "57F"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "244",
+      "247",
+      "27F",
+      "57F",
+      "6A9"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": "Y",
+     "axle": "REAR",
+     "kw_min": 240,
+     "kw_max": 250,
+     "codes": [
+      "11A",
+      "24D",
+      "27H",
+      "57F",
+      "6AB"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW 2ER REIHE | 1C | e1*2007/46*0277*.. | 2ER REIHE; ab e1*2007/46*0277*08; Cabrio; Coupe; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "2er-1C-08",
+    "m235-1C"
+   ],
+   "codes": [
+    "Cabrio",
+    "Coupe",
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "6AA",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 215,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 89,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "11A",
+      "245",
+      "248",
+      "26P"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "GA2",
+      "11A",
+      "241",
+      "244",
+      "246",
+      "247",
+      "26N",
+      "26P"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "11A",
+      "241",
+      "244",
+      "246",
+      "247",
+      "26B",
+      "26J",
+      "27F",
+      "54A",
+      "6A9"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "11A",
+      "241",
+      "244",
+      "246",
+      "247",
+      "26B",
+      "26N"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "11A",
+      "241",
+      "244",
+      "246",
+      "247",
+      "26B",
+      "26J",
+      "27F",
+      "6AB"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "GA2",
+      "11A",
+      "244",
+      "247",
+      "27H",
+      "57F"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "11A",
+      "244",
+      "247",
+      "27F",
+      "54A",
+      "57F",
+      "6A9"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": "W",
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 185,
+     "codes": [
+      "11A",
+      "24D",
+      "27H",
+      "57F",
+      "6AB"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW 3ER REIHE | 3/B | e1*93/81*0016*.. | Pkw geschlossen; Cabrio;",
+   "cars": [
+    "e36-3B"
+   ],
+   "codes": [
+    "Pkw geschlossen",
+    "Cabrio",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 75,
+     "kw_max": 142,
+     "codes": [
+      "BDC",
+      "11A",
+      "21B",
+      "21L",
+      "22B",
+      "22F",
+      "24J",
+      "24M",
+      "631"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 75,
+     "kw_max": 142,
+     "codes": [
+      "BDC",
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "57F",
+      "68B",
+      "68L"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW 3ER REIHE | 3/C | e1*93/81*0015*.. | Touring;",
+   "cars": [
+    "e36-3C"
+   ],
+   "codes": [
+    "Touring",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 66,
+     "kw_max": 142,
+     "codes": [
+      "BDC",
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "57F",
+      "631",
+      "68B",
+      "68L"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW 3ER REIHE | 3/C | e1*93/81*0015*.. | Limousine; Stufenheck;",
+   "cars": [
+    "e36-3C"
+   ],
+   "codes": [
+    "Limousine",
+    "Stufenheck",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 66,
+     "kw_max": 142,
+     "codes": [
+      "BDC",
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "57F",
+      "631",
+      "68B",
+      "68L"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "printed": "BMW 3ER REIHE | 3/CG | e1*93/81*0017*.., e1*98/14*0017*.. | Compact;",
+   "cars": [
+    "e36-3CG-9381",
+    "e36-3CG-9814"
+   ],
+   "codes": [
+    "Compact",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 66,
+     "kw_max": 125,
+     "codes": [
+      "BDC",
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 6,
+   "printed": "BMW 3ER REIHE | 3K, 3K-N1 | e1*2007/46*0315*.., e24*2007/46*0022*.. | BMW 3er (F31) ab 2012; Ab e24*2007/46*0022*03; Ab e1*2007/46*0315*06; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "3tvi-3K-06",
+    "3tvi-3KN1-03"
+   ],
+   "codes": [
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "512",
+    "6AA",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "75I",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "GA3",
+      "5GG"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "GA3"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "248",
+      "5GG"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "248"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "22M",
+      "24J",
+      "248",
+      "26P"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "GA3",
+      "11A",
+      "22M",
+      "22P",
+      "24M",
+      "27H",
+      "27I",
+      "57F"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 6,
+   "printed": "BMW 3ER REIHE | 3L | e1*2007/46*0314*.. | BMW 3er (F30) ab 2012; Ab e1*2007/46*0314*05; inkl. 330e iPerformance; Limousine; Stufenheck; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "3vi-3L-05"
+   ],
+   "codes": [
+    "Limousine",
+    "Stufenheck",
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "573",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": []
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "248",
+      "27I"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 265,
+     "codes": [
+      "GA3",
+      "11A",
+      "22M",
+      "22P",
+      "244",
+      "27H",
+      "27I",
+      "57F",
+      "6AA"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 6,
+   "printed": "BMW 3ER REIHE | 346C, 346K, 346L, 346R | e1*2001/116*0112*.., e1*98/14*0112*..; e1*2001/116*0167*.., e1*98/14*0167*..; e1*97/27*0097*.., e1*98/14*0097*..; e1*2001/116*0146*.., e1*98/14*0146*.. | Kompakt; Cabrio; Coupe; Limousine; Stufenheck 4-türig;",
+   "cars": [
+    "3iv-346C-2001",
+    "3iv-346C-98",
+    "3compact-346K-2001",
+    "3compact-346K-98",
+    "3iv-346L-97",
+    "3iv-346L-98",
+    "3iv-346R-2001",
+    "3iv-346R-98"
+   ],
+   "codes": [
+    "Kompakt",
+    "Cabrio",
+    "Coupe",
+    "Limousine",
+    "Stufenheck 4-türig",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "744"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 135,
+     "codes": [
+      "11A",
+      "21B",
+      "22B",
+      "22F",
+      "24J",
+      "24M",
+      "5FE"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "REAR",
+     "kw_min": 77,
+     "kw_max": 135,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "5FE",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 77,
+     "kw_max": 142,
+     "codes": [
+      "11A",
+      "21B",
+      "22B",
+      "22F",
+      "24J",
+      "24M",
+      "5FE"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "FRONT",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "21B",
+      "24J",
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "Y",
+     "axle": "REAR",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "5FE",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 77,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "24D",
+      "5GA",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 6,
+   "printed": "BMW 3ER REIHE | 346L | e1*97/27*0097*.., e1*98/14*0097*.. | Touring;",
+   "cars": [
+    "3iv-346L-97",
+    "3iv-346L-98"
+   ],
+   "codes": [
+    "Touring",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "744"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 105,
+     "codes": [
+      "11A",
+      "21B",
+      "21J",
+      "22B",
+      "22L",
+      "24J",
+      "24M",
+      "5FE"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 110,
+     "codes": [
+      "11A",
+      "22B",
+      "22F",
+      "22L",
+      "24D",
+      "5GA",
+      "57F",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "21B",
+      "21J",
+      "24J",
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "21B",
+      "21J",
+      "22B",
+      "22H",
+      "22L",
+      "24J",
+      "24M",
+      "54A"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 170,
+     "codes": [
+      "10N",
+      "11A",
+      "22B",
+      "22F",
+      "22L",
+      "24D",
+      "51G",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 7,
+   "printed": "BMW 3ER REIHE | 346X | e1*2001/116*0144*.., e1*98/14*0144*..",
+   "cars": [
+    "3allrad-346X-2001",
+    "3allrad-346X-98"
+   ],
+   "codes": [
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 135,
+     "kw_max": 141,
+     "codes": [
+      "Limousine",
+      "11A",
+      "22L",
+      "24J",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 90,
+     "min_speed_symbol": "W",
+     "axle": "REAR",
+     "kw_min": 135,
+     "kw_max": 141,
+     "codes": [
+      "10N",
+      "11A",
+      "22B",
+      "22L",
+      "24D",
+      "57F",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "FRONT",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "Kombi",
+      "11A",
+      "24J",
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "Limousine",
+      "11A",
+      "22L",
+      "24J",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "22L",
+      "24J",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "11A",
+      "21P",
+      "22B",
+      "22L",
+      "24J",
+      "24M",
+      "54A"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 94,
+     "min_speed_symbol": "Y",
+     "axle": "REAR",
+     "kw_min": 135,
+     "kw_max": 170,
+     "codes": [
+      "10N",
+      "11A",
+      "22B",
+      "22L",
+      "24D",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 7,
+   "printed": "BMW 3ER REIHE | 3L, 390L | e1*2007/46*0314*.., e1*2001/116*0308*.. | Nur bis e1*2007/46*0314*04; Facelift ab September 2008; Ab e1*2001/116*0308*09; Limousine; Heckantrieb;",
+   "cars": [
+    "3v-3L-00-04",
+    "3v-390L-09"
+   ],
+   "codes": [
+    "Limousine",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 125,
+     "codes": [
+      "5FE"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "51G",
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": []
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": []
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "11A",
+      "24M",
+      "51G",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 7,
+   "printed": "BMW 3ER REIHE | 3K, 3K-N1, 390L | e1*2007/46*0315*.., e24*2007/46*0022*.., e1*2001/116*0308*.. | Nur bis e1*2007/46*0315*05; Facelift ab September 2008; Nur bis e24*2007/46*0022*02; Ab e1*2001/116*0308*09; Touring; Heckantrieb;",
+   "cars": [
+    "3v-3K-00-05",
+    "3v-3KN1-00-02",
+    "3v-390L-09"
+   ],
+   "codes": [
+    "Touring",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "75I",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 160,
+     "codes": []
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 160,
+     "codes": []
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "51G",
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": []
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": []
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "11A",
+      "24M",
+      "51G",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 7,
+   "printed": "BMW 3ER REIHE | 390L | e1*2001/116*0308*.. | Nur bis e1*2001/116*0308*08; Limousine; Heckantrieb;",
+   "cars": [
+    "3v-390L-00-08"
+   ],
+   "codes": [
+    "Limousine",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 127,
+     "codes": [
+      "5FE"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 127,
+     "codes": [
+      "5FE",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 190,
+     "codes": [
+      "Nicht 330D"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 190,
+     "codes": [
+      "Nicht 330D",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "51G",
+      "57E",
+      "68B",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": []
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 85,
+     "kw_max": 225,
+     "codes": [
+      "51G",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 7,
+   "printed": "BMW 3ER REIHE | 390L | e1*2001/116*0308*.. | Nur bis e1*2001/116*0308*08; Touring; Heckantrieb;",
+   "cars": [
+    "3v-390L-00-08"
+   ],
+   "codes": [
+    "Touring",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "75I"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 89,
+     "kw_max": 190,
+     "codes": [
+      "Nicht 330D"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": "Y",
+     "axle": "REAR",
+     "kw_min": 89,
+     "kw_max": 190,
+     "codes": [
+      "Nicht 330D",
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "Y",
+     "axle": "FRONT",
+     "kw_min": 89,
+     "kw_max": 225,
+     "codes": [
+      "57E",
+      "68B",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 89,
+     "kw_max": 225,
+     "codes": []
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 89,
+     "kw_max": 225,
+     "codes": [
+      "51G",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 8,
+   "printed": "BMW 3ER REIHE | 3C, 390X | e1*2007/46*0316*.., e1*2001/116*0344*.. | bis e1*2007/46*0316*07; Coupe; Allradantrieb;",
+   "cars": [
+    "3v-3C-00-07",
+    "3v-390X-00-05",
+    "3v-390X-06"
+   ],
+   "codes": [
+    "Coupe",
+    "Allradantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "83H"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 120,
+     "kw_max": 200,
+     "codes": []
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 120,
+     "kw_max": 225,
+     "codes": [
+      "GB6",
+      "57E"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 120,
+     "kw_max": 225,
+     "codes": [
+      "52J"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 120,
+     "kw_max": 225,
+     "codes": [
+      "GB6",
+      "51G",
+      "57F"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 8,
+   "printed": "BMW 3ER REIHE | 3K, 3K-N1, 3L, 390X | e1*2007/46*0315*.., e24*2007/46*0022*.., e1*2007/46*0314*.., e1*2001/116*0344*.. | Nur bis e1*2007/46*0314*04; Nur bis e1*2007/46*0315*05; Nur bis e24*2007/46*0022*02; Ab e1*2001/116*0344*06; Touring; Limousine; Allradantrieb;",
+   "cars": [
+    "3v-3L-00-04",
+    "3v-3K-00-05",
+    "3v-3KN1-00-02",
+    "3v-390X-06"
+   ],
+   "codes": [
+    "Touring",
+    "Limousine",
+    "Allradantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "573",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "75I",
+    "76O"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 120,
+     "kw_max": 240,
+     "codes": [
+      "5FE",
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 120,
+     "kw_max": 240,
+     "codes": []
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 94,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 160,
+     "kw_max": 240,
+     "codes": [
+      "11A",
+      "248",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 8,
+   "printed": "BMW 3ER REIHE | 390X | e1*2001/116*0344*.. | Nur bis e1*2001/116*0344*05; Touring; Limousine; Allradantrieb;",
+   "cars": [
+    "3v-390X-00-05"
+   ],
+   "codes": [
+    "Touring",
+    "Limousine",
+    "Allradantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "75I"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 155,
+     "kw_max": 190,
+     "codes": []
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 155,
+     "kw_max": 225,
+     "codes": [
+      "GB6",
+      "57E"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 155,
+     "kw_max": 225,
+     "codes": [
+      "GB6",
+      "51G",
+      "57F"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 8,
+   "printed": "BMW 3ER REIHE | 3C, 392C | e1*2007/46*0316*.., e1*2001/116*0346*.. | bis e1*2007/46*0316*07; Coupe; Heckantrieb;",
+   "cars": [
+    "3v-3C-00-07",
+    "3v-392C"
+   ],
+   "codes": [
+    "Coupe",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "83H",
+    "861"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 90,
+     "kw_max": 200,
+     "codes": []
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 90,
+     "kw_max": 200,
+     "codes": []
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 90,
+     "kw_max": 200,
+     "codes": [
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "FRONT",
+     "kw_min": 90,
+     "kw_max": 225,
+     "codes": [
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "FRONT",
+     "kw_min": 90,
+     "kw_max": 225,
+     "codes": [
+      "57E",
+      "68B",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 90,
+     "kw_max": 225,
+     "codes": [
+      "52J"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 90,
+     "kw_max": 225,
+     "codes": [
+      "57E",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 90,
+     "kw_max": 225,
+     "codes": [
+      "51G",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 8,
+   "printed": "BMW 3ER REIHE | 3C, 392C | e1*2007/46*0316*.., e1*2001/116*0346*.. | bis e1*2007/46*0316*07; Cabrio; Heckantrieb;",
+   "cars": [
+    "3v-3C-00-07",
+    "3v-392C"
+   ],
+   "codes": [
+    "Cabrio",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "75I",
+    "83H",
+    "861"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 105,
+     "kw_max": 200,
+     "codes": []
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 105,
+     "kw_max": 200,
+     "codes": []
+    },
+    {
+     "width_mm": 245,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": "Y",
+     "axle": "REAR",
+     "kw_min": 105,
+     "kw_max": 200,
+     "codes": [
+      "57F",
+      "68T"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": "W",
+     "axle": "FRONT",
+     "kw_min": 105,
+     "kw_max": 225,
+     "codes": [
+      "57E",
+      "68B"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 92,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 105,
+     "kw_max": 225,
+     "codes": [
+      "52J"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "FRONT",
+     "kw_min": 105,
+     "kw_max": 225,
+     "codes": [
+      "57E",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 35,
+     "diameter": 18,
+     "min_load_index": null,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 105,
+     "kw_max": 225,
+     "codes": [
+      "51G",
+      "57F",
+      "68B"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 9,
+   "printed": "BMW 4ER REIHE | 3C | e1*2007/46*0316*.. | ab e1*2007/46*0316*08; 4er Coupe (F32); Coupe; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "4-3C-08",
+    "4-3C-09"
+   ],
+   "codes": [
+    "Coupe",
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "573",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "76O",
+    "83H"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "GA3"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "248",
+      "27I",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "24J",
+      "248",
+      "26P",
+      "27I",
+      "688"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "GA3",
+      "11A",
+      "248",
+      "27H",
+      "27I",
+      "57F"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 9,
+   "printed": "BMW 4ER REIHE | 3C | e1*2007/46*0316*.. | ab e1*2007/46*0316*09; 4er Cabrio (F33); Cabrio; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "4-3C-09"
+   ],
+   "codes": [
+    "Cabrio",
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "6AA",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "75I",
+    "76O",
+    "83H"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 120,
+     "kw_max": 265,
+     "codes": [
+      "GA3"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 120,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "248",
+      "27I",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 120,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "24J",
+      "248",
+      "26P",
+      "27I",
+      "688"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 120,
+     "kw_max": 265,
+     "codes": [
+      "GA3",
+      "11A",
+      "248",
+      "27H",
+      "27I",
+      "57F"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 9,
+   "printed": "BMW 4ER REIHE | 3C | e1*2007/46*0316*.. | 4er Gran Coupe (F36); ab e1*2007/46*0316*10; Allradantrieb; Heckantrieb;",
+   "cars": [
+    "4gc-3C-10"
+   ],
+   "codes": [
+    "Allradantrieb",
+    "Heckantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "6AA",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A",
+    "75I",
+    "76O",
+    "83H"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "GA3"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "248",
+      "27I",
+      "689"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": "W",
+     "axle": "ALL",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "11A",
+      "24J",
+      "248",
+      "26P",
+      "27I",
+      "688"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "REAR",
+     "kw_min": 100,
+     "kw_max": 265,
+     "codes": [
+      "GA3",
+      "11A",
+      "248",
+      "27H",
+      "27I",
+      "57F"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 9,
+   "printed": "BMW 5ER REIHE | 560X | e1*2001/116*0322*.. | nur Limousine Allradantrieb;",
+   "cars": [
+    "5x4-560X",
+    "5tx4-560X"
+   ],
+   "codes": [
+    "nur Limousine",
+    "Allradantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "75I"
+   ],
+   "sizes": [
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "11A",
+      "24J",
+      "24M"
+     ]
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "11A",
+      "24J",
+      "24M"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 9,
+   "printed": "BMW 5ER REIHE | 560X | e1*2001/116*0322*.. | nur Kombi Allradantrieb;",
+   "cars": [
+    "5x4-560X",
+    "5tx4-560X"
+   ],
+   "codes": [
+    "nur Kombi",
+    "Allradantrieb",
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "729",
+    "73C",
+    "74A",
+    "75I"
+   ],
+   "sizes": [
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": []
+    },
+    {
+     "width_mm": 245,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 93,
+     "min_speed_symbol": "Y",
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "11A",
+      "24J"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 145,
+     "kw_max": 200,
+     "codes": [
+      "11A",
+      "24J",
+      "24M"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 10,
+   "printed": "MINI | UKL-N1 | e24*2007/46*0023*..",
+   "cars": [
+    "cm-UKLN1"
+   ],
+   "codes": [
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21P",
+      "24C",
+      "244",
+      "247",
+      "270"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21P",
+      "24C",
+      "244",
+      "247",
+      "272"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21B",
+      "24C",
+      "244",
+      "247",
+      "272"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21B",
+      "24C",
+      "24D",
+      "273"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 10,
+   "printed": "MINI (COUNTRYMAN) | UKL/X | e1*2007/46*0496*..",
+   "cars": [
+    "cm-UKLX",
+    "cmjcw-UKLX"
+   ],
+   "codes": [
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21P",
+      "24C",
+      "244",
+      "247",
+      "270"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21P",
+      "24C",
+      "244",
+      "247",
+      "272"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21B",
+      "24C",
+      "244",
+      "247",
+      "272"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21B",
+      "24C",
+      "24D",
+      "273"
+     ]
+    }
+   ]
+  },
+  {
+   "page": 10,
+   "printed": "MINI (PACEMAN) | UKL-C/X | e1*2007/46*0563*.. | ab e1*2007/46*0563*01;",
+   "cars": [
+    "pm-UKLCX-01",
+    "pmjcw-UKLCX-01"
+   ],
+   "codes": [
+    "10B",
+    "11B",
+    "11G",
+    "11H",
+    "12A",
+    "51A",
+    "71C",
+    "71K",
+    "721",
+    "725",
+    "73C",
+    "74A"
+   ],
+   "sizes": [
+    {
+     "width_mm": 225,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 88,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21P",
+      "24C",
+      "244",
+      "247",
+      "270"
+     ]
+    },
+    {
+     "width_mm": 225,
+     "aspect": 45,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21P",
+      "24C",
+      "244",
+      "247",
+      "272"
+     ]
+    },
+    {
+     "width_mm": 235,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 91,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21B",
+      "24C",
+      "244",
+      "247",
+      "272"
+     ]
+    },
+    {
+     "width_mm": 255,
+     "aspect": 40,
+     "diameter": 18,
+     "min_load_index": 95,
+     "min_speed_symbol": null,
+     "axle": "ALL",
+     "kw_min": 66,
+     "kw_max": 160,
+     "codes": [
+      "11A",
+      "21B",
+      "24C",
+      "24D",
+      "273"
+     ]
+    }
+   ]
+  }
+ ],
+ "notEntered": [
+  "Seite 2, BMW M3 (Typ M3B, Betriebserlaubnis G191) und Seite 5, BMW 3 B (Betriebserlaubnis F920): nicht eingetragen – beide tragen eine nationale Betriebserlaubnis statt einer EG-Typgenehmigung, und „Fahrzeug aus diesem Gutachten anlegen“ nimmt nur eine EG-Nummer.",
+  "Seiten 19, 21, 22, 23: das Maß zu „27B“ (Nacharbeit Hinterachse) nicht eingetragen – 27B steht in keinem Auflagenverzeichnis des Nachtrags und in keiner Zeile.",
+  "Die Hinweise zur Baureihe („BMW 1er (F20 2011)“, „BMW 3er (F30) ab 2012“, „inkl. 330e iPerformance“, „Facelift ab September 2008“, „4er Coupe (F32)“ …) und die Grenzen „ab …*08“, „Nur bis …*03“ bestimmen, welche Fahrzeuge eine Zeile trägt; als Code eingetragen sind sie nicht.",
+  "Seite 24, das Hinweisblatt zur Radabdeckung (Bilder der Hilfsmittel zu den Auflagen 241 – 248, 24C, 24D, 24J und 24M): nicht als Hinweis eingetragen – es erklärt Zeichnungen, die der Shop nicht zeigt, und nennt nur Codes. Die Sätze der Auflagen selbst stehen im Auflagenverzeichnis; das PDF zeigt das Blatt.",
+  "Seite 3, BMW Z4 ZR/Z89: „225/40R18 92 M+S“ bei 115–250 kW nicht eingetragen – die Zeile beschränkt sie auf M+S-Reifen, und dafür druckt sie keinen Code (etwa 52J), den der Shop lesen könnte. Ohne diese Einschränkung wäre ein Sommerreifen 225/40 R18 92 bis 250 kW zugelassen, was das Gutachten nicht sagt."
+ ]
+}

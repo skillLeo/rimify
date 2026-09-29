@@ -130,7 +130,7 @@ function product(overrides: Partial<HeroProduct> = {}): HeroProduct {
         name: 'MCR4 Ultimate',
         brand: 'MOTEC',
         finish: 'Light Grey D5',
-        fromPriceCents: 75600,
+        fromPriceCents: 18900,
         fromPrice: `756,00${NBSP}€`,
         imageManifest: manifest(),
         symbolic: false,
@@ -541,6 +541,19 @@ describe('HomeHero · the lines under the picture', () => {
         expect(links[0]?.find('img').exists()).toBe(true)
         expect(links[0]?.text()).toContain('MOTEC MCR4 Ultimate · Light Grey D5')
         expect(links[0]?.text()).toContain(`ab 189,00${NNBSP}€ · pro Felge`)
+        expect(wrapper.text()).not.toContain(SYMBOLIC)
+    })
+
+    it('shows a draft over its own photograph and names it, but offers no price and no link', () => {
+        const wrapper = mountHero(product({ published: false }))
+
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.find('.hero__link').element.tagName).toBe('DIV')
+        expect(wrapper.find('img').exists()).toBe(true)
+        expect(wrapper.find('.hero__caption-name').text()).toBe('MOTEC MCR4 Ultimate · Light Grey D5')
+        expect(wrapper.text()).not.toContain('pro Felge')
+        expect(wrapper.text()).not.toContain('189,00')
+        expect(wrapper.find('.hero__shown').text()).toBe(CAPTION)
         expect(wrapper.text()).not.toContain(SYMBOLIC)
     })
 

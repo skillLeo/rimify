@@ -1,0 +1,133 @@
+/**
+ * The shop's health line, kept current (the rail's foot, the phone's Mehr sheet).
+ *
+ * Every admin page arrives with `admin.health` from the server, so the line is right in the first
+ * frame. After that it is asked for again every 60 seconds, silently: no spinner, no flicker — the
+ * sentence simply changes when the answer does. A poll that fails keeps the last answer rather than
+ * inventing a new one. One timer for the whole panel, however many places show the line.
+ */
+
+import { router } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, onMounted, ref, type ComputedRef } from 'vue'
+import { useAdmin } from './useAdmin'
+import type { AdminHealth } from '../../types/admin'
+
+export const PULSE_URL = '/admin/system/puls'
+export const PULSE_MS = 60_000
+
+const live = ref<Pick<AdminHealth, 'state' | 'sentence' | 'label' | 'count'> | null>(null)
+let users = 0
+let timer: ReturnType<typeof setInterval> | null = null
+
+async function pulse(): Promise<void> {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return
+    }
+
+    try {
+        const response = await fetch(PULSE_URL, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        })
+
+        if (!response.ok) {
+            return
+        }
+
+        const body = (await response.json()) as { state?: unknown; sentence?: unknown; label?: unknown; count?: unknown }
+
+        if ((body.state === 'ok' || body.state === 'warn' || body.state === 'bad') && typeof body.sentence === 'string') {
+            live.value = {
+                state: body.state,
+                sentence: body.sentence,
+                label: typeof body.label === 'string' ? body.label : body.sentence,
+                count: typeof body.count === 'string' ? body.count : null,
+            }
+        }
+    } catch {
+        // Keep the last answer: a network blip is not news about the shop.
+    }
+}
+
+let listening = false
+
+export function useHealth(): ComputedRef<AdminHealth | null> {
+    const admin = useAdmin()
+
+    if (!listening && typeof window !== 'undefined') {
+        listening = true
+        // A page from the server carries an answer at most 30 seconds old: it replaces the polled one.
+        // A page without the banner that was put off means the server keeps the snooze now; when it
+        // runs out, the banner may come back even in a tab left open for the 8 hours.
+        router.on('success', (event) => {
+            live.value = null
+
+            const admin = (event.detail.page.props as { admin?: { health?: { banner?: { key?: unknown } | null } | null } }).admin
+
+            if (admin?.health?.banner?.key !== snoozedBanner.value) {
+                snoozedBanner.value = null
+            }
+        })
+    }
+
+    onMounted(() => {
+        users += 1
+
+        if (timer === null) {
+            timer = setInterval(() => void pulse(), PULSE_MS)
+        }
+    })
+
+    onBeforeUnmount(() => {
+        users -= 1
+
+        if (users <= 0 && timer !== null) {
+            clearInterval(timer)
+            timer = null
+            users = 0
+        }
+    })
+
+    return computed(() => {
+        const base = admin.value.health
+
+        if (base === null) {
+            return null
+        }
+
+        return live.value === null ? base : { ...base, ...live.value }
+    })
+}
+
+/*
+ * One problem, three places, three jobs: the banner is the interrupt, the Systemzustand card the
+ * detail, the rail's line (and the phone's Mehr row) the ambient reminder. While the banner shows,
+ * the line would only say it a second time, so it stays away; once the banner is put off („Später
+ * erinnern“), the line comes back. The card always stays.
+ *
+ * „Später erinnern“ hides the banner at once, in every part of the page; the server remembers it from
+ * the next page on (HandleInertiaRequests leaves the banner out of the first frame).
+ */
+const snoozedBanner = ref<string | null>(null)
+
+/** The urgent problem's banner as the page shows it now: null when there is none, or it was put off. */
+export function useHealthBanner(): ComputedRef<AdminHealth['banner']> {
+    const admin = useAdmin()
+
+    return computed(() => {
+        const banner = admin.value.health?.banner ?? null
+
+        return banner !== null && banner.key !== snoozedBanner.value ? banner : null
+    })
+}
+
+/** „Später erinnern“: the banner about this problem goes, and the rail's line comes back. */
+export function snoozeBanner(key: string): void {
+    snoozedBanner.value = key
+}
+
+/** For tests: forget the polled answer and any banner put off. */
+export function resetHealth(): void {
+    live.value = null
+    snoozedBanner.value = null
+}

@@ -131,6 +131,108 @@
     --bottomnav-h: 56px;
     --stickybar-h: 64px;
 
+    /* ── Admin · the workbench scale ──────────────────────────────────────────────
+       The panel uses the same palette, family, radii, shadows and motion as the shop and one notch
+       less of everything that costs a row (docs/design/sections/admin-shell.md §2). These are layout
+       measures in the same role as --header-h, each a sum of tokens above. No storefront rule
+       references them, and no admin surface is dark by default (DIRECTION §8a, D-030). */
+    --adm-rail-w: 260px;        /* Holds the longest second-level label at --fs-small untruncated. */
+    --adm-rail-w-min: 64px;     /* 40px icon button + 2 × --sp-12. */
+    --adm-topbar-h: 56px;       /* --adm-row-h + 2 × --sp-8; the same measure as --header-h-m. */
+    --adm-row-h: 40px;          /* --lh-body + 2 × --sp-8: single-line table row, menu row. The rail's
+                                   36px item is a control height (--adm-control-h), not a row. */
+    --adm-row-h-lg: 56px;       /* Two-line rows. */
+    --adm-row-h-dash: 44px;     /* A row of the Übersicht's tables (Neueste Bestellungen, Zu erledigen): 13 px type, one line. */
+    --adm-control-h: 36px;      /* --lh-small + 2 × --sp-8. */
+    --adm-control-h-lg: 44px;   /* The touch floor: every control below 768px. */
+    --adm-wordmark-size: 28px;  /* The rail's wordmark: a 20 px cap height in Archivo (cap ≈ 0.72 em). */
+    --adm-form-max: 720px;      /* One-column forms and prose. */
+    --adm-work-max: 1600px;     /* The widest a data table stays scannable. */
+    --adm-dash-max: 1440px;     /* The Übersicht: a 12-column grid that fills, never a half-empty band. */
+    --adm-fs-title: 15px;       /* A widget's title: between the body and the small size, 600. */
+    --adm-lh-title: 22px;
+    --adm-fs-table: 13px;       /* Dense tables on the Übersicht; 12 px stays for captions. */
+    --adm-lh-table: 20px;
+
+    /* ── Charts (BRIEF §5): the accent carries the one series that is the story; the rest is grey.
+       Status colours are never series colours. Text on a chart wears ink, never a series colour. */
+    --chart-accent: var(--c-blue);
+    --chart-muted: var(--c-line-2);
+    --chart-grid: var(--c-line);
+    --chart-text: var(--c-ink-3);
+    --chart-marker-ring: 0 0 0 2px var(--c-surface);
+
+    /* Eight categorical hues in a fixed order — colour follows the entity, never the rank. Proven
+       by resources/js/Components/Admin/Charts/palette.test.ts: every adjacent pair apart under
+       normal vision and under deuteranopia and protanopia, every hue visible on the surface. */
+    --chart-cat-1: #1a44d4;
+    --chart-cat-2: #c46a00;
+    --chart-cat-3: #0b8a7a;
+    --chart-cat-4: #9b2c6f;
+    --chart-cat-5: #6b7280;
+    --chart-cat-6: #7c4dde;
+    --chart-cat-7: #8a6a10;
+    --chart-cat-8: #1b8fd6;
+
+    /* One sequential ramp on the accent's hue, light to dark, for magnitudes (the coverage matrix). */
+    --chart-seq-1: #eef2fd;
+    --chart-seq-2: #cfdbfa;
+    --chart-seq-3: #a8bdf4;
+    --chart-seq-4: #7b99ec;
+    --chart-seq-5: #4d72e1;
+    --chart-seq-6: #1a44d4;
+    --chart-seq-7: #10308f;
+
+    /* A diverging pair with a neutral midpoint, for above and below a reference. */
+    --chart-div-neg: #9b2c6f;
+    --chart-div-mid: #e2e5e9;
+    --chart-div-pos: #1a44d4;
+
+    /* The four verdicts where their areas meet without words (a stacked column): the verdict hues
+       (§2) stepped in lightness so every pair stays apart for every reader — OKLab ΔE ≥ 15, ≥ 8
+       under protanopia, deuteranopia and tritanopia, each ≥ 3:1 on the surface (palette.test.ts).
+       Reserved for verdicts: nothing else on a page wears them. Badges keep --c-ok … --c-unk. */
+    --chart-verdict-permitted: #31663a;
+    --chart-verdict-conditional: #c38323;
+    --chart-verdict-refused: #6f1915;
+    --chart-verdict-unknown: #7b8187;
+
+    /* A change against the previous period: an arrow and a sign in ink, never a verdict's or a
+       status's colour — up is not „good“ and down is not „bad“ for every figure. */
+    --delta-up: var(--c-ink);
+    --delta-down: var(--c-ink);
+
+    /* A chart's plot: its only minimum height (cards have none). Smaller below 1280 and 768. */
+    --adm-plot-h: 260px;
+
+    /* The Übersicht's gutter: 24 px from 1280, 16 px below. */
+    --adm-dash-gap: 24px;
+
+    /* Inside every card on the Übersicht — tiles, widgets, Heute — one padding. */
+    --adm-card-pad: var(--sp-20);
+
+    /* The caption under a chart: what it counts, two lines at most. */
+    --adm-fs-caption: 13.5px;
+    --adm-lh-caption: 20px;
+
+    /* A matrix cell pointed at or focused: a 2 px ring in ink, inside the cell. */
+    --chart-cell-hover: inset 0 0 0 2px var(--c-ink);
+    /* …and a cell with nothing in it: its hairline only. */
+    --chart-cell-empty: inset 0 0 0 1px var(--c-line);
+
+    /* A table row that holds the keyboard's focus: a 2 px bar in the accent at its start. */
+    --adm-row-focus: inset 2px 0 0 var(--c-blue);
+
+    /* Admin motion, as the client set it (docs/admin/BRIEF-2.md §4). Transform and opacity only;
+       prefers-reduced-motion sets every one of these to zero and keeps the end state. */
+    --adm-d-sheet-in: 240ms;    /* Drawer, sheet, flyout arriving — with --ease-out. */
+    --adm-d-rail: 180ms;        /* The rail collapsing, opening, resetting — with --ease-out; never while dragged. */
+    --adm-d-sheet-out: 180ms;   /* …and leaving. Out is faster than in: leaving is not news. */
+    --adm-d-dialog: 180ms;      /* Dialog: a fade with a 2 % scale from 0.98. */
+    --adm-d-toast: 160ms;       /* One toast at a time, sliding and fading. */
+    --adm-d-row-flash: var(--d-4); /* A row just created or updated: one tint fade, then nothing. */
+    --adm-d-pulse: 1200ms;      /* A skeleton's pulse, replaced in place by the content. */
+
     /* ── Brand marks · the constant-area logo box (sections/home-brands.md §3.4) ───
        A one-colour logo whose width / height is a is drawn k·√a wide and k/√a tall, so every
        mark covers the same area k²; it is then capped at the two maxima with its proportions
@@ -168,6 +270,14 @@
         --logo-k: 64px;
         --logo-w-max: 144px;
         --logo-h-max: 48px;
+    }
+}
+
+/* The Übersicht below its full width: a tighter gutter, lower plots. */
+@media (max-width: 1279px) {
+    :root {
+        --adm-plot-h: 200px;
+        --adm-dash-gap: 16px;
     }
 }
 
@@ -214,6 +324,7 @@
         --lh-h4: 24px;
         --fs-body-l: 16px;
         --lh-body-l: 24px;
+        --adm-plot-h: 168px;
     }
 }
 

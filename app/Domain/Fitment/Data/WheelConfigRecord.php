@@ -31,6 +31,8 @@ final readonly class WheelConfigRecord
         public ?string $modelName = null,
         public ?string $brandName = null,
         public ?string $finishNameDe = null,
+        /** The load one wheel is tested for (Radlast), in kg, where the document states it. */
+        public ?int $maxLoadKg = null,
     ) {}
 
     public function isInStock(): bool

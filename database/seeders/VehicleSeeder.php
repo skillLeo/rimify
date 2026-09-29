@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\VehicleSource;
 use App\Models\Vehicle;
 use Illuminate\Database\Seeder;
 
@@ -25,20 +26,35 @@ use Illuminate\Database\Seeder;
  */
 class VehicleSeeder extends Seeder
 {
+    /** Where these cars came from: invented type keys, so no freigegebenes Gutachten may ever name one. */
+    public const SOURCE = 'entwicklung';
+
     public function run(): void
     {
-        foreach (self::VEHICLES as $vehicle) {
-            Vehicle::updateOrCreate(
-                ['source_vehicle_id' => $vehicle['source_vehicle_id']],
-                $vehicle + ['raw' => $vehicle, 'imported_at' => now()],
-            );
+        // Development data: hand-written rows with traps for the engine and a fleet whose type numbers
+        // are made up (TSN AKA, AKB, AKC …). The live shop's cars come from the vehicle data import,
+        // never from here — an invented car would get a verdict (CLAUDE.md §2).
+        if (app()->environment('production')) {
+            return;
         }
 
-        foreach ($this->fleet() as $vehicle) {
-            Vehicle::updateOrCreate(
+        // Tests only: the storefront tests' own shop (CatalogueSeeder::$shopFixture) — its cars stand for
+        // checked cars there, as its wheels stand for published ones. Never outside a test run.
+        $shop = CatalogueSeeder::$shopFixture && app()->runningUnitTests();
+
+        foreach ([...self::VEHICLES, ...$this->fleet()] as $vehicle) {
+            // Born demo (R-12's rule of birth), so demo:purge and demo:assert-clean see it; a car the
+            // purge hid (R-04: soft-deleted, never removed) comes back on the next seed.
+            Vehicle::withTrashed()->updateOrCreate(
                 ['source_vehicle_id' => $vehicle['source_vehicle_id']],
-                $vehicle + ['raw' => $vehicle, 'imported_at' => now()],
-            );
+                $vehicle + [
+                    'raw' => $vehicle,
+                    'imported_at' => now(),
+                    'source' => $shop ? VehicleSource::ManuellGeprueft->value : self::SOURCE,
+                    'is_demo' => ! $shop,
+                    'demo_ref' => $shop ? null : 'demo:vehicle:'.$vehicle['source_vehicle_id'],
+                ],
+            )->restore();
         }
     }
 

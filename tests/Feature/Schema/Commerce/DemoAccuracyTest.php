@@ -93,8 +93,8 @@ it('never pairs a wheel with a car of another bolt pattern, or with a hub its bo
         $factory = ApprovalSeeder::VEHICLES[$row->make.'|'.$row->model.'|'.$row->type_designation] ?? null;
 
         // Where the document states its own bore for this car that figure governs, and the rim's
-        // catalogue number is not the claim being tested: the MOTEC is catalogued at 66,5 mm in
-        // 5 × 112 and its ABE prints 66,6 mm for the cars it covers without a centring ring.
+        // catalogue number is not the claim being tested: Bergsteig Gipfel is catalogued at 66,5 mm
+        // in 5 × 112 and the ninth document states 66,6 mm for some makes' cars.
         $bore = $row->stated_bore_mm === null ? (float) $row->centre_bore_mm : (float) $row->stated_bore_mm;
 
         expect($factory)->not->toBeNull("{$row->make} {$row->variant} has no asserted bolt pattern, so no fitment")
@@ -114,23 +114,23 @@ it('never pairs a wheel with a car of another bolt pattern, or with a hub its bo
     expect($live->where('variant', '3er Coupé')->pluck('bolt_circle_mm')->map(fn ($c): float => (float) $c)->unique()->values()->all())->toBe([120.0]);
 });
 
-it('limits the MCR4 to the makes its ABE names for each bolt pattern', function (): void {
+it('limits the ninth document to the makes it names for each bolt pattern', function (): void {
     $this->seed(ApprovalSeeder::class);
 
-    $motec = liveDemoFitments()->where('slug', 'motec-mcr4-ultimate');
+    $ninth = liveDemoFitments()->where('slug', 'bergsteig-gipfel');
 
-    expect($motec)->not->toBeEmpty();
+    expect($ninth)->not->toBeEmpty();
 
-    foreach ($motec as $row) {
-        $allowed = ApprovalSeeder::MOTEC_MAKES[number_format((float) $row->bolt_circle_mm, 1, '.', '')];
+    foreach ($ninth as $row) {
+        $allowed = ApprovalSeeder::RANGE9_MAKES[number_format((float) $row->bolt_circle_mm, 1, '.', '')];
 
         expect($allowed)->toContain($row->make);
     }
 
-    // Porsche is in none of the ABE's annexes, although the Macan has 5 × 112; the 5 × 120
-    // execution is BMW and MINI only, so the Opel Insignia gets none of it.
-    expect($motec->where('make', 'Porsche'))->toBeEmpty()
-        ->and($motec->where('make', 'Opel'))->toBeEmpty();
+    // Porsche is in none of its lists, although the Macan has 5 × 112; the 5 × 120 execution is
+    // BMW and MINI only, so the Opel Insignia gets none of it.
+    expect($ninth->where('make', 'Porsche'))->toBeEmpty()
+        ->and($ninth->where('make', 'Opel'))->toBeEmpty();
 });
 
 it('states a bore on a fitment row only where the document states one for that car', function (): void {
@@ -138,27 +138,27 @@ it('states a bore on a fitment row only where the document states one for that c
 
     $live = liveDemoFitments();
 
-    // Only the MOTEC document states a bore, and only in its 5 × 112 executions for the makes its
-    // annexes cover without a centring ring. Every other demo document is silent, and silence is
-    // NULL — never the rim's own figure copied onto the row.
+    // Only the ninth document states a bore, and only in its 5 × 112 execution for the makes it
+    // lists. Every other demo document is silent, and silence is NULL — never the rim's own figure
+    // copied onto the row.
     foreach ($live as $row) {
         if ($row->stated_bore_mm === null) {
             continue;
         }
 
-        expect($row->slug)->toBe('motec-mcr4-ultimate')
+        expect($row->slug)->toBe('bergsteig-gipfel')
             ->and((float) $row->bolt_circle_mm)->toBe(112.0)
-            ->and((float) $row->stated_bore_mm)->toBe(ApprovalSeeder::MOTEC_NO_RING_BORE_MM)
-            ->and(ApprovalSeeder::MOTEC_NO_RING_MAKES)->toContain($row->make);
+            ->and((float) $row->stated_bore_mm)->toBe(ApprovalSeeder::RANGE9_STATED_BORE_MM)
+            ->and(ApprovalSeeder::RANGE9_STATED_BORE_MAKES)->toContain($row->make);
     }
 
     $mercedes = $live
-        ->where('slug', 'motec-mcr4-ultimate')
+        ->where('slug', 'bergsteig-gipfel')
         ->where('make', 'Mercedes-Benz')
         ->filter(static fn (object $row): bool => (float) $row->bolt_circle_mm === 112.0);
 
-    // The case the client named (2026-09-23): one casting, 66,5 mm in the catalogue and 66,6 mm in
-    // the document for a car whose hub is 66,6 — and the pairing stands because the document wins.
+    // One casting, 66,5 mm in the catalogue and 66,6 mm in the document for a car whose hub is
+    // 66,6 — and the pairing stands because the document wins (R-06).
     expect($mercedes)->not->toBeEmpty();
 
     foreach ($mercedes as $row) {
@@ -166,10 +166,9 @@ it('states a bore on a fitment row only where the document states one for that c
             ->and((float) $row->stated_bore_mm)->toBe(66.6);
     }
 
-    // Audi is named in the ringed annexes as well as the unringed ones, so the document does not
-    // say which applies to a given Audi and the row states nothing at all.
+    // Audi is ambiguous in the document, so the row states nothing at all.
     foreach ($live->where('make', 'Audi') as $row) {
-        expect($row->stated_bore_mm)->toBeNull("fitment {$row->id}: Audi is ambiguous in the annexes");
+        expect($row->stated_bore_mm)->toBeNull("fitment {$row->id}: Audi is ambiguous in the document");
     }
 });
 
@@ -209,7 +208,7 @@ it('names a tyre size only where it is plausible for the car, and otherwise none
         ->and(ApprovalSeeder::tyreSizes('BMW', '330i Limousine', 18.0, 9.5))->toBe([]);
 });
 
-it('keeps the deliberate conflict, and a car the photographed wheel may go on', function (): void {
+it('keeps the deliberate conflict, and a car Bergsteig Gipfel may go on', function (): void {
     $this->seed(ApprovalSeeder::class);
 
     $conflict = FitmentConflict::query()->where('status', 'open')->where('blocking', true)->with('candidateFitment.approvalDocument', 'existingFitment.approvalDocument')->first();
@@ -219,12 +218,12 @@ it('keeps the deliberate conflict, and a car the photographed wheel may go on', 
         ->and($conflict->candidateFitment->status)->toBe(FitmentStatus::Draft)
         ->and($conflict->existingFitment->approvalDocument->report_number)->toBe('DEMO-0001');
 
-    $motecWithTyres = liveDemoFitments()
-        ->where('slug', 'motec-mcr4-ultimate')
+    $gipfelWithTyres = liveDemoFitments()
+        ->where('slug', 'bergsteig-gipfel')
         ->where('status', FitmentStatus::Published->value)
         ->filter(fn (object $row): bool => DB::table('fitment_tyre_sizes')->where('fitment_id', $row->id)->exists());
 
-    expect($motecWithTyres)->not->toBeEmpty();
+    expect($gipfelWithTyres)->not->toBeEmpty();
 });
 
 it('covers the test anchor car, the BMW 330i G20, with plenty of sellable wheels', function (): void {
@@ -248,7 +247,8 @@ it('renames a catalogue seeded before the accuracy pass in place, retires rather
     $models = WheelModel::query()->pluck('id', 'slug')->all();
     $skus = WheelConfig::query()->pluck('sku', 'id')->all();
     $documents = ApprovalDocument::query()->pluck('id', 'report_number')->all();
-    $motec = WheelModel::query()->where('slug', 'motec-mcr4-ultimate')->firstOrFail();
+    // Bergsteig Gipfel, once the MOTEC MCR4 Ultimate.
+    $motec = WheelModel::query()->where('slug', 'bergsteig-gipfel')->firstOrFail();
     $motecFinish = WheelFinish::query()->where('wheel_model_id', $motec->id)->firstOrFail();
     $g20 = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
     $carrera = Vehicle::query()->where('variant', '911 Carrera S')->firstOrFail();
@@ -264,12 +264,14 @@ it('renames a catalogue seeded before the accuracy pass in place, retires rather
         $oldBrands[$prefix] = Brand::query()->create(['name' => $name, 'slug' => $prefix, 'sort_order' => 100]);
     }
 
-    foreach (CatalogueSeeder::slugs() as $slug => $formerSlug) {
-        if ($formerSlug === null) {
+    foreach (CatalogueSeeder::slugs() as $slug => $formerSlugs) {
+        // The oldest name: the real maker's, before the accuracy pass. The Gipfel had none.
+        $formerSlug = $formerSlugs === [] ? null : $formerSlugs[count($formerSlugs) - 1];
+        $prefix = $formerSlug === null ? null : collect(array_keys($former))->first(fn (string $p): bool => str_starts_with($formerSlug, $p.'-'));
+
+        if ($prefix === null) {
             continue;
         }
-
-        $prefix = collect(array_keys($former))->first(fn (string $p): bool => str_starts_with($formerSlug, $p.'-'));
 
         WheelModel::query()->where('slug', $slug)->update([
             'slug' => $formerSlug,
@@ -282,7 +284,8 @@ it('renames a catalogue seeded before the accuracy pass in place, retires rather
     }
 
     WheelConfig::query()->update(['kba_number' => '46001']);
-    $motec->forceFill(['type_designation' => 'MO-MCR4', 'rating' => 4.7, 'rating_count' => 64])->save();
+    $motecBrand = Brand::query()->create(['name' => 'MOTEC', 'slug' => 'motec', 'sort_order' => 5]);
+    $motec->forceFill(['slug' => 'motec-mcr4-ultimate', 'name' => 'MCR4 Ultimate', 'brand_id' => $motecBrand->id, 'type_designation' => 'MO-MCR4', 'rating' => 4.7, 'rating_count' => 64])->save();
     $motecFinish->forceFill(['name_de' => 'Light Grey'])->save();
 
     foreach ([
@@ -293,7 +296,7 @@ it('renames a catalogue seeded before the accuracy pass in place, retires rather
         DB::table('approval_documents')->where('report_number', $number)->update(['report_number' => $old, 'issuer' => $issuer, 'kind' => $kind, 'kba_number' => $kba]);
     }
 
-    // A size no Motec document covers, sold on a car, and a demo fitment on a car it cannot fit.
+    // A size the seed no longer lists, sold on a car, and a demo fitment on a car it cannot fit.
     $ghost = WheelConfig::query()->create([
         'wheel_model_id' => $motec->id, 'wheel_finish_id' => $motecFinish->id, 'diameter_in' => 19.0, 'width_in' => 9.5,
         'et_mm' => 40, 'bolt_holes' => 5, 'bolt_circle_mm' => 112.0, 'centre_bore_mm' => 66.6, 'sku' => 'RMF-000097',
@@ -333,27 +336,28 @@ it('renames a catalogue seeded before the accuracy pass in place, retires rather
     expect(ApprovalDocument::query()->pluck('id', 'report_number')->all())->toBe($documents);
 
     foreach (WheelModel::query()->with('brand')->get() as $model) {
-        expect($model->brand->name)->toBeIn(['Demo', 'MOTEC'])
+        expect($model->brand->name)->toBeIn(CatalogueSeeder::BRANDS)
             ->and($model->type_designation)->toBeNull()
             ->and($model->rating)->toBeNull()
             ->and($model->rating_count)->toBe(0);
     }
 
-    expect(WheelConfig::query()->where('wheel_model_id', '!=', $motec->id)->whereNotNull('kba_number')->exists())->toBeFalse()
-        ->and($motecFinish->fresh()->name_de)->toBe('Light Grey D5')
+    expect(WheelConfig::query()->whereNotNull('kba_number')->exists())->toBeFalse()
+        ->and($motecFinish->fresh()->name_de)->toBe('Hellgrau')
         ->and(ApprovalDocument::query()->where('issuer', '!=', ApprovalSeeder::ISSUER)->exists())->toBeFalse()
         ->and(ApprovalDocument::query()->whereNotNull('kba_number')->exists())->toBeFalse();
 
     // The former brands are gone from every page, and still in the table. The ones BrandLogoSeeder
     // now maintains as researched manufacturers stay as live rows without a single product, which
     // no storefront gate lists (a brand needs a published model with stock); the rest are retired.
-    $kept = array_values(array_filter(CatalogueSeeder::FORMER_BRANDS, BrandLogoSeeder::maintains(...)));
-    $retired = array_values(array_diff(CatalogueSeeder::FORMER_BRANDS, $kept));
+    $created = [...array_values($former), 'MOTEC'];
+    $kept = array_values(array_filter($created, BrandLogoSeeder::maintains(...)));
+    $retired = array_values(array_diff($created, $kept));
 
     expect($retired)->not->toBeEmpty()
         ->and(Brand::query()->whereIn('name', $retired)->exists())->toBeFalse()
         ->and(Brand::onlyTrashed()->whereIn('name', $retired)->count())->toBe(count($retired))
-        ->and(Brand::withTrashed()->whereIn('name', CatalogueSeeder::FORMER_BRANDS)->count())->toBe(count($former))
+        ->and(Brand::withTrashed()->whereIn('name', $created)->count())->toBe(count($created))
         ->and(Brand::query()->whereIn('name', $kept)->whereHas('wheelModels')->exists())->toBeFalse()
         ->and(Brand::query()->whereIn('name', $kept)->whereHas('tyreVariants')->exists())->toBeFalse();
 

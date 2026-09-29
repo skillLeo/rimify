@@ -12,6 +12,7 @@ use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
+use App\Enums\CatalogueStatus;
 use App\Enums\TyreSeason;
 use App\Models\BalanceWeightColour;
 use App\Models\TyreVariant;
@@ -22,6 +23,7 @@ use App\Services\Commerce\KomplettradPricer;
 use App\Services\Commerce\KomplettradSettings;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -87,6 +89,11 @@ final readonly class Basket
     /** UNKNOWN is not NOT_PERMITTED (R-07): a car with no Gutachten on file is not told it is unapproved. */
     public const WHEEL_UNKNOWN = 'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Schreib uns, dann prüfen wir das für dich.';
 
+    /** The wheel is approved, the tyres are not settled: the rim is not sold until they are (fail closed). */
+    public const TYRES_UNKNOWN = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Deshalb verkaufen wir dir die Felge noch nicht – schreib uns, dann prüfen wir das für dich.';
+
+    public const TYRES_NOT_PERMITTED = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Deshalb verkaufen wir dir die Felge nicht.';
+
     public const WHEEL_SOLD_OUT = 'Diese Größe ist derzeit ausverkauft.';
 
     public const TYRE_GONE = 'Diesen Reifen gibt es nicht mehr.';
@@ -107,8 +114,6 @@ final readonly class Basket
 
     /** What an unpriced component reads (§8.2) — the same words unconfigured shipping uses. */
     public const OPEN_PRICE = 'wird noch festgelegt';
-
-    private const VAT_RATE = 1.19;
 
     public function __construct(
         private FitmentResolver $resolver,
@@ -149,8 +154,9 @@ final readonly class Basket
         // While the shipping price is unknown it stays out of the total: the page says so beside
         // the figure rather than adding a number nobody has confirmed.
         $total = $subtotal + ($shipping ?? 0);
-        // German prices are shown gross, so VAT is extracted from the total rather than added.
-        $tax = (int) round($total - ($total / self::VAT_RATE));
+        // German prices are shown gross, so VAT is extracted from the total rather than added — in
+        // integers, rounded as an invoice rounds (Money), never through a float rate.
+        $tax = Money::fromMinor($total)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor();
 
         return [
             'lines' => $lines,
@@ -295,8 +301,9 @@ final readonly class Basket
      * The quantity is a parameter, not something this method can recover: four Kompletträder
      * against one tyre in stock are refused at the click, not discovered at the checkout.
      *
-     * A demo wheel may go into the basket: the flow stays walkable for review. The order is what
-     * the server refuses (ACCURACY.md D4).
+     * Only a wheel that is in the shop: a published, real model. A draft, an archived model or any
+     * demonstration row is not on the storefront (the review release §2), so a hand-made request for
+     * one is answered as for a wheel that is gone.
      */
     public function refusalFor(
         Request $request,
@@ -305,9 +312,10 @@ final readonly class Basket
         ?int $weightColourId = null,
         int $quantity = 1,
     ): ?string {
-        $config = WheelConfig::query()->find($wheelConfigId);
+        $config = WheelConfig::query()->with('wheelModel')->find($wheelConfigId);
+        $model = $config?->wheelModel;
 
-        if ($config === null) {
+        if ($config === null || $model === null || $model->is_demo || $model->status !== CatalogueStatus::Published) {
             return self::WHEEL_GONE;
         }
 
@@ -317,6 +325,11 @@ final readonly class Basket
         // Selected on the status, never through one "not sellable" branch (R-07): only
         // NOT_PERMITTED means "we checked and your car may not have this".
         if ($verdict !== null && ! $verdict->isSellable()) {
+            // The wheel approved and the tyres not (R-03 split): said as it is, never „kein Gutachten“.
+            if (in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true)) {
+                return $verdict->status === VerdictStatus::NotPermitted ? self::TYRES_NOT_PERMITTED : self::TYRES_UNKNOWN;
+            }
+
             return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;
         }
 
@@ -712,7 +725,8 @@ final readonly class Basket
         // uses (§4.6). The unit price is the KNOWN components per wheel; an unpriced one is left
         // out and `priceOpen` says so — never a guessed figure, never a silent 0,00 €.
         $price = $this->pricer->perWheel($config, $tyre, $colour);
-        $unit = $price->knownPerWheelCents();
+        $unit = Money::fromMinor($price->knownPerWheelCents(), $price->currency);
+        $lineTotal = $unit->multiply($quantity);
 
         return [
             'key' => $this->key($config->id, $tyreId),
@@ -733,10 +747,10 @@ final readonly class Basket
                 'spokes' => $model->spoke_count,
             ],
             'quantity' => $quantity,
-            'unitPriceCents' => $unit,
-            'unitPrice' => GermanFormat::money($unit, $price->currency),
-            'lineTotalCents' => $unit * $quantity,
-            'lineTotal' => GermanFormat::money($unit * $quantity, $price->currency),
+            'unitPriceCents' => $unit->toMinor(),
+            'unitPrice' => $unit->format(),
+            'lineTotalCents' => $lineTotal->toMinor(),
+            'lineTotal' => $lineTotal->format(),
             'inStock' => $config->stock_qty >= $quantity && ($tyre === null || $tyre->stock_qty >= $quantity),
             // A seeded demonstration row — the model or, on a Komplettrad, the tyre: it may sit in
             // the basket, it can never be ordered (ACCURACY.md D4).
@@ -805,8 +819,8 @@ final readonly class Basket
             'key' => $key,
             'label' => $label,
             'quantity' => $quantity,
-            'unitPrice' => $cents === null ? self::OPEN_PRICE : GermanFormat::money($cents, $price->currency),
-            'lineTotal' => $cents === null ? null : GermanFormat::money($cents * $quantity, $price->currency),
+            'unitPrice' => $cents === null ? self::OPEN_PRICE : Money::fromMinor($cents, $price->currency)->format(),
+            'lineTotal' => $cents === null ? null : Money::fromMinor($cents, $price->currency)->multiply($quantity)->format(),
             'open' => $cents === null,
         ];
 
@@ -922,7 +936,7 @@ final readonly class Basket
 
         $unit = $price?->priceCents;
         $currency = $price === null ? 'EUR' : $price->currency;
-        $total = $choice === 'ja' && $unit !== null ? $unit * $quantity : 0;
+        $total = $choice === 'ja' && $unit !== null ? Money::fromMinor($unit, $currency)->multiply($quantity)->toMinor() : 0;
         // The quote's spelling where there is one (it is what the order line will say), else the vehicle's.
         $makeLabel = $price !== null ? $price->makeLabelDe : ($make === null ? null : MakeName::normalise($make));
 

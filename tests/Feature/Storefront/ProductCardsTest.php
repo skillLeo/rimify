@@ -24,6 +24,8 @@ afterEach(function (): void {
 });
 
 it('emits the manifest of a pictured finish and null for the rest on the catalogue path', function (): void {
+    // The shipped map is empty (example data carries no photograph): a map of the test's own.
+    DemoWheelFixtures::photoMap($this->dir, DemoWheelFixtures::photoPair('bergsteig-gipfel', 'Hellgrau'));
     $photos = DemoWheels::photos();
     $first = array_values($photos)[0];
     DemoWheelFixtures::write($this->dir, [$first['slug']]);
@@ -57,12 +59,13 @@ it('emits the manifest of a pictured finish and null for the rest on the catalog
 });
 
 it('emits the same image field on the vehicle path', function (): void {
+    DemoWheelFixtures::photoMap($this->dir, DemoWheelFixtures::photoPair('bergsteig-gipfel', 'Hellgrau'));
     $photos = DemoWheels::photos();
     DemoWheelFixtures::write($this->dir, array_column($photos, 'slug'));
 
     $this->seed(ApprovalSeeder::class);
 
-    // The BMW 330i G20 (5 × 112): the photographed MCR4 is among its permitted wheels.
+    // The BMW 330i G20 (5 × 112): the pictured Bergsteig Gipfel is among its permitted wheels.
     $vehicle = Vehicle::query()->where('hsn', '0005')->where('tsn', 'CKT')->firstOrFail();
     $result = app(ProductCards::class)->forVehicle($vehicle->id, [], 100, 1);
 
