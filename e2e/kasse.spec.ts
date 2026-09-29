@@ -26,6 +26,19 @@ async function tabTo(page: Page, selector: string, max = 40): Promise<void> {
     throw new Error(`Tab never reached ${selector}`);
 }
 
+/** Presses Tab until the keyboard is on a button that says this. */
+async function tabToButton(page: Page, text: string, max = 40): Promise<void> {
+    for (let i = 0; i < max; i++) {
+        if (await page.evaluate((t) => document.activeElement?.tagName === 'BUTTON' && (document.activeElement.textContent ?? '').includes(t), text)) {
+            return;
+        }
+
+        await page.keyboard.press('Tab');
+    }
+
+    throw new Error(`Tab never reached the button „${text}“`);
+}
+
 async function basketWithAWheel(page: Page): Promise<void> {
     await chooseCar(page);
     await open(page, '/felgen');
@@ -94,7 +107,7 @@ test.describe('Kasse', () => {
 
         await page.waitForURL(/\/kasse\/testzahlung\//, { timeout: 30_000 });
         await expectNoHorizontalOverflow(page);
-        await tabTo(page, 'button:has-text("Zahlung erfolgreich")');
+        await tabToButton(page, 'Zahlung erfolgreich');
         await page.keyboard.press('Enter');
 
         await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 });
