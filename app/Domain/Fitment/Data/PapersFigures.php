@@ -91,6 +91,8 @@ final readonly class PapersFigures
             needsReview: false,
             isDeleted: $vehicle->isDeleted,
             beforePapers: $vehicle,
+            bodyFormSource: $vehicle->bodyFormSource,
+            driveAxleSource: $vehicle->driveAxleSource,
         );
     }
 }

@@ -47,6 +47,7 @@ use App\Http\Controllers\DesignController;
 use App\Http\Controllers\Storefront\BenachrichtigungController;
 use App\Http\Controllers\Storefront\BestellungController;
 use App\Http\Controllers\Storefront\CheckController;
+use App\Http\Controllers\Storefront\FahrzeugAufbauController;
 use App\Http\Controllers\Storefront\FahrzeugController;
 use App\Http\Controllers\Storefront\FahrzeugPapiereController;
 use App\Http\Controllers\Storefront\FaqController;
@@ -103,6 +104,9 @@ Route::middleware('throttle:shop-fahrzeug')->group(function (): void {
     // 8.1, 8.2 and T from the customer's own papers, kept per car in one cookie (Block C, item 10).
     Route::post('/fahrzeug/{vehicle}/papiere', [FahrzeugPapiereController::class, 'store'])->whereNumber('vehicle')->name('fahrzeug.papiere.store');
     Route::delete('/fahrzeug/{vehicle}/papiere', [FahrzeugPapiereController::class, 'destroy'])->whereNumber('vehicle')->name('fahrzeug.papiere.destroy');
+    // Karosserieform and Antrieb from the owner, where the vehicle data has neither (the operator's last prompt §1.1).
+    Route::post('/fahrzeug/{vehicle}/aufbau', [FahrzeugAufbauController::class, 'store'])->whereNumber('vehicle')->name('fahrzeug.aufbau.store');
+    Route::delete('/fahrzeug/{vehicle}/aufbau', [FahrzeugAufbauController::class, 'destroy'])->whereNumber('vehicle')->name('fahrzeug.aufbau.destroy');
 });
 
 Route::delete('/fahrzeug', [FahrzeugController::class, 'destroy'])->name('fahrzeug.destroy');

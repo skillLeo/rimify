@@ -7,11 +7,13 @@ use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
+use App\Domain\Storefront\PapersBook;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Enums\DocumentStatus;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\CheckResult;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
@@ -217,6 +219,62 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
     expect($said)->not->toBeEmpty()
         ->and(array_intersect($said, $nineteen))->toBe([])
         ->and(array_diff($said, $eighteen))->toBe([]);
+});
+
+/*
+ * The operator's last prompt §1.1: a car typed from a Gutachten has no body style or drive, so most of the two
+ * documents' rows could not be answered. The answer now says exactly what it waits for; the owner's word (kept
+ * beside 8.1, 8.2 and T) answers it; a name that leaves no doubt answers it first; the frozen check says which.
+ */
+it('asks for exactly the body style and drive a row needs, answers from the owner’s word or an unambiguous name, and freezes which', function (): void {
+    WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->update(['status' => CatalogueStatus::Published->value]);
+    $eighteen = WheelConfig::query()->where('sku', 'BOR-DB8GT2-8518-SM')->firstOrFail();
+
+    // The Nachtrag's 1er row, page 3: „Kombilimousine; Allradantrieb; Heckantrieb“. The car from the document has neither.
+    $f20 = $this->entry->vehicle('1er-1K4-04');
+    $f20->forceFill(['power_kw' => 100, 'body_form' => null, 'drive_axle' => null])->save();
+    $asked = borbetVerdict($f20, 'BOR-DB8GT2-8518-SM');
+
+    expect($asked->status)->toBe(VerdictStatus::Unknown)
+        ->and($asked->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_UNKNOWN)
+        ->and($asked->missingFacts)->toBe(['bodyForm', 'driveAxle']);
+
+    // The product page asks for them by name.
+    $vehicleCookie = [VehicleContext::COOKIE => (new VehicleContext($f20->id, true))->encode()];
+    $shown = collect($this->withCookies($vehicleCookie)->get('/felgen/'.GoldenRecordSeeder::SLUG)->viewData('page')['props']['configs'])
+        ->firstWhere('id', $eighteen->id)['verdict'];
+
+    expect($shown['status'])->toBe('UNKNOWN')->and($shown['missing'])->toBe(['bodyForm', 'driveAxle']);
+
+    // The owner says: Schrägheck, Heckantrieb — and the same page answers, without the question.
+    $saved = $this->from('/felgen/'.GoldenRecordSeeder::SLUG)
+        ->post("/fahrzeug/{$f20->id}/aufbau", ['body_form' => 'Schrägheck', 'drive_axle' => 'Hinterachse'])
+        ->assertSessionHasNoErrors();
+    $papers = collect($saved->headers->getCookies())->first(static fn ($c): bool => $c->getName() === PapersBook::COOKIE)?->getValue();
+
+    expect($papers)->toBe("{$f20->id}-k53");
+
+    $page = $this->withCookies($vehicleCookie)->withUnencryptedCookie(PapersBook::COOKIE, (string) $papers)->get('/felgen/'.GoldenRecordSeeder::SLUG);
+    $answered = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $eighteen->id)['verdict'];
+
+    expect($answered['status'])->toBe('CONDITIONAL')
+        ->and($answered['missing'])->toBe([])
+        ->and($page->viewData('page')['props']['vehicle']['build'])->toMatchArray(['bodyForm' => 'Schrägheck', 'bodySource' => 'customer', 'driveAxle' => 'Hinterachse', 'driveSource' => 'customer']);
+
+    // The printable check freezes which answer it rested on, and where that came from.
+    $this->withCookies($vehicleCookie)->withUnencryptedCookie(PapersBook::COOKIE, (string) $papers)
+        ->post('/rimify-check/ergebnis', ['wheelConfigId' => $eighteen->id]);
+
+    expect(CheckResult::query()->sole()->verdict['vehicle'])->toMatchArray([
+        'bodyForm' => 'Schrägheck', 'bodyFormSource' => 'customer', 'driveAxle' => 'Hinterachse', 'driveAxleSource' => 'customer',
+    ]);
+
+    // A Touring whose data has no body style: „Touring“ leaves no doubt — derived, and frozen as derived.
+    $touring = $this->entry->vehicle('3tvi-3K-06');
+    $touring->forceFill(['body_form' => null])->save();
+    $derived = borbetVerdict($touring, 'BOR-DB8GT2-8519-SM')->toArray()['vehicle'];
+
+    expect($derived['bodyForm'])->toBe('Kombi')->and($derived['bodyFormSource'])->toBe('name');
 });
 
 it('refuses a Limousine a row the document gives the Coupé only — NOT_PERMITTED, not a note — and keeps apart the cars one approval names twice', function (): void {

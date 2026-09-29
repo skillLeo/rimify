@@ -137,6 +137,59 @@ final readonly class RowFilter
         return in_array(null, $decisions, true) ? null : true;
     }
 
+    /**
+     * Which of the car's own facts these codes would need and the car does not have — `bodyForm`, `driveAxle` —
+     * so the customer is asked for exactly that (the operator's last prompt §1.1, EF-01). A code whose own
+     * parameter is missing is not the customer's to answer, and codes that admit every body style or drive
+     * need neither.
+     *
+     * @param  list<self>  $filters
+     * @return list<string>
+     */
+    public static function openFacts(array $filters, VehicleRecord $vehicle): array
+    {
+        $bodies = [];
+        $bodyCodes = false;
+        $driveCodes = false;
+        $only = [];
+        $not = false;
+
+        foreach ($filters as $filter) {
+            if ($filter->kind === self::BODY_FORM && $filter->bodyForms !== []) {
+                $bodyCodes = true;
+
+                foreach ($filter->bodyForms as $form) {
+                    $bodies[self::normalise($form)] = true;
+                }
+            }
+
+            if ($filter->kind === self::DRIVE && $filter->drive !== null && in_array($filter->driveMode, ['only', 'not'], true)
+                && self::normalise($filter->drive) !== 'allradlenkung') {
+                $driveCodes = true;
+
+                if ($filter->driveMode === 'only') {
+                    $only[self::normalise($filter->drive)] = true;
+                } else {
+                    $not = true;
+                }
+            }
+        }
+
+        $everyBody = array_diff(array_map(self::normalise(...), self::BODY_FORMS), array_keys($bodies)) === [];
+        $everyDrive = ! $not && array_diff(array_map(self::normalise(...), self::DRIVE_AXLES), array_keys($only)) === [];
+        $open = [];
+
+        if ($bodyCodes && ! $everyBody && self::known($vehicle->bodyForm) === null) {
+            $open[] = 'bodyForm';
+        }
+
+        if ($driveCodes && ! $everyDrive && self::known($vehicle->driveAxle) === null) {
+            $open[] = 'driveAxle';
+        }
+
+        return $open;
+    }
+
     private static function known(?string $value): ?string
     {
         return $value === null || trim($value) === '' ? null : self::normalise($value);

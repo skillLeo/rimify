@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
+use App\Domain\Fitment\Data\BuildFromName;
+use App\Domain\Fitment\Data\VehicleBuild;
 use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\HeaderMode;
 use App\Domain\Storefront\HeaderModeResolver;
@@ -243,6 +245,39 @@ final readonly class Chrome
             // photographed P.2 is checked against — the wheel answer rests on the variant.
             'papers' => self::papers($request, $vehicle),
             'powerKw' => $vehicle->power_kw,
+            // Body style and drive as the answers read them, and where each came from (§1.1): shown where the
+            // owner gave or may correct them — a derived one with „stimmt das?“.
+            'build' => self::build($request, $vehicle),
+        ];
+    }
+
+    /**
+     * The car's body style and drive as every answer reads them (VehicleBuild::overlay()): the vehicle data's,
+     * else the owner's, else an unambiguous word of the name — with the source, and for a derived one the word.
+     *
+     * @return array{bodyForm: string|null, bodySource: string|null, bodyWord: string|null, driveAxle: string|null, driveSource: string|null, driveWord: string|null}
+     */
+    private static function build(Request $request, Vehicle $vehicle): array
+    {
+        $raw = $request->cookie(PapersBook::COOKIE);
+        $answer = PapersBook::decode(is_string($raw) ? $raw : null)->buildFor((int) $vehicle->id);
+        $name = BuildFromName::of($vehicle->model, $vehicle->variant);
+        $pick = static fn (?string $data, ?string $given, ?string $derived, ?string $word): array => match (true) {
+            $data !== null && $data !== '' => [$data, 'data', null],
+            $given !== null => [$given, VehicleBuild::FROM_CUSTOMER, null],
+            $derived !== null => [$derived, VehicleBuild::FROM_NAME, $word],
+            default => [null, null, null],
+        };
+        [$body, $bodySource, $bodyWord] = $pick($vehicle->body_form, $answer?->bodyForm, $name['bodyForm'], $name['bodyWord']);
+        [$drive, $driveSource, $driveWord] = $pick($vehicle->drive_axle, $answer?->driveAxle, $name['driveAxle'], $name['driveWord']);
+
+        return [
+            'bodyForm' => $body,
+            'bodySource' => $bodySource,
+            'bodyWord' => $bodyWord,
+            'driveAxle' => $drive,
+            'driveSource' => $driveSource,
+            'driveWord' => $driveWord,
         ];
     }
 

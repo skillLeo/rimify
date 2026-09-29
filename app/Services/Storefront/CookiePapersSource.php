@@ -6,6 +6,7 @@ namespace App\Services\Storefront;
 
 use App\Domain\Fitment\Contracts\PapersSource;
 use App\Domain\Fitment\Data\PapersFigures;
+use App\Domain\Fitment\Data\VehicleBuild;
 use App\Domain\Storefront\PapersBook;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Http\Request;
@@ -23,6 +24,16 @@ final readonly class CookiePapersSource implements PapersSource
 
     public function for(int $vehicleId): ?PapersFigures
     {
+        return $this->book()?->for($vehicleId);
+    }
+
+    public function buildFor(int $vehicleId): ?VehicleBuild
+    {
+        return $this->book()?->buildFor($vehicleId);
+    }
+
+    private function book(): ?PapersBook
+    {
         if (! $this->app->bound('request')) {
             return null;
         }
@@ -35,6 +46,6 @@ final readonly class CookiePapersSource implements PapersSource
 
         $raw = $request->cookie(PapersBook::COOKIE);
 
-        return PapersBook::decode(is_string($raw) ? $raw : null)->for($vehicleId);
+        return PapersBook::decode(is_string($raw) ? $raw : null);
     }
 }

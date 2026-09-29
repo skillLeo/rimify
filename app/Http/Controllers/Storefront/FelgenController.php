@@ -504,6 +504,8 @@ class FelgenController extends Controller
             // as a broken control rather than as a fact about the customer's car.
             'reason' => $verdict->reason?->textDe,
             'reasonCode' => $verdict->reason?->code,
+            // What of the car the answer waits for — `bodyForm`, `driveAxle` — asked for by name (§1.1, EF-01).
+            'missing' => $verdict->missingFacts,
             'document' => $verdict->document === null ? null : [
                 'number' => $verdict->document->number,
                 'issuer' => $verdict->document->issuer,

@@ -51,7 +51,45 @@ final readonly class VehicleRecord
          * operator's decision of 29.09.2026).
          */
         public ?VehicleRecord $beforePapers = null,
+        /**
+         * Where `bodyForm` and `driveAxle` came from, where the vehicle data held none (the operator's last
+         * prompt §1.1): VehicleBuild::FROM_CUSTOMER — the owner said so; VehicleBuild::FROM_NAME — derived from
+         * an unambiguous word of the car's name. Null: the vehicle data's own, or not known. Frozen with every
+         * verdict, so a wrong answer can be traced to the assumption that produced it.
+         */
+        public ?string $bodyFormSource = null,
+        public ?string $driveAxleSource = null,
     ) {}
+
+    /** This car with its body style and drive as given, and where each came from (VehicleBuild::overlay()). */
+    public function withBuild(?string $bodyForm, ?string $bodyFormSource, ?string $driveAxle, ?string $driveAxleSource): self
+    {
+        return new self(
+            id: $this->id,
+            hsn: $this->hsn,
+            tsn: $this->tsn,
+            vsn: $this->vsn,
+            make: $this->make,
+            model: $this->model,
+            variant: $this->variant,
+            typeDesignation: $this->typeDesignation,
+            buildWindow: $this->buildWindow,
+            axleLoadFrontKg: $this->axleLoadFrontKg,
+            axleLoadRearKg: $this->axleLoadRearKg,
+            maxSpeedKmh: $this->maxSpeedKmh,
+            powerKw: $this->powerKw,
+            powerPs: $this->powerPs,
+            bodyForm: $bodyForm,
+            driveAxle: $driveAxle,
+            doors: $this->doors,
+            seats: $this->seats,
+            needsReview: $this->needsReview,
+            isDeleted: $this->isDeleted,
+            beforePapers: $this->beforePapers,
+            bodyFormSource: $bodyFormSource,
+            driveAxleSource: $driveAxleSource,
+        );
+    }
 
     /**
      * R-03, asked before anything else: a vehicle whose axle loads or top speed could not be

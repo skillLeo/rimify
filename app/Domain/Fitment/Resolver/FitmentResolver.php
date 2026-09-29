@@ -11,6 +11,7 @@ use App\Domain\Fitment\Data\ConflictDecision;
 use App\Domain\Fitment\Data\DeratingLookup;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
+use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleRecord;
@@ -187,6 +188,8 @@ final readonly class FitmentResolver
             $excludedBy = null;
             $undecided = null;
             $admitted = [];
+            // What of the car the undecided rows would need: asked for by name, never as a riddle (§1.1).
+            $missing = [];
 
             foreach ($covering[$id] as $row) {
                 $admit = $row->filtersAdmit($vehicle);
@@ -216,13 +219,19 @@ final readonly class FitmentResolver
                     $excludedBy ??= $row->document;
                 } elseif ($admit === null) {
                     $undecided ??= $row->document;
+
+                    foreach ([$row->filters, ...array_map(static fn (TyreSize $s): array => $s->filters, $row->tyreSizes)] as $filters) {
+                        foreach (RowFilter::openFacts($filters, $vehicle) as $fact) {
+                            $missing[$fact] = true;
+                        }
+                    }
                 } else {
                     $admitted[] = count($sizes) === count($row->tyreSizes) ? $row : $row->withTyreSizes($sizes);
                 }
             }
 
             if ($undecided !== null) {
-                $verdicts[$id] = $this->negative(VerdictStatus::Unknown, $vehicle, $wheel, VerdictReason::of(VerdictReason::BODY_OR_DRIVE_UNKNOWN), $undecided);
+                $verdicts[$id] = $this->negative(VerdictStatus::Unknown, $vehicle, $wheel, VerdictReason::of(VerdictReason::BODY_OR_DRIVE_UNKNOWN), $undecided, array_keys($missing));
 
                 continue;
             }
@@ -1373,12 +1382,14 @@ final readonly class FitmentResolver
         );
     }
 
+    /** @param list<string> $missingFacts */
     private function negative(
         VerdictStatus $status,
         VehicleRecord $vehicle,
         ?WheelConfigRecord $wheel,
         VerdictReason $reason,
         ?DocumentRecord $document = null,
+        array $missingFacts = [],
     ): FitmentVerdict {
         return FitmentVerdict::negative(
             $status,
@@ -1388,6 +1399,7 @@ final readonly class FitmentResolver
             $this->clock->now(),
             EngineVersion::CURRENT,
             $document,
+            $missingFacts,
         );
     }
 }

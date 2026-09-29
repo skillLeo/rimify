@@ -6,6 +6,7 @@ namespace App\Domain\Fitment\Infrastructure;
 
 use App\Domain\Fitment\Contracts\PapersSource;
 use App\Domain\Fitment\Contracts\VehicleRepository;
+use App\Domain\Fitment\Data\VehicleBuild;
 use App\Domain\Fitment\Data\VehicleRecord;
 use Illuminate\Support\Collection;
 
@@ -17,6 +18,10 @@ use Illuminate\Support\Collection;
  *
  * Only `find()` is overlaid. `byKeyNumbers()` chooses among the variants the vehicle data knows, and the
  * disambiguation must show the data's differences (R-01); the figures belong to a car already chosen.
+ *
+ * Where the data holds no body style or drive, the owner's answer fills it, else an unambiguous word of the
+ * car's name (VehicleBuild, the operator's last prompt §1.1) — every surface, the admin's preview included,
+ * answers from the same; each verdict records which.
  */
 final readonly class PapersVehicleRepository implements VehicleRepository
 {
@@ -39,6 +44,9 @@ final readonly class PapersVehicleRepository implements VehicleRepository
             return null;
         }
 
-        return $this->papers->for($id)?->applyTo($vehicle) ?? $vehicle;
+        $vehicle = $this->papers->for($id)?->applyTo($vehicle) ?? $vehicle;
+
+        // Body style and drive where the vehicle data holds none: the owner's answer, else a word of the name.
+        return VehicleBuild::overlay($vehicle, $this->papers->buildFor($id));
     }
 }
