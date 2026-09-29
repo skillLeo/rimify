@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Data;
 
 use App\Domain\Fitment\Support\BuildWindow;
+use App\Support\VehicleName;
 
 /**
  * A vehicle variant, as the engine sees it.
@@ -66,12 +67,16 @@ final readonly class VehicleRecord
             && $this->maxSpeedKmh !== null && $this->maxSpeedKmh > 0;
     }
 
-    /** `Audi RS 4 Avant Quattro (B9)` */
+    /**
+     * `Audi RS 4 Avant Quattro (B9)`. A car typed from a Gutachten is named by its Fahrzeugtyp, so it keeps its
+     * model and needs no type after it: `BMW 1er-Reihe 187`, never `BMW 187 (187)` (Block D, D-02).
+     */
     public function label(): string
     {
-        $label = trim($this->make.' '.$this->variant);
+        $label = VehicleName::forShop($this->make, $this->model, $this->variant, $this->typeDesignation);
+        $type = trim((string) $this->typeDesignation);
 
-        return $this->typeDesignation === null ? $label : $label.' ('.$this->typeDesignation.')';
+        return $type === '' || str_starts_with(trim($this->variant), $type) ? $label : $label.' ('.$type.')';
     }
 
     /** `Audi RS 4 Avant Quattro (B9), 03/2018–11/2019` — what the chooser shows. */

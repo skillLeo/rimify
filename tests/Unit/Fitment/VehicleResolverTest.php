@@ -217,3 +217,13 @@ it('labels a vehicle the way the chooser and the header show it', function (): v
         ->toBe("Audi RS 4 Avant Quattro (B9), 12/2019\u{2013}heute")
         ->and(VehicleFixtures::bmw3er()->keyNumbers())->toBe('0005/582');
 });
+
+it('names a car typed from a Gutachten by model and type, and never repeats the type', function (): void {
+    $car = new VehicleRecord(
+        id: 1, hsn: null, tsn: null, vsn: null, make: 'BMW', model: '1er-Reihe', variant: '187',
+        typeDesignation: '187', buildWindow: VehicleFixtures::rs4First()->buildWindow,
+        axleLoadFrontKg: null, axleLoadRearKg: null, maxSpeedKmh: null,
+    );
+
+    expect($car->label())->toBe('BMW 1er-Reihe 187');
+});
