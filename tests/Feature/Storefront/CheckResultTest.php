@@ -73,7 +73,8 @@ it('keeps the figures from the customer’s papers the answer used', function ()
         ->post('/rimify-check/ergebnis', ['wheelConfigId' => $fixture->config->id]);
 
     // MySQL keeps a JSON object's keys in its own order: the figures, not their order, are the point.
-    expect(CheckResult::query()->sole()->papers)->toEqual(['axleFrontKg' => 1100, 'axleRearKg' => 1100, 'topSpeedKmh' => 200]);
+    // P.2 is kept too, as the customer gave it — here not at all (Block D).
+    expect(CheckResult::query()->sole()->papers)->toEqual(['axleFrontKg' => 1100, 'axleRearKg' => 1100, 'topSpeedKmh' => 200, 'powerKw' => null]);
 });
 
 it('is written once: the database refuses every change', function (): void {
