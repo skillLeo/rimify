@@ -11,6 +11,7 @@ import { computed, reactive, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import FilePick from '../../../Components/Admin/FilePick.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { formatMoney } from '../../../lib/num'
 
@@ -81,10 +82,6 @@ function answer(row: DisputeRow): void {
     form.other = null
 }
 
-function pick(field: 'shipping' | 'other', event: Event): void {
-    form[field] = (event.target as HTMLInputElement).files?.[0] ?? null
-}
-
 function send(): void {
     const row = answering.value
 
@@ -143,11 +140,11 @@ function send(): void {
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" :for="`rb-ship-${row.id}`">Versandnachweis (PDF oder Bild)</label>
-                            <input :id="`rb-ship-${row.id}`" class="input" type="file" accept=".pdf,.jpg,.jpeg,.png" @change="pick('shipping', $event)">
+                            <FilePick :id="`rb-ship-${row.id}`" v-model="form.shipping" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" label="Datei auswählen" />
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" :for="`rb-other-${row.id}`">Weiterer Nachweis (optional)</label>
-                            <input :id="`rb-other-${row.id}`" class="input" type="file" accept=".pdf,.jpg,.jpeg,.png" @change="pick('other', $event)">
+                            <FilePick :id="`rb-other-${row.id}`" v-model="form.other" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" label="Datei auswählen" />
                         </div>
                         <p :id="`rb-err-${row.id}`" class="form-field__error" role="alert">{{ errors.evidence ?? errors.note ?? errors.shipping ?? errors.other ?? '' }}</p>
                         <div class="adm-fields__actions">
@@ -159,7 +156,7 @@ function send(): void {
             </li>
         </ul>
 
-        <AdminState v-else kind="empty" text="Keine Rückbuchung. Meldet Stripe eine, steht sie hier – mit der Frist für die Antwort." />
+        <AdminState v-else kind="empty" text="Meldet Stripe eine Rückbuchung, steht sie hier – mit der Frist für die Antwort." />
 
         <AdminConfirm
             v-model:open="confirmOpen"

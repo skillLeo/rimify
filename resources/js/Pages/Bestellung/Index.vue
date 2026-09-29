@@ -328,11 +328,11 @@ function openAccount(): void {
                     </div>
 
                     <!-- Guest by default; the account is offered once, after the order, in one click (Block G §2). -->
-                    <div v-if="accountOffer" class="card ord__account">
+                    <div v-if="accountOffer" class="ord__account">
                         <template v-if="!accountSent">
                             <h2 class="t-h3">Konto anlegen?</h2>
                             <p class="t-small ord__account-text">
-                                Mit einem Klick. Wir schicken dir einen Link an {{ payment?.email ?? 'deine E-Mail-Adresse' }}, mit dem
+                                Wir schicken dir einen Link an {{ payment?.email ?? 'deine E-Mail-Adresse' }}, mit dem
                                 du dein Passwort festlegst – dann siehst du deine Bestellungen, Freigaben und Rechnungen jederzeit.
                             </p>
                             <button class="btn btn--secondary btn--block" type="button" :disabled="accountBusy" :aria-busy="accountBusy ? 'true' : undefined" @click="openAccount">
@@ -408,6 +408,8 @@ function openAccount(): void {
 .ord__account {
     display: grid;
     gap: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--line);
 }
 
 .ord__invoice {

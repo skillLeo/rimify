@@ -336,7 +336,7 @@ function counts(brand: BrandRow): string {
             mit Häkchen „Markenwand“ stehen auf der Startseite – als Link erst, wenn sie eine Felge auf Lager haben.
         </p>
 
-        <section v-if="canWrite" class="adm-section" aria-labelledby="mk-form-title">
+        <section v-if="canWrite && !manufacturing" class="adm-section" aria-labelledby="mk-form-title">
             <form class="mk__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
                 <div class="adm-section__head">
                     <h2 id="mk-form-title" class="adm-section__title">{{ formTitle }}</h2>
@@ -408,7 +408,7 @@ function counts(brand: BrandRow): string {
                 <div class="adm-fields">
                     <div class="form-field">
                         <label class="form-field__label" for="mk-maker-name">Hersteller</label>
-                        <input id="mk-maker-name" v-model="maker.manufacturerName" class="input" :class="{ 'input--error': makerErrors.manufacturerName }" type="text" maxlength="190" autocomplete="off" placeholder="z. B. Firmenname GmbH" aria-describedby="mk-maker-name-err">
+                        <input id="mk-maker-name" v-model="maker.manufacturerName" class="input" :class="{ 'input--error': makerErrors.manufacturerName }" type="text" maxlength="190" autocomplete="off" aria-describedby="mk-maker-name-err">
                         <p id="mk-maker-name-err" class="form-field__error">{{ makerErrors.manufacturerName ?? '' }}</p>
                     </div>
                     <div class="form-field">
@@ -424,7 +424,8 @@ function counts(brand: BrandRow): string {
                     </div>
 
                     <fieldset class="mk__fieldset">
-                        <legend class="form-field__label">Verantwortliche Person in der EU – nur wenn der Hersteller außerhalb sitzt</legend>
+                        <legend class="mk__legend">Verantwortliche Person in der EU</legend>
+                        <p class="form-field__help">Nur nötig, wenn der Hersteller außerhalb der EU sitzt.</p>
                         <div class="form-field">
                             <label class="form-field__label" for="mk-eu-name">Name</label>
                             <input id="mk-eu-name" v-model="maker.euResponsibleName" class="input" :class="{ 'input--error': makerErrors.euResponsibleName }" type="text" maxlength="190" autocomplete="off" aria-describedby="mk-eu-name-err">
@@ -617,6 +618,14 @@ function counts(brand: BrandRow): string {
 
 .mk__row-error {
     margin-top: var(--sp-4);
+}
+
+.mk__legend {
+    padding: 0;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    color: var(--c-ink);
 }
 
 .mk__fieldset {

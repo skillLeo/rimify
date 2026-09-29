@@ -55,6 +55,11 @@ const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
 
+/** GPSR's electronic address as a link: an e-mail opens the mail program, a web address its page. */
+function contactHref(contact: string): string {
+    return contact.includes('@') && !contact.startsWith('http') ? `mailto:${contact}` : contact
+}
+
 /* The finish's photographs: the front view (the manifest itself), then its other angles. */
 const shots = computed<ImageView[]>(() => {
     const image = finish.value?.image ?? null
@@ -520,24 +525,24 @@ onBeforeUnmount(() => observer?.disconnect())
             -->
             <section class="pdp__gpsr" aria-labelledby="pdp-gpsr">
                 <h2 id="pdp-gpsr" class="t-h3">Hersteller und Produktsicherheit</h2>
-                <dl v-if="product.manufacturer" class="spec pdp__gpsr-list">
-                    <div class="spec__row">
+                <dl v-if="product.manufacturer" class="pdp__gpsr-list">
+                    <div class="pdp__gpsr-row">
                         <dt>Hersteller</dt>
-                        <dd class="pdp__gpsr-value">{{ product.manufacturer.name }}<br>{{ product.manufacturer.address }}<br>{{ product.manufacturer.contact }}</dd>
+                        <dd class="pdp__gpsr-value">{{ product.manufacturer.name }}<br>{{ product.manufacturer.address }}<br><a class="link" :href="contactHref(product.manufacturer.contact)">{{ product.manufacturer.contact }}</a></dd>
                     </div>
-                    <div v-if="product.manufacturer.euResponsible" class="spec__row">
+                    <div v-if="product.manufacturer.euResponsible" class="pdp__gpsr-row">
                         <dt>Verantwortliche Person in der EU</dt>
                         <dd class="pdp__gpsr-value">
                             {{ product.manufacturer.euResponsible.name }}<template v-if="product.manufacturer.euResponsible.address"><br>{{ product.manufacturer.euResponsible.address }}</template><template v-if="product.manufacturer.euResponsible.contact"><br>{{ product.manufacturer.euResponsible.contact }}</template>
                         </dd>
                     </div>
-                    <div class="spec__row">
+                    <div class="pdp__gpsr-row">
                         <dt>Produkt</dt>
                         <dd class="pdp__gpsr-value">
                             {{ product.brandName }} {{ product.modelName }}<template v-if="product.typeDesignation"> · Typ {{ product.typeDesignation }}</template><template v-if="selected"> · Artikelnummer {{ selected.sku }}</template>
                         </dd>
                     </div>
-                    <div v-if="product.manufacturer.safetyNote" class="spec__row">
+                    <div v-if="product.manufacturer.safetyNote" class="pdp__gpsr-row">
                         <dt>Sicherheitshinweise</dt>
                         <dd class="pdp__gpsr-value">{{ product.manufacturer.safetyNote }}</dd>
                     </div>
@@ -576,13 +581,37 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 
 .pdp__gpsr-list {
-    margin-top: var(--space-3);
+    margin: var(--space-3) 0 0;
+    border-top: 1px solid var(--line);
+}
+
+/* Term and value on one baseline, the value column even; stacked on a phone. */
+.pdp__gpsr-row {
+    display: grid;
+    gap: var(--space-1);
+    padding-block: var(--space-3);
+    border-bottom: 1px solid var(--line);
+}
+
+.pdp__gpsr-row dt {
+    color: var(--ink2);
+}
+
+.pdp__gpsr-row dd {
+    margin: 0;
+}
+
+@media (min-width: 768px) {
+    .pdp__gpsr-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        gap: var(--space-4);
+        align-items: baseline;
+    }
 }
 
 /* An address is lines as the manufacturer wrote them; the value is prose, not a measurement. */
 .pdp__gpsr-value {
     white-space: pre-line;
-    text-align: left;
 }
 
 .pdp__crumbs {

@@ -334,7 +334,7 @@ function tagClass(state: OrderState): string | null {
             <form v-if="money.canRefund" class="bs-refund" novalidate @submit.prevent="askRefund">
                 <div class="form-field">
                     <label class="form-field__label" for="bs-refund-amount">Betrag</label>
-                    <input id="bs-refund-amount" v-model="refundAmount" class="input bs-refund__amount" type="text" inputmode="decimal" autocomplete="off" aria-describedby="bs-refund-help bs-refund-err">
+                    <span class="input-group bs-refund__amount"><input id="bs-refund-amount" v-model="refundAmount" class="input bs-refund__input" type="text" inputmode="decimal" autocomplete="off" aria-describedby="bs-refund-help bs-refund-err"><span class="input-group__suffix" aria-hidden="true">€</span></span>
                     <p id="bs-refund-help" class="form-field__help">In Euro, höchstens {{ formatMoney(money.refundable) }}. Das Geld geht über Stripe auf dem Weg zurück, auf dem bezahlt wurde.</p>
                 </div>
                 <div class="form-field">
@@ -409,7 +409,22 @@ function tagClass(state: OrderState): string | null {
 }
 
 .bs-refund__amount {
-    max-width: var(--sp-128);
+    max-width: calc(var(--sp-128) + var(--sp-32));
+}
+
+.bs-refund__input {
+    padding-right: var(--sp-32);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The money on the order: figures right-aligned in one column, digits that line up. */
+.bs-money .adm-facts__row {
+    grid-template-columns: minmax(0, 160px) var(--sp-128);
+}
+
+.bs-money .adm-facts__row dd {
+    text-align: right;
     font-variant-numeric: tabular-nums;
 }
 

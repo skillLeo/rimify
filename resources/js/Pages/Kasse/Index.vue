@@ -40,6 +40,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
+import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
 import { useShared } from '../../composables/useShared'
 import {
     loadStripe,
@@ -662,12 +663,6 @@ function verdictSentence(line: BasketLine): string {
     return verdict.sentence ?? `${verdict.label}.${verdict.requiresEntry ? ' Eintragung in die Fahrzeugpapiere erforderlich.' : ''}`
 }
 
-/** The state's colour, as a mark before the sentence — the words carry the meaning, the colour only repeats it. */
-const VERDICT_MARK: Record<string, string> = {
-    PERMITTED: 'ko__verdict--ok',
-    CONDITIONAL: 'ko__verdict--warn',
-    NOT_PERMITTED: 'ko__verdict--bad',
-}
 </script>
 
 <template>
@@ -738,9 +733,10 @@ const VERDICT_MARK: Record<string, string> = {
                         </button>
 
                         <div id="ko-sum-body" class="ko__sum-body" :class="{ 'is-open': summaryOpen }">
-                            <h2 id="ko-sum-title" class="t-h3 ko__sum-title">Deine Bestellung</h2>
+                            <!-- On the payment step the goods stand above the button (§312j); the aside keeps the sums only. -->
+                            <h2 id="ko-sum-title" class="t-h3 ko__sum-title">{{ step === 3 ? 'Summe' : 'Deine Bestellung' }}</h2>
 
-                            <ul class="ko__lines">
+                            <ul v-if="step < 3" class="ko__lines">
                                 <li v-for="line in lines" :key="line.key" class="ko__line">
                                     <div class="ko__line-top">
                                         <span class="ko__line-name">
@@ -759,9 +755,7 @@ const VERDICT_MARK: Record<string, string> = {
                                     </p>
                                     <!-- The verdict in one sentence on every step; its Auflagen one tap away, in full (R-15). -->
                                     <template v-if="line.verdict">
-                                        <p class="ko__verdict" :class="VERDICT_MARK[line.verdict.status] ?? ''">
-                                            {{ verdictSentence(line) }}
-                                        </p>
+                                        <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
                                         <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                             <summary>Auflagen lesen</summary>
                                             <ul class="ko__conditions">
@@ -918,7 +912,7 @@ const VERDICT_MARK: Record<string, string> = {
                                             type="button"
                                             @click="allowLetters('houseNumber', 'ko-nr')"
                                         >
-                                            Buchstaben eingeben, z. B. 12a
+                                            Buchstaben eingeben, z.&nbsp;B. 12a
                                         </button>
                                         <span id="ko-nr-err" class="field-error">{{ errors.houseNumber ?? '' }}</span>
                                     </div>
@@ -958,6 +952,7 @@ const VERDICT_MARK: Record<string, string> = {
                                             @blur="touch('city')"
                                         />
                                         <div v-if="places.zip.length" class="ko__places" role="group" aria-label="Orte zu dieser PLZ">
+                                            <span class="label ko__places-lead">Zu {{ form.zip }} gehören:</span>
                                             <button
                                                 v-for="place in places.zip"
                                                 :key="place"
@@ -1039,7 +1034,7 @@ const VERDICT_MARK: Record<string, string> = {
                                             type="button"
                                             @click="allowLetters('billingHouseNumber', 'ko-b-nr')"
                                         >
-                                            Buchstaben eingeben, z. B. 12a
+                                            Buchstaben eingeben, z.&nbsp;B. 12a
                                         </button>
                                         <span class="field-error">{{ errors.billingHouseNumber ?? '' }}</span>
                                     </div>
@@ -1082,6 +1077,7 @@ const VERDICT_MARK: Record<string, string> = {
                                             role="group"
                                             aria-label="Orte zu dieser PLZ"
                                         >
+                                            <span class="label ko__places-lead">Zu {{ form.billingZip }} gehören:</span>
                                             <button
                                                 v-for="place in places.billingZip"
                                                 :key="place"
@@ -1280,9 +1276,7 @@ const VERDICT_MARK: Record<string, string> = {
                                                 >
                                             </p>
                                             <template v-if="line.verdict">
-                                                <p class="ko__verdict" :class="VERDICT_MARK[line.verdict.status] ?? ''">
-                                                    {{ verdictSentence(line) }}
-                                                </p>
+                                                <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
                                                 <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                                     <summary>Auflagen lesen</summary>
                                                     <ul class="ko__conditions">
@@ -1342,14 +1336,12 @@ const VERDICT_MARK: Record<string, string> = {
                                     <p v-if="needsEntry" class="t-small quiet ko__final-note">
                                         Für Abnahme und Eintragung berechnet die Prüfstelle eigene Gebühren.
                                     </p>
+                                    <!-- One sentence, the links inline: no loose separator dots when the line wraps. -->
                                     <p class="t-small ko__legal-links">
-                                        <Link href="/rechtliches/agb">AGB</Link>
-                                        <span aria-hidden="true">·</span>
-                                        <Link href="/rechtliches/widerrufsbelehrung">Widerrufsbelehrung</Link>
-                                        <span aria-hidden="true">·</span>
-                                        <Link href="/rechtliches/widerrufsformular">Muster-Widerrufsformular</Link>
-                                        <span aria-hidden="true">·</span>
-                                        <Link href="/rechtliches/datenschutz">Datenschutz</Link>
+                                        Es gelten unsere <Link href="/rechtliches/agb">AGB</Link>; zu deinem Widerrufsrecht die
+                                        <Link href="/rechtliches/widerrufsbelehrung">Widerrufsbelehrung</Link> mit dem
+                                        <Link href="/rechtliches/widerrufsformular">Muster-Widerrufsformular</Link>, zu deinen Daten die
+                                        <Link href="/rechtliches/datenschutz">Datenschutzerklärung</Link>.
                                     </p>
                                 </section>
 
@@ -1487,35 +1479,15 @@ const VERDICT_MARK: Record<string, string> = {
     font-weight: 700;
 }
 
-/* The verdict in one sentence; a square in the state's colour repeats what the words say. */
+/* The verdict in its house form (VerdictBadge, R-07), its sentence beside it. */
 .ko__verdict {
     display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
     margin-top: var(--space-2);
     font-size: var(--text-small);
     color: var(--ink);
-}
-
-.ko__verdict::before {
-    content: '';
-    flex: none;
-    width: 8px;
-    height: 8px;
-    background: var(--ink3);
-    transform: translateY(-1px);
-}
-
-.ko__verdict--ok::before {
-    background: var(--ok);
-}
-
-.ko__verdict--warn::before {
-    background: var(--warn);
-}
-
-.ko__verdict--bad::before {
-    background: var(--danger);
 }
 
 .ko__auflagen {
@@ -1690,7 +1662,23 @@ const VERDICT_MARK: Record<string, string> = {
 }
 
 .ko__place {
-    font-weight: 700;
+    font-weight: 500;
+}
+
+.ko__places-lead {
+    flex-basis: 100%;
+    margin-top: var(--space-1);
+}
+
+/* The number pad's way out matters only where there is a number pad. */
+.ko__letters {
+    display: none;
+}
+
+@media (pointer: coarse) {
+    .ko__letters {
+        display: inline-flex;
+    }
 }
 
 .ko__source {
@@ -2053,17 +2041,13 @@ const VERDICT_MARK: Record<string, string> = {
 }
 
 .ko__legal-links {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 var(--space-2);
-    margin-top: var(--space-1);
+    margin-top: var(--space-2);
+    color: var(--ink2);
+    max-width: 60ch;
 }
 
 .ko__legal-links a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
+    font-weight: 500;
 }
 
 .ko__actions {
@@ -2076,6 +2060,19 @@ const VERDICT_MARK: Record<string, string> = {
 /* On a phone the step's buttons run full width, the forward one first. */
 .ko__actions .btn {
     flex: 1 1 100%;
+}
+
+/* A phone: the street takes its own row, Hausnummer and PLZ share the next — nothing squeezed to a sliver. */
+@media (max-width: 639px) {
+    .ko__street,
+    .ko__city {
+        grid-column: 1 / -1;
+    }
+
+    .ko__nr,
+    .ko__zip {
+        grid-column: span 3;
+    }
 }
 
 @media (min-width: 640px) {
