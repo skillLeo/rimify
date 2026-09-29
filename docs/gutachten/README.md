@@ -38,6 +38,12 @@ and presses „Freigeben". Run again, it keeps what exists and corrects a code w
   `Nicht 330D`). They are entered as its own entries, with the page they first stand on; a filter's sentence
   only says where it was printed. Its EG limits (`Nur bis …*03`, `ab …*08`) and series notes (`BMW 3er (F30) ab
   2012`) choose the cars a block covers and are not entered as codes.
+- **Each document keeps its own words; the map is per document.** A body-style code lists the body styles a
+  customer names that it admits (`Limousine`, `Kombi`, `Schrägheck`, …) — the document's word is never rewritten
+  to match another's. The two documents disagree on one word: ABE 55255 calls the 1er hatch `Y84`/`Y85`
+  (Schrägheck) and the Touring a „Kombilimousine“ (code `Car`); the Nachtrag calls the 1er hatch
+  „Kombilimousine“ — BMW's own papers do too. So the Nachtrag's `Kombilimousine`, printed only on the 1er rows,
+  admits Schrägheck, and 55255's `Car` admits Kombi (`docs/review/DATA-CONFLICTS.md`, Nr. 5).
 - **Cars**: one record per car as the documents name it. Where two documents print different extension ranges
   for one car (Z3 at `*07/*08`, 4er at `*08/*09`, Paceman at `*00/*01`), the car is split at that boundary so each
   document's rows cover only what that document prints. Pairings of types and approval numbers that a block

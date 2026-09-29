@@ -175,9 +175,19 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
 
     // The 18″ on a 1K4 from Modelljahr 2012 (page 3): the rework millimetres the Nachtrag prints for type 1K4
     // (page 22), both bolt sets the page gives a 1K4 with what it prints beside each, the 50 km torque check, and
-    // the base it lacks. Its row prints „Kombilimousine; Allradantrieb; Heckantrieb“: the car is given here as one.
+    // the base it lacks. Its row prints „Kombilimousine; Allradantrieb; Heckantrieb“ — this document's word for
+    // the 1er hatch (DATA-CONFLICTS Nr. 5): the car is given here as what its owner calls it, a Schrägheck.
     $f20 = $this->entry->vehicle('1er-1K4-04');
-    $f20->forceFill(['power_kw' => 100, 'body_form' => 'Kombi', 'drive_axle' => 'Hinterachse'])->save();
+    $f20->forceFill(['power_kw' => 100, 'body_form' => 'Schrägheck', 'drive_axle' => 'Hinterachse'])->save();
+
+    // One answer, both documents: the 5-door 1er the owner calls a Schrägheck passes 55255's Y85 and the
+    // Nachtrag's „Kombilimousine“ alike — neither word rewritten, each mapped once.
+    expect(borbetVerdict($f20, 'BOR-DB8GT2-8519-SM')->reason?->code)->not->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
+        ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->reason?->code)->not->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
+        ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->status)->toBe(VerdictStatus::Conditional);
+    $f20->forceFill(['body_form' => 'Kombi'])->save();
+    expect(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED);
+    $f20->forceFill(['body_form' => 'Schrägheck'])->save();
     $eighteenId = (int) WheelConfig::query()->where('sku', 'BOR-DB8GT2-8518-SM')->value('id');
     $page = $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($f20->id, true))->encode()])
         ->get('/felgen/'.GoldenRecordSeeder::SLUG)->assertOk();
