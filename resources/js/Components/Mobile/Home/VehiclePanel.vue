@@ -170,7 +170,8 @@ watch(
 
 function variantLabel(v: VariantRow): string {
     const power = v.powerPs === null ? null : `${decimal(Math.round(v.powerPs * 0.7355), 0)} kW`
-    const parts = [v.variant, power, v.buildWindow].filter((p): p is string => p !== null && p !== '')
+    // Feld K tells apart the halves a Gutachten splits one car into, where no key numbers do yet.
+    const parts = [v.variant, power, v.buildWindow, v.approval ?? null].filter((p): p is string => p !== null && p !== '')
 
     return `${parts.join(' · ')}${v.needsReview ? ' (unvollständige Daten)' : ''}`
 }
@@ -311,7 +312,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     <div v-if="vehicle" class="vpanel vpanel--vehicle">
         <span class="label">Dein Fahrzeug</span>
         <p class="h3">{{ vehicle.label }}</p>
-        <p class="small num muted">{{ vehicle.keyNumbers }} · {{ vehicle.buildWindow }}</p>
+        <p class="small num muted">{{ vehicle.approval ?? vehicle.keyNumbers }} · {{ vehicle.buildWindow }}</p>
         <p v-if="totalLabel !== null" class="small num vpanel__count">
             <strong>{{ totalLabel }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
         </p>

@@ -235,6 +235,8 @@ final readonly class Chrome
             'tsn' => $vehicle->tsn,
             'keyNumbers' => GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn),
             'buildWindow' => GermanFormat::buildPeriod($vehicle->build_from, $vehicle->build_to),
+            // Without key numbers, Feld K says which of a Gutachten's halves of the car this is (VehicleTree).
+            'approval' => $vehicle->hsn === null ? VehicleTree::approvalDe($vehicle->eg_nummer_raw) : null,
             // 8.1, 8.2 and T as the customer typed them for this car (Block C, item 10), and the power a
             // photographed P.2 is checked against — the wheel answer rests on the variant.
             'papers' => self::papers($request, $vehicle),

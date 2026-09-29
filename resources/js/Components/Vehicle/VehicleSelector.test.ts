@@ -77,3 +77,30 @@ describe('VehicleSelector — a key-number miss (R-09)', () => {
         expect(wrapper.find('.vsel__miss').exists()).toBe(false)
     })
 })
+
+/*
+ * A Gutachten splits the BMW 1K4 at extension 03/04 of its EG type approval; the halves carry different bolt
+ * sets. Without key numbers and a build window both read „1K4“ — Feld K tells them apart.
+ */
+describe('VehicleSelector — the halves of one car', () => {
+    it('names Feld K beside a variant that has no key numbers', () => {
+        const row = (id: number, approval: string) => ({
+            id, variant: '1K4', typeDesignation: '1K4', keyNumbers: 'HSN/TSN noch nicht hinterlegt', hsn: '', tsn: '', vsn: null,
+            buildWindow: 'Bauzeitraum unbekannt', powerPs: null, bodyForm: null, needsReview: false, approval,
+        })
+        current.props = {}
+        const wrapper = mount(VehicleSelector, {
+            props: {
+                makes: [], models: [], selectedMake: 'BMW', selectedModel: '1er-Reihe',
+                variants: [row(80, 'Feld K: e1*2007/46*0283*00 bis *03'), row(82, 'Feld K: e1*2007/46*0283*04 und später')],
+            },
+            global: { stubs: { DocFacsimile: true } },
+        })
+        mounted.push(wrapper)
+
+        expect(wrapper.findAll('.vsel__note').map((n) => n.text())).toEqual([
+            'Bauzeitraum unbekannt · Feld K: e1*2007/46*0283*00 bis *03',
+            'Bauzeitraum unbekannt · Feld K: e1*2007/46*0283*04 und später',
+        ])
+    })
+})

@@ -116,7 +116,8 @@ const rows = computed(() => {
         .map((v) => ({
             key: String(v.id),
             label: v.variant,
-            note: v.buildWindow,
+            // Feld K tells apart the halves a Gutachten splits one car into, where no key numbers do yet.
+            note: [v.buildWindow, v.approval].filter(Boolean).join(' · '),
             // A vehicle we could not characterise can never produce a positive verdict, so it is
             // offered but named as incomplete rather than silently leading to UNKNOWN (R-03).
             blocked: v.needsReview,

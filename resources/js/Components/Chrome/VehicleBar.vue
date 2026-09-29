@@ -24,7 +24,7 @@ const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BO
             <p class="vbar__text">
                 <span class="vbar__lead">Dein Fahrzeug:</span>
                 <span class="vbar__name">{{ vehicle.label }}</span>
-                <span class="vbar__meta num">· {{ vehicle.buildWindow }} · {{ vehicle.keyNumbers }}</span>
+                <span class="vbar__meta num">· {{ vehicle.buildWindow }} · {{ vehicle.approval ?? vehicle.keyNumbers }}</span>
             </p>
             <Link href="/felgen-suchen" class="vbar__link">Ändern</Link>
             <Link v-if="mode === 'BLUE_BAR'" href="/felgen" class="vbar__link vbar__link--cta" prefetch>Passende Felgen anzeigen</Link>

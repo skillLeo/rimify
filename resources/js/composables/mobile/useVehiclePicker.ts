@@ -23,6 +23,8 @@ export interface VariantRow {
     buildWindow: string
     powerPs: number | null
     needsReview: boolean
+    /** Feld K, for a car without key numbers (VehicleTree::approvalDe). */
+    approval?: string | null
 }
 
 export type CountState =

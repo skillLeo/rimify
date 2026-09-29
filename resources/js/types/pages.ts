@@ -40,6 +40,8 @@ export interface VariantOption {
     bodyForm: string | null
     /** Shown, never hidden: an incomplete row is named as incomplete rather than guessed at. */
     needsReview: boolean
+    /** `Feld K: e1*2007/46*0283*04 und später` — a car without key numbers, told apart from its twin by its papers. */
+    approval?: string | null
     [key: string]: unknown
 }
 

@@ -33,6 +33,8 @@ export interface VehicleProp {
     tsn: string | null
     keyNumbers: string
     buildWindow: string
+    /** `Feld K: e1*2007/46*0283*04 und später` — for a car without key numbers only; tells a Gutachten's halves of it apart. */
+    approval?: string | null
     /**
      * The figures the customer typed from their own papers for THIS car (8.1, 8.2, T), kept in the browser
      * with the car until customer accounts exist; null when none were entered. Additive.
