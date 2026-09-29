@@ -46,7 +46,8 @@ const context = await browser.newContext({ baseURL: BASE, locale: 'de-DE' })
 const page = await context.newPage()
 
 /* ── Sign in ─────────────────────────────────────────────────────────────────────────── */
-await page.goto('/admin/anmelden', { waitUntil: 'domcontentloaded' })
+// Until the page has hydrated, the server-rendered form is plain HTML: a click then sends a GET to the page itself.
+await page.goto('/admin/anmelden', { waitUntil: 'networkidle' })
 await page.fill('#lg-mail', EMAIL)
 await page.fill('#lg-pass', PASSWORD)
 await page.locator('button[type=submit]').first().click()

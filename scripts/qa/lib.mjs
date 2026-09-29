@@ -112,11 +112,21 @@ export async function resolveRoutes(context, routes) {
     }
 
     const page = await context.newPage()
-    await page.goto(BASE + '/felgen', { waitUntil: 'networkidle' })
-    const href = await page.locator('a[href^="/felgen/"]').first().getAttribute('href')
+    // Read after the client has taken over, in one step: a link the server drew and the client replaced is no
+    // product (open() waits for the hydration).
+    await open(page, '/felgen')
+    const href = await page.evaluate(() => document.querySelector('.plp__grid a[href^="/felgen/"], a[href^="/felgen/"]')?.getAttribute('href') ?? null)
     await page.close()
 
-    return routes.map((r) => r.replace('{product}', (href ?? '/felgen/unbekannt').replace('/felgen/', '')))
+    // A shop with no public product yet (a preview whose only real wheel waits for its release and price): the
+    // product routes are left out, and said so — never measured on a 404 and reported as the product page.
+    if (href === null) {
+        console.log(`Kein öffentliches Produkt auf ${BASE}: ${routes.filter((r) => r.includes('{product}')).join(', ')} ausgelassen.`)
+
+        return routes.filter((r) => !r.includes('{product}'))
+    }
+
+    return routes.map((r) => r.replace('{product}', href.replace('/felgen/', '')))
 }
 
 /**

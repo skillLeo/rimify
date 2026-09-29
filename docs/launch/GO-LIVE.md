@@ -16,10 +16,14 @@ correct result looks like, and what to do when it is not that. Nothing here is r
   and a shop without a wheel is not ready to open.
 - The mail account on the shop's domain exists (SMTP host, user, password), with SPF, DKIM and DMARC set.
 - The media bucket's key is at hand for Einstellungen › Medien und Speicher (or already entered).
-- The rollback has been rehearsed on staging once and timed (§7.4). Until then this runbook is untested there.
+- The rollback has been rehearsed on staging and timed (§7.4) — done on the preview on 2026-09-29: 14,4 s.
 
 Payments: this release opens the shop with `RIMIFY_PAYMENTS=none` — it shows every wheel and its verdict and
 refuses orders with a sentence, until the payments brief lands (Stripe, entered in the admin by hand).
+
+**Staging (the review preview) runs this same runbook** with three differences, found on its first run
+(2026-09-29, see „Where this runbook was wrong“ at the end): `TARGET_ENV=staging` in §4.2, the preflight rows
+that are production's only (§2), and a smoke test whose product rows wait for a released, priced real wheel (§5).
 
 ---
 
@@ -54,6 +58,7 @@ echo "$DB_DATABASE on $DB_HOST:$DB_PORT as $DB_USERNAME"
 
 ```bash
 mkdir -p ~/backups && export TS=$(date +%Y%m%d-%H%M)
+echo "$TS" > ~/backups/current-ts   # a second SSH session reads it back: export TS=$(cat ~/backups/current-ts)
 
 # The database — with its triggers (R-12 lives in them) and in one consistent snapshot
 mysqldump -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" --single-transaction --routines --triggers \
@@ -65,15 +70,16 @@ cp .env ~/backups/rimify-$TS.env
 tar -czf ~/backups/rimify-$TS-release.tar.gz --exclude=./storage/logs --exclude=./storage/framework -C "$APP" .
 
 ls -lh ~/backups/rimify-$TS*
-gunzip -c ~/backups/rimify-$TS.sql.gz | tail -1
+gunzip -c ~/backups/rimify-$TS.sql.gz | tail -1 | grep -c 'Dump completed'   # 1; printing the line itself dropped the SSH session on Hostinger
 gunzip -c ~/backups/rimify-$TS.sql.gz | grep -c 'CREATE.*TRIGGER'
 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
   "SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE();" "$DB_DATABASE" \
   | tee ~/backups/rimify-$TS.triggers
 ```
 
-**Correct:** four files listed (the dump a few MB, the release archive a few hundred MB); the dump's last line
-reads `-- Dump completed on <today>`; the two trigger counts are **the same number** — 14 on a database
+**Correct:** four files listed (the dump a few MB, the release archive a few hundred MB — on the preview,
+2026-09-29: 100 KB and 112 MB, all four in under a minute); the dump's last line reads
+`-- Dump completed on <today>` (the `grep -c` prints `1`); the two trigger counts are **the same number** — 14 on a database
 migrated to the 2026-09-29 release (four for R-12's audit log and fitment snapshots, one for the frozen
 RIMIFY-Check, one against a document superseding itself, eight demo-row guards); an older release has fewer.
 **If not:**
@@ -90,10 +96,17 @@ The restore is written out in §7 and rehearsed there. Keep these files until th
 ## 2 · Preflight on the target — green, with the 403
 
 ```bash
-$PHP artisan rimify:preflight
+$PHP artisan rimify:preflight --no-interaction
 ```
 
+`--no-interaction` matters: on a host whose running release predates the command, Laravel answers *Command
+"rimify:preflight" is not defined* and offers to run **`rimify:release-seed` instead (yes/no)** — the preview's
+first run met exactly that prompt. Then there is no preflight to read before the release: go on to §3 and read
+it after §4.2 (`$PHP artisan rimify:preflight`), where the new release has it.
+
 **Correct** (production, before this release): every row `GO` except the ones marked here, and the last line `GO.`
+On staging, *Umgebung* reads `staging`, *Zahlung* `sandbox`, *E-Mail* `log` and *Demodaten* a count — each
+expected there, each NO-GO in production.
 
 | Prüfung | Correct | If not |
 |---|---|---|
@@ -158,7 +171,12 @@ git log -1 --format='%h %s'
 
 ```bash
 TARGET_ENV=production bash deploy/remote.sh 2>&1 | tee ~/backups/rimify-$TS.deploy.log
+# staging (the review preview):  TARGET_ENV=staging bash deploy/remote.sh …
+# the cron lines printed for hPanel instead of written (§6):  RIMIFY_CRON=manual TARGET_ENV=… bash deploy/remote.sh …
 ```
+
+The renderer listens on a socket file, `storage/framework/ssr.sock` (D-047): Hostinger accepts no connection to
+a port a customer's process opens — the renderer said „started“ and nothing ever reached it.
 
 It migrates, applies the release's seeded data once, rebuilds the caches, restarts the renderer, waits for
 it to answer, installs the two cron lines, takes the site out of maintenance — and runs the smoke test.
@@ -172,7 +190,7 @@ No demo data.
 Release seed v4 already applied.   (or: Release seed v4 applied.)
 == caches rebuilt
 == stopped renderer <pid>
-== renderer ready on 13714
+== renderer ready on /home/<user>/domains/<production-domain>/public_html/storage/framework/ssr.sock
 == renderer watchdog and scheduler in cron
 == site is up
 Smoke-Test gegen https://<domain>
@@ -185,7 +203,7 @@ Smoke-Test gegen https://<domain>
 |---|---|---|
 | `Demo data found in production` | demo rows in the live database (R-12) | `$PHP artisan demo:purge --force`, find the cause, run 4.2 again |
 | a migration error | the schema could not be changed | read the error; if unclear, roll back (§7) — the dump is from before the migration |
-| `renderer NOT ready after 30 s` | node did not start | `tail -20 storage/logs/ssr.log`; a port in use → `bash deploy/ssr-watch.sh`; then run 4.2 again |
+| `renderer NOT ready after 30 s` | node did not start, or started where it cannot be reached | `tail -20 storage/logs/ssr.log`. *„Inertia SSR server started.“* with no socket path → the release predates D-047 and listens on a TCP port the host never lets anyone reach: deploy a release with the socket. Otherwise `bash deploy/ssr-watch.sh`; then run 4.2 again |
 | `add these two lines in hPanel` | the host refused `crontab` | add them in hPanel (§6) and go on — this is not a failure |
 | the smoke test fails (§5) | the site is up but wrong | §5 says per row; when in doubt, roll back (§7) |
 
@@ -212,6 +230,11 @@ $PHP artisan rimify:smoke
 | Speicher-Präfixe | ok · Bucket: 10 Prüfungen, invoices/ antwortet 403 |
 
 The last line reads `Smoke-Test bestanden.`
+
+On the review preview the product rows (product page, lookup, PDF, test order) read *Keine freigegebene Felge im
+Shop* until a real wheel is released and priced: its example catalogue is drafts only (release seed v4), and the
+golden record's DB8GT2 waits for the operator to release both Gutachten and enter a price (PRESENT.md, steps 3–4).
+That row is then expected — every other row must be ok.
 
 **If not:**
 - *Admin-Anmeldung: HTTP 404* → `.env` has `RIMIFY_ADMIN_ENABLED=false` (the review preview's setting):
@@ -247,7 +270,7 @@ when the host has stopped it. The second runs the scheduler — `demo:assert-cle
 ```bash
 crontab -l | grep -F "$APP"                       # both lines, once each
 tail -3 storage/logs/ssr.log                      # after a stop: "… renderer restarted by ssr-watch"
-pkill -u "$(id -u)" -f "$APP/bootstrap/ssr/ssr.js"; sleep 70; curl -s -m 2 http://127.0.0.1:13714/health
+pkill -u "$(id -u)" -f "$APP/bootstrap/ssr/ssr.js"; sleep 70; curl -s -m 2 --unix-socket "$APP/storage/framework/ssr.sock" http://localhost/health
 ```
 
 The last line kills the renderer on purpose; about a minute later the health check answers again (`OK` or a
@@ -282,13 +305,19 @@ cd "$APP" && $PHP artisan down --render="errors::503" --retry=60
 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
   "SELECT CONCAT('DROP TABLE IF EXISTS \`', table_name, '\`;') FROM information_schema.tables WHERE table_schema = DATABASE();" \
   "$DB_DATABASE" | { echo 'SET FOREIGN_KEY_CHECKS=0;'; cat; } | mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" "$DB_DATABASE"
-gunzip -c ~/backups/rimify-$TS.sql.gz | mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" "$DB_DATABASE"
+# The dump names each trigger's DEFINER; setting one needs the SET USER privilege, which a shared host's account
+# lacks — the load then stops at the first trigger with ERROR 1227 and leaves half a database. Without the clause
+# every trigger is created for this same account.
+gunzip -c ~/backups/rimify-$TS.sql.gz | sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' \
+  | mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" "$DB_DATABASE"
 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
   "SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE();" "$DB_DATABASE"
 ```
 
 **Correct:** no output from the first two commands; the last prints the number in `~/backups/rimify-$TS.triggers`.
 **If not:** *Access denied* → run §0's `eval` and `export MYSQL_PWD` again (a new shell forgets them).
+*ERROR 1227 … SET USER privilege* → the `sed` was left out: run the two commands above again, whole. **Never go on
+to 7.4 with a trigger count that differs** — `artisan up` on half a database serves errors on every page.
 
 ### 7.3 The code back to §1
 
@@ -297,7 +326,7 @@ git reset --hard "$(cat ~/backups/rimify-$TS.commit)" 2>/dev/null \
   || { mkdir -p ~/rollback && tar -xzf ~/backups/rimify-$TS-release.tar.gz -C "$APP"; }
 cp ~/backups/rimify-$TS.env .env
 $PHP artisan optimize:clear > /dev/null && $PHP artisan optimize > /dev/null
-bash deploy/ssr-watch.sh; sleep 3; curl -s -m 2 http://127.0.0.1:13714/health
+bash deploy/ssr-watch.sh; sleep 3; curl -s -m 2 --unix-socket "$APP/storage/framework/ssr.sock" http://localhost/health
 git log -1 --format='%h %s'
 ```
 
@@ -318,7 +347,7 @@ $PHP artisan up && $PHP artisan rimify:smoke
 | Where | Database | Dump | Restore (7.2) | Code + caches + renderer (7.3) | Whole rollback, down to up |
 |---|---|---|---|---|---|
 | Local rehearsal (Windows, MySQL 8.4), 2026-09-29 | a scratch copy of the development database, 5,5 MB dump, 14 triggers | 0,4 s | 2,5 s | 1,5 s | **6,8 s**, smoke 7/7 ok |
-| **Staging (Hostinger), rehearse once before go-live** | | | | | ___ min — write it here |
+| **Staging (Hostinger, MariaDB), 2026-09-29**, with both Borbet drafts in | the preview's database, 429 KB dump, 14 triggers | 0,24 s (archive 8,0 s) | 3,2 s | 5,6 s | **14,4 s**, smoke: every row ok but the product row, which waits for a released, priced wheel (§5) |
 
 The local row proves the steps, not the time on the host: the same MySQL, but no network between the shell
 and the database, SSD, and no `git reset` (the code was already the backup's commit), so 7.3 is caches and
@@ -326,6 +355,12 @@ renderer only. The restore dropped a table the "bad release" had added (every ta
 and brought all 14 triggers back. It ran against a copy (`rimify_wf_rollback`), served by the development app
 with its config cached to that copy, as production's `.env` would point it; the smoke test's test order was
 written there and the copy was dropped afterwards.
+
+The staging row is the second rehearsal on the host. The first, run exactly as §7.2 then read, **failed**: the
+load stopped at the first trigger (*ERROR 1227 … SET USER privilege* — the dump names each trigger's DEFINER),
+left 0 of 14 triggers and most tables missing, and 7.4 took the site up on it: the preview answered with errors
+for about two minutes until the same dump was loaded without the DEFINER clauses. §7.2 now strips them and says
+never to go on with a differing trigger count; the second rehearsal followed that text and is the number above.
 
 Rehearse on staging exactly as written: §1 (backup), §3 (down), §7.2–7.4, and time from `down` to the smoke
 test's last row. If the whole rollback takes longer than ten minutes, say so before go-live: the release
@@ -343,7 +378,7 @@ Every ten minutes for the first hour, then at the end of the day:
 | Pages without server rendering | Admin › System (row „Server-Rendering“) — or `grep -c 'SSR-Fallback' storage/logs/laravel-$(date +%F).log` | green, or amber with a count that stops rising | rising → `bash deploy/ssr-watch.sh`; the log line names each URL |
 | Queue | Admin › System (row „Warteschlange“); this host runs jobs at once (`QUEUE_CONNECTION=sync`) | no failed jobs | a failed job raises an alert in the Protokoll; read it there |
 | Slow queries | `tail -20 storage/logs/slow-queries-$(date +%F).log` | empty, or a handful under a second | the same statement again and again → note it; it is a fix for the next release, not a rollback |
-| The renderer | `curl -s -m 2 http://127.0.0.1:13714/health` | answers | §6 |
+| The renderer | `curl -s -m 2 --unix-socket "$APP/storage/framework/ssr.sock" http://localhost/health` | answers | §6 |
 | A real visit | the shop in a private window on a phone and a desktop: home, a wheel, HSN/TSN, the Gutachten PDF | as in the smoke test | §5 |
 
 There is no external error tracker (Sentry or similar) — that needs an account; the log and the System page
@@ -361,3 +396,26 @@ are the tracker until one is chosen.
 - [ ] `$PHP artisan rimify:preflight` → `GO.`
 - [ ] `$PHP artisan rimify:smoke` → every row ok
 - [ ] Keep `~/backups/rimify-$TS*` for a week
+
+---
+
+## Where this runbook was wrong — its first run on the host (staging, 2026-09-29)
+
+Followed top to bottom on the review preview, release `a1f6aabd` (26.09.) → `cbf439ce`. What did not go as
+written, and what the runbook says now:
+
+| Step | What the runbook said | What happened | Now |
+|---|---|---|---|
+| §1 | print the dump's last line | the SSH session dropped („Software caused connection abort“) — twice, on that one line | `… \| tail -1 \| grep -c 'Dump completed'` → `1` |
+| §1 → later | one session holds `$TS` | a detached release and the rollback run in other sessions; `$TS` was gone | `TS` also written to `~/backups/current-ts` |
+| §2 | `rimify:preflight` before the release | the running release predates the command: „not defined“, and Laravel offered to run **`rimify:release-seed` instead** (no was the default) | `--no-interaction`; read the preflight after §4.2 when the host's release lacks it; the staging rows named |
+| §4.2 | `TARGET_ENV=production` | the preview is staging | both written out |
+| §4.2 | „renderer ready on 13714“ | *renderer NOT ready after 30 s*, site left in maintenance. The host accepts no connection to a port a customer's process opens: the renderer, a bare Node server and PHP's own server all said „listening“ and all answered „connection refused“ — from SSH and from the web server. No page on the preview had ever been server-rendered | the renderer on a socket file (D-047, `cbf439ce`); the table's advice for this line rewritten |
+| §4.2 / §6 | `remote.sh` writes the cron lines | writing the account's crontab from a release is the operator's step (§6) | `RIMIFY_CRON=manual` prints them; on the preview they are **not yet in hPanel** |
+| §5 | every smoke row ok | *Keine freigegebene Felge im Shop*: the preview's only real wheel waits for the operator's release and price | said in §5 as the one expected row on the preview |
+| §6–§8 | health at `127.0.0.1:13714` | nothing listens there any more | `curl --unix-socket …/storage/framework/ssr.sock http://localhost/health` |
+| §7.2 | load the dump as it is | *ERROR 1227 … SET USER privilege* at the first trigger; half a database; 7.4 then opened the site on it (≈ 2 min of errors on the preview) | the DEFINER clauses stripped on load; stop before 7.4 on a differing trigger count |
+| §7 timing | `bc` for the arithmetic (the rehearsal script) | not installed on the host | shell arithmetic on `date +%s%N` |
+
+Also seen: the push to `main` did **not** trigger Hostinger's own Git integration this time (`public_html`, `vendor/`
+and `.env` intact a minute after the push) — the hPanel setting is still worth checking before production.
