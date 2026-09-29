@@ -87,7 +87,7 @@ function removeVehicle(): void {
         <!-- The vehicle on a phone: a sheet with the three things one does with it. -->
         <Dialog v-if="vehicle" v-model:open="vehicleSheet" variant="sheet" title="Dein Fahrzeug">
             <p class="h4">{{ vehicle.label }}</p>
-            <p class="small muted num">{{ vehicle.buildWindow }} · {{ vehicle.keyNumbers }}</p>
+            <p class="small muted num">{{ vehicle.approval ?? `${vehicle.buildWindow} · ${vehicle.keyNumbers}` }}</p>
             <div class="shell__vehicle-actions">
                 <Link href="/felgen" class="btn btn--primary btn--block" prefetch>Passende Felgen anzeigen</Link>
                 <Link href="/felgen-suchen" class="btn btn--secondary btn--block">Fahrzeug ändern</Link>

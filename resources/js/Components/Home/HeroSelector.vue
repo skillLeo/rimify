@@ -174,7 +174,11 @@ function variantLabel(v: VariantOption): string {
         parts.push(withUnit(Math.round(v.powerPs * KW_PER_PS), 'kW'))
     }
 
-    if (v.buildWindow !== '') {
+    // Feld K's range tells apart the halves a Gutachten splits one car into, where no key numbers do yet; in
+    // place of the build window, which such a car does not have.
+    if (v.approvalShort) {
+        parts.push(v.approvalShort)
+    } else if (v.buildWindow !== '') {
         parts.push(v.buildWindow)
     }
 
@@ -517,7 +521,8 @@ onBeforeUnmount(() => treeController?.abort())
     <div v-if="vehicle" class="sel sel--vehicle">
         <p class="label">Dein Fahrzeug</p>
         <p class="h3 sel__vehicle">{{ vehicle.label }}</p>
-        <p class="small num muted">{{ vehicle.keyNumbers }} · {{ vehicle.buildWindow }}</p>
+        <!-- Feld K first where it is what tells the car apart; the unknown build window then says nothing. -->
+        <p class="small num muted">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
 
         <p class="small num muted sel__count" aria-live="polite">
             <Skeleton v-if="count.loading.value" width="60%" height="var(--lh-small)" />
@@ -654,8 +659,6 @@ onBeforeUnmount(() => treeController?.abort())
                                             :key="v.id"
                                             :value="v.id"
                                             :text-value="variantLabel(v)"
-                                            :disabled="v.needsReview"
-                                            :aria-disabled="v.needsReview ? 'true' : undefined"
                                             class="menu__item sel__item num"
                                         >
                                             {{ variantLabel(v) }}

@@ -318,7 +318,9 @@ describe('HeroSelector — Marke → Modell → Fahrzeug', () => {
             `320i · 125${NNBSP}kW · 09/2001–02/2005`,
             `330i · 170${NNBSP}kW · 09/2001–02/2005 (unvollständige Daten)`,
         ])
-        expect(rows[1]!.attributes('aria-disabled')).toBe('true')
+        // Named as incomplete, not refused (EF-01): the wheel is answered from its Gutachten and the tyres wait
+        // for the papers (R-03 as amended) — the cars typed from a Gutachten are all like this.
+        expect(rows[1]!.attributes('aria-disabled')).toBeUndefined()
 
         await rows[0]!.trigger('click')
         await nextTick()
@@ -332,6 +334,37 @@ describe('HeroSelector — Marke → Modell → Fahrzeug', () => {
         const choice = forms.find((f) => 'fahrzeug' in f)!
         expect(choice.fahrzeug).toBe(7)
         expect(choice.post).toHaveBeenCalledWith('/fahrzeug', expect.objectContaining({ preserveScroll: true }))
+    })
+
+    // EF-02: the halves a Gutachten splits one car into read apart by Feld K's range, in place of the unknown window.
+    it('tells apart the halves of one car by Feld K, and lets either be chosen', async () => {
+        const nb = String.fromCharCode(160)
+        const half = (id: number, range: string) => ({
+            id, variant: '1K4', typeDesignation: '1K4', keyNumbers: '', hsn: '', tsn: '', vsn: null, buildWindow: 'Bauzeitraum unbekannt',
+            buildKnown: false, powerPs: null, bodyForm: null, needsReview: true, approval: `Feld${nb}K: e1*2007/46*0283, ${range}`, approvalShort: `Feld${nb}K ${range}`,
+        })
+        respond('/api/v1/vehicles/models?marke=BMW', { models: [{ model: '1er-Reihe', variants: 2 }] })
+        respond('/api/v1/vehicles/variants?marke=BMW&modell=1er-Reihe', { variants: [half(80, `*00 bis${nb}*03`), half(82, `ab${nb}*04`)] })
+        const wrapper = mountSelector()
+
+        await byLabel(wrapper, 'Marke').setValue('bm')
+        await nextTick()
+        await wrapper.findAll('[role="option"]')[0]!.trigger('click')
+        await flushPromises()
+        await nextTick()
+        await wrapper.find('[role="option"]').trigger('click')
+        await flushPromises()
+        await nextTick()
+        await byLabel(wrapper, 'Fahrzeug').setValue('1')
+        await nextTick()
+
+        const rows = wrapper.findAll('[role="option"]')
+
+        expect(rows.map((r) => r.text())).toEqual([
+            `1K4 · Feld${nb}K *00 bis${nb}*03 (unvollständige Daten)`,
+            `1K4 · Feld${nb}K ab${nb}*04 (unvollständige Daten)`,
+        ])
+        expect(rows.every((r) => r.attributes('aria-disabled') === undefined)).toBe(true)
     })
 })
 

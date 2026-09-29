@@ -419,7 +419,9 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                     :aria-busy="picker.variantsLoading.value ? 'true' : undefined"
                 >
                     <option :value="null">{{ picker.variantsLoading.value ? 'Wird geladen …' : 'Variante, Baujahr, kW' }}</option>
-                    <option v-for="v in picker.variants.value" :key="v.id" :value="v.id" :disabled="v.needsReview">{{ variantLabel(v) }}</option>
+                    <!-- Incomplete data is said, not refused: the wheel is answered from its Gutachten, and the
+                         tyres wait for the papers (R-03 as amended) — as /felgen-suchen offers the same cars. -->
+                    <option v-for="v in picker.variants.value" :key="v.id" :value="v.id">{{ variantLabel(v) }}</option>
                 </select>
                 <p v-if="picker.variantsFailed.value" class="form-field__error">Die Varianten lassen sich gerade nicht laden.</p>
                 <!-- The whole Feld K line under the select once a variant is picked: the option has room for its range only. -->

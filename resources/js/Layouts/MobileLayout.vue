@@ -176,7 +176,7 @@ function fromVehicleSheet(href: string | undefined): void {
         <!-- The vehicle: its name and key numbers, then the three things one does with it. -->
         <BottomSheet v-if="vehicle" id="fahrzeug" v-model:open="vehicleSheet" title="Dein Fahrzeug">
             <p class="h4">{{ vehicle.label }}</p>
-            <p class="small muted num">{{ vehicle.buildWindow }} · {{ vehicle.keyNumbers }}</p>
+            <p class="small muted num">{{ vehicle.approval ?? `${vehicle.buildWindow} · ${vehicle.keyNumbers}` }}</p>
             <div class="mshell__vehicle-rows">
                 <ListRow icon="wheel" title="Passende Felgen anzeigen" href="/felgen" manual @activate="fromVehicleSheet" />
                 <ListRow icon="car" title="Fahrzeug ändern" href="/felgen-suchen" manual @activate="fromVehicleSheet" />
