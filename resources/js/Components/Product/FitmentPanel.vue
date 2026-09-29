@@ -93,22 +93,19 @@ const overview = computed(() => {
         return []
     }
 
-    const count = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`
+    // What there is to do — the notes are not a task, and the sizes have their own line below.
     const lines: string[] = []
     const items = (title: string): number => view.sections.find((s) => s.title === title)?.items.filter((i) => i.text !== entryLine.value).length ?? 0
-
-    if (items('Abnahme') > 0) lines.push('Abnahme beim Prüfer')
-    if (items('Arbeiten am Fahrzeug') > 0) lines.push(`Arbeiten am Fahrzeug: ${count(items('Arbeiten am Fahrzeug'), 'Auflage', 'Auflagen')}`)
+    const work = items('Arbeiten am Fahrzeug')
     const first = view.fasteners[0]
 
+    if (items('Abnahme') > 0) lines.push('Abnahme beim Prüfer')
+    if (work > 0) lines.push(`${work} ${work === 1 ? 'Arbeit' : 'Arbeiten'} am Fahrzeug`)
+
     if (first !== undefined) {
-        lines.push(`Befestigung: ${first.thread}${first.torque ? `, ${first.torque}` : ''}${view.fasteners.length > 1 ? ` – oder ${count(view.fasteners.length - 1, 'weiterer Satz', 'weitere Sätze')}` : ''}`)
-    } else if (items('Befestigung') > 0) {
-        lines.push(`Befestigung: ${count(items('Befestigung'), 'Auflage', 'Auflagen')}`)
+        const more = view.fasteners.length - 1
+        lines.push(`${first.thread}${first.torque ? `, ${first.torque}` : ''}${more > 0 ? ` oder ${more === 1 ? 'ein weiterer Schraubensatz' : `${more} weitere Schraubensätze`}` : ''}`)
     }
-    // The sizes themselves stand in the panel's own line below; their axles and minima in the full text.
-    const notes = items('Hinweise') + view.notices.length
-    if (notes > 0) lines.push(`Hinweise: ${notes}`)
 
     return lines
 })
@@ -200,11 +197,8 @@ const headline = computed(() => {
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->
             <div v-if="detail && overview.length" class="fit__overview">
-                <p class="micro fit__overview-h">Das verlangt das Gutachten</p>
-                <ul class="fit__overview-list">
-                    <li v-for="line in overview" :key="line">{{ line }}</li>
-                </ul>
-                <p class="fit__pdf"><a href="#auflagen">Alle Auflagen im Wortlaut</a></p>
+                <p class="label fit__overview-h">Das verlangt das Gutachten</p>
+                <p class="small fit__overview-line">{{ overview.join(' · ') }} · <a href="#auflagen">alle Auflagen im Wortlaut</a></p>
             </div>
             <ul v-else-if="!detail && conditions.length" class="fit__conditions">
                 <li v-for="condition in conditions" :key="condition">{{ condition }}</li>
@@ -341,15 +335,10 @@ const headline = computed(() => {
 
 .fit__overview-h {
     margin: 0;
-    color: var(--ink2);
 }
 
-.fit__overview-list {
-    display: grid;
-    gap: var(--space-1);
+.fit__overview-line {
     margin: var(--space-1) 0 0;
-    padding-left: var(--space-4);
-    font-size: var(--text-small);
     color: var(--ink);
 }
 

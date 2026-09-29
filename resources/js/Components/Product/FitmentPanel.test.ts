@@ -235,12 +235,10 @@ describe('FitmentPanel', () => {
             },
         })
 
-        expect(wrapper.findAll('.fit__overview-list li').map((li) => li.text())).toEqual([
-            'Abnahme beim Prüfer',
-            'Arbeiten am Fahrzeug: 2 Auflagen',
-            'Befestigung: Kegelbundschraube M12x1,5, 120 Nm – oder 1 weiterer Satz',
-            'Hinweise: 2',
-        ])
+        // One line: what there is to do, then the way to the full wording. The notes are not a task.
+        expect(wrapper.find('.fit__overview-line').text()).toBe(
+            'Abnahme beim Prüfer · 2 Arbeiten am Fahrzeug · Kegelbundschraube M12x1,5, 120 Nm oder ein weiterer Schraubensatz · alle Auflagen im Wortlaut'
+        )
         expect(wrapper.find('.fit__overview a').attributes('href')).toBe('#auflagen')
         // The sentences stand below the purchase, not in the panel; the sizes keep their own line.
         expect(wrapper.find('.fit__conditions').exists()).toBe(false)

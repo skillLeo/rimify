@@ -90,6 +90,27 @@ const photoNote = computed(() => {
     return pictured ? `Abbildung zeigt die ${decimal(pictured.diameterIn, Number.isInteger(pictured.diameterIn) ? 0 : 1)}-Zoll-Ausführung.` : null
 })
 
+/*
+ * Why a size is struck through, as true as the answer behind it (R-07): „nicht freigegeben“ only where a
+ * document says no; where we hold no answer for the car, that is what is said.
+ */
+const blockedNote = computed(() => {
+    const statuses = new Set(config.sizes.value.filter((s) => s.blocked).map((s) => s.config.verdict?.status))
+
+    if (statuses.size === 0) {
+        return null
+    }
+
+    const refused = statuses.has('NOT_PERMITTED')
+    const open = [...statuses].some((status) => status !== 'NOT_PERMITTED')
+
+    if (refused && open) {
+        return 'Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben, oder uns liegt für sie keine Freigabe vor.'
+    }
+
+    return refused ? 'Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.' : 'Für durchgestrichene Größen liegt uns für dein Fahrzeug keine Freigabe vor.'
+})
+
 // Another finish starts on its own front view.
 watch(
     () => config.finishId.value,
@@ -364,9 +385,7 @@ onBeforeUnmount(() => observer?.disconnect())
                         </div>
 
                         <!-- Shown, not hidden: it tells the customer something true about their car. -->
-                        <p v-if="config.sizes.value.some((s) => s.blocked)" class="t-small quiet pdp__note">
-                            Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.
-                        </p>
+                        <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
                     </div>
 
                     <FitmentPanel class="pdp__fit" :verdict="selected?.verdict ?? null" :vehicle="shared.vehicle" :config-id="selected?.id ?? null">

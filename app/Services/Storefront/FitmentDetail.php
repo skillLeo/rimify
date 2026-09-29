@@ -171,7 +171,11 @@ final class FitmentDetail
         return array_values(array_map(static function (array $entry): array {
             /** @var TyreSize $size */
             $size = $entry['size'];
-            $printed = ($size->documentMinLoadIndex === null ? '' : (string) $size->documentMinLoadIndex).($size->documentMinSpeedSymbol ?? '');
+            // `Lastindex 91, Geschwindigkeitsindex W` — what the document prints beside the size, said in words.
+            $printed = implode(', ', array_filter([
+                $size->documentMinLoadIndex === null ? null : 'Lastindex '.$size->documentMinLoadIndex,
+                $size->documentMinSpeedSymbol === null ? null : 'Geschwindigkeitsindex '.$size->documentMinSpeedSymbol,
+            ]));
 
             return [
                 'label' => $size->labelDe(),
@@ -180,7 +184,7 @@ final class FitmentDetail
                     isset($entry['axles']['front']) => 'nur Vorderachse',
                     default => 'nur Hinterachse',
                 },
-                'minimum' => $printed === '' ? null : 'laut Gutachten mindestens '.$printed,
+                'minimum' => $printed === '' ? null : $printed,
                 'band' => $size->powerBandDe(),
             ];
         }, $sizes));

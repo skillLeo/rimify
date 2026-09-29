@@ -362,6 +362,17 @@ describe('Produkt page', () => {
         expect(note().text()).toBe('Abbildung zeigt die 18-Zoll-Ausführung.')
     })
 
+    it('says a struck-through size is not approved only where a document says so (R-07)', () => {
+        const note = (status: 'NOT_PERMITTED' | 'UNKNOWN'): string =>
+            mountPage({
+                hasVehicle: true,
+                configs: [config({ id: 12, diameterIn: 19, verdict: verdict({ status, label: status, sellable: false }) }), config({ id: 11, diameterIn: 18, sizeLabel: '8,5J × 18 · ET 45', sku: 'X-18', verdict: verdict() })],
+            }).find('.pdp__note').text()
+
+        expect(note('NOT_PERMITTED')).toBe('Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.')
+        expect(note('UNKNOWN')).toBe('Für durchgestrichene Größen liegt uns für dein Fahrzeug keine Freigabe vor.')
+    })
+
     it('draws the wheel without a zoom when there is no photograph', () => {
         const wrapper = mountPage({ finishes: [{ id: 1, name: 'Silber', hex: null, artFinish: 'silver', image: null }] })
 

@@ -22,6 +22,6 @@ export const borbetDetail: FitmentDetailView = {
         { thread: 'Kegelbundschraube M12x1,5', label: 'Kegelbundschraube M12x1,5, Kegel 60°, Schaftlänge 30 mm', torque: '120 Nm', article: 'Set Nr. 5248', limit: 'nur bis Nachtrag 03' },
         { thread: 'Kegelbundschraube M14x1,25', label: 'Kegelbundschraube M14x1,25, Kegel 60°, Schaftlänge 30 mm', torque: '140 Nm', article: 'Set Nr. 5276', limit: 'ab Nachtrag 04' },
     ],
-    tyres: [{ label: '245/35 R18', axle: 'nur Hinterachse', minimum: 'laut Gutachten mindestens 92', band: '70–250 kW' }],
+    tyres: [{ label: '245/35 R18', axle: 'nur Hinterachse', minimum: 'Lastindex 92', band: '70–250 kW' }],
     notices: ['Der Fahrzeughalter muss auf die Kontrolle des Anzugsmoments der Befestigungsmittel nach einer Wegstrecke von 50km hingewiesen werden.'],
 }
