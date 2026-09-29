@@ -439,7 +439,7 @@ function confirmLimit(condition: DocumentConditionView): void {
             <div class="av__pair">
                 <div class="form-field">
                     <label class="form-field__label" for="av-code">Code</label>
-                    <input id="av-code" v-model="form.code" class="input av__narrow" type="text" maxlength="8" spellcheck="false" autocomplete="off" translate="no" :aria-invalid="errors.code ? 'true' : undefined" aria-describedby="av-code-err">
+                    <input id="av-code" v-model="form.code" class="input av__code-input" type="text" maxlength="32" spellcheck="false" autocomplete="off" translate="no" :aria-invalid="errors.code ? 'true' : undefined" aria-describedby="av-code-err">
                     <p id="av-code-err" class="form-field__error" aria-live="polite">{{ errors.code }}</p>
                 </div>
                 <div class="form-field">
@@ -532,7 +532,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                     <div class="av__pair">
                         <div class="form-field">
                             <label class="form-field__label" :for="`av-split-code-${index}`">Code</label>
-                            <input :id="`av-split-code-${index}`" v-model="entry.code" class="input av__narrow" type="text" maxlength="8" translate="no" :aria-invalid="splitError(index, 'code') ? 'true' : undefined">
+                            <input :id="`av-split-code-${index}`" v-model="entry.code" class="input av__code-input" type="text" maxlength="32" translate="no" :aria-invalid="splitError(index, 'code') ? 'true' : undefined">
                             <p class="form-field__error">{{ splitError(index, 'code') }}</p>
                         </div>
                         <div class="form-field">
@@ -632,6 +632,11 @@ function confirmLimit(condition: DocumentConditionView): void {
 
 .av__narrow {
     max-width: 12ch;
+}
+
+/* A code as printed: `A01`, and the Nachtrag's `Schrägheck 2-türig` (up to 32 characters). */
+.av__code-input {
+    max-width: 22ch;
 }
 
 .av__textarea {
