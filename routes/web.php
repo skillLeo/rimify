@@ -90,13 +90,13 @@ Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');
 // „RIMIFY-Check drucken“: the answer for the chosen car and one wheel, frozen under a token (29.09.2026).
-Route::post('/rimify-check/ergebnis', [CheckController::class, 'store'])->middleware('throttle:20,1')->name('check.ergebnis.store');
+Route::post('/rimify-check/ergebnis', [CheckController::class, 'store'])->middleware('throttle:20,1,check-ergebnis-store')->name('check.ergebnis.store');
 
 /*
  * Choosing the vehicle. A POST because it writes state, and rate-limited because the key-number
  * lookup is the one unauthenticated endpoint that reads the vehicle table by arbitrary input.
  */
-Route::middleware('throttle:60,1')->group(function (): void {
+Route::middleware('throttle:60,1,fahrzeug')->group(function (): void {
     Route::post('/fahrzeug', [FahrzeugController::class, 'store'])->name('fahrzeug.store');
     Route::post('/fahrzeug/schluesselnummern', [FahrzeugController::class, 'resolve'])
         ->name('fahrzeug.resolve');
@@ -116,26 +116,26 @@ Route::patch('/warenkorb/{line}/gewichte', [WarenkorbController::class, 'weights
 Route::delete('/warenkorb/{line}/reifen', [WarenkorbController::class, 'destroyTyre'])->name('warenkorb.reifen.destroy');
 Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
 // The RDKS answer (§5.3): the server stores it with the quote and re-renders the totals itself.
-Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:30,1')->name('kasse.rdks');
+Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:30,1,kasse-rdks')->name('kasse.rdks');
 // Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
-Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:10,1')->name('kasse.store');
+Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:10,1,kasse-store')->name('kasse.store');
 // The sandbox's payment page (App\Payments\SandboxGateway): by its signed link only, and only where
 // the review is on (TestPaymentRequest). The POST carries the same signature in its query string.
 Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
-Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:10,1'])->name('kasse.testzahlung.store');
+Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:10,1,kasse-testzahlung-store'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
 
 /*
  * The JSON endpoints the shell calls. They sit in the web group on purpose: the session and the
  * vehicle cookie are what most of them answer about, and a GET carries no CSRF token to check.
  */
-Route::prefix('api/v1')->name('api.')->middleware('throttle:60,1')->group(function (): void {
+Route::prefix('api/v1')->name('api.')->middleware('throttle:60,1,api')->group(function (): void {
     Route::get('/search', SearchController::class)->name('search');
     Route::get('/vehicles/models', [VehicleTreeController::class, 'models'])->name('vehicles.models');
     Route::get('/vehicles/variants', [VehicleTreeController::class, 'variants'])->name('vehicles.variants');
     Route::get('/fitment/count', FitmentCountController::class)->name('fitment.count');
     // Writes a row and sends a mail: a tighter limit than the read endpoints.
-    Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:10,1')->name('fitment.notify');
+    Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:10,1,fitment-notify')->name('fitment.notify');
 });
 
 // The two links a subscription mail carries (F2); tokens, no session.
@@ -152,7 +152,7 @@ Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtlic
 // signature is the permission (it expires); no login, never indexed, framable by our own origin only.
 Route::get('/vorschau/seite/{page}', VorschauController::class)
     ->whereNumber('page')
-    ->middleware(['signed', 'throttle:60,1'])
+    ->middleware(['signed', 'throttle:60,1,vorschau-seite'])
     ->name('vorschau.seite');
 
 /*
@@ -196,7 +196,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         ->where('token', '[A-Za-z0-9_-]{20,128}')
         ->name('einladung');
     Route::post('/einladung/{token}', [EinladungController::class, 'accept'])
-        ->middleware(['guest:admin', 'throttle:6,1'])
+        ->middleware(['guest:admin', 'throttle:6,1,einladung-annehmen'])
         ->where('token', '[A-Za-z0-9_-]{20,128}')
         ->name('einladung.annehmen');
 
@@ -207,7 +207,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // nobody else's: nothing here takes an id, so there is nothing to point at another row.
         Route::get('/profil', [AdminProfileController::class, 'show'])->name('profil');
         Route::put('/profil/passwort', [AdminProfileController::class, 'updatePassword'])
-            ->middleware('throttle:6,1')
+            ->middleware('throttle:6,1,profil-passwort')
             ->name('profil.passwort');
         Route::patch('/ansicht', [AdminPreferencesController::class, 'update'])->name('ansicht');
 
@@ -225,15 +225,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // Verwendungsbereich rows, the preview, the Freigabe — each asked of ApprovalDocumentPolicy
         // through its Form Request. `/neu` and `/suche` are fixed segments, never a `{document}`.
         Route::get('/gutachten/neu', [GutachtenController::class, 'create'])->name('gutachten.create');
-        Route::post('/gutachten', [GutachtenController::class, 'store'])->middleware('throttle:30,1')->name('gutachten.store');
-        Route::get('/gutachten/suche/fahrzeuge', [GutachtenZeilenController::class, 'vehicles'])->middleware('throttle:120,1')->name('gutachten.suche.fahrzeuge');
-        Route::get('/gutachten/suche/felgen', [GutachtenZeilenController::class, 'wheels'])->middleware('throttle:120,1')->name('gutachten.suche.felgen');
+        Route::post('/gutachten', [GutachtenController::class, 'store'])->middleware('throttle:30,1,gutachten-store')->name('gutachten.store');
+        Route::get('/gutachten/suche/fahrzeuge', [GutachtenZeilenController::class, 'vehicles'])->middleware('throttle:120,1,gutachten-suche-fahrzeuge')->name('gutachten.suche.fahrzeuge');
+        Route::get('/gutachten/suche/felgen', [GutachtenZeilenController::class, 'wheels'])->middleware('throttle:120,1,gutachten-suche-felgen')->name('gutachten.suche.felgen');
         Route::get('/gutachten/{document}', [GutachtenController::class, 'show'])->whereNumber('document')->name('gutachten.show');
         Route::put('/gutachten/{document}', [GutachtenController::class, 'update'])->whereNumber('document')->name('gutachten.update');
         Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
         Route::post('/gutachten/{document}/zeilen', [GutachtenZeilenController::class, 'store'])->whereNumber('document')->name('gutachten.zeilen.store');
         // A car exactly as the document names it — no HSN or TSN, none made up (Block C, item 7).
-        Route::post('/gutachten/{document}/fahrzeuge', [GutachtenFahrzeugController::class, 'store'])->whereNumber('document')->middleware('throttle:30,1')->name('gutachten.fahrzeuge.store');
+        Route::post('/gutachten/{document}/fahrzeuge', [GutachtenFahrzeugController::class, 'store'])->whereNumber('document')->middleware('throttle:30,1,gutachten-fahrzeuge-store')->name('gutachten.fahrzeuge.store');
         Route::put('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'update'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.update');
         Route::delete('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'destroy'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.entfernen');
         // A Gutachten's own Auflagenverzeichnis (the corrections memo §1): its codes, written while it is a draft.
@@ -258,7 +258,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // (ReviewFeedbackPolicy, asked by ReviewRequest).
         Route::get('/review', [ReviewController::class, 'board'])->name('review.board');
         Route::get('/review/rueckmeldungen', [ReviewController::class, 'feedback'])->name('review.rueckmeldungen');
-        Route::post('/review/rueckmeldungen', [ReviewController::class, 'store'])->middleware('throttle:30,1')->name('review.store');
+        Route::post('/review/rueckmeldungen', [ReviewController::class, 'store'])->middleware('throttle:30,1,review-store')->name('review.store');
         Route::patch('/review/rueckmeldungen/{feedback}', [ReviewController::class, 'update'])->whereNumber('feedback')->name('review.update');
         Route::get('/review/rueckmeldungen/{feedback}/bild', [ReviewController::class, 'image'])->whereNumber('feedback')->name('review.bild');
 
@@ -268,7 +268,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // Gutachten › Konflikte: where documents disagree, the shop says UNKNOWN until a person decides here.
         Route::get('/konflikte', [KonflikteController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.index');
         Route::get('/konflikte/{conflict}', [KonflikteController::class, 'show'])->whereNumber('conflict')->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.show');
-        Route::post('/konflikte/entscheiden', [KonflikteController::class, 'decide'])->middleware('throttle:60,1')->name('konflikte.entscheiden');
+        Route::post('/konflikte/entscheiden', [KonflikteController::class, 'decide'])->middleware('throttle:60,1,konflikte-entscheiden')->name('konflikte.entscheiden');
 
         // Fahrzeuge: the variants, the ones waiting for their legal data, and one vehicle's page —
         // never deleted here (R-04).
@@ -299,10 +299,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/benutzer', [BenutzerController::class, 'index'])
             ->middleware(EnsureAdminMay::class.':roles,view')
             ->name('benutzer.index');
-        Route::post('/benutzer/einladungen', [BenutzerController::class, 'invite'])->middleware('throttle:20,1')->name('benutzer.einladen');
+        Route::post('/benutzer/einladungen', [BenutzerController::class, 'invite'])->middleware('throttle:20,1,benutzer-einladen')->name('benutzer.einladen');
         Route::post('/benutzer/einladungen/{invitation}/erneut', [BenutzerController::class, 'resend'])
             ->whereNumber('invitation')
-            ->middleware('throttle:20,1')
+            ->middleware('throttle:20,1,benutzer-einladung-erneut')
             ->name('benutzer.einladung.erneut');
         Route::delete('/benutzer/einladungen/{invitation}', [BenutzerController::class, 'revoke'])
             ->whereNumber('invitation')
@@ -350,7 +350,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // new order, one described anew. FinishImages composes the cover the shop reads from them.
         Route::post('/felgen/{model}/ausfuehrungen/{finish}/foto', [AdminFelgenController::class, 'image'])
             ->whereNumber(['model', 'finish'])
-            ->middleware('throttle:30,1')
+            ->middleware('throttle:30,1,felgen-foto')
             ->name('felgen.foto');
         Route::put('/felgen/{model}/ausfuehrungen/{finish}/fotos/reihenfolge', [AdminFelgenController::class, 'reorderImages'])
             ->whereNumber(['model', 'finish'])
@@ -370,7 +370,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/marken', [MarkenController::class, 'store'])->name('marken.store');
         Route::put('/marken/{brand}', [MarkenController::class, 'update'])->whereNumber('brand')->name('marken.update');
         Route::delete('/marken/{brand}', [MarkenController::class, 'destroy'])->whereNumber('brand')->name('marken.destroy');
-        Route::post('/marken/{brand}/logo', [MarkenController::class, 'logo'])->whereNumber('brand')->middleware('throttle:30,1')->name('marken.logo');
+        Route::post('/marken/{brand}/logo', [MarkenController::class, 'logo'])->whereNumber('brand')->middleware('throttle:30,1,marken-logo')->name('marken.logo');
         Route::delete('/marken/{brand}/logo', [MarkenController::class, 'removeLogo'])->whereNumber('brand')->name('marken.logo.entfernen');
 
         // Katalog › Import: a supplier feed, mapped, checked in a Probelauf, then imported — and taken
@@ -381,7 +381,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/katalog/import/beispiel.csv', [KatalogImportController::class, 'sample'])
             ->middleware(EnsureAdminMay::class.':imports,view')
             ->name('import.beispiel');
-        Route::post('/katalog/import/probelauf', [KatalogImportController::class, 'preview'])->middleware('throttle:20,1')->name('import.probelauf');
+        Route::post('/katalog/import/probelauf', [KatalogImportController::class, 'preview'])->middleware('throttle:20,1,import-probelauf')->name('import.probelauf');
         Route::get('/katalog/import/{import}', [KatalogImportController::class, 'show'])
             ->whereNumber('import')
             ->middleware(EnsureAdminMay::class.':imports,view')
@@ -391,7 +391,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber('import')
             ->middleware(EnsureAdminMay::class.':imports,view')
             ->name('import.abgelehnt');
-        Route::post('/katalog/import/{import}/zuordnung', [KatalogImportController::class, 'remap'])->whereNumber('import')->middleware('throttle:30,1')->name('import.zuordnung');
+        Route::post('/katalog/import/{import}/zuordnung', [KatalogImportController::class, 'remap'])->whereNumber('import')->middleware('throttle:30,1,import-zuordnung')->name('import.zuordnung');
         Route::post('/katalog/import/{import}/importieren', [KatalogImportController::class, 'apply'])->whereNumber('import')->name('import.importieren');
         Route::post('/katalog/import/{import}/zuruecknehmen', [KatalogImportController::class, 'rollback'])->whereNumber('import')->name('import.zuruecknehmen');
 
@@ -410,27 +410,27 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // Gespeicherte Ansichten (step 2.2), for every list in AdminLists: a list's filters under a
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy
         // through its Form Request; a deleted view can be restored („Rückgängig“).
-        Route::post('/ansichten', [SavedViewsController::class, 'store'])->middleware('throttle:60,1')->name('ansichten.store');
+        Route::post('/ansichten', [SavedViewsController::class, 'store'])->middleware('throttle:60,1,ansichten-store')->name('ansichten.store');
         // Sudo mode: the password once more before the screens that hold the shop's keys (EnsureSudo).
         Route::get('/bestaetigen', [SudoController::class, 'show'])->name('bestaetigen');
-        Route::post('/bestaetigen', [SudoController::class, 'store'])->middleware('throttle:6,1')->name('bestaetigen.store');
+        Route::post('/bestaetigen', [SudoController::class, 'store'])->middleware('throttle:6,1,bestaetigen-store')->name('bestaetigen.store');
 
         // Einstellungen › Medien und Speicher: the Super-Admin alone (StorageSettingPolicy, checked before
         // the password is asked — nobody is asked only to be refused), then sudo mode.
         Route::prefix('/einstellungen/speicher')->middleware(['can:view,'.StorageSetting::class, EnsureSudo::class])->group(function (): void {
             Route::get('/', [SpeicherController::class, 'edit'])->name('speicher.edit');
-            Route::put('/', [SpeicherController::class, 'update'])->middleware('throttle:10,1')->name('speicher.update');
-            Route::post('/test', [SpeicherController::class, 'test'])->middleware('throttle:10,1')->name('speicher.test');
-            Route::post('/buckets', [SpeicherController::class, 'buckets'])->middleware('throttle:10,1')->name('speicher.buckets');
+            Route::put('/', [SpeicherController::class, 'update'])->middleware('throttle:10,1,speicher-update')->name('speicher.update');
+            Route::post('/test', [SpeicherController::class, 'test'])->middleware('throttle:10,1,speicher-test')->name('speicher.test');
+            Route::post('/buckets', [SpeicherController::class, 'buckets'])->middleware('throttle:10,1,speicher-buckets')->name('speicher.buckets');
         });
 
         // Large PDFs straight into the bucket (PdfUpload): the form, and the app's stand-in for the
         // bucket on a machine without one — signed, expiring like the bucket's own form.
-        Route::post('/uploads/pdf', [UploadController::class, 'presign'])->middleware('throttle:30,1')->name('uploads.pdf.presign');
-        Route::post('/uploads/pdf/lokal/{name}', [UploadController::class, 'local'])->middleware(['signed', 'throttle:30,1'])->name('uploads.pdf.local');
+        Route::post('/uploads/pdf', [UploadController::class, 'presign'])->middleware('throttle:30,1,uploads-pdf-presign')->name('uploads.pdf.presign');
+        Route::post('/uploads/pdf/lokal/{name}', [UploadController::class, 'local'])->middleware(['signed', 'throttle:30,1,uploads-pdf-local'])->name('uploads.pdf.local');
 
         // The rail's demo strip: the demo set taken away, recorded (DemoDataPolicy, DemoPurge).
-        Route::post('/demodaten/entfernen', [DemoDataController::class, 'destroy'])->middleware('throttle:6,1')->name('demodaten.purge');
+        Route::post('/demodaten/entfernen', [DemoDataController::class, 'destroy'])->middleware('throttle:6,1,demodaten-purge')->name('demodaten.purge');
 
         // A view deleted in another tab is still found, so the stale tab is told so in a sentence.
         Route::patch('/ansichten/{view}', [SavedViewsController::class, 'update'])->whereNumber('view')->withTrashed()->name('ansichten.update');
