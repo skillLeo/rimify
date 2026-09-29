@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Http\RateLimits\ShopRateLimits;
 use App\Listeners\FailedJobAlert;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
@@ -64,6 +65,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The shop's rate limits: per visitor first, per address only as a fallback, never at the checkout.
+        ShopRateLimits::register();
+
         // Migrations are grouped by bounded context; ordering stays global by filename.
         $this->loadMigrationsFrom([
             database_path('migrations/fitment'),

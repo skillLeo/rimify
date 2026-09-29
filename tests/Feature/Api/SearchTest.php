@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Storefront\VisitorKey;
 use Database\Seeders\CommerceSeeder;
 use Illuminate\Support\Facades\DB;
 
@@ -82,9 +83,12 @@ it('refuses an empty or oversized query in German', function (): void {
         ->assertJsonPath('errors.q.0', 'Der Suchbegriff darf höchstens 80 Zeichen lang sein.');
 });
 
-// Asked as the customer types: its own 120 a minute, apart from the vehicle picker's 60 (EF-04, ThrottleKeysTest).
-it('is rate limited to 120 requests a minute, on a counter of its own', function (): void {
-    $response = $this->getJson('/api/v1/search?q=motec');
+// Asked as the customer types: its own 120 a minute per visitor, apart from the vehicle picker's 60 (EF-04), and
+// ten times that for an address without a visitor key yet (ShopRateLimits, ThrottleKeysTest).
+it('is rate limited to 120 requests a minute per visitor, on a counter of its own', function (): void {
+    $address = $this->getJson('/api/v1/search?q=motec');
+    $visitor = $this->withCredentials()->withCookies([VisitorKey::COOKIE => str_repeat('k', 40)])->getJson('/api/v1/search?q=motec');
 
-    expect($response->headers->get('X-RateLimit-Limit'))->toBe('120');
+    expect($visitor->headers->get('X-RateLimit-Limit'))->toBe('120')
+        ->and($address->headers->get('X-RateLimit-Limit'))->toBe('1200');
 });

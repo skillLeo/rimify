@@ -90,13 +90,13 @@ Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');
 // „RIMIFY-Check drucken“: the answer for the chosen car and one wheel, frozen under a token (29.09.2026).
-Route::post('/rimify-check/ergebnis', [CheckController::class, 'store'])->middleware('throttle:20,1,check-ergebnis-store')->name('check.ergebnis.store');
+Route::post('/rimify-check/ergebnis', [CheckController::class, 'store'])->middleware('throttle:shop-check')->name('check.ergebnis.store');
 
 /*
  * Choosing the vehicle. A POST because it writes state, and rate-limited because the key-number
  * lookup is the one unauthenticated endpoint that reads the vehicle table by arbitrary input.
  */
-Route::middleware('throttle:60,1,fahrzeug')->group(function (): void {
+Route::middleware('throttle:shop-fahrzeug')->group(function (): void {
     Route::post('/fahrzeug', [FahrzeugController::class, 'store'])->name('fahrzeug.store');
     Route::post('/fahrzeug/schluesselnummern', [FahrzeugController::class, 'resolve'])
         ->name('fahrzeug.resolve');
@@ -116,13 +116,13 @@ Route::patch('/warenkorb/{line}/gewichte', [WarenkorbController::class, 'weights
 Route::delete('/warenkorb/{line}/reifen', [WarenkorbController::class, 'destroyTyre'])->name('warenkorb.reifen.destroy');
 Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
 // The RDKS answer (§5.3): the server stores it with the quote and re-renders the totals itself.
-Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:30,1,kasse-rdks')->name('kasse.rdks');
+Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:shop-kasse-rdks')->name('kasse.rdks');
 // Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
-Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:10,1,kasse-store')->name('kasse.store');
+Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.store');
 // The sandbox's payment page (App\Payments\SandboxGateway): by its signed link only, and only where
 // the review is on (TestPaymentRequest). The POST carries the same signature in its query string.
 Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
-Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:10,1,kasse-testzahlung-store'])->name('kasse.testzahlung.store');
+Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
 
 /*
@@ -131,14 +131,14 @@ Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('
  */
 Route::prefix('api/v1')->name('api.')->group(function (): void {
     // Asked as the customer types: its own counter, so a long query never costs them the vehicle picker.
-    Route::get('/search', SearchController::class)->middleware('throttle:120,1,api-search')->name('search');
+    Route::get('/search', SearchController::class)->middleware('throttle:shop-suche')->name('search');
 
-    Route::middleware('throttle:60,1,api')->group(function (): void {
+    Route::middleware('throttle:shop-api')->group(function (): void {
         Route::get('/vehicles/models', [VehicleTreeController::class, 'models'])->name('vehicles.models');
         Route::get('/vehicles/variants', [VehicleTreeController::class, 'variants'])->name('vehicles.variants');
         Route::get('/fitment/count', FitmentCountController::class)->name('fitment.count');
         // Writes a row and sends a mail: a tighter limit than the read endpoints.
-        Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:10,1,fitment-notify')->name('fitment.notify');
+        Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:shop-benachrichtigung')->name('fitment.notify');
     });
 });
 

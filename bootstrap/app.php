@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Storefront\PapersBook;
+use App\Http\Middleware\AssignVisitorKey;
 use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
 use App\Http\Middleware\EnsureAdminSessionValid;
@@ -51,6 +52,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // session has started and before any shared prop names the person or draws their rail.
         $middleware->web(append: [
             DetectDevice::class,
+            // The shop visitor's rate-limit key (VisitorKey), minted on the first request that has none.
+            AssignVisitorKey::class,
             EnsureAdminSessionValid::class,
             HandleInertiaRequests::class,
         ]);
