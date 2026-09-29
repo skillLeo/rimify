@@ -47,7 +47,11 @@ Remaining, in the order the user set on 2026-09-28 (then the Stripe brief, with 
 - [ ] The remaining launch-release items (5, 9, 10 above)
 - [ ] Corrections §1–§4 and the Borbet golden record (per-document Auflagen, derived Eintragung, per-document
       verdicts with conflicts as UNKNOWN, Nachtrag/EG-Typgenehmigung and the header fields), then both documents
-      entered through the admin and released by a human
+      entered through the admin and released by a human — **entered (2026-09-29), waiting for the release**: on
+      the development shop ABE 55255 is draft #12 and 366-0350-21-WIRD/N1 draft #13, no release blocker, typed in
+      by `e2e/tools/gutachten-eingabe.mjs` from `docs/gutachten` (`ce5e5501`); the §7 acceptance test, the
+      customer view and the missing base asserted in BorbetAcceptanceTest (`42067d46`, `b6d50b2a`); both reviews'
+      fixes in `05469e0f` and `efc8f392`–`6512c530`. REMAINING Block D
 - [ ] Stripe (test keys only)
 - [x] **Guards (added 2026-09-28)** — `php artisan secrets:scan` (working tree, `--staged`, `--history`, paths; nine
       shapes; masked to the last four) + `.githooks/pre-commit` (installed by `composer install`, proven to refuse a

@@ -84,18 +84,42 @@ seeder, test to follow).
 
 ## Block D — the golden record
 
-- [ ] 11 · ABE 55255 and Gutachten 366-0350-21-WIRD/N1 entered through the admin flow and released by a human
+- [ ] 11 · ABE 55255 and Gutachten 366-0350-21-WIRD/N1 entered through the admin flow and released by a human —
+      **entered, waiting for the release.** Transcribed from the PDFs into docs/gutachten (legends extracted, rows
+      cross-checked cell by cell), typed in by `e2e/tools/gutachten-eingabe.mjs` through the admin's own screens
+      and endpoints — `ce5e5501`. On the development shop both are drafts without a release blocker: 55255 #12
+      (140 rows, 70 cars), the Nachtrag #13 (110 rows, 55 cars). Entering them found and fixed four engine
+      gaps (`cd812177`: body codes read as alternatives, a size's codes narrow that size, one size printed twice,
+      the strictest printed symbol) and one form bug (`e9345818`: one code beside several sizes). Not entered:
+      M3B and 3 B (national Betriebserlaubnis), measure 27B (in no legend), one `M+S` entry without a winter code,
+      and the Nachtrag's page-24 Hinweisblatt (drawings and a code list; removed from draft #13 in `585942a5`) —
+      each with its reason in docs/gutachten
 - [x] 12 · Borbet DB8GT2: both sizes, both colours, the four photos, the client's description, the documents'
       values where they differ — `94418abf` (GoldenRecordSeeder; a draft at no price until the client sends
-      one; the 19″ product-page note „Abbildung zeigt die 18-Zoll-Ausführung“ comes with item 15)
+      one; the 19″ product-page note „Abbildung zeigt die 18-Zoll-Ausführung“ — `0eee744a`)
 - [x] 13 · DATA-CONFLICTS.md conflict 1 (72,5 vs 72,6) — `a876e4cc` (before this brief)
-- [ ] 14 · The missing base ABE 53841 visible on the record, in the coverage matrix and to the customer
+- [x] 14 · The missing base ABE 53841 visible on the record, in the coverage matrix and to the customer — built in
+      Block B, now asserted with the real Nachtrag in all three places (`b6d50b2a`)
 - [ ] 15 · The customer view: two-line verdict, Abnahme, Arbeiten am Fahrzeug with the mm profiles, the bolt
       set with torque and add-to-basket, tyre sizes with load index and axle limits, the notes incl. the 50 km
-      check, the PDF at the right page
-- [ ] 16 · The §7 acceptance fixtures, against the documents
+      check, the PDF at the right page — **all but the add-to-basket** (`b6d50b2a`; below the purchase in
+      `27ed26e9`, designed in `05469e0f`, sizes, sets and our own words told apart in `6512c530`; the 19″ photo
+      note `0eee744a`). The shop sells no accessory and no price exists for the bolt sets 5248, 5275, 5276, 5284:
+      the set, thread, seat, shaft length and torque are shown, the button waits for a product and a price
+- [x] 16 · The §7 acceptance fixtures, against the documents — `42067d46`, extended in `b6d50b2a`
+      (BorbetAcceptanceTest: both documents typed in through the endpoints and released there in the test).
+      §7 says PERMITTED for BMW 1er 187 on 235/35R19; the four states answer CONDITIONAL, because the row
+      carries A01 (Abnahme) and body work (R-07)
 - [x] 17 · HSN/TSN at the top of BLOCKED.md with the sources — `a876e4cc` (before this brief)
-- [ ] ai-look-critic and interaction-qa on the block
+- [x] ai-look-critic and interaction-qa on the block — the look review's fixes in `05469e0f` (a sticky buy bar on
+      the desk is left to the operator); the interaction review found one S1, five S2, nine S3 and two S4:
+      D-05 `efc8f392`; D-06, D-14, D-15 `094a6f5c`; D-02 `0ae22d1a`; D-03 `585942a5`; D-01, D-04, D-07–D-12
+      `6512c530` (their German by copy-editor-de in `cd969373`), each S1/S2 with a Vitest or Pest regression. D-11 covers the new link only — „Gutachten
+      öffnen“ and „So haben wir gerechnet“ are still under 44 px on touch. D-13 (column gaps) is the split's
+      intent; D-16 and D-17 (S4, WebKit ignores `#page=N`) stay open. The review's Playwright specs need the
+      throwaway review shop and are run by hand, not in the suite: all 16 pass against it (D-01's rewritten for
+      the fix — the link now adds no history entry, so there is no Back to test). Gates after the fixes: Pest
+      1.950/1.950, Vitest 1.283/1.283, Larastan, Pint, ESLint, stylelint, vue-tsc clean
 
 ## Block E — the launch release leftovers
 
