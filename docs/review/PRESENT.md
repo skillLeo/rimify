@@ -29,24 +29,51 @@ Vorschau; im Live-Shop existieren sie nicht.
 
 ## Einmal durch alles: der goldene Datensatz
 
-Eine Felge, vollständig durch RIMIFY – so, wie später deine echten Daten laufen. Alles darin ist
-Platzhalter („Platzhalter Probelauf“, 1,00 €, Gutachten „PLATZHALTER-GR-1“). Mit Bildern zu jedem Schritt:
-[`GOLDEN-RECORD.md`](GOLDEN-RECORD.md).
+Eine echte Felge auf dem ganzen Weg durch RIMIFY, so wie später jede deiner Felgen: die **BORBET DB8GT2**
+in 8,5J × 18 und 8,5J × 19, in Schwarz matt und Bronze matt, mit ihren beiden echten Gutachten:
 
-1. **Katalog › Import:** Eine Lieferantendatei wird zugeordnet, im **Probelauf** Zeile für Zeile geprüft und
-   erst dann importiert.
-2. **Katalog › Felgen:** Die neue Felge ist ein Entwurf; der Freigabe-Check sagt, was dem Veröffentlichen
-   im Weg steht. Dann veröffentlichen.
-3. **Gutachten › Neues Gutachten:** PDF hochladen, Art mit KBA-Nummer, Aussteller, Seitenzahl.
-4. **Verwendungsbereich:** Fahrzeug über HSN/TSN, Felgengröße, Reifengröße, Auflage als ganzer Satz und
-   die Seite im Gutachten.
-5. **Vorschau im Shop:** So sieht die Kundin oder der Kunde es, bevor irgendetwas freigegeben ist.
-6. **Freigeben:** Erst jetzt gilt das Gutachten im Shop.
-7. **Im Shop:** HSN **0588**, TSN **AKB** (Audi A3 Limousine 40 TFSI) eingeben, die Felge öffnen: „Mit Auflagen
-   freigegeben für …“, die Auflage im Wortlaut und „Gutachten öffnen (PDF, Seite 2)“.
-8. **Warenkorb und Kasse:** bestellen und die **Testzahlung** mit „bezahlt“ enden lassen.
-9. **Verkauf › Bestellungen:** die Bestellung mit ihrem eingefrorenen Prüfnachweis – so, wie das Gutachten
-   im Moment des Kaufs lautete, auch wenn es sich später ändert.
+- **ABE 55255** (TÜV Rheinland) für 19 Zoll, 13 Seiten;
+- **Gutachten 366-0350-21-WIRD/N1** (TÜV Austria) für 18 Zoll, 24 Seiten – ein Nachtrag zur ABE 53841, die uns
+  nicht vorliegt.
+
+Beide haben wir über die normalen Gutachten-Seiten im Admin erfasst, Zeile für Zeile aus dem PDF. Sie liegen
+als **Entwurf** bereit. Freigeben musst du, nachdem du beide mit dem PDF abgeglichen hast – erst dann gelten
+sie im Shop.
+
+1. **Gutachten › ABE 55255:** Leg das PDF daneben und prüf den Datensatz: die Angaben der ersten Seite, das
+   Auflagenverzeichnis mit jedem Satz im Wortlaut, die Befestigungsmittel, die Hinweise und den
+   Verwendungsbereich mit 70 Fahrzeugen.
+2. **Vorschau im Shop:** Hier siehst du die Felge so, wie die Kundschaft sie sehen wird – noch bevor etwas
+   freigegeben ist.
+3. **Freigeben.** Danach dasselbe für den Nachtrag 366-0350-21-WIRD/N1 mit 55 Fahrzeugen. Oben in seinem
+   Datensatz steht: „Grundgutachten ABE 53841 liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze
+   Freigabe.“ Diesen Satz liest auch die Kundschaft. Unter **Gutachten › Abdeckung** erscheint er bei den
+   Nachträgen ohne Grundgutachten.
+4. **Katalog › Felgen › BORBET DB8GT2:** Die Felge ist ein Entwurf ohne Preis – wir haben keinen erfunden.
+   Trag deinen Preis je Größe ein und veröffentliche die Felge.
+5. **Im Shop:** Wähl über Marke, Modell und Variante **BMW › X3 › X83**. Die Fahrzeuge aus den Gutachten haben
+   noch keine HSN/TSN; die kommen erst mit dem Fahrzeugdatensatz. Öffne dann die Felge:
+   - **19 Zoll:** „Mit Auflagen freigegeben für BMW X3 X83“. Darunter steht in einer Zeile, was das Gutachten
+     verlangt, und unter „alle Auflagen im Wortlaut“ folgen Abnahme, Arbeiten am Fahrzeug, die Schrauben
+     Nr. S03 (M14x1,5, 140 Nm, Artikel 5284), jede Reifengröße mit Achse und Leistung und die Hinweise des
+     Gutachtens. „Gutachten öffnen (PDF, Seite …)“ führt direkt zur Seite im PDF, auf der das gewählte
+     Fahrzeug steht.
+   - **18 Zoll:** Dasselbe aus dem Nachtrag, dazu der Hinweis auf die fehlende ABE 53841 und die Kontrolle des
+     Anzugsmoments nach 50 km.
+6. **Zwei Fahrzeuge unter einem Namen:** Unter **BMW › 1er-Reihe** erscheint der **1K4** zweimal. Der Nachtrag
+   sieht für ihn je nach Stand seiner EG-Typgenehmigung einen anderen Schraubensatz vor. Darum nennt RIMIFY
+   neben jeder Variante, was in Feld K der Zulassungsbescheinigung stehen muss:
+   „Feld K: e1*2007/46*0283*00 bis *03“ und „… *04 und später“.
+
+**Was du dabei oft sehen wirst: „wissen wir nicht“.** Viele Zeilen der beiden Gutachten gelten nur für eine
+bestimmte Karosserieform oder einen bestimmten Antrieb, etwa „nur Limousine“ oder „nicht für Allrad“. Solange
+wir das vom Fahrzeug nicht wissen, zeigt RIMIFY bei der Felge „Keine Freigabe hinterlegt“, statt zu raten. Das
+betrifft heute die meisten Fahrzeuge der beiden Gutachten. Wie wir die Kundschaft nach Karosserieform und
+Antrieb fragen, klären wir mit dir.
+
+Sobald die Felge einen Preis hat, laufen Warenkorb, Kasse mit Testzahlung und die Bestellung mit ihrem
+eingefrorenen Prüfnachweis wie bei jeder anderen Felge. Die Bilder in [`GOLDEN-RECORD.md`](GOLDEN-RECORD.md)
+zeigen diesen Weg noch mit dem früheren Platzhalter-Gutachten.
 
 **Zwei Antworten zum Ausprobieren – beide gehören zum Produkt.** Bei hoher Geschwindigkeit tragen Reifen
 weniger; wie viel, steht in einer Tabelle des Gutachtens. Die Beispiel-Gutachten und das Platzhalter-Gutachten
