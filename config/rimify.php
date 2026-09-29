@@ -160,6 +160,8 @@ return [
         'connect_timeout' => (float) env('RIMIFY_SSR_CONNECT_TIMEOUT', 0.5),
         'timeout' => (float) env('RIMIFY_SSR_TIMEOUT', 2.5),
         'pause' => (int) env('RIMIFY_SSR_PAUSE', 30),
+        // The renderer's socket file where it listens on one (the shared host, D-047); null: TCP at inertia.ssr.url.
+        'socket' => env('RIMIFY_SSR_SOCKET'),
     ],
 
     // A query at least this slow is written to storage/logs/slow-queries-*.log (SlowQueries).

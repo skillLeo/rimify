@@ -38,6 +38,20 @@ it('renders with short bounds when the renderer answers', function (): void {
     Http::assertSent(fn (ClientRequest $request): bool => str_ends_with($request->url(), '/render'));
 });
 
+// The shared host reaches no port a customer's process opens: there the renderer listens on a socket file (D-047).
+it('asks the renderer through its socket where it listens on one', function (): void {
+    config(['rimify.ssr.socket' => '/home/shop/storage/framework/ssr.sock']);
+    Http::fake(['http://localhost/render' => Http::response(['head' => [], 'body' => '<div id="app">über den Socket</div>'])]);
+
+    expect(app(Gateway::class)->dispatch(['component' => 'Faq/Index', 'props' => []])?->body)->toBe('<div id="app">über den Socket</div>')
+        ->and(BoundedSsrGateway::client(BoundedSsrGateway::socket())->getOptions()['curl'][CURLOPT_UNIX_SOCKET_PATH])->toBe('/home/shop/storage/framework/ssr.sock')
+        // Without one, the TCP address as before, and no socket option.
+        ->and(BoundedSsrGateway::client(null)->getOptions())->not->toHaveKey('curl');
+
+    config(['rimify.ssr.socket' => '']);
+    expect(BoundedSsrGateway::socket())->toBeNull();
+});
+
 it('falls back at once when the renderer is gone, and does not ask again for a while', function (): void {
     $calls = 0;
     $up = false;

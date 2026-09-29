@@ -10,11 +10,11 @@ use App\Providers\AppServiceProvider;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
+use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
@@ -114,10 +114,13 @@ final class Preflight extends Command
             return ['Server-Rendering', $production ? 'fail' : 'warn', 'ausgeschaltet (INERTIA_SSR_ENABLED)'];
         }
 
-        $url = rtrim((string) config('inertia.ssr.url', 'http://127.0.0.1:13714'), '/');
+        // Asked the way the pages ask it: through its socket where it listens on one (D-047).
+        $socket = BoundedSsrGateway::socket();
+        $url = $socket ?? rtrim((string) config('inertia.ssr.url', 'http://127.0.0.1:13714'), '/');
 
         try {
-            $ready = Http::connectTimeout(1)->timeout(2)->get($url.'/health')->successful();
+            $ready = BoundedSsrGateway::client($socket)->timeout(2)
+                ->get(($socket === null ? $url : 'http://localhost').'/health')->successful();
         } catch (Throwable) {
             $ready = false;
         }
