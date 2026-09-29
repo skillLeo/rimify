@@ -3,6 +3,10 @@
 The source of truth for progress on the launch prompt („From 70 % to live, in one run“). Resume at
 the first unchecked item. Every milestone records its date, commit, gates, decisions and deviations.
 
+**Since the last prompt (2026-09-29):** what is left is `REMAINING.md` (Block G and six items only a person can
+do), what is done is `DONE.md`, every decision taken without asking is `docs/decisions.md`. The preview runs as
+staging by GO-LIVE.md, with both Borbet documents entered as drafts #10 and #11.
+
 ## Current target — the launch release (brief of 2026-09-28)
 
 The last build before go-live and the client presentation. Order: audit, then the work, then the runbook.
