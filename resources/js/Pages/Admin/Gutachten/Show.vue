@@ -24,7 +24,7 @@ import DocumentExtras from './DocumentExtras.vue'
 import FactsDialog from './FactsDialog.vue'
 import RowComposer from './RowComposer.vue'
 import RowFields from './RowFields.vue'
-import { formFromRow, payload, unreadable } from './rows'
+import { codesText, formFromRow, payload, unreadable } from './rows'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -386,7 +386,7 @@ const TONE: Record<string, string | null> = {
                                 <td data-label="Reifen">
                                     <span v-if="row.tyreSizes.length === 0" class="gs-missing">Keine Reifengröße – im Shop nicht bestellbar</span>
                                     <span v-else>
-                                        <span v-for="size in row.tyreSizes" :key="size.label" class="gs-line">{{ size.label }}<span v-if="size.codes.length" class="gs-codes" translate="no"> · {{ size.codes.map((c) => c.code).join(' ') }}</span></span>
+                                        <span v-for="size in row.tyreSizes" :key="size.label" class="gs-line">{{ size.label }}<span v-if="size.codes.length" class="gs-codes" translate="no"> · {{ codesText(size.codes.map((c) => c.code)) }}</span></span>
                                     </span>
                                 </td>
                                 <td data-label="Auflagen">

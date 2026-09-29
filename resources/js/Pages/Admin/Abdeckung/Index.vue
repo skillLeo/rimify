@@ -125,16 +125,18 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
     line-height: var(--lh-small);
 }
 
+/* Looks like what it is on every device: a link to the record (D-15). */
 .ab__link {
     color: var(--c-ink);
     font-weight: 500;
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-color: var(--c-ink-3);
+    text-underline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
     .ab__link:hover {
-        text-decoration: underline;
-        text-underline-offset: 3px;
+        text-decoration-color: currentColor;
     }
 }
 

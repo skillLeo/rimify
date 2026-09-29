@@ -12,7 +12,7 @@
  * Used for adding rows and for changing one; the page owns the values.
  */
 
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import type { AxleValue, DocumentConditionView, RowForm } from '../../../types/admin/gutachten'
@@ -166,8 +166,11 @@ function sizeMeaning(text: string): { code: string; label: string; defined: bool
 /* A note is what this row adds to the document's sentence: opened per code, kept by code. */
 const noting = ref(new Set<string>(Object.keys(form.value.notes)))
 
-function openNote(code: string): void {
+/* The pressed „Zusatz“ goes away with the field it opens, so the keyboard moves into that field (D-06). */
+async function openNote(code: string): Promise<void> {
     noting.value = new Set([...noting.value, code])
+    await nextTick()
+    document.getElementById(id(`note-${code}`))?.focus()
 }
 
 function setNote(code: string, event: Event): void {
