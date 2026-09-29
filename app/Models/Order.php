@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Exceptions\IllegalOrderTransition;
 use App\Observers\OrderAlertObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\OrderFactory;
@@ -56,6 +57,7 @@ class Order extends Model
         'payment_method', 'shipping_method',
         'stripe_session_id', 'stripe_payment_intent_id',
         'note', 'placed_at', 'paid_at', 'shipped_at', 'tracking_code',
+        'refunded_cents', 'payment_flag', 'payment_error', 'stock_reserved', 'expires_at',
     ];
 
     /** @return array<string, string> */
@@ -67,10 +69,44 @@ class Order extends Model
             'shipping_cents' => 'integer',
             'tax_cents' => 'integer',
             'total_cents' => 'integer',
+            'refunded_cents' => 'integer',
+            'stock_reserved' => 'boolean',
+            'expires_at' => 'immutable_datetime',
             'placed_at' => 'immutable_datetime',
             'paid_at' => 'immutable_datetime',
             'shipped_at' => 'immutable_datetime',
         ];
+    }
+
+    /**
+     * The state machine, in the model (Block G): a status may only move where OrderStatus::next() allows, and an
+     * order whose payment is flagged — an amount that did not match — never moves towards fulfilment. Checked on
+     * every save, whatever wrote it: a page, the webhook, a command.
+     */
+    protected static function booted(): void
+    {
+        static::updating(static function (Order $order): void {
+            if (! $order->isDirty('status')) {
+                return;
+            }
+
+            $from = $order->getOriginal('status');
+            $to = $order->status;
+
+            if (! $from instanceof OrderStatus || ! $to instanceof OrderStatus || $from === $to) {
+                return;
+            }
+
+            if (! $from->canBecome($to)) {
+                throw IllegalOrderTransition::between($order->order_number, $from, $to);
+            }
+
+            $flag = $order->getAttribute('payment_flag');
+
+            if (is_string($flag) && $flag !== '' && in_array($to, [OrderStatus::InFulfilment, OrderStatus::Shipped, OrderStatus::Completed], true)) {
+                throw IllegalOrderTransition::flagged($order->order_number, $flag);
+            }
+        });
     }
 
     /** @return BelongsTo<Customer, $this> */

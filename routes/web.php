@@ -55,6 +55,7 @@ use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Http\Controllers\Storefront\KontaktController;
+use App\Http\Controllers\Storefront\PaymentWebhookController;
 use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
@@ -128,6 +129,8 @@ Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:s
 Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
 Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
+// The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
+Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['stripe'])->name('webhooks.payment');
 
 /*
  * The JSON endpoints the shell calls. They sit in the web group on purpose: the session and the

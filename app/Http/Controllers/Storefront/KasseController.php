@@ -128,7 +128,11 @@ class KasseController extends Controller
 
         BestellungController::remember($request, $order->order_number);
 
-        return redirect()->to($gateway->start($order));
+        // The sandbox has a page of its own; Stripe is paid on this page (KasseZahlungController), so a form post
+        // reaching here with it goes back to the payment step.
+        $url = $gateway->start($order);
+
+        return $url !== null ? redirect()->to($url) : redirect()->route('kasse.index');
     }
 
     /**

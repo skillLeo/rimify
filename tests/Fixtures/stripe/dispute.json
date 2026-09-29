@@ -1,0 +1,20 @@
+{
+  "id": "dp_fake000000",
+  "object": "dispute",
+  "amount": 159600,
+  "charge": "ch_fake000000",
+  "created": 1759100000,
+  "currency": "eur",
+  "evidence_details": {
+    "due_by": 1760300000,
+    "has_evidence": false,
+    "past_due": false,
+    "submission_count": 0
+  },
+  "is_charge_refundable": false,
+  "livemode": false,
+  "metadata": {},
+  "payment_intent": "pi_fake000000",
+  "reason": "product_not_received",
+  "status": "needs_response"
+}

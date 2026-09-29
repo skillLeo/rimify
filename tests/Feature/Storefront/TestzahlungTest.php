@@ -139,17 +139,21 @@ it('pays the test order: paid, the stock taken, the basket empty, the confirmati
     $this->post($location, ['outcome' => 'bezahlt'])->assertForbidden();
 });
 
-it('ends a refused or cancelled test payment without taking stock', function (string $outcome, OrderStatus $status): void {
-    [$order, $location] = testzahlungPlace($this);
+// Block G: the stock is reserved when the order is written. A declined payment keeps it for the retry until the
+// order expires; a cancelled one puts it back at once.
+it('keeps the stock for a declined test payment and gives it back for a cancelled one', function (string $outcome, OrderStatus $status, int $taken): void {
     $stock = (int) $this->config->stock_qty;
+    [$order, $location] = testzahlungPlace($this);
+
+    expect((int) $this->config->fresh()->stock_qty)->toBe($stock - 4);
 
     $this->post($location, ['outcome' => $outcome])->assertRedirect();
 
     expect($order->fresh()->status)->toBe($status)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock);
+        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock - $taken);
 })->with([
-    'abgelehnt' => ['abgelehnt', OrderStatus::Failed],
-    'abgebrochen' => ['abgebrochen', OrderStatus::Cancelled],
+    'abgelehnt' => ['abgelehnt', OrderStatus::Failed, 4],
+    'abgebrochen' => ['abgebrochen', OrderStatus::Cancelled, 0],
 ]);
 
 it('refuses an unsigned or tampered payment address and an unknown outcome', function (): void {
@@ -176,8 +180,9 @@ it('does not exist where the review is off, whatever the driver says', function 
 
     expect(Order::query()->count())->toBe($before);
 
+    // A pending order, set up directly in the table: the model would refuse moving a paid one back (Block G).
     $order = Order::query()->firstOrFail();
-    $order->forceFill(['status' => OrderStatus::PendingPayment->value])->save();
+    Order::query()->whereKey($order->id)->update(['status' => OrderStatus::PendingPayment->value]);
     $this->get(URL::temporarySignedRoute('kasse.testzahlung', now()->addMinutes(5), ['order' => $order->order_number]))->assertForbidden();
 });
 

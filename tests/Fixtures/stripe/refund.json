@@ -1,0 +1,16 @@
+{
+  "id": "re_fake000000",
+  "object": "refund",
+  "amount": 0,
+  "balance_transaction": null,
+  "charge": "ch_fake000000",
+  "created": 1759100000,
+  "currency": "eur",
+  "metadata": {},
+  "payment_intent": "pi_fake000000",
+  "reason": null,
+  "receipt_number": null,
+  "source_transfer_reversal": null,
+  "status": "succeeded",
+  "transfer_reversal": null
+}

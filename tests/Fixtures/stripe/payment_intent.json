@@ -1,0 +1,27 @@
+{
+  "id": "pi_fake000000",
+  "object": "payment_intent",
+  "amount": 159600,
+  "amount_capturable": 0,
+  "amount_received": 0,
+  "automatic_payment_methods": {
+    "allow_redirects": "always",
+    "enabled": true
+  },
+  "canceled_at": null,
+  "cancellation_reason": null,
+  "capture_method": "automatic_async",
+  "client_secret": "pi_fake000000_secret_fake",
+  "confirmation_method": "automatic",
+  "created": 1759100000,
+  "currency": "eur",
+  "customer": null,
+  "description": null,
+  "last_payment_error": null,
+  "latest_charge": null,
+  "livemode": false,
+  "metadata": {},
+  "payment_method": null,
+  "payment_method_types": ["card", "sepa_debit", "klarna", "link"],
+  "status": "requires_payment_method"
+}
