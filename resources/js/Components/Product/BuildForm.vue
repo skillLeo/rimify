@@ -44,20 +44,17 @@ const DRIVES: { value: string; label: string }[] = [
     { value: 'Allrad', label: 'Allradantrieb' },
 ]
 
-const NAMES: Record<Fact, string> = { bodyForm: 'Karosserieform', driveAxle: 'Antrieb' }
+/* „Antriebsart“, not „Antrieb“: every car has a drive — what is missing is which kind. */
+const NAMES: Record<Fact, string> = { bodyForm: 'Karosserieform', driveAxle: 'Antriebsart' }
 
 const asked = computed<Fact[]>(() => (['bodyForm', 'driveAxle'] as const).filter((fact) => props.missing.includes(fact)))
 
 /** „Für dieses Fahrzeug fehlt die Karosserieform. Trag sie ein und wir prüfen sofort.“ */
-const lead = computed(() => {
-    if (asked.value.length === 2) {
-        return 'Für dieses Fahrzeug fehlen Karosserieform und Antrieb. Trag sie ein und wir prüfen sofort.'
-    }
-
-    return asked.value[0] === 'driveAxle'
-        ? 'Für dieses Fahrzeug fehlt der Antrieb. Trag ihn ein und wir prüfen sofort.'
-        : 'Für dieses Fahrzeug fehlt die Karosserieform. Trag sie ein und wir prüfen sofort.'
-})
+const lead = computed(() =>
+    asked.value.length === 2
+        ? 'Für dieses Fahrzeug fehlen Karosserieform und Antriebsart. Trag sie ein und wir prüfen sofort.'
+        : `Für dieses Fahrzeug fehlt die ${NAMES[asked.value[0] ?? 'bodyForm']}. Trag sie ein und wir prüfen sofort.`
+)
 
 /* The answers as the page reads them, with where each came from: shown where the owner gave them or a word of
    the name did — the vehicle data's own need no word here. */
@@ -123,7 +120,7 @@ function choose(fact: Fact, value: string): void {
             <p v-for="line in given" :key="line.fact" class="bf__given">
                 <span>
                     {{ NAMES[line.fact] }}: <strong>{{ line.value }}</strong>
-                    <template v-if="line.source === 'name'"> – aus „{{ line.word }}“ im Fahrzeugnamen. Stimmt das?</template>
+                    <template v-if="line.source === 'name'"> – erkannt an „{{ line.word }}“ im Fahrzeugnamen. Stimmt das?</template>
                     <template v-else> – nach deiner Angabe.</template>
                 </span>
                 <button class="btn btn--ghost btn--sm" type="button" :disabled="busy" :aria-label="`${NAMES[line.fact]} ändern`" @click="change(line.fact)">Ändern</button>

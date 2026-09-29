@@ -40,7 +40,7 @@ it('keeps the answer beside the figures, and a second answer for one of the two 
     // Forgotten again: the figures stay.
     $gone = $this->withUnencryptedCookie(PapersBook::COOKIE, (string) buildCookieOf($second))
         ->delete("/fahrzeug/{$vehicle->id}/aufbau")
-        ->assertSessionHas('toast', 'Angabe gelöscht.');
+        ->assertSessionHas('toast', 'Angaben zu Karosserieform und Antriebsart gelöscht.');
 
     expect(buildCookieOf($gone))->toBe("{$vehicle->id}.1100.1100.250");
 });
@@ -51,9 +51,9 @@ it('refuses, in words, a body style or drive the engine does not know, and an em
     $this->post("/fahrzeug/{$vehicle->id}/aufbau", ['body_form' => 'Pickup'])
         ->assertSessionHasErrorsIn('aufbau', ['body_form' => 'Wähl eine der gezeigten Karosserieformen.']);
     $this->post("/fahrzeug/{$vehicle->id}/aufbau", ['drive_axle' => 'Kette'])
-        ->assertSessionHasErrorsIn('aufbau', ['drive_axle' => 'Wähl einen der gezeigten Antriebe.']);
+        ->assertSessionHasErrorsIn('aufbau', ['drive_axle' => 'Wähl eine der gezeigten Antriebsarten.']);
     $this->post("/fahrzeug/{$vehicle->id}/aufbau", [])
-        ->assertSessionHasErrorsIn('aufbau', ['body_form' => 'Wähl die Karosserieform oder den Antrieb deines Fahrzeugs.']);
+        ->assertSessionHasErrorsIn('aufbau', ['body_form' => 'Wähl die Karosserieform oder die Antriebsart deines Fahrzeugs.']);
 });
 
 // As for 8.1, 8.2 and T: a car the shop no longer offers is not found, before the policy is even asked.

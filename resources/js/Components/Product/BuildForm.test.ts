@@ -34,15 +34,15 @@ describe('BuildForm', () => {
     it('asks for exactly what the answer waits for, by name', () => {
         const both = mountForm(NONE, ['bodyForm', 'driveAxle'])
 
-        expect(both.find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlen Karosserieform und Antrieb. Trag sie ein und wir prüfen sofort.')
-        expect(both.findAll('.bf__label').map((l) => l.text())).toEqual(['Karosserieform', 'Antrieb'])
+        expect(both.find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlen Karosserieform und Antriebsart. Trag sie ein und wir prüfen sofort.')
+        expect(both.findAll('.bf__label').map((l) => l.text())).toEqual(['Karosserieform', 'Antriebsart'])
         expect(both.findAll('#bf-bodyForm .bf__option').map((o) => o.text())).toEqual(['Limousine', 'Kombi', 'Schrägheck', 'Coupé', 'Cabrio', 'Roadster', 'SUV', 'Van'])
         expect(both.findAll('#bf-driveAxle .bf__option').map((o) => o.text())).toEqual(['Frontantrieb', 'Heckantrieb', 'Allradantrieb'])
         // Every body style with its silhouette, hidden from a screen reader: the word is the name.
         expect(both.findAll('#bf-bodyForm svg[aria-hidden="true"]')).toHaveLength(8)
 
         expect(mountForm(NONE, ['bodyForm']).find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlt die Karosserieform. Trag sie ein und wir prüfen sofort.')
-        expect(mountForm(NONE, ['driveAxle']).find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlt der Antrieb. Trag ihn ein und wir prüfen sofort.')
+        expect(mountForm(NONE, ['driveAxle']).find('.bf__lead').text()).toBe('Für dieses Fahrzeug fehlt die Antriebsart. Trag sie ein und wir prüfen sofort.')
     })
 
     it('sends a choice at once, with nothing else to press', async () => {
@@ -56,7 +56,7 @@ describe('BuildForm', () => {
     it('shows a derived value as such — stimmt das? — and changes it with one click', async () => {
         const wrapper = mountForm({ ...NONE, bodyForm: 'Kombi', bodySource: 'name', bodyWord: 'Touring' }, [])
 
-        expect(wrapper.find('.bf__given').text()).toContain('Karosserieform: Kombi – aus „Touring“ im Fahrzeugnamen. Stimmt das?')
+        expect(wrapper.find('.bf__given').text()).toContain('Karosserieform: Kombi – erkannt an „Touring“ im Fahrzeugnamen. Stimmt das?')
         expect(wrapper.find('#bf-bodyForm').exists()).toBe(false)
 
         await wrapper.find('.bf__given button').trigger('click')
@@ -67,7 +67,7 @@ describe('BuildForm', () => {
     })
 
     it('says the owner’s own answer as theirs, and nothing at all for the vehicle data’s', () => {
-        expect(mountForm({ ...NONE, driveAxle: 'Hinterachse', driveSource: 'customer' }, []).find('.bf__given').text()).toContain('Antrieb: Heckantrieb – nach deiner Angabe.')
+        expect(mountForm({ ...NONE, driveAxle: 'Hinterachse', driveSource: 'customer' }, []).find('.bf__given').text()).toContain('Antriebsart: Heckantrieb – nach deiner Angabe.')
         expect(mountForm({ ...NONE, bodyForm: 'Kombi', bodySource: 'data' }, []).find('.bf').exists()).toBe(false)
         expect(mountForm(null, []).find('.bf').exists()).toBe(false)
     })

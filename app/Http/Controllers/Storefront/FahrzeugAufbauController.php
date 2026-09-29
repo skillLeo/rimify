@@ -36,7 +36,7 @@ class FahrzeugAufbauController extends Controller
 
         return back()
             ->withCookie($book->isEmpty() ? Cookie::forget(PapersBook::COOKIE) : self::cookie($book))
-            ->with('toast', 'Angabe gelöscht.');
+            ->with('toast', 'Angaben zu Karosserieform und Antriebsart gelöscht.');
     }
 
     private static function book(VehicleBuildRequest $request): PapersBook
