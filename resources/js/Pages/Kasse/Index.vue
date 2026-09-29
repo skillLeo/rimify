@@ -20,17 +20,35 @@
  * The summary sits beside the form from 1200px, sticky, only as wide as it needs. On a phone it
  * comes first, folded to one line with the total, so the figure is known before the typing starts.
  *
- * Nothing binding happens yet (ACCURACY.md D4): every step can be walked, and `orderRefusal` is
- * the sentence the server answers a submission with — a demo line, an unconfigured shipping
- * price, or no payment yet. It is shown above the final button, which stays disabled while it
- * stands. No carrier, no delivery time, no payment provider is named: none is confirmed (D7).
+ * `orderRefusal` is the sentence the server answers a submission with — a demo line, an
+ * unconfigured shipping price or delivery time, or no payment yet. It is shown above the final
+ * button, which stays disabled while it stands. No carrier is named: none is confirmed (D7).
+ *
+ * Paying (Block G). With Stripe in force the third step mounts Stripe's Express Checkout (Apple Pay,
+ * Google Pay — its place is reserved at the top) and the Payment Element; Stripe.js is fetched from
+ * js.stripe.com only here. „Zahlungspflichtig bestellen“ checks the element, asks the server — which
+ * decides everything again, writes the order and creates the payment at its own total — and then
+ * confirms in the browser. A decline is answered on this page, everything typed still here; the order
+ * is paid only when Stripe's signed webhook says so, and the basket is emptied only then.
+ *
+ * What was typed is kept in this tab (sessionStorage) until the order is paid, so a reload, a 3-D
+ * Secure detour or a declined card never loses it. Fields are checked when they are left, never
+ * while typing. The PLZ offers its Ort (GeoNames); nothing typed is ever overwritten.
  */
 
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import { useShared } from '../../composables/useShared'
+import {
+    loadStripe,
+    stripeAppearance,
+    xsrfToken,
+    type StripeElement,
+    type StripeElements,
+    type StripeInstance,
+} from '../../composables/useStripe'
 import type { BasketLine, BasketTotals, ContactProp } from '../../types/rimify'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -43,6 +61,12 @@ const props = defineProps<{
     orderRefusal?: string | null
     /** The review's test payment stands in for a provider: no money moves. */
     sandbox?: boolean
+    /** Stripe's publishable key and mode; null while Stripe is not the driver in force. */
+    payment?: { publishableKey: string; testMode: boolean } | null
+    /** What this page shows, as the token the server compares at payment time (CheckoutShown). */
+    shown?: string
+    /** The delivery time as the operator wrote it; null until they do. */
+    deliveryTime?: string | null
 }>()
 
 const shared = useShared()
@@ -88,7 +112,17 @@ const form = reactive({
 
 const errors = reactive<Record<string, string>>({})
 
-const REQUIRED: [keyof typeof form, string][] = [
+/** „Rechnung an eine andere Adresse“ — an unchecked box; the server still speaks of `billingSame`. */
+const billingOther = computed({
+    get: () => !form.billingSame,
+    set: (other: boolean) => {
+        form.billingSame = !other
+    },
+})
+
+type FormKey = keyof typeof form
+
+const REQUIRED: [FormKey, string][] = [
     ['email', 'Bitte gib deine E-Mail-Adresse an.'],
     ['name', 'Bitte gib deinen vollständigen Namen an.'],
     ['street', 'Bitte gib die Straße an.'],
@@ -97,13 +131,65 @@ const REQUIRED: [keyof typeof form, string][] = [
     ['city', 'Bitte gib den Ort an.'],
 ]
 
-const BILLING_REQUIRED: [keyof typeof form, string][] = [
+const BILLING_REQUIRED: [FormKey, string][] = [
     ['billingName', 'Bitte gib den Namen für die Rechnung an.'],
     ['billingStreet', 'Bitte gib die Straße an.'],
     ['billingHouseNumber', 'Bitte gib die Hausnummer an.'],
     ['billingZip', 'Bitte gib die PLZ an.'],
     ['billingCity', 'Bitte gib den Ort an.'],
 ]
+
+const ZIP_ERROR = 'Eine deutsche PLZ hat fünf Ziffern.'
+
+/** One field's error, or null — the same sentences the server answers with (PlaceOrderRequest). */
+function fieldError(key: FormKey): string | null {
+    const rule = [...REQUIRED, ...BILLING_REQUIRED].find(([k]) => k === key)
+    const value = String(form[key]).trim()
+
+    if (rule && value === '') {
+        return rule[1]
+    }
+
+    if (key === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        return 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.'
+    }
+
+    if ((key === 'zip' || key === 'billingZip') && !/^\d{5}$/.test(value)) {
+        return ZIP_ERROR
+    }
+
+    return null
+}
+
+/** Checked when the field is left — never while typing. A field once wrong is cleared as soon as it is left right. */
+function touch(key: FormKey): void {
+    if (key === 'street' || key === 'billingStreet') {
+        splitHouseNumber(key)
+    }
+
+    const message = fieldError(key)
+
+    if (message === null) {
+        delete errors[key]
+    } else {
+        errors[key] = message
+    }
+}
+
+/*
+ * A browser's address autofill writes „Musterstraße 12a“ into the street: the number moves into its own field,
+ * where it belongs — only while that field is still empty, so nothing typed is overwritten.
+ */
+function splitHouseNumber(key: 'street' | 'billingStreet'): void {
+    const numberKey = key === 'street' ? 'houseNumber' : 'billingHouseNumber'
+    const match = /^(.*\D)\s+(\d+\s?[a-zA-Z]?(?:\s?[-/]\s?\d+\s?[a-zA-Z]?)?)$/.exec(form[key].trim())
+
+    if (match?.[1] && match[2] && form[numberKey].trim() === '') {
+        form[key] = match[1].trim()
+        form[numberKey] = match[2].replace(/\s+/g, '')
+        delete errors[numberKey]
+    }
+}
 
 /** Checks the address step. Errors name the fix, and the first broken field takes the focus. */
 function validateAddress(): boolean {
@@ -113,22 +199,12 @@ function validateAddress(): boolean {
 
     const rules = form.billingSame ? REQUIRED : [...REQUIRED, ...BILLING_REQUIRED]
 
-    for (const [key, message] of rules) {
-        if (String(form[key]).trim() === '') {
+    for (const [key] of rules) {
+        const message = fieldError(key)
+
+        if (message !== null) {
             errors[key] = message
         }
-    }
-
-    if (!errors.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-        errors.email = 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.'
-    }
-
-    if (!errors.zip && !/^\d{5}$/.test(form.zip.trim())) {
-        errors.zip = 'Eine deutsche PLZ hat fünf Ziffern.'
-    }
-
-    if (!form.billingSame && !errors.billingZip && !/^\d{5}$/.test(form.billingZip.trim())) {
-        errors.billingZip = 'Eine deutsche PLZ hat fünf Ziffern.'
     }
 
     const first = Object.keys(errors)[0]
@@ -185,51 +261,368 @@ function next(): void {
 /** The server's answer to a submission: why the order was not placed. */
 const serverRefusal = ref<string | null>(null)
 
-/*
- * The button validates the whole checkout one last time, then asks the server, which decides
- * (R-11). While the page already knows the answer is no, the button is disabled and says why.
- */
-function submit(): void {
+/** A press is on its way: the button waits, and a second press does nothing (the server reuses the order too). */
+const paying = ref(false)
+
+/** Stripe's own sentence for a declined or unfinished payment, in German (the Elements' locale). */
+const payError = ref<string | null>(null)
+
+/** The form as the server takes it. The RDKS answer travels only where the question was asked (§5.3). */
+function payload(): Record<string, unknown> {
+    return tpmsApplicable.value ? { ...form, rdks: tpms.value?.choice ?? null } : { ...form }
+}
+
+/** The whole checkout, checked one last time before anything leaves the page. */
+function readyToOrder(): boolean {
     if (!validateAddress()) {
         goTo(1)
 
-        return
+        return false
     }
 
     if (!validateOptions()) {
         goTo(2)
 
+        return false
+    }
+
+    return !props.orderRefusal
+}
+
+/** A server's refusal on the page: the sentence above the button, form errors on their fields. */
+function showRefusal(failed: Record<string, string>): void {
+    serverRefusal.value = failed.order ?? null
+
+    for (const [key, message] of Object.entries(failed)) {
+        if (key !== 'order') {
+            errors[key] = message
+        }
+    }
+
+    // The question is on step 2, the address on step 1: the sentence goes where the answer is given.
+    if (failed.rdks) {
+        goTo(2)
+    } else if (Object.keys(failed).some((key) => key !== 'order')) {
+        goTo(1)
+    }
+}
+
+/*
+ * The button validates the whole checkout one last time, then asks the server, which decides
+ * (R-11). While the page already knows the answer is no, the button is disabled and says why.
+ */
+function submit(): void {
+    if (paying.value || !readyToOrder()) {
         return
     }
 
-    if (props.orderRefusal) {
+    if (stripeReady.value) {
+        void payWithStripe()
+
         return
     }
 
-    // The RDKS answer travels with the submission, so the server has one source of truth at
-    // submit time (§5.3) — and only where the question was asked at all.
-    const payload = tpmsApplicable.value
-        ? { ...form, rdks: tpms.value?.choice ?? null }
-        : { ...form }
-
-    router.post('/kasse', payload, {
+    paying.value = true
+    router.post('/kasse', payload() as Record<string, string>, {
         preserveScroll: true,
         preserveState: true,
-        onError: (failed: Record<string, string>) => {
-            serverRefusal.value = failed.order ?? null
-
-            for (const [key, message] of Object.entries(failed)) {
-                if (key !== 'order') {
-                    errors[key] = message
-                }
-            }
-
-            // The question is on step 2: show the sentence where the answer is given.
-            if (failed.rdks) {
-                goTo(2)
-            }
+        onError: showRefusal,
+        onFinish: () => {
+            paying.value = false
         },
     })
+}
+
+/* ── Stripe ──────────────────────────────────────────────────────────────── */
+
+const expressEl = ref<HTMLElement | null>(null)
+const paymentEl = ref<HTMLElement | null>(null)
+const stripeReady = ref(false)
+/** Express Checkout offers nothing on this device: its reserved place folds away. */
+const expressEmpty = ref(false)
+const stripeFailed = ref(false)
+
+let stripe: StripeInstance | null = null
+let elements: StripeElements | null = null
+let mounted: StripeElement[] = []
+
+/** Asks the server for the order and its payment; the answer is a client secret, or a sentence why not. */
+async function startPayment(): Promise<{ clientSecret: string; returnUrl: string } | null> {
+    const response = await fetch('/kasse/zahlung', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': xsrfToken(),
+        },
+        body: JSON.stringify({ ...payload(), shown: props.shown ?? '' }),
+    })
+
+    const body = (await response.json().catch(() => ({}))) as Record<string, unknown>
+
+    if (response.ok && typeof body.clientSecret === 'string' && typeof body.returnUrl === 'string') {
+        return { clientSecret: body.clientSecret, returnUrl: body.returnUrl }
+    }
+
+    if (response.status === 422 && body.errors && typeof body.errors === 'object') {
+        const failed: Record<string, string> = {}
+
+        for (const [key, messages] of Object.entries(body.errors as Record<string, unknown>)) {
+            failed[key] = Array.isArray(messages) ? String(messages[0]) : String(messages)
+        }
+
+        showRefusal(failed)
+
+        return null
+    }
+
+    serverRefusal.value =
+        typeof body.refusal === 'string'
+            ? body.refusal
+            : 'Bezahlen ist gerade nicht möglich. Es wurde nichts bestellt und nichts abgebucht. Versuch es bitte in ein paar Minuten noch einmal.'
+
+    // The basket is no longer what this page shows: it is shown again as it is now. What was typed stays.
+    if (body.reload === true) {
+        router.reload({ only: ['lines', 'totals', 'orderRefusal', 'shown', 'deliveryTime'] })
+    }
+
+    return null
+}
+
+async function confirm(clientSecret: string, returnUrl: string): Promise<void> {
+    if (!stripe || !elements) {
+        return
+    }
+
+    // Only a failure comes back here; a success leaves for the return address (3-D Secure on the way).
+    const { error } = await stripe.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: { return_url: new URL(returnUrl, window.location.origin).href },
+    })
+
+    payError.value = error?.message ?? 'Die Zahlung wurde nicht abgeschlossen. Es wurde nichts abgebucht.'
+}
+
+async function payWithStripe(): Promise<void> {
+    if (!elements) {
+        return
+    }
+
+    paying.value = true
+    payError.value = null
+    serverRefusal.value = null
+
+    try {
+        // Stripe first: an incomplete card number is answered in its own field before any order exists.
+        const { error } = await elements.submit()
+
+        if (error) {
+            payError.value = error.message ?? null
+
+            return
+        }
+
+        const started = await startPayment()
+
+        if (started) {
+            await confirm(started.clientSecret, started.returnUrl)
+        }
+    } catch {
+        payError.value = 'Die Verbindung ist abgebrochen. Es wurde nichts abgebucht – versuch es bitte noch einmal.'
+    } finally {
+        paying.value = false
+    }
+}
+
+async function mountStripe(): Promise<void> {
+    if (!props.payment || elements !== null || !paymentEl.value) {
+        return
+    }
+
+    try {
+        stripe ??= (await loadStripe())(props.payment.publishableKey, { locale: 'de' })
+        stripeFailed.value = false
+    } catch {
+        stripeFailed.value = true
+
+        return
+    }
+
+    // The step may have been left while Stripe.js was on its way.
+    if (step.value !== 3 || !paymentEl.value || elements !== null) {
+        return
+    }
+
+    elements = stripe.elements({
+        mode: 'payment',
+        amount: props.totals.totalCents,
+        currency: 'eur',
+        locale: 'de',
+        appearance: stripeAppearance(),
+    })
+
+    const paymentElement = elements.create('payment', { layout: { type: 'accordion', defaultCollapsed: false } })
+    paymentElement.on('ready', () => {
+        stripeReady.value = true
+    })
+    paymentElement.mount(paymentEl.value)
+    mounted.push(paymentElement)
+
+    if (expressEl.value) {
+        const express = elements.create('expressCheckout', {
+            buttonHeight: 48,
+            buttonType: { applePay: 'buy', googlePay: 'buy' },
+        })
+
+        express.on('ready', (event) => {
+            const methods = event.availablePaymentMethods as Record<string, boolean> | undefined
+
+            expressEmpty.value = !methods || !Object.values(methods).some(Boolean)
+        })
+        // The address was checked on the way to this step; the wallet sheet may open.
+        express.on('click', (event) => {
+            if (readyToOrder()) {
+                ;(event.resolve as () => void)()
+            }
+        })
+        express.on('confirm', (event) => {
+            void (async () => {
+                paying.value = true
+                payError.value = null
+
+                try {
+                    const started = await startPayment()
+
+                    if (started) {
+                        await confirm(started.clientSecret, started.returnUrl)
+                    } else {
+                        ;(event.paymentFailed as (options: { reason: string }) => void)({ reason: 'fail' })
+                    }
+                } finally {
+                    paying.value = false
+                }
+            })()
+        })
+        express.mount(expressEl.value)
+        mounted.push(express)
+    }
+}
+
+/* The amount the Elements show follows the server's total (the RDKS answer changes it). */
+watch(
+    () => props.totals.totalCents,
+    (amount) => elements?.update({ amount })
+)
+
+/* The payment step's frames live in its markup: leaving the step takes them down, coming back builds them anew. */
+function unmountStripe(): void {
+    for (const element of mounted) {
+        element.destroy()
+    }
+
+    mounted = []
+    elements = null
+    stripeReady.value = false
+    expressEmpty.value = false
+}
+
+watch(step, (now) => {
+    if (now === 3 && props.payment && !props.orderRefusal) {
+        void nextTick(() => void mountStripe())
+    } else {
+        unmountStripe()
+    }
+})
+
+onBeforeUnmount(unmountStripe)
+
+/* ── What was typed, kept in this tab until the order is paid ────────────── */
+
+const STORAGE_KEY = 'rmf.kasse.v1'
+
+onMounted(() => {
+    try {
+        const saved = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? 'null') as Partial<typeof form> | null
+
+        if (saved && typeof saved === 'object') {
+            for (const key of Object.keys(form) as FormKey[]) {
+                if (typeof saved[key] === typeof form[key]) {
+                    Object.assign(form, { [key]: saved[key] })
+                }
+            }
+        }
+    } catch {
+        // A private window or blocked storage: the form simply starts empty.
+    }
+})
+
+watch(
+    form,
+    () => {
+        try {
+            window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(form))
+        } catch {
+            // Storage full or blocked: nothing is lost on this page, only after a reload.
+        }
+    },
+    { deep: true }
+)
+
+/* ── PLZ → Ort (GeoNames, CC BY 4.0) ─────────────────────────────────────── */
+
+const places = reactive<{ zip: string[]; billingZip: string[] }>({ zip: [], billingZip: [] })
+
+async function lookUp(zipKey: 'zip' | 'billingZip'): Promise<void> {
+    const cityKey = zipKey === 'zip' ? 'city' : 'billingCity'
+    const plz = form[zipKey].trim()
+
+    places[zipKey] = []
+
+    if (!/^\d{5}$/.test(plz)) {
+        return
+    }
+
+    try {
+        const response = await fetch(`/api/v1/plz/${plz}`, { headers: { Accept: 'application/json' } })
+        const found = response.ok ? ((await response.json()) as { places?: string[] }).places ?? [] : []
+
+        // The field may have moved on while the answer travelled.
+        if (form[zipKey].trim() !== plz) {
+            return
+        }
+
+        if (found.length === 1 && form[cityKey].trim() === '') {
+            form[cityKey] = found[0] ?? ''
+            delete errors[cityKey]
+        } else if (found.length > 1 && !found.includes(form[cityKey].trim())) {
+            places[zipKey] = found.slice(0, 6)
+        }
+    } catch {
+        // No suggestion: the customer types the Ort, as without the lookup.
+    }
+}
+
+function choosePlace(zipKey: 'zip' | 'billingZip', place: string): void {
+    const cityKey = zipKey === 'zip' ? 'city' : 'billingCity'
+
+    form[cityKey] = place
+    places[zipKey] = []
+    delete errors[cityKey]
+}
+
+watch(() => form.zip, () => void lookUp('zip'))
+watch(() => form.billingZip, () => void lookUp('billingZip'))
+
+/* ── Hausnummer: the number pad first, letters one tap away ───────────────── */
+
+const letters = reactive({ houseNumber: false, billingHouseNumber: false })
+
+function allowLetters(key: 'houseNumber' | 'billingHouseNumber', id: string): void {
+    letters[key] = true
+    void nextTick(() => document.getElementById(id)?.focus())
 }
 
 /** A line that is sold out, not sellable for the chosen car, or marked by the server stops the checkout here too. */
@@ -256,16 +649,22 @@ const shippingLabel = computed(() => {
 /** Abnahme and Eintragung are paid to the Prüfstelle, not to us: the page says so when it applies. */
 const needsEntry = computed(() => props.lines.some((line) => line.verdict?.requiresEntry === true))
 
-/** The Eintragung line, unless an Auflage on the line already says it in full. */
-function showsEntry(line: BasketLine): boolean {
-    return line.verdict?.requiresEntry === true && !line.verdict.conditions.some((c) => c.includes('Eintragung'))
+/** The server's sentence; a page rendered before it existed falls back to the label and the Eintragung. */
+function verdictSentence(line: BasketLine): string {
+    const verdict = line.verdict
+
+    if (!verdict) {
+        return ''
+    }
+
+    return verdict.sentence ?? `${verdict.label}.${verdict.requiresEntry ? ' Eintragung in die Fahrzeugpapiere erforderlich.' : ''}`
 }
 
-const VERDICT_TONE: Record<string, string> = {
-    PERMITTED: 'tag--ok',
-    CONDITIONAL: 'tag--warn',
-    NOT_PERMITTED: 'tag--danger',
-    UNKNOWN: 'tag--unknown',
+/** The state's colour, as a mark before the sentence — the words carry the meaning, the colour only repeats it. */
+const VERDICT_MARK: Record<string, string> = {
+    PERMITTED: 'ko__verdict--ok',
+    CONDITIONAL: 'ko__verdict--warn',
+    NOT_PERMITTED: 'ko__verdict--bad',
 }
 </script>
 
@@ -275,6 +674,7 @@ const VERDICT_TONE: Record<string, string> = {
     <section class="section-dense">
         <div class="wrap">
             <h1 class="t-h1">Kasse</h1>
+            <p v-if="payment?.testMode" class="ko__testmode" role="note">Testmodus – es wird kein Geld abgebucht.</p>
 
             <div v-if="lines.length === 0" class="state">
                 <Icon name="cart" :size="24" />
@@ -352,24 +752,23 @@ const VERDICT_TONE: Record<string, string> = {
                                             · <span class="data">{{ line.sizeLabel }}</span></template
                                         >
                                     </p>
-                                    <p v-if="line.verdict || line.demo !== false" class="ko__line-flag">
-                                        <span v-if="line.demo !== false" class="tag tag--unknown">Beispielsortiment</span>
-                                        <span
-                                            v-if="line.verdict"
-                                            class="tag"
-                                            :class="VERDICT_TONE[line.verdict.status] ?? 'tag--unknown'"
-                                        >
-                                            {{ line.verdict.label }}
-                                        </span>
+                                    <p v-if="line.demo !== false" class="ko__line-flag">
+                                        <span class="tag tag--unknown">Beispielsortiment</span>
                                     </p>
-                                    <p v-if="showsEntry(line)" class="ko__line-entry">
-                                        Eintragung in die Fahrzeugpapiere erforderlich.
-                                    </p>
-                                    <ul v-if="line.verdict && line.verdict.conditions.length" class="ko__conditions">
-                                        <li v-for="condition in line.verdict.conditions" :key="condition">
-                                            {{ condition }}
-                                        </li>
-                                    </ul>
+                                    <!-- The verdict in one sentence on every step; its Auflagen one tap away, in full (R-15). -->
+                                    <template v-if="line.verdict">
+                                        <p class="ko__verdict" :class="VERDICT_MARK[line.verdict.status] ?? ''">
+                                            {{ verdictSentence(line) }}
+                                        </p>
+                                        <details v-if="line.verdict.conditions.length" class="ko__auflagen">
+                                            <summary>Auflagen lesen</summary>
+                                            <ul class="ko__conditions">
+                                                <li v-for="condition in line.verdict.conditions" :key="condition">
+                                                    {{ condition }}
+                                                </li>
+                                            </ul>
+                                        </details>
+                                    </template>
                                     <!-- A Komplettrad repeats its components here: the last reading before paying. -->
                                     <dl
                                         v-if="line.isSet && line.components && line.components.length > 1"
@@ -437,6 +836,7 @@ const VERDICT_TONE: Record<string, string> = {
                                             autocomplete="email"
                                             aria-describedby="ko-mail-help ko-mail-err"
                                             :aria-invalid="errors.email ? 'true' : undefined"
+                                            @blur="touch('email')"
                                         />
                                         <p id="ko-mail-help" class="field-help">
                                             Hierhin schicken wir dir Infos zu deiner Bestellung.
@@ -470,9 +870,10 @@ const VERDICT_TONE: Record<string, string> = {
                                             data-key="name"
                                             class="field"
                                             :class="{ 'field--error': errors.name }"
-                                            autocomplete="name"
+                                            autocomplete="shipping name"
                                             aria-describedby="ko-name-err"
                                             :aria-invalid="errors.name ? 'true' : undefined"
+                                            @blur="touch('name')"
                                         />
                                         <span id="ko-name-err" class="field-error">{{ errors.name ?? '' }}</span>
                                     </div>
@@ -486,9 +887,10 @@ const VERDICT_TONE: Record<string, string> = {
                                             data-key="street"
                                             class="field"
                                             :class="{ 'field--error': errors.street }"
-                                            autocomplete="address-line1"
+                                            autocomplete="shipping address-line1"
                                             aria-describedby="ko-street-err"
                                             :aria-invalid="errors.street ? 'true' : undefined"
+                                            @blur="touch('street')"
                                         />
                                         <span id="ko-street-err" class="field-error">{{ errors.street ?? '' }}</span>
                                     </div>
@@ -502,10 +904,20 @@ const VERDICT_TONE: Record<string, string> = {
                                             data-key="houseNumber"
                                             class="field"
                                             :class="{ 'field--error': errors.houseNumber }"
-                                            autocomplete="address-line2"
+                                            :inputmode="letters.houseNumber ? 'text' : 'numeric'"
+                                            autocomplete="off"
                                             aria-describedby="ko-nr-err"
                                             :aria-invalid="errors.houseNumber ? 'true' : undefined"
+                                            @blur="touch('houseNumber')"
                                         />
+                                        <button
+                                            v-if="!letters.houseNumber"
+                                            class="ko__letters"
+                                            type="button"
+                                            @click="allowLetters('houseNumber', 'ko-nr')"
+                                        >
+                                            Mit Buchstaben, z. B. 12a
+                                        </button>
                                         <span id="ko-nr-err" class="field-error">{{ errors.houseNumber ?? '' }}</span>
                                     </div>
                                     <div class="ko__zip">
@@ -519,10 +931,12 @@ const VERDICT_TONE: Record<string, string> = {
                                             class="field tabular"
                                             :class="{ 'field--error': errors.zip }"
                                             inputmode="numeric"
+                                            pattern="[0-9]*"
                                             maxlength="5"
-                                            autocomplete="postal-code"
+                                            autocomplete="shipping postal-code"
                                             aria-describedby="ko-zip-err"
                                             :aria-invalid="errors.zip ? 'true' : undefined"
+                                            @blur="touch('zip')"
                                         />
                                         <span id="ko-zip-err" class="field-error">{{ errors.zip ?? '' }}</span>
                                     </div>
@@ -536,10 +950,23 @@ const VERDICT_TONE: Record<string, string> = {
                                             data-key="city"
                                             class="field"
                                             :class="{ 'field--error': errors.city }"
-                                            autocomplete="address-level2"
+                                            autocomplete="shipping address-level2"
                                             aria-describedby="ko-city-err"
                                             :aria-invalid="errors.city ? 'true' : undefined"
+                                            @blur="touch('city')"
                                         />
+                                        <div v-if="places.zip.length" class="ko__places" role="group" aria-label="Orte zu dieser PLZ">
+                                            <button
+                                                v-for="place in places.zip"
+                                                :key="place"
+                                                class="ko__place"
+                                                type="button"
+                                                @click="choosePlace('zip', place)"
+                                            >
+                                                {{ place }}
+                                            </button>
+                                            <span class="ko__source">Orte nach GeoNames (CC BY 4.0)</span>
+                                        </div>
                                         <span id="ko-city-err" class="field-error">{{ errors.city ?? '' }}</span>
                                     </div>
                                     <div class="ko__wide">
@@ -552,11 +979,11 @@ const VERDICT_TONE: Record<string, string> = {
                             <fieldset class="ko__group">
                                 <legend class="t-h3">Rechnungsadresse</legend>
                                 <label class="ko__check">
-                                    <input v-model="form.billingSame" type="checkbox" />
-                                    <span>Rechnungsadresse entspricht der Lieferadresse</span>
+                                    <input v-model="billingOther" type="checkbox" />
+                                    <span>Rechnung an eine andere Adresse</span>
                                 </label>
 
-                                <div v-if="!form.billingSame" class="ko__grid ko__billing">
+                                <div v-if="billingOther" class="ko__grid ko__billing">
                                     <div class="ko__wide">
                                         <label class="field-label" for="ko-b-name">
                                             Vollständiger Name <span class="field-label__req">*</span>
@@ -569,6 +996,7 @@ const VERDICT_TONE: Record<string, string> = {
                                             :class="{ 'field--error': errors.billingName }"
                                             autocomplete="billing name"
                                             :aria-invalid="errors.billingName ? 'true' : undefined"
+                                            @blur="touch('billingName')"
                                         />
                                         <span class="field-error">{{ errors.billingName ?? '' }}</span>
                                     </div>
@@ -584,6 +1012,7 @@ const VERDICT_TONE: Record<string, string> = {
                                             :class="{ 'field--error': errors.billingStreet }"
                                             autocomplete="billing address-line1"
                                             :aria-invalid="errors.billingStreet ? 'true' : undefined"
+                                            @blur="touch('billingStreet')"
                                         />
                                         <span class="field-error">{{ errors.billingStreet ?? '' }}</span>
                                     </div>
@@ -597,9 +1026,19 @@ const VERDICT_TONE: Record<string, string> = {
                                             data-key="billingHouseNumber"
                                             class="field"
                                             :class="{ 'field--error': errors.billingHouseNumber }"
-                                            autocomplete="billing address-line2"
+                                            :inputmode="letters.billingHouseNumber ? 'text' : 'numeric'"
+                                            autocomplete="off"
                                             :aria-invalid="errors.billingHouseNumber ? 'true' : undefined"
+                                            @blur="touch('billingHouseNumber')"
                                         />
+                                        <button
+                                            v-if="!letters.billingHouseNumber"
+                                            class="ko__letters"
+                                            type="button"
+                                            @click="allowLetters('billingHouseNumber', 'ko-b-nr')"
+                                        >
+                                            Mit Buchstaben, z. B. 12a
+                                        </button>
                                         <span class="field-error">{{ errors.billingHouseNumber ?? '' }}</span>
                                     </div>
                                     <div class="ko__zip">
@@ -613,9 +1052,11 @@ const VERDICT_TONE: Record<string, string> = {
                                             class="field tabular"
                                             :class="{ 'field--error': errors.billingZip }"
                                             inputmode="numeric"
+                                            pattern="[0-9]*"
                                             maxlength="5"
                                             autocomplete="billing postal-code"
                                             :aria-invalid="errors.billingZip ? 'true' : undefined"
+                                            @blur="touch('billingZip')"
                                         />
                                         <span class="field-error">{{ errors.billingZip ?? '' }}</span>
                                     </div>
@@ -631,7 +1072,25 @@ const VERDICT_TONE: Record<string, string> = {
                                             :class="{ 'field--error': errors.billingCity }"
                                             autocomplete="billing address-level2"
                                             :aria-invalid="errors.billingCity ? 'true' : undefined"
+                                            @blur="touch('billingCity')"
                                         />
+                                        <div
+                                            v-if="places.billingZip.length"
+                                            class="ko__places"
+                                            role="group"
+                                            aria-label="Orte zu dieser PLZ"
+                                        >
+                                            <button
+                                                v-for="place in places.billingZip"
+                                                :key="place"
+                                                class="ko__place"
+                                                type="button"
+                                                @click="choosePlace('billingZip', place)"
+                                            >
+                                                {{ place }}
+                                            </button>
+                                            <span class="ko__source">Orte nach GeoNames (CC BY 4.0)</span>
+                                        </div>
                                         <span class="field-error">{{ errors.billingCity ?? '' }}</span>
                                     </div>
                                 </div>
@@ -771,21 +1230,102 @@ const VERDICT_TONE: Record<string, string> = {
                                     Testbestellung – im nächsten Schritt wählst du, wie die Testzahlung ausgeht. Es wird kein Geld bewegt.
                                 </p>
 
-                                <div class="ko__final">
-                                    <p class="ko__final-total">
-                                        <span>Gesamt</span>
-                                        <span class="tabular">{{ totals.total }}</span>
+                                <!-- Stripe: Apple Pay and Google Pay first, in a place kept for them; then every other way. -->
+                                <div v-if="payment && !orderRefusal" class="ko__pay-methods">
+                                    <div
+                                        ref="expressEl"
+                                        class="ko__express"
+                                        :class="{ 'ko__express--empty': expressEmpty }"
+                                        role="group"
+                                        aria-label="Express-Zahlung"
+                                    />
+                                    <p v-if="!expressEmpty && stripeReady" class="ko__or" aria-hidden="true"><span>oder</span></p>
+                                    <div ref="paymentEl" class="ko__payment" />
+                                    <p v-if="!stripeReady && !stripeFailed" class="t-small quiet ko__loading" role="status">
+                                        Zahlungsarten werden geladen …
                                     </p>
+                                    <div v-if="stripeFailed" class="ko__refusal" role="alert">
+                                        <p>
+                                            Die Zahlungsarten ließen sich nicht laden. Prüf deine Verbindung oder einen
+                                            Werbeblocker – deine Angaben bleiben erhalten.
+                                        </p>
+                                        <button class="btn btn--secondary ko__retry" type="button" @click="mountStripe">
+                                            Noch einmal laden
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!--
+                                    §312j Abs. 2 BGB: directly above the button, what is bought, what it costs in all,
+                                    the shipping and the delivery time. Each wheel repeats its verdict.
+                                -->
+                                <section class="ko__final" aria-labelledby="ko-final-title">
+                                    <h3 id="ko-final-title" class="t-h3">Deine Bestellung</h3>
+                                    <ul class="ko__essentials">
+                                        <li v-for="line in lines" :key="line.key" class="ko__essential">
+                                            <p class="ko__essential-top">
+                                                <span class="ko__essential-name">
+                                                    <span class="tabular">{{ line.quantity }} ×</span>
+                                                    {{ line.isSet ? 'Komplettrad' : 'Felge' }} {{ line.brandName }} {{ line.title }}
+                                                </span>
+                                                <span class="ko__essential-price tabular">{{ line.lineTotal }}</span>
+                                            </p>
+                                            <p class="ko__essential-spec">
+                                                {{ line.subtitle }}<template v-if="line.sizeLabel"> · <span class="data">{{ line.sizeLabel }}</span></template
+                                                ><template v-if="line.isSet && line.tyre">
+                                                    · mit {{ line.tyre.brandName }} {{ line.tyre.name }}
+                                                    <span class="data">{{ line.tyre.sizeLabel }}</span></template
+                                                >
+                                            </p>
+                                            <template v-if="line.verdict">
+                                                <p class="ko__verdict" :class="VERDICT_MARK[line.verdict.status] ?? ''">
+                                                    {{ verdictSentence(line) }}
+                                                </p>
+                                                <details v-if="line.verdict.conditions.length" class="ko__auflagen">
+                                                    <summary>Auflagen lesen</summary>
+                                                    <ul class="ko__conditions">
+                                                        <li v-for="condition in line.verdict.conditions" :key="condition">
+                                                            {{ condition }}
+                                                        </li>
+                                                    </ul>
+                                                </details>
+                                            </template>
+                                        </li>
+                                        <li v-if="tpms && tpms.choice === 'ja'" class="ko__essential">
+                                            <p class="ko__essential-top">
+                                                <span class="ko__essential-name">RDKS-Sensoren ({{ tpms.line }})</span>
+                                                <span class="ko__essential-price tabular">{{ tpms.total }}</span>
+                                            </p>
+                                        </li>
+                                    </ul>
+
+                                    <dl class="ko__terms">
+                                        <div class="ko__term">
+                                            <dt>Versand</dt>
+                                            <dd :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</dd>
+                                        </div>
+                                        <div class="ko__term">
+                                            <dt>Lieferzeit</dt>
+                                            <dd>{{ deliveryTime ?? 'wird noch festgelegt' }}</dd>
+                                        </div>
+                                        <div class="ko__term ko__term--total">
+                                            <dt>Gesamt</dt>
+                                            <dd class="tabular">{{ totals.total }}</dd>
+                                        </div>
+                                    </dl>
                                     <p v-if="shippingOpen" class="price-legal">
                                         inkl. {{ totals.tax }} MwSt. · Versandkosten werden noch festgelegt
                                     </p>
                                     <p v-else class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
 
-                                    <!-- §312j BGB: the button states the obligation to pay, in these words. -->
+                                    <p v-if="payError" class="ko__refusal ko__refusal--bad" role="alert">{{ payError }}</p>
+
+                                    <!-- §312j Abs. 3 BGB: the button states the obligation to pay, in these words. -->
                                     <button
                                         class="btn btn--primary btn--lg btn--block ko__pay"
                                         type="submit"
-                                        :disabled="Boolean(orderRefusal)"
+                                        :disabled="Boolean(orderRefusal) || paying || (Boolean(payment) && !stripeReady)"
+                                        :aria-busy="paying ? 'true' : undefined"
                                         :aria-describedby="orderRefusal ? 'ko-refusal' : undefined"
                                     >
                                         Zahlungspflichtig bestellen
@@ -804,8 +1344,12 @@ const VERDICT_TONE: Record<string, string> = {
                                         <Link href="/rechtliches/agb">AGB</Link>
                                         <span aria-hidden="true">·</span>
                                         <Link href="/rechtliches/widerrufsbelehrung">Widerrufsbelehrung</Link>
+                                        <span aria-hidden="true">·</span>
+                                        <Link href="/rechtliches/widerrufsformular">Muster-Widerrufsformular</Link>
+                                        <span aria-hidden="true">·</span>
+                                        <Link href="/rechtliches/datenschutz">Datenschutz</Link>
                                     </p>
-                                </div>
+                                </section>
 
                                 <div class="ko__actions">
                                     <button class="btn btn--secondary" type="button" @click="goTo(2)">Zurück</button>
@@ -931,16 +1475,67 @@ const VERDICT_TONE: Record<string, string> = {
     margin-top: var(--space-2);
 }
 
-.ko__line-entry {
-    margin-top: var(--space-2);
+/* Stripe in Testmodus: said once, at the top, in the warning tint the admin uses for the same fact. */
+.ko__testmode {
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--warn-w);
+    color: var(--warn);
     font-size: var(--text-small);
     font-weight: 700;
+}
+
+/* The verdict in one sentence; a square in the state's colour repeats what the words say. */
+.ko__verdict {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
+    color: var(--ink);
+}
+
+.ko__verdict::before {
+    content: '';
+    flex: none;
+    width: 8px;
+    height: 8px;
+    background: var(--ink3);
+    transform: translateY(-1px);
+}
+
+.ko__verdict--ok::before {
+    background: var(--ok);
+}
+
+.ko__verdict--warn::before {
+    background: var(--warn);
+}
+
+.ko__verdict--bad::before {
+    background: var(--danger);
+}
+
+.ko__auflagen {
+    margin-top: var(--space-1);
+    font-size: var(--text-small);
+}
+
+.ko__auflagen summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--blue);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
 }
 
 .ko__conditions {
     display: grid;
     gap: var(--space-1);
-    margin: var(--space-2) 0 0;
+    margin: 0;
     padding-left: var(--space-4);
     font-size: var(--text-small);
     color: var(--ink);
@@ -1066,6 +1661,40 @@ const VERDICT_TONE: Record<string, string> = {
 
 .ko__city {
     grid-column: span 4;
+}
+
+/* Two small helpers under a field: letters for the Hausnummer, the places under a PLZ. */
+.ko__letters,
+.ko__place {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--blue);
+    font: inherit;
+    font-size: var(--text-small);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.ko__places {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--space-3);
+}
+
+.ko__place {
+    font-weight: 700;
+}
+
+.ko__source {
+    flex-basis: 100%;
+    font-size: var(--text-micro);
+    color: var(--ink3);
 }
 
 .ko__static {
@@ -1285,23 +1914,132 @@ const VERDICT_TONE: Record<string, string> = {
     white-space: normal;
 }
 
+/* ── Paying ───────────────────────────────────────────────────────────────── */
+
+.ko__pay-methods {
+    margin-top: var(--space-4);
+}
+
+/* Kept for Apple Pay and Google Pay before Stripe answers; folded away where the device offers neither. */
+.ko__express {
+    min-height: 48px;
+}
+
+.ko__express--empty {
+    min-height: 0;
+}
+
+.ko__or {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-block: var(--space-4);
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
+.ko__or::before,
+.ko__or::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid var(--line);
+}
+
+/* The Payment Element's frame grows into this; the height keeps the page still while it loads. */
+.ko__payment {
+    min-height: 120px;
+}
+
+.ko__loading {
+    margin-top: calc(-1 * var(--space-6));
+}
+
+.ko__retry {
+    margin-top: var(--space-3);
+}
+
 .ko__final {
     margin-top: var(--space-5);
     padding-top: var(--space-4);
     border-top: 2px solid var(--border-strong);
 }
 
-.ko__final-total {
+.ko__essentials {
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ko__essential {
+    padding-block: var(--space-3);
+    border-bottom: 1px solid var(--line-s);
+}
+
+.ko__essential-top {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-3);
+}
+
+.ko__essential-name {
+    min-width: 0;
+    font-weight: 700;
+}
+
+.ko__essential-price {
+    flex: none;
+    font-family: var(--mono);
+    font-weight: 500;
+}
+
+.ko__essential-spec {
+    margin-top: var(--space-1);
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
+.ko__terms {
+    margin: var(--space-3) 0 var(--space-2);
+}
+
+.ko__term {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding-block: var(--space-1);
+}
+
+.ko__term dt {
+    color: var(--ink2);
+}
+
+.ko__term dd {
+    margin: 0;
+    text-align: right;
+}
+
+.ko__term dd.tabular {
+    font-family: var(--mono);
+    font-weight: 500;
+}
+
+.ko__term--total {
+    margin-top: var(--space-2);
+    padding-top: var(--space-3);
+    border-top: 2px solid var(--border-strong);
+}
+
+.ko__term--total dt,
+.ko__term--total dd {
+    color: var(--ink);
     font-size: var(--text-h3);
     font-weight: 700;
 }
 
-.ko__final-total .tabular {
-    font-family: var(--mono);
+.ko__refusal--bad {
+    border-left-color: var(--danger);
 }
 
 .ko__pay {
@@ -1314,8 +2052,9 @@ const VERDICT_TONE: Record<string, string> = {
 
 .ko__legal-links {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: 0 var(--space-2);
     margin-top: var(--space-1);
 }
 

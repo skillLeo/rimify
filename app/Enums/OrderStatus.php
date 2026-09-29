@@ -31,7 +31,11 @@ enum OrderStatus: string
     case PartiallyRefunded = 'PARTIALLY_REFUNDED';
     case Refunded = 'REFUNDED';
 
-    /** The states an order may move to from this one. A state not listed is refused by the model. */
+    /**
+     * The states an order may move to from this one. A state not listed is refused by the model.
+     *
+     * @return list<self>
+     */
     public function next(): array
     {
         return match ($this) {

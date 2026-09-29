@@ -134,7 +134,14 @@ final class OrderPayments
             Log::warning('Payment amount does not match the order', ['order' => $order->order_number, 'paid' => $amountCents, 'currency' => $currency, 'total' => $order->total_cents, 'event' => $eventId]);
         }
 
-        return $this->move($order, OrderStatus::Paid, $by, $eventId, ['paid_at' => now(), 'payment_flag' => $flag, 'payment_error' => null], ['amount_cents' => $amountCents, 'flag' => $flag]);
+        $moved = $this->move($order, OrderStatus::Paid, $by, $eventId, ['paid_at' => now(), 'payment_flag' => $flag, 'payment_error' => null], ['amount_cents' => $amountCents, 'flag' => $flag]);
+
+        // Once, when it became paid: the invoice and the confirmation mail (§ 312f BGB).
+        if ($moved) {
+            app(OrderPaid::class)->handle($order);
+        }
+
+        return $moved;
     }
 
     /**

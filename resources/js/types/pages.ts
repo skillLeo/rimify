@@ -576,7 +576,19 @@ export interface BestellungProps {
             detail: Record<string, unknown>
         } | null
     }[]
+    /** Where the payment stands; null on a seeded order. Only the provider's webhook ever makes it `paid`. */
+    payment?: OrderPaymentState | null
     contact: ContactProp
+}
+
+export interface OrderPaymentState {
+    state: 'paid' | 'confirming' | 'processing' | 'failed' | 'closed'
+    /** Keep asking /bestellung/{number}/status while the provider has not answered. */
+    poll: boolean
+    email: string | null
+    /** The confirmation mail went out (audited); the page mentions it only then. */
+    mailed?: boolean
+    statusLabel?: string
 }
 
 export interface FaqProps {

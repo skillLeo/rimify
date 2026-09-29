@@ -31,7 +31,10 @@ it('sends the hardening headers on every web response', function (): void {
         ->toContain("object-src 'none'")
         ->toContain("frame-ancestors 'none'")
         ->toContain("base-uri 'self'")
-        ->toContain('https://checkout.stripe.com')
+        ->toContain("form-action 'self';")
+        ->toContain("frame-src 'self';")
+        // Stripe is admitted on the checkout alone (CheckoutPaymentTest), never on another page (TTDSG).
+        ->not->toContain('stripe')
         ->toMatch("/script-src 'self' 'nonce-[A-Za-z0-9+\/=_-]{16,}'/")
         ->not->toContain("script-src 'self' 'unsafe-inline'")
         ->not->toContain("'unsafe-eval'")

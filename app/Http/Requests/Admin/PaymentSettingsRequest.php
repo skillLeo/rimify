@@ -7,6 +7,7 @@ namespace App\Http\Requests\Admin;
 use App\Models\AdminUser;
 use App\Models\PaymentSetting;
 use App\Payments\StripeKeys;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 use SensitiveParameter;
@@ -44,6 +45,7 @@ class PaymentSettingsRequest extends FormRequest
         return ['mode.*' => 'Wähl Testmodus oder Livemodus.'];
     }
 
+    /** @return list<Closure(Validator): void> */
     public function after(): array
     {
         return [function (Validator $validator): void {

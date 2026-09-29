@@ -56,15 +56,18 @@ use App\Http\Controllers\Storefront\FaqController;
 use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
+use App\Http\Controllers\Storefront\KasseZahlungController;
 use App\Http\Controllers\Storefront\KontaktController;
 use App\Http\Controllers\Storefront\PaymentWebhookController;
 use App\Http\Controllers\Storefront\RatgeberController;
+use App\Http\Controllers\Storefront\RechnungController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
 use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
+use App\Http\Controllers\Storefront\WiderrufsformularController;
 use App\Http\Middleware\EnsureAdminMay;
 use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
@@ -127,11 +130,17 @@ Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
 Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:shop-kasse-rdks')->name('kasse.rdks');
 // Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
 Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.store');
+// „Zahlungspflichtig bestellen“ with Stripe: the basket decided again, the order written, its PaymentIntent (JSON).
+Route::post('/kasse/zahlung', [KasseZahlungController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.zahlung');
 // The sandbox's payment page (App\Payments\SandboxGateway): by its signed link only, and only where
 // the review is on (TestPaymentRequest). The POST carries the same signature in its query string.
 Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
 Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
+// An invoice's PDF from the private disk, by its signed link only (Invoices::link).
+Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
+// The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.
+Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
 // The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
 Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['stripe'])->name('webhooks.payment');
 
@@ -162,6 +171,8 @@ Route::get('/benachrichtigung/abmelden/{token}', [BenachrichtigungController::cl
 
 Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
+// The statute's model form (Art. 246a § 1 Abs. 2 EGBGB), before the CMS pages' catch-all.
+Route::get('/rechtliches/widerrufsformular', WiderrufsformularController::class)->name('rechtliches.widerrufsformular');
 Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtliches');
 
 // A page's draft in the real shop, for the Inhalte editor and whoever it shares the link with. The

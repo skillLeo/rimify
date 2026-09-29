@@ -38,6 +38,23 @@ final class Payments
         return self::gateway() instanceof SandboxGateway;
     }
 
+    /**
+     * What the checkout needs to mount Stripe's Payment Element, or null where Stripe is not the driver in force: the
+     * publishable key (public by design — it can only start payments, never read or move money) and the mode.
+     *
+     * @return array{publishableKey: string, testMode: bool}|null
+     */
+    public static function checkout(): ?array
+    {
+        if (! self::gateway() instanceof StripeGateway) {
+            return null;
+        }
+
+        $config = PaymentConfig::current();
+
+        return ['publishableKey' => (string) $config->publishableKey, 'testMode' => $config->testMode()];
+    }
+
     /** Stripe in Testmodus: the admin's banner and the checkout's strip say that no money moves. */
     public static function stripeTestMode(): bool
     {

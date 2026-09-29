@@ -14,13 +14,19 @@
  *
  * A seeded order (`demo`) says so at the top: nobody placed it, and its frozen verdicts are seed
  * data, not a statement about the car it names (ACCURACY.md §3.1 F3). The snapshots themselves
- * are never rewritten (R-12). No carrier is named and no confirmation mail is promised (D7).
+ * are never rewritten (R-12). No carrier is named (D7).
+ *
+ * It is also where Stripe sends the customer back (Block G), and arriving here pays nothing: only the provider's
+ * signed webhook does. Until it has, the page says the payment is being confirmed and asks the server every two
+ * seconds — then every fifteen, and says so — and changes its words when the answer changes: paid (the basket is
+ * emptied now, not before), declined (back to the Kasse, everything typed still there) or closed.
  */
 
-import { Head } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, Link, router } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
+import type { IconName } from '../../art'
 import type { BestellungProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -86,6 +92,102 @@ const questionHref = computed(() =>
         ? `tel:${(props.contact.phoneIntl ?? props.contact.phone).replace(/\s/g, '')}`
         : `mailto:${props.contact.email}?subject=${encodeURIComponent(`Bestellung ${props.order.number}`)}`
 )
+
+/* ── The payment, as the server last answered ─────────────────────────────── */
+
+const state = computed(() => props.payment?.state ?? 'paid')
+
+/** Two-second questions for the first ninety seconds, then one every fifteen: the page never stops on its own. */
+const FAST_TRIES = 45
+const tries = ref(0)
+const slow = computed(() => tries.value >= FAST_TRIES)
+let timer: ReturnType<typeof setTimeout> | null = null
+
+async function ask(): Promise<void> {
+    tries.value++
+
+    try {
+        const response = await fetch(`/bestellung/${encodeURIComponent(props.order.number)}/status`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        })
+
+        if (response.ok) {
+            const answer = (await response.json()) as { state?: string }
+
+            if (answer.state !== undefined && answer.state !== state.value) {
+                router.reload({ only: ['order', 'payment'] })
+
+                return
+            }
+        }
+    } catch {
+        // Offline for a moment: the next question goes out as planned.
+    }
+
+    schedule()
+}
+
+function schedule(): void {
+    if (props.payment?.poll !== true) {
+        return
+    }
+
+    timer = setTimeout(() => void ask(), state.value === 'confirming' && !slow.value ? 2000 : 15000)
+}
+
+onMounted(schedule)
+onBeforeUnmount(() => {
+    if (timer !== null) {
+        clearTimeout(timer)
+    }
+})
+
+const mailTo = computed(() => props.payment?.email ?? 'deine E-Mail-Adresse')
+
+const heading = computed(() => {
+    switch (state.value) {
+        case 'confirming':
+            return 'Deine Zahlung wird bestätigt.'
+        case 'processing':
+            return 'Deine Zahlung ist unterwegs.'
+        case 'failed':
+            return 'Die Zahlung hat nicht geklappt.'
+        case 'closed':
+            return 'Diese Bestellung ist nicht mehr offen.'
+        default:
+            return 'Vielen Dank für deine Bestellung.'
+    }
+})
+
+const lead = computed(() => {
+    switch (state.value) {
+        case 'confirming':
+            return slow.value
+                ? `Das dauert länger als üblich. Du musst nichts weiter tun: Sobald die Zahlung bestätigt ist, bekommst du eine E-Mail an ${mailTo.value}.`
+                : 'Das dauert meist nur ein paar Sekunden – diese Seite aktualisiert sich von selbst. Bezahlt ist deine Bestellung, sobald der Zahlungsdienst sie uns bestätigt.'
+        case 'processing':
+            return `Bei einer Lastschrift kann die Bestätigung ein paar Werktage dauern. Sobald sie da ist, bekommst du eine E-Mail an ${mailTo.value} – erst dann versenden wir.`
+        case 'failed':
+            return 'Es wurde nichts abgebucht. Deine Angaben und dein Warenkorb sind noch da – versuch es gleich noch einmal, gern auch mit einer anderen Zahlungsart.'
+        case 'closed':
+            return `Status: ${props.order.statusLabel}. Sie wurde nicht bezahlt, und es wurde nichts abgebucht.`
+        default:
+            return props.payment?.mailed
+                ? `Deine Zahlung ist eingegangen. Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung ist an ${mailTo.value} unterwegs. Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.`
+                : 'Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.'
+    }
+})
+
+const TICK: Record<string, { icon: IconName; tone: string }> = {
+    paid: { icon: 'check-circle', tone: '' },
+    confirming: { icon: 'clock', tone: 'ord__tick--wait' },
+    processing: { icon: 'clock', tone: 'ord__tick--wait' },
+    failed: { icon: 'info', tone: 'ord__tick--bad' },
+    closed: { icon: 'info', tone: 'ord__tick--demo' },
+}
+
+const tick = computed(() => TICK[state.value] ?? { icon: 'check-circle' as IconName, tone: '' })
 </script>
 
 <template>
@@ -106,10 +208,16 @@ const questionHref = computed(() =>
                 </div>
             </header>
             <header v-else class="ord__head">
-                <span class="ord__tick"><Icon name="check-circle" :size="24" /></span>
-                <div>
-                    <h1 class="t-h1">Vielen Dank für deine Bestellung.</h1>
-                    <p class="t-lead ord__lead">Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.</p>
+                <span class="ord__tick" :class="tick.tone"><Icon :name="tick.icon" :size="24" /></span>
+                <div role="status" aria-live="polite" class="ord__state">
+                    <h1 class="t-h1">{{ heading }}</h1>
+                    <p class="t-lead ord__lead">{{ lead }}</p>
+                    <Link v-if="state === 'failed'" href="/kasse" class="btn btn--primary ord__retry">
+                        Zurück zur Kasse und noch einmal bezahlen
+                    </Link>
+                    <Link v-else-if="state === 'closed'" href="/warenkorb" class="btn btn--secondary ord__retry">
+                        Zum Warenkorb
+                    </Link>
                 </div>
             </header>
 
@@ -246,8 +354,21 @@ const questionHref = computed(() =>
     color: var(--ok);
 }
 
-.ord__tick--demo {
+.ord__tick--demo,
+.ord__tick--wait {
     color: var(--ink2);
+}
+
+.ord__tick--bad {
+    color: var(--danger);
+}
+
+.ord__state {
+    min-width: 0;
+}
+
+.ord__retry {
+    margin-top: var(--space-4);
 }
 
 .ord__lead {

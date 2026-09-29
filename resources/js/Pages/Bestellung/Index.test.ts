@@ -5,10 +5,16 @@ import type { BestellungProps } from '../../types/pages'
 
 /*
  * The order page (findings #3, #38, #42, #43; ACCURACY.md §3.1 F3): a seeded order says it is
- * demonstration data and that its verdicts say nothing about the car; no confirmation mail is
- * promised; no carrier is named; and questions go to the e-mail with the order number, never to
- * the Kontakt form.
+ * demonstration data and that its verdicts say nothing about the car; a confirmation mail is named
+ * only when it went out; no carrier is named; and questions go to the e-mail with the order number,
+ * never to the Kontakt form.
+ *
+ * Block G: arriving here from Stripe pays nothing. While the payment is being confirmed the page says
+ * so and asks the server; a new answer reloads the page's order, and a declined payment leads back
+ * to the Kasse.
  */
+
+const reload = vi.fn()
 
 vi.mock('@inertiajs/vue3', () => ({
     Head: defineComponent({ setup: () => () => null }),
@@ -16,6 +22,7 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
+    router: { reload: (...args: unknown[]) => reload(...args) },
 }))
 
 const { default: Bestellung } = await import('./Index.vue')
@@ -81,7 +88,47 @@ describe('Bestellung', () => {
         expect(wrapper.text()).not.toContain('Vielen Dank für deine Bestellung.')
     })
 
-    it('promises no confirmation mail and names no carrier', () => {
+    it('says the payment is being confirmed and asks the server — the page itself never marks it paid', async () => {
+        vi.useFakeTimers()
+        const answers = [{ state: 'confirming' }, { state: 'paid' }]
+        const fetchMock = vi.fn(async () => new Response(JSON.stringify(answers.shift() ?? { state: 'paid' }), { status: 200 }))
+        vi.stubGlobal('fetch', fetchMock)
+
+        try {
+            const wrapper = mountOrder(props({ payment: { state: 'confirming', poll: true, email: 'kunde@beispiel.de', mailed: false } }, { status: 'PENDING_PAYMENT', statusLabel: 'Wartet auf Zahlung' }))
+
+            expect(wrapper.find('h1').text()).toBe('Deine Zahlung wird bestätigt.')
+            expect(wrapper.text()).not.toContain('Vielen Dank')
+
+            await vi.advanceTimersByTimeAsync(2000)
+            expect(fetchMock).toHaveBeenCalledWith('/bestellung/RMF-2026-1003/status', expect.anything())
+            expect(reload).not.toHaveBeenCalled()
+
+            await vi.advanceTimersByTimeAsync(2000)
+            expect(reload).toHaveBeenCalledWith({ only: ['order', 'payment'] })
+        } finally {
+            vi.useRealTimers()
+            vi.unstubAllGlobals()
+        }
+    })
+
+    it('leads a declined payment back to the Kasse, where everything typed is still there', () => {
+        const wrapper = mountOrder(props({ payment: { state: 'failed', poll: false, email: 'kunde@beispiel.de', mailed: false } }, { status: 'FAILED', statusLabel: 'Fehlgeschlagen' }))
+
+        expect(wrapper.find('h1').text()).toBe('Die Zahlung hat nicht geklappt.')
+        expect(wrapper.text()).toContain('Es wurde nichts abgebucht.')
+        expect(wrapper.find('a.ord__retry').attributes('href')).toBe('/kasse')
+    })
+
+    it('names the confirmation mail only when it went out', () => {
+        const sent = mountOrder(props({ payment: { state: 'paid', poll: false, email: 'kunde@beispiel.de', mailed: true } }))
+        expect(sent.text()).toContain('Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung ist an kunde@beispiel.de unterwegs.')
+
+        const notSent = mountOrder(props({ payment: { state: 'paid', poll: false, email: 'kunde@beispiel.de', mailed: false } }))
+        expect(notSent.text()).not.toContain('Die Bestätigung')
+    })
+
+    it('promises no confirmation mail it did not send, and names no carrier', () => {
         const wrapper = mountOrder(props({}, { trackingCode: '003404340001000002' }))
 
         expect(wrapper.find('h1').text()).toBe('Vielen Dank für deine Bestellung.')

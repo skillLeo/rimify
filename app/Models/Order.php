@@ -93,7 +93,7 @@ class Order extends Model
             $from = $order->getOriginal('status');
             $to = $order->status;
 
-            if (! $from instanceof OrderStatus || ! $to instanceof OrderStatus || $from === $to) {
+            if (! $from instanceof OrderStatus || $from === $to) {
                 return;
             }
 

@@ -245,7 +245,9 @@ final class StripeGateway implements PaymentGateway
             return PaymentAccount::failed($e->getMessage());
         }
 
-        $capabilities = $account->capabilities?->toArray() ?? [];
+        // Read as data: a sparse account (a new one, a Connect one) leaves settings and profile out.
+        $data = $account->toArray();
+        $capabilities = is_array($data['capabilities'] ?? null) ? $data['capabilities'] : [];
         $methods = [];
 
         foreach (self::METHODS as $key => $label) {
@@ -254,11 +256,13 @@ final class StripeGateway implements PaymentGateway
             }
         }
 
+        $name = $data['settings']['dashboard']['display_name'] ?? $data['business_profile']['name'] ?? $data['email'] ?? $data['id'] ?? null;
+
         return new PaymentAccount(
             true,
-            $account->settings?->dashboard?->display_name ?? $account->business_profile?->name ?? $account->email ?? $account->id,
-            $account->country,
-            $account->default_currency === null ? null : strtoupper((string) $account->default_currency),
+            is_string($name) ? $name : null,
+            is_string($data['country'] ?? null) ? $data['country'] : null,
+            is_string($data['default_currency'] ?? null) ? strtoupper($data['default_currency']) : null,
             $methods,
             ! str_contains((string) $this->config->secretKey, '_test_'),
         );
