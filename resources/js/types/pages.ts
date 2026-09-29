@@ -586,6 +586,8 @@ export interface BestellungProps {
     }[]
     /** Where the payment stands; null on a seeded order. Only the provider's webhook ever makes it `paid`. */
     payment?: OrderPaymentState | null
+    /** „Konto anlegen“ is offered: paid, this browser placed it, no account with a password yet. */
+    accountOffer?: boolean
     contact: ContactProp
 }
 

@@ -60,6 +60,7 @@ use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Http\Controllers\Storefront\KasseZahlungController;
 use App\Http\Controllers\Storefront\KontaktController;
+use App\Http\Controllers\Storefront\KontoController;
 use App\Http\Controllers\Storefront\PaymentWebhookController;
 use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechnungController;
@@ -139,6 +140,21 @@ Route::post('/kasse/zahlung', [KasseZahlungController::class, 'store'])->middlew
 Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
 Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
+// Mein Konto (Block G §2): offered after a paid order with one click; guest checkout stays the default.
+Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->middleware('throttle:5,1,konto-anlegen')->name('bestellung.konto');
+Route::middleware('guest:customer')->group(function (): void {
+    Route::get('/konto/anmelden', [KontoController::class, 'create'])->name('konto.anmelden');
+    Route::post('/konto/anmelden', [KontoController::class, 'login'])->middleware('throttle:5,1,konto-login')->name('konto.login');
+    Route::get('/konto/passwort-vergessen', [KontoController::class, 'forgot'])->name('konto.vergessen');
+    Route::post('/konto/passwort-vergessen', [KontoController::class, 'sendLink'])->middleware('throttle:3,1,konto-vergessen')->name('konto.vergessen.senden');
+});
+Route::get('/konto/passwort/{account}', [KontoController::class, 'editPassword'])->whereNumber('account')->middleware('signed')->name('konto.passwort');
+Route::post('/konto/passwort/{account}', [KontoController::class, 'updatePassword'])->whereNumber('account')->middleware(['signed', 'throttle:5,1,konto-passwort'])->name('konto.passwort.setzen');
+Route::middleware('auth:customer')->group(function (): void {
+    Route::get('/konto', [KontoController::class, 'show'])->name('konto');
+    Route::post('/konto/abmelden', [KontoController::class, 'logout'])->name('konto.abmelden');
+    Route::delete('/konto', [KontoController::class, 'destroy'])->name('konto.loeschen');
+});
 // An invoice's PDF from the private disk, by its signed link only (Invoices::link).
 Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
 // The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.

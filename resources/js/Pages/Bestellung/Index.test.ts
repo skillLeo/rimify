@@ -15,6 +15,7 @@ import type { BestellungProps } from '../../types/pages'
  */
 
 const reload = vi.fn()
+const routerPost = vi.fn()
 
 vi.mock('@inertiajs/vue3', () => ({
     Head: defineComponent({ setup: () => () => null }),
@@ -22,7 +23,7 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
-    router: { reload: (...args: unknown[]) => reload(...args) },
+    router: { reload: (...args: unknown[]) => reload(...args), post: (...args: unknown[]) => routerPost(...args) },
 }))
 
 const { default: Bestellung } = await import('./Index.vue')
@@ -118,6 +119,27 @@ describe('Bestellung', () => {
         expect(wrapper.find('h1').text()).toBe('Die Zahlung hat nicht geklappt.')
         expect(wrapper.text()).toContain('Es wurde nichts abgebucht.')
         expect(wrapper.find('a.ord__retry').attributes('href')).toBe('/kasse')
+    })
+
+    it('offers the account in one click where the server says so, and says the link is on its way', async () => {
+        const post = vi.fn((_url: string, _data: unknown, options: { onSuccess?: () => void; onFinish?: () => void }) => {
+            options.onSuccess?.()
+            options.onFinish?.()
+        })
+        routerPost.mockImplementation(post)
+
+        const wrapper = mountOrder(props({ accountOffer: true, payment: { state: 'paid', poll: false, email: 'kunde@beispiel.de', mailed: true } }))
+        const card = wrapper.find('.ord__account')
+
+        expect(card.find('h2').text()).toBe('Konto anlegen?')
+        expect(card.text()).toContain('kunde@beispiel.de')
+
+        await card.find('button').trigger('click')
+
+        expect(post).toHaveBeenCalledWith('/bestellung/RMF-2026-1003/konto', {}, expect.anything())
+        expect(wrapper.find('.ord__account [role="status"]').text()).toBe('Der Link ist unterwegs. Mit ihm legst du dein Passwort fest.')
+
+        expect(mountOrder(props()).find('.ord__account').exists()).toBe(false)
     })
 
     it('names the confirmation mail only when it went out', () => {

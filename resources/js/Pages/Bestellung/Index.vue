@@ -188,6 +188,23 @@ const TICK: Record<string, { icon: IconName; tone: string }> = {
 }
 
 const tick = computed(() => TICK[state.value] ?? { icon: 'check-circle' as IconName, tone: '' })
+
+/* „Konto anlegen“: one click, the order's own address; the server mails the link to set the password. */
+const accountSent = ref(false)
+const accountBusy = ref(false)
+
+function openAccount(): void {
+    accountBusy.value = true
+    router.post(`/bestellung/${encodeURIComponent(props.order.number)}/konto`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            accountSent.value = true
+        },
+        onFinish: () => {
+            accountBusy.value = false
+        },
+    })
+}
 </script>
 
 <template>
@@ -306,6 +323,23 @@ const tick = computed(() => TICK[state.value] ?? { icon: 'check-circle' as IconN
                         <p class="price-legal">inkl. {{ order.tax }} MwSt. und Versand</p>
                     </div>
 
+                    <!-- Guest by default; the account is offered once, after the order, in one click (Block G §2). -->
+                    <div v-if="accountOffer" class="card ord__account">
+                        <template v-if="!accountSent">
+                            <h2 class="t-h3">Konto anlegen?</h2>
+                            <p class="t-small ord__account-text">
+                                Mit einem Klick. Wir schicken dir einen Link an {{ payment?.email ?? 'deine E-Mail-Adresse' }}, mit dem
+                                du dein Passwort festlegst – dann siehst du deine Bestellungen, Freigaben und Rechnungen jederzeit.
+                            </p>
+                            <button class="btn btn--secondary btn--block" type="button" :disabled="accountBusy" :aria-busy="accountBusy ? 'true' : undefined" @click="openAccount">
+                                Konto anlegen
+                            </button>
+                        </template>
+                        <p v-else class="t-small ord__account-text" role="status">
+                            Der Link ist unterwegs. Mit ihm legst du dein Passwort fest.
+                        </p>
+                    </div>
+
                     <!-- What happens next, as rows with a real destination each. -->
                     <ul class="ord__next">
                         <li class="ord__next-row">
@@ -365,6 +399,15 @@ const tick = computed(() => TICK[state.value] ?? { icon: 'check-circle' as IconN
 
 .ord__state {
     min-width: 0;
+}
+
+.ord__account {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.ord__account-text {
+    color: var(--ink2);
 }
 
 .ord__retry {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\AdminUser;
+use App\Models\CustomerAccount;
 use App\Models\User;
 
 return [
@@ -56,6 +57,15 @@ return [
             'driver' => 'session',
             'provider' => 'admin_users',
         ],
+
+        /*
+         * A customer's own account (Block G §2), opened after an order with one click. Its own guard for
+         * the reason the admin has one: no storefront session can ever satisfy an admin policy.
+         */
+        'customer' => [
+            'driver' => 'session',
+            'provider' => 'customer_accounts',
+        ],
     ],
 
     /*
@@ -84,6 +94,11 @@ return [
         'admin_users' => [
             'driver' => 'eloquent',
             'model' => AdminUser::class,
+        ],
+
+        'customer_accounts' => [
+            'driver' => 'eloquent',
+            'model' => CustomerAccount::class,
         ],
     ],
 

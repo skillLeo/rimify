@@ -67,11 +67,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // answer stricter; plain, it stays far below its 500 bytes (PapersBook).
         $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE, PapersBook::COOKIE]);
 
-        $middleware->redirectGuestsTo(fn (): string => '/admin/anmelden');
+        // A customer's pages (Mein Konto, Block G) send a stranger to the customer's sign-in; everything else is the admin's.
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('konto', 'konto/*') ? '/konto/anmelden' : '/admin/anmelden');
 
         // Somebody already signed into the admin who opens its sign-in page or an invitation link is
         // sent into the admin, never to the shop's home page.
-        $middleware->redirectUsersTo(fn (Request $request): string => $request->is('admin', 'admin/*') ? '/admin' : '/');
+        $middleware->redirectUsersTo(fn (Request $request): string => $request->is('admin', 'admin/*') ? '/admin' : ($request->is('konto/*') ? '/konto' : '/'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

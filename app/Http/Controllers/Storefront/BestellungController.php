@@ -8,6 +8,7 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\OrderStatusRequest;
 use App\Models\AuditLog;
+use App\Models\CustomerAccount;
 use App\Models\Order;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
@@ -52,7 +53,7 @@ class BestellungController extends Controller
         $placed = $request->session()->get(self::SESSION_PLACED);
 
         abort_unless(
-            $demo || $request->hasValidSignature() || (is_array($placed) && in_array($record->order_number, $placed, true)),
+            $demo || $request->hasValidSignature() || (is_array($placed) && in_array($record->order_number, $placed, true)) || self::ownedBySignedIn($request, $record),
             404,
         );
 
@@ -101,6 +102,10 @@ class BestellungController extends Controller
             'lines' => $lines,
             // Where the payment stands, in the page's words — and whether the page should keep asking.
             'payment' => $demo ? null : self::payment($record, $request->query('redirect_status')),
+            // „Konto anlegen“ in one click, once paid, for the browser that placed it and no account yet (Block G §2).
+            'accountOffer' => ! $demo && $record->status->isPaid() && is_array($placed) && in_array($record->order_number, $placed, true)
+                && $request->user('customer') === null
+                && ! CustomerAccount::query()->where('email', mb_strtolower((string) $record->customer?->email))->whereNotNull('password')->exists(),
             // Seeded demonstration data (CommerceSeeder): nobody placed this order, and the frozen
             // verdicts on it say nothing about the car (ACCURACY.md §3.1 F3). The snapshots stay
             // exactly as written (R-12); the page says what they are.
@@ -110,6 +115,14 @@ class BestellungController extends Controller
             // then offers the e-mail.
             'contact' => Chrome::contact(),
         ]);
+    }
+
+    /** A signed-in customer sees every order placed under the account's address (Mein Konto). */
+    private static function ownedBySignedIn(Request $request, Order $order): bool
+    {
+        $account = $request->user('customer');
+
+        return $account instanceof CustomerAccount && mb_strtolower((string) $order->customer?->email) === $account->email;
     }
 
     /**
