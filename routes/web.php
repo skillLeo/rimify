@@ -42,6 +42,7 @@ use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
+use App\Http\Controllers\Api\PlzController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\VehicleTreeController;
 use App\Http\Controllers\DesignController;
@@ -146,6 +147,8 @@ Route::prefix('api/v1')->name('api.')->group(function (): void {
         Route::get('/vehicles/models', [VehicleTreeController::class, 'models'])->name('vehicles.models');
         Route::get('/vehicles/variants', [VehicleTreeController::class, 'variants'])->name('vehicles.variants');
         Route::get('/fitment/count', FitmentCountController::class)->name('fitment.count');
+        // The checkout's Ort for a PLZ (GeoNames, CC BY 4.0): places only, never a guess.
+        Route::get('/plz/{plz}', PlzController::class)->where('plz', '[0-9]{5}')->name('plz');
         // Writes a row and sends a mail: a tighter limit than the read endpoints.
         Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:shop-benachrichtigung')->name('fitment.notify');
     });
