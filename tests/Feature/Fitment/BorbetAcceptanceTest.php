@@ -277,6 +277,42 @@ it('asks for exactly the body style and drive a row needs, answers from the owne
     expect($derived['bodyForm'])->toBe('Kombi')->and($derived['bodyFormSource'])->toBe('name');
 });
 
+/*
+ * The Nachtrag prints no table of tyre load at speed (pages 7–17: Auflage 10B sends the speed rating to the car's
+ * papers and caps the axle at twice the 650 kg Radlast; 725 asks for metal valves above 210 km/h — neither is a
+ * table). So every car faster than 210 km/h answers UNKNOWN for the tyres on the 18″, with the reason as a
+ * sentence, and never PERMITTED as a whole (R-03); up to 210 km/h the missing table changes nothing. ABE 55255
+ * prints one (page 6). The gap is named in the coverage matrix for whoever runs the shop.
+ */
+it('answers UNKNOWN for the tyres of every car over 210 km/h on the 18″, in a sentence — and names the gap in the coverage matrix', function (): void {
+    $f20 = $this->entry->vehicle('1er-1K4-04');
+    $f20->forceFill(['power_kw' => 100, 'body_form' => 'Schrägheck', 'drive_axle' => 'Hinterachse', 'axle_load_front_kg' => 1000, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => 250, 'needs_review' => false])->save();
+
+    $fast = borbetVerdict($f20, 'BOR-DB8GT2-8518-SM');
+
+    expect($fast->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($fast->tyre?->summary)->toBe('Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit. Für 250 km/h können wir die Reifen deshalb nicht bestätigen.')
+        ->and($fast->status)->not->toBe(VerdictStatus::Permitted)
+        ->and($fast->status)->toBe(VerdictStatus::Unknown)
+        // The wheel itself stays approved by the Nachtrag.
+        ->and($fast->wheelStatus)->toBe(VerdictStatus::Conditional);
+
+    // At 210 km/h the missing table has nothing to say.
+    $f20->forceFill(['max_speed_kmh' => 210])->save();
+    expect(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->tyre?->summary ?? '')->not->toContain('keine Tabelle');
+
+    // The 19″ document prints its table: the same car at 250 km/h is answered from it, not refused for its lack.
+    $f20->forceFill(['max_speed_kmh' => 250])->save();
+    expect(borbetVerdict($f20, 'BOR-DB8GT2-8519-SM')->tyre?->summary ?? '')->not->toContain('keine Tabelle');
+
+    $this->actingAs(AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail(), 'admin')
+        ->get('/admin/abdeckung')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('matrix.noSpeedTable', 1)
+            ->where('matrix.noSpeedTable.0.document', 'Nachtrag 366-0350-21-WIRD/N1')
+            ->where('matrix.noSpeedTable.0.href', '/admin/gutachten/'.$this->entry->documents['366']));
+});
+
 it('refuses a Limousine a row the document gives the Coupé only — NOT_PERMITTED, not a note — and keeps apart the cars one approval names twice', function (): void {
     // ABE 55255, page 5: Mini Paceman UKL-C/X, row code „Cpe“ and no other body style.
     $paceman = $this->entry->vehicle('pm-UKLCX-00');
