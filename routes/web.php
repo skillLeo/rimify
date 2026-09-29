@@ -396,6 +396,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('marken.index');
         Route::post('/marken', [MarkenController::class, 'store'])->name('marken.store');
         Route::put('/marken/{brand}', [MarkenController::class, 'update'])->whereNumber('brand')->name('marken.update');
+        // GPSR: the manufacturer and, outside the EU, the responsible person — printed on the product page.
+        Route::put('/marken/{brand}/hersteller', [MarkenController::class, 'manufacturer'])->whereNumber('brand')->name('marken.hersteller');
         Route::delete('/marken/{brand}', [MarkenController::class, 'destroy'])->whereNumber('brand')->name('marken.destroy');
         Route::post('/marken/{brand}/logo', [MarkenController::class, 'logo'])->whereNumber('brand')->middleware('throttle:30,1,marken-logo')->name('marken.logo');
         Route::delete('/marken/{brand}/logo', [MarkenController::class, 'removeLogo'])->whereNumber('brand')->name('marken.logo.entfernen');

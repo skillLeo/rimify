@@ -36,6 +36,9 @@ it('sends the hardening headers on every web response', function (): void {
         // Stripe is admitted on the checkout alone (CheckoutPaymentTest), never on another page (TTDSG).
         ->not->toContain('stripe')
         ->toMatch("/script-src 'self' 'nonce-[A-Za-z0-9+\/=_-]{16,}'/")
+        // TTDSG: no script from anywhere but our own origin on an ordinary page — nothing non-essential, nothing
+        // before consent. Stripe.js is the checkout's alone (CheckoutPaymentTest).
+        ->toMatch("/script-src 'self' 'nonce-[A-Za-z0-9+\/=_-]{16,}' 'wasm-unsafe-eval';/")
         ->not->toContain("script-src 'self' 'unsafe-inline'")
         ->not->toContain("'unsafe-eval'")
         ->not->toContain('*');

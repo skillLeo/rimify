@@ -279,6 +279,14 @@ export interface ProduktProps {
         rating: number | null
         ratingCount: number
         ratingLabel: string | null
+        /** GPSR, as entered per brand; null (or absent in older fixtures) until it is. */
+        manufacturer?: {
+            name: string
+            address: string
+            contact: string
+            euResponsible: { name: string; address: string | null; contact: string | null } | null
+            safetyNote: string | null
+        } | null
     }
     /** `image`: the finish's own studio photograph and its other angles, or null — then it is drawn. */
     finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]

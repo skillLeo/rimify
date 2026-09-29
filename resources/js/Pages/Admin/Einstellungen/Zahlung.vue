@@ -161,7 +161,6 @@ const COUNTRIES: Record<string, string> = { DE: 'Deutschland', AT: 'Österreich'
 .za-key,
 .za-url,
 .za-error__raw {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
 }
 

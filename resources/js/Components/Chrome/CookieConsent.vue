@@ -12,8 +12,12 @@
 import { computed } from 'vue'
 import Dialog from '../Ui/Dialog.vue'
 import { useConsent } from '../../composables/useConsent'
+import { COOKIES } from '../../legal/cookies'
 
 const consent = useConsent()
+
+/** The functional cookies by name, each with what it stores and how to clear it (Block G). */
+const FUNCTIONAL = COOKIES.filter((cookie) => cookie.category === 'Funktional')
 
 const sheetVisible = computed(() => consent.decided.value === null)
 </script>
@@ -40,16 +44,23 @@ const sheetVisible = computed(() => consent.decided.value === null)
             <li class="consent__row">
                 <p class="consent__name">Notwendig</p>
                 <span class="small quiet consent__state">Immer aktiv</span>
-                <p class="small muted consent__what">Warenkorb, gewähltes Fahrzeug, Sitzung, deine Cookie-Auswahl – und eine zufällige Kennung für diesen Browser. Sie sorgt dafür, dass unser Schutz vor zu vielen Anfragen dich nicht mit anderen im selben Netz verwechselt, etwa im Mobilfunk.</p>
+                <p class="small muted consent__what">Warenkorb, gewähltes Fahrzeug, Sitzung und deine Cookie-Auswahl.</p>
             </li>
             <li class="consent__row">
                 <p class="consent__name">Funktional</p>
-                <span class="small quiet consent__state">Nur nach Eingabe</span>
-                <p class="small muted consent__what">
-                    Die Werte aus deiner Zulassungsbescheinigung (Achslasten und Höchstgeschwindigkeit) sowie Karosserieform und Antriebsart, wenn du sie bei einem Fahrzeug einträgst – jeweils für bis zu fünf Fahrzeuge, ein Jahr lang.
-                </p>
+                <span class="small quiet consent__state">Einzeln erklärt</span>
+                <dl class="consent__cookies">
+                    <div v-for="cookie in FUNCTIONAL" :key="cookie.name" class="consent__cookie">
+                        <dt class="small consent__cookie-name">{{ cookie.name }} <span class="quiet">· {{ cookie.lifetime }}</span></dt>
+                        <dd class="small muted">{{ cookie.stores }}</dd>
+                        <dd class="small muted"><span class="consent__clear">Löschen:</span> {{ cookie.clear }}</dd>
+                    </div>
+                </dl>
             </li>
         </ul>
+        <p class="small muted">
+            Alle Cookies mit Laufzeit stehen in der <a href="/rechtliches/datenschutz#cookies">Datenschutzerklärung</a>.
+        </p>
         <template #actions>
             <button class="btn btn--primary" type="button" @click="consent.acknowledge()">Verstanden</button>
         </template>
@@ -122,5 +133,30 @@ const sheetVisible = computed(() => consent.decided.value === null)
 
 .consent__name {
     font-weight: 500;
+}
+
+.consent__cookies {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: var(--sp-12);
+    margin: 0;
+}
+
+.consent__cookie {
+    display: grid;
+    gap: var(--sp-4);
+}
+
+.consent__cookie dd {
+    margin: 0;
+}
+
+.consent__cookie-name {
+    font-weight: 500;
+}
+
+.consent__clear {
+    font-weight: 500;
+    color: var(--c-ink);
 }
 </style>

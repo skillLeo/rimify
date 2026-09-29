@@ -291,6 +291,8 @@ class FelgenController extends Controller
                 'ratingLabel' => $wheel->rating === null
                     ? null
                     : GermanFormat::rating($wheel->rating, $wheel->rating_count),
+                // GPSR: the brand's manufacturer as entered in Katalog › Marken, or null (the page then says so).
+                'manufacturer' => $wheel->brand->manufacturer(),
             ],
             'finishes' => $finishes,
             'configs' => $configs,

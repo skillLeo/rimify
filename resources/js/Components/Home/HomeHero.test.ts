@@ -541,6 +541,8 @@ describe('HomeHero · the lines under the picture', () => {
         expect(links[0]?.find('img').exists()).toBe(true)
         expect(links[0]?.text()).toContain('MOTEC MCR4 Ultimate · Light Grey D5')
         expect(links[0]?.text()).toContain(`ab 189,00${NNBSP}€ · pro Felge`)
+        // PAngV: what the price includes stands beside it.
+        expect(links[0]?.text()).toContain('inkl. MwSt., zzgl. Versand')
         expect(wrapper.text()).not.toContain(SYMBOLIC)
     })
 

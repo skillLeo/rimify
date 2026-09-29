@@ -512,6 +512,41 @@ onBeforeUnmount(() => observer?.disconnect())
 
                 <p v-if="product.descriptionDe" class="t-body pdp__desc">{{ product.descriptionDe }}</p>
             </section>
+
+            <!--
+                GPSR (Verordnung (EU) 2023/988, Art. 19): the manufacturer as they name themselves, the responsible
+                person in the EU where there is one, the product's identification and the manufacturer's safety
+                information — entered per brand in Katalog › Marken, never filled in by the shop.
+            -->
+            <section class="pdp__gpsr" aria-labelledby="pdp-gpsr">
+                <h2 id="pdp-gpsr" class="t-h3">Hersteller und Produktsicherheit</h2>
+                <dl v-if="product.manufacturer" class="spec pdp__gpsr-list">
+                    <div class="spec__row">
+                        <dt>Hersteller</dt>
+                        <dd class="pdp__gpsr-value">{{ product.manufacturer.name }}<br>{{ product.manufacturer.address }}<br>{{ product.manufacturer.contact }}</dd>
+                    </div>
+                    <div v-if="product.manufacturer.euResponsible" class="spec__row">
+                        <dt>Verantwortliche Person in der EU</dt>
+                        <dd class="pdp__gpsr-value">
+                            {{ product.manufacturer.euResponsible.name }}<template v-if="product.manufacturer.euResponsible.address"><br>{{ product.manufacturer.euResponsible.address }}</template><template v-if="product.manufacturer.euResponsible.contact"><br>{{ product.manufacturer.euResponsible.contact }}</template>
+                        </dd>
+                    </div>
+                    <div class="spec__row">
+                        <dt>Produkt</dt>
+                        <dd class="pdp__gpsr-value">
+                            {{ product.brandName }} {{ product.modelName }}<template v-if="product.typeDesignation"> · Typ {{ product.typeDesignation }}</template><template v-if="selected"> · Artikelnummer {{ selected.sku }}</template>
+                        </dd>
+                    </div>
+                    <div v-if="product.manufacturer.safetyNote" class="spec__row">
+                        <dt>Sicherheitshinweise</dt>
+                        <dd class="pdp__gpsr-value">{{ product.manufacturer.safetyNote }}</dd>
+                    </div>
+                </dl>
+                <p v-else class="t-small quiet">
+                    Die Angaben des Herstellers zu dieser Felge tragen wir gerade nach. Bis dahin beantworten wir deine
+                    Fragen dazu unter <a :href="`mailto:${shared.contact.email}`">{{ shared.contact.email }}</a>.
+                </p>
+            </section>
         </div>
     </section>
 
@@ -533,6 +568,23 @@ onBeforeUnmount(() => observer?.disconnect())
 </template>
 
 <style scoped>
+.pdp__gpsr {
+    max-width: 75ch;
+    margin-top: var(--space-7);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--line);
+}
+
+.pdp__gpsr-list {
+    margin-top: var(--space-3);
+}
+
+/* An address is lines as the manufacturer wrote them; the value is prose, not a measurement. */
+.pdp__gpsr-value {
+    white-space: pre-line;
+    text-align: left;
+}
+
 .pdp__crumbs {
     display: flex;
     flex-wrap: wrap;

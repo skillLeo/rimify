@@ -192,6 +192,38 @@ afterEach(() => {
 })
 
 describe('Produkt page', () => {
+    it('names the manufacturer, the product and the safety information as the brand carries them (GPSR)', () => {
+        const base = props().product
+        const wrapper = mountPage({
+            product: {
+                ...base,
+                typeDesignation: 'MCR4',
+                manufacturer: {
+                    name: 'Beispiel Räder GmbH',
+                    address: 'Werkstraße 1\n12345 Musterstadt',
+                    contact: 'info@beispiel-raeder.test',
+                    euResponsible: null,
+                    safetyNote: 'Montage nur durch eine Fachwerkstatt.',
+                },
+            },
+        })
+        const block = wrapper.find('.pdp__gpsr')
+
+        expect(block.find('h2').text()).toBe('Hersteller und Produktsicherheit')
+        expect(block.text()).toContain('Beispiel Räder GmbH')
+        expect(block.text()).toContain('info@beispiel-raeder.test')
+        expect(block.text()).toContain('MOTEC MCR4 Ultimate · Typ MCR4')
+        expect(block.text()).toContain('Montage nur durch eine Fachwerkstatt.')
+        expect(block.text()).not.toContain('Verantwortliche Person in der EU')
+    })
+
+    it('says the manufacturer’s details are still to come rather than invent them', () => {
+        const block = mountPage().find('.pdp__gpsr')
+
+        expect(block.find('dl').exists()).toBe(false)
+        expect(block.text()).toContain('Die Angaben des Herstellers zu dieser Felge tragen wir gerade nach.')
+    })
+
     it('says "Auf Lager" for a real model in stock, and nothing about a demo range', () => {
         const wrapper = mountPage()
 

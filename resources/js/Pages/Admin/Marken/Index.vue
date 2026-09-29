@@ -38,6 +38,20 @@ interface BrandRow {
     /** Removed Felgen keep their brand too (BrandPolicy). */
     removedWheels: number
     tyres: number
+    /** GPSR, as entered (Herstellerangaben). */
+    manufacturer: ManufacturerForm
+    /** The product page can name the manufacturer: name, address and contact are all given. */
+    manufacturerComplete: boolean
+}
+
+interface ManufacturerForm {
+    manufacturerName: string | null
+    manufacturerAddress: string | null
+    manufacturerContact: string | null
+    euResponsibleName: string | null
+    euResponsibleAddress: string | null
+    euResponsibleContact: string | null
+    safetyNote: string | null
 }
 
 const props = defineProps<{
@@ -153,6 +167,62 @@ function submit(): void {
     } else {
         router.put(`${BASE}/${editing.value}`, { ...form }, options)
     }
+}
+
+/* ── Herstellerangaben (GPSR) ─────────────────────────────────────────────── */
+
+/** The brand whose manufacturer is being entered; its form opens below the list's head. */
+const manufacturing = ref<BrandRow | null>(null)
+const maker = reactive<Record<keyof ManufacturerForm, string>>({
+    manufacturerName: '',
+    manufacturerAddress: '',
+    manufacturerContact: '',
+    euResponsibleName: '',
+    euResponsibleAddress: '',
+    euResponsibleContact: '',
+    safetyNote: '',
+})
+const makerSent = ref(false)
+const makerErrors = computed<Record<string, string>>(() => (makerSent.value ? bag.value : {}))
+
+function editManufacturer(brand: BrandRow): void {
+    for (const key of Object.keys(maker) as (keyof ManufacturerForm)[]) {
+        maker[key] = brand.manufacturer[key] ?? ''
+    }
+
+    manufacturing.value = brand
+    makerSent.value = false
+    focus.request('mk-maker-name', { scroll: true })
+}
+
+function closeManufacturer(): void {
+    const id = manufacturing.value?.id
+    manufacturing.value = null
+
+    if (id !== undefined) {
+        focus.request(more(id))
+    }
+}
+
+function saveManufacturer(): void {
+    const brand = manufacturing.value
+
+    if (brand === null) {
+        return
+    }
+
+    makerSent.value = true
+    busy.value = true
+    router.put(`${BASE}/${brand.id}/hersteller`, { ...maker }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            fresh.value = brand.id
+            closeManufacturer()
+        },
+        onFinish: () => {
+            busy.value = false
+        },
+    })
 }
 
 function upload(brand: BrandRow, event: Event): void {
@@ -323,6 +393,68 @@ function counts(brand: BrandRow): string {
             </form>
         </section>
 
+        <!-- GPSR: what the product page names about the maker of every wheel of this brand. -->
+        <section v-if="manufacturing" class="adm-section" aria-labelledby="mk-maker-title">
+            <form class="mk__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="saveManufacturer">
+                <div class="adm-section__head">
+                    <h2 id="mk-maker-title" class="adm-section__title">Herstellerangaben: {{ manufacturing.name }}</h2>
+                </div>
+                <p class="form-field__help mk__hint">
+                    Die Produktsicherheitsverordnung (GPSR) verlangt sie auf jeder Produktseite: Name, Postanschrift und
+                    Kontakt des Herstellers – so, wie er sie selbst angibt. Sitzt er außerhalb der EU, dazu die
+                    verantwortliche Person in der EU. Leer bleibt leer: der Shop ergänzt nichts.
+                </p>
+
+                <div class="adm-fields">
+                    <div class="form-field">
+                        <label class="form-field__label" for="mk-maker-name">Hersteller</label>
+                        <input id="mk-maker-name" v-model="maker.manufacturerName" class="input" :class="{ 'input--error': makerErrors.manufacturerName }" type="text" maxlength="190" autocomplete="off" placeholder="z. B. Firmenname GmbH" aria-describedby="mk-maker-name-err">
+                        <p id="mk-maker-name-err" class="form-field__error">{{ makerErrors.manufacturerName ?? '' }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-field__label" for="mk-maker-address">Postanschrift</label>
+                        <textarea id="mk-maker-address" v-model="maker.manufacturerAddress" class="input" rows="3" maxlength="500" aria-describedby="mk-maker-address-err" />
+                        <p id="mk-maker-address-err" class="form-field__error">{{ makerErrors.manufacturerAddress ?? '' }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-field__label" for="mk-maker-contact">Kontakt</label>
+                        <input id="mk-maker-contact" v-model="maker.manufacturerContact" class="input" :class="{ 'input--error': makerErrors.manufacturerContact }" type="text" inputmode="email" maxlength="190" autocomplete="off" aria-describedby="mk-maker-contact-help mk-maker-contact-err">
+                        <p id="mk-maker-contact-help" class="form-field__help">Eine E-Mail-Adresse oder eine Webadresse mit https://.</p>
+                        <p id="mk-maker-contact-err" class="form-field__error">{{ makerErrors.manufacturerContact ?? '' }}</p>
+                    </div>
+
+                    <fieldset class="mk__fieldset">
+                        <legend class="form-field__label">Verantwortliche Person in der EU – nur wenn der Hersteller außerhalb sitzt</legend>
+                        <div class="form-field">
+                            <label class="form-field__label" for="mk-eu-name">Name</label>
+                            <input id="mk-eu-name" v-model="maker.euResponsibleName" class="input" :class="{ 'input--error': makerErrors.euResponsibleName }" type="text" maxlength="190" autocomplete="off" aria-describedby="mk-eu-name-err">
+                            <p id="mk-eu-name-err" class="form-field__error">{{ makerErrors.euResponsibleName ?? '' }}</p>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-field__label" for="mk-eu-address">Postanschrift</label>
+                            <textarea id="mk-eu-address" v-model="maker.euResponsibleAddress" class="input" rows="3" maxlength="500" />
+                        </div>
+                        <div class="form-field">
+                            <label class="form-field__label" for="mk-eu-contact">Kontakt</label>
+                            <input id="mk-eu-contact" v-model="maker.euResponsibleContact" class="input" :class="{ 'input--error': makerErrors.euResponsibleContact }" type="text" maxlength="190" autocomplete="off" aria-describedby="mk-eu-contact-err">
+                            <p id="mk-eu-contact-err" class="form-field__error">{{ makerErrors.euResponsibleContact ?? '' }}</p>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-field">
+                        <label class="form-field__label" for="mk-safety">Sicherheitshinweise des Herstellers</label>
+                        <textarea id="mk-safety" v-model="maker.safetyNote" class="input" rows="4" maxlength="4000" aria-describedby="mk-safety-help" />
+                        <p id="mk-safety-help" class="form-field__help">Auf Deutsch, wie der Hersteller sie gibt – etwa zur Montage. Die Produktseite zeigt sie unter „Hersteller und Produktsicherheit“.</p>
+                    </div>
+                </div>
+
+                <div class="adm-fields__actions">
+                    <button class="btn btn--primary" type="submit" :disabled="busy">Herstellerangaben speichern</button>
+                    <button class="btn btn--secondary" type="button" @click="closeManufacturer">Abbrechen</button>
+                </div>
+            </form>
+        </section>
+
         <section class="adm-section" aria-labelledby="mk-list-title">
             <div class="adm-section__head">
                 <h2 id="mk-list-title" class="adm-section__title mk__list-title" tabindex="-1">Marken</h2>
@@ -339,6 +471,7 @@ function counts(brand: BrandRow): string {
                             <th scope="col">Markenwand</th>
                             <th scope="col" class="num">Position</th>
                             <th scope="col">Im Katalog</th>
+                            <th scope="col">Hersteller (GPSR)</th>
                             <th v-if="can.update || can.delete" scope="col"><span class="visually-hidden">Aktionen</span></th>
                         </tr>
                     </thead>
@@ -365,6 +498,11 @@ function counts(brand: BrandRow): string {
                             <td data-label="Markenwand">{{ brand.isWheelBrand ? 'Ja' : 'Nein' }}</td>
                             <td data-label="Position" data-phone="hide" class="num">{{ brand.sortOrder }}</td>
                             <td data-label="Im Katalog">{{ counts(brand) }}</td>
+                            <td data-label="Hersteller (GPSR)">
+                                <span v-if="brand.manufacturerComplete">Angegeben</span>
+                                <span v-else-if="brand.wheels > 0" class="adm-tag adm-tag--warn">Fehlt</span>
+                                <span v-else class="mk__none">–</span>
+                            </td>
                             <td v-if="can.update || can.delete" data-label="Aktionen" data-phone="menu" class="mk__actions">
                                 <!-- The picker the menu's „Logo hochladen“ opens: one per row, never shown. -->
                                 <input
@@ -388,6 +526,10 @@ function counts(brand: BrandRow): string {
                                                 <DropdownMenuItem class="adm-menu__item" @select="edit(brand)">
                                                     <Icon name="edit" :size="20" />
                                                     Bearbeiten
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem class="adm-menu__item" @select="editManufacturer(brand)">
+                                                    <Icon name="shield" :size="20" />
+                                                    Herstellerangaben
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem class="adm-menu__item" @select="pickLogo(brand)">
                                                     <Icon name="media" :size="20" />
@@ -475,6 +617,15 @@ function counts(brand: BrandRow): string {
 
 .mk__row-error {
     margin-top: var(--sp-4);
+}
+
+.mk__fieldset {
+    display: grid;
+    gap: var(--sp-16);
+    margin: 0;
+    padding: var(--sp-16) 0 0;
+    border: 0;
+    border-top: 1px solid var(--c-line);
 }
 
 @media (max-width: 767px) {
