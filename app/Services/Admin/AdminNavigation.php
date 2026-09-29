@@ -162,6 +162,8 @@ final class AdminNavigation
                 ['label' => 'Zubehörpreise', 'href' => '/admin/zubehoerpreise', 'icon' => 'prices', 'module' => PermissionModule::Catalogue->value],
                 // The bucket's keys: the Super-Admin alone, whatever the matrix says (StorageSettingPolicy).
                 ['label' => 'Medien und Speicher', 'href' => '/admin/einstellungen/speicher', 'icon' => 'storage', 'super' => true],
+                // The payment keys: the Super-Admin alone, as the bucket's (PaymentSettingPolicy).
+                ['label' => 'Zahlung', 'href' => '/admin/einstellungen/zahlung', 'icon' => 'payment', 'super' => true],
             ],
         ],
         [
@@ -218,6 +220,7 @@ final class AdminNavigation
         '/admin/navigation',
         '/admin/system',
         '/admin/einstellungen/speicher',
+        '/admin/einstellungen/zahlung',
     ];
 
     /** The role `super` pages ask for (AdminUser::isSuperAdmin). */

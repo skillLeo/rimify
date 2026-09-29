@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
+use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
 use App\Http\Controllers\Api\SearchController;
@@ -66,6 +67,7 @@ use App\Http\Controllers\Storefront\WarenkorbController;
 use App\Http\Middleware\EnsureAdminMay;
 use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
+use App\Models\PaymentSetting;
 use App\Models\StorageSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -433,6 +435,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::put('/', [SpeicherController::class, 'update'])->middleware('throttle:10,1,speicher-update')->name('speicher.update');
             Route::post('/test', [SpeicherController::class, 'test'])->middleware('throttle:10,1,speicher-test')->name('speicher.test');
             Route::post('/buckets', [SpeicherController::class, 'buckets'])->middleware('throttle:10,1,speicher-buckets')->name('speicher.buckets');
+        });
+
+        // Einstellungen › Zahlung: the Stripe keys, as the bucket's — the Super-Admin alone, then sudo mode.
+        Route::prefix('/einstellungen/zahlung')->middleware(['can:view,'.PaymentSetting::class, EnsureSudo::class])->group(function (): void {
+            Route::get('/', [ZahlungController::class, 'edit'])->name('zahlung.edit');
+            Route::put('/', [ZahlungController::class, 'update'])->middleware('throttle:10,1,zahlung-update')->name('zahlung.update');
+            Route::post('/test', [ZahlungController::class, 'test'])->middleware('throttle:10,1,zahlung-test')->name('zahlung.test');
         });
 
         // Large PDFs straight into the bucket (PdfUpload): the form, and the app's stand-in for the

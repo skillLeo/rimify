@@ -80,7 +80,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // A refused form is sent back with what was typed — never the storage keys (Medien und
         // Speicher): they would sit in the session store in clear text until the next request.
-        $exceptions->dontFlash(['access_key', 'secret']);
+        $exceptions->dontFlash(['access_key', 'secret', 'publishable_key', 'secret_key', 'webhook_secret']);
 
         /*
          * A save from an admin page after the sign-in ran out. Same-origin requests pass the CSRF
