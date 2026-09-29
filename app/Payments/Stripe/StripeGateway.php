@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Stripe;
 
+use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\PaymentEvent;
 use App\Payments\PaymentAccount;
@@ -266,6 +267,33 @@ final class StripeGateway implements PaymentGateway
             $methods,
             ! str_contains((string) $this->config->secretKey, '_test_'),
         );
+    }
+
+    public function submitEvidence(Dispute $dispute, string $text, array $files): void
+    {
+        $evidence = ['uncategorized_text' => mb_substr($text, 0, 20000)];
+
+        try {
+            foreach ($files as $file) {
+                $handle = fopen($file['path'], 'rb');
+
+                if ($handle === false) {
+                    throw new PaymentFailure("Evidence file {$file['name']} could not be read.", 'Eine Datei ließ sich nicht lesen. Es wurde nichts gesendet.');
+                }
+
+                $id = $this->client()->files->create(['purpose' => 'dispute_evidence', 'file' => $handle])->id;
+
+                match ($file['field']) {
+                    'receipt' => $evidence['receipt'] = $id,
+                    'shipping_documentation' => $evidence['shipping_documentation'] = $id,
+                    default => $evidence['uncategorized_file'] = $id,
+                };
+            }
+
+            $this->client()->disputes->update($dispute->provider_dispute_id, ['evidence' => $evidence, 'submit' => true]);
+        } catch (ApiErrorException $e) {
+            throw new PaymentFailure($e->getMessage(), 'Stripe hat die Nachweise nicht angenommen: '.$e->getMessage());
+        }
     }
 
     private function client(): StripeClient

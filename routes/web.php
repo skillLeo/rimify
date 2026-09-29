@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\BestellungenController;
 use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
+use App\Http\Controllers\Admin\ErstattungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
 use App\Http\Controllers\Admin\FragenController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Admin\RueckbuchungenController;
 use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
 use App\Http\Controllers\Admin\SpeicherController;
@@ -432,6 +434,19 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bestellungen/{order}', [BestellungenController::class, 'show'])
             ->whereNumber('order')
             ->name('bestellungen.show');
+        // Verkauf › Rückbuchungen: chargebacks from the webhook, answered with evidence through the provider's API.
+        Route::get('/rueckbuchungen', [RueckbuchungenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':orders,view')
+            ->name('rueckbuchungen.index');
+        Route::post('/rueckbuchungen/{dispute}/nachweise', [RueckbuchungenController::class, 'evidence'])
+            ->whereNumber('dispute')
+            ->middleware('throttle:10,1,rueckbuchung-nachweise')
+            ->name('rueckbuchungen.nachweise');
+        // „Erstatten“: money leaves the account, so the password once more (sudo); through the provider's API only.
+        Route::post('/bestellungen/{order}/erstattung', [ErstattungController::class, 'store'])
+            ->whereNumber('order')
+            ->middleware([EnsureSudo::class, 'throttle:10,1,erstattung'])
+            ->name('bestellungen.erstattung');
         Route::get('/bestellungen/export', [BestellungenController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':orders,export')
             ->name('bestellungen.export');

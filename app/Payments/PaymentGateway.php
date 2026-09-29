@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments;
 
+use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\PaymentEvent;
 
@@ -60,4 +61,14 @@ interface PaymentGateway
 
     /** „Verbindung testen“: the account behind the keys, or the provider's own error. */
     public function account(): PaymentAccount;
+
+    /**
+     * Answers a chargeback with the shop's evidence and submits it: the explanation, and files by the field the
+     * provider files them under (`receipt`, `shipping_documentation`, `uncategorized_file`).
+     *
+     * @param  list<array{field: string, path: string, name: string}>  $files  local paths on the private disk
+     *
+     * @throws PaymentFailure
+     */
+    public function submitEvidence(Dispute $dispute, string $text, array $files): void;
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments;
 
+use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\PaymentEvent;
 use Illuminate\Support\Facades\URL;
@@ -66,4 +67,7 @@ final class SandboxGateway implements PaymentGateway
     {
         return PaymentAccount::failed('Die Testzahlung hat kein Konto.');
     }
+
+    /** A test order has no chargeback to answer; the evidence is kept on the shop's side only. */
+    public function submitEvidence(Dispute $dispute, string $text, array $files): void {}
 }

@@ -6,8 +6,9 @@
  * since, the line says so; the order is explained by what it said then.
  */
 
-import { Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Link, router, usePage } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
+import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
@@ -78,7 +79,91 @@ const props = defineProps<{
     billing: Address | null
     sameAddress: boolean
     lines: { id: number; kind: string; label: string; quantity: number; unit: number; total: number; package: number | null; snapshot: Snapshot | null }[]
+    /** Block G: what was paid and went back, the invoice and credit notes, and whether „Erstatten“ is offered. */
+    money?: {
+        paid: number
+        refunded: number
+        refundable: number
+        /** `refundable` as the field's German figure („1.596,00“). */
+        refundableInput: string
+        canRefund: boolean
+        flag: string | null
+        error: string | null
+        papers: { number: string; kind: string; gross: number; issuedAt: string | null; href: string }[]
+        refunds: { amount: number; reason: string; status: string; at: string | null; by: string | null }[]
+    }
 }>()
+
+/* ── Erstatten: through Stripe only, with the exact amount in the question ─── */
+
+const page = usePage()
+const refundErrors = computed<Record<string, string>>(() => {
+    const raw: unknown = page.props.errors
+
+    return raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {}
+})
+
+/* The field starts at what is left, as the server writes the figure (Money::toGerman) — never divided here. */
+const refundAmount = ref(props.money?.refundableInput ?? '')
+const refundReason = ref('')
+const refundLocal = ref<string | null>(null)
+const refundOpen = ref(false)
+const refunding = ref(false)
+
+/** „1.234,56“ or „1234,5“ → cents, as the server reads it (Money::fromGerman); null when it is no amount. */
+function parseAmount(text: string): number | null {
+    const clean = text.trim().replace(/\s|€/g, '')
+
+    if (!/^\d{1,3}(\.\d{3})*(,\d{1,2})?$|^\d+(,\d{1,2})?$/.test(clean)) {
+        return null
+    }
+
+    const [whole, fraction = ''] = clean.replace(/\./g, '').split(',')
+
+    return Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
+}
+
+const refundCents = computed(() => parseAmount(refundAmount.value))
+
+function askRefund(): void {
+    const cents = refundCents.value
+    refundLocal.value = null
+
+    if (cents === null || cents < 1) {
+        refundLocal.value = 'Gib den Betrag in Euro an, zum Beispiel 399,00.'
+
+        return
+    }
+
+    if (props.money && cents > props.money.refundable) {
+        refundLocal.value = `Höchstens ${formatMoney(props.money.refundable)} lassen sich noch erstatten.`
+
+        return
+    }
+
+    if (refundReason.value.trim().length < 3) {
+        refundLocal.value = 'Schreib dazu, wofür erstattet wird – es steht auf der Gutschrift.'
+
+        return
+    }
+
+    refundOpen.value = true
+}
+
+function refund(): void {
+    refunding.value = true
+    router.post(`/admin/bestellungen/${props.order.id}/erstattung`, { amount: refundAmount.value, reason: refundReason.value }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            refundReason.value = ''
+            refundAmount.value = props.money?.refundableInput ?? ''
+        },
+        onFinish: () => {
+            refunding.value = false
+            refundOpen.value = false
+        },
+    })
+}
 
 const context = computed(() => [props.order.statusLabel, props.order.placedAt ? `bestellt am ${props.order.placedAt}` : 'noch nicht abgeschickt'].join(' · '))
 
@@ -220,11 +305,118 @@ function tagClass(state: OrderState): string | null {
             </dl>
         </section>
 
+        <section v-if="money" class="adm-section bs-money" aria-labelledby="bs-money-h">
+            <h2 id="bs-money-h" class="adm-section__title">Zahlung und Erstattung</h2>
+
+            <p v-if="money.flag" class="adm-alert" role="alert">{{ money.flag }}</p>
+            <p v-else-if="money.error" class="bs-money__error">Letzte Meldung des Zahlungsdienstes: {{ money.error }}</p>
+
+            <dl class="adm-facts">
+                <div class="adm-facts__row"><dt>Bezahlt</dt><dd>{{ formatMoney(money.paid) }}</dd></div>
+                <div class="adm-facts__row"><dt>Erstattet</dt><dd>{{ formatMoney(money.refunded) }}</dd></div>
+                <div v-if="money.paid > 0" class="adm-facts__row"><dt>Noch erstattbar</dt><dd>{{ formatMoney(money.refundable) }}</dd></div>
+            </dl>
+
+            <ul v-if="money.papers.length" class="bs-papers" aria-label="Rechnung und Gutschriften">
+                <li v-for="paper in money.papers" :key="paper.number">
+                    <a :href="paper.href" target="_blank" rel="noopener">{{ paper.kind }} {{ paper.number }}</a>
+                    <span class="bs-papers__meta">{{ paper.issuedAt }} · {{ formatMoney(paper.gross) }}</span>
+                </li>
+            </ul>
+
+            <ol v-if="money.refunds.length" class="bs-refunds" aria-label="Erstattungen">
+                <li v-for="(item, i) in money.refunds" :key="i">
+                    <span class="bs-refunds__amount">{{ formatMoney(item.amount) }}</span> · {{ item.status }} · {{ item.at }}<template v-if="item.by"> · {{ item.by }}</template>
+                    <span class="bs-refunds__reason">{{ item.reason }}</span>
+                </li>
+            </ol>
+
+            <form v-if="money.canRefund" class="bs-refund" novalidate @submit.prevent="askRefund">
+                <div class="form-field">
+                    <label class="form-field__label" for="bs-refund-amount">Betrag</label>
+                    <input id="bs-refund-amount" v-model="refundAmount" class="input bs-refund__amount" type="text" inputmode="decimal" autocomplete="off" aria-describedby="bs-refund-help bs-refund-err">
+                    <p id="bs-refund-help" class="form-field__help">In Euro, höchstens {{ formatMoney(money.refundable) }}. Das Geld geht über Stripe auf dem Weg zurück, auf dem bezahlt wurde.</p>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label" for="bs-refund-reason">Grund</label>
+                    <input id="bs-refund-reason" v-model="refundReason" class="input" type="text" maxlength="300" autocomplete="off" aria-describedby="bs-refund-reason-help bs-refund-err">
+                    <p id="bs-refund-reason-help" class="form-field__help">Steht auf der Gutschrift, die die Kundin oder der Kunde bekommt – etwa „Eine Felge zurückgeschickt“.</p>
+                </div>
+                <p id="bs-refund-err" class="form-field__error" role="alert">{{ refundLocal ?? refundErrors.refund ?? refundErrors.amountCents ?? refundErrors.reason ?? '' }}</p>
+                <div class="adm-fields__actions">
+                    <button class="btn btn--secondary" type="submit" :disabled="refunding">Erstatten …</button>
+                </div>
+            </form>
+        </section>
+
         <p class="bs-back"><Link href="/admin/bestellungen">Zurück zu den Bestellungen</Link></p>
+
+        <AdminConfirm
+            v-model:open="refundOpen"
+            :title="`${formatMoney(refundCents ?? 0)} erstatten?`"
+            :body="`Das Geld geht über Stripe an ${customer.name ?? 'die Kundin oder den Kunden'} zurück, dazu eine Gutschrift per E-Mail. Eine Erstattung lässt sich nicht zurücknehmen.`"
+            :confirm-label="`${formatMoney(refundCents ?? 0)} erstatten`"
+            :busy="refunding"
+            @confirm="refund"
+        />
     </AdminPage>
 </template>
 
 <style scoped>
+.bs-money {
+    max-width: var(--adm-form-max);
+}
+
+.bs-money__error {
+    margin: 0 0 var(--sp-16);
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+}
+
+.bs-papers,
+.bs-refunds {
+    display: grid;
+    gap: var(--sp-8);
+    margin: var(--sp-16) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.bs-papers li,
+.bs-refunds li {
+    display: grid;
+    gap: var(--sp-4);
+}
+
+.bs-papers__meta,
+.bs-refunds__reason {
+    color: var(--c-ink-2);
+}
+
+.bs-refunds__amount {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.bs-refund {
+    display: grid;
+    gap: var(--sp-16);
+    margin-top: var(--sp-24);
+    padding-top: var(--sp-16);
+    border-top: 1px solid var(--c-line);
+}
+
+.bs-refund__amount {
+    max-width: var(--sp-128);
+    font-variant-numeric: tabular-nums;
+}
+
+.bs-refund .form-field__error:empty {
+    display: none;
+}
+
 .bs-demo {
     max-width: var(--adm-form-max);
     margin: 0 0 var(--sp-24);

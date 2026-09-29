@@ -145,6 +145,16 @@ final class FakeStripe implements ClientInterface
             return [200, $intent];
         }
 
+        if ($method === 'POST' && $path === '/v1/files') {
+            $id = 'file_fake'.str_pad((string) (++$this->sequence), 6, '0', STR_PAD_LEFT);
+
+            return [200, ['id' => $id, 'object' => 'file', 'purpose' => (string) ($params['purpose'] ?? ''), 'size' => 1234]];
+        }
+
+        if ($method === 'POST' && preg_match('#^/v1/disputes/([^/]+)$#', $path, $m) === 1) {
+            return [200, array_replace(self::fixture('dispute'), ['id' => $m[1], 'evidence' => $params['evidence'] ?? [], 'status' => ($params['submit'] ?? '') === 'true' ? 'under_review' : 'needs_response'])];
+        }
+
         if ($method === 'POST' && $path === '/v1/refunds') {
             return [200, array_replace(self::fixture('refund'), [
                 'id' => 're_fake'.str_pad((string) (++$this->sequence), 6, '0', STR_PAD_LEFT),

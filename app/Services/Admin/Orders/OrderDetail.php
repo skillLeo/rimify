@@ -10,11 +10,17 @@ use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
 use App\Models\Address;
+use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
+use App\Models\Refund;
+use App\Payments\Payments;
+use App\Services\Commerce\RefundOrder;
 use App\Support\GermanFormat;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Throwable;
 
 /**
@@ -57,6 +63,45 @@ final class OrderDetail
             'billing' => self::address($order->billingAddress),
             'sameAddress' => $order->getAttribute('delivery_address_id') === $order->getAttribute('billing_address_id'),
             'lines' => $order->lines->sortBy([['package_group', 'asc'], ['id', 'asc']])->values()->map(fn (OrderLine $line): array => $this->line($line, $current))->all(),
+            'money' => self::money($order),
+        ];
+    }
+
+    /**
+     * Block G: the money on the order — what was paid, what went back and how much still can, a flag the webhook
+     * raised, the invoice and credit notes (by short-lived signed links) and every refund with who asked.
+     *
+     * @return array<string, mixed>
+     */
+    private static function money(Order $order): array
+    {
+        $refunds = Refund::query()->where('order_id', $order->id)->with('requester')->orderBy('id')->get();
+        $papers = Invoice::query()->where('order_id', $order->id)->orderBy('id')->get();
+
+        return [
+            'paid' => $order->status->isPaid() ? $order->total_cents : 0,
+            'refunded' => $order->refunded_cents,
+            'refundable' => RefundOrder::refundable($order),
+            // The same figure as the form's field shows it and the server reads it back (Money::fromGerman).
+            'refundableInput' => Money::fromMinor(RefundOrder::refundable($order))->toGerman(),
+            // Only where the order's own payment way is in force: a refund is never recorded by hand.
+            'canRefund' => RefundOrder::refundable($order) > 0 && ! $order->isDemo() && Payments::for((string) $order->getAttribute('payment_method')) !== null,
+            'flag' => $order->payment_flag,
+            'error' => $order->payment_error,
+            'papers' => $papers->map(static fn (Invoice $paper): array => [
+                'number' => $paper->number,
+                'kind' => $paper->kind === Invoice::INVOICE ? 'Rechnung' : 'Gutschrift',
+                'gross' => $paper->gross_cents,
+                'issuedAt' => GermanFormat::date($paper->issued_at),
+                'href' => URL::temporarySignedRoute('rechnung.show', now()->addMinutes(30), ['number' => $paper->number]),
+            ])->all(),
+            'refunds' => $refunds->map(static fn (Refund $refund): array => [
+                'amount' => $refund->amount_cents,
+                'reason' => $refund->reason,
+                'status' => $refund->status === 'succeeded' ? 'Erstattet' : ($refund->status === 'pending' ? 'Beauftragt' : 'Abgelehnt'),
+                'at' => GermanFormat::dateTime($refund->created_at),
+                'by' => $refund->requester?->email,
+            ])->all(),
         ];
     }
 
