@@ -21,6 +21,23 @@ final class VehicleName
         return trim("{$make} {$rest}");
     }
 
+    /**
+     * The name the shop gives a car: make and variant, as a dataset's variant names it — `BMW 320d`. A car typed
+     * from a Gutachten is named by its Fahrzeugtyp, which says nothing without the model, so it keeps the model:
+     * `BMW 1er-Reihe 187`, `BMW 5er-Reihe 5L ohne Allradlenkung`, never `BMW 187` (Block D).
+     */
+    public static function forShop(?string $make, ?string $model, ?string $variant, ?string $typeDesignation): string
+    {
+        $variant = trim((string) $variant);
+        $type = trim((string) $typeDesignation);
+
+        if ($type !== '' && str_starts_with($variant, $type)) {
+            return self::of($make, $model, $variant);
+        }
+
+        return trim(trim((string) $make).' '.$variant);
+    }
+
     /** The same, read from anything that carries `make`, `model` and `variant`. */
     public static function from(object $vehicle): string
     {

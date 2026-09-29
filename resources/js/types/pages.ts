@@ -319,7 +319,7 @@ export interface ProduktConfig {
  */
 export interface FitmentDetailView {
     sections: { title: string; items: { text: string; measures: string[] }[] }[]
-    fasteners: { label: string; torque: string | null; article: string | null; limit: string | null }[]
+    fasteners: { thread: string; label: string; torque: string | null; article: string | null; limit: string | null }[]
     tyres: { label: string; axle: string; minimum: string | null; band: string | null }[]
     notices: string[]
 }

@@ -13,6 +13,7 @@ use App\Enums\CatalogueStatus;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -164,7 +165,7 @@ final readonly class Chrome
 
             $out[] = [
                 'id' => (int) $vehicle->id,
-                'label' => trim($vehicle->make.' '.$vehicle->variant),
+                'label' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation),
                 'short' => trim($vehicle->make.' '.$vehicle->model),
             ];
         }
@@ -228,7 +229,7 @@ final readonly class Chrome
             'variant' => $vehicle->variant,
             // How a Gutachten names the car; the story's marked row shows it.
             'typeDesignation' => $vehicle->type_designation,
-            'label' => trim($vehicle->make.' '.$vehicle->variant),
+            'label' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation),
             'short' => trim($vehicle->make.' '.$vehicle->model),
             'hsn' => $vehicle->hsn,
             'tsn' => $vehicle->tsn,

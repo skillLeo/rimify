@@ -155,8 +155,11 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
         ->get('/felgen/'.GoldenRecordSeeder::SLUG)->assertOk();
     $shown = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $nineteenId)['verdict'];
 
+    // Named as the document names it, never by the Fahrzeugtyp alone.
+    expect($page->viewData('page')['props']['vehicle']['label'] ?? null)->toBe('BMW 1er-Reihe 187');
+
     expect(array_column($shown['detail']['sections'], 'title'))->toBe(['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen', 'Hinweise'])
-        ->and($shown['detail']['fasteners'])->toBe([['label' => 'Schraube M12x1,5, Kegel 60°, Schaftlänge 30'."\u{00A0}".'mm', 'torque' => '110'."\u{00A0}".'Nm', 'article' => '5248', 'limit' => null]])
+        ->and($shown['detail']['fasteners'])->toBe([['thread' => 'Schraube M12x1,5', 'label' => 'Schraube M12x1,5, Kegel 60°, Schaftlänge 30'."\u{00A0}".'mm', 'torque' => '110'."\u{00A0}".'Nm', 'article' => '5248', 'limit' => null]])
         ->and(collect($shown['detail']['tyres'])->firstWhere('label', '235/35 R19'))->toBe(['label' => '235/35 R19', 'axle' => 'Vorder- und Hinterachse', 'minimum' => null, 'band' => '85–195'."\u{00A0}".'kW'])
         ->and(collect($shown['detail']['tyres'])->firstWhere('label', '255/30 R19')['axle'])->toBe('nur Hinterachse')
         ->and($shown['document']['pdf']['page'])->toBe(2)

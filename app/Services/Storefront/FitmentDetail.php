@@ -32,7 +32,7 @@ final class FitmentDetail
     /**
      * @return array{
      *     sections: list<array{title: string, items: list<array{text: string, measures: list<string>}>}>,
-     *     fasteners: list<array{label: string, torque: string|null, article: string|null, limit: string|null}>,
+     *     fasteners: list<array{thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>,
      *     tyres: list<array{label: string, axle: string, minimum: string|null, band: string|null}>,
      *     notices: list<string>
      * }
@@ -107,7 +107,7 @@ final class FitmentDetail
      *
      * @param  list<Condition>  $conditions
      * @param  list<int>  $documentIds
-     * @return list<array{label: string, torque: string|null, article: string|null, limit: string|null}>
+     * @return list<array{thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>
      */
     private function fasteners(array $conditions, array $documentIds, ?string $type): array
     {
@@ -136,6 +136,7 @@ final class FitmentDetail
             }
 
             $out[] = [
+                'thread' => $fastener->thread,
                 'label' => implode(', ', array_filter([
                     $fastener->thread,
                     $fastener->seat,

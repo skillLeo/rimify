@@ -80,32 +80,37 @@ const entryLine = computed(() => {
 const conditions = computed(() => (props.verdict?.conditions ?? []).filter((condition) => condition !== entryLine.value))
 
 /*
- * The same Auflagen as the customer works through them (Block D, item 15): Abnahme, the work on the car with its
- * millimetres, the bolts, the tyres, the notes. A section the bolts or the sizes need is there even when no
- * sentence of that kind is.
+ * With the detail (Block D, item 15) the panel gives the overview — what there is to do, section by section —
+ * and the sentences stand in full below the purchase (FitmentDetail, #auflagen): a Nachtrag gives one car forty
+ * of them, and the buy button stays where the customer decides.
  */
 const detail = computed(() => props.verdict?.detail ?? null)
 
-const sections = computed(() => {
+const overview = computed(() => {
     const view = detail.value
 
     if (view === null) {
         return []
     }
 
-    const out = view.sections
-        .map((section) => ({ ...section, items: section.items.filter((item) => item.text !== entryLine.value) }))
-        .filter((section) => section.items.length > 0)
+    const count = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`
+    const lines: string[] = []
+    const items = (title: string): number => view.sections.find((s) => s.title === title)?.items.filter((i) => i.text !== entryLine.value).length ?? 0
 
-    for (const [title, needed] of [['Befestigung', view.fasteners.length > 0], ['Reifen', view.tyres.length > 0]] as const) {
-        if (needed && !out.some((section) => section.title === title)) {
-            out.push({ title, items: [] })
-        }
+    if (items('Abnahme') > 0) lines.push('Abnahme beim Prüfer')
+    if (items('Arbeiten am Fahrzeug') > 0) lines.push(`Arbeiten am Fahrzeug: ${count(items('Arbeiten am Fahrzeug'), 'Auflage', 'Auflagen')}`)
+    const first = view.fasteners[0]
+
+    if (first !== undefined) {
+        lines.push(`Befestigung: ${first.thread}${first.torque ? `, ${first.torque}` : ''}${view.fasteners.length > 1 ? ` – oder ${count(view.fasteners.length - 1, 'weiterer Satz', 'weitere Sätze')}` : ''}`)
+    } else if (items('Befestigung') > 0) {
+        lines.push(`Befestigung: ${count(items('Befestigung'), 'Auflage', 'Auflagen')}`)
     }
+    // The sizes themselves stand in the panel's own line below; their axles and minima in the full text.
+    const notes = items('Hinweise') + view.notices.length
+    if (notes > 0) lines.push(`Hinweise: ${notes}`)
 
-    const order = ['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen', 'Hinweise']
-
-    return out.sort((a, b) => order.indexOf(a.title) - order.indexOf(b.title))
+    return lines
 })
 
 const documentLine = computed(() => {
@@ -194,46 +199,18 @@ const headline = computed(() => {
 
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->
-            <div v-if="detail" class="fit__detail">
-                <div v-for="section in sections" :key="section.title" class="fit__sec" role="group" :aria-label="section.title">
-                    <p class="micro fit__sec-h">{{ section.title }}</p>
-                    <ul v-if="section.items.length" class="fit__conditions">
-                        <li v-for="item in section.items" :key="item.text">
-                            {{ item.text }}
-                            <ul v-if="item.measures.length" class="fit__measures">
-                                <li v-for="measure in item.measures" :key="measure" class="data">{{ measure }}</li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <ul v-if="section.title === 'Befestigung' && detail.fasteners.length" class="fit__bolts">
-                        <li v-for="bolt in detail.fasteners" :key="`${bolt.label}${bolt.torque}${bolt.limit}`">
-                            <span class="data">{{ bolt.label }}</span>
-                            <span v-if="bolt.torque"> · Anzugsmoment <span class="data">{{ bolt.torque }}</span></span>
-                            <span v-if="bolt.article" class="quiet"> · {{ bolt.article }}</span>
-                            <span v-if="bolt.limit" class="quiet"> · {{ bolt.limit }}</span>
-                        </li>
-                    </ul>
-                    <ul v-if="section.title === 'Reifen' && detail.tyres.length" class="fit__sizes">
-                        <li v-for="size in detail.tyres" :key="size.label">
-                            <span class="data">{{ size.label }}</span>
-                            <span class="quiet"> · {{ size.axle }}</span>
-                            <span v-if="size.band" class="quiet"> · <span class="data">{{ size.band }}</span></span>
-                            <span v-if="size.minimum" class="quiet"> · {{ size.minimum }}</span>
-                        </li>
-                    </ul>
-                </div>
-                <div v-if="detail.notices.length" class="fit__sec" role="group" aria-label="Hinweise des Gutachtens">
-                    <p class="micro fit__sec-h">Hinweise des Gutachtens</p>
-                    <ul class="fit__notices">
-                        <li v-for="notice in detail.notices" :key="notice">{{ notice }}</li>
-                    </ul>
-                </div>
+            <div v-if="detail && overview.length" class="fit__overview">
+                <p class="micro fit__overview-h">Das verlangt das Gutachten</p>
+                <ul class="fit__overview-list">
+                    <li v-for="line in overview" :key="line">{{ line }}</li>
+                </ul>
+                <p class="fit__pdf"><a href="#auflagen">Alle Auflagen im Wortlaut</a></p>
             </div>
-            <ul v-else-if="conditions.length" class="fit__conditions">
+            <ul v-else-if="!detail && conditions.length" class="fit__conditions">
                 <li v-for="condition in conditions" :key="condition">{{ condition }}</li>
             </ul>
 
-            <div v-if="!detail?.tyres.length && verdict.tyreSizes.length" class="fit__tyres">
+            <div v-if="verdict.tyreSizes.length" class="fit__tyres">
                 <span class="micro">Passende Reifengrößen</span>
                 <p class="data">{{ verdict.tyreSizes.join(' · ') }}</p>
             </div>
@@ -357,24 +334,17 @@ const headline = computed(() => {
     color: var(--ink);
 }
 
-/* The Auflagen in the order they are done: a small label per section, the sentences at body size. */
-.fit__sec {
+/* What there is to do, one line per section; the sentences stand in full below the purchase (#auflagen). */
+.fit__overview {
     margin-top: var(--space-3);
 }
 
-.fit__sec-h {
+.fit__overview-h {
     margin: 0;
     color: var(--ink2);
 }
 
-.fit__sec .fit__conditions {
-    margin-top: var(--space-1);
-}
-
-.fit__measures,
-.fit__bolts,
-.fit__sizes,
-.fit__notices {
+.fit__overview-list {
     display: grid;
     gap: var(--space-1);
     margin: var(--space-1) 0 0;

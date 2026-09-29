@@ -7,6 +7,7 @@ namespace App\Services\Storefront;
 use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\VehicleResolver;
+use App\Support\VehicleName;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -83,7 +84,7 @@ final readonly class FitmentCount
     {
         return [
             'id' => $vehicle->id,
-            'label' => trim($vehicle->make.' '.$vehicle->variant),
+            'label' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->typeDesignation),
             'short' => trim($vehicle->make.' '.$vehicle->model),
         ];
     }

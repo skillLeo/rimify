@@ -30,6 +30,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
@@ -399,6 +400,13 @@ onBeforeUnmount(() => observer?.disconnect())
                     </div>
                 </div>
             </div>
+
+            <!-- What the Gutachten asks of the car, in full: the panel above gives the overview and links here. -->
+            <FitmentDetail
+                v-if="selected?.verdict?.detail && shared.vehicle"
+                :detail="selected.verdict.detail"
+                :vehicle-label="shared.vehicle.label"
+            />
 
             <!-- The same size as a Komplettrad: only what the verdict permits, priced on the
                  server, or one sentence and a way forward. Absent only in fixtures. -->
