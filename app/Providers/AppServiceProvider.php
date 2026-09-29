@@ -79,8 +79,22 @@ class AppServiceProvider extends ServiceProvider
         // Strict mode is a correctness requirement on this project: outside it MySQL silently
         // coerces an unparseable axle load to 0, a zero axle load derives a minimum load index
         // of zero, and that permits every tyre. Fail loudly in every environment instead.
+        // Once per connection, never from inside itself: a connection lost during the check reconnects, which
+        // announces a new connection — asking again there recursed until PHP ran out of memory (seen when the
+        // database went away mid-suite). The running check answers for the reconnected connection: Laravel
+        // retries its query there once, and a second loss is an ordinary exception.
         Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event): void {
-            $this->assertStrictMode($event->connection);
+            if (self::$checkingStrictMode) {
+                return;
+            }
+
+            self::$checkingStrictMode = true;
+
+            try {
+                $this->assertStrictMode($event->connection);
+            } finally {
+                self::$checkingStrictMode = false;
+            }
         });
 
         Queue::failing(static function (JobFailed $event): void {
@@ -90,6 +104,9 @@ class AppServiceProvider extends ServiceProvider
         // The shop's own slow query log (storage/logs/slow-queries-*.log): the host keeps none.
         SlowQueries::listen();
     }
+
+    /** True while the strict-mode check runs: a reconnect inside it is not checked a second time. */
+    private static bool $checkingStrictMode = false;
 
     /** Set when production was started with APP_DEBUG=true: rimify:preflight fails on it. */
     public const DEBUG_WAS_ON = 'rimify.debug_was_on';

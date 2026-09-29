@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Events\ConnectionEstablished;
+use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -45,6 +47,26 @@ it('rejects a non-numeric value for a numeric column instead of coercing it to z
     } finally {
         Schema::dropIfExists('strict_mode_probe');
     }
+});
+
+// A connection lost during the check reconnects, and a reconnect announces a new connection: asking again from
+// inside the check recursed until PHP ran out of memory. The check runs once; the reconnect inside it is not re-checked.
+it('checks a connection once, and never again from inside its own check', function (): void {
+    $asked = 0;
+    $connection = Mockery::mock(MySqlConnection::class);
+    $connection->shouldReceive('getDriverName')->andReturn('mysql');
+    $connection->shouldReceive('getName')->andReturn('mysql');
+    $connection->shouldReceive('selectOne')->andReturnUsing(function () use (&$asked, $connection): object {
+        $asked++;
+        // What Laravel does when the query finds the connection gone: reconnect, and announce it.
+        event(new ConnectionEstablished($connection));
+
+        return (object) ['sql_mode' => 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,ONLY_FULL_GROUP_BY'];
+    });
+
+    event(new ConnectionEstablished($connection));
+
+    expect($asked)->toBe(1);
 });
 
 it('refuses to boot a MySQL connection that is not strict', function (): void {

@@ -57,9 +57,6 @@ final class Smoke extends Command
 
     private string $base;
 
-    /** Checked with the example catalogue (staging only): every product row says so. */
-    private bool $demo = false;
-
     public function handle(FitmentResolver $resolver, StorageSettings $settings, S3Audit $audit, MediaDisks $disks): int
     {
         $this->base = rtrim((string) ($this->option('url') ?: config('app.url')), '/');
@@ -92,7 +89,7 @@ final class Smoke extends Command
                 $price = collect($prices)->first(static fn (string $p): bool => str_contains($html, $p));
                 $this->expect($price !== null, 'kein Preis im gerenderten HTML');
 
-                return "„{$name}“ und {$price} im HTML".($this->demo ? ' (Beispielsortiment)' : '');
+                return "„{$name}“ und {$price} im HTML";
             });
 
             $pdf = null;
@@ -108,7 +105,7 @@ final class Smoke extends Command
                 preg_match('#<a href="([^"]+)"[^>]*>\s*Gutachten öffnen#u', $html, $link);
                 $pdf = isset($link[1]) ? html_entity_decode($link[1]) : null;
 
-                return trim($m[0]).' ('.GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn).')'.($this->demo ? ' – Beispielsortiment' : '');
+                return trim($m[0]).' ('.GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn).')';
             });
 
             $this->check('Gutachten-PDF', function () use (&$pdf): string {
@@ -164,28 +161,6 @@ final class Smoke extends Command
      */
     private function pair(FitmentResolver $resolver): ?array
     {
-        $real = $this->firstPair($resolver, demo: false);
-
-        // A staging preview whose real wheels still wait for a person's release and price (PRESENT.md): the
-        // example catalogue shows that pages, lookup, PDF and test order work, and every row says it was an
-        // example. Never in production, which holds no demo row (R-12) and must prove a real wheel.
-        if ($real === null && ! app()->isProduction()) {
-            $demo = $this->firstPair($resolver, demo: true);
-
-            if ($demo !== null) {
-                $this->demo = true;
-                $this->line('Keine echte freigegebene Felge: geprüft wird mit dem Beispielsortiment (Demodaten).');
-            }
-
-            return $demo;
-        }
-
-        return $real;
-    }
-
-    /** @return array{config: WheelConfig, vehicle: Vehicle}|null */
-    private function firstPair(FitmentResolver $resolver, bool $demo): ?array
-    {
         $slug = $this->option('product');
         $hsn = $this->option('hsn');
         $tsn = $this->option('tsn');
@@ -194,7 +169,7 @@ final class Smoke extends Command
             ->with(['wheelConfig.wheelModel', 'vehicle'])
             ->where('status', FitmentStatus::Published->value)
             ->whereHas('wheelConfig', static fn ($q) => $q->where('stock_qty', '>', 0))
-            ->whereHas('wheelConfig.wheelModel', static fn ($q) => $q->where('status', 'published')->where('is_demo', $demo)
+            ->whereHas('wheelConfig.wheelModel', static fn ($q) => $q->where('status', 'published')->where('is_demo', false)
                 ->when(is_string($slug) && $slug !== '', static fn ($q) => $q->where('slug', $slug)))
             ->whereHas('vehicle', static fn ($q) => $q->when(is_string($hsn) && $hsn !== '', static fn ($q) => $q->where('hsn', $hsn))
                 ->when(is_string($tsn) && $tsn !== '', static fn ($q) => $q->where('tsn', strtoupper((string) $tsn))))
