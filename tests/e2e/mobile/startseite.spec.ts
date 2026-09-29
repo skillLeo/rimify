@@ -258,8 +258,22 @@ test.describe('Startseite/Mobile', () => {
             await expect(page.locator('#h2 .hero-mobile a')).toHaveCount(0)
             await expect(page.locator('#h2 .hero-mobile')).not.toContainText(/pro Felge/)
         } else {
-            await expect(page.locator('#h2 .hero-mobile__caption')).toContainText(/pro Felge/)
-            await expect(frame).toHaveAttribute('href', /^\/felgen\//)
+            /*
+             * A link and a price go together. A product the shop sells links to its page and says its price;
+             * the golden record before anyone has priced it (a chosen draft, GoldenRecordSeeder) is named and
+             * photographed with neither — never a link to a page the storefront does not list.
+             */
+            const caption = page.locator('#h2 .hero-mobile__caption')
+            const href = await frame.getAttribute('href')
+
+            if (href !== null) {
+                expect(href).toMatch(/^\/felgen\//)
+                await expect(caption).toContainText(/pro Felge/)
+            } else {
+                await expect(caption).toContainText(/\S/)
+                await expect(caption).not.toContainText(/pro Felge/)
+                await expect(page.locator('#h2 .hero-mobile a')).toHaveCount(0)
+            }
 
             // A placeholder drawing has no photographed bolt holes or stamp to point at: no leaders.
             const drawing = (await frame.locator('img').getAttribute('src'))?.includes('/demo/placeholders/') ?? false

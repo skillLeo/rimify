@@ -11,7 +11,7 @@
  */
 
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
 import BrandWall from '../../Components/Home/BrandWall.vue'
 import RimCode from '../../Components/Home/RimCode.vue'
@@ -204,6 +204,20 @@ const rendered = computed(() => {
 })
 
 const cls = (id: string): string => rendered.value[id] ?? 'surface section'
+
+/*
+ * Laid out once, for one frame, right after the page is up: `contain-intrinsic-size: auto` then remembers each
+ * section's real height, and the sections go back to skipping their layout until they scroll near. A section
+ * met for the first time otherwise grew or shrank from its placeholder under the finger — no estimate fits
+ * every width (a phone turned sideways least of all), and WebKit has no scroll anchoring to hide the jump.
+ */
+onMounted(() => {
+    const sections = [...document.querySelectorAll<HTMLElement>('.home-below')]
+
+    sections.forEach((section) => section.classList.add('home-below--measured'))
+    // Two frames: the size is recorded at the rendering update after the sections were laid out.
+    requestAnimationFrame(() => requestAnimationFrame(() => sections.forEach((section) => section.classList.remove('home-below--measured'))))
+})
 </script>
 
 <template>
@@ -435,6 +449,42 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
 .home-below {
     content-visibility: auto;
     contain-intrinsic-size: auto 800px;
+}
+
+/*
+ * Each section's own placeholder, its content height measured at 393 px (iPhone 16, 29.09.2026). One
+ * 800 px for all was up to 700 px wrong: the Gutachten story grew by 634 px the first time it rendered,
+ * the page jumped under the finger — WebKit has no scroll anchoring to hide it — and a tap made during
+ * the jump landed on whatever had moved there. Off by at most ~120 px now (the SE's story), and once:
+ * `auto` keeps the real size after the first render.
+ */
+#h4.home-below {
+    contain-intrinsic-size: auto 1440px;
+}
+
+#h5.home-below {
+    contain-intrinsic-size: auto 690px;
+}
+
+#h6.home-below {
+    contain-intrinsic-size: auto 1310px;
+}
+
+#h8.home-below {
+    contain-intrinsic-size: auto 1330px;
+}
+
+#h10.home-below {
+    contain-intrinsic-size: auto 110px;
+}
+
+#h11.home-below {
+    contain-intrinsic-size: auto 680px;
+}
+
+/* For the one frame after mount in which the real heights are taken (the script above). */
+.home-below.home-below--measured {
+    content-visibility: visible;
 }
 
 .home-lead {
