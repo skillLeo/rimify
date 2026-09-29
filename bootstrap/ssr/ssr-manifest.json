@@ -3484,6 +3484,7 @@
   ],
   "resources/js/root.ts": [],
   "resources/js/ssr.ts": [],
+  "resources/js/ssrSocket.ts": [],
   "resources/js/stores/compare.ts": [
     "/build/assets/useShortcuts-BMZy5aND.js",
     "/build/assets/useShortcuts-C6aToX0c.css"

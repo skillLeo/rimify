@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Ssr;
 
 use Exception;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\StrayRequestException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -52,10 +53,15 @@ class BoundedSsrGateway extends HttpGateway
             return null;
         }
 
-        $url = $isHot ? $this->getHotUrl('/__inertia_ssr') : $this->getProductionUrl('/render');
+        $socket = $isHot ? null : self::socket();
+        $url = match (true) {
+            $isHot => $this->getHotUrl('/__inertia_ssr'),
+            $socket !== null => 'http://localhost/render',
+            default => $this->getProductionUrl('/render'),
+        };
 
         try {
-            $response = Http::connectTimeout((float) config('rimify.ssr.connect_timeout', 0.5))
+            $response = self::client($socket)
                 ->timeout((float) config('rimify.ssr.timeout', 2.5))
                 ->post($url, $page);
 
@@ -85,6 +91,25 @@ class BoundedSsrGateway extends HttpGateway
 
             return null;
         }
+    }
+
+    /**
+     * The renderer's socket file, where it listens on one (config rimify.ssr.socket): the shared host
+     * reaches no port a customer's process opens (D-047). Null: the TCP address Inertia is given.
+     */
+    public static function socket(): ?string
+    {
+        $socket = config('rimify.ssr.socket');
+
+        return is_string($socket) && $socket !== '' ? $socket : null;
+    }
+
+    /** The HTTP client for the renderer: through its socket where it has one, always with the short connect bound. */
+    public static function client(?string $socket): PendingRequest
+    {
+        $client = Http::connectTimeout((float) config('rimify.ssr.connect_timeout', 0.5));
+
+        return $socket === null ? $client : $client->withOptions(['curl' => [CURLOPT_UNIX_SOCKET_PATH => $socket]]);
     }
 
     public static function paused(): bool

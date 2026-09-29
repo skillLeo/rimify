@@ -21,6 +21,11 @@ APP="${APP_DIR:-$HOME/domains/rimify.skillleo.com/public_html}"
 PHP="${PHP_BIN:-/opt/alt/php84/usr/bin/php}"
 NODE="${NODE_BIN:-/opt/alt/alt-nodejs22/root/usr/bin/node}"
 SSR_PORT="${SSR_PORT:-13714}"
+# The renderer listens on this socket file: the shared host reaches no port a customer's process opens,
+# and a socket (0600) is this account's alone (D-047). SSR_SOCKET= (empty) keeps the TCP port.
+SSR_SOCKET="${SSR_SOCKET-$APP/storage/framework/ssr.sock}"
+# RIMIFY_CRON=manual: the two cron lines are printed for hPanel, never written with crontab.
+RIMIFY_CRON="${RIMIFY_CRON:-install}"
 
 # What this host is. `production` (the default): the client's shop — no demo row, ever (R-12), and
 # the release stops if it finds one. `staging`: a review preview — the admin is on, and its
@@ -76,6 +81,7 @@ set_env DB_USERNAME "${DB_USERNAME:-}"
 set_env DB_PASSWORD "${DB_PASSWORD:-}"
 set_env INERTIA_SSR_PORT "$SSR_PORT"
 set_env INERTIA_SSR_URL "http://127.0.0.1:$SSR_PORT"
+if [ -n "$SSR_SOCKET" ]; then set_env RIMIFY_SSR_SOCKET "$SSR_SOCKET"; fi
 grep -q '^APP_KEY=base64' .env || "$PHP" artisan key:generate --force --no-interaction
 
 # ── Writable directories ───────────────────────────────────────────────────────
@@ -140,18 +146,25 @@ for pid in $(pgrep -u "$(id -u)" -x node || true); do
     fi
 done
 sleep 1
-INERTIA_SSR_PORT="$SSR_PORT" nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" > storage/logs/ssr.log 2>&1 < /dev/null &
+INERTIA_SSR_PORT="$SSR_PORT" INERTIA_SSR_SOCKET="$SSR_SOCKET" nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" > storage/logs/ssr.log 2>&1 < /dev/null &
 
 # Readiness: the site is not opened before the renderer answers. Up to 30 seconds; if it never does,
 # the release stops here with the site still in maintenance (set -e) — a page without server
 # rendering is empty for search engines, and that is not how a release goes live.
+renderer_health() {
+    if [ -n "$SSR_SOCKET" ]; then
+        curl -s -m 2 -o /dev/null -f --unix-socket "$SSR_SOCKET" http://localhost/health
+    else
+        curl -s -m 2 -o /dev/null -f "http://127.0.0.1:$SSR_PORT/health"
+    fi
+}
 READY=0
 for _ in $(seq 1 30); do
-    if curl -s -m 2 -o /dev/null "http://127.0.0.1:$SSR_PORT/health"; then READY=1; break; fi
+    if renderer_health; then READY=1; break; fi
     sleep 1
 done
 if [ "$READY" = 1 ]; then
-    echo "== renderer ready on $SSR_PORT"
+    echo "== renderer ready on ${SSR_SOCKET:-port $SSR_PORT}"
 else
     echo "== renderer NOT ready after 30 s — the site stays in maintenance. storage/logs/ssr.log:"
     tail -5 storage/logs/ssr.log
@@ -164,7 +177,7 @@ fi
 # production (R-12). Idempotent: this app's two lines replaced, every other line on the account kept.
 WATCH="* * * * * SSR_PORT=$SSR_PORT NODE_BIN=$NODE bash $APP/deploy/ssr-watch.sh > /dev/null 2>&1"
 SCHEDULE="* * * * * cd $APP && $PHP artisan schedule:run > /dev/null 2>&1"
-if command -v crontab > /dev/null 2>&1 && { crontab -l 2> /dev/null | grep -v -F "$APP/deploy/ssr-watch.sh" | grep -v -F "cd $APP && "; echo "$WATCH"; echo "$SCHEDULE"; } | crontab - 2> /dev/null; then
+if [ "$RIMIFY_CRON" != manual ] && command -v crontab > /dev/null 2>&1 && { crontab -l 2> /dev/null | grep -v -F "$APP/deploy/ssr-watch.sh" | grep -v -F "cd $APP && "; echo "$WATCH"; echo "$SCHEDULE"; } | crontab - 2> /dev/null; then
     echo "== renderer watchdog and scheduler in cron"
 else
     echo "== add these two lines in hPanel → Erweitert → Cron-Jobs (every minute):"

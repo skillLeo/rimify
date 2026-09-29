@@ -1,10 +1,11 @@
 import { i as __reExport, r as __exportAll, s as __toESM, t as __commonJSMin } from "./assets/rolldown-runtime-Dr7-SnC6.js";
 import { createServer } from "http";
 import cluster from "node:cluster";
-import { existsSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import path from "node:path";
 import * as process2 from "process";
+import { createServer as createServer$1 } from "node:http";
 //#region node_modules/@vue/shared/dist/shared.cjs.prod.js
 /**
 * @vue/shared v3.5.43
@@ -36535,7 +36536,7 @@ var set7 = (n) => {
 	const started = isStarted();
 	n = clamp(n, settings.minimum, 1);
 	status = n === 1 ? null : n;
-	const progress3 = render(!started);
+	const progress3 = render$1(!started);
 	const bar = progress3.querySelector(settings.barSelector);
 	const speed = settings.speed;
 	const ease = settings.easing;
@@ -36595,7 +36596,7 @@ var increaseByRandom = (amount) => {
 	})();
 	return set7(clamp(n + amount, 0, .994));
 };
-var render = (fromStart) => {
+var render$1 = (fromStart) => {
 	if (isRendered()) return document.getElementById(baseComponentSelector);
 	document.documentElement.classList.add(`${baseComponentSelector}-busy`);
 	const bar = progress2.querySelector(settings.barSelector);
@@ -40159,9 +40160,62 @@ function root(App, props) {
 	} }, { default: () => (0, vue_exports.h)(App, { ...props }) });
 }
 //#endregion
+//#region resources/js/ssrSocket.ts
+/**
+* The renderer on a Unix socket instead of a TCP port (D-047).
+*
+* The shared host accepts no connection to a port a customer's process opens — not from SSH, not from the
+* web server's PHP: Inertia's renderer said „started“ and was never reached, so every page went out without
+* server rendering. A socket file is reachable, and only by this account (0600) — where a port on 127.0.0.1
+* would be open to every other site on the machine. The same three routes as Inertia's own server.
+*/
+function listenOnSocket(render, path) {
+	if (existsSync(path)) unlinkSync(path);
+	createServer$1((request, response) => {
+		handle(render, request, response);
+	}).listen(path, () => {
+		chmodSync(path, 384);
+		console.log(`Inertia SSR server started on ${path}.`);
+	});
+}
+async function handle(render, request, response) {
+	const send = (status, body) => {
+		response.writeHead(status, {
+			"Content-Type": "application/json",
+			Server: "Inertia.js SSR"
+		});
+		response.end(JSON.stringify(body));
+	};
+	if (request.url === "/health") {
+		send(200, {
+			status: "OK",
+			timestamp: Date.now()
+		});
+		return;
+	}
+	if (request.url !== "/render" || request.method !== "POST") {
+		send(404, {
+			status: "NOT_FOUND",
+			timestamp: Date.now()
+		});
+		return;
+	}
+	let body = "";
+	for await (const chunk of request) body += String(chunk);
+	try {
+		send(200, await render(JSON.parse(body)));
+	} catch (error) {
+		console.error(error);
+		send(500, {
+			error: error instanceof Error ? error.message : String(error),
+			type: "render"
+		});
+	}
+}
+//#endregion
 //#region resources/js/ssr.ts
 var appName = process.env.VITE_APP_NAME || "RIMIFY";
-server_default((page) => createInertiaApp({
+var render = (page) => createInertiaApp({
 	page,
 	render: import_server_renderer_cjs_prod.renderToString,
 	title: (title) => title ? `${title} · ${appName}` : appName,
@@ -40247,7 +40301,10 @@ server_default((page) => createInertiaApp({
 	setup({ App, props, plugin }) {
 		return (0, vue_exports.createSSRApp)({ render: () => root(App, props) }).use(plugin).use(createPinia());
 	}
-}), {
+});
+var socket = process.env.INERTIA_SSR_SOCKET;
+if (socket) listenOnSocket((page) => render(page), socket);
+else server_default(render, {
 	port: Number(process.env.INERTIA_SSR_PORT ?? 13714),
 	host: "127.0.0.1"
 });
