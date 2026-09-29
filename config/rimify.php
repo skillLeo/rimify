@@ -153,6 +153,14 @@ return [
         'driver' => env('RIMIFY_PAYMENTS', filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL) ? 'sandbox' : 'none'),
     ],
 
+    // The database engines — and their release series — the test suite runs against (D-052): the app
+    // refuses any other at the first connection (DatabaseEngine). MariaDB 11.8 is the Hostinger host's
+    // (read 2026-09-29, 11.8.9); MySQL 8.4 is CLAUDE.md §4's. CI runs the suite on both
+    // (.github/workflows/tests.yml); a test keeps the two lists equal.
+    'database' => [
+        'engines' => ['MariaDB 11.8', 'MySQL 8.4'],
+    ],
+
     // Server-side rendering's bounds (App\Support\Ssr\BoundedSsrGateway), in seconds: how long to
     // wait for the renderer to answer the phone, how long for a page, and how long to leave it alone
     // after it failed. The browser renders meanwhile; nothing on the page depends on which one drew it.

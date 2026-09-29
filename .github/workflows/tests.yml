@@ -1,0 +1,89 @@
+name: Tests
+
+# The Pest suite against every database engine the app accepts (D-052, config rimify.database.engines;
+# StrictModeTest keeps the two lists equal). The preview host runs MariaDB 11.8 — read there on
+# 2026-09-29 as 11.8.9 — with a lax global sql_mode, utf8mb4_unicode_ci as the server's collation and
+# innodb_strict_mode off; the MariaDB leg starts its server with exactly those settings, so what the app
+# sets per session is what is tested. MySQL 8.4 is CLAUDE.md §4's engine and runs as shipped.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pest:
+    name: Pest on ${{ matrix.db.engine }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - engine: 'MariaDB 11.8'
+            image: 'mariadb:11.8.9'
+            args: '--sql-mode=NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb-strict-mode=OFF --max-allowed-packet=1G'
+            ping: 'healthcheck.sh --connect --innodb_initialized'
+          - engine: 'MySQL 8.4'
+            image: 'mysql:8.4.9'
+            args: '--log-bin-trust-function-creators=1'
+            ping: 'mysqladmin ping -h 127.0.0.1 -uroot -proot --silent'
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: rimify_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start ${{ matrix.db.engine }}
+        run: |
+          docker run -d --name db -p 3306:3306 \
+            -e MARIADB_ROOT_PASSWORD=root -e MYSQL_ROOT_PASSWORD=root \
+            -e MARIADB_DATABASE=rimify_test -e MYSQL_DATABASE=rimify_test \
+            ${{ matrix.db.image }} ${{ matrix.db.args }}
+          for i in $(seq 1 60); do
+            if docker exec db sh -c "${{ matrix.db.ping }}" > /dev/null 2>&1; then echo "up after ${i} s"; break; fi
+            sleep 1
+          done
+          docker exec db sh -c "${{ matrix.db.ping }}"
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, gd, zip, bcmath, exif
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      # Pages render through Vite in the feature tests: the manifest must exist.
+      - name: Client build
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: The engine the suite runs on
+        run: php -r '$p = new PDO("mysql:host=127.0.0.1;port=3306", "root", "root"); echo $p->query("SELECT VERSION()")->fetchColumn(), PHP_EOL;'
+
+      - name: Pest
+        run: php vendor/bin/pest

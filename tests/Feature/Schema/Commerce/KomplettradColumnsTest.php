@@ -16,16 +16,31 @@ use Illuminate\Support\Facades\Schema;
  * a demonstration tyre out of a real order (docs/specs/komplettrad.md §2.2, §2.3, §2.4).
  */
 
-/** @return array<string, array{type: string, nullable: bool, default: string|null}> */
+/**
+ * The columns as a value, whichever engine answers. MariaDB reports a default as the expression it is — no
+ * default as the string `NULL`, a text default quoted — where MySQL gives the value (D-052, found running this
+ * suite on MariaDB 11.8): the same schema, spelt two ways.
+ *
+ * @return array<string, array{type: string, nullable: bool, default: string|null}>
+ */
 function komplettradColumnsOf(string $table): array
 {
     $out = [];
 
     foreach (Schema::getColumns($table) as $column) {
+        $default = $column['default'] === null ? null : (string) $column['default'];
+
+        if ($default === 'NULL') {
+            $default = null;
+        } elseif ($default !== null && preg_match("/^'(.*)'$/s", $default, $m) === 1) {
+            $default = $m[1];
+        }
+
         $out[$column['name']] = [
-            'type' => $column['type'],
+            // MariaDB keeps an integer's display width (`bigint(20) unsigned`); MySQL 8 dropped it.
+            'type' => (string) preg_replace('/^(tinyint|smallint|mediumint|int|bigint)\(\d+\)/', '$1', (string) $column['type']),
             'nullable' => (bool) $column['nullable'],
-            'default' => $column['default'] === null ? null : (string) $column['default'],
+            'default' => $default,
         ];
     }
 
