@@ -240,7 +240,8 @@
 
 /* Collapsed by the window (no room for the rail beside 960 px of content): the toggle stays, quieter,
    and its tooltip says why it cannot open. */
-.adm-rail__toggle[aria-disabled='true'] {
+/* Scoped to the rail so it outranks `.adm-iconbtn[aria-disabled='true']`, which comes later (EF-10). */
+.adm-rail .adm-rail__toggle[aria-disabled='true'] {
     color: var(--c-ink-3);
     cursor: default;
 }

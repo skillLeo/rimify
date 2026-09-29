@@ -16,6 +16,8 @@ const props = defineProps<{ minutes: number; weiter?: string | null }>()
 const form = useForm({ password: '', weiter: props.weiter ?? null })
 
 function confirm(): void {
+    // Each try answers for itself: a refused seventh („Zu viele Versuche“) must not stand under the sixth's error.
+    form.clearErrors()
     form.post('/admin/bestaetigen', { onFinish: () => form.reset('password') })
 }
 </script>

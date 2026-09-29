@@ -75,7 +75,9 @@ const collapsed = computed(() => (shell.rail?.shown.value ?? shell.railCollapsed
 
 /* The toggle names what it will do to the rail as it is shown — collapsed by the window included. */
 const railClosed = computed(() => shell.rail?.shown.value ?? shell.railCollapsed.value)
-const hint = computed(() => shell.rail?.hint?.value ?? null)
+// The toggle's tooltip: why it does less than its name where it does, and in the icon rail its name — every
+// other icon there has one (EF-11).
+const hint = computed(() => shell.rail?.hint?.value ?? (railClosed.value ? 'Seitenleiste ausklappen' : null))
 
 /*
  * An item whose label ends in „…“ at this width shows the whole of it in a tooltip, as the icon rail
