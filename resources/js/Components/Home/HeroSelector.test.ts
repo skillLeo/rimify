@@ -456,7 +456,7 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(byLabel(wrapper, 'HSN (Feld 2.1)').element.value).toBe('9999')
         expect(byLabel(wrapper, 'TSN (Feld 2.2)').element.value).toBe('ZZZ')
         const notice = wrapper.find('.sel__notfound')
-        expect(notice.text()).toContain('Zu 9999/ZZZ haben wir kein Fahrzeug gefunden.')
+        expect(notice.text()).toContain('Zu 9999/ZZZ haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.')
 
         const routes = notice.findAll('.link')
         expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Anrufen: 0800 555 01 00'])
@@ -494,7 +494,7 @@ describe('HeroSelector — HSN/TSN', () => {
         await nextTick()
 
         const notice = wrapper.find('.sel__notfound')
-        expect(notice.text()).toContain('Zu 9999/ZZZ haben wir kein Fahrzeug gefunden.')
+        expect(notice.text()).toContain('Zu 9999/ZZZ haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.')
 
         const routes = notice.findAll('.link')
         expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns: service@example.com'])

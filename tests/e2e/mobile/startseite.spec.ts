@@ -169,7 +169,7 @@ test.describe('Startseite/Mobile', () => {
         await page.getByLabel('HSN (Feld 2.1)').fill('9999')
         await page.getByLabel('TSN (Feld 2.2)').fill('ZZZ')
 
-        await expect(page.locator('#h2')).toContainText('haben wir kein Fahrzeug gefunden')
+        await expect(page.locator('#h2')).toContainText('für dieses Fahrzeug noch nicht hinterlegt')
         await expect(page.getByLabel('HSN (Feld 2.1)')).toHaveValue('9999')
         await expect(page.getByRole('button', { name: 'Nochmal prüfen' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Über Marke & Modell wählen' })).toBeVisible()

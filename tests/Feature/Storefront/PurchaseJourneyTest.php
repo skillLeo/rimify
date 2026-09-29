@@ -184,7 +184,9 @@ it('keeps what was typed and offers three ways forward when nothing matches', fu
         ->assertSessionHasInput('hsn', '9999')
         ->assertSessionHasInput('tsn', 'ZZZ');
 
-    expect(session('lookup')['status'])->toBe('not_found');
+    expect(session('lookup')['status'])->toBe('not_found')
+        // Block G §9: it never guesses — no nearby key number, no „did you mean“, only what was typed.
+        ->and(array_keys(session('lookup')))->toBe(['status', 'hsn', 'tsn']);
 
     // The miss is also the most valuable signal this business has about what to buy next.
     expect(

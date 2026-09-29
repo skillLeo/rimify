@@ -60,7 +60,7 @@ function byLabel(wrapper: VueWrapper, text: string): DOMWrapper<HTMLInputElement
     return wrapper.find<HTMLInputElement>(`#${CSS.escape(label.attributes('for') ?? '')}`)
 }
 
-/** The three ways forward under "kein Fahrzeug gefunden", in order. */
+/** The three ways forward under "für dieses Fahrzeug noch nicht hinterlegt", in order. */
 function routes(wrapper: VueWrapper): DOMWrapper<Element>[] {
     return wrapper.find('.vpanel__miss').findAll('.link')
 }
@@ -97,7 +97,7 @@ describe('VehiclePanel — nothing found, three ways forward (R-09)', () => {
         current.props.lookup = NOT_FOUND
         const wrapper = mountPanel()
 
-        expect(wrapper.find('.vpanel__miss').text()).toContain('Zu 9999/ZZZ haben wir kein Fahrzeug gefunden.')
+        expect(wrapper.find('.vpanel__miss').text()).toContain('Zu 9999/ZZZ haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.')
 
         const ways = routes(wrapper)
         expect(ways.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns: service@example.com'])
