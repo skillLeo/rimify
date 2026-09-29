@@ -555,6 +555,8 @@ function cell(slot: Slot): Record<string, number> {
 /* Under the chart, what it counts: 13.5 px, the tertiary ink — two short sentences, two lines at most. */
 .chart-caption {
     max-width: 60ch;
+    /* Two lines, always — the skeleton holds two (UEB-02); a caption that fits one must not shrink the widget. */
+    min-height: calc(2 * var(--adm-lh-caption));
     margin: var(--sp-12) 0 0;
     font-size: var(--adm-fs-caption);
     line-height: var(--adm-lh-caption);
