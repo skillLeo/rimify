@@ -34,7 +34,7 @@ describe('FitmentDetail', () => {
 
     // D-04: a sentence the document hangs off some sizes says which, above it; one for every size says none.
     it('names the sizes a sentence belongs to', () => {
-        expect(wrapper.findAll('.fdt__for').map((s) => s.text())).toEqual(['Gilt für 245/35 R18', 'Gilt für 245/35 R18 und 255/35 R18'])
+        expect(wrapper.findAll('.fdt__for').map((s) => s.text())).toEqual(['Nur bei 245/35 R18', 'Nur bei 245/35 R18 und 255/35 R18'])
         expect(wrapper.findAll('.fdt__main li').find((li) => li.text().includes('vorderen Radhausausschnittkanten'))?.find('.fdt__for').exists()).toBe(false)
     })
 

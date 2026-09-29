@@ -103,12 +103,15 @@ const overview = computed(() => {
     const bySize = view.sections.find((s) => s.title === 'Arbeiten am Fahrzeug')?.items.some((i) => i.sizes?.length) ?? false
 
     if (items('Abnahme') > 0) lines.push('Abnahme beim Prüfer')
-    if (work > 0) lines.push(`${bySize ? 'bis zu ' : ''}${work} ${work === 1 ? 'Arbeit' : 'Arbeiten'} am Fahrzeug`)
+    if (work > 0) lines.push(`${bySize ? 'bis zu ' : ''}${work} ${work === 1 ? 'Arbeit' : 'Arbeiten'} am Fahrzeug${bySize ? ', je nach Reifengröße' : ''}`)
 
     if (first !== undefined) {
         // Which set is the car's is not the customer's choice (D-08): the car decides.
         const more = view.fasteners.length - 1
-        lines.push(`${first.thread}${first.torque ? `, ${first.torque}` : ''}${more > 0 ? ` oder ${more === 1 ? 'ein anderer Schraubensatz' : `einer von ${more} anderen Schraubensätzen`}, je nach Fahrzeug` : ''}`)
+
+        lines.push(more > 0
+            ? `${first.thread}${first.torque ? ` (${first.torque})` : ''} oder ${more === 1 ? 'ein anderer Schraubensatz' : `einer von ${more} anderen Schraubensätzen`} – welcher, hängt von deinem Fahrzeug ab`
+            : `${first.thread}${first.torque ? `, ${first.torque}` : ''}`)
     }
 
     return lines

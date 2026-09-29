@@ -30,13 +30,13 @@ const todo = computed(() => TODO
 
 const notes = computed(() => props.detail.sections.find((s) => s.title === 'Hinweise')?.items ?? [])
 
-/* A sentence the document hangs off some sizes only says which (D-04): „Gilt für 235/35 R19 und 255/30 R19“. */
+/* A sentence the document hangs off some sizes only says which, as a limit (D-04): „Nur bei 235/35 R19 und 255/30 R19“. */
 function forSizes(sizes: string[] | undefined): string | null {
     if (!sizes?.length) {
         return null
     }
 
-    return `Gilt für ${sizes.length === 1 ? sizes[0] : `${sizes.slice(0, -1).join(', ')} und ${sizes[sizes.length - 1]}`}`
+    return `Nur bei ${sizes.length === 1 ? sizes[0] : `${sizes.slice(0, -1).join(', ')} und ${sizes[sizes.length - 1]}`}`
 }
 
 /* RIMIFY's own sentences (the kW band) are marked, so the lede's „Wörtlich“ stays true (D-10). */
@@ -81,8 +81,9 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
                         </tbody>
                     </table>
                     <p v-if="section.title === 'Befestigung' && namesNachtrag" class="small muted fdt__aside">
-                        „Nachtrag“ meint hier den Stand der EG-Typgenehmigung deines Fahrzeugs: die Ziffern nach dem
-                        letzten Sternchen in Feld K der Zulassungsbescheinigung Teil I, etwa „04“ bei e1*2007/46*0283*04.
+                        „Nachtrag“ meint hier den Stand der EG-Typgenehmigung deines Fahrzeugs, nicht den des Gutachtens.
+                        Er steht in Feld K der Zulassungsbescheinigung Teil I: die Ziffern nach dem letzten Sternchen, bei
+                        …*04 also „04“.
                     </p>
 
                     <table v-if="section.title === 'Reifen' && detail.tyres.length" class="fdt__table">
