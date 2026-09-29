@@ -385,7 +385,8 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
         $document = ApprovalDocument::factory()->draft()->create(['page_count' => 12]);
         $coupe = Vehicle::factory()->create(['body_form' => 'Coupe']);
         $kombi = Vehicle::factory()->create(['body_form' => 'Kombi']);
-        $unknown = Vehicle::factory()->create(['body_form' => null]);
+        // A name that gives no body style away: „Avant“ or „Coupe“ in a random one would answer for it (D-034).
+        $unknown = Vehicle::factory()->create(['body_form' => null, 'model' => 'Golf', 'variant' => 'GTI']);
         $size = wheelSize();
 
         $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'Cpe', 'kind' => 'karosserieform', 'text_de' => 'Nur für Fahrzeuge mit Coupé-Karosserie.', 'body_forms' => ['Coupe', 'Cabrio']])
