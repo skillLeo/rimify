@@ -544,8 +544,8 @@ onBeforeUnmount(() => treeController?.abort())
         <div v-if="garage.length" class="sel__garage">
             <p class="label">Zuletzt gewählt:</p>
             <div class="chip-row">
-                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" @click="choose(g.id)">
-                    {{ g.short }}
+                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" :aria-label="g.range ? `${g.label} · ${g.range}` : g.label" @click="choose(g.id)">
+                    {{ g.short }}<span v-if="g.range" class="sel__chip-range num"> · {{ g.range }}</span>
                 </button>
             </div>
         </div>
@@ -872,8 +872,8 @@ onBeforeUnmount(() => treeController?.abort())
         <div v-if="garage.length" class="sel__garage">
             <p class="label">Zuletzt gewählt:</p>
             <div class="chip-row">
-                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" @click="choose(g.id)">
-                    {{ g.short }}
+                <button v-for="g in garage" :key="g.id" class="chip" type="button" :disabled="pending" :aria-label="g.range ? `${g.label} · ${g.range}` : g.label" @click="choose(g.id)">
+                    {{ g.short }}<span v-if="g.range" class="sel__chip-range num"> · {{ g.range }}</span>
                 </button>
             </div>
         </div>
@@ -1060,6 +1060,12 @@ onBeforeUnmount(() => treeController?.abort())
     display: grid;
     gap: var(--sp-8);
     margin-top: var(--sp-16);
+}
+
+/* Feld K's range beside the name, quieter: what tells two halves of one car apart. */
+.sel__chip-range {
+    color: var(--c-ink-2);
+    font-weight: 400;
 }
 
 /* With a vehicle */

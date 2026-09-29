@@ -149,6 +149,34 @@ describe('VehiclePanel — the halves of one car', () => {
     })
 })
 
+describe('VehiclePanel — the garage', () => {
+    it('gives each half of one car its Feld K range, on the chip and in its name', () => {
+        const nb = String.fromCharCode(160)
+        const wrapper = mount(VehiclePanel, {
+            props: {
+                makes: [{ make: 'BMW', models: 3 }],
+                garage: [
+                    { id: 82, label: 'BMW 1er-Reihe 1K4', short: 'BMW 1er-Reihe', range: `Feld${nb}K ab${nb}*04` },
+                    { id: 80, label: 'BMW 1er-Reihe 1K4', short: 'BMW 1er-Reihe', range: `Feld${nb}K *00 bis${nb}*03` },
+                    { id: 7, label: 'BMW 320i', short: 'BMW 3er', range: null },
+                ],
+            },
+            global: { stubs: { BottomSheet: true } },
+            attachTo: document.body,
+        })
+        mounted.push(wrapper)
+
+        const chips = wrapper.find('.vpanel__garage').findAll('button')
+
+        expect(chips.map((c) => c.text())).toEqual([`BMW 1er-Reihe · Feld${nb}K ab${nb}*04`, `BMW 1er-Reihe · Feld${nb}K *00 bis${nb}*03`, 'BMW 3er'])
+        expect(chips.map((c) => c.attributes('aria-label'))).toEqual([
+            `BMW 1er-Reihe 1K4 · Feld${nb}K ab${nb}*04`,
+            `BMW 1er-Reihe 1K4 · Feld${nb}K *00 bis${nb}*03`,
+            'BMW 320i',
+        ])
+    })
+})
+
 describe('VehiclePanel — a failed notify request', () => {
     async function failNotify(wrapper: VueWrapper): Promise<string> {
         const zero: FitmentCountResponse = { count: 0, permitted: 0, conditional: 0, vehicle: { id: 7, label: 'BMW 320i' }, ambiguous: [] }

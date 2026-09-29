@@ -548,7 +548,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
         <div v-if="garage.length" class="vpanel__garage">
             <span class="label">Zuletzt gewählt:</span>
             <div class="chip-row">
-                <button v-for="entry in garage" :key="entry.id" class="chip m-press" type="button" :aria-label="entry.label" @click="pick(entry.id)">{{ entry.short }}</button>
+                <button v-for="entry in garage" :key="entry.id" class="chip m-press" type="button" :aria-label="entry.range ? `${entry.label} · ${entry.range}` : entry.label" @click="pick(entry.id)">{{ entry.short }}<span v-if="entry.range" class="vpanel__chip-range num"> · {{ entry.range }}</span></button>
             </div>
         </div>
     </div>
@@ -659,6 +659,12 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     display: grid;
     gap: var(--sp-8);
     padding-top: var(--sp-4);
+}
+
+/* Feld K's range beside the name, quieter: what tells two halves of one car apart. */
+.vpanel__chip-range {
+    color: var(--c-ink-2);
+    font-weight: 400;
 }
 
 .vpanel__doc-toggle {

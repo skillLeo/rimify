@@ -109,6 +109,8 @@ export interface GarageVehicle {
     id: number
     label: string
     short: string
+    /** `Feld K ab *04` — for a car without key numbers, the range that tells a Gutachten's halves of it apart. */
+    range?: string | null
 }
 
 export interface ServiceStatusProp {

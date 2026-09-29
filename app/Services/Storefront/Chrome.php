@@ -141,7 +141,7 @@ final readonly class Chrome
     }
 
     /**
-     * @return list<array{id: int, label: string, short: string}>
+     * @return list<array{id: int, label: string, short: string, range: string|null}>
      */
     private function garage(Request $request): array
     {
@@ -167,6 +167,8 @@ final readonly class Chrome
                 'id' => (int) $vehicle->id,
                 'label' => VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation),
                 'short' => trim($vehicle->make.' '.$vehicle->model),
+                // The halves of a car a Gutachten splits read alike by name: Feld K's range tells them apart.
+                'range' => $vehicle->hsn === null ? GermanFormat::egRange($vehicle->eg_nummer_raw, short: true) : null,
             ];
         }
 

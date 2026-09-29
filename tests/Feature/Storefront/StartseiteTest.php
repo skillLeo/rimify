@@ -188,5 +188,25 @@ it('keeps the last vehicles chosen in the garage', function (): void {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('garage', 1)
             ->where('garage.0.short', 'BMW 3er')
+            // A car with key numbers is told apart by them: no Feld K range on its chip.
+            ->where('garage.0.range', null)
+        );
+});
+
+// The halves of a car a Gutachten splits read alike by name: each chip carries Feld K's range.
+it('gives a car without key numbers its Feld K range in the garage', function (): void {
+    $half = static fn (string $eg): int => (int) Vehicle::factory()->create([
+        'hsn' => null, 'tsn' => null, 'vsn' => null, 'make' => 'BMW', 'model' => '1er-Reihe', 'variant' => '1K4',
+        'type_designation' => '1K4', 'build_from' => null, 'build_to' => null, 'eg_nummer_raw' => $eg,
+    ])->id;
+    $early = $half('e1*2007/46*0283*00-03');
+    $late = $half('e1*2007/46*0283*04-..');
+    $nb = "\u{00A0}";
+
+    $this->withCookies([Garage::COOKIE => (new Garage([$late, $early]))->encode()])
+        ->get('/')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('garage.0.range', "Feld{$nb}K ab{$nb}*04")
+            ->where('garage.1.range', "Feld{$nb}K *00 bis{$nb}*03")
         );
 });
