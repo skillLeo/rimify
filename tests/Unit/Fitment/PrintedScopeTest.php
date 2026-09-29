@@ -138,6 +138,13 @@ it('lets in any drive a row names „nur mit“, keeps out each „nicht mit“,
     expect(RowFilter::admitAll($fiveSeries, psCar('Limousine', 'Allrad')))->toBeFalse()
         ->and(RowFilter::admitAll($fiveSeries, psCar('Limousine', 'Hinterachse')))->toBeNull();
 
+    // Codes that together let in every body style narrow nothing: the 18″ Nachtrag's „Pkw geschlossen; Cabrio“
+    // (BMW 3/B) passes a car whose body style no record holds.
+    $closedOrOpen = [psBody('Pkw geschlossen', 'Limousine', 'Kombi', 'Coupe', 'Schrägheck', 'SUV', 'Van'), psBody('Cabrio', 'Cabrio', 'Roadster')];
+
+    expect(RowFilter::admitAll($closedOrOpen, psCar(null)))->toBeTrue()
+        ->and(RowFilter::admitAll([psBody('Pkw geschlossen', 'Limousine', 'Kombi', 'Coupe', 'Schrägheck', 'SUV', 'Van')], psCar(null)))->toBeNull();
+
     // A body-style code and a drive code on one row both have to let the car in.
     expect(RowFilter::admitAll([psBody('Lim', 'Limousine'), psDrive('A56', 'only', 'Allrad')], psCar('Limousine', 'Allrad')))->toBeTrue()
         ->and(RowFilter::admitAll([psBody('Lim', 'Limousine'), psDrive('A56', 'only', 'Allrad')], psCar('Kombi', null)))->toBeFalse();

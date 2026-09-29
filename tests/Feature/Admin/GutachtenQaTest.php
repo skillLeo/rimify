@@ -121,6 +121,25 @@ it('takes one size printed at two kW bands, or with two load indexes, as two ent
         ->assertSessionHasErrors(['tyre_sizes.1.width_mm' => 'Diese Reifengröße steht mit diesem kW-Bereich und diesen Indizes schon in der Liste.']);
 });
 
+it('takes one code beside several sizes, as the documents print it, and refuses it twice beside one (Block D)', function (): void {
+    // ABE 55255, page 2: K2b, K41 and K46 beside 215/35R19, 225/35R19 and 235/35R19 alike.
+    $document = ApprovalDocument::factory()->draft()->create();
+    $vehicle = Vehicle::factory()->create();
+    $size = qaSize();
+    $sizes = [
+        ['width_mm' => 215, 'aspect' => 35, 'diameter' => 19, 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 125, 'codes' => ['K2b', 'K41', 'K46', 'T85']],
+        ['width_mm' => 225, 'aspect' => 35, 'diameter' => 19, 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 195, 'codes' => ['K2b', 'K41', 'K43', 'K46', 'T84', 'T88']],
+    ];
+
+    $this->actingAs(qaAdmin(), 'admin')
+        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => $sizes]))
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs(qaAdmin(), 'admin')
+        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => [[...$sizes[0], 'codes' => ['K2b', 'K41', 'K2b']]]]))
+        ->assertSessionHasErrors(['tyre_sizes.0.codes.2' => 'Dieser Code steht bei der Reifengröße zweimal.']);
+});
+
 it('takes a code as the 18″ Nachtrag prints it in its Auflagen column — words, umlauts, a hyphen (Block D)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $vehicle = Vehicle::factory()->create();

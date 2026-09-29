@@ -107,7 +107,10 @@ class FitmentRowsRequest extends FormRequest
             'tyre_sizes.*.kw_min' => ['nullable', 'integer', 'min:1', 'max:1000', 'required_with:tyre_sizes.*.kw_max'],
             'tyre_sizes.*.kw_max' => ['nullable', 'integer', 'min:1', 'max:1000', 'required_with:tyre_sizes.*.kw_min'],
             'tyre_sizes.*.codes' => ['nullable', 'array', 'max:20'],
-            'tyre_sizes.*.codes.*' => ['string', 'distinct', 'regex:'.self::CODE],
+            // Not `distinct`: over `tyre_sizes.*.codes.*` it compares every size's codes with every other's, and
+            // a document prints one code beside many sizes (ABE 55255: K2b, T88). Twice beside one size is
+            // refused in after().
+            'tyre_sizes.*.codes.*' => ['string', 'regex:'.self::CODE],
             'conditions' => ['present', 'array', 'max:30'],
             'conditions.*.code' => ['required', 'string', 'distinct', 'regex:'.self::CODE],
             'conditions.*.note' => ['nullable', 'string', 'max:300'],
@@ -253,6 +256,17 @@ class FitmentRowsRequest extends FormRequest
 
                     if (isset($seen[$key]) && ! $validator->errors()->has("tyre_sizes.{$i}.width_mm")) {
                         $validator->errors()->add("tyre_sizes.{$i}.width_mm", 'Diese Reifengröße steht mit diesem kW-Bereich und diesen Indizes schon in der Liste.');
+                    }
+
+                    // A code twice beside one size is typed twice; beside two sizes it is what documents print.
+                    $codes = [];
+
+                    foreach ((array) ($size['codes'] ?? []) as $j => $code) {
+                        if (is_string($code) && isset($codes[$code]) && ! $validator->errors()->has("tyre_sizes.{$i}.codes.{$j}")) {
+                            $validator->errors()->add("tyre_sizes.{$i}.codes.{$j}", 'Dieser Code steht bei der Reifengröße zweimal.');
+                        }
+
+                        $codes[is_string($code) ? $code : ''] = true;
                     }
 
                     // A band typed the wrong way round is said here, never left to the table's check constraint.

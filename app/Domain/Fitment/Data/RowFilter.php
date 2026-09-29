@@ -22,6 +22,12 @@ final readonly class RowFilter
 
     public const DRIVE = 'antrieb';
 
+    /** The body styles a vehicle record and a code may name. */
+    public const BODY_FORMS = ['Limousine', 'Kombi', 'Coupe', 'Cabrio', 'Schrägheck', 'SUV', 'Roadster', 'Van'];
+
+    /** The drive axles a vehicle record may name. */
+    public const DRIVE_AXLES = ['Allrad', 'Vorderachse', 'Hinterachse'];
+
     /**
      * @param  list<string>  $bodyForms  for BODY_FORM: the body styles permitted
      * @param  string|null  $driveMode  for DRIVE: `only` or `not`
@@ -92,10 +98,15 @@ final readonly class RowFilter
         }
 
         $decisions = [];
+        // Codes that together let in every body style, or every drive, narrow nothing — the 18″ Nachtrag's
+        // „Pkw geschlossen; Cabrio“ — so a vehicle whose style we do not hold passes them.
+        $everyBody = ! $bodyOpen && array_diff(array_map(self::normalise(...), self::BODY_FORMS), array_keys($bodies)) === [];
+        $everyDrive = ! $driveOpen && $not === [] && array_diff(array_map(self::normalise(...), self::DRIVE_AXLES), array_keys($only)) === [];
 
         if ($bodyCodes) {
             $body = self::known($vehicle->bodyForm);
             $decisions[] = match (true) {
+                $everyBody => true,
                 $body === null => null,
                 isset($bodies[$body]) => true,
                 // A code without its parameter might have let this one in.
@@ -107,6 +118,7 @@ final readonly class RowFilter
         if ($driveCodes) {
             $drive = self::known($vehicle->driveAxle);
             $decisions[] = match (true) {
+                $everyDrive => true,
                 $drive === null => null,
                 isset($not[$drive]) => false,
                 $only !== [] && ! isset($only[$drive]) => $driveOpen ? null : false,

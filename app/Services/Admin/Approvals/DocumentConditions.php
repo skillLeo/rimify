@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Approvals;
 
+use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -26,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 final class DocumentConditions
 {
     /** The body styles a `karosserieform` code may name — the words the vehicle records use. */
-    public const BODY_FORMS = ['Limousine', 'Kombi', 'Coupe', 'Cabrio', 'Schrägheck', 'SUV', 'Roadster', 'Van'];
+    public const BODY_FORMS = RowFilter::BODY_FORMS;
 
     /** The drives an `antrieb` code may name. */
     public const DRIVES = ['Allrad', 'Vorderachse', 'Hinterachse', 'Allradlenkung'];
