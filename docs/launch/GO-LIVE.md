@@ -207,6 +207,22 @@ Smoke-Test gegen https://<domain>
 | `add these two lines in hPanel` | the host refused `crontab` | add them in hPanel (§6) and go on — this is not a failure |
 | the smoke test fails (§5) | the site is up but wrong | §5 says per row; when in doubt, roll back (§7) |
 
+### 4.3 Payments (the live shop, once)
+
+A person, on the production site, never through the repository (R-16, `docs/dev/STRIPE.md`):
+
+1. **Einstellungen › Zahlung**: Livemodus, the live publishable and secret key, the live webhook's signing secret;
+   „Verbindung testen“ names the account.
+2. **Stripe-Dashboard (live) › Entwickler › Webhooks**: the endpoint `https://<domain>/webhooks/stripe` with the
+   seven events `StripeGateway::EVENTS` names.
+3. **Apple Pay**: Stripe-Dashboard › Einstellungen › Zahlungsmethoden › Apple Pay › Domain hinzufügen; put the file
+   Stripe offers at `public/.well-known/apple-developer-merchantid-domain-association` and press „Verifizieren“.
+4. `.env`: `RIMIFY_PAYMENTS=stripe`, `RIMIFY_SHIPPING_COST_CENTS`, `RIMIFY_DELIVERY_TIME` and the `RIMIFY_SELLER_*`
+   lines from the client (BLOCKED 19, 20); `php artisan config:cache`.
+
+**Correct:** `rimify:preflight` shows Zahlung „Stripe im Livemodus“, Stripe-Webhook GO, Verkäuferangaben GO,
+Versand und Lieferzeit GO. **If not**, the row says what is missing, in a sentence.
+
 ---
 
 ## 5 · `rimify:smoke`
@@ -263,7 +279,9 @@ cd /home/<user>/domains/<production-domain>/public_html && /opt/alt/php84/usr/bi
 ```
 
 The first keeps the renderer alive: it does nothing while the renderer answers and starts it within a minute
-when the host has stopped it. The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12).
+when the host has stopped it. The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12),
+`orders:expire` every ten minutes (an order unpaid after 24 hours expires and its stock goes back), and a pulse
+every minute that `rimify:preflight` reads („Zeitplan (Cron)“ turns GO within a minute of the line running).
 
 **Correct — what it looks like when it works:**
 
