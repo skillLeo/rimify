@@ -23,14 +23,21 @@ Remaining, in the order the user set on 2026-09-28 (then the Stripe brief, with 
       PDF is not built; decision below)
 4. [x] Mobile suite: cause found and fixed (multi-worker server `scripts/e2e/serve.mjs`, `28d2d633` + `f6694522`),
       then three clean runs in a row (97 passed, 57 skipped by viewport design, each time)
-5. [ ] Coverage with pcov, the number in this ledger
+5. [x] Coverage with pcov, the number in this ledger — **92,6 %** of lines (`pest --coverage --min=85`, 1.950
+      tests, 2026-09-29, started at `03e816bd`). 21 of the 241 files listed stand under 50 %, 15 of them at 0 %
+      (models and enums without executed lines, the /__design specimen, `rimify:smoke`, which runs over HTTP
+      and was exercised by the rollback rehearsal instead). The two subscription mails stood at 17–20 %: their
+      D-02 name change has a render test since (FitmentNotifyTest)
 6. [x] Review-kit proofs — `af0ef57c`: three accounts visibly different (`ReviewKitTest`, `docs/review/roles/`);
       `16249b5a`: `review:report` → `docs/review/OPEN-POINTS.md` (0 of 7 open on dev; all seven were the e2e spec's own)
 7. [x] `docs/launch/GO-LIVE.md` (`08ada467`, `7f9446a5`, `fce5bdfb`) and `docs/review/PRESENT.md` (`af0ef57c`, `a809a0ec`)
       — GO-LIVE §7's timings wait for the rollback rehearsal (below)
 8. [x] `COMPLIANCE.md` complete — `16249b5a`: 31 of 32 erledigt, row 14 deliberate (CLAUDE.md outside git),
       row 13 RESTRICT pinned by `0e472447`, row 21 history scan clean (261 commits)
-9. [ ] Rollback rehearsal, timed, GO-LIVE §7 filled in
+9. [x] Rollback rehearsal, timed, GO-LIVE §7 filled in — locally, on a scratch copy (there is no staging):
+      dump 0,4 s, restore 2,5 s, caches and renderer 1,5 s, down to the smoke test's last row **6,8 s**, smoke
+      7/7. The run found GO-LIVE's fixed trigger count stale (13; 14 since `0ed8bb30`): §1 now compares the
+      dump with the live database. The host's own timing stays with the user (BLOCKED row 13)
 10. [ ] Final gates: full Pest, Vitest, lint, types, Larastan, Pint; the device lab once
 
 **The corrections memo (2026-09-28), §7's order:**

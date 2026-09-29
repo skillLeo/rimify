@@ -67,16 +67,21 @@ tar -czf ~/backups/rimify-$TS-release.tar.gz --exclude=./storage/logs --exclude=
 ls -lh ~/backups/rimify-$TS*
 gunzip -c ~/backups/rimify-$TS.sql.gz | tail -1
 gunzip -c ~/backups/rimify-$TS.sql.gz | grep -c 'CREATE.*TRIGGER'
+mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
+  "SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE();" "$DB_DATABASE" \
+  | tee ~/backups/rimify-$TS.triggers
 ```
 
 **Correct:** four files listed (the dump a few MB, the release archive a few hundred MB); the dump's last line
-reads `-- Dump completed on <today>`; the trigger count is **13** (the R-12 and demo-row triggers, the development cars' included).
+reads `-- Dump completed on <today>`; the two trigger counts are **the same number** — 14 on a database
+migrated to the 2026-09-29 release (four for R-12's audit log and fitment snapshots, one for the frozen
+RIMIFY-Check, one against a document superseding itself, eight demo-row guards); an older release has fewer.
 **If not:**
 - *Access denied* → the `.env` values are not the database's; check hPanel › Datenbanken.
 - *PROCESS privilege* → the `--no-tablespaces` flag is missing; it is in the command above.
 - The dump ends without `Dump completed` → the disk is full or the connection dropped; free space
   (`du -sh ~/backups`) and run it again. **Do not go on without a complete dump.**
-- The trigger count is not 12 → stop: the dump would restore a database without its immutability.
+- The two trigger counts differ → stop: the dump would restore a database without its immutability.
 
 The restore is written out in §7 and rehearsed there. Keep these files until the release has run a week.
 
@@ -282,7 +287,7 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
   "SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE();" "$DB_DATABASE"
 ```
 
-**Correct:** no output from the first two commands; the last prints **13**.
+**Correct:** no output from the first two commands; the last prints the number in `~/backups/rimify-$TS.triggers`.
 **If not:** *Access denied* → run §0's `eval` and `export MYSQL_PWD` again (a new shell forgets them).
 
 ### 7.3 The code back to §1
@@ -312,8 +317,15 @@ $PHP artisan up && $PHP artisan rimify:smoke
 
 | Where | Database | Dump | Restore (7.2) | Code + caches + renderer (7.3) | Whole rollback, down to up |
 |---|---|---|---|---|---|
-| Local rehearsal (Windows, MySQL 8.4), 2026-09-28 | the development database | *filled in below* | | | |
+| Local rehearsal (Windows, MySQL 8.4), 2026-09-29 | a scratch copy of the development database, 5,5 MB dump, 14 triggers | 0,4 s | 2,5 s | 1,5 s | **6,8 s**, smoke 7/7 ok |
 | **Staging (Hostinger), rehearse once before go-live** | | | | | ___ min — write it here |
+
+The local row proves the steps, not the time on the host: the same MySQL, but no network between the shell
+and the database, SSD, and no `git reset` (the code was already the backup's commit), so 7.3 is caches and
+renderer only. The restore dropped a table the "bad release" had added (every table goes, not only the dump's)
+and brought all 14 triggers back. It ran against a copy (`rimify_wf_rollback`), served by the development app
+with its config cached to that copy, as production's `.env` would point it; the smoke test's test order was
+written there and the copy was dropped afterwards.
 
 Rehearse on staging exactly as written: §1 (backup), §3 (down), §7.2–7.4, and time from `down` to the smoke
 test's last row. If the whole rollback takes longer than ten minutes, say so before go-live: the release

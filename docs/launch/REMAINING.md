@@ -128,7 +128,7 @@ seeder, test to follow).
       (`e05bd971`, set of four included); the invoice PDF is not built and arrives with the payments brief's
       §14 UStG invoice, so the tenth surface is added there
 - [x] 20 · The mobile suite fixed and clean three times in a row — `28d2d633`, `f6694522` (before)
-- [ ] 21 · The coverage number, measured with pcov, in the ledger
+- [x] 21 · The coverage number, measured with pcov, in the ledger — **92,6 %** (STATUS item 5; min 85)
 - [x] 22 · Review kit: the feedback row with its screenshot (`bb87bdb6`, ReviewKitTest), three visibly
       different admins (`af0ef57c`), `review:report` → OPEN-POINTS.md (`16249b5a`) (before)
 - [x] 23 · `secrets:scan`, the pre-commit hook, the history sweep (clean, COMPLIANCE row 21), R-16 in
@@ -139,12 +139,14 @@ seeder, test to follow).
 
 ## Block F — go live
 
-- [ ] 26 · The rollback rehearsal, timed, the number written down (there is no staging: rehearsed locally on
-      a scratch copy of the database — said as a deviation)
-- [ ] 27 · GO-LIVE.md complete — written (`08ada467` onward, the no-JS price check and the first hour are in);
-      §7 waits for the rehearsal's timings
-- [ ] 28 · PRESENT.md — written (`af0ef57c`, `a809a0ec`); the walkthrough is rewritten on the Borbet golden
-      record after Block D
+- [x] 26 · The rollback rehearsal, timed, the number written down — **6,8 s** down to the smoke test's last row,
+      smoke 7/7 (GO-LIVE §7). Deviation: there is no staging, so it ran locally on a scratch copy of the
+      database; the host's own time stays with the user (BLOCKED row 13)
+- [x] 27 · GO-LIVE.md complete — written (`08ada467` onward); §7 has the rehearsal's timings, and §1 compares
+      the dump's triggers with the live database's instead of a fixed count that had gone stale (13 → 14)
+- [x] 28 · PRESENT.md — the walkthrough on the Borbet golden record (`b876ad50`); it found that the chooser
+      showed a split car's halves alike (fixed, `2aa57bb3`) and that most cars of the two documents answer
+      „Keine Freigabe hinterlegt“ until body style and drive are known — a decision for the operator
 - [ ] ai-look-critic and interaction-qa on the block
 
 ## Block G — payments
