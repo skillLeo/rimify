@@ -53,4 +53,5 @@ BMW M3 (M3B, Betriebserlaubnis G191) and BMW 3 B (F920) carry a national approva
 the rework measure `27B` appears in no legend and no row; one `225/40R18 92 M+S` entry prints no code limiting
 it to winter tyres. The Nachtrag prints no issue date (only its Stand, 02.07.2025), no Prüfort and no table of
 tyre load at speed; none is filled in. It prints no rework profile for type 1K2 either, though its 1K2 row names
-26B, 26J, 26N, 27F and 27H.
+26B, 26J, 26N, 27F and 27H. Its page-24 Hinweisblatt captions drawings the shop does not show and names only codes,
+so it is not entered as a Hinweis; the Auflagen it illustrates are entered as sentences, and the PDF shows the sheet.

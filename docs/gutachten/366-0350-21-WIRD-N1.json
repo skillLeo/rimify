@@ -761,10 +761,6 @@
   {
    "text_de": "Hinweis zum Verwendungsbereich: Ohne Genehmigung nach UN-Regelung Nr. 124 ist die Verwendung dieser Rad-/Reifen Kombinationen nur zulässig, wenn sie nicht serienmäßig vom Fahrzeughersteller freigegeben sind (z. B. EU-Übereinstimmungsbescheinigung (COC) oder Fahrzeugpapiere).",
    "source_page": 1
-  },
-  {
-   "text_de": "Hinweisblatt zu den im Gutachten genannten Radabdeckungsauflagen Nr. 241 – 248, 24C, 24D, 24J und 24M. Die nachfolgenden Bilder stellen die Hilfsmittel zur Erfüllung der Radabdeckung dar, die in den Radabdeckungsauflagen beschrieben sind.",
-   "source_page": 24
   }
  ],
  "derating": null,
@@ -4790,6 +4786,7 @@
   "Seite 2, BMW M3 (Typ M3B, Betriebserlaubnis G191) und Seite 5, BMW 3 B (Betriebserlaubnis F920): nicht eingetragen – beide tragen eine nationale Betriebserlaubnis statt einer EG-Typgenehmigung, und „Fahrzeug aus diesem Gutachten anlegen“ nimmt nur eine EG-Nummer.",
   "Seiten 19, 21, 22, 23: das Maß zu „27B“ (Nacharbeit Hinterachse) nicht eingetragen – 27B steht in keinem Auflagenverzeichnis des Nachtrags und in keiner Zeile.",
   "Die Hinweise zur Baureihe („BMW 1er (F20 2011)“, „BMW 3er (F30) ab 2012“, „inkl. 330e iPerformance“, „Facelift ab September 2008“, „4er Coupe (F32)“ …) und die Grenzen „ab …*08“, „Nur bis …*03“ bestimmen, welche Fahrzeuge eine Zeile trägt; als Code eingetragen sind sie nicht.",
+  "Seite 24, das Hinweisblatt zur Radabdeckung (Bilder der Hilfsmittel zu den Auflagen 241 – 248, 24C, 24D, 24J und 24M): nicht als Hinweis eingetragen – es erklärt Zeichnungen, die der Shop nicht zeigt, und nennt nur Codes. Die Sätze der Auflagen selbst stehen im Auflagenverzeichnis; das PDF zeigt das Blatt.",
   "Seite 3, BMW Z4 ZR/Z89: „225/40R18 92 M+S“ bei 115–250 kW nicht eingetragen – die Zeile beschränkt sie auf M+S-Reifen, und dafür druckt sie keinen Code (etwa 52J), den der Shop lesen könnte. Ohne diese Einschränkung wäre ein Sommerreifen 225/40 R18 92 bis 250 kW zugelassen, was das Gutachten nicht sagt."
  ]
 }

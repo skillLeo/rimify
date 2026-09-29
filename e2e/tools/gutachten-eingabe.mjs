@@ -239,9 +239,16 @@ for (const f of transcription.fasteners) {
 }
 
 const noticesThere = new Set(current.notices.map((n) => n.text))
+const noticesWanted = new Set(transcription.notices.map((n) => n.text_de))
 
 for (const n of transcription.notices.filter((x) => !noticesThere.has(x.text_de))) {
     await send('POST', `/admin/gutachten/${id}/hinweise`, n)
+}
+
+// A Hinweis the transcription no longer carries (the page-24 Hinweisblatt, D-03) is taken out of the draft.
+for (const n of current.notices.filter((x) => !noticesWanted.has(x.text))) {
+    await send('DELETE', `/admin/gutachten/${id}/hinweise/${n.id}`)
+    log(`  Hinweis entfernt (Seite ${n.page}): ${n.text.slice(0, 60)} …`)
 }
 
 if (transcription.derating) {
