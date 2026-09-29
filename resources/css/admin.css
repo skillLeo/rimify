@@ -89,6 +89,9 @@
 /* Exactly the top bar's height, so the wordmark sits on the breadcrumbs' centre line. The toggle sits
    4 px from the edge, which puts its chevron on the column the counts and the profile's chevron end on. */
 .adm-rail__brand {
+    /* Never shrinks: its min-height replaces flex's own minimum, so once the navigation outgrew the
+       window the collapsed rail's stacked toggle spilled under the first item and could not be clicked. */
+    flex: none;
     display: flex;
     align-items: center;
     gap: var(--sp-8);

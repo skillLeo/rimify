@@ -16,7 +16,11 @@ export const test = base.extend<{ dropRoutes: void }>({
     dropRoutes: [
         async ({ page }, use) => {
             await use()
-            await page.unrouteAll({ behavior: 'ignoreErrors' })
+
+            // A test may close its own page (admin-rail-resize: the width survives the tab closing).
+            if (!page.isClosed()) {
+                await page.unrouteAll({ behavior: 'ignoreErrors' })
+            }
         },
         { auto: true },
     ],
