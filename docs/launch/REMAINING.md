@@ -35,14 +35,17 @@ Only this. Everything done is in `DONE.md`, with its commit; every decision take
   the manufacturer of every brand sold, for GPSR (21); the mail sender domain with SPF, DKIM, DMARC (5).
 - **For the catalogue:** the vehicle dataset (16) and ABE 53841 with its tyre speed table (18).
 
-## The gates, last run (2026-09-30)
+## The gates, last run (2026-09-30, on `accfa858`)
 
 | Where | What | Result |
 |---|---|---|
-| Local | Pest on MariaDB 11.8 (the host's engine) | 2.104 passed, 2 failed — both fixed, their files and every file the last changes touched re-run green (121) |
-| Local | Vitest | 1.325 / 1.325 passed in 131 files |
+| Local | Pest on MariaDB 11.8 (the host's engine) | 2.109 / 2.109 passed (13 min) |
+| Local | Vitest | 1.328 / 1.328 passed in 131 files |
 | Local | Larastan level 6, Pint, vue-tsc, ESLint | clean (ESLint: warnings only, no errors) |
-| Local | Playwright — main | 314 passed, 70 skipped by project design, 0 failed (24,6 min) — e2e/kasse.spec.ts new: the checkout by keyboard alone at 320 px |
+| Local | Playwright — main | 317 passed, 71 skipped by project design, 0 failed (25,9 min) — with `e2e/kasse.spec.ts` (keyboard only at 320 px) and the review's `e2e/bugs/pay-01`, `pay-02` |
 | Local | Playwright — mobile | 178 passed, 14 skipped by design, 0 failed (9,0 min) |
 | Local | `npm run qa` (overflow at 12 widths, console in three engines, axe, style inventory) | clean |
-| Preview | `rimify:smoke`, `npm run qa`, rollback | last run on 29.09. (see DONE.md); again after yours 1 |
+| Preview | Release `c7ed307d` (of `accfa858`) by `remote.sh`, staging | four migrations, renderer on its socket, site up |
+| Preview | `rimify:preflight` | GO with warnings: the cron line, the log mailer, the sandbox, the client's data (seller, shipping and delivery time, legal texts) — each a row |
+| Preview | `rimify:smoke` | Startseite *auf dem Server gerendert*, Admin-Anmeldung, Speicher-Präfixe (invoices/ not public) ok; the product row waits for yours 1 |
+| Preview | `npm run qa` against https://rimify.skillleo.com | clean — overflow at 12 widths, console in Chromium, WebKit and Firefox, axe 0 violations, every style a token; the product route left out until one is public (D-051, removed in §7) |
