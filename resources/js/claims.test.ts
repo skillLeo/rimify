@@ -19,7 +19,8 @@ const RETIRED: Record<string, string> = {
     'Werktage': 'no delivery time is confirmed (#30 #31 #38)',
     'Werktagen': 'no delivery time is confirmed (#30 #31 #38)',
     'DHL': 'no carrier is confirmed (#38)',
-    'Stripe': 'no payment provider is live (#68)',
+    // 'Stripe' retired from this list on 29.09.2026 (D-069): the provider is decided (BLOCKED 3) and the checkout
+    // mounts it; the customer's pages still speak of „der Zahlungsdienst“, the admin names it.
     'freier Lizenz': 'the free-licence photographs are retired (D1)',
     'Bestätigung ist unterwegs': 'no order mail is sent (#42)',
     'am selben Werktag': 'no reply time is promised (#13 #44)',

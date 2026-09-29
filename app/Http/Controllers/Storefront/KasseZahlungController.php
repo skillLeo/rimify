@@ -40,7 +40,7 @@ class KasseZahlungController extends Controller
     /** The session key naming this browser's unpaid order and what it was written from. */
     public const SESSION_PENDING = 'kasse.pending';
 
-    public const PAYMENT_UNAVAILABLE = 'Bezahlen ist gerade nicht möglich. Es wurde nichts bestellt und nichts abgebucht. Versuch es bitte in ein paar Minuten noch einmal.';
+    public const PAYMENT_UNAVAILABLE = 'Bezahlen ist gerade nicht möglich. Es wurde nichts abgebucht. Versuch es bitte in ein paar Minuten noch einmal.';
 
     public const ALREADY_PROCESSING = 'Die Zahlung für deine Bestellung %s läuft schon. Sobald sie bestätigt ist, bekommst du eine E-Mail.';
 
@@ -70,7 +70,8 @@ class KasseZahlungController extends Controller
         if ($this->basket->tpmsQuoteChanged($request)) {
             $this->basket->forgetTpms($request);
 
-            return self::refuse(KasseController::PRICE_CHANGED_REFUSAL, reload: true);
+            // The same sentence as any other price that moved since the page was shown.
+            return self::refuse(CheckoutShown::PRICE_CHANGED, reload: true);
         }
 
         $shownNow = CheckoutShown::token($summary);

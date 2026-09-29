@@ -141,15 +141,15 @@ Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])
 Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
 // Mein Konto (Block G §2): offered after a paid order with one click; guest checkout stays the default.
-Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->middleware('throttle:5,1,konto-anlegen')->name('bestellung.konto');
+Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->middleware('throttle:shop-konto')->name('bestellung.konto');
 Route::middleware('guest:customer')->group(function (): void {
     Route::get('/konto/anmelden', [KontoController::class, 'create'])->name('konto.anmelden');
-    Route::post('/konto/anmelden', [KontoController::class, 'login'])->middleware('throttle:5,1,konto-login')->name('konto.login');
+    Route::post('/konto/anmelden', [KontoController::class, 'login'])->middleware('throttle:shop-konto')->name('konto.login');
     Route::get('/konto/passwort-vergessen', [KontoController::class, 'forgot'])->name('konto.vergessen');
-    Route::post('/konto/passwort-vergessen', [KontoController::class, 'sendLink'])->middleware('throttle:3,1,konto-vergessen')->name('konto.vergessen.senden');
+    Route::post('/konto/passwort-vergessen', [KontoController::class, 'sendLink'])->middleware('throttle:shop-konto')->name('konto.vergessen.senden');
 });
 Route::get('/konto/passwort/{account}', [KontoController::class, 'editPassword'])->whereNumber('account')->middleware('signed')->name('konto.passwort');
-Route::post('/konto/passwort/{account}', [KontoController::class, 'updatePassword'])->whereNumber('account')->middleware(['signed', 'throttle:5,1,konto-passwort'])->name('konto.passwort.setzen');
+Route::post('/konto/passwort/{account}', [KontoController::class, 'updatePassword'])->whereNumber('account')->middleware(['signed', 'throttle:shop-konto'])->name('konto.passwort.setzen');
 Route::middleware('auth:customer')->group(function (): void {
     Route::get('/konto', [KontoController::class, 'show'])->name('konto');
     Route::post('/konto/abmelden', [KontoController::class, 'logout'])->name('konto.abmelden');

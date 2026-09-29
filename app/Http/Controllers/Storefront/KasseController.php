@@ -45,7 +45,7 @@ class KasseController extends Controller
      * No delivery time has been named (Art. 246a § 1 Nr. 7 EGBGB asks for it before the order): nothing is guessed,
      * and a real order waits for the figure, as it waits for the shipping price.
      */
-    public const DELIVERY_REFUSAL = 'Die Lieferzeit wird noch festgelegt. Solange kannst du noch nicht bestellen – dein Warenkorb bleibt gespeichert.';
+    public const DELIVERY_REFUSAL = 'Die Lieferzeit steht noch nicht fest. Bis dahin kannst du nicht bestellen – dein Warenkorb bleibt gespeichert.';
 
     public function __construct(private readonly Basket $basket) {}
 

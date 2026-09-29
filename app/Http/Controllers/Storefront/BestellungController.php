@@ -9,7 +9,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\OrderStatusRequest;
 use App\Models\AuditLog;
 use App\Models\CustomerAccount;
+use App\Models\Invoice;
 use App\Models\Order;
+use App\Services\Commerce\Invoices;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
@@ -102,6 +104,8 @@ class BestellungController extends Controller
             'lines' => $lines,
             // Where the payment stands, in the page's words — and whether the page should keep asking.
             'payment' => $demo ? null : self::payment($record, $request->query('redirect_status')),
+            // The §14 invoice as issued, by a signed link — never to a seeded order.
+            'invoice' => $demo ? null : self::invoice($record),
             // „Konto anlegen“ in one click, once paid, for the browser that placed it and no account yet (Block G §2).
             'accountOffer' => ! $demo && $record->status->isPaid() && is_array($placed) && in_array($record->order_number, $placed, true)
                 && $request->user('customer') === null
@@ -115,6 +119,14 @@ class BestellungController extends Controller
             // then offers the e-mail.
             'contact' => Chrome::contact(),
         ]);
+    }
+
+    /** @return array{number: string, href: string}|null */
+    private static function invoice(Order $order): ?array
+    {
+        $invoice = Invoice::query()->where('order_id', $order->id)->where('kind', Invoice::INVOICE)->first();
+
+        return $invoice === null ? null : ['number' => $invoice->number, 'href' => Invoices::link($invoice)];
     }
 
     /** A signed-in customer sees every order placed under the account's address (Mein Konto). */

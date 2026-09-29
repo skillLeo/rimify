@@ -543,8 +543,8 @@ onBeforeUnmount(() => observer?.disconnect())
                     </div>
                 </dl>
                 <p v-else class="t-small quiet">
-                    Die Angaben des Herstellers zu dieser Felge tragen wir gerade nach. Bis dahin beantworten wir deine
-                    Fragen dazu unter <a :href="`mailto:${shared.contact.email}`">{{ shared.contact.email }}</a>.
+                    Die Angaben des Herstellers zu dieser Felge liegen uns noch nicht vor. Fragen dazu beantworten wir dir
+                    unter <a :href="`mailto:${shared.contact.email}`">{{ shared.contact.email }}</a>.
                 </p>
             </section>
         </div>

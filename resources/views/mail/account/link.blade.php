@@ -6,7 +6,7 @@ Du hast nach deiner Bestellung ein Konto angelegt. Leg jetzt nur noch dein Passw
 @else
 # Ein neues Passwort
 
-Du hast ein neues Passwort für dein Konto angefordert. Mit diesem Link legst du es fest.
+Mit diesem Link legst du ein neues Passwort für dein Konto fest.
 @endif
 
 <x-mail::button :url="$url">

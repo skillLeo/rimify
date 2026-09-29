@@ -19,7 +19,7 @@ use Illuminate\Validation\Validator;
  */
 class DisputeEvidenceRequest extends FormRequest
 {
-    public const ANSWERED = 'Zu dieser Rückbuchung sind die Nachweise schon gesendet. Stripe nimmt keine zweiten an.';
+    public const ANSWERED = 'Diese Rückbuchung nimmt keine Nachweise mehr an – die Antwort ist schon gesendet oder der Fall abgeschlossen.';
 
     public function authorize(): bool
     {
@@ -55,8 +55,10 @@ class DisputeEvidenceRequest extends FormRequest
         return [
             'note.required' => 'Schreib, was geschehen ist: was bestellt, wann versandt, wann zugestellt – das liest die Bank.',
             'note.min' => 'Schreib, was geschehen ist: was bestellt, wann versandt, wann zugestellt – das liest die Bank.',
-            '*.mimes' => 'Als Nachweis ein PDF oder ein Bild (JPG, PNG).',
-            '*.max' => 'Eine Datei darf höchstens 5 MB groß sein.',
+            '*.mimes' => 'Lade als Nachweis ein PDF oder ein Bild (JPG, PNG) hoch.',
+            'note.max' => 'Die Erklärung darf höchstens 20.000 Zeichen lang sein.',
+            'shipping.max' => 'Eine Datei darf höchstens 5 MB groß sein.',
+            'other.max' => 'Eine Datei darf höchstens 5 MB groß sein.',
         ];
     }
 

@@ -10,6 +10,7 @@ use App\Models\Refund;
 use App\Services\Commerce\Invoices;
 use App\Support\GermanFormat;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -21,7 +22,12 @@ class RefundMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: "Erstattung zu deiner Bestellung {$this->order->order_number}");
+        $contact = (string) config('rimify.contact.email');
+
+        return new Envelope(
+            subject: "Erstattung zu deiner Bestellung {$this->order->order_number}",
+            replyTo: $contact === '' ? [] : [new Address($contact, 'RIMIFY')],
+        );
     }
 
     public function content(): Content

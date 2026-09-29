@@ -12,9 +12,11 @@ use App\Support\GermanFormat;
 use App\Support\Seller;
 use App\Support\WithdrawalForm;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Support\Facades\URL;
 
 /**
  * The order confirmation, sent when the payment is confirmed (§ 312f Abs. 2 BGB): the contract on a durable
@@ -28,7 +30,13 @@ class OrderConfirmationMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: "Deine Bestellung {$this->order->order_number} bei RIMIFY – Bestätigung und Rechnung");
+        // An answer to this mail reaches the shop: it is sent from a no-reply address.
+        $contact = (string) config('rimify.contact.email');
+
+        return new Envelope(
+            subject: "Deine Bestellung {$this->order->order_number} bei RIMIFY – Bestätigung und Rechnung",
+            replyTo: $contact === '' ? [] : [new Address($contact, 'RIMIFY')],
+        );
     }
 
     public function content(): Content
@@ -53,10 +61,12 @@ class OrderConfirmationMail extends Mailable
                 'label' => (string) $line->label,
                 'quantity' => (int) $line->quantity,
                 'total' => GermanFormat::money((int) $line->line_total_cents),
+                // In words, never a code (R-15) — as the order page says it.
                 'verdict' => $snapshot === null ? null : match ((string) $snapshot->verdict_status) {
                     'PERMITTED' => 'Für dein Fahrzeug freigegeben.',
                     'CONDITIONAL' => 'Für dein Fahrzeug freigegeben, mit Auflagen.',
-                    default => 'Freigabe: '.$snapshot->verdict_status,
+                    'NOT_PERMITTED' => 'Nicht freigegeben.',
+                    default => 'Keine Freigabe hinterlegt.',
                 },
                 'entry' => $snapshot !== null && (bool) $snapshot->requires_entry,
                 'conditions' => $conditions,
@@ -81,7 +91,8 @@ class OrderConfirmationMail extends Mailable
                 'deliveryTime' => is_string($time = config('rimify.shipping.delivery_time')) && trim($time) !== '' ? trim($time) : null,
                 'invoiceNumber' => $this->invoice->number,
                 'invoiceUrl' => Invoices::link($this->invoice),
-                'orderUrl' => route('bestellung.show', ['order' => $order->order_number]),
+                // Signed: the page opens on any device the customer reads this mail on, not only where they ordered.
+                'orderUrl' => URL::signedRoute('bestellung.show', ['order' => $order->order_number]),
                 'agb' => $legal->text('agb'),
                 'widerruf' => $legal->text('widerrufsbelehrung'),
                 'form' => WithdrawalForm::text(Seller::current()),

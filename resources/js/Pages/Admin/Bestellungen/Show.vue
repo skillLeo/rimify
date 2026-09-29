@@ -354,7 +354,7 @@ function tagClass(state: OrderState): string | null {
         <AdminConfirm
             v-model:open="refundOpen"
             :title="`${formatMoney(refundCents ?? 0)} erstatten?`"
-            :body="`Das Geld geht über Stripe an ${customer.name ?? 'die Kundin oder den Kunden'} zurück, dazu eine Gutschrift per E-Mail. Eine Erstattung lässt sich nicht zurücknehmen.`"
+            :body="`Das Geld geht über Stripe an ${customer.name ?? 'die Kundin oder den Kunden'} zurück; eine Gutschrift wird ausgestellt. Eine Erstattung lässt sich nicht zurücknehmen.`"
             :confirm-label="`${formatMoney(refundCents ?? 0)} erstatten`"
             :busy="refunding"
             @confirm="refund"

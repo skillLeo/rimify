@@ -221,7 +221,7 @@ describe('Produkt page', () => {
         const block = mountPage().find('.pdp__gpsr')
 
         expect(block.find('dl').exists()).toBe(false)
-        expect(block.text()).toContain('Die Angaben des Herstellers zu dieser Felge tragen wir gerade nach.')
+        expect(block.text()).toContain('Die Angaben des Herstellers zu dieser Felge liegen uns noch nicht vor.')
     })
 
     it('says "Auf Lager" for a real model in stock, and nothing about a demo range', () => {

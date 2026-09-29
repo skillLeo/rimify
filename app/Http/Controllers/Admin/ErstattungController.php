@@ -30,7 +30,7 @@ class ErstattungController extends Controller
         $amount = GermanFormat::money((int) $made->amount_cents);
 
         return back()->with('toast', $made->status === 'succeeded'
-            ? "{$amount} erstattet. Die Gutschrift ist an die Kundin oder den Kunden unterwegs."
-            : "{$amount} beim Zahlungsdienst beauftragt – er bestätigt die Erstattung noch.");
+            ? "{$amount} erstattet."
+            : "Erstattung über {$amount} beauftragt – Stripe bestätigt sie noch.");
     }
 }

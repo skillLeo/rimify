@@ -29,11 +29,11 @@ final class RefundOrder
 {
     public const NOT_PAID = 'Erstatten lässt sich nur eine bezahlte Bestellung.';
 
-    public const NOTHING_LEFT = 'Diese Bestellung ist schon ganz erstattet.';
+    public const NOTHING_LEFT = 'Diese Bestellung ist bereits vollständig erstattet.';
 
     public const TOO_MUCH = 'Höchstens %s lassen sich noch erstatten.';
 
-    public const NO_PROVIDER = 'Die Zahlungsart dieser Bestellung ist gerade nicht in Kraft. Es wurde nichts erstattet – bitte nicht von Hand im Zahlungsdienst erstatten, sonst fehlt die Gutschrift.';
+    public const NO_PROVIDER = 'Die Zahlungsart dieser Bestellung ist gerade nicht eingerichtet. Es wurde nichts erstattet – bitte nicht von Hand im Zahlungsdienst erstatten, sonst fehlt die Gutschrift.';
 
     public function __construct(private readonly OrderPayments $payments, private readonly Invoices $invoices) {}
 

@@ -38,7 +38,7 @@ const form = useForm({ password: '', password_confirmation: '' })
                         <span id="konto-pass-err" class="field-error">{{ form.errors.password ?? '' }}</span>
                     </div>
                     <div>
-                        <label class="field-label" for="konto-pass2">Noch einmal</label>
+                        <label class="field-label" for="konto-pass2">Passwort wiederholen</label>
                         <input id="konto-pass2" v-model="form.password_confirmation" class="field" type="password" autocomplete="new-password">
                     </div>
                     <button class="btn btn--primary btn--lg" type="submit" :disabled="form.processing">Passwort speichern</button>

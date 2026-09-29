@@ -588,6 +588,8 @@ export interface BestellungProps {
     payment?: OrderPaymentState | null
     /** „Konto anlegen“ is offered: paid, this browser placed it, no account with a password yet. */
     accountOffer?: boolean
+    /** The invoice as issued, by a signed link; null until one is. */
+    invoice?: { number: string; href: string } | null
     contact: ContactProp
 }
 

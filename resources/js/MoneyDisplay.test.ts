@@ -11,10 +11,14 @@ import type { ProductCardProp } from './types/rimify'
  */
 
 vi.mock('@inertiajs/vue3', () => ({
+    Head: defineComponent({ setup: () => () => null }),
     Link: defineComponent({
         props: { href: { type: String, required: true } },
         setup: (props, { slots, attrs }) => () => h('a', { href: props.href, ...attrs }, slots.default?.()),
     }),
+    // The order page's „Erstatten“ reads the page's errors and posts through the router (Block G §5).
+    usePage: () => ({ props: { errors: {} } }),
+    router: { post: vi.fn() },
 }))
 
 const { default: ProductTile } = await import('./Components/Ui/ProductTile.vue')

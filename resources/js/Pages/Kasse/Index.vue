@@ -381,7 +381,7 @@ async function startPayment(): Promise<{ clientSecret: string; returnUrl: string
     serverRefusal.value =
         typeof body.refusal === 'string'
             ? body.refusal
-            : 'Bezahlen ist gerade nicht möglich. Es wurde nichts bestellt und nichts abgebucht. Versuch es bitte in ein paar Minuten noch einmal.'
+            : 'Bezahlen ist gerade nicht möglich. Es wurde nichts abgebucht. Versuch es bitte in ein paar Minuten noch einmal.'
 
     // The basket is no longer what this page shows: it is shown again as it is now. What was typed stays.
     if (body.reload === true) {
@@ -403,7 +403,7 @@ async function confirm(clientSecret: string, returnUrl: string): Promise<void> {
         confirmParams: { return_url: new URL(returnUrl, window.location.origin).href },
     })
 
-    payError.value = error?.message ?? 'Die Zahlung wurde nicht abgeschlossen. Es wurde nichts abgebucht.'
+    payError.value = error?.message ?? 'Die Zahlung wurde nicht abgeschlossen. Es wurde nichts abgebucht. Versuch es noch einmal oder wähl eine andere Zahlungsart.'
 }
 
 async function payWithStripe(): Promise<void> {
@@ -494,7 +494,9 @@ async function mountStripe(): Promise<void> {
                 payError.value = null
 
                 try {
-                    const started = await startPayment()
+                    // The deferred flow asks for the Elements' own check before any confirmation, wallets included.
+                    const submitted = elements ? await elements.submit() : { error: { message: undefined } }
+                    const started = submitted.error ? null : await startPayment()
 
                     if (started) {
                         await confirm(started.clientSecret, started.returnUrl)
@@ -916,7 +918,7 @@ const VERDICT_MARK: Record<string, string> = {
                                             type="button"
                                             @click="allowLetters('houseNumber', 'ko-nr')"
                                         >
-                                            Mit Buchstaben, z. B. 12a
+                                            Buchstaben eingeben, z. B. 12a
                                         </button>
                                         <span id="ko-nr-err" class="field-error">{{ errors.houseNumber ?? '' }}</span>
                                     </div>
@@ -980,7 +982,7 @@ const VERDICT_MARK: Record<string, string> = {
                                 <legend class="t-h3">Rechnungsadresse</legend>
                                 <label class="ko__check">
                                     <input v-model="billingOther" type="checkbox" />
-                                    <span>Rechnung an eine andere Adresse</span>
+                                    <span>Andere Rechnungsadresse</span>
                                 </label>
 
                                 <div v-if="billingOther" class="ko__grid ko__billing">
@@ -1037,7 +1039,7 @@ const VERDICT_MARK: Record<string, string> = {
                                             type="button"
                                             @click="allowLetters('billingHouseNumber', 'ko-b-nr')"
                                         >
-                                            Mit Buchstaben, z. B. 12a
+                                            Buchstaben eingeben, z. B. 12a
                                         </button>
                                         <span class="field-error">{{ errors.billingHouseNumber ?? '' }}</span>
                                     </div>
@@ -1246,8 +1248,8 @@ const VERDICT_MARK: Record<string, string> = {
                                     </p>
                                     <div v-if="stripeFailed" class="ko__refusal" role="alert">
                                         <p>
-                                            Die Zahlungsarten ließen sich nicht laden. Prüf deine Verbindung oder einen
-                                            Werbeblocker – deine Angaben bleiben erhalten.
+                                            Die Zahlungsarten ließen sich nicht laden. Prüf deine Internetverbindung. Wenn du einen
+                                            Werbeblocker nutzt, schalte ihn für diese Seite aus – deine Angaben bleiben erhalten.
                                         </p>
                                         <button class="btn btn--secondary ko__retry" type="button" @click="mountStripe">
                                             Noch einmal laden

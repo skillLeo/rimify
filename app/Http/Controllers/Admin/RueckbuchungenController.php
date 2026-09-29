@@ -41,6 +41,12 @@ class RueckbuchungenController extends Controller
         'subscription_canceled' => 'Abo gekündigt',
         'unrecognized' => 'Abbuchung nicht erkannt',
         'general' => 'Allgemein',
+        'debit_not_authorized' => 'Lastschrift nicht genehmigt',
+        'insufficient_funds' => 'Konto nicht gedeckt',
+        'customer_initiated' => 'Vom Kunden veranlasst',
+        'bank_cannot_process' => 'Bank kann nicht bearbeiten',
+        'incorrect_account_details' => 'Falsche Kontodaten',
+        'noncompliant' => 'Regelverstoß gemeldet',
     ];
 
     public const STATES = [
@@ -75,7 +81,7 @@ class RueckbuchungenController extends Controller
         $gateway = Payments::for($dispute->provider);
 
         if ($gateway === null) {
-            return back()->withErrors(['evidence' => 'Der Zahlungsdienst dieser Rückbuchung ist gerade nicht in Kraft. Es wurde nichts gesendet.']);
+            return back()->withErrors(['evidence' => 'Der Zahlungsdienst dieser Rückbuchung ist gerade nicht eingerichtet. Es wurde nichts gesendet.']);
         }
 
         $disk = Storage::disk(Invoices::DISK);

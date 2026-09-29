@@ -144,7 +144,7 @@ describe('Bestellung', () => {
 
     it('names the confirmation mail only when it went out', () => {
         const sent = mountOrder(props({ payment: { state: 'paid', poll: false, email: 'kunde@beispiel.de', mailed: true } }))
-        expect(sent.text()).toContain('Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung ist an kunde@beispiel.de unterwegs.')
+        expect(sent.text()).toContain('Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung haben wir an kunde@beispiel.de geschickt.')
 
         const notSent = mountOrder(props({ payment: { state: 'paid', poll: false, email: 'kunde@beispiel.de', mailed: false } }))
         expect(notSent.text()).not.toContain('Die Bestätigung')

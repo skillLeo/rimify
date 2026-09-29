@@ -34,7 +34,7 @@ class KontoController extends Controller
 
     public const FORGOT_SENT = 'Wenn es zu dieser Adresse ein Konto gibt, ist ein Link zum neuen Passwort unterwegs.';
 
-    public const WRONG = 'E-Mail-Adresse oder Passwort stimmen nicht.';
+    public const WRONG = 'E-Mail-Adresse oder Passwort ist falsch. Prüf beides oder leg unter „Passwort vergessen“ ein neues fest.';
 
     /** „Konto anlegen“ after the order — one click, the order's own address. */
     public function offer(OrderAccountRequest $request): RedirectResponse
@@ -107,7 +107,7 @@ class KontoController extends Controller
         $account->delete();
         $request->session()->regenerateToken();
 
-        return redirect('/')->with('toast', 'Dein Konto ist gelöscht. Deine Bestellungen und Rechnungen bleiben bei uns, wie das Gesetz es verlangt.');
+        return redirect('/')->with('toast', 'Dein Konto ist gelöscht. Bestellungen und Rechnungen bewahren wir auf, solange wir gesetzlich dazu verpflichtet sind.');
     }
 
     public function forgot(): Response

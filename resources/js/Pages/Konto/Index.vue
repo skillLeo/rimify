@@ -44,7 +44,10 @@ const confirmDelete = ref(false)
             </div>
 
             <div v-if="confirmDelete" class="konto__delete" role="alert">
-                <p>Dein Konto wird gelöscht. Deine Bestellungen und Rechnungen bleiben bei uns, wie das Gesetz es verlangt – du kannst sie über die Links in deinen E-Mails weiter öffnen.</p>
+                <p>
+                    Wenn du dein Konto löschst, bewahren wir Bestellungen und Rechnungen auf, solange wir gesetzlich dazu
+                    verpflichtet sind. Deine Rechnungen findest du im Anhang deiner Bestellbestätigungen.
+                </p>
                 <div class="konto__actions">
                     <button class="btn btn--primary" type="button" @click="router.delete('/konto')">Konto endgültig löschen</button>
                     <button class="btn btn--secondary" type="button" @click="confirmDelete = false">Behalten</button>

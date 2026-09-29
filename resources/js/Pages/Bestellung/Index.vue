@@ -167,14 +167,14 @@ const lead = computed(() => {
                 ? `Das dauert länger als üblich. Du musst nichts weiter tun: Sobald die Zahlung bestätigt ist, bekommst du eine E-Mail an ${mailTo.value}.`
                 : 'Das dauert meist nur ein paar Sekunden – diese Seite aktualisiert sich von selbst. Bezahlt ist deine Bestellung, sobald der Zahlungsdienst sie uns bestätigt.'
         case 'processing':
-            return `Bei einer Lastschrift kann die Bestätigung ein paar Werktage dauern. Sobald sie da ist, bekommst du eine E-Mail an ${mailTo.value} – erst dann versenden wir.`
+            return `Bei einer Lastschrift kann die Bestätigung ein paar Tage dauern. Sobald sie da ist, bekommst du eine E-Mail an ${mailTo.value} – erst dann versenden wir.`
         case 'failed':
             return 'Es wurde nichts abgebucht. Deine Angaben und dein Warenkorb sind noch da – versuch es gleich noch einmal, gern auch mit einer anderen Zahlungsart.'
         case 'closed':
-            return `Status: ${props.order.statusLabel}. Sie wurde nicht bezahlt, und es wurde nichts abgebucht.`
+            return 'Diese Bestellung wurde nicht bezahlt, es wurde nichts abgebucht.'
         default:
             return props.payment?.mailed
-                ? `Deine Zahlung ist eingegangen. Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung ist an ${mailTo.value} unterwegs. Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.`
+                ? `Deine Zahlung ist eingegangen. Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung haben wir an ${mailTo.value} geschickt. Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.`
                 : 'Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.'
     }
 })
@@ -321,6 +321,10 @@ function openAccount(): void {
                             </div>
                         </dl>
                         <p class="price-legal">inkl. {{ order.tax }} MwSt. und Versand</p>
+                        <!-- The invoice as issued, by a signed link (Invoices::link). -->
+                        <a v-if="invoice" class="ord__invoice" :href="invoice.href" target="_blank" rel="noopener">
+                            Rechnung {{ invoice.number }} herunterladen
+                        </a>
                     </div>
 
                     <!-- Guest by default; the account is offered once, after the order, in one click (Block G §2). -->
@@ -404,6 +408,14 @@ function openAccount(): void {
 .ord__account {
     display: grid;
     gap: var(--space-3);
+}
+
+.ord__invoice {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-top: var(--space-2);
+    font-weight: 700;
 }
 
 .ord__account-text {

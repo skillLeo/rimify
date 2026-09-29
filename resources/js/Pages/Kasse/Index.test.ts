@@ -125,7 +125,7 @@ function mountKasse(props: MountProps = {}): VueWrapper {
             orderRefusal: props.orderRefusal === undefined ? REFUSAL : props.orderRefusal,
             deliveryTime: props.deliveryTime ?? null,
             payment: props.payment ?? null,
-            shown: '0123456789abcdef.0123456789abcdef',
+            shown: 'aaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbb',
         },
         attachTo: document.body,
     })
@@ -382,7 +382,7 @@ describe('Kasse', () => {
         const box = wrapper.find('.ko__check input')
 
         expect((box.element as HTMLInputElement).checked).toBe(false)
-        expect(wrapper.find('.ko__check').text()).toBe('Rechnung an eine andere Adresse')
+        expect(wrapper.find('.ko__check').text()).toBe('Andere Rechnungsadresse')
         expect(wrapper.find('#ko-b-name').exists()).toBe(false)
 
         await box.setValue(true)
@@ -438,7 +438,7 @@ describe('Kasse', () => {
             expect(calls).toHaveLength(1)
             const body = JSON.parse(String(calls[0]![1]?.body)) as Record<string, unknown>
             expect(body.email).toBe('kunde@beispiel.de')
-            expect(body.shown).toBe('0123456789abcdef.0123456789abcdef')
+            expect(body.shown).toBe('aaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbb')
             expect(stripe.confirmPayment).toHaveBeenCalledWith(expect.objectContaining({ clientSecret: 'pi_1_secret_x' }))
             expect(wrapper.find('.ko__refusal--bad').text()).toBe('Deine Karte wurde abgelehnt.')
             expect(post).not.toHaveBeenCalled()

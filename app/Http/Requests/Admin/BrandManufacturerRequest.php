@@ -17,7 +17,7 @@ use Illuminate\Validation\Validator;
  */
 class BrandManufacturerRequest extends FormRequest
 {
-    public const INCOMPLETE = 'Name, Anschrift und Kontakt des Herstellers gehören zusammen – trag alle drei ein oder keins.';
+    public const INCOMPLETE = 'Name, Anschrift und Kontakt des Herstellers gehören zusammen – trag alle drei ein oder lass alle drei leer.';
 
     public const RESPONSIBLE_INCOMPLETE = 'Zur verantwortlichen Person in der EU gehören Anschrift und Kontakt.';
 
@@ -74,8 +74,8 @@ class BrandManufacturerRequest extends FormRequest
     public function messages(): array
     {
         return [
-            '*.regex' => 'Als Kontakt eine E-Mail-Adresse oder eine Webadresse mit https://.',
-            '*.max' => 'Diese Angabe ist zu lang.',
+            '*.regex' => 'Gib als Kontakt eine E-Mail-Adresse oder eine Webadresse mit https:// an.',
+            '*.max' => 'Diese Angabe darf höchstens :max Zeichen lang sein.',
         ];
     }
 

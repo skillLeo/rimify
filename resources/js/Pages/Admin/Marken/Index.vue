@@ -400,8 +400,8 @@ function counts(brand: BrandRow): string {
                     <h2 id="mk-maker-title" class="adm-section__title">Herstellerangaben: {{ manufacturing.name }}</h2>
                 </div>
                 <p class="form-field__help mk__hint">
-                    Die Produktsicherheitsverordnung (GPSR) verlangt sie auf jeder Produktseite: Name, Postanschrift und
-                    Kontakt des Herstellers – so, wie er sie selbst angibt. Sitzt er außerhalb der EU, dazu die
+                    Die Allgemeine Produktsicherheitsverordnung (GPSR) verlangt sie auf jeder Produktseite: Name, Postanschrift und
+                    elektronische Adresse des Herstellers – so, wie er sie selbst angibt. Sitzt er außerhalb der EU, dazu die
                     verantwortliche Person in der EU. Leer bleibt leer: der Shop ergänzt nichts.
                 </p>
 
