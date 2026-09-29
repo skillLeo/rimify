@@ -99,16 +99,43 @@ const overview = computed(() => {
     const work = items('Arbeiten am Fahrzeug')
     const first = view.fasteners[0]
 
+    // A size's own work counts only with that size (D-04): „bis zu“ while the size decides.
+    const bySize = view.sections.find((s) => s.title === 'Arbeiten am Fahrzeug')?.items.some((i) => i.sizes?.length) ?? false
+
     if (items('Abnahme') > 0) lines.push('Abnahme beim Prüfer')
-    if (work > 0) lines.push(`${work} ${work === 1 ? 'Arbeit' : 'Arbeiten'} am Fahrzeug`)
+    if (work > 0) lines.push(`${bySize ? 'bis zu ' : ''}${work} ${work === 1 ? 'Arbeit' : 'Arbeiten'} am Fahrzeug`)
 
     if (first !== undefined) {
+        // Which set is the car's is not the customer's choice (D-08): the car decides.
         const more = view.fasteners.length - 1
-        lines.push(`${first.thread}${first.torque ? `, ${first.torque}` : ''}${more > 0 ? ` oder ${more === 1 ? 'ein weiterer Schraubensatz' : `${more} weitere Schraubensätze`}` : ''}`)
+        lines.push(`${first.thread}${first.torque ? `, ${first.torque}` : ''}${more > 0 ? ` oder ${more === 1 ? 'ein anderer Schraubensatz' : `einer von ${more} anderen Schraubensätzen`}, je nach Fahrzeug` : ''}`)
     }
 
     return lines
 })
+
+/* Every size the car may carry, front and rear: a size for the rear axle only is still one of them (D-09). */
+const sizes = computed(() => [...new Set([
+    ...(props.verdict?.tyreSizesFront ?? props.verdict?.tyreSizes ?? []),
+    ...(props.verdict?.tyreSizesRear ?? []),
+])])
+
+/*
+ * „Alle Auflagen im Wortlaut“ scrolls to the section without a history entry: Back from a fragment is an Inertia
+ * visit that re-mounts the page and throws away the chosen size and colour (D-01). The heading takes the focus,
+ * so a screen reader reads on from there (D-12). A modified click keeps the link's own behaviour.
+ */
+function toDetail(event: MouseEvent): void {
+    const section = document.getElementById('auflagen')
+
+    if (section === null || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return
+    }
+
+    event.preventDefault()
+    document.getElementById('fdt-h')?.focus({ preventScroll: true })
+    section.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+}
 
 const documentLine = computed(() => {
     const document = props.verdict?.document
@@ -198,15 +225,15 @@ const headline = computed(() => {
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->
             <div v-if="detail && overview.length" class="fit__overview">
                 <p class="label fit__overview-h">Das verlangt das Gutachten</p>
-                <p class="small fit__overview-line">{{ overview.join(' · ') }} · <a href="#auflagen">alle Auflagen im Wortlaut</a></p>
+                <p class="small fit__overview-line">{{ overview.join(' · ') }} · <a class="fit__to-detail" href="#auflagen" @click="toDetail">alle Auflagen im Wortlaut</a></p>
             </div>
             <ul v-else-if="!detail && conditions.length" class="fit__conditions">
                 <li v-for="condition in conditions" :key="condition">{{ condition }}</li>
             </ul>
 
-            <div v-if="verdict.tyreSizes.length" class="fit__tyres">
+            <div v-if="sizes.length" class="fit__tyres">
                 <span class="micro">Passende Reifengrößen</span>
-                <p class="data">{{ verdict.tyreSizes.join(' · ') }}</p>
+                <p class="data">{{ sizes.join(' · ') }}</p>
             </div>
 
             <!-- Said once: a reason the tyre lines above already give is not repeated here. -->
@@ -291,6 +318,15 @@ const headline = computed(() => {
 /* The sum, one click away and inline: a native disclosure, so it works without script and on a phone. */
 .fit__sum {
     margin: var(--sp-8) 0 0;
+}
+
+/* A finger's target (DIRECTION §6, 44 px) without moving the line (D-11). */
+@media (pointer: coarse) {
+    .fit__to-detail {
+        display: inline-block;
+        padding-block: var(--sp-12);
+        margin-block: calc(-1 * var(--sp-12));
+    }
 }
 
 .fit__sum-toggle {

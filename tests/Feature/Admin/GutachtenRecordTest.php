@@ -160,7 +160,7 @@ it('keeps the Befestigungsmittel, the Pflichthinweise and the rework millimetres
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('fasteners.0.number', 'S01')->where('fasteners.0.torqueNm', 140)->where('fasteners.0.vehicleTypes', '3C, 4C')
             ->where('notices.0.page', 9)
-            ->where('reworks.0.code', 'K42')->where('reworks.0.measure', 'von 15 bis 32,5 mm · aufgeweitet um 5 mm'));
+            ->where('reworks.0.code', 'K42')->where('reworks.0.measure', 'von 15 bis 32,5'."\u{00A0}".'mm · aufgeweitet um 5'."\u{00A0}".'mm'));
 
     expect(AuditLog::query()->whereIn('description', ['approval.fastener_added', 'approval.notice_added', 'approval.rework_added'])->count())->toBe(3);
 

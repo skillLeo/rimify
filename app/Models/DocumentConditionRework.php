@@ -42,16 +42,15 @@ class DocumentConditionRework extends Model
         return $this->belongsTo(DocumentCondition::class, 'document_condition_id');
     }
 
-    /** `von 15 bis 30 mm · aufgeweitet um 5 mm`, the German way (R-10). */
+    /** `von 15 bis 30 mm · aufgeweitet um 5 mm`, the German way (R-10): the unit never breaks from its number. */
     public function measureDe(): string
     {
-        $mm = static fn (float $v): string => GermanFormat::trimmedDecimal($v, 1).' mm';
+        $mm = static fn (float $v): string => GermanFormat::trimmedDecimal($v, 1).GermanFormat::NBSP.'mm';
         $parts = [];
 
         if ($this->from_mm !== null || $this->to_mm !== null) {
-            $parts[] = trim(($this->from_mm === null ? '' : 'von '.GermanFormat::trimmedDecimal($this->from_mm, 1).' ')
-                .($this->to_mm === null ? '' : 'bis '.$mm($this->to_mm))
-                .($this->to_mm === null && $this->from_mm !== null ? 'mm' : ''));
+            $parts[] = trim(($this->from_mm === null ? '' : 'von '.($this->to_mm === null ? $mm($this->from_mm) : GermanFormat::trimmedDecimal($this->from_mm, 1)).' ')
+                .($this->to_mm === null ? '' : 'bis '.$mm($this->to_mm)));
         }
 
         if ($this->flare_mm !== null) {

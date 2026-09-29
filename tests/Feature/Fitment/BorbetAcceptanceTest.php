@@ -136,7 +136,9 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
         // four states' CONDITIONAL, never a bare PERMITTED while the customer still has to act (R-07).
         ->and($verdict->wheelStatus)->toBe(VerdictStatus::Conditional)
         ->and($verdict->status)->toBe(VerdictStatus::Conditional)
-        ->and($verdict->requiresEntry)->toBeTrue();
+        ->and($verdict->requiresEntry)->toBeTrue()
+        // D-02: the RIMIFY-Check, the order snapshot and the mails name the car as the header does.
+        ->and($verdict->toArray()['vehicle']['label'])->toStartWith('BMW 1er-Reihe 187, ')->not->toContain('(187)');
 
     // Every sentence is ABE 55255's own, word for word — never a code, never another document's.
     foreach ([...$verdict->conditions, ...($size?->conditions ?? [])] as $condition) {
@@ -159,11 +161,17 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
     expect($page->viewData('page')['props']['vehicle']['label'] ?? null)->toBe('BMW 1er-Reihe 187');
 
     expect(array_column($shown['detail']['sections'], 'title'))->toBe(['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen', 'Hinweise'])
-        ->and($shown['detail']['fasteners'])->toBe([['thread' => 'Schraube M12x1,5', 'label' => 'Schraube M12x1,5, Kegel 60°, Schaftlänge 30'."\u{00A0}".'mm', 'torque' => '110'."\u{00A0}".'Nm', 'article' => '5248', 'limit' => null]])
+        ->and($shown['detail']['fasteners'])->toBe([['number' => 'S01', 'thread' => 'Schraube M12x1,5', 'label' => 'Schraube M12x1,5, Kegel 60°, Schaftlänge 30'."\u{00A0}".'mm', 'torque' => '110'."\u{00A0}".'Nm', 'article' => '5248', 'limit' => null]])
         ->and(collect($shown['detail']['tyres'])->firstWhere('label', '235/35 R19'))->toBe(['label' => '235/35 R19', 'axle' => 'Vorder- und Hinterachse', 'minimum' => null, 'band' => '85–195'."\u{00A0}".'kW'])
         ->and(collect($shown['detail']['tyres'])->firstWhere('label', '255/30 R19')['axle'])->toBe('nur Hinterachse')
         ->and($shown['document']['pdf']['page'])->toBe(2)
-        ->and(json_encode($shown['detail']))->not->toMatch('/"(A01|K1c|S01|T87)"/');
+        ->and(json_encode($shown['detail']))->not->toMatch('/"(A01|K1c|T87)"/');
+
+    // D-04: K14 is printed beside 235/35R19 only, so it says so; A01 is the row's, for every size.
+    $items = collect($shown['detail']['sections'])->flatMap(static fn (array $s): array => $s['items']);
+
+    expect($items->firstWhere('text', printedSentence('abe-55255.json', 'K14'))['sizes'] ?? null)->toContain('235/35 R19')
+        ->and($items->firstWhere('text', printedSentence('abe-55255.json', 'A01'))['sizes'] ?? null)->toBe([]);
 
     // The 18″ on a 1K4 from Modelljahr 2012 (page 3): the rework millimetres the Nachtrag prints for type 1K4
     // (page 22), both bolt sets the page gives a 1K4 with what it prints beside each, the 50 km torque check, and
@@ -176,11 +184,16 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
     $shown = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $eighteenId)['verdict'];
     $work = collect($shown['detail']['sections'])->firstWhere('title', 'Arbeiten am Fahrzeug')['items'];
 
-    expect(collect($work)->firstWhere('text', printedSentence('366-0350-21-WIRD-N1.json', '26B'))['measures'])->toBe(['Vorderachse: von 190 bis 220 mm'])
-        ->and(collect($work)->firstWhere('text', printedSentence('366-0350-21-WIRD-N1.json', '27F'))['measures'])->toBe(['Hinterachse: von 220 bis 270 mm · aufgeweitet um 30 mm'])
-        ->and(array_column($shown['detail']['fasteners'], 'limit'))->toBe(['nur bis Nachtrag 03', 'ab Nachtrag 04'])
-        ->and(array_column($shown['detail']['fasteners'], 'torque'))->toBe(['120'."\u{00A0}".'Nm', '140'."\u{00A0}".'Nm'])
+    expect(collect($work)->firstWhere('text', printedSentence('366-0350-21-WIRD-N1.json', '26B'))['measures'])->toBe(['Vorderachse: von 190 bis 220'."\u{00A0}".'mm'])
+        ->and(collect($work)->firstWhere('text', printedSentence('366-0350-21-WIRD-N1.json', '27F'))['measures'])->toBe(['Hinterachse: von 220 bis 270'."\u{00A0}".'mm · aufgeweitet um 30'."\u{00A0}".'mm'])
+        // D-08: page 2 gives 1K4 „Set Nr. 5248 (nur bis Nachtrag 03)“ and „Set Nr. 5276 (ab Nachtrag 04)“; this car
+        // is e1*2007/46*0283*04-.., so only the second is its own.
+        ->and(array_column($shown['detail']['fasteners'], 'limit'))->toBe(['ab Nachtrag 04'])
+        ->and(array_column($shown['detail']['fasteners'], 'torque'))->toBe(['140'."\u{00A0}".'Nm'])
+        ->and(array_column($shown['detail']['fasteners'], 'number'))->toBe([null])
         ->and($shown['detail']['notices'])->toContain('Der Fahrzeughalter muss auf die Kontrolle des Anzugsmoments der Befestigungsmittel nach einer Wegstrecke von 50km hingewiesen werden.')
+        // D-03: page 24 captions drawings the page does not show and lists codes — it is no Hinweis for the customer.
+        ->and(implode(' ', $shown['detail']['notices']))->not->toContain('Hinweisblatt')->not->toContain('24C')
         ->and($shown['document']['notes'])->toContain('Grundgutachten ABE 53841 liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.');
 
     // Never a 19″ code read with the 18″ document, nor the other way round.

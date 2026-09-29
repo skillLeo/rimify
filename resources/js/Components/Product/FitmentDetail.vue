@@ -29,20 +29,38 @@ const todo = computed(() => TODO
         || (section.title === 'Reifen' && props.detail.tyres.length > 0)))
 
 const notes = computed(() => props.detail.sections.find((s) => s.title === 'Hinweise')?.items ?? [])
+
+/* A sentence the document hangs off some sizes only says which (D-04): „Gilt für 235/35 R19 und 255/30 R19“. */
+function forSizes(sizes: string[] | undefined): string | null {
+    if (!sizes?.length) {
+        return null
+    }
+
+    return `Gilt für ${sizes.length === 1 ? sizes[0] : `${sizes.slice(0, -1).join(', ')} und ${sizes[sizes.length - 1]}`}`
+}
+
+/* RIMIFY's own sentences (the kW band) are marked, so the lede's „Wörtlich“ stays true (D-10). */
+const hasOwn = computed(() => props.detail.sections.some((s) => s.items.some((i) => i.own)))
+
+/* „nur bis Nachtrag 03“ names the car's type approval, not this document (D-08): said once, under the sets. */
+const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtrag/.test(f.limit ?? '')))
 </script>
 
 <template>
     <section id="auflagen" class="fdt" aria-labelledby="fdt-h">
-        <h2 id="fdt-h" class="h2 fdt__h">Was das Gutachten für deinen {{ vehicleLabel }} verlangt</h2>
-        <p class="small muted fdt__lede">Wörtlich aus dem Gutachten.</p>
+        <h2 id="fdt-h" class="h2 fdt__h" tabindex="-1">Was das Gutachten für deinen {{ vehicleLabel }} verlangt</h2>
+        <p class="small muted fdt__lede">
+            Wörtlich aus dem Gutachten.<template v-if="hasOwn"> Was mit „Unser Hinweis“ beginnt, kommt von uns.</template>
+        </p>
 
         <div class="fdt__cols">
             <div class="fdt__main">
-                <section v-for="section in todo" :key="section.title" class="fdt__sec" :aria-labelledby="`fdt-${section.title}`">
-                    <h3 :id="`fdt-${section.title}`" class="h4 fdt__sec-h">{{ section.title }}</h3>
+                <div v-for="section in todo" :key="section.title" class="fdt__sec">
+                    <h3 class="h4 fdt__sec-h">{{ section.title }}</h3>
                     <ul v-if="section.items.length" class="fdt__list">
                         <li v-for="item in section.items" :key="item.text">
-                            {{ item.text }}
+                            <span v-if="forSizes(item.sizes)" class="fdt__for">{{ forSizes(item.sizes) }}</span>
+                            <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
                             <ul v-if="item.measures.length" class="fdt__measures">
                                 <li v-for="measure in item.measures" :key="measure">{{ measure }}</li>
                             </ul>
@@ -55,13 +73,17 @@ const notes = computed(() => props.detail.sections.find((s) => s.title === 'Hinw
                         </thead>
                         <tbody>
                             <tr v-for="bolt in detail.fasteners" :key="`${bolt.label}${bolt.torque}${bolt.limit}`">
-                                <td data-label="Schraube" class="fdt__key">{{ bolt.label }}</td>
+                                <td data-label="Schraube" class="fdt__key"><template v-if="bolt.number">Nr. {{ bolt.number }} · </template>{{ bolt.label }}</td>
                                 <td data-label="Anzugsmoment" class="fdt__num">{{ bolt.torque ?? '–' }}</td>
                                 <td data-label="Artikel">{{ bolt.article ?? '–' }}</td>
                                 <td data-label="Gilt">{{ bolt.limit ?? 'für diesen Typ' }}</td>
                             </tr>
                         </tbody>
                     </table>
+                    <p v-if="section.title === 'Befestigung' && namesNachtrag" class="small muted fdt__aside">
+                        „Nachtrag“ meint hier den Stand der EG-Typgenehmigung deines Fahrzeugs: die Ziffern nach dem
+                        letzten Sternchen in Feld K der Zulassungsbescheinigung Teil I, etwa „04“ bei e1*2007/46*0283*04.
+                    </p>
 
                     <table v-if="section.title === 'Reifen' && detail.tyres.length" class="fdt__table">
                         <thead>
@@ -76,22 +98,25 @@ const notes = computed(() => props.detail.sections.find((s) => s.title === 'Hinw
                             </tr>
                         </tbody>
                     </table>
-                </section>
+                </div>
             </div>
 
             <div v-if="notes.length || detail.notices.length" class="fdt__side">
-                <section v-if="notes.length" class="fdt__sec" aria-labelledby="fdt-hinweise">
-                    <h3 id="fdt-hinweise" class="h4 fdt__sec-h">Hinweise</h3>
+                <div v-if="notes.length" class="fdt__sec">
+                    <h3 class="h4 fdt__sec-h">Hinweise</h3>
                     <ul class="fdt__list fdt__list--note">
-                        <li v-for="item in notes" :key="item.text">{{ item.text }}</li>
+                        <li v-for="item in notes" :key="item.text">
+                            <span v-if="forSizes(item.sizes)" class="fdt__for">{{ forSizes(item.sizes) }}</span>
+                            <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
+                        </li>
                     </ul>
-                </section>
-                <section v-if="detail.notices.length" class="fdt__sec" aria-labelledby="fdt-gutachten">
-                    <h3 id="fdt-gutachten" class="h4 fdt__sec-h">Hinweise des Gutachtens</h3>
+                </div>
+                <div v-if="detail.notices.length" class="fdt__sec">
+                    <h3 class="h4 fdt__sec-h">Hinweise des Gutachtens</h3>
                     <ul class="fdt__list fdt__list--note">
                         <li v-for="notice in detail.notices" :key="notice">{{ notice }}</li>
                     </ul>
-                </section>
+                </div>
             </div>
         </div>
     </section>
@@ -156,6 +181,25 @@ const notes = computed(() => props.detail.sections.find((s) => s.title === 'Hinw
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     color: var(--c-ink-2);
+}
+
+/* Which sizes a sentence belongs to, above it; RIMIFY's own words, marked. */
+.fdt__for {
+    display: block;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    color: var(--c-ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.fdt__own {
+    font-weight: 500;
+}
+
+.fdt__aside {
+    margin: var(--sp-8) 0 0;
+    max-width: 54ch;
 }
 
 .fdt__measures {

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ABNAHME, borbetDetail } from './borbetDetail.fixture'
 import FitmentPanel from './FitmentPanel.vue'
 import type { ConfigVerdict } from '../../types/pages'
@@ -237,7 +237,7 @@ describe('FitmentPanel', () => {
 
         // One line: what there is to do, then the way to the full wording. The notes are not a task.
         expect(wrapper.find('.fit__overview-line').text()).toBe(
-            'Abnahme beim Prüfer · 2 Arbeiten am Fahrzeug · Kegelbundschraube M12x1,5, 120 Nm oder ein weiterer Schraubensatz · alle Auflagen im Wortlaut'
+            'Abnahme beim Prüfer · bis zu 2 Arbeiten am Fahrzeug · Kegelbundschraube M12x1,5, 120 Nm oder ein anderer Schraubensatz, je nach Fahrzeug · alle Auflagen im Wortlaut'
         )
         expect(wrapper.find('.fit__overview a').attributes('href')).toBe('#auflagen')
         // The sentences stand below the purchase, not in the panel; the sizes keep their own line.
@@ -245,5 +245,44 @@ describe('FitmentPanel', () => {
         expect(wrapper.text()).not.toContain(ABNAHME)
         expect(wrapper.find('.fit__tyres').text()).toContain('245/35 R18')
         expect(wrapper.text().split('Eintragung in die Fahrzeugpapiere erforderlich.')).toHaveLength(2)
+    })
+
+    /*
+     * D-01: the link scrolls without a history entry — Back from a fragment re-mounts the Inertia page and throws
+     * away the chosen size — and hands the focus to the section's heading (D-12).
+     */
+    it('scrolls to the Auflagen without a history entry, and hands the focus to their heading', async () => {
+        const target = document.createElement('section')
+        target.id = 'auflagen'
+        target.innerHTML = '<h2 id="fdt-h" tabindex="-1">Was das Gutachten verlangt</h2>'
+        target.scrollIntoView = vi.fn()
+        document.body.append(target)
+
+        const wrapper = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', requiresEntry: true, conditions: [ABNAHME], detail: borbetDetail }) },
+            attachTo: document.body,
+        })
+        const before = window.history.length
+        const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+
+        wrapper.find('.fit__to-detail').element.dispatchEvent(click)
+
+        expect(click.defaultPrevented).toBe(true)
+        expect(target.scrollIntoView).toHaveBeenCalledOnce()
+        expect(document.activeElement?.id).toBe('fdt-h')
+        expect(window.location.hash).toBe('')
+        expect(window.history.length).toBe(before)
+
+        wrapper.unmount()
+        target.remove()
+    })
+
+    // D-09: 255/30 R19 is printed for the rear axle only — still one of the car's sizes.
+    it('lists the sizes of both axles, each once', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ tyreSizes: ['235/35 R19'], tyreSizesFront: ['235/35 R19'], tyreSizesRear: ['235/35 R19', '255/30 R19'] }) },
+        })
+
+        expect(wrapper.find('.fit__tyres .data').text()).toBe('235/35 R19 · 255/30 R19')
     })
 })

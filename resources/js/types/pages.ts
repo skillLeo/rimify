@@ -318,8 +318,13 @@ export interface ProduktConfig {
  * notes. Every line is a sentence of the answer's own documents.
  */
 export interface FitmentDetailView {
-    sections: { title: string; items: { text: string; measures: string[] }[] }[]
-    fasteners: { thread: string; label: string; torque: string | null; article: string | null; limit: string | null }[]
+    /**
+     * `sizes`: the sizes a sentence belongs to where the document hangs it off some of the car's sizes, not all
+     * (empty: every size). `own`: RIMIFY's sentence (the kW band), not the document's.
+     */
+    sections: { title: string; items: { text: string; measures: string[]; sizes?: string[]; own?: boolean }[] }[]
+    /** `number`: the code the document's sentence names the set by (`S01`), null where it names it by type. */
+    fasteners: { number?: string | null; thread: string; label: string; torque: string | null; article: string | null; limit: string | null }[]
     tyres: { label: string; axle: string; minimum: string | null; band: string | null }[]
     notices: string[]
 }

@@ -13,6 +13,10 @@ use App\Enums\Axle;
 use App\Models\DocumentConditionRework;
 use App\Models\DocumentFastener;
 use App\Models\DocumentNotice;
+use App\Models\Fitment;
+use App\Models\FitmentCondition;
+use App\Models\Vehicle;
+use App\Support\EgNumber;
 use App\Support\GermanFormat;
 
 /**
@@ -31,8 +35,8 @@ final class FitmentDetail
 
     /**
      * @return array{
-     *     sections: list<array{title: string, items: list<array{text: string, measures: list<string>}>}>,
-     *     fasteners: list<array{thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>,
+     *     sections: list<array{title: string, items: list<array{text: string, measures: list<string>, sizes: list<string>, own: bool}>}>,
+     *     fasteners: list<array{number: string|null, thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>,
      *     tyres: list<array{label: string, axle: string, minimum: string|null, band: string|null}>,
      *     notices: list<string>
      * }
@@ -44,10 +48,11 @@ final class FitmentDetail
             $verdict->documents === [] ? array_filter([$verdict->document]) : $verdict->documents,
         )));
         $type = $verdict->vehicle->typeDesignation;
+        $eg = Vehicle::withTrashed()->whereKey($verdict->vehicle->id)->value('eg_nummer_norm');
 
         return [
-            'sections' => $this->sections($verdict->conditions, $documentIds, $type),
-            'fasteners' => $this->fasteners($verdict->conditions, $documentIds, $type),
+            'sections' => $this->sections($verdict->conditions, $documentIds, $type, $this->sizesOwning($verdict, $documentIds)),
+            'fasteners' => $this->fasteners($verdict->conditions, $documentIds, $type, EgNumber::parse(is_string($eg) ? $eg : null)),
             'tyres' => $this->tyres($verdict),
             'notices' => $documentIds === [] ? [] : DocumentNotice::query()
                 ->whereIn('approval_document_id', $documentIds)
@@ -57,11 +62,65 @@ final class FitmentDetail
     }
 
     /**
+     * The sizes an Auflage belongs to, where the document hangs it off some of the car's sizes and not all (D-04):
+     * „Diese Reifengröße ist nur an Achse 2 zulässig.“ says which size only beside it. An Auflage any row of these
+     * documents carries for this car and wheel stands for every size — the cautious reading when a code is on
+     * both — and so does one every offered size carries.
+     *
+     * @param  list<int>  $documentIds
+     * @return array<string, list<string>> by Condition::union's key (code and sentence)
+     */
+    private function sizesOwning(FitmentVerdict $verdict, array $documentIds): array
+    {
+        if ($verdict->wheel === null || $documentIds === []) {
+            return [];
+        }
+
+        $sizes = [];
+
+        foreach ([...$verdict->front->sizes, ...$verdict->rear->sizes] as $size) {
+            $sizes[$size->key()] = $size;
+        }
+
+        $rowCodes = FitmentCondition::query()
+            ->whereIn('fitment_id', Fitment::query()->select('id')
+                ->where('vehicle_id', $verdict->vehicle->id)
+                ->where('wheel_config_id', $verdict->wheel->id)
+                ->whereIn('approval_document_id', $documentIds))
+            ->pluck('code')->map(static fn (mixed $c): string => (string) $c)->flip()->all();
+        $owning = [];
+
+        foreach ($sizes as $size) {
+            foreach ($size->conditions as $condition) {
+                if (! isset($rowCodes[$condition->code])) {
+                    $owning[self::key($condition)][$size->key()] = $size->labelDe();
+                }
+            }
+        }
+
+        $out = [];
+
+        foreach ($owning as $key => $labels) {
+            if (count($labels) < count($sizes)) {
+                $out[$key] = array_values($labels);
+            }
+        }
+
+        return $out;
+    }
+
+    private static function key(Condition $condition): string
+    {
+        return $condition->code."\u{0}".$condition->sentenceDe();
+    }
+
+    /**
      * @param  list<Condition>  $conditions
      * @param  list<int>  $documentIds
-     * @return list<array{title: string, items: list<array{text: string, measures: list<string>}>}>
+     * @param  array<string, list<string>>  $sizesOwning
+     * @return list<array{title: string, items: list<array{text: string, measures: list<string>, sizes: list<string>, own: bool}>}>
      */
-    private function sections(array $conditions, array $documentIds, ?string $type): array
+    private function sections(array $conditions, array $documentIds, ?string $type, array $sizesOwning = []): array
     {
         // The millimetres this document prints for this Fahrzeugtyp, per code — nothing for a type it has no profile for.
         $measures = [];
@@ -86,6 +145,9 @@ final class FitmentDetail
             $grouped[$title][] = [
                 'text' => $condition->sentenceDe(),
                 'measures' => $condition->kind === ConditionKind::Nacharbeitsprofil ? ($measures[$condition->code] ?? []) : [],
+                'sizes' => $sizesOwning[self::key($condition)] ?? [],
+                // The kW band's sentence is RIMIFY's, not the document's (D-10): said as ours.
+                'own' => str_starts_with($condition->code, 'KW '),
             ];
         }
 
@@ -105,11 +167,15 @@ final class FitmentDetail
      * mittel S01); one that lists them by Fahrzeugtyp names the type (the Nachtrag). Where it gives one type two
      * sets — 1C and 3C by the thread of the car's own bolts — both are said, each with what the page prints beside it.
      *
+     * A set the page gives a type „nur bis Nachtrag 03“ or „ab Nachtrag 04“ of its EG-Typgenehmigung is left out
+     * for a car whose own extensions lie wholly on the other side (D-08); a car whose extensions are not known, or
+     * straddle the boundary, is shown both.
+     *
      * @param  list<Condition>  $conditions
      * @param  list<int>  $documentIds
-     * @return list<array{thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>
+     * @return list<array{number: string|null, thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>
      */
-    private function fasteners(array $conditions, array $documentIds, ?string $type): array
+    private function fasteners(array $conditions, array $documentIds, ?string $type, ?EgNumber $eg = null): array
     {
         if ($documentIds === []) {
             return [];
@@ -131,11 +197,13 @@ final class FitmentDetail
                 }
             }
 
-            if (! $named) {
+            if (! $named || self::outsideExtensions($limit, $eg)) {
                 continue;
             }
 
             $out[] = [
+                // The number the document's own sentence names it by („… Befestigungsmittel Nr. S01 …“, D-07).
+                'number' => in_array($fastener->number, $codes, true) ? $fastener->number : null,
                 'thread' => $fastener->thread,
                 'label' => implode(', ', array_filter([
                     $fastener->thread,
@@ -149,6 +217,18 @@ final class FitmentDetail
         }
 
         return $out;
+    }
+
+    /** True when `nur bis Nachtrag 03` / `ab Nachtrag 04` excludes every extension the car's number covers. */
+    private static function outsideExtensions(?string $limit, ?EgNumber $eg): bool
+    {
+        if ($limit === null || $eg === null || preg_match('/^\s*(nur bis|ab) Nachtrag (\d+)\s*$/u', $limit, $m) !== 1) {
+            return false;
+        }
+
+        $at = (int) $m[2];
+
+        return $m[1] === 'ab' ? $eg->to !== null && $eg->to < $at : $eg->from !== null && $eg->from > $at;
     }
 
     /**

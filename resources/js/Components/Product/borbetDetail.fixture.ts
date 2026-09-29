@@ -14,13 +14,20 @@ export const borbetDetail: FitmentDetailView = {
             title: 'Arbeiten am Fahrzeug',
             items: [
                 { text: 'Durch Anlegen der vorderen Radhausausschnittkanten … zu entnehmen.', measures: ['Vorderachse: von 190 bis 220 mm'] },
-                { text: 'Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser … zu entnehmen.', measures: ['Hinterachse: von 220 bis 270 mm · aufgeweitet um 30 mm'] },
+                { text: 'Durch Aufweiten bzw. Ausstellen der hinteren Radhäuser … zu entnehmen.', measures: ['Hinterachse: von 220 bis 270 mm · aufgeweitet um 30 mm'], sizes: ['245/35 R18'] },
+            ],
+        },
+        {
+            title: 'Reifen',
+            items: [
+                { text: 'Diese Reifengröße ist nur an Achse 2 zulässig.', measures: [], sizes: ['245/35 R18', '255/35 R18'] },
+                { text: 'Die Reifengröße 245/35 R18 gibt das Gutachten nur für 70–250 kW an. Vergleiche das mit Feld P.2.', measures: [], own: true },
             ],
         },
     ],
     fasteners: [
-        { thread: 'Kegelbundschraube M12x1,5', label: 'Kegelbundschraube M12x1,5, Kegel 60°, Schaftlänge 30 mm', torque: '120 Nm', article: 'Set Nr. 5248', limit: 'nur bis Nachtrag 03' },
-        { thread: 'Kegelbundschraube M14x1,25', label: 'Kegelbundschraube M14x1,25, Kegel 60°, Schaftlänge 30 mm', torque: '140 Nm', article: 'Set Nr. 5276', limit: 'ab Nachtrag 04' },
+        { number: null, thread: 'Kegelbundschraube M12x1,5', label: 'Kegelbundschraube M12x1,5, Kegel 60°, Schaftlänge 30 mm', torque: '120 Nm', article: 'Set Nr. 5248', limit: 'nur bis Nachtrag 03' },
+        { number: null, thread: 'Kegelbundschraube M14x1,25', label: 'Kegelbundschraube M14x1,25, Kegel 60°, Schaftlänge 30 mm', torque: '140 Nm', article: 'Set Nr. 5276', limit: 'ab Nachtrag 04' },
     ],
     tyres: [{ label: '245/35 R18', axle: 'nur Hinterachse', minimum: 'Lastindex 92', band: '70–250 kW' }],
     notices: ['Der Fahrzeughalter muss auf die Kontrolle des Anzugsmoments der Befestigungsmittel nach einer Wegstrecke von 50km hingewiesen werden.'],
