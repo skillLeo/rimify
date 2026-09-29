@@ -41,8 +41,9 @@ final class ShopRateLimits
         'shop-kasse' => [10, true],
         'shop-kasse-rdks' => [30, true],
         'shop-testzahlung' => [10, true],
-        // Mein Konto (Block G §2): signing in, a new password link, „Konto anlegen“ — few, as a login deserves.
-        'shop-konto' => [5, false],
+        // Mein Konto (Block G §2): signing in, a new password link, „Konto anlegen“ share it — few, as a login deserves,
+        // but room for a mistyped password and a forgotten one in the same minute (PAY-10).
+        'shop-konto' => [10, false],
     ];
 
     public static function register(): void

@@ -23,7 +23,7 @@
  */
 
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import type { IconName } from '../../art'
@@ -137,6 +137,23 @@ function schedule(): void {
 }
 
 onMounted(schedule)
+
+/* Paid: what was typed at the Kasse is not kept for the next checkout in this tab (PAY-03). */
+watch(
+    state,
+    (now) => {
+        if (now !== 'paid' || typeof window === 'undefined') {
+            return
+        }
+
+        try {
+            window.sessionStorage.removeItem('rmf.kasse.v1')
+        } catch {
+            // Blocked storage: there was nothing kept to remove.
+        }
+    },
+    { immediate: true }
+)
 onBeforeUnmount(() => {
     if (timer !== null) {
         clearTimeout(timer)
@@ -328,11 +345,11 @@ function openAccount(): void {
                     </div>
 
                     <!-- Guest by default; the account is offered once, after the order, in one click (Block G §2). -->
-                    <div v-if="accountOffer" class="card ord__account">
+                    <div v-if="accountOffer" class="ord__account">
                         <template v-if="!accountSent">
                             <h2 class="t-h3">Konto anlegen?</h2>
                             <p class="t-small ord__account-text">
-                                Mit einem Klick. Wir schicken dir einen Link an {{ payment?.email ?? 'deine E-Mail-Adresse' }}, mit dem
+                                Wir schicken dir einen Link an {{ payment?.email ?? 'deine E-Mail-Adresse' }}, mit dem
                                 du dein Passwort festlegst – dann siehst du deine Bestellungen, Freigaben und Rechnungen jederzeit.
                             </p>
                             <button class="btn btn--secondary btn--block" type="button" :disabled="accountBusy" :aria-busy="accountBusy ? 'true' : undefined" @click="openAccount">
@@ -408,6 +425,8 @@ function openAccount(): void {
 .ord__account {
     display: grid;
     gap: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--line);
 }
 
 .ord__invoice {

@@ -1,0 +1,1 @@
+var e=`Die Datei hat sich geändert, seit du sie ausgewählt hast. Wähl sie bitte noch einmal aus.`;async function t(e){try{return await e.slice(0,1).arrayBuffer(),!0}catch{return!1}}export{t as n,e as t};

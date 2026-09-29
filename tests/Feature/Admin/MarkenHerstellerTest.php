@@ -74,6 +74,7 @@ it('refuses half a manufacturer, half a responsible person, and a contact that i
 })->with([
     'no address' => [['manufacturerAddress' => ''], 'manufacturerName', BrandManufacturerRequest::INCOMPLETE],
     'a responsible person alone' => [['euResponsibleName' => 'EU Vertreter GmbH'], 'euResponsibleName', BrandManufacturerRequest::RESPONSIBLE_INCOMPLETE],
+    'an EU address without a name (PAY-08)' => [['euResponsibleAddress' => 'Irgendwo 1, 1010 Wien', 'euResponsibleContact' => 'eu@beispiel.test'], 'euResponsibleName', BrandManufacturerRequest::RESPONSIBLE_INCOMPLETE],
     'a phone number as contact' => [['manufacturerContact' => '+49 123 456'], 'manufacturerContact', 'Gib als Kontakt eine E-Mail-Adresse oder eine Webadresse mit https:// an.'],
 ]);
 

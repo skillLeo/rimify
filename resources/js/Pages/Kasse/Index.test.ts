@@ -362,6 +362,56 @@ describe('Kasse', () => {
         expect((wrapper.find('#ko-city').element as HTMLInputElement).value).toBe('Mein Dorf')
     })
 
+    it('moves an autofilled street’s number even when the street was never left (PAY-02)', async () => {
+        const wrapper = mountKasse()
+
+        // Autofill writes every field without focusing them; the street is never left.
+        await wrapper.find('#ko-mail').setValue('kunde@beispiel.de')
+        await wrapper.find('#ko-name').setValue('Erika Mustermann')
+        await wrapper.find('#ko-street').setValue('Musterstraße 12')
+        await wrapper.find('#ko-zip').setValue('50667')
+        await wrapper.find('#ko-city').setValue('Köln')
+        await wrapper.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(wrapper.find('.ko__recap').text()).toContain('Musterstraße 12,')
+        expect(wrapper.find('.ko__recap').text()).not.toContain('12 12')
+    })
+
+    it('never fills Ort while the customer is typing in it (PAY-05)', async () => {
+        const wrapper = mountKasse()
+
+        await wrapper.find('#ko-zip').setValue('50667')
+        ;(wrapper.find('#ko-city').element as HTMLInputElement).focus()
+        await flushPromises()
+
+        expect((wrapper.find('#ko-city').element as HTMLInputElement).value).toBe('')
+    })
+
+    it('shows the billing address in the recap before paying (PAY-06)', async () => {
+        const wrapper = mountKasse()
+
+        await wrapper.find('#ko-mail').setValue('kunde@beispiel.de')
+        await wrapper.find('#ko-name').setValue('Erika Mustermann')
+        await wrapper.find('#ko-street').setValue('Hauptstraße')
+        await wrapper.find('#ko-nr').setValue('12')
+        await wrapper.find('#ko-zip').setValue('50667')
+        await wrapper.find('#ko-city').setValue('Köln')
+        await wrapper.find('.ko__check input').setValue(true)
+        await wrapper.find('#ko-b-name').setValue('Firma Muster GmbH')
+        await wrapper.find('#ko-b-street').setValue('Werkweg')
+        await wrapper.find('#ko-b-nr').setValue('3')
+        await wrapper.find('#ko-b-zip').setValue('10115')
+        await wrapper.find('#ko-b-city').setValue('Berlin')
+        // Its errors are announced like the delivery address's.
+        expect(wrapper.find('#ko-b-name').attributes('aria-describedby')).toBe('ko-b-name-err')
+
+        await wrapper.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(wrapper.find('.ko__recap').text()).toContain('Rechnung: Firma Muster GmbH, Werkweg 3')
+    })
+
     it('keeps what was typed in this tab: a reload finds it again', async () => {
         const first = mountKasse()
         await first.find('#ko-mail').setValue('kunde@beispiel.de')

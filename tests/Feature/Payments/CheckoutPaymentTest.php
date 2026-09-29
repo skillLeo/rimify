@@ -302,6 +302,30 @@ it('keeps the order and the typed data after a declined card, and takes the same
         ->and(session(Basket::SESSION_KEY))->not->toBe([]);
 });
 
+it('lets a declined payment be paid again when the stock was enough for one order only (PAY-01)', function (): void {
+    $this->config->forceFill(['stock_qty' => 4])->save();
+    $shown = checkoutShown($this);
+    $number = checkoutPay($this, [], $shown)->assertOk()->json('order');
+    $order = Order::query()->where('order_number', $number)->sole();
+    $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
+
+    expect((int) $this->config->fresh()->stock_qty)->toBe(0);
+
+    [$payload, $signature] = FakeStripe::event('payment_intent.payment_failed', ['status' => 'requires_payment_method'] + $intent, CHECKOUT_WEBHOOK_SECRET);
+    $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
+
+    // The goods the declined order holds are the customer's own: the Kasse is still open to them …
+    $this->withCookies(checkoutCookies($this->vehicle))->get('/kasse')->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('lines.0.inStock', true)->where('orderRefusal', null));
+
+    // … and the retry takes the same order, no second reservation.
+    $this->withCookies(checkoutCookies($this->vehicle))->withCredentials()->postJson('/kasse/zahlung', checkoutForm() + ['shown' => $shown])
+        ->assertOk()->assertJson(['order' => $number]);
+
+    expect((int) $this->config->fresh()->stock_qty)->toBe(0)
+        ->and(Order::query()->where('payment_method', 'stripe')->count())->toBe(1);
+});
+
 it('answers the status only to the browser that placed the order', function (): void {
     $number = checkoutPay($this)->assertOk()->json('order');
 

@@ -1234,6 +1234,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Services\\Commerce\\OrderPayments' => __DIR__ . '/../..' . '/app/Services/Commerce/OrderPayments.php',
         'App\\Services\\Commerce\\OrderRefused' => __DIR__ . '/../..' . '/app/Services/Commerce/OrderRefused.php',
         'App\\Services\\Commerce\\OrderWriter' => __DIR__ . '/../..' . '/app/Services/Commerce/OrderWriter.php',
+        'App\\Services\\Commerce\\PendingOrder' => __DIR__ . '/../..' . '/app/Services/Commerce/PendingOrder.php',
         'App\\Services\\Commerce\\RefundOrder' => __DIR__ . '/../..' . '/app/Services/Commerce/RefundOrder.php',
         'App\\Services\\Commerce\\RefundRefused' => __DIR__ . '/../..' . '/app/Services/Commerce/RefundRefused.php',
         'App\\Services\\Commerce\\SensorQuote' => __DIR__ . '/../..' . '/app/Services/Commerce/SensorQuote.php',

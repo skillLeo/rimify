@@ -63,7 +63,16 @@ class PlaceOrderRequest extends FormRequest
             'billingZip' => ['exclude_if:billingSame,true', 'required', 'string', 'regex:/^\d{5}$/'],
             'billingCity' => ['exclude_if:billingSame,true', 'required', 'string', 'max:190'],
             'rdks' => ['nullable', Rule::in(['ja', 'nein'])],
+            // What the page showed (CheckoutShown); the Stripe path requires it (StartPaymentRequest), here it is compared where sent.
+            'shown' => ['nullable', 'string', 'regex:/^[a-f0-9]{16}\.[a-f0-9]{16}$/'],
         ];
+    }
+
+    public function shown(): ?string
+    {
+        $value = $this->validated('shown');
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     /**

@@ -463,6 +463,7 @@ return array(
     'App\\Services\\Commerce\\OrderPayments' => $baseDir . '/app/Services/Commerce/OrderPayments.php',
     'App\\Services\\Commerce\\OrderRefused' => $baseDir . '/app/Services/Commerce/OrderRefused.php',
     'App\\Services\\Commerce\\OrderWriter' => $baseDir . '/app/Services/Commerce/OrderWriter.php',
+    'App\\Services\\Commerce\\PendingOrder' => $baseDir . '/app/Services/Commerce/PendingOrder.php',
     'App\\Services\\Commerce\\RefundOrder' => $baseDir . '/app/Services/Commerce/RefundOrder.php',
     'App\\Services\\Commerce\\RefundRefused' => $baseDir . '/app/Services/Commerce/RefundRefused.php',
     'App\\Services\\Commerce\\SensorQuote' => $baseDir . '/app/Services/Commerce/SensorQuote.php',

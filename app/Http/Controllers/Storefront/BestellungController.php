@@ -109,7 +109,8 @@ class BestellungController extends Controller
             // „Konto anlegen“ in one click, once paid, for the browser that placed it and no account yet (Block G §2).
             'accountOffer' => ! $demo && $record->status->isPaid() && is_array($placed) && in_array($record->order_number, $placed, true)
                 && $request->user('customer') === null
-                && ! CustomerAccount::query()->where('email', mb_strtolower((string) $record->customer?->email))->whereNotNull('password')->exists(),
+                // Once opened, not offered again — its link is on its way, and „Passwort vergessen“ sends another (PAY-10).
+                && ! CustomerAccount::query()->where('email', mb_strtolower((string) $record->customer?->email))->exists(),
             // Seeded demonstration data (CommerceSeeder): nobody placed this order, and the frozen
             // verdicts on it say nothing about the car (ACCURACY.md §3.1 F3). The snapshots stay
             // exactly as written (R-12); the page says what they are.

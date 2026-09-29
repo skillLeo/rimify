@@ -11,6 +11,7 @@ use App\Payments\Payments;
 use App\Services\Commerce\CheckoutShown;
 use App\Services\Commerce\OrderRefused;
 use App\Services\Commerce\OrderWriter;
+use App\Services\Commerce\PendingOrder;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use Illuminate\Http\RedirectResponse;
@@ -47,7 +48,7 @@ class KasseController extends Controller
      */
     public const DELIVERY_REFUSAL = 'Die Lieferzeit steht noch nicht fest. Bis dahin kannst du nicht bestellen – dein Warenkorb bleibt gespeichert.';
 
-    public function __construct(private readonly Basket $basket) {}
+    public function __construct(private readonly Basket $basket, private readonly PendingOrder $pending) {}
 
     public function index(Request $request): Response
     {
@@ -127,13 +128,36 @@ class KasseController extends Controller
             return back()->withErrors(['order' => self::PREVIEW_REFUSAL]);
         }
 
+        // What the page showed, where it says (Block G): a verdict or a price that moved meanwhile is not ordered unseen.
+        $shown = $request->shown();
+
+        if ($shown !== null && ($changed = CheckoutShown::refusal($shown, $summary)) !== null) {
+            return back()->withErrors(['order' => $changed]);
+        }
+
+        // One open order per basket (PendingOrder): a second press reuses it, anything changed releases it first.
+        $customer = $request->customerData();
+        $fingerprint = PendingOrder::fingerprint($customer, CheckoutShown::token($summary));
+        $pending = $this->pending->reuseOrRelease($request, $fingerprint, reuseDeclined: false);
+
+        if (is_string($pending)) {
+            return back()->withErrors(['order' => $pending]);
+        }
+
+        if ($pending !== null) {
+            $url = $gateway->start($pending);
+
+            return $url !== null ? redirect()->to($url) : redirect()->route('kasse.index');
+        }
+
         try {
-            $order = $writer->write($request, $request->customerData(), $summary, $gateway->method(), self::openNote($summary));
+            $order = $writer->write($request, $customer, $summary, $gateway->method(), self::openNote($summary));
         } catch (OrderRefused $e) {
             return back()->withErrors(['order' => $e->getMessage()]);
         }
 
         BestellungController::remember($request, $order->order_number);
+        $this->pending->remember($request, $order, $fingerprint);
 
         // The sandbox has a page of its own; Stripe is paid on this page (KasseZahlungController), so a form post
         // reaching here with it goes back to the payment step.
