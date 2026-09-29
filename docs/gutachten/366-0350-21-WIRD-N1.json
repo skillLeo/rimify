@@ -716,7 +716,7 @@
    "number": "5248 · 110 Nm",
    "torque_nm": 110,
    "thread": "Kegelbundschraube M12x1,5",
-   "vehicle_types": "R/C; 3/B; 3/C; 3/CG (dazu M3B und 3 B, die hier nicht eingetragen sind)"
+   "vehicle_types": "M3B; R/C; 3 B; 3/B; 3/C; 3/CG"
   },
   {
    "seat": "Kegel 60°",
@@ -726,7 +726,7 @@
    "number": "5248 · 120 Nm",
    "torque_nm": 120,
    "thread": "Kegelbundschraube M12x1,5",
-   "vehicle_types": "ZR; Z85; Z89; 1C; 182; 187; 3C; 3K; 3K-N1; 3L; 390L; 390X; 392C; 560X; 1K2 und 1K4 nur bis Nachtrag 03"
+   "vehicle_types": "ZR; Z85; Z89; 1C; 182; 187; 3C; 3K; 3K-N1; 3L; 390L; 390X; 392C; 560X; 1K2 (nur bis Nachtrag 03); 1K4 (nur bis Nachtrag 03)"
   },
   {
    "seat": "Kegel 60°",
@@ -736,7 +736,7 @@
    "number": "5276 · 140 Nm",
    "torque_nm": 140,
    "thread": "Kegelbundschraube M14x1,25",
-   "vehicle_types": "3L (nur BMW 3er (F30) ab 2012); 3K; 3K-N1 (nur BMW 3er (F31) ab 2012); 1K2; 1K4 (ab Nachtrag 04); 1C; UKL-N1; UKL-C/X; UKL/X; 3C"
+   "vehicle_types": "3L (nur BMW 3er (F30) ab 2012); 3K (nur BMW 3er (F31) ab 2012); 3K-N1 (nur BMW 3er (F31) ab 2012); 1K2 (ab Nachtrag 04); 1K4 (ab Nachtrag 04); 1C; UKL-N1; UKL-C/X; UKL/X; 3C"
   },
   {
    "seat": "Kegel 60°",

@@ -225,4 +225,45 @@ describe('FitmentPanel', () => {
 
         expect(wrapper.find('.fit__pdf').exists()).toBe(false)
     })
+
+    it('lays the Auflagen out in the order they are done, with the millimetres, the bolts, the sizes and the notes', () => {
+        // The 18″ Nachtrag on a BMW 1K4 (pages 3, 2 and 22): what the product page receives.
+        const abnahme = 'Der vorschriftsmäßige Zustand des Fahrzeuges ist … bescheinigen zu lassen.'
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({
+                    status: 'CONDITIONAL',
+                    requiresEntry: true,
+                    conditions: [abnahme],
+                    tyreSizes: ['225/40 R18'],
+                    detail: {
+                        sections: [
+                            { title: 'Hinweise', items: [{ text: 'Zum Auswuchten der Sonderräder dürfen an der Felgeninnenseite nur Klebegewichte angebracht werden.', measures: [] }] },
+                            { title: 'Abnahme', items: [{ text: abnahme, measures: [] }] },
+                            { title: 'Arbeiten am Fahrzeug', items: [{ text: 'Durch Anlegen der vorderen Radhausausschnittkanten … zu entnehmen.', measures: ['Vorderachse: von 190 bis 220 mm'] }] },
+                        ],
+                        fasteners: [
+                            { label: 'Kegelbundschraube M12x1,5, Kegel 60°, Schaftlänge 30 mm', torque: '120 Nm', article: 'Set Nr. 5248', limit: 'nur bis Nachtrag 03' },
+                            { label: 'Kegelbundschraube M14x1,25, Kegel 60°, Schaftlänge 30 mm', torque: '140 Nm', article: 'Set Nr. 5276', limit: 'ab Nachtrag 04' },
+                        ],
+                        tyres: [{ label: '245/35 R18', axle: 'nur Hinterachse', minimum: 'laut Gutachten mindestens 92', band: '70–250 kW' }],
+                        notices: ['Der Fahrzeughalter muss auf die Kontrolle des Anzugsmoments der Befestigungsmittel nach einer Wegstrecke von 50km hingewiesen werden.'],
+                    },
+                }),
+            },
+        })
+
+        expect(wrapper.findAll('.fit__sec-h').map((h) => h.text())).toEqual(['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen', 'Hinweise', 'Hinweise des Gutachtens'])
+        expect(wrapper.find('.fit__measures').text()).toBe('Vorderachse: von 190 bis 220 mm')
+        expect(wrapper.findAll('.fit__bolts li').map((li) => li.text().replace(/\s+/g, ' '))).toEqual([
+            'Kegelbundschraube M12x1,5, Kegel 60°, Schaftlänge 30 mm · Anzugsmoment 120 Nm · Set Nr. 5248 · nur bis Nachtrag 03',
+            'Kegelbundschraube M14x1,25, Kegel 60°, Schaftlänge 30 mm · Anzugsmoment 140 Nm · Set Nr. 5276 · ab Nachtrag 04',
+        ])
+        expect(wrapper.find('.fit__sizes').text().replace(/\s+/g, ' ')).toBe('245/35 R18 · nur Hinterachse · 70–250 kW · laut Gutachten mindestens 92')
+        expect(wrapper.find('.fit__notices').text()).toContain('nach einer Wegstrecke von 50km')
+        // The flat list and the bare size line give way to the sections; the entry line is said once.
+        expect(wrapper.find('.fit__tyres').exists()).toBe(false)
+        expect(wrapper.text().split('Eintragung in die Fahrzeugpapiere erforderlich.')).toHaveLength(2)
+    })
 })

@@ -7,18 +7,22 @@ use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
+use App\Domain\Storefront\VehicleContext;
+use App\Enums\CatalogueStatus;
 use App\Enums\DocumentStatus;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
+use App\Models\WheelModel;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\GoldenRecordSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\Gutachten\TranscriptionEntry;
 
 /**
@@ -91,6 +95,18 @@ it('holds both documents as they print their first page, the wheel as they descr
         ->and(implode(' ', TranscriptionEntry::read('366-0350-21-WIRD-N1.json')['read']))
         ->toContain('Radtyp DB8GT2-8518')->toContain('Ausführung 512035725')->toContain('„DB8GT2-8518 LK120 / Ø72,5-60,1“')->toContain('Abrollumfang 2200 mm')->toContain('gültig ab Fertigungsdatum 02/21');
 
+    // Item 14: the base ABE 53841 we do not hold, said on the record and in the coverage matrix.
+    $this->actingAs(AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail(), 'admin')
+        ->get('/admin/gutachten/'.$nachtrag->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('document.baseMissing', 'Grundgutachten ABE 53841 liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.')
+            ->where('document.supplementTo.label', 'ABE 53841'));
+    $this->actingAs(AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail(), 'admin')
+        ->get('/admin/abdeckung')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('matrix.incomplete.0.base', 'ABE 53841')
+            ->where('matrix.incomplete.0.href', '/admin/gutachten/'.$nachtrag->id));
+
     // The Verwendungsbereich: BMW and MINI — on the 19″ the Countryman UKL/X, the Countryman JCW and the Paceman UKL-C/X.
     $cars = Vehicle::query()->whereIn('id', Fitment::query()->where('approval_document_id', $this->entry->documents['55255'])->pluck('vehicle_id'))->get();
 
@@ -130,6 +146,39 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
 
         expect($condition->sentenceDe())->toContain(printedSentence('abe-55255.json', $condition->code));
     }
+
+    // Item 15, on the product page: the bolt set its code names (S01: M12x1,5, 110 Nm, Artikel 5248), each size
+    // with its axle and band, the Auflagen by section, and the PDF at the page the row stands on (page 2).
+    WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->update(['status' => CatalogueStatus::Published->value]);
+    $nineteenId = (int) WheelConfig::query()->where('sku', 'BOR-DB8GT2-8519-SM')->value('id');
+    $page = $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($car->id, true))->encode()])
+        ->get('/felgen/'.GoldenRecordSeeder::SLUG)->assertOk();
+    $shown = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $nineteenId)['verdict'];
+
+    expect(array_column($shown['detail']['sections'], 'title'))->toBe(['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen', 'Hinweise'])
+        ->and($shown['detail']['fasteners'])->toBe([['label' => 'Schraube M12x1,5, Kegel 60°, Schaftlänge 30'."\u{00A0}".'mm', 'torque' => '110'."\u{00A0}".'Nm', 'article' => '5248', 'limit' => null]])
+        ->and(collect($shown['detail']['tyres'])->firstWhere('label', '235/35 R19'))->toBe(['label' => '235/35 R19', 'axle' => 'Vorder- und Hinterachse', 'minimum' => null, 'band' => '85–195'."\u{00A0}".'kW'])
+        ->and(collect($shown['detail']['tyres'])->firstWhere('label', '255/30 R19')['axle'])->toBe('nur Hinterachse')
+        ->and($shown['document']['pdf']['page'])->toBe(2)
+        ->and(json_encode($shown['detail']))->not->toMatch('/"(A01|K1c|S01|T87)"/');
+
+    // The 18″ on a 1K4 from Modelljahr 2012 (page 3): the rework millimetres the Nachtrag prints for type 1K4
+    // (page 22), both bolt sets the page gives a 1K4 with what it prints beside each, the 50 km torque check, and
+    // the base it lacks. Its row prints „Kombilimousine; Allradantrieb; Heckantrieb“: the car is given here as one.
+    $f20 = $this->entry->vehicle('1er-1K4-04');
+    $f20->forceFill(['power_kw' => 100, 'body_form' => 'Kombi', 'drive_axle' => 'Hinterachse'])->save();
+    $eighteenId = (int) WheelConfig::query()->where('sku', 'BOR-DB8GT2-8518-SM')->value('id');
+    $page = $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($f20->id, true))->encode()])
+        ->get('/felgen/'.GoldenRecordSeeder::SLUG)->assertOk();
+    $shown = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $eighteenId)['verdict'];
+    $work = collect($shown['detail']['sections'])->firstWhere('title', 'Arbeiten am Fahrzeug')['items'];
+
+    expect(collect($work)->firstWhere('text', printedSentence('366-0350-21-WIRD-N1.json', '26B'))['measures'])->toBe(['Vorderachse: von 190 bis 220 mm'])
+        ->and(collect($work)->firstWhere('text', printedSentence('366-0350-21-WIRD-N1.json', '27F'))['measures'])->toBe(['Hinterachse: von 220 bis 270 mm · aufgeweitet um 30 mm'])
+        ->and(array_column($shown['detail']['fasteners'], 'limit'))->toBe(['nur bis Nachtrag 03', 'ab Nachtrag 04'])
+        ->and(array_column($shown['detail']['fasteners'], 'torque'))->toBe(['120'."\u{00A0}".'Nm', '140'."\u{00A0}".'Nm'])
+        ->and($shown['detail']['notices'])->toContain('Der Fahrzeughalter muss auf die Kontrolle des Anzugsmoments der Befestigungsmittel nach einer Wegstrecke von 50km hingewiesen werden.')
+        ->and($shown['document']['notes'])->toContain('Grundgutachten ABE 53841 liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.');
 
     // Never a 19″ code read with the 18″ document, nor the other way round.
 

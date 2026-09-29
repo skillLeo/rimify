@@ -311,11 +311,26 @@ export interface ProduktConfig {
     komplettrad?: KomplettradOfferProp | null
 }
 
+/**
+ * What the Gutachten asks of this car, as the customer works through it (Block D, item 15): the Auflagen by
+ * section — Abnahme, Arbeiten am Fahrzeug (with the millimetres for this Fahrzeugtyp), Befestigung, Reifen,
+ * Hinweise — the bolts with their torque, each tyre size with its axle and printed minimum, and the document's
+ * notes. Every line is a sentence of the answer's own documents.
+ */
+export interface FitmentDetailView {
+    sections: { title: string; items: { text: string; measures: string[] }[] }[]
+    fasteners: { label: string; torque: string | null; article: string | null; limit: string | null }[]
+    tyres: { label: string; axle: string; minimum: string | null; band: string | null }[]
+    notices: string[]
+}
+
 export interface ConfigVerdict {
     status: VerdictStatus
     label: string
     sellable: boolean
     requiresEntry: boolean
+    /** Additive: null for a wheel that may not go on the car, absent in an older payload. */
+    detail?: FitmentDetailView | null
     entryNoteDe: string | null
     /** Full German sentences, never codes such as A02 (R-15). */
     conditions: string[]

@@ -32,6 +32,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Commerce\KomplettradPricer;
 use App\Services\Storefront\Basket;
+use App\Services\Storefront\FitmentDetail;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
@@ -65,6 +66,7 @@ class FelgenController extends Controller
         private readonly TyreEligibility $eligibility,
         private readonly KomplettradPricer $pricer,
         private readonly SpeedSymbolDeriver $speedSymbol,
+        private readonly FitmentDetail $detail,
     ) {}
 
     /** The vehicle selector: make → model → variant, or the two key numbers. */
@@ -494,6 +496,10 @@ class FelgenController extends Controller
                 static fn (Condition $condition): string => $condition->sentenceDe(),
                 $verdict->conditions,
             ),
+            // The same sentences as the customer works through them — Abnahme, work on the car with its
+            // millimetres, the bolts and their torque, each tyre size's axle and printed minimum, the document's
+            // notes — for a wheel that may go on the car at all (Block D, item 15).
+            'detail' => in_array($verdict->status, [VerdictStatus::Permitted, VerdictStatus::Conditional], true) ? $this->detail->for($verdict) : null,
             // The reason is a German sentence, because a disabled chip with no explanation reads
             // as a broken control rather than as a fact about the customer's car.
             'reason' => $verdict->reason?->textDe,

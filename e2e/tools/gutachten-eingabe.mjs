@@ -223,9 +223,18 @@ for (const entry of transcription.conditions) {
 log(`  Auflagenverzeichnis: ${missing.length} Codes eingetragen, ${have.size} standen schon${corrected ? `, ${corrected} berichtigt` : ''}.`)
 
 /* ── Befestigungsmittel, Hinweise, the table ────────────────────────────────────────── */
-const fastenersThere = new Set(current.fasteners.map((f) => f.number))
+// A Befestigungsmittel that stands but reads otherwise is taken out and entered again — the screen has no edit.
+for (const f of transcription.fasteners) {
+    const there = current.fasteners.find((x) => x.number === f.number)
+    const differs = there && (there.thread !== f.thread || there.seat !== f.seat || there.torqueNm !== f.torque_nm || there.shaftLengthMm !== f.shaft_length_mm
+        || (there.articleNumber ?? null) !== (f.article_number ?? null) || (there.vehicleTypes ?? null) !== (f.vehicle_types ?? null) || there.page !== f.source_page)
 
-for (const f of transcription.fasteners.filter((x) => !fastenersThere.has(x.number))) {
+    if (there && !differs) continue
+
+    if (there) {
+        await send('DELETE', `/admin/gutachten/${id}/befestigungsmittel/${there.id}`)
+    }
+
     await send('POST', `/admin/gutachten/${id}/befestigungsmittel`, f)
 }
 
