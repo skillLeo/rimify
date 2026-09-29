@@ -46,6 +46,10 @@ it('offers the account in one click on a paid order, and mails the link to set t
 
     expect($account->email)->toBe('kunde@beispiel.de')->and($account->password)->toBeNull();
     Mail::assertSent(CustomerAccountMail::class, fn (CustomerAccountMail $mail): bool => $mail->hasTo('kunde@beispiel.de') && $mail->kind === 'opened');
+
+    // Opened once, not offered again (PAY-10): a reload does not mail a second link.
+    $this->withSession(placedSession($this->order))->get('/bestellung/'.$this->order->order_number)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('accountOffer', false));
 });
 
 it('refuses the click from a browser that did not place the order', function (): void {

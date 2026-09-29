@@ -48,7 +48,7 @@ class KontoController extends Controller
         $account = CustomerAccount::query()->firstOrCreate(['email' => $email]);
 
         // An account that already has a password gets the reset link: the click is never a way to learn that it exists.
-        Mail::to($email)->send(new CustomerAccountMail($account, $account->password === null ? 'opened' : 'reset'));
+        self::mailLater($email, new CustomerAccountMail($account, $account->password === null ? 'opened' : 'reset'));
 
         return back()->with('toast', sprintf(self::LINK_SENT, $email));
     }
@@ -120,7 +120,7 @@ class KontoController extends Controller
         $account = CustomerAccount::query()->where('email', $request->string('email')->toString())->first();
 
         if ($account !== null) {
-            Mail::to($account->email)->send(new CustomerAccountMail($account, 'reset'));
+            self::mailLater($account->email, new CustomerAccountMail($account, 'reset'));
         }
 
         return back()->with('toast', self::FORGOT_SENT);
@@ -150,6 +150,17 @@ class KontoController extends Controller
         $request->session()->regenerate();
 
         return redirect('/konto')->with('toast', 'Dein Passwort ist gesetzt. Willkommen in deinem Konto.');
+    }
+
+    /**
+     * Sent after the answer has left: the answer takes the same time whether an address has an account or not, so
+     * its timing tells nobody which addresses are customers (PAY-09).
+     */
+    private static function mailLater(string $to, CustomerAccountMail $mail): void
+    {
+        dispatch(static function () use ($to, $mail): void {
+            Mail::to($to)->send($mail);
+        })->afterResponse();
     }
 
     private static function account(Request $request): CustomerAccount

@@ -23,7 +23,7 @@
  */
 
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import type { IconName } from '../../art'
@@ -137,6 +137,23 @@ function schedule(): void {
 }
 
 onMounted(schedule)
+
+/* Paid: what was typed at the Kasse is not kept for the next checkout in this tab (PAY-03). */
+watch(
+    state,
+    (now) => {
+        if (now !== 'paid' || typeof window === 'undefined') {
+            return
+        }
+
+        try {
+            window.sessionStorage.removeItem('rmf.kasse.v1')
+        } catch {
+            // Blocked storage: there was nothing kept to remove.
+        }
+    },
+    { immediate: true }
+)
 onBeforeUnmount(() => {
     if (timer !== null) {
         clearTimeout(timer)

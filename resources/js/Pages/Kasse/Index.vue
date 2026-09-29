@@ -151,7 +151,8 @@ function fieldError(key: FormKey): string | null {
         return rule[1]
     }
 
-    if (key === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    // A domain ends in at least two letters after its last dot: „name@web.de.“ is refused here, as the server does.
+    if (key === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(value)) {
         return 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.'
     }
 
@@ -196,6 +197,13 @@ function splitHouseNumber(key: 'street' | 'billingStreet'): void {
 function validateAddress(): boolean {
     for (const key of Object.keys(errors)) {
         delete errors[key]
+    }
+
+    // An autofilled street was never left (autofill does not focus it): its number moves here too (PAY-02).
+    splitHouseNumber('street')
+
+    if (!form.billingSame) {
+        splitHouseNumber('billingStreet')
     }
 
     const rules = form.billingSame ? REQUIRED : [...REQUIRED, ...BILLING_REQUIRED]
@@ -324,7 +332,8 @@ function submit(): void {
     }
 
     paying.value = true
-    router.post('/kasse', payload() as Record<string, string>, {
+    // What the page showed travels with the order on this path too (PAY-04): a price that moved is not ordered unseen.
+    router.post('/kasse', { ...payload(), shown: props.shown ?? '' } as Record<string, string>, {
         preserveScroll: true,
         preserveState: true,
         onError: showRefusal,
@@ -597,7 +606,10 @@ async function lookUp(zipKey: 'zip' | 'billingZip'): Promise<void> {
             return
         }
 
-        if (found.length === 1 && form[cityKey].trim() === '') {
+        // Never while the customer is typing in Ort: the answer would join their letters (PAY-05).
+        const typing = document.activeElement?.id === (zipKey === 'zip' ? 'ko-city' : 'ko-b-city')
+
+        if (found.length === 1 && form[cityKey].trim() === '' && !typing) {
             form[cityKey] = found[0] ?? ''
             delete errors[cityKey]
         } else if (found.length > 1 && !found.includes(form[cityKey].trim())) {
@@ -848,7 +860,10 @@ function verdictSentence(line: BasketLine): string {
                                             type="tel"
                                             inputmode="tel"
                                             autocomplete="tel"
+                                            aria-describedby="ko-tel-err"
+                                            :aria-invalid="errors.phone ? 'true' : undefined"
                                         />
+                                        <span id="ko-tel-err" class="field-error">{{ errors.phone ?? '' }}</span>
                                     </div>
                                 </div>
                             </fieldset>
@@ -993,9 +1008,10 @@ function verdictSentence(line: BasketLine): string {
                                             :class="{ 'field--error': errors.billingName }"
                                             autocomplete="billing name"
                                             :aria-invalid="errors.billingName ? 'true' : undefined"
+                                            aria-describedby="ko-b-name-err"
                                             @blur="touch('billingName')"
                                         />
-                                        <span class="field-error">{{ errors.billingName ?? '' }}</span>
+                                        <span id="ko-b-name-err" class="field-error">{{ errors.billingName ?? '' }}</span>
                                     </div>
                                     <div class="ko__street">
                                         <label class="field-label" for="ko-b-street">
@@ -1009,9 +1025,10 @@ function verdictSentence(line: BasketLine): string {
                                             :class="{ 'field--error': errors.billingStreet }"
                                             autocomplete="billing address-line1"
                                             :aria-invalid="errors.billingStreet ? 'true' : undefined"
+                                            aria-describedby="ko-b-street-err"
                                             @blur="touch('billingStreet')"
                                         />
-                                        <span class="field-error">{{ errors.billingStreet ?? '' }}</span>
+                                        <span id="ko-b-street-err" class="field-error">{{ errors.billingStreet ?? '' }}</span>
                                     </div>
                                     <div class="ko__nr">
                                         <label class="field-label" for="ko-b-nr">
@@ -1026,6 +1043,7 @@ function verdictSentence(line: BasketLine): string {
                                             :inputmode="letters.billingHouseNumber ? 'text' : 'numeric'"
                                             autocomplete="off"
                                             :aria-invalid="errors.billingHouseNumber ? 'true' : undefined"
+                                            aria-describedby="ko-b-nr-err"
                                             @blur="touch('billingHouseNumber')"
                                         />
                                         <button
@@ -1036,7 +1054,7 @@ function verdictSentence(line: BasketLine): string {
                                         >
                                             Buchstaben eingeben, z.&nbsp;B. 12a
                                         </button>
-                                        <span class="field-error">{{ errors.billingHouseNumber ?? '' }}</span>
+                                        <span id="ko-b-nr-err" class="field-error">{{ errors.billingHouseNumber ?? '' }}</span>
                                     </div>
                                     <div class="ko__zip">
                                         <label class="field-label" for="ko-b-zip">
@@ -1053,9 +1071,10 @@ function verdictSentence(line: BasketLine): string {
                                             maxlength="5"
                                             autocomplete="billing postal-code"
                                             :aria-invalid="errors.billingZip ? 'true' : undefined"
+                                            aria-describedby="ko-b-zip-err"
                                             @blur="touch('billingZip')"
                                         />
-                                        <span class="field-error">{{ errors.billingZip ?? '' }}</span>
+                                        <span id="ko-b-zip-err" class="field-error">{{ errors.billingZip ?? '' }}</span>
                                     </div>
                                     <div class="ko__city">
                                         <label class="field-label" for="ko-b-city">
@@ -1069,6 +1088,7 @@ function verdictSentence(line: BasketLine): string {
                                             :class="{ 'field--error': errors.billingCity }"
                                             autocomplete="billing address-level2"
                                             :aria-invalid="errors.billingCity ? 'true' : undefined"
+                                            aria-describedby="ko-b-city-err"
                                             @blur="touch('billingCity')"
                                         />
                                         <div
@@ -1089,7 +1109,7 @@ function verdictSentence(line: BasketLine): string {
                                             </button>
                                             <span class="ko__source">Orte nach GeoNames (CC BY 4.0)</span>
                                         </div>
-                                        <span class="field-error">{{ errors.billingCity ?? '' }}</span>
+                                        <span id="ko-b-city-err" class="field-error">{{ errors.billingCity ?? '' }}</span>
                                     </div>
                                 </div>
                             </fieldset>
@@ -1108,6 +1128,10 @@ function verdictSentence(line: BasketLine): string {
                                         {{ form.name }}, {{ form.street }} {{ form.houseNumber }},
                                         <span class="tabular">{{ form.zip }}</span> {{ form.city }}
                                         <span class="ko__recap-mail">{{ form.email }}</span>
+                                        <span v-if="billingOther" class="ko__recap-mail">
+                                            Rechnung: {{ form.billingName }}, {{ form.billingStreet }} {{ form.billingHouseNumber }},
+                                            <span class="tabular">{{ form.billingZip }}</span> {{ form.billingCity }}
+                                        </span>
                                     </dd>
                                     <button class="btn btn--quiet ko__change" type="button" @click="goTo(1)">
                                         Ändern<span class="visually-hidden"> (Adresse)</span>

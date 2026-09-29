@@ -19,7 +19,7 @@ class BrandManufacturerRequest extends FormRequest
 {
     public const INCOMPLETE = 'Name, Anschrift und Kontakt des Herstellers gehören zusammen – trag alle drei ein oder lass alle drei leer.';
 
-    public const RESPONSIBLE_INCOMPLETE = 'Zur verantwortlichen Person in der EU gehören Anschrift und Kontakt.';
+    public const RESPONSIBLE_INCOMPLETE = 'Zur verantwortlichen Person in der EU gehören Name, Anschrift und Kontakt – trag alle drei ein oder lass alle drei leer.';
 
     public function authorize(): bool
     {
@@ -64,7 +64,10 @@ class BrandManufacturerRequest extends FormRequest
                 $validator->errors()->add('manufacturerName', self::INCOMPLETE);
             }
 
-            if ($this->input('euResponsibleName') !== null && ($this->input('euResponsibleAddress') === null || $this->input('euResponsibleContact') === null)) {
+            // Any of the three without the others is half a person (PAY-08): name, address and contact together or none.
+            $responsible = array_filter([$this->input('euResponsibleName'), $this->input('euResponsibleAddress'), $this->input('euResponsibleContact')]);
+
+            if ($responsible !== [] && count($responsible) < 3) {
                 $validator->errors()->add('euResponsibleName', self::RESPONSIBLE_INCOMPLETE);
             }
         });

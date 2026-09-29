@@ -7,7 +7,7 @@
  */
 
 import { Link, router, usePage } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
@@ -150,13 +150,49 @@ function askRefund(): void {
     refundOpen.value = true
 }
 
+/*
+ * What was typed survives the password question (sudo, PAY-07): kept in this tab while the refund is on its way,
+ * restored when the page comes back without it, dropped once the refund is made.
+ */
+const DRAFT = `rmf.refund.${props.order.id}`
+
+onMounted(() => {
+    try {
+        const saved = JSON.parse(window.sessionStorage.getItem(DRAFT) ?? 'null') as { amount?: string; reason?: string } | null
+
+        if (saved && typeof saved.amount === 'string' && typeof saved.reason === 'string') {
+            refundAmount.value = saved.amount
+            refundReason.value = saved.reason
+        }
+    } catch {
+        // Nothing kept: the form starts at what is left.
+    }
+})
+
+function keepDraft(keep: boolean): void {
+    try {
+        if (keep) {
+            window.sessionStorage.setItem(DRAFT, JSON.stringify({ amount: refundAmount.value, reason: refundReason.value }))
+        } else {
+            window.sessionStorage.removeItem(DRAFT)
+        }
+    } catch {
+        // Blocked storage: the form is simply not restored.
+    }
+}
+
 function refund(): void {
+    keepDraft(true)
     refunding.value = true
     router.post(`/admin/bestellungen/${props.order.id}/erstattung`, { amount: refundAmount.value, reason: refundReason.value }, {
         preserveScroll: true,
         onSuccess: () => {
-            refundReason.value = ''
-            refundAmount.value = props.money?.refundableInput ?? ''
+            // Made — or refused with a sentence under the form, which keeps the figures for a correction.
+            if (!refundErrors.value.refund && !refundErrors.value.amountCents && !refundErrors.value.reason) {
+                keepDraft(false)
+                refundReason.value = ''
+                refundAmount.value = props.money?.refundableInput ?? ''
+            }
         },
         onFinish: () => {
             refunding.value = false

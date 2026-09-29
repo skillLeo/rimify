@@ -156,6 +156,28 @@ it('keeps the stock for a declined test payment and gives it back for a cancelle
     'abgebrochen' => ['abgebrochen', OrderStatus::Cancelled, 0],
 ]);
 
+// PAY-04: one open order per basket on the sandbox path too — a second press is the same order; after a decline the
+// retry replaces it (its page takes only an open one), and its goods go back first: never held twice.
+it('takes a second press as the same order, and replaces a declined one without holding the goods twice', function (): void {
+    $stock = (int) $this->config->stock_qty;
+    [$order, $location] = testzahlungPlace($this);
+
+    $again = $this->withCookies(testzahlungCookies($this->vehicle))->from('/kasse')->post('/kasse', testzahlungForm());
+
+    expect((string) $again->headers->get('Location'))->toContain('/kasse/testzahlung/'.$order->order_number)
+        ->and(Order::query()->where('payment_method', 'sandbox')->where('status', OrderStatus::PendingPayment->value)->count())->toBe(1)
+        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock - 4);
+
+    $this->post($location, ['outcome' => 'abgelehnt'])->assertRedirect();
+    $retry = $this->withCookies(testzahlungCookies($this->vehicle))->from('/kasse')->post('/kasse', testzahlungForm());
+    $new = Order::query()->latest('id')->firstOrFail();
+
+    expect($new->order_number)->not->toBe($order->order_number)
+        ->and((string) $retry->headers->get('Location'))->toContain('/kasse/testzahlung/'.$new->order_number)
+        ->and($order->fresh()->status)->toBe(OrderStatus::Cancelled)
+        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock - 4);
+});
+
 it('refuses an unsigned or tampered payment address and an unknown outcome', function (): void {
     [$order, $location] = testzahlungPlace($this);
 

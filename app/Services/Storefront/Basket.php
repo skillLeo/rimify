@@ -21,6 +21,7 @@ use App\Models\WheelConfig;
 use App\Services\Commerce\KomplettradPrice;
 use App\Services\Commerce\KomplettradPricer;
 use App\Services\Commerce\KomplettradSettings;
+use App\Services\Commerce\PendingOrder;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
 use App\Support\Money;
@@ -131,11 +132,14 @@ final readonly class Basket
         $raw = $this->raw($request);
         // The active colours, read once per render and only when a Komplettrad line needs them.
         $colours = $this->hasSet($raw) ? $this->activeColours() : new Collection;
+        // The goods this browser's own unpaid order holds are the customer's already (PendingOrder): a declined
+        // payment must never make the customer's last wheels look sold out to the customer holding them.
+        $held = app(PendingOrder::class)->held($request);
         $lines = [];
         $subtotal = 0;
 
         foreach ($raw as $line) {
-            $rendered = $this->render($line, $vehicleId, $colours);
+            $rendered = $this->render($line, $vehicleId, $colours, $held);
 
             if ($rendered === null) {
                 continue;
@@ -689,9 +693,10 @@ final readonly class Basket
      *
      * @param  array<string, mixed>  $line
      * @param  Collection<array-key, BalanceWeightColour>  $colours
+     * @param  array{configs: array<int, int>, tyres: array<int, int>}  $held  what this browser's open order holds (PendingOrder)
      * @return array<string, mixed>|null
      */
-    private function render(array $line, ?int $vehicleId, Collection $colours): ?array
+    private function render(array $line, ?int $vehicleId, Collection $colours, array $held = ['configs' => [], 'tyres' => []]): ?array
     {
         if (($line['kind'] ?? 'WHEEL') !== 'WHEEL') {
             return null;
@@ -751,7 +756,8 @@ final readonly class Basket
             'unitPrice' => $unit->format(),
             'lineTotalCents' => $lineTotal->toMinor(),
             'lineTotal' => $lineTotal->format(),
-            'inStock' => $config->stock_qty >= $quantity && ($tyre === null || $tyre->stock_qty >= $quantity),
+            'inStock' => $config->stock_qty + ($held['configs'][$config->id] ?? 0) >= $quantity
+                && ($tyre === null || $tyre->stock_qty + ($held['tyres'][$tyre->id] ?? 0) >= $quantity),
             // A seeded demonstration row — the model or, on a Komplettrad, the tyre: it may sit in
             // the basket, it can never be ordered (ACCURACY.md D4).
             'demo' => (bool) $model->is_demo || ($tyre !== null && $tyre->is_demo),
@@ -759,7 +765,7 @@ final readonly class Basket
             // The Komplettrad half of the line (§4.7).
             'isSet' => $isSet,
             'setLabel' => $isSet ? 'Komplettrad' : 'Felge',
-            'tyre' => $tyre === null ? null : $this->tyrePayload($tyre, $quantity, $price->currency),
+            'tyre' => $tyre === null ? null : $this->tyrePayload($tyre, $quantity, $price->currency, $held['tyres'][$tyre->id] ?? 0),
             'weights' => $price->isSet && $colour !== null ? $this->weightsPayload($colour, $price->currency) : null,
             'weightOptions' => $isSet ? $this->weightOptions($colours) : [],
             'mounting' => $price->isSet ? [
@@ -842,7 +848,7 @@ final readonly class Basket
     }
 
     /** @return array<string, mixed> */
-    private function tyrePayload(TyreVariant $tyre, int $quantity, string $currency): array
+    private function tyrePayload(TyreVariant $tyre, int $quantity, string $currency, int $held = 0): array
     {
         return [
             'id' => (int) $tyre->id,
@@ -853,7 +859,7 @@ final readonly class Basket
             'sizeLabel' => $tyre->label(),
             'unitPriceCents' => (int) $tyre->price_cents,
             'unitPrice' => GermanFormat::money((int) $tyre->price_cents, $currency),
-            'inStock' => $tyre->stock_qty >= $quantity,
+            'inStock' => $tyre->stock_qty + $held >= $quantity,
             'label' => self::euLabel($tyre),
         ];
     }

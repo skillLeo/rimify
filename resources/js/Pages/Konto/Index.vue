@@ -16,6 +16,25 @@ defineProps<{
 }>()
 
 const confirmDelete = ref(false)
+/** A request on its way: the buttons wait, and a second press does nothing. */
+const busy = ref(false)
+
+function send(method: 'post' | 'delete', url: string): void {
+    if (busy.value) {
+        return
+    }
+
+    busy.value = true
+    const onFinish = (): void => {
+        busy.value = false
+    }
+
+    if (method === 'delete') {
+        router.delete(url, { onFinish })
+    } else {
+        router.post(url, {}, { onFinish })
+    }
+}
 </script>
 
 <template>
@@ -40,7 +59,7 @@ const confirmDelete = ref(false)
                 <p v-else class="konto__lead">Unter dieser Adresse gibt es noch keine Bestellung.</p>
 
                 <div class="konto__actions">
-                    <button class="btn btn--secondary" type="button" @click="router.post('/konto/abmelden')">Abmelden</button>
+                    <button class="btn btn--secondary" type="button" :disabled="busy" :aria-busy="busy ? 'true' : undefined" @click="send('post', '/konto/abmelden')">Abmelden</button>
                     <button v-if="!confirmDelete" class="btn btn--quiet" type="button" @click="confirmDelete = true">Konto löschen …</button>
                 </div>
 
@@ -50,7 +69,7 @@ const confirmDelete = ref(false)
                         verpflichtet sind. Deine Rechnungen findest du im Anhang deiner Bestellbestätigungen.
                     </p>
                     <div class="konto__actions">
-                        <button class="btn btn--primary" type="button" @click="router.delete('/konto')">Konto endgültig löschen</button>
+                        <button class="btn btn--primary" type="button" :disabled="busy" :aria-busy="busy ? 'true' : undefined" @click="send('delete', '/konto')">Konto endgültig löschen</button>
                         <button class="btn btn--secondary" type="button" @click="confirmDelete = false">Behalten</button>
                     </div>
                 </div>
