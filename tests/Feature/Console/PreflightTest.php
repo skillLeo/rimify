@@ -2,9 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Console\Commands\Preflight;
+use App\Enums\CatalogueStatus;
+use App\Models\Brand;
+use App\Models\WheelModel;
+use App\Payments\Stripe\StripeGateway;
 use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\FakeStripe;
 
 /**
  * rimify:preflight's go-live rows (the launch release §5): a production started with APP_DEBUG=true
@@ -91,4 +99,68 @@ it('names the sender domain when mail goes out from another one', function (): v
 
     $this->artisan('rimify:preflight', ['--skip-s3' => true])
         ->expectsOutputToContain('nicht die Domain von rimify.de');
+});
+
+/*
+ * Block G §8: the rows the live shop cannot open without — the seller's data, shipping and delivery time, the legal
+ * texts, GPSR per brand on sale — fail in production and warn elsewhere; the engine, the scheduler's pulse, the
+ * invoices' private storage, the Stripe webhook and the code's freedom from credentials each have a row.
+ */
+it('refuses a production without the seller, shipping and delivery time, the legal texts or a brand’s manufacturer', function (): void {
+    $brand = Brand::factory()->create(['name' => 'Ohneangaben']);
+    WheelModel::factory()->create(['brand_id' => $brand->id, 'status' => CatalogueStatus::Published->value, 'is_demo' => false]);
+    app()['env'] = 'production';
+    config([
+        'app.debug' => false, 'app.url' => 'https://rimify.de', 'mail.default' => 'smtp', 'mail.from.address' => 'shop@rimify.de',
+        'rimify.seller' => ['name' => null, 'street' => null, 'zip' => null, 'city' => null, 'email' => null, 'vat_id' => null, 'tax_number' => null, 'register' => null],
+        'rimify.shipping.cost_cents' => null, 'rimify.shipping.delivery_time' => null,
+    ]);
+    Http::fake(['*/health' => Http::response('OK')]);
+
+    $this->artisan('rimify:preflight', ['--skip-s3' => true])
+        ->expectsOutputToContain('Verkäuferangaben')
+        ->expectsOutputToContain('fehlt: Versandkosten, Lieferzeit')
+        ->expectsOutputToContain('noch Platzhalter')
+        ->expectsOutputToContain('fehlen für: Ohneangaben')
+        ->assertFailed();
+});
+
+it('names the database engine and the scheduler’s pulse, keeps the invoices private and finds no credential in the code', function (): void {
+    Cache::put(Preflight::SCHEDULE_BEAT, now()->subSeconds(30)->getTimestamp());
+    Http::fake(['*/health' => Http::response('OK')]);
+    $version = (string) DB::selectOne('SELECT VERSION() AS v')->v;
+
+    $this->artisan('rimify:preflight', ['--skip-s3' => true])
+        ->expectsOutputToContain($version)
+        ->expectsOutputToContain('zuletzt vor')
+        ->expectsOutputToContain('privat (invoices/)')
+        ->expectsOutputToContain('keines gefunden');
+});
+
+it('says when the scheduler has never run', function (): void {
+    Cache::forget(Preflight::SCHEDULE_BEAT);
+    Http::fake(['*/health' => Http::response('OK')]);
+
+    $this->artisan('rimify:preflight', ['--skip-s3' => true])->expectsOutputToContain('noch nie gelaufen');
+});
+
+it('checks that Stripe sends every event the shop acts on to its webhook address', function (): void {
+    config(['rimify.payments.driver' => 'stripe', 'services.stripe.mode' => 'test', 'services.stripe.key' => 'pk_test_fakeKey', 'services.stripe.secret' => 'sk_test_fakeKey', 'services.stripe.webhook_secret' => 'whsec_test_fake']);
+    $stripe = FakeStripe::install();
+    Http::fake(['*/health' => Http::response('OK')]);
+
+    try {
+        $this->artisan('rimify:preflight', ['--skip-s3' => true])->expectsOutputToContain('Kein Webhook-Endpunkt');
+
+        $stripe->webhooks = [['id' => 'we_1', 'object' => 'webhook_endpoint', 'url' => route('webhooks.payment', ['provider' => 'stripe']), 'status' => 'enabled', 'enabled_events' => ['payment_intent.succeeded']]];
+        $this->artisan('rimify:preflight', ['--skip-s3' => true])->expectsOutputToContain('Stripe schickt diese Ereignisse nicht: payment_intent.processing');
+
+        $stripe->webhooks[0]['enabled_events'] = StripeGateway::EVENTS;
+        $this->artisan('rimify:preflight', ['--skip-s3' => true])
+            ->expectsOutputToContain('Stripe im Testmodus')
+            ->doesntExpectOutputToContain('Kein Webhook-Endpunkt')
+            ->doesntExpectOutputToContain('Ereignisse nicht');
+    } finally {
+        FakeStripe::uninstall();
+    }
 });

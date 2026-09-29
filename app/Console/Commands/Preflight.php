@@ -4,29 +4,46 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\CatalogueStatus;
+use App\Http\Controllers\Storefront\KasseController;
+use App\Models\Brand;
+use App\Payments\PaymentConfig;
 use App\Payments\Payments;
 use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
+use App\Services\Commerce\Invoices;
+use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
+use App\Support\DatabaseEngine;
+use App\Support\GermanFormat;
+use App\Support\Seller;
 use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
 
 /**
  * `rimify:preflight`: launch day is this command and a green board. One row per thing that must be
- * right before the shop takes orders; go when none fails. Grows with the launch ledger (M8): today
- * the application, the database, the demo data (R-12) and the media storage — the full S3 audit as
- * one row, with `--skip-s3` for a quick look.
+ * right before the shop takes orders; go when none fails. Grows with the launch ledger (M8): the
+ * application, rendering, mail, the payment driver, its mode and its webhook, the queue and the
+ * scheduler, the database and its engine, the demo data (R-12), the media storage — the full S3 audit
+ * as one row, with `--skip-s3` for a quick look — the invoices' private storage, the seller's data,
+ * shipping and delivery time, the legal texts, GPSR per brand, and no credential in the code (Block G §8).
+ * A row the live shop cannot go without is NO-GO in production and a warning everywhere else.
  */
 final class Preflight extends Command
 {
+    /** The scheduler's pulse (routes/console.php): the cache key, a Unix time, written every minute. */
+    public const SCHEDULE_BEAT = 'rimify:schedule_beat';
+
     protected $signature = 'rimify:preflight {--skip-s3 : Leave out the bucket audit (it writes and reads probe files)}';
 
     protected $description = 'Go / no-go: environment, rendering, mail, payment, database, demo data and media storage';
@@ -48,10 +65,17 @@ final class Preflight extends Command
         $rows[] = $this->mail($production, $url);
         $rows[] = $this->payment($production);
         $rows[] = $this->paymentKeys($production);
+        $rows[] = $this->webhook($production);
+        $rows[] = $this->queue($production);
+        $rows[] = $this->schedule($production);
 
         try {
             DB::connection()->getPdo();
             $rows[] = ['Datenbank', 'ok', DB::connection()->getDatabaseName()];
+            $version = (string) DB::selectOne('SELECT VERSION() AS v')->v;
+            $refusal = DatabaseEngine::refusal($version);
+            [$engine] = DatabaseEngine::parse($version);
+            $rows[] = ['Datenbank-Engine', $refusal === null ? 'ok' : 'fail', $refusal ?? "{$engine} {$version} – die Suite läuft auf ".implode(' und ', DatabaseEngine::tested())];
         } catch (Throwable $e) {
             $rows[] = ['Datenbank', 'fail', $e->getMessage()];
         }
@@ -86,6 +110,12 @@ final class Preflight extends Command
         }
 
         $rows[] = ['Speicher-Tabelle', Schema::hasTable('storage_settings') ? 'ok' : 'fail', Schema::hasTable('storage_settings') ? 'vorhanden' : 'Migration fehlt'];
+        $rows[] = $this->invoiceStorage();
+        $rows[] = $this->seller($production);
+        $rows[] = $this->shippingTerms($production);
+        $rows[] = $this->legalTexts($production);
+        $rows[] = $this->gpsr($production);
+        $rows[] = $this->secrets();
 
         $marks = ['ok' => 'GO', 'warn' => 'Warnung', 'fail' => 'NO-GO', 'skip' => '–'];
         $this->table(['Prüfung', 'Ergebnis', 'Befund'], array_map(static fn (array $r): array => [$r[0], $marks[$r[1]], $r[2]], $rows));
@@ -101,6 +131,166 @@ final class Preflight extends Command
         $this->info('GO.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Stripe sends its events here — registered, enabled, every event the shop acts on. Paid is only ever the
+     * webhook's word, so without it no order is ever paid.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function webhook(bool $production): array
+    {
+        $gateway = Payments::gateway();
+
+        if ($gateway === null || $gateway->method() !== 'stripe') {
+            return ['Stripe-Webhook', 'skip', 'Stripe ist nicht der Zahlungsanbieter in Kraft'];
+        }
+
+        $url = route('webhooks.payment', ['provider' => 'stripe']);
+
+        try {
+            $problem = $gateway->webhookProblem($url);
+        } catch (Throwable $e) {
+            $problem = $e->getMessage();
+        }
+
+        return $problem === null ? ['Stripe-Webhook', 'ok', $url] : ['Stripe-Webhook', $production ? 'fail' : 'warn', $problem];
+    }
+
+    /**
+     * Work after the response: on the shared host the queue is `sync` and a job runs straight after the answer
+     * (D-054); with a real queue a worker must be taking jobs — one waiting five minutes means none is.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function queue(bool $production): array
+    {
+        $connection = (string) config('queue.default');
+
+        if ($connection === 'sync') {
+            return ['Warteschlange', 'ok', 'sync: Arbeit läuft direkt nach der Antwort, kein Worker nötig'];
+        }
+
+        try {
+            $oldest = $connection === 'database' ? DB::table((string) config('queue.connections.database.table', 'jobs'))->min('available_at') : null;
+        } catch (Throwable $e) {
+            return ['Warteschlange', 'fail', $e->getMessage()];
+        }
+
+        if (is_numeric($oldest) && now()->getTimestamp() - (int) $oldest > 300) {
+            return ['Warteschlange', $production ? 'fail' : 'warn', "{$connection}: ein Auftrag wartet seit über fünf Minuten – läuft ein Worker?"];
+        }
+
+        return ['Warteschlange', 'ok', "{$connection}: nichts wartet"];
+    }
+
+    /**
+     * The cron line runs the scheduler: unpaid orders expire, the demo check runs, the renderer is watched. Its
+     * pulse is written every minute.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function schedule(bool $production): array
+    {
+        $beat = Cache::get(self::SCHEDULE_BEAT);
+
+        if (! is_int($beat)) {
+            return ['Zeitplan (Cron)', $production ? 'fail' : 'warn', 'noch nie gelaufen – die Cron-Zeile für schedule:run fehlt (GO-LIVE.md)'];
+        }
+
+        $ago = now()->getTimestamp() - $beat;
+
+        return $ago <= 180
+            ? ['Zeitplan (Cron)', 'ok', "zuletzt vor {$ago} s"]
+            : ['Zeitplan (Cron)', $production ? 'fail' : 'warn', 'zuletzt vor '.intdiv($ago, 60).' min – läuft die Cron-Zeile noch?'];
+    }
+
+    /**
+     * Invoices sit on the private disk, outside anything the web server hands out: the link to one is signed.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function invoiceStorage(): array
+    {
+        $dir = realpath(Storage::disk(Invoices::DISK)->path('')) ?: Storage::disk(Invoices::DISK)->path('');
+        $public = realpath(public_path()) ?: public_path();
+        $exposed = str_starts_with(str_replace('\\', '/', $dir), str_replace('\\', '/', $public)) || is_dir(public_path('storage/'.Invoices::DIR));
+
+        return $exposed
+            ? ['Rechnungen', 'fail', 'Der Ordner invoices/ liegt im öffentlichen Verzeichnis – er gehört auf die private Platte']
+            : ['Rechnungen', 'ok', 'privat ('.Invoices::DIR.'/), nur über signierte Links'];
+    }
+
+    /** @return array{0: string, 1: string, 2: string} */
+    private function seller(bool $production): array
+    {
+        $missing = Seller::current()->missing();
+
+        return $missing === []
+            ? ['Verkäuferangaben', 'ok', 'vollständig für Rechnung und Widerrufsformular']
+            : ['Verkäuferangaben', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' (RIMIFY_SELLER_*) – bis dahin nur Testrechnungen'];
+    }
+
+    /** @return array{0: string, 1: string, 2: string} */
+    private function shippingTerms(bool $production): array
+    {
+        $missing = array_filter([
+            is_int(config('rimify.shipping.cost_cents')) ? null : 'Versandkosten',
+            KasseController::deliveryTime() === null ? 'Lieferzeit' : null,
+        ]);
+
+        return $missing === []
+            ? ['Versand und Lieferzeit', 'ok', 'Versand '.GermanFormat::money((int) config('rimify.shipping.cost_cents')).', Lieferzeit '.KasseController::deliveryTime()]
+            : ['Versand und Lieferzeit', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' – ohne sie nimmt der Shop keine echte Bestellung an'];
+    }
+
+    /** @return array{0: string, 1: string, 2: string} */
+    private function legalTexts(bool $production): array
+    {
+        $legal = app(LegalTexts::class);
+        $open = array_values(array_filter(['impressum', 'datenschutz', 'agb', 'widerrufsbelehrung'], static fn (string $slug): bool => $legal->placeholder($slug)));
+
+        return $open === []
+            ? ['Rechtstexte', 'ok', 'Impressum, Datenschutz, AGB, Widerrufsbelehrung hinterlegt']
+            : ['Rechtstexte', $production ? 'fail' : 'warn', 'noch Platzhalter: '.implode(', ', $open).' (BLOCKED #4)'];
+    }
+
+    /**
+     * GPSR: every wheel on sale names its manufacturer (Katalog › Marken › Herstellerangaben).
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function gpsr(bool $production): array
+    {
+        $brands = Brand::query()
+            ->whereHas('wheelModels', static fn ($q) => $q->where('status', CatalogueStatus::Published->value))
+            ->orderBy('name')
+            ->get()
+            ->filter(static fn (Brand $brand): bool => $brand->manufacturer() === null)
+            ->pluck('name')
+            ->all();
+
+        return $brands === []
+            ? ['Herstellerangaben (GPSR)', 'ok', 'für jede Marke im Verkauf']
+            : ['Herstellerangaben (GPSR)', $production ? 'fail' : 'warn', 'fehlen für: '.implode(', ', $brands)];
+    }
+
+    /**
+     * No credential in the code the shop runs (R-16). The folders the release carries, file by file — `.env` is not
+     * among them, and is where keys belong.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function secrets(): array
+    {
+        $paths = array_values(array_filter(['app', 'bootstrap', 'config', 'database', 'resources', 'routes', 'public'], static fn (string $dir): bool => is_dir(base_path($dir))));
+        $code = Artisan::call('secrets:scan', ['paths' => array_map('base_path', $paths)]);
+        $output = trim(Artisan::output());
+
+        return $code === 0
+            ? ['Geheimnisse im Code', 'ok', 'keines gefunden']
+            : ['Geheimnisse im Code', 'fail', Str::limit(str_replace("\n", ' ', $output), 200)];
     }
 
     /**
@@ -164,9 +354,13 @@ final class Preflight extends Command
             return ['Zahlung', 'fail', 'RIMIFY_PAYMENTS=sandbox im Live-Shop – auf none oder den Anbieter setzen'];
         }
 
+        $stripe = Payments::checkout();
+
         return match (true) {
             Payments::sandbox() => ['Zahlung', 'warn', 'Testzahlung (Sandbox): Bestellungen sind Tests, es fließt kein Geld'],
             Payments::gateway() === null => ['Zahlung', 'warn', 'kein Zahlungsanbieter eingerichtet: der Shop nimmt keine Bestellungen an (BLOCKED #3)'],
+            $stripe !== null && $stripe['testMode'] => ['Zahlung', $production ? 'warn' : 'ok', 'Stripe im Testmodus ('.PaymentConfig::current()->summary()['source'].'): es wird kein Geld abgebucht'],
+            $stripe !== null => ['Zahlung', 'ok', 'Stripe im Livemodus ('.PaymentConfig::current()->summary()['source'].')'],
             default => ['Zahlung', 'ok', $driver],
         };
     }

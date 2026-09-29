@@ -39,6 +39,12 @@ final class StripeGateway implements PaymentGateway
     /** Seconds a webhook signature stays valid: Stripe's own default. */
     public const TOLERANCE = 300;
 
+    /** Every event the shop acts on (translate); the webhook endpoint must send each. */
+    public const EVENTS = [
+        'payment_intent.succeeded', 'payment_intent.processing', 'payment_intent.payment_failed', 'payment_intent.canceled',
+        'charge.refunded', 'charge.dispute.created', 'charge.dispute.closed',
+    ];
+
     /** The capabilities „Verbindung testen“ names, in the customer's words. */
     private const METHODS = [
         'card_payments' => 'Karte (mit Apple Pay und Google Pay)',
@@ -267,6 +273,33 @@ final class StripeGateway implements PaymentGateway
             $methods,
             ! str_contains((string) $this->config->secretKey, '_test_'),
         );
+    }
+
+    public function webhookProblem(string $url): ?string
+    {
+        try {
+            $endpoints = $this->client()->webhookEndpoints->all(['limit' => 100])->data;
+        } catch (ApiErrorException $e) {
+            return 'Stripe nicht erreichbar: '.$e->getMessage();
+        }
+
+        foreach ($endpoints as $endpoint) {
+            if (rtrim((string) $endpoint->url, '/') !== rtrim($url, '/')) {
+                continue;
+            }
+
+            if ($endpoint->status !== 'enabled') {
+                return "Der Endpunkt {$url} ist bei Stripe deaktiviert.";
+            }
+
+            /** @var list<string> $events */
+            $events = (array) $endpoint->enabled_events;
+            $missing = in_array('*', $events, true) ? [] : array_values(array_diff(self::EVENTS, $events));
+
+            return $missing === [] ? null : 'Stripe schickt diese Ereignisse nicht: '.implode(', ', $missing).'.';
+        }
+
+        return "Kein Webhook-Endpunkt für {$url} bei Stripe eingetragen.";
     }
 
     public function submitEvidence(Dispute $dispute, string $text, array $files): void

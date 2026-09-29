@@ -33,6 +33,9 @@ final class FakeStripe implements ClientInterface
     /** @var array<string, mixed> */
     public array $account;
 
+    /** @var list<array<string, mixed>> the webhook endpoints the account has (GET /v1/webhook_endpoints) */
+    public array $webhooks = [];
+
     private int $sequence = 0;
 
     public function __construct()
@@ -112,6 +115,10 @@ final class FakeStripe implements ClientInterface
 
         if ($method === 'GET' && $path === '/v1/account') {
             return [200, $this->account];
+        }
+
+        if ($method === 'GET' && $path === '/v1/webhook_endpoints') {
+            return [200, ['object' => 'list', 'data' => $this->webhooks, 'has_more' => false, 'url' => '/v1/webhook_endpoints']];
         }
 
         if ($method === 'POST' && $path === '/v1/payment_intents') {

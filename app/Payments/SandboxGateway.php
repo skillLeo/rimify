@@ -70,4 +70,10 @@ final class SandboxGateway implements PaymentGateway
 
     /** A test order has no chargeback to answer; the evidence is kept on the shop's side only. */
     public function submitEvidence(Dispute $dispute, string $text, array $files): void {}
+
+    /** The sandbox sends no webhook: its page pays the order itself. */
+    public function webhookProblem(string $url): ?string
+    {
+        return null;
+    }
 }

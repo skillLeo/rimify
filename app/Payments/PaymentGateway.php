@@ -71,4 +71,10 @@ interface PaymentGateway
      * @throws PaymentFailure
      */
     public function submitEvidence(Dispute $dispute, string $text, array $files): void;
+
+    /**
+     * The launch gate's question: does the provider send its events to this address — registered, enabled, with
+     * every event the shop acts on? Null when it does; otherwise what is wrong, in a sentence.
+     */
+    public function webhookProblem(string $url): ?string;
 }
