@@ -262,6 +262,9 @@ test.describe('Felgenrechner rear view', () => {
 
             for (const width of ALSO_AT[info.project.name] ?? []) {
                 await page.setViewportSize({ width, height: viewport?.height ?? 900 });
+                // The drawing places its labels after the resize, on the next frames: measured then, not
+                // in between (under load the in-between state was measured once as an overlap).
+                await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
                 await expectLabelsApart(page, `${info.project.name} at ${width}`);
             }
         });
