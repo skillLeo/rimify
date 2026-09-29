@@ -28,6 +28,15 @@ export default [
             '@typescript-eslint/no-explicit-any': 'error',
         },
     },
+    // Tools run with Node beside the suite (e2e/tools): its globals, nothing of the browser's.
+    {
+        files: ['e2e/**/*.mjs'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+            globals: { ...globals.node },
+        },
+    },
     {
         files: ['**/*.vue'],
         languageOptions: {
