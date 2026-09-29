@@ -11,7 +11,7 @@
  */
 
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
 import BrandWall from '../../Components/Home/BrandWall.vue'
 import RimCode from '../../Components/Home/RimCode.vue'
@@ -211,12 +211,46 @@ const cls = (id: string): string => rendered.value[id] ?? 'surface section'
  * met for the first time otherwise grew or shrank from its placeholder under the finger — no estimate fits
  * every width (a phone turned sideways least of all), and WebKit has no scroll anchoring to hide the jump.
  */
-onMounted(() => {
+function measure(): void {
     const sections = [...document.querySelectorAll<HTMLElement>('.home-below')]
+    // The reader's place, kept by hand — WebKit has no scroll anchoring: the first section still on screen
+    // stays where it was while the ones above it take their real heights (a reload mid-page, /#h11).
+    const anchor = [...document.querySelectorAll<HTMLElement>('main section[id]')].find((s) => s.getBoundingClientRect().bottom > 0)
+    const before = anchor?.getBoundingClientRect().top ?? 0
 
     sections.forEach((section) => section.classList.add('home-below--measured'))
+
+    if (anchor !== undefined && window.scrollY > 0) {
+        window.scrollBy(0, anchor.getBoundingClientRect().top - before)
+    }
+
     // Two frames: the size is recorded at the rendering update after the sections were laid out.
     requestAnimationFrame(() => requestAnimationFrame(() => sections.forEach((section) => section.classList.remove('home-below--measured'))))
+}
+
+/* A phone turned sideways re-flows every section: the remembered heights are taken again at the new width. */
+let width = 0
+let again: ReturnType<typeof setTimeout> | undefined
+
+function onResize(): void {
+    if (window.innerWidth === width) {
+        return
+    }
+
+    width = window.innerWidth
+    clearTimeout(again)
+    again = setTimeout(measure, 150)
+}
+
+onMounted(() => {
+    width = window.innerWidth
+    measure()
+    window.addEventListener('resize', onResize)
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', onResize)
+    clearTimeout(again)
 })
 </script>
 
