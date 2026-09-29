@@ -42,6 +42,21 @@ export interface VehicleProp {
     papers?: PapersProp | null
     /** The variant's power in kW, for the P.2 check on a photographed Zulassungsbescheinigung. Additive. */
     powerKw?: number | null
+    /** Karosserieform and Antrieb as every answer reads them, and where each came from (§1.1). Additive. */
+    build?: BuildProp | null
+}
+
+/**
+ * A car's body style and drive: `data` — the vehicle data's own; `customer` — the owner said so; `name` — an
+ * unambiguous word of the car's name (`bodyWord`, `driveWord`), shown with „stimmt das?“.
+ */
+export interface BuildProp {
+    bodyForm: string | null
+    bodySource: 'data' | 'customer' | 'name' | null
+    bodyWord: string | null
+    driveAxle: string | null
+    driveSource: 'data' | 'customer' | 'name' | null
+    driveWord: string | null
 }
 
 export interface PapersProp {

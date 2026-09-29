@@ -144,6 +144,8 @@ class FelgenController extends Controller
             'filters' => $filters,
             'page' => $page,
             'demo' => $this->demo(),
+            // What of the car the page's answers wait for, asked for by name the moment the car is chosen (§1.1).
+            'missing' => $result['missing'],
         ]);
     }
 

@@ -14,6 +14,7 @@ import { router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Icon from '../Art/Icon.vue'
 import ValueText from '../Ui/ValueText.vue'
+import BuildForm from './BuildForm.vue'
 import PapersForm from './PapersForm.vue'
 import type { IconName } from '../../art'
 import type { ConfigVerdict } from '../../types/pages'
@@ -188,6 +189,10 @@ const headline = computed(() => {
         <p class="rcheck-panel__vehicle">{{ headline }}</p>
 
         <template v-if="verdict">
+            <!-- What the answer waits for, asked by name and answered in place; a derived body style or drive
+                 stands as such, with „stimmt das?“ (the operator's last prompt §1.1). Keyed by the car (C-08). -->
+            <BuildForm v-if="vehicle" :key="`build-${vehicle.id}`" :vehicle-id="vehicle.id" :build="vehicle.build ?? null" :missing="verdict.missing ?? []" />
+
             <!-- Two lines, one per half: the wheel rests on the Gutachten, the tyres on the car's papers. -->
             <dl v-if="verdict.wheelLabel && verdict.tyre" class="fit__halves">
                 <div class="fit__half">
@@ -240,7 +245,8 @@ const headline = computed(() => {
             </div>
 
             <!-- Said once: a reason the tyre lines above already give is not repeated here. -->
-            <p v-if="verdict.reason && !(verdict.tyre?.lines ?? []).includes(verdict.reason) && verdict.reason !== verdict.tyre?.summary" class="fit__reason">{{ verdict.reason }}</p>
+            <!-- Where the answer waits for the car's body style or drive, the question above says so by name. -->
+            <p v-if="verdict.reason && !(verdict.missing ?? []).length && !(verdict.tyre?.lines ?? []).includes(verdict.reason) && verdict.reason !== verdict.tyre?.summary" class="fit__reason">{{ verdict.reason }}</p>
 
             <p v-if="documentLine" class="fit__doc">
                 <Icon name="document" :size="20" />

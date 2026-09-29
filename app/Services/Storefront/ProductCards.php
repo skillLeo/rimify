@@ -35,8 +35,11 @@ final readonly class ProductCards
     /**
      * Cards for a chosen vehicle: only wheels a published document permits on that exact variant.
      *
+     * `missing`: what of the car the page's answers wait for (`bodyForm`, `driveAxle`), so the listing can ask
+     * for it by name the moment the car is chosen (the operator's last prompt §1.1).
+     *
      * @param  array<string, mixed>  $filters
-     * @return array{cards: list<array<string, mixed>>, total: int}
+     * @return array{cards: list<array<string, mixed>>, total: int, missing: list<string>}
      */
     public function forVehicle(int $vehicleId, array $filters = [], int $perPage = 24, int $page = 1): array
     {
@@ -78,7 +81,15 @@ final readonly class ProductCards
             );
         }
 
-        return ['cards' => $cards, 'total' => $result['total']];
+        $missing = [];
+
+        foreach ($verdicts as $verdict) {
+            foreach ($verdict->missingFacts as $fact) {
+                $missing[$fact] = true;
+            }
+        }
+
+        return ['cards' => $cards, 'total' => $result['total'], 'missing' => array_values(array_intersect(['bodyForm', 'driveAxle'], array_keys($missing)))];
     }
 
     /**

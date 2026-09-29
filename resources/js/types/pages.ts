@@ -263,6 +263,8 @@ export interface FelgenProps {
     page?: number
     /** True while any published wheel model is seeded demo data; the listing shows the *Demodaten* note. */
     demo: boolean
+    /** What of the chosen car the page's answers wait for — `bodyForm`, `driveAxle` (§1.1). Additive. */
+    missing?: string[]
 }
 
 export interface ProduktProps {
@@ -355,6 +357,8 @@ export interface ConfigVerdict {
     centreBoreSource?: 'DOCUMENT' | 'UNSTATED' | 'CONFLICTING'
     reason: string | null
     reasonCode: string | null
+    /** What of the car an UNKNOWN answer waits for — `bodyForm`, `driveAxle` — asked for by name (§1.1). Additive. */
+    missing?: string[]
     /**
      * pdf: the Gutachten itself, at the page the answer stands on; absent where no file is stored.
      * others: the further documents the answer rests on, named (the corrections memo §3).
