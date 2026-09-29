@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Storefront\VehicleContext;
 use App\Models\Vehicle;
-use App\Services\Storefront\VehicleTree;
+use App\Support\GermanFormat;
 use Database\Seeders\CommerceSeeder;
 use Inertia\Testing\AssertableInertia;
 
@@ -47,15 +47,21 @@ it('tells apart the halves of a car a Gutachten splits, by Feld K', function ():
 
     $rows = collect($this->getJson('/api/v1/vehicles/variants?marke=BMW&modell=Feld-K-Probe')->assertOk()->json('variants'))->keyBy('id');
 
-    expect($rows[$early->id]['approval'])->toBe('Feld K: e1*2007/46*0283*00 bis *03')
-        ->and($rows[$late->id]['approval'])->toBe('Feld K: e1*2007/46*0283*04 und später')
+    // The range set off from the number, so „ab“ never reads as a date; no-break spaces inside „Feld K“ and the range.
+    $nb = "\u{00A0}";
+
+    expect($rows[$early->id]['approval'])->toBe("Feld{$nb}K: e1*2007/46*0283, *00 bis{$nb}*03")
+        ->and($rows[$late->id]['approval'])->toBe("Feld{$nb}K: e1*2007/46*0283, ab{$nb}*04")
+        ->and($rows[$late->id]['approvalShort'])->toBe("Feld{$nb}K ab{$nb}*04")
         ->and($rows->firstWhere('variant', '118d')['approval'])->toBeNull()
-        ->and(VehicleTree::approvalDe('e1*2001/116*0352*..'))->toBe('Feld K: e1*2001/116*0352')
-        ->and(VehicleTree::approvalDe(null))->toBeNull();
+        ->and(GermanFormat::egRange('e1*2001/116*0352*..'))->toBe("Feld{$nb}K: e1*2001/116*0352")
+        ->and(GermanFormat::egRange('e1*2001/116*0352*..', short: true))->toBeNull()
+        ->and(GermanFormat::egRange('e1*2007/46*0316*08'))->toBe("Feld{$nb}K: e1*2007/46*0316, *08")
+        ->and(GermanFormat::egRange(null))->toBeNull();
 
     $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($late->id, true))->encode()])
         ->get('/felgen')
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('vehicle.approval', 'Feld K: e1*2007/46*0283*04 und später'));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('vehicle.approval', "Feld{$nb}K: e1*2007/46*0283, ab{$nb}*04"));
 });
 
 it('answers an empty list for a make it does not know', function (): void {

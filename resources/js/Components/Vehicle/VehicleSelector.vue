@@ -95,6 +95,7 @@ const rows = computed(() => {
             .map((m) => ({
                 key: m.make,
                 label: m.make,
+                sub: null,
                 note: `${m.models} Modelle`,
                 blocked: false,
             }))
@@ -106,6 +107,7 @@ const rows = computed(() => {
             .map((m) => ({
                 key: m.model,
                 label: m.model,
+                sub: null,
                 note: `${m.variants} Varianten`,
                 blocked: false,
             }))
@@ -116,8 +118,11 @@ const rows = computed(() => {
         .map((v) => ({
             key: String(v.id),
             label: v.variant,
-            // Feld K tells apart the halves a Gutachten splits one car into, where no key numbers do yet.
-            note: [v.buildWindow, v.approval].filter(Boolean).join(' · '),
+            // Feld K tells apart the halves a Gutachten splits one car into, where no key numbers do yet: its own
+            // line under the name, never squeezed beside it.
+            sub: v.approval ?? null,
+            // Beside Feld K an unknown build window says nothing, and at 375 px it squeezed the number.
+            note: v.approval && v.buildKnown === false ? '' : v.buildWindow,
             // A vehicle we could not characterise can never produce a positive verdict, so it is
             // offered but named as incomplete rather than silently leading to UNKNOWN (R-03).
             blocked: v.needsReview,
@@ -218,13 +223,16 @@ function onTsn(event: Event): void {
                     :disabled="choice.processing"
                     @click="step(row.key)"
                 >
-                    <span class="vsel__label">
-                        {{ row.label }}
-                        <span v-if="row.blocked" class="tag tag--unknown vsel__flag">
-                            Daten unvollständig
+                    <span class="vsel__main">
+                        <span class="vsel__label">
+                            {{ row.label }}
+                            <span v-if="row.blocked" class="tag tag--unknown vsel__flag">
+                                Daten unvollständig
+                            </span>
                         </span>
+                        <span v-if="row.sub" class="data vsel__sub">{{ row.sub }}</span>
                     </span>
-                    <span class="data vsel__note">{{ row.note }}</span>
+                    <span v-if="row.note" class="data vsel__note">{{ row.note }}</span>
                 </button>
 
                 <p v-if="rows.length === 0" class="quiet vsel__empty">
@@ -455,6 +463,28 @@ function onTsn(event: Event): void {
 
 .vsel__flag {
     flex: none;
+}
+
+/* The name, and under it Feld K where the row has one: the column that gives way, the note beside it stays. */
+.vsel__main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    text-align: left;
+}
+
+.vsel__main .vsel__label {
+    max-width: 100%;
+}
+
+.vsel__sub {
+    font-size: var(--fs-small);
+    font-weight: 400;
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    /* Breaks at its spaces, and inside the number only when a line holds nothing else: never shrinks for it. */
+    overflow-wrap: break-word;
 }
 
 .vsel__note {

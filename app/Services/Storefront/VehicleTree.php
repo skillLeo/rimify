@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
-use App\Support\EgNumber;
 use App\Support\GermanFormat;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -105,6 +104,8 @@ final readonly class VehicleTree
                     $row->build_from === null ? null : new \DateTimeImmutable((string) $row->build_from),
                     $row->build_to === null ? null : new \DateTimeImmutable((string) $row->build_to),
                 ),
+                // Whether the window above says anything: beside a Feld K line an unknown one is left out.
+                'buildKnown' => $row->build_from !== null || $row->build_to !== null,
                 'powerPs' => $row->power_ps === null ? null : (int) $row->power_ps,
                 'bodyForm' => $row->body_form,
                 // Shown, not hidden: the customer is told plainly that this row is incomplete,
@@ -113,33 +114,12 @@ final readonly class VehicleTree
                 // A car known only from a Gutachten has no key numbers and no build window yet; a document
                 // may split it at an extension of its EG type approval, and the halves carry different
                 // rows — different bolt sets. Feld K is then the one thing that tells them apart.
-                'approval' => $row->hsn === null ? self::approvalDe($row->eg_nummer_raw) : null,
+                'approval' => $row->hsn === null ? GermanFormat::egRange($row->eg_nummer_raw) : null,
+                // The range alone, for the phone's select, where the whole line does not fit.
+                'approvalShort' => $row->hsn === null ? GermanFormat::egRange($row->eg_nummer_raw, short: true) : null,
             ];
         }
 
         return $out;
-    }
-
-    /** `Feld K: e1*2001/116*0287*00 bis *09`, `… *10 und später`, or null without a readable number. */
-    public static function approvalDe(mixed $raw): ?string
-    {
-        $eg = EgNumber::parse(is_string($raw) ? $raw : null);
-
-        if ($eg === null) {
-            return null;
-        }
-
-        $ext = static fn (int $n): string => '*'.str_pad((string) $n, 2, '0', STR_PAD_LEFT);
-        $range = '';
-
-        if ($eg->from !== null) {
-            $range = match (true) {
-                $eg->to === null => $ext($eg->from).' und später',
-                $eg->to === $eg->from => $ext($eg->from),
-                default => $ext($eg->from).' bis '.$ext($eg->to),
-            };
-        }
-
-        return 'Feld K: '.$eg->base.$range;
     }
 }

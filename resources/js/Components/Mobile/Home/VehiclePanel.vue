@@ -170,11 +170,14 @@ watch(
 
 function variantLabel(v: VariantRow): string {
     const power = v.powerPs === null ? null : `${decimal(Math.round(v.powerPs * 0.7355), 0)} kW`
-    // Feld K tells apart the halves a Gutachten splits one car into, where no key numbers do yet.
-    const parts = [v.variant, power, v.buildWindow, v.approval ?? null].filter((p): p is string => p !== null && p !== '')
+    // Feld K's range tells apart the halves a Gutachten splits one car into, where no key numbers do yet — and
+    // it stands where a closed select and the picker wheel still show it, in place of the unknown build window.
+    const parts = [v.variant, power, v.approvalShort ?? v.buildWindow].filter((p): p is string => p !== null && p !== '')
 
     return `${parts.join(' · ')}${v.needsReview ? ' (unvollständige Daten)' : ''}`
 }
+
+const chosenApproval = computed(() => picker.variants.value.find((v) => v.id === picker.variantId.value)?.approval ?? null)
 
 /* ── The count and the button ──────────────────────────────────────────────── */
 
@@ -312,7 +315,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     <div v-if="vehicle" class="vpanel vpanel--vehicle">
         <span class="label">Dein Fahrzeug</span>
         <p class="h3">{{ vehicle.label }}</p>
-        <p class="small num muted">{{ vehicle.approval ?? vehicle.keyNumbers }} · {{ vehicle.buildWindow }}</p>
+        <!-- Feld K first where it is what tells the car apart; the unknown build window then says nothing. -->
+        <p class="small num muted">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
         <p v-if="totalLabel !== null" class="small num vpanel__count">
             <strong>{{ totalLabel }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
         </p>
@@ -418,6 +422,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                     <option v-for="v in picker.variants.value" :key="v.id" :value="v.id" :disabled="v.needsReview">{{ variantLabel(v) }}</option>
                 </select>
                 <p v-if="picker.variantsFailed.value" class="form-field__error">Die Varianten lassen sich gerade nicht laden.</p>
+                <!-- The whole Feld K line under the select once a variant is picked: the option has room for its range only. -->
+                <p v-else-if="chosenApproval" class="form-field__help num">{{ chosenApproval }}</p>
             </div>
         </div>
 

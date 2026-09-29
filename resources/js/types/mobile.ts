@@ -16,6 +16,7 @@ export interface VariantsResponse {
         powerPs: number | null
         needsReview: boolean
         approval?: string | null
+        approvalShort?: string | null
     }[]
 }
 

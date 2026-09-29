@@ -293,6 +293,36 @@ final class GermanFormat
         return sprintf('HSN %s %s TSN %s', self::hsn($hsn), self::MIDDOT, mb_strtoupper(trim((string) $tsn)));
     }
 
+    /**
+     * What Feld K of the papers must show for a car a Gutachten names by its EG type approval — the one thing
+     * that tells apart the halves a document splits a car into (`e1*2007/46*0283, ab *04`), with the range set
+     * off from the number so that „ab“ never reads as a date. `$short` is the range alone, for a line with no
+     * room (`Feld K ab *04`): null there when the number covers every extension. Null without a readable number.
+     */
+    public static function egRange(mixed $raw, bool $short = false): ?string
+    {
+        $eg = EgNumber::parse(is_string($raw) ? $raw : null);
+
+        if ($eg === null) {
+            return null;
+        }
+
+        $ext = static fn (int $n): string => '*'.str_pad((string) $n, 2, '0', STR_PAD_LEFT);
+        $range = match (true) {
+            $eg->from === null => null,
+            $eg->to === null => 'ab'.self::NBSP.$ext($eg->from),
+            $eg->to === $eg->from => $ext($eg->from),
+            default => $ext($eg->from).' bis'.self::NBSP.$ext($eg->to),
+        };
+        $field = 'Feld'.self::NBSP.'K';
+
+        if ($short) {
+            return $range === null ? null : $field.' '.$range;
+        }
+
+        return $field.': '.$eg->base.($range === null ? '' : ', '.$range);
+    }
+
     /** `4,8 (555 Bewertungen)`, with the singular handled. */
     public static function rating(float|int|string $rating, int $reviews): string
     {

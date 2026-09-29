@@ -83,24 +83,28 @@ describe('VehicleSelector — a key-number miss (R-09)', () => {
  * sets. Without key numbers and a build window both read „1K4“ — Feld K tells them apart.
  */
 describe('VehicleSelector — the halves of one car', () => {
-    it('names Feld K beside a variant that has no key numbers', () => {
+    it('names Feld K under a variant that has no key numbers, never squeezed beside an unknown build window', () => {
+        const nb = String.fromCharCode(160)
         const row = (id: number, approval: string) => ({
             id, variant: '1K4', typeDesignation: '1K4', keyNumbers: 'HSN/TSN noch nicht hinterlegt', hsn: '', tsn: '', vsn: null,
-            buildWindow: 'Bauzeitraum unbekannt', powerPs: null, bodyForm: null, needsReview: false, approval,
+            buildWindow: 'Bauzeitraum unbekannt', buildKnown: false, powerPs: null, bodyForm: null, needsReview: false, approval,
         })
         current.props = {}
         const wrapper = mount(VehicleSelector, {
             props: {
                 makes: [], models: [], selectedMake: 'BMW', selectedModel: '1er-Reihe',
-                variants: [row(80, 'Feld K: e1*2007/46*0283*00 bis *03'), row(82, 'Feld K: e1*2007/46*0283*04 und später')],
+                variants: [row(80, `Feld${nb}K: e1*2007/46*0283, *00 bis${nb}*03`), row(82, `Feld${nb}K: e1*2007/46*0283, ab${nb}*04`)],
             },
             global: { stubs: { DocFacsimile: true } },
         })
         mounted.push(wrapper)
 
-        expect(wrapper.findAll('.vsel__note').map((n) => n.text())).toEqual([
-            'Bauzeitraum unbekannt · Feld K: e1*2007/46*0283*00 bis *03',
-            'Bauzeitraum unbekannt · Feld K: e1*2007/46*0283*04 und später',
+        // Its own line under the name — never squeezed beside it, where the name gave way to „…“.
+        expect(wrapper.findAll('.vsel__main .vsel__sub').map((n) => n.text())).toEqual([
+            `Feld${nb}K: e1*2007/46*0283, *00 bis${nb}*03`,
+            `Feld${nb}K: e1*2007/46*0283, ab${nb}*04`,
         ])
+        // Beside Feld K an unknown build window says nothing: left out, so the number has the row's width.
+        expect(wrapper.findAll('.vsel__note')).toHaveLength(0)
     })
 })

@@ -63,7 +63,7 @@ sie im Shop.
 6. **Zwei Fahrzeuge unter einem Namen:** Unter **BMW › 1er-Reihe** erscheint der **1K4** zweimal. Der Nachtrag
    sieht für ihn je nach Stand seiner EG-Typgenehmigung einen anderen Schraubensatz vor. Darum nennt RIMIFY
    neben jeder Variante, was in Feld K der Zulassungsbescheinigung stehen muss:
-   „Feld K: e1*2007/46*0283*00 bis *03“ und „… *04 und später“.
+   „Feld K: e1*2007/46*0283, *00 bis *03“ und „Feld K: e1*2007/46*0283, ab *04“.
 
 **Was du dabei oft sehen wirst: „wissen wir nicht“.** Viele Zeilen der beiden Gutachten gelten nur für eine
 bestimmte Karosserieform oder einen bestimmten Antrieb, etwa „nur Limousine“ oder „nicht für Allrad“. Solange

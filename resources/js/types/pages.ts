@@ -36,12 +36,16 @@ export interface VariantOption {
     tsn: string
     vsn: string | null
     buildWindow: string
+    /** Whether `buildWindow` names one; beside a Feld K line an unknown one is left out. */
+    buildKnown?: boolean
     powerPs: number | null
     bodyForm: string | null
     /** Shown, never hidden: an incomplete row is named as incomplete rather than guessed at. */
     needsReview: boolean
-    /** `Feld K: e1*2007/46*0283*04 und später` — a car without key numbers, told apart from its twin by its papers. */
+    /** `Feld K: e1*2007/46*0283, ab *04` — a car without key numbers, told apart from its twin by its papers. */
     approval?: string | null
+    /** `Feld K ab *04` — the range alone, where a line has no room for the number. */
+    approvalShort?: string | null
     [key: string]: unknown
 }
 
