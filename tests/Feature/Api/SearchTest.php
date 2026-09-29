@@ -82,8 +82,9 @@ it('refuses an empty or oversized query in German', function (): void {
         ->assertJsonPath('errors.q.0', 'Der Suchbegriff darf höchstens 80 Zeichen lang sein.');
 });
 
-it('is rate limited to sixty requests a minute', function (): void {
+// Asked as the customer types: its own 120 a minute, apart from the vehicle picker's 60 (EF-04, ThrottleKeysTest).
+it('is rate limited to 120 requests a minute, on a counter of its own', function (): void {
     $response = $this->getJson('/api/v1/search?q=motec');
 
-    expect($response->headers->get('X-RateLimit-Limit'))->toBe('60');
+    expect($response->headers->get('X-RateLimit-Limit'))->toBe('120');
 });

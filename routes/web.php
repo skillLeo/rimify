@@ -129,13 +129,17 @@ Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('
  * The JSON endpoints the shell calls. They sit in the web group on purpose: the session and the
  * vehicle cookie are what most of them answer about, and a GET carries no CSRF token to check.
  */
-Route::prefix('api/v1')->name('api.')->middleware('throttle:60,1,api')->group(function (): void {
-    Route::get('/search', SearchController::class)->name('search');
-    Route::get('/vehicles/models', [VehicleTreeController::class, 'models'])->name('vehicles.models');
-    Route::get('/vehicles/variants', [VehicleTreeController::class, 'variants'])->name('vehicles.variants');
-    Route::get('/fitment/count', FitmentCountController::class)->name('fitment.count');
-    // Writes a row and sends a mail: a tighter limit than the read endpoints.
-    Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:10,1,fitment-notify')->name('fitment.notify');
+Route::prefix('api/v1')->name('api.')->group(function (): void {
+    // Asked as the customer types: its own counter, so a long query never costs them the vehicle picker.
+    Route::get('/search', SearchController::class)->middleware('throttle:120,1,api-search')->name('search');
+
+    Route::middleware('throttle:60,1,api')->group(function (): void {
+        Route::get('/vehicles/models', [VehicleTreeController::class, 'models'])->name('vehicles.models');
+        Route::get('/vehicles/variants', [VehicleTreeController::class, 'variants'])->name('vehicles.variants');
+        Route::get('/fitment/count', FitmentCountController::class)->name('fitment.count');
+        // Writes a row and sends a mail: a tighter limit than the read endpoints.
+        Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:10,1,fitment-notify')->name('fitment.notify');
+    });
 });
 
 // The two links a subscription mail carries (F2); tokens, no session.

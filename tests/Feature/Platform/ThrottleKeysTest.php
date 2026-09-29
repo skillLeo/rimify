@@ -36,6 +36,17 @@ it('does not charge the checkout for the searches before it', function (): void 
     expect($this->post('/kasse', [])->getStatusCode())->not->toBe(429);
 });
 
+it('does not charge the vehicle picker for the search typed before it', function (): void {
+    $this->seed(CommerceSeeder::class);
+
+    // Sixty-one keystrokes' worth of search: more than the picker's sixty a minute (EF-04).
+    foreach (range(1, 61) as $ignored) {
+        $this->getJson('/api/v1/search?q=bmw')->assertOk();
+    }
+
+    $this->getJson('/api/v1/vehicles/models?marke=BMW')->assertOk();
+});
+
 it('does not charge the password confirmation for the searches before it, and still limits it', function (): void {
     $this->seed(AccessSeeder::class);
     $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
