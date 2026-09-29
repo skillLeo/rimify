@@ -62,7 +62,8 @@ test('GUTACHTEN-11 the duplicate tyre size carries its own sentence', async ({ p
     await page.locator('#rc-size-2').fill('225/40 ZR18');
     await composer(page).submit.click();
 
-    await expect(page.locator('.rc .rf-size__err').filter({ hasText: 'steht schon in der Liste' })).toHaveCount(1);
+    // The sentence since Block D names the band and the indexes: „… steht mit diesem kW-Bereich und diesen Indizes schon in der Liste."
+    await expect(page.locator('.rc .rf-size__err').filter({ hasText: 'schon in der Liste' })).toHaveCount(1);
 
     const under = await page.evaluate(() =>
         Array.from(document.querySelectorAll('.rc .rf-size')).map((line) => ({
@@ -78,5 +79,5 @@ test('GUTACHTEN-11 the duplicate tyre size carries its own sentence', async ({ p
     expect(
         atFault,
         `sent as tyre_sizes.${refusedAt}; on screen: ${under.map((u, i) => `line ${i + 1} „${u.text}" → „${u.error}"`).join(' · ')}`,
-    ).toContain('steht schon in der Liste');
+    ).toContain('schon in der Liste');
 });

@@ -53,7 +53,9 @@ test('Gutachten, Auflagen, Fahrzeuge and one order', async ({ page }, info) => {
         await page.waitForURL(/\/admin\/gutachten\/\d+$/)
         await waitForApp(page)
         await expect(page.getByRole('heading', { name: 'Zeilen hinzufügen' })).toBeVisible()
-        await page.screenshot({ path: `${DIR}/entwurf-${width}.png`, fullPage: true })
+        // The composer, not the whole page: a real Gutachten's draft (the Borbet Nachtrag, 110 rows) is
+        // taller at 390 px than Chromium can capture in one image.
+        await page.locator('.rc').first().screenshot({ path: `${DIR}/entwurf-${width}.png` })
     }
 
     await page.goto('/admin/auflagen', { waitUntil: 'networkidle' })

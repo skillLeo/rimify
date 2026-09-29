@@ -287,7 +287,8 @@ test.describe('Felgenrechner rear view', () => {
             await expect(select).toHaveAttribute('translate', 'no');
         }
 
-        await expect(page.locator('[data-result="lage"] [translate="no"]').first()).toHaveText(/^23\smm$/);
+        // A value's surrounding spaces live inside its span since 94418abf — a translator trims a span's edges.
+        await expect(page.locator('[data-result="lage"] [translate="no"]').first()).toHaveText(/^\s?23\smm\s?$/);
     });
 
     test('says in one sentence that a tyre and its rim do not belong together, and draws and prints nothing for it', async ({ page }) => {

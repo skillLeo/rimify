@@ -41,11 +41,22 @@ function emptyProps(props: Record<string, unknown>): Record<string, unknown> {
         series: [],
         href: null,
     })
-    const admin = { ...(props.admin as Record<string, unknown>), demo: null }
+    // A fresh shop is a healthy one: the development box runs no queue worker, and its stale queue is no
+    // part of a first day. The period is pinned to the same day as `asOf`, not to the clock.
+    const health = { state: 'ok', sentence: 'Alles in Ordnung', label: 'Alles in Ordnung', count: null, href: '/admin/system', banner: null }
+    const admin = { ...(props.admin as Record<string, unknown>), demo: null, health }
+    const period = {
+        ...(props.period as Record<string, unknown>),
+        von: '2026-08-29',
+        bis: '2026-09-27',
+        range: '29.08.–27.09.2026',
+        previousRange: '30.07.–28.08.2026',
+    }
 
     return {
         ...props,
         admin,
+        period,
         asOf: '27.09.2026, 10:00 Uhr',
         demo: false,
         kpis: [
@@ -110,7 +121,12 @@ test('dashboard-empty: a shop\'s first day', async ({ page }, info) => {
 
     await expect(page.getByText('Noch kein Umsatz in diesem Zeitraum.')).toBeVisible()
     await page.screenshot({ path: `${SHOTS}/dashboard-1440-empty.png`, fullPage: true })
-    await expect(page).toHaveScreenshot('dashboard-empty.png', { fullPage: true, maxDiffPixelRatio: 0.01 })
+    // The rail and the bell count the development data (orders, feedback, conflicts); the first day is the Übersicht.
+    await expect(page).toHaveScreenshot('dashboard-empty.png', {
+        fullPage: true,
+        maxDiffPixelRatio: 0.01,
+        mask: [page.locator('.adm-rail'), page.locator('.adm-bell__count')],
+    })
     // A prefetch still in flight must not outlive the test.
     await page.unrouteAll({ behavior: 'ignoreErrors' })
 })
