@@ -308,6 +308,10 @@ export interface BasketLine {
         sellable: boolean
         requiresEntry: boolean
         conditions: string[]
+        /** The verdict in one sentence, as the checkout repeats it up to the order button (Block G). */
+        sentence?: string
+        /** The Gutachten and revisions the answer rests on (`id@revision`), for CheckoutShown. */
+        basis?: string[]
     } | null
     /* docs/specs/komplettrad.md §4.7 — a Komplettrad is a wheel line that carries its tyre. */
     isSet?: boolean

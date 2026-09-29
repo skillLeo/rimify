@@ -39,7 +39,7 @@ final class OrderWriter
     /** How often a number refused by the unique index is drawn again before the order fails. */
     public const NUMBER_ATTEMPTS = 3;
 
-    public function __construct(private readonly FitmentResolver $resolver) {}
+    public function __construct(private readonly FitmentResolver $resolver, private readonly OrderPayments $payments) {}
 
     /**
      * @param  CustomerData  $customer
@@ -139,6 +139,10 @@ final class OrderWriter
                     'currency' => 'EUR',
                 ]);
             }
+
+            // The goods are taken off the shelf with the order, all or nothing: too few left and the whole order
+            // is rolled back with a sentence. They go back when it dies unpaid (OrderPayments).
+            $this->payments->reserve($order);
 
             return $order;
         });

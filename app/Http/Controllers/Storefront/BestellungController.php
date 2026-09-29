@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Storefront;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Storefront\OrderStatusRequest;
+use App\Models\AuditLog;
+use App\Models\CustomerAccount;
+use App\Models\Invoice;
 use App\Models\Order;
+use App\Services\Commerce\Invoices;
+use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,10 +44,10 @@ class BestellungController extends Controller
         $request->session()->put(self::SESSION_PLACED, array_slice(array_values(array_unique([...$placed, $number])), -10));
     }
 
-    public function show(Request $request, string $order): Response
+    public function show(Request $request, string $order, Basket $basket): Response
     {
         $record = Order::query()
-            ->with(['lines.fitmentSnapshot', 'deliveryAddress'])
+            ->with(['lines.fitmentSnapshot', 'deliveryAddress', 'customer'])
             ->where('order_number', $order)
             ->firstOrFail();
 
@@ -47,9 +55,13 @@ class BestellungController extends Controller
         $placed = $request->session()->get(self::SESSION_PLACED);
 
         abort_unless(
-            $demo || $request->hasValidSignature() || (is_array($placed) && in_array($record->order_number, $placed, true)),
+            $demo || $request->hasValidSignature() || (is_array($placed) && in_array($record->order_number, $placed, true)) || self::ownedBySignedIn($request, $record),
             404,
         );
+
+        // Stripe sends the customer back here with `redirect_status`; the address alone pays nothing — only the
+        // signed webhook does (ProcessPaymentEvent). The basket empties once the order IS paid.
+        KasseZahlungController::settle($request, $basket);
         $lines = [];
 
         foreach ($record->lines as $line) {
@@ -90,6 +102,14 @@ class BestellungController extends Controller
                 'trackingCode' => $demo ? null : $record->tracking_code,
             ],
             'lines' => $lines,
+            // Where the payment stands, in the page's words — and whether the page should keep asking.
+            'payment' => $demo ? null : self::payment($record, $request->query('redirect_status')),
+            // The §14 invoice as issued, by a signed link — never to a seeded order.
+            'invoice' => $demo ? null : self::invoice($record),
+            // „Konto anlegen“ in one click, once paid, for the browser that placed it and no account yet (Block G §2).
+            'accountOffer' => ! $demo && $record->status->isPaid() && is_array($placed) && in_array($record->order_number, $placed, true)
+                && $request->user('customer') === null
+                && ! CustomerAccount::query()->where('email', mb_strtolower((string) $record->customer?->email))->whereNotNull('password')->exists(),
             // Seeded demonstration data (CommerceSeeder): nobody placed this order, and the frozen
             // verdicts on it say nothing about the car (ACCURACY.md §3.1 F3). The snapshots stay
             // exactly as written (R-12); the page says what they are.
@@ -99,5 +119,68 @@ class BestellungController extends Controller
             // then offers the e-mail.
             'contact' => Chrome::contact(),
         ]);
+    }
+
+    /** @return array{number: string, href: string}|null */
+    private static function invoice(Order $order): ?array
+    {
+        $invoice = Invoice::query()->where('order_id', $order->id)->where('kind', Invoice::INVOICE)->first();
+
+        return $invoice === null ? null : ['number' => $invoice->number, 'href' => Invoices::link($invoice)];
+    }
+
+    /** A signed-in customer sees every order placed under the account's address (Mein Konto). */
+    private static function ownedBySignedIn(Request $request, Order $order): bool
+    {
+        $account = $request->user('customer');
+
+        return $account instanceof CustomerAccount && mb_strtolower((string) $order->customer?->email) === $account->email;
+    }
+
+    /**
+     * „Is it paid yet?“ — asked by the confirmation page every few seconds while the payment is being confirmed. It
+     * reads the order; it never writes a payment.
+     */
+    public function status(OrderStatusRequest $request, Basket $basket): JsonResponse
+    {
+        KasseZahlungController::settle($request, $basket);
+        $order = $request->order();
+
+        return response()->json(self::payment($order, null) + ['statusLabel' => $order->status->labelDe()]);
+    }
+
+    /**
+     * The payment's state for the confirmation page: `paid`, `confirming` (written, not yet confirmed by the
+     * provider), `processing` (confirmed as on its way — a Lastschrift takes days), `failed`, `closed` (storniert,
+     * abgelaufen, erstattet). Stripe's `redirect_status=failed` shows a failure a moment before its webhook arrives;
+     * it can never show a payment.
+     *
+     * `mailed` says whether the confirmation mail actually went out (OrderPaid audits it), so the page never claims
+     * one that failed or that an order older than it never got.
+     *
+     * @return array{state: string, poll: bool, email: string|null, mailed: bool}
+     */
+    private static function payment(Order $order, mixed $redirectStatus): array
+    {
+        $mailed = AuditLog::query()
+            ->where('description', 'order.confirmation_sent')
+            ->where('subject_type', $order->getMorphClass())
+            ->where('subject_id', $order->id)
+            ->exists();
+
+        $state = match (true) {
+            $order->status->isPaid() => 'paid',
+            $order->status === OrderStatus::Processing => 'processing',
+            $order->status === OrderStatus::Failed => 'failed',
+            $order->status === OrderStatus::PendingPayment => $redirectStatus === 'failed' ? 'failed' : 'confirming',
+            default => 'closed',
+        };
+
+        return [
+            'state' => $state,
+            'poll' => in_array($state, ['confirming', 'processing'], true),
+            'email' => $order->customer?->email,
+            'mailed' => $mailed,
+        ];
     }
 }

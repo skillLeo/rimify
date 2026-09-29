@@ -894,11 +894,19 @@ final readonly class Basket
      */
     private function verdictArray(FitmentVerdict $verdict): array
     {
+        $documents = $verdict->documents !== [] ? $verdict->documents : array_filter([$verdict->document]);
+
         return [
             'status' => $verdict->status->value,
             'label' => $verdict->status->labelDe(),
             'sellable' => $verdict->isSellable(),
             'requiresEntry' => $verdict->requiresEntry,
+            // The one short sentence the checkout repeats up to the order button (Block G); the Auflagen stay
+            // behind a link, in full, below.
+            'sentence' => self::verdictSentence($verdict),
+            // The Gutachten and revisions the answer rests on: the checkout's record of what the customer was
+            // shown (CheckoutShown), so a document changed since is noticed before money is taken.
+            'basis' => array_map(static fn ($d): string => $d->id.'@'.$d->revision, $documents),
             // Full German sentences, never codes: a customer shown `A02` and left to work out
             // what it means has been told nothing (R-15).
             'conditions' => array_map(
@@ -906,6 +914,24 @@ final readonly class Basket
                 $verdict->conditions,
             ),
         ];
+    }
+
+    /**
+     * The verdict in one sentence, as the checkout repeats it on every line: the label's own words, the number of
+     * Auflagen (their text is one link away) and the Eintragung where the document asks for it.
+     */
+    private static function verdictSentence(FitmentVerdict $verdict): string
+    {
+        $count = count($verdict->conditions);
+        $sentence = match ($verdict->status) {
+            VerdictStatus::Permitted => 'Für dein Fahrzeug freigegeben.',
+            VerdictStatus::Conditional => $count === 0
+                ? 'Für dein Fahrzeug freigegeben, mit Auflagen.'
+                : sprintf('Für dein Fahrzeug freigegeben, mit %d %s.', $count, $count === 1 ? 'Auflage' : 'Auflagen'),
+            default => $verdict->status->labelDe().'.',
+        };
+
+        return $verdict->isSellable() && $verdict->requiresEntry ? $sentence.' Eintragung in die Fahrzeugpapiere erforderlich.' : $sentence;
     }
 
     /**

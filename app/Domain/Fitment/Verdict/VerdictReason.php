@@ -79,7 +79,7 @@ final readonly class VerdictReason
     public static function sentenceFor(string $code): string
     {
         return match ($code) {
-            self::VEHICLE_NOT_FOUND => 'Zu dieser Kombination haben wir kein Fahrzeug gefunden.',
+            self::VEHICLE_NOT_FOUND => 'Zu dieser Kombination haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.',
             self::VEHICLE_INCOMPLETE => 'Für dieses Fahrzeug können wir die Freigabe nicht bestätigen.',
             self::NO_DOCUMENT => 'Für diese Kombination liegt uns kein Gutachten vor.',
             self::NOT_COVERED => 'Das Gutachten führt dieses Fahrzeug nicht auf.',

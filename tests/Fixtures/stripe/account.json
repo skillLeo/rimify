@@ -1,0 +1,32 @@
+{
+  "id": "acct_1FakeRimify00",
+  "object": "account",
+  "business_profile": {
+    "name": "RIMIFY",
+    "url": "https://rimify.de",
+    "support_email": null
+  },
+  "business_type": "company",
+  "capabilities": {
+    "card_payments": "active",
+    "transfers": "active",
+    "sepa_debit_payments": "active",
+    "klarna_payments": "active",
+    "paypal_payments": "inactive",
+    "link_payments": "active"
+  },
+  "charges_enabled": true,
+  "country": "DE",
+  "created": 1759100000,
+  "default_currency": "eur",
+  "details_submitted": true,
+  "email": "info@rimify.de",
+  "payouts_enabled": true,
+  "settings": {
+    "dashboard": {
+      "display_name": "RIMIFY",
+      "timezone": "Europe/Berlin"
+    }
+  },
+  "type": "standard"
+}

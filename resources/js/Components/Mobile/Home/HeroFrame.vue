@@ -122,6 +122,8 @@ onMounted(() => {
         <Link v-if="linked" :href="href" class="hero-mobile__caption" prefetch>
             <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
             <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
+            <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
+            <span class="micro quiet">inkl. MwSt., zzgl. Versand</span>
         </Link>
         <p v-else-if="named" class="hero-mobile__caption">
             <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>

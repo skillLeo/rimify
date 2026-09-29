@@ -66,6 +66,8 @@ export interface AdminShared {
     demo: { rows: number; canPurge: boolean } | null
     /** The review kit is on (local and staging): the feedback button is drawn. */
     review?: boolean
+    /** Stripe in Testmodus: a strip on every page says that no money moves. Additive. */
+    paymentsTestMode?: boolean
 }
 
 export interface AdminHealth {

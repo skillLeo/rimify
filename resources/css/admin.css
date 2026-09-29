@@ -2356,6 +2356,17 @@ a.adm-foot__health {
     margin-top: var(--sp-4);
 }
 
+/* Stripe in Testmodus (Block G): one quiet line above every page — a test order is never read as money. */
+.adm-testmode {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-24);
+    background: var(--c-warn-tint);
+    color: var(--c-warn);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+}
+
 /* A refusal the server made about the block it sits above: said once, read before the retry. */
 .adm-alert {
     max-width: 54ch;

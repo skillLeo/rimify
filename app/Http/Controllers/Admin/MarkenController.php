@@ -8,6 +8,7 @@ use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BrandLogoRequest;
+use App\Http\Requests\Admin\BrandManufacturerRequest;
 use App\Http\Requests\Admin\BrandRequest;
 use App\Models\AdminUser;
 use App\Models\Brand;
@@ -138,6 +139,24 @@ class MarkenController extends Controller
         }
     }
 
+    /**
+     * Herstellerangaben for GPSR: saved together, audited with the fields that changed — the product page prints
+     * them as entered, and a brand without them is named by the preflight.
+     */
+    public function manufacturer(BrandManufacturerRequest $request, Brand $brand): RedirectResponse
+    {
+        $attributes = $request->attributesForBrand();
+
+        DB::transaction(static function () use ($attributes, $request, $brand): void {
+            $before = $brand->only(Brand::MANUFACTURER_FIELDS);
+            $brand->forceFill($attributes)->save();
+            $changed = array_keys(array_filter($attributes, static fn ($value, string $key): bool => $value !== $before[$key], ARRAY_FILTER_USE_BOTH));
+            AuditTrail::record($request->admin(), 'brand.manufacturer_updated', ['brand_id' => $brand->id, 'name' => $brand->name, 'changed' => $changed, 'complete' => $brand->manufacturer() !== null], $brand);
+        });
+
+        return back()->with('toast', self::SAVED);
+    }
+
     public function logo(BrandLogoRequest $request, Brand $brand): RedirectResponse
     {
         $result = $this->logos->store($brand, $request->logo());
@@ -212,6 +231,17 @@ class MarkenController extends Controller
             'logo' => $logo,
             // Set but not drawable: the file is missing or cannot be sized — said, not hidden.
             'logoBroken' => $logo === null && $brand->logo_path !== null && $brand->logo_path !== '',
+            // GPSR: what is entered, for the form, and whether the product page can name the manufacturer.
+            'manufacturer' => [
+                'manufacturerName' => $brand->manufacturer_name,
+                'manufacturerAddress' => $brand->manufacturer_address,
+                'manufacturerContact' => $brand->manufacturer_contact,
+                'euResponsibleName' => $brand->eu_responsible_name,
+                'euResponsibleAddress' => $brand->eu_responsible_address,
+                'euResponsibleContact' => $brand->eu_responsible_contact,
+                'safetyNote' => $brand->safety_note,
+            ],
+            'manufacturerComplete' => $brand->manufacturer() !== null,
             'wheels' => (int) $brand->getAttribute('wheel_models_count'),
             'removedWheels' => (int) $brand->getAttribute('removed_wheels_count'),
             'tyres' => (int) $brand->getAttribute('tyre_variants_count'),

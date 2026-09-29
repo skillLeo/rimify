@@ -279,6 +279,14 @@ export interface ProduktProps {
         rating: number | null
         ratingCount: number
         ratingLabel: string | null
+        /** GPSR, as entered per brand; null (or absent in older fixtures) until it is. */
+        manufacturer?: {
+            name: string
+            address: string
+            contact: string
+            euResponsible: { name: string; address: string | null; contact: string | null } | null
+            safetyNote: string | null
+        } | null
     }
     /** `image`: the finish's own studio photograph and its other angles, or null — then it is drawn. */
     finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
@@ -576,7 +584,23 @@ export interface BestellungProps {
             detail: Record<string, unknown>
         } | null
     }[]
+    /** Where the payment stands; null on a seeded order. Only the provider's webhook ever makes it `paid`. */
+    payment?: OrderPaymentState | null
+    /** „Konto anlegen“ is offered: paid, this browser placed it, no account with a password yet. */
+    accountOffer?: boolean
+    /** The invoice as issued, by a signed link; null until one is. */
+    invoice?: { number: string; href: string } | null
     contact: ContactProp
+}
+
+export interface OrderPaymentState {
+    state: 'paid' | 'confirming' | 'processing' | 'failed' | 'closed'
+    /** Keep asking /bestellung/{number}/status while the provider has not answered. */
+    poll: boolean
+    email: string | null
+    /** The confirmation mail went out (audited); the page mentions it only then. */
+    mailed?: boolean
+    statusLabel?: string
 }
 
 export interface FaqProps {

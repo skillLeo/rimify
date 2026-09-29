@@ -151,6 +151,8 @@ onMounted(() => {
                              translated. *ab* and *pro Felge* are German and stay translatable. -->
                         <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
                         <span v-if="linked" class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
+                        <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
+                        <span v-if="linked" class="micro quiet">inkl. MwSt., zzgl. Versand</span>
                     </span>
                 </component>
 

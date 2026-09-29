@@ -477,6 +477,8 @@ onBeforeUnmount(() => {
             <AdminTopbar />
             <!-- Only for the shop closed or a queue dead for an hour; everything else is the rail's quiet line. -->
             <AdminHealthBanner />
+            <!-- Stripe in Testmodus (Block G): said on every page, so a test order is never read as money. -->
+            <p v-if="admin.paymentsTestMode" class="adm-testmode" role="note">Testmodus – es wird kein Geld abgebucht.</p>
 
             <main id="inhalt" class="adm-page" tabindex="-1">
                 <slot />

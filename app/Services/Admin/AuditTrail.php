@@ -40,4 +40,25 @@ final class AuditTrail
 
         $logger->log($event);
     }
+
+    /**
+     * An entry no admin caused: the payment provider's webhook, the expiry run, the checkout itself. `$by`
+     * names the source on the row (`Stripe`, `System`, `Kasse`), where an admin entry carries the address.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    public static function system(string $by, string $event, array $properties = [], ?Model $subject = null): void
+    {
+        $logger = activity('system')
+            ->withProperties($properties)
+            ->tap(static function (AuditLog $entry) use ($by): void {
+                $entry->forceFill(['actor_email' => $by, 'ip_address' => null]);
+            });
+
+        if ($subject !== null) {
+            $logger->performedOn($subject);
+        }
+
+        $logger->log($event);
+    }
 }

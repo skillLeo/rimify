@@ -239,7 +239,6 @@ const disks = computed(() => Object.entries(props.disks).map(([name, spec]) => (
 .sp-masked__value,
 .sp-secret,
 .sp-step__detail {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
 }
 

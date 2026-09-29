@@ -15,6 +15,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import { paragraphs } from '../../format'
+import { COOKIES } from '../../legal/cookies'
 import type { RechtlichesProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -78,6 +79,36 @@ const blocks = computed(() =>
                 <p v-if="blocks.length === 0" class="t-body rec__placeholder">
                     Für diesen Abschnitt liegt noch kein Text vor.
                 </p>
+
+                <!--
+                    The cookies as facts, from the list the cookie settings show (legal/cookies.ts) — beside the
+                    Kanzlei's text, never instead of it (D-024).
+                -->
+                <section v-if="active === 'datenschutz'" id="cookies" class="rec__block rec__cookies" aria-labelledby="rec-cookies">
+                    <h2 id="rec-cookies" class="t-h3">Cookies bei RIMIFY</h2>
+                    <div class="rec__table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Cookie</th>
+                                    <th scope="col">Art</th>
+                                    <th scope="col">Was es speichert</th>
+                                    <th scope="col">Laufzeit</th>
+                                    <th scope="col">So löschst du es</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="cookie in COOKIES" :key="cookie.name">
+                                    <th scope="row">{{ cookie.name }}</th>
+                                    <td>{{ cookie.category }}</td>
+                                    <td>{{ cookie.stores }}</td>
+                                    <td class="rec__nowrap">{{ cookie.lifetime }}</td>
+                                    <td>{{ cookie.clear }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </article>
         </div>
     </section>
@@ -156,6 +187,40 @@ const blocks = computed(() =>
 
 .rec__block .rec__placeholder {
     margin-top: 0;
+}
+
+/* The cookie facts: a real table, scrolling inside its own box on a phone rather than squeezing a column. */
+.rec__table {
+    margin-top: var(--space-3);
+    overflow-x: auto;
+}
+
+.rec__table table {
+    min-width: 640px;
+    border-collapse: collapse;
+    font-size: var(--text-small);
+}
+
+.rec__table th,
+.rec__table td {
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+}
+
+.rec__table thead th {
+    color: var(--ink2);
+    font-weight: 700;
+}
+
+.rec__table tbody th {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.rec__nowrap {
+    white-space: nowrap;
 }
 
 /* From 900px: a sticky rail beside the text. */

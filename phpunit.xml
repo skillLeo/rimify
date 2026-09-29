@@ -24,11 +24,13 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <!-- The engine's SQL is MySQL-specific (window functions, SIGNAL triggers, FULLTEXT),
-             so the suite runs against a real MySQL 8.4 database, never SQLite in memory. -->
+        <!-- The engine's SQL leans on the database (window functions, SIGNAL triggers, CHECK, FULLTEXT),
+             so the suite runs against a real server, never SQLite in memory — by default the production
+             host's own engine, MariaDB 11.8 on 3308 (D-052, docs/dev/DATABASE.md). `composer test:mysql`
+             runs it on MySQL 8.4 (3307); CI runs both. -->
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="3307"/>
+        <env name="DB_PORT" value="3308"/>
         <env name="DB_DATABASE" value="rimify_test"/>
         <env name="DB_USERNAME" value="rimify"/>
         <env name="DB_PASSWORD" value="rimify"/>

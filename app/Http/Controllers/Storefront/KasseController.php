@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\PlaceOrderRequest;
 use App\Http\Requests\Storefront\TpmsChoiceRequest;
 use App\Payments\Payments;
+use App\Services\Commerce\CheckoutShown;
 use App\Services\Commerce\OrderRefused;
 use App\Services\Commerce\OrderWriter;
 use App\Services\Storefront\Basket;
@@ -40,10 +41,18 @@ class KasseController extends Controller
      */
     public const PRICE_CHANGED_REFUSAL = 'Ein Preis in deinem Warenkorb hat sich geändert. Bitte sieh dir die Summe noch einmal an.';
 
+    /**
+     * No delivery time has been named (Art. 246a § 1 Nr. 7 EGBGB asks for it before the order): nothing is guessed,
+     * and a real order waits for the figure, as it waits for the shipping price.
+     */
+    public const DELIVERY_REFUSAL = 'Die Lieferzeit steht noch nicht fest. Bis dahin kannst du nicht bestellen – dein Warenkorb bleibt gespeichert.';
+
     public function __construct(private readonly Basket $basket) {}
 
     public function index(Request $request): Response
     {
+        // Paid meanwhile (the webhook came while the customer was away): the basket is theirs no longer.
+        KasseZahlungController::settle($request, $this->basket);
         $basket = $this->basket->summary($request);
 
         return Inertia::render('Kasse/Index', [
@@ -52,9 +61,16 @@ class KasseController extends Controller
             // The sentence the server answers a submission with, shown before anyone presses the
             // button: a checkout that fails only after the form is filled in wastes the customer's
             // time. The server check in store() stands on its own (R-11: the UI only hides).
-            'orderRefusal' => $this->refusal($basket),
+            'orderRefusal' => self::refusalOf($this->basket, $basket),
             // A test order (the review): the page says so before anything is entered.
             'sandbox' => Payments::sandbox(),
+            // Stripe's Payment Element: the publishable key and the mode; null while Stripe is not in force.
+            'payment' => Payments::checkout(),
+            // What the page shows, as a token it sends back with the order (CheckoutShown): a Gutachten, a
+            // verdict or a price that changes meanwhile stops the payment instead of charging for it.
+            'shown' => CheckoutShown::token($basket),
+            // „Lieferzeit: 3–5 Werktage“ as the operator wrote it; null until they do.
+            'deliveryTime' => self::deliveryTime(),
             // The shared shape, whole: a page prop named `contact` replaces the shared one for the
             // header and the footer too. The phone is null until the client gives one.
             'contact' => Chrome::contact(),
@@ -90,7 +106,7 @@ class KasseController extends Controller
         }
 
         $summary = $this->basket->summary($request);
-        $refusal = $this->refusal($summary);
+        $refusal = self::refusalOf($this->basket, $summary);
 
         if ($refusal !== null) {
             return back()->withErrors(['order' => $refusal]);
@@ -111,41 +127,76 @@ class KasseController extends Controller
             return back()->withErrors(['order' => self::PREVIEW_REFUSAL]);
         }
 
-        $open = $summary['totals']['shippingConfigured'] !== true;
-
         try {
-            $order = $writer->write(
-                $request,
-                $request->customerData(),
-                $summary,
-                $gateway->method(),
-                // A test order may run before the shipping price is named; the order says so.
-                $open ? 'Testbestellung: Die Versandkosten sind noch nicht festgelegt und mit 0,00 € berechnet.' : null,
-            );
+            $order = $writer->write($request, $request->customerData(), $summary, $gateway->method(), self::openNote($summary));
         } catch (OrderRefused $e) {
             return back()->withErrors(['order' => $e->getMessage()]);
         }
 
         BestellungController::remember($request, $order->order_number);
 
-        return redirect()->to($gateway->start($order));
+        // The sandbox has a page of its own; Stripe is paid on this page (KasseZahlungController), so a form post
+        // reaching here with it goes back to the payment step.
+        $url = $gateway->start($order);
+
+        return $url !== null ? redirect()->to($url) : redirect()->route('kasse.index');
     }
 
     /**
-     * Why this basket cannot be ordered here, or null. Without a payment driver nothing can be
-     * ordered at all. A test order (the sandbox, only where the review is on) may go before the
-     * shipping price is named — every other refusal stands.
+     * Why this basket cannot be ordered here, or null — the one rule the page, the form post and the payment
+     * endpoint (KasseZahlungController) share. Without a payment driver nothing can be ordered at all. A test order
+     * — the sandbox, or Stripe in Testmodus, where no money moves — may go before the shipping price and the
+     * delivery time are named, and says so on the order (openNote); every other refusal stands, and a real payment
+     * waits for both.
      *
      * @param  array{lines: list<array<string, mixed>>, totals: array<string, mixed>}  $summary
      */
-    private function refusal(array $summary): ?string
+    public static function refusalOf(Basket $basket, array $summary): ?string
     {
-        $refusal = $this->basket->refusalOf($summary);
+        $test = self::testOrder();
+        $refusal = $basket->refusalOf($summary);
 
-        if ($refusal === Basket::SHIPPING_REFUSAL && Payments::sandbox()) {
+        if ($refusal === Basket::SHIPPING_REFUSAL && $test) {
             $refusal = null;
         }
 
-        return $refusal ?? (Payments::gateway() === null ? self::PREVIEW_REFUSAL : null);
+        if ($refusal !== null) {
+            return $refusal;
+        }
+
+        if (Payments::gateway() === null) {
+            return self::PREVIEW_REFUSAL;
+        }
+
+        return self::deliveryTime() === null && ! $test ? self::DELIVERY_REFUSAL : null;
+    }
+
+    /**
+     * What a test order records about the figures it went without, or null.
+     *
+     * @param  array{lines: list<array<string, mixed>>, totals: array<string, mixed>}  $summary
+     */
+    public static function openNote(array $summary): ?string
+    {
+        $open = array_filter([
+            $summary['totals']['shippingConfigured'] !== true ? 'Die Versandkosten sind noch nicht festgelegt und mit 0,00 € berechnet.' : null,
+            self::deliveryTime() === null ? 'Die Lieferzeit ist noch nicht festgelegt.' : null,
+        ]);
+
+        return $open === [] ? null : 'Testbestellung: '.implode(' ', $open);
+    }
+
+    /** The delivery time as the operator wrote it (`RIMIFY_DELIVERY_TIME`), or null while none is named. */
+    public static function deliveryTime(): ?string
+    {
+        $time = config('rimify.shipping.delivery_time');
+
+        return is_string($time) && trim($time) !== '' ? trim($time) : null;
+    }
+
+    /** No money moves: the review's sandbox, or Stripe in Testmodus. */
+    private static function testOrder(): bool
+    {
+        return Payments::sandbox() || (Payments::checkout()['testMode'] ?? false) === true;
     }
 }

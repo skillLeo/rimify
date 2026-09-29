@@ -490,7 +490,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             <div v-if="count.status === 'not_found' || lookup?.status === 'not_found'" class="notice vpanel__notice">
                 <Icon name="warning" :size="20" />
                 <div class="vpanel__miss">
-                    <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir kein Fahrzeug gefunden.</p>
+                    <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
                     <button class="link" type="button" @click="focusHsn">Nochmal prüfen</button>
                     <button class="link" type="button" @click="picker.route.value = 'guided'">Über Marke &amp; Modell wählen</button>
                     <a class="link num" :href="reach.href">{{ reach.label }}</a>

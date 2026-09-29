@@ -344,7 +344,7 @@ function onTsn(event: Event): void {
             <div v-else-if="lookup?.status === 'not_found'" class="vsel__miss">
                 <p class="vsel__miss-title">
                     <Icon name="warning" :size="20" />
-                    Zu dieser Kombination haben wir kein Fahrzeug gefunden.
+                    Zu dieser Kombination haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.
                 </p>
                 <div class="vsel__miss-actions">
                     <button class="btn btn--secondary btn--sm" type="button" @click="helpOpen = true">

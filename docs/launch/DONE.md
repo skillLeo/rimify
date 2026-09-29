@@ -161,10 +161,40 @@ seeder, test to follow).
       if one customer chose both), EF-08 (storefront limits are per IP — a carrier's shared address shares
       them; inherent to limiting guests)
 
-## Block G — payments
+## Block G — payments (the prompt „EVERYTHING TO LAUNCH-READY“, 29.–30.09.2026)
 
-- [ ] 29 · Held until the test keys (`pk_test_`, `sk_test_`, `whsec_` from `stripe listen`) arrive; then the
-      payments brief as written
+- [x] §1 · The host is MariaDB 11.8.9, the suite ran on MySQL 8.4.9 (S1): the suite now runs on MariaDB by default
+      and on MySQL too, CI has one leg each, the app refuses an engine the suite has not run against — `1411c342`
+      (D-052). Foreign keys into `order_line_fitments` are RESTRICT; none point into `audit_logs` — nothing to
+      change. The Nachtrag prints no tyre speed table: every car over 210 km/h answers UNKNOWN on the 18″, with its
+      sentence; Abdeckung lists the gap; BLOCKED 18 — `0601ae25` (D-053)
+- [x] §2 · Stripe behind `PaymentGateway`: PaymentIntent at the order's total with an idempotency key; the signed
+      webhook stored raw under its event id, work after the 200; paid only on `payment_intent.succeeded` for the
+      order's own amount; the order state machine in the model; stock held from the order to its death unpaid;
+      `orders:expire` — `f8cc2dc2` (D-054, D-055). Einstellungen › Zahlung — `62967b73`. The checkout: Payment
+      Element, the Express place, the order written only at the button after the server re-checks what the page
+      showed (`CheckoutShown`), the return address paying nothing, the basket emptied only when paid, blur checks,
+      typing kept in the tab, billing behind an unchecked box — `315b2bc4` (D-056 … D-061); PLZ → Ort — `7efa09f4`;
+      an account after the order in one click — `545afead` (D-068); keyboard-only at 320 px (`e2e/kasse.spec.ts`)
+- [x] §3 · „Zahlungspflichtig bestellen“ and the §312j block above it; the Muster-Widerrufsformular page; the
+      §312f mail with AGB and Widerrufsbelehrung in its text — `315b2bc4`; GPSR per brand on every product page, the
+      cookie facts (rmf_papiere, rmf_geraet functional, with how to clear them), the price note in the hero, the
+      TTDSG test — `3b5a27e4` (D-062 … D-064)
+- [x] §4 · §14 invoices and credit notes: gapless per series, stored once with their checksum, signed links; a
+      TEST series for test orders; invoice = order = PaymentIntent to the cent in one test — `315b2bc4`
+- [x] §5 · Refunds from the order page through the API only, credit note, mail, Protokoll; Verkauf › Rückbuchungen
+      with the deadline counted down and the evidence sent once — `3fadaa85` (D-065, D-066)
+- [x] §8 · `rimify:preflight` covers the payment mode and the webhook, queue, scheduler, engine, invoices, seller,
+      shipping and delivery time, legal texts, GPSR, secrets — `42d9d156`
+- [x] §9 · A key-number miss says „… die Daten für dieses Fahrzeug noch nicht hinterlegt“ and never guesses —
+      `e23f6307` (D-067); the 18″ record names its missing base (Abdeckung)
+- [x] The copy review of the whole block, and what it found underneath (reply-to, signed mail link, the invoice on
+      the order page) — `25f25f36` (D-069, D-070); `docs/dev/STRIPE.md`, GO-LIVE §4.3 — `52c452b5`;
+      `docs/launch/HOST-FINDINGS.md`
+- [ ] §6 · With the test keys: the Playwright payment flows against Stripe's test mode (paid, 3-D Secure, declined
+      and retried, a chargeback), recorded webhook fixtures in place of the hand-written ones
+- [ ] §7 · After the release and the price on the preview: the smoke with the product rows, `npm run qa` with the
+      product routes (D-051 removed), the rollback once more, the renderer watchdog after the cron lines
 
 ## The last prompt (2026-09-29)
 

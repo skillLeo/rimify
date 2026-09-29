@@ -788,7 +788,7 @@ onBeforeUnmount(() => treeController?.abort())
                         <!-- No match: what was typed stays, and three ways forward (R-09). -->
                         <div v-if="notFound && lookup" class="notice sel__notice sel__notfound" role="status">
                             <div>
-                                <p>Zu {{ lookup.hsn }}/{{ lookup.tsn }} haben wir kein Fahrzeug gefunden.</p>
+                                <p>Zu {{ lookup.hsn }}/{{ lookup.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
                                 <ul class="sel__routes">
                                     <li><button class="link" type="button" @click="checkAgain">Nochmal prüfen</button></li>
                                     <li><button class="link" type="button" @click="viaMake">Über Marke &amp; Modell wählen</button></li>

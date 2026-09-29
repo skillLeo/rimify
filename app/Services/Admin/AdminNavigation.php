@@ -76,6 +76,9 @@ final class AdminNavigation
             'module' => PermissionModule::Orders->value,
             'pages' => [
                 ['label' => 'Bestellungen', 'href' => '/admin/bestellungen', 'icon' => 'orders', 'count' => 'orders_open'],
+                // Chargebacks from the webhook (Block G §5). Not „Konflikte“: that word is the Gutachten's. Each has a
+                // deadline for the evidence, so the open ones are counted.
+                ['label' => 'Rückbuchungen', 'href' => '/admin/rueckbuchungen', 'icon' => 'returns', 'count' => 'disputes_open'],
                 ['label' => 'Kunden', 'href' => '/admin/kunden', 'icon' => 'customers'],
                 // Customers asking to be told when a document for their car arrives. The goal of the
                 // team's work is to have told all of them, so it is a queue and earns a count. Not
@@ -162,6 +165,8 @@ final class AdminNavigation
                 ['label' => 'Zubehörpreise', 'href' => '/admin/zubehoerpreise', 'icon' => 'prices', 'module' => PermissionModule::Catalogue->value],
                 // The bucket's keys: the Super-Admin alone, whatever the matrix says (StorageSettingPolicy).
                 ['label' => 'Medien und Speicher', 'href' => '/admin/einstellungen/speicher', 'icon' => 'storage', 'super' => true],
+                // The payment keys: the Super-Admin alone, as the bucket's (PaymentSettingPolicy).
+                ['label' => 'Zahlung', 'href' => '/admin/einstellungen/zahlung', 'icon' => 'payment', 'super' => true],
             ],
         ],
         [
@@ -208,6 +213,7 @@ final class AdminNavigation
         '/admin/fahrzeuge/pruefung',
         '/admin/abdeckung',
         '/admin/bestellungen',
+        '/admin/rueckbuchungen',
         '/admin/anfragen',
         '/admin/zubehoerpreise',
         '/admin/benutzer',
@@ -218,6 +224,7 @@ final class AdminNavigation
         '/admin/navigation',
         '/admin/system',
         '/admin/einstellungen/speicher',
+        '/admin/einstellungen/zahlung',
     ];
 
     /** The role `super` pages ask for (AdminUser::isSuperAdmin). */
@@ -491,6 +498,8 @@ final class AdminNavigation
                 'orders_open' => DB::table('orders')
                     ->whereIn('status', array_map(static fn (OrderStatus $s): string => $s->value, OrderStatus::open()))
                     ->count(),
+                // Chargebacks still open: each has an evidence deadline.
+                'disputes_open' => DB::table('disputes')->whereNull('closed_at')->count(),
                 'conflicts_open' => DB::table('fitment_conflicts')
                     ->where('status', ConflictStatus::Open->value)
                     ->count(),

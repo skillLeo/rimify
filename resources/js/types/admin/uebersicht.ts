@@ -163,6 +163,8 @@ export interface CoverageMatrix {
      * matrix counts for them are not the whole approval (the corrections memo §4). Additive.
      */
     incomplete?: { document: string; href: string; sentence: string; base: string | null }[]
+    /** Released documents without a table of tyre load at speed: no tyre answer above 210 km/h from them. Additive. */
+    noSpeedTable?: { document: string; href: string }[]
 }
 
 /** One Nachfrage-Lücke: a car asked for that the shop has no approved wheel for yet (Demand). */

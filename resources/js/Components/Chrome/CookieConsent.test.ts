@@ -74,17 +74,26 @@ describe('CookieConsent — no statistics option while no service exists', () =>
         expect(wrapper.find('section.consent').exists()).toBe(false)
     })
 
-    it('lists the functional papers cookie, set only when the customer enters figures, with no switch', async () => {
+    it('lists rmf_papiere and rmf_geraet as functional, each with what it stores and how to clear it, with no switch', async () => {
         mountSheet({ necessary: true, statistics: false, decidedAt: '2026-01-01T00:00:00.000Z' })
 
         store!.openSettings()
         await nextTick()
         await nextTick()
 
-        const dialog = document.body.querySelector('[role="dialog"]')
-        expect(dialog!.textContent).toContain('Funktional')
-        expect(dialog!.textContent).toContain('Zulassungsbescheinigung')
-        expect(dialog!.textContent).toContain('Nur nach Eingabe')
+        const dialog = document.body.querySelector('[role="dialog"]')!
+        const cookies = [...dialog.querySelectorAll('.consent__cookie')].map((el) => el.textContent ?? '')
+
+        expect(dialog.textContent).toContain('Funktional')
+        expect(cookies).toHaveLength(2)
+        expect(cookies[0]).toContain('rmf_papiere')
+        expect(cookies[0]).toContain('Zulassungsbescheinigung')
+        expect(cookies[0]).toContain('Löschen: Beim Fahrzeug auf „Werte löschen“ tippen.')
+        expect(cookies[1]).toContain('rmf_geraet')
+        expect(cookies[1]).toContain('zufällige Kennung')
+        expect(cookies[1]).toContain('Löschen: Lösch die Cookies für diese Seite in deinem Browser')
+        expect(dialog.querySelector('a[href="/rechtliches/datenschutz#cookies"]')).not.toBeNull()
+        expect(dialog.querySelector('input[type="checkbox"]')).toBeNull()
     })
 
     it('reopens as settings with the necessary cookies only, and no switch', async () => {

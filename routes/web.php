@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\BestellungenController;
 use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
+use App\Http\Controllers\Admin\ErstattungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
 use App\Http\Controllers\Admin\FragenController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RollenController;
+use App\Http\Controllers\Admin\RueckbuchungenController;
 use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
 use App\Http\Controllers\Admin\SpeicherController;
@@ -39,8 +41,10 @@ use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
+use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
+use App\Http\Controllers\Api\PlzController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\VehicleTreeController;
 use App\Http\Controllers\DesignController;
@@ -54,17 +58,23 @@ use App\Http\Controllers\Storefront\FaqController;
 use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
+use App\Http\Controllers\Storefront\KasseZahlungController;
 use App\Http\Controllers\Storefront\KontaktController;
+use App\Http\Controllers\Storefront\KontoController;
+use App\Http\Controllers\Storefront\PaymentWebhookController;
 use App\Http\Controllers\Storefront\RatgeberController;
+use App\Http\Controllers\Storefront\RechnungController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
 use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
+use App\Http\Controllers\Storefront\WiderrufsformularController;
 use App\Http\Middleware\EnsureAdminMay;
 use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
+use App\Models\PaymentSetting;
 use App\Models\StorageSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -123,11 +133,34 @@ Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
 Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:shop-kasse-rdks')->name('kasse.rdks');
 // Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
 Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.store');
+// „Zahlungspflichtig bestellen“ with Stripe: the basket decided again, the order written, its PaymentIntent (JSON).
+Route::post('/kasse/zahlung', [KasseZahlungController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.zahlung');
 // The sandbox's payment page (App\Payments\SandboxGateway): by its signed link only, and only where
 // the review is on (TestPaymentRequest). The POST carries the same signature in its query string.
 Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
 Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
+// Mein Konto (Block G §2): offered after a paid order with one click; guest checkout stays the default.
+Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->middleware('throttle:shop-konto')->name('bestellung.konto');
+Route::middleware('guest:customer')->group(function (): void {
+    Route::get('/konto/anmelden', [KontoController::class, 'create'])->name('konto.anmelden');
+    Route::post('/konto/anmelden', [KontoController::class, 'login'])->middleware('throttle:shop-konto')->name('konto.login');
+    Route::get('/konto/passwort-vergessen', [KontoController::class, 'forgot'])->name('konto.vergessen');
+    Route::post('/konto/passwort-vergessen', [KontoController::class, 'sendLink'])->middleware('throttle:shop-konto')->name('konto.vergessen.senden');
+});
+Route::get('/konto/passwort/{account}', [KontoController::class, 'editPassword'])->whereNumber('account')->middleware('signed')->name('konto.passwort');
+Route::post('/konto/passwort/{account}', [KontoController::class, 'updatePassword'])->whereNumber('account')->middleware(['signed', 'throttle:shop-konto'])->name('konto.passwort.setzen');
+Route::middleware('auth:customer')->group(function (): void {
+    Route::get('/konto', [KontoController::class, 'show'])->name('konto');
+    Route::post('/konto/abmelden', [KontoController::class, 'logout'])->name('konto.abmelden');
+    Route::delete('/konto', [KontoController::class, 'destroy'])->name('konto.loeschen');
+});
+// An invoice's PDF from the private disk, by its signed link only (Invoices::link).
+Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
+// The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.
+Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
+// The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
+Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['stripe'])->name('webhooks.payment');
 
 /*
  * The JSON endpoints the shell calls. They sit in the web group on purpose: the session and the
@@ -141,6 +174,8 @@ Route::prefix('api/v1')->name('api.')->group(function (): void {
         Route::get('/vehicles/models', [VehicleTreeController::class, 'models'])->name('vehicles.models');
         Route::get('/vehicles/variants', [VehicleTreeController::class, 'variants'])->name('vehicles.variants');
         Route::get('/fitment/count', FitmentCountController::class)->name('fitment.count');
+        // The checkout's Ort for a PLZ (GeoNames, CC BY 4.0): places only, never a guess.
+        Route::get('/plz/{plz}', PlzController::class)->where('plz', '[0-9]{5}')->name('plz');
         // Writes a row and sends a mail: a tighter limit than the read endpoints.
         Route::post('/fitment/notify', FitmentNotifyController::class)->middleware('throttle:shop-benachrichtigung')->name('fitment.notify');
     });
@@ -154,6 +189,8 @@ Route::get('/benachrichtigung/abmelden/{token}', [BenachrichtigungController::cl
 
 Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
+// The statute's model form (Art. 246a § 1 Abs. 2 EGBGB), before the CMS pages' catch-all.
+Route::get('/rechtliches/widerrufsformular', WiderrufsformularController::class)->name('rechtliches.widerrufsformular');
 Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtliches');
 
 // A page's draft in the real shop, for the Inhalte editor and whoever it shares the link with. The
@@ -377,6 +414,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('marken.index');
         Route::post('/marken', [MarkenController::class, 'store'])->name('marken.store');
         Route::put('/marken/{brand}', [MarkenController::class, 'update'])->whereNumber('brand')->name('marken.update');
+        // GPSR: the manufacturer and, outside the EU, the responsible person — printed on the product page.
+        Route::put('/marken/{brand}/hersteller', [MarkenController::class, 'manufacturer'])->whereNumber('brand')->name('marken.hersteller');
         Route::delete('/marken/{brand}', [MarkenController::class, 'destroy'])->whereNumber('brand')->name('marken.destroy');
         Route::post('/marken/{brand}/logo', [MarkenController::class, 'logo'])->whereNumber('brand')->middleware('throttle:30,1,marken-logo')->name('marken.logo');
         Route::delete('/marken/{brand}/logo', [MarkenController::class, 'removeLogo'])->whereNumber('brand')->name('marken.logo.entfernen');
@@ -411,6 +450,19 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bestellungen/{order}', [BestellungenController::class, 'show'])
             ->whereNumber('order')
             ->name('bestellungen.show');
+        // Verkauf › Rückbuchungen: chargebacks from the webhook, answered with evidence through the provider's API.
+        Route::get('/rueckbuchungen', [RueckbuchungenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':orders,view')
+            ->name('rueckbuchungen.index');
+        Route::post('/rueckbuchungen/{dispute}/nachweise', [RueckbuchungenController::class, 'evidence'])
+            ->whereNumber('dispute')
+            ->middleware('throttle:10,1,rueckbuchung-nachweise')
+            ->name('rueckbuchungen.nachweise');
+        // „Erstatten“: money leaves the account, so the password once more (sudo); through the provider's API only.
+        Route::post('/bestellungen/{order}/erstattung', [ErstattungController::class, 'store'])
+            ->whereNumber('order')
+            ->middleware([EnsureSudo::class, 'throttle:10,1,erstattung'])
+            ->name('bestellungen.erstattung');
         Route::get('/bestellungen/export', [BestellungenController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':orders,export')
             ->name('bestellungen.export');
@@ -430,6 +482,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::put('/', [SpeicherController::class, 'update'])->middleware('throttle:10,1,speicher-update')->name('speicher.update');
             Route::post('/test', [SpeicherController::class, 'test'])->middleware('throttle:10,1,speicher-test')->name('speicher.test');
             Route::post('/buckets', [SpeicherController::class, 'buckets'])->middleware('throttle:10,1,speicher-buckets')->name('speicher.buckets');
+        });
+
+        // Einstellungen › Zahlung: the Stripe keys, as the bucket's — the Super-Admin alone, then sudo mode.
+        Route::prefix('/einstellungen/zahlung')->middleware(['can:view,'.PaymentSetting::class, EnsureSudo::class])->group(function (): void {
+            Route::get('/', [ZahlungController::class, 'edit'])->name('zahlung.edit');
+            Route::put('/', [ZahlungController::class, 'update'])->middleware('throttle:10,1,zahlung-update')->name('zahlung.update');
+            Route::post('/test', [ZahlungController::class, 'test'])->middleware('throttle:10,1,zahlung-test')->name('zahlung.test');
         });
 
         // Large PDFs straight into the bucket (PdfUpload): the form, and the app's stand-in for the

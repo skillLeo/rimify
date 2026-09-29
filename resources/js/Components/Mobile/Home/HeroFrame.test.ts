@@ -448,6 +448,8 @@ describe('HeroFrame · the lines under the frame', () => {
         expect(caption.attributes('href')).toBe('/felgen/motec-mcr4-ultimate')
         expect(caption.text()).toContain('MOTEC MCR4 Ultimate · Light Grey D5')
         expect(caption.text()).toContain(`ab 189,00${NNBSP}€ · pro Felge`)
+        // PAngV: what the price includes stands beside it.
+        expect(caption.text()).toContain('inkl. MwSt., zzgl. Versand')
         expect(wrapper.find('.hero-mobile__shown').text()).toBe(CAPTION)
         expect(wrapper.find('.hero-mobile__symbolic').exists()).toBe(false)
         expect(wrapper.text()).not.toContain('Demodaten')

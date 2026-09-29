@@ -8,21 +8,19 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\TestPaymentRequest;
 use App\Models\Order;
-use App\Models\TyreVariant;
-use App\Models\WheelConfig;
+use App\Services\Commerce\OrderPayments;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
  * The sandbox's payment page (the review release §1): the test order as written, and the three ways
  * a payment ends — bezahlt, abgelehnt, abgebrochen — chosen by whoever is testing. Paid, the order is
- * PAID, its stock is taken and the basket is empty, as a real payment would leave them. The page says
- * on every line that no money moves.
+ * PAID (its stock was reserved when it was written) and the basket is empty, as a real payment would leave
+ * them. The page says on every line that no money moves.
  */
 class TestzahlungController extends Controller
 {
@@ -45,33 +43,18 @@ class TestzahlungController extends Controller
         ]);
     }
 
-    public function store(TestPaymentRequest $request, Basket $basket): RedirectResponse
+    public function store(TestPaymentRequest $request, Basket $basket, OrderPayments $payments): RedirectResponse
     {
         $order = self::order($request);
         $outcome = $request->outcome();
 
-        DB::transaction(static function () use ($order, $outcome): void {
-            if ($outcome !== 'bezahlt') {
-                $order->forceFill(['status' => ($outcome === 'abgelehnt' ? OrderStatus::Failed : OrderStatus::Cancelled)->value])->save();
-
-                return;
-            }
-
-            $order->forceFill(['status' => OrderStatus::Paid->value, 'paid_at' => now()])->save();
-
-            // Paid goods leave the stock, as with a real payment.
-            foreach ($order->lines as $line) {
-                $quantity = (int) $line->getAttribute('quantity');
-
-                if ($line->getAttribute('wheel_config_id') !== null) {
-                    WheelConfig::query()->whereKey($line->getAttribute('wheel_config_id'))->where('stock_qty', '>=', $quantity)->decrement('stock_qty', $quantity);
-                }
-
-                if ($line->getAttribute('tyre_variant_id') !== null) {
-                    TyreVariant::query()->whereKey($line->getAttribute('tyre_variant_id'))->where('stock_qty', '>=', $quantity)->decrement('stock_qty', $quantity);
-                }
-            }
-        });
+        // The same path a real payment takes (OrderPayments): paid at the order's total, declined (the order
+        // keeps its stock for a retry until it expires), or cancelled (its stock goes back on the shelf).
+        match ($outcome) {
+            'bezahlt' => $payments->paid($order, $order->total_cents, (string) $order->getAttribute('currency'), 'Testzahlung', null),
+            'abgelehnt' => $payments->move($order, OrderStatus::Failed, 'Testzahlung', null, ['payment_error' => 'Testzahlung abgelehnt']),
+            default => $payments->move($order, OrderStatus::Cancelled, 'Testzahlung'),
+        };
 
         if ($outcome === 'bezahlt') {
             $basket->clear($request);

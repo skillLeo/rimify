@@ -8,6 +8,7 @@ use App\Http\RateLimits\ShopRateLimits;
 use App\Listeners\FailedJobAlert;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
+use App\Support\DatabaseEngine;
 use App\Support\SlowQueries;
 use App\Support\Ssr\BoundedSsrGateway;
 use Illuminate\Contracts\Foundation\Application;
@@ -127,13 +128,23 @@ class AppServiceProvider extends ServiceProvider
         error_log('RIMIFY: APP_DEBUG=true in production was switched off; set APP_DEBUG=false in .env.');
     }
 
+    /**
+     * Every MySQL-family connection, whatever Laravel calls its driver: the engine is one the suite has run
+     * against (DatabaseEngine, D-052), and it is in strict mode. One query for both.
+     */
     private function assertStrictMode(Connection $connection): void
     {
-        if ($connection->getDriverName() !== 'mysql') {
+        if (! in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)) {
             return;
         }
 
-        $row = $connection->selectOne('SELECT @@SESSION.sql_mode AS sql_mode');
+        $row = $connection->selectOne('SELECT @@SESSION.sql_mode AS sql_mode, VERSION() AS version');
+        $refusal = DatabaseEngine::refusal((string) ($row->version ?? ''));
+
+        if ($refusal !== null) {
+            throw new RuntimeException(sprintf('Connection [%s]: %s', $connection->getName(), $refusal));
+        }
+
         $modes = array_map('trim', explode(',', (string) ($row->sql_mode ?? '')));
 
         $missing = array_values(array_diff(self::REQUIRED_SQL_MODES, $modes));

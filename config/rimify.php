@@ -99,6 +99,9 @@ return [
     'shipping' => [
         'cost_cents' => is_numeric(env('RIMIFY_SHIPPING_COST_CENTS')) ? (int) env('RIMIFY_SHIPPING_COST_CENTS') : null,
         'free_from_cents' => is_numeric(env('RIMIFY_SHIPPING_FREE_FROM_CENTS')) ? (int) env('RIMIFY_SHIPPING_FREE_FROM_CENTS') : null,
+        // The delivery time as the checkout states it before the order („3–5 Werktage“), in the client's words.
+        // Null until they give one: then a real order is refused, as without a shipping price.
+        'delivery_time' => env('RIMIFY_DELIVERY_TIME'),
     ],
 
     /*
@@ -151,6 +154,28 @@ return [
     // review is on (Payments refuses it anywhere else, whatever this says).
     'payments' => [
         'driver' => env('RIMIFY_PAYMENTS', filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL) ? 'sandbox' : 'none'),
+    ],
+
+    // The seller as the law names it — on the invoice (§ 14 UStG), in the Widerrufsformular, in the order mail. The
+    // client's own data, typed in by hand: never guessed, never the brand name in its place. Null until given; an
+    // invoice is then issued as a test invoice only, and the preflight says what is missing (App\Support\Seller).
+    'seller' => [
+        'name' => env('RIMIFY_SELLER_NAME'),
+        'street' => env('RIMIFY_SELLER_STREET'),
+        'zip' => env('RIMIFY_SELLER_ZIP'),
+        'city' => env('RIMIFY_SELLER_CITY'),
+        'email' => env('RIMIFY_SELLER_EMAIL'),
+        'vat_id' => env('RIMIFY_SELLER_VAT_ID'),
+        'tax_number' => env('RIMIFY_SELLER_TAX_NUMBER'),
+        'register' => env('RIMIFY_SELLER_REGISTER'),
+    ],
+
+    // The database engines — and their release series — the test suite runs against (D-052): the app
+    // refuses any other at the first connection (DatabaseEngine). MariaDB 11.8 is the Hostinger host's
+    // (read 2026-09-29, 11.8.9); MySQL 8.4 is CLAUDE.md §4's. CI runs the suite on both
+    // (.github/workflows/tests.yml); a test keeps the two lists equal.
+    'database' => [
+        'engines' => ['MariaDB 11.8', 'MySQL 8.4'],
     ],
 
     // Server-side rendering's bounds (App\Support\Ssr\BoundedSsrGateway), in seconds: how long to

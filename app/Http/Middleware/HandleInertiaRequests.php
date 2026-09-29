@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Payments\Payments;
 use App\Policies\DemoDataPolicy;
 use App\Services\Admin\AdminAlerts;
 use App\Services\Admin\AdminNavigation;
@@ -164,6 +165,8 @@ class HandleInertiaRequests extends Middleware
             'demo' => fn (): ?array => $user instanceof AdminUser ? self::demo($user) : null,
             // The review kit's feedback button: only where the review is on (local and staging).
             'review' => $signedIn && (bool) config('rimify.review.enabled', false),
+            // Stripe in Testmodus: a strip on every admin page says that no money moves (Block G).
+            'paymentsTestMode' => fn (): bool => $signedIn && Payments::stripeTestMode(),
         ]];
     }
 

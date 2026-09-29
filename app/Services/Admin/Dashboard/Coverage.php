@@ -132,6 +132,16 @@ final class Coverage
                     'sentence' => (string) $d->baseMissingDe(),
                     'base' => $d->supplement_to_number,
                 ])->values()->all(),
+            // A released document that prints no table of tyre load at speed: above 210 km/h the shop confirms
+            // no tyres from it, and says so to the customer (FitmentResolver) — here the gap is named for the
+            // people who run the shop, not only in the answer a fast car gets.
+            'noSpeedTable' => ApprovalDocument::query()->currentlyValid()
+                ->whereNotExists(static fn ($q) => $q->selectRaw('1')->from('document_speed_deratings as d')->whereColumn('d.approval_document_id', 'approval_documents.id'))
+                ->orderBy('id')->get()
+                ->map(static fn (ApprovalDocument $d): array => [
+                    'document' => FitmentRows::label($d),
+                    'href' => '/admin/gutachten/'.$d->id,
+                ])->values()->all(),
         ];
     }
 
