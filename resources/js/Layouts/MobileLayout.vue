@@ -25,6 +25,7 @@ import ListRow from '../Components/Mobile/ListRow.vue'
 import MobileFooter from '../Components/Mobile/MobileFooter.vue'
 import SearchSheet from '../Components/Mobile/SearchSheet.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
+import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
 import Toast from '../Components/Chrome/Toast.vue'
 import CompareTray from '../Components/Compare/CompareTray.vue'
 import { provideConsent } from '../composables/useConsent'
@@ -157,6 +158,8 @@ function fromVehicleSheet(href: string | undefined): void {
 <template>
     <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
+
+        <PreviewRibbon />
 
         <AppBar :top="bar.top" :title="bar.title" :large="bar.large" :back="bar.back">
             <template #actions>

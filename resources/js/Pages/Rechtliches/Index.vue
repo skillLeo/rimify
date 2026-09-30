@@ -69,6 +69,24 @@ const blocks = computed(() =>
             <article class="rec__body">
                 <h1 class="t-h1">{{ title }}</h1>
 
+                <!--
+                    The Impressum's facts from the seller data (§ 5 DDG) — the same place the invoice reads. What is not
+                    given yet says so, visibly: never a guess, never the brand name standing in for the legal one.
+                -->
+                <section v-if="provider" class="rec__block rec__provider" aria-labelledby="rec-provider">
+                    <h2 id="rec-provider" class="t-h3">Angaben gemäß § 5 DDG</h2>
+                    <p v-if="!provider.complete" class="t-body rec__placeholder">
+                        Vorläufig: Die Angaben zum Betreiber liegen noch nicht vollständig vor und werden vor dem Start ergänzt.
+                    </p>
+                    <dl class="rec__facts">
+                        <div v-for="row in provider.rows" :key="row.label" class="rec__fact">
+                            <dt>{{ row.label }}</dt>
+                            <dd v-if="row.value" class="rec__para">{{ row.value }}</dd>
+                            <dd v-else class="rec__missing">noch nicht angegeben</dd>
+                        </div>
+                    </dl>
+                </section>
+
                 <div v-for="block in blocks" :key="block.id" class="rec__block">
                     <h2 v-if="block.heading" class="t-h3">{{ block.heading }}</h2>
                     <p v-if="block.placeholder" class="t-body rec__placeholder">{{ block.text }}</p>
@@ -187,6 +205,39 @@ const blocks = computed(() =>
 
 .rec__block .rec__placeholder {
     margin-top: 0;
+}
+
+/* The provider's facts: label over value on a phone, side by side from 600px. */
+.rec__facts {
+    display: grid;
+    gap: var(--space-3);
+    margin: var(--space-3) 0 0;
+}
+
+.rec__fact {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.rec__fact dt {
+    color: var(--ink2);
+    font-weight: 700;
+}
+
+.rec__fact dd {
+    margin: 0;
+}
+
+.rec__missing {
+    color: var(--ink2);
+    font-style: italic;
+}
+
+@media (min-width: 600px) {
+    .rec__fact {
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: var(--space-4);
+    }
 }
 
 /* The cookie facts: a real table, scrolling inside its own box on a phone rather than squeezing a column. */

@@ -42,4 +42,27 @@ describe('Rechtliches', () => {
 
         expect(wrapper.find('#cookies').exists()).toBe(false)
     })
+
+    it('prints the Impressum’s facts from the seller data, and says plainly which are not given yet', () => {
+        const provider = {
+            complete: false,
+            rows: [
+                { label: 'Anbieter', value: null },
+                { label: 'E-Mail', value: 'info@rimify.de' },
+            ],
+        }
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider } })
+        const section = wrapper.get('.rec__provider')
+
+        expect(section.text()).toContain('Angaben gemäß § 5 DDG')
+        expect(section.text()).toContain('Vorläufig: Die Angaben zum Betreiber liegen noch nicht vollständig vor')
+        expect(section.findAll('.rec__fact').map((row) => row.text())).toEqual(['Anbieternoch nicht angegeben', 'E-Mailinfo@rimify.de'])
+    })
+
+    it('drops the „Vorläufig" note once every fact is given', () => {
+        const provider = { complete: true, rows: [{ label: 'Anbieter', value: 'Beispiel Handels GmbH' }] }
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider } })
+
+        expect(wrapper.get('.rec__provider').text()).not.toContain('Vorläufig')
+    })
 })

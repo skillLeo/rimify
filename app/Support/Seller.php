@@ -109,6 +109,27 @@ final readonly class Seller
         ]));
     }
 
+    /**
+     * The Impressum's facts (§ 5 DDG), in the order a reader looks for them, each null while it is not given: the page
+     * prints what there is and says plainly what is missing — never a guess, never the brand name for the legal one.
+     *
+     * @return list<array{label: string, value: string|null}>
+     */
+    public function impressum(): array
+    {
+        $address = $this->street !== null && $this->zip !== null && $this->city !== null
+            ? "{$this->street}\n{$this->zip} {$this->city}\nDeutschland"
+            : null;
+
+        return [
+            ['label' => 'Anbieter', 'value' => $this->name],
+            ['label' => 'Anschrift', 'value' => $address],
+            ['label' => 'E-Mail', 'value' => $this->email],
+            ['label' => 'Registereintrag', 'value' => $this->register],
+            ['label' => 'Umsatzsteuer-Identifikationsnummer', 'value' => $this->vatId],
+        ];
+    }
+
     /** @return array<string, string|bool|null> */
     public function toArray(): array
     {

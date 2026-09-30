@@ -618,6 +618,8 @@ export interface RechtlichesProps {
     tabs: { slug: string; title: string }[]
     active: string
     blocks: { id: number; type: string; data: Record<string, unknown> }[]
+    /** The Impressum's facts from the seller data (§ 5 DDG), each null while not given; null on every other tab. */
+    provider?: { rows: { label: string; value: string | null }[]; complete: boolean } | null
 }
 
 export interface AdminAnmeldenProps {

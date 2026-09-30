@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Storefront;
 use App\Http\Controllers\Controller;
 use App\Models\Page;
 use App\Services\Content\PageContent;
+use App\Support\Seller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -53,10 +54,20 @@ class RechtlichesController extends Controller
         // The words — live, or the draft in a signed preview (PageContent).
         $blocks = $present ? ($this->content->page($slug)['blocks'] ?? []) : [];
 
+        // The Impressum's facts from the seller data (§ 5 DDG), from the one place the invoice and the order mail read
+        // too — beside the Kanzlei's text, never instead of it. What is not given yet says so.
+        $provider = null;
+
+        if ($slug === 'impressum') {
+            $rows = Seller::current()->impressum();
+            $provider = ['rows' => $rows, 'complete' => ! in_array(null, array_column($rows, 'value'), true)];
+        }
+
         return Inertia::render('Rechtliches/Index', [
             'tabs' => $tabs,
             'active' => $slug,
             'blocks' => $blocks,
+            'provider' => $provider,
         ]);
     }
 }
