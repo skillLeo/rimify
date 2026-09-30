@@ -8,11 +8,13 @@ use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
 use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\PreviewGate;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
 use App\Services\Admin\AdminErrorPage;
 use App\Services\Storefront\Chrome;
 use App\Services\Storefront\ErrorPage;
+use App\Support\PreviewGate as PreviewGateSupport;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
@@ -28,6 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The preview's password, before anything else — the maintenance page, sessions, the admin's sign-in. Off
+        // wherever `rimify.preview` is empty: the live shop, a developer's machine (App\Support\PreviewGate).
+        $middleware->prepend(PreviewGate::class);
+
         // Global stack: its response phase runs outermost, after Inertia has set its own Vary.
         $middleware->append(VaryByDevice::class);
 
@@ -65,7 +71,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // choice, written by the browser itself; rmf_vehicle stays encrypted and authenticated.
         // rmf_papiere holds only a car's own figures, re-checked on every read and able only to make an
         // answer stricter; plain, it stays far below its 500 bytes (PapersBook).
-        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE, PapersBook::COOKIE]);
+        // rmf_vorschau is the preview ribbon's „Ausblenden", set by the browser and meaningless anywhere else.
+        $middleware->encryptCookies(except: [DetectDevice::OVERRIDE_COOKIE, Chrome::CONSENT_COOKIE, PapersBook::COOKIE, PreviewGateSupport::RIBBON_COOKIE]);
 
         // A customer's pages (Mein Konto, Block G) send a stranger to the customer's sign-in; everything else is the admin's.
         $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('konto', 'konto/*') ? '/konto/anmelden' : '/admin/anmelden');

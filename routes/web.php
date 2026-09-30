@@ -66,6 +66,7 @@ use App\Http\Controllers\Storefront\PaymentWebhookController;
 use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechnungController;
 use App\Http\Controllers\Storefront\RechtlichesController;
+use App\Http\Controllers\Storefront\RobotsController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
@@ -88,6 +89,9 @@ use Illuminate\Support\Facades\Route;
  */
 
 // ── Storefront ───────────────────────────────────────────────────────────────────────────────
+
+// Crawlers welcome on the live shop only; every other copy turns them away (RobotsController).
+Route::get('/robots.txt', RobotsController::class)->name('robots');
 
 Route::get('/', [StartseiteController::class, 'index'])->name('startseite');
 Route::get('/ratgeber/{slug}', RatgeberController::class)->name('ratgeber.show');

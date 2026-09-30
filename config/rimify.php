@@ -149,6 +149,14 @@ return [
         'enabled' => filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL),
     ],
 
+    // The preview's password (App\Support\PreviewGate): HTTP basic auth over the whole site — pages, admin and the
+    // files under /storage — while it is reachable from outside without its legal texts. Set by hand in the preview's
+    // .env, never in the repository; both empty (the live shop, a developer's machine) is no gate at all.
+    'preview' => [
+        'user' => env('RIMIFY_PREVIEW_USER'),
+        'password' => env('RIMIFY_PREVIEW_PASSWORD'),
+    ],
+
     // How orders are paid (App\Payments\Payments). `none` until a provider is configured (BLOCKED #3):
     // the shop then takes no orders. `sandbox` runs test orders end to end, and is the default where the
     // review is on (Payments refuses it anywhere else, whatever this says).

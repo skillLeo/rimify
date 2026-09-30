@@ -14,6 +14,7 @@ use App\Services\Storage\MediaDisks;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\GermanFormat;
+use App\Support\PreviewGate;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\PendingRequest;
@@ -111,7 +112,7 @@ final class Smoke extends Command
             $this->check('Gutachten-PDF', function () use (&$pdf): string {
                 $this->expect(is_string($pdf), 'kein PDF-Link auf der Produktseite');
                 $url = (string) preg_replace('/#.*$/', '', (string) $pdf);
-                $response = Http::timeout(20)->get(Str::startsWith($url, 'http') ? $url : $this->base.$url);
+                $response = self::http(20)->get(Str::startsWith($url, 'http') ? $url : $this->base.$url);
                 $this->expect($response->status() === 200, "HTTP {$response->status()}");
                 $this->expect(str_starts_with($response->body(), '%PDF-'), 'die Antwort ist kein PDF');
 
@@ -231,7 +232,7 @@ final class Smoke extends Command
 
             try {
                 // The address as the site answers it: APP_URL's host may differ from the site checked.
-                $status = Http::timeout(10)->get($this->base.(string) parse_url($disk->url($probe), PHP_URL_PATH))->status();
+                $status = self::http(10)->get($this->base.(string) parse_url($disk->url($probe), PHP_URL_PATH))->status();
                 $this->expect($status === 200, "{$name}: öffentliche Datei antwortet HTTP {$status}");
                 $seen[] = $name;
             } finally {
@@ -243,7 +244,7 @@ final class Smoke extends Command
         $private->put($probe, 'rimify smoke');
 
         try {
-            $status = Http::timeout(10)->get($this->base.'/storage/'.config('media.disks.docs_private.prefix').'/'.$probe)->status();
+            $status = self::http(10)->get($this->base.'/storage/'.config('media.disks.docs_private.prefix').'/'.$probe)->status();
             $this->expect($status !== 200, 'invoices/ ist öffentlich lesbar');
         } finally {
             $private->delete($probe);
@@ -274,11 +275,22 @@ final class Smoke extends Command
         return (string) preg_replace('#<script\b[^>]*data-page[^>]*>.*?</script>#s', '', $html);
     }
 
+    /**
+     * Every request of the smoke test, through the preview's password where there is one (App\Support\PreviewGate) —
+     * as the client passes it: pages, the PDF and the files under /storage alike.
+     */
+    private static function http(int $seconds): PendingRequest
+    {
+        $request = Http::timeout($seconds);
+
+        return PreviewGate::enabled() ? $request->withBasicAuth((string) PreviewGate::user(), (string) PreviewGate::password()) : $request;
+    }
+
     private function client(): PendingRequest
     {
         $xsrf = $this->jar->getCookieByName('XSRF-TOKEN')?->getValue();
 
-        return Http::timeout(30)
+        return self::http(30)
             ->withOptions(['cookies' => $this->jar, 'allow_redirects' => false])
             ->withHeaders(array_filter(['Accept' => 'text/html', 'X-XSRF-TOKEN' => $xsrf === null ? null : urldecode($xsrf)]));
     }

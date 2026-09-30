@@ -54,6 +54,11 @@ final class SecurityHeaders
             $response->headers->set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
         }
 
+        // Any copy but the live shop stays out of search: a preview indexed beside the real shop competes with it.
+        if (! app()->environment('production')) {
+            $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        }
+
         return $response;
     }
 

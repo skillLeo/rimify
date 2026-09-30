@@ -1,5 +1,14 @@
 # RIMIFY — Zugänge für die Review
 
+## Die Vorschau selbst
+
+Die Vorschau (https://rimify.skillleo.com) fragt vor jeder Seite, dem Admin und den PDFs nach einem gemeinsamen
+Benutzer und Passwort (HTTP-Basic-Auth, `App\Support\PreviewGate`), solange die Rechtstexte fehlen. **Das Passwort
+steht nicht im Repository**: lokal in `docs/review/ACCOUNTS.local.md` (git-ignoriert), auf dem Server in der `.env` der
+Vorschau (`RIMIFY_PREVIEW_USER`, `RIMIFY_PREVIEW_PASSWORD`). Suchmaschinen bleiben draußen (`X-Robots-Tag`, robots.txt).
+
+## Die Konten im Admin
+
 Drei Konten, eines je Rolle. Jede Rolle sieht eine andere Navigation und eine andere Übersicht. Melde
 dich unter `/admin/anmelden` an.
 

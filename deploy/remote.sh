@@ -138,6 +138,11 @@ fi
 "$PHP" artisan optimize > /dev/null
 echo "== caches rebuilt"
 
+# The preview's password in front of the files the web server serves itself (/storage: the PDFs, the pictures),
+# the same as the one every page asks for (App\Support\PreviewGate). Its files live in storage/, which the reset
+# never touches; without RIMIFY_PREVIEW_* in .env — the live shop — this takes them away again.
+"$PHP" artisan rimify:preview-gate --no-interaction
+
 # ── SSR ────────────────────────────────────────────────────────────────────────
 # Stop only this site's renderer: node processes whose command line names this app's bundle.
 for pid in $(pgrep -u "$(id -u)" -x node || true); do
