@@ -40,12 +40,12 @@ class ApprovalDocumentRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        foreach (['kba_number', 'report_number', 'approval_mark', 'issuer', 'supplement_to_number', ...self::HEADER, 'valid_from_production'] as $key) {
+        foreach (['kba_number', 'report_number', 'approval_mark', 'issuer', 'supplement_to_number', ...self::HEADER, 'valid_from_production', 'missing_annexes'] as $key) {
             $value = $this->input($key);
             $this->merge([$key => is_string($value) ? trim($value) : $value]);
         }
 
-        foreach (['test_date', 'revision_date', 'supplement_to_id'] as $key) {
+        foreach (['test_date', 'revision_date', 'supplement_to_id', 'papers_correction'] as $key) {
             if ($this->input($key) === '') {
                 $this->merge([$key => null]);
             }
@@ -100,6 +100,10 @@ class ApprovalDocumentRequest extends FormRequest
             'test_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:1980-01-01', 'before_or_equal:'.now('Europe/Berlin')->toDateString()],
             'revision_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:1980-01-01', 'before_or_equal:'.now('Europe/Berlin')->toDateString()],
             'valid_from_production' => ['nullable', 'string', 'max:8'],
+            // § 15 FZV, as the document says it (ABE 53841, point 10); empty when it says nothing.
+            'papers_correction' => ['nullable', 'string', Rule::in(['not_required', 'required'])],
+            // The Anlagen of its Verwendungsbereich we do not hold, as printed: „1–15“.
+            'missing_annexes' => ['nullable', 'string', 'max:64'],
         ];
     }
 
@@ -130,6 +134,8 @@ class ApprovalDocumentRequest extends FormRequest
             'issued_on.*' => 'Das Ausstellungsdatum ist kein gültiger Tag in der Vergangenheit. Schreib es bitte so: 12.03.2024.',
             'page_count.*' => 'Die Seitenzahl bitte als ganze Zahl ab 1.',
             'supersedes_id.*' => 'Ersetzt werden kann nur ein freigegebenes Dokument.',
+            'papers_correction.*' => 'Bitte wähl, was das Dokument zur Berichtigung der Fahrzeugpapiere sagt.',
+            'missing_annexes.max' => 'Die fehlenden Anlagen dürfen höchstens 64 Zeichen lang sein.',
         ];
     }
 
@@ -159,7 +165,7 @@ class ApprovalDocumentRequest extends FormRequest
     }
 
     /**
-     * @return array<string, string|int|null>
+     * @return array<string, string|int|bool|null>
      */
     public function facts(): array
     {
@@ -189,6 +195,12 @@ class ApprovalDocumentRequest extends FormRequest
             'test_date' => $text('test_date'),
             'revision_date' => $text('revision_date'),
             'valid_from_production' => self::month($text('valid_from_production')),
+            'papers_correction_required' => match ($this->validated('papers_correction')) {
+                'not_required' => false,
+                'required' => true,
+                default => null,
+            },
+            'missing_annexes' => $text('missing_annexes'),
         ];
     }
 

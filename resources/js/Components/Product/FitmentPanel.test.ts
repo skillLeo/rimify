@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { ABNAHME, borbetDetail } from './borbetDetail.fixture'
 import FitmentPanel from './FitmentPanel.vue'
+import { ABNAHME_REQUIRED, PAPERS_EXEMPT } from '../../fitment/papers'
 import type { ConfigVerdict } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -200,6 +201,32 @@ describe('FitmentPanel', () => {
         expect(wrapper.find('.fit__conditions li').text()).toBe(
             'Nur mit den angegebenen Radschrauben zulässig.'
         )
+    })
+
+    /*
+     * ABE 53841, points 10 and 11: the document frees the papers (§ 15 FZV), the Auflagen still send the car to a
+     * Prüfer. Two questions, two lines — and never „Eintragung … erforderlich“ beside „keine Berichtigung“.
+     */
+    it('says the Abnahme and the papers on two lines where the document frees the papers (§ 15 FZV)', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', requiresEntry: true, papersExempt: true }) },
+        })
+
+        expect(wrapper.findAll('.fit__entry').map((p) => p.text())).toEqual([ABNAHME_REQUIRED, PAPERS_EXEMPT])
+        expect(wrapper.text()).not.toContain('Eintragung')
+
+        const noAbnahme = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ papersExempt: true }) } })
+
+        expect(noAbnahme.findAll('.fit__entry').map((p) => p.text())).toEqual(['Keine Abnahme durch einen Prüfer erforderlich.', PAPERS_EXEMPT])
+    })
+
+    it('says nothing about the papers for a wheel that may not go on the car, even where the document frees them', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ status: 'UNKNOWN', sellable: false, papersExempt: true }) },
+        })
+
+        expect(wrapper.find('.fit__papers').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('§')
     })
 
     it('names the document without a stray separator when the issuer is missing', () => {

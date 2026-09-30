@@ -34,6 +34,8 @@ export interface DocumentFacts {
     supplementTo: { label: string; href: string | null } | null
     /** The sentence the record, the Abdeckung and the shop say for a Nachtrag without its base. */
     baseMissing: string | null
+    /** `Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor.` — null while every Anlage is held. */
+    scopeIncomplete?: string | null
 }
 
 /** A code on a row or a tyre size, as printed, with what its own document says it means. */
@@ -92,6 +94,10 @@ export interface RecordShape {
     revision_date: string
     /** `MM.JJJJ` as typed. */
     valid_from_production: string
+    /** § 15 FZV as the document says it: `not_required`, `required`, or '' when it says nothing. */
+    papers_correction: '' | 'not_required' | 'required'
+    /** The Anlagen of its Verwendungsbereich we do not hold, as printed: „1–15“. */
+    missing_annexes: string
 }
 
 export interface TyreSizeRow {
@@ -186,6 +192,9 @@ export interface PreviewVerdict {
     statusLabel: string
     reason: string | null
     requiresEntry: boolean
+    /** The shop's words for the Auflagen's line and the document's § 15 FZV line (PapersWording). Additive. */
+    entryLine?: string | null
+    papersLine?: string | null
     entryNote: string | null
     conditions: string[]
     front: string[]

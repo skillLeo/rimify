@@ -350,6 +350,8 @@ export interface ConfigVerdict {
     label: string
     sellable: boolean
     requiresEntry: boolean
+    /** The document frees the papers from correction (§ 15 FZV): its own line (resources/js/fitment/papers.ts). Additive. */
+    papersExempt?: boolean
     /** Additive: null for a wheel that may not go on the car, absent in an older payload. */
     detail?: FitmentDetailView | null
     entryNoteDe: string | null
@@ -521,6 +523,8 @@ export interface CheckResultView {
     wheelLabel: string | null
     reason: string | null
     requiresEntry: boolean
+    /** § 15 FZV as frozen with the answer: the papers need no correction. Additive. */
+    papersExempt?: boolean
     entryNote: string | null
     conditions: string[]
     front: string[]
@@ -582,6 +586,8 @@ export interface BestellungProps {
         verdict: {
             status: VerdictStatus
             requiresEntry: boolean
+            /** § 15 FZV as frozen at the purchase. Additive: an older order has none, and claims none. */
+            papersExempt?: boolean
             documentRevision: number
             detail: Record<string, unknown>
         } | null

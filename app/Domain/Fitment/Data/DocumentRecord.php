@@ -39,12 +39,21 @@ final readonly class DocumentRecord
          * sum it produced is, in the verdict's tyre lines.
          */
         public ?SpeedDeratingTable $speedDerating = null,
+        /**
+         * § 15 FZV: false where the document — or, for a Nachtrag, its base — frees the papers from correction (ABE
+         * 53841, point 10); null where it says nothing, and then nothing is claimed. Not the Änderungsabnahme, which the
+         * Auflagen decide. Frozen with the verdict: it is part of what the customer was told.
+         */
+        public ?bool $papersCorrectionRequired = null,
+        /** The Anlagen of the document's Verwendungsbereich we do not hold („1–15“); null while all are held. */
+        public ?string $missingAnnexes = null,
     ) {}
 
     /**
      * @return array{
      *     id: string, kind: string, number: string|null, revision: int,
-     *     issuedOn: string|null, pdfUrl: string|null, pdfSha256: string|null, sourcePage: int|null
+     *     issuedOn: string|null, pdfUrl: string|null, pdfSha256: string|null, sourcePage: int|null,
+     *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string
      * }
      */
     public function toArray(): array
@@ -61,14 +70,22 @@ final readonly class DocumentRecord
             'sourcePage' => $this->sourcePage,
             // Additive, and only where there is something to say.
             ...($this->notesDe === [] ? [] : ['notes' => $this->notesDe]),
+            ...($this->papersCorrectionRequired === null ? [] : ['papersCorrectionRequired' => $this->papersCorrectionRequired]),
+            ...($this->missingAnnexes === null ? [] : ['missingAnnexes' => $this->missingAnnexes]),
         ];
+    }
+
+    /** The document — or its base — frees the papers from correction (§ 15 FZV): said as its own line to the customer. */
+    public function papersExempt(): bool
+    {
+        return $this->papersCorrectionRequired === false;
     }
 
     /**
      * @param array{
      *     id: string|int, kind: string, number: string|null, revision: int,
      *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
-     *     notes?: list<string>
+     *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null
      * } $data
      */
     public static function fromArray(array $data): self
@@ -85,6 +102,8 @@ final readonly class DocumentRecord
             pdfSha256: $data['pdfSha256'] ?? null,
             sourcePage: $data['sourcePage'] ?? null,
             notesDe: $data['notes'] ?? [],
+            papersCorrectionRequired: $data['papersCorrectionRequired'] ?? null,
+            missingAnnexes: $data['missingAnnexes'] ?? null,
         );
     }
 }

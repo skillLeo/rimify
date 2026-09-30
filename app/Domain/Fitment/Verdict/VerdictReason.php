@@ -21,6 +21,12 @@ final readonly class VerdictReason
 
     public const NOT_COVERED = 'NOT_COVERED';
 
+    /**
+     * The pages we hold do not name the car, and the document's Verwendungsbereich has Anlagen we do not hold: the one
+     * that names it may be among them. Not a refusal — we have not read that page yet.
+     */
+    public const ANNEX_MISSING = 'ANNEX_MISSING';
+
     public const OUTSIDE_BUILD_WINDOW = 'OUTSIDE_BUILD_WINDOW';
 
     public const WIDTH_OR_ET_OUTSIDE_RANGE = 'WIDTH_OR_ET_OUTSIDE_RANGE';
@@ -83,6 +89,7 @@ final readonly class VerdictReason
             self::VEHICLE_INCOMPLETE => 'Für dieses Fahrzeug können wir die Freigabe nicht bestätigen.',
             self::NO_DOCUMENT => 'Für diese Kombination liegt uns kein Gutachten vor.',
             self::NOT_COVERED => 'Das Gutachten führt dieses Fahrzeug nicht auf.',
+            self::ANNEX_MISSING => 'Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor. Bis dahin können wir die Freigabe nicht bestätigen.',
             self::OUTSIDE_BUILD_WINDOW => 'Das Gutachten gilt nicht für den Bauzeitraum dieses Fahrzeugs.',
             self::WIDTH_OR_ET_OUTSIDE_RANGE => 'Breite oder Einpresstiefe liegen außerhalb der Freigabe.',
             self::NO_TYRE_SIZE => 'Für diese Kombination ist keine Reifengröße freigegeben.',

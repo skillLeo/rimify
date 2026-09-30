@@ -190,6 +190,51 @@ it('does not release a document without rows or without its PDF, and says why', 
         ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: Das PDF des Gutachtens fehlt. Es gibt noch keine Zeile im Verwendungsbereich.']);
 });
 
+it('releases a base without rows once a Nachtrag supplements it — for its own facts, which its Nachträge then carry', function (): void {
+    // ABE 53841: its Verwendungsbereich is „Anlage/n zum Prüfbericht 1–16“; point 10 frees the papers (§ 15 FZV).
+    $base = ApprovalDocument::factory()->abe()->draft()->create(['papers_correction_required' => false]);
+
+    expect(app(DocumentRelease::class)->check($base))->toBe(['Es gibt noch keine Zeile im Verwendungsbereich.']);
+
+    $nachtrag = ApprovalDocument::factory()->create(['kind' => 'NACHTRAG', 'supplement_to_id' => $base->id]);
+
+    // Until the base is released, the Nachtrag says nothing about the papers — a fact nobody has checked never reaches a customer.
+    expect($nachtrag->refresh()->papersCorrectionRequired())->toBeNull()
+        ->and(app(DocumentRelease::class)->check($base))->toBe([]);
+
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$base->id}/freigeben")
+        ->assertSessionHas('toast', 'Freigegeben: Der Shop übernimmt die Angaben dieses Grundgutachtens jetzt für seine Nachträge.');
+
+    expect($base->refresh()->status)->toBe(DocumentStatus::Published)
+        ->and($nachtrag->refresh()->papersCorrectionRequired())->toBeFalse();
+});
+
+it('keeps what a document says of the papers (§ 15 FZV) and the Anlagen it lacks, and refuses anything else', function (): void {
+    $this->actingAs(erfassung(), 'admin')->post('/admin/gutachten', [
+        'upload_key' => pendingPdf(),
+        'kind' => 'ABE',
+        'kba_number' => '53841',
+        'papers_correction' => 'not_required',
+        'missing_annexes' => ' 1–15 ',
+    ])->assertSessionHasNoErrors();
+
+    $document = ApprovalDocument::query()->firstOrFail();
+
+    expect($document->papers_correction_required)->toBeFalse()
+        ->and($document->missing_annexes)->toBe('1–15')
+        ->and($document->scopeIncompleteDe())->toBe('Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor.');
+
+    // Saying nothing is the default: an empty choice stores null, never „erforderlich“ or „nicht erforderlich“.
+    $this->actingAs(erfassung(), 'admin')->put("/admin/gutachten/{$document->id}", ['kind' => 'ABE', 'kba_number' => '53841', 'papers_correction' => '', 'missing_annexes' => ''])
+        ->assertSessionHasNoErrors();
+
+    expect($document->refresh()->papers_correction_required)->toBeNull()
+        ->and($document->missing_annexes)->toBeNull();
+
+    $this->actingAs(erfassung(), 'admin')->put("/admin/gutachten/{$document->id}", ['kind' => 'ABE', 'kba_number' => '53841', 'papers_correction' => 'vielleicht'])
+        ->assertSessionHasErrors(['papers_correction' => 'Bitte wähl, was das Dokument zur Berichtigung der Fahrzeugpapiere sagt.']);
+});
+
 it('never releases a row on a development car, in any environment — and does on a car from a Gutachten (DATA-01)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $development = Vehicle::factory()->development()->create();

@@ -16,6 +16,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import { useShared } from '../../composables/useShared'
+import { PAPERS_EXEMPT, entryLine } from '../../fitment/papers'
 import { mailtoHref } from '../../lib/mailto'
 import { formatNumber } from '../../lib/num'
 import type { CheckErgebnisProps } from '../../types/pages'
@@ -158,9 +159,10 @@ const copy = computed<Copy>(() => {
                     </ol>
                 </section>
 
-                <section v-if="result.requiresEntry || result.conditions.length" class="res__block" aria-labelledby="res-cond-h">
+                <section v-if="result.requiresEntry || result.papersExempt || result.conditions.length" class="res__block" aria-labelledby="res-cond-h">
                     <h2 id="res-cond-h" class="h4">Auflagen</h2>
-                    <p v-if="result.requiresEntry" class="res__note">Eintragung in die Fahrzeugpapiere erforderlich.<template v-if="result.entryNote"> {{ result.entryNote }}</template></p>
+                    <p v-if="result.requiresEntry" class="res__note">{{ entryLine(true, result.papersExempt === true) }}<template v-if="result.entryNote"> {{ result.entryNote }}</template></p>
+                    <p v-if="result.papersExempt" class="res__note">{{ PAPERS_EXEMPT }}</p>
                     <ul v-if="result.conditions.length" class="res__sum">
                         <li v-for="condition in result.conditions" :key="condition">{{ condition }}</li>
                     </ul>

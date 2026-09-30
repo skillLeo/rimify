@@ -47,6 +47,23 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
                 </ul>
             </section>
 
+            <!-- A document held only in part: its missing Anlagen are named here, as the shop names them to a car they may cover. -->
+            <section v-if="matrix.missingAnnexes?.length" class="adm-section ab__incomplete" aria-labelledby="ab-annexes-h">
+                <div class="adm-section__head">
+                    <h2 id="ab-annexes-h" class="adm-section__title">Verwendungsbereich unvollständig</h2>
+                </div>
+                <p class="adm-note">
+                    Von diesen Gutachten liegen uns nicht alle Anlagen vor. Die Matrix zählt nur die Fahrzeuge der vorliegenden Seiten. Ein
+                    Fahrzeug, das dort nicht steht, bekommt im Shop den Hinweis, dass die Anlage noch nicht vorliegt – kein „Nicht freigegeben“.
+                </p>
+                <ul class="ab__docs">
+                    <li v-for="item in matrix.missingAnnexes" :key="item.href" class="ab__doc">
+                        <Link :href="item.href" class="ab__link">{{ item.document }}</Link>
+                        <span class="ab__base">Fehlende Anlagen: {{ item.annexes }}</span>
+                    </li>
+                </ul>
+            </section>
+
             <!-- A document without a table of tyre load at speed: its gap is named here, not only in a fast car's answer. -->
             <section v-if="matrix.noSpeedTable?.length" class="adm-section ab__incomplete" aria-labelledby="ab-speed-h">
                 <div class="adm-section__head">

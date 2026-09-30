@@ -278,7 +278,12 @@ class GutachtenController extends Controller
     public function release(ApprovalStepRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
         $result = $release->release($document, $request->admin());
-        $toast = $result['rows'] === 1 ? 'Freigegeben: Die Zeile ist jetzt im Shop.' : 'Freigegeben: '.GermanFormat::integer($result['rows']).' Zeilen sind jetzt im Shop.';
+        $toast = match ($result['rows']) {
+            // A base without rows of its own (DocumentRelease): its facts now reach the shop through its Nachträge.
+            0 => 'Freigegeben: Der Shop übernimmt die Angaben dieses Grundgutachtens jetzt für seine Nachträge.',
+            1 => 'Freigegeben: Die Zeile ist jetzt im Shop.',
+            default => 'Freigegeben: '.GermanFormat::integer($result['rows']).' Zeilen sind jetzt im Shop.',
+        };
 
         if ($result['conflicts'] > 0) {
             $toast .= ' '.($result['conflicts'] === 1 ? 'Ein Widerspruch' : GermanFormat::integer($result['conflicts']).' Widersprüche')
@@ -372,6 +377,12 @@ class GutachtenController extends Controller
                 'test_date' => $document->test_date?->format('Y-m-d') ?? '',
                 'revision_date' => $document->revision_date?->format('Y-m-d') ?? '',
                 'valid_from_production' => $document->valid_from_production?->format('m.Y') ?? '',
+                'papers_correction' => match ($document->papers_correction_required) {
+                    false => 'not_required',
+                    true => 'required',
+                    null => '',
+                },
+                'missing_annexes' => (string) ($document->missing_annexes ?? ''),
             ],
             // … and as the record shows them: only what is filled.
             'header' => array_values(array_filter([
@@ -383,12 +394,33 @@ class GutachtenController extends Controller
                 ['label' => 'Prüfdatum', 'value' => (string) GermanFormat::date($document->test_date)],
                 ['label' => 'Stand', 'value' => (string) GermanFormat::date($document->revision_date)],
                 ['label' => 'Gültig ab Fertigungsdatum', 'value' => $document->valid_from_production?->format('m/Y') ?? ''],
+                // § 15 FZV as this document says it, or as its base does for a Nachtrag (point 10 of ABE 53841).
+                ['label' => 'Berichtigung der Fahrzeugpapiere', 'value' => self::papersLabel($document)],
             ], static fn (array $entry): bool => $entry['value'] !== '')),
             'supplementTo' => $document->kind !== ApprovalKind::Nachtrag ? null : ($document->supplementTo !== null
                 ? ['label' => FitmentRows::label($document->supplementTo), 'href' => '/admin/gutachten/'.$document->supplementTo->id]
                 : ['label' => (string) ($document->supplement_to_number ?? '–'), 'href' => null]),
             'baseMissing' => $document->baseMissingDe(),
+            // Anlagen of its Verwendungsbereich we do not hold: a car the pages we hold do not name is UNKNOWN, not refused.
+            'scopeIncomplete' => $document->scopeIncompleteDe(),
         ];
+    }
+
+    /**
+     * § 15 FZV as the record says it: the document's own word, its base's once released — or the base's word still
+     * waiting for that release, so nobody wonders why the shop does not say it yet. Empty when nothing says anything.
+     */
+    private static function papersLabel(ApprovalDocument $document): string
+    {
+        $base = $document->kind === ApprovalKind::Nachtrag ? $document->supplementTo : null;
+
+        return match ($document->papersCorrectionRequired()) {
+            false => $document->papers_correction_required === null ? "nicht erforderlich (§\u{00A0}15 FZV, laut Grundgutachten)" : "nicht erforderlich (§\u{00A0}15 FZV)",
+            true => 'erforderlich',
+            null => $base !== null && $base->papers_correction_required === false
+                ? "nicht erforderlich (§\u{00A0}15 FZV, laut Grundgutachten) – der Shop zeigt es, sobald das Grundgutachten freigegeben ist"
+                : '',
+        };
     }
 
     /**

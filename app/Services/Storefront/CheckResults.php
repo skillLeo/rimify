@@ -79,6 +79,8 @@ final readonly class CheckResults
             'wheelLabel' => $verdict->wheelStatus?->labelDe(),
             'reason' => $verdict->reason?->textDe,
             'requiresEntry' => $verdict->requiresEntry,
+            // § 15 FZV as frozen with the answer (PapersWording): an older check has none, and claims none.
+            'papersExempt' => $verdict->papersExempt(),
             'entryNote' => $verdict->entryNoteDe,
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
             'front' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->front->sizes),

@@ -10,6 +10,7 @@ use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\PapersWording;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
@@ -911,6 +912,7 @@ final readonly class Basket
             'label' => $verdict->status->labelDe(),
             'sellable' => $verdict->isSellable(),
             'requiresEntry' => $verdict->requiresEntry,
+            'papersExempt' => $verdict->papersExempt(),
             // The one short sentence the checkout repeats up to the order button (Block G); the Auflagen stay
             // behind a link, in full, below.
             'sentence' => self::verdictSentence($verdict),
@@ -941,7 +943,17 @@ final readonly class Basket
             default => $verdict->status->labelDe().'.',
         };
 
-        return $verdict->isSellable() && $verdict->requiresEntry ? $sentence.' Eintragung in die Fahrzeugpapiere erforderlich.' : $sentence;
+        if (! $verdict->isSellable()) {
+            return $sentence;
+        }
+
+        // The papers, as the product page says them (PapersWording): the Auflagen's line, then the document's.
+        $papers = array_filter([
+            PapersWording::entryLine($verdict->requiresEntry, $verdict->papersExempt()),
+            PapersWording::papersLine($verdict->papersExempt()),
+        ]);
+
+        return $papers === [] ? $sentence : $sentence.' '.implode(' ', $papers);
     }
 
     /**

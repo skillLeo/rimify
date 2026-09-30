@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Contracts;
 
 use App\Domain\Fitment\Data\ConflictDecision;
+use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 
@@ -41,6 +42,16 @@ interface FitmentRepository
      * @return list<int>
      */
     public function configsWithPublishedDocument(array $wheelConfigIds): array;
+
+    /**
+     * Of these configurations, the ones whose published, valid document holds rows but not its whole Verwendungsbereich
+     * — Anlagen we do not hold (ABE 53841: Anlagen 1–15). For those, a car the rows do not name is UNKNOWN, never
+     * NOT_PERMITTED: the Anlage that names it may be one we have not read.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, DocumentRecord> the incomplete document, keyed by configuration id; a complete one is absent
+     */
+    public function incompleteDocumentsFor(array $wheelConfigIds): array;
 
     /**
      * @param  list<int>  $wheelConfigIds

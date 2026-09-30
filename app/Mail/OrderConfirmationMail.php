@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Domain\Fitment\Verdict\PapersWording;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
@@ -68,7 +69,9 @@ class OrderConfirmationMail extends Mailable
                     'NOT_PERMITTED' => 'Nicht freigegeben.',
                     default => 'Keine Freigabe hinterlegt.',
                 },
-                'entry' => $snapshot !== null && (bool) $snapshot->requires_entry,
+                // The papers, in the two lines the purchase showed (PapersWording): the Auflagen's, and the document's.
+                'entry' => $snapshot === null ? null : PapersWording::entryLine((bool) $snapshot->requires_entry, $snapshot->papersExempt()),
+                'papers' => $snapshot === null ? null : PapersWording::papersLine($snapshot->papersExempt()),
                 'conditions' => $conditions,
             ];
         }

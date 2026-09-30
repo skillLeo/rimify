@@ -37,6 +37,9 @@ interface Snapshot {
     issuer?: string | null
     sourcePage?: number | null
     requiresEntry?: boolean
+    /** The papers in the customer's words: the Auflagen's line and the document's § 15 FZV line (PapersWording). */
+    entryLine?: string | null
+    papersLine?: string | null
     entryNote?: string | null
     conditions?: string[]
     front?: string[]
@@ -316,7 +319,8 @@ function tagClass(state: OrderState): string | null {
                             <p v-if="line.snapshot.front && line.snapshot.front.length" class="bs-proof__line">
                                 Reifen: {{ line.snapshot.front.join(', ') }}<template v-if="line.snapshot.rear && line.snapshot.rear.length && line.snapshot.rear.join() !== line.snapshot.front.join()"> · hinten {{ line.snapshot.rear.join(', ') }}</template>
                             </p>
-                            <p v-if="line.snapshot.requiresEntry" class="bs-proof__line">Eintragung in die Fahrzeugpapiere erforderlich.<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
+                            <p v-if="line.snapshot.requiresEntry" class="bs-proof__line">{{ line.snapshot.entryLine ?? 'Eintragung in die Fahrzeugpapiere erforderlich.' }}<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
+                            <p v-if="line.snapshot.papersLine" class="bs-proof__line">{{ line.snapshot.papersLine }}</p>
                             <p v-for="sentence in line.snapshot.conditions ?? []" :key="sentence" class="bs-proof__line">{{ sentence }}</p>
                             <!-- The tyre answer and its whole sum, unfolded: the proof shows everything the customer could open. -->
                             <template v-if="line.snapshot.tyre">

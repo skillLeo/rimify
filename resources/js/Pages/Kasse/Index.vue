@@ -42,6 +42,7 @@ import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
 import { priceTerms, totalNote } from '../../composables/usePriceTerms'
+import { entryLine } from '../../fitment/papers'
 import { useShared } from '../../composables/useShared'
 import {
     loadStripe,
@@ -674,7 +675,9 @@ function verdictSentence(line: BasketLine): string {
         return ''
     }
 
-    return verdict.sentence ?? `${verdict.label}.${verdict.requiresEntry ? ' Eintragung in die Fahrzeugpapiere erforderlich.' : ''}`
+    const entry = entryLine(verdict.requiresEntry, verdict.papersExempt === true)
+
+    return verdict.sentence ?? `${verdict.label}.${entry ? ` ${entry}` : ''}`
 }
 
 </script>

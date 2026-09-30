@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Domain\Fitment\Verdict\PapersWording;
 use App\Enums\DocumentStatus;
+use App\Mail\OrderConfirmationMail;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\FitmentTyreSize;
+use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
@@ -37,14 +40,17 @@ function detailAdmin(string $role = 'order-manager'): AdminUser
     return AdminUser::query()->where('email', $role.'@rimify.test')->firstOrFail();
 }
 
-/** An order with one wheel line and the verdict the shop gave for it, frozen as at checkout. */
-function soldWithSnapshot(): array
+/**
+ * An order with one wheel line and the verdict the shop gave for it, frozen as at checkout — sold against a document
+ * that frees the papers (§ 15 FZV, as ABE 53841's point 10 does) where `$papersExempt`.
+ */
+function soldWithSnapshot(bool $papersExempt = false): array
 {
     $vehicle = Vehicle::factory()->create(['build_from' => '2019-01-01', 'build_to' => null]);
     $model = WheelModel::factory()->create(['is_demo' => false]);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'width_in' => 8.0, 'et_mm' => 35]);
-    $document = ApprovalDocument::factory()->abe()->create(['kba_number' => '53810', 'issuer' => 'Kraftfahrt-Bundesamt']);
+    $document = ApprovalDocument::factory()->abe()->create(['kba_number' => '53810', 'issuer' => 'Kraftfahrt-Bundesamt', 'papers_correction_required' => $papersExempt ? false : null]);
     $fitment = Fitment::factory()->create(['approval_document_id' => $document->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'source_page' => 6]);
     FitmentTyreSize::factory()->create(['fitment_id' => $fitment->id, 'width_mm' => 225, 'aspect' => 40, 'diameter_in' => 18.0]);
     DocumentCondition::factory()->kind(ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.')->create(['approval_document_id' => $document->id, 'code' => 'K1']);
@@ -91,6 +97,29 @@ it('shows each wheel line with the verdict as it was shown at purchase', functio
             ->has('lines.0.snapshot.tyre.summary')
             ->has('lines.0.snapshot.tyre.basis')
             ->where('lines.0.snapshot.documentToday', null));
+});
+
+it('says the papers as the purchase said them — in the order, on the order page and in the confirmation mail', function (): void {
+    [$order] = soldWithSnapshot(papersExempt: true);
+    $snapshot = OrderLineFitment::query()->sole();
+
+    expect($snapshot->papersExempt())->toBeTrue();
+
+    $this->actingAs(detailAdmin(), 'admin')->get('/admin/bestellungen/'.$order->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('lines.0.snapshot.papersLine', PapersWording::PAPERS_EXEMPT));
+
+    $mail = (new OrderConfirmationMail($order, (new Invoice)->forceFill(['number' => 'TEST-RE-000001'])))->content()->with['lines'][0];
+
+    expect($mail['papers'])->toBe(PapersWording::PAPERS_EXEMPT)
+        ->and($mail['entry'])->not->toBe('Eintragung in die Fahrzeugpapiere erforderlich.');
+
+    // A snapshot frozen before the shop knew the fact (or of a document that says nothing) claims nothing.
+    [$plain] = soldWithSnapshot();
+
+    expect(OrderLineFitment::query()->where('order_line_id', $plain->lines()->value('id'))->sole()->papersExempt())->toBeFalse();
+    $this->actingAs(detailAdmin(), 'admin')->get('/admin/bestellungen/'.$plain->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('lines.0.snapshot.papersLine', null));
 });
 
 it('says when the Gutachten was replaced since, and keeps the snapshot as it was', function (): void {
