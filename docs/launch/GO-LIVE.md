@@ -78,7 +78,7 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
 ```
 
 **Correct:** four files listed (the dump a few MB, the release archive a few hundred MB — on the preview,
-2026-09-29: 100 KB and 112 MB, all four in under a minute); the dump's last line reads
+2026-09-30: 436 KB and 179 MB, all four in about half a minute); the dump's last line reads
 `-- Dump completed on <today>` (the `grep -c` prints `1`); the two trigger counts are **the same number** — 22 on a database
 migrated to the 2026-09-30 release (four for R-12's audit log and fitment snapshots, one for the frozen
 RIMIFY-Check, one against a document superseding itself, eight demo-row guards, two keeping the payment provider's
@@ -383,6 +383,7 @@ $PHP artisan up && $PHP artisan rimify:smoke
 |---|---|---|---|---|---|
 | Local rehearsal (Windows, MySQL 8.4), 2026-09-29 | a scratch copy of the development database, 5,5 MB dump, 14 triggers | 0,4 s | 2,5 s | 1,5 s | **6,8 s**, smoke 7/7 ok |
 | **Staging (Hostinger, MariaDB), 2026-09-29**, with both Borbet drafts in | the preview's database, 429 KB dump, 14 triggers | 0,24 s (archive 8,0 s) | 3,2 s | 5,6 s | **14,4 s**, smoke: every row ok but the product row, which waits for a released, priced wheel (§5) |
+| **Staging, 2026-09-30 — a real release, then its rollback** | the preview's database after Block G, 436 KB dump; 18 triggers before the release, 22 after | 0,25 s (archive 31,8 s, 179 MB) | 3,5 s | 6,4 s | **16,1 s**, smoke: every row ok but the product row (§5) |
 
 The local row proves the steps, not the time on the host: the same MySQL, but no network between the shell
 and the database, SSD, and no `git reset` (the code was already the backup's commit), so 7.3 is caches and
@@ -396,6 +397,14 @@ load stopped at the first trigger (*ERROR 1227 … SET USER privilege* — the d
 left 0 of 14 triggers and most tables missing, and 7.4 took the site up on it: the preview answered with errors
 for about two minutes until the same dump was loaded without the DEFINER clauses. §7.2 now strips them and says
 never to go on with a differing trigger count; the second rehearsal followed that text and is the number above.
+
+The third rehearsal is the first with a real switch, the way a go-live would need it: the preview went down first
+(so nothing saved on it meanwhile was lost), was backed up at `c7ed307d`, got the new release `996ff32e` by §4 —
+whose migration adds four triggers and four columns — and was then rolled back by §7.1–7.4 as written. The
+restore dropped what the release had added (22 triggers back to 18, `invoice_sequences` back to its old columns),
+`git reset` found the old commit, and the renderer came back with the old code's pages — which needed the `pkill`
+now in §7.3: without it the watchdog would have left the new release's renderer answering. The new release then
+went back on (16,8 s). The whole rehearsal, down to the last deploy's smoke, took 88 s.
 
 Rehearse on staging exactly as written: §1 (backup), §3 (down), §7.2–7.4, and time from `down` to the smoke
 test's last row. If the whole rollback takes longer than ten minutes, say so before go-live: the release
