@@ -11,6 +11,7 @@ use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\PapersWording;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\ApprovalDocument;
@@ -60,6 +61,9 @@ final class DocumentPreview
                 'statusLabel' => $verdict->status->labelDe(),
                 'reason' => $verdict->status === VerdictStatus::Permitted || $verdict->status === VerdictStatus::Conditional ? null : $verdict->reason?->textDe,
                 'requiresEntry' => $verdict->requiresEntry,
+                // What the shop will say about the papers, word for word (PapersWording).
+                'entryLine' => PapersWording::entryLine($verdict->requiresEntry, $verdict->papersExempt()),
+                'papersLine' => PapersWording::papersLine($verdict->papersExempt()),
                 'entryNote' => $verdict->entryNoteDe,
                 'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
                 'front' => array_map(static fn ($s): string => $s->labelDe(), $verdict->front->sizes),

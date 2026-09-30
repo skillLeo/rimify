@@ -28,6 +28,7 @@ import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import type { IconName } from '../../art'
 import { totalNote } from '../../composables/usePriceTerms'
+import { PAPERS_EXEMPT, entryLine } from '../../fitment/papers'
 import type { BestellungProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -311,8 +312,9 @@ function openAccount(): void {
                                     v-if="line.verdict.requiresEntry && !line.conditions.some((c) => c.includes('Eintragung'))"
                                     class="ord__entry"
                                 >
-                                    Eintragung in die Fahrzeugpapiere erforderlich.
+                                    {{ entryLine(true, line.verdict.papersExempt === true) }}
                                 </p>
+                                <p v-if="line.verdict.papersExempt" class="ord__entry">{{ PAPERS_EXEMPT }}</p>
                                 <ul v-if="line.conditions.length" class="ord__conditions">
                                     <li v-for="condition in line.conditions" :key="condition">{{ condition }}</li>
                                 </ul>

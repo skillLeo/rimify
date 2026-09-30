@@ -154,6 +154,25 @@ final readonly class FitmentVerdict
     }
 
     /**
+     * The papers need no correction (§ 15 FZV): said only where the wheel may go on the car, and only where every
+     * document the answer rests on frees them (PapersWording). A document that says nothing claims nothing.
+     */
+    public function papersExempt(): bool
+    {
+        if (! $this->isSellable() || $this->document === null || ! $this->document->papersExempt()) {
+            return false;
+        }
+
+        foreach ($this->documents as $document) {
+            if (! $document->papersExempt()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * The wire and storage shape, matching the spec's worked example key for key. This is
      * what `order_line_fitments.verdict` holds, so its stability is a compliance concern, not a
      * formatting preference.

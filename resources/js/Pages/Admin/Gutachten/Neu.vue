@@ -43,6 +43,8 @@ const shape = ref<RecordShape>({
     test_date: '',
     revision_date: '',
     valid_from_production: '',
+    papers_correction: '',
+    missing_annexes: '',
 })
 
 const pdf = ref<File | null>(null)

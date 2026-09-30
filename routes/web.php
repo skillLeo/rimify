@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\SudoController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
+use App\Http\Controllers\Admin\VerkaeuferVersandController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Api\FitmentCountController;
@@ -78,6 +79,7 @@ use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\PaymentSetting;
 use App\Models\StorageSetting;
+use App\Support\Seller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -496,6 +498,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::post('/test', [ZahlungController::class, 'test'])->middleware('throttle:10,1,zahlung-test')->name('zahlung.test');
             // The real invoice numbers, opened once at the client's own (InvoiceSeries) — there is no route back.
             Route::post('/rechnungsnummern', [RechnungsnummernController::class, 'store'])->middleware('throttle:5,1,rechnungsnummern')->name('zahlung.rechnungsnummern');
+        });
+
+        // Einstellungen › Verkäufer & Versand: the seller as the law names it and the shipping terms, read by the
+        // Impressum, the invoice, the mail, the product page and the checkout — the Super-Admin alone, then sudo mode.
+        Route::prefix('/einstellungen/verkaeufer-versand')->middleware(['can:view,'.Seller::class, EnsureSudo::class])->group(function (): void {
+            Route::get('/', [VerkaeuferVersandController::class, 'edit'])->name('verkaeufer-versand.edit');
+            Route::put('/', [VerkaeuferVersandController::class, 'update'])->middleware('throttle:10,1,verkaeufer-versand-update')->name('verkaeufer-versand.update');
         });
 
         // Large PDFs straight into the bucket (PdfUpload): the form, and the app's stand-in for the

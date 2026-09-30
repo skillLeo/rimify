@@ -6,6 +6,7 @@ namespace Tests\Support\Fitment;
 
 use App\Domain\Fitment\Contracts\FitmentRepository;
 use App\Domain\Fitment\Data\ConflictDecision;
+use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 
@@ -78,6 +79,23 @@ final class InMemoryFitmentRepository implements FitmentRepository
         }
 
         return array_values(array_intersect($wheelConfigIds, $documented));
+    }
+
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, DocumentRecord>
+     */
+    public function incompleteDocumentsFor(array $wheelConfigIds): array
+    {
+        $incomplete = [];
+
+        foreach ($this->rows as $row) {
+            if ($row->document->missingAnnexes !== null && in_array($row->wheelConfigId, $wheelConfigIds, true)) {
+                $incomplete[$row->wheelConfigId] ??= $row->document;
+            }
+        }
+
+        return $incomplete;
     }
 
     /**

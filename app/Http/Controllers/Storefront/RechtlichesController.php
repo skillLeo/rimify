@@ -55,12 +55,18 @@ class RechtlichesController extends Controller
         $blocks = $present ? ($this->content->page($slug)['blocks'] ?? []) : [];
 
         // The Impressum's facts from the seller data (§ 5 DDG), from the one place the invoice and the order mail read
-        // too — beside the Kanzlei's text, never instead of it. What is not given yet says so.
+        // too — beside the Kanzlei's text, never instead of it. What is not given yet says so; values the admin marked as
+        // placeholders are shown here only, under a note that says they are placeholders (Seller::stored).
         $provider = null;
 
         if ($slug === 'impressum') {
-            $rows = Seller::current()->impressum();
-            $provider = ['rows' => $rows, 'complete' => ! in_array(null, array_column($rows, 'value'), true)];
+            $seller = Seller::stored();
+            $rows = $seller->impressum();
+            $provider = [
+                'rows' => $rows,
+                'complete' => ! $seller->placeholder && ! in_array(null, array_column($rows, 'value'), true),
+                'placeholder' => $seller->placeholder,
+            ];
         }
 
         return Inertia::render('Rechtliches/Index', [

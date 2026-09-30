@@ -139,6 +139,13 @@ it('reads the rows and the configurations once for the whole batch', function ()
             return $this->inner->configsWithPublishedDocument($wheelConfigIds);
         }
 
+        public function incompleteDocumentsFor(array $wheelConfigIds): array
+        {
+            $this->calls['incomplete'] = ($this->calls['incomplete'] ?? 0) + 1;
+
+            return $this->inner->incompleteDocumentsFor($wheelConfigIds);
+        }
+
         public function findWheelConfigs(array $wheelConfigIds): array
         {
             $this->calls['configs'] = ($this->calls['configs'] ?? 0) + 1;
@@ -164,7 +171,8 @@ it('reads the rows and the configurations once for the whole batch', function ()
 
     $resolver->resolveMany(1, [...BATCH, 101, 102]);
 
-    expect($counting->calls)->toBe(['configs' => 1, 'rows' => 1, 'documented' => 1]);
+    // Whether a documented wheel's document is held only in part (Anlagen missing) is asked once too, for the batch.
+    expect($counting->calls)->toBe(['configs' => 1, 'rows' => 1, 'documented' => 1, 'incomplete' => 1]);
 });
 
 it('asks nothing for an empty batch', function (): void {

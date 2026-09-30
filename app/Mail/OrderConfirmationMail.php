@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Domain\Fitment\Verdict\PapersWording;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
 use App\Services\Content\LegalTexts;
 use App\Support\GermanFormat;
 use App\Support\Seller;
+use App\Support\Shipping;
 use App\Support\WithdrawalForm;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -68,7 +70,9 @@ class OrderConfirmationMail extends Mailable
                     'NOT_PERMITTED' => 'Nicht freigegeben.',
                     default => 'Keine Freigabe hinterlegt.',
                 },
-                'entry' => $snapshot !== null && (bool) $snapshot->requires_entry,
+                // The papers, in the two lines the purchase showed (PapersWording): the Auflagen's, and the document's.
+                'entry' => $snapshot === null ? null : PapersWording::entryLine((bool) $snapshot->requires_entry, $snapshot->papersExempt()),
+                'papers' => $snapshot === null ? null : PapersWording::papersLine($snapshot->papersExempt()),
                 'conditions' => $conditions,
             ];
         }
@@ -91,7 +95,9 @@ class OrderConfirmationMail extends Mailable
                     trim($address->street.' '.$address->house_number),
                     trim($address->zip_code.' '.$address->city),
                 ])),
-                'deliveryTime' => is_string($time = config('rimify.shipping.delivery_time')) && trim($time) !== '' ? trim($time) : null,
+                'deliveryTime' => Shipping::current()->deliveryTime(),
+                // The seller under the signature, as on the invoice (§ 35a GmbHG): only what is given, never a placeholder.
+                'sellerLine' => Seller::current()->documentLine(),
                 'invoiceNumber' => $this->invoice->number,
                 'invoiceUrl' => Invoices::link($this->invoice),
                 // Signed: the page opens on any device the customer reads this mail on, not only where they ordered.

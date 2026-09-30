@@ -94,7 +94,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'tyreSizes.conditionCodes', 'conditionCodes'])
+            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.supplementTo', 'tyreSizes.conditionCodes', 'conditionCodes'])
             ->where('fitments.vehicle_id', $vehicleId)
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             ->tap($this->visible(...))
@@ -126,6 +126,33 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             ->map(static fn (mixed $id): int => (int) $id)
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  list<int>  $wheelConfigIds
+     * @return array<int, DocumentRecord>
+     */
+    public function incompleteDocumentsFor(array $wheelConfigIds): array
+    {
+        if ($wheelConfigIds === []) {
+            return [];
+        }
+
+        $rows = Fitment::query()
+            ->with(['approvalDocument.speedDeratings', 'approvalDocument.supplementTo'])
+            ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
+            ->whereHas('approvalDocument', static fn (Builder $q) => $q->whereNotNull('missing_annexes')->where('missing_annexes', '<>', ''))
+            ->tap($this->visible(...))
+            ->orderBy('fitments.id')
+            ->get(['fitments.id', 'fitments.wheel_config_id', 'fitments.approval_document_id']);
+
+        $incomplete = [];
+
+        foreach ($rows as $row) {
+            $incomplete[(int) $row->wheel_config_id] ??= self::documentRecord($row->approvalDocument, null);
+        }
+
+        return $incomplete;
     }
 
     /**
@@ -316,21 +343,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         return new FitmentRow(
             id: $fitment->id,
-            document: new DocumentRecord(
-                id: $document->id,
-                kind: $document->kind->value,
-                number: $document->number(),
-                revision: $document->revision,
-                issuedOn: $document->issued_on === null
-                    ? null
-                    : DateTimeImmutable::createFromInterface($document->issued_on),
-                pdfKey: $document->pdf_key,
-                pdfSha256: $document->pdf_sha256,
-                sourcePage: $fitment->source_page,
-                issuer: $document->issuer,
-                notesDe: array_values(array_filter([$document->baseMissingDe(), $document->productionFromDe()])),
-                speedDerating: self::speedDerating($document),
-            ),
+            document: self::documentRecord($document, $fitment->source_page),
             vehicleId: $fitment->vehicle_id,
             wheelConfigId: $fitment->wheel_config_id,
             axle: $fitment->axle->value,
@@ -349,6 +362,28 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             unresolvedCodes: array_keys($unresolved),
             filters: array_values($filters),
             ownRequiresEntry: $overridden ?? $rowEntry,
+        );
+    }
+
+    /** The document as the engine reads it — for a row, with the page that row stands on. */
+    private static function documentRecord(ApprovalDocument $document, ?int $sourcePage): DocumentRecord
+    {
+        return new DocumentRecord(
+            id: $document->id,
+            kind: $document->kind->value,
+            number: $document->number(),
+            revision: $document->revision,
+            issuedOn: $document->issued_on === null
+                ? null
+                : DateTimeImmutable::createFromInterface($document->issued_on),
+            pdfKey: $document->pdf_key,
+            pdfSha256: $document->pdf_sha256,
+            sourcePage: $sourcePage,
+            issuer: $document->issuer,
+            notesDe: array_values(array_filter([$document->baseMissingDe(), $document->productionFromDe()])),
+            speedDerating: self::speedDerating($document),
+            papersCorrectionRequired: $document->papersCorrectionRequired(),
+            missingAnnexes: $document->missing_annexes === null || trim($document->missing_annexes) === '' ? null : trim($document->missing_annexes),
         );
     }
 

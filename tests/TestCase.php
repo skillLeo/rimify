@@ -6,12 +6,32 @@ namespace Tests;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\ParallelTesting;
 
 abstract class TestCase extends BaseTestCase
 {
     // Declared here rather than in tests/Pest.php so that migrateFreshUsing() below can override
     // the trait's version — a trait applied by Pest on the generated class would win over us.
     use RefreshDatabase;
+
+    /**
+     * Parallel processes share the disk, not the database: each gets its own directories for what the demo seeders
+     * draw and `demo:purge` removes. One shared directory let a process's purge meet another's seed half-way — the
+     * directory the purge had just removed was there again (DemoCataloguePurgeTest in the full run of 01.10.2026).
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $token = ParallelTesting::token();
+
+        if ($token !== false) {
+            config([
+                'rimify.demo.wheels_dir' => config('rimify.demo.wheels_dir').'-'.$token,
+                'rimify.demo.placeholders_dir' => config('rimify.demo.placeholders_dir').'-'.$token,
+            ]);
+        }
+    }
 
     /**
      * Feature tests run against a real MySQL 8.4 database (docs/decisions.md D-009).

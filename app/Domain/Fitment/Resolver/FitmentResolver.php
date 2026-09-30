@@ -166,6 +166,8 @@ final readonly class FitmentResolver
         $documented = $uncovered === []
             ? []
             : array_flip($this->fitments->configsWithPublishedDocument($uncovered));
+        // A document we hold only part of (Anlagen missing): a car its rows do not name is not refused on its word.
+        $incomplete = $documented === [] ? [] : $this->fitments->incompleteDocumentsFor(array_keys($documented));
 
         foreach ($ids as $id) {
             $wheel = $wheels[$id] ?? null;
@@ -176,6 +178,7 @@ final readonly class FitmentResolver
                     $wheel,
                     isset($documented[$id]),
                     $rowsByConfig[$id] ?? [],
+                    $incomplete[$id] ?? null,
                 );
 
                 continue;
@@ -1319,12 +1322,14 @@ final readonly class FitmentResolver
      *
      * @param  bool  $documented  whether any published, valid document holds a row for the wheel
      * @param  list<FitmentRow>  $allRows
+     * @param  DocumentRecord|null  $incomplete  a document of the wheel's whose Verwendungsbereich we hold only in part
      */
     private function negativeWithoutCoverage(
         VehicleRecord $vehicle,
         ?WheelConfigRecord $wheel,
         bool $documented,
         array $allRows,
+        ?DocumentRecord $incomplete = null,
     ): FitmentVerdict {
         if (! $documented) {
             // We hold no evidence either way — and this is what the catalogue-gap report ranks.
@@ -1333,6 +1338,19 @@ final readonly class FitmentResolver
                 $vehicle,
                 $wheel,
                 VerdictReason::of(VerdictReason::NO_DOCUMENT),
+            );
+        }
+
+        // The pages we hold do not name the car, and pages of the document are missing (ABE 53841: Anlagen 1–15 of 16):
+        // the one that names it may be among them. „We have not read that page yet“, never „no approval“ (R-07). A car
+        // the pages we hold DO name, and rule out by window or geometry, stays refused below — the document spoke.
+        if ($allRows === [] && $incomplete !== null) {
+            return $this->negative(
+                VerdictStatus::Unknown,
+                $vehicle,
+                $wheel,
+                VerdictReason::of(VerdictReason::ANNEX_MISSING),
+                $incomplete,
             );
         }
 

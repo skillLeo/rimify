@@ -78,6 +78,7 @@ class BestellungController extends Controller
                 'verdict' => $snapshot === null ? null : [
                     'status' => $snapshot->verdict_status,
                     'requiresEntry' => (bool) $snapshot->requires_entry,
+                    'papersExempt' => $snapshot->papersExempt(),
                     'documentRevision' => (int) $snapshot->document_revision,
                     'detail' => $snapshot->verdict,
                 ],

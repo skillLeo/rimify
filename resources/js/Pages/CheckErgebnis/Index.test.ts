@@ -1,6 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
+import { ABNAHME_REQUIRED, PAPERS_EXEMPT } from '../../fitment/papers'
 import type { CheckResultView } from '../../types/pages'
 import type { VerdictStatus } from '../../types/rimify'
 
@@ -107,6 +108,19 @@ describe('CheckErgebnis — "no document" leads to e-mail, not to the old form',
 
         expect(wrapper.find('.res__body').text()).toContain('Die Felge ist freigegeben, die Reifen dazu können wir aber nicht bestätigen.')
         expect(wrapper.find('.res__body').text()).not.toContain('kein Gutachten')
+    })
+
+    // ABE 53841, points 10 and 11: the printed check says both answers about the papers, each on its own line.
+    it('prints the Abnahme and „keine Berichtigung der Fahrzeugpapiere“ as two lines where the document frees the papers', () => {
+        const exempt = mountResult('CONDITIONAL', { requiresEntry: true, papersExempt: true })
+
+        const notes = (w: VueWrapper): string[] => w.findAll('[aria-labelledby="res-cond-h"] .res__note').map((p) => p.text())
+
+        expect(notes(exempt)).toEqual([ABNAHME_REQUIRED, PAPERS_EXEMPT])
+
+        const plain = mountResult('CONDITIONAL', { requiresEntry: true })
+
+        expect(notes(plain)).toEqual(['Eintragung in die Fahrzeugpapiere erforderlich.'])
     })
 
     it('keeps the other states on their Inertia links', () => {

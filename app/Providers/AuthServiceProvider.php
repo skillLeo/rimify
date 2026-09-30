@@ -37,6 +37,7 @@ use App\Policies\OrderPolicy;
 use App\Policies\PagePolicy;
 use App\Policies\ReviewFeedbackPolicy;
 use App\Policies\SavedViewPolicy;
+use App\Policies\SellerSettingsPolicy;
 use App\Policies\StorageSettingPolicy;
 use App\Policies\TpmsSensorPricePolicy;
 use App\Policies\VehiclePolicy;
@@ -44,6 +45,7 @@ use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\PdfUpload;
+use App\Support\Seller;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Notifications\DatabaseNotification;
@@ -80,6 +82,8 @@ final class AuthServiceProvider extends ServiceProvider
         // Not a model: the demo set as a whole (DemoTables), taken away from the rail's strip.
         DemoTables::class => DemoDataPolicy::class,
         StorageSetting::class => StorageSettingPolicy::class,
+        // Not a model: the seller and the shipping terms, one settings page (Einstellungen › Verkäufer & Versand).
+        Seller::class => SellerSettingsPolicy::class,
         // Not a model: a PDF upload before its row exists (PdfUpload).
         PdfUpload::class => DocumentUploadPolicy::class,
         WheelModel::class => WheelModelPolicy::class,

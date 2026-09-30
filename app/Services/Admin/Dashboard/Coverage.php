@@ -24,12 +24,12 @@ use Illuminate\Support\Facades\DB;
  *
  * @phpstan-type Cell array{size: string, count: int, level: int, sentence: string, href: string}
  * @phpstan-type Row array{make: string, variants: int, covered: int, cells: list<Cell>}
- * @phpstan-type Matrix array{sizes: list<array{key: string, label: string}>, rows: list<Row>, max: int, summary: array{fitments: string, variants: string, sentence: string}, computedAt: string, incomplete: list<array{document: string, href: string, sentence: string, base: string|null}>}
+ * @phpstan-type Matrix array{sizes: list<array{key: string, label: string}>, rows: list<Row>, max: int, summary: array{fitments: string, variants: string, sentence: string}, computedAt: string, incomplete: list<array{document: string, href: string, sentence: string, base: string|null}>, missingAnnexes: list<array{document: string, href: string, annexes: string}>, noSpeedTable: list<array{document: string, href: string}>}
  */
 final class Coverage
 {
     /** Versioned: a change to what the matrix carries (its labels) must not wait an hour for the cache. */
-    public const CACHE_KEY = 'admin.coverage.v3';
+    public const CACHE_KEY = 'admin.coverage.v4';
 
     public const CACHE_SECONDS = 3600;
 
@@ -132,10 +132,23 @@ final class Coverage
                     'sentence' => (string) $d->baseMissingDe(),
                     'base' => $d->supplement_to_number,
                 ])->values()->all(),
+            // A released document we hold only in part (Anlagen of its Verwendungsbereich missing — ABE 53841: 1–15 of 16):
+            // the matrix counts the cars its pages name and says there are more we have not read; the shop answers a car
+            // those pages do not name with „Anlage liegt noch nicht vor“, never „nicht freigegeben“.
+            'missingAnnexes' => ApprovalDocument::query()->currentlyValid()
+                ->whereNotNull('missing_annexes')->where('missing_annexes', '<>', '')
+                ->orderBy('id')->get()
+                ->map(static fn (ApprovalDocument $d): array => [
+                    'document' => FitmentRows::label($d),
+                    'href' => '/admin/gutachten/'.$d->id,
+                    'annexes' => (string) $d->missing_annexes,
+                ])->values()->all(),
             // A released document that prints no table of tyre load at speed: above 210 km/h the shop confirms
             // no tyres from it, and says so to the customer (FitmentResolver) — here the gap is named for the
-            // people who run the shop, not only in the answer a fast car gets.
+            // people who run the shop, not only in the answer a fast car gets. Only a document with rows of its own: a
+            // base whose Verwendungsbereich is its Nachtrag's Anlagen (ABE 53841) approves nothing a table could limit.
             'noSpeedTable' => ApprovalDocument::query()->currentlyValid()
+                ->whereHas('fitments')
                 ->whereNotExists(static fn ($q) => $q->selectRaw('1')->from('document_speed_deratings as d')->whereColumn('d.approval_document_id', 'approval_documents.id'))
                 ->orderBy('id')->get()
                 ->map(static fn (ApprovalDocument $d): array => [

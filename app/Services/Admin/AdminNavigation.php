@@ -167,6 +167,8 @@ final class AdminNavigation
                 ['label' => 'Medien und Speicher', 'href' => '/admin/einstellungen/speicher', 'icon' => 'storage', 'super' => true],
                 // The payment keys: the Super-Admin alone, as the bucket's (PaymentSettingPolicy).
                 ['label' => 'Zahlung', 'href' => '/admin/einstellungen/zahlung', 'icon' => 'payment', 'super' => true],
+                // The seller as the law names it and the shipping terms: the Super-Admin alone (SellerSettingsPolicy).
+                ['label' => 'Verkäufer & Versand', 'href' => '/admin/einstellungen/verkaeufer-versand', 'icon' => 'shipping', 'super' => true],
             ],
         ],
         [
@@ -225,6 +227,7 @@ final class AdminNavigation
         '/admin/system',
         '/admin/einstellungen/speicher',
         '/admin/einstellungen/zahlung',
+        '/admin/einstellungen/verkaeufer-versand',
     ];
 
     /** The role `super` pages ask for (AdminUser::isSuperAdmin). */

@@ -7,6 +7,7 @@ namespace App\Services\Admin\Orders;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\PapersWording;
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
 use App\Models\Address;
@@ -170,6 +171,9 @@ final class OrderDetail
             'issuer' => $document?->issuer,
             'sourcePage' => $document?->sourcePage,
             'requiresEntry' => $verdict->requiresEntry,
+            // The papers in the words the customer read (PapersWording): the Auflagen's line, the document's.
+            'entryLine' => PapersWording::entryLine($verdict->requiresEntry, $verdict->papersExempt()),
+            'papersLine' => PapersWording::papersLine($verdict->papersExempt()),
             'entryNote' => $verdict->entryNoteDe,
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
             'front' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->front->sizes),

@@ -14,10 +14,12 @@
   "annex": "16",
   "designation_number": "KBA-P 00126-00",
   "revision_date": "2025-07-02",
-  "valid_from_production": "02.2021"
+  "valid_from_production": "02.2021",
+  "missing_annexes": "1–15"
  },
  "read": [
   "Seite 1: Gutachten 366-0350-21-WIRD/N1 zur Erteilung eines Nachtrags zur ABE 53841, Anlage 16, Radtyp DB8GT2-8518, Stand 02.07.2025; 8 1/2 J X 18 H2, ET 35, 120/5, Mittenzentrierung; Ausführung 512035725, „DB8GT2-8518 LK120 / Ø72,5-60,1“, Zentrierring ohne, Mittenloch 72,5, Radlast 650 kg, Abrollumfang 2200 mm, gültig ab Fertigungsdatum 02/21 (eingetragen als 02.2021).",
+  "Das Grundgutachten ABE 53841 liegt seit dem 30.09.2026 vor (abe-53841.json): Der Nachtrag ist damit verknüpft und trägt dessen Punkt 10 (§ 15 FZV) mit. Sein Verwendungsbereich sind die Anlagen 1–16 (Seite 12 der ABE-Datei); uns liegt Anlage 16 vor – eingetragen als „Fehlende Anlagen: 1–15“.",
   "Ein Ausstellungsdatum druckt der Nachtrag nicht, nur „Stand: 02.07.2025“; Prüfort und Prüfdatum ebenso nicht. Aussteller: TÜV AUSTRIA GMBH, Räder und Reifenprüfung, Wien (Seite 24). Benannt unter KBA-P 00126-00.",
   "Eine eigene Tabelle der Tragfähigkeit bei Geschwindigkeit druckt der Nachtrag nicht (Seiten 1–24). Er druckt den Lastindex und oft das Geschwindigkeitssymbol je Reifengröße; nach 10B beschreibt der gedruckte Lastindex die mindesterforderliche Tragfähigkeit.",
   "Seiten 19–23: „Nacharbeitsprofile Fahrzeug“ für die Typen 3C, 1C, 3L, 1K4 und 3K. Für 1K2 druckt der Nachtrag kein Profil, obwohl dessen Zeile (Seite 3) 26B, 26N, 26J, 27F und 27H nennt.",

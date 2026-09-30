@@ -10,7 +10,7 @@ Deine Bestellung **{{ $number }}** ist bezahlt. Hier ist alles, was dazugehört 
 @foreach ($lines as $line)
 **{{ $line['quantity'] }} × {{ $line['label'] }}** – {{ $line['total'] }}
 @if ($line['verdict'])
-{{ $line['verdict'] }}@if ($line['entry']) Eintragung in die Fahrzeugpapiere erforderlich.@endif
+{{ $line['verdict'] }}@if ($line['entry']) {{ $line['entry'] }}@endif @if ($line['papers']) {{ $line['papers'] }}@endif
 
 @foreach ($line['conditions'] as $condition)
 - {{ $condition }}
@@ -48,6 +48,10 @@ Bestellung ansehen
 Fragen zur Bestellung? Antworte einfach auf diese Mail und nenn die Bestellnummer.
 
 RIMIFY
+@if ($sellerLine !== '')
+
+<small>{{ $sellerLine }}</small>
+@endif
 
 ---
 

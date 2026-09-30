@@ -65,4 +65,15 @@ describe('Rechtliches', () => {
 
         expect(wrapper.get('.rec__provider').text()).not.toContain('Vorläufig')
     })
+
+    it('marks placeholder values as placeholders, never as the operator’s own', () => {
+        const provider = { complete: false, placeholder: true, rows: [{ label: 'Anbieter', value: 'Beispiel Handels GmbH' }] }
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider } })
+        const note = wrapper.get('.rec__placeholder')
+
+        expect(note.text()).toBe('Platzhalter: Die folgenden Angaben sind Beispielwerte, nicht die des Betreibers. Sie werden vor dem Start ersetzt.')
+        expect(wrapper.get('.rec__provider').text()).not.toContain('Vorläufig')
+        // The note comes before the values it qualifies.
+        expect(note.element.compareDocumentPosition(wrapper.get('.rec__facts').element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
 })

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Fitment\Verdict\FitmentVerdict;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
+use Throwable;
 
 /**
  * The verdict as the customer saw it, frozen onto the order line (R-12).
@@ -68,6 +70,20 @@ class OrderLineFitment extends Model
             'order_line_fitments is append-only: it records what the customer was shown at the '
             .'moment of purchase, and a record that can change has no evidential value.'
         );
+    }
+
+    /**
+     * Whether the customer was told the papers need no correction (§ 15 FZV), read off the verdict as frozen — the
+     * order page, the mail and the admin say what the purchase said (PapersWording). A snapshot written before the fact
+     * existed, or one it cannot read, claims nothing.
+     */
+    public function papersExempt(): bool
+    {
+        try {
+            return FitmentVerdict::fromArray($this->verdict)->papersExempt();
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /** @return BelongsTo<OrderLine, $this> */

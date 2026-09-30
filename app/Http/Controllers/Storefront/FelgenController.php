@@ -38,6 +38,7 @@ use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
 use App\Support\Money;
+use App\Support\Shipping;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -301,6 +302,8 @@ class FelgenController extends Controller
             // Lager" and says it cannot be ordered yet. The basket stays walkable; the checkout
             // refuses the order on the server (ACCURACY.md D4).
             'demo' => (bool) $wheel->is_demo,
+            // Delivery time and shipping, as Einstellungen › Verkäufer & Versand gives them; null while nothing is.
+            'shipping' => Shipping::current()->summary(),
         ]);
     }
 
@@ -487,6 +490,8 @@ class FelgenController extends Controller
             'sellable' => $verdict->isSellable(),
             'requiresEntry' => $verdict->requiresEntry,
             'entryNoteDe' => $verdict->entryNoteDe,
+            // The document frees the papers from correction (§ 15 FZV, ABE 53841 point 10): its own line (PapersWording).
+            'papersExempt' => $verdict->papersExempt(),
             // The Mittenlochbohrung the covering documents state for THIS car, formatted by the
             // one helper (R-10), or null where they state none or disagree. Never the rim's own
             // figure: that arrives beside it as `centreBore` and is labelled as the rim's, so the

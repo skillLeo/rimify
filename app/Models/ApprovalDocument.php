@@ -38,6 +38,8 @@ use LogicException;
  * @property CarbonImmutable|null $test_date
  * @property CarbonImmutable|null $revision_date
  * @property CarbonImmutable|null $valid_from_production the first day of the month a wheel must be made from
+ * @property bool|null $papers_correction_required § 15 FZV: false = no correction of the papers; null = not said
+ * @property string|null $missing_annexes the Anlagen of its Verwendungsbereich we do not hold („1–15“)
  */
 class ApprovalDocument extends Model
 {
@@ -49,6 +51,7 @@ class ApprovalDocument extends Model
         'revision', 'supersedes_id', 'valid_from', 'valid_to',
         'supplement_to_id', 'supplement_to_number', 'annex', 'test_report_number', 'copy_number',
         'designation_number', 'test_site', 'test_date', 'revision_date', 'valid_from_production',
+        'papers_correction_required', 'missing_annexes',
         'pdf_key', 'pdf_sha256', 'page_count', 'status', 'created_by',
     ];
 
@@ -66,6 +69,7 @@ class ApprovalDocument extends Model
             'valid_from_production' => 'immutable_date',
             'revision' => 'integer',
             'page_count' => 'integer',
+            'papers_correction_required' => 'boolean',
         ];
     }
 
@@ -198,6 +202,38 @@ class ApprovalDocument extends Model
         $base = trim((string) $this->supplement_to_number);
 
         return 'Grundgutachten '.($base === '' ? 'dieses Nachtrags' : $base).' liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.';
+    }
+
+    /**
+     * Whether the papers must be corrected (§ 15 FZV), as this document says — or, for a Nachtrag that says nothing of
+     * its own, as the base it supplements says: the ABE's point 10 covers every combination its Verwendungsbereich
+     * approves, the Nachtrag's included. A base counts only once a person has released it: a draft's facts, not yet
+     * checked against its PDF, never reach a customer. Null when nothing released says anything: nothing is claimed.
+     */
+    public function papersCorrectionRequired(): ?bool
+    {
+        if ($this->papers_correction_required !== null) {
+            return (bool) $this->papers_correction_required;
+        }
+
+        $base = $this->kind === ApprovalKind::Nachtrag ? $this->supplementTo : null;
+
+        if ($base === null || $base->status !== DocumentStatus::Published || $base->papers_correction_required === null) {
+            return null;
+        }
+
+        return (bool) $base->papers_correction_required;
+    }
+
+    /**
+     * `Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor.` — for the record and the Abdeckung; null
+     * while every Anlage is held.
+     */
+    public function scopeIncompleteDe(): ?string
+    {
+        $missing = trim((string) $this->missing_annexes);
+
+        return $missing === '' ? null : 'Verwendungsbereich unvollständig – Anlagen '.$missing.' liegen nicht vor.';
     }
 
     /** `Gilt für Felgen, die ab 03/2021 gefertigt wurden.` — null when the document names no month. */

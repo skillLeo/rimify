@@ -219,9 +219,10 @@ A person, on the production site, never through the repository (R-16, `docs/dev/
    seven events `StripeGateway::EVENTS` names.
 3. **Apple Pay**: Stripe-Dashboard › Einstellungen › Zahlungsmethoden › Apple Pay › Domain hinzufügen; put the file
    Stripe offers at `public/.well-known/apple-developer-merchantid-domain-association` and press „Verifizieren“.
-4. `.env`: `RIMIFY_PAYMENTS=stripe`, `RIMIFY_SHIPPING_COST_CENTS`, `RIMIFY_DELIVERY_TIME` and the `RIMIFY_SELLER_*`
-   lines from the client (BLOCKED 19, 20) — including `RIMIFY_SELLER_SMALL_BUSINESS=true` if, and only if, the
-   client's tax adviser confirms Kleinunternehmer status under § 19 UStG; `php artisan config:cache`.
+4. `.env`: `RIMIFY_PAYMENTS=stripe` — and `RIMIFY_SELLER_SMALL_BUSINESS` stays `false` (the client: normal VAT,
+   30.09.2026); `php artisan config:cache`. The seller and the shipping (BLOCKED 19, 20) are entered by the client
+   in **Einstellungen › Verkäufer & Versand**, with no box ticked as „Platzhalter“; the `RIMIFY_SELLER_*` and
+   shipping lines in `.env` only answer while that page was never saved.
 5. **Einstellungen › Zahlung › Rechnungsnummern**, once and for good: the first invoice number and the first credit
    note number the client's own accounting will issue next, the check box, „Rechnungsnummern eröffnen“. The page
    shows the first number as the invoice will print it (`RE-001043`) — compare it with the accounting before

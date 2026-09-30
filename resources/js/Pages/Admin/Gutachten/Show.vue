@@ -316,6 +316,10 @@ const TONE: Record<string, string | null> = {
                     </dd>
                 </div>
                 <div v-for="entry in document.header" :key="entry.label" class="adm-facts__row"><dt>{{ entry.label }}</dt><dd>{{ entry.value }}</dd></div>
+                <div v-if="document.scopeIncomplete" class="adm-facts__row">
+                    <dt>Verwendungsbereich</dt>
+                    <dd>{{ document.scopeIncomplete }}</dd>
+                </div>
                 <div class="adm-facts__row">
                     <dt>PDF</dt>
                     <dd>
@@ -450,7 +454,8 @@ const TONE: Record<string, string | null> = {
                     </div>
                     <p v-if="verdict.reason" class="gs-verdict__line">{{ verdict.reason }}</p>
                     <p v-if="verdict.front.length" class="gs-verdict__line">Reifen: {{ verdict.front.join(', ') }}<template v-if="verdict.rear.length && verdict.rear.join() !== verdict.front.join()"> · hinten {{ verdict.rear.join(', ') }}</template></p>
-                    <p v-if="verdict.requiresEntry" class="gs-verdict__line">Eintragung in die Fahrzeugpapiere erforderlich.<template v-if="verdict.entryNote"> {{ verdict.entryNote }}</template></p>
+                    <p v-if="verdict.requiresEntry" class="gs-verdict__line">{{ verdict.entryLine ?? ENTRY_LINE }}<template v-if="verdict.entryNote"> {{ verdict.entryNote }}</template></p>
+                    <p v-if="verdict.papersLine" class="gs-verdict__line">{{ verdict.papersLine }}</p>
                     <!-- An Auflage that repeats the entry line word for word is not said twice. -->
                     <p v-for="(sentence, i) in verdict.conditions.filter((s) => !(verdict.requiresEntry && s === ENTRY_LINE))" :key="i" class="gs-verdict__line">{{ sentence }}</p>
                 </li>

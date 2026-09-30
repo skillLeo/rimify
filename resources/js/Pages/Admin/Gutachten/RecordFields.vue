@@ -31,7 +31,7 @@ function err(key: string): string {
     return props.errors[key] ?? ''
 }
 
-const HEADER = ['annex', 'test_report_number', 'copy_number', 'designation_number', 'test_site', 'test_date', 'revision_date', 'valid_from_production'] as const
+const HEADER = ['annex', 'test_report_number', 'copy_number', 'designation_number', 'test_site', 'test_date', 'revision_date', 'valid_from_production', 'papers_correction', 'missing_annexes'] as const
 
 /* Unfolded when anything in it is filled, or refused — opened by the page, never closed by it: a field
    emptied while typing does not fold the section away under the cursor (B-01). */
@@ -139,6 +139,41 @@ watch(refused, (value) => {
                     >
                     <p :id="`${id('production')}-help`" class="form-field__help">Monat und Jahr. Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht – der Shop sagt das dazu.</p>
                     <p :id="`${id('production')}-err`" class="form-field__error">{{ err('valid_from_production') }}</p>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label" :for="id('papers')">Berichtigung der Fahrzeugpapiere</label>
+                    <select
+                        :id="id('papers')"
+                        v-model="shape.papers_correction"
+                        class="input"
+                        :aria-invalid="err('papers_correction') ? 'true' : undefined"
+                        :aria-describedby="`${id('papers')}-help ${id('papers')}-err`"
+                    >
+                        <option value="">Steht nicht im Dokument</option>
+                        <option value="not_required">Nicht erforderlich (§&nbsp;15 FZV)</option>
+                        <option value="required">Erforderlich</option>
+                    </select>
+                    <p :id="`${id('papers')}-help`" class="form-field__help">
+                        Was das Dokument selbst sagt, etwa Punkt 10 der ABE 53841. „Nicht erforderlich“ sieht der Kunde als eigene Zeile. Ein Nachtrag ohne eigene Angabe übernimmt es, sobald sein Grundgutachten freigegeben ist.
+                    </p>
+                    <p :id="`${id('papers')}-err`" class="form-field__error">{{ err('papers_correction') }}</p>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label" :for="id('annexes')">Fehlende Anlagen</label>
+                    <input
+                        :id="id('annexes')"
+                        v-model="shape.missing_annexes"
+                        class="input rsf-short"
+                        type="text"
+                        maxlength="64"
+                        placeholder="z. B. 1–15"
+                        :aria-invalid="err('missing_annexes') ? 'true' : undefined"
+                        :aria-describedby="`${id('annexes')}-help ${id('annexes')}-err`"
+                    >
+                    <p :id="`${id('annexes')}-help`" class="form-field__help">
+                        Anlagen des Verwendungsbereichs, die uns nicht vorliegen. Solange hier etwas steht, bekommt ein Fahrzeug, das die vorliegenden Seiten nicht nennen, im Shop den Hinweis, dass die Anlage noch nicht vorliegt – kein „Nicht freigegeben“.
+                    </p>
+                    <p :id="`${id('annexes')}-err`" class="form-field__error">{{ err('missing_annexes') }}</p>
                 </div>
             </div>
         </details>

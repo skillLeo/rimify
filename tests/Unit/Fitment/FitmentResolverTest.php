@@ -9,6 +9,7 @@ use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
+use App\Domain\Fitment\Verdict\PapersWording;
 use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
@@ -120,6 +121,73 @@ it('yields NOT_PERMITTED when a document exists but covers no row for this vehic
 
     expect($verdict->status)->toBe(VerdictStatus::NotPermitted)
         ->and($verdict->reason?->code)->toBe(VerdictReason::NOT_COVERED);
+});
+
+/*
+ * UNKNOWN, not NOT_PERMITTED — a document we hold only in part. ABE 53841's Verwendungsbereich is Anlagen 1–16; we hold
+ * Anlage 16. A car the pages we hold do not name may stand on a page we have not read.
+ */
+
+function incompleteDocument(): DocumentRecord
+{
+    return new DocumentRecord(id: 11, kind: 'NACHTRAG', number: '366-0350-21-WIRD/N1', revision: 1, missingAnnexes: '1–15');
+}
+
+it('says UNKNOWN for a car the pages we hold do not name while Anlagen of the document are missing', function (): void {
+    // The document names another car, never this one.
+    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: RS4_SECOND, document: incompleteDocument())])
+        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->reason?->code)->toBe(VerdictReason::ANNEX_MISSING)
+        ->and($verdict->reason?->textDe)->toBe('Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor. Bis dahin können wir die Freigabe nicht bestätigen.')
+        ->and($verdict->document?->id)->toBe(11)
+        ->and($verdict->isSellable())->toBeFalse();
+});
+
+it('still refuses a car the pages we hold name and rule out, Anlagen missing or not — the document spoke', function (): void {
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(window: new BuildWindow(new DateTimeImmutable('2024-01-01'), null), document: incompleteDocument()),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::NotPermitted)
+        ->and($verdict->reason?->code)->toBe(VerdictReason::OUTSIDE_BUILD_WINDOW);
+});
+
+it('carries the document’s § 15 FZV exemption on a positive verdict, and freezes it with the verdict', function (): void {
+    $base = FitmentFixtures::document();
+    $exempt = new DocumentRecord(
+        id: $base->id, kind: 'ABE', number: '53841', revision: $base->revision, issuedOn: $base->issuedOn, pdfKey: $base->pdfKey,
+        pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating, papersCorrectionRequired: false,
+    );
+    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(document: $exempt)])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->document?->papersExempt())->toBeTrue()
+        ->and(FitmentVerdict::fromArray($verdict->toArray())->document?->papersExempt())->toBeTrue()
+        // A document that says nothing claims nothing.
+        ->and(FitmentFixtures::resolver([FitmentFixtures::row()])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID)->document?->papersExempt())->toBeFalse();
+
+    // Two questions, two lines; where the document says nothing, the words the shop always had.
+    expect(PapersWording::entryLine(true, true))->toBe(PapersWording::ABNAHME_REQUIRED)
+        ->and(PapersWording::entryLine(true, false))->toBe('Eintragung in die Fahrzeugpapiere erforderlich.')
+        ->and(PapersWording::entryLine(false, true))->toBeNull()
+        ->and(PapersWording::papersLine(true))->toBe("Keine Berichtigung der Fahrzeugpapiere nötig (§\u{00A0}15 FZV).")
+        ->and(PapersWording::papersLine(false))->toBeNull();
+});
+
+it('never carries the exemption on a verdict that does not let the wheel on the car', function (): void {
+    $base = FitmentFixtures::document();
+    $exempt = new DocumentRecord(
+        id: $base->id, kind: 'ABE', number: '53841', revision: $base->revision, issuedOn: $base->issuedOn, pdfKey: $base->pdfKey,
+        pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating, papersCorrectionRequired: false,
+    );
+    $refused = FitmentFixtures::resolver([
+        FitmentFixtures::row(window: new BuildWindow(new DateTimeImmutable('2024-01-01'), null), document: $exempt),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($refused->status)->toBe(VerdictStatus::NotPermitted)
+        ->and($refused->papersExempt())->toBeFalse();
 });
 
 it('yields NOT_PERMITTED when the document does not cover the build window', function (): void {

@@ -51,7 +51,14 @@ final class DocumentRelease
         $count = (clone $rows)->count();
 
         if ($count === 0) {
-            $blockers[] = 'Es gibt noch keine Zeile im Verwendungsbereich.';
+            // A base whose Verwendungsbereich stands in its Nachtrag's Anlagen (ABE 53841: „Anlage/n zum Prüfbericht
+            // 1–16“ of 366-0350-21-WIRD/N1) has no rows of its own and is released for its own facts — § 15 FZV among
+            // them, which its Nachträge then carry. Every other document without a row is not releasable.
+            $base = ApprovalDocument::query()->where('supplement_to_id', $document->id)->exists();
+
+            if (! $base) {
+                $blockers[] = 'Es gibt noch keine Zeile im Verwendungsbereich.';
+            }
 
             return $blockers;
         }

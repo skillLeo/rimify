@@ -17,6 +17,7 @@ import ValueText from '../Ui/ValueText.vue'
 import BuildForm from './BuildForm.vue'
 import PapersForm from './PapersForm.vue'
 import type { IconName } from '../../art'
+import { entryLineOrNone, papersLine } from '../../fitment/papers'
 import type { ConfigVerdict } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -72,10 +73,14 @@ const entryLine = computed(() => {
         return null
     }
 
-    return verdict.requiresEntry
-        ? 'Eintragung in die Fahrzeugpapiere erforderlich.'
-        : 'Keine Eintragung erforderlich.'
+    return entryLineOrNone(verdict.requiresEntry, verdict.papersExempt === true)
 })
+
+/*
+ * The document's own word on the papers (§ 15 FZV — ABE 53841, point 10): its own line, because for many buyers that
+ * is the question they hesitate over. Beside the Auflagen's line, never instead of it: two questions (PapersWording).
+ */
+const papersExemptLine = computed(() => (entryLine.value === null ? null : papersLine(props.verdict?.papersExempt === true)))
 
 /* An Auflage that says word for word what the entry line above it says is not said twice. */
 const conditions = computed(() => (props.verdict?.conditions ?? []).filter((condition) => condition !== entryLine.value))
@@ -232,6 +237,8 @@ const headline = computed(() => {
             <p v-if="entryLine" class="fit__entry">{{ entryLine }}</p>
 
             <p v-if="entryLine && verdict.entryNoteDe" class="quiet fit__note">{{ verdict.entryNoteDe }}</p>
+
+            <p v-if="papersExemptLine" class="fit__entry fit__papers">{{ papersExemptLine }}</p>
 
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->

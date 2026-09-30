@@ -292,6 +292,8 @@ export interface ProduktProps {
     finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
     configs: ProduktConfig[]
     hasVehicle: boolean
+    /** `Lieferzeit 3–5 Werktage · Versand 4,90 €` (Shipping::summary): only what is given; null while nothing is. */
+    shipping?: string | null
 }
 
 export interface ProduktConfig {
@@ -350,6 +352,8 @@ export interface ConfigVerdict {
     label: string
     sellable: boolean
     requiresEntry: boolean
+    /** The document frees the papers from correction (§ 15 FZV): its own line (resources/js/fitment/papers.ts). Additive. */
+    papersExempt?: boolean
     /** Additive: null for a wheel that may not go on the car, absent in an older payload. */
     detail?: FitmentDetailView | null
     entryNoteDe: string | null
@@ -521,6 +525,8 @@ export interface CheckResultView {
     wheelLabel: string | null
     reason: string | null
     requiresEntry: boolean
+    /** § 15 FZV as frozen with the answer: the papers need no correction. Additive. */
+    papersExempt?: boolean
     entryNote: string | null
     conditions: string[]
     front: string[]
@@ -582,6 +588,8 @@ export interface BestellungProps {
         verdict: {
             status: VerdictStatus
             requiresEntry: boolean
+            /** § 15 FZV as frozen at the purchase. Additive: an older order has none, and claims none. */
+            papersExempt?: boolean
             documentRevision: number
             detail: Record<string, unknown>
         } | null
@@ -619,7 +627,8 @@ export interface RechtlichesProps {
     active: string
     blocks: { id: number; type: string; data: Record<string, unknown> }[]
     /** The Impressum's facts from the seller data (§ 5 DDG), each null while not given; null on every other tab. */
-    provider?: { rows: { label: string; value: string | null }[]; complete: boolean } | null
+    /** `placeholder`: the values are the admin's placeholders, shown here only, and marked. */
+    provider?: { rows: { label: string; value: string | null }[]; complete: boolean; placeholder?: boolean } | null
 }
 
 export interface AdminAnmeldenProps {

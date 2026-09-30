@@ -311,6 +311,8 @@ export interface BasketLine {
         label: string
         sellable: boolean
         requiresEntry: boolean
+        /** The document frees the papers from correction (§ 15 FZV). Additive. */
+        papersExempt?: boolean
         conditions: string[]
         /** The verdict in one sentence, as the checkout repeats it up to the order button (Block G). */
         sentence?: string
