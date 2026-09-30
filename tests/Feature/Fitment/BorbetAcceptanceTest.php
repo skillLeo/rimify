@@ -80,8 +80,25 @@ it('holds both documents as they print their first page, the wheel as they descr
         ->and($nachtrag->getAttribute('annex'))->toBe('16')
         ->and($nachtrag->page_count)->toBe(24)
         ->and($nachtrag->valid_from_production?->format('m/Y'))->toBe('02/2021')
-        // A Nachtrag to ABE 53841, which we do not hold: said on the record and to the customer.
-        ->and($nachtrag->baseMissingDe())->toBe('Grundgutachten ABE 53841 liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.');
+        // A Nachtrag to ABE 53841, which we now hold: linked, no longer „liegt uns nicht vor“ — and holding only
+        // Anlage 16 of the 16 its Verwendungsbereich names.
+        ->and($nachtrag->supplementTo?->kba_number)->toBe('53841')
+        ->and($nachtrag->baseMissingDe())->toBeNull()
+        ->and($nachtrag->scopeIncompleteDe())->toBe('Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor.')
+        // Point 10 of the base is the Nachtrag's too, once the base is released (§ 15 FZV).
+        ->and($nachtrag->papers_correction_required)->toBeNull()
+        ->and($nachtrag->papersCorrectionRequired())->toBeFalse();
+
+    // ABE 53841*01 (KBA, 16.07.2025, 13 pages): its own facts, no rows — its Verwendungsbereich is the Anlagen.
+    $base = ApprovalDocument::query()->findOrFail($this->entry->documents['53841']);
+
+    expect($base->status)->toBe(DocumentStatus::Published)
+        ->and($base->issuer)->toBe('Kraftfahrt-Bundesamt')
+        ->and($base->issued_on?->format('Y-m-d'))->toBe('2025-07-16')
+        ->and($base->page_count)->toBe(13)
+        ->and($base->getAttribute('test_report_number'))->toBe('366-0350-21-WIRD/N1')
+        ->and($base->papers_correction_required)->toBeFalse()
+        ->and($base->fitments()->count())->toBe(0);
 
     $nineteen = WheelConfig::query()->where('sku', 'BOR-DB8GT2-8519-SM')->firstOrFail();
     $eighteen = WheelConfig::query()->where('sku', 'BOR-DB8GT2-8518-SM')->firstOrFail();
@@ -97,17 +114,25 @@ it('holds both documents as they print their first page, the wheel as they descr
         ->and(implode(' ', TranscriptionEntry::read('366-0350-21-WIRD-N1.json')['read']))
         ->toContain('Radtyp DB8GT2-8518')->toContain('Ausführung 512035725')->toContain('„DB8GT2-8518 LK120 / Ø72,5-60,1“')->toContain('Abrollumfang 2200 mm')->toContain('gültig ab Fertigungsdatum 02/21');
 
-    // Item 14: the base ABE 53841 we do not hold, said on the record and in the coverage matrix.
+    // Item 14, now closed: the base linked on the record, and the Anlagen we lack said there and in the coverage matrix.
     $this->actingAs(AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail(), 'admin')
         ->get('/admin/gutachten/'.$nachtrag->id)
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('document.baseMissing', 'Grundgutachten ABE 53841 liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.')
-            ->where('document.supplementTo.label', 'ABE 53841'));
+            ->where('document.baseMissing', null)
+            ->where('document.supplementTo.label', 'ABE 53841')
+            ->where('document.supplementTo.href', '/admin/gutachten/'.$base->id)
+            ->where('document.scopeIncomplete', 'Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor.')
+            ->where('document.header', fn ($header): bool => collect($header)->contains(
+                static fn (array $row): bool => $row['label'] === 'Berichtigung der Fahrzeugpapiere' && str_starts_with($row['value'], 'nicht erforderlich'),
+            )));
     $this->actingAs(AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail(), 'admin')
         ->get('/admin/abdeckung')
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('matrix.incomplete.0.base', 'ABE 53841')
-            ->where('matrix.incomplete.0.href', '/admin/gutachten/'.$nachtrag->id));
+            ->has('matrix.incomplete', 0)
+            ->has('matrix.missingAnnexes', 1)
+            ->where('matrix.missingAnnexes.0.document', 'Nachtrag 366-0350-21-WIRD/N1')
+            ->where('matrix.missingAnnexes.0.annexes', '1–15')
+            ->where('matrix.missingAnnexes.0.href', '/admin/gutachten/'.$nachtrag->id));
 
     // The Verwendungsbereich: BMW and MINI — on the 19″ the Countryman UKL/X, the Countryman JCW and the Paceman UKL-C/X.
     $cars = Vehicle::query()->whereIn('id', Fitment::query()->where('approval_document_id', $this->entry->documents['55255'])->pluck('vehicle_id'))->get();
@@ -167,6 +192,8 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
         ->and(collect($shown['detail']['tyres'])->firstWhere('label', '235/35 R19'))->toBe(['label' => '235/35 R19', 'axle' => 'Vorder- und Hinterachse', 'minimum' => null, 'band' => '85–195'."\u{00A0}".'kW'])
         ->and(collect($shown['detail']['tyres'])->firstWhere('label', '255/30 R19')['axle'])->toBe('nur Hinterachse')
         ->and($shown['document']['pdf']['page'])->toBe(2)
+        // ABE 55255 says nothing of § 15 FZV: no line about the papers beyond its A01.
+        ->and($shown['papersExempt'])->toBeFalse()
         ->and(json_encode($shown['detail']))->not->toMatch('/"(A01|K1c|T87)"/');
 
     // D-04: K14 is printed beside 235/35R19 only, so it says so; A01 is the row's, for every size.
@@ -206,7 +233,10 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
         ->and($shown['detail']['notices'])->toContain('Der Fahrzeughalter muss auf die Kontrolle des Anzugsmoments der Befestigungsmittel nach einer Wegstrecke von 50km hingewiesen werden.')
         // D-03: page 24 captions drawings the page does not show and lists codes — it is no Hinweis for the customer.
         ->and(implode(' ', $shown['detail']['notices']))->not->toContain('Hinweisblatt')->not->toContain('24C')
-        ->and($shown['document']['notes'])->toContain('Grundgutachten ABE 53841 liegt uns nicht vor – dieser Nachtrag allein ist nicht die ganze Freigabe.');
+        ->and(implode(' ', $shown['document']['notes'] ?? []))->not->toContain('liegt uns nicht vor')
+        // Point 10 of ABE 53841: no correction of the papers — its own line, beside the Abnahme 11A still asks for.
+        ->and($shown['requiresEntry'])->toBeTrue()
+        ->and($shown['papersExempt'])->toBeTrue();
 
     // Never a 19″ code read with the 18″ document, nor the other way round.
 
@@ -311,6 +341,27 @@ it('answers UNKNOWN for the tyres of every car over 210 km/h on the 18″, in a 
             ->has('matrix.noSpeedTable', 1)
             ->where('matrix.noSpeedTable.0.document', 'Nachtrag 366-0350-21-WIRD/N1')
             ->where('matrix.noSpeedTable.0.href', '/admin/gutachten/'.$this->entry->documents['366']));
+});
+
+/*
+ * ABE 53841, point 9: the 18″'s Verwendungsbereich is „Anlage/n zum Prüfbericht 1–16“, and we hold Anlage 16 only (the
+ * BMW pages of the Nachtrag). A car those pages do not name may stand in one of the other fifteen — the MINI Paceman,
+ * which 55255 names on the 19″, is such a car: „Anlage liegt uns noch nicht vor“, UNKNOWN, never „nicht freigegeben“.
+ * ABE 55255 is complete: a car it does not name is refused on the 19″ as before.
+ */
+it('answers a car the Anlage we hold does not name UNKNOWN on the 18″ — the Anlage is missing — and still refuses it where the document is whole', function (): void {
+    $paceman = $this->entry->vehicle('pm-UKLCX-00');
+    $eighteen = borbetVerdict($paceman, 'BOR-DB8GT2-8518-SM');
+
+    expect($eighteen->status)->toBe(VerdictStatus::Unknown)
+        ->and($eighteen->reason?->code)->toBe(VerdictReason::ANNEX_MISSING)
+        ->and($eighteen->reason?->textDe)->toContain('liegt uns die entsprechende Anlage des Gutachtens noch nicht vor')
+        ->and($eighteen->papersExempt())->toBeFalse();
+
+    // The BMW Z4 is named by the Nachtrag only: on the whole ABE 55255 it is refused, as the document says.
+    $z4 = $this->entry->vehicle('z4-ZR');
+
+    expect(borbetVerdict($z4, 'BOR-DB8GT2-8519-SM')->status)->toBe(VerdictStatus::NotPermitted);
 });
 
 it('refuses a Limousine a row the document gives the Coupé only — NOT_PERMITTED, not a note — and keeps apart the cars one approval names twice', function (): void {

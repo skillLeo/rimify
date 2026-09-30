@@ -9,7 +9,7 @@ aus dem Gutachten. Jeder Konflikt steht hier mit beiden Werten, der Fundstelle u
 |---|---|---|---|---|---|
 | 1 | Mittenloch 19″ (8,5J × 19, ET 35, 5/120) | 72,5 mm | **72,6 mm** („5/120/72,6“) | ABE 55255, Anlage 19, Seite 1, Tabelle der Ausführung LK120 | 72,6 mm |
 | 2 | Wintertauglichkeit | „Winter suitability: Yes“ | **Schneeketten nicht zulässig** – 19″: Auflage A12 an jeder Fahrzeugzeile; 18″: Auflage 12A an jeder Fahrzeugzeile | ABE 55255 Seite 7 (A12); Gutachten 366-0350-21-WIRD/N1 Seite 11 (12A) | Winterreifen ja, Schneeketten nein – beides gesagt, nicht nur „wintertauglich“ |
-| 3 | Art der 18″-Unterlage | „real ABEs“ | **Nachtrag zur ABE 53841** („Gutachten 366-0350-21-WIRD/N1 zur Erteilung eines Nachtrags zur ABE 53841“), TÜV Austria. Die ABE 53841 selbst liegt nicht vor | Seite 1 | „Nachtrag zur ABE 53841 – Grundgutachten liegt nicht vor“ am Datensatz, in der Abdeckung und beim Kunden |
+| 3 | Art der 18″-Unterlage | „real ABEs“ | **Nachtrag zur ABE 53841** („Gutachten 366-0350-21-WIRD/N1 zur Erteilung eines Nachtrags zur ABE 53841“), TÜV Austria. Die ABE 53841 selbst liegt seit dem 30.09.2026 vor (Nr. 6) | Seite 1 | Der Nachtrag ist mit der ABE 53841 verknüpft; „Grundgutachten liegt nicht vor“ entfällt |
 | 4 | Die vier Produktfotos | „The rim is available in Black and Bronze (See pictures)“ | Auf mindestens zwei Fotos ist die Felgenkennzeichnung **„KBA 53841“** lesbar – das ist die 18″-Genehmigung. Eine 19″-Felge trägt „KBA 55255“ (ABE 55255, Seite 1: KBA-Nummer 55255) | Foto Bronze schräg, Foto Schwarz schräg | Die Fotos gehören zu den Farben, nicht zu Größen; beim 19″ steht der Hinweis „Abbildung zeigt die 18-Zoll-Ausführung“, bis 19″-Fotos vorliegen |
 
 ### Zwischen den beiden Gutachten
@@ -18,7 +18,17 @@ aus dem Gutachten. Jeder Konflikt steht hier mit beiden Werten, der Fundstelle u
 |---|---|---|---|---|
 | 5 | Karosserieform des BMW 1er, Typ 1K2 und 1K4 (auch M135i/M140i) | **Y84 / Y85** – „3-türige“ bzw. „5-türige Fahrzeugausführungen der Karosserieform Schrägheck“ (Seite 7). „Kombilimousine“ steht hier für den Touring (Code Car). | **„Kombilimousine“** in der Spalte „Auflagen“ der 1er-Zeilen (Seite 3) – und nur dort | Dasselbe Auto: BMWs deutsche Fahrzeugpapiere nennen den 1er eine Kombilimousine, ABE 55255 nennt ihn Schrägheck. Jedes Gutachten behält sein Wort. Wer im Shop „Schrägheck“ für seinen 1er angibt, passt zu Y84/Y85 der ABE 55255 und zu „Kombilimousine“ des Nachtrags – einmal zugeordnet, danach Daten, keine Frage mehr. |
 
+## ABE 53841*01 (Unterlage vom 30.09.2026)
+
+Die ABE selbst: Kraftfahrt-Bundesamt, 16.07.2025, 13 Seiten, Prüfbericht 366-0350-21-WIRD/N1
+(`docs/gutachten/abe-53841.json`).
+
+| Nr. | Was | Kundenangabe | Gutachten | Fundstelle | Im Shop |
+|---|---|---|---|---|---|
+| 6 | Neues für die Konfiguration im Shop | „this document has no new information relevant to the shop configuration for the rim“ | Zwei Angaben ändern, was der Shop sagt: **(a)** Punkt 10 – für die nach § 22 StVZO freigegebenen Rad/Reifen-Kombinationen ist die **Berichtigung der Zulassungsbescheinigung Teil I nach § 15 FZV nicht erforderlich**. **(b)** Punkt 9 – Verwendungsbereich nur gemäß „Anlage/n zum Prüfbericht 1 - 16“; uns liegt nur **Anlage 16** vor (die BMW-Seiten des Nachtrags), die **Anlagen 1–15 fehlen**. Die Ausführung im Shop (LK 120, Mittenloch 72,5, ohne Ring: 512035725) steht in Anlage 16; ihre Schwester mit Zentrierring 72,5–67,1 (512035671; GM Korea, Opel, Saab) in Anlage 15 | ABE Seite 3, Punkte 9 und 10; Verzeichnis der Anlagen Seite 12 | (a) eine eigene Zeile beim Ergebnis: „Keine Berichtigung der Fahrzeugpapiere nötig (§ 15 FZV)“ – neben der Abnahme, die Punkt 11 dem Prüfbericht überlässt (Code 11A), nicht an ihrer Stelle. (b) am Datensatz und in der Abdeckung „Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor“; ein Fahrzeug, das Anlage 16 nicht nennt, bekommt auf der 18″ „Anlage liegt uns noch nicht vor“ (Unbekannt), nie „nicht freigegeben“ |
+
 **Nicht in den Gutachten** (bleibt Kundenangabe, im Shop als Herstellerangabe gekennzeichnet): Gewicht 9,6 kg
 (19″) und 8,8 kg (18″), Herstellverfahren „Guss“, „Detail level“, „Spoke back-milling“, der Beschreibungstext.
 
-**Offen für den Kunden:** Konflikt 4 – gibt es Fotos der 19″-Ausführung? Konflikt 3 – liegt die ABE 53841 vor?
+**Offen für den Kunden:** Konflikt 4 – gibt es Fotos der 19″-Ausführung? Konflikt 6 – die Anlagen 1–15 zum
+Prüfbericht 366-0350-21-WIRD/N1 (bei Borbet oder TÜV Austria). Konflikt 3 ist mit der ABE 53841 erledigt.

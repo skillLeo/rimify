@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * The two Borbet transcriptions (docs/gutachten) typed in through the admin's own endpoints, the way
+ * The Borbet transcriptions (docs/gutachten) typed in through the admin's own endpoints, the way
  * e2e/tools/gutachten-eingabe.mjs types them into a running shop: every request passes the Form Request and the
  * Policy a person's does. One car's blocks in one document become its one row, with what only one block
  * prints moved to that block's sizes.
@@ -27,7 +27,7 @@ final class TranscriptionEntry
     /** @var array<string, int> car key → vehicle id */
     private array $vehicleIds = [];
 
-    /** @var array<int|string, int> document tag (55255, 366 — PHP keeps them as integer keys) → id */
+    /** @var array<int|string, int> document tag (55255, 53841, 366 — PHP keeps them as integer keys) → id */
     public array $documents = [];
 
     public function __construct(private readonly TestCase $test, private readonly AdminUser $admin)
@@ -46,14 +46,19 @@ final class TranscriptionEntry
         return $data;
     }
 
-    /** Both documents, their cars and rows, released by the admin at the end. */
+    /**
+     * Both wheels' documents, their cars and rows, released by the admin at the end — and the 18″'s base, ABE 53841,
+     * whose own Verwendungsbereich is the Nachtrag's Anlagen: entered first, without rows, and linked from the Nachtrag.
+     */
     public function enterBoth(bool $release = true): void
     {
         $abe = self::read('abe-55255.json');
+        $base = self::read('abe-53841.json');
         $nachtrag = self::read('366-0350-21-WIRD-N1.json');
 
         $this->documents['55255'] = $this->document($abe);
-        $this->documents['366'] = $this->document($nachtrag);
+        $this->documents['53841'] = $this->document($base);
+        $this->documents['366'] = $this->document($nachtrag, ['supplement_to_id' => $this->documents['53841']]);
 
         $this->rows($abe, '55255');
         $this->rows($nachtrag, '366');
@@ -70,18 +75,24 @@ final class TranscriptionEntry
         return Vehicle::query()->findOrFail($this->vehicleIds[$key]);
     }
 
-    /** @param array<string, mixed> $t */
-    private function document(array $t): int
+    /**
+     * @param  array<string, mixed>  $t
+     * @param  array<string, mixed>  $link  the base a Nachtrag supplements, when we hold it
+     */
+    private function document(array $t, array $link = []): int
     {
         /** @var array<string, mixed> $doc */
         $doc = $t['document'];
         $key = 'pending/'.Str::lower((string) Str::ulid()).'.pdf';
         Storage::disk('docs_private')->put($key, "%PDF-1.4\n% Abschrift für den Test\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
 
-        $this->test->actingAs($this->admin, 'admin')->post('/admin/gutachten', [...$doc, 'upload_key' => $key])->assertSessionHasNoErrors();
+        $this->test->actingAs($this->admin, 'admin')->post('/admin/gutachten', [...$doc, ...$link, 'upload_key' => $key])->assertSessionHasNoErrors();
         $id = (int) ApprovalDocument::query()->latest('id')->value('id');
 
-        $this->test->actingAs($this->admin, 'admin')->post("/admin/gutachten/{$id}/auflagen/stapel", ['entries' => $t['conditions']])->assertSessionHasNoErrors();
+        // A base whose Auflagen stand in its Nachtrag's Anlagen (ABE 53841) prints no legend of its own.
+        if ($t['conditions'] !== []) {
+            $this->test->actingAs($this->admin, 'admin')->post("/admin/gutachten/{$id}/auflagen/stapel", ['entries' => $t['conditions']])->assertSessionHasNoErrors();
+        }
 
         foreach ($t['fasteners'] as $fastener) {
             $this->test->actingAs($this->admin, 'admin')->post("/admin/gutachten/{$id}/befestigungsmittel", $fastener)->assertSessionHasNoErrors();

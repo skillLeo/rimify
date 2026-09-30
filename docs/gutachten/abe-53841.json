@@ -1,0 +1,36 @@
+{
+ "source": "DB8GT2-8518_18_abe.pdf",
+ "configs": [],
+ "document": {
+  "kind": "ABE",
+  "kba_number": "53841",
+  "issuer": "Kraftfahrt-Bundesamt",
+  "issued_on": "2025-07-16",
+  "page_count": 13,
+  "test_report_number": "366-0350-21-WIRD/N1",
+  "test_date": "2025-07-02",
+  "papers_correction": "not_required"
+ },
+ "read": [
+  "Seite 1: Allgemeine Betriebserlaubnis (ABE) nach § 22 in Verbindung mit § 20 StVZO, ausgestellt vom Kraftfahrt-Bundesamt, für Sonderräder für Pkw 8½ J x 18 H2; Genehmigungsnummer 53841*01; Genehmigungsinhaber Borbet Vertriebs GmbH, DE-85467 Neuching; Typbezeichnung DB8GT2-8518. Eingetragen als KBA-Nummer 53841 – so trägt das Rad sie (Genehmigungszeichen „KBA 53841“, Seite 6).",
+  "Seite 2: Zuständiger Technischer Dienst TÜV AUSTRIA GMBH, AT-1230 Wien; Prüfbericht 366-0350-21-WIRD/N1 vom 02.07.2025 (eingetragen als Prüfbericht-Nr. und Prüfdatum).",
+  "Seite 3, Punkt 9: Verwendungsbereich nur gemäß „Anlage/n zum Prüfbericht 1 - 16“ und unter den dort genannten Bedingungen. Uns liegt davon Anlage 16 vor, im Nachtrag 366-0350-21-WIRD/N1; die Anlagen 1–15 fehlen – am Nachtrag eingetragen als „Fehlende Anlagen: 1–15“.",
+  "Seite 3, Punkt 10: „Für diese nach §22 StVZO freigegebenen Rad/Reifenkombinationen ist die Berichtigung der Zulassungsbescheinigung Teil I gemäß § 15 Fahrzeug-Zulassungsverordnung (FZV) nicht erforderlich.“ – eingetragen als Berichtigung der Fahrzeugpapiere: nicht erforderlich (§ 15 FZV). Das ist die Freistellung, auf die der Nachtrag in 11B verweist.",
+  "Seite 3, Punkt 11: Änderungsabnahme gemäß § 19 (3) StVZO: „Siehe Prüfbericht“ – sie bleibt bei den Auflagen-Codes des Nachtrags (11A).",
+  "Seite 3, Punkte 12 und 13: Die Genehmigung wird erweitert; Grund: Aktualisierung des Verwendungsbereiches.",
+  "Seite 4: Flensburg, 16.07.2025, im Auftrag Dirk Hansen, Siegel 496; elektronisch gesiegelt am 18.07.2025 (eingetragen als Ausstellungsdatum 16.07.2025).",
+  "Seite 5: Ausgabedatum der Genehmigung 08.12.2021, letztes Änderungsdatum 16.07.2025; Prüfberichte 366-0350-21-WIRD vom 24.11.2021 und 366-0350-21-WIRD/N1 vom 02.07.2025; Beschreibungsbogen DB8GT2-8518 vom 23.06.2021.",
+  "Seiten 8–13: Gutachten 366-0350-21-WIRD/N1, Seiten 1–6, mit der Übersicht aller Ausführungen (Seiten 8–9) und dem Verzeichnis der Anlagen 1–16 (Seite 12). Ausführung 512035725 (LK 120, Mittenloch 72,5, ohne Zentrierring) steht in Anlage 16 (BMW); ihre Schwester 512035671 (LK 120, Zentrierring Ø72,5-67,1) in Anlage 15 (GM Korea, Opel, Saab)."
+ ],
+ "conditions": [],
+ "fasteners": [],
+ "notices": [],
+ "reworks": [],
+ "derating": null,
+ "groups": [],
+ "notEntered": [
+  "Seiten 6–7: Nebenbestimmungen und Rechtsbehelfsbelehrung, deutsch und englisch – Pflichten des Genehmigungsinhabers gegenüber dem KBA, nichts, was der Shop einem Kunden sagt.",
+  "Die Erweiterung „*01“ der Genehmigungsnummer steht nur hier im Protokoll; eingetragen ist die Nummer, die das Rad trägt: 53841.",
+  "Eigene Zeilen hat die ABE nicht: Ihr Verwendungsbereich sind die Anlagen des Prüfberichts, und von denen liegt uns nur Anlage 16 vor, im Nachtrag."
+ ]
+}

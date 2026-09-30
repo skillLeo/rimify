@@ -4,6 +4,10 @@
  *   RIMIFY_ADMIN_EMAIL=… RIMIFY_ADMIN_PASSWORD=… node e2e/tools/gutachten-eingabe.mjs \
  *     --dokument docs/gutachten/abe-55255.json --pdf "C:\…\Borbet DB8GT2_19_ABE_BMW.pdf" [--base http://127.0.0.1:8000]
  *
+ * Behind the preview's password (PreviewGate), RIMIFY_PREVIEW_USER and RIMIFY_PREVIEW_PASSWORD are sent with every
+ * request. A Nachtrag is linked to its base when the base is entered (ABE 53841 before 366-0350-21-WIRD/N1); a base
+ * whose Verwendungsbereich stands in its Nachtrag's Anlagen has no rows, and only its facts are entered.
+ *
  * It signs in as that admin and does what a person does on the Gutachten screens: the PDF and the first page's
  * facts through „Neues Gutachten“, then the requests those screens send — the Auflagenverzeichnis, the cars
  * „aus diesem Gutachten“, the Verwendungsbereich rows, the Befestigungsmittel, the Hinweise, the Nacharbeit
@@ -38,11 +42,15 @@ const cars = JSON.parse(fs.readFileSync(path.join(path.dirname(args.dokument), '
 const carByKey = new Map(cars.map((c) => [c.key, c]))
 const doc = transcription.document
 const number = doc.kba_number ?? doc.report_number
-const docTag = doc.kba_number === '55255' ? '55255' : '366'
+// The tag fahrzeuge.json files a car under: the document that names it.
+const docTag = doc.kba_number ?? '366'
 const log = (line) => console.log(line)
+const gate = process.env.RIMIFY_PREVIEW_USER && process.env.RIMIFY_PREVIEW_PASSWORD
+    ? { username: process.env.RIMIFY_PREVIEW_USER, password: process.env.RIMIFY_PREVIEW_PASSWORD, send: 'always' }
+    : undefined
 
 const browser = await chromium.launch()
-const context = await browser.newContext({ baseURL: BASE, locale: 'de-DE' })
+const context = await browser.newContext({ baseURL: BASE, locale: 'de-DE', httpCredentials: gate })
 const page = await context.newPage()
 
 /* ── Sign in ─────────────────────────────────────────────────────────────────────────── */
@@ -170,6 +178,10 @@ if (existing) {
 }
 
 /* ── The first page's facts ─────────────────────────────────────────────────────────── */
+// A Nachtrag names its base („ABE 53841“): linked to it once the base is entered, else kept as the number it prints.
+const baseNumber = doc.kind === 'NACHTRAG' ? /(\S+)$/.exec(doc.supplement_to_number ?? '')?.[1] : undefined
+const base = baseNumber ? listed.find((d) => d.reportNumber === baseNumber && d.kind !== 'NACHTRAG') : undefined
+
 await send('PUT', `/admin/gutachten/${id}`, {
     kind: doc.kind,
     kba_number: doc.kba_number ?? '',
@@ -179,7 +191,7 @@ await send('PUT', `/admin/gutachten/${id}`, {
     issued_on: doc.issued_on ?? '',
     page_count: doc.page_count,
     supersedes_id: null,
-    supplement_to_id: null,
+    supplement_to_id: base?.id ?? null,
     supplement_to_number: doc.supplement_to_number ?? '',
     annex: doc.annex ?? '',
     test_report_number: doc.test_report_number ?? '',
@@ -189,8 +201,10 @@ await send('PUT', `/admin/gutachten/${id}`, {
     test_date: doc.test_date ?? '',
     revision_date: doc.revision_date ?? '',
     valid_from_production: doc.valid_from_production ?? '',
+    papers_correction: doc.papers_correction ?? '',
+    missing_annexes: doc.missing_annexes ?? '',
 })
-log('  Angaben der ersten Seite gespeichert.')
+log(`  Angaben der ersten Seite gespeichert.${base ? ` Mit dem Grundgutachten #${base.id} verknüpft.` : ''}`)
 
 /* ── The Auflagenverzeichnis ────────────────────────────────────────────────────────── */
 let current = await props(id)
@@ -272,6 +286,15 @@ for (const r of transcription.reworks) {
 }
 
 if (transcription.reworks.length) log(`  Nacharbeit: ${reworks} Maße eingetragen.`)
+
+/* ── A base without rows of its own (ABE 53841): its facts are all there is ──────────── */
+if (transcription.groups.length === 0) {
+    current = await props(id)
+    log('  Keine eigenen Zeilen: Der Verwendungsbereich steht in den Anlagen des Nachtrags.')
+    log(current.blockers.length === 0 ? '  Freigabe möglich – durch eine Person, nach dem Abgleich mit dem PDF.' : `  Vor der Freigabe offen: ${current.blockers.join(' ')}`)
+    await browser.close()
+    process.exit(0)
+}
 
 /* ── The sizes of the catalogue the rows are for ────────────────────────────────────── */
 const wheels = await getJson('/admin/gutachten/suche/felgen?q=DB8GT2')
