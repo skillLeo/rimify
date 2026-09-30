@@ -127,6 +127,11 @@ describe('the files under /storage', function (): void {
             ->and(password_verify(GATE_PASSWORD, $hash))->toBeTrue()
             ->and($hash)->not->toContain(GATE_PASSWORD)
             ->and(str_starts_with(PreviewGateFiles::passwordPath(), storage_path('app/public')))->toBeFalse();
+
+        // The web server reads it under its own user: a file only the account's group could read locked everyone out.
+        if (DIRECTORY_SEPARATOR === '/') {
+            expect(fileperms(PreviewGateFiles::passwordPath()) & 0o777)->toBe(0o644);
+        }
     });
 
     it('takes its files away where there is no preview password', function (): void {
