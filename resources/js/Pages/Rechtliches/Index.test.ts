@@ -48,7 +48,7 @@ describe('Rechtliches', () => {
             complete: false,
             rows: [
                 { label: 'Anbieter', value: null },
-                { label: 'E-Mail', value: 'info@rimify.de' },
+                { label: 'Anschrift', value: 'Musterweg 1' },
             ],
         }
         const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider } })
@@ -56,7 +56,7 @@ describe('Rechtliches', () => {
 
         expect(section.text()).toContain('Angaben gemäß § 5 DDG')
         expect(section.text()).toContain('Vorläufig: Die Angaben zum Betreiber liegen noch nicht vollständig vor')
-        expect(section.findAll('.rec__fact').map((row) => row.text())).toEqual(['Anbieternoch nicht angegeben', 'E-Mailinfo@rimify.de'])
+        expect(section.findAll('.rec__fact').map((row) => row.text())).toEqual(['Anbieternoch nicht angegeben', 'AnschriftMusterweg 1'])
     })
 
     it('drops the „Vorläufig" note once every fact is given', () => {
