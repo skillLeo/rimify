@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { SHOP_DB } from '../../../e2e/shop'
 
 /*
  * The device lab for the phone documents. Four iPhones on WebKit, two Androids on Chromium, all
@@ -13,6 +14,8 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
     testDir: '.',
     testMatch: /.*\.spec\.ts$/,
+    // The same shop every run, whatever the main suite bought in it (e2e/global-setup.ts).
+    globalSetup: '../../../e2e/global-setup.ts',
     fullyParallel: false,
     workers: 1,
     retries: process.env.CI ? 1 : 0,
@@ -40,7 +43,7 @@ export default defineConfig({
     webServer: {
         command: 'node scripts/e2e/serve.mjs --port 8010 --workers 4',
         cwd: '../../..',
-        env: { DB_DATABASE: 'rimify_wf_e2e' },
+        env: SHOP_DB,
         url: 'http://127.0.0.1:8010/up',
         reuseExistingServer: true,
         timeout: 90_000,

@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { expect, test } from '../fixtures';
-import { SHOTS, brandMenu, brandRow, createBrand, removeBrand, signIn, waitForApp } from './k2-support';
+import { SHOTS, brandMenu, brandRow, createBrand, removeBrand, settled, signIn, waitForApp } from './k2-support';
 
 /*
  * K2-02 (S2) — Katalog › Marken takes a logo that paints a solid block on the homepage's brand wall
@@ -51,7 +51,10 @@ test('K2-02 a PNG whose every pixel is opaque is refused like an RGB one — on 
             page.waitForResponse((r) => r.request().method() === 'POST' && /^\/admin\/marken\/\d+\/logo$/.test(new URL(r.url()).pathname)),
             row.locator('input[type="file"]').setInputFiles({ name: 'logo-weisser-grund.png', mimeType: 'image/png', buffer: png }),
         ]);
-        await page.waitForTimeout(800);
+        // The answer is read once the page has finished the upload's round trip and put the keyboard back on
+        // the row's „⋯" (K2-37) — not at a fixed time after the POST, which a loaded machine outruns (as K2-01's
+        // did, 30.09.2026).
+        await settled(page, brandMenu(page, NAME));
 
         const alert = row.getByRole('alert');
 
@@ -86,6 +89,7 @@ test('K2-02 a PNG whose every pixel is opaque is refused like an RGB one — on 
             await brandMenu(page, NAME).click();
             await page.getByRole('menuitem', { name: 'Logo entfernen', exact: true }).click();
             await expect(row.getByText('kein Logo')).toBeVisible();
+            await settled(page, brandMenu(page, NAME));
         }
 
         await expect(brandMenu(page, NAME)).toBeEnabled();

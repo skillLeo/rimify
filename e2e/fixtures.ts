@@ -8,11 +8,27 @@ import { test as base } from '@playwright/test'
  * its test ends, the in-flight ones ignored, so a finished test stays finished.
  *
  * Everything else is Playwright's, re-exported: `import { expect, test, type Page } from './fixtures'`.
+ *
+ * `E2E_CPU_THROTTLE=4` slows every page's main thread fourfold (Chromium only): a race that a fast machine hides —
+ * a focus that lands a frame late, a list that renders after the check — shows up at once. Off unless set.
  */
 
 export * from '@playwright/test'
 
-export const test = base.extend<{ dropRoutes: void }>({
+export const test = base.extend<{ dropRoutes: void; cpuThrottle: void }>({
+    cpuThrottle: [
+        async ({ page, browserName }, use) => {
+            const rate = Number(process.env.E2E_CPU_THROTTLE ?? 0)
+
+            if (rate > 1 && browserName === 'chromium') {
+                const cdp = await page.context().newCDPSession(page)
+                await cdp.send('Emulation.setCPUThrottlingRate', { rate })
+            }
+
+            await use()
+        },
+        { auto: true },
+    ],
     dropRoutes: [
         async ({ page }, use) => {
             await use()
