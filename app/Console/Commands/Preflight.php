@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Enums\CatalogueStatus;
-use App\Http\Controllers\Storefront\KasseController;
 use App\Models\Brand;
 use App\Payments\PaymentConfig;
 use App\Payments\Payments;
@@ -18,10 +17,10 @@ use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
-use App\Support\GermanFormat;
 use App\Support\PreviewGate;
 use App\Support\ScheduleBeat;
 use App\Support\Seller;
+use App\Support\Shipping;
 use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
 use Illuminate\Console\Command;
@@ -278,20 +277,18 @@ final class Preflight extends Command
 
         return $missing === []
             ? ['Verkäuferangaben', 'ok', 'vollständig für Rechnung und Widerrufsformular']
-            : ['Verkäuferangaben', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' (RIMIFY_SELLER_*) – bis dahin nur Testrechnungen'];
+            : ['Verkäuferangaben', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' (Einstellungen › Verkäufer & Versand) – bis dahin nur Testrechnungen'];
     }
 
     /** @return array{0: string, 1: string, 2: string} */
     private function shippingTerms(bool $production): array
     {
-        $missing = array_filter([
-            is_int(config('rimify.shipping.cost_cents')) ? null : 'Versandkosten',
-            KasseController::deliveryTime() === null ? 'Lieferzeit' : null,
-        ]);
+        $shipping = Shipping::current();
+        $missing = $shipping->missing();
 
         return $missing === []
-            ? ['Versand und Lieferzeit', 'ok', 'Versand '.GermanFormat::money((int) config('rimify.shipping.cost_cents')).', Lieferzeit '.KasseController::deliveryTime()]
-            : ['Versand und Lieferzeit', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' – ohne sie nimmt der Shop keine echte Bestellung an'];
+            ? ['Versand und Lieferzeit', 'ok', (string) $shipping->summary()]
+            : ['Versand und Lieferzeit', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' (Einstellungen › Verkäufer & Versand) – ohne sie nimmt der Shop keine echte Bestellung an'];
     }
 
     /** @return array{0: string, 1: string, 2: string} */

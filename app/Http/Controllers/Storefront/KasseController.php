@@ -14,6 +14,7 @@ use App\Services\Commerce\OrderWriter;
 use App\Services\Commerce\PendingOrder;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
+use App\Support\Shipping;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -210,12 +211,10 @@ class KasseController extends Controller
         return $open === [] ? null : 'Testbestellung: '.implode(' ', $open);
     }
 
-    /** The delivery time as the operator wrote it (`RIMIFY_DELIVERY_TIME`), or null while none is named. */
+    /** The delivery time as Einstellungen › Verkäufer & Versand gives it (`3–5 Werktage`), or null while none is. */
     public static function deliveryTime(): ?string
     {
-        $time = config('rimify.shipping.delivery_time');
-
-        return is_string($time) && trim($time) !== '' ? trim($time) : null;
+        return Shipping::current()->deliveryTime();
     }
 
     /** No money moves: the review's sandbox, or Stripe in Testmodus. */

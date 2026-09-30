@@ -91,10 +91,11 @@ return [
     | Shipping
     |--------------------------------------------------------------------------
     |
-    | Integer cents. The client has not given a shipping price or a free-shipping threshold, so
-    | both are null until an environment variable names a real one. While the cost is null the
-    | basket and the checkout say "Versandkosten werden noch festgelegt", keep shipping out of the
-    | total, and the server refuses to place an order. A null threshold means no free shipping.
+    | The fallback only: the client enters the shipping in Einstellungen › Verkäufer & Versand
+    | (App\Support\Shipping), and once that page is saved these values are never read again.
+    | Integer cents. While the cost is null the basket and the checkout say "Versandkosten werden
+    | noch festgelegt", keep shipping out of the total, and the server refuses to place an order.
+    | A null threshold means no free shipping.
     */
     'shipping' => [
         'cost_cents' => is_numeric(env('RIMIFY_SHIPPING_COST_CENTS')) ? (int) env('RIMIFY_SHIPPING_COST_CENTS') : null,
@@ -167,6 +168,8 @@ return [
     // The seller as the law names it — on the invoice (§ 14 UStG), in the Widerrufsformular, in the order mail. The
     // client's own data, typed in by hand: never guessed, never the brand name in its place. Null until given; an
     // invoice is then issued as a test invoice only, and the preflight says what is missing (App\Support\Seller).
+    // The fallback only, like the shipping above: Einstellungen › Verkäufer & Versand wins once it is saved. The
+    // Kleinunternehmer flag stays here — a tax decision for a deploy, not a field anyone changes in passing.
     'seller' => [
         'name' => env('RIMIFY_SELLER_NAME'),
         'street' => env('RIMIFY_SELLER_STREET'),

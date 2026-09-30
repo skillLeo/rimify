@@ -292,6 +292,8 @@ export interface ProduktProps {
     finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
     configs: ProduktConfig[]
     hasVehicle: boolean
+    /** `Lieferzeit 3–5 Werktage · Versand 4,90 €` (Shipping::summary): only what is given; null while nothing is. */
+    shipping?: string | null
 }
 
 export interface ProduktConfig {
@@ -625,7 +627,8 @@ export interface RechtlichesProps {
     active: string
     blocks: { id: number; type: string; data: Record<string, unknown> }[]
     /** The Impressum's facts from the seller data (§ 5 DDG), each null while not given; null on every other tab. */
-    provider?: { rows: { label: string; value: string | null }[]; complete: boolean } | null
+    /** `placeholder`: the values are the admin's placeholders, shown here only, and marked. */
+    provider?: { rows: { label: string; value: string | null }[]; complete: boolean; placeholder?: boolean } | null
 }
 
 export interface AdminAnmeldenProps {

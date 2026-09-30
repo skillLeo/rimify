@@ -27,6 +27,7 @@ use App\Support\GermanFormat;
 use App\Support\MakeName;
 use App\Support\Money;
 use App\Support\Seller;
+use App\Support\Shipping;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -577,10 +578,10 @@ final readonly class Basket
         ];
     }
 
-    /** Whether the client has given a shipping price (config/rimify.php `shipping.cost_cents`). */
+    /** Whether the client has given a shipping price (Einstellungen › Verkäufer & Versand, else `.env`). */
     private function shippingConfigured(): bool
     {
-        return is_int(config('rimify.shipping.cost_cents'));
+        return Shipping::current()->configured();
     }
 
     /** Whether the admin has named the mounting fee (D-032), read exactly as the pricer reads it. */
@@ -589,22 +590,10 @@ final readonly class Basket
         return $this->settings->mountingPerWheelCents() !== null;
     }
 
-    /** The shipping for a subtotal in cents, or null while no shipping price is configured. */
+    /** The shipping for a subtotal in cents, or null while no shipping price is given (Shipping). */
     private function shippingFor(int $subtotal): ?int
     {
-        $cost = config('rimify.shipping.cost_cents');
-
-        if (! is_int($cost)) {
-            return null;
-        }
-
-        $freeFrom = config('rimify.shipping.free_from_cents');
-
-        if ($subtotal === 0 || (is_int($freeFrom) && $subtotal >= $freeFrom)) {
-            return 0;
-        }
-
-        return max(0, $cost);
+        return Shipping::current()->forSubtotal($subtotal);
     }
 
     /**

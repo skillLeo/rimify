@@ -48,6 +48,10 @@ Bestellung ansehen
 Fragen zur Bestellung? Antworte einfach auf diese Mail und nenn die Bestellnummer.
 
 RIMIFY
+@if ($sellerLine !== '')
+
+<small>{{ $sellerLine }}</small>
+@endif
 
 ---
 

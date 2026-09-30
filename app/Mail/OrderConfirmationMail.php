@@ -11,6 +11,7 @@ use App\Services\Commerce\Invoices;
 use App\Services\Content\LegalTexts;
 use App\Support\GermanFormat;
 use App\Support\Seller;
+use App\Support\Shipping;
 use App\Support\WithdrawalForm;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -94,7 +95,9 @@ class OrderConfirmationMail extends Mailable
                     trim($address->street.' '.$address->house_number),
                     trim($address->zip_code.' '.$address->city),
                 ])),
-                'deliveryTime' => is_string($time = config('rimify.shipping.delivery_time')) && trim($time) !== '' ? trim($time) : null,
+                'deliveryTime' => Shipping::current()->deliveryTime(),
+                // The seller under the signature, as on the invoice (§ 35a GmbHG): only what is given, never a placeholder.
+                'sellerLine' => Seller::current()->documentLine(),
                 'invoiceNumber' => $this->invoice->number,
                 'invoiceUrl' => Invoices::link($this->invoice),
                 // Signed: the page opens on any device the customer reads this mail on, not only where they ordered.

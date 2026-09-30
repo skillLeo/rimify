@@ -30,6 +30,15 @@ const RETIRED: Record<string, string> = {
     'ruf einfach an': 'there is no phone (client answers)',
 }
 
+/*
+ * Where a phrase may stand because it is no claim: the field in which the operator types the delivery time
+ * (Einstellungen › Verkäufer & Versand, 01.10.2026). The shop's own words for it come from the server (Shipping).
+ */
+const ALLOWED: Record<string, string[]> = {
+    Werktage: ['./Pages/Admin/Einstellungen/VerkaeuferVersand.vue'],
+    Werktagen: ['./Pages/Admin/Einstellungen/VerkaeuferVersand.vue'],
+}
+
 function withoutComments(source: string): string {
     return source
         .replace(/<!--[\s\S]*?-->/g, '')
@@ -44,7 +53,7 @@ describe('retired claims', () => {
 
     it.each(Object.entries(RETIRED))('never says "%s" (%s)', (phrase) => {
         const offenders = Object.entries(sources)
-            .filter(([, source]) => withoutComments(source).includes(phrase))
+            .filter(([file, source]) => withoutComments(source).includes(phrase) && !(ALLOWED[phrase] ?? []).includes(file))
             .map(([file]) => file)
 
         expect(offenders).toEqual([])

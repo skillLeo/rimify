@@ -113,10 +113,7 @@
     </p>
 
     <footer>
-        {{ implode(' · ', array_filter([...$seller->addressLines(), $seller->email])) }}
-        @if ($seller->vatId !== null) · USt-IdNr. {{ $seller->vatId }} @endif
-        @if ($seller->taxNumber !== null) · Steuernummer {{ $seller->taxNumber }} @endif
-        @if ($seller->register !== null) · {{ $seller->register }} @endif
+        {{ $seller->documentLine() }}
     </footer>
 </body>
 </html>

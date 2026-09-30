@@ -75,7 +75,10 @@ const blocks = computed(() =>
                 -->
                 <section v-if="provider" class="rec__block rec__provider" aria-labelledby="rec-provider">
                     <h2 id="rec-provider" class="t-h3">Angaben gemäß § 5 DDG</h2>
-                    <p v-if="!provider.complete" class="t-body rec__placeholder">
+                    <p v-if="provider.placeholder" class="t-body rec__placeholder">
+                        Platzhalter: Die folgenden Angaben sind Beispielwerte, nicht die des Betreibers. Sie werden vor dem Start ersetzt.
+                    </p>
+                    <p v-else-if="!provider.complete" class="t-body rec__placeholder">
                         Vorläufig: Die Angaben zum Betreiber liegen noch nicht vollständig vor und werden vor dem Start ergänzt.
                     </p>
                     <dl class="rec__facts">

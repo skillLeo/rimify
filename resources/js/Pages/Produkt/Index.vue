@@ -406,6 +406,8 @@ onBeforeUnmount(() => observer?.disconnect())
                         <p class="price price--lg" translate="no">{{ selected?.price ?? config.fromPrice.value }}</p>
                         <p class="price-note">pro Felge, {{ terms.note }}</p>
                         <p v-if="selected?.priceForFour" class="price-note pdp__four">4 Felgen: <span class="num" translate="no">{{ selected.priceForFour }}</span></p>
+                        <!-- Einstellungen › Verkäufer & Versand: only what is given, never a placeholder (Shipping::summary). -->
+                        <p v-if="shipping" class="price-note pdp__shipping">{{ shipping }}</p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
                         <p v-if="demo" class="t-small pdp__demo">
                             Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
