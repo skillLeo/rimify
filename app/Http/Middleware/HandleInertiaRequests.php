@@ -194,7 +194,7 @@ class HandleInertiaRequests extends Middleware
      * checks per page view would be the dashboard's own load problem.
      *
      * The rail shows its short form (`label`, `count`), the tooltip and the Übersicht the sentence.
-     * `banner` is the urgent problem — maintenance mode, a queue dead for an hour — unless this person
+     * `banner` is the urgent problem — maintenance mode, a queue dead or a scheduler silent for an hour — unless this person
      * asked to be reminded later (8 hours, AdminPreferencesController): decided here, so a snoozed
      * banner never flashes up in the first frame.
      *

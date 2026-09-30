@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Console\Commands\Preflight;
 use App\Enums\CatalogueStatus;
 use App\Models\Brand;
+use App\Models\Setting;
 use App\Models\WheelModel;
 use App\Payments\Stripe\StripeGateway;
 use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
+use App\Support\ScheduleBeat;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -126,7 +127,7 @@ it('refuses a production without the seller, shipping and delivery time, the leg
 });
 
 it('names the database engine and the scheduler’s pulse, keeps the invoices private and finds no credential in the code', function (): void {
-    Cache::put(Preflight::SCHEDULE_BEAT, now()->subSeconds(30)->getTimestamp());
+    Setting::set(ScheduleBeat::SETTING, now()->subSeconds(30)->getTimestamp());
     Http::fake(['*/health' => Http::response('OK')]);
     $version = (string) DB::selectOne('SELECT VERSION() AS v')->v;
 
@@ -138,10 +139,25 @@ it('names the database engine and the scheduler’s pulse, keeps the invoices pr
 });
 
 it('says when the scheduler has never run', function (): void {
-    Cache::forget(Preflight::SCHEDULE_BEAT);
     Http::fake(['*/health' => Http::response('OK')]);
 
     $this->artisan('rimify:preflight', ['--skip-s3' => true])->expectsOutputToContain('noch nie gelaufen');
+});
+
+it('writes the scheduler’s pulse on every run of the cron line', function (): void {
+    expect(ScheduleBeat::secondsAgo())->toBeNull();
+
+    $this->artisan('schedule:run')->assertSuccessful();
+
+    expect(ScheduleBeat::secondsAgo())->toBe(0);
+});
+
+it('keeps the scheduler’s pulse where a deploy’s cache clear cannot reach it', function (): void {
+    ScheduleBeat::record();
+    $this->travel(2)->minutes();
+    Cache::flush();
+
+    expect(ScheduleBeat::secondsAgo())->toBe(120);
 });
 
 it('checks that Stripe sends every event the shop acts on to its webhook address', function (): void {

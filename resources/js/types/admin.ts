@@ -80,7 +80,7 @@ export interface AdminHealth {
     count: string | null
     href: string | null
     /** An urgent problem worth a banner above the page, unless this person snoozed it (8 hours). */
-    banner: { key: 'maintenance' | 'queue'; sentence: string } | null
+    banner: { key: 'maintenance' | 'queue' | 'schedule'; sentence: string } | null
 }
 
 export interface AdminQuickAction {

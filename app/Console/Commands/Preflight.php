@@ -18,12 +18,12 @@ use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
 use App\Support\GermanFormat;
+use App\Support\ScheduleBeat;
 use App\Support\Seller;
 use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -41,9 +41,6 @@ use Throwable;
  */
 final class Preflight extends Command
 {
-    /** The scheduler's pulse (routes/console.php): the cache key, a Unix time, written every minute. */
-    public const SCHEDULE_BEAT = 'rimify:schedule_beat';
-
     protected $signature = 'rimify:preflight {--skip-s3 : Leave out the bucket audit (it writes and reads probe files)}';
 
     protected $description = 'Go / no-go: environment, rendering, mail, payment, database, demo data and media storage';
@@ -193,13 +190,11 @@ final class Preflight extends Command
      */
     private function schedule(bool $production): array
     {
-        $beat = Cache::get(self::SCHEDULE_BEAT);
+        $ago = ScheduleBeat::secondsAgo();
 
-        if (! is_int($beat)) {
+        if ($ago === null) {
             return ['Zeitplan (Cron)', $production ? 'fail' : 'warn', 'noch nie gelaufen – die Cron-Zeile für schedule:run fehlt (GO-LIVE.md)'];
         }
-
-        $ago = now()->getTimestamp() - $beat;
 
         return $ago <= 180
             ? ['Zeitplan (Cron)', 'ok', "zuletzt vor {$ago} s"]
