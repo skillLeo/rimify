@@ -60,7 +60,10 @@ final class PreviewGateFiles extends Command
         }
 
         file_put_contents(self::passwordPath(), PreviewGate::user().':'.password_hash((string) PreviewGate::password(), PASSWORD_BCRYPT)."\n");
-        chmod(self::passwordPath(), 0640);
+        // Readable by the web server, which checks the password under its own user, outside the account's group: with
+        // 0640 it could not open the file and refused every login (the preview, 01.10.2026). It holds a bcrypt hash
+        // only, outside the public folder; the host keeps other accounts out of this one's files.
+        chmod(self::passwordPath(), 0644);
 
         file_put_contents($htaccess, implode("\n", [
             self::MARKER,
