@@ -123,6 +123,7 @@ it('refuses a production without the seller, shipping and delivery time, the leg
         ->expectsOutputToContain('fehlt: Versandkosten, Lieferzeit')
         ->expectsOutputToContain('noch Platzhalter')
         ->expectsOutputToContain('fehlen für: Ohneangaben')
+        ->expectsOutputToContain('nicht eröffnet – jede Rechnung ist eine Testrechnung')
         ->assertFailed();
 });
 

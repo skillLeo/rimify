@@ -24,9 +24,12 @@ import VerdictBadge from './VerdictBadge.vue'
 import WheelOutline from './WheelOutline.vue'
 import { toast } from '../Chrome/toast'
 import { NNBSP, zoll } from '../../format'
+import { usePriceTerms } from '../../composables/usePriceTerms'
 import { formatMoney } from '../../lib/num'
 import { COMPARE_CAP_TEXT, useCompare, type CompareEntry } from '../../stores/compare'
 import { compareKeyOf, type ProductCardProp, type VehicleProp, type VerdictStatus } from '../../types/rimify'
+
+const terms = usePriceTerms()
 
 const props = withDefaults(
     defineProps<{
@@ -176,7 +179,7 @@ function onCompareLabelClick(event: MouseEvent): void {
         </span>
 
         <p class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
-        <span class="tile__legal">inkl. MwSt., zzgl. Versand</span>
+        <span class="tile__legal">{{ terms.note }}</span>
 
         <ul v-if="verdict && verdict.conditions.length" class="tile__conditions">
             <li v-for="condition in verdict.conditions" :key="condition">{{ condition }}</li>

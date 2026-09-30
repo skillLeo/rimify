@@ -3,17 +3,20 @@
 declare(strict_types=1);
 
 use App\Models\Address;
+use App\Models\AdminUser;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Refund;
 use App\Services\Commerce\Invoices;
+use App\Services\Commerce\InvoiceSeries;
 use App\Support\Money;
 use App\Support\Seller;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 
 /*
  * Block G, item 19: §14 UStG invoices. Numbered without a gap and never twice, per series; credit notes in their
@@ -31,21 +34,69 @@ beforeEach(function (): void {
             'email' => 'rechnung@beispiel.test', 'vat_id' => 'DE000000000', 'tax_number' => null, 'register' => null,
         ],
     ]);
+    // The real numbers, opened as the operator would — here at 1, so the figures below read plainly (InvoiceSeriesTest
+    // covers the opening itself).
+    app(InvoiceSeries::class)->open(AdminUser::factory()->create(), 1, 1);
 });
 
-function invoiceOrder(int $totalCents = 159_600): Order
+function invoiceOrder(int $totalCents = 159_600, int $rateBp = 1900): Order
 {
     $customer = Customer::query()->create(['email' => 'kunde@beispiel.de', 'firstname' => 'Erika', 'lastname' => 'Mustermann']);
     $address = Address::query()->create(['customer_id' => $customer->id, 'full_name' => 'Erika Mustermann', 'street' => 'Hauptstraße', 'house_number' => '12', 'zip_code' => '50667', 'city' => 'Köln', 'country' => 'DE']);
     $order = Order::factory()->create([
         'customer_id' => $customer->id, 'delivery_address_id' => $address->id, 'billing_address_id' => $address->id,
         'total_cents' => $totalCents, 'subtotal_cents' => $totalCents, 'shipping_cents' => 0, 'payment_method' => 'stripe',
-        'tax_cents' => Money::fromMinor($totalCents)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor(),
+        'tax_cents' => Money::fromMinor($totalCents)->vatIncluded($rateBp)->toMinor(),
     ]);
-    $order->lines()->create(['kind' => 'WHEEL', 'label' => 'Testfelge 8,5J × 18 ET45', 'quantity' => 4, 'unit_price_cents' => intdiv($totalCents, 4), 'line_total_cents' => $totalCents, 'tax_rate_bp' => 1900, 'currency' => 'EUR']);
+    $order->lines()->create(['kind' => 'WHEEL', 'label' => 'Testfelge 8,5J × 18 ET45', 'quantity' => 4, 'unit_price_cents' => intdiv($totalCents, 4), 'line_total_cents' => $totalCents, 'tax_rate_bp' => $rateBp, 'currency' => 'EUR']);
 
     return $order->fresh();
 }
+
+/** The invoice's HTML as dompdf got it: the template's data, caught on its way, rendered once more. */
+function invoiceHtml(Order $order): string
+{
+    $data = null;
+    View::composer('pdf.invoice', function (Illuminate\View\View $view) use (&$data): void {
+        $data ??= $view->getData();
+    });
+
+    app(Invoices::class)->issueFor($order);
+
+    return view('pdf.invoice', (array) $data)->render();
+}
+
+it('shows 19 % VAT inside the gross on a standard invoice, and no § 19 sentence', function (): void {
+    $html = invoiceHtml(invoiceOrder());
+    $invoice = Invoice::query()->sole();
+
+    expect($invoice->tax_cents)->toBe(25_482)
+        ->and($invoice->tax_rate_bp)->toBe(1900)
+        ->and($html)->toContain("Umsatzsteuer 19\u{00A0}%")
+        ->and($html)->toContain("Alle Preise enthalten 19\u{00A0}% Umsatzsteuer.")
+        ->and($html)->not->toContain('§ 19 UStG');
+});
+
+it('shows no VAT on a Kleinunternehmer’s invoice and carries the § 19 sentence instead', function (): void {
+    config(['rimify.seller.small_business' => true]);
+    $html = invoiceHtml(invoiceOrder(159_600, 0));
+    $invoice = Invoice::query()->sole();
+
+    expect($invoice->tax_cents)->toBe(0)
+        ->and($invoice->net_cents)->toBe(159_600)
+        ->and($invoice->tax_rate_bp)->toBe(0)
+        ->and($invoice->seller['smallBusiness'])->toBeTrue()
+        ->and($html)->toContain('Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.')
+        ->and($html)->not->toContain('Umsatzsteuer 19')
+        ->and($html)->not->toContain('Nettobetrag');
+});
+
+it('keeps an order’s own rate on its invoice when the flag changed after it was placed', function (): void {
+    $order = invoiceOrder();
+    config(['rimify.seller.small_business' => true]);
+
+    expect(app(Invoices::class)->issueFor($order)->tax_cents)->toBe(25_482);
+});
 
 it('issues RE-000001, then RE-000002: gapless, per series, the sums adding up, the PDF stored with its checksum', function (): void {
     $invoices = app(Invoices::class);

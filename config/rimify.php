@@ -168,6 +168,9 @@ return [
         'vat_id' => env('RIMIFY_SELLER_VAT_ID'),
         'tax_number' => env('RIMIFY_SELLER_TAX_NUMBER'),
         'register' => env('RIMIFY_SELLER_REGISTER'),
+        // Kleinunternehmer under § 19 UStG: the one switch for the invoice (no VAT, the § 19 sentence), every price
+        // note on the site and the order summaries (no VAT line). Off unless the client's tax adviser says so.
+        'small_business' => filter_var(env('RIMIFY_SELLER_SMALL_BUSINESS', false), FILTER_VALIDATE_BOOL),
     ],
 
     // The database engines — and their release series — the test suite runs against (D-052): the app

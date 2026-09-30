@@ -97,6 +97,8 @@ class BestellungController extends Controller
                 'subtotal' => GermanFormat::money((int) $record->subtotal_cents),
                 'shipping' => GermanFormat::money((int) $record->shipping_cents),
                 'tax' => GermanFormat::money((int) $record->tax_cents),
+                // The order's own rate, frozen with its lines: a Kleinunternehmer's order (§ 19 UStG) has no VAT line.
+                'smallBusiness' => $record->vatRateBp() === 0,
                 'total' => GermanFormat::money((int) $record->total_cents),
                 // A seeded order was never shipped: its tracking number is invented.
                 'trackingCode' => $demo ? null : $record->tracking_code,

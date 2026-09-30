@@ -27,6 +27,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import type { IconName } from '../../art'
+import { totalNote } from '../../composables/usePriceTerms'
 import type { BestellungProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -337,7 +338,7 @@ function openAccount(): void {
                                 <dd class="tabular">{{ order.total }}</dd>
                             </div>
                         </dl>
-                        <p class="price-legal">inkl. {{ order.tax }} MwSt. und Versand</p>
+                        <p class="price-legal">{{ totalNote(order.smallBusiness === true, order.tax, false) }}</p>
                         <!-- The invoice as issued, by a signed link (Invoices::link). -->
                         <a v-if="invoice" class="ord__invoice" :href="invoice.href" target="_blank" rel="noopener">
                             Rechnung {{ invoice.number }} herunterladen

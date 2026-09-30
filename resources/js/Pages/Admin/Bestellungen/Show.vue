@@ -70,6 +70,8 @@ const props = defineProps<{
         subtotal: number
         shipping: number
         tax: number
+        /** Written at a VAT rate of 0: a Kleinunternehmer's order (§ 19 UStG). */
+        smallBusiness?: boolean
         total: number
         demo: boolean
         test: boolean
@@ -337,7 +339,8 @@ function tagClass(state: OrderState): string | null {
                 <div class="bs-sums__row"><dt>Zwischensumme</dt><dd>{{ formatMoney(order.subtotal) }}</dd></div>
                 <div class="bs-sums__row"><dt>Versand</dt><dd>{{ formatMoney(order.shipping) }}</dd></div>
                 <div class="bs-sums__row bs-sums__row--total"><dt>Summe</dt><dd>{{ formatMoney(order.total) }}</dd></div>
-                <div class="bs-sums__row bs-sums__row--tax"><dt>darin enthaltene MwSt.</dt><dd>{{ formatMoney(order.tax) }}</dd></div>
+                <div v-if="order.smallBusiness" class="bs-sums__row bs-sums__row--tax"><dt>MwSt.</dt><dd>keine (§&nbsp;19 UStG)</dd></div>
+                <div v-else class="bs-sums__row bs-sums__row--tax"><dt>darin enthaltene MwSt.</dt><dd>{{ formatMoney(order.tax) }}</dd></div>
             </dl>
         </section>
 

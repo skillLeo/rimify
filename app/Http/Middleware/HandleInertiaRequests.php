@@ -15,6 +15,7 @@ use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
 use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
+use App\Support\Seller;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -58,6 +59,9 @@ class HandleInertiaRequests extends Middleware
              * rather than compiled in, so one env change turns it off without a build.
              */
             'photography' => config('rimify.photography.enabled') === true,
+            // The Kleinunternehmer switch (§ 19 UStG, App\Support\Seller): every price note reads it (usePriceTerms), so
+            // the site, the order summaries and the invoice change together.
+            'smallBusiness' => Seller::current()->smallBusiness,
             'flash' => [
                 'toast' => $request->session()->get('toast'),
             ],

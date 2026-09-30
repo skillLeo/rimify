@@ -23,6 +23,7 @@ import Picture from '../Ui/Picture.vue'
 import ValueText from '../Ui/ValueText.vue'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
+import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
 import { formatMoney } from '../../lib/num'
 import { useCompare, type CompareEntry } from '../../stores/compare'
@@ -36,6 +37,7 @@ const page = usePage()
 const store = useCompare()
 
 const vehicle = computed(() => shared.value.vehicle)
+const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
 const count = computed(() => props.items.length)
 const keys = computed(() => props.items.map(compareKeyOf))
 
@@ -178,7 +180,7 @@ const groups = computed<Group[]>(() => {
             label: 'Preis',
             rows: [
                 row('price', 'Preis pro Felge', 'text', items.map((item) => ({ text: `ab ${perWheel(item)}` }))),
-                row('legal', 'Hinweis', 'muted', items.map(() => ({ text: 'inkl. MwSt., zzgl. Versand' }))),
+                row('legal', 'Hinweis', 'muted', items.map(() => ({ text: terms.value.note }))),
             ],
         },
         { id: 'gutachten', label: 'Gutachten', rows: gutachten },
@@ -388,7 +390,7 @@ onBeforeUnmount(() => {
                         <span class="h4" translate="no">{{ item.modelName }}</span>
                         <span class="small muted" translate="no">{{ item.finishName }}</span>
                         <span class="body num compare__price">ab <ValueText :text="perWheel(item)" whole /> pro Felge</span>
-                        <span class="micro quiet">inkl. MwSt., zzgl. Versand</span>
+                        <span class="micro quiet">{{ terms.note }}</span>
                         <VerdictBadge v-if="vehicle && item.verdict" :status="item.verdict.status" class="compare__badge" />
                         <button class="icon-btn compare__remove" type="button" :aria-label="`${item.brandName} ${item.modelName} aus dem Vergleich entfernen`" @click="remove(item, i)">
                             <Icon name="close" :size="16" />

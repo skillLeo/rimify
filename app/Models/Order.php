@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use App\Exceptions\IllegalOrderTransition;
 use App\Observers\OrderAlertObserver;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -131,6 +132,17 @@ class Order extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(OrderLine::class);
+    }
+
+    /**
+     * The VAT rate the order was written at, in basis points — its lines', frozen with them: 0 for a Kleinunternehmer's
+     * order (§ 19 UStG). Its invoice, its page and its mail read this, never today's seller flag.
+     */
+    public function vatRateBp(): int
+    {
+        $rate = $this->relationLoaded('lines') ? $this->lines->max('tax_rate_bp') : $this->lines()->max('tax_rate_bp');
+
+        return is_numeric($rate) ? (int) $rate : Money::VAT_STANDARD_BP;
     }
 
     /**

@@ -566,6 +566,8 @@ export interface BestellungProps {
         subtotal: string
         shipping: string
         tax: string
+        /** Written at a VAT rate of 0 (a Kleinunternehmer's order, § 19 UStG): no VAT line. */
+        smallBusiness?: boolean
         total: string
         trackingCode: string | null
     }

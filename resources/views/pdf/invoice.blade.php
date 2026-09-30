@@ -3,7 +3,8 @@
     Every figure is integer cents from the order's frozen lines, printed through GermanFormat. §14 Abs. 4 UStG, in the
     order it asks: seller and buyer with their addresses, the seller's tax number or USt-IdNr., the date, the number,
     quantity and kind of the goods, the time of delivery (the calendar month suffices, UStAE 14.5 Abs. 16), the net
-    amount, the rate and the tax, the gross amount. A test invoice says on its face that it is none.
+    amount, the rate and the tax, the gross amount. A test invoice says on its face that it is none. A Kleinunternehmer's
+    invoice (§ 19 UStG, the order's rate 0) shows no VAT and carries the § 19 sentence in its place.
 --}}
 @php
     /** @var \App\Support\Seller $seller */
@@ -91,16 +92,23 @@
     </table>
 
     <table class="totals">
-        <tr><td>Nettobetrag</td><td class="num">{{ $money($netCents) }}</td></tr>
-        <tr><td>Umsatzsteuer 19 %</td><td class="num">{{ $money($taxCents) }}</td></tr>
+        @unless ($smallBusiness)
+            <tr><td>Nettobetrag</td><td class="num">{{ $money($netCents) }}</td></tr>
+            <tr><td>Umsatzsteuer {{ $rate }}</td><td class="num">{{ $money($taxCents) }}</td></tr>
+        @endunless
         <tr class="grand"><td>{{ $credit ? 'Gutschriftbetrag' : 'Gesamtbetrag' }}</td><td class="num">{{ $money($grossCents) }}</td></tr>
     </table>
 
     <p class="note">
+        @if ($smallBusiness)
+            {{ \App\Support\Seller::SMALL_BUSINESS_SENTENCE }}
+        @endif
         @if ($credit)
             Der Betrag wird auf dem Weg erstattet, auf dem du bezahlt hast.
+        @elseif ($smallBusiness)
+            Bezahlt{{ $order->paid_at ? ' am '.\App\Support\GermanFormat::date($order->paid_at) : '' }}.
         @else
-            Alle Preise enthalten 19 % Umsatzsteuer. Bezahlt{{ $order->paid_at ? ' am '.\App\Support\GermanFormat::date($order->paid_at) : '' }}.
+            Alle Preise enthalten {{ $rate }} Umsatzsteuer. Bezahlt{{ $order->paid_at ? ' am '.\App\Support\GermanFormat::date($order->paid_at) : '' }}.
         @endif
     </p>
 

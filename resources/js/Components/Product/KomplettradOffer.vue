@@ -17,7 +17,10 @@ import { Link, useForm } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import TyreLabel from '../Ui/TyreLabel.vue'
+import { usePriceTerms } from '../../composables/usePriceTerms'
 import type { KomplettradOfferProp, KomplettradTyreProp, TyreClass } from '../../types/pages'
+
+const terms = usePriceTerms()
 
 const props = defineProps<{
     offer: KomplettradOfferProp | null
@@ -176,7 +179,7 @@ function add(tyreId: number): void {
                     <div class="kr-card__price">
                         <p class="price">{{ card.tyre.perWheel }}</p>
                         <p class="price-note">Preis je Rad, inklusive Reifen, Montage und Wuchtgewichten.</p>
-                        <p class="price-note">inkl. MwSt., zzgl. Versand</p>
+                        <p class="price-note">{{ terms.note }}</p>
                         <p class="t-small kr-card__set">
                             <span class="tabular">{{ card.tyre.forFour }}</span> für 4 Kompletträder
                         </p>

@@ -38,6 +38,7 @@ import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
 import ValueText from '../../Components/Ui/ValueText.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
+import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
 import { decimal, withUnit } from '../../format'
 import type { ProduktConfig, ProduktProps } from '../../types/pages'
@@ -50,6 +51,7 @@ type RatedConfig = ProduktConfig & { maxLoadKg?: number | null }
 const props = defineProps<ProduktProps & { demo?: boolean }>()
 
 const shared = useShared()
+const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
 const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
@@ -402,7 +404,7 @@ onBeforeUnmount(() => observer?.disconnect())
                     <div class="pdp__price">
                         <!-- One rim, as the basket charges it; the set of four stands beside it. -->
                         <p class="price price--lg" translate="no">{{ selected?.price ?? config.fromPrice.value }}</p>
-                        <p class="price-note">pro Felge, inkl. MwSt., zzgl. Versand</p>
+                        <p class="price-note">pro Felge, {{ terms.note }}</p>
                         <p v-if="selected?.priceForFour" class="price-note pdp__four">4 Felgen: <span class="num" translate="no">{{ selected.priceForFour }}</span></p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
                         <p v-if="demo" class="t-small pdp__demo">
@@ -559,7 +561,7 @@ onBeforeUnmount(() => observer?.disconnect())
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div class="pdp__sticky-price">
             <p class="price" translate="no">{{ selected.price }}</p>
-            <p class="price-note">pro Felge, inkl. MwSt., zzgl. Versand</p>
+            <p class="price-note">pro Felge, {{ terms.note }}</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"

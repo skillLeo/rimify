@@ -24,8 +24,14 @@ Deine Bestellung **{{ $number }}** ist bezahlt. Hier ist alles, was dazugehört 
 | Zwischensumme | {{ $subtotal }} |
 | Versand | {{ $shipping }} |
 | **Gesamt** | **{{ $total }}** |
-| enthaltene MwSt. 19 % | {{ $tax }} |
+@unless ($smallBusiness)
+| enthaltene MwSt. {{ $rate }} | {{ $tax }} |
+@endunless
 </x-mail::table>
+
+@if ($smallBusiness)
+{{ \App\Support\Seller::SMALL_BUSINESS_SENTENCE }}
+@endif
 
 @if ($address !== [])
 **Lieferadresse:** {{ implode(', ', $address) }}

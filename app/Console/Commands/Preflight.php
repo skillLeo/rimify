@@ -12,6 +12,7 @@ use App\Payments\Payments;
 use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
 use App\Services\Commerce\Invoices;
+use App\Services\Commerce\InvoiceSeries;
 use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
@@ -108,6 +109,7 @@ final class Preflight extends Command
 
         $rows[] = ['Speicher-Tabelle', Schema::hasTable('storage_settings') ? 'ok' : 'fail', Schema::hasTable('storage_settings') ? 'vorhanden' : 'Migration fehlt'];
         $rows[] = $this->invoiceStorage();
+        $rows[] = $this->invoiceSeries($production);
         $rows[] = $this->seller($production);
         $rows[] = $this->shippingTerms($production);
         $rows[] = $this->legalTexts($production);
@@ -215,6 +217,27 @@ final class Preflight extends Command
         return $exposed
             ? ['Rechnungen', 'fail', 'Der Ordner invoices/ liegt im öffentlichen Verzeichnis – er gehört auf die private Platte']
             : ['Rechnungen', 'ok', 'privat ('.Invoices::DIR.'/), nur über signierte Links'];
+    }
+
+    /**
+     * The real invoice numbers, opened once at the client's own (InvoiceSeries): until then every invoice is a test
+     * invoice — on the live shop, a paying customer would get one.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function invoiceSeries(bool $production): array
+    {
+        try {
+            $state = InvoiceSeries::state();
+        } catch (Throwable $e) {
+            return ['Rechnungsnummern', 'fail', $e->getMessage()];
+        }
+
+        if ($state['invoice'] === null || $state['credit_note'] === null) {
+            return ['Rechnungsnummern', $production ? 'fail' : 'warn', 'nicht eröffnet – jede Rechnung ist eine Testrechnung (Einstellungen › Zahlung)'];
+        }
+
+        return ['Rechnungsnummern', 'ok', "nächste {$state['invoice']['next']} und {$state['credit_note']['next']}, eröffnet am {$state['invoice']['openedAt']} von {$state['invoice']['openedBy']}"];
     }
 
     /** @return array{0: string, 1: string, 2: string} */

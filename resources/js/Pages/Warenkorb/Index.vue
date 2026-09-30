@@ -32,6 +32,7 @@ import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import { useBasket } from '../../composables/useBasket'
+import { priceTerms, totalNote } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
 import type { BasketLine, BasketTotals } from '../../types/rimify'
 
@@ -44,6 +45,7 @@ const props = defineProps<{
 
 const basket = useBasket()
 const shared = useShared()
+const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
 const vehicle = computed(() => shared.value.vehicle)
 
 /** The server's validation answers, shared by Inertia; `{}` in fixtures that carry none. */
@@ -311,7 +313,7 @@ const VERDICT_TONE: Record<string, string> = {
                         </li>
                     </ul>
 
-                    <p class="price-legal cart__legal">Alle Preise inkl. MwSt., zzgl. Versand.</p>
+                    <p class="price-legal cart__legal">Alle Preise {{ terms.note }}.</p>
                 </div>
 
                 <aside class="card cart__summary" aria-labelledby="cart-sum">
@@ -337,10 +339,7 @@ const VERDICT_TONE: Record<string, string> = {
                             <dd class="tabular">{{ totals.total }}</dd>
                         </div>
                     </dl>
-                    <p v-if="shippingOpen" class="price-legal">
-                        inkl. {{ totals.tax }} MwSt. · Versandkosten werden noch festgelegt
-                    </p>
-                    <p v-else class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
+                    <p class="price-legal">{{ totalNote(terms.smallBusiness, totals.tax, shippingOpen) }}</p>
 
                     <!-- The demo range may be walked through to the Kasse; the order is refused there. -->
                     <p v-if="hasDemo" class="cart__demo">
