@@ -9,3 +9,13 @@
  */
 
 export const SHOP = process.env.E2E_SHOP_URL ?? 'http://127.0.0.1:8010'
+
+/**
+ * The shop's database, for the server that serves it and for the reset before a run (e2e/global-setup.ts): the same
+ * MariaDB `composer e2e:shop` seeds (:3308, the host's engine). Given the name alone, a server started by Playwright
+ * would take the port from `.env` — the development MySQL — and serve another copy of the shop than the one seeded.
+ */
+export const SHOP_DB = {
+    DB_PORT: process.env.E2E_SHOP_DB_PORT ?? '3308',
+    DB_DATABASE: 'rimify_wf_e2e',
+}

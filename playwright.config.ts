@@ -1,9 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import { SHOP_DB } from './e2e/shop';
 
 // The eight journeys run at 1440 (desktop) and 390 (mobile). The device split is decided on
 // the server from the User-Agent, so the mobile project sends a real mobile UA.
 export default defineConfig({
     testDir: './e2e',
+    // The e2e shop, rebuilt before every run: the specs that buy leave it with less stock (e2e/global-setup.ts).
+    globalSetup: './e2e/global-setup.ts',
     fullyParallel: false,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 1 : 0,
@@ -51,7 +54,7 @@ export default defineConfig({
             // The storefront specs' shop (e2e/shop.ts): its own database, seeded by E2eShopSeeder
             // (`composer e2e:shop`), because example data never reaches the storefront.
             command: 'node scripts/e2e/serve.mjs --port 8010 --workers 4',
-            env: { DB_DATABASE: 'rimify_wf_e2e' },
+            env: SHOP_DB,
             url: 'http://127.0.0.1:8010/up',
             reuseExistingServer: !process.env.CI,
             timeout: 90_000,

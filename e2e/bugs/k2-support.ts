@@ -16,7 +16,9 @@ import { focusFell, focused, guardWrites, inertiaHeaders, isInertiaGet, pageInst
  *     own brands, named „QA K2-…", never ticked for the brand wall, and take them off again in a
  *     `finally`. A removed brand is soft-deleted (R-04): the next run's „Marke anlegen" with the same name
  *     brings that row back instead of adding one (MarkenController::store), so the table holds at most
- *     three such rows, all removed. K2-02 takes its logo off before removing its brand, so no file is left.
+ *     three such rows, all removed — K2-01 renames its kept brand back before removing it, since its rename
+ *     is saved. K2-02 takes its logo off before removing its brand, so no file is left.
+ *   - Every write waits for the page to settle before the next step (`settled`).
  *   - Nothing is imported into the catalogue, no Felge is saved, no photo is uploaded.
  */
 
@@ -150,7 +152,27 @@ export async function chooseFromBrandMenu(page: Page, name: string, item: string
     await entry.press('Enter');
 }
 
-/** „Marke anlegen" for `name`, not ticked for the brand wall, and waits for its row. */
+/** The Marken form's submit button: disabled for the whole round trip of a save (`busy`), enabled once it has ended. */
+export function brandSubmit(page: Page): Locator {
+    return page.locator('form.mk__form button[type="submit"]');
+}
+
+/**
+ * Waits until the Marken page has finished what it was sent: the round trip over (the submit button enabled
+ * again — the page sets it at the very end of the visit) and the focus landed where the page puts it
+ * (`focus`). A step that goes on before that races the page: it reads an answer not rendered yet, or clicks a
+ * control the answer is about to take away, or opens a menu the page's own focus request then pulls the focus
+ * out of — the k2-01 flake of 30.09.2026, reproduced under load.
+ */
+export async function settled(page: Page, focus: Locator | null): Promise<void> {
+    await expect(brandSubmit(page), 'the save never finished').toBeEnabled({ timeout: 20_000 });
+
+    if (focus !== null) {
+        await expect(focus, 'the focus did not land where the page puts it').toBeFocused();
+    }
+}
+
+/** „Marke anlegen" for `name`, not ticked for the brand wall; waits for its row and for the page to settle. */
 export async function createBrand(page: Page, name: string): Promise<void> {
     await expect(page.locator('#mk-form-title')).toHaveText('Neue Marke');
     await page.fill('#mk-name', name);
@@ -163,9 +185,11 @@ export async function createBrand(page: Page, name: string): Promise<void> {
 
     await page.getByRole('button', { name: 'Marke anlegen' }).click();
     await expect(brandRow(page, name), `„${name}" was not created`).toHaveCount(1);
+    // Created: the keyboard is back in Name (MarkenController's page, `submit` → onFinish).
+    await settled(page, page.locator('#mk-name'));
 }
 
-/** Takes the brand `name` off (its menu's „Entfernen", then the dialog's), if it is listed. */
+/** Takes the brand `name` off (its menu's „Entfernen", then the dialog's), if it is listed; waits for the page to settle. */
 export async function removeBrand(page: Page, name: string): Promise<void> {
     const row = brandRow(page, name);
 
@@ -181,6 +205,16 @@ export async function removeBrand(page: Page, name: string): Promise<void> {
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Entfernen', exact: true }).click();
     await expect(row).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
+    // Removed: the keyboard is on the next row's „⋯", or the one before, or in Name (K2-04) — never on <body>.
+    await settled(page, null);
+    await expect
+        .poll(() => page.evaluate(() => {
+            const active = document.activeElement;
+
+            return active !== null && active !== document.body && active.closest('[role="dialog"], [role="menu"]') === null;
+        }), { message: 'the focus did not land after „Entfernen"' })
+        .toBe(true);
 }
 
 /* ── Photos of a colour (FinishPhotos.vue) ───────────────────────────────────── */
