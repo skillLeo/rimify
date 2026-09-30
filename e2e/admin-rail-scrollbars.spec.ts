@@ -27,11 +27,12 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('nothing in the rail moves when the navigation starts to scroll', async ({ page }) => {
-    // Tall enough for the whole navigation (it has grown past 1100 px since the rig was first written).
-    await page.setViewportSize({ width: 1440, height: 1600 })
+    // Tall enough for the whole navigation (it has grown past 1100 px since the rig was first written, and past
+    // 1600 px with Einstellungen › Verkäufer & Versand on 01.10.2026).
+    await page.setViewportSize({ width: 1440, height: 1900 })
     await page.goto('/admin', { waitUntil: 'networkidle' })
     const tall = { item: await edge(page, '.adm-rail__item'), count: await edge(page, '.adm-rail__count') }
-    expect(await page.evaluate(() => document.querySelector<HTMLElement>('.adm-rail__nav')!.scrollHeight > document.querySelector<HTMLElement>('.adm-rail__nav')!.clientHeight), 'rig: at 1600 px high the navigation fits').toBe(false)
+    expect(await page.evaluate(() => document.querySelector<HTMLElement>('.adm-rail__nav')!.scrollHeight > document.querySelector<HTMLElement>('.adm-rail__nav')!.clientHeight), 'rig: at 1900 px high the navigation fits').toBe(false)
 
     await page.setViewportSize({ width: 1440, height: 600 })
     await page.goto('/admin', { waitUntil: 'networkidle' })
