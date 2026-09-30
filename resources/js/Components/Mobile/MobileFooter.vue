@@ -9,9 +9,11 @@
 import { computed } from 'vue'
 import ListRow from './ListRow.vue'
 import { useConsent } from '../../composables/useConsent'
+import { usePriceTerms } from '../../composables/usePriceTerms'
 import { useMenus } from '../../composables/useShared'
 
 const menus = useMenus()
+const terms = usePriceTerms()
 const consent = useConsent()
 
 const service = computed(() => menus.value.footer_service ?? [])
@@ -32,7 +34,7 @@ const year = new Date().getFullYear()
             <ListRow title="Cookie-Einstellungen" @activate="consent.openSettings()" />
         </nav>
 
-        <p class="mfoot__legal small muted">Alle Preise inkl. gesetzl. MwSt., zzgl. Versandkosten.</p>
+        <p class="mfoot__legal small muted">{{ terms.footer }}</p>
         <p class="mfoot__legal small quiet num">© {{ year }} RIMIFY</p>
     </footer>
 </template>

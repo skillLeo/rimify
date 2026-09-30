@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
+use App\Http\Controllers\Admin\RechnungsnummernController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\RueckbuchungenController;
@@ -489,6 +490,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/', [ZahlungController::class, 'edit'])->name('zahlung.edit');
             Route::put('/', [ZahlungController::class, 'update'])->middleware('throttle:10,1,zahlung-update')->name('zahlung.update');
             Route::post('/test', [ZahlungController::class, 'test'])->middleware('throttle:10,1,zahlung-test')->name('zahlung.test');
+            // The real invoice numbers, opened once at the client's own (InvoiceSeries) — there is no route back.
+            Route::post('/rechnungsnummern', [RechnungsnummernController::class, 'store'])->middleware('throttle:5,1,rechnungsnummern')->name('zahlung.rechnungsnummern');
         });
 
         // Large PDFs straight into the bucket (PdfUpload): the form, and the app's stand-in for the

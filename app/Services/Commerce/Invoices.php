@@ -30,9 +30,12 @@ use RuntimeException;
  * Money is integer cents throughout, and the invoice is built from the order's own frozen lines and totals — the
  * same figures the PaymentIntent was created at — so invoice, order and payment agree to the cent.
  *
- * A test order (the review's sandbox, Stripe in Testmodus) or a seller whose data is incomplete gets a test invoice
- * in the TEST series, marked on its face as not an invoice under the UStG: the real series stays unbroken for the
- * first real sale.
+ * A test order (the review's sandbox, Stripe in Testmodus), a seller whose data is incomplete, or a shop whose real
+ * numbers the operator has not opened yet (InvoiceSeries) gets a test invoice in the TEST series, marked on its face
+ * as not an invoice under the UStG: the real series starts where the client's accounting says, unbroken.
+ *
+ * The VAT is the order's own, frozen with its lines (Order::vatRateBp): 19 % inside the gross, or — for a
+ * Kleinunternehmer's order — none, with the § 19 UStG sentence in its place.
  */
 final class Invoices
 {
@@ -121,7 +124,11 @@ final class Invoices
 
         $missing = Seller::current()->missing();
 
-        return $missing === [] ? null : 'Es fehlen noch Angaben zum Verkäufer: '.implode(', ', $missing).'.';
+        if ($missing !== []) {
+            return 'Es fehlen noch Angaben zum Verkäufer: '.implode(', ', $missing).'.';
+        }
+
+        return InvoiceSeries::opened() ? null : 'Der Shop vergibt noch keine echten Rechnungsnummern.';
     }
 
     /**
@@ -131,7 +138,8 @@ final class Invoices
     {
         $test = self::testReason($order);
         $series = ($test === null ? '' : self::TEST_PREFIX).self::SERIES[$kind];
-        $taxCents = Money::fromMinor($grossCents)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor();
+        $rateBp = $order->vatRateBp();
+        $taxCents = Money::fromMinor($grossCents)->vatIncluded($rateBp)->toMinor();
         $seller = Seller::current();
         $address = $order->billingAddress ?? $order->deliveryAddress;
         $buyer = [
@@ -142,13 +150,22 @@ final class Invoices
             'email' => $order->customer?->email,
         ];
 
-        $invoice = DB::transaction(function () use ($order, $kind, $series, $grossCents, $taxCents, $seller, $buyer, $lines, $refund, $corrects, $test): Invoice {
-            DB::table('invoice_sequences')->insertOrIgnore(['series' => $series, 'last_number' => 0, 'created_at' => now(), 'updated_at' => now()]);
-            $last = (int) DB::table('invoice_sequences')->where('series', $series)->lockForUpdate()->value('last_number');
-            $sequence = $last + 1;
+        $invoice = DB::transaction(function () use ($order, $kind, $series, $grossCents, $taxCents, $rateBp, $seller, $buyer, $lines, $refund, $corrects, $test): Invoice {
+            // A test series starts itself at 1; a real one exists only once the operator opened it (InvoiceSeries).
+            if ($test !== null) {
+                DB::table('invoice_sequences')->insertOrIgnore(['series' => $series, 'last_number' => 0, 'created_at' => now(), 'updated_at' => now()]);
+            }
+
+            $last = DB::table('invoice_sequences')->where('series', $series)->lockForUpdate()->value('last_number');
+
+            if (! is_numeric($last)) {
+                throw new RuntimeException("The invoice series {$series} has not been opened.");
+            }
+
+            $sequence = (int) $last + 1;
             DB::table('invoice_sequences')->where('series', $series)->update(['last_number' => $sequence, 'updated_at' => now()]);
 
-            $number = ($test === null ? '' : 'TEST-').self::SERIES[$kind].'-'.str_pad((string) $sequence, 6, '0', STR_PAD_LEFT);
+            $number = ($test === null ? '' : 'TEST-').InvoiceSeries::number(self::SERIES[$kind], $sequence);
             $issuedAt = now();
             $key = self::DIR.'/'.$issuedAt->format('Y').'/'.$number.'.pdf';
             $bytes = $this->render([
@@ -162,6 +179,8 @@ final class Invoices
                 'grossCents' => $grossCents,
                 'taxCents' => $taxCents,
                 'netCents' => $grossCents - $taxCents,
+                'rate' => GermanFormat::percent($rateBp / 100, false),
+                'smallBusiness' => $rateBp === 0,
                 'corrects' => $corrects,
                 'test' => $test,
             ]);
@@ -178,7 +197,7 @@ final class Invoices
                 'net_cents' => $grossCents - $taxCents,
                 'tax_cents' => $taxCents,
                 'gross_cents' => $grossCents,
-                'tax_rate_bp' => Money::VAT_STANDARD_BP,
+                'tax_rate_bp' => $rateBp,
                 'currency' => (string) ($order->getAttribute('currency') ?? 'EUR'),
                 'seller' => $seller->toArray(),
                 'buyer' => $buyer,

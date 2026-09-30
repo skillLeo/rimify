@@ -82,6 +82,9 @@ class OrderConfirmationMail extends Mailable
                 'subtotal' => GermanFormat::money((int) $order->subtotal_cents),
                 'shipping' => GermanFormat::money((int) $order->shipping_cents),
                 'tax' => GermanFormat::money((int) $order->tax_cents),
+                // The order's own rate: a Kleinunternehmer's order (§ 19 UStG) carries the § 19 sentence, no VAT line.
+                'rate' => GermanFormat::percent($order->vatRateBp() / 100, false),
+                'smallBusiness' => $order->vatRateBp() === 0,
                 'total' => GermanFormat::money((int) $order->total_cents),
                 'address' => $address === null ? [] : array_values(array_filter([
                     $address->full_name,

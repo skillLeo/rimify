@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Services\Commerce\OrderPayments;
 use App\Services\Storage\StorageProbe;
 use App\Support\GermanFormat;
+use App\Support\ScheduleBeat;
 use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
 use Carbon\CarbonImmutable;
@@ -22,10 +24,11 @@ use Throwable;
  *
  * Each check also has a short form for the rail's one line — `short` („Warteschlange stockt“) and a
  * `count` („12 Std“) — and the report says when a problem is `urgent`: the shop in maintenance mode,
- * or a queue dead for over an hour. Only then does the panel show a banner as well.
+ * a queue dead for over an hour, or a scheduler silent for an hour. Only then does the panel show a
+ * banner as well.
  *
  * @phpstan-type Check array{key: string, label: string, state: 'ok'|'warn'|'bad', sentence: string, short: string, count: string|null}
- * @phpstan-type Urgent array{key: 'maintenance'|'queue', sentence: string}
+ * @phpstan-type Urgent array{key: 'maintenance'|'queue'|'schedule', sentence: string}
  * @phpstan-type Report array{state: 'ok'|'warn'|'bad', sentence: string, label: string, count: string|null, urgent: Urgent|null, checks: list<Check>, checkedAt: string}
  */
 final class SystemHealth
@@ -39,6 +42,9 @@ final class SystemHealth
     /** Minutes the oldest waiting job has waited, for the banner; null when nothing waits. */
     private ?int $stuckFor = null;
 
+    /** The scheduler's silence, said with its consequence, for the banner; null while it runs. */
+    private ?string $scheduleSilent = null;
+
     /** @return Report */
     public function report(): array
     {
@@ -46,6 +52,7 @@ final class SystemHealth
             $this->maintenance(),
             $this->failedJobs(),
             $this->queue(),
+            $this->schedule(),
             $this->mail(),
             $this->storage(),
             $this->rendering(),
@@ -106,6 +113,10 @@ final class SystemHealth
             ];
         }
 
+        if ($this->scheduleSilent !== null) {
+            return ['key' => 'schedule', 'sentence' => $this->scheduleSilent];
+        }
+
         return null;
     }
 
@@ -155,6 +166,34 @@ final class SystemHealth
             $this->stuckFor = $minutes;
 
             return ['state' => 'warn', 'sentence' => 'Warteschlange steht seit '.self::duration($minutes), 'short' => 'Warteschlange stockt', 'count' => self::brief($minutes)];
+        });
+    }
+
+    /**
+     * The cron line's `schedule:run` (ScheduleBeat): without it, orders left unpaid are never expired and the
+     * stock they hold is never released. Amber after an hour's silence — and at once where it has never run —
+     * on the live shop and the preview; elsewhere nobody runs a scheduler, and saying so every day is noise.
+     *
+     * @return Check
+     */
+    private function schedule(): array
+    {
+        return $this->guard('schedule', 'Zeitplan', function (): array {
+            $seconds = ScheduleBeat::secondsAgo();
+            $minutes = $seconds === null ? null : intdiv($seconds, 60);
+
+            if ($minutes !== null && $minutes < ScheduleBeat::LATE_MINUTES) {
+                return ['state' => 'ok', 'sentence' => 'Der Zeitplan läuft. Unbezahlte Bestellungen verfallen nach '.OrderPayments::HOURS_TO_PAY.' Stunden.', 'short' => '', 'count' => null];
+            }
+
+            if (! ScheduleBeat::expected()) {
+                return ['state' => 'ok', 'sentence' => 'In dieser Umgebung läuft kein Zeitplan.', 'short' => '', 'count' => null];
+            }
+
+            $this->scheduleSilent = ($minutes === null ? 'Der Zeitplan ist noch nie gelaufen' : 'Der Zeitplan ist seit '.self::duration($minutes).' nicht mehr gelaufen')
+                .': Unbezahlte Bestellungen verfallen nicht, und ihre Ware bleibt reserviert.';
+
+            return ['state' => 'warn', 'sentence' => $this->scheduleSilent, 'short' => 'Zeitplan läuft nicht', 'count' => $minutes === null ? null : self::brief($minutes)];
         });
     }
 

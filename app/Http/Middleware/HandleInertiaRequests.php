@@ -15,6 +15,7 @@ use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
 use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
+use App\Support\Seller;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -58,6 +59,9 @@ class HandleInertiaRequests extends Middleware
              * rather than compiled in, so one env change turns it off without a build.
              */
             'photography' => config('rimify.photography.enabled') === true,
+            // The Kleinunternehmer switch (§ 19 UStG, App\Support\Seller): every price note reads it (usePriceTerms), so
+            // the site, the order summaries and the invoice change together.
+            'smallBusiness' => Seller::current()->smallBusiness,
             'flash' => [
                 'toast' => $request->session()->get('toast'),
             ],
@@ -194,7 +198,7 @@ class HandleInertiaRequests extends Middleware
      * checks per page view would be the dashboard's own load problem.
      *
      * The rail shows its short form (`label`, `count`), the tooltip and the Übersicht the sentence.
-     * `banner` is the urgent problem — maintenance mode, a queue dead for an hour — unless this person
+     * `banner` is the urgent problem — maintenance mode, a queue dead or a scheduler silent for an hour — unless this person
      * asked to be reminded later (8 hours, AdminPreferencesController): decided here, so a snoozed
      * banner never flashes up in the first frame.
      *

@@ -156,6 +156,8 @@ export interface SharedProps {
     locale: string
     /** Remote photography layered over the drawn art — a temporary client-review flag. */
     photography: boolean
+    /** The seller is a Kleinunternehmer (§ 19 UStG): no VAT on any price note or summary (usePriceTerms). */
+    smallBusiness: boolean
     flash: { toast: string | null }
     [key: string]: unknown
 }
@@ -364,6 +366,8 @@ export interface BasketTotals {
     /** Null while the shipping price is not configured; it is then left out of the total. */
     shippingCents: number | null
     freeShipping: boolean
+    /** The VAT rate in basis points: 1900, or 0 for a Kleinunternehmer (§ 19 UStG). */
+    vatRateBp?: number
     tax: string
     total: string
     totalCents: number

@@ -302,29 +302,95 @@ it('keeps the order and the typed data after a declined card, and takes the same
         ->and(session(Basket::SESSION_KEY))->not->toBe([]);
 });
 
-it('lets a declined payment be paid again when the stock was enough for one order only (PAY-01)', function (): void {
+it('takes the last wheels through reserve, decline, retry and payment: one order, one reservation, paid (PAY-01)', function (): void {
+    // Reserve: the order takes the only four on the shelf.
     $this->config->forceFill(['stock_qty' => 4])->save();
     $shown = checkoutShown($this);
     $number = checkoutPay($this, [], $shown)->assertOk()->json('order');
     $order = Order::query()->where('order_number', $number)->sole();
     $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
 
-    expect((int) $this->config->fresh()->stock_qty)->toBe(0);
+    expect((int) $this->config->fresh()->stock_qty)->toBe(0)
+        ->and($order->stock_reserved)->toBeTrue();
 
+    // Decline: the order fails, and keeps holding the wheels for this customer — they are not handed back to the shelf.
     [$payload, $signature] = FakeStripe::event('payment_intent.payment_failed', ['status' => 'requires_payment_method'] + $intent, CHECKOUT_WEBHOOK_SECRET);
     $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Failed)
+        ->and($order->fresh()->stock_reserved)->toBeTrue()
+        ->and((int) $this->config->fresh()->stock_qty)->toBe(0);
 
     // The goods the declined order holds are the customer's own: the Kasse is still open to them …
     $this->withCookies(checkoutCookies($this->vehicle))->get('/kasse')->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('lines.0.inStock', true)->where('orderRefusal', null));
 
-    // … and the retry takes the same order, no second reservation.
+    // Retry: the same order and the same PaymentIntent — no second order, no second reservation.
     $this->withCookies(checkoutCookies($this->vehicle))->withCredentials()->postJson('/kasse/zahlung', checkoutForm() + ['shown' => $shown])
-        ->assertOk()->assertJson(['order' => $number]);
+        ->assertOk()->assertJson(['order' => $number, 'clientSecret' => $order->stripe_payment_intent_id.'_secret_fake']);
 
     expect((int) $this->config->fresh()->stock_qty)->toBe(0)
-        ->and(Order::query()->where('payment_method', 'stripe')->count())->toBe(1);
+        ->and(Order::query()->where('payment_method', 'stripe')->count())->toBe(1)
+        ->and($this->stripe->to('POST', '/v1/payment_intents'))->toHaveCount(1);
+
+    // Succeed: the signed webhook pays it. The four stay sold — neither released nor taken twice — the basket
+    // empties, the invoice is issued at the order's total and the confirmation goes out.
+    [$payload, $signature] = FakeStripe::event('payment_intent.succeeded', ['status' => 'succeeded', 'amount_received' => $intent['amount']] + $intent, CHECKOUT_WEBHOOK_SECRET);
+    $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
+    $this->getJson('/bestellung/'.$number.'/status')->assertOk()->assertJson(['state' => 'paid']);
+
+    $paid = $order->fresh();
+
+    expect($paid->status)->toBe(OrderStatus::Paid)
+        ->and((int) $this->config->fresh()->stock_qty)->toBe(0)
+        ->and(Order::query()->where('payment_method', 'stripe')->count())->toBe(1)
+        ->and(session(Basket::SESSION_KEY, []))->toBe([])
+        ->and(session(KasseZahlungController::SESSION_PENDING))->toBeNull()
+        ->and(Invoice::query()->where('order_id', $paid->id)->sole()->gross_cents)->toBe($paid->total_cents);
+    Mail::assertSent(OrderConfirmationMail::class, 1);
+
+    // Nothing is left for the expiry to hand back: the paid order's wheels stay sold.
+    $this->travel(25)->hours();
+    $this->artisan('orders:expire')->assertSuccessful();
+
+    expect((int) $this->config->fresh()->stock_qty)->toBe(0)
+        ->and($paid->fresh()->status)->toBe(OrderStatus::Paid);
 });
+
+it('prices a Kleinunternehmer’s order without VAT on the page, the order, the invoice and the mail — and a standard one with it', function (bool $smallBusiness): void {
+    config(['rimify.seller.small_business' => $smallBusiness]);
+
+    $this->withCookies(checkoutCookies($this->vehicle))->withSession(checkoutBasket($this->config))->get('/kasse')->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('smallBusiness', $smallBusiness)
+            ->where('totals.vatRateBp', $smallBusiness ? 0 : 1900)
+            ->where('totals.taxCents', fn (int $tax): bool => $smallBusiness ? $tax === 0 : $tax > 0));
+
+    $number = checkoutPay($this)->assertOk()->json('order');
+    $order = Order::query()->where('order_number', $number)->sole();
+    $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
+
+    [$payload, $signature] = FakeStripe::event('payment_intent.succeeded', ['status' => 'succeeded', 'amount_received' => $intent['amount']] + $intent, CHECKOUT_WEBHOOK_SECRET);
+    $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
+
+    $invoice = Invoice::query()->where('order_id', $order->id)->sole();
+
+    expect($order->tax_cents === 0)->toBe($smallBusiness)
+        ->and($order->lines()->pluck('tax_rate_bp')->unique()->all())->toBe([$smallBusiness ? 0 : 1900])
+        ->and($invoice->tax_rate_bp)->toBe($smallBusiness ? 0 : 1900)
+        ->and($invoice->tax_cents === 0)->toBe($smallBusiness)
+        // The same gross price either way: a Kleinunternehmer's prices are final, not net.
+        ->and($invoice->gross_cents)->toBe($order->total_cents);
+
+    $this->get('/bestellung/'.$number)->assertInertia(fn (AssertableInertia $page) => $page->where('order.smallBusiness', $smallBusiness));
+
+    Mail::assertSent(OrderConfirmationMail::class, function (OrderConfirmationMail $mail) use ($smallBusiness): bool {
+        $html = $mail->render();
+
+        return str_contains($html, 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.') === $smallBusiness
+            && str_contains($html, 'enthaltene MwSt.') === ! $smallBusiness;
+    });
+})->with(['Kleinunternehmer' => [true], 'mit Umsatzsteuer' => [false]]);
 
 it('answers the status only to the browser that placed the order', function (): void {
     $number = checkoutPay($this)->assertOk()->json('order');

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * The one system problem worth a banner across the top of every page, not only the rail's quiet line:
- * the shop in maintenance mode, or a queue that has not moved for an hour (SystemHealth::urgent).
+ * the shop in maintenance mode, a queue that has not moved for an hour, or a scheduler silent for an hour —
+ * unpaid orders then keep their stock for good (SystemHealth::urgent).
  *
  * It cannot be dismissed — a problem hidden for good is how a dead queue goes unnoticed. „Später
  * erinnern“ keeps it away for 8 hours, saved on the account so it does not flash up on the next page

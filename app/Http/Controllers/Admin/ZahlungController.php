@@ -12,6 +12,7 @@ use App\Payments\PaymentConfig;
 use App\Payments\Stripe\StripeGateway;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\PaymentSettingsWriter;
+use App\Services\Commerce\InvoiceSeries;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -40,6 +41,8 @@ class ZahlungController extends Controller
             'test' => $request->session()->get('payment_test') ?? $row?->last_test,
             'testedAt' => $row?->tested_at?->toIso8601String(),
             'webhookUrl' => route('webhooks.payment', ['provider' => 'stripe']),
+            // The real invoice numbers: opened once, at the client's own (InvoiceSeries), or still closed.
+            'invoiceSeries' => InvoiceSeries::state(),
         ]);
     }
 

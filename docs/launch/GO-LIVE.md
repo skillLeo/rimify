@@ -79,9 +79,11 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -N -e \
 
 **Correct:** four files listed (the dump a few MB, the release archive a few hundred MB — on the preview,
 2026-09-29: 100 KB and 112 MB, all four in under a minute); the dump's last line reads
-`-- Dump completed on <today>` (the `grep -c` prints `1`); the two trigger counts are **the same number** — 14 on a database
-migrated to the 2026-09-29 release (four for R-12's audit log and fitment snapshots, one for the frozen
-RIMIFY-Check, one against a document superseding itself, eight demo-row guards); an older release has fewer.
+`-- Dump completed on <today>` (the `grep -c` prints `1`); the two trigger counts are **the same number** — 22 on a database
+migrated to the 2026-09-30 release (four for R-12's audit log and fitment snapshots, one for the frozen
+RIMIFY-Check, one against a document superseding itself, eight demo-row guards, two keeping the payment provider's
+events as received, two keeping issued invoices unchanged, four keeping the invoice numbers gapless); an older
+release has fewer.
 **If not:**
 - *Access denied* → the `.env` values are not the database's; check hPanel › Datenbanken.
 - *PROCESS privilege* → the `--no-tablespaces` flag is missing; it is in the command above.
@@ -218,10 +220,16 @@ A person, on the production site, never through the repository (R-16, `docs/dev/
 3. **Apple Pay**: Stripe-Dashboard › Einstellungen › Zahlungsmethoden › Apple Pay › Domain hinzufügen; put the file
    Stripe offers at `public/.well-known/apple-developer-merchantid-domain-association` and press „Verifizieren“.
 4. `.env`: `RIMIFY_PAYMENTS=stripe`, `RIMIFY_SHIPPING_COST_CENTS`, `RIMIFY_DELIVERY_TIME` and the `RIMIFY_SELLER_*`
-   lines from the client (BLOCKED 19, 20); `php artisan config:cache`.
+   lines from the client (BLOCKED 19, 20) — including `RIMIFY_SELLER_SMALL_BUSINESS=true` if, and only if, the
+   client's tax adviser confirms Kleinunternehmer status under § 19 UStG; `php artisan config:cache`.
+5. **Einstellungen › Zahlung › Rechnungsnummern**, once and for good: the first invoice number and the first credit
+   note number the client's own accounting will issue next, the check box, „Rechnungsnummern eröffnen“. The page
+   shows the first number as the invoice will print it (`RE-001043`) — compare it with the accounting before
+   pressing. It cannot be undone; the Protokoll names who did it. Until it is done every invoice is a test invoice.
 
 **Correct:** `rimify:preflight` shows Zahlung „Stripe im Livemodus“, Stripe-Webhook GO, Verkäuferangaben GO,
-Versand und Lieferzeit GO. **If not**, the row says what is missing, in a sentence.
+Versand und Lieferzeit GO, Rechnungsnummern GO („nächste RE-… und GS-…, eröffnet am … von …“). **If not**, the row
+says what is missing, in a sentence.
 
 ---
 
@@ -282,6 +290,11 @@ The first keeps the renderer alive: it does nothing while the renderer answers a
 when the host has stopped it. The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12),
 `orders:expire` every ten minutes (an order unpaid after 24 hours expires and its stock goes back), and a pulse
 every minute that `rimify:preflight` reads („Zeitplan (Cron)“ turns GO within a minute of the line running).
+
+**The second line is load-bearing:** without it no unpaid order ever expires, and the stock it holds stays reserved
+for good. The shop says so rather than rely on memory — Admin › System shows a row „Zeitplan“ that turns amber, with
+a banner on every admin page, once the pulse is an hour old (at once where it never ran). The pulse is kept in the
+database, so a deploy's cache clear does not reset it.
 
 **Correct — what it looks like when it works:**
 
@@ -344,12 +357,16 @@ git reset --hard "$(cat ~/backups/rimify-$TS.commit)" 2>/dev/null \
   || { mkdir -p ~/rollback && tar -xzf ~/backups/rimify-$TS-release.tar.gz -C "$APP"; }
 cp ~/backups/rimify-$TS.env .env
 $PHP artisan optimize:clear > /dev/null && $PHP artisan optimize > /dev/null
+# The renderer still running is the release you are leaving: stop it, so the watchdog starts the one now on disk.
+pkill -u "$(id -u)" -f "$APP/bootstrap/ssr/ssr.js"; sleep 1
 bash deploy/ssr-watch.sh; sleep 3; curl -s -m 2 --unix-socket "$APP/storage/framework/ssr.sock" http://localhost/health
 git log -1 --format='%h %s'
 ```
 
 The `git reset` works while the old commit is still in the folder's history; the archive covers the case
-where a shallow fetch has dropped it.
+where a shallow fetch has dropped it. The `pkill` is not optional: `ssr-watch.sh` does nothing while a renderer
+answers, and the one answering after a code rollback still holds the newer release's pages in memory — every
+page would be rendered from components the restored code no longer sends props for.
 **Correct:** the health check answers; the last line is the commit from `~/backups/rimify-$TS.commit`.
 
 ### 7.4 Up, and prove it

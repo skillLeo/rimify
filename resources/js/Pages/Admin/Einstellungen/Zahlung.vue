@@ -7,9 +7,13 @@
  * shop takes — Testmodus only test keys, Livemodus only live keys, and a live key only on the live shop (the
  * server refuses the rest in a sentence). „Verbindung testen“ asks Stripe for the account behind the keys: its
  * name, country, currency and payment methods, or Stripe's own error, word for word.
+ *
+ * „Rechnungsnummern“ opens the real invoice numbers once, at the numbers the client's accounting has reached
+ * (InvoiceSeries): until then every invoice is a test invoice. The form shows the first number as the invoice will
+ * print it, and asks for the check against the accounting — it cannot be undone. Opened, it names when and by whom.
  */
 
-import { router } from '@inertiajs/vue3'
+import { router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
@@ -67,6 +71,22 @@ function testConnection(): void {
 }
 
 const COUNTRIES: Record<string, string> = { DE: 'Deutschland', AT: 'Österreich', CH: 'Schweiz', NL: 'Niederlande' }
+
+const series = useForm({ first_invoice: '', first_credit_note: '', confirmed: false })
+const seriesOpen = computed(() => props.invoiceSeries.invoice !== null && props.invoiceSeries.credit_note !== null)
+
+/** `RE-001043` — the number as the invoice prints it, or null while the field holds no whole number. */
+function preview(prefix: string, raw: string): string | null {
+    return /^[1-9]\d{0,8}$/.test(raw.trim()) ? `${prefix}-${raw.trim().padStart(6, '0')}` : null
+}
+
+function openSeries(): void {
+    if (series.processing) {
+        return
+    }
+
+    series.post('/admin/einstellungen/zahlung/rechnungsnummern', { preserveScroll: true })
+}
 </script>
 
 <template>
@@ -145,6 +165,56 @@ const COUNTRIES: Record<string, string> = { DE: 'Deutschland', AT: 'Österreich'
             </section>
         </form>
 
+        <section v-if="seriesOpen && invoiceSeries.invoice && invoiceSeries.credit_note" class="adm-form za-series" aria-labelledby="za-series">
+            <h2 id="za-series" class="adm-form__heading">Rechnungsnummern</h2>
+            <p class="adm-form__note">
+                Eröffnet am {{ invoiceSeries.invoice.openedAt }} von {{ invoiceSeries.invoice.openedBy }}. Der Shop zählt lückenlos weiter.
+                Das lässt sich nicht rückgängig machen.
+            </p>
+            <dl class="za-account">
+                <div><dt>Rechnungen</dt><dd>ab <span class="num">{{ invoiceSeries.invoice.first }}</span>, nächste <span class="num">{{ invoiceSeries.invoice.next }}</span></dd></div>
+                <div><dt>Gutschriften</dt><dd>ab <span class="num">{{ invoiceSeries.credit_note.first }}</span>, nächste <span class="num">{{ invoiceSeries.credit_note.next }}</span></dd></div>
+            </dl>
+        </section>
+
+        <form v-else class="adm-form za-series" novalidate aria-labelledby="za-series" @submit.prevent="openSeries">
+            <h2 id="za-series" class="adm-form__heading">Rechnungsnummern</h2>
+            <p class="adm-form__note">
+                Die Rechnungsnummern sind noch nicht eröffnet. Bis dahin bekommt jede Bestellung eine Testrechnung. Trag die
+                nächsten freien Nummern aus der Buchhaltung ein. Ab da zählt der Shop lückenlos weiter. Eröffnen kannst du sie nur einmal.
+            </p>
+
+            <div class="form-field">
+                <label class="form-field__label" for="za-first-invoice">Erste Rechnungsnummer</label>
+                <input id="za-first-invoice" v-model="series.first_invoice" class="input za-number" type="text" inputmode="numeric" autocomplete="off" aria-describedby="za-first-invoice-help za-first-invoice-error" :aria-invalid="series.errors.first_invoice ? 'true' : undefined">
+                <p id="za-first-invoice-help" class="form-field__help">
+                    <template v-if="preview('RE', series.first_invoice)">Die erste echte Rechnung trägt die Nummer <span class="num">{{ preview('RE', series.first_invoice) }}</span>.</template>
+                    <template v-else>Die nächste freie Nummer aus der Buchhaltung – nur die Zahl, ohne „RE-“.</template>
+                </p>
+                <p id="za-first-invoice-error" class="form-field__error">{{ series.errors.first_invoice }}</p>
+            </div>
+
+            <div class="form-field">
+                <label class="form-field__label" for="za-first-credit">Erste Gutschriftnummer</label>
+                <input id="za-first-credit" v-model="series.first_credit_note" class="input za-number" type="text" inputmode="numeric" autocomplete="off" aria-describedby="za-first-credit-help za-first-credit-error" :aria-invalid="series.errors.first_credit_note ? 'true' : undefined">
+                <p id="za-first-credit-help" class="form-field__help">
+                    <template v-if="preview('GS', series.first_credit_note)">Die erste echte Gutschrift trägt die Nummer <span class="num">{{ preview('GS', series.first_credit_note) }}</span>.</template>
+                    <template v-else>1, wenn es noch keine Gutschrift gab.</template>
+                </p>
+                <p id="za-first-credit-error" class="form-field__error">{{ series.errors.first_credit_note }}</p>
+            </div>
+
+            <label class="check">
+                <input v-model="series.confirmed" type="checkbox" aria-describedby="za-confirmed-error">
+                Ich habe beide Nummern mit der Buchhaltung abgeglichen.
+            </label>
+            <p id="za-confirmed-error" class="form-field__error">{{ series.errors.confirmed }}</p>
+
+            <div>
+                <button class="btn btn--secondary" type="submit" :disabled="series.processing" :aria-busy="series.processing ? 'true' : undefined">Rechnungsnummern eröffnen</button>
+            </div>
+        </form>
+
         <AdminSaveBar :editor="editor" />
     </AdminPage>
 </template>
@@ -159,9 +229,18 @@ const COUNTRIES: Record<string, string> = { DE: 'Deutschland', AT: 'Österreich'
 
 .za-masked__value,
 .za-key,
+.za-number,
 .za-url,
 .za-error__raw {
     font-variant-numeric: tabular-nums;
+}
+
+.za-series {
+    margin-top: var(--sp-32);
+}
+
+.za-number {
+    max-width: 16ch;
 }
 
 .za-masked__value {

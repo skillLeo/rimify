@@ -53,6 +53,8 @@ final class OrderDetail
                 'subtotal' => $order->subtotal_cents,
                 'shipping' => $order->shipping_cents,
                 'tax' => $order->tax_cents,
+                // Written at a VAT rate of 0: a Kleinunternehmer's order (§ 19 UStG) shows the sentence, not a VAT line.
+                'smallBusiness' => $order->vatRateBp() === 0,
             ],
             'customer' => [
                 'name' => $row['customer'],

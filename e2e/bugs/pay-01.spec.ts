@@ -20,13 +20,15 @@ test.use({ baseURL: SHOP });
  *
  * Expected: the page the decline leads to takes the payment again, with everything typed still there.
  *
- * Writes (the brief allows test orders on rimify_wf_e2e): one declined test order that holds `quantity` of one size
- * of the second-or-later product until `php artisan orders:expire` runs 24 h later; once the bug is fixed, a second
- * test order that the spec cancels at the end, so its stock goes back. One run only (desktop-1440): the bug is on the
- * server and knows no width, and every run holds stock.
+ * The whole cycle, as a customer meets it: reserve, decline, retry, succeed — the retry replaces the declined order
+ * (its goods go back first, the new order takes them) and is paid; the basket is empty afterwards.
+ *
+ * Writes (the brief allows test orders on rimify_wf_e2e): one declined test order, cancelled by the retry, and one paid
+ * test order that keeps `quantity` of one size of the second-or-later product sold. One run only (desktop-1440): the
+ * bug is on the server and knows no width, and every run sells stock (`composer e2e:shop` restocks the shop).
  */
 
-test('PAY-01 after a declined test payment the same basket can be paid again', async ({ page }, info) => {
+test('PAY-01 after a declined test payment the same basket can be paid again, and is', async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop-1440', 'server-side and width-free; one run, because every run holds stock');
     test.slow();
 
@@ -57,10 +59,17 @@ test('PAY-01 after a declined test payment the same basket can be paid again', a
     ).toHaveCount(0);
     await expect(page.locator('#ko-mail'), 'what was typed is still there after the decline').toHaveValue(CUSTOMER.email);
 
-    // And it goes through to the payment again — which is then cancelled, so that order's stock goes back.
+    // And it goes through to the payment again — and this time the payment succeeds.
     await toPayment(page);
     await orderToTestPayment(page);
-    await page.getByRole('button', { name: 'Zahlung abbrechen' }).click();
+    await page.getByRole('button', { name: 'Zahlung erfolgreich' }).click();
     await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 });
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Diese Bestellung ist nicht mehr offen.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Vielen Dank für deine Bestellung.');
+
+    const paid = new URL(page.url()).pathname.split('/').pop() ?? '?';
+    expect(paid, 'the retry is a new order: the declined one was cancelled and its goods went back first').not.toBe(declined);
+
+    // Paid: the basket is empty.
+    await open(page, '/warenkorb');
+    await expect(page.getByText('Dein Warenkorb ist noch leer.')).toBeVisible();
 });

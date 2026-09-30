@@ -10,9 +10,16 @@ namespace App\Support;
  *
  * Where it is needed and missing, the surface says so instead of printing a guess: the invoice is issued as a test
  * invoice (Invoices), the Widerrufsformular names the e-mail address alone, the preflight lists the gap.
+ *
+ * `smallBusiness` is the Kleinunternehmer switch (§ 19 UStG): one flag, and the VAT rate every new order is written
+ * at (`vatRateBp`), every price note on the site (the shared `smallBusiness` prop) and the invoice follow it together.
+ * An order keeps the rate it was written at; its invoice and its pages read that, never the flag of today.
  */
 final readonly class Seller
 {
+    /** The sentence a Kleinunternehmer's invoice carries in place of the VAT. */
+    public const SMALL_BUSINESS_SENTENCE = 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.';
+
     /** The fields § 14 Abs. 4 UStG asks of the seller, in the words the preflight uses for the gap. */
     private const REQUIRED = [
         'name' => 'Name des Unternehmens',
@@ -31,6 +38,7 @@ final readonly class Seller
         public ?string $vatId,
         public ?string $taxNumber,
         public ?string $register,
+        public bool $smallBusiness = false,
     ) {}
 
     public static function current(): self
@@ -50,7 +58,14 @@ final readonly class Seller
             $value('vat_id'),
             $value('tax_number'),
             $value('register'),
+            config('rimify.seller.small_business') === true,
         );
+    }
+
+    /** The VAT rate a new order is written at, in basis points: none for a Kleinunternehmer, 19 % otherwise. */
+    public function vatRateBp(): int
+    {
+        return $this->smallBusiness ? 0 : Money::VAT_STANDARD_BP;
     }
 
     /**
@@ -94,7 +109,7 @@ final readonly class Seller
         ]));
     }
 
-    /** @return array<string, string|null> */
+    /** @return array<string, string|bool|null> */
     public function toArray(): array
     {
         return [
@@ -106,6 +121,7 @@ final readonly class Seller
             'vatId' => $this->vatId,
             'taxNumber' => $this->taxNumber,
             'register' => $this->register,
+            'smallBusiness' => $this->smallBusiness,
         ];
     }
 }

@@ -30,4 +30,17 @@ export interface AdminZahlungProps {
     testedAt: string | null
     /** Where Stripe's webhook must point (Stripe-Dashboard › Webhooks, or `stripe listen --forward-to`). */
     webhookUrl: string
+    /** The real invoice numbers (InvoiceSeries::state): null per series while not yet opened. */
+    invoiceSeries: {
+        invoice: OpenedSeries | null
+        credit_note: OpenedSeries | null
+    }
+}
+
+/** A real invoice series, opened: `RE-001043`, the next number, when and by whom. */
+export interface OpenedSeries {
+    first: string
+    next: string
+    openedAt: string
+    openedBy: string
 }

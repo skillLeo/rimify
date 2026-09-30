@@ -34,8 +34,8 @@ class AdminPreferencesRequest extends FormRequest
             'rail' => ['required_without_all:snooze,width,columns', 'nullable', 'string', 'in:open,collapsed'],
             // The width the rail was dragged to: whole pixels inside the range the handle allows.
             'width' => ['required_without_all:rail,snooze,columns', 'nullable', 'integer', 'between:'.AdminUser::RAIL_WIDTH_MIN.','.AdminUser::RAIL_WIDTH_MAX],
-            // Which urgent problem to be reminded of later: only the two a banner is ever shown for.
-            'snooze' => ['required_without_all:rail,width,columns', 'nullable', 'string', 'in:maintenance,queue'],
+            // Which urgent problem to be reminded of later: only the three a banner is ever shown for.
+            'snooze' => ['required_without_all:rail,width,columns', 'nullable', 'string', 'in:maintenance,queue,schedule'],
             // The save's revision (AdminUser::rememberRail, ::rememberColumns): an older one than the stored is dropped.
             'rev' => ['nullable', 'integer', 'min:1'],
             // The Spaltenwahl of one list (AdminLists): the columns this person wants to see there.

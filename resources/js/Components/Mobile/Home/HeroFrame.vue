@@ -23,13 +23,15 @@ import Picture from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
 import ValueText from '../../Ui/ValueText.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
+import { priceTerms } from '../../../composables/usePriceTerms'
 import { formatMoney } from '../../../lib/num'
 import type { HeroProduct } from '../../../types/pages'
 import { frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_LAYOUT, rollStyle } from './calloutSlots'
 
 const props = defineProps<{ product: HeroProduct }>()
 
-const page = usePage<{ demo?: boolean }>()
+const page = usePage<{ demo?: boolean; smallBusiness?: boolean }>()
+const terms = computed(() => priceTerms(page.props.smallBusiness === true))
 
 const CAPTION = 'Abbildung zeigt das Design; Werte der gezeigten Ausführung.'
 const SYMBOLIC = 'Symbolbild – Werte einer Beispielkonfiguration'
@@ -123,7 +125,7 @@ onMounted(() => {
             <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
             <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
             <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
-            <span class="micro quiet">inkl. MwSt., zzgl. Versand</span>
+            <span class="micro quiet">{{ terms.note }}</span>
         </Link>
         <p v-else-if="named" class="hero-mobile__caption">
             <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>

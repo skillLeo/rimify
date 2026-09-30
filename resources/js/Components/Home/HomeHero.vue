@@ -33,6 +33,7 @@ import ValueText from '../Ui/ValueText.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
 import { DESKTOP_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
+import { priceTerms } from '../../composables/usePriceTerms'
 import { formatMoney } from '../../lib/num'
 import type { MakeOption, StartseiteProps } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
@@ -52,6 +53,7 @@ const DEMO = 'Demodaten – Beispielsortiment; Preise und Bestände sind Beispie
 
 const page = usePage<SharedProps & { demo?: boolean }>()
 const vehicle = computed(() => page.props.vehicle)
+const terms = computed(() => priceTerms(page.props.smallBusiness === true))
 const product = computed(() => props.hero.product)
 const scene = computed(() => heroScene(product.value, DESKTOP_LAYOUT))
 
@@ -152,7 +154,7 @@ onMounted(() => {
                         <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
                         <span v-if="linked" class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
                         <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
-                        <span v-if="linked" class="micro quiet">inkl. MwSt., zzgl. Versand</span>
+                        <span v-if="linked" class="micro quiet">{{ terms.note }}</span>
                     </span>
                 </component>
 

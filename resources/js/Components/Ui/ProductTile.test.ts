@@ -7,11 +7,15 @@ import { formatMoney } from '../../lib/num'
 import { useCompare } from '../../stores/compare'
 import type { ImageManifest, ProductCardProp, VehicleProp } from '../../types/rimify'
 
+/* The page's shared props, as far as the tile reads them: the Kleinunternehmer flag (usePriceTerms). */
+const page = vi.hoisted(() => ({ props: { smallBusiness: false } as Record<string, unknown> }))
+
 vi.mock('@inertiajs/vue3', () => ({
     Link: defineComponent({
         props: { href: { type: String, required: true } },
         setup: (props, { slots, attrs }) => () => h('a', { href: props.href, ...attrs }, slots.default?.()),
     }),
+    usePage: () => page,
 }))
 
 const { default: ProductTile } = await import('./ProductTile.vue')
@@ -116,6 +120,20 @@ describe('ProductTile', () => {
         expect(wrapper.find('.tile__legal').text()).toBe('inkl. MwSt., zzgl. Versand')
         expect(wrapper.find('.verdict').exists()).toBe(false)
         expect(wrapper.find('.stock--out').exists()).toBe(false)
+    })
+
+    it('names no VAT in the legal line when the seller is a Kleinunternehmer (§ 19 UStG)', () => {
+        page.props.smallBusiness = true
+
+        try {
+            const wrapper = mountTile()
+
+            expect(wrapper.find('.tile__price').text()).toBe(`ab ${formatMoney(17225)} pro Felge`)
+            expect(wrapper.find('.tile__legal').text()).toBe('zzgl. Versand, keine MwSt. nach § 19 UStG')
+            expect(wrapper.text()).not.toContain('inkl. MwSt.')
+        } finally {
+            page.props.smallBusiness = false
+        }
     })
 
     it('draws the outline without a caption when there is no cut-out, and the picture when there is', () => {

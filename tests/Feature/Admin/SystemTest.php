@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\AdminUser;
 use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
+use App\Support\ScheduleBeat;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -53,7 +54,47 @@ describe('the health sentence', function (): void {
 
         expect($report['state'])->toBe('ok')
             ->and($report['sentence'])->toBe('Alles in Ordnung')
-            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'mail', 'storage', 'ssr']);
+            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'schedule', 'mail', 'storage', 'ssr']);
+    });
+
+    it('turns amber once the scheduler has been silent for an hour, naming what that costs', function (): void {
+        app()['env'] = 'staging';
+
+        try {
+            ScheduleBeat::record();
+            $this->travel(59)->minutes();
+            expect(app(SystemHealth::class)->report())->toMatchArray(['state' => 'ok', 'urgent' => null]);
+
+            $this->travel(71)->minutes();
+            $report = app(SystemHealth::class)->report();
+            $sentence = 'Der Zeitplan ist seit 2 Stunden nicht mehr gelaufen: Unbezahlte Bestellungen verfallen nicht, und ihre Ware bleibt reserviert.';
+
+            expect($report)->toMatchArray(['state' => 'warn', 'sentence' => $sentence, 'label' => 'Zeitplan läuft nicht', 'count' => '2 Std'])
+                ->and(collect($report['checks'])->firstWhere('key', 'schedule'))->toMatchArray(['state' => 'warn', 'sentence' => $sentence])
+                ->and($report['urgent'])->toBe(['key' => 'schedule', 'sentence' => $sentence]);
+
+            Cache::flush();
+            $this->actingAs(systemAdmin('content-editor'), 'admin')->get('/admin')
+                ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.health.banner.key', 'schedule'));
+        } finally {
+            app()['env'] = 'testing';
+        }
+    });
+
+    it('says at once on the live shop and the preview when the scheduler has never run, and stays quiet elsewhere', function (): void {
+        expect(collect(app(SystemHealth::class)->report()['checks'])->firstWhere('key', 'schedule'))
+            ->toMatchArray(['state' => 'ok', 'sentence' => 'In dieser Umgebung läuft kein Zeitplan.']);
+
+        app()['env'] = 'production';
+
+        try {
+            expect(app(SystemHealth::class)->report()['urgent'])->toBe([
+                'key' => 'schedule',
+                'sentence' => 'Der Zeitplan ist noch nie gelaufen: Unbezahlte Bestellungen verfallen nicht, und ihre Ware bleibt reserviert.',
+            ]);
+        } finally {
+            app()['env'] = 'testing';
+        }
     });
 
     it('names failed jobs, counted, as a warning', function (): void {
@@ -158,15 +199,16 @@ describe('the banner', function (): void {
             ->assertInertia(fn (AssertableInertia $page) => $page->where('admin.health.banner.key', 'queue'));
     });
 
-    it('takes only the two problems a banner is shown for, and still saves the rail alone', function (): void {
+    it('takes only the three problems a banner is shown for, and still saves the rail alone', function (): void {
         $admin = systemAdmin();
 
         $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['snooze' => 'everything'])->assertUnprocessable();
+        $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['snooze' => 'schedule'])->assertNoContent();
         $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', [])->assertUnprocessable();
         $this->actingAs($admin, 'admin')->patchJson('/admin/ansicht', ['rail' => 'collapsed'])->assertNoContent();
 
         expect($admin->refresh()->preferences['rail'] ?? null)->toBe('collapsed')
-            ->and($admin->preferences['healthSnooze'] ?? null)->toBeNull();
+            ->and($admin->preferences['healthSnooze']['key'] ?? null)->toBe('schedule');
     });
 });
 
@@ -199,7 +241,7 @@ describe('where it is shown', function (): void {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/System/Index')
-                ->has('report.checks', 6)
+                ->has('report.checks', 7)
                 ->where('report.sentence', 'Alles in Ordnung'));
 
         $this->actingAs(systemAdmin('content-editor'), 'admin')->get('/admin/system')->assertForbidden();

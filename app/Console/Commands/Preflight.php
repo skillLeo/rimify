@@ -12,18 +12,19 @@ use App\Payments\Payments;
 use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
 use App\Services\Commerce\Invoices;
+use App\Services\Commerce\InvoiceSeries;
 use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
 use App\Support\GermanFormat;
+use App\Support\ScheduleBeat;
 use App\Support\Seller;
 use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -41,9 +42,6 @@ use Throwable;
  */
 final class Preflight extends Command
 {
-    /** The scheduler's pulse (routes/console.php): the cache key, a Unix time, written every minute. */
-    public const SCHEDULE_BEAT = 'rimify:schedule_beat';
-
     protected $signature = 'rimify:preflight {--skip-s3 : Leave out the bucket audit (it writes and reads probe files)}';
 
     protected $description = 'Go / no-go: environment, rendering, mail, payment, database, demo data and media storage';
@@ -111,6 +109,7 @@ final class Preflight extends Command
 
         $rows[] = ['Speicher-Tabelle', Schema::hasTable('storage_settings') ? 'ok' : 'fail', Schema::hasTable('storage_settings') ? 'vorhanden' : 'Migration fehlt'];
         $rows[] = $this->invoiceStorage();
+        $rows[] = $this->invoiceSeries($production);
         $rows[] = $this->seller($production);
         $rows[] = $this->shippingTerms($production);
         $rows[] = $this->legalTexts($production);
@@ -193,13 +192,11 @@ final class Preflight extends Command
      */
     private function schedule(bool $production): array
     {
-        $beat = Cache::get(self::SCHEDULE_BEAT);
+        $ago = ScheduleBeat::secondsAgo();
 
-        if (! is_int($beat)) {
+        if ($ago === null) {
             return ['Zeitplan (Cron)', $production ? 'fail' : 'warn', 'noch nie gelaufen – die Cron-Zeile für schedule:run fehlt (GO-LIVE.md)'];
         }
-
-        $ago = now()->getTimestamp() - $beat;
 
         return $ago <= 180
             ? ['Zeitplan (Cron)', 'ok', "zuletzt vor {$ago} s"]
@@ -220,6 +217,27 @@ final class Preflight extends Command
         return $exposed
             ? ['Rechnungen', 'fail', 'Der Ordner invoices/ liegt im öffentlichen Verzeichnis – er gehört auf die private Platte']
             : ['Rechnungen', 'ok', 'privat ('.Invoices::DIR.'/), nur über signierte Links'];
+    }
+
+    /**
+     * The real invoice numbers, opened once at the client's own (InvoiceSeries): until then every invoice is a test
+     * invoice — on the live shop, a paying customer would get one.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function invoiceSeries(bool $production): array
+    {
+        try {
+            $state = InvoiceSeries::state();
+        } catch (Throwable $e) {
+            return ['Rechnungsnummern', 'fail', $e->getMessage()];
+        }
+
+        if ($state['invoice'] === null || $state['credit_note'] === null) {
+            return ['Rechnungsnummern', $production ? 'fail' : 'warn', 'nicht eröffnet – jede Rechnung ist eine Testrechnung (Einstellungen › Zahlung)'];
+        }
+
+        return ['Rechnungsnummern', 'ok', "nächste {$state['invoice']['next']} und {$state['credit_note']['next']}, eröffnet am {$state['invoice']['openedAt']} von {$state['invoice']['openedBy']}"];
     }
 
     /** @return array{0: string, 1: string, 2: string} */

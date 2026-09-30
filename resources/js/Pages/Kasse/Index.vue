@@ -41,6 +41,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
+import { priceTerms, totalNote } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
 import {
     loadStripe,
@@ -71,6 +72,7 @@ const props = defineProps<{
 }>()
 
 const shared = useShared()
+const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
 const vehicle = computed(() => shared.value.vehicle)
 
 type Step = 1 | 2 | 3
@@ -814,10 +816,7 @@ function verdictSentence(line: BasketLine): string {
                                     <dd class="tabular">{{ totals.total }}</dd>
                                 </div>
                             </dl>
-                            <p v-if="shippingOpen" class="price-legal">
-                                inkl. {{ totals.tax }} MwSt. · Versandkosten werden noch festgelegt
-                            </p>
-                            <p v-else class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
+                            <p class="price-legal">{{ totalNote(terms.smallBusiness, totals.tax, shippingOpen) }}</p>
                         </div>
                     </aside>
 
@@ -1333,10 +1332,7 @@ function verdictSentence(line: BasketLine): string {
                                             <dd class="tabular">{{ totals.total }}</dd>
                                         </div>
                                     </dl>
-                                    <p v-if="shippingOpen" class="price-legal">
-                                        inkl. {{ totals.tax }} MwSt. · Versandkosten werden noch festgelegt
-                                    </p>
-                                    <p v-else class="price-legal">inkl. {{ totals.tax }} MwSt. und Versand</p>
+                                    <p class="price-legal">{{ totalNote(terms.smallBusiness, totals.tax, shippingOpen) }}</p>
 
                                     <p v-if="payError" class="ko__refusal ko__refusal--bad" role="alert">{{ payError }}</p>
 

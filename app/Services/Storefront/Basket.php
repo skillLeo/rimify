@@ -25,6 +25,7 @@ use App\Services\Commerce\PendingOrder;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
 use App\Support\Money;
+use App\Support\Seller;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -159,8 +160,10 @@ final readonly class Basket
         // the figure rather than adding a number nobody has confirmed.
         $total = $subtotal + ($shipping ?? 0);
         // German prices are shown gross, so VAT is extracted from the total rather than added — in
-        // integers, rounded as an invoice rounds (Money), never through a float rate.
-        $tax = Money::fromMinor($total)->vatIncluded(Money::VAT_STANDARD_BP)->toMinor();
+        // integers, rounded as an invoice rounds (Money), never through a float rate. A Kleinunternehmer
+        // (§ 19 UStG) charges none: the rate is 0 and the summary has no VAT line.
+        $rate = Seller::current()->vatRateBp();
+        $tax = Money::fromMinor($total)->vatIncluded($rate)->toMinor();
 
         return [
             'lines' => $lines,
@@ -171,6 +174,7 @@ final readonly class Basket
                 'shippingCents' => $shipping,
                 'shipping' => $shipping === null ? self::OPEN_PRICE : GermanFormat::money($shipping),
                 'freeShipping' => $shipping === 0 && $subtotal > 0,
+                'vatRateBp' => $rate,
                 'taxCents' => $tax,
                 'tax' => GermanFormat::money($tax),
                 'totalCents' => $total,

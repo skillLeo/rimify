@@ -9,10 +9,12 @@ import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import { useConsent } from '../../composables/useConsent'
+import { usePriceTerms } from '../../composables/usePriceTerms'
 import { useShell } from '../../composables/useShell'
 import { useMenus, useShared } from '../../composables/useShared'
 
 const shared = useShared()
+const terms = usePriceTerms()
 const menus = useMenus()
 const consent = useConsent()
 const shell = useShell()
@@ -78,7 +80,7 @@ const year = new Date().getFullYear()
             </div>
 
             <div class="footer__base">
-                <span>Alle Preise inkl. gesetzl. MwSt., zzgl. Versandkosten.</span>
+                <span>{{ terms.footer }}</span>
                 <span class="num">© RIMIFY {{ year }}</span>
             </div>
         </div>
