@@ -118,12 +118,10 @@ export async function resolveRoutes(context, routes) {
     const href = await page.evaluate(() => document.querySelector('.plp__grid a[href^="/felgen/"], a[href^="/felgen/"]')?.getAttribute('href') ?? null)
     await page.close()
 
-    // A shop with no public product yet (a preview whose only real wheel waits for its release and price): the
-    // product routes are left out, and said so — never measured on a 404 and reported as the product page.
+    // No public product means the gate cannot measure the page that matters most: it fails, it never skips. The
+    // exemption D-051 gave a preview without a released wheel is withdrawn (01.10.2026) — the DB8GT2 is in the shop.
     if (href === null) {
-        console.log(`Kein öffentliches Produkt auf ${BASE}: ${routes.filter((r) => r.includes('{product}')).join(', ')} ausgelassen.`)
-
-        return routes.filter((r) => !r.includes('{product}'))
+        throw new Error(`Kein öffentliches Produkt auf ${BASE}: ${routes.filter((r) => r.includes('{product}')).join(', ')} kann nicht geprüft werden. Erst eine Felge freigeben und veröffentlichen.`)
     }
 
     return routes.map((r) => r.replace('{product}', href.replace('/felgen/', '')))
