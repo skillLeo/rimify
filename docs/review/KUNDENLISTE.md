@@ -37,7 +37,7 @@ Prüfen und abhaken kannst du alles auf https://rimify.skillleo.com.
 | 20 | Unterschiedliche Größen vorne und hinten wählbar | | | offen |
 | 21 | „Eintragung“ steht bei Felgen mit Auflagen dreimal | | | offen |
 | 22 | Handy-Liste: „Vergleichen“ verdeckt „Mit Auflagen“ | | | offen |
-| 23 | „Mit Auflagen“ nur gelb bei echten Auflagen (z. B. Bördeln), im Backend einstellbar | | | offen |
+| 23 | „Mit Auflagen“ nur gelb bei echten Auflagen (z. B. Bördeln), im Backend einstellbar | Jede Auflage eines Gutachtens hat jetzt eine Stufe, die du im Admin einstellst (Gutachten › Dokument › Auflagenverzeichnis, Spalte „Im Shop“): Hinweis (nichts zu tun, ruhig in Schwarz), Auflage (gelb) oder Nicht zulässig (rot). Sind alle Auflagen einer Felge Hinweise, steht in der Liste und auf der Produktseite „Freigegeben“ und darunter ruhig „Mit Hinweisen aus dem Gutachten“; nur echte Auflagen machen „Mit Auflagen“ gelb. Anders als vorgeschlagen gibt es keinen freien Grün/Gelb-Schalter: Eine Abnahme beim Prüfer oder Arbeit an der Karosserie, etwa das Bördeln, ist immer eine Auflage und lässt sich nicht auf Hinweis stellen – sonst könnte jemand kaufen, ohne zu wissen, dass ein Prüfer oder eine Werkstatt nötig ist. Die vorhandenen Auflagen haben wir vorbelegt (z. B. Schraubenhinweise und Schneeketten als Hinweis, Abnahme und Karosseriearbeiten als Auflage). Solange die Achslasten und die Höchstgeschwindigkeit eines Fahrzeugs nicht eingetragen sind, bleibt es bei „Mit Auflagen“, weil die Reifen dann noch zu prüfen sind. | db7cd97d | anders gelöst |
 | 24 | Scrollbalken der Filter am Ende manchmal fehlerhaft | | | offen |
 | 25 | Knopf „Nur die Felgen bestellen“ ohne Funktion entfernen | | | offen |
 | 26 | Alle E-Mail-Knöpfe sollen zum Kontaktformular führen | | | offen |
