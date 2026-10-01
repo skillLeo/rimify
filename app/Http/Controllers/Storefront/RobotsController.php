@@ -9,8 +9,8 @@ use Illuminate\Http\Response;
 
 /**
  * robots.txt, decided per copy of the shop: the live shop lets every crawler in, as the static file did; any other
- * copy — the preview above all — turns every crawler away, beside the `X-Robots-Tag` on each response and the
- * password in front (App\Support\PreviewGate). There is no sitemap to announce.
+ * copy — the test environment above all — turns every crawler away, beside the `X-Robots-Tag` on each response
+ * (D-088). There is no sitemap to announce.
  */
 class RobotsController extends Controller
 {

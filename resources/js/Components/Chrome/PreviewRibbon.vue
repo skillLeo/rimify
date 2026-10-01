@@ -1,15 +1,15 @@
 <script setup lang="ts">
 /**
- * The preview's one line (the preview gate): above the header, on the password-protected test copy only, saying what
- * the page is — slim, so the design under it is the one being judged. „Ausblenden" puts it away at once and remembers
- * that in the browser (`rmf_vorschau`); the server reads it, so the next page's first frame has no ribbon either
- * (HandleInertiaRequests, R-08). The live shop never shows it: there is no preview password there.
+ * The test environment's one line: above the header, on the staging copy only, saying what the page is — slim and in
+ * the flow, so it covers nothing and the design under it is the one being judged. „Ausblenden" puts it away at once and
+ * remembers that in the browser (`rmf_vorschau`); the server reads it, so the next page's first frame has no ribbon
+ * either (App\Support\PreviewRibbon, R-08). The live shop never shows it.
  */
 
 import { ref } from 'vue'
 import { useShared } from '../../composables/useShared'
 
-/** App\Support\PreviewGate::RIBBON_COOKIE — thirty days, this site only. */
+/** App\Support\PreviewRibbon::COOKIE — thirty days, this site only. */
 const PREVIEW_RIBBON_COOKIE = 'rmf_vorschau'
 
 const shared = useShared()

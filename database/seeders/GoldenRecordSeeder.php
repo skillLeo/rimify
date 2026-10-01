@@ -127,8 +127,24 @@ class GoldenRecordSeeder extends Seeder
 
         CatalogueSeeder::attachMappedPhotographs();
 
-        if (Setting::get('hero_product_id') === null) {
+        // The hero names this wheel unless a person chose another real one. A choice that names a demonstration model,
+        // a model that is gone or one that is archived is no choice: ContentSeeder clears it right after this seeder,
+        // and checking only for „none" here left the hero empty on a database seeded before the demo catalogue left
+        // the storefront — the preview lost its hero photograph and the numbers section that way (D-089).
+        if (! self::realChoice(Setting::get('hero_product_id'))) {
             Setting::set('hero_product_id', (int) $model->id);
         }
+    }
+
+    /** Whether the hero setting names a real wheel a person chose: one that exists, is no demo and is not archived. */
+    private static function realChoice(mixed $chosen): bool
+    {
+        if (! is_int($chosen) && ! (is_string($chosen) && ctype_digit($chosen))) {
+            return false;
+        }
+
+        $model = WheelModel::query()->find((int) $chosen);
+
+        return $model !== null && ! $model->is_demo && $model->status !== CatalogueStatus::Archived;
     }
 }

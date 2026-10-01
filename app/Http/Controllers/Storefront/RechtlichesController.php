@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Storefront;
 use App\Http\Controllers\Controller;
 use App\Models\Page;
 use App\Services\Content\PageContent;
+use App\Support\Operator;
 use App\Support\Seller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,9 +58,19 @@ class RechtlichesController extends Controller
         // The Impressum's facts from the seller data (§ 5 DDG), from the one place the invoice and the order mail read
         // too — beside the Kanzlei's text, never instead of it. What is not given yet says so; values the admin marked as
         // placeholders are shown here only, under a note that says they are placeholders (Seller::stored).
+        // The test environment (staging) names its own operator instead, truthfully, and says the shop is not in
+        // operation (Operator, D-088); on the client's domain the seller takes its place by itself.
         $provider = null;
 
-        if ($slug === 'impressum') {
+        if ($slug === 'impressum' && Operator::applies()) {
+            $rows = Operator::current()->impressum();
+            $provider = [
+                'rows' => $rows,
+                'complete' => ! in_array(null, array_column($rows, 'value'), true),
+                'placeholder' => false,
+                'notice' => Operator::NOT_IN_OPERATION,
+            ];
+        } elseif ($slug === 'impressum') {
             $seller = Seller::stored();
             $rows = $seller->impressum();
             $provider = [

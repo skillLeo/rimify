@@ -14,7 +14,6 @@ use App\Services\Storage\MediaDisks;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\GermanFormat;
-use App\Support\PreviewGate;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\PendingRequest;
@@ -72,6 +71,24 @@ final class Smoke extends Command
             $this->expect(str_contains($response->body(), 'data-server-rendered'), 'ohne Server-Rendering ausgeliefert');
 
             return '200, auf dem Server gerendert';
+        });
+
+        // The homepage's signature pieces (docs/design/PROTECTED.md P1, P4), asserted where they were lost: on the host.
+        // The preview showed the outline and no numbers section for days while every test on a fresh database passed
+        // (D-089) — a homepage without a hero product looks like a working page to every other check.
+        $this->check('Startseite: Felgenfoto und Zahlen', function (): string {
+            $html = self::rendered($this->get('/')->body());
+            $hero = preg_match('#<section[^>]*data-section="H2".*?</section>#s', $html, $section) === 1 ? $section[0] : '';
+            $this->expect($hero !== '', 'kein Hero im gerenderten HTML');
+            $this->expect(
+                preg_match('#<img\b[^>]*\bsrc="([^"]+)"#', $hero, $img) === 1,
+                'kein Felgenfoto im Hero – die Startseite hat kein Hero-Produkt und zeigt die Umrisszeichnung (Katalog › Felgen, Einstellung hero_product_id)',
+            );
+            $photo = $this->get(html_entity_decode($img[1]));
+            $this->expect($photo->status() === 200, "das Felgenfoto antwortet mit HTTP {$photo->status()}");
+            $this->expect(str_contains($html, 'data-section="H8"'), 'der Abschnitt „Was die Zahlen auf einer Felge bedeuten“ fehlt');
+
+            return 'Felgenfoto im Hero ('.basename((string) parse_url($img[1], PHP_URL_PATH)).'), Zahlen-Abschnitt da';
         });
 
         if ($pair === null) {
@@ -275,15 +292,10 @@ final class Smoke extends Command
         return (string) preg_replace('#<script\b[^>]*data-page[^>]*>.*?</script>#s', '', $html);
     }
 
-    /**
-     * Every request of the smoke test, through the preview's password where there is one (App\Support\PreviewGate) —
-     * as the client passes it: pages, the PDF and the files under /storage alike.
-     */
+    /** Every request of the smoke test, as a visitor sends it: no credentials of any kind (D-088). */
     private static function http(int $seconds): PendingRequest
     {
-        $request = Http::timeout($seconds);
-
-        return PreviewGate::enabled() ? $request->withBasicAuth((string) PreviewGate::user(), (string) PreviewGate::password()) : $request;
+        return Http::timeout($seconds);
     }
 
     private function client(): PendingRequest

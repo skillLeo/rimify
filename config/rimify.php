@@ -150,12 +150,18 @@ return [
         'enabled' => filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL),
     ],
 
-    // The preview's password (App\Support\PreviewGate): HTTP basic auth over the whole site — pages, admin and the
-    // files under /storage — while it is reachable from outside without its legal texts. Set by hand in the preview's
-    // .env, never in the repository; both empty (the live shop, a developer's machine) is no gate at all.
-    'preview' => [
-        'user' => env('RIMIFY_PREVIEW_USER'),
-        'password' => env('RIMIFY_PREVIEW_PASSWORD'),
+    // Who runs the test environment (staging): its Impressum names them as the operator of a test environment, with
+    // their contact details, and says the shop is not in operation (App\Support\Operator, D-088). On the client's own
+    // domain — the live shop — the seller from Einstellungen › Verkäufer & Versand takes its place by itself. Typed into
+    // the staging .env by hand; what is not given is said to be missing, never guessed.
+    'operator' => [
+        'name' => env('RIMIFY_OPERATOR_NAME'),
+        'street' => env('RIMIFY_OPERATOR_STREET'),
+        'zip' => env('RIMIFY_OPERATOR_ZIP'),
+        'city' => env('RIMIFY_OPERATOR_CITY'),
+        'country' => env('RIMIFY_OPERATOR_COUNTRY'),
+        'email' => env('RIMIFY_OPERATOR_EMAIL'),
+        'phone' => env('RIMIFY_OPERATOR_PHONE'),
     ],
 
     // How orders are paid (App\Payments\Payments). `none` until a provider is configured (BLOCKED #3):
