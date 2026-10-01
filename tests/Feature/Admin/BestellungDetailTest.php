@@ -96,7 +96,15 @@ it('shows each wheel line with the verdict as it was shown at purchase', functio
             ->where('lines.0.snapshot.tyre.lines', fn ($l) => collect($l)->isNotEmpty())
             ->has('lines.0.snapshot.tyre.summary')
             ->has('lines.0.snapshot.tyre.basis')
-            ->where('lines.0.snapshot.documentToday', null));
+            ->where('lines.0.snapshot.documentToday', null)
+            // Verkauf may not open Gutachten: the document is named, never linked to a refusal.
+            ->where('lines.0.snapshot.documentHref', null)
+            // The Auflagen as the customer read them, grouped (ConditionGroups).
+            ->where('lines.0.snapshot.conditionGroups.combination', fn ($c) => collect($c)->contains('Bördeln der Radläufe erforderlich.')));
+
+    // A role that may open Gutachten gets the link.
+    $this->actingAs(detailAdmin('super-admin'), 'admin')->get('/admin/bestellungen/'.$order->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('lines.0.snapshot.documentHref', fn ($href) => str_starts_with((string) $href, '/admin/gutachten/')));
 });
 
 it('says the papers as the purchase said them — in the order, on the order page and in the confirmation mail', function (): void {

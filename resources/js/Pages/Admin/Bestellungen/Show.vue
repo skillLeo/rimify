@@ -54,7 +54,8 @@ interface Snapshot {
     engine: string
     revision: number
     pdfSha: string | null
-    documentHref: string
+    /** Null for a reader who may not open Gutachten: the document is named, not linked. */
+    documentHref: string | null
     documentToday: string | null
 }
 
@@ -318,7 +319,7 @@ function tagClass(state: OrderState): string | null {
                         <template v-if="line.snapshot.readable">
                             <p v-if="line.snapshot.vehicle" class="bs-proof__line">Für {{ line.snapshot.vehicle }}</p>
                             <p v-if="line.snapshot.document" class="bs-proof__line">
-                                Laut <Link :href="line.snapshot.documentHref">{{ line.snapshot.document }}</Link>, Fassung {{ line.snapshot.revision }}<template v-if="line.snapshot.issuer"> ({{ line.snapshot.issuer }})</template><template v-if="line.snapshot.sourcePage">, Seite {{ line.snapshot.sourcePage }}</template>
+                                Laut <Link v-if="line.snapshot.documentHref" :href="line.snapshot.documentHref">{{ line.snapshot.document }}</Link><template v-else>{{ line.snapshot.document }}</template>, Fassung {{ line.snapshot.revision }}<template v-if="line.snapshot.issuer"> ({{ line.snapshot.issuer }})</template><template v-if="line.snapshot.sourcePage">, Seite {{ line.snapshot.sourcePage }}</template>
                             </p>
                             <p v-if="line.snapshot.front && line.snapshot.front.length" class="bs-proof__line">
                                 Reifen: {{ line.snapshot.front.join(', ') }}<template v-if="line.snapshot.rear && line.snapshot.rear.length && line.snapshot.rear.join() !== line.snapshot.front.join()"> · hinten {{ line.snapshot.rear.join(', ') }}</template>

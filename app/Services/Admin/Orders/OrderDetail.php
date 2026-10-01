@@ -37,7 +37,7 @@ use Throwable;
 final class OrderDetail
 {
     /** @return array<string, mixed> */
-    public function for(Order $order): array
+    public function for(Order $order, bool $documentsOpen = true): array
     {
         $order->loadMissing(['customer', 'deliveryAddress', 'billingAddress', 'lines.fitmentSnapshot']);
         $list = app(OrderList::class);
@@ -68,7 +68,7 @@ final class OrderDetail
             'delivery' => self::address($order->deliveryAddress),
             'billing' => self::address($order->billingAddress),
             'sameAddress' => $order->getAttribute('delivery_address_id') === $order->getAttribute('billing_address_id'),
-            'lines' => $order->lines->sortBy([['package_group', 'asc'], ['id', 'asc']])->values()->map(fn (OrderLine $line): array => $this->line($line, $current, PackageTyreSizes::for($line, $tyres)))->all(),
+            'lines' => $order->lines->sortBy([['package_group', 'asc'], ['id', 'asc']])->values()->map(fn (OrderLine $line): array => $this->line($line, $current, PackageTyreSizes::for($line, $tyres), $documentsOpen))->all(),
             'money' => self::money($order),
         ];
     }
@@ -115,7 +115,7 @@ final class OrderDetail
      * @param  array<int, string>  $current  document id => its status today
      * @return array<string, mixed>
      */
-    private function line(OrderLine $line, array $current, ?string $tyreSize = null): array
+    private function line(OrderLine $line, array $current, ?string $tyreSize = null, bool $documentsOpen = true): array
     {
         $snapshot = $line->fitmentSnapshot;
 
@@ -127,7 +127,7 @@ final class OrderDetail
             'unit' => (int) $line->getAttribute('unit_price_cents'),
             'total' => (int) $line->getAttribute('line_total_cents'),
             'package' => $line->getAttribute('package_group') === null ? null : (int) $line->getAttribute('package_group'),
-            'snapshot' => $snapshot === null ? null : $this->snapshot($snapshot, $current, $tyreSize),
+            'snapshot' => $snapshot === null ? null : $this->snapshot($snapshot, $current, $tyreSize, $documentsOpen),
         ];
     }
 
@@ -135,7 +135,7 @@ final class OrderDetail
      * @param  array<int, string>  $current
      * @return array<string, mixed>
      */
-    private function snapshot(OrderLineFitment $snapshot, array $current, ?string $tyreSize = null): array
+    private function snapshot(OrderLineFitment $snapshot, array $current, ?string $tyreSize = null, bool $documentsOpen = true): array
     {
         $documentId = (int) $snapshot->getAttribute('approval_document_id');
         $today = $current[$documentId] ?? null;
@@ -145,7 +145,8 @@ final class OrderDetail
             'engine' => (string) $snapshot->getAttribute('engine_version'),
             'revision' => (int) $snapshot->getAttribute('document_revision'),
             'pdfSha' => $snapshot->getAttribute('pdf_sha256') === null ? null : substr((string) $snapshot->getAttribute('pdf_sha256'), 0, 12),
-            'documentHref' => '/admin/gutachten/'.$documentId,
+            // Linked only for a reader who may open Gutachten: Verkauf would land on a refusal.
+            'documentHref' => $documentsOpen ? '/admin/gutachten/'.$documentId : null,
             // What the document is today, only when it is no longer what the order was sold against.
             'documentToday' => match ($today) {
                 DocumentStatus::Superseded->value => 'Diese Fassung wurde inzwischen durch eine neuere ersetzt.',
