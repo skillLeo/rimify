@@ -274,7 +274,8 @@ const headline = computed(() => {
             <p v-for="note in verdict.document?.notes ?? []" :key="note" class="fit__note">{{ note }}</p>
             <!-- The document itself, opened where the answer stands: the customer can check it. -->
             <p v-if="verdict.document?.pdf" class="fit__pdf">
-                <a :href="verdict.document.pdf.url" target="_blank" rel="noopener">
+                <!-- A control, not a word in a sentence: `.link`, 44 px tall on touch, as the check's button below. -->
+                <a class="link" :href="verdict.document.pdf.url" target="_blank" rel="noopener">
                     Gutachten öffnen (PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
                 </a>
             </p>

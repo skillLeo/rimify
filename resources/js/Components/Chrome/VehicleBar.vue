@@ -99,6 +99,13 @@ const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BO
     }
 }
 
+/* A thumb's 44 px (DIRECTION §6) in a 40 px bar: the link reaches 2 px past each edge, the bar keeps its height. */
+@media (pointer: coarse) {
+    .vbar__link {
+        min-height: 44px;
+    }
+}
+
 .vbar__link--cta {
     margin-left: auto;
 }
