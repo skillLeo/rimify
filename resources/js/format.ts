@@ -25,6 +25,11 @@ export function felgen(count: number): string {
     return `${decimal(count, 0)}${NNBSP}${count === 1 ? 'Felge' : 'Felgen'}`
 }
 
+/** The selector's button: `1 passende Felge anzeigen` · `1.234 passende Felgen anzeigen` — never „1 passende Felgen". */
+export function passendeAnzeigen(count: number): string {
+    return `${decimal(count, 0)} ${count === 1 ? 'passende Felge' : 'passende Felgen'} anzeigen`
+}
+
 export function zoll(inches: number | string | (number | string)[]): string {
     const list = Array.isArray(inches) ? inches : [inches]
     const values = list.map((v) => (typeof v === 'number' ? decimal(v, Number.isInteger(v) ? 0 : 1) : v))

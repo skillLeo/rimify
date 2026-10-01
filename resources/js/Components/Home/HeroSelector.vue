@@ -38,7 +38,7 @@ import Skeleton from '../Ui/Skeleton.vue'
 import DocumentScan from './DocumentScan.vue'
 import type { DocVariant } from '../../art'
 import { useFitmentCount, type FitmentCountQuery } from '../../composables/useFitmentCount'
-import { withUnit } from '../../format'
+import { passendeAnzeigen, withUnit } from '../../format'
 import { formatNumber } from '../../lib/num'
 import { cleanHsn, cleanTsn, isHsn, isTsn } from '../../lib/fahrzeugschein'
 import type { LookupResult, MakeOption, ModelOption, VariantOption } from '../../types/pages'
@@ -333,7 +333,7 @@ const buttonLabel = computed(() => {
     }
 
     if (counted.value !== null && counted.value.count > 0) {
-        return `${counted.value.count} passende Felgen anzeigen`
+        return passendeAnzeigen(counted.value.count)
     }
 
     return 'Passende Felgen anzeigen'
@@ -533,7 +533,7 @@ onBeforeUnmount(() => treeController?.abort())
         </p>
 
         <Link href="/felgen" class="btn btn--primary btn--lg btn--block sel__go" prefetch>
-            {{ counted && counted.count > 0 ? `${counted.count} passende Felgen anzeigen` : 'Passende Felgen anzeigen' }}
+            {{ counted && counted.count > 0 ? passendeAnzeigen(counted.count) : 'Passende Felgen anzeigen' }}
         </Link>
 
         <div class="sel__vehicle-links">
