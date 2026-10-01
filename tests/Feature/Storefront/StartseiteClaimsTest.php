@@ -21,7 +21,7 @@ beforeEach(function (): void {
 
 it('labels the coverage order for what it counts', function (): void {
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('popular.title', 'Felgen mit den meisten Freigaben')
+        ->where('popular.title', 'Felgen aus dem Sortiment')
         ->where('popular.tabs.0', ['key' => 'beliebt', 'label' => 'Meiste Freigaben'])
         ->where('popular.tabs', fn ($tabs) => collect($tabs)->every(fn (array $tab): bool => ! str_contains(mb_strtolower($tab['label']), 'beliebt')))
     );

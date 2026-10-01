@@ -26,7 +26,7 @@
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
-import { decimal } from '../../format'
+import { anzahl } from '../../format'
 import type { HomeStats } from '../../types/pages'
 
 const props = defineProps<{
@@ -102,7 +102,7 @@ const facts = computed<string | null>(() => {
         return null
     }
 
-    return `${decimal(gutachten, 0)} Gutachten · ${decimal(variants, 0)} Fahrzeugvarianten · ${decimal(wheels, 0)} Felgen mit Gutachten`
+    return `${anzahl(gutachten, 'Gutachten', 'Gutachten')} · ${anzahl(variants, 'Fahrzeugvariante', 'Fahrzeugvarianten')} · ${anzahl(wheels, 'Felge', 'Felgen')} mit Gutachten`
 })
 
 /* ── The steps ────────────────────────────────────────────────────────────────── */
@@ -222,7 +222,7 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
                     <div
                         class="doc"
                         role="img"
-                        aria-label="Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert"
+                        aria-label="Beispiel eines Gutachten-Auszugs; die Zeile eines Beispielfahrzeugs ist markiert"
                     >
                         <div class="doc__head">
                             <span class="doc__title">Teilegutachten Nr. 12-3456 (Beispiel)</span>

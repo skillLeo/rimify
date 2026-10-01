@@ -63,7 +63,7 @@ test.describe('UEB-05 marking a gap from the keyboard keeps the focus in the lis
         const dialog = page.getByRole('dialog', { name: 'Gutachten anfordern' });
 
         await expect(dialog).toBeVisible();
-        await dialog.getByRole('link', { name: 'In E-Mail-Programm öffnen' }).press('Enter');
+        await dialog.getByRole('link', { name: 'Im E-Mail-Programm öffnen' }).press('Enter');
         await markedRowGone(page, rig);
 
         const where = await focused(page);

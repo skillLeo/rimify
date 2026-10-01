@@ -22,6 +22,7 @@ import { computed, ref, watch } from 'vue'
 import DocFacsimile from '../Art/DocFacsimile.vue'
 import Icon from '../Art/Icon.vue'
 import type { DocVariant } from '../../art'
+import { anzahl } from '../../format'
 import { mailtoHref } from '../../lib/mailto'
 import type { LookupResult, VariantOption } from '../../types/pages'
 import type { ContactProp } from '../../types/rimify'
@@ -96,7 +97,7 @@ const rows = computed(() => {
                 key: m.make,
                 label: m.make,
                 sub: null,
-                note: `${m.models} Modelle`,
+                note: anzahl(m.models, 'Modell', 'Modelle'),
                 blocked: false,
             }))
     }
@@ -108,7 +109,7 @@ const rows = computed(() => {
                 key: m.model,
                 label: m.model,
                 sub: null,
-                note: `${m.variants} Varianten`,
+                note: anzahl(m.variants, 'Variante', 'Varianten'),
                 blocked: false,
             }))
     }
@@ -313,7 +314,7 @@ function onTsn(event: Event): void {
 
                 <p v-if="lookup.distinction.indistinguishable" class="quiet vsel__chooser-note">
                     Die Varianten unterscheiden sich in keinem Feld, das wir anzeigen können. Die
-                    VSN aus deinem Fahrzeugschein hilft weiter.
+                    VSN aus deiner Zulassungsbescheinigung hilft weiter.
                 </p>
 
                 <button
@@ -371,7 +372,7 @@ function onTsn(event: Event): void {
                         :aria-pressed="doc === 'neu'"
                         @click="doc = 'neu'"
                     >
-                        Neuer Fahrzeugschein
+                        Neue Zulassungsbescheinigung
                     </button>
                     <button
                         class="pill"

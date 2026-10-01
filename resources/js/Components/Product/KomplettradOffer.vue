@@ -178,7 +178,9 @@ function add(tyreId: number): void {
 
                     <div class="kr-card__price">
                         <p class="price">{{ card.tyre.perWheel }}</p>
-                        <p class="price-note">Preis je Rad, inklusive Reifen, Montage und Wuchtgewichten.</p>
+                        <!-- An offer reaches the page only with a weights colour, so an open price is the mounting fee alone (FelgenController). -->
+                        <p v-if="offer.priceOpen" class="price-note">Preis je Rad für Felge, Reifen und Wuchtgewichte – ohne Montage und Auswuchten.</p>
+                        <p v-else class="price-note">Preis je Rad, inklusive Reifen, Montage und Wuchtgewichten.</p>
                         <p class="price-note">{{ terms.note }}</p>
                         <p class="t-small kr-card__set">
                             <span class="tabular">{{ card.tyre.forFour }}</span> für 4 Kompletträder

@@ -239,7 +239,7 @@ it('never releases a row on a development car, in any environment — and does o
     $document = ApprovalDocument::factory()->draft()->create();
     $development = Vehicle::factory()->development()->create();
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$development], [wheelSize()]));
-    $sentence = 'Eine Zeile nennt ein Fahrzeug ohne belegte Herkunft, etwa aus den Entwicklungsdaten. Freigegeben wird nur ein Fahrzeug aus einem Fahrzeugdaten-Import, aus einem Gutachten oder manuell geprüft.';
+    $sentence = 'Eine Zeile nennt ein Fahrzeug ohne belegte Herkunft, etwa aus den Entwicklungsdaten. Freigeben lässt sich nur eine Zeile, deren Fahrzeug aus einem Import der Fahrzeugdaten oder aus einem Gutachten stammt oder von Hand geprüft wurde.';
 
     expect(Fitment::query()->where('approval_document_id', $document->id)->count())->toBe(1)
         ->and(app(DocumentRelease::class)->check($document))->toBe([$sentence])
@@ -489,7 +489,7 @@ describe('Fahrzeuge', function (): void {
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Fahrzeuge/Index')->has('vehicles', 1)->where('vehicles.0.id', $waiting->id)->where('review', true));
 
         $this->actingAs(erfassung(), 'admin')->put("/admin/fahrzeuge/{$waiting->id}", ['axle_load_front_kg' => 1010, 'axle_load_rear_kg' => null, 'max_speed_kmh' => 210])
-            ->assertSessionHas('toast', 'Gespeichert. Es fehlen noch Angaben – das Fahrzeug bleibt zur Prüfung.');
+            ->assertSessionHas('toast', 'Gespeichert. Es fehlen noch Angaben – das Fahrzeug bleibt unter „Zur Prüfung“.');
         expect($waiting->refresh()->needs_review)->toBeTrue();
 
         $this->actingAs(erfassung(), 'admin')->put("/admin/fahrzeuge/{$waiting->id}", ['axle_load_front_kg' => 1010, 'axle_load_rear_kg' => 980, 'max_speed_kmh' => 210])

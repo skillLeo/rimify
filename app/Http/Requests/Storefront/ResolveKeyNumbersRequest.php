@@ -45,11 +45,11 @@ class ResolveKeyNumbersRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'hsn.required' => 'Bitte gib die HSN aus Feld 2.1 deines Fahrzeugscheins ein.',
-            'hsn.size' => 'Die HSN besteht aus genau vier Zeichen – führende Nullen gehören dazu.',
-            'hsn.regex' => 'Die HSN besteht aus genau vier Zeichen – führende Nullen gehören dazu.',
-            'tsn.required' => 'Bitte gib die TSN aus Feld 2.2 deines Fahrzeugscheins ein.',
-            'tsn.regex' => 'Die TSN besteht aus bis zu drei Ziffern oder Buchstaben.',
+            'hsn.required' => 'Bitte gib die HSN ein – sie steht in Feld 2.1 der Zulassungsbescheinigung Teil I.',
+            'hsn.size' => 'Die HSN hat vier Ziffern – führende Nullen gehören dazu.',
+            'hsn.regex' => 'Die HSN hat vier Ziffern – führende Nullen gehören dazu.',
+            'tsn.required' => 'Bitte gib die TSN ein – die ersten drei Zeichen aus Feld 2.2 der Zulassungsbescheinigung Teil I.',
+            'tsn.regex' => 'Die TSN sind die ersten drei Zeichen aus Feld 2.2 – Ziffern oder Buchstaben.',
         ];
     }
 

@@ -38,7 +38,7 @@ import Skeleton from '../Ui/Skeleton.vue'
 import DocumentScan from './DocumentScan.vue'
 import type { DocVariant } from '../../art'
 import { useFitmentCount, type FitmentCountQuery } from '../../composables/useFitmentCount'
-import { passendeAnzeigen, withUnit } from '../../format'
+import { anzahl, passendeAnzeigen, withUnit } from '../../format'
 import { formatNumber } from '../../lib/num'
 import { cleanHsn, cleanTsn, isHsn, isTsn } from '../../lib/fahrzeugschein'
 import type { LookupResult, MakeOption, ModelOption, VariantOption } from '../../types/pages'
@@ -50,8 +50,8 @@ const props = defineProps<{
 
 type Tab = 'marke' | 'hsn' | 'scan'
 
-const HSN_ERROR = 'Die HSN hat vier Ziffern.'
-const TSN_ERROR = 'Die TSN hat drei Zeichen.'
+const HSN_ERROR = 'Die HSN hat vier Ziffern – führende Nullen gehören dazu.'
+const TSN_ERROR = 'Die TSN sind die ersten drei Zeichen aus Feld 2.2 – Ziffern oder Buchstaben.'
 const SCAN_FAILED = 'Wir konnten HSN und TSN nicht lesen. Trag sie bitte von Hand ein.'
 const KW_PER_PS = 0.73549875
 
@@ -528,7 +528,7 @@ onBeforeUnmount(() => treeController?.abort())
             <Skeleton v-if="count.loading.value" width="60%" height="var(--lh-small)" />
             <template v-else-if="count.failed.value">Die Anzahl lässt sich gerade nicht laden.</template>
             <template v-else-if="counted && counted.count > 0">
-                <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
+                <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> {{ counted.count === 1 ? 'Felge' : 'Felgen' }} mit Gutachten für {{ vehicle.label }}
             </template>
         </p>
 
@@ -586,7 +586,7 @@ onBeforeUnmount(() => treeController?.abort())
                                             :text-value="m.make"
                                             class="menu__item sel__item"
                                         >
-                                            <span>{{ m.make }}</span> <span class="small quiet num">{{ m.models }} Modelle</span>
+                                            <span>{{ m.make }}</span> <span class="small quiet num">{{ anzahl(m.models, 'Modell', 'Modelle') }}</span>
                                         </ComboboxItem>
                                     </ComboboxViewport>
                                 </ComboboxContent>
@@ -623,7 +623,7 @@ onBeforeUnmount(() => treeController?.abort())
                                             :text-value="m.model"
                                             class="menu__item sel__item"
                                         >
-                                            <span>{{ m.model }}</span> <span class="small quiet num">{{ m.variants }} Varianten</span>
+                                            <span>{{ m.model }}</span> <span class="small quiet num">{{ anzahl(m.variants, 'Variante', 'Varianten') }}</span>
                                         </ComboboxItem>
                                     </ComboboxViewport>
                                 </ComboboxContent>
@@ -850,7 +850,7 @@ onBeforeUnmount(() => treeController?.abort())
                 <Skeleton v-if="count.loading.value" width="60%" height="var(--lh-small)" />
                 <template v-else-if="count.failed.value">Die Anzahl lässt sich gerade nicht laden.</template>
                 <template v-else-if="counted && counted.count > 0">
-                    <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> Felgen mit Gutachten für {{ counted.vehicle?.label }}
+                    <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> {{ counted.count === 1 ? 'Felge' : 'Felgen' }} mit Gutachten für {{ counted.vehicle?.label }}
                 </template>
             </p>
 

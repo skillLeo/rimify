@@ -22,7 +22,7 @@ const label = computed(() => {
         case 'local':
             return 'Lokal'
         case 'staging':
-            return 'Staging'
+            return 'Vorschau'
         default:
             return null
     }

@@ -87,7 +87,7 @@ async function send(): Promise<void> {
 <template>
     <div class="vnotify">
         <p v-if="!byMail" class="t-body">
-            Du suchst eine Felge für deinen {{ vehicleLabel }}? Schreib uns eine E-Mail an
+            Du suchst eine Felge für {{ vehicleLabel }}? Schreib uns eine E-Mail an
             <a class="link" :href="`mailto:${contact.email}`">{{ contact.email }}</a>.
         </p>
 
@@ -97,7 +97,7 @@ async function send(): Promise<void> {
 
         <form v-else class="vnotify__form" @submit.prevent="send">
             <p class="t-body">
-                Sag uns deine E-Mail-Adresse – wir melden uns, sobald ein Gutachten deinen {{ vehicleLabel }} nennt.
+                Sag uns deine E-Mail-Adresse – wir melden uns, sobald ein Gutachten dein Fahrzeug nennt.
             </p>
             <label class="field-label vnotify__label" :for="`${id}-mail`">E-Mail-Adresse</label>
             <div class="vnotify__row">

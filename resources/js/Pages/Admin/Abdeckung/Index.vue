@@ -99,8 +99,8 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
                             <thead>
                                 <tr>
                                     <th scope="col">Fahrzeug</th>
-                                    <th scope="col">Baujahre</th>
-                                    <th scope="col">HSN / TSN</th>
+                                    <th scope="col">Bauzeitraum</th>
+                                    <th scope="col">HSN/TSN</th>
                                     <th scope="col" class="num">Felgen in {{ selection.size }} Zoll</th>
                                     <th scope="col" class="num">Gutachten</th>
                                 </tr>
@@ -108,8 +108,8 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
                             <tbody>
                                 <tr v-for="row in selection.rows" :key="row.id">
                                     <td data-label="Fahrzeug">{{ row.vehicle }}</td>
-                                    <td data-label="Baujahre" class="num-plain">{{ row.period }}</td>
-                                    <td data-label="HSN / TSN" class="num-plain">{{ row.keys }}</td>
+                                    <td data-label="Bauzeitraum" class="num-plain">{{ row.period }}</td>
+                                    <td data-label="HSN/TSN" class="num-plain">{{ row.keys }}</td>
                                     <td data-label="Felgen" class="num">
                                         <span v-if="row.wheels">{{ decimal(row.wheels, 0) }}</span>
                                         <span v-else class="adm-tag adm-tag--warn">keine</span>

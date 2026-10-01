@@ -29,10 +29,10 @@ const context = computed(() => {
     const { waiting, total } = props.summary
 
     if (total === 0) {
-        return 'Noch niemand hat sich eingetragen'
+        return 'Noch keine Anfrage'
     }
 
-    return `${decimal(waiting, 0)} warten · ${decimal(total, 0)} ${total === 1 ? 'Eintragung' : 'Eintragungen'} insgesamt`
+    return `${decimal(waiting, 0)} ${waiting === 1 ? 'wartet' : 'warten'} · ${decimal(total, 0)} ${total === 1 ? 'Anfrage' : 'Anfragen'} insgesamt`
 })
 </script>
 
@@ -75,7 +75,7 @@ const context = computed(() => {
 
             <section class="adm-section" aria-labelledby="ben-all">
                 <div class="adm-section__head">
-                    <h2 id="ben-all" class="adm-section__title">Alle Eintragungen</h2>
+                    <h2 id="ben-all" class="adm-section__title">Alle Anfragen</h2>
                 </div>
                 <p v-if="summary.total > summary.limit" class="adm-note ben__note">
                     Die neuesten {{ decimal(summary.limit, 0) }} von {{ decimal(summary.total, 0) }}.
@@ -88,7 +88,7 @@ const context = computed(() => {
                                 <th scope="col">E-Mail</th>
                                 <th scope="col">Fahrzeug</th>
                                 <th scope="col">Status</th>
-                                <th scope="col" class="num">Eingetragen</th>
+                                <th scope="col" class="num">Angefragt am</th>
                                 <th scope="col" class="num">Benachrichtigt</th>
                             </tr>
                         </thead>
@@ -105,7 +105,7 @@ const context = computed(() => {
                                     <span v-if="TAGGED.has(row.status)" class="adm-tag adm-tag--neutral">{{ row.status }}</span>
                                     <template v-else>{{ row.status }}</template>
                                 </td>
-                                <td data-label="Eingetragen" class="num">{{ row.requestedAt }}</td>
+                                <td data-label="Angefragt am" class="num">{{ row.requestedAt }}</td>
                                 <td data-label="Benachrichtigt" class="num">{{ row.notifiedAt ?? '–' }}</td>
                             </tr>
                         </tbody>

@@ -144,7 +144,7 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                 <hr class="hr faq__rule">
 
                 <p class="faq__promo">Kompatibilität sofort prüfen</p>
-                <Link href="/rimify-check" class="btn btn--secondary btn--block">RIMIFY-CHECK öffnen</Link>
+                <Link href="/rimify-check" class="btn btn--secondary btn--block">RIMIFY-Check öffnen</Link>
             </aside>
         </div>
     </section>

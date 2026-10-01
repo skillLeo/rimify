@@ -137,7 +137,7 @@ describe('Heute', function (): void {
         expect(array_column($today, 'sentence'))->toBe([
             '2 bezahlte Bestellungen warten auf den Versand.',
             'Ein Gutachten wartet auf Prüfung.',
-            'Eine Kundin oder ein Kunde wartet auf ein Gutachten für ihr Auto.',
+            'Eine Person wartet auf ein Gutachten für ihr Auto.',
         ])
             ->and($today[0]['href'])->toBe('/admin/bestellungen?status=offen&sort=datum&richtung=auf');
     });

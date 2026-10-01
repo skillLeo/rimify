@@ -29,13 +29,15 @@ final class ReviewBoard
     private const AREAS = [
         ['key' => 'uebersicht', 'label' => 'Übersicht', 'screens' => [
             ['label' => 'Übersicht', 'href' => '/admin', 'state' => self::DONE, 'line' => 'Umsatz, Bestellungen und die Aufgaben des Tages – je Rolle andere Kacheln, mit Zeitraum und Vergleich.'],
-            ['label' => 'Nachfrage', 'href' => '/admin/nachfrage', 'state' => self::DONE, 'line' => 'Fahrzeuge, nach denen gesucht wurde, ohne freigegebene Felge – markierbar als erledigt.'],
+            ['label' => 'Nachfrage', 'href' => '/admin/nachfrage', 'state' => self::DONE, 'line' => 'Fahrzeuge, nach denen gesucht wurde, ohne freigegebene Felge – markierbar als beobachtet oder angefordert.'],
         ]],
         ['key' => 'verkauf', 'label' => 'Verkauf', 'screens' => [
             ['label' => 'Bestellungen', 'href' => '/admin/bestellungen', 'state' => self::DONE, 'line' => 'Liste mit Suche, Filtern, gespeicherten Ansichten und Export; jede Bestellung mit ihrem Prüfnachweis je Position.'],
             ['label' => 'Anfragen', 'href' => '/admin/anfragen', 'state' => self::DONE, 'line' => 'Kundinnen und Kunden, die benachrichtigt werden wollen, sobald ein Gutachten ihr Fahrzeug nennt.'],
-            ['label' => 'Bestellen mit Testzahlung', 'href' => null, 'state' => self::DONE, 'line' => 'Im Shop bestellen und die Testzahlung bezahlt, abgelehnt oder abgebrochen enden lassen – mit eingefrorenem Prüfnachweis, ohne dass Geld fließt. Die echte Zahlung (Stripe) folgt.'],
-            ['label' => 'Status, Versand, Rechnung, Erstattung', 'href' => null, 'state' => self::MISSING, 'line' => 'Eine Bestellung bearbeiten: versenden, Rechnung, Rücksendung und Gutschrift.'],
+            ['label' => 'Bestellen mit Testzahlung', 'href' => null, 'state' => self::DONE, 'line' => 'Im Shop bestellen und die Testzahlung bezahlt, abgelehnt oder abgebrochen enden lassen – mit eingefrorenem Prüfnachweis, ohne dass Geld fließt. Mit Stripe-Testschlüsseln unter Einstellungen › Zahlung auch mit Testkarten.'],
+            ['label' => 'Erstattung und Rechnungen', 'href' => null, 'state' => self::DONE, 'line' => 'In jeder Bestellung: die Rechnung als PDF, ganz oder teilweise erstatten, mit Gutschrift und E-Mail an die Kundin oder den Kunden.'],
+            ['label' => 'Rückbuchungen', 'href' => '/admin/rueckbuchungen', 'state' => self::DONE, 'line' => 'Rückbuchungen der Bank mit ihrer Frist zur Stellungnahme.'],
+            ['label' => 'Versand und Status bearbeiten', 'href' => null, 'state' => self::MISSING, 'line' => 'Eine Bestellung als versendet markieren, mit Sendungsnummer, und Rücksendungen erfassen.'],
             ['label' => 'Kunden', 'href' => null, 'state' => self::MISSING, 'line' => 'Kundenkonten mit ihren Bestellungen und Fahrzeugen.'],
         ]],
         ['key' => 'katalog', 'label' => 'Katalog', 'screens' => [
@@ -46,9 +48,9 @@ final class ReviewBoard
         ]],
         ['key' => 'gutachten', 'label' => 'Gutachten', 'screens' => [
             ['label' => 'Dokumente', 'href' => '/admin/gutachten', 'state' => self::DONE, 'line' => 'PDF hochladen, Verwendungsbereich für Fahrzeuge × Größen eintragen, Vorschau im Shop, Freigeben.'],
-            ['label' => 'Auflagen-Katalog', 'href' => '/admin/auflagen', 'state' => self::DONE, 'line' => 'Jede Auflage einmal als ganzer Satz, so wie Kundinnen und Kunden sie lesen.'],
+            ['label' => 'Auflagen', 'href' => '/admin/auflagen', 'state' => self::DONE, 'line' => 'Das Auflagenverzeichnis jedes Gutachtens, Code für Code mit seinem Satz.'],
             ['label' => 'Abdeckung', 'href' => '/admin/abdeckung', 'state' => self::DONE, 'line' => 'Welche Marken und Größen Freigaben haben – gezählt aus den Zeilen der Gutachten.'],
-            ['label' => 'Konflikte', 'href' => null, 'state' => self::WORKING, 'line' => 'Widersprüche zwischen Gutachten werden beim Freigeben erkannt und gemeldet; die Seite zum Klären folgt.'],
+            ['label' => 'Konflikte', 'href' => '/admin/konflikte', 'state' => self::DONE, 'line' => 'Widersprüche zwischen zwei Gutachten nebeneinander – entscheiden, mit Begründung fürs Protokoll.'],
         ]],
         ['key' => 'fahrzeuge', 'label' => 'Fahrzeuge', 'screens' => [
             ['label' => 'Fahrzeuge', 'href' => '/admin/fahrzeuge', 'state' => self::DONE, 'line' => 'Alle Fahrzeugvarianten, suchbar nach Name und HSN/TSN, mit den Gutachten, die sie nennen.'],
@@ -67,10 +69,12 @@ final class ReviewBoard
             ['label' => 'Benutzer', 'href' => '/admin/benutzer', 'state' => self::DONE, 'line' => 'Das Team: einladen, Rolle ändern, sperren, abmelden.'],
             ['label' => 'Protokoll', 'href' => '/admin/protokoll', 'state' => self::DONE, 'line' => 'Jede Änderung im Admin, in Worten.'],
             ['label' => 'Zubehörpreise', 'href' => '/admin/zubehoerpreise', 'state' => self::DONE, 'line' => 'Wuchtgewichte und RDKS-Sensoren für Kompletträder.'],
-            ['label' => 'Allgemein, Versand, Zahlung, Rechtstexte', 'href' => null, 'state' => self::MISSING, 'line' => 'Die Einstellungen des Shops selbst.'],
+            ['label' => 'Zahlung', 'href' => '/admin/einstellungen/zahlung', 'state' => self::DONE, 'line' => 'Die Stripe-Schlüssel eintragen, Verbindung testen, Rechnungsnummern eröffnen.'],
+            ['label' => 'Verkäufer & Versand', 'href' => '/admin/einstellungen/verkaeufer-versand', 'state' => self::DONE, 'line' => 'Firmendaten für Impressum und Rechnung, Versandkosten und Lieferzeit.'],
+            ['label' => 'Allgemein', 'href' => null, 'state' => self::MISSING, 'line' => 'Weitere Einstellungen des Shops. Die Rechtstexte stehen unter Inhalte › Seiten.'],
         ]],
         ['key' => 'system', 'label' => 'System', 'screens' => [
-            ['label' => 'Zustand', 'href' => '/admin/system', 'state' => self::DONE, 'line' => 'Ob Datenbank, Speicher, Warteschlange und Mail laufen.'],
+            ['label' => 'Zustand', 'href' => '/admin/system', 'state' => self::DONE, 'line' => 'Ob Shop, Warteschlange, Zeitplan, E-Mail, Speicher und Server-Rendering laufen.'],
             ['label' => 'Warteschlange', 'href' => null, 'state' => self::MISSING, 'line' => 'Hängengebliebene Aufgaben einsehen und neu starten.'],
         ]],
         ['key' => 'auswertungen', 'label' => 'Auswertungen', 'screens' => [

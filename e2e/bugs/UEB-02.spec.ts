@@ -24,7 +24,7 @@ import { SHOTS, holdCharts, layoutShiftSince, openUebersicht, recordLayoutShifts
  * Nothing is written: the charts' request is only held for a moment.
  */
 
-const CHARTS = ['Umsatz über die Zeit', 'Verdikte der Prüfungen', 'Top-Felgen nach Bestellungen', 'Abdeckung', 'Nachfrage-Lücken'];
+const CHARTS = ['Umsatz über die Zeit', 'Ergebnisse der Prüfungen', 'Top-Felgen nach Bestellungen', 'Abdeckung', 'Nachfrage-Lücken'];
 
 test('UEB-02 the chart skeletons have the size of what replaces them', async ({ page }) => {
     const project = test.info().project.name;

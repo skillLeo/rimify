@@ -397,7 +397,7 @@ final class AuditDescriber
             'approval.notice_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Pflichthinweis '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
             'approval.rework_added' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Maß der Nacharbeit '.self::q(self::text($p, 'what') ?? '–').' eingetragen.', []],
             'approval.rework_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Maß der Nacharbeit '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
-            'approval.derating_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit gespeichert ('.(self::text($p, 'rows') ?? '0').' Zeilen).', []],
+            'approval.derating_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit gespeichert ('.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').').', []],
             'approval.limit_confirmed' => ['In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Achslast bei '.self::q(self::text($p, 'code') ?? '–').' so bestätigt, wie das Gutachten sie druckt: '.self::q(self::text($p, 'reason') ?? '–').'.', []],
             'approval.derating_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit entfernt.', []],
             'conflict.decided' => [
@@ -419,8 +419,8 @@ final class AuditDescriber
                 [],
             ],
             'vehicle.merge_applied' => [
-                'Ein Fahrzeugdatensatz wurde zusammengeführt: '.(self::text($p, 'changed') ?? '0').' Fahrzeuge ergänzt, '
-                    .(self::text($p, 'ambiguous') ?? '0').' unklar, '.(self::text($p, 'new') ?? '0').' neu.',
+                'Ein Fahrzeugdatensatz wurde zusammengeführt: '.self::count((int) (self::text($p, 'changed') ?? 0), 'Fahrzeug', 'Fahrzeuge').' ergänzt, '
+                    .GermanFormat::integer((int) (self::text($p, 'ambiguous') ?? 0)).' unklar, '.GermanFormat::integer((int) (self::text($p, 'new') ?? 0)).' neu.',
                 [],
             ],
             'vehicle.created_from_document' => [

@@ -219,7 +219,8 @@ function runStep(): void {
                     </tbody>
                 </table>
             </div>
-            <p v-if="hiddenRows" class="adm-note">Weitere {{ decimal(hiddenRows, 0) }} Zeilen sind in den Zahlen oben enthalten, aber hier nicht aufgeführt.</p>
+            <p v-if="hiddenRows === 1" class="adm-note">Eine weitere Zeile ist in den Zahlen oben enthalten, aber hier nicht aufgeführt.</p>
+            <p v-else-if="hiddenRows" class="adm-note">Weitere {{ decimal(hiddenRows, 0) }} Zeilen sind in den Zahlen oben enthalten, aber hier nicht aufgeführt.</p>
         </section>
 
         <!-- ── Which column holds what ────────────────────────────────── -->

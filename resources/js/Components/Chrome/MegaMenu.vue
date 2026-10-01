@@ -81,7 +81,7 @@ const mega = computed(() => shared.value.mega)
                                 </ul>
                             </div>
                             <div class="mega__col">
-                                <p class="label">Beliebt</p>
+                                <p class="label">Günstigste Modelle</p>
                                 <ul>
                                     <li v-for="wheel in mega.popular" :key="wheel.href">
                                         <NavigationMenuLink as-child>

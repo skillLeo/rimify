@@ -31,7 +31,7 @@ test('UEB-06 a double-click on „In E-Mail-Programm öffnen" records the reques
     // Past the dialog's entrance.
     await page.waitForTimeout(400);
 
-    await dialog.getByRole('link', { name: 'In E-Mail-Programm öffnen' }).dblclick();
+    await dialog.getByRole('link', { name: 'Im E-Mail-Programm öffnen' }).dblclick();
     await page.waitForTimeout(1_500);
     await page.screenshot({ path: `${SHOTS}/ueb-06-double-request-${info.project.name}.png` });
 

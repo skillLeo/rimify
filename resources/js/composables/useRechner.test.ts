@@ -58,7 +58,7 @@ describe('useRechner', () => {
 
         expect(r.fromVehicle.value).toBe(true)
         expect(r.prefillLine.value).toBe(
-            'Aktuell ist vorbelegt mit der kleinsten Größe, die ein Gutachten für deinen BMW 330i nennt – nicht unbedingt mit deiner heutigen Bereifung.'
+            'Aktuell ist vorbelegt mit der kleinsten Größe, die ein Gutachten für BMW 330i nennt – nicht unbedingt mit deiner heutigen Bereifung.'
         )
         expect(r.prefillLine.value).toBe(prefillSentence('BMW 330i'))
         expect(r.prefillLine.value).not.toContain('Serienbereifung')

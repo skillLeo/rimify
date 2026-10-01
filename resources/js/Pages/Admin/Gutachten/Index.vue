@@ -31,8 +31,9 @@ type Document = AdminGutachtenProps['documents'][number]
 const KIND_LABEL: Record<string, string> = {
     ABE: 'ABE',
     TEILEGUTACHTEN: 'Teilegutachten',
-    ECE: 'ECE',
-    EC: 'EG-Genehmigung',
+    NACHTRAG: 'Nachtrag',
+    ECE: 'ECE-Genehmigung',
+    EC: 'EG-Typgenehmigung',
 }
 
 /** `tag: null` is the normal state, printed as plain text. */
@@ -169,7 +170,7 @@ const context = computed(() => {
             </table>
         </div>
 
-        <AdminState v-else-if="documents.length === 0" kind="empty" text="Gutachten erfasst das Compliance-Team; jedes erscheint hier mit seinen Freigaben.">
+        <AdminState v-else-if="documents.length === 0" kind="empty" text="Noch kein Gutachten erfasst. Jedes Gutachten, das du anlegst, steht hier mit seinen Zeilen im Shop.">
             <Link v-if="can.create" href="/admin/gutachten/neu" class="btn btn--primary">Erstes Gutachten anlegen</Link>
         </AdminState>
 

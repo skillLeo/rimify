@@ -138,11 +138,11 @@ function onTsn(event: Event): void {
 }
 
 function validateHsn(): void {
-    hsnError.value = picker.hsn.value !== '' && !/^\d{4}$/.test(picker.hsn.value) ? 'Die HSN hat vier Ziffern.' : ''
+    hsnError.value = picker.hsn.value !== '' && !/^\d{4}$/.test(picker.hsn.value) ? 'Die HSN hat vier Ziffern – führende Nullen gehören dazu.' : ''
 }
 
 function validateTsn(): void {
-    tsnError.value = picker.tsn.value !== '' && picker.tsn.value.length !== TSN_LENGTH ? 'Die TSN hat drei Zeichen.' : ''
+    tsnError.value = picker.tsn.value !== '' && picker.tsn.value.length !== TSN_LENGTH ? 'Die TSN sind die ersten drei Zeichen aus Feld 2.2 – Ziffern oder Buchstaben.' : ''
 }
 
 async function retypeKeys(): Promise<void> {
@@ -503,7 +503,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             <Skeleton v-if="count.status === 'loading'" width="60%" height="var(--lh-small)" />
             <p v-else-if="count.status === 'failed'" class="small muted">Die Anzahl lässt sich gerade nicht laden.</p>
             <p v-else-if="count.status === 'ready' && count.count > 0" class="small num">
-                <strong>{{ decimal(count.count, 0) }}</strong> Felgen mit Gutachten für {{ count.vehicle.label }}
+                <strong>{{ decimal(count.count, 0) }}</strong> {{ count.count === 1 ? 'Felge' : 'Felgen' }} mit Gutachten für {{ count.vehicle.label }}
             </p>
 
             <!-- Zero wheels (F2): said plainly, with the one thing we can offer. -->

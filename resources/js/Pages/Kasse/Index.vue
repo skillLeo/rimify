@@ -1167,9 +1167,9 @@ function verdictSentence(line: BasketLine): string {
                                     <legend class="t-h3">Reifendruck-Sensoren (RDKS)</legend>
                                     <p id="ko-rdks-q" class="ko__rdks-q">Brauchst du RDKS-Sensoren?</p>
                                     <p class="t-small ko__rdks-help">
-                                        Viele Autos zeigen den Reifendruck im Display an. Dafür sitzt in jedem Rad ein
-                                        Sensor. Ob dein Auto das hat, steht in der Betriebsanleitung – oder du siehst es
-                                        daran, ob dein Display dir den Reifendruck anzeigt.
+                                        Misst dein Auto den Reifendruck mit Sensoren in den Rädern, brauchen auch die
+                                        neuen Räder Sensoren. Ob das so ist, steht in der Betriebsanleitung. Manche Autos
+                                        warnen ganz ohne Sensoren im Rad – dann brauchst du keine.
                                     </p>
 
                                     <!-- No price for this make: no Ja tile at all, and the sentence says why (§5.2). -->
@@ -1357,7 +1357,7 @@ function verdictSentence(line: BasketLine): string {
                                         Von uns kommen keine weiteren Kosten dazu.
                                     </p>
                                     <p v-if="needsEntry" class="t-small quiet ko__final-note">
-                                        Für Abnahme und Eintragung berechnet die Prüfstelle eigene Gebühren.
+                                        Die Gebühren für die Abnahme und, wo nötig, die Eintragung sind nicht im Preis enthalten – sie berechnen Prüfstelle und Zulassungsstelle.
                                     </p>
                                     <!-- One sentence, the links inline: no loose separator dots when the line wraps. -->
                                     <p class="t-small ko__legal-links">

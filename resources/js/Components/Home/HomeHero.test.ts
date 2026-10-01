@@ -285,7 +285,7 @@ describe('HomeHero', () => {
     it('names the chosen car in the h1', () => {
         current.props.vehicle = VEHICLE
 
-        expect(mountHero().find('h1').text()).toBe('Felgen, die an deinen BMW 3er dürfen.')
+        expect(mountHero().find('h1').text()).toBe('Felgen mit Gutachten für BMW 3er.')
     })
 })
 

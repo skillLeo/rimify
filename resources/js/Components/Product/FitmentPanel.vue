@@ -192,7 +192,7 @@ const headline = computed(() => {
 <template>
     <div class="rcheck-panel" :class="tone.cls">
         <p class="rcheck-panel__head">
-            <Icon :name="tone.icon" :size="20" /> RIMIFY-CHECK
+            <Icon :name="tone.icon" :size="20" /> RIMIFY-Check
         </p>
 
         <p class="rcheck-panel__vehicle">{{ headline }}</p>
@@ -251,7 +251,7 @@ const headline = computed(() => {
             </ul>
 
             <div v-if="sizes.length" class="fit__tyres">
-                <span class="micro">Passende Reifengrößen</span>
+                <span class="micro">Zulässige Reifengrößen</span>
                 <p class="data">{{ sizes.join(' · ') }}</p>
             </div>
 

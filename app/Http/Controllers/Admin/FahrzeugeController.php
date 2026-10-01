@@ -159,8 +159,8 @@ class FahrzeugeController extends Controller
 
         $toast = match (true) {
             ! in_array(null, $data, true) => 'Gespeichert. Das Fahrzeug ist vollständig.',
-            $wasComplete => 'Gespeichert. Es fehlt jetzt eine Angabe – das Fahrzeug ist wieder zur Prüfung.',
-            default => 'Gespeichert. Es fehlen noch Angaben – das Fahrzeug bleibt zur Prüfung.',
+            $wasComplete => 'Gespeichert. Jetzt fehlt mindestens eine Angabe – das Fahrzeug steht wieder unter „Zur Prüfung“.',
+            default => 'Gespeichert. Es fehlen noch Angaben – das Fahrzeug bleibt unter „Zur Prüfung“.',
         };
 
         return back()->with('toast', $toast);

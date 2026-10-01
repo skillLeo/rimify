@@ -207,6 +207,14 @@ describe('KomplettradOffer', () => {
         expect(mountOffer().text()).not.toContain('Der Preis für Montage und Auswuchten steht noch nicht fest.')
     })
 
+    it('never says the price includes the mounting while the mounting fee is left out of it', () => {
+        const open = mountOffer({ offer: offer({ priceOpen: true }) }).text()
+
+        expect(open).toContain('Preis je Rad für Felge, Reifen und Wuchtgewichte – ohne Montage und Auswuchten.')
+        expect(open).not.toContain('inklusive Reifen, Montage')
+        expect(mountOffer().text()).toContain('Preis je Rad, inklusive Reifen, Montage und Wuchtgewichten.')
+    })
+
     it('shows the EU label only for a tyre that carries a complete, valid one', () => {
         const withLabel = mountOffer({
             offer: offer({

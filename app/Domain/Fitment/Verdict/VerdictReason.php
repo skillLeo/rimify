@@ -98,7 +98,7 @@ final readonly class VerdictReason
             self::BODY_OR_DRIVE_EXCLUDED => 'Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs.',
             self::BODY_OR_DRIVE_UNKNOWN => 'Das Gutachten gilt nur für bestimmte Karosserieformen oder Antriebe. Welche dein Fahrzeug hat, wissen wir nicht sicher – deshalb können wir die Freigabe nicht bestätigen.',
             self::DOCUMENTS_DISAGREE => 'Zwei Gutachten sagen zu dieser Kombination Verschiedenes. Wir prüfen das und können die Freigabe bis dahin nicht bestätigen.',
-            self::WHEEL_LOAD_EXCEEDED => 'Die zulässige Achslast deines Fahrzeugs ist höher, als diese Felge tragen darf.',
+            self::WHEEL_LOAD_EXCEEDED => 'Die zulässige Achslast deines Fahrzeugs ist für die geprüfte Radlast dieser Felge zu hoch.',
             self::TYRE_NOT_PERMITTED => 'Für die Höchstgeschwindigkeit deines Fahrzeugs lässt das Gutachten keinen passenden Reifen zu.',
             self::TYRE_UNKNOWN => 'Welche Reifen dein Fahrzeug mit dieser Felge braucht, sagt das Gutachten nicht. Wir können die Freigabe deshalb nicht bestätigen.',
             default => 'Für diese Kombination liegt uns kein Gutachten vor.',

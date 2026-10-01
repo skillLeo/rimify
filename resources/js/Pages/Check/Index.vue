@@ -66,7 +66,7 @@ const STATES = [
 </script>
 
 <template>
-    <Head title="RIMIFY-CHECK" />
+    <Head title="RIMIFY-Check" />
 
     <section class="section-dense">
         <div class="wrap chk">
@@ -128,7 +128,7 @@ const STATES = [
                 <div class="chk__panel chk__step2">
                     <h2 class="t-h3">Felge wählen</h2>
                     <p class="t-body chk__step2-text">
-                        Die Liste zeigt nur Felgen mit gültigem Gutachten für deinen {{ vehicle.short }}.
+                        Die Liste zeigt nur Felgen mit gültigem Gutachten für {{ vehicle.short }}.
                         Auf jeder Produktseite steht das Ergebnis für die gewählte Größe – mit
                         Gutachten-Nummer und allen Auflagen im Wortlaut.
                     </p>

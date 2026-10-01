@@ -263,14 +263,14 @@ describe('the wordmark, the order and the copy', () => {
         expect(noteText(null)).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
         expect(noteText(null, false)).toBe(noteText(null))
         expect(noteText(vehicle)).toBe(
-            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
+            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
         )
     })
 
     it('changes the rule once a greyed brand is on the wall, and keeps the vehicle sentence after it', () => {
         expect(noteText(null, true)).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
         expect(noteText(vehicle, true)).toBe(
-            'Ausgegraute Marken haben gerade keine Felgen auf Lager. Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
+            'Ausgegraute Marken haben gerade keine Felgen auf Lager. Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
         )
     })
 })

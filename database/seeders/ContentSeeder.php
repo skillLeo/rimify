@@ -462,6 +462,29 @@ class ContentSeeder extends Seeder
         'kontakt' => ['contact_form', 'contact_info'],
     ];
 
+    /*
+     * Three answers reworded by the copy sweep of 01.10.2026, shared with the migration that brings them to a database
+     * seeded before (2026_10_01_000100_reword_three_faq_answers). The listing also shows wheels with Auflagen and
+     * answers that wait for the papers, so „was dir angezeigt wird, ist freigegeben“ said too much; the papers answer
+     * now names the Abnahme-only case as the product page does (fitment/papers.ts); the TSN is three characters of
+     * field 2.2, not the whole field.
+     */
+    public const FAQ_HOW_WE_KNOW = 'Sobald du dein Fahrzeug gewählt hast, prüfen wir jede Felge gegen das zugehörige Gutachten – Felgenbreite, '
+        .'Einpresstiefe, zulässige Reifengrößen und Auflagen. Angezeigt werden nur Felgen, deren Gutachten dein Fahrzeug nennt. '
+        .'Ob Auflagen gelten oder wir noch Werte aus deinen Fahrzeugpapieren brauchen, steht bei jeder Felge. Einzelne '
+        .'Kombinationen prüfst du mit dem RIMIFY-Check.';
+
+    public const FAQ_ENTRY_QUESTION = 'Was bedeutet „Eintragung erforderlich"?';
+
+    public const FAQ_ENTRY = 'Bei manchen Felgen verlangt das Gutachten, dass ein amtlich anerkannter Prüfer die Änderung abnimmt und sie '
+        .'in die Fahrzeugpapiere eingetragen wird. Bei anderen genügt die Abnahme, weil das Gutachten von der Berichtigung der '
+        .'Fahrzeugpapiere befreit (§ 15 FZV). Was für deine Felge gilt, steht bei jeder Größe, bevor du sie in den Warenkorb '
+        .'legst – und du kannst gezielt nach Felgen ohne Abnahme und Eintragung filtern.';
+
+    public const FAQ_KEY_NUMBERS = 'In der Zulassungsbescheinigung Teil I steht die HSN in Feld 2.1 – vier Ziffern, führende Nullen gehören '
+        .'dazu. Die TSN sind die ersten drei Zeichen in Feld 2.2, Ziffern oder Buchstaben. Im älteren Fahrzeugschein stehen '
+        .'dieselben Nummern an anderer Stelle – beide Varianten zeigen wir dir in der Fahrzeugauswahl.';
+
     /**
      * The questions in display order, each with its own `published` flag.
      *
@@ -488,19 +511,19 @@ class ContentSeeder extends Seeder
         [
             'group' => 'KOMPATIBILITÄT & FREIGABE',
             'question' => 'Woher weiß ich, ob eine Felge zu meinem Auto passt?',
-            'answer' => 'Sobald du dein Fahrzeug gewählt hast, prüfen wir jede Felge gegen das zugehörige Gutachten – Felgenbreite, Einpresstiefe, zulässige Reifengrößen und Auflagen. Was dir angezeigt wird, ist freigegeben. Einzelne Kombinationen kannst du jederzeit über RIMIFY-CHECK nachprüfen.',
+            'answer' => self::FAQ_HOW_WE_KNOW,
             'published' => true,
         ],
         [
             'group' => 'KOMPATIBILITÄT & FREIGABE',
-            'question' => 'Was bedeutet „Eintragung erforderlich"?',
-            'answer' => 'Bei manchen Felgen verlangt das Gutachten, dass die Änderung von einer amtlich anerkannten Prüfstelle abgenommen und in die Fahrzeugpapiere eingetragen wird. Wir weisen darauf hin, bevor du die Felge in den Warenkorb legst – und du kannst gezielt nach Felgen ohne Eintragungspflicht filtern.',
+            'question' => self::FAQ_ENTRY_QUESTION,
+            'answer' => self::FAQ_ENTRY,
             'published' => true,
         ],
         [
             'group' => 'KOMPATIBILITÄT & FREIGABE',
             'question' => 'Wo finde ich HSN und TSN in meinen Fahrzeugpapieren?',
-            'answer' => 'In der Zulassungsbescheinigung Teil I stehen sie in den Feldern 2.1 (HSN, vierstellig) und 2.2 (TSN, dreistellig). Im älteren Fahrzeugschein stehen dieselben Nummern an anderer Stelle – beide Varianten zeigen wir dir in der Fahrzeugauswahl.',
+            'answer' => self::FAQ_KEY_NUMBERS,
             'published' => true,
         ],
         [

@@ -33,7 +33,7 @@ interface Chart {
 
 const CHARTS: Chart[] = [
     { title: 'Umsatz über die Zeit', plot: '.lc__svg', tip: '.lc__tip' },
-    { title: 'Verdikte der Prüfungen', plot: '.sb__svg', tip: '.sb__tip', dimmed: '.sb__column--dim' },
+    { title: 'Ergebnisse der Prüfungen', plot: '.sb__svg', tip: '.sb__tip', dimmed: '.sb__column--dim' },
 ];
 
 async function listen(plot: Locator): Promise<void> {

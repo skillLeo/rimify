@@ -65,7 +65,7 @@ const STOPS: Stop[] = [
             { name: 'period „…“', trigger: (page) => page.locator('.period').getByRole('button', { name: 'Weitere Aktionen' }) },
             { name: 'own range', trigger: (page) => page.locator('.period__custom'), panel: (page) => page.locator('.period__popover') },
             { name: 'chart menu: Umsatz', trigger: byName('Menü: Umsatz über die Zeit') },
-            { name: 'chart menu: Verdikte', trigger: byName('Menü: Verdikte der Prüfungen') },
+            { name: 'chart menu: Verdikte', trigger: byName('Menü: Ergebnisse der Prüfungen') },
             { name: 'chart menu: Top-Felgen', trigger: byName('Menü: Top-Felgen nach Bestellungen') },
         ],
     },

@@ -81,7 +81,7 @@ const linked = computed(() => product.value !== null && !product.value.symbolic 
 const named = computed(() => product.value !== null && !product.value.symbolic && photo.value !== null)
 
 const title = computed(() =>
-    vehicle.value === null ? props.hero.title : `Felgen, die an deinen ${vehicle.value.short} dürfen.`
+    vehicle.value === null ? props.hero.title : `Felgen mit Gutachten für ${vehicle.value.short}.`
 )
 const subline = computed(() => (props.hero.subline.trim() === '' ? SUBLINE : props.hero.subline))
 const alt = computed(() => (product.value === null ? '' : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`))

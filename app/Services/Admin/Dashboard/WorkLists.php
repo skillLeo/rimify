@@ -218,7 +218,7 @@ final class WorkLists
             if ($people > 0) {
                 $sentences[] = [
                     'key' => 'anfragen',
-                    'sentence' => $people === 1 ? 'Eine Kundin oder ein Kunde wartet auf ein Gutachten für ihr Auto.' : "{$people} Kundinnen und Kunden warten auf ein Gutachten für ihr Auto.",
+                    'sentence' => $people === 1 ? 'Eine Person wartet auf ein Gutachten für ihr Auto.' : GermanFormat::integer($people).' Personen warten auf ein Gutachten für ihr Auto.',
                     'action' => 'Anfragen öffnen',
                     'href' => '/admin/anfragen',
                 ];

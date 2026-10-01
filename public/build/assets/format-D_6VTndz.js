@@ -1,0 +1,2 @@
+import{n as e}from"./num-DMfgc1M4.js";function t(t,n=1){return e(t,n)}function n(e,t){return`${e} ${t}`}function r(e){return`${t(e,0)} ${e===1?`Felge`:`Felgen`}`}function i(e,n,r){return`${t(e,0)} ${e===1?n:r}`}function a(e){return`${t(e,0)} ${e===1?`passende Felge`:`passende Felgen`} anzeigen`}function o(e){return n((Array.isArray(e)?e:[e]).map(e=>typeof e==`number`?t(e,+!Number.isInteger(e)):e).join(` · `),`Zoll`)}function s(e){return(e??``).replace(/\r\n?/g,`
+`).split(/\n\s*\n/).map(e=>e.trim()).filter(e=>e!==``)}export{a,s as i,t as n,n as o,r,o as s,i as t};

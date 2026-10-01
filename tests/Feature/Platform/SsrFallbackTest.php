@@ -40,21 +40,22 @@ it('logs, counts and remembers every page sent without server rendering', functi
     app(Gateway::class)->dispatch(['component' => 'Faq/Index', 'props' => []], ssrPage('/faq'));
 
     expect(SsrFallbacks::today())->toBe(2)
-        ->and(SsrFallbacks::last())->toMatchArray(['url' => 'http://localhost/faq', 'reason' => 'Renderer pausiert nach einem Fehler.']);
+        ->and(SsrFallbacks::last())->toMatchArray(['url' => 'http://localhost/faq', 'reason' => 'Der Renderer pausiert nach einem Fehler.']);
 
-    Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $context): bool => str_starts_with($message, 'SSR-Fallback') && $context['url'] === 'http://localhost/felgen')->once();
+    // The exception's own text is for the log, never for System › Zustand.
+    Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $context): bool => str_starts_with($message, 'SSR-Fallback') && $context['url'] === 'http://localhost/felgen' && ($context['detail'] ?? null) === 'Connection refused')->once();
     Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $context): bool => $context['url'] === 'http://localhost/faq')->once();
 });
 
 it('shows the fallbacks as an amber row in System, with the count and the last address', function (): void {
-    SsrFallbacks::record('https://rimify.test/felgen/nordfelge-fjord', 'Renderer nicht erreichbar oder zu langsam: timeout');
-    SsrFallbacks::record('https://rimify.test/felgen', 'Renderer pausiert nach einem Fehler.');
+    SsrFallbacks::record('https://rimify.test/felgen/nordfelge-fjord', 'Der Renderer war nicht erreichbar oder zu langsam.', 'timeout');
+    SsrFallbacks::record('https://rimify.test/felgen', 'Der Renderer pausiert nach einem Fehler.');
 
     $row = collect(app(SystemHealth::class)->report()['checks'])->firstWhere('key', 'ssr');
 
     expect($row['state'])->toBe('warn')
         ->and($row['count'])->toBe('2')
-        ->and($row['sentence'])->toBe('Heute 2 Seiten ohne Server-Rendering, zuletzt /felgen (Renderer pausiert nach einem Fehler.)');
+        ->and($row['sentence'])->toBe('Heute 2 Seiten ohne Server-Rendering, zuletzt /felgen. Grund: Der Renderer pausiert nach einem Fehler.');
 });
 
 it('is green while every page is server-rendered, and says so when it is switched off', function (): void {

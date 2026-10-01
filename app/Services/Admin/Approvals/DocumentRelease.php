@@ -87,7 +87,7 @@ final class DocumentRelease
             $blockers[] = ($unsourced === 1
                 ? 'Eine Zeile nennt ein Fahrzeug ohne belegte Herkunft, etwa aus den Entwicklungsdaten.'
                 : "{$unsourced} Zeilen nennen Fahrzeuge ohne belegte Herkunft, etwa aus den Entwicklungsdaten.")
-                .' Freigegeben wird nur ein Fahrzeug aus einem Fahrzeugdaten-Import, aus einem Gutachten oder manuell geprüft.';
+                .' Freigeben lässt sich nur eine Zeile, deren Fahrzeug aus einem Import der Fahrzeugdaten oder aus einem Gutachten stammt oder von Hand geprüft wurde.';
         }
 
         // A code its own document does not define has no sentence: never released, never borrowed from

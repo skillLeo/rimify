@@ -48,7 +48,7 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
 
 <template>
     <section id="auflagen" class="fdt" aria-labelledby="fdt-h">
-        <h2 id="fdt-h" class="h2 fdt__h" tabindex="-1">Was das Gutachten für deinen {{ vehicleLabel }} verlangt</h2>
+        <h2 id="fdt-h" class="h2 fdt__h" tabindex="-1">Was das Gutachten für {{ vehicleLabel }} verlangt</h2>
         <p class="small muted fdt__lede">
             Wörtlich aus dem Gutachten.<template v-if="hasOwn"> Was mit „Unser Hinweis“ beginnt, kommt von uns.</template>
         </p>

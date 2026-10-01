@@ -37,7 +37,7 @@ const filters = useListingFilters(() => props.filters)
 const sheetOpen = ref(false)
 
 const heading = computed(() =>
-    vehicle.value === null ? 'Alle Felgen' : `Felgen für deinen ${vehicle.value.short}`
+    vehicle.value === null ? 'Alle Felgen' : `Felgen für ${vehicle.value.short}`
 )
 
 /** A body style or drive the owner gave or the car's name did: the grid rests on it, so the page says it. */
@@ -104,7 +104,7 @@ onBeforeUnmount(() => {
                         <strong class="tabular">{{ formatNumber(total ?? 0) }}</strong>
                         {{ total === 1 ? 'Felge' : 'Felgen' }} mit gültigem Gutachten für dieses Fahrzeug
                     </template>
-                    <template v-else>{{ cards.length }} Felgen im Sortiment</template>
+                    <template v-else>{{ formatNumber(cards.length) }} {{ cards.length === 1 ? 'Felge' : 'Felgen' }} im Sortiment</template>
                 </p>
                 <p v-if="demo" class="micro quiet">Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>
             </div>

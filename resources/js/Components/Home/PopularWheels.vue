@@ -48,7 +48,7 @@ const title = computed(() => {
         return props.popular.title
     }
 
-    return props.vehicle === null ? 'Felgen mit den meisten Freigaben' : `Passend für deinen ${props.vehicle.short}`
+    return props.vehicle === null ? 'Felgen aus dem Sortiment' : `Passend für ${props.vehicle.short}`
 })
 
 /* The button says what happens: the count when the listing has one, never a vague "mehr". */

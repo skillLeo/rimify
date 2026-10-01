@@ -12,7 +12,7 @@
 
 import { computed } from 'vue'
 import VerdictBadge from '../../Ui/VerdictBadge.vue'
-import { decimal } from '../../../format'
+import { anzahl } from '../../../format'
 import type { HomeStats } from '../../../types/pages'
 
 const props = withDefaults(defineProps<{ stats?: HomeStats | null }>(), { stats: null })
@@ -24,7 +24,7 @@ const facts = computed(() => {
         return null
     }
 
-    return `${decimal(s.gutachten, 0)} Gutachten · ${decimal(s.variants, 0)} Fahrzeugvarianten · ${decimal(s.wheels, 0)} Felgen mit Gutachten`
+    return `${anzahl(s.gutachten, 'Gutachten', 'Gutachten')} · ${anzahl(s.variants, 'Fahrzeugvariante', 'Fahrzeugvarianten')} · ${anzahl(s.wheels, 'Felge', 'Felgen')} mit Gutachten`
 })
 
 /*
@@ -105,7 +105,7 @@ const STROKES: Record<number, string> = {
                 <h3 class="h3 story__title"><span class="story__n num">{{ step.n }}</span> {{ step.title }}</h3>
 
                 <!-- One image to assistive tech, not a table of cells; a figure may not carry role="img". -->
-                <div class="doc doc--crop" role="img" aria-label="Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert">
+                <div class="doc doc--crop" role="img" aria-label="Beispiel eines Gutachten-Auszugs; die Zeile eines Beispielfahrzeugs ist markiert">
                     <div class="doc__head">
                         <span class="doc__title">Teilegutachten Nr. 12-3456 (Beispiel)</span>
                         <span class="doc__page">Seite 4 von 12</span>

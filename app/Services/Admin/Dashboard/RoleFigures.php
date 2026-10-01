@@ -56,7 +56,7 @@ final class RoleFigures
                 $variants > 0 ? 'in '.GermanFormat::integer($variants).($variants === 1 ? ' Ausführung' : ' Ausführungen') : null),
             self::state('ausverkauft', 'Nicht auf Lager', 'Ausführungen im Shop, von denen kein Stück auf Lager ist.',
                 $soldOut, 'jede Ausführung lieferbar', null),
-            self::state('ohne-freigabe', 'Ohne Freigabe', 'Diese Ausführungen kann der Shop keinem Auto zeigen: Kein veröffentlichtes Gutachten nennt sie.',
+            self::state('ohne-freigabe', 'Ohne Freigabe', 'Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.',
                 $unapproved, 'jede mit einer Freigabe', null),
             self::state('unvollstaendig', 'Unvollständige Daten', 'Ausführungen im Shop ohne Preis, Foto, Gewicht oder Traglast.',
                 $incomplete, 'alle Daten gepflegt', null),
@@ -116,8 +116,8 @@ final class RoleFigures
         $gaps = $this->demand->ranked($period, 'offen', null, 0)['counts']['offen'];
 
         $tiles = [
-            self::state('documents', 'Veröffentlichte Gutachten', 'Gutachten, nach denen der Shop gerade Felgen zeigt. Entwürfe zählen nicht mit.',
-                DB::table('approval_documents')->where('status', 'published')->count(), 'noch keines veröffentlicht', '/admin/gutachten'),
+            self::state('documents', 'Freigegebene Gutachten', 'Gutachten, nach denen der Shop gerade Felgen zeigt. Entwürfe zählen nicht mit.',
+                DB::table('approval_documents')->where('status', 'published')->count(), 'noch keines freigegeben', '/admin/gutachten'),
             self::state('conflicts', 'Offene Konflikte', 'Zwei Gutachten sagen über dieselbe Felge am selben Fahrzeug Verschiedenes.',
                 DB::table('fitment_conflicts')->where('status', ConflictStatus::Open->value)->count(), 'kein offener Konflikt', '/admin/konflikte'),
             self::state('nachfrage', 'Nachfrage-Lücken', 'Autos, nach denen im Zeitraum gefragt wurde und für die der Shop keine Felge zeigen kann — die offenen, nicht die schon beobachteten oder angeforderten.',
@@ -127,7 +127,7 @@ final class RoleFigures
         $tiles[] = $admin->may(PermissionModule::Vehicles, PermissionAction::View)
             // A vehicle the importer could not characterise can never produce a positive verdict, so
             // this figure is the queue that turns silence back into sales (R-03).
-            ? self::state('review', 'Fahrzeuge zur Prüfung', 'Ohne lesbare Achslast oder Höchstgeschwindigkeit. Für sie zeigt der Shop keine Felgen.',
+            ? self::state('review', 'Fahrzeuge zur Prüfung', 'Ohne lesbare Achslast oder Höchstgeschwindigkeit. Die Reifen kann der Shop für sie nicht bestätigen; er verweist auf die Fahrzeugpapiere.',
                 DB::table('vehicles')->whereNull('deleted_at')->where('needs_review', true)->count(), 'keines wartet auf Prüfung', '/admin/fahrzeuge/pruefung')
             : self::state('fitments', 'Veröffentlichte Freigaben', 'Eine Freigabe ist eine Zeile eines Gutachtens: diese Felge an diesem Fahrzeug.',
                 DB::table('fitments')->where('status', 'published')->count(), 'noch keine veröffentlicht', '/admin/abdeckung');

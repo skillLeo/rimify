@@ -377,13 +377,13 @@ describe('HeroSelector — HSN/TSN', () => {
         await hsn.setValue('12')
         await hsn.trigger('blur')
         expect(hsn.attributes('aria-invalid')).toBe('true')
-        expect(wrapper.find(`#${CSS.escape(hsn.attributes('aria-describedby') ?? '')}`).text()).toBe('Die HSN hat vier Ziffern.')
+        expect(wrapper.find(`#${CSS.escape(hsn.attributes('aria-describedby') ?? '')}`).text()).toBe('Die HSN hat vier Ziffern – führende Nullen gehören dazu.')
 
         const tsn = byLabel(wrapper, 'TSN (Feld 2.2)')
         await tsn.setValue('a')
         await tsn.trigger('blur')
         expect(tsn.element.value).toBe('A')
-        expect(wrapper.find(`#${CSS.escape(tsn.attributes('aria-describedby') ?? '')}`).text()).toBe('Die TSN hat drei Zeichen.')
+        expect(wrapper.find(`#${CSS.escape(tsn.attributes('aria-describedby') ?? '')}`).text()).toBe('Die TSN sind die ersten drei Zeichen aus Feld 2.2 – Ziffern oder Buchstaben.')
 
         expect(hsn.attributes('inputmode')).toBe('numeric')
         expect(hsn.attributes('maxlength')).toBe('4')

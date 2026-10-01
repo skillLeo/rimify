@@ -58,8 +58,8 @@ final class AdminNavigation
         // The client's review of the admin (the review release §3): only where the review is on.
         [
             'key' => 'review',
-            'label' => 'Review',
-            'short' => 'Review',
+            'label' => 'Abnahme',
+            'short' => 'Abnahme',
             'icon' => 'check-circle',
             'module' => null,
             'review' => true,

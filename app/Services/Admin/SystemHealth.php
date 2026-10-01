@@ -140,7 +140,7 @@ final class SystemHealth
 
             return [
                 'state' => 'warn',
-                'sentence' => $count === 1 ? '1 Job fehlgeschlagen' : "{$count} Jobs fehlgeschlagen",
+                'sentence' => $count === 1 ? '1 Hintergrundaufgabe fehlgeschlagen' : GermanFormat::integer($count).' Hintergrundaufgaben fehlgeschlagen',
                 'short' => 'Aufgaben fehlgeschlagen',
                 'count' => GermanFormat::integer($count),
             ];
@@ -277,7 +277,7 @@ final class SystemHealth
 
             if (BoundedSsrGateway::paused() || SsrFallbacks::recent()) {
                 $last = SsrFallbacks::last();
-                $where = $last === null ? '' : ', zuletzt '.(parse_url($last['url'], PHP_URL_PATH) ?: '/').' ('.$last['reason'].')';
+                $where = $last === null ? '.' : ', zuletzt '.(parse_url($last['url'], PHP_URL_PATH) ?: '/').'. Grund: '.$last['reason'];
 
                 return [
                     'state' => 'warn',

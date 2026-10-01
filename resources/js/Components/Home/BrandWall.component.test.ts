@@ -283,7 +283,7 @@ describe('BrandWall — the closing cell and the note', () => {
 
         expect(accessibleName(wrapper.find('a.brand-cell--all'))).toBe('Passende Felgen anzeigen')
         expect(wrapper.find('.brand-wall__note').text()).toBe(
-            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.'
+            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
         )
         // Counts do not change with a vehicle.
         expect(wrapper.find('.brand-cell__count').text()).toBe(felgen(18))
@@ -379,7 +379,7 @@ describe('BrandWall — a brand without stock: greyed, in place, not a link', ()
         expect(mountWall([brand(), demo]).find('.brand-wall__note').text()).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
         expect(mountWall([brand(), bare, demo]).find('.brand-wall__note').text()).toBe(GREYED_RULE)
         expect(mountWall([brand(), bare, demo], { vehicle }).find('.brand-wall__note').text()).toBe(
-            `${GREYED_RULE} Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen Audi RS 4 passen, zeigt dir die Liste.`
+            `${GREYED_RULE} Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.`
         )
     })
 

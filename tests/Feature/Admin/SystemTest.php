@@ -102,7 +102,7 @@ describe('the health sentence', function (): void {
         failJobRow();
         failJobRow();
 
-        expect(app(SystemHealth::class)->report())->toMatchArray(['state' => 'warn', 'sentence' => '3 Jobs fehlgeschlagen']);
+        expect(app(SystemHealth::class)->report())->toMatchArray(['state' => 'warn', 'sentence' => '3 Hintergrundaufgaben fehlgeschlagen']);
     });
 
     it('says the queue stands when its oldest job has waited past the limit', function (): void {
@@ -233,7 +233,7 @@ describe('where it is shown', function (): void {
 
         $this->actingAs(systemAdmin('content-editor'), 'admin')->getJson('/admin/system/puls')
             ->assertOk()
-            ->assertExactJson(['state' => 'warn', 'sentence' => '1 Job fehlgeschlagen', 'label' => 'Aufgaben fehlgeschlagen', 'count' => '1']);
+            ->assertExactJson(['state' => 'warn', 'sentence' => '1 Hintergrundaufgabe fehlgeschlagen', 'label' => 'Aufgaben fehlgeschlagen', 'count' => '1']);
     });
 
     it('opens System › Zustand with every check for the settings role and refuses the others', function (): void {
