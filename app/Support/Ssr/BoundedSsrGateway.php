@@ -42,13 +42,13 @@ class BoundedSsrGateway extends HttpGateway
         $isHot = Vite::isRunningHot();
 
         if (! $isHot && $this->shouldEnsureBundleExists() && ! $this->bundleExists()) {
-            SsrFallbacks::record($request->fullUrl(), 'Das Renderer-Bundle fehlt (bootstrap/ssr).');
+            SsrFallbacks::record($request->fullUrl(), 'Das Renderer-Bundle fehlt.', 'bootstrap/ssr');
 
             return null;
         }
 
         if (self::paused()) {
-            SsrFallbacks::record($request->fullUrl(), 'Renderer pausiert nach einem Fehler.');
+            SsrFallbacks::record($request->fullUrl(), 'Der Renderer pausiert nach einem Fehler.');
 
             return null;
         }
@@ -86,7 +86,7 @@ class BoundedSsrGateway extends HttpGateway
 
             // Not reachable, or too slow: rest it, and let the browser render meanwhile.
             self::pause();
-            SsrFallbacks::record($request->fullUrl(), 'Renderer nicht erreichbar oder zu langsam: '.mb_substr($e->getMessage(), 0, 160));
+            SsrFallbacks::record($request->fullUrl(), 'Der Renderer war nicht erreichbar oder zu langsam.', mb_substr($e->getMessage(), 0, 300));
             $this->handleSsrFailure($page, ['error' => $e->getMessage(), 'type' => 'connection']);
 
             return null;

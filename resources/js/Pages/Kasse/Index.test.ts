@@ -227,7 +227,7 @@ describe('Kasse', () => {
         expect(pay.text()).toBe('Zahlungspflichtig bestellen')
         expect(pay.attributes('disabled')).toBeDefined()
         expect(pay.attributes('aria-describedby')).toBe('ko-refusal')
-        expect(wrapper.text()).toContain('Für Abnahme und Eintragung berechnet die Prüfstelle eigene Gebühren.')
+        expect(wrapper.text()).toContain('Die Gebühren für die Abnahme und, wo nötig, die Eintragung sind nicht im Preis enthalten – sie berechnen Prüfstelle und Zulassungsstelle.')
         // The total is not the whole amount while shipping is open.
         expect(wrapper.text()).not.toContain('Von uns kommen keine weiteren Kosten dazu.')
 

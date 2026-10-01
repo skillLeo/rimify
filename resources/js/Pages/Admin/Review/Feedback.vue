@@ -167,7 +167,7 @@ function tag(stateValue: string): string | null {
             </div>
         </form>
 
-        <AdminState v-if="items.length === 0 && total === 0" kind="empty" text="Hier erscheint jede Rückmeldung aus der Review. Gib die erste mit „Rückmeldung geben“ – am Rechner auch mit der Taste R." />
+        <AdminState v-if="items.length === 0 && total === 0" kind="empty" text="Hier erscheint jede Rückmeldung aus der Abnahme. Gib die erste mit „Rückmeldung geben“ – am Rechner auch mit der Taste R." />
         <AdminState v-else-if="items.length === 0" kind="filtered" :total="total" @reset="resetFilters" />
 
         <ol v-else class="rf-list">

@@ -58,7 +58,7 @@ describe('VehicleNotify — the listing\'s empty state uses the real F2 endpoint
         respond(202)
         const wrapper = mountNotify()
 
-        expect(wrapper.text()).toContain('sobald ein Gutachten deinen BMW 3er nennt')
+        expect(wrapper.text()).toContain('sobald ein Gutachten dein Fahrzeug nennt')
         await submit(wrapper, ' kunde@example.de ')
 
         const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]

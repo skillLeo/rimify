@@ -42,7 +42,7 @@ interface Copy {
  */
 const askHref = computed(() =>
     mailtoHref(shared.value.contact.email, {
-        subject: 'Anfrage zu meinem RIMIFY-CHECK',
+        subject: 'Anfrage zu meinem RIMIFY-Check',
         // The token, named for what it is: the page's address would need the origin, which the
         // server-rendered first frame does not have.
         body: `Meine Ergebnis-Nummer: ${props.token}\n\n`,
@@ -61,7 +61,7 @@ const copy = computed<Copy>(() => {
                 label: 'Freigegeben',
                 title: 'Diese Felge ist für das Fahrzeug freigegeben.',
                 body: 'Das Gutachten deckt die geprüfte Kombination ab. Gutachten-Nummer und Eintragungspflicht stehen auf der Produktseite der Felge.',
-                primary: { href: '/felgen', label: 'Zur Felge' },
+                primary: { href: '/felgen', label: 'Passende Felgen anzeigen' },
             }
         case 'CONDITIONAL':
             return {
@@ -69,21 +69,21 @@ const copy = computed<Copy>(() => {
                 label: 'Freigegeben mit Auflagen',
                 title: 'Diese Felge ist mit Auflagen freigegeben.',
                 body: 'Das Gutachten lässt die Kombination nur unter Bedingungen zu. Jede Auflage steht im Wortlaut auf der Produktseite der Felge – lies sie vor dem Kauf.',
-                primary: { href: '/felgen', label: 'Auflagen auf der Produktseite lesen' },
+                primary: { href: '/felgen', label: 'Passende Felgen anzeigen' },
             }
         case 'NOT_PERMITTED':
             return {
                 tag: 'tag--danger',
                 label: 'Nicht freigegeben',
                 title: 'Diese Felge ist für das Fahrzeug nicht freigegeben.',
-                body: 'Für dieses Fahrzeug liegt keine Freigabe vor. Die Liste zeigt dir Felgen, deren Gutachten dein Fahrzeug abdeckt.',
-                primary: { href: '/felgen', label: 'Zur passenden Felge' },
+                body: 'Das Gutachten lässt diese Kombination für das Fahrzeug nicht zu. Die Liste zeigt dir Felgen, deren Gutachten dein Fahrzeug abdeckt.',
+                primary: { href: '/felgen', label: 'Passende Felgen anzeigen' },
             }
         case 'UNKNOWN':
             return {
                 tag: 'tag--unknown',
                 label: 'Keine Angabe',
-                title: 'Zu dieser Kombination können wir nichts sagen.',
+                title: 'Für diese Kombination können wir die Freigabe nicht bestätigen.',
                 // The wheel approved and only the tyres open (R-03 split): never „kein Gutachten“ then.
                 body: props.result?.wheelLabel
                     ? 'Die Felge ist freigegeben, die Reifen dazu können wir aber nicht bestätigen. Das heißt nicht, dass sie unzulässig sind – nur, dass wir es nicht belegen können.'
@@ -169,7 +169,7 @@ const copy = computed<Copy>(() => {
                 </section>
 
                 <p v-if="result.front.length" class="res__note">
-                    Passende Reifengrößen: {{ result.front.join(' · ') }}<template v-if="result.rear.length && result.rear.join() !== result.front.join()"> · hinten {{ result.rear.join(' · ') }}</template>
+                    Zulässige Reifengrößen: {{ result.front.join(' · ') }}<template v-if="result.rear.length && result.rear.join() !== result.front.join()"> · hinten {{ result.rear.join(' · ') }}</template>
                 </p>
 
                 <p v-if="result.documentToday" class="notice notice--warn res__today">{{ result.documentToday }}</p>

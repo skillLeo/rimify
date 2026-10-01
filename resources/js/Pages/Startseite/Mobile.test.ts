@@ -55,7 +55,7 @@ function pageProps(overrides: Partial<StartseiteProps> = {}): StartseiteProps {
         selector: { makes: [] },
         fitmentCount: null,
         promises: [],
-        popular: { title: 'Felgen mit den meisten Freigaben', tabs: [], active: 'beliebt', cards: [], total: null },
+        popular: { title: 'Felgen aus dem Sortiment', tabs: [], active: 'beliebt', cards: [], total: null },
         recentlyViewed: [],
         sizes: [],
         // Server order: the sample range first; the wall moves it to the end.
@@ -162,7 +162,7 @@ describe('Startseite (phone) — Nach Marke', () => {
         const wrapper = mountPage({}, { vehicle })
 
         expect(wrapper.find('#h6 a.brand-cell--all').text()).toBe('Passende Felgen anzeigen')
-        expect(wrapper.find('#h6 .brand-wall__note').text()).toContain('an deinen Audi RS 4 passen')
+        expect(wrapper.find('#h6 .brand-wall__note').text()).toContain('für Audi RS 4 freigegeben sind')
     })
 
     it('greys a brand without stock instead of linking it, and the note says so', () => {

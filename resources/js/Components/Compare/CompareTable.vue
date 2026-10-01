@@ -24,6 +24,7 @@ import ValueText from '../Ui/ValueText.vue'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import { priceTerms } from '../../composables/usePriceTerms'
+import { entryLineOrNone, papersLine } from '../../fitment/papers'
 import { useShared } from '../../composables/useShared'
 import { formatMoney } from '../../lib/num'
 import { useCompare, type CompareEntry } from '../../stores/compare'
@@ -46,7 +47,7 @@ const heading = ref<HTMLHeadingElement | null>(null)
 
 /* ── Head ───────────────────────────────────────────────────────────────────── */
 
-const title = computed(() => (vehicle.value ? `Felgen vergleichen für deinen ${vehicle.value.short}` : 'Felgen vergleichen'))
+const title = computed(() => (vehicle.value ? `Felgen vergleichen für ${vehicle.value.short}` : 'Felgen vergleichen'))
 const listingLabel = computed(() => (vehicle.value ? 'Passende Felgen anzeigen' : 'Felgen ansehen'))
 
 /* ── Differences ────────────────────────────────────────────────────────────── */
@@ -127,12 +128,16 @@ function documentLine(document: CompareItem['specs']['documents'][number]): stri
     return document.kind
 }
 
-function entryText(verdict: ConfigVerdict | null): string {
+/** The product page's own two lines (fitment/papers.ts), so the two pages never say opposite things about the papers. */
+function entryLines(verdict: ConfigVerdict | null): Cell {
     if (verdict === null || !verdict.sellable) {
-        return '–'
+        return lines([])
     }
 
-    return verdict.requiresEntry ? 'erforderlich' : 'nicht erforderlich'
+    const exempt = verdict.papersExempt === true
+    const papers = papersLine(exempt)
+
+    return lines(papers === null ? [entryLineOrNone(verdict.requiresEntry, exempt)] : [entryLineOrNone(verdict.requiresEntry, exempt), papers])
 }
 
 const perWheel = (item: CompareItem): string => formatMoney(item.fromPriceCents)
@@ -149,7 +154,7 @@ const groups = computed<Group[]>(() => {
             row('verdict', 'Freigabe', 'verdict', items.map((item) => ({ text: item.verdict?.status ?? 'UNKNOWN', verdict: item.verdict }))),
             row('tyres', 'Reifengrößen', 'lines', items.map((item) => lines(item.verdict?.tyreSizes ?? []))),
             row('conditions', 'Auflagen', 'lines', items.map((item) => lines(item.verdict?.conditions ?? []))),
-            row('entry', 'Eintragung', 'text', items.map((item) => ({ text: entryText(item.verdict) })))
+            row('entry', 'Abnahme / Eintragung', 'lines', items.map((item) => entryLines(item.verdict)))
         )
     } else {
         gutachten.push(
@@ -172,7 +177,7 @@ const groups = computed<Group[]>(() => {
                 row('et', 'Einpresstiefe', 'text', items.map((item) => ({ text: item.specs.etRange }))),
                 row('lk', 'Lochkreis', 'text', items.map((item) => ({ text: item.specs.boltPattern }))),
                 row('mlb', 'Mittenlochbohrung', 'text', items.map((item) => ({ text: item.specs.centreBore }))),
-                row('finish', 'Finish', 'text', items.map((item) => ({ text: item.finishName }))),
+                row('finish', 'Farbe', 'text', items.map((item) => ({ text: item.finishName }))),
             ],
         },
         {
@@ -458,13 +463,13 @@ onBeforeUnmount(() => {
                             </form>
                             <!-- The size label is several figures joined by separators: each one
                                  is marked and held together, the line still breaks between them. -->
-                            <span class="small muted"><ValueText :text="item.buy.sizeLabel" /> · für deinen {{ vehicle?.short }}</span>
+                            <span class="small muted"><ValueText :text="item.buy.sizeLabel" /> · für {{ vehicle?.short }}</span>
                         </template>
                         <template v-else-if="item.buy.kind === 'choose'">
                             <Link :href="item.buy.href" class="btn btn--secondary btn--block">Größe wählen</Link>
                         </template>
                         <template v-else>
-                            <span class="small muted">Nicht freigegeben für deinen {{ vehicle?.short }}</span>
+                            <span class="small muted">Nicht freigegeben für {{ vehicle?.short }}</span>
                             <Link :href="`/felgen/${item.slug}?ausfuehrung=${item.finishId}`" class="link">Details ansehen</Link>
                         </template>
                     </div>

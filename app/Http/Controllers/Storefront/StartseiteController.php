@@ -382,7 +382,7 @@ class StartseiteController extends Controller
         $options = self::TABS[$tab]['options'];
 
         return [
-            'title' => 'Felgen mit den meisten Freigaben',
+            'title' => 'Felgen aus dem Sortiment',
             'tabs' => $tabs,
             'active' => $tab,
             'cards' => $this->cards->catalogue(limit: 8, options: $options),

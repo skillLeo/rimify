@@ -43,7 +43,7 @@ enum KomplettradRefusal: string
             self::TyresNotPermitted => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Ein Komplettrad können wir dir deshalb nicht anbieten.',
             self::VerdictRestored => 'Diese Zusammenstellung können wir dir gerade nicht neu prüfen. Bitte wähl dein Fahrzeug noch einmal aus.',
             self::NoPermittedSizes => 'Für diese Kombination nennt das Gutachten keine Reifengröße. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
-            self::NoUsableMinimum => 'Für dein Fahrzeug fehlen uns Achslast oder Höchstgeschwindigkeit. Ohne diese Werte sagen wir dir nicht, welcher Reifen passt – die Felge allein kannst du bestellen.',
+            self::NoUsableMinimum => 'Für dein Fahrzeug fehlen uns Achslast oder Höchstgeschwindigkeit. Trag die zulässigen Achslasten und die Höchstgeschwindigkeit aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir die zulässigen Reifen. Die Felge allein kannst du sofort bestellen.',
             self::StaggeredLayout => 'Vorne und hinten sind für dein Fahrzeug unterschiedliche Reifengrößen freigegeben. Solche Kombinationen stellen wir dir persönlich zusammen.',
             self::TyreChoiceRestricted => 'Das Gutachten schreibt für diese Kombination bestimmte Reifen vor. Welche das sind, klären wir persönlich mit dir – die Felge allein kannst du sofort bestellen.',
             self::DiameterMismatch => 'Dieser Reifen hat nicht den Durchmesser dieser Felge.',

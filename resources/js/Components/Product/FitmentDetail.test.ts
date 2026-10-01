@@ -13,7 +13,7 @@ describe('FitmentDetail', () => {
         wrapper.findAll('.fdt__table')[table]?.findAll('tbody tr').map((tr) => tr.findAll('td').map((td) => td.text())) ?? []
 
     it('names the car, and keeps what there is to do apart from what there is to know', () => {
-        expect(wrapper.find('#auflagen h2').text()).toBe('Was das Gutachten für deinen BMW 1er-Reihe 1K4 verlangt')
+        expect(wrapper.find('#auflagen h2').text()).toBe('Was das Gutachten für BMW 1er-Reihe 1K4 verlangt')
         expect(wrapper.findAll('.fdt__main .fdt__sec-h').map((h) => h.text())).toEqual(['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen'])
         expect(wrapper.findAll('.fdt__side .fdt__sec-h').map((h) => h.text())).toEqual(['Hinweise', 'Hinweise des Gutachtens'])
         expect(wrapper.text()).toContain(ABNAHME)

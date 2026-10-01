@@ -159,6 +159,6 @@ export function noteText(vehicle: VehicleProp | null, someWithoutStock = false):
     const rule = someWithoutStock ? RULE_WITH_GREYED : RULE
 
     return vehicle
-        ? `${rule} Die Zahl ist der gesamte Lagerbestand der Marke; welche davon an deinen ${vehicle.short} passen, zeigt dir die Liste.`
+        ? `${rule} Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für ${vehicle.short} freigegeben sind, zeigt dir die Liste.`
         : rule
 }

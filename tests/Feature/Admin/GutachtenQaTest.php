@@ -226,7 +226,7 @@ it('reads axle loads written the German way (GUTACHTEN-38)', function (): void {
     expect($vehicle->fresh()?->only(['axle_load_front_kg', 'axle_load_rear_kg', 'needs_review']))->toBe(['axle_load_front_kg' => 1200, 'axle_load_rear_kg' => 1050, 'needs_review' => false]);
 
     $this->actingAs(qaAdmin(), 'admin')->put("/admin/fahrzeuge/{$vehicle->id}", ['axle_load_front_kg' => '1200', 'axle_load_rear_kg' => '', 'max_speed_kmh' => '250'])
-        ->assertSessionHas('toast', 'Gespeichert. Es fehlt jetzt eine Angabe – das Fahrzeug ist wieder zur Prüfung.');
+        ->assertSessionHas('toast', 'Gespeichert. Jetzt fehlt mindestens eine Angabe – das Fahrzeug steht wieder unter „Zur Prüfung“.');
 });
 
 it('says a stored PDF is missing instead of linking to nothing (GUTACHTEN-51)', function (): void {

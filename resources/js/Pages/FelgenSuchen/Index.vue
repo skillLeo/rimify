@@ -27,10 +27,10 @@ defineProps<SelectorProps>()
 
     <section class="section">
         <div class="wrap">
-            <h1 class="t-h1">Auto wählen, garantiert passende Felge finden</h1>
+            <h1 class="t-h1">Auto wählen</h1>
             <p class="t-lead sel__lead">
-                Zwei Wege – über die Fahrzeugdaten oder direkt über die Schlüsselnummern aus deinem
-                Fahrzeugschein.
+                Danach siehst du nur Felgen, deren Gutachten dein Auto nennt. Zwei Wege – über Marke und
+                Modell oder direkt über die Schlüsselnummern aus deinen Fahrzeugpapieren.
             </p>
 
             <div class="sel__panel">

@@ -77,7 +77,7 @@ describe('GutachtenStory', () => {
         const figure = wrapper.find('.doc')
         expect(figure.element.tagName).toBe('DIV')
         expect(figure.attributes('role')).toBe('img')
-        expect(figure.attributes('aria-label')).toBe('Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert')
+        expect(figure.attributes('aria-label')).toBe('Beispiel eines Gutachten-Auszugs; die Zeile eines Beispielfahrzeugs ist markiert')
         expect(figure.text()).toContain('Teilegutachten Nr. 12-3456 (Beispiel)')
 
         const target = wrapper.find('.doc__row--target')

@@ -51,7 +51,7 @@ final class PublishCheck
         $uncovered = $configs->filter(static fn ($c): bool => ! isset($sizes[(int) $c->id]))->count();
 
         if ($configs->isNotEmpty() && $uncovered === $configs->count()) {
-            $hints[] = 'Freigaben noch nicht hinterlegt: Für keine Größe ist ein Gutachten freigegeben. Im Shop passt die Felge zu keinem Fahrzeug, bis eines eingetragen ist.';
+            $hints[] = 'Freigaben noch nicht hinterlegt: Für keine Größe ist ein Gutachten freigegeben. Im Shop wird die Felge bei keinem Fahrzeug als passend gezeigt, bis ein Gutachten für sie freigegeben ist.';
         } elseif ($uncovered > 0) {
             $hints[] = "{$uncovered} von {$configs->count()} Größen haben noch keine Freigabe. Sie werden bei keinem Fahrzeug als passend gezeigt.";
         }

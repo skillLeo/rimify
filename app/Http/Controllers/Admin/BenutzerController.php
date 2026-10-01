@@ -57,7 +57,7 @@ class BenutzerController extends Controller
     public const ADDRESS_HAS_ACCOUNT = 'Für diese Adresse gibt es schon ein Konto.';
 
     public const ADDRESS_INVITED = 'An diese Adresse ist schon eine Einladung unterwegs. '
-        .'Unter „Offene Einladungen“ kannst du sie erneut senden.';
+        .'Sie steht in der Liste als „Eingeladen“; über ihr Menü kannst du sie erneut senden.';
 
     public const ROLE_UNKNOWN = 'Diese Rolle gibt es nicht. Bitte wähle eine aus der Liste.';
 

@@ -57,7 +57,7 @@ const cards = Array.from({ length: 8 }, (_, i) => card(i + 1))
 
 function popular(overrides: Partial<StartseiteProps['popular']> = {}): StartseiteProps['popular'] {
     return {
-        title: 'Felgen mit den meisten Freigaben',
+        title: 'Felgen aus dem Sortiment',
         tabs: [
             { key: 'beliebt', label: 'Meiste Freigaben' },
             { key: 'neu', label: 'Neu' },
@@ -133,7 +133,7 @@ describe('PopularWheels', () => {
         expect(wrapper.find('#h5 .tile__price').text()).toBe(`ab ${formatMoney(19000)} pro Felge`)
         expect(wrapper.text()).not.toMatch(/Details(?! ansehen)/)
         expect(wrapper.text()).not.toContain('Sehr gut')
-        expect(wrapper.find('h2').text()).toBe('Felgen mit den meisten Freigaben')
+        expect(wrapper.find('h2').text()).toBe('Felgen aus dem Sortiment')
         expect(wrapper.find('.popular__more a').text()).toBe('Alle Felgen ansehen')
         // No popularity claim without sales or view data behind it (ACCURACY.md D7, #51).
         expect(wrapper.text()).not.toMatch(/beliebt/i)
@@ -191,7 +191,7 @@ describe('PopularWheels', () => {
             }),
         })
 
-        expect(wrapper.find('h2').text()).toBe('Passend für deinen BMW 3er')
+        expect(wrapper.find('h2').text()).toBe('Passend für BMW 3er')
         expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Meiste Freigaben', 'Neu', 'Bis 200 €'])
         expect(wrapper.find('.popular__more a').text()).toBe('1.247 passende Felgen anzeigen')
         expect(wrapper.find('.popular__more a').attributes('href')).toBe('/felgen')

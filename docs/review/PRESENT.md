@@ -58,7 +58,8 @@ Angaben zu deinem Gerät schickt RIMIFY von selbst mit.
   anderen Anlagen sagt der Shop deshalb: „Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch
   nicht vor.“ Nie „nicht freigegeben“.
 - **Die Rechtstexte.** AGB, Widerrufsbelehrung und Datenschutzerklärung kommen von deiner Kanzlei. Bis dahin stehen
-  dort Platzhalter, die als solche gekennzeichnet sind.
+  dort Platzhalter, die als solche gekennzeichnet sind – auch in der Bestellbestätigung, die du nach deiner
+  Testbestellung per E-Mail bekommst.
 - **Deine Firmendaten, Versandkosten und Lieferzeit.** Die trägst du selbst im Admin ein, unter **Einstellungen ›
   Verkäufer & Versand** (Zugang `admin@rimify.test`). Bis dahin nennt das Impressum uns als Betreiber dieser
   Testumgebung.

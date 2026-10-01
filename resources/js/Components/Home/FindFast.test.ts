@@ -122,7 +122,7 @@ describe('FindFast — Nach Marke on the desktop document', () => {
         const wrapper = mountFind({ vehicle })
 
         expect(wrapper.find('a.brand-cell--all').text()).toBe('Passende Felgen anzeigen')
-        expect(wrapper.find('.brand-wall__note').text()).toContain('an deinen Audi RS 4 passen')
+        expect(wrapper.find('.brand-wall__note').text()).toContain('für Audi RS 4 freigegeben sind')
     })
 
     it('greys a brand without stock instead of linking it, and the note says so', () => {

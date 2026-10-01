@@ -29,7 +29,7 @@ describe('GutachtenStory (phone)', () => {
         for (const crop of crops) {
             expect(crop.element.tagName).toBe('DIV')
             expect(crop.attributes('role')).toBe('img')
-            expect(crop.attributes('aria-label')).toBe('Beispiel eines Gutachten-Auszugs; die Zeile des gewählten Fahrzeugs ist markiert')
+            expect(crop.attributes('aria-label')).toBe('Beispiel eines Gutachten-Auszugs; die Zeile eines Beispielfahrzeugs ist markiert')
             expect(crop.findAll('th').map((th) => th.text())).toEqual(['Hersteller', 'Typ', 'Genehmigungsnr.', 'Reifengrößen', 'Auflagen'])
 
             const rows = crop.findAll('tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()))

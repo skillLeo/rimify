@@ -48,7 +48,7 @@ const service = computed(() => shared.value.serviceStatus ?? null)
 /** The phone sentence from home.md, for a homepage whose block carries no phone sentence of its own. */
 const PHONE_SUBLINE = 'Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.'
 
-const title = computed(() => (vehicle.value ? `Felgen, die an deinen ${vehicle.value.short} dürfen.` : props.hero.title))
+const title = computed(() => (vehicle.value ? `Felgen mit Gutachten für ${vehicle.value.short}.` : props.hero.title))
 
 /* The team's own phone sentence (Inhalte › Seiten, at most 110 characters). Never the desktop one:
    its five lines would push the vehicle selector below the fold. */
@@ -68,7 +68,7 @@ const promiseIcon = (name: string): IconName => (isIconName(name) ? name : 'chec
 
 // Coverage is a count of approvals, not of sales: no "Beliebt" without data behind it (D7).
 const popularTitle = computed(() =>
-    vehicle.value ? `Passend für deinen ${vehicle.value.short}` : (props.popular.title ?? 'Felgen mit den meisten Freigaben')
+    vehicle.value ? `Passend für ${vehicle.value.short}` : (props.popular.title ?? 'Felgen aus dem Sortiment')
 )
 const popularLoading = ref(false)
 const popularFailed = ref(false)

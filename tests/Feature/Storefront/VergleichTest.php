@@ -152,6 +152,8 @@ it('carries the four-state verdict and the decided action per column with a vehi
         ->has('items.0.verdict.conditions')
         ->has('items.0.verdict.tyreSizes')
         ->where('items.0.verdict.tyreSizes', fn ($sizes) => count($sizes) > 0)
+        // The product page's § 15 FZV answer, so the two pages never contradict each other on the papers.
+        ->where('items.0.verdict.papersExempt', fn ($exempt) => is_bool($exempt))
         ->where('items.0.fitment.status', fn ($status) => in_array($status, [VerdictStatus::Permitted->value, VerdictStatus::Conditional->value], true))
         // Strings, the card's own spelling, so the tile can grey the sizes that are not in it.
         ->where('items.0.diametersFitting', fn ($d) => count($d) > 0 && collect($d)->every(fn ($v): bool => is_string($v)))
@@ -181,6 +183,7 @@ it('carries the four-state verdict and the decided action per column with a vehi
         // Not in the vehicle's listing: never a positive claim, whatever else it is.
         expect($items[1]['verdict']['status'])->toBeIn([VerdictStatus::NotPermitted->value, VerdictStatus::Unknown->value])
             ->and($items[1]['verdict']['sellable'])->toBeFalse()
+            ->and($items[1]['verdict']['papersExempt'])->toBeFalse()
             ->and($items[1]['buy']['kind'])->toBeIn(['none', 'choose']);
     }
 });

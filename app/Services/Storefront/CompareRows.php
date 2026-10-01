@@ -244,6 +244,8 @@ final readonly class CompareRows
     private function verdictFor(int $vehicleId, array $configs): array
     {
         $requiresEntry = false;
+        // The papers are free (§ 15 FZV) only where every sellable size's documents free them — the product page's rule.
+        $papersExempt = true;
         $anyConditional = false;
         $conditions = [];
         $entryNotes = [];
@@ -276,6 +278,7 @@ final readonly class CompareRows
             $sellable++;
             $anyConditional = $anyConditional || $verdict->status === VerdictStatus::Conditional;
             $requiresEntry = $requiresEntry || $verdict->requiresEntry;
+            $papersExempt = $papersExempt && $verdict->papersExempt();
             $conditions = Condition::union($conditions, $verdict->conditions);
 
             // A list of strings, the same spelling as the card's `diameters`: `18`, never the
@@ -320,6 +323,7 @@ final readonly class CompareRows
             $reason = $negative?->reason;
             $document = $negative?->document;
             $requiresEntry = false;
+            $papersExempt = false;
             $conditions = [];
         }
 
@@ -334,6 +338,7 @@ final readonly class CompareRows
                 'label' => $status->labelDe(),
                 'sellable' => $status->isSellable(),
                 'requiresEntry' => $requiresEntry,
+                'papersExempt' => $papersExempt,
                 'entryNoteDe' => $entryNotes === [] ? null : implode(' ', array_keys($entryNotes)),
                 // Full German sentences, never codes such as A02 (R-15).
                 'conditions' => $sentences,

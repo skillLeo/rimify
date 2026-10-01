@@ -99,7 +99,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
 
 <template>
     <AdminPage :title="vehicle.name" :context="context">
-        <p v-if="!vehicle.complete" class="fs-warn" role="note">Diesem Fahrzeug fehlen Angaben. Solange sie fehlen, zeigt der Shop für dieses Fahrzeug keine Felge als passend.</p>
+        <p v-if="!vehicle.complete" class="fs-warn" role="note">Diesem Fahrzeug fehlen Angaben. Solange sie fehlen, kann der Shop die Reifen für dieses Fahrzeug nicht bestätigen und verweist auf die Fahrzeugpapiere.</p>
 
         <section class="adm-section" aria-labelledby="fs-facts-h">
             <div class="adm-section__head">
@@ -187,7 +187,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
         <AdminConfirm
             v-model:open="confirmOpen"
             title="Angabe entfernen?"
-            body="Ohne alle drei Angaben zeigt der Shop für dieses Fahrzeug keine Felge mehr als passend, bis sie wieder eingetragen sind."
+            body="Ohne alle drei Angaben kann der Shop die Reifen für dieses Fahrzeug nicht mehr bestätigen, bis sie wieder eingetragen sind."
             confirm-label="Entfernen und speichern"
             :busy="form.processing"
             @confirm="send"

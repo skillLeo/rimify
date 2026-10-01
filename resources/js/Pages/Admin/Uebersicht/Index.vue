@@ -306,7 +306,7 @@ function cell(slot: Slot): Record<string, number> {
                         v-if="!charts || !charts.verdicts && failedOne('verdicts')"
                         class="dash__cell"
                         :style="cell('verdicts')"
-                        title="Verdikte der Prüfungen"
+                        title="Ergebnisse der Prüfungen"
                         :loading="chartsLoading"
                         :error="failedOne('verdicts')"
                         @retry="retryCharts"
@@ -323,21 +323,21 @@ function cell(slot: Slot): Record<string, number> {
                         v-else
                         class="dash__cell"
                         :style="cell('verdicts')"
-                        title="Verdikte der Prüfungen"
+                        title="Ergebnisse der Prüfungen"
                         :empty="charts.verdicts ? null : 'Der Shop zählt jede Prüfung einer Felge an einem Auto. Sobald Kundinnen und Kunden prüfen, zeigt sich hier je Woche, wie oft die Antwort freigegeben, mit Auflagen, nicht freigegeben oder unbekannt war.'"
                     >
                         <template v-if="charts.verdicts" #tools>
                             <ChartMenu
                                 v-model:table="tables.verdicts"
-                                title="Verdikte der Prüfungen"
+                                title="Ergebnisse der Prüfungen"
                                 :header="verdictTable.header"
                                 :rows="verdictTable.rows"
-                                :filename="`verdikte-${period.von}-bis-${period.bis}`"
+                                :filename="`pruefergebnisse-${period.von}-bis-${period.bis}`"
                             />
                         </template>
                         <template v-if="charts.verdicts">
-                            <ChartTable v-if="tables.verdicts" caption="Verdikte je Woche" :header="verdictTable.header" :rows="verdictTable.rows" />
-                            <StackedBar v-else :chart="charts.verdicts" :label="`Verdikte je Woche, ${period.range}`" />
+                            <ChartTable v-if="tables.verdicts" caption="Prüfergebnisse je Woche" :header="verdictTable.header" :rows="verdictTable.rows" />
+                            <StackedBar v-else :chart="charts.verdicts" :label="`Prüfergebnisse je Woche, ${period.range}`" />
                             <!-- What the chart counts, under it: two lines at most. -->
                             <p class="chart-caption">
                                 {{ verdictSummary }}

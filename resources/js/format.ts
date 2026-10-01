@@ -25,6 +25,11 @@ export function felgen(count: number): string {
     return `${decimal(count, 0)}${NNBSP}${count === 1 ? 'Felge' : 'Felgen'}`
 }
 
+/** `1 Modell` · `1.234 Modelle` — a count and its noun, in the singular for one. */
+export function anzahl(count: number, one: string, many: string): string {
+    return `${decimal(count, 0)} ${count === 1 ? one : many}`
+}
+
 /** The selector's button: `1 passende Felge anzeigen` · `1.234 passende Felgen anzeigen` — never „1 passende Felgen". */
 export function passendeAnzeigen(count: number): string {
     return `${decimal(count, 0)} ${count === 1 ? 'passende Felge' : 'passende Felgen'} anzeigen`

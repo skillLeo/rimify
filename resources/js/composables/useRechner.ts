@@ -120,7 +120,7 @@ export function nextStep(s: WheelSetup): WheelSetup {
 
 /** What the prefill is, said plainly (C3): not the factory size, the smallest size a Gutachten names. */
 export function prefillSentence(vehicleShort: string): string {
-    return `Aktuell ist vorbelegt mit der kleinsten Größe, die ein Gutachten für deinen ${vehicleShort} nennt – nicht unbedingt mit deiner heutigen Bereifung.`
+    return `Aktuell ist vorbelegt mit der kleinsten Größe, die ein Gutachten für ${vehicleShort} nennt – nicht unbedingt mit deiner heutigen Bereifung.`
 }
 
 export function useRechner(options: UseRechnerOptions): Rechner {

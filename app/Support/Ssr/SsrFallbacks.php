@@ -26,9 +26,10 @@ final class SsrFallbacks
     /** A fallback this recent keeps the health row amber. */
     public const RECENT_MINUTES = 60;
 
-    public static function record(string $url, string $reason): void
+    /** `$reason` is one German sentence for System › Zustand; `$detail` (an exception's text) goes to the log only. */
+    public static function record(string $url, string $reason, ?string $detail = null): void
     {
-        Log::warning('SSR-Fallback: Seite ohne Server-Rendering ausgeliefert', ['url' => $url, 'reason' => $reason]);
+        Log::warning('SSR-Fallback: Seite ohne Server-Rendering ausgeliefert', array_filter(['url' => $url, 'reason' => $reason, 'detail' => $detail]));
 
         try {
             $key = self::DAY_KEY.self::day();

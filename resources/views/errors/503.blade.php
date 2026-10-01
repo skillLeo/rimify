@@ -15,16 +15,20 @@
     $wait = null;
 
     if (is_int($retryAfter) && $retryAfter > 0) {
-        $wait = $retryAfter < 60
-            ? 'Der Server bittet um '.$retryAfter.' Sekunden Geduld.'
-            : 'Der Server bittet um rund '.(int) ceil($retryAfter / 60).' Minuten Geduld.';
+        $minutes = (int) ceil($retryAfter / 60);
+        $wait = match (true) {
+            $retryAfter === 1 => 'Der Server bittet um eine Sekunde Geduld.',
+            $retryAfter < 60 => 'Der Server bittet um '.$retryAfter.' Sekunden Geduld.',
+            $minutes === 1 => 'Der Server bittet um rund eine Minute Geduld.',
+            default => 'Der Server bittet um rund '.$minutes.' Minuten Geduld.',
+        };
     }
 @endphp
 
 @include('errors._standalone', [
     'status' => $status,
     'title' => 'RIMIFY ist gerade in Wartung.',
-    'lead' => 'Wir spielen eine Aktualisierung ein. Solange sind die Fahrzeugsuche, die Felgen und der Warenkorb nicht erreichbar.',
+    'lead' => 'Wir spielen eine Aktualisierung ein. Bis dahin sind die Fahrzeugsuche, die Felgen und der Warenkorb nicht erreichbar.',
     'detail' => trim(($wait !== null ? $wait.' ' : 'Wie lange das dauert, können wir dir nicht versprechen. ')
         .'Lad diese Seite später noch einmal, oder schreib uns, wenn es eilt.'),
 ])

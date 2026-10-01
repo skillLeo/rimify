@@ -112,9 +112,9 @@ function onCloseFocus(event: Event): void {
             <button class="btn btn--secondary" type="button" @click="copy">
                 {{ copied ? 'Kopiert' : 'Text kopieren' }}
             </button>
-            <a class="btn btn--primary" :href="mailto()" @click="sent">In E-Mail-Programm öffnen</a>
+            <a class="btn btn--primary" :href="mailto()" @click="sent">Im E-Mail-Programm öffnen</a>
         </template>
-        <p v-if="copyFailed" class="form-field__error rq__error" role="alert">Betreff und Text konnten nicht kopiert werden. Kopier sie von Hand oder öffne die E-Mail mit „In E-Mail-Programm öffnen“.</p>
+        <p v-if="copyFailed" class="form-field__error rq__error" role="alert">Betreff und Text konnten nicht kopiert werden. Kopier sie von Hand oder öffne die E-Mail mit „Im E-Mail-Programm öffnen“.</p>
         <p class="visually-hidden" aria-live="polite">{{ copied ? 'Betreff und Text sind kopiert.' : '' }}</p>
     </Dialog>
 </template>
