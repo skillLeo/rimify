@@ -19,7 +19,7 @@ import DocFacsimile from '../../Art/DocFacsimile.vue'
 import Icon from '../../Ui/Icon.vue'
 import Skeleton from '../../Ui/Skeleton.vue'
 import BottomSheet from '../BottomSheet.vue'
-import { decimal } from '../../../format'
+import { decimal, passendeAnzeigen } from '../../../format'
 import { useShared } from '../../../composables/useShared'
 import { cleanHsn, cleanTsn, HSN_LENGTH, TSN_LENGTH, useVehiclePicker, type VariantRow } from '../../../composables/mobile/useVehiclePicker'
 import type { DocVariant } from '../../../art'
@@ -203,7 +203,7 @@ const buttonLabel = computed(() => {
     }
 
     if (count.value.status === 'ready') {
-        return `${decimal(count.value.count, 0)} passende Felgen anzeigen`
+        return passendeAnzeigen(count.value.count)
     }
 
     return canSubmit.value ? 'Passende Felgen anzeigen' : 'Fahrzeug wählen'
@@ -318,10 +318,10 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
         <!-- Feld K first where it is what tells the car apart; the unknown build window then says nothing. -->
         <p class="small num muted">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
         <p v-if="totalLabel !== null" class="small num vpanel__count">
-            <strong>{{ totalLabel }}</strong> Felgen mit Gutachten für {{ vehicle.label }}
+            <strong>{{ totalLabel }}</strong> {{ total === 1 ? 'Felge' : 'Felgen' }} mit Gutachten für {{ vehicle.label }}
         </p>
         <Link href="/felgen" class="btn btn--primary btn--lg btn--block vpanel__go" data-primary prefetch>
-            {{ totalLabel !== null ? `${totalLabel} passende Felgen anzeigen` : 'Passende Felgen anzeigen' }}
+            {{ total !== null ? passendeAnzeigen(total) : 'Passende Felgen anzeigen' }}
         </Link>
         <div class="vpanel__links">
             <Link href="/felgen-suchen" class="link">Fahrzeug ändern</Link>
