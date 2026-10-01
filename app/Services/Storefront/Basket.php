@@ -26,6 +26,7 @@ use App\Services\Commerce\KomplettradPricer;
 use App\Services\Commerce\KomplettradSettings;
 use App\Services\Commerce\PendingOrder;
 use App\Support\GermanFormat;
+use App\Support\LinePrice;
 use App\Support\MakeName;
 use App\Support\Money;
 use App\Support\Seller;
@@ -727,7 +728,7 @@ final readonly class Basket
         // out and `priceOpen` says so — never a guessed figure, never a silent 0,00 €.
         $price = $this->pricer->perWheel($config, $tyre, $colour);
         $unit = Money::fromMinor($price->knownPerWheelCents(), $price->currency);
-        $lineTotal = $unit->multiply($quantity);
+        $lineTotal = LinePrice::total($unit, $quantity);
 
         return [
             'key' => $this->key($config->id, $tyreId),
@@ -823,7 +824,7 @@ final readonly class Basket
             'label' => $label,
             'quantity' => $quantity,
             'unitPrice' => $cents === null ? self::OPEN_PRICE : Money::fromMinor($cents, $price->currency)->format(),
-            'lineTotal' => $cents === null ? null : Money::fromMinor($cents, $price->currency)->multiply($quantity)->format(),
+            'lineTotal' => $cents === null ? null : LinePrice::total(Money::fromMinor($cents, $price->currency), $quantity)->format(),
             'open' => $cents === null,
         ];
 
@@ -994,7 +995,7 @@ final readonly class Basket
 
         $unit = $price?->priceCents;
         $currency = $price === null ? 'EUR' : $price->currency;
-        $total = $choice === 'ja' && $unit !== null ? Money::fromMinor($unit, $currency)->multiply($quantity)->toMinor() : 0;
+        $total = $choice === 'ja' && $unit !== null ? LinePrice::total(Money::fromMinor($unit, $currency), $quantity)->toMinor() : 0;
         // The quote's spelling where there is one (it is what the order line will say), else the vehicle's.
         $makeLabel = $price !== null ? $price->makeLabelDe : ($make === null ? null : MakeName::normalise($make));
 

@@ -79,13 +79,8 @@ describe('the value object', function (): void {
             ->and(Money::zero()->isZero())->toBeTrue();
     });
 
-    it('multiplies by a quantity: a set of four is four rims, never a price divided by four', function (): void {
-        $rim = Money::fromMinor(142_500);
-
-        expect($rim->multiply(4)->toMinor())->toBe(570_000)
-            ->and($rim->multiply(4)->format())->toBe("5.700,00\u{202F}€")
-            ->and($rim->multiply(1)->equals($rim))->toBeTrue()
-            ->and($rim->multiply(0)->isZero())->toBeTrue();
+    it('does not multiply: a quantity is LinePrice\'s (D-102)', function (): void {
+        expect(method_exists(Money::class, 'multiply'))->toBeFalse();
     });
 
     it('adds VAT to a net amount and finds the VAT inside a gross one, in integers', function (): void {

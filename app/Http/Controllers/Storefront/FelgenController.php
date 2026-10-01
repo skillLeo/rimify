@@ -37,6 +37,7 @@ use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
+use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\Shipping;
 use Illuminate\Http\RedirectResponse;
@@ -57,6 +58,9 @@ class FelgenController extends Controller
 {
     /** What one click on `Als Komplettrad in den Warenkorb` adds: a set of four. */
     private const SET_OF = 4;
+
+    /** The amounts the product page offers beside the price, four preselected (#17); each priced by LinePrice. */
+    public const AMOUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
     public function __construct(
         private readonly ProductCards $cards,
@@ -233,11 +237,13 @@ class FelgenController extends Controller
                 // document states for the chosen car travels inside the verdict instead (§1, R-06).
                 'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
                 'hump' => $hump === '' ? null : $hump,
-                // `price_cents` is ONE rim (docs/specs/komplettrad.md §9); the set of four is
-                // computed and formatted here (Money), so the page never multiplies cents (R-10).
+                // `price_cents` is ONE rim (docs/specs/komplettrad.md §9, D-102); the set of four is
+                // computed by LinePrice and formatted here, so the page never multiplies cents (R-10).
                 'priceCents' => (int) $config->price_cents,
                 'price' => $this->rimPrice($config)->format(),
-                'priceForFour' => $this->rimPrice($config)->multiply(self::SET_OF)->format(),
+                'priceForFour' => LinePrice::total($this->rimPrice($config), self::SET_OF)->format(),
+                // The figure for every amount the page offers, so the browser only picks one (D-102).
+                'amounts' => LinePrice::byQuantity($this->rimPrice($config), self::AMOUNTS),
                 'stockQty' => (int) $config->stock_qty,
                 'inStock' => $config->stock_qty > 0,
                 'kbaNumber' => $config->kba_number,
@@ -372,7 +378,7 @@ class FelgenController extends Controller
             $price = $this->pricer->perWheel($config, $variant, $colour);
             $priceOpen = $priceOpen || ! $price->complete();
             $perWheel = Money::fromMinor($price->knownPerWheelCents(), $price->currency);
-            $forFour = $perWheel->multiply(self::SET_OF);
+            $forFour = LinePrice::total($perWheel, self::SET_OF);
 
             $tyres[] = [
                 'id' => (int) $variant->id,

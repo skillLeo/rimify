@@ -25,6 +25,7 @@ use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Support\GermanFormat;
+use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\OrderLineLabel;
 use App\Support\VehicleName;
@@ -486,9 +487,10 @@ final class DemoDashboard
 
         [$status, $paid, $shipped] = $this->outcome($order, $u);
 
-        $wheelTotal = $config->price_cents * $quantity;
-        $tyreTotal = $tyre === null ? 0 : $tyre->price_cents * 4;
-        $serviceTotal = $tyre === null ? 0 : 4 * 1_900;
+        // One item's price times its quantity, as every real line is priced (LinePrice, D-102).
+        $wheelTotal = LinePrice::total(Money::fromMinor((int) $config->price_cents), $quantity)->toMinor();
+        $tyreTotal = $tyre === null ? 0 : LinePrice::total(Money::fromMinor((int) $tyre->price_cents), 4)->toMinor();
+        $serviceTotal = $tyre === null ? 0 : LinePrice::total(Money::fromMinor(1_900), 4)->toMinor();
         $subtotal = $wheelTotal + $tyreTotal + $serviceTotal;
         // Demonstration figures, as CommerceSeeder's: the client has named no shipping price yet.
         $shipping = $subtotal >= 50_000 ? 0 : 990;

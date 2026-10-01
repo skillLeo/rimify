@@ -302,6 +302,13 @@ export interface ProduktProps {
     shipping?: string | null
 }
 
+/** One amount the product page offers and its price, `{quantity: 4, cents: 91600, text: '916,00 €'}`. */
+export interface AmountPrice {
+    quantity: number
+    cents: number
+    text: string
+}
+
 export interface ProduktConfig {
     id: number
     finishId: number
@@ -321,6 +328,8 @@ export interface ProduktConfig {
     price: string
     /** The set of four, formatted on the server; the page never multiplies cents. */
     priceForFour?: string
+    /** The price of each amount the page offers (1–8), from LinePrice on the server (D-102): the browser only picks. */
+    amounts?: AmountPrice[]
     stockQty: number
     inStock: boolean
     kbaNumber: string | null
