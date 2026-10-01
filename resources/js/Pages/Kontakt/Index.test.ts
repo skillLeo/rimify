@@ -89,7 +89,25 @@ describe('Kontakt — e-mail only, until a real endpoint exists', () => {
         const href = wrapper.find('a.btn').attributes('href') ?? ''
 
         expect(body(href)).toBe('Fahrzeug: BMW 3er Coupé (HSN 0005 · TSN 582)\r\n\r\n')
-        expect(wrapper.text()).toContain('Dein Fahrzeug steht schon in der E-Mail')
+        expect(wrapper.text()).toContain('Dein Fahrzeug steht schon in der E-Mail: BMW 3er Coupé (HSN 0005 · TSN 582).')
+    })
+
+    // The live sweep of 01.10.2026: the page promised Feld K, the mail said „HSN/TSN noch nicht hinterlegt“.
+    it('writes into the e-mail what the page says it wrote, also for a car known only by its Feld K', () => {
+        const nb = String.fromCharCode(160)
+        const fromGutachten: VehicleProp = {
+            ...VEHICLE,
+            label: 'BMW X3 X83',
+            hsn: null,
+            tsn: null,
+            keyNumbers: 'HSN/TSN noch nicht hinterlegt',
+            approval: `Feld${nb}K: e1*2001/116*0249`,
+        }
+        const wrapper = mountPage(CONTACT, fromGutachten)
+        const line = `BMW X3 X83 (Feld${nb}K: e1*2001/116*0249)`
+
+        expect(body(wrapper.find('a.btn').attributes('href') ?? '')).toBe(`Fahrzeug: ${line}\r\n\r\n`)
+        expect(wrapper.find('.kon__hint').text()).toBe(`Dein Fahrzeug steht schon in der E-Mail: ${line}.`)
     })
 
     it('shows a phone only once the client has configured one', () => {
