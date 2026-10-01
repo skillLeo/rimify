@@ -202,7 +202,7 @@ class FelgenController extends Controller
                 }
 
                 if ($check->for($model)['blockers'] !== []) {
-                    $skipped[] = $name.' (Freigabe-Check)';
+                    $skipped[] = $name.' (Prüfung vor dem Veröffentlichen)';
 
                     continue;
                 }

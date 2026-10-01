@@ -28,7 +28,7 @@ describe('ConditionGroups', () => {
         expect(wrapper.find('.cgroups__head').text()).toBe('Für jede zulässige Reifengröße')
         expect(wrapper.findAll('li').filter((li) => li.text() === BOLTS)).toHaveLength(1)
         expect(blocks).toHaveLength(3)
-        expect(blocks[0]?.text()).toContain('Nur mit 235/45 R19')
+        expect(blocks[0]?.text()).toContain('Nur bei 235/45 R19')
         expect(blocks[0]?.text()).toContain(CHAINS)
         expect(blocks[0]?.text()).not.toContain(NO_CHAINS)
         expect(blocks[2]?.text()).toContain(NO_CHAINS)

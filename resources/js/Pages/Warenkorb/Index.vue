@@ -31,6 +31,7 @@ import { computed, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
+import { papersLines } from '../../fitment/papers'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import { useBasket } from '../../composables/useBasket'
 import { priceTerms, totalNote } from '../../composables/usePriceTerms'
@@ -168,6 +169,9 @@ const VERDICT_TONE: Record<string, string> = {
                                         {{ line.verdict.label }}
                                     </span>
                                 </p>
+
+                                <!-- The papers, as the product page says them: per size where the sizes differ, a Komplettrad's tyre's. -->
+                                <p v-for="sentence in papersLines(line.verdict)" :key="sentence" class="bl__entry">{{ sentence }}</p>
 
                                 <!-- Auflagen in full, never a badge on its own — each tyre size's with that size, a Komplettrad's for its tyre. -->
                                 <ConditionGroups
@@ -512,6 +516,12 @@ const VERDICT_TONE: Record<string, string> = {
     flex-wrap: wrap;
     gap: var(--space-2);
     margin-top: var(--space-2);
+}
+
+.bl__entry {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-small);
+    font-weight: 700;
 }
 
 .bl__groups {

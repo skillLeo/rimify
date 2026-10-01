@@ -22,7 +22,7 @@ import { SHOTS, heightOf, holdCharts, isPhone, openUebersicht, pageTop, signIn, 
  * Nothing is written: the charts' request is only held for a moment.
  */
 
-const TITLE = 'Top-Felgen nach Bestellungen';
+const TITLE = 'Meistbestellte Felgen';
 
 test('M1-06 Top-Felgen: its skeleton is the size of the ranking that replaces it', async ({ page }, info) => {
     await signIn(page);

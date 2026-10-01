@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BestellungenExportRequest;
 use App\Http\Requests\Admin\BestellungenFilterRequest;
 use App\Http\Requests\Admin\OrderViewRequest;
+use App\Models\ApprovalDocument;
 use App\Models\Order;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
@@ -111,7 +112,8 @@ class BestellungenController extends Controller
         // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
         request()->attributes->set(AdminNavigation::RECORD, $order->order_number);
 
-        return Inertia::render('Admin/Bestellungen/Show', $detail->for($order));
+        // The Prüfnachweis links its Gutachten only for a reader who may open it (Verkauf may not).
+        return Inertia::render('Admin/Bestellungen/Show', $detail->for($order, $request->user('admin')?->can('viewAny', ApprovalDocument::class) === true));
     }
 
     /**

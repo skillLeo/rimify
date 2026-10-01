@@ -9,6 +9,7 @@
 
 import Icon from '../Art/Icon.vue'
 import ConditionGroups from '../Fitment/ConditionGroups.vue'
+import { papersLines } from '../../fitment/papers'
 import Tyre from '../Art/Tyre.vue'
 import Wheel from '../Art/Wheel.vue'
 import { useBasket } from '../../composables/useBasket'
@@ -78,6 +79,8 @@ const VERDICT_TONE: Record<string, string> = {
                                 </span>
                             </div>
 
+                            <!-- The papers as the product page says them: per size where the sizes differ, a Komplettrad's tyre's. -->
+                            <p v-for="sentence in papersLines(line.verdict)" :key="sentence" class="bl__entry">{{ sentence }}</p>
                             <!-- Each tyre size's Auflagen with that size; a Komplettrad's for its tyre (ConditionGroups). -->
                             <ConditionGroups
                                 v-if="line.verdict && line.verdict.conditionGroups && line.verdict.conditions.length"
@@ -170,6 +173,12 @@ const VERDICT_TONE: Record<string, string> = {
     flex-wrap: wrap;
     gap: var(--space-2);
     margin-top: 6px;
+}
+
+.bl__entry {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-small);
+    font-weight: 700;
 }
 
 .bl__groups {

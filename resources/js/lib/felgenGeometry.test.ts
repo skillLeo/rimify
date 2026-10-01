@@ -85,6 +85,13 @@ function randomPlausibleSetup(random: () => number): WheelSetup {
 
 const PAIRS = 2000
 
+/**
+ * A sweep of 2.000 seeded pairs is CPU-bound: 0,2 s alone, and up to 18 times that while the Pest suite shares the
+ * machine — past Vitest's 5 s per test. The pairs are seeded, so the answer never depends on the clock; only the
+ * budget does.
+ */
+const SWEEP = { timeout: 30_000 }
+
 function eachPair(seed: number, check: (a: WheelSetup, b: WheelSetup) => void, plausibleOnly = false): void {
     const random = prng(seed)
     const draw = plausibleOnly ? randomPlausibleSetup : randomSetup
@@ -262,7 +269,7 @@ describe('rim and tyre that do not belong together', () => {
 
 /* ── Properties, over 2.000 pseudo-random pairs from the offered grid ─────────── */
 
-describe('properties', () => {
+describe('properties', SWEEP, () => {
     it('swapping current and new negates every delta and turns every direction round', () => {
         eachPair(20260922, (a, b) => {
             const ab = felgenModel(a, b)
@@ -342,7 +349,7 @@ describe('properties', () => {
 
 /* ── The rear view is generated from the model ────────────────────────────────── */
 
-describe('rear view', () => {
+describe('rear view', SWEEP, () => {
     it('draws the worked example: one wheel in its arch, the mounting face, the strut left, the fender right', () => {
         const model = felgenModel(current, next)
         const scene = sceneOf(model)

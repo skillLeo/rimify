@@ -213,9 +213,14 @@ class AdminUser extends Authenticatable
         return is_string($label) && $label !== '' ? $label : $name;
     }
 
+    /**
+     * Whether a second factor is set up: asked of the stored value, never by decrypting it. A secret written under
+     * another APP_KEY (the preview's key was renewed on 23.09.2026) cannot be read — and must not take down every page
+     * that lists the team with „The MAC is invalid“. It is still a second factor that was set up.
+     */
     public function hasTwoFactorEnabled(): bool
     {
-        return $this->totp_secret !== null && $this->totp_confirmed_at !== null;
+        return $this->getRawOriginal('totp_secret') !== null && $this->totp_confirmed_at !== null;
     }
 
     public function isLockedOut(): bool

@@ -16,6 +16,7 @@ use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -178,6 +179,18 @@ describe('the list', function (): void {
                     ->and($agent['lastLogin'])->toBeNull()
                     ->and($agent)->not->toHaveKey('password');
             });
+    });
+
+    // The preview, 01.10.2026: a second factor written under an earlier APP_KEY made the whole list answer 500
+    // („The MAC is invalid“). It is still a second factor that was set up — said so, never decrypted to say it.
+    it('lists an account whose second factor was written under another key, instead of failing the page', function (): void {
+        $other = new Encrypter(random_bytes(32), 'AES-256-CBC');
+        DB::table('admin_users')->where('email', 'support-agent@rimify.test')
+            ->update(['totp_secret' => $other->encryptString('JBSWY3DPEHPK3PXP'), 'totp_confirmed_at' => now()]);
+
+        $this->actingAs(benutzerAdmin(), 'admin')->get('/admin/benutzer')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('accounts', fn ($accounts) => collect($accounts)->firstWhere('email', 'support-agent@rimify.test')['twoFactor'] === true));
     });
 
     it('offers only the roles this person may hand out, and marks accounts beyond their reach', function (): void {

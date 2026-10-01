@@ -28,7 +28,7 @@ Marke, Modell und Ausführung legt der Import an, wenn es sie noch nicht gibt.
 
 ## 2 · Katalog › Felgen: veröffentlichen
 
-Die importierte Felge ist ein Entwurf. Der Freigabe-Check oben nennt, was das Veröffentlichen
+Die importierte Felge ist ein Entwurf. Der Kasten Vor dem Veröffentlichen oben nennt, was das Veröffentlichen
 verhindert (hier nichts) und was man wissen sollte (kein Produktfoto → der Shop zeigt die Zeichnung).
 Jede Testbestellung nimmt Felgen aus dem Bestand; ist er unter zwanzig, füllt der Durchlauf ihn hier
 wieder auf hundert auf.

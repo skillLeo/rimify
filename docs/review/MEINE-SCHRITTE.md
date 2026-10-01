@@ -20,6 +20,8 @@ The base ABE 53841 is entered on the preview as draft #12 and linked from the Na
 
 ## 2 · The two cron jobs (hPanel)
 
+**Done on 01.10.2026** — Zeitplan green under Admin › System › Zustand; the renderer's watchdog brought it back in 30 s.
+
 **hPanel › Advanced › Cron Jobs** (*Erweitert › Cron-Jobs*). Create two jobs. For each one choose the type
 **Custom** (*Benutzerdefiniert*), paste the command into the command field, and set the schedule to **every minute**:
 the five schedule fields Minute, Hour, Day, Month, Weekday each `*` (or pick *Every minute* / *Jede Minute* from the
@@ -51,6 +53,9 @@ it running, the row turns green.
 ---
 
 ## 3 · Release the three Gutachten — in this order
+
+**Done on 01.10.2026** on your written instruction: #12, #10 and #11 released on the preview (`rimify:gutachten-freigeben`; the
+Protokoll names the instruction). On the live shop a person presses **Freigeben** in the browser, as below.
 
 **Admin › Gutachten › Dokumente.** Open each, put its PDF beside it (*PDF öffnen* in the *Angaben* box), check, then
 press **Freigeben** (top right) and confirm in the dialog.
@@ -95,6 +100,8 @@ lists this Nachtrag with *Fehlende Anlagen: 1–15*.
 
 ## 4 · Price and publish the BORBET DB8GT2
 
+**Done on 01.10.2026** with placeholder prices (229,00 € / 269,00 €, stock 12); the Felge's internal note says so.
+
 **Admin › Katalog › Felgen** › **BORBET DB8GT2**.
 
 1. Scroll to the sizes table. It has four rows: *Schwarz matt* 18 and 19, *Bronze matt* 18 and 19.
@@ -102,7 +109,7 @@ lists this Nachtrag with *Fehlende Anlagen: 1–15*.
    any document, so I cannot fill it in) and the stock in **Bestand** (at least 4 if the test purchases in step 5
    should go through).
 3. Press **Speichern** in the bar at the bottom.
-4. The **Freigabe-Check** at the top now reads **Kann veröffentlicht werden**. Notes under it with a blue *i* do not
+4. The box **Vor dem Veröffentlichen** at the top now reads **Kann veröffentlicht werden**. Notes under it with a blue *i* do not
    stop anything (e.g. a missing description). A red line does — it says what is missing. After step 3 the column
    **Freigaben** shows *ABE 55255* on the 19-inch rows and *Nachtrag 366-0350-21-WIRD/N1* on the 18-inch rows.
 5. Press **Veröffentlichen** (top right) and confirm *Felge veröffentlichen?*. The check now reads **Im Shop**.

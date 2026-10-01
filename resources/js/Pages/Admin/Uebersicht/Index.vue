@@ -351,20 +351,20 @@ function cell(slot: Slot): Record<string, number> {
                     <DashWidget
                         class="dash__cell"
                         :style="cell('topWheels')"
-                        title="Top-Felgen nach Bestellungen"
+                        title="Meistbestellte Felgen"
                         :empty="topWheels.length ? null : 'Noch keine bezahlte Bestellung mit Felgen in diesem Zeitraum.'"
                     >
                         <template v-if="topWheels.length" #tools>
                             <ChartMenu
                                 v-model:table="tables.topWheels"
-                                title="Top-Felgen nach Bestellungen"
+                                title="Meistbestellte Felgen"
                                 :header="topTable.header"
                                 :rows="topTable.rows"
                                 :filename="`top-felgen-${period.von}-bis-${period.bis}`"
                             />
                         </template>
-                        <ChartTable v-if="tables.topWheels" caption="Top-Felgen nach Bestellungen" :header="topTable.header" :rows="topTable.rows" />
-                        <BarChart v-else :bars="topWheels" :label="`Top-Felgen nach Bestellungen, ${period.range}`" />
+                        <ChartTable v-if="tables.topWheels" caption="Meistbestellte Felgen" :header="topTable.header" :rows="topTable.rows" />
+                        <BarChart v-else :bars="topWheels" :label="`Meistbestellte Felgen, ${period.range}`" />
                     </DashWidget>
                 </template>
 

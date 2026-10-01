@@ -235,7 +235,7 @@ const BULK: Record<BulkAction, { label: string; title: (n: string) => string; bo
     publish: {
         label: 'Veröffentlichen',
         title: (n) => `${n} veröffentlichen?`,
-        body: 'Sie sind danach im Shop. Demodaten und Felgen, die der Freigabe-Check stoppt, bleiben, wie sie sind.',
+        body: 'Die Felgen sind danach im Shop. Demodaten und Felgen, die die Prüfung vor dem Veröffentlichen stoppt, bleiben, wie sie sind.',
     },
     unpublish: {
         label: 'Zurückziehen',

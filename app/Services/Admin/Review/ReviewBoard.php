@@ -41,7 +41,7 @@ final class ReviewBoard
             ['label' => 'Kunden', 'href' => null, 'state' => self::MISSING, 'line' => 'Kundenkonten mit ihren Bestellungen und Fahrzeugen.'],
         ]],
         ['key' => 'katalog', 'label' => 'Katalog', 'screens' => [
-            ['label' => 'Felgen', 'href' => '/admin/felgen', 'state' => self::DONE, 'line' => 'Liste mit Freigaben je Größe; Anlegen mit Ausführungen, Fotos und Größen-Matrix; Veröffentlichen nach Freigabe-Check.'],
+            ['label' => 'Felgen', 'href' => '/admin/felgen', 'state' => self::DONE, 'line' => 'Liste mit Freigaben je Größe; Anlegen mit Ausführungen, Fotos und Größen-Matrix; Veröffentlichen nach der Prüfung.'],
             ['label' => 'Import', 'href' => '/admin/katalog/import', 'state' => self::DONE, 'line' => 'Lieferantendatei (CSV oder Excel) zuordnen, im Probelauf prüfen, importieren und zurücknehmen.'],
             ['label' => 'Marken', 'href' => '/admin/marken', 'state' => self::DONE, 'line' => 'Jede Marke mit Namen, Platz auf der Markenwand und Logo – hochgeladen als SVG, PNG oder WebP, geprüft vor dem Speichern.'],
             ['label' => 'Reifen, Bestände', 'href' => null, 'state' => self::MISSING, 'line' => 'Reifen pflegen, Bestände über alle Felgen.'],
@@ -85,9 +85,14 @@ final class ReviewBoard
     /**
      * The board, with how many points of the review are still open on each screen.
      *
-     * @return list<array{key: string, label: string, screens: list<array{label: string, href: string|null, state: string, line: string, open: int}>}>
+     * `$allowed`: the pages the reader's rail offers (AdminNavigation::for()). A screen beneath none of them is listed
+     * with its state but not linked — a click would only open „Keine Berechtigung“ and write a refusal into the
+     * Protokoll — and says so (`locked`). Null: every screen is linked.
+     *
+     * @param  list<string>|null  $allowed
+     * @return list<array{key: string, label: string, screens: list<array{label: string, href: string|null, state: string, line: string, open: int, locked: bool}>}>
      */
-    public function areas(): array
+    public function areas(?array $allowed = null): array
     {
         $open = DB::table('review_feedback')->whereIn('status', ['neu', 'angenommen'])->select('screen')->selectRaw('COUNT(*) as n')->groupBy('screen')->pluck('n', 'screen');
         $out = [];
@@ -96,13 +101,39 @@ final class ReviewBoard
             $screens = [];
 
             foreach ($area['screens'] as $screen) {
-                $screens[] = $screen + ['open' => (int) ($open[$screen['label']] ?? 0)];
+                $locked = $allowed !== null && $screen['href'] !== null && ! self::opens($screen['href'], $allowed);
+                $screens[] = [...$screen, 'href' => $locked ? null : $screen['href'], 'open' => (int) ($open[$screen['label']] ?? 0), 'locked' => $locked];
             }
 
             $out[] = ['key' => $area['key'], 'label' => $area['label'], 'screens' => $screens];
         }
 
         return $out;
+    }
+
+    /**
+     * Whether a reader whose rail offers `$allowed` may open the screen: the Übersicht always; a page in the rail or
+     * beneath one; Nachfrage with the Gutachten (both ask for the right to view Gutachten).
+     *
+     * @param  list<string>  $allowed
+     */
+    private static function opens(string $href, array $allowed): bool
+    {
+        if ($href === '/admin' || in_array($href, $allowed, true)) {
+            return true;
+        }
+
+        if ($href === '/admin/nachfrage') {
+            return in_array('/admin/gutachten', $allowed, true);
+        }
+
+        foreach ($allowed as $page) {
+            if ($page !== '/admin' && str_starts_with($href, $page.'/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

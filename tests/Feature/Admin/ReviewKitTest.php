@@ -6,6 +6,7 @@ use App\Models\AdminUser;
 use App\Models\ReviewFeedback;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReviewAccountsSeeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
@@ -127,8 +128,28 @@ it('makes the three review accounts with their roles and the obvious password', 
         $user = AdminUser::query()->where('email', $email)->firstOrFail();
 
         expect($user->hasRole($role))->toBeTrue()
-            ->and(Hash::check(ReviewAccountsSeeder::PASSWORD, $user->password))->toBeTrue();
+            ->and(Hash::check(ReviewAccountsSeeder::PASSWORD, $user->password))->toBeTrue()
+            // The rail's foot names them on every page: German, never „Review Verkauf“.
+            ->and($user->name)->toStartWith('Testzugang ')->not->toContain('Review');
     }
+});
+
+it('links on the board only what the reader may open, and says so for the rest', function (): void {
+    $areas = fn (string $role): array => $this->actingAs(reviewer($role), 'admin')->get('/admin/review')->assertOk()->viewData('page')['props']['areas'];
+    $screens = static fn (array $areas): Collection => collect($areas)->flatMap(static fn (array $a): array => $a['screens'])->keyBy('label');
+
+    $sales = $screens($areas('order-manager'));
+    $admin = $screens($areas('super-admin'));
+
+    // Verkauf may open orders, not Gutachten or Benutzer: listed, not linked, and the line says why.
+    expect($sales['Bestellungen']['href'])->toBe('/admin/bestellungen')
+        ->and($sales['Bestellungen']['locked'])->toBeFalse()
+        ->and($sales['Dokumente']['href'])->toBeNull()
+        ->and($sales['Dokumente']['locked'])->toBeTrue()
+        ->and($sales['Benutzer']['href'])->toBeNull()
+        // The Super-Admin opens every built screen.
+        ->and($admin->filter(static fn (array $s): bool => $s['locked'])->keys()->all())->toBe([])
+        ->and($admin['Dokumente']['href'])->toBe('/admin/gutachten');
 });
 
 it('gives the three review accounts three different admins: another sidebar and another Übersicht', function (): void {

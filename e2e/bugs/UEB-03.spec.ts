@@ -31,7 +31,7 @@ test('UEB-03 Top-Felgen: every bar is as long as its figure says', async ({ page
         props.topWheels = BARS;
     });
 
-    const box = widget(page, 'Top-Felgen nach Bestellungen');
+    const box = widget(page, 'Meistbestellte Felgen');
     const bars = box.locator('.bc__bar');
 
     await expect(bars).toHaveCount(3, { timeout: 15_000 });

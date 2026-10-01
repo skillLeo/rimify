@@ -41,6 +41,34 @@ describe('FitmentDetail', () => {
     })
 
     // D-10: the lede's „Wörtlich“ stays true — RIMIFY's own sentence is marked, and the lede says how.
+    // ABE 55255, BMW X3 X83: fine-link chains with 235/45 and 245/40, no chains with 255/40 — never in one list.
+    it('gives every set of sizes its own list, under its label — never two sizes’ Auflagen side by side', () => {
+        const chains = 'Es dürfen nur feingliedrige bzw. die lt. Betriebsanleitung/Handbuch vorgeschriebenen Schneeketten an der Hinterachse verwendet werden.'
+        const none = 'Die Verwendung von Schneeketten ist nicht zulässig.'
+        const valves = 'Es sind nur schlauchlose Reifen zulässig.'
+        const x3 = mount(FitmentDetail, {
+            props: {
+                detail: {
+                    sections: [{ title: 'Hinweise', items: [
+                        { text: chains, measures: [], sizes: ['235/45 R19', '245/40 R19'], own: false },
+                        { text: none, measures: [], sizes: ['255/40 R19'], own: false },
+                        { text: valves, measures: [], sizes: [], own: false },
+                    ] }],
+                    fasteners: [],
+                    tyres: [],
+                    notices: [],
+                },
+                vehicleLabel: 'BMW X3 X83',
+            },
+        })
+
+        expect(x3.findAll('.fdt__for').map((s) => s.text())).toEqual(['Für jede zulässige Reifengröße', 'Nur bei 235/45 R19 und 245/40 R19', 'Nur bei 255/40 R19'])
+
+        for (const list of x3.findAll('ul')) {
+            expect(list.text().includes(chains) && list.text().includes(none)).toBe(false)
+        }
+    })
+
     it('marks our own sentences apart from the document’s wording', () => {
         expect(wrapper.find('.fdt__lede').text()).toBe('Wörtlich aus dem Gutachten. Was mit „Unser Hinweis“ beginnt, kommt von uns.')
         expect(wrapper.findAll('.fdt__own').map((s) => s.element.parentElement?.textContent?.trim())).toEqual([

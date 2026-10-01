@@ -62,6 +62,19 @@ function sellable(config: ProduktConfig): boolean {
     return config.verdict === null || config.verdict.sellable
 }
 
+/*
+ * An answer that waits only for a fact the customer can give — the body style, the drive (verdict.missing) — is not a
+ * refusal: its size stays choosable, so the panel can ask the question. Buying stays off until it is answered (canBuy
+ * reads `sellable`). Struck through, the size would hide the one question that could free it.
+ */
+function answerable(config: ProduktConfig): boolean {
+    return config.verdict !== null && !config.verdict.sellable && config.verdict.status === 'UNKNOWN' && (config.verdict.missing ?? []).length > 0
+}
+
+function choosable(config: ProduktConfig): boolean {
+    return sellable(config) || answerable(config)
+}
+
 /** Permitted and in stock first, then permitted, then the rest; cheapest within each. */
 function best(configs: ProduktConfig[]): ProduktConfig | null {
     const rank = (c: ProduktConfig): number => (sellable(c) ? (c.inStock ? 0 : 1) : 2)
@@ -104,7 +117,7 @@ export function useConfigurator(
 
         return [...groups.entries()]
             .map(([diameter, group]): SizeOption => {
-                const blocked = !group.some(sellable)
+                const blocked = !group.some(choosable)
                 const representative =
                     current !== null && group.includes(current) ? current : (best(group) ?? group[0]!)
 
@@ -135,8 +148,8 @@ export function useConfigurator(
                 id: config.id,
                 label: config.sizeLabel,
                 config,
-                blocked: !sellable(config),
-                reason: sellable(config) ? null : reasonFor([config]),
+                blocked: !choosable(config),
+                reason: choosable(config) ? null : reasonFor([config]),
             }))
     })
 

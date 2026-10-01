@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ReviewRequest;
 use App\Models\AdminUser;
 use App\Models\ReviewFeedback;
+use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Review\ReviewBoard;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
@@ -25,10 +26,16 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class ReviewController extends Controller
 {
-    public function board(ReviewRequest $request, ReviewBoard $board): Response
+    public function board(ReviewRequest $request, ReviewBoard $board, AdminNavigation $navigation): Response
     {
+        // Linked only where the reader's rail reaches: a screen this role may not open is listed, not linked.
+        $allowed = array_merge([], ...array_map(
+            static fn (array $group): array => array_column($group['pages'], 'href'),
+            $navigation->for($request->admin()),
+        ));
+
         return Inertia::render('Admin/Review/Board', [
-            'areas' => $board->areas(),
+            'areas' => $board->areas($allowed),
             'counts' => [
                 'open' => ReviewFeedback::query()->whereIn('status', ['neu', 'angenommen'])->count(),
                 'all' => ReviewFeedback::query()->count(),

@@ -312,7 +312,7 @@ const more = computed<AdminPageAction[]>(() => {
         <!-- The Freigabe-Check: the saved rows as the shop would read them. -->
         <section v-if="model" class="fe-check" :class="{ 'fe-check--blocked': blocked }" aria-labelledby="fe-check-h">
             <h2 id="fe-check-h" class="fe-check__title">
-                Freigabe-Check
+                Vor dem Veröffentlichen
                 <span class="fe-check__verdict">
                     <template v-if="model.demo">Nicht veröffentlichbar</template>
                     <template v-else-if="model.status === 'published'">Im Shop</template>
@@ -334,7 +334,7 @@ const more = computed<AdminPageAction[]>(() => {
             <p v-if="canPublish && editor.dirty.value" class="adm-note">Speichere zuerst deine Änderungen – veröffentlicht wird, was gespeichert ist.</p>
             <p v-if="stepError" class="adm-alert" role="alert">{{ stepError }}</p>
         </section>
-        <p v-else class="adm-note fe-first">Nach dem ersten Speichern prüft der Freigabe-Check hier, ob die Felge in den Shop kann. Gespeichert wird sie als Entwurf.</p>
+        <p v-else class="adm-note fe-first">Nach dem ersten Speichern steht hier, ob die Felge in den Shop kann. Gespeichert wird sie als Entwurf.</p>
 
         <!-- The saved internal note, where nobody working on this Felge can miss it. Never in the shop. -->
         <p v-if="model?.internalNote" class="fe-memo" role="note">
