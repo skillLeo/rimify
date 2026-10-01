@@ -54,7 +54,7 @@ function putAway(): void {
     color: var(--ink);
 }
 
-/* A text button, 32 px tall inside the line and 44 px wide at least: a thumb finds it without the line growing. */
+/* A text button, 32 px tall inside the line and 44 px wide at least; on touch 44 px tall (DIRECTION §6), the line with it. */
 .preview-ribbon__away {
     flex: none;
     min-width: 44px;
@@ -73,5 +73,11 @@ function putAway(): void {
 .preview-ribbon__away:focus-visible {
     outline: 2px solid var(--ink);
     outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+    .preview-ribbon__away {
+        min-height: 44px;
+    }
 }
 </style>

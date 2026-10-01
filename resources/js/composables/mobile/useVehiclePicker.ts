@@ -251,12 +251,5 @@ export function useVehiclePicker() {
     }
 }
 
-/** Four digits; pasted text may carry spaces. */
-export function cleanHsn(raw: string): string {
-    return raw.replace(/\s+/g, '').toUpperCase().slice(0, HSN_LENGTH)
-}
-
-/** Three characters, capitals; the first three of field 2.2 when more were pasted. */
-export function cleanTsn(raw: string): string {
-    return raw.replace(/\s+/g, '').toUpperCase().slice(0, TSN_LENGTH)
-}
+/* The phone cleans the key numbers as the desk does: one rule for separators, pasted pairs and length. */
+export { cleanHsn, cleanTsn, splitKeys } from '../../lib/fahrzeugschein'

@@ -29,10 +29,17 @@ const props = defineProps<KontaktProps>()
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle ?? null)
 
+/*
+ * The car as the page names it and the e-mail carries it — one line for both: its key numbers, or, for a car typed
+ * from a Gutachten that has none yet, its Feld K (`approval` exists only then). The mail used to say „HSN/TSN noch
+ * nicht hinterlegt“ where the page promised Feld K.
+ */
+const vehicleLine = computed(() => (vehicle.value === null ? null : `${vehicle.value.label} (${vehicle.value.approval ?? vehicle.value.keyNumbers})`))
+
 const mailHref = computed(() =>
     mailtoHref(props.contact.email, {
         subject: 'Anfrage',
-        body: vehicle.value === null ? '' : `Fahrzeug: ${vehicle.value.label} (${vehicle.value.keyNumbers})\n\n`,
+        body: vehicleLine.value === null ? '' : `Fahrzeug: ${vehicleLine.value}\n\n`,
     })
 )
 
@@ -58,8 +65,8 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                     {{ contact.hours }} für dich da.
                 </p>
                 <p class="t-small kon__hint">
-                    <template v-if="vehicle">
-                        Dein Fahrzeug steht schon in der E-Mail: {{ vehicle.label }} ({{ vehicle.approval ?? vehicle.keyNumbers }}).
+                    <template v-if="vehicleLine">
+                        Dein Fahrzeug steht schon in der E-Mail: {{ vehicleLine }}.
                     </template>
                     <template v-else>Wenn es um die Passform geht, gern mit HSN, TSN und Modell.</template>
                 </p>

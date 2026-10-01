@@ -177,6 +177,41 @@ describe('VehiclePanel — the garage', () => {
     })
 })
 
+/*
+ * The live sweep of 01.10.2026: a phone keyboard that inserts „0005/582“ into the HSN left the TSN empty — the field
+ * clipped the pair at four characters before anything read it. One rule for the desk and the phone (splitKeys).
+ */
+describe('VehiclePanel — a pair of key numbers in the HSN field', () => {
+    async function keysTab(): Promise<VueWrapper> {
+        const wrapper = mountPanel()
+        await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'HSN/TSN')!.trigger('click')
+
+        return wrapper
+    }
+
+    it('fills both fields from a pair the keyboard inserts, and shows the HSN as kept', async () => {
+        const wrapper = await keysTab()
+        const hsn = byLabel(wrapper, 'HSN (Feld 2.1)')
+
+        expect(hsn.attributes('maxlength')).toBeUndefined()
+
+        await hsn.setValue('0005/582')
+
+        expect(hsn.element.value).toBe('0005')
+        expect(byLabel(wrapper, 'TSN (Feld 2.2)').element.value).toBe('582')
+    })
+
+    it('fills both fields from a pasted pair', async () => {
+        const wrapper = await keysTab()
+        const hsn = byLabel(wrapper, 'HSN (Feld 2.1)')
+
+        await hsn.trigger('paste', { clipboardData: { getData: () => '0005 582' } })
+
+        expect(hsn.element.value).toBe('0005')
+        expect(byLabel(wrapper, 'TSN (Feld 2.2)').element.value).toBe('582')
+    })
+})
+
 describe('VehiclePanel — a failed notify request', () => {
     async function failNotify(wrapper: VueWrapper): Promise<string> {
         const zero: FitmentCountResponse = { count: 0, permitted: 0, conditional: 0, vehicle: { id: 7, label: 'BMW 320i' }, ambiguous: [] }

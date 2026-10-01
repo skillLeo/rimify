@@ -386,17 +386,32 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(wrapper.find(`#${CSS.escape(tsn.attributes('aria-describedby') ?? '')}`).text()).toBe('Die TSN sind die ersten drei Zeichen aus Feld 2.2 – Ziffern oder Buchstaben.')
 
         expect(hsn.attributes('inputmode')).toBe('numeric')
-        expect(hsn.attributes('maxlength')).toBe('4')
+        // No maxlength on the HSN: it would clip a pair a keyboard inserts before splitKeys could read it.
+        expect(hsn.attributes('maxlength')).toBeUndefined()
         expect(tsn.attributes('autocapitalize')).toBe('characters')
         expect(tsn.attributes('maxlength')).toBe('3')
     })
 
-    it('strips spaces from a pasted pair and fills both fields', async () => {
+    it('fills both fields from a pasted pair, with spaces or a slash between them', async () => {
         const wrapper = mountSelector()
         await openTab(wrapper, 'HSN/TSN')
 
         const hsn = byLabel(wrapper, 'HSN (Feld 2.1)')
-        await hsn.trigger('paste', { clipboardData: { getData: () => ' 0005 582 ' } })
+
+        for (const pair of [' 0005 582 ', '0005/582']) {
+            await hsn.trigger('paste', { clipboardData: { getData: () => pair } })
+            expect(hsn.element.value, pair).toBe('0005')
+            expect(byLabel(wrapper, 'TSN (Feld 2.2)').element.value, pair).toBe('582')
+        }
+    })
+
+    it('fills both fields from a pair the keyboard inserts, and shows the HSN as kept', async () => {
+        const wrapper = mountSelector()
+        await openTab(wrapper, 'HSN/TSN')
+
+        const hsn = byLabel(wrapper, 'HSN (Feld 2.1)')
+        await hsn.setValue('0005/582')
+
         expect(hsn.element.value).toBe('0005')
         expect(byLabel(wrapper, 'TSN (Feld 2.2)').element.value).toBe('582')
     })

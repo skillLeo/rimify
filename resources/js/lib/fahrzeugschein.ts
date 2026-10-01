@@ -90,14 +90,29 @@ export function parsePapers(text: string): PapersFigures {
     }
 }
 
-/** What is typed or pasted into the HSN field: spaces gone, four characters at most. */
+/** What stands between or inside key numbers as people write and copy them: spaces, „/“, „-“, „–“, „.“, „,“. */
+const SEPARATORS = /[\s/\-–.,]+/g
+
+/** What is typed or pasted into the HSN field: separators gone, upper case, four characters at most. */
 export function cleanHsn(raw: string): string {
-    return raw.replace(/\s+/g, '').slice(0, 4)
+    return raw.replace(SEPARATORS, '').toUpperCase().slice(0, 4)
 }
 
-/** What is typed or pasted into the TSN field: spaces gone, upper case, three characters at most. */
+/** What is typed or pasted into the TSN field: separators gone, upper case, three characters at most. */
 export function cleanTsn(raw: string): string {
-    return raw.replace(/\s+/g, '').toUpperCase().slice(0, 3)
+    return raw.replace(SEPARATORS, '').toUpperCase().slice(0, 3)
+}
+
+/**
+ * What landed in the HSN field, as the two key numbers. A pair copied from a list or a message — „0005/582“,
+ * „0005 582“, „0005-582“, „0005582“ — fills both fields, and a fifth character typed on carries on into the TSN.
+ * `tsn` is null when nothing went past the HSN. Every HSN field takes its input through here: a field that clips at
+ * four characters drops the TSN of a pair a phone's keyboard inserts.
+ */
+export function splitKeys(raw: string): { hsn: string; tsn: string | null } {
+    const all = raw.replace(SEPARATORS, '').toUpperCase()
+
+    return { hsn: all.slice(0, 4), tsn: all.length > 4 ? all.slice(4, 7) : null }
 }
 
 /** An HSN has four digits; leading zeros count (R-10). */

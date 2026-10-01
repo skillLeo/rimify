@@ -451,7 +451,7 @@ test('05 Produktseite BMW X3 X83: 19″ Freigegeben mit Auflagen, Auflagen group
         const detail = page.locator('#auflagen');
         const detailShot = await s.shot('product-x3-19-wortlaut', detail);
 
-        await s.checkGroups(detail, `${PRODUCT} (X3 X83, 19″) · alle Auflagen im Wortlaut`, detailShot);
+        await s.checkGroups(detail, `${PRODUCT} (X3 X83, 19″) · alle Auflagen im Wortlaut`, detailShot, 'wording');
 
         const where = await detail.evaluate((el) => {
             const hit = Array.from(el.querySelectorAll('li')).find((li) => (li.textContent ?? '').includes('Schneeketten ist nicht zulässig'));
@@ -989,16 +989,15 @@ test('13 Fehlerseiten: 404, 419, an expired RIMIFY-Check link', async ({ page },
         await s.probe(`${path} (404)`, { allow: /404/ });
     }
 
-    // A form sent without its token: the 419 page. Nothing is processed.
+    // Another site's form posting to the shop: the 419 page. Nothing is processed. A form on the shop's own pages
+    // cannot provoke it: Laravel 13 takes a browser's `Sec-Fetch-Site: same-origin` as proof (PreventRequestForgery),
+    // so a tokenless same-site POST is validated and sent back, never refused.
     await s.open('/');
-    await page.evaluate(() => {
-        const form = document.createElement('form');
-
-        form.method = 'POST';
-        form.action = '/warenkorb';
-        document.body.appendChild(form);
-        form.submit();
-    });
+    await page.goto(`data:text/html,<form method="POST" action="${new URL('/warenkorb', page.url()).href}"></form>`);
+    await Promise.all([
+        page.waitForResponse((r) => r.url().endsWith('/warenkorb') && r.request().method() === 'POST'),
+        page.evaluate(() => document.forms[0]?.submit()),
+    ]);
     await page.waitForLoadState('domcontentloaded');
     await s.hydrated();
 

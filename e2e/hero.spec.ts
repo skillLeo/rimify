@@ -51,11 +51,17 @@ test.describe('hero stage', () => {
 
         await open(page, '/');
 
-        const poster = page.locator('#h2 img').first();
+        // The leading wheel. A second finish stands behind it (D-090) and comes first in the frame, so the leading
+        // one paints over it; it loads right after the leading picture, never ahead of it.
+        const poster = page.locator('#h2 .hero__roll img').first();
         await expect(poster).toBeVisible();
         await expect(poster).toHaveAttribute('loading', 'eager');
         await expect(poster).toHaveAttribute('fetchpriority', 'high');
         expect(await poster.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+
+        for (const behind of await page.locator('#h2 .hero__pair img').all()) {
+            await expect(behind).not.toHaveAttribute('fetchpriority', 'high');
+        }
 
         const lcp = await lcpEntry(page);
         expect(lcp, 'an LCP entry').not.toBeNull();
@@ -87,25 +93,25 @@ test.describe('hero stage', () => {
         await open(page, '/');
         await page.waitForTimeout(2000);
 
-        const result = await page.evaluate(() => {
-            const spin = document.querySelector('#h2 .hero__spin');
+        const result = await page.evaluate(() => ({
+            rolls: (window as Window & { __rolls?: number }).__rolls,
+            // Only a photographed cut-out with its measured anchors rolls; a drawn placeholder
+            // (DemoPlaceholders) stands where the layout put it — rolling it would roll its ground. The second
+            // finish behind it (D-090) rolls on the same keyframes, a beat later.
+            rolling: document.querySelectorAll('#h2 .hero__roll--rolling, #h2 .hero__pair--rolling').length,
+            sideScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+            // At rest every turn is none and every roll box sits where the layout put it.
+            turns: Array.from(document.querySelectorAll('#h2 .hero__spin')).map((spin) => getComputedStyle(spin).transform),
+        }));
 
-            return {
-                rolls: (window as Window & { __rolls?: number }).__rolls,
-                // Only a photographed cut-out with its measured anchors rolls; a drawn placeholder
-                // (DemoPlaceholders) stands where the layout put it — rolling it would roll its ground.
-                rolling: document.querySelector('#h2 .hero__roll--rolling') !== null,
-                sideScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-                // At rest the turn is none and the roll box sits where the layout put it.
-                turn: spin === null ? 'none' : getComputedStyle(spin).transform,
-            };
-        });
-
-        // Once: the server's page is hydrated, not thrown away and drawn again (app.ts, createSSRApp).
+        // Once per wheel: the server's page is hydrated, not thrown away and drawn again (app.ts, createSSRApp).
         // A picture that does not roll never starts the animation at all.
-        expect(result.rolls).toBe(result.rolling ? 1 : 0);
+        expect(result.rolls).toBe(result.rolling);
         expect(result.sideScroll).toBe(false);
-        expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(result.turn);
+
+        for (const turn of result.turns) {
+            expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(turn);
+        }
     });
 
     test('under reduced motion there is no WebGL, only the static poster', async ({ page }) => {

@@ -21,7 +21,7 @@ import Skeleton from '../../Ui/Skeleton.vue'
 import BottomSheet from '../BottomSheet.vue'
 import { decimal, passendeAnzeigen } from '../../../format'
 import { useShared } from '../../../composables/useShared'
-import { cleanHsn, cleanTsn, HSN_LENGTH, TSN_LENGTH, useVehiclePicker, type VariantRow } from '../../../composables/mobile/useVehiclePicker'
+import { cleanHsn, cleanTsn, HSN_LENGTH, splitKeys, TSN_LENGTH, useVehiclePicker, type VariantRow } from '../../../composables/mobile/useVehiclePicker'
 import type { DocVariant } from '../../../art'
 import type { LookupResult, MakeOption } from '../../../types/pages'
 import type { GarageVehicle } from '../../../types/rimify'
@@ -122,12 +122,29 @@ const helpOpen = ref(false)
 const doc = ref<DocVariant>('neu')
 const candidate = ref<number | null>(null)
 
+/** A pair typed, pasted or put in by the keyboard fills both fields (splitKeys); four characters move the caret on. */
 function onHsn(event: Event): void {
-    const value = cleanHsn((event.target as HTMLInputElement).value)
-    picker.hsn.value = value
+    takeKeys(event.target as HTMLInputElement, (event.target as HTMLInputElement).value)
+}
+
+function onHsnPaste(event: ClipboardEvent): void {
+    takeKeys(event.target as HTMLInputElement, event.clipboardData?.getData('text') ?? '')
+}
+
+function takeKeys(field: HTMLInputElement, raw: string): void {
+    const keys = splitKeys(raw)
+
+    picker.hsn.value = keys.hsn
+    // The field shows what was kept, also when the kept part did not change („0005“ + „/582“).
+    field.value = keys.hsn
     hsnError.value = ''
 
-    if (value.length === HSN_LENGTH) {
+    if (keys.tsn !== null) {
+        picker.tsn.value = keys.tsn
+        tsnError.value = ''
+    }
+
+    if (keys.hsn.length === HSN_LENGTH) {
         tsnField.value?.focus()
     }
 }
@@ -440,13 +457,13 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                         class="input input--code num"
                         type="text"
                         inputmode="numeric"
-                        :maxlength="HSN_LENGTH"
                         autocomplete="off"
                         enterkeyhint="next"
                         :value="picker.hsn.value"
                         :aria-invalid="hsnError ? 'true' : undefined"
                         :aria-describedby="`${uid}-keys-error`"
                         @input="onHsn"
+                        @paste.prevent="onHsnPaste"
                         @blur="validateHsn"
                     >
                 </div>
