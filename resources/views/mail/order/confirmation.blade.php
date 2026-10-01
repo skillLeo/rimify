@@ -22,7 +22,7 @@ Für jede zulässige Reifengröße:
 @endforeach
 @foreach ($line['sizes'] as $size)
 
-Nur mit {{ $size['size'] }} ({{ $size['axle'] }}):
+Nur bei {{ $size['size'] }} ({{ $size['axle'] }}):
 
 @forelse ($size['conditions'] as $condition)
 - {{ $condition }}

@@ -83,6 +83,26 @@ describe('useConfigurator', () => {
         expect(c.selected.value?.id).toBe(2)
     })
 
+    // MINI Paceman *00 on the 19″: the answer waits only for the body style. Struck through, the question could never
+    // be asked; choosable, the panel asks it — and the purchase stays off until it is answered (sellable is false).
+    it('keeps a size choosable whose answer waits only for a fact the customer can give', () => {
+        const configs = [
+            config({ id: 1, diameterIn: 19, verdict: verdict({ status: 'UNKNOWN', sellable: false, reason: 'Für dieses Fahrzeug fehlt die Karosserieform.', missing: ['bodyForm'] }) }),
+            config({ id: 2, diameterIn: 18, verdict: verdict({ status: 'UNKNOWN', sellable: false, reason: 'Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor.' }) }),
+        ]
+
+        const c = useConfigurator(() => configs, 10)
+        const nineteen = c.sizes.value.find((s) => s.diameter === 19)!
+        const eighteen = c.sizes.value.find((s) => s.diameter === 18)!
+
+        expect(nineteen.blocked).toBe(false)
+        expect(eighteen.blocked).toBe(true)
+
+        c.selectSize(nineteen)
+        expect(c.selected.value?.id).toBe(1)
+        expect(c.selected.value?.verdict?.sellable).toBe(false)
+    })
+
     it('forgets the chosen size when the finish changes', () => {
         const configs = [
             config({ id: 1, finishId: 10, diameterIn: 18 }),

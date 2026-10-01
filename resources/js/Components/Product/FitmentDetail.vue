@@ -23,12 +23,12 @@ const TODO = ['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen']
 
 /* What there is to do, in order; a section the bolts or the sizes need stands even without a sentence of its kind. */
 const todo = computed(() => TODO
-    .map((title) => ({ title, items: ordered(props.detail.sections.find((s) => s.title === title)?.items ?? []) }))
-    .filter((section) => section.items.length > 0
+    .map((title) => ({ title, groups: grouped(props.detail.sections.find((s) => s.title === title)?.items ?? []) }))
+    .filter((section) => section.groups.length > 0
         || (section.title === 'Befestigung' && props.detail.fasteners.length > 0)
         || (section.title === 'Reifen' && props.detail.tyres.length > 0)))
 
-const notes = computed(() => ordered(props.detail.sections.find((s) => s.title === 'Hinweise')?.items ?? []))
+const notes = computed(() => grouped(props.detail.sections.find((s) => s.title === 'Hinweise')?.items ?? []))
 
 /* A sentence the document hangs off some sizes only says which, as a limit (D-04): „Nur bei 235/35 R19 und 255/30 R19“. */
 function forSizes(sizes: string[] | undefined): string | null {
@@ -40,22 +40,27 @@ function forSizes(sizes: string[] | undefined): string | null {
 }
 
 /*
- * Within a section, what holds for every size first, labelled once as such where size-limited sentences follow; then each
- * size's own, each under its „Nur bei …“ — never one run of sentences in which two sizes' Auflagen read as one (ABE 55255,
- * BMW X3 X83: fine-link chains with 235/45R19 and 245/40R19, none with 255/40R19).
+ * Within a section, a list of its own for what holds for every size — labelled as such where size-limited sentences
+ * follow — and one list per set of sizes under its „Nur bei …“: never one list in which two sizes' Auflagen stand side
+ * by side (ABE 55255, BMW X3 X83: fine-link chains with 235/45R19 and 245/40R19, no chains with 255/40R19).
  */
 type Item = FitmentDetailView['sections'][number]['items'][number]
 
-function ordered(items: Item[]): (Item & { allSizes: boolean })[] {
-    // Our own kW-band sentence names its sizes in its own words: never under „Für jede zulässige Reifengröße“.
+function grouped(items: Item[]): { key: string; label: string | null; items: Item[] }[] {
     const all = items.filter((i) => !i.sizes?.length && !i.own)
+    // Our own kW-band sentence names its sizes in its own words: never under „Für jede zulässige Reifengröße“.
     const own = items.filter((i) => !i.sizes?.length && i.own)
-    const some = items.filter((i) => i.sizes?.length)
+    const bySizes = new Map<string, Item[]>()
+
+    for (const item of items.filter((i) => i.sizes?.length)) {
+        const label = forSizes(item.sizes) ?? ''
+        bySizes.set(label, [...(bySizes.get(label) ?? []), item])
+    }
 
     return [
-        ...all.map((item, index) => ({ ...item, allSizes: index === 0 && some.length > 0 })),
-        ...own.map((item) => ({ ...item, allSizes: false })),
-        ...some.map((item) => ({ ...item, allSizes: false })),
+        ...(all.length ? [{ key: 'all', label: bySizes.size > 0 ? 'Für jede zulässige Reifengröße' : null, items: all }] : []),
+        ...(own.length ? [{ key: 'own', label: null, items: own }] : []),
+        ...[...bySizes.entries()].map(([label, list]) => ({ key: label, label, items: list })),
     ]
 }
 
@@ -77,16 +82,17 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
             <div class="fdt__main">
                 <div v-for="section in todo" :key="section.title" class="fdt__sec">
                     <h3 class="h4 fdt__sec-h">{{ section.title }}</h3>
-                    <ul v-if="section.items.length" class="fdt__list">
-                        <li v-for="item in section.items" :key="item.text">
-                            <span v-if="item.allSizes" class="fdt__for">Für jede zulässige Reifengröße</span>
-                            <span v-if="forSizes(item.sizes)" class="fdt__for">{{ forSizes(item.sizes) }}</span>
-                            <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
-                            <ul v-if="item.measures.length" class="fdt__measures">
-                                <li v-for="measure in item.measures" :key="measure">{{ measure }}</li>
-                            </ul>
-                        </li>
-                    </ul>
+                    <template v-for="group in section.groups" :key="group.key">
+                        <p v-if="group.label" class="fdt__for">{{ group.label }}</p>
+                        <ul class="fdt__list">
+                            <li v-for="item in group.items" :key="item.text">
+                                <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
+                                <ul v-if="item.measures.length" class="fdt__measures">
+                                    <li v-for="measure in item.measures" :key="measure">{{ measure }}</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </template>
 
                     <table v-if="section.title === 'Befestigung' && detail.fasteners.length" class="fdt__table">
                         <thead>
@@ -126,13 +132,14 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
             <div v-if="notes.length || detail.notices.length" class="fdt__side">
                 <div v-if="notes.length" class="fdt__sec">
                     <h3 class="h4 fdt__sec-h">Hinweise</h3>
-                    <ul class="fdt__list fdt__list--note">
-                        <li v-for="item in notes" :key="item.text">
-                            <span v-if="item.allSizes" class="fdt__for">Für jede zulässige Reifengröße</span>
-                            <span v-if="forSizes(item.sizes)" class="fdt__for">{{ forSizes(item.sizes) }}</span>
-                            <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
-                        </li>
-                    </ul>
+                    <template v-for="group in notes" :key="group.key">
+                        <p v-if="group.label" class="fdt__for">{{ group.label }}</p>
+                        <ul class="fdt__list fdt__list--note">
+                            <li v-for="item in group.items" :key="item.text">
+                                <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
+                            </li>
+                        </ul>
+                    </template>
                 </div>
                 <div v-if="detail.notices.length" class="fdt__sec">
                     <h3 class="h4 fdt__sec-h">Hinweise des Gutachtens</h3>
@@ -214,6 +221,15 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
     font-weight: 500;
     color: var(--c-ink-2);
     font-variant-numeric: tabular-nums;
+}
+
+/* Above its own list: one label per set of sizes, the lists apart (ConditionGroups' rule, in the full wording). */
+p.fdt__for {
+    margin: var(--sp-12) 0 var(--sp-4);
+}
+
+.fdt__sec-h + p.fdt__for {
+    margin-top: 0;
 }
 
 .fdt__own {

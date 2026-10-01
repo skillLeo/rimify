@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * The Auflagen as the document hangs them (App\Domain\Fitment\Verdict\ConditionGroups) — the one way any page shows a
- * verdict's Auflagen: the combination's once, then each permitted tyre size with its own. ABE 55255 gives the BMW X3 X83
- * fine-link snow chains on the rear axle with 235/45R19 and 245/40R19 and no chains at all with 255/40R19; in one list
- * the customer would read both and believe neither. With a size chosen (a Komplettrad), just what applies to it.
+ * verdict's Auflagen: the combination's once, then each permitted tyre size with its own, under „Nur bei …“ as the
+ * full wording says it (D-04). ABE 55255 gives the BMW X3 X83 fine-link snow chains on the rear axle with 235/45R19
+ * and 245/40R19 and no chains at all with 255/40R19; in one list the customer would read both and believe neither.
+ * With a size chosen (a Komplettrad), just what applies to it.
  *
  * Only sentences, never codes (R-15). The papers' line (Abnahme, Eintragung) stays the page's own — per size where the
  * sizes differ (fitment/papers.ts entryBySize).
@@ -36,9 +37,9 @@ withDefaults(defineProps<{
                 </ul>
             </template>
 
-            <section v-for="size in groups.sizes" :key="size.size" class="cgroups__size" :aria-label="`Auflagen nur mit ${size.size}`">
+            <section v-for="size in groups.sizes" :key="size.size" class="cgroups__size" :aria-label="`Auflagen nur bei ${size.size}`">
                 <p class="cgroups__head">
-                    Nur mit <span class="data" translate="no">{{ size.size }}</span>
+                    Nur bei <span class="data" translate="no">{{ size.size }}</span>
                     <span class="cgroups__axle">· {{ size.axle }}</span>
                 </p>
                 <ul v-if="size.conditions.filter((c) => !omit.includes(c)).length" class="cgroups__list">

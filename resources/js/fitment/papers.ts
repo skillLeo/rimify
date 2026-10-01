@@ -34,6 +34,31 @@ export function papersLine(papersExempt: boolean): string | null {
     return papersExempt ? PAPERS_EXEMPT : null
 }
 
+/** What a verdict says about the papers, as every page that shows a line says it (`sellable`, the groups, § 15 FZV). */
+export interface PapersOf {
+    sellable: boolean
+    requiresEntry: boolean
+    papersExempt?: boolean
+    conditionGroups?: { sizes: SizeEntry[]; entry: boolean | null } | null
+}
+
+/**
+ * The papers' lines for one answer — the Auflagen's (per size where the sizes differ, a Komplettrad's tyre's), then the
+ * document's § 15 FZV — for a wheel that may go on the car at all; nothing for one that may not.
+ */
+export function papersLines(verdict: PapersOf | null | undefined): string[] {
+    if (!verdict || !verdict.sellable) {
+        return []
+    }
+
+    const exempt = verdict.papersExempt === true
+    const entry = entryBySize(verdict.conditionGroups?.sizes, exempt)
+        ?? entryLineOrNone(verdict.conditionGroups?.entry ?? verdict.requiresEntry, exempt)
+    const papers = papersLine(exempt)
+
+    return papers === null ? [entry] : [entry, papers]
+}
+
 /** The sizes an answer says the Abnahme per (ConditionGroups): only their names and whether each needs it. */
 export interface SizeEntry {
     size: string
