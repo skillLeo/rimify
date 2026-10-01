@@ -403,6 +403,7 @@ $PHP artisan up && $PHP artisan rimify:smoke
 | Local rehearsal (Windows, MySQL 8.4), 2026-09-29 | a scratch copy of the development database, 5,5 MB dump, 14 triggers | 0,4 s | 2,5 s | 1,5 s | **6,8 s**, smoke 7/7 ok |
 | **Staging (Hostinger, MariaDB), 2026-09-29**, with both Borbet drafts in | the preview's database, 429 KB dump, 14 triggers | 0,24 s (archive 8,0 s) | 3,2 s | 5,6 s | **14,4 s**, smoke: every row ok but the product row, which waits for a released, priced wheel (§5) |
 | **Staging, 2026-09-30 — a real release, then its rollback** | the preview's database after Block G, 436 KB dump; 18 triggers before the release, 22 after | 0,25 s (archive 31,8 s, 179 MB) | 3,5 s | 6,4 s | **16,1 s**, smoke: every row ok but the product row (§5) |
+| **Staging, 2026-10-01 — down first, then §1, then 7.2–7.4** | the preview's database with the three Gutachten released and the DB8GT2 priced, 470 KB dump, 22 triggers; a marker table stood in for what a bad release adds | 1,3 s with commit, `.env` and trigger count (no archive: the commit was in the folder's history) | 2,5 s: marker gone, 22 of 22 triggers, the same rows in orders, audit_logs, fitments, admin_users, review_feedback | 19,2 s (4 s of it the two waits) | **25,1 s**, smoke: every row ok, the product row included |
 
 The local row proves the steps, not the time on the host: the same MySQL, but no network between the shell
 and the database, SSD, and no `git reset` (the code was already the backup's commit), so 7.3 is caches and
@@ -424,6 +425,12 @@ restore dropped what the release had added (22 triggers back to 18, `invoice_seq
 `git reset` found the old commit, and the renderer came back with the old code's pages — which needed the `pkill`
 now in §7.3: without it the watchdog would have left the new release's renderer answering. The new release then
 went back on (16,8 s). The whole rehearsal, down to the last deploy's smoke, took 88 s.
+
+The fourth (2026-10-01) is the way to rehearse on a preview someone is reviewing: down first, then §1, so the
+backup and the restore hold the same rows and nothing anyone saved is lost; a marker table stands in for what a
+release adds, and the restore must drop it. It did, with 22 of 22 triggers and every counted table unchanged. 7.3
+took 19,2 s against 6,4 s the day before (measured as a whole, not split into its steps); the whole rollback stays
+far inside the ten minutes below.
 
 Rehearse on staging exactly as written: §1 (backup), §3 (down), §7.2–7.4, and time from `down` to the smoke
 test's last row. If the whole rollback takes longer than ten minutes, say so before go-live: the release
