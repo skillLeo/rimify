@@ -13,7 +13,7 @@ import { decimal } from '../../../format'
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 defineProps<{
-    areas: { key: string; label: string; screens: { label: string; href: string | null; state: string; line: string; open: number }[] }[]
+    areas: { key: string; label: string; screens: { label: string; href: string | null; state: string; line: string; open: number; locked?: boolean }[] }[]
     counts: { open: number; all: number }
 }>()
 
@@ -50,7 +50,7 @@ function stateLabel(state: string): string {
                     <span class="rb-text">
                         <Link v-if="screen.href" :href="screen.href" class="rb-label">{{ screen.label }}</Link>
                         <span v-else class="rb-label rb-label--plain">{{ screen.label }}</span>
-                        <span class="rb-line">{{ screen.line }}</span>
+                        <span class="rb-line">{{ screen.line }}<template v-if="screen.locked"> Mit deiner Rolle nicht zu öffnen.</template></span>
                     </span>
                     <Link v-if="screen.open" :href="`/admin/review/rueckmeldungen?seite=${encodeURIComponent(screen.label)}`" class="rb-open">
                         {{ screen.open === 1 ? '1 offen' : `${decimal(screen.open, 0)} offen` }}

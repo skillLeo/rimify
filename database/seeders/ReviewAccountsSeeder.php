@@ -22,11 +22,11 @@ class ReviewAccountsSeeder extends Seeder
 {
     public const PASSWORD = 'rimify-review-2026';
 
-    /** email => [name, role] */
+    /** email => [name, role] — German names: the rail's foot shows them on every page. */
     public const ACCOUNTS = [
-        'verkauf@rimify.test' => ['Review Verkauf', 'order-manager'],
-        'lager@rimify.test' => ['Review Lager', 'catalogue-manager'],
-        'admin@rimify.test' => ['Review Admin', 'super-admin'],
+        'verkauf@rimify.test' => ['Testzugang Verkauf', 'order-manager'],
+        'lager@rimify.test' => ['Testzugang Lager', 'catalogue-manager'],
+        'admin@rimify.test' => ['Testzugang Admin', 'super-admin'],
     ];
 
     public function run(): void
