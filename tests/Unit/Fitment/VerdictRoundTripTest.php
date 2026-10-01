@@ -135,7 +135,10 @@ it('keeps every key the snapshot shape had before — nothing removed, nothing r
         'status', 'vehicle', 'wheel', 'document', 'requiresEntry', 'entryNoteDe',
         // Added with the per-vehicle bore; everything around them is untouched.
         'documentCentreBoreMm', 'centreBoreSource',
-        'conditions', 'tyres', 'reason', 'snapshot',
+        'conditions',
+        // Added with the per-size Auflagen (01.10.2026): the combination's own, apart from its sizes'.
+        'combinationConditions',
+        'tyres', 'reason', 'snapshot',
         // Added with the split of R-03 (28.09.2026): the wheel half and the tyre half.
         'wheelStatus', 'tyreCheck',
     ])

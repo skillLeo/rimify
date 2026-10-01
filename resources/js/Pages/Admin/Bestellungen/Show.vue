@@ -10,10 +10,12 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import ConditionGroups from '../../../Components/Fitment/ConditionGroups.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import { formatMoney } from '../../../lib/num'
 import type { OrderState } from '../../../types/admin/bestellungen'
+import type { ConditionGroupsView } from '../../../types/rimify'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -42,6 +44,8 @@ interface Snapshot {
     papersLine?: string | null
     entryNote?: string | null
     conditions?: string[]
+    /** Each tyre size's Auflagen with that size, as the customer read them (ConditionGroups). Additive. */
+    conditionGroups?: ConditionGroupsView
     front?: string[]
     rear?: string[]
     /** The tyre answer as the customer was shown it, and the whole sum behind it. */
@@ -319,9 +323,12 @@ function tagClass(state: OrderState): string | null {
                             <p v-if="line.snapshot.front && line.snapshot.front.length" class="bs-proof__line">
                                 Reifen: {{ line.snapshot.front.join(', ') }}<template v-if="line.snapshot.rear && line.snapshot.rear.length && line.snapshot.rear.join() !== line.snapshot.front.join()"> · hinten {{ line.snapshot.rear.join(', ') }}</template>
                             </p>
-                            <p v-if="line.snapshot.requiresEntry" class="bs-proof__line">{{ line.snapshot.entryLine ?? 'Eintragung in die Fahrzeugpapiere erforderlich.' }}<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
+                            <!-- The server's line: per size where the sizes differ, the tyre's for a Komplettrad (PapersWording). -->
+                            <p v-if="line.snapshot.entryLine" class="bs-proof__line">{{ line.snapshot.entryLine }}<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
                             <p v-if="line.snapshot.papersLine" class="bs-proof__line">{{ line.snapshot.papersLine }}</p>
-                            <p v-for="sentence in line.snapshot.conditions ?? []" :key="sentence" class="bs-proof__line">{{ sentence }}</p>
+                            <!-- Each tyre size's Auflagen with that size, as the customer read them (ConditionGroups). -->
+                            <ConditionGroups v-if="line.snapshot.conditionGroups && (line.snapshot.conditions ?? []).length" class="bs-proof__groups" :groups="line.snapshot.conditionGroups" />
+                            <p v-for="sentence in line.snapshot.conditionGroups ? [] : line.snapshot.conditions ?? []" :key="sentence" class="bs-proof__line">{{ sentence }}</p>
                             <!-- The tyre answer and its whole sum, unfolded: the proof shows everything the customer could open. -->
                             <template v-if="line.snapshot.tyre">
                                 <p class="bs-proof__line">Reifen: {{ line.snapshot.tyre.statusLabel }}<template v-if="line.snapshot.tyre.summary"> – {{ line.snapshot.tyre.summary }}</template></p>
@@ -575,6 +582,11 @@ function tagClass(state: OrderState): string | null {
 .bs-proof__ok {
     font-weight: 400;
     color: var(--c-ink-2);
+}
+
+.bs-proof__groups {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
 }
 
 .bs-proof__line,

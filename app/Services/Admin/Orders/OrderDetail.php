@@ -17,6 +17,7 @@ use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
 use App\Models\Refund;
 use App\Payments\Payments;
+use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Commerce\RefundOrder;
 use App\Support\GermanFormat;
 use App\Support\Money;
@@ -42,6 +43,8 @@ final class OrderDetail
         $list = app(OrderList::class);
         $row = $list->row(Order::query()->withDemoFlag()->whereKey($order->id)->with('customer')->firstOrFail());
         $current = $this->currentStatuses($order);
+        // A Komplettrad's tyre size per package: its wheel line then says that size's Auflagen only.
+        $tyres = PackageTyreSizes::of($order->lines);
 
         return [
             'order' => $row + [
@@ -65,7 +68,7 @@ final class OrderDetail
             'delivery' => self::address($order->deliveryAddress),
             'billing' => self::address($order->billingAddress),
             'sameAddress' => $order->getAttribute('delivery_address_id') === $order->getAttribute('billing_address_id'),
-            'lines' => $order->lines->sortBy([['package_group', 'asc'], ['id', 'asc']])->values()->map(fn (OrderLine $line): array => $this->line($line, $current))->all(),
+            'lines' => $order->lines->sortBy([['package_group', 'asc'], ['id', 'asc']])->values()->map(fn (OrderLine $line): array => $this->line($line, $current, PackageTyreSizes::for($line, $tyres)))->all(),
             'money' => self::money($order),
         ];
     }
@@ -112,7 +115,7 @@ final class OrderDetail
      * @param  array<int, string>  $current  document id => its status today
      * @return array<string, mixed>
      */
-    private function line(OrderLine $line, array $current): array
+    private function line(OrderLine $line, array $current, ?string $tyreSize = null): array
     {
         $snapshot = $line->fitmentSnapshot;
 
@@ -124,7 +127,7 @@ final class OrderDetail
             'unit' => (int) $line->getAttribute('unit_price_cents'),
             'total' => (int) $line->getAttribute('line_total_cents'),
             'package' => $line->getAttribute('package_group') === null ? null : (int) $line->getAttribute('package_group'),
-            'snapshot' => $snapshot === null ? null : $this->snapshot($snapshot, $current),
+            'snapshot' => $snapshot === null ? null : $this->snapshot($snapshot, $current, $tyreSize),
         ];
     }
 
@@ -132,7 +135,7 @@ final class OrderDetail
      * @param  array<int, string>  $current
      * @return array<string, mixed>
      */
-    private function snapshot(OrderLineFitment $snapshot, array $current): array
+    private function snapshot(OrderLineFitment $snapshot, array $current, ?string $tyreSize = null): array
     {
         $documentId = (int) $snapshot->getAttribute('approval_document_id');
         $today = $current[$documentId] ?? null;
@@ -160,6 +163,7 @@ final class OrderDetail
 
         $document = $verdict->document;
         $kind = $document === null ? null : (ApprovalKind::tryFrom($document->kind)?->labelDe() ?? $document->kind);
+        $groups = $verdict->conditionGroups()->toArray($tyreSize);
 
         return $base + [
             'readable' => true,
@@ -172,10 +176,14 @@ final class OrderDetail
             'sourcePage' => $document?->sourcePage,
             'requiresEntry' => $verdict->requiresEntry,
             // The papers in the words the customer read (PapersWording): the Auflagen's line, the document's.
-            'entryLine' => PapersWording::entryLine($verdict->requiresEntry, $verdict->papersExempt()),
+            // Per size where the sizes differ; for a Komplettrad, its tyre's.
+            'entryLine' => PapersWording::entryBySize($groups['sizes'], $verdict->papersExempt()) ?? PapersWording::entryLine($groups['entry'] ?? $verdict->requiresEntry, $verdict->papersExempt()),
             'papersLine' => PapersWording::papersLine($verdict->papersExempt()),
             'entryNote' => $verdict->entryNoteDe,
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
+            // As the customer read them: the combination's once, each tyre size's with that size — for a Komplettrad,
+            // its tyre's (ConditionGroups).
+            'conditionGroups' => $groups,
             'front' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->front->sizes),
             'rear' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->rear->sizes),
             // The tyre answer as the customer was shown it, and the whole sum behind it — whatever the shop

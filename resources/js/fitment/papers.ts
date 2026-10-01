@@ -33,3 +33,29 @@ export function entryLineOrNone(requiresEntry: boolean, papersExempt: boolean): 
 export function papersLine(papersExempt: boolean): string | null {
     return papersExempt ? PAPERS_EXEMPT : null
 }
+
+/** The sizes an answer says the Abnahme per (ConditionGroups): only their names and whether each needs it. */
+export interface SizeEntry {
+    size: string
+    entry: boolean
+}
+
+function listed(sizes: string[]): string {
+    return sizes.length === 1 ? sizes[0] ?? '' : `${sizes.slice(0, -1).join(', ')} und ${sizes[sizes.length - 1] ?? ''}`
+}
+
+/**
+ * Where one tyre size needs the Abnahme or Eintragung and another does not (ABE 55255, BMW X3 X83: A01 with
+ * 255/40R19 alone), one line names them — never one answer for all sizes. Null where they agree. The PHP twin is
+ * PapersWording::entryBySize().
+ */
+export function entryBySize(sizes: SizeEntry[] | undefined, papersExempt: boolean): string | null {
+    const yes = (sizes ?? []).filter((s) => s.entry).map((s) => s.size)
+    const no = (sizes ?? []).filter((s) => !s.entry).map((s) => s.size)
+
+    if (yes.length === 0 || no.length === 0) {
+        return null
+    }
+
+    return `${papersExempt ? 'Abnahme durch einen Prüfer' : 'Eintragung in die Fahrzeugpapiere'} erforderlich mit ${listed(yes)}, nicht mit ${listed(no)}.`
+}

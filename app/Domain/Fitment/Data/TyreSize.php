@@ -134,7 +134,13 @@ final readonly class TyreSize
     /** Identity for set operations: the size itself, not the minima or the axle attached to it. */
     public function key(): string
     {
-        return sprintf('%d/%d/%s', $this->widthMm, $this->aspect, rtrim(rtrim(number_format($this->diameterIn, 1, '.', ''), '0'), '.'));
+        return self::keyOf($this->widthMm, $this->aspect, $this->diameterIn);
+    }
+
+    /** The same identity for a size given by its numbers — a tyre chosen for a Komplettrad. */
+    public static function keyOf(int $widthMm, int $aspect, float $diameterIn): string
+    {
+        return sprintf('%d/%d/%s', $widthMm, $aspect, rtrim(rtrim(number_format($diameterIn, 1, '.', ''), '0'), '.'));
     }
 
     public function matches(self $other): bool

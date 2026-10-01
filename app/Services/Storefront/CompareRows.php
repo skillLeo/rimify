@@ -247,7 +247,14 @@ final readonly class CompareRows
         // The papers are free (§ 15 FZV) only where every sellable size's documents free them — the product page's rule.
         $papersExempt = true;
         $anyConditional = false;
-        $conditions = [];
+        // Only what holds for every permitted size of this wheel — rim and tyre: a column cannot say which size the
+        // customer will fit, and one blended list would set one size's "no snow chains" beside another's chains
+        // (ConditionGroups). The rest is on the product page, per size, and the column says so.
+        $conditions = null;
+        $vary = false;
+        // Whether the Abnahme or Eintragung depends on the size: then the column does not say one answer for all.
+        $entries = [];
+        $key = static fn (Condition $c): string => $c->code."\u{0}".$c->sentenceDe();
         $entryNotes = [];
         $tyreSizes = [];
         $diameters = [];
@@ -279,7 +286,21 @@ final readonly class CompareRows
             $anyConditional = $anyConditional || $verdict->status === VerdictStatus::Conditional;
             $requiresEntry = $requiresEntry || $verdict->requiresEntry;
             $papersExempt = $papersExempt && $verdict->papersExempt();
-            $conditions = Condition::union($conditions, $verdict->conditions);
+            $groups = $verdict->conditionGroups();
+            $vary = $vary || $groups->differBySize() || $groups->entryDiffers();
+            $entries[$verdict->requiresEntry ? 1 : 0] = true;
+
+            if ($groups->entryDiffers()) {
+                $entries = [0 => true, 1 => true];
+            }
+
+            if ($conditions === null) {
+                $conditions = $groups->combination;
+            } else {
+                $mine = array_map($key, $groups->combination);
+                $vary = $vary || count($mine) !== count($conditions) || array_diff($mine, array_map($key, $conditions)) !== [];
+                $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => in_array($key($c), $mine, true)));
+            }
 
             // A list of strings, the same spelling as the card's `diameters`: `18`, never the
             // integer 18 an array key would turn it into.
@@ -307,6 +328,8 @@ final readonly class CompareRows
                 $document = $verdict->document;
             }
         }
+
+        $conditions ??= [];
 
         if ($sellable > 0) {
             $status = ($anyConditional || $requiresEntry) ? VerdictStatus::Conditional : VerdictStatus::Permitted;
@@ -340,8 +363,12 @@ final readonly class CompareRows
                 'requiresEntry' => $requiresEntry,
                 'papersExempt' => $papersExempt,
                 'entryNoteDe' => $entryNotes === [] ? null : implode(' ', array_keys($entryNotes)),
-                // Full German sentences, never codes such as A02 (R-15).
+                // Full German sentences, never codes such as A02 (R-15). Only what holds for every size.
                 'conditions' => $sentences,
+                // More Auflagen depend on the size — said per size on the product page.
+                'conditionsVary' => $sellable > 0 && $vary,
+                // The Abnahme or Eintragung depends on the size: no one line for the column.
+                'entryVaries' => $sellable > 0 && count($entries) > 1,
                 'reason' => $reason?->textDe,
                 'reasonCode' => $reason?->code,
                 'document' => $document === null ? null : [
@@ -355,6 +382,7 @@ final readonly class CompareRows
                 'status' => $status->value,
                 'requiresEntry' => $requiresEntry,
                 'conditions' => $sentences,
+                'conditionsVary' => $sellable > 0 && $vary,
             ],
             'diameters' => $diameters,
             'inStock' => $inStock,

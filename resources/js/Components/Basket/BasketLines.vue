@@ -8,6 +8,7 @@
  */
 
 import Icon from '../Art/Icon.vue'
+import ConditionGroups from '../Fitment/ConditionGroups.vue'
 import Tyre from '../Art/Tyre.vue'
 import Wheel from '../Art/Wheel.vue'
 import { useBasket } from '../../composables/useBasket'
@@ -77,8 +78,14 @@ const VERDICT_TONE: Record<string, string> = {
                                 </span>
                             </div>
 
+                            <!-- Each tyre size's Auflagen with that size; a Komplettrad's for its tyre (ConditionGroups). -->
+                            <ConditionGroups
+                                v-if="line.verdict && line.verdict.conditionGroups && line.verdict.conditions.length"
+                                class="bl__groups"
+                                :groups="line.verdict.conditionGroups"
+                            />
                             <ul
-                                v-if="line.verdict && line.verdict.conditions.length"
+                                v-else-if="line.verdict && line.verdict.conditions.length"
                                 class="bl__conditions"
                             >
                                 <li v-for="c in line.verdict.conditions" :key="c">{{ c }}</li>
@@ -163,6 +170,11 @@ const VERDICT_TONE: Record<string, string> = {
     flex-wrap: wrap;
     gap: var(--space-2);
     margin-top: 6px;
+}
+
+.bl__groups {
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
 }
 
 .bl__conditions {

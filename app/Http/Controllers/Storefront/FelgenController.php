@@ -500,11 +500,15 @@ class FelgenController extends Controller
                 ? null
                 : GermanFormat::millimetres($verdict->documentCentreBoreMm),
             'centreBoreSource' => $verdict->centreBoreSource->value,
-            // Full German sentences, never codes such as A02 (R-15).
+            // Full German sentences, never codes such as A02 (R-15). Every Auflage once, for counting; what the
+            // customer reads is `conditionGroups`.
             'conditions' => array_map(
                 static fn (Condition $condition): string => $condition->sentenceDe(),
                 $verdict->conditions,
             ),
+            // The Auflagen as the document hangs them: the combination's once, each tyre size's with that size —
+            // never one list in which a size's „no chains“ stands beside another's „fine-link chains“ (ConditionGroups).
+            'conditionGroups' => $verdict->conditionGroups()->toArray(),
             // The same sentences as the customer works through them — Abnahme, work on the car with its
             // millimetres, the bolts and their torque, each tyre size's axle and printed minimum, the document's
             // notes — for a wheel that may go on the car at all (Block D, item 15).

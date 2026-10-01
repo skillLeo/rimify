@@ -17,7 +17,8 @@ import ValueText from '../Ui/ValueText.vue'
 import BuildForm from './BuildForm.vue'
 import PapersForm from './PapersForm.vue'
 import type { IconName } from '../../art'
-import { entryLineOrNone, papersLine } from '../../fitment/papers'
+import ConditionGroups from '../Fitment/ConditionGroups.vue'
+import { entryBySize, entryLineOrNone, papersLine } from '../../fitment/papers'
 import type { ConfigVerdict } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -73,7 +74,8 @@ const entryLine = computed(() => {
         return null
     }
 
-    return entryLineOrNone(verdict.requiresEntry, verdict.papersExempt === true)
+    // One size needs the Abnahme, another does not (ABE 55255, X3 X83: A01 with 255/40R19 alone): the line names them.
+    return entryBySize(verdict.conditionGroups?.sizes, verdict.papersExempt === true) ?? entryLineOrNone(verdict.requiresEntry, verdict.papersExempt === true)
 })
 
 /*
@@ -108,7 +110,10 @@ const overview = computed(() => {
     // A size's own work counts only with that size (D-04): „bis zu“ while the size decides.
     const bySize = view.sections.find((s) => s.title === 'Arbeiten am Fahrzeug')?.items.some((i) => i.sizes?.length) ?? false
 
-    if (items('Abnahme') > 0) lines.push('Abnahme beim Prüfer')
+    // An Abnahme only some sizes carry is said as such, as the work is (D-04).
+    const abnahmeBySize = view.sections.find((s) => s.title === 'Abnahme')?.items.some((i) => i.sizes?.length) ?? false
+
+    if (items('Abnahme') > 0) lines.push(abnahmeBySize ? 'Abnahme beim Prüfer, je nach Reifengröße' : 'Abnahme beim Prüfer')
     if (work > 0) lines.push(`${bySize ? 'bis zu ' : ''}${work} ${work === 1 ? 'Arbeit' : 'Arbeiten'} am Fahrzeug${bySize ? ', je nach Reifengröße' : ''}`)
 
     if (first !== undefined) {
@@ -246,6 +251,8 @@ const headline = computed(() => {
                 <p class="label fit__overview-h">Das verlangt das Gutachten</p>
                 <p class="small fit__overview-line">{{ overview.join(' · ') }} · <a class="fit__to-detail" href="#auflagen" @click="toDetail">alle Auflagen im Wortlaut</a></p>
             </div>
+            <!-- Each tyre size's Auflagen with that size, the combination's once (ConditionGroups) — never one blended list. -->
+            <ConditionGroups v-else-if="!detail && verdict.conditionGroups && conditions.length" class="fit__groups" :groups="verdict.conditionGroups" :omit="entryLine ? [entryLine] : []" />
             <ul v-else-if="!detail && conditions.length" class="fit__conditions">
                 <li v-for="condition in conditions" :key="condition">{{ condition }}</li>
             </ul>
@@ -375,6 +382,12 @@ const headline = computed(() => {
 }
 
 /* An Auflage is a sentence the customer must act on: body size, full ink. */
+.fit__groups {
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-body);
+    color: var(--ink);
+}
+
 .fit__conditions {
     display: grid;
     gap: var(--space-2);

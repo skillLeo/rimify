@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
+use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\ConditionGroups;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\PapersWording;
 use App\Domain\Fitment\Verdict\VerdictStatus;
@@ -755,7 +757,8 @@ final readonly class Basket
             // A seeded demonstration row — the model or, on a Komplettrad, the tyre: it may sit in
             // the basket, it can never be ordered (ACCURACY.md D4).
             'demo' => (bool) $model->is_demo || ($tyre !== null && $tyre->is_demo),
-            'verdict' => $verdict === null ? null : $this->verdictArray($verdict),
+            // A Komplettrad's tyre is chosen: its line says that size's Auflagen and no other's.
+            'verdict' => $verdict === null ? null : $this->verdictArray($verdict, $tyre === null ? null : TyreSize::keyOf((int) $tyre->width_mm, (int) $tyre->aspect, (float) $tyre->diameter_in)),
             // The Komplettrad half of the line (§4.7).
             'isSet' => $isSet,
             'setLabel' => $isSet ? 'Komplettrad' : 'Felge',
@@ -892,9 +895,10 @@ final readonly class Basket
     /**
      * @return array<string, mixed>
      */
-    private function verdictArray(FitmentVerdict $verdict): array
+    private function verdictArray(FitmentVerdict $verdict, ?string $chosenSize = null): array
     {
         $documents = $verdict->documents !== [] ? $verdict->documents : array_filter([$verdict->document]);
+        $groups = $verdict->conditionGroups();
 
         return [
             'status' => $verdict->status->value,
@@ -904,41 +908,58 @@ final readonly class Basket
             'papersExempt' => $verdict->papersExempt(),
             // The one short sentence the checkout repeats up to the order button (Block G); the Auflagen stay
             // behind a link, in full, below.
-            'sentence' => self::verdictSentence($verdict),
+            'sentence' => self::verdictSentence($verdict, $groups, $chosenSize),
             // The Gutachten and revisions the answer rests on: the checkout's record of what the customer was
             // shown (CheckoutShown), so a document changed since is noticed before money is taken.
             'basis' => array_map(static fn ($d): string => $d->id.'@'.$d->revision, $documents),
             // Full German sentences, never codes: a customer shown `A02` and left to work out
-            // what it means has been told nothing (R-15).
+            // what it means has been told nothing (R-15). Flat, for the checkout's record of what was shown
+            // (CheckoutShown) — what the customer reads is `conditionGroups`.
             'conditions' => array_map(
                 static fn (Condition $condition): string => $condition->sentenceDe(),
-                $verdict->conditions,
+                $chosenSize === null ? $verdict->conditions : $groups->forSize($chosenSize),
             ),
+            // The Auflagen as the document hangs them: the combination's once, each tyre size's with that size — or,
+            // for a Komplettrad, what applies to its tyre (ConditionGroups).
+            'conditionGroups' => $groups->toArray($chosenSize),
         ];
     }
 
     /**
      * The verdict in one sentence, as the checkout repeats it on every line: the label's own words, the number of
-     * Auflagen (their text is one link away) and the Eintragung where the document asks for it.
+     * Auflagen (their text is one link away) and the Eintragung where the document asks for it. Where the Auflagen
+     * differ by tyre size and none is chosen, it says so rather than counting sizes that will never be fitted together.
      */
-    private static function verdictSentence(FitmentVerdict $verdict): string
+    private static function verdictSentence(FitmentVerdict $verdict, ?ConditionGroups $groups = null, ?string $chosenSize = null): string
     {
-        $count = count($verdict->conditions);
+        $groups ??= $verdict->conditionGroups();
+        $bySize = $chosenSize === null && ($groups->differBySize() || $groups->entryDiffers());
+        $count = count($chosenSize === null ? $groups->all() : $groups->forSize($chosenSize));
         $sentence = match ($verdict->status) {
             VerdictStatus::Permitted => 'Für dein Fahrzeug freigegeben.',
-            VerdictStatus::Conditional => $count === 0
-                ? 'Für dein Fahrzeug freigegeben, mit Auflagen.'
-                : sprintf('Für dein Fahrzeug freigegeben, mit %d %s.', $count, $count === 1 ? 'Auflage' : 'Auflagen'),
+            VerdictStatus::Conditional => match (true) {
+                $bySize => 'Für dein Fahrzeug freigegeben, mit Auflagen je nach Reifengröße.',
+                $count === 0 => 'Für dein Fahrzeug freigegeben, mit Auflagen.',
+                default => sprintf('Für dein Fahrzeug freigegeben, mit %d %s.', $count, $count === 1 ? 'Auflage' : 'Auflagen'),
+            },
             default => $verdict->status->labelDe().'.',
         };
+
+        // Where the sizes differ in the Abnahme, one line names them — never one answer for all sizes.
+        if ($bySize && $groups->entryDiffers()) {
+            $line = PapersWording::entryBySize(array_map(static fn (array $s): array => ['size' => $s['size']->labelDe(), 'entry' => $s['entry']], $groups->sizes), $verdict->papersExempt());
+
+            return $verdict->isSellable() ? trim($sentence.' '.$line.' '.PapersWording::papersLine($verdict->papersExempt())) : $sentence;
+        }
 
         if (! $verdict->isSellable()) {
             return $sentence;
         }
 
-        // The papers, as the product page says them (PapersWording): the Auflagen's line, then the document's.
+        // The papers, as the product page says them (PapersWording): the Auflagen's line, then the document's — for a
+        // chosen tyre, that size's.
         $papers = array_filter([
-            PapersWording::entryLine($verdict->requiresEntry, $verdict->papersExempt()),
+            PapersWording::entryLine($groups->entryFor($chosenSize, $verdict->requiresEntry), $verdict->papersExempt()),
             PapersWording::papersLine($verdict->papersExempt()),
         ]);
 

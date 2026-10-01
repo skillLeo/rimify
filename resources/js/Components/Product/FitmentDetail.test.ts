@@ -34,8 +34,10 @@ describe('FitmentDetail', () => {
 
     // D-04: a sentence the document hangs off some sizes says which, above it; one for every size says none.
     it('names the sizes a sentence belongs to', () => {
-        expect(wrapper.findAll('.fdt__for').map((s) => s.text())).toEqual(['Nur bei 245/35 R18', 'Nur bei 245/35 R18 und 255/35 R18'])
-        expect(wrapper.findAll('.fdt__main li').find((li) => li.text().includes('vorderen Radhausausschnittkanten'))?.find('.fdt__for').exists()).toBe(false)
+        expect(wrapper.findAll('.fdt__for').map((s) => s.text()).filter((t) => t.startsWith('Nur bei'))).toEqual(['Nur bei 245/35 R18', 'Nur bei 245/35 R18 und 255/35 R18'])
+        // What holds for every size comes first in its section, labelled once as such where size-limited sentences follow.
+        expect(wrapper.findAll('.fdt__for').map((s) => s.text())).toContain('Für jede zulässige Reifengröße')
+        expect(wrapper.findAll('.fdt__main li').find((li) => li.text().includes('vorderen Radhausausschnittkanten'))?.findAll('.fdt__for').some((s) => s.text().startsWith('Nur bei'))).toBe(false)
     })
 
     // D-10: the lede's „Wörtlich“ stays true — RIMIFY's own sentence is marked, and the lede says how.

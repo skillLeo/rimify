@@ -1,5 +1,7 @@
 /** Gutachten-Erfassung — GutachtenController, GutachtenZeilenController, AuflagenController, FahrzeugeController. */
 
+import type { ConditionGroupsView } from '../rimify'
+
 export type AxleValue = 'ALL' | 'FRONT' | 'REAR'
 
 export interface DocumentFacts {
@@ -197,6 +199,8 @@ export interface PreviewVerdict {
     papersLine?: string | null
     entryNote: string | null
     conditions: string[]
+    /** As the shop will show them (ConditionGroups). Additive. */
+    conditionGroups?: ConditionGroupsView
     front: string[]
     rear: string[]
     sourcePage: number | null

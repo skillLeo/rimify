@@ -376,6 +376,9 @@ final readonly class FitmentResolver
         $requiresEntry = false;
         $entryNotes = [];
         $conditions = [];
+        // The combination's own Auflagen, kept apart from the sizes': what a customer reads is said per size
+        // (FitmentVerdict::conditionGroups()), while `$conditions` holds both for the decision below.
+        $combination = [];
 
         foreach ($covering as $row) {
             // OR: if any document says the fitment must be entered, it must be entered.
@@ -388,6 +391,7 @@ final readonly class FitmentResolver
             // Union: showing a condition that turns out not to apply costs a moment's reading;
             // omitting one that does apply costs a workshop visit nobody budgeted for.
             $conditions = Condition::union($conditions, $row->conditions);
+            $combination = Condition::union($combination, $row->conditions);
         }
 
         [$front, $frontCheck] = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT', $vehicle->powerKw);
@@ -396,7 +400,10 @@ final readonly class FitmentResolver
         // A size the document gives only for a kW band, on a car whose power is not known: kept, never
         // PERMITTED — the band is said, with the field of the papers to compare it with (Block D).
         if ($vehicle->powerKw === null) {
-            $conditions = Condition::union($conditions, self::powerBandConditions([...$front->sizes, ...$rear->sizes]));
+            $bands = self::powerBandConditions([...$front->sizes, ...$rear->sizes]);
+            $conditions = Condition::union($conditions, $bands);
+            // Our own sentence, naming the sizes it is about: said once, with the combination.
+            $combination = Condition::union($combination, $bands);
         }
 
         // An Auflage the document hangs off one tyre size stays with that size for the customer's
@@ -417,6 +424,7 @@ final readonly class FitmentResolver
 
         if ($requiresEntry) {
             $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
+            $combination = array_values(array_filter($combination, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
         }
 
         // Step 5's failure mode: the document covers the car but nothing is legally mountable.
@@ -504,6 +512,7 @@ final readonly class FitmentResolver
             centreBoreSource: $centreBoreSource,
             wheelStatus: $wheelStatus,
             tyre: $tyre,
+            combinationConditions: $combination,
         );
     }
 

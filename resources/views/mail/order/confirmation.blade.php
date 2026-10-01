@@ -12,8 +12,23 @@ Deine Bestellung **{{ $number }}** ist bezahlt. Hier ist alles, was dazugehört 
 @if ($line['verdict'])
 {{ $line['verdict'] }}@if ($line['entry']) {{ $line['entry'] }}@endif @if ($line['papers']) {{ $line['papers'] }}@endif
 
+@if ($line['chosen'])
+Für {{ $line['chosen'] }}:
+@elseif ($line['sizes'] && $line['conditions'])
+Für jede zulässige Reifengröße:
+@endif
 @foreach ($line['conditions'] as $condition)
 - {{ $condition }}
+@endforeach
+@foreach ($line['sizes'] as $size)
+
+Nur mit {{ $size['size'] }} ({{ $size['axle'] }}):
+
+@forelse ($size['conditions'] as $condition)
+- {{ $condition }}
+@empty
+- Keine weiteren Auflagen.
+@endforelse
 @endforeach
 @endif
 

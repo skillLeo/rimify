@@ -70,15 +70,16 @@ const hoverView = computed(() => photo.value?.views?.[0] ?? null)
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
-const verdict = computed<{ status: VerdictStatus; conditions: string[] } | null>(() => {
+const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean } | null>(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }
 
-    const { status = 'PERMITTED', requiresEntry, conditions = [] } = props.card.fitment
+    const { status = 'PERMITTED', requiresEntry, conditions = [], conditionsVary = false } = props.card.fitment
     const effective: VerdictStatus = status === 'PERMITTED' && requiresEntry ? 'CONDITIONAL' : status
 
-    return { status: effective, conditions: effective === 'CONDITIONAL' ? conditions : [] }
+    // Only what holds for every size of this wheel: which size the customer fits is decided on the product page.
+    return { status: effective, conditions: effective === 'CONDITIONAL' ? conditions : [], vary: effective === 'CONDITIONAL' && conditionsVary }
 })
 
 /* ── Sizes ──────────────────────────────────────────────────────────────────── */
@@ -184,6 +185,8 @@ function onCompareLabelClick(event: MouseEvent): void {
         <ul v-if="verdict && verdict.conditions.length" class="tile__conditions">
             <li v-for="condition in verdict.conditions" :key="condition">{{ condition }}</li>
         </ul>
+        <!-- Never one blended list: what depends on the size is said per size on the product page. -->
+        <p v-if="verdict && verdict.vary" class="tile__vary">Weitere Auflagen je nach Größe – auf der Produktseite.</p>
 
         <span v-if="!card.inStock" class="stock stock--out">Ausverkauft</span>
 
@@ -212,6 +215,12 @@ function onCompareLabelClick(event: MouseEvent): void {
     font-size: inherit;
     line-height: inherit;
     font-weight: inherit;
+}
+
+.tile__vary {
+    margin-top: var(--sp-4);
+    font-size: var(--fs-small);
+    color: var(--ink2);
 }
 
 .tile__conditions {
