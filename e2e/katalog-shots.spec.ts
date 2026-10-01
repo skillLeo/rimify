@@ -32,7 +32,7 @@ test('Katalog: the list, a Felge, a new Felge, the importer', async ({ page }, i
     await first.click()
     await page.waitForURL(/\/admin\/felgen\/\d+$/)
     await waitForApp(page)
-    await expect(page.getByRole('heading', { name: 'Freigabe-Check' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Vor dem Veröffentlichen/ })).toBeVisible()
     await page.screenshot({ path: `${DIR}/felge-${width}.png`, fullPage: true })
     await page.locator('#fe-h-sizes').scrollIntoViewIfNeeded()
     await page.screenshot({ path: `${DIR}/felge-${width}-sizes.png` })
