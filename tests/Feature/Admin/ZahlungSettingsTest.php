@@ -113,7 +113,10 @@ it('writes one Protokoll entry per save with the last four characters only — n
     $json = json_encode($entry->properties);
 
     expect($entry->properties['changed'])->toBe(['Öffentlicher Schlüssel', 'Geheimer Schlüssel', 'Webhook-Signaturschlüssel'])
-        ->and($entry->properties['signing_key_last4'])->toBe(['old' => null, 'new' => 'C3d4'])
+        // Key by key: MySQL's JSON column returns an object's keys in its own order (`new` before `old`).
+        ->and($entry->properties['signing_key_last4'])->toHaveCount(2)
+        ->and($entry->properties['signing_key_last4']['old'])->toBeNull()
+        ->and($entry->properties['signing_key_last4']['new'])->toBe('C3d4')
         ->and($entry->actor_email)->toBe('super-admin@rimify.test')
         ->and($json)->not->toContain('fakeKeyC3d4')->not->toContain('sk_test_')->not->toContain('whsec_');
 });
