@@ -166,6 +166,9 @@ export interface DocumentConditionView {
     drive: { mode: 'only' | 'not'; drive: string } | null
     maxAxleLoadKg: number | null
     axle: 'FRONT' | 'REAR' | null
+    /** How loud it is in the shop (#23, D-104): hinweis, auflage, nicht_zulaessig — and the lowest it may be. */
+    level?: string
+    levelFloor?: string
     /** Rows and tyre sizes of this document that carry the code. */
     uses: number
     /** A load-index limit that is not twice its index's capacity: the warning, in words; null otherwise. */
@@ -192,6 +195,8 @@ export interface PreviewVerdict {
     wheel: string
     status: 'PERMITTED' | 'CONDITIONAL' | 'NOT_PERMITTED' | 'UNKNOWN'
     statusLabel: string
+    /** Every Auflage a Hinweis (#23, D-104): the shop says „Freigegeben“. Additive. */
+    notesOnly?: boolean
     reason: string | null
     requiresEntry: boolean
     /** The shop's words for the Auflagen's line and the document's § 15 FZV line (PapersWording). Additive. */
@@ -237,7 +242,10 @@ export interface AdminGutachtenShowProps {
     /** The document's own table of tyre load at speed; `rows` empty when it has none. */
     derating: DeratingView
     openConflicts: number
-    can: { edit: boolean; release: boolean }
+    /** `levels`: may set how loud each Auflage is in the shop (#23, D-104) — on a released document too. */
+    can: { edit: boolean; release: boolean; levels?: boolean }
+    levels?: { value: string; label: string }[]
+    levelFloorSentence?: string
 }
 
 /** One tyre size as typed: `225/40 R18`, the axle, an optional minimum and its own codes (`A01 T88`). */

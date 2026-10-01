@@ -70,16 +70,23 @@ const hoverView = computed(() => photo.value?.views?.[0] ?? null)
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
-const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean } | null>(() => {
+const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean } | null>(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }
 
-    const { status = 'PERMITTED', requiresEntry, conditions = [], conditionsVary = false } = props.card.fitment
+    const { status = 'PERMITTED', requiresEntry, conditions = [], conditionsVary = false, notesOnly = false } = props.card.fitment
     const effective: VerdictStatus = status === 'PERMITTED' && requiresEntry ? 'CONDITIONAL' : status
+    // Every Auflage of every size a Hinweis (#23, D-104, the server's): „Freigegeben“, and one quiet line, not a list.
+    const notes = effective === 'CONDITIONAL' && notesOnly && !requiresEntry
 
     // Only what holds for every size of this wheel: which size the customer fits is decided on the product page.
-    return { status: effective, conditions: effective === 'CONDITIONAL' ? conditions : [], vary: effective === 'CONDITIONAL' && conditionsVary }
+    return {
+        status: effective,
+        conditions: effective === 'CONDITIONAL' && !notes ? conditions : [],
+        vary: effective === 'CONDITIONAL' && !notes && conditionsVary,
+        notesOnly: notes,
+    }
 })
 
 /* ── Sizes ──────────────────────────────────────────────────────────────────── */
@@ -164,7 +171,7 @@ function onCompareLabelClick(event: MouseEvent): void {
             <!-- After the v-if/v-else pair, never between: there it would take the v-else. -->
             <Picture v-if="hoverView" :image="hoverView" alt="" :sizes="sizes" class="tile__picture tile__media--alt" aria-hidden="true" />
 
-            <VerdictBadge v-if="verdict" :status="verdict.status" class="tile__badge" />
+            <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" class="tile__badge" />
         </div>
 
         <!-- Names and sizes are never translated: a page translator turns a brand into a word and
@@ -187,6 +194,7 @@ function onCompareLabelClick(event: MouseEvent): void {
         </ul>
         <!-- Never one blended list: what depends on the size is said per size on the product page. -->
         <p v-if="verdict && verdict.vary" class="tile__vary">Weitere Auflagen je nach Größe – auf der Produktseite.</p>
+        <p v-if="verdict && verdict.notesOnly" class="tile__vary">Mit Hinweisen aus dem Gutachten – auf der Produktseite.</p>
 
         <span v-if="!card.inStock" class="stock stock--out">Ausverkauft</span>
 

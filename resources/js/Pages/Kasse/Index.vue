@@ -773,7 +773,7 @@ function verdictSentence(line: BasketLine): string {
                                     </p>
                                     <!-- The verdict in one sentence on every step; its Auflagen one tap away, in full (R-15). -->
                                     <template v-if="line.verdict">
-                                        <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
+                                        <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
                                         <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                             <summary>Auflagen lesen</summary>
                                             <!-- Each tyre size's Auflagen with that size; a Komplettrad's for its tyre (ConditionGroups). -->
@@ -1305,7 +1305,7 @@ function verdictSentence(line: BasketLine): string {
                                                 >
                                             </p>
                                             <template v-if="line.verdict">
-                                                <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
+                                                <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
                                                 <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                                     <summary>Auflagen lesen</summary>
                                                     <ConditionGroups v-if="line.verdict.conditionGroups" class="ko__groups" :groups="line.verdict.conditionGroups" />

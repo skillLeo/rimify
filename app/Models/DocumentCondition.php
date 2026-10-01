@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Domain\Fitment\Verdict\ConditionLevel;
 use Database\Factories\DocumentConditionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property array{mode: string, drive: string}|null $drive antrieb: only with, or not with, a drive
  * @property int|null $max_axle_load_kg reifen_tragfaehigkeit: the permitted axle load this code allows up to
  * @property string|null $axle reifen_achse: FRONT or REAR
+ * @property ConditionLevel|null $level how loud it is in the shop (#23, D-104): Hinweis, Auflage, nicht zulässig — never below its kind's floor
  * @property string|null $limit_confirmed_reason why a load-index limit that differs from the table stands as the document states it
  * @property int|null $limit_confirmed_by
  * @property Carbon|null $limit_confirmed_at
@@ -37,13 +39,27 @@ class DocumentCondition extends Model
     /** @use HasFactory<DocumentConditionFactory> */
     use HasFactory;
 
-    protected $fillable = ['approval_document_id', 'code', 'kind', 'text_de', 'source_page', 'body_forms', 'drive', 'max_axle_load_kg', 'axle'];
+    protected $fillable = ['approval_document_id', 'code', 'kind', 'text_de', 'source_page', 'body_forms', 'drive', 'max_axle_load_kg', 'axle', 'level'];
+
+    /**
+     * An Auflage written without a level gets the operator's default (ConditionLevel::defaultFor); one below its kind's
+     * floor is raised to it — and the database refuses it besides (chk_condition_level_floor).
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (DocumentCondition $condition): void {
+            $level = $condition->level ?? ConditionLevel::defaultFor((string) $condition->code, $condition->kind, (string) $condition->text_de);
+
+            $condition->level = $level->atLeastFloorOf($condition->kind);
+        });
+    }
 
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
             'kind' => ConditionKind::class,
+            'level' => ConditionLevel::class,
             'source_page' => 'integer',
             'body_forms' => 'array',
             'drive' => 'array',

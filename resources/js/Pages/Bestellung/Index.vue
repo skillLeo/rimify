@@ -302,8 +302,9 @@ function openAccount(): void {
 
                             <div v-if="line.verdict" class="ord__verdict">
                                 <p class="ord__verdict-row">
-                                    <span class="tag" :class="VERDICT_CLASS[line.verdict.status] ?? 'tag--unknown'">
-                                        {{ VERDICT_LABEL[line.verdict.status] ?? 'Keine Freigabe hinterlegt' }}
+                                    <!-- Every Auflage a Hinweis (#23, D-104): „Freigegeben“, as the product page said it. -->
+                                    <span class="tag" :class="VERDICT_CLASS[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'tag--unknown'">
+                                        {{ VERDICT_LABEL[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'Keine Freigabe hinterlegt' }}
                                     </span>
                                     <span class="data">
                                         <template v-if="line.documentNumber">Gutachten {{ line.documentNumber }} · </template>Fassung {{ line.verdict.documentRevision }}

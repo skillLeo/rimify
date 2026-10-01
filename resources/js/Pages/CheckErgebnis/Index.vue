@@ -55,6 +55,17 @@ function print(): void {
 }
 
 const copy = computed<Copy>(() => {
+    // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, as the product page says it — the notes stay readable there.
+    if (props.result?.status === 'CONDITIONAL' && props.result.notesOnly === true) {
+        return {
+            tag: 'tag--ok',
+            label: 'Freigegeben',
+            title: 'Diese Felge ist für das Fahrzeug freigegeben.',
+            body: 'Das Gutachten deckt die geprüfte Kombination ab und nennt dazu nur Hinweise – nichts, was du tun musst. Jeder Hinweis steht im Wortlaut auf der Produktseite der Felge.',
+            primary: { href: '/felgen', label: 'Passende Felgen anzeigen' },
+        }
+    }
+
     switch (props.result?.status) {
         case 'PERMITTED':
             return {

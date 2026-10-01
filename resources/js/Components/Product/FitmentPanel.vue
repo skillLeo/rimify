@@ -45,9 +45,16 @@ function issueCheck(): void {
     })
 }
 
+/* Every Auflage a Hinweis (#23, D-104, decided on the server): the panel says „Freigegeben“, and quietly that there are notes. */
+const notesOnly = computed(() => props.vehicle !== null && props.verdict?.status === 'CONDITIONAL' && props.verdict.notesOnly === true)
+
 const tone = computed<{ cls: string; icon: IconName }>(() => {
     if (props.vehicle === null || props.verdict === null) {
         return { cls: 'rcheck-panel--unknown', icon: 'info' }
+    }
+
+    if (notesOnly.value) {
+        return { cls: '', icon: 'check-circle' }
     }
 
     switch (props.verdict.status) {
@@ -177,6 +184,10 @@ const headline = computed(() => {
         return `Prüfung für ${props.vehicle.label}`
     }
 
+    if (notesOnly.value) {
+        return `Freigegeben für ${props.vehicle.label}`
+    }
+
     switch (props.verdict.status) {
         case 'PERMITTED':
             return `Freigegeben für ${props.vehicle.label}`
@@ -201,6 +212,8 @@ const headline = computed(() => {
         </p>
 
         <p class="rcheck-panel__vehicle">{{ headline }}</p>
+        <!-- #23, D-104: nothing to do, only to know — said quietly, never as „Mit Auflagen“. -->
+        <p v-if="notesOnly" class="fit__notes">Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.</p>
 
         <template v-if="verdict">
             <!-- What the answer waits for, asked by name and answered in place; a derived body style or drive
@@ -300,6 +313,13 @@ const headline = computed(() => {
     display: grid;
     gap: var(--space-1);
     margin: var(--space-2) 0 0;
+}
+
+/* A Hinweis is quiet: the ink's second tone, no colour of its own (#23, D-104). */
+.fit__notes {
+    margin: var(--space-1) 0 0;
+    color: var(--ink2);
+    font-size: var(--text-small);
 }
 
 .fit__half {

@@ -73,7 +73,7 @@ const VERDICT_TONE: Record<string, string> = {
                                 <span
                                     v-if="line.verdict"
                                     class="tag"
-                                    :class="VERDICT_TONE[line.verdict.status]"
+                                    :class="VERDICT_TONE[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status]"
                                 >
                                     {{ line.verdict.label }}
                                 </span>

@@ -73,7 +73,9 @@ final readonly class CheckResults
 
         return [
             'status' => $verdict->status->value,
-            'statusLabel' => $verdict->status->labelDe(),
+            'statusLabel' => $verdict->displayLabelDe(),
+            // Every Auflage a Hinweis (#23, D-104).
+            'notesOnly' => $verdict->notesOnly(),
             'vehicle' => $verdict->vehicleLabel,
             'wheel' => $verdict->wheelLabel,
             'wheelLabel' => $verdict->wheelStatus?->labelDe(),

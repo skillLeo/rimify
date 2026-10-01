@@ -6,6 +6,7 @@ namespace App\Services\Admin\Approvals;
 
 use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Domain\Fitment\Verdict\ConditionLevel;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
@@ -83,6 +84,26 @@ final class DocumentConditions
 
             AuditTrail::record($admin, 'approval.condition_changed', ['document' => FitmentRows::label($document), 'code' => $condition->code, 'kind' => $condition->kind->value], $document);
             FitmentRows::refreshEntry($document);
+        });
+    }
+
+    /**
+     * How loud the Auflage is in the shop (#23, D-104) — on a released document too: the words and the colour, never
+     * the verdict. The floor is the request's, the model's and the database's.
+     */
+    public function setLevel(DocumentCondition $condition, ConditionLevel $level, AdminUser $admin): void
+    {
+        DB::transaction(function () use ($condition, $level, $admin): void {
+            $old = $condition->level;
+            $condition->forceFill(['level' => $level->atLeastFloorOf($condition->kind)])->save();
+            $document = $condition->document()->firstOrFail();
+
+            AuditTrail::record($admin, 'approval.condition_level_set', [
+                'document' => FitmentRows::label($document),
+                'code' => $condition->code,
+                'old' => $old?->value,
+                'level' => $condition->level?->value,
+            ], $document);
         });
     }
 

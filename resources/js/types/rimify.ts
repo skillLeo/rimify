@@ -238,6 +238,8 @@ export interface CardFitment {
     conditions?: string[]
     /** Further Auflagen depend on the rim or tyre size: said on the product page, per size. */
     conditionsVary?: boolean
+    /** Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. */
+    notesOnly?: boolean
 }
 
 export interface FacetOption {
@@ -327,6 +329,8 @@ export interface BasketLine {
     verdict?: {
         status: VerdictStatus
         label: string
+        /** Every Auflage a Hinweis (#23, D-104): shown as „Freigegeben“. Additive. */
+        notesOnly?: boolean
         sellable: boolean
         requiresEntry: boolean
         /** The document frees the papers from correction (§ 15 FZV). Additive. */

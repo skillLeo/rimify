@@ -77,7 +77,10 @@ class OrderConfirmationMail extends Mailable
                 // In words, never a code (R-15) — as the order page says it.
                 'verdict' => $snapshot === null ? null : match ((string) $snapshot->verdict_status) {
                     'PERMITTED' => 'Für dein Fahrzeug freigegeben.',
-                    'CONDITIONAL' => 'Für dein Fahrzeug freigegeben, mit Auflagen.',
+                    // Every Auflage a Hinweis (#23, D-104): nothing to do, so not „mit Auflagen“.
+                    'CONDITIONAL' => self::notesOnly((array) $snapshot->verdict)
+                        ? 'Für dein Fahrzeug freigegeben, mit Hinweisen aus dem Gutachten.'
+                        : 'Für dein Fahrzeug freigegeben, mit Auflagen.',
                     'NOT_PERMITTED' => 'Nicht freigegeben.',
                     default => 'Keine Freigabe hinterlegt.',
                 },
@@ -135,5 +138,20 @@ class OrderConfirmationMail extends Mailable
         return [
             Attachment::fromData(static fn (): string => app(Invoices::class)->pdf($invoice), $invoice->number.'.pdf')->withMime('application/pdf'),
         ];
+    }
+
+    /**
+     * Whether the frozen answer's Auflagen were all Hinweise (#23, D-104); a snapshot that cannot be read claims
+     * nothing.
+     *
+     * @param  array<string, mixed>  $verdict
+     */
+    private static function notesOnly(array $verdict): bool
+    {
+        try {
+            return FitmentVerdict::fromArray($verdict)->notesOnly();
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

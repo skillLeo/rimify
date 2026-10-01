@@ -505,7 +505,9 @@ class FelgenController extends Controller
 
         return [
             'status' => $verdict->status->value,
-            'label' => $verdict->status->labelDe(),
+            'label' => $verdict->displayLabelDe(),
+            // Every Auflage a Hinweis (#23, D-104): the page says „Freigegeben“, quietly „mit Hinweisen“.
+            'notesOnly' => $verdict->notesOnly(),
             'sellable' => $verdict->isSellable(),
             'requiresEntry' => $verdict->requiresEntry,
             'entryNoteDe' => $verdict->entryNoteDe,

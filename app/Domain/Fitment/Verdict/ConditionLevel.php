@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Fitment\Verdict;
+
+/**
+ * How loud an Auflage is, as the customer meets it (the client's #23, answered by the operator, D-104).
+ *
+ *   hinweis          nothing to do, just know it      the ink colour, no badge
+ *   auflage          something must be done, or use is restricted      warn
+ *   nicht_zulaessig  not permitted                    bad
+ *
+ * It decides the colour and the badge — „Freigegeben“ where every Auflage of a verdict is a Hinweis, „Mit Auflagen“
+ * where one is more — never the verdict itself: the engine's four states (R-07) and the tyres' half (R-03) are
+ * computed exactly as before. One rule cannot be configured away: an Abnahme or work on the body is always at least
+ * an Auflage (`floorFor`), in the form, in the model and in the database — so nobody can make a wheel that needs a
+ * Prüfer look as if it needed nothing.
+ */
+enum ConditionLevel: string
+{
+    case Hinweis = 'hinweis';
+    case Auflage = 'auflage';
+    case NichtZulaessig = 'nicht_zulaessig';
+
+    /** The kinds that are never a mere Hinweis. */
+    public const LOCKED_KINDS = [ConditionKind::Abnahme, ConditionKind::Karosseriearbeit];
+
+    /** The one sentence the form says beside a locked kind. */
+    public const FLOOR_SENTENCE = 'Eine Abnahme oder Arbeit an der Karosserie ist immer eine Auflage: Sonst könnte jemand kaufen, ohne zu wissen, dass ein Prüfer oder eine Werkstatt nötig ist.';
+
+    /** @return list<string> */
+    public static function values(): array
+    {
+        return array_map(static fn (self $level): string => $level->value, self::cases());
+    }
+
+    public function weight(): int
+    {
+        return match ($this) {
+            self::Hinweis => 0,
+            self::Auflage => 1,
+            self::NichtZulaessig => 2,
+        };
+    }
+
+    public function labelDe(): string
+    {
+        return match ($this) {
+            self::Hinweis => 'Hinweis – nichts zu tun',
+            self::Auflage => 'Auflage – etwas ist zu tun oder eingeschränkt',
+            self::NichtZulaessig => 'Nicht zulässig',
+        };
+    }
+
+    /** The lowest level an Auflage of this kind may have. */
+    public static function floorFor(?ConditionKind $kind): self
+    {
+        return in_array($kind, self::LOCKED_KINDS, true) ? self::Auflage : self::Hinweis;
+    }
+
+    /** Whether this level may be chosen for an Auflage of this kind. */
+    public function allowedFor(?ConditionKind $kind): bool
+    {
+        return $this->weight() >= self::floorFor($kind)->weight();
+    }
+
+    /** This level, raised to the kind's floor where it is below it. */
+    public function atLeastFloorOf(?ConditionKind $kind): self
+    {
+        return $this->allowedFor($kind) ? $this : self::floorFor($kind);
+    }
+
+    /**
+     * The level an Auflage has until a person chooses one (the operator's defaults, 02.10.2026): A14, A18, R37, R70,
+     * the snow-chain notes and the fasteners are Hinweise; A01, every K-code, the drive and body restrictions, R02 and
+     * R03 are Auflagen. Anything else follows its kind, and an Auflage of no kind is an Auflage — the louder answer is
+     * the safe one.
+     */
+    public static function defaultFor(string $code, ?ConditionKind $kind, string $textDe): self
+    {
+        $code = strtoupper(trim($code));
+
+        $level = match (true) {
+            in_array($code, ['A14', 'A18', 'R37', 'R70'], true) => self::Hinweis,
+            in_array($code, ['A01', 'R02', 'R03'], true), preg_match('/^K\d/', $code) === 1 => self::Auflage,
+            str_contains(mb_strtolower($textDe), 'schneekette') => self::Hinweis,
+            $kind === ConditionKind::Hinweis, $kind === ConditionKind::Befestigung, $kind === ConditionKind::ReifenKombination => self::Hinweis,
+            default => self::Auflage,
+        };
+
+        return $level->atLeastFloorOf($kind);
+    }
+}

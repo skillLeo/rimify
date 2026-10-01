@@ -414,7 +414,7 @@ onBeforeUnmount(() => {
                         <span class="small muted" translate="no">{{ item.finishName }}</span>
                         <span class="body num compare__price">ab <ValueText :text="perWheel(item)" whole /> pro Felge</span>
                         <span class="micro quiet">{{ terms.note }}</span>
-                        <VerdictBadge v-if="vehicle && item.verdict" :status="item.verdict.status" class="compare__badge" />
+                        <VerdictBadge v-if="vehicle && item.verdict" :status="item.verdict.status" :notes-only="item.verdict.notesOnly === true" class="compare__badge" />
                         <button class="icon-btn compare__remove" type="button" :aria-label="`${item.brandName} ${item.modelName} aus dem Vergleich entfernen`" @click="remove(item, i)">
                             <Icon name="close" :size="16" />
                         </button>
@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
                             <span class="micro quiet">{{ item.brandName }}</span>
                             <span>{{ item.modelName }}</span>
                         </span>
-                        <VerdictBadge v-if="vehicle && item.verdict" :status="item.verdict.status" />
+                        <VerdictBadge v-if="vehicle && item.verdict" :status="item.verdict.status" :notes-only="item.verdict.notesOnly === true" />
                     </div>
                 </div>
 
@@ -459,7 +459,7 @@ onBeforeUnmount(() => {
                             :translate="r.values ? 'no' : undefined"
                         >
                             <template v-if="r.kind === 'verdict'">
-                                <VerdictBadge v-if="cell.verdict" :status="cell.verdict.status" />
+                                <VerdictBadge v-if="cell.verdict" :status="cell.verdict.status" :notes-only="cell.verdict.notesOnly === true" />
                                 <span v-else class="small muted">–</span>
                                 <span v-if="cell.verdict && cell.verdict.reason" class="small muted compare__reason">{{ cell.verdict.reason }}</span>
                             </template>

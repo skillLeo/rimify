@@ -108,7 +108,7 @@ final readonly class ProductCards
      * @param  array<int, FitmentVerdict>  $verdicts  the engine's verdicts for the page, by configuration id
      * @param  list<int>  $configIds
      * @param  array<int, string>  $diameterOf  configuration id → its diameter, formatted
-     * @return array{status: string, requiresEntry: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>}
+     * @return array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>}
      */
     private function claim(array $verdicts, array $configIds, array $diameterOf = []): array
     {
@@ -121,6 +121,8 @@ final readonly class ProductCards
         $vary = false;
         $key = static fn (Condition $c): string => $c->code."\u{0}".$c->sentenceDe();
         $fitting = [];
+        // Every conditional size's Auflagen all Hinweise (#23, D-104): the tile may say „Freigegeben“.
+        $allNotes = true;
 
         foreach ($configIds as $configId) {
             $verdict = $verdicts[$configId] ?? null;
@@ -134,6 +136,7 @@ final readonly class ProductCards
                 ? VerdictStatus::Conditional
                 : VerdictStatus::Permitted;
             $requiresEntry = $requiresEntry || $verdict->requiresEntry;
+            $allNotes = $allNotes && ($verdict->status !== VerdictStatus::Conditional || $verdict->notesOnly());
             $groups = $verdict->conditionGroups();
             $vary = $vary || $groups->differBySize() || $groups->entryDiffers();
 
@@ -152,7 +155,7 @@ final readonly class ProductCards
 
         // The listing and the engine disagree about this card. It makes no positive claim.
         if ($status === null) {
-            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'conditions' => [], 'conditionsVary' => false, 'diametersFitting' => []];
+            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false, 'diametersFitting' => []];
         }
 
         $conditions ??= [];
@@ -169,6 +172,8 @@ final readonly class ProductCards
         return [
             'status' => $status->value,
             'requiresEntry' => $requiresEntry,
+            // Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
+            'notesOnly' => $status === VerdictStatus::Conditional && ! $requiresEntry && $allNotes,
             'conditions' => array_values(array_map(
                 static fn (Condition $c): string => $c->sentenceDe(),
                 $conditions,
@@ -309,7 +314,7 @@ final readonly class ProductCards
      * @param  array<string, mixed>  $row
      * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, image: array<string, mixed>|null, is_demo: bool}>  $presentation
      * @param  array<string, list<string>>  $diameters
-     * @param  array{status: string, requiresEntry: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
+     * @param  array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
      * @return array<string, mixed>
      */
     private function fromListingRow(array $row, array $presentation, array $diameters, array $claim): array

@@ -82,6 +82,8 @@ class BestellungController extends Controller
                 'lineTotal' => GermanFormat::money((int) $line->line_total_cents),
                 'verdict' => $snapshot === null ? null : [
                     'status' => $snapshot->verdict_status,
+                    // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, as the product page said it.
+                    'notesOnly' => self::notesOnly((array) $snapshot->verdict),
                     'requiresEntry' => (bool) $snapshot->requires_entry,
                     'papersExempt' => $snapshot->papersExempt(),
                     'documentRevision' => (int) $snapshot->document_revision,
@@ -205,6 +207,21 @@ class BestellungController extends Controller
             return FitmentVerdict::fromArray($verdict)->conditionGroups()->toArray($tyreSize);
         } catch (Throwable) {
             return null;
+        }
+    }
+
+    /**
+     * Whether the frozen answer's Auflagen were all Hinweise (#23, D-104), as its own Auflagen say. A snapshot that
+     * cannot be read claims nothing: false, the louder reading.
+     *
+     * @param  array<string, mixed>  $verdict
+     */
+    public static function notesOnly(array $verdict): bool
+    {
+        try {
+            return FitmentVerdict::fromArray($verdict)->notesOnly();
+        } catch (Throwable) {
+            return false;
         }
     }
 }

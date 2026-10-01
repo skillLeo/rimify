@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Domain\Fitment\Verdict\ConditionLevel;
 use App\Enums\ApprovalKind;
 use App\Enums\ConditionSeverity;
 use App\Enums\DocumentStatus;
@@ -221,7 +222,11 @@ class GutachtenController extends Controller
             'can' => [
                 'edit' => $admin->can('update', $document),
                 'release' => $admin->can('publish', $document),
+                // How loud each Auflage is in the shop: on a released document too (#23, D-104).
+                'levels' => $admin->can('setLevels', $document),
             ],
+            'levels' => array_map(static fn (ConditionLevel $l): array => ['value' => $l->value, 'label' => $l->labelDe()], ConditionLevel::cases()),
+            'levelFloorSentence' => ConditionLevel::FLOOR_SENTENCE,
         ]);
     }
 
@@ -455,6 +460,9 @@ class GutachtenController extends Controller
             'drive' => is_array($condition->drive) ? $condition->drive : null,
             'maxAxleLoadKg' => $condition->max_axle_load_kg,
             'axle' => $condition->axle,
+            // How loud it is in the shop (#23, D-104), and the lowest it may be: an Abnahme or body work is never a Hinweis.
+            'level' => ($condition->level ?? ConditionLevel::defaultFor($condition->code, $condition->kind, $condition->text_de))->value,
+            'levelFloor' => ConditionLevel::floorFor($condition->kind)->value,
             'uses' => $uses,
             // A load-index limit that differs from twice its index's capacity: said, and confirmed with a
             // reason before release — the document is kept as it stands (the second review of C9, §3).

@@ -175,7 +175,9 @@ final class OrderDetail
         return $base + [
             'readable' => true,
             'status' => $verdict->status->value,
-            'statusLabel' => $verdict->status->labelDe(),
+            'statusLabel' => $verdict->displayLabelDe(),
+            // Every Auflage a Hinweis (#23, D-104): the frozen answer's own Auflagen decide, as frozen.
+            'notesOnly' => $verdict->notesOnly(),
             'vehicle' => $verdict->vehicleLabel,
             'wheel' => $verdict->wheelLabel,
             'document' => $document === null ? null : trim($kind.' '.($document->number ?? '')),

@@ -33,6 +33,8 @@ interface Snapshot {
     statusCode: string
     status?: string
     statusLabel?: string
+    /** Every Auflage of the frozen answer a Hinweis (#23, D-104): no warn tag. */
+    notesOnly?: boolean
     vehicle?: string | null
     wheel?: string | null
     document?: string | null
@@ -365,7 +367,7 @@ function tagClass(state: OrderState): string | null {
                     <div v-if="line.snapshot" class="bs-proof">
                         <p class="bs-proof__title">
                             Prüfnachweis vom {{ line.snapshot.computedAt ?? '–' }}
-                            <span v-if="line.snapshot.readable && line.snapshot.status && TONE[line.snapshot.status]" :class="TONE[line.snapshot.status]">{{ line.snapshot.statusLabel }}</span>
+                            <span v-if="line.snapshot.readable && line.snapshot.status && !line.snapshot.notesOnly && TONE[line.snapshot.status]" :class="TONE[line.snapshot.status]">{{ line.snapshot.statusLabel }}</span>
                             <span v-else-if="line.snapshot.readable" class="bs-proof__ok">{{ line.snapshot.statusLabel }}</span>
                         </p>
                         <template v-if="line.snapshot.readable">

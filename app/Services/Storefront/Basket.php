@@ -903,7 +903,9 @@ final readonly class Basket
 
         return [
             'status' => $verdict->status->value,
-            'label' => $verdict->status->labelDe(),
+            'label' => $verdict->displayLabelDe(),
+            // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
+            'notesOnly' => $verdict->notesOnly(),
             'sellable' => $verdict->isSellable(),
             'requiresEntry' => $verdict->requiresEntry,
             'papersExempt' => $verdict->papersExempt(),
@@ -939,6 +941,8 @@ final readonly class Basket
         $sentence = match ($verdict->status) {
             VerdictStatus::Permitted => 'Für dein Fahrzeug freigegeben.',
             VerdictStatus::Conditional => match (true) {
+                // Every Auflage a Hinweis (D-104): nothing to do, so not „mit Auflagen“.
+                $verdict->notesOnly() => 'Für dein Fahrzeug freigegeben, mit Hinweisen aus dem Gutachten.',
                 $bySize => 'Für dein Fahrzeug freigegeben, mit Auflagen je nach Reifengröße.',
                 $count === 0 => 'Für dein Fahrzeug freigegeben, mit Auflagen.',
                 default => sprintf('Für dein Fahrzeug freigegeben, mit %d %s.', $count, $count === 1 ? 'Auflage' : 'Auflagen'),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Domain\Fitment\Verdict\ConditionLevel;
 use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
@@ -131,6 +132,7 @@ final class AuditDescriber
         'approval.condition_added' => 'gutachten',
         'approval.condition_changed' => 'gutachten',
         'approval.condition_removed' => 'gutachten',
+        'approval.condition_level_set' => 'gutachten',
         'conflict.decided' => 'gutachten',
         'approval.fastener_added' => 'gutachten',
         'approval.fastener_removed' => 'gutachten',
@@ -410,6 +412,15 @@ final class AuditDescriber
             'approval.condition_added' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' angelegt.', []],
             'approval.condition_changed' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' geändert.', []],
             'approval.condition_removed' => ['Aus dem Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' entfernt.', []],
+            'approval.condition_level_set' => [
+                'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' erscheint der Code '.self::q(self::text($p, 'code') ?? '–').' im Shop jetzt als '
+                    .self::q(ConditionLevel::tryFrom((string) self::text($p, 'level'))?->labelDe() ?? self::NOT_RECORDED).'.',
+                [self::change(
+                    'Im Shop',
+                    ConditionLevel::tryFrom((string) self::text($p, 'old'))?->labelDe() ?? self::NOT_RECORDED,
+                    ConditionLevel::tryFrom((string) self::text($p, 'level'))?->labelDe() ?? self::NOT_RECORDED,
+                )],
+            ],
             'approval.fastener_added' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Befestigungsmittel '.self::q(self::text($p, 'what') ?? '–').' eingetragen.', []],
             'approval.fastener_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde das Befestigungsmittel '.self::q(self::text($p, 'what') ?? '–').' entfernt.', []],
             'approval.notice_added' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Pflichthinweis '.self::q(self::text($p, 'what') ?? '–').' eingetragen.', []],

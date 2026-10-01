@@ -298,6 +298,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/auflagen', [GutachtenAuflagenController::class, 'store'])->whereNumber('document')->name('gutachten.auflagen.store');
         Route::post('/gutachten/{document}/auflagen/stapel', [GutachtenAuflagenController::class, 'batch'])->whereNumber('document')->name('gutachten.auflagen.stapel');
         Route::put('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'update'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.update');
+        // #23, D-104: how loud one Auflage is in the shop — on a released document too (ApprovalDocumentPolicy::setLevels).
+        Route::put('/gutachten/{document}/auflagen/{condition}/stufe', [GutachtenAuflagenController::class, 'level'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.stufe');
         Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
         // A load-index limit that differs from the table, confirmed as printed with a reason.
         Route::post('/gutachten/{document}/auflagen/{condition}/grenze', [GutachtenAuflagenController::class, 'confirmLimit'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.grenze');

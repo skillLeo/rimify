@@ -378,6 +378,8 @@ export interface FitmentDetailView {
 export interface ConfigVerdict {
     status: VerdictStatus
     label: string
+    /** Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. Additive. */
+    notesOnly?: boolean
     sellable: boolean
     requiresEntry: boolean
     /** The document frees the papers from correction (§ 15 FZV): its own line (resources/js/fitment/papers.ts). Additive. */
@@ -553,6 +555,8 @@ export interface VergleichProps {
 export interface CheckResultView {
     status: VerdictStatus
     statusLabel: string
+    /** Every Auflage a Hinweis (#23, D-104). Additive. */
+    notesOnly?: boolean
     vehicle: string | null
     wheel: string | null
     /** The wheel half, where the verdict has one. */
@@ -624,6 +628,8 @@ export interface BestellungProps {
         verdict: {
             status: VerdictStatus
             requiresEntry: boolean
+            /** Every Auflage of the frozen answer a Hinweis (#23, D-104). Additive. */
+            notesOnly?: boolean
             /** § 15 FZV as frozen at the purchase. Additive: an older order has none, and claims none. */
             papersExempt?: boolean
             documentRevision: number

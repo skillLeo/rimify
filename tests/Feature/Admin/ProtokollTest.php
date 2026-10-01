@@ -505,6 +505,11 @@ describe('putting every entry into words', function (): void {
             'approval.condition_added' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ angelegt.', []],
             'approval.condition_changed' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ geändert.', []],
             'approval.condition_removed' => [['document' => 'ABE 53810', 'code' => 'A01'], 'Aus dem Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ entfernt.', []],
+            'approval.condition_level_set' => [
+                ['document' => 'ABE 55255', 'code' => 'S03', 'old' => 'auflage', 'level' => 'hinweis'],
+                'In „ABE 55255“ erscheint der Code „S03“ im Shop jetzt als „Hinweis – nichts zu tun“.',
+                ['Im Shop: Auflage – etwas ist zu tun oder eingeschränkt → Hinweis – nichts zu tun'],
+            ],
             'approval.fastener_added' => [['document' => 'ABE 55255', 'what' => 'S01 · M14x1,25 · Kegelbund 60°'], 'Zu „ABE 55255“ wurde das Befestigungsmittel „S01 · M14x1,25 · Kegelbund 60°“ eingetragen.', []],
             'approval.fastener_removed' => [['document' => 'ABE 55255', 'what' => 'S01 · M14x1,25 · Kegelbund 60°'], 'Aus „ABE 55255“ wurde das Befestigungsmittel „S01 · M14x1,25 · Kegelbund 60°“ entfernt.', []],
             'approval.notice_added' => [['document' => 'ABE 55255', 'what' => 'Radschrauben nach 50 km nachziehen.'], 'Zu „ABE 55255“ wurde der Pflichthinweis „Radschrauben nach 50 km nachziehen.“ eingetragen.', []],

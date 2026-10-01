@@ -34,6 +34,15 @@ final class ApprovalDocumentPolicy
         return $document->status === DocumentStatus::Draft && $user->may(PermissionModule::Approvals, PermissionAction::Edit);
     }
 
+    /**
+     * How loud each Auflage is in the shop (#23, D-104) — on a released document too: a level changes the words and
+     * the colour, never what the document says or the verdict. Who may edit Gutachten.
+     */
+    public function setLevels(AdminUser $user, ApprovalDocument $document): bool
+    {
+        return $user->may(PermissionModule::Approvals, PermissionAction::Edit);
+    }
+
     public function publish(AdminUser $user, ApprovalDocument $document): bool
     {
         return $document->status === DocumentStatus::Draft && $user->may(PermissionModule::Approvals, PermissionAction::Publish);

@@ -43,6 +43,11 @@ final readonly class Condition
          * The tyre half of the verdict sets it beside the car's figures (R-03).
          */
         public ?int $maxAxleLoadKg = null,
+        /**
+         * How loud it is (#23, D-104): set per Auflage of its document. Null in a snapshot frozen before levels, and
+         * for our own sentences — `level()` then gives the default, never below the kind's floor.
+         */
+        public ?ConditionLevel $level = null,
     ) {
         if (trim($textDe) === '') {
             throw new InvalidArgumentException(
@@ -56,7 +61,7 @@ final readonly class Condition
      * An Auflage of its document, as the customer reads it: the kind decides severity and flags, so
      * nothing about what it asks of the customer is typed twice.
      */
-    public static function ofKind(string $code, ConditionKind $kind, string $textDe, ?string $noteDe = null, ?int $sourcePage = null, ?int $maxAxleLoadKg = null): self
+    public static function ofKind(string $code, ConditionKind $kind, string $textDe, ?string $noteDe = null, ?int $sourcePage = null, ?int $maxAxleLoadKg = null, ?ConditionLevel $level = null): self
     {
         return new self(
             code: $code,
@@ -69,7 +74,14 @@ final readonly class Condition
             kind: $kind,
             sourcePage: $sourcePage,
             maxAxleLoadKg: $kind === ConditionKind::ReifenTragfaehigkeit ? $maxAxleLoadKg : null,
+            level: $level?->atLeastFloorOf($kind),
         );
+    }
+
+    /** How loud it is: as chosen for its document, else the default — never below its kind's floor (D-104). */
+    public function level(): ConditionLevel
+    {
+        return ($this->level ?? ConditionLevel::defaultFor($this->code, $this->kind, $this->textDe))->atLeastFloorOf($this->kind);
     }
 
     /** Whether this Auflage makes the Eintragung necessary: an Abnahme, or the old catalogue's entry key. */
@@ -106,7 +118,7 @@ final readonly class Condition
      * @return array{
      *     code: string, severity: string, textDe: string, textEn: string|null,
      *     affectsTyreChoice: bool, affectsPurchase: bool, requiresAcknowledgement: bool,
-     *     kind: string|null, sourcePage: int|null, maxAxleLoadKg: int|null
+     *     kind: string|null, sourcePage: int|null, maxAxleLoadKg: int|null, level: string
      * }
      */
     public function toArray(): array
@@ -123,6 +135,8 @@ final readonly class Condition
             'kind' => $this->kind?->value,
             'sourcePage' => $this->sourcePage,
             'maxAxleLoadKg' => $this->maxAxleLoadKg,
+            // Additive (D-104): how loud it was when frozen; a snapshot written before levels reads the default.
+            'level' => $this->level()->value,
         ];
     }
 
@@ -130,7 +144,7 @@ final readonly class Condition
      * @param array{
      *     code: string, severity: string, textDe: string, textEn?: string|null,
      *     affectsTyreChoice?: bool, affectsPurchase?: bool, requiresAcknowledgement?: bool,
-     *     kind?: string|null, sourcePage?: int|null, maxAxleLoadKg?: int|null
+     *     kind?: string|null, sourcePage?: int|null, maxAxleLoadKg?: int|null, level?: string|null
      * } $data
      */
     public static function fromArray(array $data): self
@@ -147,6 +161,7 @@ final readonly class Condition
             kind: isset($data['kind']) ? ConditionKind::tryFrom((string) $data['kind']) : null,
             sourcePage: isset($data['sourcePage']) ? (int) $data['sourcePage'] : null,
             maxAxleLoadKg: isset($data['maxAxleLoadKg']) ? (int) $data['maxAxleLoadKg'] : null,
+            level: isset($data['level']) ? ConditionLevel::tryFrom((string) $data['level']) : null,
         );
     }
 
