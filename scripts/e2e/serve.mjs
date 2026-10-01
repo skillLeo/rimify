@@ -8,10 +8,15 @@
  * suites the same shape: N backends, every request to the least busy one.
  *
  *   node scripts/e2e/serve.mjs --port 8000 --workers 4
- *   DB_DATABASE=rimify_wf_e2e node scripts/e2e/serve.mjs --port 8010 --workers 4
+ *   node scripts/e2e/serve.mjs --port 8010 --workers 4
  *
  * The backends listen on port + 100 + i (8100… for 8000, 8110… for 8010). The environment passes through,
  * so a suite's own database reaches every backend. Stopping this process stops them.
+ *
+ * The shop's port (8010) always serves the shop's database, `rimify_wf_e2e` on the MariaDB the suite reseeds
+ * (e2e/shop.ts SHOP_DB, :3308), unless the environment names another. Started by hand with the database's name alone,
+ * it once took the port from `.env` — the development MySQL, holding a stale copy of the shop — and every storefront
+ * spec of a run read that copy (01.10.2026: PAY-01 failed on a column the stale copy lacked).
  */
 
 import { spawn } from 'node:child_process'
@@ -27,13 +32,20 @@ const option = (name, fallback) => {
 
 const port = Number(option('port', '8000'))
 const count = Math.max(1, Number(option('workers', '4')))
+
+/** The shop's database, as e2e/shop.ts names it: the e2e shop is never served from another. */
+const SHOP_PORT = 8010
+const env =
+    port === SHOP_PORT
+        ? { ...process.env, DB_DATABASE: process.env.DB_DATABASE ?? 'rimify_wf_e2e', DB_PORT: process.env.DB_PORT ?? process.env.E2E_SHOP_DB_PORT ?? '3308' }
+        : process.env
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const router = path.join(root, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')
 const php = process.env.PHP_BINARY ?? 'php'
 
 const backends = Array.from({ length: count }, (_, i) => {
     const backendPort = port + 100 + i
-    const child = spawn(php, ['-S', `127.0.0.1:${backendPort}`, router], { cwd: path.join(root, 'public'), env: process.env, stdio: 'ignore', windowsHide: true })
+    const child = spawn(php, ['-S', `127.0.0.1:${backendPort}`, router], { cwd: path.join(root, 'public'), env, stdio: 'ignore', windowsHide: true })
 
     return { port: backendPort, child, busy: 0 }
 })
