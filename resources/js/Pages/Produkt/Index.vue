@@ -30,6 +30,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import AmountStepper from '../../Components/Product/AmountStepper.vue'
 import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
@@ -136,6 +137,40 @@ const basket = useForm({
 })
 
 /*
+ * How many rims (#17): four preselected — a car takes four — and the price beside it is the server's figure for that
+ * amount (`amounts`, LinePrice, D-102): the page picks a number, it never multiplies one. The button adds exactly the
+ * amount on screen; before, it added four under one rim's price without a word (the client's #14).
+ */
+const amount = ref(4)
+
+const maxAmount = computed(() => {
+    const offered = selected.value?.amounts?.map((a) => a.quantity) ?? []
+    const top = offered.length > 0 ? Math.max(...offered) : 1
+
+    return Math.max(1, Math.min(top, selected.value?.stockQty ?? top))
+})
+
+// A size with fewer on the shelf than the amount chosen brings the amount down to what there is.
+watch(maxAmount, (max) => {
+    amount.value = Math.min(Math.max(1, amount.value), max)
+}, { immediate: true })
+
+const amountPrice = computed(() => selected.value?.amounts?.find((a) => a.quantity === amount.value) ?? null)
+
+/* `für 4 Felgen, je 229,00 €` — the unit price stays in sight, so the total never reads as one rim's. */
+const amountNote = computed(() => {
+    const current = selected.value
+
+    if (current === null || amountPrice.value === null) {
+        return `pro Felge, ${terms.value.note}`
+    }
+
+    return amount.value === 1
+        ? `für 1 Felge, ${terms.value.note}`
+        : `für ${amount.value} Felgen, je ${current.price}, ${terms.value.note}`
+})
+
+/*
  * The stock tag. Demo stock is example data, so it never reads as "Auf Lager" — and never in the
  * colour that means a positive answer.
  */
@@ -215,6 +250,7 @@ function addToBasket(): void {
     }
 
     basket.wheelConfigId = selected.value.id
+    basket.quantity = amount.value
     basket.post('/warenkorb', { preserveScroll: true })
 }
 
@@ -402,10 +438,22 @@ onBeforeUnmount(() => observer?.disconnect())
                     </FitmentPanel>
 
                     <div class="pdp__price">
-                        <!-- One rim, as the basket charges it; the set of four stands beside it. -->
-                        <p class="price price--lg" translate="no">{{ selected?.price ?? config.fromPrice.value }}</p>
-                        <p class="price-note">pro Felge, {{ terms.note }}</p>
-                        <p v-if="selected?.priceForFour" class="price-note pdp__four">4 Felgen: <span class="num" translate="no">{{ selected.priceForFour }}</span></p>
+                        <!-- The price of the amount chosen beside it, as the basket will charge it, and one rim's in the line under it. -->
+                        <div class="pdp__price-row">
+                            <div>
+                                <p class="price price--lg pdp__total" translate="no">{{ amountPrice?.text ?? selected?.price ?? config.fromPrice.value }}</p>
+                                <p class="price-note pdp__each">{{ amountNote }}</p>
+                            </div>
+                            <AmountStepper
+                                v-if="selected && amountPrice"
+                                v-model="amount"
+                                class="pdp__amount"
+                                label="Anzahl"
+                                :min="1"
+                                :max="maxAmount"
+                                :disabled="!canBuy"
+                            />
+                        </div>
                         <!-- Einstellungen › Verkäufer & Versand: only what is given, never a placeholder (Shipping::summary). -->
                         <p v-if="shipping" class="price-note pdp__shipping">{{ shipping }}</p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
@@ -562,8 +610,8 @@ onBeforeUnmount(() => observer?.disconnect())
     <!-- The phone's sticky bar: price and the one action, once the main button is off screen. -->
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div class="pdp__sticky-price">
-            <p class="price" translate="no">{{ selected.price }}</p>
-            <p class="price-note">pro Felge, {{ terms.note }}</p>
+            <p class="price" translate="no">{{ amountPrice?.text ?? selected.price }}</p>
+            <p class="price-note">{{ amountPrice ? (amount === 1 ? 'für 1 Felge' : `für ${amount} Felgen`) : 'pro Felge' }}</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"
@@ -807,6 +855,19 @@ onBeforeUnmount(() => observer?.disconnect())
 
 .pdp__price {
     margin-top: var(--space-5);
+}
+
+/* The price and how many, side by side; the stepper drops under the price when the column is narrow. */
+.pdp__price-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-5);
+}
+
+.pdp__amount {
+    flex: none;
 }
 
 .pdp__stock {

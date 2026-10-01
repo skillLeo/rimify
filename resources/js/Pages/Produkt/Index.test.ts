@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, reactive } from 'vue'
 import { NNBSP } from '../../format'
 import type { ImageManifest } from '../../Components/Ui/Picture.vue'
-import type { ConfigVerdict, KomplettradOfferProp, ProduktConfig, ProduktProps } from '../../types/pages'
+import type { AmountPrice, ConfigVerdict, KomplettradOfferProp, ProduktConfig, ProduktProps } from '../../types/pages'
 
 /*
  * The product page's own states (ACCURACY.md D4, finding #48/#59): a demo model shows
@@ -81,6 +81,18 @@ function config(overrides: Partial<RatedConfig> = {}): RatedConfig {
         ...overrides,
     }
 }
+
+/** What the server ships for one rim at 229,00 € (LinePrice, D-102): the page only picks one of them. */
+const AMOUNTS: AmountPrice[] = [
+    { quantity: 1, cents: 22_900, text: `229,00${NNBSP}€` },
+    { quantity: 2, cents: 45_800, text: `458,00${NNBSP}€` },
+    { quantity: 3, cents: 68_700, text: `687,00${NNBSP}€` },
+    { quantity: 4, cents: 91_600, text: `916,00${NNBSP}€` },
+    { quantity: 5, cents: 114_500, text: `1.145,00${NNBSP}€` },
+    { quantity: 6, cents: 137_400, text: `1.374,00${NNBSP}€` },
+    { quantity: 7, cents: 160_300, text: `1.603,00${NNBSP}€` },
+    { quantity: 8, cents: 183_200, text: `1.832,00${NNBSP}€` },
+]
 
 /** A permitted verdict, as the server ships it; `centreBore` is what the document states for the car. */
 function verdict(overrides: Partial<ConfigVerdict> = {}): ConfigVerdict {
@@ -249,6 +261,45 @@ describe('Produkt page', () => {
 
         expect(post).toHaveBeenCalledTimes(1)
         expect(post.mock.calls[0]?.[0]).toBe('/warenkorb')
+    })
+
+    it('preselects four, prices the four beside the stepper, and adds exactly the amount on screen (#17, #14)', async () => {
+        const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, stockQty: 5, amounts: AMOUNTS })] })
+        const less = wrapper.find('button[aria-label="Anzahl verringern"]')
+        const more = wrapper.find('button[aria-label="Anzahl erhöhen"]')
+
+        expect(wrapper.find('.amt output').text()).toBe('4')
+        expect(wrapper.find('.pdp__total').text()).toBe(`916,00${NNBSP}€`)
+        expect(wrapper.find('.pdp__each').text()).toBe(`für 4 Felgen, je 229,00${NNBSP}€, inkl. MwSt., zzgl. Versand`)
+
+        for (let i = 0; i < 3; i++) {
+            await less.trigger('click')
+        }
+
+        expect(wrapper.find('.pdp__total').text()).toBe(`229,00${NNBSP}€`)
+        expect(wrapper.find('.pdp__each').text()).toBe('für 1 Felge, inkl. MwSt., zzgl. Versand')
+        expect(less.attributes('disabled')).toBeDefined()
+
+        await wrapper.find('button.pdp__add').trigger('click')
+
+        expect(post).toHaveBeenCalledTimes(1)
+        expect(forms.find((f) => f.kind === 'WHEEL')?.quantity).toBe(1)
+
+        // Up to what is on the shelf, and no further.
+        for (let i = 0; i < 6; i++) {
+            await more.trigger('click')
+        }
+
+        expect(wrapper.find('.amt output').text()).toBe('5')
+        expect(wrapper.find('.pdp__total').text()).toBe(`1.145,00${NNBSP}€`)
+        expect(more.attributes('disabled')).toBeDefined()
+    })
+
+    it('brings the amount down to what is on the shelf', () => {
+        const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, stockQty: 2, amounts: AMOUNTS })] })
+
+        expect(wrapper.find('.amt output').text()).toBe('2')
+        expect(wrapper.find('.pdp__total').text()).toBe(`458,00${NNBSP}€`)
     })
 
     it('never shows demo stock as sold-out stock in the positive colour', () => {
