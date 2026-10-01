@@ -27,8 +27,11 @@ export interface CalloutPlacement {
     side: 'left' | 'right'
     /** The box's vertical centre, in percent of the frame's height. */
     y: number
-    /** Where the leader bends to run level into the box, in percent of the frame's width; straight without. */
-    elbow?: number
+    /**
+     * Where the leader bends to run level into the box, in percent of the frame's width; straight without. `'target'`
+     * bends right above or below the point it ends on, so the leg that rises to it is truly vertical.
+     */
+    elbow?: number | 'target'
     /** For a leader ending on a circle (the Lochkreis, the cap): where on it, in degrees clockwise from three o'clock. */
     angle?: number
 }
@@ -47,7 +50,27 @@ export interface HeroLayout {
     callouts: readonly CalloutPlacement[]
     /** How far the wheel rolls in, in widths of the picture; ROLL_DISTANCE without. */
     rollDistance?: number
+    /**
+     * The boxes stand exactly where they are placed: the stamp-side mirroring below is for one wheel, whose right side
+     * is free. With a second wheel on the right, every box stays on the left.
+     */
+    fixedSides?: boolean
 }
+
+/**
+ * The second wheel (PROTECTED.md P1, the operator's decision of 01.10.2026): the same wheel in its other finish,
+ * behind the leading one to its right, a little smaller and on the same axle line — the photographs were taken at axle
+ * height, so equal axles read as the same wheel further back, where equal floors read as a smaller wheel — rolling in a
+ * beat after it. Its picture's side is `scale` of the leading one's; its left edge stands `offset` leading-picture widths right of
+ * the leading picture's left edge.
+ */
+export interface CompanionPlacement {
+    scale: number
+    offset: number
+}
+
+/** The beat between the two wheels' roll-ins, in milliseconds. */
+export const COMPANION_STAGGER_MS = 160
 
 /**
  * The desktop stage, 3 : 2, the picture its full height and centred. The Lochkreis top right, the
@@ -81,6 +104,43 @@ export const PHONE_LAYOUT: HeroLayout = {
         { key: 'kba', side: 'right', y: 89 },
     ],
 }
+
+/**
+ * The desktop stage with the second wheel: the pair centred in the frame — the leading wheel moved left, the second
+ * behind it to the right with its cap, bolt circle and print clear of the leading rim (about two thirds of it shown).
+ * The callouts stay on the leading wheel only (the operator: doubling them is noise), placed so they never form a
+ * column of cards: the Lochkreis on the content edge at the top right, clear of the second wheel; the cap at the top
+ * left, its one straight leg through the gap between the spokes at ten o'clock; the stamp below, its leg vertical.
+ */
+export const DESKTOP_PAIR_LAYOUT: HeroLayout = {
+    ...DESKTOP_LAYOUT,
+    picture: { size: 1, left: 0.07, top: 0 },
+    inset: 6,
+    fixedSides: true,
+    callouts: [
+        { key: 'boltCircle', side: 'right', y: 9, elbow: 66, angle: -87 },
+        { key: 'centreBore', side: 'left', y: 12, angle: 212 },
+        { key: 'kba', side: 'left', y: 87, elbow: 'target' },
+    ],
+}
+
+export const DESKTOP_COMPANION: CompanionPlacement = { scale: 0.8, offset: 0.61 }
+
+/**
+ * The phone frame with the second wheel: the leading wheel a little smaller and right of centre, the second's cap and
+ * bolt circle behind it, its print cut by the leading rim; both boxes on the left, clear of the rim.
+ */
+export const PHONE_PAIR_LAYOUT: HeroLayout = {
+    ...PHONE_LAYOUT,
+    picture: { size: 0.84, left: 0.14, top: 0.03 },
+    fixedSides: true,
+    callouts: [
+        { key: 'boltCircle', side: 'left', y: 12, elbow: 28, angle: -93 },
+        { key: 'kba', side: 'left', y: 89 },
+    ],
+}
+
+export const PHONE_COMPANION: CompanionPlacement = { scale: 0.78, offset: 0.36 }
 
 /*
  * The picture's `sizes` on each document — how wide the square picture is at each viewport width.
@@ -183,11 +243,11 @@ export function heroScene(product: HeroProduct | null, layout: HeroLayout): Hero
     // change sides, mirrored, so no leader runs across the whole wheel.
     const stampLeft = anchors?.kba !== undefined && anchors.kba.x < anchors.centre.x - 0.1
     const placed = (place: CalloutPlacement): CalloutPlacement =>
-        stampLeft && (place.key === 'kba' || place.key === 'centreBore')
+        stampLeft && layout.fixedSides !== true && (place.key === 'kba' || place.key === 'centreBore')
             ? {
                   ...place,
                   side: place.side === 'left' ? 'right' : 'left',
-                  elbow: place.elbow === undefined ? undefined : 100 - place.elbow,
+                  elbow: place.elbow === undefined || place.elbow === 'target' ? place.elbow : 100 - place.elbow,
                   angle: place.angle === undefined ? undefined : 180 - place.angle,
               }
             : place
@@ -197,7 +257,9 @@ export function heroScene(product: HeroProduct | null, layout: HeroLayout): Hero
 
         for (const place of layout.callouts.map(placed)) {
             const inset = place.side === 'left' ? (layout.insetLeft ?? layout.inset) : layout.inset
-            const base = { key: place.key, side: place.side, x: inset, y: place.y, elbow: place.elbow }
+            const base = { key: place.key, side: place.side, x: inset, y: place.y, elbow: typeof place.elbow === 'number' ? place.elbow : undefined }
+            // 'target': the leg that rises to the point is vertical — the bend stands right under or above it.
+            const bend = (tx: number): { elbow?: number } => (place.elbow === 'target' ? { elbow: tx } : {})
 
             if (place.key === 'boltCircle' && anchors.pcd !== undefined) {
                 const end = toFrame(layout, onCircle(anchors.pcd, place.angle ?? 0))
@@ -205,14 +267,14 @@ export function heroScene(product: HeroProduct | null, layout: HeroLayout): Hero
                 // The radius runs through the bolt-hole centres; the picture is square, so it is one length.
                 const ring = { cx: centre.x, cy: centre.y, r: round(anchors.pcd.r * layout.picture.size * 100) }
 
-                callouts.push({ ...base, label: 'Lochkreis', value: facts.boltPattern, tx: end.x, ty: end.y, ring })
+                callouts.push({ ...base, ...bend(end.x), label: 'Lochkreis', value: facts.boltPattern, tx: end.x, ty: end.y, ring })
             }
 
             if (place.key === 'centreBore' && anchors.bore !== undefined) {
                 // The bore itself is hidden behind the cap: the leader ends on the cap's edge, and the box says so.
                 const end = toFrame(layout, onCircle(anchors.bore, place.angle ?? 0))
 
-                callouts.push({ ...base, label: 'Mittenlochbohrung', value: facts.centreBore, note: 'hinter der Nabenkappe', tx: end.x, ty: end.y })
+                callouts.push({ ...base, ...bend(end.x), label: 'Mittenlochbohrung', value: facts.centreBore, note: 'hinter der Nabenkappe', tx: end.x, ty: end.y })
             }
 
             // The stamp's edge that faces the box; only when the photographed stamp is this configuration's number.
@@ -220,12 +282,73 @@ export function heroScene(product: HeroProduct | null, layout: HeroLayout): Hero
                 const edge = place.side === 'right' ? anchors.kba.x + anchors.kba.w / 2 : anchors.kba.x - anchors.kba.w / 2
                 const end = toFrame(layout, { x: edge, y: anchors.kba.y })
 
-                callouts.push({ ...base, label: 'KBA-Nummer', value: kbaValue(facts.kba), tx: end.x, ty: end.y })
+                callouts.push({ ...base, ...bend(end.x), label: 'KBA-Nummer', value: kbaValue(facts.kba), tx: end.x, ty: end.y })
             }
         }
     }
 
     return { picture, anchors, shadow, roll, callouts }
+}
+
+export interface CompanionScene {
+    picture: ImageManifest
+    /** The second wheel's box in the frame: left and top in percent of the frame's width and height, its side in percent of the frame's width. */
+    box: { left: number; top: number; size: number }
+    shadow: { x: number; y: number; w: number } | null
+    roll: { distance: number; angle: number; originX: number; originY: number } | null
+}
+
+/**
+ * Where the second wheel stands and how it rolls in. Both axles (the `centre` anchors) on one line, so the smaller wheel
+ * reads as further back; each stands on its own contact shadow. Fails closed — no leading roll, no companion picture or
+ * no wheel anchor on either: no second wheel.
+ */
+export function companionScene(
+    product: HeroProduct | null,
+    lead: HeroScene,
+    layout: HeroLayout,
+    placement: CompanionPlacement,
+): CompanionScene | null {
+    const manifest = product?.companion?.imageManifest ?? null
+    const bare = manifest?.bare ?? null
+    const anchors = bare === null ? null : (bare.anchors ?? manifest?.anchors ?? null)
+    const wheel = anchors?.wheel ?? null
+    const leadCentre = lead.anchors?.centre ?? null
+
+    if (bare === null || anchors === null || wheel === null || leadCentre === null || lead.roll === null) {
+        return null
+    }
+
+    const { size, left, top } = layout.picture
+    // The axle line: the leading wheel's centre, in fractions of the frame's height.
+    const axle = top + leadCentre.y * size
+    const side = size * placement.scale
+    const boxTop = axle - anchors.centre.y * side
+    const boxLeft = left + (placement.offset * size) / layout.ratio
+    const rollDistance = layout.rollDistance ?? ROLL_DISTANCE
+
+    return {
+        picture: bare,
+        box: { left: round(boxLeft * 100), top: round(boxTop * 100), size: round((side / layout.ratio) * 100) },
+        shadow: { x: round(wheel.x * 100), y: round((wheel.y + wheel.r) * 100), w: round(wheel.r * 2 * 78) },
+        roll: {
+            distance: round(rollDistance * 100),
+            angle: round(((rollDistance / wheel.r) * 180) / Math.PI),
+            originX: round(anchors.centre.x * 100),
+            originY: round(anchors.centre.y * 100),
+        },
+    }
+}
+
+/** The second wheel's box, roll and shadow as custom properties, read by the same rules as the leading wheel's. */
+export function companionStyle(scene: CompanionScene): Record<string, string> {
+    return {
+        '--pair-left': `${scene.box.left}%`,
+        '--pair-top': `${scene.box.top}%`,
+        '--pair-size': `${scene.box.size}%`,
+        '--pair-delay': `${COMPANION_STAGGER_MS}ms`,
+        ...rollStyle({ picture: scene.picture, anchors: null, shadow: scene.shadow, roll: scene.roll, callouts: [] }),
+    }
 }
 
 /**

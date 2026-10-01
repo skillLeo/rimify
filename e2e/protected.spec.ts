@@ -45,12 +45,21 @@ test.describe('protected elements', () => {
         await home(page);
 
         const stage = page.locator(phone ? '.hero-mobile' : '#h2 .hero__stage');
-        await expectPhotograph(stage.locator('img').first(), 'P1 hero wheel');
+        const lead = stage.locator(phone ? '.hero-frame__roll' : '.hero__roll');
+        const second = stage.locator(phone ? '.hero-frame__pair' : '.hero__pair');
+        await expectPhotograph(lead.locator('img'), 'P1 leading wheel');
+        // Two wheels, matte black leading and matte bronze behind it (the operator's decision of 01.10.2026).
+        await expect(stage.locator('img'), 'P1: the hero no longer carries two wheels').toHaveCount(2);
+        await expectPhotograph(second.locator('img'), 'P1 second wheel');
+        await expect(stage.locator(phone ? '.hero-frame__pair--rolling' : '.hero__pair--rolling'), 'P1: the second wheel no longer rolls in').toHaveCount(1);
+        await expect(second.locator('[data-callout]'), 'P1: a callout points at the second wheel — they belong to the leading one only').toHaveCount(0);
 
         await expect(stage.getByText('Symbolbild'), 'P1: the hero says "Symbolbild" — a drawing stands where the photograph belongs').toHaveCount(0);
         await expect(stage.locator(phone ? '.hero-frame__roll--rolling' : '.hero__roll--rolling'), 'P1: the wheel no longer rolls in').toHaveCount(1);
         await expect(stage.locator('.hero-studio'), 'P2: the studio light is gone').toHaveCount(1);
-        await expect(stage.locator('.hero-contact'), 'P2: the contact shadow is gone').toHaveCount(1);
+        // One contact shadow under each wheel, travelling with it.
+        await expect(lead.locator('.hero-contact'), 'P2: the leading wheel\'s contact shadow is gone').toHaveCount(1);
+        await expect(second.locator('.hero-contact'), 'P2: the second wheel\'s contact shadow is gone').toHaveCount(1);
         await expect(stage.locator('[data-callout="boltCircle"]'), 'P3: the Lochkreis callout is gone').toHaveCount(1);
         await expect(stage.locator('[data-callout="kba"]'), 'P3: the KBA callout is gone').toHaveCount(1);
 

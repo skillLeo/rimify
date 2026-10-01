@@ -26,7 +26,7 @@ import WheelOutline from '../../Ui/WheelOutline.vue'
 import { priceTerms } from '../../../composables/usePriceTerms'
 import { formatMoney } from '../../../lib/num'
 import type { HeroProduct } from '../../../types/pages'
-import { frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_LAYOUT, rollStyle } from './calloutSlots'
+import { COMPANION_STAGGER_MS, companionScene, companionStyle, frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_COMPANION, PHONE_LAYOUT, PHONE_PAIR_LAYOUT, rollStyle } from './calloutSlots'
 
 const props = defineProps<{ product: HeroProduct }>()
 
@@ -37,11 +37,19 @@ const CAPTION = 'Abbildung zeigt das Design; Werte der gezeigten Ausführung.'
 const SYMBOLIC = 'Symbolbild – Werte einer Beispielkonfiguration'
 const DEMO = 'Demodaten – Beispielsortiment; Preise und Bestände sind Beispielwerte.'
 
-const scene = computed(() => heroScene(props.product, PHONE_LAYOUT))
+/* Two wheels where the product has a second photographed finish (PROTECTED.md P1): both boxes then stand on the left. */
+const layout = computed(() => (props.product.companion?.imageManifest ? PHONE_PAIR_LAYOUT : PHONE_LAYOUT))
+const scene = computed(() => heroScene(props.product, layout.value))
 
 /* The photograph failed to load: the outline, and no leaders — they would point at nothing. */
 const failed = ref(false)
 const photo = computed(() => (failed.value ? null : scene.value.picture))
+/* The second wheel, behind the first; it goes quietly if its own file fails, and never without the first. */
+const pairFailed = ref(false)
+const pair = computed(() => (photo.value === null || pairFailed.value ? null : companionScene(props.product, scene.value, layout.value, PHONE_COMPANION)))
+const pairStyle = computed(() => (pair.value === null ? {} : companionStyle(pair.value)))
+const pairAlt = computed(() => (props.product.companion ? `${props.product.brand} ${props.product.name} in ${props.product.companion.finish}, Ansicht von vorn` : ''))
+const finishes = computed(() => (pair.value !== null && props.product.companion ? `${props.product.finish} und ${props.product.companion.finish}` : props.product.finish))
 const callouts = computed(() => (photo.value === null ? [] : scene.value.callouts))
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
@@ -53,7 +61,11 @@ const href = computed(() => `/felgen/${props.product.slug}`)
 const alt = computed(() => `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`)
 const perWheel = computed(() => formatMoney(props.product.fromPriceCents))
 
-const frameVars = computed(() => ({ ...frameStyle(PHONE_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))
+/* The leaders draw once both wheels stand: after the roll, and after the second wheel's beat when it is there. */
+const frameVars = computed(() => ({
+    ...frameStyle(layout.value),
+    '--callout-delay': scene.value.roll === null ? '0ms' : pair.value === null ? 'var(--d-roll)' : `calc(var(--d-roll) + ${COMPANION_STAGGER_MS}ms)`,
+}))
 const pictureStyle = computed(() => rollStyle(scene.value))
 
 const root = ref<HTMLElement | null>(null)
@@ -78,6 +90,14 @@ onMounted(() => {
             :prefetch="linked ? true : undefined"
         >
             <span class="hero-studio" aria-hidden="true" />
+
+            <!-- The second wheel first, so the leading one paints over it. -->
+            <span v-if="pair" class="hero-frame__pair" :class="{ 'hero-frame__pair--rolling': pair.roll !== null }" :style="pairStyle" @error.capture="pairFailed = true">
+                <span v-if="pair.shadow" class="hero-contact" aria-hidden="true" />
+                <span class="hero-frame__spin">
+                    <Picture :image="pair.picture" :alt="pairAlt" :sizes="HERO_SIZES_PHONE" soon />
+                </span>
+            </span>
 
             <!-- The link's name is the picture's alt: no aria-label, so the visible text is part of the
                  name. `error` does not bubble, but it does pass this wrapper in the capture phase. -->
@@ -111,8 +131,8 @@ onMounted(() => {
                 :ty="c.ty"
                 :elbow="c.elbow"
                 :ring="c.ring"
-                :ratio="PHONE_LAYOUT.ratio"
-                :weight="PHONE_LAYOUT.weight"
+                :ratio="layout.ratio"
+                :weight="layout.weight"
             />
         </component>
 
@@ -122,13 +142,13 @@ onMounted(() => {
         </p>
 
         <Link v-if="linked" :href="href" class="hero-mobile__caption" prefetch>
-            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
+            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
             <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
             <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
             <span class="micro quiet">{{ terms.note }}</span>
         </Link>
         <p v-else-if="named" class="hero-mobile__caption">
-            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
+            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
         </p>
         <p v-if="photo" class="micro quiet hero-mobile__shown">{{ CAPTION }}</p>
         <p v-else class="micro quiet hero-mobile__symbolic">{{ SYMBOLIC }}</p>
@@ -213,6 +233,24 @@ onMounted(() => {
     animation: hero-turn var(--d-roll) var(--ease-roll) both;
 }
 
+/* The second wheel: its own box behind the first, the same keyframes a beat later (PROTECTED.md P1). */
+.hero-frame__pair {
+    position: absolute;
+    top: var(--pair-top);
+    left: var(--pair-left);
+    z-index: var(--z-base);
+    width: var(--pair-size);
+    aspect-ratio: 1;
+}
+
+.hero-frame__pair--rolling {
+    animation: hero-travel var(--d-roll) var(--ease-roll) var(--pair-delay) both;
+}
+
+.hero-frame__pair--rolling .hero-frame__spin {
+    animation: hero-turn var(--d-roll) var(--ease-roll) var(--pair-delay) both;
+}
+
 /* In from just past the frame's right edge (the frame clips), fading in as it enters. */
 @keyframes hero-travel {
     from {
@@ -265,7 +303,9 @@ a.hero-mobile__caption {
 
 @media (prefers-reduced-motion: reduce) {
     .hero-frame__roll--rolling,
-    .hero-frame__roll--rolling .hero-frame__spin {
+    .hero-frame__roll--rolling .hero-frame__spin,
+    .hero-frame__pair--rolling,
+    .hero-frame__pair--rolling .hero-frame__spin {
         animation: none;
     }
 }
