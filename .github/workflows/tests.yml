@@ -86,4 +86,10 @@ jobs:
         run: php -r '$p = new PDO("mysql:host=127.0.0.1;port=3306", "root", "root"); echo $p->query("SELECT VERSION()")->fetchColumn(), PHP_EOL;'
 
       - name: Pest
-        run: php vendor/bin/pest
+        run: php vendor/bin/pest --log-junit junit.xml
+
+      # A red run names its failing tests as annotations, readable on the run page and through the public API
+      # without a login (the raw log needs one).
+      - name: Failures as annotations
+        if: failure()
+        run: php scripts/ci/junit-annotations.php junit.xml

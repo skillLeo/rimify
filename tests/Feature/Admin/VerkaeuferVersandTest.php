@@ -113,7 +113,10 @@ it('shows the .env values until it is saved, then puts its own in force — a cl
     $entry = AuditLog::query()->where('description', 'settings.seller_shipping_updated')->latest('id')->firstOrFail();
 
     expect($entry->properties['changes'])->toHaveKeys(['seller.name', 'shipping.zones'])
-        ->and($entry->properties['changes']['seller.name'])->toBe(['old' => 'Beispiel Räder GmbH', 'new' => null]);
+        // Key by key: MySQL's JSON column returns an object's keys in its own order (`new` before `old`).
+        ->and($entry->properties['changes']['seller.name'])->toHaveCount(2)
+        ->and($entry->properties['changes']['seller.name']['old'])->toBe('Beispiel Räder GmbH')
+        ->and($entry->properties['changes']['seller.name']['new'])->toBeNull();
 });
 
 it('checks every field for its form, and names the fix', function (): void {
