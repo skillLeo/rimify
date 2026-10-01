@@ -15,7 +15,7 @@ use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
 use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
-use App\Support\PreviewGate;
+use App\Support\PreviewRibbon;
 use App\Support\Seller;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -63,9 +63,9 @@ class HandleInertiaRequests extends Middleware
             // The Kleinunternehmer switch (§ 19 UStG, App\Support\Seller): every price note reads it (usePriceTerms), so
             // the site, the order summaries and the invoice change together.
             'smallBusiness' => Seller::current()->smallBusiness,
-            // The preview says what it is in one slim line, until put away (PreviewRibbon.vue): only where the preview
-            // password is on, decided here so the first frame already has it — or has not (R-08).
-            'previewRibbon' => PreviewGate::enabled() && $request->cookie(PreviewGate::RIBBON_COOKIE) !== 'aus',
+            // The test environment says what it is in one slim line, until put away (PreviewRibbon.vue): on staging only,
+            // decided here so the first frame already has it — or has not (R-08).
+            'previewRibbon' => PreviewRibbon::shown($request),
             'flash' => [
                 'toast' => $request->session()->get('toast'),
             ],

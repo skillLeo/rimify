@@ -2,10 +2,9 @@
 
 ## Die Vorschau selbst
 
-Die Vorschau (https://rimify.skillleo.com) fragt vor jeder Seite, dem Admin und den PDFs nach einem gemeinsamen
-Benutzer und Passwort (HTTP-Basic-Auth, `App\Support\PreviewGate`), solange die Rechtstexte fehlen. **Das Passwort
-steht nicht im Repository**: lokal in `docs/review/ACCOUNTS.local.md` (git-ignoriert), auf dem Server in der `.env` der
-Vorschau (`RIMIFY_PREVIEW_USER`, `RIMIFY_PREVIEW_PASSWORD`). Suchmaschinen bleiben draußen (`X-Robots-Tag`, robots.txt).
+Die Vorschau (https://rimify.skillleo.com) ist offen: kein Passwort, keine Eingangsseite. Der Admin hat seine eigene
+Anmeldung – die Konten unten. Suchmaschinen bleiben draußen (`X-Robots-Tag` auf jeder Antwort, robots.txt sperrt alles),
+und das Impressum nennt SkillLeo als Betreiber der Testumgebung (D-088).
 
 ## Die Konten im Admin
 

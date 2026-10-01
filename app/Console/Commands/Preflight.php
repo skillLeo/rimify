@@ -17,7 +17,6 @@ use App\Services\Demo\DemoTables;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
-use App\Support\PreviewGate;
 use App\Support\ScheduleBeat;
 use App\Support\Seller;
 use App\Support\Shipping;
@@ -58,7 +57,7 @@ final class Preflight extends Command
 
         $url = (string) config('app.url');
         $rows[] = ['Adresse', str_starts_with($url, 'https://') ? 'ok' : ($production ? 'fail' : 'warn'), $url];
-        $rows[] = $this->previewGate($production);
+        $rows[] = $this->searchEngines($production);
 
         $rows[] = $this->rendering($production);
         $rows[] = $this->mail($production, $url);
@@ -186,32 +185,29 @@ final class Preflight extends Command
     }
 
     /**
-     * The preview's password (App\Support\PreviewGate): on the preview, in front of every page and of /storage; on the
-     * live shop, nowhere — a customer asked for a password there is a customer lost.
+     * Search engines: the live shop is found, every other copy is not (D-088) — `X-Robots-Tag` on each page, robots.txt
+     * saying „no", and the same header on the files the web server hands out itself (`rimify:storage-headers`). Nothing
+     * asks for a password anywhere; the admin has its own sign-in.
      *
      * @return array{0: string, 1: string, 2: string}
      */
-    private function previewGate(bool $production): array
+    private function searchEngines(bool $production): array
     {
-        $files = is_file(PreviewGateFiles::htaccessPath()) && str_starts_with((string) file_get_contents(PreviewGateFiles::htaccessPath()), PreviewGateFiles::MARKER);
+        $files = StorageHeaders::written();
 
         if ($production) {
-            return PreviewGate::enabled() || $files
-                ? ['Vorschau-Schutz', 'warn', 'Der Live-Shop fragt nach einem Passwort – RIMIFY_PREVIEW_* aus .env nehmen, dann rimify:preview-gate']
-                : ['Vorschau-Schutz', 'ok', 'aus – der Live-Shop ist offen'];
+            return $files
+                ? ['Suchmaschinen', 'warn', 'Die Dateien unter /storage tragen noindex – php artisan rimify:storage-headers']
+                : ['Suchmaschinen', 'ok', 'Der Live-Shop ist auffindbar'];
         }
 
         if (! app()->environment('staging')) {
-            return ['Vorschau-Schutz', 'skip', PreviewGate::enabled() ? 'Passwort gesetzt' : 'kein Passwort (lokal)'];
-        }
-
-        if (! PreviewGate::enabled()) {
-            return ['Vorschau-Schutz', 'warn', 'Die Vorschau ist ohne Passwort erreichbar – RIMIFY_PREVIEW_USER und RIMIFY_PREVIEW_PASSWORD in .env'];
+            return ['Suchmaschinen', 'skip', 'lokal'];
         }
 
         return $files
-            ? ['Vorschau-Schutz', 'ok', 'Passwort vor jeder Seite und vor /storage, noindex']
-            : ['Vorschau-Schutz', 'warn', 'Seiten geschützt, /storage nicht – php artisan rimify:preview-gate'];
+            ? ['Suchmaschinen', 'ok', 'noindex auf jeder Seite und unter /storage, robots.txt sperrt alles']
+            : ['Suchmaschinen', 'warn', 'Seiten noindex, /storage nicht – php artisan rimify:storage-headers'];
     }
 
     /**

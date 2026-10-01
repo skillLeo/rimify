@@ -4,8 +4,7 @@
  *   RIMIFY_ADMIN_EMAIL=… RIMIFY_ADMIN_PASSWORD=… node e2e/tools/gutachten-eingabe.mjs \
  *     --dokument docs/gutachten/abe-55255.json --pdf "C:\…\Borbet DB8GT2_19_ABE_BMW.pdf" [--base http://127.0.0.1:8000]
  *
- * Behind the preview's password (PreviewGate), RIMIFY_PREVIEW_USER and RIMIFY_PREVIEW_PASSWORD are sent with every
- * request. A Nachtrag is linked to its base when the base is entered (ABE 53841 before 366-0350-21-WIRD/N1); a base
+ * A Nachtrag is linked to its base when the base is entered (ABE 53841 before 366-0350-21-WIRD/N1); a base
  * whose Verwendungsbereich stands in its Nachtrag's Anlagen has no rows, and only its facts are entered.
  *
  * It signs in as that admin and does what a person does on the Gutachten screens: the PDF and the first page's
@@ -45,12 +44,9 @@ const number = doc.kba_number ?? doc.report_number
 // The tag fahrzeuge.json files a car under: the document that names it.
 const docTag = doc.kba_number ?? '366'
 const log = (line) => console.log(line)
-const gate = process.env.RIMIFY_PREVIEW_USER && process.env.RIMIFY_PREVIEW_PASSWORD
-    ? { username: process.env.RIMIFY_PREVIEW_USER, password: process.env.RIMIFY_PREVIEW_PASSWORD, send: 'always' }
-    : undefined
 
 const browser = await chromium.launch()
-const context = await browser.newContext({ baseURL: BASE, locale: 'de-DE', httpCredentials: gate })
+const context = await browser.newContext({ baseURL: BASE, locale: 'de-DE' })
 const page = await context.newPage()
 
 /* ── Sign in ─────────────────────────────────────────────────────────────────────────── */

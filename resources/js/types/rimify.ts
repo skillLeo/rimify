@@ -158,7 +158,7 @@ export interface SharedProps {
     photography: boolean
     /** The seller is a Kleinunternehmer (§ 19 UStG): no VAT on any price note or summary (usePriceTerms). */
     smallBusiness: boolean
-    /** The preview's ribbon: shown where the preview password is on, until put away (PreviewRibbon.vue). */
+    /** The test environment's ribbon: on staging only, until put away (PreviewRibbon.vue). */
     previewRibbon?: boolean
     flash: { toast: string | null }
     [key: string]: unknown

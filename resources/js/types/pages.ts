@@ -628,7 +628,7 @@ export interface RechtlichesProps {
     blocks: { id: number; type: string; data: Record<string, unknown> }[]
     /** The Impressum's facts from the seller data (§ 5 DDG), each null while not given; null on every other tab. */
     /** `placeholder`: the values are the admin's placeholders, shown here only, and marked. */
-    provider?: { rows: { label: string; value: string | null }[]; complete: boolean; placeholder?: boolean } | null
+    provider?: { rows: { label: string; value: string | null }[]; complete: boolean; placeholder?: boolean; notice?: string } | null
 }
 
 export interface AdminAnmeldenProps {
