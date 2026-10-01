@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * The header. Above it, on a desktop, a utility line that scrolls away; the header itself is 64px,
- * sticky, and never changes height — once the page has scrolled under it, it gains a hairline and
- * nothing else. On a phone it is 56px: the wordmark, then the search, the vehicle and the menu,
+ * The header. Above it, on a desktop, a utility line that scrolls away; the header itself is 80px
+ * (the client's #2, D-106), sticky, and never changes height — once the page has scrolled under it, it
+ * gains a hairline and nothing else. On a phone it is 56px: the wordmark, then the search, the vehicle and the menu,
  * which carries the destinations a desktop shows in the navigation, and the basket with its count.
  *
  * Two rules it never breaks: the navigation is never removed, and the chosen vehicle is one
@@ -300,6 +300,11 @@ function removeVehicle(): void {
     .sh__bar {
         height: var(--header-h);
         gap: var(--sp-24);
+    }
+
+    /* The wordmark in proportion to the taller bar (#2, D-106). */
+    .brand {
+        font-size: var(--fs-h3);
     }
 }
 </style>

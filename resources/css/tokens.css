@@ -125,7 +125,7 @@
     --gutter: 16px;
     --cols: 4;
     --utility-h: 32px;
-    --header-h: 64px;
+    --header-h: 80px;           /* The client's #2 (D-106): taller on a desktop, where the utility strip is gone. */
     --header-h-m: 56px;
     --vbar-h: 40px;
     --bottomnav-h: 56px;
