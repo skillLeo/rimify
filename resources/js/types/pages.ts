@@ -293,13 +293,26 @@ export interface ProduktProps {
             euResponsible: { name: string; address: string | null; contact: string | null } | null
             safetyNote: string | null
         } | null
+        /** While the wheel has no reviews, what the page can prove instead: its released documents and the cars (D-103). */
+        proof?: { gutachten: number; variants: number }
     }
+    /** The buyers' visible reviews, newest first (D-103). The rating is computed from them alone. */
+    reviews?: ProductReview[]
     /** `image`: the finish's own studio photograph and its other angles, or null — then it is drawn. */
     finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
     configs: ProduktConfig[]
     hasVehicle: boolean
     /** `Lieferzeit 3–5 Werktage · Versand 4,90 €` (Shipping::summary): only what is given; null while nothing is. */
     shipping?: string | null
+}
+
+/** One buyer's review as the product page shows it: no name, a verified purchase by construction (D-103). */
+export interface ProductReview {
+    id: number
+    rating: number
+    body: string | null
+    at: string | null
+    reply: string | null
 }
 
 /** One amount the product page offers and its price, `{quantity: 4, cents: 91600, text: '916,00 €'}`. */

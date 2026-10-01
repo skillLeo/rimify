@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\AuflagenController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\BestellungenController;
+use App\Http\Controllers\Admin\BewertungenController;
 use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\ErstattungController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\VerkaeuferVersandController;
+use App\Http\Controllers\Admin\VersandController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Api\FitmentCountController;
@@ -52,6 +54,7 @@ use App\Http\Controllers\Api\VehicleTreeController;
 use App\Http\Controllers\DesignController;
 use App\Http\Controllers\Storefront\BenachrichtigungController;
 use App\Http\Controllers\Storefront\BestellungController;
+use App\Http\Controllers\Storefront\BewertungController;
 use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugAufbauController;
 use App\Http\Controllers\Storefront\FahrzeugController;
@@ -164,6 +167,9 @@ Route::middleware('auth:customer')->group(function (): void {
 });
 // An invoice's PDF from the private disk, by its signed link only (Invoices::link).
 Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
+// #19, D-103: the review invitation's page — signed, the link is the proof of purchase; the form goes back to it.
+Route::get('/bewertung/{number}', [BewertungController::class, 'show'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-api'])->name('bewertung.show');
+Route::post('/bewertung/{number}', [BewertungController::class, 'store'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:10,1,bewertung'])->name('bewertung.store');
 // The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.
 Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
 // The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
@@ -473,6 +479,32 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bestellungen/export', [BestellungenController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':orders,export')
             ->name('bestellungen.export');
+        // „Versendet“ and „Zugestellt“ (D-103): the order team's two steps after the money; delivery opens the review.
+        Route::post('/bestellungen/{order}/versendet', [VersandController::class, 'ship'])
+            ->whereNumber('order')
+            ->middleware('throttle:30,1,bestellung-versand')
+            ->name('bestellungen.versendet');
+        Route::post('/bestellungen/{order}/zugestellt', [VersandController::class, 'deliver'])
+            ->whereNumber('order')
+            ->middleware('throttle:30,1,bestellung-versand')
+            ->name('bestellungen.zugestellt');
+        // Verkauf › Bewertungen (#19, D-103): the buyers' reviews — hidden with a reason, shown again, answered.
+        // There is no route that writes one: a review comes only from a delivered order's own signed link.
+        Route::get('/bewertungen', [BewertungenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':orders,view')
+            ->name('bewertungen.index');
+        Route::post('/bewertungen/{review}/ausblenden', [BewertungenController::class, 'hide'])
+            ->whereNumber('review')
+            ->middleware('throttle:60,1,bewertung-moderation')
+            ->name('bewertungen.ausblenden');
+        Route::post('/bewertungen/{review}/einblenden', [BewertungenController::class, 'show'])
+            ->whereNumber('review')
+            ->middleware('throttle:60,1,bewertung-moderation')
+            ->name('bewertungen.einblenden');
+        Route::put('/bewertungen/{review}/antwort', [BewertungenController::class, 'reply'])
+            ->whereNumber('review')
+            ->middleware('throttle:60,1,bewertung-moderation')
+            ->name('bewertungen.antwort');
 
         // Gespeicherte Ansichten (step 2.2), for every list in AdminLists: a list's filters under a
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy

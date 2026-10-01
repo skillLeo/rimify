@@ -15,5 +15,7 @@ Artisan::command('inspire', function () {
 Schedule::command('demo:assert-clean')->dailyAt('04:30')->timezone('Europe/Berlin')->environments(['production']);
 // Block G: an order unpaid 24 hours after it was placed expires, and its stock goes back on the shelf.
 Schedule::command('orders:expire')->everyTenMinutes()->withoutOverlapping();
+// #19, D-103: once, some days after the team marked an order „Zugestellt“, its buyer is asked to rate the rims.
+Schedule::command('rimify:bewertungen-einladen')->dailyAt('10:00')->timezone('Europe/Berlin')->withoutOverlapping();
 // The scheduler's pulse: rimify:preflight and the admin's health line read it to tell whether the cron line runs.
 Schedule::call(static fn () => ScheduleBeat::record())->everyMinute()->name('schedule-heartbeat');

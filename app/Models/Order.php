@@ -43,6 +43,8 @@ use Illuminate\Support\Facades\DB;
  * @property CarbonImmutable|null $placed_at
  * @property CarbonImmutable|null $paid_at
  * @property CarbonImmutable|null $shipped_at
+ * @property CarbonImmutable|null $delivered_at recorded by the team („Zugestellt“); only then can its lines be reviewed
+ * @property CarbonImmutable|null $review_invited_at when the review invitation went out, once
  * @property-read Collection<int, OrderLine> $lines
  */
 #[ObservedBy(OrderAlertObserver::class)]
@@ -76,6 +78,8 @@ class Order extends Model
             'placed_at' => 'immutable_datetime',
             'paid_at' => 'immutable_datetime',
             'shipped_at' => 'immutable_datetime',
+            'delivered_at' => 'immutable_datetime',
+            'review_invited_at' => 'immutable_datetime',
         ];
     }
 

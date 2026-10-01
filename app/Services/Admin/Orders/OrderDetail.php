@@ -51,6 +51,12 @@ final class OrderDetail
                 'placedAt' => GermanFormat::dateTime($order->placed_at),
                 'paidAt' => GermanFormat::dateTime($order->paid_at),
                 'shippedAt' => GermanFormat::dateTime($order->shipped_at),
+                // „Zugestellt“, as the team recorded it (D-103); the review invitation goes out some days after.
+                'deliveredAt' => GermanFormat::dateTime($order->delivered_at),
+                'reviewInvitedAt' => GermanFormat::dateTime($order->review_invited_at),
+                // Which of the two steps the state machine allows now; whether this reader may take it is the page's `canFulfil`.
+                'canShip' => OrderFulfilment::canShip($order),
+                'canDeliver' => OrderFulfilment::canDeliver($order),
                 'tracking' => $order->tracking_code,
                 'note' => $order->getAttribute('note'),
                 'keys' => $order->vehicle_hsn !== null && $order->vehicle_tsn !== null ? GermanFormat::keyNumbers($order->vehicle_hsn, $order->vehicle_tsn) : null,

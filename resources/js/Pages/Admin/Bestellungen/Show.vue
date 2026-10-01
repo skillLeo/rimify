@@ -73,6 +73,12 @@ const props = defineProps<{
         placedAt: string | null
         paidAt: string | null
         shippedAt: string | null
+        /** „Zugestellt“, as the team recorded it (D-103). */
+        deliveredAt?: string | null
+        reviewInvitedAt?: string | null
+        /** Which step the state machine allows now. */
+        canShip?: boolean
+        canDeliver?: boolean
         tracking: string | null
         note: string | null
         subtotal: number
@@ -102,7 +108,26 @@ const props = defineProps<{
         papers: { number: string; kind: string; gross: number; issuedAt: string | null; href: string }[]
         refunds: { amount: number; reason: string; status: string; at: string | null; by: string | null }[]
     }
+    /** Whether this reader may change orders (OrderPolicy::update): „Versendet“ and „Zugestellt“ show only then. */
+    canFulfil?: boolean
 }>()
+
+/* ── Versendet, Zugestellt (D-103) ─────────────────────────────────────────── */
+
+/* Posted through the router as the refund is, its error read from the page's errors (`refundErrors`). */
+const tracking = ref(props.order.tracking ?? '')
+const shipping = ref(false)
+const delivering = ref(false)
+
+function ship(): void {
+    shipping.value = true
+    router.post(`/admin/bestellungen/${props.order.id}/versendet`, { tracking: tracking.value }, { preserveScroll: true, onFinish: () => (shipping.value = false) })
+}
+
+function deliver(): void {
+    delivering.value = true
+    router.post(`/admin/bestellungen/${props.order.id}/zugestellt`, {}, { preserveScroll: true, onFinish: () => (delivering.value = false) })
+}
 
 /* ── Erstatten: through Stripe only, with the exact amount in the question ─── */
 
@@ -253,8 +278,35 @@ function tagClass(state: OrderState): string | null {
                     <div v-if="order.paidAt" class="adm-facts__row"><dt>Bezahlt am</dt><dd>{{ order.paidAt }}</dd></div>
                     <div v-if="order.shippedAt" class="adm-facts__row"><dt>Versandt am</dt><dd>{{ order.shippedAt }}</dd></div>
                     <div v-if="order.tracking" class="adm-facts__row"><dt>Sendungsnummer</dt><dd>{{ order.tracking }}</dd></div>
+                    <div v-if="order.deliveredAt" class="adm-facts__row"><dt>Zugestellt am</dt><dd>{{ order.deliveredAt }}</dd></div>
+                    <div v-if="order.deliveredAt" class="adm-facts__row">
+                        <dt>Bewertung</dt>
+                        <dd>{{ order.reviewInvitedAt ? `Einladung verschickt am ${order.reviewInvitedAt}` : 'Einladung geht einige Tage nach der Zustellung raus' }}</dd>
+                    </div>
                     <div class="adm-facts__row"><dt>Fahrzeug</dt><dd>{{ order.vehicle ?? '–' }}<template v-if="order.keys"> · {{ order.keys }}</template></dd></div>
                 </dl>
+
+                <!-- The two steps after the money (D-103): the state machine says which is next, the reader's rights whether it shows. -->
+                <form v-if="canFulfil && order.canShip" class="bs-ship" novalidate @submit.prevent="ship">
+                    <div class="form-field">
+                        <label class="form-field__label" for="bs-tracking">Sendungsnummer (freiwillig)</label>
+                        <input
+                            id="bs-tracking"
+                            v-model="tracking"
+                            class="input"
+                            maxlength="64"
+                            autocomplete="off"
+                            :aria-invalid="refundErrors.tracking ? 'true' : undefined"
+                            aria-describedby="bs-tracking-err"
+                        >
+                        <p id="bs-tracking-err" class="form-field__error">{{ refundErrors.tracking }}</p>
+                    </div>
+                    <button class="btn btn--secondary" type="submit" :disabled="shipping">Als versendet markieren</button>
+                </form>
+                <div v-else-if="canFulfil && order.canDeliver" class="bs-ship">
+                    <p class="bs-ship__note">Ist die Sendung angekommen? Danach lädt der Shop einmal zur Bewertung ein.</p>
+                    <button class="btn btn--secondary" type="button" :disabled="delivering" @click="deliver">Als zugestellt markieren</button>
+                </div>
             </section>
 
             <section class="adm-section bs-block" aria-labelledby="bs-customer-h">
@@ -414,6 +466,30 @@ function tagClass(state: OrderState): string | null {
 </template>
 
 <style scoped>
+/* Versendet, Zugestellt: under the facts, the field and its button on one edge. */
+.bs-ship {
+    display: grid;
+    gap: var(--sp-8);
+    justify-items: start;
+    margin-top: var(--sp-16);
+}
+
+.bs-ship .form-field {
+    width: 100%;
+    max-width: 320px;
+}
+
+.bs-ship .form-field__error:empty {
+    display: none;
+}
+
+.bs-ship__note {
+    margin: 0;
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
 .bs-money {
     max-width: var(--adm-form-max);
 }

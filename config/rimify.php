@@ -150,6 +150,13 @@ return [
         'enabled' => filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL),
     ],
 
+    // The buyers' reviews (the client's #19, D-103): the invitation goes out this many days after the team marked the
+    // order „Zugestellt“, once, with a signed link that stays valid for `link_days`.
+    'reviews' => [
+        'invite_after_days' => (int) env('RIMIFY_REVIEWS_INVITE_AFTER_DAYS', 7),
+        'link_days' => (int) env('RIMIFY_REVIEWS_LINK_DAYS', 60),
+    ],
+
     // Who runs the test environment (staging): its Impressum names them as the operator of a test environment, with
     // their contact details, and says the shop is not in operation (App\Support\Operator, D-088). On the client's own
     // domain — the live shop — the seller from Einstellungen › Verkäufer & Versand takes its place by itself. Typed into

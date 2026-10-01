@@ -127,6 +127,30 @@ watch(
     }
 )
 
+/*
+ * Under the name, while the wheel has no reviews (#19, D-103): its released documents and the vehicle variants they
+ * approve it for — counts the shop can prove — and that the approval is checked before the purchase. Nothing where
+ * there is no document.
+ */
+const proofLine = computed(() => {
+    const proof = props.product.proof
+
+    if (!proof || proof.gutachten === 0) {
+        return null
+    }
+
+    const documents = proof.gutachten === 1 ? '1 Gutachten' : `${decimal(proof.gutachten, 0)} Gutachten`
+    const cars = proof.variants === 1 ? 'für 1 Fahrzeugvariante freigegeben' : `für ${decimal(proof.variants, 0)} Fahrzeugvarianten freigegeben`
+
+    return `${documents} · ${cars} · Freigabe vor dem Kauf geprüft`
+})
+
+const reviews = computed(() => props.reviews ?? [])
+
+function starsLabel(n: number): string {
+    return n === 1 ? '1 von 5 Sternen' : `${n} von 5 Sternen`
+}
+
 /* The large view of the photograph on screen. */
 const zoomOpen = ref(false)
 
@@ -377,10 +401,13 @@ onBeforeUnmount(() => observer?.disconnect())
                          words: a page translator would turn them into English. -->
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
                     <p v-if="product.typeDesignation" class="data pdp__type">Typ <ValueText :text="product.typeDesignation" whole /></p>
-                    <p v-if="product.rating !== null && product.ratingCount > 0" class="stars pdp__rating">
+                    <!-- The buyers' stars, computed from their reviews alone (D-103), leading to them; until there are
+                         any, what the page can prove instead — never an empty row of stars. -->
+                    <a v-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>
                         <span class="tabular"><ValueText :text="product.ratingLabel ?? ''" /></span>
-                    </p>
+                    </a>
+                    <p v-else-if="proofLine" class="t-small pdp__proof">{{ proofLine }}</p>
 
                     <div class="pdp__block">
                         <span class="micro">Farbe · <span translate="no">{{ finish?.name }}</span></span>
@@ -568,6 +595,34 @@ onBeforeUnmount(() => observer?.disconnect())
                 </p>
 
                 <p v-if="product.descriptionDe" class="t-body pdp__desc">{{ product.descriptionDe }}</p>
+            </section>
+
+            <!--
+                The buyers' reviews (#19, D-103), only where there are some: no empty shell. § 5b Abs. 3 UWG asks a shop that
+                shows reviews to say whether and how it checks them — the sentence under the heading does.
+            -->
+            <section v-if="reviews.length > 0" id="bewertungen" class="pdp__reviews" aria-labelledby="pdp-reviews">
+                <h2 id="pdp-reviews" class="t-h2">Bewertungen</h2>
+                <p v-if="product.ratingLabel" class="stars pdp__reviews-sum">
+                    <span class="stars__glyph" aria-hidden="true">★</span>
+                    <span class="tabular"><ValueText :text="product.ratingLabel" /></span>
+                </p>
+                <p class="t-small quiet pdp__reviews-check">
+                    Alle Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über die
+                    Bestellnummer.
+                </p>
+                <ul class="pdp__review-list">
+                    <li v-for="review in reviews" :key="review.id" class="pdp__review">
+                        <p class="pdp__review-head">
+                            <span class="pdp__review-stars" role="img" :aria-label="starsLabel(review.rating)">
+                                <Icon v-for="n in 5" :key="n" name="star" :size="16" :class="n <= review.rating ? 'pdp__star-on' : 'pdp__star-off'" />
+                            </span>
+                            <span class="t-small quiet">Geprüfter Kauf<template v-if="review.at"> · {{ review.at }}</template></span>
+                        </p>
+                        <p v-if="review.body" class="t-body pdp__review-body">{{ review.body }}</p>
+                        <p v-if="review.reply" class="t-small pdp__review-reply"><strong>Antwort von RIMIFY:</strong> {{ review.reply }}</p>
+                    </li>
+                </ul>
             </section>
 
             <!--
@@ -855,6 +910,87 @@ onBeforeUnmount(() => observer?.disconnect())
 
 .pdp__price {
     margin-top: var(--space-5);
+}
+
+.pdp__proof {
+    margin: var(--space-1) 0 0;
+    color: var(--ink2);
+}
+
+a.pdp__rating {
+    color: inherit;
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    a.pdp__rating:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+
+/* ── The buyers' reviews (D-103) ── */
+.pdp__reviews {
+    margin-top: var(--space-8);
+    max-width: 880px;
+}
+
+.pdp__reviews-sum,
+.pdp__reviews-check {
+    margin: var(--space-2) 0 0;
+}
+
+.pdp__review-list {
+    display: grid;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+}
+
+.pdp__review {
+    display: grid;
+    gap: var(--space-2);
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--line-s);
+}
+
+.pdp__review-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin: 0;
+}
+
+.pdp__review-stars {
+    display: inline-flex;
+    gap: 2px;
+}
+
+/* `--c-star`: ratings only (DIRECTION §2). */
+.pdp__star-on {
+    color: var(--c-star);
+}
+
+.pdp__star-off {
+    color: var(--c-line);
+}
+
+.pdp__review-body,
+.pdp__review-reply {
+    margin: 0;
+    max-width: 72ch;
+}
+
+.pdp__review-reply {
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--line);
+    color: var(--ink2);
+}
+
+.pdp__review-reply strong {
+    color: var(--ink);
 }
 
 /* The price and how many, side by side; the stepper drops under the price when the column is narrow. */

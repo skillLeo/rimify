@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Controller;
 use App\Models\BalanceWeightColour;
 use App\Models\CatalogueGapEvent;
+use App\Models\Review;
 use App\Models\TyreVariant;
 use App\Models\VerdictTally;
 use App\Models\WheelConfig;
@@ -33,6 +34,7 @@ use App\Models\WheelModel;
 use App\Services\Commerce\KomplettradPricer;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
+use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
@@ -300,7 +302,18 @@ class FelgenController extends Controller
                     : GermanFormat::rating($wheel->rating, $wheel->rating_count),
                 // GPSR: the brand's manufacturer as entered in Katalog › Marken, or null (the page then says so).
                 'manufacturer' => $wheel->brand->manufacturer(),
+                // While it has no reviews, what the page can prove instead (#19, D-103): its documents and the cars.
+                'proof' => app(HomeStats::class)->forModel($wheel->id),
             ],
+            // The buyers' visible reviews, newest first (D-103); the rating above is computed from them alone.
+            'reviews' => Review::query()->visible()->where('wheel_model_id', $wheel->id)->orderByDesc('id')->limit(20)->get()
+                ->map(static fn (Review $review): array => [
+                    'id' => $review->id,
+                    'rating' => $review->rating,
+                    'body' => $review->body,
+                    'at' => GermanFormat::date($review->created_at),
+                    'reply' => $review->reply,
+                ])->all(),
             'finishes' => $finishes,
             'configs' => $configs,
             'hasVehicle' => $vehicleId !== null,

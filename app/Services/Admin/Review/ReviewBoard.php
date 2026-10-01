@@ -37,7 +37,9 @@ final class ReviewBoard
             ['label' => 'Bestellen mit Testzahlung', 'href' => null, 'state' => self::DONE, 'line' => 'Im Shop bestellen und die Testzahlung bezahlt, abgelehnt oder abgebrochen enden lassen – mit eingefrorenem Prüfnachweis, ohne dass Geld fließt. Mit Stripe-Testschlüsseln unter Einstellungen › Zahlung auch mit Testkarten.'],
             ['label' => 'Erstattung und Rechnungen', 'href' => null, 'state' => self::DONE, 'line' => 'In jeder Bestellung: die Rechnung als PDF, ganz oder teilweise erstatten, mit Gutschrift und E-Mail an die Kundin oder den Kunden.'],
             ['label' => 'Rückbuchungen', 'href' => '/admin/rueckbuchungen', 'state' => self::DONE, 'line' => 'Rückbuchungen der Bank mit ihrer Frist zur Stellungnahme.'],
-            ['label' => 'Versand und Status bearbeiten', 'href' => null, 'state' => self::MISSING, 'line' => 'Eine Bestellung als versendet markieren, mit Sendungsnummer, und Rücksendungen erfassen.'],
+            ['label' => 'Versand und Zustellung', 'href' => null, 'state' => self::DONE, 'line' => 'In jeder Bestellung: als versendet markieren, mit Sendungsnummer, und als zugestellt – danach lädt der Shop zur Bewertung ein.'],
+            ['label' => 'Bewertungen', 'href' => '/admin/bewertungen', 'state' => self::DONE, 'line' => 'Die Bewertungen der Käuferinnen und Käufer: ausblenden mit Grund, beantworten. Anlegen kann sie hier niemand.'],
+            ['label' => 'Rücksendungen', 'href' => null, 'state' => self::MISSING, 'line' => 'Eine Rücksendung erfassen und den Bestand wieder einbuchen.'],
             ['label' => 'Kunden', 'href' => null, 'state' => self::MISSING, 'line' => 'Kundenkonten mit ihren Bestellungen und Fahrzeugen.'],
         ]],
         ['key' => 'katalog', 'label' => 'Katalog', 'screens' => [

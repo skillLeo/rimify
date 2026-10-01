@@ -79,6 +79,8 @@ final class AdminNavigation
                 // Chargebacks from the webhook (Block G §5). Not „Konflikte“: that word is the Gutachten's. Each has a
                 // deadline for the evidence, so the open ones are counted.
                 ['label' => 'Rückbuchungen', 'href' => '/admin/rueckbuchungen', 'icon' => 'returns', 'count' => 'disputes_open'],
+                // The buyers' reviews (#19, D-103): hidden with a reason, answered — never written here.
+                ['label' => 'Bewertungen', 'href' => '/admin/bewertungen', 'icon' => 'ratings'],
                 ['label' => 'Kunden', 'href' => '/admin/kunden', 'icon' => 'customers'],
                 // Customers asking to be told when a document for their car arrives. The goal of the
                 // team's work is to have told all of them, so it is a queue and earns a count. Not
@@ -216,6 +218,7 @@ final class AdminNavigation
         '/admin/abdeckung',
         '/admin/bestellungen',
         '/admin/rueckbuchungen',
+        '/admin/bewertungen',
         '/admin/anfragen',
         '/admin/zubehoerpreise',
         '/admin/benutzer',

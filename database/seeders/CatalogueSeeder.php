@@ -11,6 +11,7 @@ use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Commerce\Reviews\ReviewSummary;
 use App\Services\Demo\DemoPlaceholders;
 use App\Support\DemoWheels;
 use App\Support\MakeName;
@@ -488,15 +489,16 @@ class CatalogueSeeder extends Seeder
                 // A type designation is what a Gutachten prints; a demo wheel has no Gutachten.
                 'type_designation' => null,
                 'spoke_count' => $spec['spokes'],
-                // No review table exists, so there is no rating to show (findings #47, #60).
-                'rating' => null,
-                'rating_count' => 0,
                 // Never published: example data lives in the admin, the storefront shows real
                 // records only — and the database refuses the other way round.
                 'status' => self::asShop() ? CatalogueStatus::Published->value : CatalogueStatus::Draft->value,
                 // Every row this seeder writes is a demonstration, and the admin says so.
                 'is_demo' => ! self::asShop(),
             ])->save();
+
+            // The rating is what the wheel's buyers' reviews add up to (D-103) — a demo wheel has none, so a rating an
+            // older seed left on it goes (findings #47, #60).
+            app(ReviewSummary::class)->refresh($model->id);
 
             $kept = [];
 
