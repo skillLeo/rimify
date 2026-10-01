@@ -90,7 +90,40 @@ final readonly class FitmentVerdict
          * @var list<string>
          */
         public array $missingFacts = [],
+        /**
+         * The Auflagen for the whole combination — the rows' own (a Gutachten line's second column) and the kW-band
+         * sentences — as opposed to those a tyre size carries itself (`TyreSize::$conditions`). `$conditions` holds
+         * both, for the decision; what a customer reads comes from conditionGroups(), never from that blend. Null on
+         * a snapshot frozen before the split, which conditionGroups() then reads from its sizes.
+         *
+         * @var list<Condition>|null
+         */
+        public ?array $combinationConditions = null,
     ) {}
+
+    /**
+     * The Auflagen as the document hangs them: the combination's once, each size's with that size (ConditionGroups).
+     * Every surface that shows Auflagen shows these — never `$conditions`, which blends the sizes into one list.
+     */
+    public function conditionGroups(): ConditionGroups
+    {
+        $combination = $this->combinationConditions;
+
+        if ($combination === null) {
+            // Frozen before the split: what no size carries is the combination's.
+            $bySizes = [];
+
+            foreach ([...$this->front->sizes, ...$this->rear->sizes] as $size) {
+                foreach ($size->conditions as $condition) {
+                    $bySizes[$condition->code."\u{0}".$condition->sentenceDe()] = true;
+                }
+            }
+
+            $combination = array_values(array_filter($this->conditions, static fn (Condition $c): bool => ! isset($bySizes[$c->code."\u{0}".$c->sentenceDe()])));
+        }
+
+        return ConditionGroups::of($combination, $this->front, $this->rear);
+    }
 
     /**
      * This verdict, naming every document it rests on — newest first, the first being `$document`.
@@ -121,6 +154,7 @@ final readonly class FitmentVerdict
             wheelStatus: $this->wheelStatus,
             tyre: $this->tyre,
             missingFacts: $this->missingFacts,
+            combinationConditions: $this->combinationConditions,
         );
     }
 
@@ -218,6 +252,9 @@ final readonly class FitmentVerdict
             'documentCentreBoreMm' => $this->documentCentreBoreMm,
             'centreBoreSource' => $this->centreBoreSource->value,
             'conditions' => array_map(static fn (Condition $c): array => $c->toArray(), $this->conditions),
+            // Additive: the Auflagen for the whole combination, apart from those its sizes carry (under `tyres`), so the
+            // order says each size's Auflagen with that size as the customer read them.
+            ...($this->combinationConditions === null ? [] : ['combinationConditions' => array_map(static fn (Condition $c): array => $c->toArray(), $this->combinationConditions)]),
             'tyres' => [
                 'perAxle' => $this->tyreLayout(),
                 'front' => $this->front->toArray(),
@@ -329,6 +366,10 @@ final readonly class FitmentVerdict
                 is_array($data['missingFacts'] ?? null) ? $data['missingFacts'] : [],
                 static fn (mixed $fact): bool => is_string($fact),
             )),
+            // A snapshot frozen before the split has none; conditionGroups() reads it from the sizes.
+            combinationConditions: is_array($data['combinationConditions'] ?? null)
+                ? array_values(array_map(static fn (array $c): Condition => Condition::fromArray($c), $data['combinationConditions']))
+                : null,
         );
     }
 

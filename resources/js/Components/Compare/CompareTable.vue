@@ -128,6 +128,19 @@ function documentLine(document: CompareItem['specs']['documents'][number]): stri
     return document.kind
 }
 
+/** Said where the Abnahme or Eintragung depends on the size, rather than one answer for every size. */
+const ENTRY_VARIES = 'Je nach Reifengröße – siehe Produktseite.'
+
+/**
+ * Only the Auflagen that hold for every size of this wheel (CompareRows): which size the customer will fit is decided on the
+ * product page, where each size's stand with it — never one blended list here.
+ */
+function conditionLines(verdict: ConfigVerdict | null): string[] {
+    const list = verdict?.conditions ?? []
+
+    return verdict?.conditionsVary === true ? [...list, 'Weitere Auflagen je nach Größe – siehe Produktseite.'] : list
+}
+
 /** The product page's own two lines (fitment/papers.ts), so the two pages never say opposite things about the papers. */
 function entryLines(verdict: ConfigVerdict | null): Cell {
     if (verdict === null || !verdict.sellable) {
@@ -136,6 +149,11 @@ function entryLines(verdict: ConfigVerdict | null): Cell {
 
     const exempt = verdict.papersExempt === true
     const papers = papersLine(exempt)
+
+    // One size needs the Abnahme, another does not: no one answer for the column — the product page says it per size.
+    if (verdict.entryVaries === true) {
+        return lines(papers === null ? [ENTRY_VARIES] : [ENTRY_VARIES, papers])
+    }
 
     return lines(papers === null ? [entryLineOrNone(verdict.requiresEntry, exempt)] : [entryLineOrNone(verdict.requiresEntry, exempt), papers])
 }
@@ -153,7 +171,7 @@ const groups = computed<Group[]>(() => {
         gutachten.push(
             row('verdict', 'Freigabe', 'verdict', items.map((item) => ({ text: item.verdict?.status ?? 'UNKNOWN', verdict: item.verdict }))),
             row('tyres', 'Reifengrößen', 'lines', items.map((item) => lines(item.verdict?.tyreSizes ?? []))),
-            row('conditions', 'Auflagen', 'lines', items.map((item) => lines(item.verdict?.conditions ?? []))),
+            row('conditions', 'Auflagen', 'lines', items.map((item) => lines(conditionLines(item.verdict)))),
             row('entry', 'Abnahme / Eintragung', 'lines', items.map((item) => entryLines(item.verdict)))
         )
     } else {

@@ -23,12 +23,12 @@ const TODO = ['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen']
 
 /* What there is to do, in order; a section the bolts or the sizes need stands even without a sentence of its kind. */
 const todo = computed(() => TODO
-    .map((title) => ({ title, items: props.detail.sections.find((s) => s.title === title)?.items ?? [] }))
+    .map((title) => ({ title, items: ordered(props.detail.sections.find((s) => s.title === title)?.items ?? []) }))
     .filter((section) => section.items.length > 0
         || (section.title === 'Befestigung' && props.detail.fasteners.length > 0)
         || (section.title === 'Reifen' && props.detail.tyres.length > 0)))
 
-const notes = computed(() => props.detail.sections.find((s) => s.title === 'Hinweise')?.items ?? [])
+const notes = computed(() => ordered(props.detail.sections.find((s) => s.title === 'Hinweise')?.items ?? []))
 
 /* A sentence the document hangs off some sizes only says which, as a limit (D-04): „Nur bei 235/35 R19 und 255/30 R19“. */
 function forSizes(sizes: string[] | undefined): string | null {
@@ -37,6 +37,26 @@ function forSizes(sizes: string[] | undefined): string | null {
     }
 
     return `Nur bei ${sizes.length === 1 ? sizes[0] : `${sizes.slice(0, -1).join(', ')} und ${sizes[sizes.length - 1]}`}`
+}
+
+/*
+ * Within a section, what holds for every size first, labelled once as such where size-limited sentences follow; then each
+ * size's own, each under its „Nur bei …“ — never one run of sentences in which two sizes' Auflagen read as one (ABE 55255,
+ * BMW X3 X83: fine-link chains with 235/45R19 and 245/40R19, none with 255/40R19).
+ */
+type Item = FitmentDetailView['sections'][number]['items'][number]
+
+function ordered(items: Item[]): (Item & { allSizes: boolean })[] {
+    // Our own kW-band sentence names its sizes in its own words: never under „Für jede zulässige Reifengröße“.
+    const all = items.filter((i) => !i.sizes?.length && !i.own)
+    const own = items.filter((i) => !i.sizes?.length && i.own)
+    const some = items.filter((i) => i.sizes?.length)
+
+    return [
+        ...all.map((item, index) => ({ ...item, allSizes: index === 0 && some.length > 0 })),
+        ...own.map((item) => ({ ...item, allSizes: false })),
+        ...some.map((item) => ({ ...item, allSizes: false })),
+    ]
 }
 
 /* RIMIFY's own sentences (the kW band) are marked, so the lede's „Wörtlich“ stays true (D-10). */
@@ -59,6 +79,7 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
                     <h3 class="h4 fdt__sec-h">{{ section.title }}</h3>
                     <ul v-if="section.items.length" class="fdt__list">
                         <li v-for="item in section.items" :key="item.text">
+                            <span v-if="item.allSizes" class="fdt__for">Für jede zulässige Reifengröße</span>
                             <span v-if="forSizes(item.sizes)" class="fdt__for">{{ forSizes(item.sizes) }}</span>
                             <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
                             <ul v-if="item.measures.length" class="fdt__measures">
@@ -107,6 +128,7 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
                     <h3 class="h4 fdt__sec-h">Hinweise</h3>
                     <ul class="fdt__list fdt__list--note">
                         <li v-for="item in notes" :key="item.text">
+                            <span v-if="item.allSizes" class="fdt__for">Für jede zulässige Reifengröße</span>
                             <span v-if="forSizes(item.sizes)" class="fdt__for">{{ forSizes(item.sizes) }}</span>
                             <span v-if="item.own" class="fdt__own">Unser Hinweis: </span>{{ item.text }}
                         </li>

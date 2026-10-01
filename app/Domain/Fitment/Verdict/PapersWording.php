@@ -41,6 +41,32 @@ final class PapersWording
     }
 
     /** The document's line: only where it frees the papers. */
+    /** The line said either way — for one tyre size beside another that differs (papers.ts entryLineOrNone). */
+    public static function entryLineOrNone(bool $requiresEntry, bool $papersExempt): string
+    {
+        return self::entryLine($requiresEntry, $papersExempt) ?? ($papersExempt ? self::NO_ABNAHME : self::NO_ENTRY);
+    }
+
+    /**
+     * Where one tyre size needs the Abnahme or Eintragung and another does not (ConditionGroups), one line names them —
+     * never one answer for all sizes. Null where they agree. The TypeScript twin is papers.ts entryBySize().
+     *
+     * @param  list<array{size: string, entry: bool}>  $sizes
+     */
+    public static function entryBySize(array $sizes, bool $papersExempt): ?string
+    {
+        $yes = array_values(array_map(static fn (array $s): string => $s['size'], array_filter($sizes, static fn (array $s): bool => $s['entry'])));
+        $no = array_values(array_map(static fn (array $s): string => $s['size'], array_filter($sizes, static fn (array $s): bool => ! $s['entry'])));
+
+        if ($yes === [] || $no === []) {
+            return null;
+        }
+
+        $listed = static fn (array $list): string => count($list) === 1 ? $list[0] : implode(', ', array_slice($list, 0, -1)).' und '.$list[count($list) - 1];
+
+        return ($papersExempt ? 'Abnahme durch einen Prüfer' : 'Eintragung in die Fahrzeugpapiere').' erforderlich mit '.$listed($yes).', nicht mit '.$listed($no).'.';
+    }
+
     public static function papersLine(bool $papersExempt): ?string
     {
         return $papersExempt ? self::PAPERS_EXEMPT : null;

@@ -34,7 +34,7 @@ final class DocumentPreview
     ) {}
 
     /**
-     * @return list<array{config: int, wheel: string, status: string, statusLabel: string, reason: string|null, requiresEntry: bool, entryNote: string|null, conditions: list<string>, front: list<string>, rear: list<string>, sourcePage: int|null}>
+     * @return list<array<string, mixed>>
      */
     public function for(ApprovalDocument $document, int $vehicleId): array
     {
@@ -54,6 +54,7 @@ final class DocumentPreview
         $out = [];
 
         foreach ($resolver->resolveMany($vehicleId, $configIds) as $configId => $verdict) {
+            $groups = $verdict->conditionGroups()->toArray();
             $out[] = [
                 'config' => (int) $configId,
                 'wheel' => $names[$configId] ?? $verdict->wheelLabel ?? '#'.$configId,
@@ -62,10 +63,12 @@ final class DocumentPreview
                 'reason' => $verdict->status === VerdictStatus::Permitted || $verdict->status === VerdictStatus::Conditional ? null : $verdict->reason?->textDe,
                 'requiresEntry' => $verdict->requiresEntry,
                 // What the shop will say about the papers, word for word (PapersWording).
-                'entryLine' => PapersWording::entryLine($verdict->requiresEntry, $verdict->papersExempt()),
+                'entryLine' => PapersWording::entryBySize($groups['sizes'], $verdict->papersExempt()) ?? PapersWording::entryLine($verdict->requiresEntry, $verdict->papersExempt()),
                 'papersLine' => PapersWording::papersLine($verdict->papersExempt()),
                 'entryNote' => $verdict->entryNoteDe,
                 'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
+                // As the shop will show them: the combination's once, each tyre size's with that size.
+                'conditionGroups' => $groups,
                 'front' => array_map(static fn ($s): string => $s->labelDe(), $verdict->front->sizes),
                 'rear' => array_map(static fn ($s): string => $s->labelDe(), $verdict->rear->sizes),
                 'sourcePage' => isset($pages[$configId]) ? (int) $pages[$configId] : null,

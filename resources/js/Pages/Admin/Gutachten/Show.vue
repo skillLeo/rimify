@@ -13,6 +13,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage, { type AdminPageAction } from '../../../Components/Admin/AdminPage.vue'
+import ConditionGroups from '../../../Components/Fitment/ConditionGroups.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import { afterDialogsClose, focusRefused } from '../../../composables/admin/focusRefused'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
@@ -478,8 +479,12 @@ const TONE: Record<string, string | null> = {
                     <p v-if="verdict.front.length" class="gs-verdict__line">Reifen: {{ verdict.front.join(', ') }}<template v-if="verdict.rear.length && verdict.rear.join() !== verdict.front.join()"> · hinten {{ verdict.rear.join(', ') }}</template></p>
                     <p v-if="verdict.requiresEntry" class="gs-verdict__line">{{ verdict.entryLine ?? ENTRY_LINE }}<template v-if="verdict.entryNote"> {{ verdict.entryNote }}</template></p>
                     <p v-if="verdict.papersLine" class="gs-verdict__line">{{ verdict.papersLine }}</p>
-                    <!-- An Auflage that repeats the entry line word for word is not said twice. -->
-                    <p v-for="(sentence, i) in verdict.conditions.filter((s) => !(verdict.requiresEntry && s === ENTRY_LINE))" :key="i" class="gs-verdict__line">{{ sentence }}</p>
+                    <!-- As the shop will show them: the combination's once, each tyre size's with that size (ConditionGroups).
+                         An Auflage that repeats the entry line word for word is not said twice. -->
+                    <ConditionGroups v-if="verdict.conditionGroups && verdict.conditions.length" class="gs-verdict__groups" :groups="verdict.conditionGroups" :omit="verdict.requiresEntry ? [ENTRY_LINE] : []" />
+                    <template v-else>
+                        <p v-for="(sentence, i) in verdict.conditions.filter((s) => !(verdict.requiresEntry && s === ENTRY_LINE))" :key="i" class="gs-verdict__line">{{ sentence }}</p>
+                    </template>
                 </li>
             </ul>
             <p v-else-if="preview" class="adm-note">Für dieses Fahrzeug gibt es in diesem Gutachten keine Zeile.</p>
@@ -670,6 +675,11 @@ const TONE: Record<string, string | null> = {
 }
 
 .gs-verdict__ok {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+}
+
+.gs-verdict__groups {
     font-size: var(--fs-small);
     line-height: var(--lh-small);
 }

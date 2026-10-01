@@ -28,7 +28,8 @@ import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import type { IconName } from '../../art'
 import { totalNote } from '../../composables/usePriceTerms'
-import { PAPERS_EXEMPT, entryLine } from '../../fitment/papers'
+import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
+import { PAPERS_EXEMPT, entryBySize, entryLine } from '../../fitment/papers'
 import type { BestellungProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -308,14 +309,20 @@ function openAccount(): void {
                                         <template v-if="line.documentNumber">Gutachten {{ line.documentNumber }} · </template>Fassung {{ line.verdict.documentRevision }}
                                     </span>
                                 </p>
+                                <!-- One size needs the Abnahme, another does not: the line names them. A Komplettrad says its tyre's. -->
+                                <p v-if="entryBySize(line.verdict.conditionGroups?.sizes, line.verdict.papersExempt === true)" class="ord__entry">
+                                    {{ entryBySize(line.verdict.conditionGroups?.sizes, line.verdict.papersExempt === true) }}
+                                </p>
                                 <p
-                                    v-if="line.verdict.requiresEntry && !line.conditions.some((c) => c.includes('Eintragung'))"
+                                    v-else-if="(line.verdict.conditionGroups?.entry ?? line.verdict.requiresEntry) && !line.conditions.some((c) => c.includes('Eintragung'))"
                                     class="ord__entry"
                                 >
                                     {{ entryLine(true, line.verdict.papersExempt === true) }}
                                 </p>
                                 <p v-if="line.verdict.papersExempt" class="ord__entry">{{ PAPERS_EXEMPT }}</p>
-                                <ul v-if="line.conditions.length" class="ord__conditions">
+                                <!-- As the customer read them at the purchase: each tyre size's Auflagen with that size. -->
+                                <ConditionGroups v-if="line.verdict.conditionGroups && line.conditions.length" class="ord__groups" :groups="line.verdict.conditionGroups" />
+                                <ul v-else-if="line.conditions.length" class="ord__conditions">
                                     <li v-for="condition in line.conditions" :key="condition">{{ condition }}</li>
                                 </ul>
                             </div>
@@ -559,6 +566,11 @@ function openAccount(): void {
 .ord__entry {
     margin-top: var(--space-2);
     font-weight: 700;
+}
+
+.ord__groups {
+    margin: var(--space-2) 0 0;
+    max-width: 65ch;
 }
 
 .ord__conditions {

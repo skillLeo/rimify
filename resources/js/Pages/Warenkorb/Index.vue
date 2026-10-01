@@ -30,6 +30,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
+import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import { useBasket } from '../../composables/useBasket'
 import { priceTerms, totalNote } from '../../composables/usePriceTerms'
@@ -168,9 +169,14 @@ const VERDICT_TONE: Record<string, string> = {
                                     </span>
                                 </p>
 
-                                <!-- Auflagen in full, never a badge on its own. -->
+                                <!-- Auflagen in full, never a badge on its own — each tyre size's with that size, a Komplettrad's for its tyre. -->
+                                <ConditionGroups
+                                    v-if="line.verdict && line.verdict.conditionGroups && line.verdict.conditions.length"
+                                    class="bl__groups"
+                                    :groups="line.verdict.conditionGroups"
+                                />
                                 <ul
-                                    v-if="line.verdict && line.verdict.conditions.length"
+                                    v-else-if="line.verdict && line.verdict.conditions.length"
                                     class="bl__conditions"
                                 >
                                     <li v-for="condition in line.verdict.conditions" :key="condition">
@@ -506,6 +512,11 @@ const VERDICT_TONE: Record<string, string> = {
     flex-wrap: wrap;
     gap: var(--space-2);
     margin-top: var(--space-2);
+}
+
+.bl__groups {
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
 }
 
 .bl__conditions {

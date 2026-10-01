@@ -218,10 +218,26 @@ export function compareKeyOf(card: Pick<ProductCardProp, 'modelId' | 'finishId' 
     return card.compareKey ?? `${card.modelId}:${card.finishId}`
 }
 
+/**
+ * The Auflagen as the document hangs them (App\Domain\Fitment\Verdict\ConditionGroups): the combination's once, each tyre
+ * size's with that size — never one list in which one size's „no snow chains“ stands beside another's chains. With a
+ * size chosen (a Komplettrad), just what applies to it. Rendered by Components/Fitment/ConditionGroups.vue.
+ */
+export interface ConditionGroupsView {
+    combination: string[]
+    /** Every permitted size with its own Auflagen — only where the sizes differ. */
+    sizes: { size: string; axle: string; conditions: string[]; entry: boolean }[]
+    chosen: string | null
+    /** With a size chosen: whether it needs the Abnahme or Eintragung. Null: the verdict's own flag stands. */
+    entry: boolean | null
+}
+
 export interface CardFitment {
     status?: VerdictStatus
     requiresEntry: boolean
     conditions?: string[]
+    /** Further Auflagen depend on the rim or tyre size: said on the product page, per size. */
+    conditionsVary?: boolean
 }
 
 export interface FacetOption {
@@ -316,6 +332,8 @@ export interface BasketLine {
         /** The document frees the papers from correction (§ 15 FZV). Additive. */
         papersExempt?: boolean
         conditions: string[]
+        /** What the customer reads (ConditionGroups). Additive. */
+        conditionGroups?: ConditionGroupsView
         /** The verdict in one sentence, as the checkout repeats it up to the order button (Block G). */
         sentence?: string
         /** The Gutachten and revisions the answer rests on (`id@revision`), for CheckoutShown. */

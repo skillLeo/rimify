@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Storefront;
 
+use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\OrderStatusRequest;
@@ -12,6 +13,7 @@ use App\Models\CustomerAccount;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
+use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
@@ -19,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 /**
  * The order confirmation.
@@ -63,6 +66,8 @@ class BestellungController extends Controller
         // signed webhook does (ProcessPaymentEvent). The basket empties once the order IS paid.
         KasseZahlungController::settle($request, $basket);
         $lines = [];
+        // A Komplettrad's tyre size per package: its wheel line says that size's Auflagen only.
+        $tyres = PackageTyreSizes::of($record->lines);
 
         foreach ($record->lines as $line) {
             $snapshot = $line->fitmentSnapshot;
@@ -81,6 +86,8 @@ class BestellungController extends Controller
                     'papersExempt' => $snapshot->papersExempt(),
                     'documentRevision' => (int) $snapshot->document_revision,
                     'detail' => $snapshot->verdict,
+                    // The Auflagen as the customer read them: the combination's once, each tyre size's with that size.
+                    'conditionGroups' => self::conditionGroups($snapshot->verdict, PackageTyreSizes::for($line, $tyres)),
                 ],
             ];
         }
@@ -186,5 +193,18 @@ class BestellungController extends Controller
             'email' => $order->customer?->email,
             'mailed' => $mailed,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $verdict
+     * @return array<string, mixed>|null
+     */
+    private static function conditionGroups(array $verdict, ?string $tyreSize): ?array
+    {
+        try {
+            return FitmentVerdict::fromArray($verdict)->conditionGroups()->toArray($tyreSize);
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

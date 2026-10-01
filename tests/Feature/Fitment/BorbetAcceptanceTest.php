@@ -18,6 +18,7 @@ use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\GoldenRecordSeeder;
@@ -140,6 +141,76 @@ it('holds both documents as they print their first page, the wheel as they descr
     expect($cars->pluck('make')->unique()->sort()->values()->all())->toBe(['BMW', 'MINI'])
         ->and($cars->where('make', 'MINI')->map(static fn (Vehicle $v): string => $v->model.' '.$v->type_designation)->unique()->sort()->values()->all())
         ->toBe(['Countryman JCW UKL/X', 'Countryman UKL-N1', 'Countryman UKL/X', 'Paceman JCW UKL-C/X', 'Paceman UKL-C/X']);
+});
+
+it('keeps each tyre size’s Auflagen with that size on the BMW X3 X83 — A10 with 235/45 and 245/40, A12 with 255/40, the row’s set for all — on every surface', function (): void {
+    // ABE 55255, page 5: the row prints A14 A18 V19 S03; 235/45R19 adds A10 T95 T99, 245/40R19 A10 T94 T98, 255/40R19
+    // A01 A12 K1b K2b. A10 allows fine-link chains on the rear axle, A12 forbids chains: the widest size leaves no
+    // clearance. Blended, the customer reads both and believes neither.
+    $car = $this->entry->vehicle('x3-X83');
+    $car->forceFill(['power_kw' => 150, 'axle_load_front_kg' => 1150, 'axle_load_rear_kg' => 1300, 'max_speed_kmh' => 210, 'needs_review' => false])->save();
+
+    $verdict = borbetVerdict($car, 'BOR-DB8GT2-8519-SM');
+    $groups = $verdict->conditionGroups();
+    $codes = static fn (array $list): array => array_map(static fn (Condition $c): string => $c->code, $list);
+
+    expect($codes($groups->forSize('235/45/19')))->toContain('A10')->not->toContain('A12')
+        ->and($codes($groups->forSize('245/40/19')))->toContain('A10')->not->toContain('A12')
+        ->and($codes($groups->forSize('255/40/19')))->toContain('A12')->not->toContain('A10');
+
+    foreach (['235/45/19', '245/40/19', '255/40/19'] as $size) {
+        expect($codes($groups->forSize($size)))->toContain('A14', 'A18', 'V19', 'S03');
+    }
+
+    // The row's set is said once, for the whole combination; each size says only its own.
+    $bySize = collect($groups->sizes)->keyBy(static fn (array $s): string => $s['size']->key());
+
+    expect($codes($groups->combination))->toEqualCanonicalizing(['A14', 'A18', 'V19', 'S03'])
+        ->and($codes($bySize['235/45/19']['own']))->toEqualCanonicalizing(['A10', 'T95', 'T99'])
+        ->and($codes($bySize['245/40/19']['own']))->toEqualCanonicalizing(['A10', 'T94', 'T98'])
+        ->and($codes($bySize['255/40/19']['own']))->toEqualCanonicalizing(['A01', 'A12', 'K1b', 'K2b'])
+        // The Abnahme (A01) is the 255's alone: the narrower sizes need none.
+        ->and($bySize['255/40/19']['entry'])->toBeTrue()
+        ->and($bySize['235/45/19']['entry'])->toBeFalse()
+        ->and($bySize['245/40/19']['entry'])->toBeFalse()
+        ->and($groups->differBySize())->toBeTrue()
+        ->and($groups->entryDiffers())->toBeTrue();
+
+    $chains = printedSentence('abe-55255.json', 'A10');
+    $noChains = printedSentence('abe-55255.json', 'A12');
+    $shape = $groups->toArray();
+    $said = collect($shape['sizes'])->keyBy('size');
+
+    // What every surface renders: never both chain sentences in one list.
+    expect($shape['combination'])->not->toContain($chains)->not->toContain($noChains)
+        ->and($said['235/45 R19']['conditions'])->toContain($chains)->not->toContain($noChains)
+        ->and($said['255/40 R19']['conditions'])->toContain($noChains)->not->toContain($chains)
+        // A Komplettrad with its tyre chosen says that size's, and the row's.
+        ->and($groups->toArray('255/40/19')['combination'])->toContain($noChains)->not->toContain($chains)
+        ->and($groups->toArray('255/40/19')['chosen'])->toBe('255/40 R19')
+        ->and($groups->toArray('255/40/19')['entry'])->toBeTrue()
+        ->and($groups->toArray('235/45/19')['entry'])->toBeFalse();
+
+    // The frozen order snapshot reads back the same groups — and one frozen before the split is read from its sizes.
+    $frozen = FitmentVerdict::fromArray($verdict->toArray())->conditionGroups()->toArray();
+    $legacy = $verdict->toArray();
+    unset($legacy['combinationConditions']);
+
+    expect($frozen)->toBe($shape)
+        ->and(FitmentVerdict::fromArray($legacy)->conditionGroups()->toArray())->toBe($shape);
+
+    // The product page, the admin preview and the printable check ship the groups, not one blended list.
+    WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->update(['status' => CatalogueStatus::Published->value]);
+    $nineteenId = (int) WheelConfig::query()->where('sku', 'BOR-DB8GT2-8519-SM')->value('id');
+    $page = $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($car->id, true))->encode()])
+        ->get('/felgen/'.GoldenRecordSeeder::SLUG)->assertOk();
+    $shown = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $nineteenId)['verdict'];
+
+    expect($shown['conditionGroups'])->toBe($shape);
+
+    $preview = app(DocumentPreview::class)->for(ApprovalDocument::query()->findOrFail($this->entry->documents['55255']), $car->id);
+
+    expect(collect($preview)->firstWhere('config', $nineteenId)['conditionGroups'])->toBe($shape);
 });
 
 it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 55255 prints, each its own sentence, and never another document’s', function (): void {

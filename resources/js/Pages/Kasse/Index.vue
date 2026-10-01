@@ -41,6 +41,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
+import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { priceTerms, totalNote } from '../../composables/usePriceTerms'
 import { entryLine } from '../../fitment/papers'
 import { useShared } from '../../composables/useShared'
@@ -775,7 +776,9 @@ function verdictSentence(line: BasketLine): string {
                                         <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
                                         <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                             <summary>Auflagen lesen</summary>
-                                            <ul class="ko__conditions">
+                                            <!-- Each tyre size's Auflagen with that size; a Komplettrad's for its tyre (ConditionGroups). -->
+                                            <ConditionGroups v-if="line.verdict.conditionGroups" class="ko__groups" :groups="line.verdict.conditionGroups" />
+                                            <ul v-else class="ko__conditions">
                                                 <li v-for="condition in line.verdict.conditions" :key="condition">
                                                     {{ condition }}
                                                 </li>
@@ -1305,7 +1308,8 @@ function verdictSentence(line: BasketLine): string {
                                                 <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
                                                 <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                                     <summary>Auflagen lesen</summary>
-                                                    <ul class="ko__conditions">
+                                                    <ConditionGroups v-if="line.verdict.conditionGroups" class="ko__groups" :groups="line.verdict.conditionGroups" />
+                                                    <ul v-else class="ko__conditions">
                                                         <li v-for="condition in line.verdict.conditions" :key="condition">
                                                             {{ condition }}
                                                         </li>
@@ -1527,6 +1531,11 @@ function verdictSentence(line: BasketLine): string {
     text-decoration: underline;
     text-underline-offset: 3px;
     cursor: pointer;
+}
+
+.ko__groups {
+    margin-top: var(--space-2);
+    font-size: var(--text-small);
 }
 
 .ko__conditions {

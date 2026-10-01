@@ -106,6 +106,8 @@ it('carries the security headers on a failure that is thrown before the route ru
 });
 
 it('passes the wait the throttler named, and never a figure of its own', function (): void {
+    // One clock for both requests: a second ticking over between them made the wait 59 in a full run.
+    $this->freezeTime();
     Route::middleware(['web', 'throttle:1,1'])->get('/__fehler/limit', static fn () => response('ok'));
 
     $this->get('/__fehler/limit')->assertOk();

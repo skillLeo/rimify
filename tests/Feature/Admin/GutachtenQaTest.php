@@ -141,7 +141,8 @@ it('takes one code beside several sizes, as the documents print it, and refuses 
 });
 
 it('takes a code as the 18″ Nachtrag prints it in its Auflagen column — words, umlauts, a hyphen (Block D)', function (): void {
-    $document = ApprovalDocument::factory()->draft()->create();
+    // 24 pages, as the Nachtrag has: the factory's random count was sometimes below the page 7 cited here.
+    $document = ApprovalDocument::factory()->draft()->create(['page_count' => 24]);
     $vehicle = Vehicle::factory()->create();
     $size = qaSize();
 

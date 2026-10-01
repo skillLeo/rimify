@@ -293,7 +293,13 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         $overridden = $override === 'required' ? true : ($override === 'not_required' ? false : null);
         // The stored flag is FitmentRows' own derivation; read as a floor only, so a stale one can make
         // the answer stricter, never looser — and a row written by an import or a seed keeps its word.
-        $rowEntry = $fitment->requires_entry || array_filter($rowConditions, static fn (Condition $c): bool => $c->requiresEntry()) !== [];
+        // It is the row's AND its sizes' Abnahme in one bit, so where a size's own Abnahme explains it, that
+        // size carries it and the others do not (ABE 55255, BMW X3 X83: A01 with 255/40R19 alone). A flag no
+        // code explains — a box ticked before the Eintragung was derived — still reaches every size.
+        $sizeAbnahme = $fitment->tyreSizes->contains(static fn ($size): bool => $size->conditionCodes->contains(
+            static fn ($code): bool => ($defined[$code->code] ?? null) instanceof DocumentCondition && $defined[$code->code]->kind === ConditionKind::Abnahme,
+        ));
+        $rowEntry = ($fitment->requires_entry && ! $sizeAbnahme) || array_filter($rowConditions, static fn (Condition $c): bool => $c->requiresEntry()) !== [];
         $axleOf = static fn (Condition $c): ?string => $c->kind === ConditionKind::ReifenAchse ? ($defined[$c->code]->axle ?? null) : null;
         $rowAxles = array_values(array_filter(array_map($axleOf, $rowConditions)));
 

@@ -31,7 +31,9 @@ class ApprovalDocumentFactory extends Factory
             'pdf_key' => 'gutachten/'.$this->faker->uuid().'.pdf',
             // A real-shaped digest: the published CHECK constraint requires 64 lower-case hex.
             'pdf_sha256' => hash('sha256', $this->faker->unique()->uuid()),
-            'page_count' => $this->faker->numberBetween(4, 40),
+            // Fixed, never random: tests cite pages up to 13, and a draw below that failed one now and then
+            // („Das Gutachten hat nur 6 Seiten.“). A test about the page limit sets its own count.
+            'page_count' => 24,
             'status' => DocumentStatus::Published->value,
         ];
     }

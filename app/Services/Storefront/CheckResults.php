@@ -83,6 +83,8 @@ final readonly class CheckResults
             'papersExempt' => $verdict->papersExempt(),
             'entryNote' => $verdict->entryNoteDe,
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
+            // What is printed: the combination's Auflagen once, each tyre size's with that size (ConditionGroups).
+            'conditionGroups' => $verdict->conditionGroups()->toArray(),
             'front' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->front->sizes),
             'rear' => array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->rear->sizes),
             'tyre' => $verdict->tyre === null ? null : [

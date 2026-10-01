@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\PapersWording;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
+use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Content\LegalTexts;
 use App\Support\GermanFormat;
 use App\Support\Seller;
@@ -19,6 +21,7 @@ use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Support\Facades\URL;
+use Throwable;
 
 /**
  * The order confirmation, sent when the payment is confirmed (§ 312f Abs. 2 BGB): the contract on a durable
@@ -47,17 +50,25 @@ class OrderConfirmationMail extends Mailable
         $legal = app(LegalTexts::class);
         $address = $order->deliveryAddress;
         $lines = [];
+        // A Komplettrad's tyre size per package: its wheel line says that size's Auflagen only.
+        $tyres = PackageTyreSizes::of($order->lines);
 
         foreach ($order->lines as $line) {
             $snapshot = $line->fitmentSnapshot;
-            $detail = $snapshot === null ? [] : (array) $snapshot->verdict;
-            $conditions = [];
+            $groups = null;
 
-            foreach (is_array($detail['conditions'] ?? null) ? $detail['conditions'] : [] as $condition) {
-                if (is_array($condition) && is_string($condition['textDe'] ?? null) && trim($condition['textDe']) !== '') {
-                    $conditions[] = trim($condition['textDe']);
+            if ($snapshot !== null) {
+                try {
+                    // As the order page says them: the combination's once, each tyre size's with that size.
+                    $groups = FitmentVerdict::fromArray((array) $snapshot->verdict)->conditionGroups()->toArray(PackageTyreSizes::for($line, $tyres));
+                } catch (Throwable) {
+                    $groups = null;
                 }
             }
+
+            // Where the sizes differ in the Abnahme, each size says it; one line here would claim it for all.
+            $entryBySize = $groups !== null && count(array_unique(array_column($groups['sizes'], 'entry'))) > 1;
+            $entryHere = $groups !== null && $groups['entry'] !== null ? $groups['entry'] : (bool) ($snapshot?->requires_entry);
 
             $lines[] = [
                 'label' => (string) $line->label,
@@ -71,9 +82,16 @@ class OrderConfirmationMail extends Mailable
                     default => 'Keine Freigabe hinterlegt.',
                 },
                 // The papers, in the two lines the purchase showed (PapersWording): the Auflagen's, and the document's.
-                'entry' => $snapshot === null ? null : PapersWording::entryLine((bool) $snapshot->requires_entry, $snapshot->papersExempt()),
+                'entry' => $snapshot === null ? null : ($entryBySize ? PapersWording::entryBySize($groups['sizes'], $snapshot->papersExempt()) : PapersWording::entryLine($entryHere, $snapshot->papersExempt())),
                 'papers' => $snapshot === null ? null : PapersWording::papersLine($snapshot->papersExempt()),
-                'conditions' => $conditions,
+                'conditions' => $groups['combination'] ?? [],
+                'chosen' => $groups['chosen'] ?? null,
+                // Each tyre size with its own Auflagen and, where they differ, its own Abnahme line.
+                'sizes' => array_map(static fn (array $s): array => [
+                    'size' => $s['size'],
+                    'axle' => $s['axle'],
+                    'conditions' => $s['conditions'],
+                ], $groups['sizes'] ?? []),
             ];
         }
 

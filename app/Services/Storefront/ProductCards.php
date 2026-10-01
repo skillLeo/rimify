@@ -108,13 +108,18 @@ final readonly class ProductCards
      * @param  array<int, FitmentVerdict>  $verdicts  the engine's verdicts for the page, by configuration id
      * @param  list<int>  $configIds
      * @param  array<int, string>  $diameterOf  configuration id → its diameter, formatted
-     * @return array{status: string, requiresEntry: bool, conditions: list<string>, diametersFitting: list<string>}
+     * @return array{status: string, requiresEntry: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>}
      */
     private function claim(array $verdicts, array $configIds, array $diameterOf = []): array
     {
         $status = null;
         $requiresEntry = false;
-        $conditions = [];
+        // Only what holds for every permitted rim size and every tyre size of this wheel: a tile cannot say which
+        // size the customer will pick, and one blended list would set one size's „no snow chains“ beside another's
+        // „fine-link chains“ (ConditionGroups). The rest is on the product page, per size — and the tile says so.
+        $conditions = null;
+        $vary = false;
+        $key = static fn (Condition $c): string => $c->code."\u{0}".$c->sentenceDe();
         $fitting = [];
 
         foreach ($configIds as $configId) {
@@ -129,7 +134,16 @@ final readonly class ProductCards
                 ? VerdictStatus::Conditional
                 : VerdictStatus::Permitted;
             $requiresEntry = $requiresEntry || $verdict->requiresEntry;
-            $conditions = Condition::union($conditions, $verdict->conditions);
+            $groups = $verdict->conditionGroups();
+            $vary = $vary || $groups->differBySize() || $groups->entryDiffers();
+
+            if ($conditions === null) {
+                $conditions = $groups->combination;
+            } else {
+                $mine = array_map($key, $groups->combination);
+                $vary = $vary || count($mine) !== count($conditions) || array_diff($mine, array_map($key, $conditions)) !== [];
+                $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => in_array($key($c), $mine, true)));
+            }
 
             if (isset($diameterOf[$configId])) {
                 $fitting[$diameterOf[$configId]] = true;
@@ -138,8 +152,10 @@ final readonly class ProductCards
 
         // The listing and the engine disagree about this card. It makes no positive claim.
         if ($status === null) {
-            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'conditions' => [], 'diametersFitting' => []];
+            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'conditions' => [], 'conditionsVary' => false, 'diametersFitting' => []];
         }
+
+        $conditions ??= [];
 
         $diametersFitting = array_keys($fitting);
         usort($diametersFitting, static fn (string $a, string $b): int => (float) str_replace(',', '.', $a) <=> (float) str_replace(',', '.', $b));
@@ -157,6 +173,8 @@ final readonly class ProductCards
                 static fn (Condition $c): string => $c->sentenceDe(),
                 $conditions,
             )),
+            // Further Auflagen depend on the rim or tyre size: the tile says so and points to the product page.
+            'conditionsVary' => $vary,
             'diametersFitting' => $diametersFitting,
         ];
     }

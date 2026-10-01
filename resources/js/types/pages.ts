@@ -10,6 +10,7 @@
 import type {
     BasketLine,
     BasketTotals,
+    ConditionGroupsView,
     ContactProp,
     Facets,
     ImageManifest,
@@ -362,8 +363,14 @@ export interface ConfigVerdict {
     /** Additive: null for a wheel that may not go on the car, absent in an older payload. */
     detail?: FitmentDetailView | null
     entryNoteDe: string | null
-    /** Full German sentences, never codes such as A02 (R-15). */
+    /** Full German sentences, never codes such as A02 (R-15) — every Auflage once, for counting. */
     conditions: string[]
+    /** What the customer reads: the combination's once, each tyre size's with that size (ConditionGroups). Additive. */
+    conditionGroups?: ConditionGroupsView
+    /** Compare: only what holds for every size is in `conditions`; more depend on the size. Additive. */
+    conditionsVary?: boolean
+    /** Compare: the Abnahme or Eintragung depends on the size. Additive. */
+    entryVaries?: boolean
     /**
      * `66,6 mm` — the Mittenlochbohrung the covering documents state for THIS car, additive and
      * optional. Null where they state none (`UNSTATED`) or name different ones (`CONFLICTING`):
@@ -534,6 +541,8 @@ export interface CheckResultView {
     papersExempt?: boolean
     entryNote: string | null
     conditions: string[]
+    /** What is printed (ConditionGroups). Additive. */
+    conditionGroups?: ConditionGroupsView
     front: string[]
     rear: string[]
     tyre: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; stricterByPapers: boolean } | null
@@ -597,6 +606,8 @@ export interface BestellungProps {
             papersExempt?: boolean
             documentRevision: number
             detail: Record<string, unknown>
+            /** The Auflagen as the customer read them (ConditionGroups); null where the snapshot cannot be read. Additive. */
+            conditionGroups?: ConditionGroupsView | null
         } | null
     }[]
     /** Where the payment stands; null on a seeded order. Only the provider's webhook ever makes it `paid`. */
