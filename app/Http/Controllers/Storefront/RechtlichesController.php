@@ -30,7 +30,11 @@ class RechtlichesController extends Controller
 
     public function __invoke(Request $request, ?string $slug = null): Response
     {
-        $slug = in_array($slug, self::TABS, true) ? $slug : self::TABS[0];
+        // A mistyped address is a 404 with its three ways on, not the Impressum under an address that names another
+        // page; /rechtliches alone opens the first tab.
+        abort_if($slug !== null && ! in_array($slug, self::TABS, true), 404);
+
+        $slug ??= self::TABS[0];
 
         $pages = DB::table('pages')
             ->whereIn('slug', self::TABS)

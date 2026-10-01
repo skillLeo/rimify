@@ -39,3 +39,14 @@ it('says what is missing instead of inventing it', function (): void {
         // The shop's own contact address is the one fact that is never a guess.
         ->where('provider.rows.2.value', 'info@rimify.de'));
 });
+
+// The live sweep of 01.10.2026: /rechtliches/gibt-es-nicht answered 200 with the Impressum under an address naming
+// another page. A mistyped address is the designed 404; /rechtliches alone still opens the Impressum.
+it('answers a legal address it does not know with a 404, and /rechtliches alone with the Impressum', function (): void {
+    $this->get('/rechtliches/gibt-es-nicht')->assertNotFound();
+    $this->get('/rechtliches/Impressum')->assertNotFound();
+
+    $this->get('/rechtliches')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('Rechtliches/Index')
+        ->where('active', 'impressum'));
+});
