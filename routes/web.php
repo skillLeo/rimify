@@ -169,7 +169,7 @@ Route::middleware('auth:customer')->group(function (): void {
 Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
 // #19, D-103: the review invitation's page — signed, the link is the proof of purchase; the form goes back to it.
 Route::get('/bewertung/{number}', [BewertungController::class, 'show'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-api'])->name('bewertung.show');
-Route::post('/bewertung/{number}', [BewertungController::class, 'store'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:10,1,bewertung'])->name('bewertung.store');
+Route::post('/bewertung/{number}', [BewertungController::class, 'store'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-bewertung'])->name('bewertung.store');
 // The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.
 Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
 // The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
