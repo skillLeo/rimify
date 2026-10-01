@@ -440,10 +440,15 @@ controller, a service or a component (R-13).
    `VerdictUnknown`; a null wheel → `VerdictUnknown` (we hold nothing, we do not claim a refusal).
    `UNKNOWN` is **not** `NOT_PERMITTED` and must never be told it is — neither sells, but only one
    of them means "we checked and your car may not have this".
-2. Any condition on the verdict with `affectsTyreChoice === true` → `TyreChoiceRestricted`. The
-   document restricts which tyres may be fitted and we hold no structured data about which; offering
-   any tyre would be a confident wrong answer. (`ReferenceDataSeeder:128-131` seeds exactly such a
-   code, `TYRE_BRAND_LIMIT`.)
+2. Any condition on the verdict with `affectsTyreChoice === true` **that the engine does not read
+   itself** → `TyreChoiceRestricted`. The document restricts which tyres may be fitted and we hold no
+   structured data about which; offering any tyre would be a confident wrong answer.
+   (`ReferenceDataSeeder:128-131` seeds exactly such a code, `TYRE_BRAND_LIMIT`.) Since D-105 three
+   kinds are read, and only when whole: a `reifen_kombination` pairing table that parses strictly
+   (it speaks only of different sizes front and rear), a `reifen_achse` code with its axle entered
+   (rule 3b then applies), and a `reifen_tragfaehigkeit` limit naming its index (T95) with its axle
+   load — the last only once the car's own figures settled every axle (`TyreCheck::figuresPermitted`),
+   and applied per size in rule 8 from that size's own codes and its row's.
 3. **Two independent staggered guards, both → `StaggeredLayout`** (§11 D-035):
    - **3a.** `$verdict->tyreLayout() === 'MIXED'` — the two axles permit different size sets.
    - **3b.** Any `TyreSize` in `$verdict->front->sizes` or `$verdict->rear->sizes` whose own

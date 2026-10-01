@@ -32,6 +32,14 @@ enum KomplettradRefusal: string
     case BelowMinimum = 'BELOW_MINIMUM';
     case OutOfStock = 'OUT_OF_STOCK';
     case NoTyreAvailable = 'NO_TYRE_AVAILABLE';
+    /** A load-index limit of the size's own (T95 …) stops below the car's axle load (D-105). */
+    case AxleLoadAboveLimit = 'AXLE_LOAD_ABOVE_LIMIT';
+    /** Mischbereifung (#20): the document prints no pairing table for this car on this wheel, or none of its pairs fits. */
+    case NoMixedPairing = 'NO_MIXED_PAIRING';
+    /** Mischbereifung: this front size with this rear size is not in the document's table for this car. */
+    case MixedPairNotListed = 'MIXED_PAIR_NOT_LISTED';
+    /** Mischbereifung: front and rear are not one maker's one tyre line, as the table's own sentence asks. */
+    case MixedNotOneMaker = 'MIXED_NOT_ONE_MAKER';
 
     public function sentenceDe(): string
     {
@@ -44,13 +52,18 @@ enum KomplettradRefusal: string
             self::VerdictRestored => 'Diese Zusammenstellung können wir dir gerade nicht neu prüfen. Bitte wähl dein Fahrzeug noch einmal aus.',
             self::NoPermittedSizes => 'Für diese Kombination nennt das Gutachten keine Reifengröße. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
             self::NoUsableMinimum => 'Für dein Fahrzeug fehlen uns Achslast oder Höchstgeschwindigkeit. Trag die zulässigen Achslasten und die Höchstgeschwindigkeit aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir die zulässigen Reifen. Die Felge allein kannst du sofort bestellen.',
-            self::StaggeredLayout => 'Vorne und hinten sind für dein Fahrzeug unterschiedliche Reifengrößen freigegeben. Solche Kombinationen stellen wir dir persönlich zusammen.',
+            // Never „stellen wir persönlich zusammen“ beside a Mischbereifung the page offers itself (D-105).
+            self::StaggeredLayout => 'Vorne und hinten sind für dein Fahrzeug unterschiedliche Reifengrößen freigegeben – vier gleiche Reifen gibt es dafür nicht. Die Felge allein kannst du sofort bestellen.',
             self::TyreChoiceRestricted => 'Das Gutachten schreibt für diese Kombination bestimmte Reifen vor. Welche das sind, klären wir persönlich mit dir – die Felge allein kannst du sofort bestellen.',
             self::DiameterMismatch => 'Dieser Reifen hat nicht den Durchmesser dieser Felge.',
             self::SizeNotPermitted => 'Diese Reifengröße ist für dein Fahrzeug mit dieser Felge nicht freigegeben.',
             self::BelowMinimum => 'Dieser Reifen erfüllt die Mindestwerte für dein Fahrzeug nicht.',
             self::OutOfStock => 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.',
             self::NoTyreAvailable => 'Passende Reifen für diese Größe haben wir gerade nicht vorrätig. Die Felge allein kannst du bestellen.',
+            self::AxleLoadAboveLimit => 'Für die zulässige Achslast deines Fahrzeugs nennt das Gutachten in dieser Reifengröße keinen Tragfähigkeitsindex.',
+            self::NoMixedPairing => 'Unterschiedliche Reifengrößen vorne und hinten nennt das Gutachten für dein Fahrzeug mit dieser Felge nicht.',
+            self::MixedPairNotListed => 'Diese Reifengrößen für vorne und hinten nennt das Gutachten für dein Fahrzeug nicht als Kombination.',
+            self::MixedNotOneMaker => 'Vorne und hinten müssen Reifen desselben Herstellers und derselben Profilreihe sein – so verlangt es das Gutachten.',
         };
     }
 

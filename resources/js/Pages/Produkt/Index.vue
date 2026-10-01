@@ -34,6 +34,7 @@ import AmountStepper from '../../Components/Product/AmountStepper.vue'
 import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
+import MischbereifungOffer from '../../Components/Product/MischbereifungOffer.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
@@ -519,6 +520,15 @@ onBeforeUnmount(() => observer?.disconnect())
                 :offer="selected.komplettrad"
                 :wheel-config-id="selected.id"
                 :contact-email="shared.contact.email"
+            />
+
+            <!-- Mischbereifung (#20, D-105): only where the released Gutachten prints its table of
+                 front/rear pairs; the server sends null everywhere else. -->
+            <MischbereifungOffer
+                v-if="selected && selected.mischbereifung"
+                class="pdp__komplettrad"
+                :offer="selected.mischbereifung"
+                :wheel-config-id="selected.id"
             />
 
             <!-- Felgendetails: the measured values, mono and right-aligned, for the size chosen above. -->

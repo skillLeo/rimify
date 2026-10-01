@@ -42,6 +42,7 @@ class WarenkorbController extends Controller
     public function store(BasketLineRequest $request): RedirectResponse
     {
         $tyreVariantId = $request->tyreVariantId();
+        $rearTyreVariantId = $request->rearTyreVariantId();
 
         // Every line is a wheel (the request refuses anything else), and every wheel is checked —
         // with its tyre and at the posted quantity, so four Kompletträder against one tyre in
@@ -52,6 +53,7 @@ class WarenkorbController extends Controller
             $tyreVariantId,
             $request->weightColourId(),
             $request->quantity(),
+            $rearTyreVariantId,
         );
 
         if ($refusal !== null) {
@@ -66,14 +68,17 @@ class WarenkorbController extends Controller
             $request->quantity(),
             $tyreVariantId,
             $request->weightColourId(),
+            $rearTyreVariantId,
         );
 
         // Back rather than to the basket: the customer is on a product page configuring, and
         // taking them away from it after every add is what makes people buy one item instead of
         // four. The cart badge and a toast are the confirmation.
-        return back()->with('toast', $tyreVariantId === null
-            ? 'Zum Warenkorb hinzugefügt.'
-            : 'Komplettrad zum Warenkorb hinzugefügt.');
+        return back()->with('toast', match (true) {
+            $tyreVariantId === null => 'Zum Warenkorb hinzugefügt.',
+            $rearTyreVariantId !== null => 'Mischbereifung zum Warenkorb hinzugefügt.',
+            default => 'Komplettrad zum Warenkorb hinzugefügt.',
+        });
     }
 
     public function update(Request $request, string $line): RedirectResponse

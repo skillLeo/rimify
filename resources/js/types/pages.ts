@@ -355,6 +355,8 @@ export interface ProduktConfig {
      * in fixtures written before it existed; the server always sends it.
      */
     komplettrad?: KomplettradOfferProp | null
+    /** Mischbereifung (#20, D-105): null where the document prints no pairing table — the page says nothing then. */
+    mischbereifung?: MischbereifungProp | null
 }
 
 /**
@@ -521,6 +523,51 @@ export interface KomplettradOfferProp {
     /** What one click adds — a set. */
     quantity: number
     tyres: KomplettradTyreProp[]
+}
+
+/** One tyre set of a mixed pair: one maker's one line, front and rear, priced per wheel and for the 2 + 2 on the server. */
+export interface MischbereifungSetProp {
+    key: string
+    frontTyreId: number
+    rearTyreId: number
+    brandName: string
+    name: string
+    seasonLabel: string
+    /** `235/45 R19 95Y` */
+    frontLabel: string
+    rearLabel: string
+    perWheelFront: string
+    perWheelRear: string
+    /** Two of each, from LinePrice on the server — the page never multiplies. */
+    forFourCents: number
+    forFour: string
+    isDemo: boolean
+}
+
+/** One front/rear pair the document's table permits for the car on this rim. */
+export interface MischbereifungPairProp {
+    key: string
+    /** The table's entry number (`Nr. 8`). */
+    number: number
+    /** `235/45 R19` */
+    front: string
+    rear: string
+    /** Each axle against its own load, and the axle that asks for more. */
+    minSentence: string
+    sets: MischbereifungSetProp[]
+}
+
+/** Mischbereifung for one configuration (D-105): pairs, or the one sentence saying why there are none. */
+export interface MischbereifungProp {
+    refusal: string | null
+    refusalCode: string | null
+    /** Wheels per axle one click adds. */
+    perAxle: number
+    /** The document's own words beyond the table: one maker, one profile per axle, the confirmation in the car. */
+    rules: string | null
+    sourcePage: number | null
+    priceOpen: boolean
+    pairs: MischbereifungPairProp[]
 }
 
 /** One column of `/vergleich`: the card plus the figures the table lines up (home-overhaul.md §2.6). */

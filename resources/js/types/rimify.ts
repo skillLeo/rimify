@@ -345,7 +345,12 @@ export interface BasketLine {
     } | null
     /* docs/specs/komplettrad.md §4.7 — a Komplettrad is a wheel line that carries its tyre. */
     isSet?: boolean
-    setLabel?: 'Felge' | 'Komplettrad'
+    setLabel?: 'Felge' | 'Komplettrad' | 'Komplettrad Vorderachse' | 'Komplettrad Hinterachse'
+    /**
+     * Mischbereifung (#20, D-105): one axle of a mixed set — the two lines are one entry, so a change on either changes
+     * both. Null on every other line. Additive.
+     */
+    mixed?: BasketMixed | null
     /** Null on a Felgen-only line, and on a Komplettrad whose tyre has gone (then `blockReasons` says so). */
     tyre?: BasketTyre | null
     /** Null until a colour is chosen or while the chosen one has gone; the line is then marked. */
@@ -358,6 +363,27 @@ export interface BasketLine {
     priceOpen?: boolean
     /** Full German sentences, never codes; empty when nothing is wrong (R-15). */
     blockReasons?: string[]
+}
+
+/** One axle of a mixed set, as the basket and the order record it (D-105). */
+export interface BasketMixed {
+    setKey: string
+    axle: 'FRONT' | 'REAR'
+    /** `Vorderachse` */
+    axleLabel: string
+    /** `235/45 R19` — this axle's size, and the other axle's. */
+    size: string | null
+    partnerSize: string | null
+    /** The entry of the document's table (`Nr. 8`); null where the pair is no longer listed (then the line is marked). */
+    pairing: number | null
+    sourcePage: number | null
+    /** What the document says beyond the table, in its own words. */
+    rulesDe: string | null
+    minLoadIndex: number | null
+    minSpeedSymbol: string | null
+    axleLoadKg: number | null
+    bindingAxle: 'FRONT' | 'REAR' | null
+    minimumSentence: string | null
 }
 
 /**

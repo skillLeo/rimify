@@ -38,15 +38,22 @@ final readonly class TyreCheck
         /** `Grundlage: Tabelle auf Seite 6 im Gutachten 55255.` */
         public ?string $basis = null,
         public bool $stricterByPapers = false,
+        /**
+         * Whether the car's own axle loads and top speed settled every axle on the figures — the document's load
+         * table and its `reifen_tragfaehigkeit` limits included — so that only the document's written tyre rules
+         * (which pairs, which axle) keep it CONDITIONAL. Those the eligibility reads itself (D-105); without this,
+         * no tyre is sold against them.
+         */
+        public bool $figuresPermitted = false,
     ) {}
 
     public function withStricterByPapers(bool $stricter): self
     {
-        return new self($this->status, $this->lines, $this->thresholds, $this->fromVehicleData, $this->summary, $this->basis, $stricter);
+        return new self($this->status, $this->lines, $this->thresholds, $this->fromVehicleData, $this->summary, $this->basis, $stricter, $this->figuresPermitted);
     }
 
     /**
-     * @return array{status: string, lines: list<string>, thresholds: list<array{textDe: string, maxAxleLoadKg: int}>, fromVehicleData: bool, summary: string|null, basis: string|null, stricterByPapers: bool}
+     * @return array{status: string, lines: list<string>, thresholds: list<array{textDe: string, maxAxleLoadKg: int}>, fromVehicleData: bool, summary: string|null, basis: string|null, stricterByPapers: bool, figuresPermitted: bool}
      */
     public function toArray(): array
     {
@@ -58,6 +65,7 @@ final readonly class TyreCheck
             'summary' => $this->summary,
             'basis' => $this->basis,
             'stricterByPapers' => $this->stricterByPapers,
+            'figuresPermitted' => $this->figuresPermitted,
         ];
     }
 
@@ -81,6 +89,8 @@ final readonly class TyreCheck
             summary: is_string($data['summary'] ?? null) ? $data['summary'] : null,
             basis: is_string($data['basis'] ?? null) ? $data['basis'] : null,
             stricterByPapers: (bool) ($data['stricterByPapers'] ?? false),
+            // Additive (D-105): a snapshot frozen before reads false — it is never the input to a sale anyway.
+            figuresPermitted: (bool) ($data['figuresPermitted'] ?? false),
         );
     }
 }

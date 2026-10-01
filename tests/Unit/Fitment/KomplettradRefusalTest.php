@@ -31,7 +31,7 @@ it('carries a full German sentence for every refusal, naming no code and no cont
         ->and($sentence)->not->toMatch('/\b(Sie|Ihr|Ihre|Ihrem|Ihren|Ihnen)\b/u');
 })->with($everyCase);
 
-it('has exactly the fifteen cases — the specification’s thirteen and the two halves of R-03 — in its order', function (): void {
+it('has exactly the nineteen cases — the specification’s thirteen, the two halves of R-03 and the four of D-105 — in its order', function (): void {
     expect(KomplettradRefusal::values())->toBe([
         'NO_VEHICLE',
         'VERDICT_NOT_PERMITTED',
@@ -48,7 +48,11 @@ it('has exactly the fifteen cases — the specification’s thirteen and the two
         'BELOW_MINIMUM',
         'OUT_OF_STOCK',
         'NO_TYRE_AVAILABLE',
-    ])->and(KomplettradRefusal::cases())->toHaveCount(15);
+        'AXLE_LOAD_ABOVE_LIMIT',
+        'NO_MIXED_PAIRING',
+        'MIXED_PAIR_NOT_LISTED',
+        'MIXED_NOT_ONE_MAKER',
+    ])->and(KomplettradRefusal::cases())->toHaveCount(19);
 });
 
 it('never says „kein Gutachten“ when the wheel is approved and only the tyres are open (R-03 split)', function (): void {
@@ -76,11 +80,13 @@ it('names a route forward on every refusal a customer can act on', function (): 
         KomplettradRefusal::NoUsableMinimum,
         KomplettradRefusal::TyreChoiceRestricted,
         KomplettradRefusal::NoTyreAvailable,
+        KomplettradRefusal::StaggeredLayout,
     ] as $felgeAllein) {
         expect($felgeAllein->sentenceDe())->toContain('Felge allein kannst du');
     }
 
-    expect(KomplettradRefusal::StaggeredLayout->sentenceDe())->toContain('persönlich')
+    // Never „stellen wir persönlich zusammen“ beside the Mischbereifung the page offers (D-105).
+    expect(KomplettradRefusal::StaggeredLayout->sentenceDe())->not->toContain('persönlich')
         ->and(KomplettradRefusal::VerdictUnknown->sentenceDe())->toContain('schreib uns')
         ->and(KomplettradRefusal::NoVehicle->sentenceDe())->toContain('dein Fahrzeug')
         ->and(KomplettradRefusal::VerdictRestored->sentenceDe())->toContain('noch einmal aus');

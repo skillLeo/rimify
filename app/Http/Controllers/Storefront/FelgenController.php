@@ -256,6 +256,8 @@ class FelgenController extends Controller
                 // The Komplettrad offer travels with the verdict it depends on, for the same
                 // reason: a size change swaps the tyres and the legal answer in one commit.
                 'komplettrad' => $this->komplettradFor($config, $live, $colour),
+                // Mischbereifung (#20, D-105): only where the released Gutachten prints its pairing table.
+                'mischbereifung' => $this->mischbereifungFor($config, $live, $colour),
             ];
         }
 
@@ -425,6 +427,115 @@ class FelgenController extends Controller
             'priceOpen' => $priceOpen,
             'quantity' => self::SET_OF,
             'tyres' => $tyres,
+        ];
+    }
+
+    /**
+     * Mischbereifung for one configuration (#20, D-105): every front/rear pair the released Gutachten's table permits
+     * for this car on this rim, each with the tyre sets that meet both axles — two of each, priced by the one pricer —
+     * or the sentence saying why there is none. Null where the document prints no pairing table: the page then says
+     * nothing about it, because there is nothing to offer and nothing to explain.
+     *
+     * Nothing here decides a pair. `TyreEligibility` does, and the basket asks it again on every add and render.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function mischbereifungFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour): ?array
+    {
+        if ($verdict === null) {
+            return null;
+        }
+
+        $offer = $this->eligibility->mixedOfferFor($verdict);
+
+        if (! $offer->hasTable) {
+            return null;
+        }
+
+        $refused = static fn (string $code, string $sentence): array => [
+            'refusal' => $sentence,
+            'refusalCode' => $code,
+            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
+            'rules' => $offer->rulesDe,
+            'sourcePage' => $offer->sourcePage,
+            'priceOpen' => false,
+            'pairs' => [],
+        ];
+
+        if ($offer->refusal !== null) {
+            return $refused($offer->refusal->value, $offer->refusal->sentenceDe());
+        }
+
+        if ($colour === null) {
+            return $refused(Basket::NO_WEIGHT_COLOUR_CODE, Basket::NO_WEIGHT_COLOUR_REFUSAL);
+        }
+
+        $ids = [];
+
+        foreach ($offer->pairs as $pair) {
+            foreach ($pair->sets as $set) {
+                $ids[] = $set['front']->id;
+                $ids[] = $set['rear']->id;
+            }
+        }
+
+        $variants = TyreVariant::query()->with('brand')->whereIn('id', array_values(array_unique($ids)))->get()->keyBy('id');
+        $priceOpen = false;
+        $pairs = [];
+
+        foreach ($offer->pairs as $pair) {
+            $sets = [];
+
+            foreach ($pair->sets as $set) {
+                $front = $variants->get($set['front']->id);
+                $rear = $variants->get($set['rear']->id);
+
+                if (! $front instanceof TyreVariant || ! $rear instanceof TyreVariant) {
+                    continue;
+                }
+
+                $frontPrice = $this->pricer->perWheel($config, $front, $colour);
+                $rearPrice = $this->pricer->perWheel($config, $rear, $colour);
+                $priceOpen = $priceOpen || ! $frontPrice->complete() || ! $rearPrice->complete();
+                $frontWheel = Money::fromMinor($frontPrice->knownPerWheelCents(), $frontPrice->currency);
+                $rearWheel = Money::fromMinor($rearPrice->knownPerWheelCents(), $rearPrice->currency);
+                $forFour = LinePrice::total($frontWheel, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearWheel, TyreEligibility::MIXED_PER_AXLE));
+
+                $sets[] = [
+                    'key' => $front->id.'-'.$rear->id,
+                    'frontTyreId' => (int) $front->id,
+                    'rearTyreId' => (int) $rear->id,
+                    'brandName' => (string) $front->brand?->name,
+                    'name' => (string) $front->name,
+                    'seasonLabel' => TyreSeason::from((string) $front->season)->longLabelDe(),
+                    'frontLabel' => $front->label(),
+                    'rearLabel' => $rear->label(),
+                    'perWheelFront' => $frontWheel->format(),
+                    'perWheelRear' => $rearWheel->format(),
+                    'forFourCents' => $forFour->toMinor(),
+                    'forFour' => $forFour->format(),
+                    'isDemo' => (bool) $front->is_demo || (bool) $rear->is_demo,
+                ];
+            }
+
+            $pairs[] = [
+                'key' => $pair->pairing->key(),
+                'number' => $pair->pairing->number,
+                'front' => $pair->front->labelDe(),
+                'rear' => $pair->rear->labelDe(),
+                'minSentence' => $pair->minimumSentenceDe(),
+                'sets' => $sets,
+            ];
+        }
+
+        return [
+            'refusal' => null,
+            'refusalCode' => null,
+            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
+            'rules' => $offer->rulesDe,
+            'sourcePage' => $offer->sourcePage,
+            'priceOpen' => $priceOpen,
+            'pairs' => $pairs,
         ];
     }
 

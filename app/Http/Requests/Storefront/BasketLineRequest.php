@@ -33,7 +33,10 @@ class BasketLineRequest extends FormRequest
         return [
             'kind' => ['required', Rule::in(['WHEEL'])],
             'wheelConfigId' => ['required', 'integer', 'min:1'],
-            'tyreVariantId' => ['nullable', 'integer', 'min:1'],
+            'tyreVariantId' => ['nullable', 'integer', 'min:1', 'required_with:rearTyreVariantId'],
+            // Mischbereifung (#20): the rear axle's tyre; `quantity` is then the wheels on each axle. Whether the pair
+            // may go on this car is the fitment engine's question, not a validation rule (D-105).
+            'rearTyreVariantId' => ['nullable', 'integer', 'min:1', 'different:tyreVariantId'],
             'weightColourId' => ['nullable', 'integer', 'min:1'],
             'quantity' => ['required', 'integer', 'min:1', 'max:99'],
         ];
@@ -50,6 +53,10 @@ class BasketLineRequest extends FormRequest
             'wheelConfigId.min' => 'Bitte wähle zuerst eine Größe.',
             'tyreVariantId.integer' => 'Bitte wähle zuerst einen Reifen.',
             'tyreVariantId.min' => 'Bitte wähle zuerst einen Reifen.',
+            'tyreVariantId.required_with' => 'Bitte wähle zuerst den Reifen für die Vorderachse.',
+            'rearTyreVariantId.integer' => 'Bitte wähle zuerst den Reifen für die Hinterachse.',
+            'rearTyreVariantId.min' => 'Bitte wähle zuerst den Reifen für die Hinterachse.',
+            'rearTyreVariantId.different' => 'Bei Mischbereifung sind die Reifen vorne und hinten verschieden.',
             'weightColourId.integer' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
             'weightColourId.min' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
             'quantity.required' => 'Bitte gib eine Menge an.',
@@ -73,6 +80,14 @@ class BasketLineRequest extends FormRequest
     public function tyreVariantId(): ?int
     {
         $value = $this->validated('tyreVariantId');
+
+        return $value === null ? null : (int) $value;
+    }
+
+    /** The rear axle's tyre of a mixed set; null for everything else. */
+    public function rearTyreVariantId(): ?int
+    {
+        $value = $this->validated('rearTyreVariantId');
 
         return $value === null ? null : (int) $value;
     }

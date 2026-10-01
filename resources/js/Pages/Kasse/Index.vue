@@ -1293,7 +1293,7 @@ function verdictSentence(line: BasketLine): string {
                                             <p class="ko__essential-top">
                                                 <span class="ko__essential-name">
                                                     <span class="tabular">{{ line.quantity }} ×</span>
-                                                    {{ line.isSet ? 'Komplettrad' : 'Felge' }} {{ line.brandName }} {{ line.title }}
+                                                    {{ line.mixed ? line.setLabel : line.isSet ? 'Komplettrad' : 'Felge' }} {{ line.brandName }} {{ line.title }}
                                                 </span>
                                                 <span class="ko__essential-price tabular">{{ line.lineTotal }}</span>
                                             </p>

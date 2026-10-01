@@ -659,10 +659,11 @@ final readonly class FitmentResolver
         if ($restricting !== []) {
             $lines[] = 'Das Gutachten schreibt außerdem vor, welche Reifen du fahren darfst – die Auflagen unter „Reifen“ gelten zusätzlich.';
 
-            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds, true, $summary, $basis);
+            // Settled on the figures, every axle: what is left is the document's written rule (D-105).
+            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds, true, $summary, $basis, figuresPermitted: true);
         }
 
-        return new TyreCheck(VerdictStatus::Permitted, $lines, $thresholds, true, $summary, $basis);
+        return new TyreCheck(VerdictStatus::Permitted, $lines, $thresholds, true, $summary, $basis, figuresPermitted: true);
     }
 
     /**
