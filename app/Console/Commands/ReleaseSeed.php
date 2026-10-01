@@ -54,8 +54,12 @@ final class ReleaseSeed extends Command
      * table marked as the demo seed's — all but DEMO-0007, kept without on purpose so the honest UNKNOWN
      * stays demonstrable — and so does the walkthrough's placeholder document (the operator's decision of
      * 29.09.2026). The live shop is untouched: ApprovalSeeder and PlaceholderTables never run there.
+     *
+     * v7: the hero's wheel again (D-089). v5 named the DB8GT2 the hero only where no hero was chosen; on a database whose
+     * setting still named a demo model, ContentSeeder then cleared it — and the preview's hero showed the outline and
+     * no numbers section ever since. GoldenRecordSeeder now replaces a choice that is no real wheel.
      */
-    public const VERSION = 6;
+    public const VERSION = 7;
 
     /** From this version on, a kept demo set is written again once, so its frozen labels match. */
     public const DEMO_RENEWED_AT = 4;

@@ -70,10 +70,11 @@ it('is idempotent and never undoes what a person set', function (): void {
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
     $size = WheelConfig::query()->where('wheel_model_id', $model->id)->orderBy('id')->firstOrFail();
 
-    // A person prices one size, publishes the wheel and chooses another hero.
+    // A person prices one size, publishes the wheel and chooses another real wheel as the hero.
     $size->update(['price_cents' => 24_900, 'stock_qty' => 8]);
     $model->update(['status' => 'published']);
-    Setting::set('hero_product_id', 999_999);
+    $other = WheelModel::factory()->create(['is_demo' => false]);
+    Setting::set('hero_product_id', $other->id);
 
     $this->seed(GoldenRecordSeeder::class);
 
@@ -82,7 +83,19 @@ it('is idempotent and never undoes what a person set', function (): void {
         ->and($size->refresh()->price_cents)->toBe(24_900)
         ->and($size->stock_qty)->toBe(8)
         ->and($model->refresh()->status->value)->toBe('published')
-        ->and(Setting::get('hero_product_id'))->toBe(999_999);
+        ->and(Setting::get('hero_product_id'))->toBe($other->id);
+});
+
+it('takes the hero back from a choice that is no real wheel — a demo model, one that is gone (D-089)', function (): void {
+    $this->seed(GoldenRecordSeeder::class);
+    $golden = (int) WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->value('id');
+
+    foreach ([WheelModel::factory()->draft()->create(['is_demo' => true])->id, 999_999] as $noChoice) {
+        Setting::set('hero_product_id', $noChoice);
+        $this->seed(GoldenRecordSeeder::class);
+
+        expect((int) Setting::get('hero_product_id'))->toBe($golden);
+    }
 });
 
 it('shows the chosen draft in the hero with its photograph and values, but no price and no link', function (): void {

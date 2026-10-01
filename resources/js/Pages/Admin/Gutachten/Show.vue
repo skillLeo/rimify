@@ -86,6 +86,28 @@ const more = computed<AdminPageAction[]>(() => {
 const releaseOpen = ref(false)
 const releasing = ref(false)
 
+/*
+ * What „Freigeben" does, said before it is pressed. A base without rows of its own (ABE 53841: its Verwendungsbereich
+ * stands in its Nachtrag's Anlagen) brings no row into the shop — its facts reach the shop through its Nachträge.
+ */
+const releaseNote = computed(() => {
+    if (props.rows.length === 0) {
+        return 'Mit der Freigabe übernimmt der Shop die Angaben dieses Grundgutachtens für seine Nachträge. Eigene Zeilen hat es nicht.'
+    }
+
+    return props.rows.length === 1
+        ? 'Mit der Freigabe gilt die Zeile sofort im Shop. Prüf sie vorher in der Vorschau unten.'
+        : `Mit der Freigabe gelten alle ${decimal(props.rows.length, 0)} Zeilen auf einmal im Shop. Prüf sie vorher in der Vorschau unten.`
+})
+
+const releaseBody = computed(() => {
+    const what = props.rows.length === 0
+        ? 'Der Shop übernimmt danach die Angaben dieses Grundgutachtens für seine Nachträge.'
+        : `${props.rows.length === 1 ? 'Die Zeile gilt' : `Alle ${decimal(props.rows.length, 0)} Zeilen gelten`} danach sofort im Shop.`
+
+    return `${what} Ein freigegebenes Gutachten ändert sich nicht mehr; Änderungen kommen mit einer neuen Fassung.`
+})
+
 /* The button that opened the confirm goes with the Freigabe: the keyboard lands on the document's new state. */
 function focusState(): void {
     void nextTick(() => document.getElementById('gs-state-h')?.focus())
@@ -278,7 +300,7 @@ const TONE: Record<string, string | null> = {
             <ul v-if="draft && blockers.length" class="gs-state__list">
                 <li v-for="line in blockers" :key="line">{{ line }}</li>
             </ul>
-            <p v-else-if="draft" class="adm-note">{{ rows.length === 1 ? 'Mit der Freigabe gilt die Zeile sofort im Shop. Prüf sie vorher in der Vorschau unten.' : `Mit der Freigabe gelten alle ${decimal(rows.length, 0)} Zeilen auf einmal im Shop. Prüf sie vorher in der Vorschau unten.` }}</p>
+            <p v-else-if="draft" class="adm-note">{{ releaseNote }}</p>
             <p v-else-if="document.status === 'withdrawn'" class="adm-note">Dieses Dokument wurde zurückgezogen. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else-if="document.status === 'superseded'" class="adm-note">Eine neuere Fassung hat dieses Dokument ersetzt. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else class="adm-note">Ein freigegebenes Gutachten ändert sich nicht mehr. Für Änderungen legst du eine neue Fassung an, die es ersetzt.</p>
@@ -466,7 +488,7 @@ const TONE: Record<string, string | null> = {
         <AdminConfirm
             v-model:open="releaseOpen"
             title="Gutachten freigeben?"
-            :body="`${rows.length === 1 ? 'Die Zeile gilt' : `Alle ${decimal(rows.length, 0)} Zeilen gelten`} danach sofort im Shop. Ein freigegebenes Gutachten ändert sich nicht mehr; Änderungen kommen mit einer neuen Fassung.`"
+            :body="releaseBody"
             confirm-label="Freigeben"
             :busy="releasing"
             @confirm="release"

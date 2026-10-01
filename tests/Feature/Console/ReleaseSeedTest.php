@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Console\Commands\ReleaseSeed;
 use App\Models\Setting;
+use Database\Seeders\GoldenRecordSeeder;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\DemoWheelFixtures;
 
 /*
@@ -56,6 +58,36 @@ it('duplicates nothing and loses nothing when it runs again', function (): void 
     $this->artisan('rimify:release-seed', ['--force' => true])->assertSuccessful();
 
     expect(seededState())->toBe($first);
+});
+
+/*
+ * D-089, the preview's state since 28.09.: its hero setting still named a demo model from before the demo catalogue left
+ * the storefront. GoldenRecordSeeder claimed the hero only where none was chosen, ContentSeeder then cleared the demo
+ * choice, and the homepage had no hero product — no photograph rolling in, no numbers section — while every test on a
+ * fresh database stayed green.
+ */
+it('gives the hero back its real wheel where the setting still names a demo model', function (): void {
+    $this->artisan('rimify:release-seed')->assertSuccessful();
+    $demo = (int) DB::table('wheel_models')->where('is_demo', true)->value('id');
+    $golden = (int) DB::table('wheel_models')->where('slug', GoldenRecordSeeder::SLUG)->value('id');
+    Setting::set('hero_product_id', $demo);
+
+    $this->artisan('rimify:release-seed', ['--force' => true])->assertSuccessful();
+
+    expect((int) Setting::get('hero_product_id'))->toBe($golden);
+
+    $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.product.slug', GoldenRecordSeeder::SLUG)
+        ->where('hero.product.facts', fn ($facts): bool => $facts !== null && $facts !== []));
+
+    // A real wheel a person chose stays chosen.
+    $chosen = (int) DB::table('wheel_models')->where('is_demo', false)->where('id', '<>', $golden)->value('id');
+
+    if ($chosen > 0) {
+        Setting::set('hero_product_id', $chosen);
+        $this->artisan('rimify:release-seed', ['--force' => true])->assertSuccessful();
+        expect((int) Setting::get('hero_product_id'))->toBe($chosen);
+    }
 });
 
 it('never seeds orders and never touches frozen verdicts', function (): void {
