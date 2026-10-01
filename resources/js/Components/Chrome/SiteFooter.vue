@@ -82,6 +82,8 @@ const year = new Date().getFullYear()
             <div class="footer__base">
                 <span>{{ terms.footer }}</span>
                 <span class="num">© RIMIFY {{ year }}</span>
+                <!-- Staging only: which build this is, so a reviewer can tell a new version from an old one. -->
+                <span v-if="shared.release" class="num footer__release" data-release>{{ shared.release }}</span>
             </div>
         </div>
     </footer>

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $description_de
  * @property string|null $seo_title
  * @property string|null $seo_description
+ * @property string|null $internal_note admin only, never shown in the shop
  * @property CatalogueStatus $status
  * @property int $spoke_count
  * @property float|null $rating
@@ -37,7 +38,7 @@ class WheelModel extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'seo_title', 'seo_description', 'status',
+        'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'seo_title', 'seo_description', 'internal_note', 'status',
         'spoke_count', 'rating', 'rating_count', 'is_demo',
     ];
 

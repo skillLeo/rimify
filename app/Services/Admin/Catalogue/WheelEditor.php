@@ -37,7 +37,7 @@ final class WheelEditor
     private const MEASUREMENTS = ['diameter_in', 'width_in', 'et_mm', 'bolt_holes', 'bolt_circle_mm', 'centre_bore_mm'];
 
     /**
-     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null}  $attributes
+     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note: string|null}  $attributes
      * @param  list<FinishInput>  $finishes
      * @param  list<ConfigInput>  $configs
      */
@@ -52,7 +52,7 @@ final class WheelEditor
     }
 
     /**
-     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null}  $attributes
+     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note: string|null}  $attributes
      * @param  list<FinishInput>  $finishes
      * @param  list<ConfigInput>  $configs
      */
@@ -69,6 +69,7 @@ final class WheelEditor
                 'description_de' => $attributes['description_de'],
                 'seo_title' => $attributes['seo_title'],
                 'seo_description' => $attributes['seo_description'],
+                'internal_note' => $attributes['internal_note'],
             ];
 
             if ($model === null) {

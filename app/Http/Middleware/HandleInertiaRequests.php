@@ -16,6 +16,7 @@ use App\Services\Admin\SystemHealth;
 use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
 use App\Support\PreviewRibbon;
+use App\Support\ReleaseStamp;
 use App\Support\Seller;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -66,6 +67,8 @@ class HandleInertiaRequests extends Middleware
             // The test environment says what it is in one slim line, until put away (PreviewRibbon.vue): on staging only,
             // decided here so the first frame already has it — or has not (R-08).
             'previewRibbon' => PreviewRibbon::shown($request),
+            // Which build this test environment serves, at the foot of every page (ReleaseStamp); null in the live shop.
+            'release' => ReleaseStamp::label(),
             'flash' => [
                 'toast' => $request->session()->get('toast'),
             ],

@@ -66,6 +66,7 @@ class WheelModelRequest extends FormRequest
             'description' => is_string($this->input('description')) ? trim(str_replace(["\r\n", "\r"], "\n", (string) $this->input('description'))) : $this->input('description'),
             'seo_title' => $trim($this->input('seo_title')),
             'seo_description' => $trim($this->input('seo_description')),
+            'internal_note' => $trim($this->input('internal_note')),
         ]);
     }
 
@@ -82,6 +83,7 @@ class WheelModelRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:4000'],
             'seo_title' => ['nullable', 'string', 'max:70'],
             'seo_description' => ['nullable', 'string', 'max:170'],
+            'internal_note' => ['nullable', 'string', 'max:500'],
 
             'finishes' => ['required', 'array', 'min:1', 'max:20'],
             'finishes.*.key' => ['required', 'string', 'max:40', 'distinct'],
@@ -123,6 +125,7 @@ class WheelModelRequest extends FormRequest
             'description.max' => 'Die Beschreibung darf höchstens 4.000 Zeichen lang sein.',
             'seo_title.max' => 'Der Titel für Suchmaschinen darf höchstens 70 Zeichen lang sein.',
             'seo_description.max' => 'Die Beschreibung für Suchmaschinen darf höchstens 170 Zeichen lang sein.',
+            'internal_note.max' => 'Die interne Notiz darf höchstens 500 Zeichen lang sein.',
 
             'finishes.required' => 'Eine Felge braucht mindestens eine Ausführung.',
             'finishes.min' => 'Eine Felge braucht mindestens eine Ausführung.',
@@ -271,7 +274,7 @@ class WheelModelRequest extends FormRequest
     /**
      * The model's own fields, ready for the table.
      *
-     * @return array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null}
+     * @return array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note: string|null}
      */
     public function modelAttributes(): array
     {
@@ -286,6 +289,7 @@ class WheelModelRequest extends FormRequest
             'description_de' => $text('description'),
             'seo_title' => $text('seo_title'),
             'seo_description' => $text('seo_description'),
+            'internal_note' => $text('internal_note'),
         ];
     }
 

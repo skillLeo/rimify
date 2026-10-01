@@ -8,6 +8,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AuditLog;
+use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Orders\OrderList;
 use App\Services\Content\NavigationSchema;
 use App\Services\Demo\DemoTables;
@@ -455,10 +456,23 @@ final class AuditDescriber
         $rows = is_numeric($p['rows'] ?? null) ? (int) $p['rows'] : 0;
         $conflicts = is_numeric($p['conflicts'] ?? null) ? (int) $p['conflicts'] : 0;
         $sentence = 'Das Dokument '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde freigegeben: '
-            .($rows === 1 ? 'eine Zeile ist' : GermanFormat::integer($rows).' Zeilen sind').' jetzt im Shop.';
+            .match ($rows) {
+                // A base without rows of its own (DocumentRelease): its facts reach the shop through its Nachträge.
+                0 => 'Der Shop übernimmt seine Angaben für seine Nachträge.',
+                1 => 'eine Zeile ist jetzt im Shop.',
+                default => GermanFormat::integer($rows).' Zeilen sind jetzt im Shop.',
+            };
 
         if ($conflicts > 0) {
             $sentence .= ' '.($conflicts === 1 ? 'Ein Widerspruch zu anderen Gutachten wurde' : GermanFormat::integer($conflicts).' Widersprüche zu anderen Gutachten wurden').' erkannt.';
+        }
+
+        // ReleaseOnInstruction: who decided, in the operator's own words — not a click in the browser.
+        $instruction = self::text($p, DocumentRelease::ON_INSTRUCTION);
+
+        if ($instruction !== null) {
+            $sentence .= ' Nicht im Browser geklickt: freigegeben auf schriftliche Anweisung des Betreibers für die Testumgebung ('
+                .(self::text($p, 'environment') ?? 'staging').'), über die Kommandozeile. Anweisung: '.self::q($instruction).'.';
         }
 
         return $sentence;

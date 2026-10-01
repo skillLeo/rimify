@@ -469,6 +469,7 @@ function runBulk(): void {
                                             {{ wheel.finishes === 1 ? '1 Ausführung' : `${decimal(wheel.finishes, 0)} Ausführungen` }}
                                             <span v-if="wheel.demo" class="adm-tag adm-tag--neutral fg-demo">Demodaten</span>
                                         </span>
+                                        <span v-if="wheel.internalNote" class="fg-memo">Notiz: {{ wheel.internalNote }}</span>
                                     </span>
                                 </div>
                             </td>
@@ -724,6 +725,21 @@ function runBulk(): void {
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
     color: var(--c-ink-3);
+}
+
+/* The internal note under the name, in the warning ink's tint: seen in passing, never in the shop. */
+.fg-memo {
+    display: block;
+    width: fit-content;
+    max-width: 40ch;
+    margin-top: var(--sp-4);
+    padding: 0 var(--sp-4);
+    border-radius: var(--r-control);
+    background: var(--c-warn-tint);
+    color: var(--c-ink);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    overflow-wrap: anywhere;
 }
 
 .fg-demo {

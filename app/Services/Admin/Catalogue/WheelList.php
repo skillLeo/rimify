@@ -170,6 +170,8 @@ final class WheelList
             'status' => $model->status->value,
             'statusLabel' => self::statusLabel($model->status),
             'demo' => $model->is_demo,
+            // Admin only, never in the shop.
+            'internalNote' => $model->internal_note,
             'finishes' => (int) $model->getAttribute('finishes_count'),
             'sizes' => $sizes,
             'diameters' => $smallest === null ? null : self::diameters((float) $smallest, (float) $largest),

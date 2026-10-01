@@ -17,6 +17,8 @@ export interface WheelRow {
     statusLabel: string
     /** Seeded demonstration data: never in the shop. */
     demo: boolean
+    /** Admin only, never in the shop. */
+    internalNote: string | null
     finishes: number
     sizes: number
     /** `18–19 Zoll`, or null without sizes. */
@@ -124,6 +126,7 @@ export interface WheelForm {
     description: string
     seo_title: string
     seo_description: string
+    internal_note: string
     finishes: FinishForm[]
     configs: SizeForm[]
 }
@@ -145,6 +148,8 @@ export interface AdminFelgeProps {
         description: string
         seoTitle: string
         seoDescription: string
+        /** Admin only, never in the shop: shown above the Felge and in the list. */
+        internalNote: string
         status: 'draft' | 'published' | 'archived'
         statusLabel: string
         demo: boolean
