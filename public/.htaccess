@@ -1,3 +1,10 @@
+# ── Types ────────────────────────────────────────────────────────────────────────────────────────
+# Every format the image pipeline writes, named for what it is: the host's own list knows WebP but served AVIF as
+# text/plain (the preview, 01.10.2026) — so its caching rule below never matched either.
+<IfModule mod_mime.c>
+    AddType image/avif .avif
+</IfModule>
+
 # ── Speed ────────────────────────────────────────────────────────────────────────────────────────
 # Text is compressed on the way out (HTML, CSS, JavaScript, JSON, SVG): a third of the bytes or less.
 <IfModule mod_deflate.c>
