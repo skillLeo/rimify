@@ -276,9 +276,11 @@ export class Sweep {
                     codes.push(describe(el));
                 }
 
-                // A box that should hold something and holds nothing.
+                // A box that should hold something and holds nothing. A live region waits empty for what it will
+                // announce (the vehicle count before a car is chosen): screen readers only hear one that already exists.
                 if (
                     el.matches('.tile, .card, .notice, .state, dd, li, td, .tag, .price, [class*="__count"], [class*="__facts"]') &&
+                    !el.matches('[aria-live]') &&
                     own === '' &&
                     el.querySelector('img, svg, canvas, picture, input, select, button, a') === null
                 ) {
@@ -294,7 +296,16 @@ export class Sweep {
             const smallTargets: string[] = [];
             const smallInputs: string[] = [];
 
-            if (phone) {
+            // The shop sizes its controls for a thumb under (pointer: coarse), as a phone reports it. Measured with a fine
+            // pointer, every one of them reads short: the run of 01.10.2026 met that on some pages of the phone project
+            // (footer links 32 px where a phone shows 44). Then nothing is measured, and the page says why.
+            const coarse = matchMedia('(pointer: coarse)').matches;
+
+            if (phone && !coarse) {
+                smallTargets.push('(not measured: the browser reported a fine pointer)');
+            }
+
+            if (phone && coarse) {
                 for (const el of Array.from(
                     document.querySelectorAll('a[href], button, input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="tab"]'),
                 )) {
@@ -312,13 +323,16 @@ export class Sweep {
                         smallTargets.push(`${describe(el)} ${Math.round(r.width)}×${Math.round(r.height)}`);
                     }
 
-                    if (el.matches('input, select, textarea') && parseFloat(s.fontSize) < 16) {
+                    // iOS zooms into a field you type into, never into a checkbox or a radio.
+                    if (el.matches('input:not([type="checkbox"]):not([type="radio"]), select, textarea') && parseFloat(s.fontSize) < 16) {
                         smallInputs.push(`${describe(el)} ${s.fontSize}`);
                     }
                 }
             }
 
+            // An in-page anchor (the skip link „#inhalt“) is not a page to check: on a 404 it would read as the 404 itself.
             const links = Array.from(document.querySelectorAll('a[href]'))
+                .filter((a) => !(a.getAttribute('href') ?? '').startsWith('#'))
                 .map((a) => (a as HTMLAnchorElement).href)
                 .filter((href) => href.startsWith(location.origin))
                 .map((href) => href.split('#')[0] ?? href);
@@ -384,7 +398,9 @@ export class Sweep {
             this.note({ severity: 'S2', page: label, what: `broken image(s): ${facts.brokenImages.join('; ')}`, expected: 'the photo or the drawn fallback', shot });
         }
 
-        if (facts.smallTargets.length) {
+        if (facts.smallTargets[0]?.startsWith('(not measured')) {
+            this.observe(label, `tap targets ${facts.smallTargets[0]}`);
+        } else if (facts.smallTargets.length) {
             this.note({ severity: 'S3', page: label, what: `tap targets under 44 px: ${facts.smallTargets.join('; ')}`, expected: '≥ 44 × 44 px (DIRECTION §6)', shot });
         }
 
@@ -401,22 +417,55 @@ export class Sweep {
     }
 
     /**
-     * The groups the brief asks for (ConditionGroups): „Für jede zulässige Reifengröße“ once, „Nur mit <size>“ once each,
-     * no list holding both snow-chain sentences, each chain sentence with its own size. `surface` names the place.
+     * The groups the brief asks for, as D-093 and D-097 settled them: no list holding both snow-chain sentences, each
+     * chain sentence with its own sizes. `groups` (ConditionGroups — basket, Kasse, order, check): „Für jede zulässige
+     * Reifengröße“ once and „Nur bei <size>“ once each. `wording` (the product page's „alle Auflagen im Wortlaut“,
+     * ordered by what there is to do): within each section a size-bound sentence stands in its own list under the
+     * „Nur bei …“ line naming its sizes. `surface` names the place.
      */
-    async checkGroups(scope: Locator, surface: string, shot: string): Promise<void> {
+    async checkGroups(scope: Locator, surface: string, shot: string, layout: 'groups' | 'wording' = 'groups'): Promise<void> {
         const text = norm(await scope.innerText());
-        const lists = (await scope.locator('ul').evaluateAll((uls) => uls.map((ul) => ul.textContent ?? ''))).map(norm);
-        const mixed = lists.filter((l) => l.includes(FINE_LINK_CHAINS) && l.includes(NO_CHAINS));
+        // A list's own items only: an order's lines are one list that holds each line's lists, which are kept apart.
+        const lists = (
+            await scope.locator('ul').evaluateAll((uls) =>
+                uls.map((ul) => {
+                    const own = ul.cloneNode(true) as HTMLElement;
+
+                    own.querySelectorAll('ul').forEach((nested) => nested.remove());
+
+                    const before = ul.previousElementSibling;
+
+                    return { text: own.textContent ?? '', head: before?.classList.contains('fdt__for') ? (before.textContent ?? '') : null };
+                }),
+            )
+        ).map((list) => ({ text: norm(list.text), head: list.head === null ? null : norm(list.head) }));
+        const mixed = lists.filter((l) => l.text.includes(FINE_LINK_CHAINS) && l.text.includes(NO_CHAINS));
 
         if (mixed.length) {
             this.note({
                 severity: 'S2',
                 page: surface,
-                what: `both snow-chain sentences in one list: „${mixed[0]?.slice(0, 160)}…“`,
-                expected: 'A10 under „Nur mit 235/45 R19“ and „Nur mit 245/40 R19“, A12 under „Nur mit 255/40 R19“, never one list',
+                what: `both snow-chain sentences in one list: „${mixed[0]?.text.slice(0, 160)}…“`,
+                expected: 'A10 with 235/45 R19 and 245/40 R19, A12 with 255/40 R19, never one list',
                 shot,
             });
+        }
+
+        if (layout === 'wording') {
+            const heads: [string, string][] = [
+                [FINE_LINK_CHAINS, `Nur bei ${SIZES_19[0]} und ${SIZES_19[1]}`],
+                [NO_CHAINS, `Nur bei ${SIZES_19[2]}`],
+            ];
+
+            for (const [sentence, head] of heads) {
+                for (const list of lists.filter((l) => l.text.includes(sentence))) {
+                    if (list.head !== head) {
+                        this.note({ severity: 'S2', page: surface, what: `„${sentence}…“ stands under „${list.head ?? 'no heading'}“`, expected: `under „${head}“`, shot });
+                    }
+                }
+            }
+
+            return;
         }
 
         const forEvery = times(text, 'Für jede zulässige Reifengröße');
@@ -432,14 +481,14 @@ export class Sweep {
         }
 
         for (const size of SIZES_19) {
-            const n = times(text, `Nur mit ${size}`);
+            const n = times(text, `Nur bei ${size}`);
 
             if (n !== 1) {
                 this.note({
                     severity: 'S2',
                     page: surface,
-                    what: `„Nur mit ${size}“ stands ${n}× (the size is named ${times(text, size)}× in all)`,
-                    expected: `one block „Nur mit ${size}“ with that size’s own Auflagen`,
+                    what: `„Nur bei ${size}“ stands ${n}× (the size is named ${times(text, size)}× in all)`,
+                    expected: `one block „Nur bei ${size}“ with that size’s own Auflagen`,
                     shot,
                 });
             }
