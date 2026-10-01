@@ -29,8 +29,26 @@ that are production's only (§2), and a smoke test whose product rows wait for a
 
 ## 0 · Session setup (every time)
 
+**The supported way in is a deploy key, never a password on a command line** (01.10.2026: a host password passed to
+`plink -pw` was refused by the permission check as credential leakage, rightly).
+
+1. Once, on the machine that deploys: `ssh-keygen -t ed25519 -N "" -C rimify-<env>-deploy -f ~/.ssh/rimify_<env>_deploy`.
+   The private key stays on that machine — never in the repository, never in chat.
+2. Once, in a browser: **hPanel › Erweitert › SSH-Zugang › SSH-Schlüssel › SSH-Schlüssel hinzufügen**, name
+   `rimify-<env>-deploy`, paste the one line of `~/.ssh/rimify_<env>_deploy.pub`.
+3. Pin the host's key the first time and compare its fingerprint with the one hPanel shows (SSH-Zugang): the first
+   connection writes it (`-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=~/.ssh/rimify_known_hosts`), every
+   later one checks it (`StrictHostKeyChecking=yes`). The preview's: `SHA256:2LJK6xK6Z8j0IFeeYiHXlDocIPO1ZAgQDlUPIzf9KJc`.
+4. Every session: `ssh -i ~/.ssh/rimify_<env>_deploy -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/rimify_known_hosts -p 65002 <user>@<host>`.
+   Long steps (§1, §4) run detached (`nohup setsid bash … > ~/backups/….log 2>&1 &`) and their log is read afterwards:
+   a dropped connection must never stop a release half-way.
+
+**Fallback, for a host that ever refuses keys:** hPanel › Erweitert › SSH-Zugang shows the account's password; type it
+at the prompt of `ssh -p 65002 <user>@<host>` (never as an argument), or a browser terminal where hPanel offers one.
+The runbook below is the same either way.
+
 ```bash
-ssh -p 65002 <user>@<host>                       # the account's SSH access from hPanel
+ssh -p 65002 <user>@<host>                       # the account's SSH access from hPanel (with -i for the deploy key)
 export APP="$HOME/domains/<production-domain>/public_html"   # the whole project lives INSIDE public_html
 export PHP=/opt/alt/php84/usr/bin/php
 cd "$APP" && git log -1 --format='%h %s'
