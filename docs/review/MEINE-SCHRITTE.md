@@ -12,9 +12,9 @@ one message when all are done. Sign in to the admin at **https://rimify.skillleo
 2. **Name:** `rimify-preview-deploy`
 3. **Key:** the single line starting with `ssh-ed25519` that I sent you in chat (it is the public half; the private half
    never leaves my machine).
-4. Save, and tell me *key added*. I then deploy the preview myself and tell you which commit is live.
+4. Save. **Done on 01.10.2026** — the preview now deploys with this key; nothing more to do here.
 
-**Wait for my "live" message before step 3** — the base ABE 53841 is entered as a draft right after the deploy.
+The base ABE 53841 is entered on the preview as draft #12 and linked from the Nachtrag (#11); step 3 can start.
 
 ---
 
@@ -73,22 +73,22 @@ Grundgutachtens für seine Nachträge. Eigene Zeilen hat es nicht.* It has no ro
 
 Check: KBA-Nummer **55255**, Aussteller **TÜV Rheinland Kraftfahrt GmbH**, Anlage **19**, Prüfbericht-Nr. **55051823**,
 Seiten **13**, Prüfdatum **29.11.2023**, Gültig ab Fertigungsdatum **02/2023**; the *Auflagenverzeichnis* sentence by
-sentence against the PDF; the *Verwendungsbereich* (the walkthrough counted 70 cars). Under **Vorschau im Shop**, pick
+sentence against the PDF; the *Verwendungsbereich*: 70 cars × 2 sizes = **140 rows** (draft #10). Under **Vorschau im Shop**, pick
 a car (e.g. BMW X3 X83) and press *Vorschau zeigen*: it should read *Mit Auflagen freigegeben*.
 
 The top box must say **Kann freigegeben werden**. If it says *Noch nicht freigebbar*, it lists why in sentences — send
 me the list instead of pressing anything.
 
-**Afterwards:** *Freigegeben seit …*, and a message *Freigegeben: N Zeilen sind jetzt im Shop.*
+**Afterwards:** *Freigegeben seit …*, and a message *Freigegeben: 140 Zeilen sind jetzt im Shop.*
 
 ### 3.3 · Nachtrag 366-0350-21-WIRD/N1 — the 18-inch (third)
 
 Check: Gutachten-Nummer **366-0350-21-WIRD/N1**, Aussteller **TÜV AUSTRIA GMBH**, Anlage **16**, Seiten **24**;
 *Nachtrag zu* **ABE 53841** as a link; *Berichtigung der Fahrzeugpapiere* **nicht erforderlich (§ 15 FZV, laut
 Grundgutachten)** (this appears only once 3.1 is released); *Verwendungsbereich* **Verwendungsbereich unvollständig –
-Anlagen 1–15 liegen nicht vor.** (correct: we hold Anlage 16 only). The walkthrough counted 55 cars.
+Anlagen 1–15 liegen nicht vor.** (correct: we hold Anlage 16 only); 55 cars × 2 sizes = **110 rows** (draft #11).
 
-**Afterwards:** *Freigegeben seit …*. Under **Gutachten › Abdeckung** the section *Verwendungsbereich unvollständig*
+**Afterwards:** *Freigegeben: 110 Zeilen sind jetzt im Shop.* Under **Gutachten › Abdeckung** the section *Verwendungsbereich unvollständig*
 lists this Nachtrag with *Fehlende Anlagen: 1–15*.
 
 ---
