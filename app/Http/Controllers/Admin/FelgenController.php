@@ -374,6 +374,7 @@ class FelgenController extends Controller
                 'description' => $model->description_de ?? '',
                 'seoTitle' => $model->seo_title ?? '',
                 'seoDescription' => $model->seo_description ?? '',
+                'internalNote' => $model->internal_note ?? '',
                 'status' => $model->status->value,
                 'statusLabel' => WheelList::statusLabel($model->status),
                 'demo' => $model->is_demo,

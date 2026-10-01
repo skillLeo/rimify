@@ -10,9 +10,10 @@ import { computed } from 'vue'
 import ListRow from './ListRow.vue'
 import { useConsent } from '../../composables/useConsent'
 import { usePriceTerms } from '../../composables/usePriceTerms'
-import { useMenus } from '../../composables/useShared'
+import { useMenus, useShared } from '../../composables/useShared'
 
 const menus = useMenus()
+const shared = useShared()
 const terms = usePriceTerms()
 const consent = useConsent()
 
@@ -36,6 +37,8 @@ const year = new Date().getFullYear()
 
         <p class="mfoot__legal small muted">{{ terms.footer }}</p>
         <p class="mfoot__legal small quiet num">© {{ year }} RIMIFY</p>
+        <!-- Staging only: which build this is (App\Support\ReleaseStamp). -->
+        <p v-if="shared.release" class="mfoot__legal small quiet num" data-release>{{ shared.release }}</p>
     </footer>
 </template>
 

@@ -10,6 +10,7 @@ use App\Payments\PaymentConfig;
 use App\Payments\Payments;
 use App\Payments\StripeKeys;
 use App\Providers\AppServiceProvider;
+use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\Content\LegalTexts;
@@ -88,6 +89,7 @@ final class Preflight extends Command
 
         $demo = DemoTables::total();
         $rows[] = ['Demodaten', $demo === 0 ? 'ok' : ($production ? 'fail' : 'warn'), $demo === 0 ? 'keine' : "{$demo} Datensätze – vor dem Start demo:purge"];
+        $rows[] = $this->releases($production);
 
         $current = $settings->current();
         $rows[] = ['Speicher: Quelle', $current->isBucket() ? 'ok' : ($production ? 'fail' : 'warn'), match ($current->source) {
@@ -208,6 +210,35 @@ final class Preflight extends Command
         return $files
             ? ['Suchmaschinen', 'ok', 'noindex auf jeder Seite und unter /storage, robots.txt sperrt alles']
             : ['Suchmaschinen', 'warn', 'Seiten noindex, /storage nicht – php artisan rimify:storage-headers'];
+    }
+
+    /**
+     * In the live shop every Gutachten is released by a person in the browser. A release carried out on the operator's
+     * written instruction (rimify:gutachten-freigeben) belongs to a test environment; one in this database means it
+     * came from there — a copied database, a misnamed environment — and the shop does not go live on it.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function releases(bool $production): array
+    {
+        try {
+            $count = DB::table('audit_logs')
+                ->where('description', 'approval.released')
+                ->whereNotNull('properties->'.DocumentRelease::ON_INSTRUCTION)
+                ->count();
+        } catch (Throwable $e) {
+            return ['Freigaben', 'fail', $e->getMessage()];
+        }
+
+        if ($count === 0) {
+            return ['Freigaben', 'ok', 'jede Freigabe im Browser gegeben'];
+        }
+
+        $found = ($count === 1 ? 'eine Freigabe' : "{$count} Freigaben").' auf Anweisung über die Kommandozeile';
+
+        return $production
+            ? ['Freigaben', 'fail', "{$found} – im Live-Shop gibt jede Freigabe eine Person im Browser"]
+            : ['Freigaben', 'ok', "{$found}, in der Testumgebung zulässig"];
     }
 
     /**

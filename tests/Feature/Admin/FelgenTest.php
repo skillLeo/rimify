@@ -15,6 +15,7 @@ use App\Policies\WheelModelPolicy;
 use App\Services\Admin\Catalogue\FinishImages;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
+use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -222,6 +223,33 @@ describe('a new Felge', function (): void {
 });
 
 describe('changing a Felge', function (): void {
+    it('keeps an internal note for the admin — above the Felge and in the list, never in the shop', function (): void {
+        $note = 'Platzhalterpreise, vom Kunden zu ersetzen';
+        $wheel = felgeWith();
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$wheel->id, [...felgePayload($wheel), 'internal_note' => "  {$note}  "])->assertSessionHasNoErrors();
+
+        expect($wheel->refresh()->internal_note)->toBe($note);
+
+        $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen/'.$wheel->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('model.internalNote', $note));
+        $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('wheels.0.internalNote', $note));
+
+        // In the shop, published: not on the product page, not in the listing.
+        $this->seed(ReferenceDataSeeder::class);
+        $wheel->forceFill(['status' => CatalogueStatus::Published->value])->save();
+        $this->get('/felgen/'.$wheel->slug)->assertOk()->assertDontSee('Platzhalterpreise');
+        $this->get('/felgen')->assertOk()->assertDontSee('Platzhalterpreise');
+
+        // Emptied, it is gone; too long, it is refused with a sentence.
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$wheel->id, [...felgePayload($wheel), 'internal_note' => str_repeat('x', 501)])
+            ->assertSessionHasErrors(['internal_note' => 'Die interne Notiz darf höchstens 500 Zeichen lang sein.']);
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$wheel->id, [...felgePayload($wheel), 'internal_note' => ''])->assertSessionHasNoErrors();
+
+        expect($wheel->refresh()->internal_note)->toBeNull();
+    });
+
     it('changes prices and adds a size, and a second save creates nothing twice', function (): void {
         $wheel = felgeWith();
         $payload = felgePayload($wheel);

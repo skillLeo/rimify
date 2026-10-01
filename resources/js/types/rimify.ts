@@ -160,6 +160,8 @@ export interface SharedProps {
     smallBusiness: boolean
     /** The test environment's ribbon: on staging only, until put away (PreviewRibbon.vue). */
     previewRibbon?: boolean
+    /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
+    release?: string | null
     flash: { toast: string | null }
     [key: string]: unknown
 }

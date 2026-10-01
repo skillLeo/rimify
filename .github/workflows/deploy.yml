@@ -71,6 +71,11 @@ jobs:
       - name: Build client and SSR bundles
         run: npm run build
 
+      # Which build this is: a test environment prints it at the foot of every page (App\Support\ReleaseStamp), so a
+      # reviewer can tell a new version from an old one without asking.
+      - name: Release stamp
+        run: printf '{"commit":"%s","built":"%s"}\n' "${GITHUB_SHA::8}" "$(date -u +%FT%TZ)" > public/build/release.json
+
       # The release is main plus vendor/ and the compiled assets, committed on top of the previous
       # release so the host always pulls a fast-forward.
       - name: Publish to the deploy branch

@@ -27,6 +27,9 @@ use Illuminate\Validation\ValidationException;
  */
 final class DocumentRelease
 {
+    /** The audit property that marks a release made on the operator's written instruction, not in the browser. */
+    public const ON_INSTRUCTION = 'on_instruction';
+
     public function __construct(private readonly ConflictDetector $conflicts) {}
 
     /** @return list<string> what stops the release, in words; empty when nothing does */
@@ -100,8 +103,13 @@ final class DocumentRelease
         return $blockers;
     }
 
-    /** @return array{rows: int, conflicts: int} */
-    public function release(ApprovalDocument $document, AdminUser $admin): array
+    /**
+     * `$instruction` is set only by ReleaseOnInstruction, outside the live shop: the operator's written word, kept on
+     * the entry so the Protokoll says who decided instead of suggesting a person pressed „Freigeben“.
+     *
+     * @return array{rows: int, conflicts: int}
+     */
+    public function release(ApprovalDocument $document, AdminUser $admin, ?string $instruction = null): array
     {
         $blockers = $this->check($document);
 
@@ -109,7 +117,7 @@ final class DocumentRelease
             throw ValidationException::withMessages(['release' => 'Noch nicht freigebbar: '.implode(' ', $blockers)]);
         }
 
-        return DB::transaction(function () use ($document, $admin): array {
+        return DB::transaction(function () use ($document, $admin, $instruction): array {
             $conflicts = $this->conflicts->detect($document, $admin);
             $rows = Fitment::query()->where('approval_document_id', $document->id)->where('status', FitmentStatus::Draft->value)
                 ->update(['status' => FitmentStatus::Published->value, 'updated_at' => now()]);
@@ -127,6 +135,10 @@ final class DocumentRelease
                 'document' => FitmentRows::label($document),
                 'rows' => $rows,
                 'conflicts' => count($conflicts),
+                ...($instruction === null ? [] : [
+                    self::ON_INSTRUCTION => $instruction,
+                    'environment' => (string) app()->environment(),
+                ]),
             ], $document);
 
             return ['rows' => $rows, 'conflicts' => count($conflicts)];

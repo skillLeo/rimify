@@ -41,6 +41,7 @@ function fromProps(): WheelForm {
         description: model?.description ?? '',
         seo_title: model?.seoTitle ?? '',
         seo_description: model?.seoDescription ?? '',
+        internal_note: model?.internalNote ?? '',
         finishes: props.finishes.length
             ? props.finishes.map((f) => ({ key: f.key, id: f.id, name: f.name, hex: f.hex, art_finish: f.artFinish }))
             : [{ key: 'n1', id: null, name: '', hex: '', art_finish: 'graphite' }],
@@ -335,6 +336,12 @@ const more = computed<AdminPageAction[]>(() => {
         </section>
         <p v-else class="adm-note fe-first">Nach dem ersten Speichern prüft der Freigabe-Check hier, ob die Felge in den Shop kann. Gespeichert wird sie als Entwurf.</p>
 
+        <!-- The saved internal note, where nobody working on this Felge can miss it. Never in the shop. -->
+        <p v-if="model?.internalNote" class="fe-memo" role="note">
+            <Icon name="info" :size="16" />
+            <span><strong>Interne Notiz:</strong> {{ model.internalNote }}</span>
+        </p>
+
         <p v-if="errorCount" class="adm-alert" role="alert">
             {{ errorCount === 1 ? 'Eine Angabe muss noch korrigiert werden.' : `${errorCount} Angaben müssen noch korrigiert werden.` }}
             Die Hinweise stehen bei den Feldern.
@@ -384,6 +391,12 @@ const more = computed<AdminPageAction[]>(() => {
                         <label class="form-field__label" for="fe-desc">Beschreibung <span class="fe-optional">(optional)</span></label>
                         <textarea id="fe-desc" v-model="form.description" class="input fe-area" rows="5" maxlength="4000" :readonly="readonly" :aria-invalid="err('description') ? 'true' : undefined" aria-describedby="fe-desc-err" />
                         <p id="fe-desc-err" class="form-field__error">{{ err('description') }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-field__label" for="fe-memo">Interne Notiz <span class="fe-optional">(optional, nur im Admin)</span></label>
+                        <textarea id="fe-memo" v-model="form.internal_note" class="input fe-area" rows="2" maxlength="500" :readonly="readonly" :aria-invalid="err('internal_note') ? 'true' : undefined" aria-describedby="fe-memo-help fe-memo-err" />
+                        <p id="fe-memo-help" class="form-field__help">Steht über dieser Felge und in der Liste, nie im Shop – etwa „Platzhalterpreise, vom Kunden zu ersetzen“.</p>
+                        <p id="fe-memo-err" class="form-field__error">{{ err('internal_note') }}</p>
                     </div>
                 </div>
             </section>
@@ -574,6 +587,27 @@ const more = computed<AdminPageAction[]>(() => {
 
 .fe-first {
     margin-bottom: var(--sp-24);
+}
+
+/* The internal note: the warning tint, because it is there to be noticed — not a red alert, nothing is wrong. */
+.fe-memo {
+    display: flex;
+    gap: var(--sp-8);
+    align-items: baseline;
+    max-width: var(--adm-form-max);
+    margin: calc(-1 * var(--sp-16)) 0 var(--sp-32);
+    padding: var(--sp-12) var(--sp-16);
+    border-radius: var(--r-control);
+    background: var(--c-warn-tint);
+    color: var(--c-ink);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    overflow-wrap: anywhere;
+}
+
+.fe-memo :deep(svg) {
+    flex: none;
+    align-self: center;
 }
 
 /* ── The Freigabe-Check ───────────────────────────────────────────────────── */
