@@ -78,6 +78,33 @@ describe('VehicleSelector — a key-number miss (R-09)', () => {
     })
 })
 
+// The live sweep of 01.10.2026: „0005/582“ pasted into the HSN left „/58“ in the TSN. One rule everywhere (splitKeys).
+describe('VehicleSelector — a pair of key numbers in the HSN field', () => {
+    const field = (wrapper: VueWrapper, placeholder: string) => wrapper.find<HTMLInputElement>(`input[placeholder="${placeholder}"]`)
+
+    it('fills both fields from a pasted pair, with a slash or a space between them', async () => {
+        const wrapper = mountSelector({ contact: CONTACT })
+
+        for (const pair of ['0005/582', '0005 582']) {
+            await field(wrapper, '0005').trigger('paste', { clipboardData: { getData: () => pair } })
+
+            expect(field(wrapper, '0005').element.value, pair).toBe('0005')
+            expect(field(wrapper, '582').element.value, pair).toBe('582')
+        }
+    })
+
+    it('fills both fields from a pair the keyboard inserts, and shows the HSN as kept', async () => {
+        const wrapper = mountSelector({ contact: CONTACT })
+
+        expect(field(wrapper, '0005').attributes('maxlength')).toBeUndefined()
+
+        await field(wrapper, '0005').setValue('0005-582')
+
+        expect(field(wrapper, '0005').element.value).toBe('0005')
+        expect(field(wrapper, '582').element.value).toBe('582')
+    })
+})
+
 /*
  * A Gutachten splits the BMW 1K4 at extension 03/04 of its EG type approval; the halves carry different bolt
  * sets. Without key numbers and a build window both read „1K4“ — Feld K tells them apart.

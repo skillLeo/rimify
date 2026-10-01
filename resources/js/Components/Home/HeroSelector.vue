@@ -40,7 +40,7 @@ import type { DocVariant } from '../../art'
 import { useFitmentCount, type FitmentCountQuery } from '../../composables/useFitmentCount'
 import { anzahl, passendeAnzeigen, withUnit } from '../../format'
 import { formatNumber } from '../../lib/num'
-import { cleanHsn, cleanTsn, isHsn, isTsn } from '../../lib/fahrzeugschein'
+import { cleanTsn, isHsn, isTsn, splitKeys } from '../../lib/fahrzeugschein'
 import type { LookupResult, MakeOption, ModelOption, VariantOption } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
 
@@ -207,12 +207,26 @@ const tsnField = ref<HTMLInputElement | null>(null)
 const helpOpen = ref(false)
 const doc = ref<DocVariant>('neu')
 
+/** A pair typed or inserted into the HSN fills both fields (splitKeys); four characters move the caret on. */
 function onHsn(event: Event): void {
-    hsn.value = cleanHsn((event.target as HTMLInputElement).value)
+    takeKeys(event.target as HTMLInputElement, (event.target as HTMLInputElement).value)
+}
+
+function takeKeys(field: HTMLInputElement, raw: string): void {
+    const keys = splitKeys(raw)
+
+    hsn.value = keys.hsn
+    // The field shows what was kept, also when the kept part did not change („0005“ + „/582“).
+    field.value = keys.hsn
     hsnError.value = null
     scanFailed.value = false
 
-    if (hsn.value.length === 4) {
+    if (keys.tsn !== null) {
+        tsn.value = keys.tsn
+        tsnError.value = null
+    }
+
+    if (keys.hsn.length === 4) {
         tsnField.value?.focus()
     }
 }
@@ -223,18 +237,9 @@ function onTsn(event: Event): void {
     scanFailed.value = false
 }
 
-/** A pasted `0005 582` fills both fields; spaces never reach a field. */
+/** A pasted `0005 582` or `0005/582` replaces what the field held and fills both fields. */
 function onHsnPaste(event: ClipboardEvent): void {
-    const all = (event.clipboardData?.getData('text') ?? '').replace(/\s+/g, '')
-    hsn.value = cleanHsn(all)
-    hsnError.value = null
-    scanFailed.value = false
-
-    if (all.length > 4) {
-        tsn.value = cleanTsn(all.slice(4))
-        tsnError.value = null
-        tsnField.value?.focus()
-    }
+    takeKeys(event.target as HTMLInputElement, event.clipboardData?.getData('text') ?? '')
 }
 
 function onTsnPaste(event: ClipboardEvent): void {
@@ -721,7 +726,6 @@ onBeforeUnmount(() => treeController?.abort())
                                     class="input input--code"
                                     :value="hsn"
                                     inputmode="numeric"
-                                    maxlength="4"
                                     autocomplete="off"
                                     enterkeyhint="next"
                                     :aria-invalid="hsnError || keys.errors.hsn ? 'true' : undefined"

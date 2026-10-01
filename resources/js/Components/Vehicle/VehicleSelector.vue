@@ -23,6 +23,7 @@ import DocFacsimile from '../Art/DocFacsimile.vue'
 import Icon from '../Art/Icon.vue'
 import type { DocVariant } from '../../art'
 import { anzahl } from '../../format'
+import { cleanTsn, splitKeys } from '../../lib/fahrzeugschein'
 import { mailtoHref } from '../../lib/mailto'
 import type { LookupResult, VariantOption } from '../../types/pages'
 import type { ContactProp } from '../../types/rimify'
@@ -175,18 +176,36 @@ function submitKeys(): void {
     keys.post('/fahrzeug/schluesselnummern', { preserveScroll: true })
 }
 
-/** Four characters is a complete HSN, so the caret moves on without being asked. */
+/**
+ * A pair typed, pasted or put in by the keyboard fills both fields (splitKeys). Four characters is a complete HSN, so
+ * the caret moves on without being asked.
+ */
 function onHsn(event: Event): void {
-    const value = (event.target as HTMLInputElement).value.toUpperCase().slice(0, 4)
-    keys.hsn = value
+    takeKeys(event.target as HTMLInputElement, (event.target as HTMLInputElement).value)
+}
 
-    if (value.length === 4) {
+function onHsnPaste(event: ClipboardEvent): void {
+    takeKeys(event.target as HTMLInputElement, event.clipboardData?.getData('text') ?? '')
+}
+
+function takeKeys(field: HTMLInputElement, raw: string): void {
+    const split = splitKeys(raw)
+
+    keys.hsn = split.hsn
+    // The field shows what was kept, also when the kept part did not change („0005“ + „/582“).
+    field.value = split.hsn
+
+    if (split.tsn !== null) {
+        keys.tsn = split.tsn
+    }
+
+    if (split.hsn.length === 4) {
         tsnField.value?.focus()
     }
 }
 
 function onTsn(event: Event): void {
-    keys.tsn = (event.target as HTMLInputElement).value.toUpperCase().slice(0, 3)
+    keys.tsn = cleanTsn((event.target as HTMLInputElement).value)
 }
 </script>
 
@@ -258,12 +277,12 @@ function onTsn(event: Event): void {
                             :class="{ 'field--error': keys.errors.hsn }"
                             :value="keys.hsn"
                             inputmode="numeric"
-                            maxlength="4"
                             autocomplete="off"
                             enterkeyhint="next"
                             placeholder="0005"
                             :aria-invalid="keys.errors.hsn ? 'true' : undefined"
                             @input="onHsn"
+                            @paste.prevent="onHsnPaste"
                         />
                     </div>
 

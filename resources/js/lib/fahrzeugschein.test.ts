@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanHsn, cleanTsn, isHsn, isTsn, parseKeyNumbers, parsePapers } from './fahrzeugschein'
+import { cleanHsn, cleanTsn, isHsn, isTsn, parseKeyNumbers, parsePapers, splitKeys } from './fahrzeugschein'
 
 describe('parseKeyNumbers', () => {
     it('reads the HSN after the 2.1 label', () => {
@@ -87,6 +87,30 @@ describe('field cleaning', () => {
         expect(cleanHsn('000512')).toBe('0005')
         expect(cleanTsn(' 5 8 2 ')).toBe('582')
         expect(cleanTsn('aasb')).toBe('AAS')
+    })
+
+    it('drops the separators people write and copy between the numbers', () => {
+        expect(cleanTsn('/582')).toBe('582')
+        expect(cleanTsn('-aas')).toBe('AAS')
+        expect(cleanHsn('00.05')).toBe('0005')
+    })
+
+    // The live sweep of 01.10.2026: „0005/582“ pasted into the HSN left „/58“ in the TSN on the desk and nothing on the
+    // phone, where the field clipped the pair at four characters before anything could read it.
+    it('splits a pair, whatever stands between the two numbers, and keeps the leading zeros', () => {
+        for (const pair of ['0005/582', '0005 582', '0005-582', '0005 / 582', '0005582', ' 0005 582 ', '0005–582', '0005.582']) {
+            expect(splitKeys(pair), pair).toEqual({ hsn: '0005', tsn: '582' })
+        }
+
+        expect(splitKeys('1860/aas')).toEqual({ hsn: '1860', tsn: 'AAS' })
+    })
+
+    it('leaves the TSN alone while nothing goes past the HSN, and carries a fifth character on', () => {
+        expect(splitKeys('000')).toEqual({ hsn: '000', tsn: null })
+        expect(splitKeys('0005')).toEqual({ hsn: '0005', tsn: null })
+        expect(splitKeys('00055')).toEqual({ hsn: '0005', tsn: '5' })
+        // Field 2.2 goes on past the TSN; only its first three characters are the TSN.
+        expect(splitKeys('0005 582ABC12')).toEqual({ hsn: '0005', tsn: '582' })
     })
 
     it('validates the two shapes', () => {
