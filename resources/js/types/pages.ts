@@ -67,6 +67,11 @@ export interface HeroProduct {
      * and the hero draws the outline.
      */
     imageManifest?: ImageManifest | null
+    /**
+     * The same wheel in its other photographed finish (the Borbet DB8GT2: Bronze matt beside Schwarz matt), drawn behind
+     * the leading wheel and rolling in a beat after it; no callouts. Null or absent: one wheel.
+     */
+    companion?: { finish: string; imageManifest: ImageManifest } | null
     /** True when there is no photograph of this product: the outline is drawn and no product is named. */
     symbolic: boolean
     /**

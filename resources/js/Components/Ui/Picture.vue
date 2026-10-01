@@ -78,8 +78,13 @@ const props = withDefaults(
         /** The `sizes` attribute: how wide the frame is at each width. */
         sizes?: string
         eager?: boolean
+        /**
+         * Loaded at once but after the page's main picture: the hero's second wheel, in view from the first frame
+         * but never competing with the LCP picture for the first bytes.
+         */
+        soon?: boolean
     }>(),
-    { sizes: '100vw', eager: false }
+    { sizes: '100vw', eager: false, soon: false }
 )
 
 const emit = defineEmits<{ (e: 'loaded'): void; (e: 'failed'): void }>()
@@ -119,8 +124,8 @@ function onLoad(): void {
             :alt="alt"
             :width="image.width"
             :height="image.height"
-            :loading="eager ? 'eager' : 'lazy'"
-            :fetchpriority="eager ? 'high' : undefined"
+            :loading="eager || soon ? 'eager' : 'lazy'"
+            :fetchpriority="eager ? 'high' : soon ? 'low' : undefined"
             decoding="async"
             @load="onLoad"
             @error="emit('failed')"

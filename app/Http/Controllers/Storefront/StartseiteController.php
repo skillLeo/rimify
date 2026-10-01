@@ -170,6 +170,7 @@ class StartseiteController extends Controller
 
         $finish = WheelFinish::query()->find($config->wheel_finish_id);
         $manifest = $manifests[(int) $config->wheel_finish_id] ?? null;
+        $companion = $manifest === null ? null : $this->heroCompanion($manifests, (int) $config->wheel_finish_id);
         // Bought and linked only when it is in the shop at a price; a draft is shown, never offered.
         $published = $model->status === CatalogueStatus::Published && (int) $config->price_cents > 0;
 
@@ -181,6 +182,9 @@ class StartseiteController extends Controller
             'fromPriceCents' => (int) $config->price_cents,
             'fromPrice' => GermanFormat::money((int) $config->price_cents),
             'imageManifest' => $manifest,
+            // The same wheel in its other photographed finish, behind the leading one (PROTECTED.md P1, the operator's
+            // decision of 01.10.2026): it shows the second finish before anything is clicked. No callouts of its own.
+            'companion' => $companion,
             // The configuration's own numbers; the client draws the outline's bolt holes from them.
             'config' => [
                 'widthIn' => (float) $config->width_in,
@@ -195,6 +199,31 @@ class StartseiteController extends Controller
             'published' => $published,
             'facts' => $this->heroFacts($config, $kba),
         ];
+    }
+
+    /**
+     * The hero's second wheel: the model's next photographed finish after the leading one — a shadowless cut-out with
+     * its wheel anchor, so it stands on the same floor and rolls without slipping. Null where there is none.
+     *
+     * @param  array<int, array<string, mixed>>  $manifests  finish id → its cut-out
+     * @return array{finish: string, imageManifest: array<string, mixed>}|null
+     */
+    private function heroCompanion(array $manifests, int $leadFinishId): ?array
+    {
+        foreach ($manifests as $finishId => $manifest) {
+            $bare = is_array($manifest['bare'] ?? null) ? $manifest['bare'] : null;
+            $anchors = is_array($bare['anchors'] ?? null) ? $bare['anchors'] : ($manifest['anchors'] ?? null);
+
+            if ($finishId === $leadFinishId || $bare === null || ! is_array($anchors) || ! is_array($anchors['wheel'] ?? null)) {
+                continue;
+            }
+
+            $finish = WheelFinish::query()->find($finishId);
+
+            return $finish === null ? null : ['finish' => (string) $finish->name_de, 'imageManifest' => $manifest];
+        }
+
+        return null;
     }
 
     /**

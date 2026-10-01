@@ -2,13 +2,20 @@ import { describe, expect, it } from 'vitest'
 import type { ImageManifest, WheelAnchors } from '../../Ui/Picture.vue'
 import type { HeroProduct } from '../../../types/pages'
 import {
+    companionScene,
+    companionStyle,
+    COMPANION_STAGGER_MS,
+    DESKTOP_COMPANION,
     DESKTOP_LAYOUT,
+    DESKTOP_PAIR_LAYOUT,
     frameStyle,
     HERO_SIZES_DESKTOP,
     HERO_SIZES_PHONE,
     heroScene,
     kbaValue,
+    PHONE_COMPANION,
     PHONE_LAYOUT,
+    PHONE_PAIR_LAYOUT,
     rollStyle,
     type Callout,
     type CalloutKey,
@@ -133,6 +140,8 @@ function callout(scene: HeroScene, key: CalloutKey): Callout {
 const LAYOUTS: [string, HeroLayout][] = [
     ['desktop', DESKTOP_LAYOUT],
     ['phone', PHONE_LAYOUT],
+    ['desktop with two wheels', DESKTOP_PAIR_LAYOUT],
+    ['phone with two wheels', PHONE_PAIR_LAYOUT],
 ]
 
 interface Box {
@@ -436,5 +445,73 @@ describe('the hero preload in app.blade.php', () => {
         expect(match).not.toBeNull()
         expect(match?.[1]).toBe(HERO_SIZES_PHONE)
         expect(match?.[2]).toBe(HERO_SIZES_DESKTOP)
+    })
+})
+
+/*
+ * The second wheel (PROTECTED.md P1, the operator's decision of 01.10.2026): the same wheel in its other finish, behind
+ * the leading one to its right, on the same floor, rolling in a beat later without slipping. Its anchors here are the
+ * same cut-out's, so the floor is the same line whatever the scale.
+ */
+describe.each([
+    ['desktop', DESKTOP_PAIR_LAYOUT, DESKTOP_COMPANION],
+    ['phone', PHONE_PAIR_LAYOUT, PHONE_COMPANION],
+] as const)('companionScene · the second wheel on the %s frame', (_name, layout, placement) => {
+    const second = product({ companion: { finish: 'Bronze matt', imageManifest: manifest({ name: 'bronze' }) } })
+    const lead = heroScene(second, layout)
+
+    it('shares the leading wheel\'s axle line — the same wheel further back, not a smaller wheel', () => {
+        const pair = companionScene(second, lead, layout, placement)!
+        const { size, top } = layout.picture
+        const leadAxle = (top + CENTRE.y * size) * 100
+        // The second box's side in percent of the frame's height, from its width in percent of the frame's width.
+        const pairSide = pair.box.size * layout.ratio
+        const pairAxle = pair.box.top + CENTRE.y * pairSide
+
+        expect(Math.abs(pairAxle - leadAxle)).toBeLessThan(0.05)
+        // Smaller and on one axle: its rim ends above the leading rim's, on its own shadow line.
+        expect(pair.box.top + (WHEEL.y + WHEEL.r) * pairSide).toBeLessThan((top + (WHEEL.y + WHEEL.r) * size) * 100)
+    })
+
+    it('is smaller, and stands to the right of the leading wheel, behind it', () => {
+        const pair = companionScene(second, lead, layout, placement)!
+        const leadLeft = layout.picture.left * 100
+        const leadSize = (layout.picture.size / layout.ratio) * 100
+
+        expect(pair.box.size).toBeCloseTo(leadSize * placement.scale, 1)
+        expect(pair.box.left).toBeCloseTo(leadLeft + placement.offset * leadSize, 1)
+    })
+
+    it('rolls without slipping, a beat after the leading wheel', () => {
+        const pair = companionScene(second, lead, layout, placement)!
+        const distance = layout.rollDistance ?? 1.6
+
+        expect(pair.roll!.angle).toBeCloseTo(((distance / WHEEL.r) * 180) / Math.PI, 1)
+        expect(companionStyle(pair)['--pair-delay']).toBe(`${COMPANION_STAGGER_MS}ms`)
+        expect(COMPANION_STAGGER_MS).toBeGreaterThan(0)
+    })
+
+    it('carries no callout: every leader ends on the leading wheel, never on the second', () => {
+        const pair = companionScene(second, lead, layout, placement)!
+        const leadRight = (layout.picture.left + (WHEEL.x + WHEEL.r) * (layout.picture.size / layout.ratio)) * 100
+
+        expect(lead.callouts.length).toBeGreaterThan(0)
+        // Every leader ends inside the leading rim, left of where the second wheel's own picture begins to show.
+        expect(lead.callouts.every((c) => c.tx <= leadRight)).toBe(true)
+        expect(pair.box.left).toBeGreaterThan(layout.picture.left * 100)
+    })
+
+    it('bends the stamp\'s leader right under the stamp where the layout asks for it, so its rising leg is vertical', () => {
+        const kba = lead.callouts.find((c) => c.key === 'kba')
+        const placed = layout.callouts.find((c) => c.key === 'kba')
+
+        expect(kba).toBeDefined()
+        expect(kba!.elbow).toBe(placed?.elbow === 'target' ? kba!.tx : placed?.elbow)
+    })
+
+    it('is not there without a second finish, without its cut-out, or when the leading wheel does not roll', () => {
+        expect(companionScene(product(), heroScene(product(), layout), layout, placement)).toBeNull()
+        expect(companionScene(product({ companion: { finish: 'Bronze matt', imageManifest: manifest({ bare: undefined }) } }), lead, layout, placement)).toBeNull()
+        expect(companionScene(second, { ...lead, roll: null }, layout, placement)).toBeNull()
     })
 })

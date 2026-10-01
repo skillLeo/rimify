@@ -32,7 +32,7 @@ import SpecCallout from '../Ui/SpecCallout.vue'
 import ValueText from '../Ui/ValueText.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
-import { DESKTOP_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
+import { COMPANION_STAGGER_MS, companionScene, companionStyle, DESKTOP_COMPANION, DESKTOP_LAYOUT, DESKTOP_PAIR_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { formatMoney } from '../../lib/num'
 import type { MakeOption, StartseiteProps } from '../../types/pages'
@@ -55,11 +55,20 @@ const page = usePage<SharedProps & { demo?: boolean }>()
 const vehicle = computed(() => page.props.vehicle)
 const terms = computed(() => priceTerms(page.props.smallBusiness === true))
 const product = computed(() => props.hero.product)
-const scene = computed(() => heroScene(product.value, DESKTOP_LAYOUT))
+/* Two wheels where the product has a second photographed finish (PROTECTED.md P1): the boxes then all stand on the left. */
+const layout = computed(() => (product.value?.companion?.imageManifest ? DESKTOP_PAIR_LAYOUT : DESKTOP_LAYOUT))
+const scene = computed(() => heroScene(product.value, layout.value))
 
 /* The photograph failed to load: the outline, and no leaders — they would point at nothing. */
 const failed = ref(false)
 const photo = computed(() => (failed.value ? null : scene.value.picture))
+/* The second wheel, behind the first; it goes quietly if its own file fails, and never without the first. */
+const pairFailed = ref(false)
+const pair = computed(() => (photo.value === null || pairFailed.value ? null : companionScene(product.value, scene.value, layout.value, DESKTOP_COMPANION)))
+const pairStyle = computed(() => (pair.value === null ? {} : companionStyle(pair.value)))
+const pairAlt = computed(() => (product.value?.companion ? `${product.value.brand} ${product.value.name} in ${product.value.companion.finish}, Ansicht von vorn` : ''))
+/* The caption names both finishes when both are shown. */
+const finishes = computed(() => (product.value === null ? '' : pair.value !== null && product.value.companion ? `${product.value.finish} und ${product.value.companion.finish}` : product.value.finish))
 const callouts = computed(() => (photo.value === null ? [] : scene.value.callouts))
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
@@ -79,7 +88,11 @@ const alt = computed(() => (product.value === null ? '' : `${product.value.brand
 const perWheel = computed(() => (product.value === null ? '' : formatMoney(product.value.fromPriceCents)))
 
 /* The layout's geometry for the stylesheet, and the leaders' start after the roll (none without one). */
-const stageStyle = computed(() => ({ ...frameStyle(DESKTOP_LAYOUT), '--callout-delay': scene.value.roll === null ? '0ms' : 'var(--d-roll)' }))
+/* The leaders draw once both wheels stand: after the roll, and after the second wheel's beat when it is there. */
+const stageStyle = computed(() => ({
+    ...frameStyle(layout.value),
+    '--callout-delay': scene.value.roll === null ? '0ms' : pair.value === null ? 'var(--d-roll)' : `calc(var(--d-roll) + ${COMPANION_STAGGER_MS}ms)`,
+}))
 const pictureStyle = computed(() => rollStyle(scene.value))
 
 const frame = ref<HTMLElement | null>(null)
@@ -110,6 +123,14 @@ onMounted(() => {
                     <div class="hero__frame-box">
                         <div ref="frame" class="frame hero__frame">
                             <div class="hero-studio" aria-hidden="true" />
+
+                            <!-- The second wheel first, so the leading one paints over it. -->
+                            <span v-if="pair" class="hero__pair" :class="{ 'hero__pair--rolling': pair.roll !== null }" :style="pairStyle" @error.capture="pairFailed = true">
+                                <span v-if="pair.shadow" class="hero-contact" aria-hidden="true" />
+                                <span class="hero__spin">
+                                    <Picture :image="pair.picture" :alt="pairAlt" :sizes="HERO_SIZES_DESKTOP" soon />
+                                </span>
+                            </span>
 
                             <!-- `error` does not bubble, but it does pass this wrapper in the capture phase. -->
                             <span
@@ -142,8 +163,8 @@ onMounted(() => {
                                 :ty="c.ty"
                                 :elbow="c.elbow"
                                 :ring="c.ring"
-                                :ratio="DESKTOP_LAYOUT.ratio"
-                                :weight="DESKTOP_LAYOUT.weight"
+                                :ratio="layout.ratio"
+                                :weight="layout.weight"
                             />
                         </div>
                     </div>
@@ -151,7 +172,7 @@ onMounted(() => {
                     <span v-if="named && product" class="hero__caption">
                         <!-- Brand, model and finish are names, the price is a figure: neither is
                              translated. *ab* and *pro Felge* are German and stay translatable. -->
-                        <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ product.finish }}</span>
+                        <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
                         <span v-if="linked" class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
                         <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
                         <span v-if="linked" class="micro quiet">{{ terms.note }}</span>
@@ -323,6 +344,27 @@ onMounted(() => {
     animation: hero-turn var(--d-roll) var(--ease-roll) both;
 }
 
+/*
+ * The second wheel: its own box behind the first (earlier in the frame, same layer), on the same floor, rolling in on
+ * the same keyframes a beat later — the same travel in its own widths, so the same turn and no slipping.
+ */
+.hero__pair {
+    position: absolute;
+    top: var(--pair-top);
+    left: var(--pair-left);
+    z-index: var(--z-base);
+    width: var(--pair-size);
+    aspect-ratio: 1;
+}
+
+.hero__pair--rolling {
+    animation: hero-travel var(--d-roll) var(--ease-roll) var(--pair-delay) both;
+}
+
+.hero__pair--rolling .hero__spin {
+    animation: hero-turn var(--d-roll) var(--ease-roll) var(--pair-delay) both;
+}
+
 /* It fades in over the first part of the roll, so on a very wide screen it never pops into view mid-stage. */
 @keyframes hero-travel {
     from {
@@ -428,7 +470,9 @@ onMounted(() => {
 /* ── Reduced motion: nothing moves; the wheel stands and the leaders are drawn from the first paint ── */
 @media (prefers-reduced-motion: reduce) {
     .hero__roll--rolling,
-    .hero__roll--rolling .hero__spin {
+    .hero__roll--rolling .hero__spin,
+    .hero__pair--rolling,
+    .hero__pair--rolling .hero__spin {
         animation: none;
     }
 }

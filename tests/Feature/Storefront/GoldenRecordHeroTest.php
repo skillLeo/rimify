@@ -124,6 +124,39 @@ it('shows the chosen draft in the hero with its photograph and values, but no pr
     );
 });
 
+it('gives the hero its second wheel — the other photographed finish — and none while only one is photographed', function (): void {
+    $this->seed(GoldenRecordSeeder::class);
+    $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
+    Setting::set('hero_product_id', $model->id);
+    $credit = ['source' => 'Kunde', 'photographer' => 'Borbet', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''];
+
+    DemoWheelFixtures::photoMap($this->dir, [
+        'fixture-front.jpg' => ['slug' => 'db8gt2-schwarz', 'model' => $model->slug, 'finish' => 'Schwarz matt', 'circle' => [540, 540, 500], 'hub' => null, 'credit' => $credit],
+    ]);
+    DemoWheelFixtures::write($this->dir, ['db8gt2-schwarz', 'db8gt2-bronze']);
+    WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Schwarz matt')->firstOrFail()
+        ->update(['image_manifest' => [...(array) DemoWheels::manifest('db8gt2-schwarz'), 'stamp' => '53841']]);
+
+    // One finish photographed: one wheel.
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.companion', null));
+
+    // A bronze cut-out without its shadowless frame cannot stand on the floor beside the black one: still one wheel.
+    $bronze = WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Bronze matt')->firstOrFail();
+    $plain = (array) DemoWheels::manifest('db8gt2-bronze');
+    $bronze->update(['image_manifest' => [...$plain, 'stamp' => '53841']]);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.companion', null));
+
+    // With its shadowless frame and the rim measured on it, as `wheels:process-images` writes it: the second wheel.
+    $anchors = ['centre' => ['x' => 0.5, 'y' => 0.47], 'wheel' => ['x' => 0.5, 'y' => 0.47, 'r' => 0.41]];
+    $bronze->update(['image_manifest' => [...$plain, 'anchors' => $anchors, 'bare' => [...$plain, 'name' => 'db8gt2-bronze-bare', 'anchors' => $anchors], 'stamp' => '53841']]);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.product.finish', 'Schwarz matt')
+        ->where('hero.product.companion.finish', 'Bronze matt')
+        ->where('hero.product.companion.imageManifest.bare.name', 'db8gt2-bronze-bare'));
+});
+
 it('says published only when the wheel is in the shop at a price', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
