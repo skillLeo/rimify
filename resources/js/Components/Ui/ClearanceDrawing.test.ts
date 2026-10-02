@@ -123,7 +123,9 @@ describe('ClearanceDrawing (the rear view)', () => {
 
         expect(figure.attributes('role')).toBe('img')
         expect(figure.attributes('aria-label')).toBe(
-            `Blick von hinten auf ein Rad im Radhaus, rechnerisch. Außenkante: ${mm('23')} weiter außen. Innenkante: ${mm('3')} näher am Federbein. Federbein und Kotflügel schematisch.`
+            `Blick von hinten auf ein Rad im Radhaus, die Felge im Schnitt, rechnerisch. Außenkante: ${mm('23')} weiter außen. Innenkante: ${mm('3')} näher am Federbein. ` +
+                `Neue Felge: Einpresstiefe ET${NNBSP}35, der Abstand von der Felgenmitte zur Anlagefläche; Maulweite 8,5J = ${mm('216')}. ` +
+                'Daneben die Radmitte von außen mit Lochkreis und Mittenlochbohrung. Federbein, Kotflügel, Radschüssel und Schrauben schematisch.'
         )
         expect(svg.attributes('viewBox')).toBe(`0 0 ${REAR.width} ${REAR.height}`)
         expect(svg.attributes('aria-hidden')).toBe('true')
@@ -230,13 +232,40 @@ describe('ClearanceDrawing (the rear view)', () => {
             `bisher 7,5J × 17 · ET${NNBSP}45 · 225/45 R17`,
             `neu 8,5J × 19 · ET${NNBSP}35 · 225/35 R19`,
             'Anlagefläche: hier wird die Felge angeschraubt',
+            'Felgenmitte: ihr Abstand zur Anlagefläche ist die Einpresstiefe (ET)',
         ])
         // The viewpoint comes first, before anything in the picture.
         expect(wrapper.find('.cd__stage > :first-child').text()).toBe('Blick von hinten auf ein Rad im Radhaus')
-        expect(wrapper.find('.cd__caption').text()).toBe('Rad und Reifen maßstäblich, beide im selben Maßstab. Werte rechnerisch, auf ganze Millimeter gerundet.')
+        expect(wrapper.find('.cd__caption').text()).toBe(
+            'Rad und Reifen maßstäblich, beide im selben Maßstab; Radschüssel, Schrauben und Radmitte schematisch. Werte rechnerisch, auf ganze Millimeter gerundet.'
+        )
         // Both schematic parts are drawn, once, for both wheels.
         expect(wrapper.findAll('.cd__sheet [data-part="strut"]')).toHaveLength(1)
         expect(wrapper.findAll('.cd__sheet [data-part="fender"]')).toHaveLength(1)
+    })
+
+    it('shows the new wheel as a wheel: ET from its centre plane to the face, its Maulweite, the bolt circle from outside (#11)', () => {
+        const wrapper = mountDrawing()
+        const model = felgenModel(current, next)
+        const scene = rearScene(rearFrame(model), model)
+        const tags = wrapper.findAll('.cd__sheet text').map((t) => t.text())
+
+        expect(tags).toEqual([`ET${NNBSP}35`, 'Maulweite', `8,5J = ${mm('216')}`])
+        expect(wrapper.find('[data-measure="et"] .cd__mdim').attributes('d')).toBe(scene.section.et.shaft)
+        expect(wrapper.find('[data-measure="width"] .cd__mdim').attributes('d')).toBe(scene.section.width.shaft)
+        expect(wrapper.find('.cd__plane').attributes('d')).toBe(scene.section.plane)
+        expect(wrapper.find('.cd__disc').attributes('d')).toBe(scene.section.disc)
+
+        // The wheel's middle from outside: five screws on the bolt circle, the bore, both named.
+        const front = wrapper.find('[data-part="front"]')
+        expect(front.findAll('.cd__hole')).toHaveLength(5)
+        expect(front.find('text').text()).toBe('Lochkreis')
+        expect(front.findAll('dt').map((t) => t.text())).toEqual(['Lochkreis', 'Mittenlochbohrung'])
+
+        // ET 0: the centre plane is the face — no dimension, the label stays.
+        const zero = mountDrawing({ next: { ...next, etMm: 0 } })
+        expect(zero.find('[data-measure="et"] .cd__mdim').exists()).toBe(false)
+        expect(zero.find('[data-measure="et"] text').text()).toBe(`ET${NNBSP}0`)
     })
 
     it('keeps every label inside its row: left and shift are the same fraction', () => {

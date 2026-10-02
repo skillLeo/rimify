@@ -384,6 +384,26 @@ export const SCHEMATIC_MM = {
     faceHalf: 80,
 } as const
 
+/**
+ * The wheel's own middle, in millimetres — schematic, like the car's parts (the client's #11). The calculator knows the
+ * rim's width, diameter and ET, not its disc, its screws or its bore, so these are drawn the same for every wheel and
+ * carry no number: the disc (*Radschüssel*) on the mounting face, two screws on the bolt circle, the bore between them.
+ */
+export const WHEEL_MM = {
+    /** The disc's thickness, outboard of the mounting face. */
+    disc: 22,
+    /** Half the centre bore (*Mittenlochbohrung*). */
+    bore: 33,
+    /** Half a common bolt circle (*Lochkreis*, 112 mm). */
+    boltCircle: 56,
+    /** Half a screw's shank, and how far a screw reaches into the hub and stands out of the disc. */
+    boltHalf: 6,
+    boltIn: 16,
+    boltOut: 9,
+    /** The disc ends this short of the rim's bead seat. */
+    discInset: 6,
+} as const
+
 /** The numbers of one wheel the drawing is built from — what the component tweens. */
 export interface WheelFrame {
     centreX: number
@@ -452,6 +472,32 @@ export interface RearDimension {
     anchor: number
 }
 
+/** A dimension with a head at each end; heads that do not fit between the two lines point in from outside. */
+export interface TwoHeadedDimension {
+    /** False when the two lines coincide: nothing to dimension. */
+    drawn: boolean
+    shaft: string
+    heads: string
+    /** The middle of the two lines and the line's height, for the label. */
+    midX: number
+    y: number
+}
+
+/** The new wheel as a wheel (the client's #11): what ET and Maulweite are, drawn where they are. */
+export interface RearSection {
+    /** The new rim's centre plane (*Felgenmitte*), through the whole wheel. */
+    planeX: number
+    plane: string
+    /** The disc on the mounting face, above and below the bore. */
+    disc: string
+    /** Two screws on the bolt circle, through the disc into the hub. */
+    bolts: string
+    /** ET: from the centre plane to the mounting face, in the rim's upper half. */
+    et: TwoHeadedDimension
+    /** Maulweite: from rim edge to rim edge, in the rim's lower half. */
+    width: TwoHeadedDimension
+}
+
 export interface RearScene {
     /** The one scale: drawing units per millimetre, for both wheels. */
     unitsPerMm: number
@@ -464,6 +510,7 @@ export interface RearScene {
     fender: { path: string; lipX: number; bottomY: number; anchor: number }
     outer: RearDimension
     inner: RearDimension
+    section: RearSection
 }
 
 function r2(n: number): number {
@@ -472,6 +519,40 @@ function r2(n: number): number {
 
 function rectPath(x: number, y: number, w: number, h: number): string {
     return `M${r2(x)} ${r2(y)} H${r2(x + w)} V${r2(y + h)} H${r2(x)} Z`
+}
+
+/** An arrowhead with its tip at `tip` on the line `y`, pointing right (`+1`) or left (`−1`). */
+function headPath(tip: number, y: number, dir: 1 | -1): string {
+    const base = tip - dir * REAR.head
+
+    return `M${r2(base)} ${r2(y - REAR.headHalf)} L${r2(tip)} ${r2(y)} L${r2(base)} ${r2(y + REAR.headHalf)} Z`
+}
+
+/**
+ * A dimension between two vertical lines at `a` and `b`, as a drawing office draws it: the heads inside, pointing out
+ * at the lines — or, where two heads do not fit between them, outside, pointing in, the line running through.
+ */
+export function twoHeaded(a: number, b: number, y: number): TwoHeadedDimension {
+    const lo = Math.min(a, b)
+    const hi = Math.max(a, b)
+    const midX = (lo + hi) / 2
+
+    // Only one line: nothing between them to dimension (ET 0). Any distance at all gets its heads, outside if need be.
+    if (hi - lo < 1e-6) {
+        return { drawn: false, shaft: '', heads: '', midX, y }
+    }
+
+    if (hi - lo >= 2 * REAR.head + 2) {
+        return { drawn: true, shaft: `M${r2(lo)} ${r2(y)} H${r2(hi)}`, heads: `${headPath(lo, y, -1)} ${headPath(hi, y, 1)}`, midX, y }
+    }
+
+    return {
+        drawn: true,
+        shaft: `M${r2(lo - 2 * REAR.head)} ${r2(y)} H${r2(hi + 2 * REAR.head)}`,
+        heads: `${headPath(lo, y, 1)} ${headPath(hi, y, -1)}`,
+        midX,
+        y,
+    }
 }
 
 function roundedRectPath(x: number, y: number, w: number, h: number, r: number): string {
@@ -606,7 +687,33 @@ export function rearScene(frame: RearFrame, model: FelgenModel): RearScene {
         `V${r2(Y(archY - s.lipDrop))} H${r2(X(lipX))} V${r2(Y(archY) + innerR)} ` +
         `A${r2(innerR)} ${r2(innerR)} 0 0 0 ${r2(X(lipX) - innerR)} ${r2(Y(archY))} H${r2(fx0)} Z`
 
+    // The new wheel as a wheel (#11): its disc on the face, ET from its centre plane to the face, its Maulweite.
+    const w = WHEEL_MM
+    const n = frame.next
+    const rimR = n.rimDiameterMm / 2
+    // The disc stays inside the rim where a high ET leaves little room outboard of the face; a rim whose outer edge
+    // reaches no further than the face itself still gets a sliver of disc, on the face.
+    const discT = Math.max(1.5, Math.min(w.disc, n.centreX + n.rimWidthMm / 2 - 2))
+    const discTop = rimR - w.discInset
+    const disc =
+        `${rectPath(X(0), Y(discTop), discT * k, (discTop - w.bore) * k)} ` +
+        `${rectPath(X(0), Y(-w.bore), discT * k, (discTop - w.bore) * k)}`
+    const bolts = [w.boltCircle, -w.boltCircle]
+        .map((yc) => rectPath(X(-w.boltIn), Y(yc + w.boltHalf), (w.boltIn + discT + w.boltOut) * k, 2 * w.boltHalf * k))
+        .join(' ')
+    const planeX = X(n.centreX)
+
+    const section: RearSection = {
+        planeX,
+        plane: `M${r2(planeX)} ${r2(next.tyreTopY - REAR.gap)} V${r2(next.tyreBottomY + REAR.gap)}`,
+        disc,
+        bolts,
+        et: twoHeaded(planeX, faceX, Y(0.55 * rimR)),
+        width: twoHeaded(next.innerEdgeX, next.outerEdgeX, Y(-0.6 * rimR)),
+    }
+
     return {
+        section,
         unitsPerMm: k,
         faceX,
         face: `M${r2(faceX)} ${r2(Y(s.faceHalf))} V${r2(Y(-s.faceHalf))}`,

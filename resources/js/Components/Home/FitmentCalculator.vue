@@ -404,8 +404,27 @@ const setup = (side: Side): WheelSetup => local[side]
     text-align: left;
 }
 
+/* A long word breaks where German breaks it („Felgen-breite“), never mid-syllable. */
 .calc-form__row-label {
-    overflow-wrap: anywhere;
+    hyphens: auto;
+    overflow-wrap: break-word;
+}
+
+/* Too narrow for a label column beside two controls: each label stands over its two controls (stack, not squeeze). */
+@media (max-width: 479px) {
+    .calc-form__table {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: var(--sp-8);
+    }
+
+    .calc-form__corner {
+        display: none;
+    }
+
+    .calc-form__row-label {
+        grid-column: 1 / -1;
+        margin-top: var(--sp-8);
+    }
 }
 
 .calc-form__cell {
