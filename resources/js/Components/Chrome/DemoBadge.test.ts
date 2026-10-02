@@ -77,24 +77,24 @@ describe('DemoBadge', () => {
 describe('the badge in the headers', () => {
     const stubs = { MegaMenu: true, SearchBox: true, VehicleBar: true }
 
-    it('sits in the desktop utility strip and in the phone header row', () => {
+    it('follows the wordmark at every width, once', () => {
         current.props = shared(true)
         const wrapper = track(mount(UnderShell, { global: { stubs } }))
 
-        expect(wrapper.find('.utility__row .demo-badge').exists()).toBe(true)
-        // The phone row's badge follows the wordmark and is hidden from 1024 px, where the strip shows.
-        const phone = wrapper.find('.sh__bar > .demo-badge')
-        expect(phone.exists()).toBe(true)
-        expect(phone.classes()).toContain('until-lg')
-        expect(phone.element.previousElementSibling?.classList.contains('brand')).toBe(true)
+        // The strip above the header is gone (#3, D-107): one badge, beside the wordmark, shown at every width.
+        const badge = wrapper.find('.sh__bar > .demo-badge')
+        expect(wrapper.findAll('.demo-badge')).toHaveLength(1)
+        expect(badge.exists()).toBe(true)
+        expect(badge.classes()).not.toContain('until-lg')
+        expect(badge.element.previousElementSibling?.classList.contains('brand')).toBe(true)
     })
 
-    it('drops the unconfirmed "als PDF" from the utility strip', () => {
+    it('has no strip above the header, and promises no PDF', () => {
         current.props = shared(false)
         const wrapper = track(mount(UnderShell, { global: { stubs } }))
 
-        expect(wrapper.find('.utility__row').text()).toContain('Gutachten zu jeder Felge')
-        expect(wrapper.find('.utility__row').text()).not.toContain('PDF')
+        expect(wrapper.find('.utility').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('PDF')
         expect(wrapper.find('.demo-badge').exists()).toBe(false)
     })
 

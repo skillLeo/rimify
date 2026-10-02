@@ -20,6 +20,7 @@ import GutachtenStory from '../../Components/Mobile/Home/GutachtenStory.vue'
 import HeroFrame from '../../Components/Mobile/Home/HeroFrame.vue'
 import KomplettradWheel from '../../Components/Mobile/Home/KomplettradWheel.vue'
 import VehiclePanel from '../../Components/Mobile/Home/VehiclePanel.vue'
+import HeroHelp from '../../Components/Home/HeroHelp.vue'
 import ListRow from '../../Components/Mobile/ListRow.vue'
 import Shelf from '../../Components/Mobile/Shelf.vue'
 import Accordion from '../../Components/Ui/Accordion.vue'
@@ -267,6 +268,8 @@ onBeforeUnmount(() => {
 
             <div class="home-hero__panel">
                 <VehiclePanel :makes="selector.makes" :total="vehicleCount" :garage="garage" />
+                <!-- Where to ask, as on the desktop (#3, D-107). -->
+                <HeroHelp class="home-hero__help" />
             </div>
 
             <div v-if="hero.product" class="home-hero__frame">
@@ -543,6 +546,10 @@ onBeforeUnmount(() => {
 
 .home-hero__panel {
     margin-top: var(--sp-20);
+}
+
+.home-hero__help {
+    margin-top: var(--sp-12);
 }
 
 .home-hero__frame {

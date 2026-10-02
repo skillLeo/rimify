@@ -1,16 +1,15 @@
 <script setup lang="ts">
 /**
- * The header. Above it, on a desktop, a utility line that scrolls away; the header itself is 80px
- * (the client's #2, D-106), sticky, and never changes height — once the page has scrolled under it, it
- * gains a hairline and nothing else. On a phone it is 56px: the wordmark, then the search, the vehicle and the menu,
+ * The header. Nothing above it (the client's #3, D-107); 80px on a desktop (the client's #2, D-106),
+ * sticky, and never changes height — once the page has scrolled under it, it gains a hairline and
+ * nothing else. On a phone it is 56px: the wordmark, then the search, the vehicle and the menu,
  * which carries the destinations a desktop shows in the navigation, and the basket with its count.
  *
  * Two rules it never breaks: the navigation is never removed, and the chosen vehicle is one
  * element in one place on every route (the vehicle bar beneath, decided by the server — R-08).
  *
- * While the shop shows demonstration rows, the *Demodaten* badge (ACCURACY D4) opens the utility
- * line on a desktop and follows the wordmark below 1024 px, where that line is gone. Both sit in
- * the flow of their row, so neither can cover content at any width.
+ * While the shop shows demonstration rows, the *Demodaten* badge (ACCURACY D4) follows the wordmark
+ * at every width. It sits in the flow of the row, so it cannot cover content at any width.
  */
 
 import { Link, router } from '@inertiajs/vue3'
@@ -29,9 +28,6 @@ const shared = useShared()
 const shell = useShell()
 
 const vehicle = computed(() => shared.value.vehicle)
-const contact = computed(() => shared.value.contact)
-/* The phone only when the client has given one; otherwise the e-mail is the help line. */
-const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 
 /* Scrolled or not, decided by a sentinel above the header rather than a scroll listener. */
 const sentinel = ref<HTMLElement | null>(null)
@@ -57,30 +53,16 @@ function removeVehicle(): void {
 </script>
 
 <template>
-    <div class="utility from-lg">
-        <div class="container utility__row">
-            <DemoBadge />
-            <span>Versand aus Deutschland</span>
-            <!-- The client's own words. "als PDF" returns only once a download exists (ACCURACY D7). -->
-            <span>Gutachten zu jeder Felge</span>
-            <span class="utility__help">
-                Hilfe:
-                <a v-if="contact.phone" :href="telHref" class="utility__contact num">{{ contact.phone }}</a>
-                <a v-else :href="`mailto:${contact.email}`" class="utility__contact">{{ contact.email }}</a>
-                <!-- The space sits inside the span: between two elements on separate lines the template drops it. -->
-                <span class="quiet"> · {{ contact.hours }}</span>
-            </span>
-        </div>
-    </div>
-
+    <!-- No strip above the header any more (the client's #3, D-107): its promises stand in the promise row under
+         the hero, where to ask stands under the hero's selector. -->
     <div ref="sentinel" class="sh-sentinel" aria-hidden="true" />
 
     <header class="site-header" :class="{ 'site-header--scrolled': scrolled }">
         <div class="container sh__bar">
             <Link href="/" class="brand" aria-label="RIMIFY – Startseite" prefetch>RIMIFY</Link>
 
-            <!-- On a phone and a tablet the utility strip is gone, so the badge sits beside the wordmark. -->
-            <DemoBadge class="until-lg sh__demo" />
+            <!-- The Demodaten badge beside the wordmark, at every width. -->
+            <DemoBadge class="sh__demo" />
 
             <MegaMenu class="from-lg sh__nav" />
 
@@ -157,38 +139,6 @@ function removeVehicle(): void {
 </template>
 
 <style scoped>
-.utility {
-    height: var(--utility-h);
-    background: var(--c-band);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink-2);
-}
-
-.utility__row {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-24);
-    height: 100%;
-}
-
-.utility__help {
-    margin-left: auto;
-}
-
-.utility__contact {
-    color: var(--c-ink);
-    font-weight: 500;
-    text-decoration: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .utility__contact:hover {
-        text-decoration: underline;
-        text-underline-offset: 3px;
-    }
-}
-
 .sh-sentinel {
     height: 1px;
     margin-top: -1px;

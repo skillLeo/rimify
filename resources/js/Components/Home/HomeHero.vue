@@ -32,6 +32,7 @@ import SpecCallout from '../Ui/SpecCallout.vue'
 import ValueText from '../Ui/ValueText.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
+import HeroHelp from './HeroHelp.vue'
 import { COMPANION_STAGGER_MS, companionScene, companionStyle, DESKTOP_COMPANION, DESKTOP_LAYOUT, DESKTOP_PAIR_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { formatMoney } from '../../lib/num'
@@ -114,6 +115,8 @@ onMounted(() => {
                 <h1 id="h2-title" class="h1 hero__title">{{ title }}</h1>
                 <p class="body-l hero__subline">{{ subline }}</p>
                 <HeroSelector :selector="selector" class="hero__panel" />
+                <!-- Where to ask: the one line of the old strip above the header nothing else says (#3, D-107). -->
+                <HeroHelp class="hero__help" />
             </div>
 
             <div class="hero__stage" :style="stageStyle">
@@ -226,6 +229,10 @@ onMounted(() => {
 
 .hero__panel {
     margin-top: var(--sp-32);
+}
+
+.hero__help {
+    margin-top: var(--sp-24);
 }
 
 /* ── The stage: the picture, the caption under it, the notes under that ─────────── */

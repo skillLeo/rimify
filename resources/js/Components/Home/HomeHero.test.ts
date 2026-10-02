@@ -155,7 +155,7 @@ let mounted: VueWrapper[] = []
 function mountHero(p: HeroProduct | null = product()): VueWrapper {
     const wrapper = mount(HomeHero, {
         props: { hero: hero(p), selector: { makes: [] } },
-        global: { stubs: { HeroSelector: true } },
+        global: { stubs: { HeroSelector: true, HeroHelp: true } },
         attachTo: document.body,
     })
     mounted.push(wrapper)
