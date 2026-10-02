@@ -163,6 +163,15 @@ describe('Kontakt — the contact form (#12)', () => {
         expect(wrapper.find('#kon-message-help').text()).toContain('HSN, TSN und Modell')
     })
 
+    // #26 and the operator's check (D-144): nothing on the contact page opens a mail program; the address stays to copy.
+    it('opens no mail program: the address is text to copy, the way to write is the form', () => {
+        const wrapper = mountPage()
+
+        expect(wrapper.html()).not.toContain('mailto:')
+        expect(wrapper.find('.kon__way-value--copy').text()).toContain('@')
+        expect(wrapper.find('.kon__way--text a').exists()).toBe(false)
+    })
+
     it('hides the honeypot from people and from screen readers, out of the tab order', () => {
         const wrapper = mountPage()
         const trap = wrapper.find('.kon__trap')

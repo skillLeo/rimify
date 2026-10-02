@@ -278,14 +278,14 @@ const backHref = computed(() => props.prefill?.from ?? '/')
             <aside class="kon__aside" aria-labelledby="kon-aside-title">
                 <h2 id="kon-aside-title" class="h4">Lieber direkt?</h2>
                 <ul class="kon__ways">
-                    <li>
-                        <a class="kon__way" :href="`mailto:${contact.email}`">
-                            <Icon name="mail" :size="20" class="kon__way-mark" />
-                            <span>
-                                <span class="kon__way-value">{{ contact.email }}</span>
-                                <span class="kon__way-note">Öffnet dein E-Mail-Programm</span>
-                            </span>
-                        </a>
+                    <!-- The address to read and copy, not a link: every way to write to us here is the form (the client's
+                         #26, D-144). One click selects all of it. -->
+                    <li class="kon__way kon__way--text">
+                        <Icon name="mail" :size="20" class="kon__way-mark" />
+                        <span>
+                            <span class="kon__way-value kon__way-value--copy" translate="no">{{ contact.email }}</span>
+                            <span class="kon__way-note">Zum Kopieren in dein eigenes E-Mail-Programm</span>
+                        </span>
                     </li>
                     <li v-if="contact.phone">
                         <a class="kon__way" :href="telHref">
@@ -503,6 +503,12 @@ const backHref = computed(() => props.prefill?.from ?? '/')
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     color: var(--c-ink-2);
+}
+
+/* Text, not a link: ink rather than the link's blue, and one click takes the whole address. */
+.kon__way-value--copy {
+    color: var(--c-ink);
+    user-select: all;
 }
 
 @media (hover: hover) and (pointer: fine) {
