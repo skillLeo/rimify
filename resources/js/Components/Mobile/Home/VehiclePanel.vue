@@ -241,7 +241,36 @@ function pick(id: number): void {
     )
 }
 
+/*
+ * No car yet: the button waits in the brand's light blue, announced as unavailable but pressable, and a press leads
+ * to the field that is missing (the client's #1, D-109). No wheels, a pair not found or a request on its way stay
+ * truly disabled: pressing could not help there.
+ */
+const waiting = computed(
+    () => !canSubmit.value && !zero.value && !submitting.value && count.value.status !== 'not_found' && count.value.status !== 'ambiguous'
+)
+
+function guide(): void {
+    let suffix: string
+
+    if (picker.route.value === 'guided') {
+        suffix = picker.make.value === '' ? 'marke' : picker.model.value === '' ? 'modell' : 'fahrzeug'
+    } else {
+        suffix = picker.hsn.value.length === HSN_LENGTH ? 'tsn' : 'hsn'
+    }
+
+    const target = document.getElementById(`${uid}-${suffix}`)
+    target?.scrollIntoView({ block: 'center', behavior: 'auto' })
+    target?.focus({ preventScroll: true })
+}
+
 function submit(): void {
+    if (waiting.value) {
+        guide()
+
+        return
+    }
+
     if (!canSubmit.value) {
         return
     }
@@ -550,11 +579,14 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             </div>
         </div>
 
+        <!-- No car yet: light blue, aria-disabled, and a press leads to the missing field (#1, D-109). -->
         <button
             class="btn btn--primary btn--lg btn--block vpanel__go"
+            :class="{ 'vpanel__go--waiting': waiting }"
             type="button"
             data-primary
-            :disabled="!canSubmit || submitting"
+            :disabled="!waiting && (!canSubmit || submitting)"
+            :aria-disabled="waiting ? 'true' : undefined"
             :aria-busy="submitting ? 'true' : undefined"
             @click="submit"
         >
@@ -596,6 +628,15 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     border-radius: var(--r-tile);
     background: var(--c-surface);
     box-shadow: var(--e-2);
+}
+
+/* Waiting for a car (#1, D-109): the brand's light blue, the words in blue — 6,4 : 1 — never greyed out. */
+.vpanel__go--waiting,
+.vpanel__go--waiting:active {
+    border-color: var(--c-blue-tint);
+    background: var(--c-blue-tint);
+    color: var(--c-blue);
+    transform: none;
 }
 
 .vpanel--vehicle {

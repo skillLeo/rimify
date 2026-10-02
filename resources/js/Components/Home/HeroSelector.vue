@@ -355,7 +355,38 @@ function choose(vehicleId: number): void {
     choice.post('/fahrzeug', { preserveScroll: true })
 }
 
+/*
+ * While no car is chosen the button waits in the brand's light blue — never greyed out — and says what it is for;
+ * a press leads to the field that is missing rather than doing nothing (the client's #1, D-109). The states where
+ * pressing could not help (no wheels for the car, a pair just answered „not found“, a request on its way) stay
+ * truly disabled.
+ */
+const waiting = computed(() => selection.value === null && !pending.value && !notFound.value)
+const form = ref<HTMLFormElement | null>(null)
+
+function guide(): void {
+    const field = (suffix: string): HTMLElement | null => document.getElementById(`${id}-${suffix}`)
+    let target: HTMLElement | null = null
+
+    if (tab.value === 'marke') {
+        target = field(make.value === undefined ? 'marke' : model.value === undefined ? 'modell' : 'fahrzeug')
+    } else if (tab.value === 'hsn') {
+        target = isHsn(hsn.value) ? tsnField.value : hsnField.value
+    } else {
+        target = form.value?.querySelector<HTMLElement>('.tabs__content[data-state="active"] button, .tabs__content[data-state="active"] input') ?? null
+    }
+
+    target?.scrollIntoView({ block: 'center', behavior: 'auto' })
+    target?.focus({ preventScroll: true })
+}
+
 function submit(): void {
+    if (waiting.value) {
+        guide()
+
+        return
+    }
+
     // A pair the server has just answered "not found" is not looked up again: the three routes are the actions.
     if (pending.value || selection.value === null || zero.value || notFound.value) {
         return
@@ -556,7 +587,7 @@ onBeforeUnmount(() => treeController?.abort())
         </div>
     </div>
 
-    <form v-else class="sel" novalidate @submit.prevent="submit">
+    <form v-else ref="form" class="sel" novalidate @submit.prevent="submit">
         <fieldset class="sel__fields" :disabled="pending">
             <TabsRoot v-model="tab" class="tabs">
                 <TabsList class="tabs__list" aria-label="Fahrzeug angeben">
@@ -862,11 +893,14 @@ onBeforeUnmount(() => treeController?.abort())
                 While the chooser is up, its own button is the action; the primary would only repeat the lookup.
                 After a not-found answer it stays disabled until the HSN or the TSN changes (R-09: the routes lead on).
             -->
+            <!-- No car yet: light blue, aria-disabled, and a press leads to the missing field (#1, D-109). -->
             <button
                 v-if="!chooser"
                 class="btn btn--primary btn--lg btn--block sel__go"
+                :class="{ 'sel__go--waiting': waiting }"
                 type="submit"
-                :disabled="selection === null || zero || pending || notFound"
+                :disabled="!waiting && (selection === null || zero || pending || notFound)"
+                :aria-disabled="waiting ? 'true' : undefined"
                 :aria-busy="pending ? 'true' : undefined"
             >
                 {{ buttonLabel }}
@@ -1058,6 +1092,26 @@ onBeforeUnmount(() => treeController?.abort())
 
 .sel__go {
     margin-top: var(--sp-16);
+}
+
+/*
+ * Waiting for a car (#1, D-109): the brand's light blue with the blue for the words — 6,4 : 1, past AA's 4,5 —
+ * so it reads as the next step, not as switched off. A press leads to the missing field.
+ */
+.sel__go--waiting,
+.sel__go--waiting:active {
+    border-color: var(--c-blue-tint);
+    background: var(--c-blue-tint);
+    color: var(--c-blue);
+    transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .sel__go--waiting:hover {
+        border-color: var(--c-blue);
+        background: var(--c-blue-tint);
+        color: var(--c-blue);
+    }
 }
 
 .sel__garage {

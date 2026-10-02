@@ -1,5 +1,5 @@
 import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { defineComponent, h, nextTick, reactive } from 'vue'
 import { NNBSP } from '../../format'
 import { COUNT_DEBOUNCE_MS } from '../../composables/useFitmentCount'
@@ -157,14 +157,41 @@ afterEach(() => {
 })
 
 describe('HeroSelector — the button and the count', () => {
-    it('starts on Marke & Modell with nothing focused and a disabled button', () => {
+    it('starts on Marke & Modell with nothing focused and the button waiting in light blue, not greyed out', () => {
         const wrapper = mountSelector()
 
         expect(wrapper.find('[role="tab"][data-state="active"]').text()).toBe('Marke & Modell')
         expect(document.activeElement).toBe(document.body)
         expect(button(wrapper).text()).toBe('Fahrzeug wählen')
-        expect(button(wrapper).element.disabled).toBe(true)
+        // The client's #1 (D-109): announced as unavailable, but pressable — a press leads to the missing field.
+        expect(button(wrapper).element.disabled).toBe(false)
+        expect(button(wrapper).attributes('aria-disabled')).toBe('true')
+        expect(button(wrapper).classes()).toContain('sel__go--waiting')
         expect(wrapper.find('.sel__count').text()).toBe('')
+    })
+
+    it('leads a press of the waiting button to the field that is missing, and submits nothing', async () => {
+        const wrapper = mountSelector()
+        const scroll = vi.fn()
+        const original = Element.prototype.scrollIntoView
+        Element.prototype.scrollIntoView = scroll
+        onTestFinished(() => {
+            Element.prototype.scrollIntoView = original
+        })
+
+        await wrapper.find('form').trigger('submit')
+        expect((document.activeElement as HTMLElement | null)?.id).toMatch(/-marke$/)
+
+        await openTab(wrapper, 'HSN/TSN')
+        await wrapper.find('form').trigger('submit')
+        expect((document.activeElement as HTMLElement | null)?.id).toMatch(/-hsn$/)
+
+        await typeKeys(wrapper, '0005', '')
+        await wrapper.find('form').trigger('submit')
+        expect((document.activeElement as HTMLElement | null)?.id).toMatch(/-tsn$/)
+
+        expect(scroll).toHaveBeenCalled()
+        expect(forms.every((f) => (f.post as ReturnType<typeof vi.fn>).mock.calls.length === 0)).toBe(true)
     })
 
     it('shows the skeleton, then the count sentence, and carries the number into the button', async () => {

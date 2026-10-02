@@ -92,6 +92,30 @@ afterEach(() => {
     vi.unstubAllGlobals()
 })
 
+describe('VehiclePanel — the button before a car is chosen (the client\'s #1)', () => {
+    it('waits in light blue, announced as unavailable but pressable, and a press leads to the missing field', async () => {
+        const wrapper = mountPanel()
+        const go = wrapper.find<HTMLButtonElement>('button.vpanel__go')
+        const original = Element.prototype.scrollIntoView
+        Element.prototype.scrollIntoView = vi.fn()
+
+        expect(go.text()).toBe('Fahrzeug wählen')
+        expect(go.element.disabled).toBe(false)
+        expect(go.attributes('aria-disabled')).toBe('true')
+        expect(go.classes()).toContain('vpanel__go--waiting')
+
+        await go.trigger('click')
+        expect(document.activeElement).toBe(byLabel(wrapper, 'Marke').element)
+
+        await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'HSN/TSN')?.trigger('click')
+        await go.trigger('click')
+        expect(document.activeElement).toBe(byLabel(wrapper, 'HSN (Feld 2.1)').element)
+
+        expect(routerMock.post).not.toHaveBeenCalled()
+        Element.prototype.scrollIntoView = original
+    })
+})
+
 describe('VehiclePanel — nothing found, three ways forward (R-09)', () => {
     it('offers the e-mail as the third route while no phone number is published', () => {
         current.props.lookup = NOT_FOUND
