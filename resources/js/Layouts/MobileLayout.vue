@@ -22,10 +22,10 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 import AppBar from '../Components/Mobile/AppBar.vue'
 import BottomSheet from '../Components/Mobile/BottomSheet.vue'
 import ListRow from '../Components/Mobile/ListRow.vue'
-import MobileFooter from '../Components/Mobile/MobileFooter.vue'
 import SearchSheet from '../Components/Mobile/SearchSheet.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
+import SiteFooter from '../Components/Chrome/SiteFooter.vue'
 import Toast from '../Components/Chrome/Toast.vue'
 import CompareTray from '../Components/Compare/CompareTray.vue'
 import { provideConsent } from '../composables/useConsent'
@@ -174,7 +174,8 @@ function fromVehicleSheet(href: string | undefined): void {
         <!-- After the page, before the footer; never while a sticky bar owns the bottom edge. -->
         <CompareTray :hidden="shell.stickyBar.value" />
 
-        <MobileFooter v-if="footer" />
+        <!-- The shop's one footer, as on every other page a phone opens (the client's #29, D-113). -->
+        <SiteFooter v-if="footer" />
 
         <!-- The vehicle: its name and key numbers, then the three things one does with it. -->
         <BottomSheet v-if="vehicle" id="fahrzeug" v-model:open="vehicleSheet" title="Dein Fahrzeug">

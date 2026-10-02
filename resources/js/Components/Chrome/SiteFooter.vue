@@ -64,7 +64,8 @@ const year = new Date().getFullYear()
                         <li v-for="item in menus.footer_service" :key="item.label">
                             <Link :href="item.href" class="footer__link">{{ item.label }}</Link>
                         </li>
-                        <li><button class="footer__link footer__button" type="button" @click="shell.helpOpen.value = true">Tastenkürzel</button></li>
+                        <!-- Keyboard shortcuts mean nothing under a finger, and the phone layout has no dialog for them (#29, D-113). -->
+                        <li class="footer__keys"><button class="footer__link footer__button" type="button" @click="shell.helpOpen.value = true">Tastenkürzel</button></li>
                     </ul>
                 </nav>
 
@@ -165,6 +166,12 @@ const year = new Date().getFullYear()
     min-height: 32px;
     color: var(--c-on-dark-2);
     text-decoration: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .footer__keys {
+        display: none;
+    }
 }
 
 .footer__button {
