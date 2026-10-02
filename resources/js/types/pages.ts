@@ -162,6 +162,15 @@ export interface FelgenrechnerProps {
     state: { current: RechnerSetup; next: RechnerSetup } | null
 }
 
+/** A photographed wheel for the dark band (#9): the shadowless cut-out and where the wheel is in it, in fractions. */
+export interface BandWheel {
+    brand: string
+    name: string
+    finish: string
+    image: ImageManifest
+    anchor: { x: number; y: number; r: number }
+}
+
 export interface GuideTeaser {
     slug: string
     title: string
@@ -216,7 +225,8 @@ export interface StartseiteProps {
      * sample range (`slug` `demo`) never has one (docs/design/sections/home-brands.md §4.2).
      */
     brands: { name: string; slug: string; logo: string | null; logoAspect: number | null; count: number; href: string | null }[]
-    komplettrad: { tyre: EuTyreLabel | null }
+    /** `wheel`: the photographed wheel that turns in the dark band (#9), null where none is photographed. */
+    komplettrad: { tyre: EuTyreLabel | null; wheel?: BandWheel | null }
     calculator: { prefill: CalculatorPrefill | null }
     partners: { enabled: boolean; demo: boolean }
     guides: GuideTeaser[]

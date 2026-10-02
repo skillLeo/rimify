@@ -391,7 +391,7 @@ onBeforeUnmount(() => {
             <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br>montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
 
-            <KomplettradWheel class="home-komplett__wheel" />
+            <KomplettradWheel class="home-komplett__wheel" :wheel="komplettrad.wheel ?? null" />
 
             <TyreLabel
                 :title="tyre.title"

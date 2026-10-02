@@ -60,8 +60,11 @@ final class ReleaseSeed extends Command
      * no numbers section ever since. GoldenRecordSeeder now replaces a choice that is no real wheel.
      *
      * v8: the footer's Felgenrechner link (the client's #10, ContentSeeder) — a menu the team has edited is left alone.
+     *
+     * v9: the dark band's wheel (the client's #9): the photographs' manifests again (GoldenRecordSeeder attaches them), now
+     * with the `open` frame wheels:process-images (pipeline 6) writes for a studio shot.
      */
-    public const VERSION = 8;
+    public const VERSION = 9;
 
     /** From this version on, a kept demo set is written again once, so its frozen labels match. */
     public const DEMO_RENEWED_AT = 4;
