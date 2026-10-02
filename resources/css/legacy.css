@@ -177,7 +177,7 @@
     }
 
     .band {
-        background: var(--band);
+        background: var(--c-band-blue);
     }
 
     .surface {

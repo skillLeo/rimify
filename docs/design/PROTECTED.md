@@ -29,6 +29,7 @@ missing, and a screenshot baseline beside it. Removing an element fails the suit
 | Calculator visual on the homepage | Replaced by the numbers section; the calculator moved to `/felgenrechner` behind a teaser | `c67b7957`, `01afd199` (22.09.) | The accuracy brief of 22.09. (D9) |
 | Hero photograph and numbers-section photograph | Replaced by a line drawing labelled *Symbolbild* when the demo catalogue left the storefront | `0b9fd246` (27.09.) | Side effect of the review release §2 — restored in `94418abf` with the Borbet DB8GT2 photographs |
 | Textmarker and stamp, Komplettrad turn, live count, tile hover and compare | Unchanged | — | — |
+| The band behind the hero (P1, P2), the story (P5) and the numbers section (P4) | Its tone from neutral grey `--c-band` to the pale blue-grey `--c-band-blue`; the elements themselves — photographs, roll, studio light, callouts, strokes, stamp — unchanged, and their baselines still match | the #32 commit (02.10.) | The client's #32, in the change-list brief |
 | Hero caption (P1) | The price („ab … · pro Felge“ with its PAngV line) and the link to the product taken out; the product's name, both finishes, the spec line and every photograph, roll and callout unchanged | the #4 commit (02.10.) | The client's #4, agreed by the operator in the change-list brief; `e2e/protected.spec.ts` now fails if a price or a product link returns |
 
 ## The full homepage audit (01.10.2026)

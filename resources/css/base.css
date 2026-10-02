@@ -269,8 +269,9 @@
         }
     }
 
+    /* Sections alternate white and the pale blue-grey band (#32, D-115). */
     .band {
-        background: var(--c-band);
+        background: var(--c-band-blue);
     }
 
     .dark {

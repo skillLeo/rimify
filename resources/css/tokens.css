@@ -21,6 +21,7 @@
     --c-line-2: #c9ced5;
     --c-surface: #ffffff;
     --c-band: #f3f4f6;
+    --c-band-blue: #ebf0f7;   /* The section band, alternating with white (the client's #32, D-115); tiles, fields and chips keep --c-band. */
     --c-dark: #0b0f14;
     --c-dark-2: #161b22;
     --c-on-dark-2: #a9b1bc;

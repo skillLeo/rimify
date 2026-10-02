@@ -71,7 +71,8 @@ function removeVehicle(): void {
 
                 <!-- The vehicle on a desktop: a chip with a small menu. -->
                 <DropdownMenuRoot v-if="vehicle">
-                    <DropdownMenuTrigger class="chip sh__vchip from-lg">
+                    <!-- A chosen car is a selected chip: the brand's blue (#32, D-115). -->
+                    <DropdownMenuTrigger class="chip chip--on sh__vchip from-lg">
                         <Icon name="car" :size="20" />
                         <span class="sh__vname">{{ vehicle.short }}</span>
                         <Icon name="chevron-down" :size="16" />
