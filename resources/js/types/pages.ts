@@ -10,6 +10,8 @@
 import type {
     BasketLine,
     BasketTotals,
+    BasketTpms,
+    BasketWeightOption,
     ConditionGroupsView,
     ContactProp,
     Facets,
@@ -304,6 +306,14 @@ export interface ProduktProps {
     hasVehicle: boolean
     /** `Lieferzeit 3–5 Werktage · Versand 4,90 €` (Shipping::summary): only what is given; null while nothing is. */
     shipping?: string | null
+    /** What goes with a Komplettrad (#15): the active Wuchtgewichte colours and the RDKS question for a set; null without a car. */
+    komplettradOptions?: KomplettradOptionsProp | null
+}
+
+export interface KomplettradOptionsProp {
+    colours: BasketWeightOption[]
+    /** The basket's own RDKS block for the set this page adds; `yesTotal` is what „Ja“ would add. */
+    tpms: BasketTpms & { yesTotal: string | null }
 }
 
 /** One buyer's review as the product page shows it: no name, a verified purchase by construction (D-103). */
@@ -504,6 +514,8 @@ export interface KomplettradTyreProp {
     /** `perWheel` × 4, formatted on the server (R-10); the page never multiplies cents. */
     forFourCents: number
     forFour: string
+    /** The set priced with each active Wuchtgewichte colour (#15): the page picks the one chosen, never adds a surcharge. */
+    prices?: { colourId: number; perWheel: string; forFourCents: number; forFour: string }[]
     /** The EU label, only where the tyre carries a verified EPREL id (ACCURACY D7). */
     label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
     isDemo: boolean

@@ -38,6 +38,8 @@ class BasketLineRequest extends FormRequest
             // may go on this car is the fitment engine's question, not a validation rule (D-105).
             'rearTyreVariantId' => ['nullable', 'integer', 'min:1', 'different:tyreVariantId'],
             'weightColourId' => ['nullable', 'integer', 'min:1'],
+            // The RDKS answer given beside a Komplettrad on the product page (#15): recorded as the checkout's own.
+            'rdks' => ['nullable', Rule::in(['ja', 'nein'])],
             'quantity' => ['required', 'integer', 'min:1', 'max:99'],
         ];
     }
@@ -59,6 +61,7 @@ class BasketLineRequest extends FormRequest
             'rearTyreVariantId.different' => 'Bei Mischbereifung sind die Reifen vorne und hinten verschieden.',
             'weightColourId.integer' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
             'weightColourId.min' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
+            'rdks.in' => 'Bitte sag uns, ob du RDKS-Sensoren brauchst.',
             'quantity.required' => 'Bitte gib eine Menge an.',
             'quantity.integer' => 'Bitte gib eine Menge als ganze Zahl an.',
             'quantity.min' => 'Die Menge muss mindestens 1 sein.',
@@ -90,6 +93,14 @@ class BasketLineRequest extends FormRequest
         $value = $this->validated('rearTyreVariantId');
 
         return $value === null ? null : (int) $value;
+    }
+
+    /** The RDKS answer that came with a Komplettrad, `ja` or `nein`; null where none was given (rims, or another page). */
+    public function rdks(): ?string
+    {
+        $value = $this->validated('rdks');
+
+        return $value === 'ja' || $value === 'nein' ? $value : null;
     }
 
     /** The Wuchtgewichte colour, if the page chose one; null lets the basket assign the default. */

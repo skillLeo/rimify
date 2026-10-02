@@ -1123,6 +1123,24 @@ final readonly class Basket
             }
         }
 
+        return $this->tpmsQuote($request, $quantity);
+    }
+
+    /**
+     * The RDKS question as the product page asks it beside a Komplettrad (the client's #15): the same block the basket
+     * renders, for the set the page would add — the sensor price for the current vehicle's make, re-read from
+     * `tpms_sensor_prices`, and the answer already given for that make, if any.
+     *
+     * @return array<string, mixed>
+     */
+    public function tpmsOffer(Request $request, int $quantity): array
+    {
+        return $this->tpmsQuote($request, $quantity);
+    }
+
+    /** @return array<string, mixed> */
+    private function tpmsQuote(Request $request, int $quantity): array
+    {
         $applicable = $quantity > 0;
         $make = $applicable ? $this->vehicleMake($request) : null;
         $makeKey = $make === null ? '' : MakeName::key($make);
@@ -1152,6 +1170,8 @@ final readonly class Basket
             'choice' => $choice,
             'totalCents' => $total,
             'total' => GermanFormat::money($total, $currency),
+            // What „Ja“ would add, whatever has been answered: the product page shows it on the tile before anyone answers.
+            'yesTotal' => $unit === null ? null : LinePrice::total(Money::fromMinor($unit, $currency), $quantity)->format(),
             'notice' => $notice,
         ];
     }

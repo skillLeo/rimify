@@ -168,6 +168,8 @@ const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
     tyreVariantId: null as number | null,
+    weightColourId: null as number | null,
+    rdks: null as 'ja' | 'nein' | null,
     quantity: 4,
 })
 
@@ -197,6 +199,32 @@ watch(
 )
 
 const tyre = computed(() => offer.value?.tyres.find((t) => t.id === tyreId.value) ?? null)
+
+/*
+ * What goes with a Komplettrad (#15): the Wuchtgewichte colour — the admin's default preselected — and the RDKS
+ * answer, preselected only where the visitor already gave one for this car's make. Nothing of it under „Nur Felgen“.
+ */
+const options = computed(() => props.komplettradOptions ?? null)
+const colourId = ref<number | null>(options.value?.colours.find((c) => c.isDefault)?.id ?? options.value?.colours[0]?.id ?? null)
+const rdks = ref<'ja' | 'nein' | null>(options.value?.tpms.choice ?? null)
+
+/* The set's price with the colour chosen: the server's figure for that colour, the default colour's where none. */
+const setPrice = computed(() => {
+    const current = tyre.value
+
+    if (current === null) {
+        return null
+    }
+
+    return current.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: current.perWheel, forFour: current.forFour }
+})
+
+/* `+ 196,00 € für 4 RDKS-Sensoren` under the set's price, once the visitor said yes. */
+const sensorLine = computed(() => {
+    const tpms = options.value?.tpms
+
+    return isSet.value && rdks.value === 'ja' && tpms?.available && tpms.yesTotal ? `+ ${tpms.yesTotal} für ${tpms.quantity} RDKS-Sensoren` : null
+})
 
 /* `ab 965,00 € je Rad` on the Komplettrad choice: the server's lowest figure, never one the page computed. */
 const setFrom = computed(() => {
@@ -330,7 +358,7 @@ const buyLabel = computed(() => {
 /* The price beside the button, and its line: a set of Kompletträder, or the rims of the amount chosen. */
 const shownPrice = computed(() => {
     if (isSet.value) {
-        return tyre.value?.forFour ?? null
+        return setPrice.value?.forFour ?? null
     }
 
     return amountPrice.value?.text ?? selected.value?.price ?? config.fromPrice.value
@@ -343,11 +371,11 @@ const shownNote = computed(() => {
 
     const set = offer.value?.quantity ?? 4
 
-    return tyre.value === null ? '' : `für ${set} Kompletträder, je Rad ${tyre.value.perWheel}, ${terms.value.note}`
+    return setPrice.value === null ? '' : `für ${set} Kompletträder, je Rad ${setPrice.value.perWheel}, ${terms.value.note}`
 })
 
 /* The server's refusal of an add, under whichever key it answered with: the tyre for a Komplettrad, the size for rims. */
-const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? null)
+const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.weightColourId ?? null)
 
 function addToBasket(): void {
     if (selected.value === null || !canBuy.value) {
@@ -356,6 +384,9 @@ function addToBasket(): void {
 
     basket.wheelConfigId = selected.value.id
     basket.tyreVariantId = isSet.value ? (tyre.value?.id ?? null) : null
+    // The weights and the sensors go only with a Komplettrad: rims alone carry neither (#15).
+    basket.weightColourId = isSet.value ? colourId.value : null
+    basket.rdks = isSet.value ? rdks.value : null
     basket.quantity = isSet.value ? (offer.value?.quantity ?? 4) : amount.value
     basket.post('/warenkorb', { preserveScroll: true })
 }
@@ -569,7 +600,15 @@ onBeforeUnmount(() => observer?.disconnect())
                     </fieldset>
 
                     <!-- The tyres the verdict permits on this size, or the sentence why there are none. -->
-                    <KomplettradChoice v-if="isSet && offer" v-model="tyreId" class="pdp__block" :offer="offer" />
+                    <KomplettradChoice
+                        v-if="isSet && offer"
+                        v-model="tyreId"
+                        v-model:colour-id="colourId"
+                        v-model:rdks="rdks"
+                        class="pdp__block"
+                        :offer="offer"
+                        :options="options"
+                    />
 
                     <div v-if="shownPrice" class="pdp__price">
                         <!-- The price of the amount chosen beside it, as the basket will charge it, and one rim's in the line under it. -->
@@ -578,6 +617,7 @@ onBeforeUnmount(() => observer?.disconnect())
                                 <p class="price price--lg pdp__total" translate="no">{{ shownPrice }}</p>
                                 <p class="price-note pdp__each">{{ shownNote }}</p>
                                 <p v-if="isSet && offer?.priceOpen" class="price-note">Ohne Montage und Auswuchten – der Preis dafür steht noch nicht fest.</p>
+                                <p v-if="sensorLine" class="price-note pdp__sensors">{{ sensorLine }}</p>
                             </div>
                             <AmountStepper
                                 v-if="!isSet && selected && amountPrice"

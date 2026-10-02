@@ -1,7 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import type { KomplettradOfferProp, KomplettradTyreProp } from '../../types/pages'
+import type { KomplettradOfferProp, KomplettradOptionsProp, KomplettradTyreProp } from '../../types/pages'
 
 /*
  * The Komplettrad in the purchase panel (#18; docs/specs/komplettrad.md §4.11, §9.3): it prints the tyres the server
@@ -53,11 +53,44 @@ function refused(code: KomplettradOfferProp['refusalCode'], sentence: string): K
 
 let wrappers: VueWrapper[] = []
 
-function mountChoice(value: KomplettradOfferProp = offer(), chosen: number | null = 7): VueWrapper {
-    const wrapper = mount(KomplettradChoice, { props: { offer: value, modelValue: chosen } })
+function mountChoice(
+    value: KomplettradOfferProp = offer(),
+    chosen: number | null = 7,
+    extra: { options?: KomplettradOptionsProp | null; colourId?: number | null; rdks?: 'ja' | 'nein' | null } = {}
+): VueWrapper {
+    const wrapper = mount(KomplettradChoice, { props: { offer: value, modelValue: chosen, ...extra } })
     wrappers.push(wrapper)
 
     return wrapper
+}
+
+function tpms(overrides: Partial<KomplettradOptionsProp['tpms']> = {}): KomplettradOptionsProp['tpms'] {
+    return {
+        applicable: true,
+        quantity: 4,
+        available: true,
+        makeLabel: 'BMW',
+        unitPriceCents: 4_900,
+        unitPrice: '49,00 €',
+        line: '4 × 49,00 €',
+        choice: null,
+        totalCents: 0,
+        total: '0,00 €',
+        yesTotal: '196,00 €',
+        notice: null,
+        ...overrides,
+    }
+}
+
+function options(overrides: Partial<KomplettradOptionsProp> = {}): KomplettradOptionsProp {
+    return {
+        colours: [
+            { id: 1, name: 'Silber', swatchHex: '#c0c0c0', surchargeCents: 0, surcharge: '0,00 €', isDefault: true },
+            { id: 2, name: 'Schwarz', swatchHex: '#111111', surchargeCents: 500, surcharge: '5,00 €', isDefault: false },
+        ],
+        tpms: tpms(),
+        ...overrides,
+    }
 }
 
 afterEach(() => {
@@ -139,6 +172,61 @@ describe('KomplettradChoice', () => {
             expect(wrapper.text()).not.toContain('Nur die Felgen bestellen')
             expect(wrapper.find('a[href^="#"]').exists()).toBe(false)
         }
+    })
+
+    /* ── #15: Wuchtgewichte, RDKS and valves ─────────────────────────────────────────── */
+
+    it('offers the Wuchtgewichte colours, the chosen one marked, and prices each tyre with it as the server did', async () => {
+        const priced = tyre({
+            prices: [
+                { colourId: 1, perWheel: '965,00 €', forFourCents: 386_000, forFour: '3.860,00 €' },
+                { colourId: 2, perWheel: '970,00 €', forFourCents: 388_000, forFour: '3.880,00 €' },
+            ],
+        })
+        const wrapper = mountChoice(offer({ tyres: [priced] }), 7, { options: options(), colourId: 1 })
+        const colours = wrapper.findAll('.kc-opt').filter((o) => o.find('input[name="kc-weights"]').exists())
+
+        expect(colours.map((c) => c.find('.kc-opt__name').text())).toEqual(['Silber', 'Schwarz'])
+        expect(colours[0]!.find('.kc-opt__price').text()).toBe('ohne Aufpreis')
+        expect(colours[1]!.find('.kc-opt__price').text()).toBe('+ 5,00 € je Rad')
+        expect(colours[0]!.classes()).toContain('kc-opt--on')
+
+        await colours[1]!.find('input').setValue()
+        expect(wrapper.emitted('update:colourId')?.[0]).toEqual([2])
+
+        await wrapper.setProps({ colourId: 2 })
+        expect(wrapper.find('.kc-tile__amount').text()).toBe('970,00 €')
+    })
+
+    it('asks about RDKS sensors, unanswered until the visitor answers, and claims nothing about valves', async () => {
+        const wrapper = mountChoice(offer(), 7, { options: options(), colourId: 1 })
+        const rdks = wrapper.findAll('.kc-opt').filter((o) => o.find('input[name="kc-rdks"]').exists())
+
+        expect(rdks.map((r) => r.find('.kc-opt__name').text())).toEqual(['Mit RDKS-Sensoren', 'Ohne Sensoren'])
+        expect(rdks[0]!.find('.kc-opt__price').text()).toBe('196,00 € · 4 × 49,00 €')
+        expect(rdks[0]!.find('.kc-opt__sub').text()).toBe('Wir setzen die Sensoren gleich mit ein.')
+        // Which valves a wheel may take is the Gutachten's to say, in its conditions: never a sentence of ours.
+        expect(wrapper.text()).not.toMatch(/Ventil/)
+        // Nothing answered for the visitor: a guess either way could be wrong for their car.
+        expect(wrapper.findAll('.kc-opt--on').filter((o) => o.find('input[name="kc-rdks"]').exists())).toHaveLength(0)
+
+        await rdks[1]!.find('input').setValue()
+        expect(wrapper.emitted('update:rdks')?.[0]).toEqual(['nein'])
+    })
+
+    it('offers no sensors where no price is entered for the make, says so and leads to the contact form', () => {
+        const notice = 'Für BMW haben wir den Preis für RDKS-Sensoren noch nicht hinterlegt. Schreib uns kurz – wir melden uns mit dem Preis. Ohne Sensoren kannst du sofort bestellen.'
+        const wrapper = mountChoice(offer(), 7, { options: options({ tpms: tpms({ available: false, unitPriceCents: null, unitPrice: null, line: null, yesTotal: null, notice }) }) })
+
+        expect(wrapper.find('input[name="kc-rdks"][value="ja"]').exists()).toBe(false)
+        expect(wrapper.find('input[name="kc-rdks"][value="nein"]').exists()).toBe(true)
+        expect(wrapper.find('.kc__tpms-notice').text()).toContain(notice)
+        expect(wrapper.find('.kc__tpms-notice a').attributes('href')).toContain('/kontakt?betreff=Preis+f%C3%BCr+RDKS-Sensoren')
+    })
+
+    it('asks nothing about weights or sensors beside a refusal, or without the options', () => {
+        expect(mountChoice(refused('NO_TYRE_AVAILABLE', 'Ein Satz.'), null, { options: options() }).find('.kc__group').exists()).toBe(false)
+        expect(mountChoice(offer(), 7, { options: null }).find('.kc__group').exists()).toBe(false)
     })
 
     it('still says something if the server sent neither tyres nor a sentence', () => {

@@ -45,6 +45,7 @@ use App\Support\Money;
 use App\Support\Shipping;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -202,9 +203,11 @@ class FelgenController extends Controller
         // counted by state, nothing else kept.
         VerdictTally::record('pdp', array_map(static fn (FitmentVerdict $verdict): VerdictStatus => $verdict->status, array_values($verdicts)));
 
-        // Adding a Komplettrad from this page assigns the admin's default Wuchtgewichte colour
-        // (§4.1); read once for the whole page, and only where an offer could be made at all.
+        // The Komplettrad's Wuchtgewichte (§4.1, #15): the admin's default colour is the one preselected, and every active
+        // colour is offered on the page, each set priced with it; read once for the whole page, and only where an offer
+        // could be made at all.
         $colour = $vehicleId === null ? null : BalanceWeightColour::default();
+        $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 
         foreach ($wheel->configs as $config) {
             $live = $verdicts[$config->id] ?? null;
@@ -264,7 +267,7 @@ class FelgenController extends Controller
                 'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
                 // The Komplettrad offer travels with the verdict it depends on, for the same
                 // reason: a size change swaps the tyres and the legal answer in one commit.
-                'komplettrad' => $this->komplettradFor($config, $live, $colour),
+                'komplettrad' => $this->komplettradFor($config, $live, $colour, $colours),
                 // Mischbereifung (#20, D-105): only where the released Gutachten prints its pairing table.
                 'mischbereifung' => $this->mischbereifungFor($config, $live, $colour),
             ];
@@ -334,6 +337,19 @@ class FelgenController extends Controller
             'demo' => (bool) $wheel->is_demo,
             // Delivery time and shipping, as Einstellungen › Verkäufer & Versand gives them; null while nothing is.
             'shipping' => Shipping::current()->summary(),
+            // What goes with a Komplettrad (#15): the Wuchtgewichte colours the admin keeps active, and the RDKS question
+            // for a set, priced for the car's make — the basket's own block, so the checkout finds it answered.
+            'komplettradOptions' => $colours->isEmpty() ? null : [
+                'colours' => $colours->map(static fn (BalanceWeightColour $c): array => [
+                    'id' => (int) $c->id,
+                    'name' => $c->name_de,
+                    'swatchHex' => $c->swatch_hex,
+                    'surchargeCents' => (int) $c->surcharge_cents,
+                    'surcharge' => GermanFormat::money((int) $c->surcharge_cents, $c->currency),
+                    'isDefault' => (bool) $c->is_default,
+                ])->values()->all(),
+                'tpms' => app(Basket::class)->tpmsOffer($request, self::SET_OF),
+            ],
         ]);
     }
 
@@ -360,9 +376,13 @@ class FelgenController extends Controller
      * asks it again on every add and on every render (R-13, R-11). What this method adds are the
      * storefront's own two arms — no vehicle, no active weight colour — and the prices.
      *
+     * Each tyre carries its set priced with every active Wuchtgewichte colour (#15), so the page shows the figure for
+     * the colour picked without adding a surcharge itself; `perWheel` and `forFour` stay the default colour's.
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
      * @return array<string, mixed>
      */
-    private function komplettradFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour): array
+    private function komplettradFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour, Collection $colours): array
     {
         // Without a vehicle there is no verdict, so there is no permitted-size list (D-033).
         if ($verdict === null) {
@@ -420,6 +440,17 @@ class FelgenController extends Controller
                 'perWheel' => $perWheel->format(),
                 'forFourCents' => $forFour->toMinor(),
                 'forFour' => $forFour->format(),
+                'prices' => $colours->map(function (BalanceWeightColour $c) use ($config, $variant): array {
+                    $price = $this->pricer->perWheel($config, $variant, $c);
+                    $perWheel = Money::fromMinor($price->knownPerWheelCents(), $price->currency);
+
+                    return [
+                        'colourId' => (int) $c->id,
+                        'perWheel' => $perWheel->format(),
+                        'forFourCents' => LinePrice::total($perWheel, self::SET_OF)->toMinor(),
+                        'forFour' => LinePrice::total($perWheel, self::SET_OF)->format(),
+                    ];
+                })->values()->all(),
                 'label' => Basket::euLabel($variant),
                 'isDemo' => (bool) $variant->is_demo,
             ];

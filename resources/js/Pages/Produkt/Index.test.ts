@@ -533,6 +533,50 @@ describe('Produkt page', () => {
         expect(wrapper.text()).not.toContain('Nur die Felgen bestellen')
     })
 
+    it('sends the colour and the RDKS answer with a Komplettrad, prices the colour picked, and sends neither with rims (#15)', async () => {
+        const priced = komplettrad({
+            tyres: [
+                {
+                    ...komplettrad().tyres[0]!,
+                    prices: [
+                        { colourId: 1, perWheel: '965,00 €', forFourCents: 386_000, forFour: '3.860,00 €' },
+                        { colourId: 2, perWheel: '970,00 €', forFourCents: 388_000, forFour: '3.880,00 €' },
+                    ],
+                },
+            ],
+        })
+        const wrapper = mountPage({
+            hasVehicle: true,
+            configs: [config({ komplettrad: priced, amounts: AMOUNTS })],
+            komplettradOptions: {
+                colours: [
+                    { id: 1, name: 'Silber', swatchHex: null, surchargeCents: 0, surcharge: '0,00 €', isDefault: true },
+                    { id: 2, name: 'Schwarz', swatchHex: null, surchargeCents: 500, surcharge: '5,00 €', isDefault: false },
+                ],
+                tpms: {
+                    applicable: true, quantity: 4, available: true, makeLabel: 'BMW', unitPriceCents: 4_900, unitPrice: '49,00 €',
+                    line: '4 × 49,00 €', choice: null, totalCents: 0, total: '0,00 €', yesTotal: '196,00 €', notice: null,
+                },
+            },
+        })
+
+        // Under „Nur Felgen“ nothing of it is on screen, and nothing of it is sent.
+        expect(wrapper.find('.kc__group').exists()).toBe(false)
+        await wrapper.find('button.pdp__add').trigger('click')
+        expect(forms.find((f) => f.kind === 'WHEEL')).toMatchObject({ tyreVariantId: null, weightColourId: null, rdks: null })
+
+        await chooseSet(wrapper)
+        await wrapper.find('input[name="kc-weights"][value="2"]').setValue()
+        await wrapper.find('input[name="kc-rdks"][value="ja"]').setValue()
+
+        expect(wrapper.find('.pdp__total').text()).toBe('3.880,00 €')
+        expect(wrapper.find('.pdp__each').text()).toContain('je Rad 970,00 €')
+        expect(wrapper.find('.pdp__sensors').text()).toBe('+ 196,00 € für 4 RDKS-Sensoren')
+
+        await wrapper.find('button.pdp__add').trigger('click')
+        expect(forms.find((f) => f.kind === 'WHEEL')).toMatchObject({ tyreVariantId: 7, weightColourId: 2, rdks: 'ja', quantity: 4 })
+    })
+
     it('prints the server\'s refusal of an add under the button', async () => {
         const wrapper = mountPage()
         const form = forms.find((f) => f.kind === 'WHEEL')

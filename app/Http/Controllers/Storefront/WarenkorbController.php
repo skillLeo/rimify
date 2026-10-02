@@ -62,6 +62,14 @@ class WarenkorbController extends Controller
             return back()->withErrors([$tyreVariantId === null ? 'wheelConfigId' : 'tyreVariantId' => $refusal]);
         }
 
+        // RDKS sensors chosen beside the Komplettrad (#15) are refused here, before the set is added, where no price for
+        // the car's make has been entered: the checkout would refuse the order on it later.
+        $rdks = $tyreVariantId === null ? null : $request->rdks();
+
+        if ($rdks === 'ja' && ($this->basket->tpmsOffer($request, $request->quantity())['available'] ?? false) !== true) {
+            return back()->withErrors(['rdks' => Basket::TPMS_UNAVAILABLE_REFUSAL]);
+        }
+
         $this->basket->add(
             $request,
             $request->wheelConfigId(),
@@ -70,6 +78,11 @@ class WarenkorbController extends Controller
             $request->weightColourId(),
             $rearTyreVariantId,
         );
+
+        // The answer, with the quote it was given at, becomes the checkout's own — asked once, not twice.
+        if ($rdks !== null) {
+            $this->basket->answerTpms($request, $rdks);
+        }
 
         // Back rather than to the basket: the customer is on a product page configuring, and
         // taking them away from it after every add is what makes people buy one item instead of
