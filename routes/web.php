@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
 use App\Http\Controllers\Admin\MarkenController;
 use App\Http\Controllers\Admin\NachfrageController;
+use App\Http\Controllers\Admin\NachrichtenController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
@@ -202,6 +203,8 @@ Route::get('/benachrichtigung/abmelden/{token}', [BenachrichtigungController::cl
 
 Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
+// The contact form (#12, D-123): writes a row and sends two mails, so a visitor gets a handful a minute.
+Route::post('/kontakt', [KontaktController::class, 'store'])->middleware('throttle:shop-kontakt')->name('kontakt.store');
 // The statute's model form (Art. 246a § 1 Abs. 2 EGBGB), before the CMS pages' catch-all.
 Route::get('/rechtliches/widerrufsformular', WiderrufsformularController::class)->name('rechtliches.widerrufsformular');
 Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtliches');
@@ -507,6 +510,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber('review')
             ->middleware('throttle:60,1,bewertung-moderation')
             ->name('bewertungen.antwort');
+        // Verkauf › Nachrichten (#12, D-123): what came through the contact form. Answered by e-mail, marked as read here.
+        Route::get('/nachrichten', [NachrichtenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':orders,view')
+            ->name('nachrichten.index');
+        Route::post('/nachrichten/{message}/gelesen', [NachrichtenController::class, 'markRead'])
+            ->whereNumber('message')
+            ->middleware('throttle:60,1,nachricht-gelesen')
+            ->name('nachrichten.gelesen');
 
         // Gespeicherte Ansichten (step 2.2), for every list in AdminLists: a list's filters under a
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy

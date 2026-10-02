@@ -711,6 +711,8 @@ export interface FaqProps {
 
 export interface KontaktProps {
     contact: ContactProp
+    /** What the page that linked here knew (#26): a subject and the path the visitor came from. */
+    prefill?: { subject: string; from: string | null }
 }
 
 export interface RechtlichesProps {

@@ -81,6 +81,8 @@ final class AdminNavigation
                 ['label' => 'Rückbuchungen', 'href' => '/admin/rueckbuchungen', 'icon' => 'returns', 'count' => 'disputes_open'],
                 // The buyers' reviews (#19, D-103): hidden with a reason, answered — never written here.
                 ['label' => 'Bewertungen', 'href' => '/admin/bewertungen', 'icon' => 'ratings'],
+                // The contact form's messages (#12, D-123): the unread ones are counted — each is a person waiting.
+                ['label' => 'Nachrichten', 'href' => '/admin/nachrichten', 'icon' => 'emails', 'count' => 'messages_unread'],
                 ['label' => 'Kunden', 'href' => '/admin/kunden', 'icon' => 'customers'],
                 // Customers asking to be told when a document for their car arrives. The goal of the
                 // team's work is to have told all of them, so it is a queue and earns a count. Not
@@ -219,6 +221,7 @@ final class AdminNavigation
         '/admin/bestellungen',
         '/admin/rueckbuchungen',
         '/admin/bewertungen',
+        '/admin/nachrichten',
         '/admin/anfragen',
         '/admin/zubehoerpreise',
         '/admin/benutzer',
@@ -506,6 +509,8 @@ final class AdminNavigation
                     ->count(),
                 // Chargebacks still open: each has an evidence deadline.
                 'disputes_open' => DB::table('disputes')->whereNull('closed_at')->count(),
+                // Contact-form messages nobody has marked as read yet.
+                'messages_unread' => DB::table('contact_messages')->whereNull('read_at')->count(),
                 'conflicts_open' => DB::table('fitment_conflicts')
                     ->where('status', ConflictStatus::Open->value)
                     ->count(),
