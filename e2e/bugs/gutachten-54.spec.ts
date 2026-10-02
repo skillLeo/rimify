@@ -19,9 +19,17 @@ test('GUTACHTEN-54 removing the last row of a draft closes the confirm', async (
     await page.waitForURL(/\/admin\/gutachten\/\d+$/)
     await waitForApp(page)
 
-    const hit = page.locator('.rc-hits li', { hasNotText: 'Angaben für die Prüfung fehlen' }).first()
+    // In the vehicles' own column: the sizes are `.rc-hits` too, and in a full run the size list could answer first —
+    // the spec then ticked a size for a car and the button stayed disabled (the suite run of 03.10.2026).
+    const vehicles = page.locator('section[aria-labelledby="rc-h-vehicles"]')
+    const hit = vehicles.locator('.rc-hits li', { hasNotText: 'Angaben für die Prüfung fehlen' }).first()
     await hit.locator('input').check()
+    await expect(vehicles.locator('.rc-chips li'), 'the car was not chosen').toHaveCount(1)
+
+    // The search's own list, not the first one shown before anything was typed.
+    const searched = page.waitForResponse((r) => new URL(r.url()).pathname.endsWith('/suche/felgen') && new URL(r.url()).searchParams.get('q') === 'Probelauf')
     await page.locator('#rc-wheel-q').fill('Probelauf')
+    await searched
     await page.locator('.rc-group', { hasText: 'Probelauf' }).first().locator('.rc-hit--model input').check()
     await page.locator('#rc-size-0').fill('225/40 R18')
     await page.locator('.rc-foot .btn--primary').click()

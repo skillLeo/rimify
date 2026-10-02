@@ -64,8 +64,12 @@ async function fontEmbedCss(root: HTMLElement, read: (node: HTMLElement) => Prom
     return fontCss
 }
 
-/** How long the picture may take; after that the point goes without one rather than keep the person waiting. */
-export const CAPTURE_TIMEOUT_MS = 8000
+/**
+ * How long the picture may take; after that the point goes without one rather than keep the person waiting. A long
+ * page on a phone takes several seconds (measured 03.10.2026: up to ~9 s with every image fetched afresh), so this
+ * is a stop for a picture that never comes, not a budget.
+ */
+export const CAPTURE_TIMEOUT_MS = 30_000
 
 async function capture(): Promise<string | null> {
     const { toCanvas, getFontEmbedCSS } = await import('html-to-image')
@@ -85,7 +89,8 @@ async function capture(): Promise<string | null> {
         canvasWidth: width,
         canvasHeight: top + height,
         pixelRatio: 1,
-        cacheBust: true,
+        // Every picture on the page is our own origin's: the browser's cache serves it, nothing is fetched afresh.
+        cacheBust: false,
         ...(fonts === '' ? { skipFonts: true } : { fontEmbedCSS: fonts }),
         // A photograph that cannot be drawn leaves a gap, never the whole picture missing.
         onImageErrorHandler: () => undefined,
