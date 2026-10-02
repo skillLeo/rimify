@@ -1,3 +1,5 @@
+import type { AddedToBasket } from '../../types/rimify'
+
 /** How long a confirmation stays on screen. Long enough to read three words twice. */
 export const TOAST_MS = 4000
 
@@ -15,6 +17,21 @@ export function toastFrom(props: Record<string, unknown> | undefined | null): st
     const toast = (flash as { toast?: unknown }).toast
 
     return typeof toast === 'string' && toast.trim() !== '' ? toast : null
+}
+
+/** What a response put in the basket (#16), or null: the panel after an add shows it, and the toast then stays quiet. */
+export function addedFrom(props: Record<string, unknown> | undefined | null): AddedToBasket | null {
+    const flash = props?.flash
+
+    if (flash === null || typeof flash !== 'object') {
+        return null
+    }
+
+    const added = (flash as { added?: unknown }).added
+
+    return added !== null && typeof added === 'object' && Array.isArray((added as AddedToBasket).lines) && (added as AddedToBasket).lines.length > 0
+        ? (added as AddedToBasket)
+        : null
 }
 
 /** What the client channel carries: the sentence and, optionally, one thing to do about it. */

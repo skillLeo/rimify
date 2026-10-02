@@ -84,14 +84,19 @@ class WarenkorbController extends Controller
             $this->basket->answerTpms($request, $rdks);
         }
 
-        // Back rather than to the basket: the customer is on a product page configuring, and
-        // taking them away from it after every add is what makes people buy one item instead of
-        // four. The cart badge and a toast are the confirmation.
-        return back()->with('toast', match (true) {
+        $sentence = match (true) {
             $tyreVariantId === null => 'Zum Warenkorb hinzugefügt.',
             $rearTyreVariantId !== null => 'Mischbereifung zum Warenkorb hinzugefügt.',
             default => 'Komplettrad zum Warenkorb hinzugefügt.',
-        });
+        };
+
+        // Back rather than to the basket: the customer is on a product page configuring, and taking them away from it
+        // after every add is what makes people buy one item instead of four. The confirmation is a small panel (#16):
+        // the line just added, the basket's count and total, „Weiter einkaufen“ and „Zum Warenkorb“ — never a modal. The
+        // sentence stays the toast's for any page without the panel; the panel, where it shows, silences the toast.
+        $added = $this->basket->added($request, $this->basket->key($request->wheelConfigId(), $tyreVariantId, $rearTyreVariantId), $request->quantity());
+
+        return back()->with('toast', $sentence)->with('added', $added === null ? null : ['heading' => $sentence, ...$added]);
     }
 
     public function update(Request $request, string $line): RedirectResponse

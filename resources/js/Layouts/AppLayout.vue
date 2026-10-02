@@ -12,6 +12,7 @@ import { Link, router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import CommandPalette from '../Components/Chrome/CommandPalette.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
+import AddedPanel from '../Components/Chrome/AddedPanel.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
 import ShortcutsDialog from '../Components/Chrome/ShortcutsDialog.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
@@ -102,6 +103,7 @@ function removeVehicle(): void {
         <ShortcutsDialog />
         <CookieConsent />
         <Toast />
+        <AddedPanel />
     </div>
 </template>
 

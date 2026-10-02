@@ -162,8 +162,19 @@ export interface SharedProps {
     previewRibbon?: boolean
     /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
     release?: string | null
-    flash: { toast: string | null }
+    flash: { toast: string | null; added?: AddedToBasket | null }
     [key: string]: unknown
+}
+
+/** What was just put in the basket (#16): the panel after an add prints it; every figure is the server's. */
+export interface AddedToBasket {
+    /** `Komplettrad zum Warenkorb hinzugefügt.` */
+    heading: string
+    /** The line added — for a mixed set its two axles — at the amount added and that amount's price. */
+    lines: { title: string; detail: string; quantity: number; price: string }[]
+    /** The basket as it now stands. */
+    count: number
+    subtotal: string
 }
 
 /** What `wheelSVG()` needs, carried on every card and line. */

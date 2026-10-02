@@ -26,6 +26,7 @@ import SearchSheet from '../Components/Mobile/SearchSheet.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
+import AddedPanel from '../Components/Chrome/AddedPanel.vue'
 import Toast from '../Components/Chrome/Toast.vue'
 import CompareTray from '../Components/Compare/CompareTray.vue'
 import { provideConsent } from '../composables/useConsent'
@@ -191,6 +192,7 @@ function fromVehicleSheet(href: string | undefined): void {
         <SearchSheet />
         <CookieConsent />
         <Toast />
+        <AddedPanel />
     </div>
 </template>
 

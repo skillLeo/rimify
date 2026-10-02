@@ -46,6 +46,21 @@ describe('Toast', () => {
         for (const key of Object.keys(listeners)) delete listeners[key]
     })
 
+    it('stays quiet for an add that brought the panel (#16): one confirmation, not two', async () => {
+        const wrapper = mount(Toast)
+
+        const added = { heading: 'Zum Warenkorb hinzugefügt.', lines: [{ title: 'X', detail: '', quantity: 4, price: '1,00 €' }], count: 4, subtotal: '4,00 €' }
+        const flash = { toast: 'Zum Warenkorb hinzugefügt.', added }
+
+        for (const listener of listeners.success ?? []) {
+            listener({ detail: { page: { props: { flash } } } })
+        }
+        await nextTick()
+
+        expect(wrapper.find('.toast').exists()).toBe(false)
+        wrapper.unmount()
+    })
+
     it('shows the same confirmation again when the customer adds a second time', async () => {
         const wrapper = mount(Toast)
 

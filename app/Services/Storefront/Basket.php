@@ -574,6 +574,47 @@ final readonly class Basket
      * `wheel:12` for a Felge, `wheel:12:tyre:7` for a Komplettrad, `wheel:12:tyre:7:rear:9` for Mischbereifung — the
      * Felgen key is byte-identical to before, so existing sessions survive.
      */
+    /**
+     * What the panel after an add says (the client's #16): the line just added — for a mixed set its two axles — at the
+     * amount just added and that amount's price, and the basket's count and subtotal as they now stand. Every figure is
+     * the render's own (LinePrice, R-10); null where the entry did not render (a row gone in between).
+     *
+     * @return array{lines: list<array{title: string, detail: string, quantity: int, price: string}>, count: int, subtotal: string}|null
+     */
+    public function added(Request $request, string $entryKey, int $quantity): ?array
+    {
+        $summary = $this->summary($request);
+        $lines = [];
+
+        foreach ($summary['lines'] as $line) {
+            if (self::entryKey((string) $line['key']) !== $entryKey) {
+                continue;
+            }
+
+            $tyre = is_array($line['tyre'] ?? null) ? $line['tyre'] : null;
+            $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
+            $detail = array_values(array_filter([
+                $mixed !== null ? 'Komplettrad, '.$mixed['axleLabel'] : $line['setLabel'],
+                $line['sizeLabel'],
+                $line['subtitle'],
+                $tyre === null ? null : trim($tyre['brandName'].' '.$tyre['name'].' '.$tyre['sizeLabel']),
+            ]));
+
+            $lines[] = [
+                'title' => trim($line['brandName'].' '.$line['title']),
+                'detail' => implode(' · ', $detail),
+                'quantity' => $quantity,
+                'price' => LinePrice::total(Money::fromMinor((int) $line['unitPriceCents']), $quantity)->format(),
+            ];
+        }
+
+        return $lines === [] ? null : [
+            'lines' => $lines,
+            'count' => (int) $summary['totals']['count'],
+            'subtotal' => (string) $summary['totals']['subtotal'],
+        ];
+    }
+
     public function key(int $wheelConfigId, ?int $tyreVariantId = null, ?int $rearTyreVariantId = null): string
     {
         return 'wheel:'.$wheelConfigId

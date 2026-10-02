@@ -378,7 +378,8 @@ const shownNote = computed(() => {
 const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.weightColourId ?? null)
 
 function addToBasket(): void {
-    if (selected.value === null || !canBuy.value) {
+    // One add at a time: a second press while the first is on its way does nothing.
+    if (selected.value === null || !canBuy.value || basket.processing) {
         return
     }
 
@@ -639,10 +640,12 @@ onBeforeUnmount(() => observer?.disconnect())
                     </div>
 
                     <div ref="buyButton">
+                        <!-- Busy, never disabled, while it sends: a disabled button drops the focus to the page (#16). -->
                         <button
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
-                            :disabled="!canBuy || basket.processing"
+                            :disabled="!canBuy"
+                            :aria-busy="basket.processing ? 'true' : undefined"
                             @click="addToBasket"
                         >
                             {{ buyLabel }}
@@ -822,7 +825,8 @@ onBeforeUnmount(() => observer?.disconnect())
         <button
             class="btn btn--primary pdp__sticky-btn"
             type="button"
-            :disabled="!canBuy || basket.processing"
+            :disabled="!canBuy"
+            :aria-busy="basket.processing ? 'true' : undefined"
             @click="addToBasket"
         >
             {{ isSet && canBuy && !basket.processing ? 'In den Warenkorb' : buyLabel }}

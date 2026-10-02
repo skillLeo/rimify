@@ -104,6 +104,8 @@ class HandleInertiaRequests extends Middleware
             'release' => ReleaseStamp::label(),
             'flash' => [
                 'toast' => $request->session()->get('toast'),
+                // What was just put in the basket, for the panel after an add (#16): the line, the count and the total.
+                'added' => $request->session()->get('added'),
             ],
             /*
              * The key-number lookup's outcome. Shared rather than returned as page props because
