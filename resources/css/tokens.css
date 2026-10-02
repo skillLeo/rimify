@@ -22,6 +22,9 @@
     --c-surface: #ffffff;
     --c-band: #f3f4f6;
     --c-band-blue: #ebf0f7;   /* The section band, alternating with white (the client's #32, D-115); tiles, fields and chips keep --c-band. */
+    /* The hero's studio light (PROTECTED.md P2): the band itself lifted three quarters of the way to white — the same lift the white
+       light gave the neutral band — so the light is the band's own and follows it (D-139). */
+    --c-studio-light: color-mix(in oklab, var(--c-surface) 75%, var(--c-band-blue));
     --c-dark: #0b0f14;
     --c-dark-2: #161b22;
     --c-on-dark-2: #a9b1bc;

@@ -156,12 +156,23 @@ onMounted(() => {
     text-decoration: none;
 }
 
+/* The studio light, as on the desktop (D-139): the band's own colour lifted, gone before the frame's clipped edges. */
 .hero-studio {
     position: absolute;
     inset: 0;
     z-index: var(--z-base);
     /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-    background-image: radial-gradient(60% 50% at 50% 62%, var(--c-surface) 0%, rgb(255 255 255 / 0) 100%);
+    background-image: radial-gradient(
+        50% 38% at 50% 62%,
+        var(--c-studio-light) 0%,
+        color-mix(in srgb, var(--c-studio-light) 96%, transparent) 15%,
+        color-mix(in srgb, var(--c-studio-light) 83%, transparent) 30%,
+        color-mix(in srgb, var(--c-studio-light) 64%, transparent) 45%,
+        color-mix(in srgb, var(--c-studio-light) 41%, transparent) 60%,
+        color-mix(in srgb, var(--c-studio-light) 19%, transparent) 75%,
+        color-mix(in srgb, var(--c-studio-light) 4%, transparent) 90%,
+        transparent 100%
+    );
 }
 
 /* The square picture's box, where the layout puts it; the roll moves the box, the turn its content. */

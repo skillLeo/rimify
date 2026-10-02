@@ -194,15 +194,6 @@ onMounted(() => {
     overflow-x: clip;
 }
 
-/*
- * The hero keeps the neutral band (D-115): the studio light (PROTECTED.md P2) is cut by its frame, and on the
- * blue-grey band that cut shows as a pale box above the caption. Whether the light may change so the hero can take
- * the blue-grey too is the operator's call.
- */
-.hero.band {
-    background: var(--c-band);
-}
-
 .hero__grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -269,13 +260,28 @@ onMounted(() => {
     aspect-ratio: var(--frame-ratio);
 }
 
+/*
+ * The studio light (PROTECTED.md P2, D-139): the band's own colour lifted (`--c-studio-light`), centred low behind the
+ * wheels, fading out on a smooth curve — (1 − t²)², flat at its rim — that ends exactly at the frame's bottom and side
+ * edges. Nothing of it is left where the frame stops, so on any band there is no edge to see.
+ */
 .hero-studio {
     position: absolute;
     inset: 0;
     z-index: var(--z-base);
     pointer-events: none;
     /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-    background-image: radial-gradient(60% 50% at 50% 62%, var(--c-surface) 0%, rgb(255 255 255 / 0) 100%);
+    background-image: radial-gradient(
+        50% 38% at 50% 62%,
+        var(--c-studio-light) 0%,
+        color-mix(in srgb, var(--c-studio-light) 96%, transparent) 15%,
+        color-mix(in srgb, var(--c-studio-light) 83%, transparent) 30%,
+        color-mix(in srgb, var(--c-studio-light) 64%, transparent) 45%,
+        color-mix(in srgb, var(--c-studio-light) 41%, transparent) 60%,
+        color-mix(in srgb, var(--c-studio-light) 19%, transparent) 75%,
+        color-mix(in srgb, var(--c-studio-light) 4%, transparent) 90%,
+        transparent 100%
+    );
 }
 
 /* The square picture's box, where the layout puts it; the roll moves the box, the turn its content. */
