@@ -462,45 +462,85 @@ describe('Produkt page', () => {
         expect(wrapper.find('button.pdp__zoom').exists()).toBe(false)
     })
 
-    it('shows no Komplettrad section for a fixture that carries no offer', () => {
-        expect(mountPage().find('.kr').exists()).toBe(false)
+    /* ── Nur Felgen | Komplettrad (#18) ──────────────────────────────────────────────── */
+
+    async function chooseSet(wrapper: VueWrapper): Promise<void> {
+        await wrapper.find('input[name="pdp-mode"][value="komplettrad"]').setValue()
+    }
+
+    it('asks Nur Felgen or Komplettrad, and starts with the rims alone', () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })
+        const modes = wrapper.findAll('.pdp-mode')
+
+        expect(wrapper.find('.pdp__mode legend').text()).toBe('Was möchtest du bestellen?')
+        expect(modes.map((m) => m.find('.pdp-mode__name').text())).toEqual(['Nur Felgen', 'Komplettrad'])
+        expect(modes[1]!.find('.pdp-mode__sub').text()).toBe('Mit Reifen, fertig montiert · ab 965,00 € je Rad')
+        expect((wrapper.find('input[value="felgen"]').element as HTMLInputElement).checked).toBe(true)
+        // No tyre on screen while the rims alone are chosen.
+        expect(wrapper.find('.kc').exists()).toBe(false)
+        expect(wrapper.find('button.pdp__add').text()).toBe('In den Warenkorb')
     })
 
-    it('offers the selected size as a Komplettrad and posts the tyre with the configuration as a set of four', async () => {
-        const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })
-        const section = wrapper.find('.kr')
+    it('shows the permitted tyres with Komplettrad chosen, prices the set and adds the tyre as a set of four', async () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), amounts: AMOUNTS })] })
+        await chooseSet(wrapper)
 
-        expect(section.exists()).toBe(true)
-        expect(section.text()).toContain('Komplettrad – Felge mit Reifen, montiert und gewuchtet')
-        expect(section.text()).toContain(MIN_SENTENCE)
-        expect(section.text()).toContain('Potenza Sport')
-        expect(section.text()).toContain('965,00 €')
-        expect(section.text()).toContain('3.860,00 €')
+        const choice = wrapper.find('.kc')
+        expect(choice.text()).toContain(MIN_SENTENCE)
+        expect(choice.text()).toContain('Potenza Sport')
+        expect(choice.find('.kc-tile--on').exists()).toBe(true)
+        expect(wrapper.find('.pdp__total').text()).toBe('3.860,00 €')
+        expect(wrapper.find('.pdp__each').text()).toBe('für 4 Kompletträder, je Rad 965,00 €, inkl. MwSt., zzgl. Versand')
+        // A set is four: no amount stepper beside it.
+        expect(wrapper.find('.amt').exists()).toBe(false)
 
-        await section.find('button.kr-card__add').trigger('click')
+        await wrapper.find('button.pdp__add').trigger('click')
 
         expect(post).toHaveBeenCalledTimes(1)
         expect(post.mock.calls[0]?.[0]).toBe('/warenkorb')
-        expect(forms.find((form) => 'tyreVariantId' in form)).toMatchObject({
-            kind: 'WHEEL',
-            wheelConfigId: 11,
-            tyreVariantId: 7,
-            quantity: 4,
-        })
+        expect(forms.find((form) => form.kind === 'WHEEL')).toMatchObject({ wheelConfigId: 11, tyreVariantId: 7, quantity: 4 })
+        expect(wrapper.find('button.pdp__add').text()).toBe('Als Komplettrad in den Warenkorb')
     })
 
-    it('shows a refusal with a route forward instead of an empty Komplettrad panel', () => {
+    it('keeps the amount of rims when switching to Komplettrad and back, and adds rims without a tyre', async () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, komplettrad: komplettrad(), amounts: AMOUNTS })] })
+
+        await wrapper.find('button[aria-label="Anzahl verringern"]').trigger('click')
+        await wrapper.find('button[aria-label="Anzahl verringern"]').trigger('click')
+        await chooseSet(wrapper)
+        await wrapper.find('input[name="pdp-mode"][value="felgen"]').setValue()
+
+        expect(wrapper.find('.amt output').text()).toBe('2')
+        expect(wrapper.find('.pdp__total').text()).toBe(`458,00${NNBSP}€`)
+
+        await wrapper.find('button.pdp__add').trigger('click')
+        expect(forms.find((form) => form.kind === 'WHEEL')).toMatchObject({ tyreVariantId: null, quantity: 2 })
+    })
+
+    it('shows a refusal with a route forward instead of an empty Komplettrad choice, and adds nothing', async () => {
         const sentence =
             'Für ein Komplettrad brauchen wir zuerst dein Fahrzeug – erst dann wissen wir, welche Reifengrößen für dich freigegeben sind.'
         const wrapper = mountPage({
             configs: [config({ komplettrad: komplettrad({ refusal: sentence, refusalCode: 'NO_VEHICLE', minSentence: null, tyres: [] }) })],
         })
+        await chooseSet(wrapper)
 
-        expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
-        expect(wrapper.find('.kr__refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
-        // The rims alone stay one button away — the page's own; no link that only pointed at it (#25).
-        expect(wrapper.find('button.pdp__add').exists()).toBe(true)
+        expect(wrapper.find('.kc__refusal').text()).toContain(sentence)
+        expect(wrapper.find('.kc__refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
+        expect(wrapper.find('button.pdp__add').text()).toBe('Komplettrad gerade nicht möglich')
+        expect(wrapper.find('button.pdp__add').attributes('disabled')).toBeDefined()
+        // No link that only pointed at the page's own button (#25).
         expect(wrapper.text()).not.toContain('Nur die Felgen bestellen')
-        expect(wrapper.find('button.kr-card__add').exists()).toBe(false)
+    })
+
+    it('prints the server\'s refusal of an add under the button', async () => {
+        const wrapper = mountPage()
+        const form = forms.find((f) => f.kind === 'WHEEL')
+
+        ;(form?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        await nextTick()
+
+        expect(wrapper.find('.pdp__add-error').attributes('role')).toBe('alert')
+        expect(wrapper.find('.pdp__add-error').text()).toBe('Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.')
     })
 })
