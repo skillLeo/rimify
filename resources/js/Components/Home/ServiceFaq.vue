@@ -152,6 +152,11 @@ onBeforeUnmount(() => {
     color: var(--c-ink-2);
 }
 
+/* The brand's blue on the marks (#33, D-114); the words stay ink. */
+.contacts__row > svg {
+    color: var(--c-blue);
+}
+
 .contacts__slot {
     display: block;
     width: 20px;

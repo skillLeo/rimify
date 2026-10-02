@@ -579,7 +579,8 @@ onBeforeUnmount(() => {
 }
 
 .home-promises__item svg {
-    color: var(--c-ink-2);
+    /* The brand's blue on the marks (#33, D-114). */
+    color: var(--c-blue);
     margin-bottom: var(--sp-4);
 }
 

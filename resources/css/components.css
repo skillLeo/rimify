@@ -1014,9 +1014,10 @@
         }
     }
 
+    /* The chosen tab in the brand's blue (the client's #33, D-114): the eye finds where it is. */
     .tabs__trigger[data-state='active'] {
-        color: var(--c-ink);
-        border-bottom-color: var(--c-ink);
+        color: var(--c-blue);
+        border-bottom-color: var(--c-blue);
     }
 
     .tabs__content {

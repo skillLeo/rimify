@@ -55,7 +55,8 @@ function iconOf(name: string): IconName {
     display: inline-flex;
     align-items: center;
     height: var(--lh-body);
-    color: var(--c-ink-2);
+    /* The brand's blue on the marks (#33, D-114). */
+    color: var(--c-blue);
 }
 
 .promise__text {
