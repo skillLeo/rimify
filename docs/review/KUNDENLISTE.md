@@ -46,6 +46,6 @@ Prüfen und abhaken kannst du alles auf https://rimify.skillleo.com.
 | 29 | Auf dem Handy falscher Footer auf der Startseite | Die Startseite (und Felgenrechner und Vergleich) hatte auf dem Handy einen eigenen, hellen Footer, alle anderen Seiten den dunklen. Jetzt zeigt das Handy überall denselben dunklen Footer. | a9a47250 | erledigt |
 | 30 | Filter auch ohne gewähltes Fahrzeug | | | offen |
 | 31 | Filter-Auswahl in der Liste auch auf dem Handy | | | offen |
-| 32 | Seite etwas farbiger, z. B. hellblaue Abschnitte | | | offen |
+| 32 | Seite etwas farbiger, z. B. hellblaue Abschnitte | Die Abschnitte im Wechsel mit Weiß sind jetzt ein helles Blaugrau statt Grau – im ganzen Shop, am Computer und am Handy (z. B. der Bereich oben mit der Fahrzeugwahl und „Wir lesen das Gutachten“). Bildflächen der Felgen bleiben neutral grau, damit die Fotos echt wirken. Ist ein Fahrzeug gewählt, ist das Fahrzeug-Feld oben im Header blau hinterlegt. Zusammen mit Nr. 1 und Nr. 33 wirkt die Seite frischer, ohne bunt zu werden. | 0087968c | erledigt |
 | 33 | Startseite: mehr Blau, z. B. Symbole und der gewählte Reiter | Mehr Blau auf der Startseite: Der gewählte Reiter ist blau (Schrift und Unterstrich – überall im Shop gleich), die Symbole in der Reihe unter dem Hero und im Service-Bereich sind blau, dazu der hellblaue „Fahrzeug wählen“-Knopf (Nr. 1) und die Hilfe-Zeile (Nr. 3). Der Fokus-Rahmen für die Tastatur war schon blau. Texte bleiben schwarz, damit sie gut lesbar sind. | 3cf44843 | erledigt |
 | 34 | „Product Detail Page needs“ | | | Rückfrage |
