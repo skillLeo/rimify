@@ -14,6 +14,7 @@ const post = vi.fn()
 let forms: Array<Record<string, unknown>> = []
 
 vi.mock('@inertiajs/vue3', () => ({
+    usePage: () => ({ props: {}, url: '/felgen/borbet-db8gt2' }),
     Link: defineComponent({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
@@ -76,10 +77,10 @@ function refused(code: KomplettradOfferProp['refusalCode'], sentence: string): K
 let wrappers: VueWrapper[] = []
 
 function mountOffer(
-    props: Partial<{ offer: KomplettradOfferProp | null; wheelConfigId: number | null; contactEmail: string }> = {}
+    props: Partial<{ offer: KomplettradOfferProp | null; wheelConfigId: number | null }> = {}
 ): VueWrapper {
     const wrapper = mount(KomplettradOffer, {
-        props: { offer: offer(), wheelConfigId: 11, contactEmail: 'hallo@beispiel.de', ...props },
+        props: { offer: offer(), wheelConfigId: 11, ...props },
     })
     wrappers.push(wrapper)
 
@@ -144,18 +145,19 @@ describe('KomplettradOffer', () => {
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
         expect(wrapper.find('.kr__refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
         expect(wrapper.find('.kr__wheels-only').exists()).toBe(true)
-        expect(wrapper.find('a[href^="mailto:"]').exists()).toBe(false)
+        expect(wrapper.find('a[href^="/kontakt"]').exists()).toBe(false)
         expect(wrapper.find('button.kr-card__add').exists()).toBe(false)
         expect(wrapper.find('.kr-card').exists()).toBe(false)
     })
 
-    it('offers the shop e-mail from the shared contact when a person has to look at it', () => {
+    it('offers the contact form, with this page as the way back, when a person has to look at it (#26)', () => {
         const sentence =
             'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.'
         const wrapper = mountOffer({ offer: refused('VERDICT_UNKNOWN', sentence) })
 
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
-        expect(wrapper.find('.kr__refusal a[href="mailto:hallo@beispiel.de"]').text()).toBe('Schreib uns')
+        expect(wrapper.find('.kr__refusal a.kr__mail').attributes('href')).toBe('/kontakt?betreff=Frage+zum+Komplettrad&von=%2Ffelgen%2Fborbet-db8gt2')
+        expect(wrapper.find('.kr__refusal a.kr__mail').text()).toBe('Schreib uns')
         expect(wrapper.find('a[href="/felgen-suchen"]').exists()).toBe(false)
         // An UNKNOWN verdict does not sell the rim either: no link to a button that cannot be pressed.
         expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
@@ -167,7 +169,7 @@ describe('KomplettradOffer', () => {
         const wrapper = mountOffer({ offer: refused('TYRES_UNKNOWN', sentence) })
 
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
-        expect(wrapper.find('.kr__refusal a[href^="mailto:"]').exists()).toBe(true)
+        expect(wrapper.find('.kr__refusal a[href^="/kontakt"]').exists()).toBe(true)
         expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
     })
 
@@ -184,7 +186,7 @@ describe('KomplettradOffer', () => {
 
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
         expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
-        expect(wrapper.find('a[href^="mailto:"]').exists()).toBe(true)
+        expect(wrapper.find('a[href^="/kontakt"]').exists()).toBe(true)
     })
 
     it('keeps the minimum sentence beside a refusal that still knows it', () => {

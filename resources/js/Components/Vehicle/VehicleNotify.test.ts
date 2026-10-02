@@ -3,9 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const current: { props: Record<string, unknown> } = { props: {} }
 
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => current,
-}))
+vi.mock('@inertiajs/vue3', async () => {
+    const { defineComponent, h } = await import('vue')
+
+    return {
+        usePage: () => ({ ...current, url: '/felgen' }),
+        Link: defineComponent({
+            props: { href: { type: String, required: true } },
+            setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
+        }),
+    }
+})
 
 const { default: VehicleNotify } = await import('./VehicleNotify.vue')
 
@@ -43,13 +51,13 @@ function mountNotify(): VueWrapper {
 }
 
 describe('VehicleNotify — the listing\'s empty state uses the real F2 endpoint', () => {
-    it('offers the shop\'s e-mail address instead of a form while outgoing mail is off', () => {
+    it('offers the contact form, the car in its subject, instead of a subscription while outgoing mail is off', () => {
         current.props = { ...current.props, notifyByMail: false }
         const wrapper = mountNotify()
 
         expect(wrapper.find('form').exists()).toBe(false)
         expect(wrapper.text()).not.toContain('Bestätigungsmail')
-        expect(wrapper.find('a[href="mailto:service@example.com"]').exists()).toBe(true)
+        expect(wrapper.find('a').attributes('href')).toBe('/kontakt?betreff=Felge+gesucht+f%C3%BCr+BMW+3er&von=%2Ffelgen')
         expect(wrapper.text()).toContain('BMW 3er')
         expect(fetchMock).not.toHaveBeenCalled()
     })

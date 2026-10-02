@@ -928,9 +928,11 @@ test('12 Konto, FAQ, Kontakt, every Rechtliches page, /rimify-check, /felgen-suc
 
     await s.open('/kontakt');
 
-    const mail = (await page.locator('a.kon__send').getAttribute('href').catch(() => null)) ?? '';
+    // The contact form (#12, D-123): its four fields and a send button, never a mail program.
+    const fields = await page.locator('#kon-name, #kon-email, #kon-subject, #kon-message').count();
+    const send = await page.getByRole('button', { name: 'Nachricht senden' }).count();
 
-    check(s, mail.startsWith('mailto:'), { severity: 'S2', page: '/kontakt', what: `„E-Mail schreiben“ → ${mail}`, expected: 'a mailto: link' });
+    check(s, fields === 4 && send === 1, { severity: 'S2', page: '/kontakt', what: `${fields} of 4 fields, ${send} send button`, expected: 'name, e-mail, subject, message and „Nachricht senden“' });
     await s.probe('/kontakt');
 
     for (const slug of ['impressum', 'datenschutz', 'agb', 'widerrufsbelehrung', 'versand']) {
@@ -961,15 +963,15 @@ test('12 Konto, FAQ, Kontakt, every Rechtliches page, /rimify-check, /felgen-suc
     await s.open('/felgen-suchen');
     await s.probe('/felgen-suchen');
 
-    // With a car: Kontakt writes it into the mail.
+    // With a car: the form offers it, ticked, named by its Feld K.
     if (await chooseX3(s)) {
         await s.open('/kontakt');
 
-        const body = decodeURIComponent((await page.locator('a.kon__send').getAttribute('href').catch(() => null)) ?? '');
-        const hint = norm(await page.locator('.kon__hint').innerText().catch(() => ''));
+        const offer = norm(await page.locator('.kon__vehicle').innerText().catch(() => ''));
+        const ticked = await page.locator('.kon__vehicle input').isChecked().catch(() => false);
 
-        s.observe('/kontakt', `with X3: mail „${body}“ · hint „${hint}“`);
-        check(s, !body.includes('HSN/TSN noch nicht hinterlegt'), { severity: 'S3', page: `/kontakt (${X3})`, what: `the prepared mail names the car as „${body.split('\n')[0]?.replace(/^.*body=/, '')}“ while the page says „${hint}“`, expected: 'the Feld K line the page shows (EF-06)' });
+        s.observe('/kontakt', `with X3: „${offer}“ · ticked ${ticked}`);
+        check(s, ticked && offer.includes('Feld') && !offer.includes('HSN/TSN noch nicht hinterlegt'), { severity: 'S3', page: `/kontakt (${X3})`, what: `the car is offered as „${offer}“, ticked: ${ticked}`, expected: 'the Feld K line, ticked (EF-06, D-123)' });
     }
 });
 

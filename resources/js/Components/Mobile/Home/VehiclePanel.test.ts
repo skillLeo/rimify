@@ -136,16 +136,17 @@ describe('VehiclePanel — the button before a car is chosen (the client\'s #1)'
 })
 
 describe('VehiclePanel — nothing found, three ways forward (R-09)', () => {
-    it('offers the e-mail as the third route while no phone number is published', () => {
+    it('offers the contact form as the third route while no phone number is published (#26)', () => {
         current.props.lookup = NOT_FOUND
         const wrapper = mountPanel()
 
         expect(wrapper.find('.vpanel__miss').text()).toContain('Zu 9999/ZZZ haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.')
 
         const ways = routes(wrapper)
-        expect(ways.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns: service@example.com'])
-        expect(ways[2]!.attributes('href')).toBe('mailto:service@example.com')
+        expect(ways.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns'])
+        expect(new URLSearchParams(ways[2]!.attributes('href')!.split('?')[1]).get('betreff')).toBe('Fahrzeug nicht gefunden: HSN 9999 · TSN ZZZ')
         expect(wrapper.find('a[href^="tel:"]').exists()).toBe(false)
+        expect(wrapper.html()).not.toContain('mailto:')
     })
 
     it('offers the phone as the third route once one is published', () => {

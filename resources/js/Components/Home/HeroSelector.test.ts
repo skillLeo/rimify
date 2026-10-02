@@ -532,7 +532,7 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(wrapper.find('[role="tab"][data-state="active"]').text()).toBe('Marke & Modell')
     })
 
-    it('still offers three routes, the third one the e-mail, while no phone number is published (R-09)', async () => {
+    it('still offers three routes, the third one the contact form, while no phone number is published (R-09, #26)', async () => {
         current.props.contact = WITHOUT_PHONE
         current.props.lookup = { status: 'not_found', hsn: '9999', tsn: 'ZZZ' } satisfies LookupResult
         const wrapper = mountSelector()
@@ -542,9 +542,10 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(notice.text()).toContain('Zu 9999/ZZZ haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.')
 
         const routes = notice.findAll('.link')
-        expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns: service@example.com'])
-        expect(routes[2]!.attributes('href')).toBe('mailto:service@example.com')
+        expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns'])
+        expect(new URLSearchParams(routes[2]!.attributes('href')!.split('?')[1]).get('betreff')).toBe('Fahrzeug nicht gefunden: HSN 9999 · TSN ZZZ')
         expect(wrapper.find('a[href^="tel:"]').exists()).toBe(false)
+        expect(wrapper.html()).not.toContain('mailto:')
     })
 })
 

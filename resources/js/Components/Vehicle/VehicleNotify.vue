@@ -10,8 +10,10 @@
  * The listing used to send this customer to the Kontakt form, which sent nothing (ACCURACY D5).
  */
 
+import { Link, usePage } from '@inertiajs/vue3'
 import { computed, ref, useId } from 'vue'
 import { useShared } from '../../composables/useShared'
+import { contactHref } from '../../lib/contact'
 
 const props = defineProps<{
     vehicleId: number
@@ -23,6 +25,9 @@ const shared = useShared()
 const contact = computed(() => shared.value.contact)
 /* Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). */
 const byMail = computed(() => shared.value.notifyByMail === true)
+/* Without mail, the question goes through the contact form (#26), the car already in its subject. */
+const page = usePage()
+const askHref = computed(() => contactHref({ subject: `Felge gesucht für ${props.vehicleLabel}`, from: page.url }))
 
 const id = useId()
 const email = ref('')
@@ -87,8 +92,8 @@ async function send(): Promise<void> {
 <template>
     <div class="vnotify">
         <p v-if="!byMail" class="t-body">
-            Du suchst eine Felge für {{ vehicleLabel }}? Schreib uns eine E-Mail an
-            <a class="link" :href="`mailto:${contact.email}`">{{ contact.email }}</a>.
+            Du suchst eine Felge für {{ vehicleLabel }}?
+            <Link class="link" :href="askHref">Schreib uns</Link> – wir sehen nach, was es dafür gibt.
         </p>
 
         <p v-else-if="state === 'sent'" class="t-body vnotify__done" role="status">

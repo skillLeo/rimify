@@ -13,8 +13,9 @@
  * plain Felgen purchase whenever the rim alone is still buyable.
  */
 
-import { Link, useForm } from '@inertiajs/vue3'
+import { Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import { contactHref } from '../../lib/contact'
 import Icon from '../Ui/Icon.vue'
 import TyreLabel from '../Ui/TyreLabel.vue'
 import { usePriceTerms } from '../../composables/usePriceTerms'
@@ -26,8 +27,6 @@ const props = defineProps<{
     offer: KomplettradOfferProp | null
     /** The configuration the offer belongs to; null while none is selected. */
     wheelConfigId: number | null
-    /** From `config('rimify.contact')` — never typed into a component. */
-    contactEmail: string
 }>()
 
 /* What the server refuses everything else with, should it ever send neither tyres nor a sentence. */
@@ -69,7 +68,9 @@ const forward = computed(() => {
     }
 })
 
-const mailto = computed(() => `mailto:${props.contactEmail}`)
+/* „Schreib uns“: the contact form (#26), with this page as the way back. */
+const page = usePage()
+const askHref = computed(() => contactHref({ subject: 'Frage zum Komplettrad', from: page.url }))
 
 /* The server's sentence for a refused add, under whichever key it answered with. */
 const error = computed(() => form.errors.tyreVariantId ?? form.errors.wheelConfigId ?? null)
@@ -151,7 +152,7 @@ function add(tyreId: number): void {
                     <Link v-if="forward.vehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm">
                         Fahrzeug wählen
                     </Link>
-                    <a v-if="forward.contact" :href="mailto" class="link kr__mail">Schreib uns</a>
+                    <Link v-if="forward.contact" :href="askHref" class="link kr__mail">Schreib uns</Link>
                     <a v-if="forward.wheelsOnly" href="#felgen-kaufen" class="link kr__wheels-only">
                         Nur die Felgen bestellen
                     </a>

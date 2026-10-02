@@ -45,6 +45,7 @@ import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { priceTerms, totalNote } from '../../composables/usePriceTerms'
 import { entryLine } from '../../fitment/papers'
 import { useShared } from '../../composables/useShared'
+import { contactHref } from '../../lib/contact'
 import {
     loadStripe,
     stripeAppearance,
@@ -1178,7 +1179,10 @@ function verdictSentence(line: BasketLine): string {
                                     <!-- No price for this make: no Ja tile at all, and the sentence says why (§5.2). -->
                                     <p v-if="!tpms.available" class="ko__rdks-notice" role="status">
                                         {{ tpms.notice }}
-                                        <a :href="`mailto:${contact.email}`" class="ko__rdks-mail">{{ contact.email }}</a>
+                                        <!-- The contact form (#26) in a tab of its own: everything typed here stays. -->
+                                        <a :href="contactHref({ subject: 'Preis für RDKS-Sensoren', from: '/kasse' })" class="ko__rdks-mail" target="_blank" rel="noopener">
+                                            Zum Kontaktformular<span class="visually-hidden"> (öffnet in einem neuen Tab)</span>
+                                        </a>
                                     </p>
 
                                     <div

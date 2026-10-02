@@ -130,22 +130,22 @@ it('asks for the vehicle instead when none has been chosen', () => {
     expect(wrapper.text()).not.toContain('Dein Fahrzeug bleibt gewählt')
 })
 
-it('prepares an e-mail to the configured address, with the status and the page in it', () => {
-    const mail = routes(page(500))[2]
-    const href = mail?.attributes('href') ?? ''
+it('opens the contact form with the status in its subject and the failed page as its path, never printed (#26)', () => {
+    const wrapper = page(500)
+    const href = routes(wrapper)[2]?.attributes('href') ?? ''
 
-    expect(href).toContain('mailto:hilfe@example.test')
-    expect(href).toContain(encodeURIComponent('Fehler: 500'))
-    expect(href).toContain(encodeURIComponent('/felgen/kaputt'))
+    expect(routes(wrapper)[2]?.text()).toBe('Bei uns nachfragen')
+    expect(href).toBe('/kontakt?betreff=Fehler+500&von=%2Ffelgen%2Fkaputt')
+    expect(wrapper.text()).not.toContain('/felgen/kaputt')
+    expect(wrapper.html()).not.toContain('mailto:')
 })
 
-it('falls back to the Kontakt page rather than dropping the third route', () => {
-    // Never a dead end: the route degrades, it does not disappear (VehicleSelector's pattern).
+it('keeps the third route to the contact form when the shop has no contact details to print', () => {
+    // Never a dead end: the route stays, only the line with the address goes.
     const wrapper = page(500, { contact: null })
 
     expect(routes(wrapper)).toHaveLength(3)
-    expect(routes(wrapper)[2]?.attributes('href')).toBe('/kontakt')
-    expect(routes(wrapper)[2]?.text()).toBe('Zur Kontaktseite')
+    expect(routes(wrapper)[2]?.attributes('href')).toMatch(/^\/kontakt\?/)
     expect(wrapper.find('.err__note').exists()).toBe(false)
 })
 

@@ -12,13 +12,12 @@
  * One page for every width.
  */
 
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
-import { useShared } from '../../composables/useShared'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { PAPERS_EXEMPT, entryBySize, entryLine } from '../../fitment/papers'
-import { mailtoHref } from '../../lib/mailto'
+import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import type { CheckErgebnisProps } from '../../types/pages'
 
@@ -26,29 +25,21 @@ defineOptions({ layout: AppLayout, inheritAttrs: false })
 
 const props = defineProps<CheckErgebnisProps>()
 
-const shared = useShared()
 
 interface Copy {
     tag: string | null
     label: string | null
     title: string
     body: string
-    /** `mail` opens the customer's mail program; it is a plain link, never an Inertia visit. */
-    primary: { href: string; label: string; mail?: true }
+    primary: { href: string; label: string }
 }
 
 /*
- * "No document" is a question we can take by e-mail, the shop's one channel (ACCURACY D5): the
- * mail already carries the result number, so nobody has to describe the combination again.
+ * "No document" is a question we can take through the contact form (#26): its subject carries the result number and
+ * its path this result, so nobody has to describe the combination again.
  */
-const askHref = computed(() =>
-    mailtoHref(shared.value.contact.email, {
-        subject: 'Anfrage zu meinem RIMIFY-Check',
-        // The token, named for what it is: the page's address would need the origin, which the
-        // server-rendered first frame does not have.
-        body: `Meine Ergebnis-Nummer: ${props.token}\n\n`,
-    })
-)
+const page = usePage()
+const askHref = computed(() => contactHref({ subject: `Anfrage zu meinem RIMIFY-Check (Ergebnis ${props.token})`, from: page.url }))
 
 function print(): void {
     window.print()
@@ -100,7 +91,7 @@ const copy = computed<Copy>(() => {
                 body: props.result?.wheelLabel
                     ? 'Die Felge ist freigegeben, die Reifen dazu können wir aber nicht bestätigen. Das heißt nicht, dass sie unzulässig sind – nur, dass wir es nicht belegen können.'
                     : 'Für diese Kombination liegt uns kein Gutachten vor. Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir es nicht belegen können.',
-                primary: { href: askHref.value, label: 'Per E-Mail nachfragen', mail: true },
+                primary: { href: askHref.value, label: 'Bei uns nachfragen' },
             }
         default:
             return {
@@ -192,8 +183,7 @@ const copy = computed<Copy>(() => {
             </div>
 
             <div class="res__actions">
-                <a v-if="copy.primary.mail" :href="copy.primary.href" class="btn btn--primary">{{ copy.primary.label }}</a>
-                <Link v-else :href="copy.primary.href" class="btn btn--primary">{{ copy.primary.label }}</Link>
+                <Link :href="copy.primary.href" class="btn btn--primary">{{ copy.primary.label }}</Link>
                 <button v-if="result !== null" class="btn btn--secondary" type="button" @click="print">Drucken</button>
                 <Link v-if="result !== null" href="/rimify-check" class="btn btn--secondary">
                     Neue Prüfung starten

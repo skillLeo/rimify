@@ -21,6 +21,7 @@ import Skeleton from '../../Ui/Skeleton.vue'
 import BottomSheet from '../BottomSheet.vue'
 import { decimal, passendeAnzeigen } from '../../../format'
 import { useShared } from '../../../composables/useShared'
+import { contactHref } from '../../../lib/contact'
 import { cleanHsn, cleanTsn, HSN_LENGTH, splitKeys, TSN_LENGTH, useVehiclePicker, type VariantRow } from '../../../composables/mobile/useVehiclePicker'
 import type { DocVariant } from '../../../art'
 import type { LookupResult, MakeOption } from '../../../types/pages'
@@ -44,15 +45,26 @@ const lookup = computed(() => page.props.lookup ?? null)
 
 /*
  * The third way forward (R-09) and the line under a failed request: the phone when the client has
- * given one, otherwise the e-mail — the same route either way, never an invented number.
+ * given one, otherwise the contact form with the key numbers that found nothing in its subject
+ * (#26) — never an invented number. The sentence still names the address, to read and copy.
  */
 const reach = computed(() => {
     const { phone, phoneIntl, email } = contact.value
+    // The pair as the miss line shows it: what is typed, else what the server looked up.
+    const hsn = picker.hsn.value || lookup.value?.hsn
+    const tsn = picker.tsn.value || lookup.value?.tsn
 
     return phone
-        ? { href: `tel:${(phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}` }
-        : { href: `mailto:${email}`, label: `Schreib uns: ${email}`, sentence: `schreib uns: ${email}` }
+        ? { href: `tel:${(phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}`, form: false }
+        : {
+              href: contactHref({ subject: hsn && tsn ? `Fahrzeug nicht gefunden: HSN ${hsn} · TSN ${tsn}` : null, from: page.url }),
+              label: 'Schreib uns',
+              sentence: `schreib uns: ${email}`,
+              form: true,
+          }
 })
+/* The zero notice's way to ask, where no mail can confirm a subscription (F2). */
+const askHref = computed(() => contactHref({ subject: 'Felge für mein Fahrzeug gesucht', from: page.url }))
 
 const picker = useVehiclePicker()
 const uid = useId()
@@ -563,7 +575,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                         <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
                         <button class="link" type="button" @click="focusHsn">Nochmal prüfen</button>
                         <button class="link" type="button" @click="picker.route.value = 'guided'">Über Marke &amp; Modell wählen</button>
-                        <a class="link num" :href="reach.href">{{ reach.label }}</a>
+                        <component :is="reach.form ? Link : 'a'" class="link num" :href="reach.href">{{ reach.label }}</component>
                     </div>
                 </div>
             </div>
@@ -583,7 +595,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                     <p>Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.</p>
                     <!-- Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). -->
                     <p v-if="shared.notifyByMail !== true" class="small muted">
-                        Schreib uns gern eine E-Mail an <a class="link" :href="`mailto:${contact.email}`">{{ contact.email }}</a>.
+                        <Link class="link" :href="askHref">Schreib uns</Link> – wir sehen nach, was es dafür gibt.
                     </p>
                     <template v-else-if="notifyState === 'done'">
                         <p class="small muted">Danke. Bestätige bitte den Link in der E-Mail, die wir dir gerade geschickt haben.</p>

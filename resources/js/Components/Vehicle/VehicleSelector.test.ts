@@ -4,7 +4,7 @@ import { defineComponent, h, reactive } from 'vue'
 import type { LookupResult } from '../../types/pages'
 import type { ContactProp } from '../../types/rimify'
 
-const current: { props: Record<string, unknown> } = { props: {} }
+const current: { props: Record<string, unknown>; url?: string } = { props: {} }
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => current,
@@ -41,26 +41,21 @@ afterEach(() => {
 })
 
 describe('VehicleSelector — a key-number miss (R-09)', () => {
-    it('offers three ways forward, the third an e-mail with the key numbers already written in', () => {
+    it('offers three ways forward, the third the contact form with the key numbers already in its subject (#26)', () => {
+        current.url = '/felgen-suchen?hsn=9999&tsn=ZZZ'
         const wrapper = mountSelector({ lookup: MISS, contact: CONTACT })
         const routes = wrapper.find('.vsel__miss-actions').findAll('a, button')
 
-        expect(routes.map((r) => r.text())).toEqual(['Schlüsselnummern prüfen', 'Stattdessen Marke wählen', 'Per E-Mail nachfragen'])
+        expect(routes.map((r) => r.text())).toEqual(['Schlüsselnummern prüfen', 'Stattdessen Marke wählen', 'Bei uns nachfragen'])
 
         const href = routes[2]!.attributes('href') ?? ''
         const query = new URLSearchParams(href.split('?')[1] ?? '')
 
-        expect(href.startsWith('mailto:service@example.com?')).toBe(true)
-        expect(query.get('subject')).toBe('Fahrzeug nicht gefunden')
-        expect(query.get('body')).toContain('HSN: 9999\r\nTSN: ZZZ')
-        expect(wrapper.find('.vsel__miss-note').text()).toContain('service@example.com')
-    })
-
-    it('never sends the customer to the old contact form', () => {
-        const wrapper = mountSelector({ lookup: MISS, contact: CONTACT })
-
-        expect(wrapper.find('a[href="/kontakt"]').exists()).toBe(false)
-        expect(wrapper.text()).not.toContain('Daten an RIMIFY senden')
+        expect(href.startsWith('/kontakt?')).toBe(true)
+        expect(query.get('betreff')).toBe('Fahrzeug nicht gefunden: HSN 9999 · TSN ZZZ')
+        expect(query.get('von')).toBe('/felgen-suchen?hsn=9999&tsn=ZZZ')
+        expect(wrapper.find('.vsel__miss-note').text()).toBe('Deine HSN und TSN stehen dann schon im Betreff.')
+        expect(wrapper.html()).not.toContain('mailto:')
     })
 
     it('still offers three ways forward if the contact details were ever missing', () => {
@@ -68,7 +63,7 @@ describe('VehicleSelector — a key-number miss (R-09)', () => {
         const routes = wrapper.find('.vsel__miss-actions').findAll('a, button')
 
         expect(routes).toHaveLength(3)
-        expect(routes[2]!.attributes('href')).toBe('/kontakt')
+        expect(routes[2]!.attributes('href')).toMatch(/^\/kontakt\?/)
     })
 
     it('shows no miss panel without a miss', () => {

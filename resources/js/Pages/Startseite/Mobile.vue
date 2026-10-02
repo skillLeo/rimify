@@ -29,6 +29,7 @@ import ProductTile from '../../Components/Ui/ProductTile.vue'
 import ProductTileSkeleton from '../../Components/Ui/ProductTileSkeleton.vue'
 import TyreLabel, { type TyreClass } from '../../Components/Ui/TyreLabel.vue'
 import { felgen, NNBSP } from '../../format'
+import { contactHref } from '../../lib/contact'
 import { isIconName, type IconName } from '../../icons'
 import { useShared } from '../../composables/useShared'
 import type { StartseiteProps } from '../../types/pages'
@@ -465,7 +466,8 @@ onBeforeUnmount(() => {
             <ListRow v-if="contact.whatsapp" :title="`WhatsApp: ${contact.whatsapp}`" :href="waHref" external :chevron="false">
                 <template #leading><span class="home-contact__slot" aria-hidden="true" /></template>
             </ListRow>
-            <ListRow icon="mail" :title="contact.email" :href="`mailto:${contact.email}`" external :chevron="false" />
+            <!-- The address, to read and copy; the row opens the contact form (#26). -->
+            <ListRow icon="mail" :title="contact.email" sub="Nachricht schreiben" :href="contactHref({ subject: 'Frage zur Passform', from: '/' })" />
             <ListRow icon="clock" :title="contact.hours" static />
         </div>
 

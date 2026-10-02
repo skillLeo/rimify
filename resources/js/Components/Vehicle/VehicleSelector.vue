@@ -24,7 +24,7 @@ import Icon from '../Art/Icon.vue'
 import type { DocVariant } from '../../art'
 import { anzahl } from '../../format'
 import { cleanTsn, splitKeys } from '../../lib/fahrzeugschein'
-import { mailtoHref } from '../../lib/mailto'
+import { contactHref } from '../../lib/contact'
 import type { LookupResult, VariantOption } from '../../types/pages'
 import type { ContactProp } from '../../types/rimify'
 
@@ -55,21 +55,13 @@ const keys = useForm({ hsn: '', tsn: '' })
 const choice = useForm({ fahrzeug: 0 })
 
 /*
- * The third way forward after a miss (R-09) is an e-mail, the shop's one channel (ACCURACY D5):
- * the mail program opens with the key numbers that found nothing already written in. The address
- * is the shared `contact` prop (config), never a literal; were it ever missing, the route still
- * leads somewhere — to the Kontakt page — and never to a dead end.
+ * The third way forward after a miss (R-09) is a question to us: the contact form (#26), opening with the key numbers
+ * that found nothing already in its subject and this page as the way back.
  */
-const contact = computed(() => page.props.contact ?? null)
-const missMailHref = computed(() => {
+const missHref = computed(() => {
     const miss = lookup.value
 
-    return contact.value === null
-        ? '/kontakt'
-        : mailtoHref(contact.value.email, {
-              subject: 'Fahrzeug nicht gefunden',
-              body: `HSN: ${miss?.hsn ?? keys.hsn}\nTSN: ${miss?.tsn ?? keys.tsn}\nMarke und Modell: \n\n`,
-          })
+    return contactHref({ subject: `Fahrzeug nicht gefunden: HSN ${miss?.hsn ?? keys.hsn} · TSN ${miss?.tsn ?? keys.tsn}`, from: page.url })
 })
 
 const level = computed<'make' | 'model' | 'variant'>(() => {
@@ -373,13 +365,9 @@ function onTsn(event: Event): void {
                     <Link :href="basePath" class="btn btn--secondary btn--sm">
                         Stattdessen Marke wählen
                     </Link>
-                    <a v-if="contact" :href="missMailHref" class="btn btn--quiet btn--sm">Per E-Mail nachfragen</a>
-                    <Link v-else href="/kontakt" class="btn btn--quiet btn--sm">Zur Kontaktseite</Link>
+                    <Link :href="missHref" class="btn btn--quiet btn--sm">Bei uns nachfragen</Link>
                 </div>
-                <p v-if="contact" class="field-help vsel__miss-note">
-                    Deine HSN und TSN stehen schon in der E-Mail an
-                    <span class="vsel__miss-address">{{ contact.email }}</span>.
-                </p>
+                <p class="field-help vsel__miss-note">Deine HSN und TSN stehen dann schon im Betreff.</p>
             </div>
 
             <div v-if="helpOpen" class="vsel__doc">
@@ -642,11 +630,6 @@ function onTsn(event: Event): void {
 }
 
 /* A long address breaks rather than widening the card past a 320px screen. */
-.vsel__miss-address {
-    font-weight: 700;
-    overflow-wrap: anywhere;
-}
-
 .vsel__doc {
     margin-top: var(--space-4);
 }

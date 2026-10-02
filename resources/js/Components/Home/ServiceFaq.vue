@@ -14,6 +14,7 @@ import Accordion, { type AccordionEntry } from '../Ui/Accordion.vue'
 import Icon from '../Ui/Icon.vue'
 import { paragraphs } from '../../format'
 import { useShared } from '../../composables/useShared'
+import { contactHref } from '../../lib/contact'
 import type { FaqPreview } from '../../types/pages'
 
 const props = defineProps<{ faq: FaqPreview[] }>()
@@ -27,7 +28,8 @@ const status = computed(() => shared.value.serviceStatus)
 /* Phone and WhatsApp only when the client has given them; the e-mail and the hours always. */
 const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/[^\d]/g, '')}`)
-const mailHref = computed(() => `mailto:${contact.value.email}`)
+/* The address, to read and copy; the link opens the contact form (#26). */
+const mailHref = contactHref({ subject: 'Frage zur Passform', from: '/' })
 
 const items = computed<AccordionEntry[]>(() => props.faq.map((entry) => ({ id: entry.id, title: entry.question, body: entry.answer })))
 
@@ -66,7 +68,7 @@ onBeforeUnmount(() => {
                     </li>
                     <li class="contacts__row">
                         <Icon name="mail" :size="20" />
-                        <a :href="mailHref" class="contacts__link">{{ contact.email }}</a>
+                        <Link :href="mailHref" class="contacts__link">{{ contact.email }}</Link>
                     </li>
                     <li class="contacts__row">
                         <Icon name="clock" :size="20" class="contacts__fact" />

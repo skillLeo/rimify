@@ -39,6 +39,7 @@ import DocumentScan from './DocumentScan.vue'
 import type { DocVariant } from '../../art'
 import { useFitmentCount, type FitmentCountQuery } from '../../composables/useFitmentCount'
 import { anzahl, passendeAnzeigen, withUnit } from '../../format'
+import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import { cleanTsn, isHsn, isTsn, splitKeys } from '../../lib/fahrzeugschein'
 import type { LookupResult, MakeOption, ModelOption, VariantOption } from '../../types/pages'
@@ -61,16 +62,25 @@ const contact = computed(() => page.props.contact)
 const garage = computed(() => (page.props.garage ?? []).filter((g) => g.id !== vehicle.value?.id))
 /*
  * The third way forward (R-09) and the line under a failed request: the phone when the client has
- * given one, otherwise the e-mail — the same route either way, never an invented number.
+ * given one, otherwise the contact form with the key numbers that found nothing in its subject
+ * (#26) — never an invented number. The sentence still names the address, to read and copy.
  */
 const reach = computed(() => {
     const phone = contact.value?.phone ?? null
     const email = contact.value?.email ?? ''
+    const missed = lookup.value
 
     return phone
-        ? { href: `tel:${(contact.value?.phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}` }
-        : { href: `mailto:${email}`, label: `Schreib uns: ${email}`, sentence: `schreib uns: ${email}` }
+        ? { href: `tel:${(contact.value?.phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}`, form: false }
+        : {
+              href: contactHref({ subject: missed ? `Fahrzeug nicht gefunden: HSN ${missed.hsn} · TSN ${missed.tsn}` : null, from: page.url }),
+              label: 'Schreib uns',
+              sentence: `schreib uns: ${email}`,
+              form: true,
+          }
 })
+/* The zero notice's way to ask, where no mail can confirm a subscription (F2). */
+const askHref = computed(() => contactHref({ subject: 'Felge für mein Fahrzeug gesucht', from: page.url }))
 
 const id = useId()
 const tab = ref<Tab>('marke')
@@ -839,7 +849,7 @@ onBeforeUnmount(() => treeController?.abort())
                                     <ul class="sel__routes">
                                         <li><button class="link" type="button" @click="checkAgain">Nochmal prüfen</button></li>
                                         <li><button class="link" type="button" @click="viaMake">Über Marke &amp; Modell wählen</button></li>
-                                        <li><a class="link" :href="reach.href">{{ reach.label }}</a></li>
+                                        <li><component :is="reach.form ? Link : 'a'" class="link" :href="reach.href">{{ reach.label }}</component></li>
                                     </ul>
                                 </div>
                             </div>
@@ -861,7 +871,7 @@ onBeforeUnmount(() => treeController?.abort())
                     <p>Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.</p>
                     <!-- Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). -->
                     <p v-if="page.props.notifyByMail !== true">
-                        Schreib uns gern eine E-Mail an <a class="link" :href="`mailto:${contact?.email}`">{{ contact?.email }}</a>.
+                        <Link class="link" :href="askHref">Schreib uns</Link> – wir sehen nach, was es dafür gibt.
                     </p>
                     <template v-else-if="notify.state !== 'sent'">
                         <p>Sag uns deine E-Mail-Adresse – wir melden uns, sobald ein Gutachten dein Fahrzeug nennt.</p>

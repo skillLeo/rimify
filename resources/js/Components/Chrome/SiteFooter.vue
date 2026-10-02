@@ -5,9 +5,10 @@
  * until then, none are drawn.
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import { contactHref } from '../../lib/contact'
 import { useConsent } from '../../composables/useConsent'
 import { usePriceTerms } from '../../composables/usePriceTerms'
 import { useShell } from '../../composables/useShell'
@@ -20,6 +21,8 @@ const consent = useConsent()
 const shell = useShell()
 
 const contact = computed(() => shared.value.contact)
+const page = usePage()
+const writeHref = computed(() => contactHref({ from: page.url }))
 /* Phone and WhatsApp only when the client has given them; the e-mail and the hours always. */
 const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/[^\d]/g, '')}`)
@@ -43,7 +46,8 @@ const year = new Date().getFullYear()
                             <a :href="waHref" class="footer__contact-link num" rel="noopener" target="_blank"><span class="footer__icon-slot" aria-hidden="true" />WhatsApp {{ contact.whatsapp }}</a>
                         </li>
                         <li>
-                            <a :href="`mailto:${contact.email}`" class="footer__contact-link"><Icon name="mail" :size="20" />{{ contact.email }}</a>
+                            <!-- The address, to read and copy; the link opens the contact form (#26). -->
+                            <Link :href="writeHref" class="footer__contact-link"><Icon name="mail" :size="20" />{{ contact.email }}</Link>
                         </li>
                         <li class="footer__hours"><Icon name="clock" :size="20" />{{ contact.hours }}</li>
                     </ul>

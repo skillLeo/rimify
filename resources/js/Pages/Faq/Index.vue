@@ -15,6 +15,7 @@ import { computed, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import { paragraphs } from '../../format'
+import { contactHref } from '../../lib/contact'
 import type { FaqProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -131,13 +132,14 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                         </a>
                     </li>
                     <li>
-                        <a class="faq__way" :href="`mailto:${contact.email}`">
+                        <!-- The address, to read and copy; the link opens the contact form (#26). -->
+                        <Link class="faq__way" :href="contactHref({ subject: 'Frage aus den FAQ', from: '/faq' })">
                             <Icon name="mail" :size="20" />
                             <span>
                                 <span class="faq__way-value">{{ contact.email }}</span>
-                                <span class="faq__way-note">{{ phone ? 'E-Mail' : `E-Mail · ${contact.hours}` }}</span>
+                                <span class="faq__way-note">{{ phone ? 'Nachricht schreiben' : `Nachricht schreiben · ${contact.hours}` }}</span>
                             </span>
-                        </a>
+                        </Link>
                     </li>
                 </ul>
 

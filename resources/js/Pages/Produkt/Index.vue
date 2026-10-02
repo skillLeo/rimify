@@ -26,7 +26,7 @@
  * is open, Escape or the close button to leave, focus back on the photograph after.
  */
 
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
@@ -43,6 +43,7 @@ import { useConfigurator } from '../../composables/useConfigurator'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
 import { decimal, withUnit } from '../../format'
+import { contactHref as contactFormHref } from '../../lib/contact'
 import type { ProduktConfig, ProduktProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
@@ -63,6 +64,12 @@ const selected = computed(() => config.selected.value)
 function contactHref(contact: string): string {
     return contact.includes('@') && !contact.startsWith('http') ? `mailto:${contact}` : contact
 }
+
+/* Where the maker's details are missing, a question to us goes through the contact form (#26). */
+const page = usePage()
+const askAboutMaker = computed(() =>
+    contactFormHref({ subject: `Herstellerangaben: ${props.product.brandName} ${props.product.modelName}`, from: page.url })
+)
 
 /* The finish's photographs: the front view (the manifest itself), then its other angles. */
 const shots = computed<ImageView[]>(() => {
@@ -519,7 +526,6 @@ onBeforeUnmount(() => observer?.disconnect())
                 class="pdp__komplettrad"
                 :offer="selected.komplettrad"
                 :wheel-config-id="selected.id"
-                :contact-email="shared.contact.email"
             />
 
             <!-- Mischbereifung (#20, D-105): only where the released Gutachten prints its table of
@@ -666,7 +672,7 @@ onBeforeUnmount(() => observer?.disconnect())
                 </dl>
                 <p v-else class="t-small quiet">
                     Die Angaben des Herstellers zu dieser Felge liegen uns noch nicht vor. Fragen dazu beantworten wir dir
-                    unter <a :href="`mailto:${shared.contact.email}`">{{ shared.contact.email }}</a>.
+                    gern – <Link :href="askAboutMaker">schreib uns</Link>.
                 </p>
             </section>
         </div>
