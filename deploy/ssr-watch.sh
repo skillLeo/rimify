@@ -39,7 +39,17 @@ restart() {
 
     sleep 1
     cd "$APP" || exit 1
-    INERTIA_SSR_PORT="$SSR_PORT" INERTIA_SSR_SOCKET="$SSR_SOCKET" nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" >> storage/logs/ssr.log 2>&1 < /dev/null &
+    # The renderer gets none of this run's descriptors beyond its log. The host's cron runs this under `flock`, which
+    # holds its lock on a descriptor every child inherits: a renderer started with it held the lock for as long as it
+    # lived, every later run gave up after a second, and a renderer that hung would never have been replaced
+    # (the preview, 03.10.2026: the watchdog only ran again once its renderer had died).
+    (
+        for fd in /proc/"$BASHPID"/fd/*; do
+            fd="${fd##*/}"
+            if [ "$fd" -gt 2 ] 2> /dev/null; then eval "exec $fd>&-" 2> /dev/null; fi
+        done
+        INERTIA_SSR_PORT="$SSR_PORT" INERTIA_SSR_SOCKET="$SSR_SOCKET" exec nohup setsid "$NODE" "$APP/bootstrap/ssr/ssr.js" >> storage/logs/ssr.log 2>&1 < /dev/null
+    ) &
     echo "$(date -u +%FT%TZ) renderer restarted by ssr-watch" >> storage/logs/ssr.log
 }
 

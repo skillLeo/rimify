@@ -145,7 +145,12 @@ it('says when the scheduler has never run', function (): void {
     $this->artisan('rimify:preflight', ['--skip-s3' => true])->expectsOutputToContain('noch nie gelaufen');
 });
 
+/*
+ * Both pulse tests run on a stopped clock: read twice from a running one, a second could turn between the pulse and
+ * the reading — CI on MariaDB, 02.10.2026, got 121 for 120.
+ */
 it('writes the scheduler’s pulse on every run of the cron line', function (): void {
+    $this->freezeSecond();
     expect(ScheduleBeat::secondsAgo())->toBeNull();
 
     $this->artisan('schedule:run')->assertSuccessful();
@@ -154,6 +159,7 @@ it('writes the scheduler’s pulse on every run of the cron line', function (): 
 });
 
 it('keeps the scheduler’s pulse where a deploy’s cache clear cannot reach it', function (): void {
+    $this->freezeSecond();
     ScheduleBeat::record();
     $this->travel(2)->minutes();
     Cache::flush();
