@@ -94,6 +94,8 @@ for (const width of widths) {
                     const box = el.getBoundingClientRect()
                     const cs = getComputedStyle(el)
                     if (box.width === 0 || box.height === 0 || cs.visibility === 'hidden' || cs.display === 'none') continue
+                    // A box wholly off the page is seen by nobody — the contact form's honeypot stands at −10.000 px (#12).
+                    if (box.right <= 0 || box.left >= window.innerWidth) continue
 
                     if (!colourOk(cs.color)) note('colour', el, cs.color)
                     if (!colourOk(cs.backgroundColor)) note('background', el, cs.backgroundColor)

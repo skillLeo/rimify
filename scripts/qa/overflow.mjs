@@ -77,6 +77,10 @@ for (const width of WIDTHS) {
                               return (
                                   b.width > 0 &&
                                   b.height > 0 &&
+                                  // A box wholly off the page is shown to nobody — the contact form's honeypot stands
+                                  // at −10.000 px on purpose (#12): no target to measure.
+                                  b.right > 0 &&
+                                  b.left < window.innerWidth &&
                                   cs.visibility !== 'hidden' &&
                                   (b.height < 43.5 || b.width < 43.5) &&
                                   !el.closest('.visually-hidden') &&
