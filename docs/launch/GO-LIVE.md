@@ -305,8 +305,11 @@ SSR_PORT=13714 NODE_BIN=/opt/alt/alt-nodejs22/root/usr/bin/node bash /home/<user
 cd /home/<user>/domains/<production-domain>/public_html && /opt/alt/php84/usr/bin/php artisan schedule:run
 ```
 
-The first keeps the renderer alive: it does nothing while the renderer answers and starts it within a minute
-when the host has stopped it. The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12),
+The first keeps the renderer alive: it looks twice a run — at once and half a minute later — does nothing while
+the renderer answers, and starts it within about half a minute when the host has stopped it; the pages are
+server-rendered again from the first one after the restart (the gateway asks a renderer whose socket is newer
+than its rest at once). Measured on the preview with one look a minute (02.10.2026): renderer back after 52 s,
+the first server-rendered page after 65 s (HOST-FINDINGS 10). The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12),
 `orders:expire` every ten minutes (an order unpaid after 24 hours expires and its stock goes back), and a pulse
 every minute that `rimify:preflight` reads („Zeitplan (Cron)“ turns GO within a minute of the line running).
 

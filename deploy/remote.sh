@@ -177,8 +177,8 @@ else
 fi
 
 # Two lines in cron, every minute (docs/launch/GO-LIVE.md §6). The host may stop the renderer between
-# releases: the watchdog starts it again within a minute (deploy/ssr-watch.sh; it does nothing while
-# the renderer answers). The scheduler runs what routes/console.php plans — demo:assert-clean daily in
+# releases: the watchdog starts it again within about half a minute (deploy/ssr-watch.sh looks twice a run; it
+# does nothing while the renderer answers). The scheduler runs what routes/console.php plans — demo:assert-clean daily in
 # production (R-12). Idempotent: this app's two lines replaced, every other line on the account kept.
 WATCH="* * * * * SSR_PORT=$SSR_PORT NODE_BIN=$NODE bash $APP/deploy/ssr-watch.sh > /dev/null 2>&1"
 SCHEDULE="* * * * * cd $APP && $PHP artisan schedule:run > /dev/null 2>&1"

@@ -78,3 +78,34 @@ it('falls back at once when the renderer is gone, and does not ask again for a w
     $up = true;
     expect(app(Gateway::class)->dispatch(['component' => 'Faq/Index', 'props' => []])?->body)->toBe('<div id="app">wieder da</div>');
 });
+
+// The watchdog's restart creates the socket anew: the first page after it is rendered again, not one up to 30 s later.
+it('asks a renderer started after the pause began at once, and rests one that was not restarted', function (): void {
+    $socket = tempnam(sys_get_temp_dir(), 'ssr');
+    touch($socket, time() - 120);
+    config(['rimify.ssr.socket' => $socket]);
+    $up = false;
+    Http::fake(['http://localhost/render' => function () use (&$up) {
+        if (! $up) {
+            throw new ConnectionException('Connection refused');
+        }
+
+        return Http::response(['head' => [], 'body' => '<div id="app">neu gestartet</div>']);
+    }]);
+
+    try {
+        expect(app(Gateway::class)->dispatch(['component' => 'Faq/Index', 'props' => []]))->toBeNull()
+            ->and(BoundedSsrGateway::paused())->toBeTrue();
+
+        // The old socket file, still there from the renderer that stopped: the rest holds.
+        expect(BoundedSsrGateway::paused())->toBeTrue();
+
+        // The watchdog started a new renderer: its socket is newer than the rest.
+        touch($socket, time() + 1);
+        $up = true;
+        expect(BoundedSsrGateway::paused())->toBeFalse()
+            ->and(app(Gateway::class)->dispatch(['component' => 'Faq/Index', 'props' => []])?->body)->toBe('<div id="app">neu gestartet</div>');
+    } finally {
+        @unlink($socket);
+    }
+});

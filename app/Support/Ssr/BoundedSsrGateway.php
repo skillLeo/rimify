@@ -112,21 +112,58 @@ class BoundedSsrGateway extends HttpGateway
         return $socket === null ? $client : $client->withOptions(['curl' => [CURLOPT_UNIX_SOCKET_PATH => $socket]]);
     }
 
+    /**
+     * Whether the renderer is being rested. The rest ends early when a renderer has been started since it began:
+     * the watchdog's restart creates the socket file anew, and the first page after it is rendered on the server
+     * again — not the first page after the rest runs out, up to half a minute later.
+     */
     public static function paused(): bool
     {
         try {
-            return Cache::get(self::PAUSE_KEY) === true;
+            $since = Cache::get(self::PAUSE_KEY);
         } catch (Exception) {
             return false;
         }
+
+        if ($since === null || $since === false) {
+            return false;
+        }
+
+        if (is_int($since) && self::startedAfter($since)) {
+            try {
+                Cache::forget(self::PAUSE_KEY);
+            } catch (Exception) {
+                // The page asks either way; the next failure sets the rest again.
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
+    /** Rests the renderer, noting when the rest began. */
     public static function pause(): void
     {
         try {
-            Cache::put(self::PAUSE_KEY, true, (int) config('rimify.ssr.pause', 30));
+            Cache::put(self::PAUSE_KEY, time(), (int) config('rimify.ssr.pause', 30));
         } catch (Exception) {
             // Without a cache the next page asks again, within the same short bounds.
         }
+    }
+
+    /** A renderer listening on a socket file created after `$since` (a Unix time): started since then. */
+    private static function startedAfter(int $since): bool
+    {
+        $socket = self::socket();
+
+        if ($socket === null) {
+            return false;
+        }
+
+        clearstatcache(true, $socket);
+        $created = @filemtime($socket);
+
+        return $created !== false && $created > $since;
     }
 }
