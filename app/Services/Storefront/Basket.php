@@ -371,16 +371,17 @@ final readonly class Basket
 
         // The basket's own lines of this rim count against the same shelf — rims alone, Kompletträder and mixed sets
         // alike — so the fourth add of four with twelve in stock is refused here, not discovered in the basket (PDP-08).
+        // Said after every reason about the car, the tyre and the document: what may not go on the car is the answer
+        // that matters, the shelf comes last.
         [$rimsHeld, $tyresHeld] = $this->held($request);
         $held = $rimsHeld[$config->id] ?? 0;
-
-        if ($held > 0 && $config->stock_qty < $held + $wheels) {
-            return self::heldSentence(self::WHEEL_HELD, (int) $config->stock_qty, $held);
-        }
+        $rimShort = $held > 0 && $config->stock_qty < $held + $wheels
+            ? self::heldSentence(self::WHEEL_HELD, (int) $config->stock_qty, $held)
+            : null;
 
         // Everything below is Komplettrad-only.
         if ($tyreVariantId === null) {
-            return null;
+            return $rimShort;
         }
 
         if ($verdict === null) {
@@ -402,6 +403,10 @@ final readonly class Basket
 
         if ($refusal !== null) {
             return $refusal->sentenceDe();
+        }
+
+        if ($rimShort !== null) {
+            return $rimShort;
         }
 
         // The same for the tyres: the engine compared the shelf with this add alone (PDP-08).

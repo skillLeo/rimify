@@ -210,6 +210,8 @@ it('answers a wheel no Gutachten covers for this car with the UNKNOWN sentence, 
 
 it('stores the posted colour and keeps it when the same combination is added again', function (): void {
     $set = KomplettradFixture::permitted();
+    // Eight rims on the shelf at least: two adds of four draw on one shelf (PDP-08); this test is about the merge.
+    $set->config->forceFill(['stock_qty' => 12])->save();
     $tyre = $set->tyre();
     $schwarz = BalanceWeightColour::query()->where('slug', 'schwarz')->firstOrFail();
     $key = 'wheel:'.$set->config->id.':tyre:'.$tyre->id;
@@ -244,6 +246,8 @@ it('stores the posted colour and keeps it when the same combination is added aga
 
 it('keeps a Felge and a Komplettrad of the same rim as two lines', function (): void {
     $set = KomplettradFixture::permitted();
+    // Four rims alone and four in the set draw on one shelf (PDP-08): eight there, so both lines are this test's subject.
+    $set->config->forceFill(['stock_qty' => 12])->save();
     $tyre = $set->tyre();
 
     $this->withCookies($set->cookies())
