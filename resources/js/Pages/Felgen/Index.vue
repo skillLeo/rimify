@@ -216,8 +216,8 @@ onBeforeUnmount(() => {
                                 appliedCount > 0
                                     ? 'Keine Felgen für diese Filter.'
                                     : hasVehicle
-                                      ? 'Für dieses Fahrzeug haben wir noch keine freigegebenen Felgen.'
-                                      : 'Im Sortiment ist gerade keine Felge.'
+                                        ? 'Für dieses Fahrzeug haben wir noch keine freigegebenen Felgen.'
+                                        : 'Im Sortiment ist gerade keine Felge.'
                             }}
                         </p>
                         <p class="t-body">

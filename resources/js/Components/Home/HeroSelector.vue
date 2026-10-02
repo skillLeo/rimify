@@ -381,7 +381,7 @@ function usable(el: HTMLElement | null): el is HTMLElement {
 
 function guide(): void {
     const field = (suffix: string): HTMLElement | null => document.getElementById(`${id}-${suffix}`)
-    let target: HTMLElement | null = null
+    let target: HTMLElement | null
 
     if (tab.value === 'marke') {
         // The first missing field that can be used; while a later list loads, the last one that can.

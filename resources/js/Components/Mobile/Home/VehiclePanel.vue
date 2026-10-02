@@ -529,7 +529,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                             @input="onHsn"
                             @paste.prevent="onHsnPaste"
                             @blur="validateHsn"
-                        @keydown.enter.prevent="tsnField?.focus()"
+                            @keydown.enter.prevent="tsnField?.focus()"
                         >
                     </div>
                     <div class="form-field">
