@@ -125,6 +125,9 @@ describe('the health sentence', function (): void {
 
     it('puts maintenance mode above everything else, and calls it urgent', function (): void {
         failJobRow();
+        // In this process's memory, never the shared `storage/framework/down` file: under the parallel run that file put
+        // every other process's requests in maintenance for as long as this test held it (a 503 in an unrelated test).
+        config(['app.maintenance.driver' => 'cache', 'app.maintenance.store' => 'array']);
         $this->app->maintenanceMode()->activate([]);
 
         try {
