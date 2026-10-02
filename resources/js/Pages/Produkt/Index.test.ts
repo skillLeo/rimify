@@ -498,8 +498,9 @@ describe('Produkt page', () => {
 
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
         expect(wrapper.find('.kr__refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
-        expect(wrapper.find('.kr a[href="#felgen-kaufen"]').exists()).toBe(true)
-        expect(wrapper.find('#felgen-kaufen button.pdp__add').exists()).toBe(true)
+        // The rims alone stay one button away — the page's own; no link that only pointed at it (#25).
+        expect(wrapper.find('button.pdp__add').exists()).toBe(true)
+        expect(wrapper.text()).not.toContain('Nur die Felgen bestellen')
         expect(wrapper.find('button.kr-card__add').exists()).toBe(false)
     })
 })

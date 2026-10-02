@@ -9,8 +9,7 @@
  * posts an id. The basket checks the combination again on the server whatever was shown (R-11).
  *
  * The refusal code is never rendered — it only picks which routes forward make sense: the
- * selector when the car is missing, the shop's e-mail when a person has to look at it, and the
- * plain Felgen purchase whenever the rim alone is still buyable.
+ * selector when the car is missing, the contact form when a person has to look at it.
  */
 
 import { Link, useForm, usePage } from '@inertiajs/vue3'
@@ -50,21 +49,16 @@ const refusal = computed(() => {
 })
 
 /*
- * Which routes forward fit the refusal. A missing car is answered with the selector; a verdict that does
- * not sell the rim either — forbidden, unknown, restored, or the tyres not settled — is not answered with
- * "buy the rim anyway", which would lead to a button that cannot be pressed; everything else leaves the
- * Felgen purchase open and offers a person to write to.
+ * Which routes forward fit the refusal: a missing car is answered with the selector, everything else with a person to
+ * write to. The rims alone are bought with the page's own button above; the link that pointed at it here did nothing
+ * a visitor could see and is gone (the client's #25).
  */
-const RIM_NOT_SOLD: readonly string[] = ['VERDICT_NOT_PERMITTED', 'VERDICT_UNKNOWN', 'VERDICT_RESTORED', 'TYRES_UNKNOWN', 'TYRES_NOT_PERMITTED']
-
 const forward = computed(() => {
     const code = props.offer?.refusalCode ?? null
-    const vehicle = code === 'NO_VEHICLE' || code === 'VERDICT_RESTORED'
 
     return {
-        vehicle,
+        vehicle: code === 'NO_VEHICLE' || code === 'VERDICT_RESTORED',
         contact: code !== 'NO_VEHICLE',
-        wheelsOnly: code === null || !RIM_NOT_SOLD.includes(code),
     }
 })
 
@@ -153,9 +147,6 @@ function add(tyreId: number): void {
                         Fahrzeug wählen
                     </Link>
                     <Link v-if="forward.contact" :href="askHref" class="link kr__mail">Schreib uns</Link>
-                    <a v-if="forward.wheelsOnly" href="#felgen-kaufen" class="link kr__wheels-only">
-                        Nur die Felgen bestellen
-                    </a>
                 </p>
             </div>
         </div>
@@ -201,10 +192,6 @@ function add(tyreId: number): void {
                     </button>
                 </li>
             </ul>
-
-            <p class="kr__fallback">
-                <a href="#felgen-kaufen" class="link kr__wheels-only">Nur die Felgen bestellen</a>
-            </p>
         </template>
     </section>
 </template>
@@ -294,7 +281,4 @@ function add(tyreId: number): void {
     margin-top: var(--space-3);
 }
 
-.kr__fallback {
-    margin: var(--space-4) 0 0;
-}
 </style>

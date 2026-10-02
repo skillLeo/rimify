@@ -144,7 +144,6 @@ describe('KomplettradOffer', () => {
 
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
         expect(wrapper.find('.kr__refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
-        expect(wrapper.find('.kr__wheels-only').exists()).toBe(true)
         expect(wrapper.find('a[href^="/kontakt"]').exists()).toBe(false)
         expect(wrapper.find('button.kr-card__add').exists()).toBe(false)
         expect(wrapper.find('.kr-card').exists()).toBe(false)
@@ -159,8 +158,6 @@ describe('KomplettradOffer', () => {
         expect(wrapper.find('.kr__refusal a.kr__mail').attributes('href')).toBe('/kontakt?betreff=Frage+zum+Komplettrad&von=%2Ffelgen%2Fborbet-db8gt2')
         expect(wrapper.find('.kr__refusal a.kr__mail').text()).toBe('Schreib uns')
         expect(wrapper.find('a[href="/felgen-suchen"]').exists()).toBe(false)
-        // An UNKNOWN verdict does not sell the rim either: no link to a button that cannot be pressed.
-        expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
     })
 
     it('says the wheel is approved and the tyres are not settled, and offers a person, not the rim alone', () => {
@@ -170,22 +167,24 @@ describe('KomplettradOffer', () => {
 
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
         expect(wrapper.find('.kr__refusal a[href^="/kontakt"]').exists()).toBe(true)
-        expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
     })
 
-    it('still offers the rim alone where only the Komplettrad is refused', () => {
-        const sentence = 'Passende Reifen für diese Größe haben wir gerade nicht vorrätig. Die Felge allein kannst du bestellen.'
-        const wrapper = mountOffer({ offer: refused('NO_TYRE_AVAILABLE', sentence) })
+    it('carries no link that only points at the page\'s own button (#25), whatever the refusal', () => {
+        for (const code of ['NO_VEHICLE', 'NO_TYRE_AVAILABLE', 'VERDICT_NOT_PERMITTED', 'TYRES_UNKNOWN'] as const) {
+            const wrapper = mountOffer({ offer: refused(code, 'Ein Satz.') })
 
-        expect(wrapper.find('.kr__wheels-only').exists()).toBe(true)
+            expect(wrapper.text()).not.toContain('Nur die Felgen bestellen')
+            expect(wrapper.find('a[href^="#"]').exists()).toBe(false)
+        }
+
+        expect(mountOffer().text()).not.toContain('Nur die Felgen bestellen')
     })
 
-    it('does not offer the rim alone when the document forbids the wheel itself', () => {
+    it('offers a person to write to when the document forbids the wheel itself', () => {
         const sentence = 'Diese Felge ist für dein Fahrzeug nicht freigegeben. Ein Komplettrad können wir dir dazu deshalb nicht anbieten.'
         const wrapper = mountOffer({ offer: refused('VERDICT_NOT_PERMITTED', sentence) })
 
         expect(wrapper.find('.kr__refusal').text()).toContain(sentence)
-        expect(wrapper.find('.kr__wheels-only').exists()).toBe(false)
         expect(wrapper.find('a[href^="/kontakt"]').exists()).toBe(true)
     })
 
@@ -199,7 +198,6 @@ describe('KomplettradOffer', () => {
         })
 
         expect(wrapper.find('.kr__min').text()).toBe(MIN_SENTENCE)
-        expect(wrapper.find('.kr__wheels-only').exists()).toBe(true)
     })
 
     it('says so when the mounting fee is still open, and only then', () => {
@@ -248,11 +246,10 @@ describe('KomplettradOffer', () => {
         expect(wrapper.find('[role="alert"]').text()).toBe('Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.')
     })
 
-    it('still says something and offers the Felgen if the server sent neither tyres nor a sentence', () => {
+    it('still says something if the server sent neither tyres nor a sentence', () => {
         const wrapper = mountOffer({ offer: offer({ tyres: [] }) })
 
         expect(wrapper.find('.kr__refusal').text()).toContain('Passende Reifen für diese Größe haben wir gerade nicht vorrätig.')
-        expect(wrapper.find('.kr__wheels-only').exists()).toBe(true)
     })
 
     it('renders nothing at all without an offer', () => {

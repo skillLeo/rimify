@@ -498,8 +498,7 @@ onBeforeUnmount(() => observer?.disconnect())
                         </p>
                     </div>
 
-                    <!-- `#felgen-kaufen`: where the Komplettrad section's "Nur die Felgen bestellen" lands. -->
-                    <div id="felgen-kaufen" ref="buyButton">
+                    <div ref="buyButton">
                         <button
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
