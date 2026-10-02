@@ -44,6 +44,7 @@ import ValueText from '../../Components/Ui/ValueText.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
+import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { decimal, withUnit } from '../../format'
 import { contactHref as contactFormHref } from '../../lib/contact'
 import type { ProduktConfig, ProduktProps } from '../../types/pages'
@@ -659,10 +660,12 @@ onBeforeUnmount(() => observer?.disconnect())
             </div>
 
             <!-- What the Gutachten asks of the car, in full: the panel above gives the overview and links here. -->
+            <!-- The papers' sentence is the verdict's (#21): not listed here a second time. -->
             <FitmentDetail
                 v-if="selected?.verdict?.detail && shared.vehicle"
                 :detail="selected.verdict.detail"
                 :vehicle-label="shared.vehicle.label"
+                :omit="[ENTRY_REQUIRED, ABNAHME_REQUIRED]"
             />
 
             <!-- Mischbereifung (#20, D-105): a Komplettrad of its own, only where the released Gutachten prints its

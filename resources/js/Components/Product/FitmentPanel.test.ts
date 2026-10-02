@@ -203,6 +203,37 @@ describe('FitmentPanel', () => {
         )
     })
 
+    /* The client's #21: „Eintragung“ stood three times on a wheel with Auflagen — the line, the admin's note, the list. */
+    it('says the Eintragung once, in the verdict under its headline, the more exact note in its place', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({
+                    status: 'CONDITIONAL',
+                    requiresEntry: true,
+                    entryNoteDe: 'Eintragung durch eine amtlich anerkannte Prüfstelle erforderlich.',
+                    conditions: ['Eintragung in die Fahrzeugpapiere erforderlich.', 'Nur mit den angegebenen Radschrauben zulässig.'],
+                }),
+            },
+        })
+
+        expect(wrapper.text().match(/Eintragung/g)).toHaveLength(1)
+        expect(wrapper.find('.fit__entry--verdict').text()).toBe('Eintragung durch eine amtlich anerkannte Prüfstelle erforderlich.')
+        // Right under the verdict's headline: the papers belong to the answer.
+        expect(wrapper.find('.rcheck-panel__vehicle + .fit__entry--verdict').exists()).toBe(true)
+        // The Auflagen explain themselves; none repeats the line.
+        expect(wrapper.findAll('.fit__conditions li').map((li) => li.text())).toEqual(['Nur mit den angegebenen Radschrauben zulässig.'])
+    })
+
+    it('keeps a note about something else beneath the line', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', requiresEntry: true, entryNoteDe: 'Gilt nur zusammen mit den Distanzscheiben aus Punkt 3.' }) },
+        })
+
+        expect(wrapper.find('.fit__entry--verdict').text()).toBe('Eintragung in die Fahrzeugpapiere erforderlich.')
+        expect(wrapper.find('.fit__note').text()).toBe('Gilt nur zusammen mit den Distanzscheiben aus Punkt 3.')
+    })
+
     /*
      * ABE 53841, points 10 and 11: the document frees the papers (§ 15 FZV), the Auflagen still send the car to a
      * Prüfer. Two questions, two lines — and never „Eintragung … erforderlich“ beside „keine Berichtigung“.

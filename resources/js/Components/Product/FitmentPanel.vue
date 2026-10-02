@@ -18,7 +18,7 @@ import BuildForm from './BuildForm.vue'
 import PapersForm from './PapersForm.vue'
 import type { IconName } from '../../art'
 import ConditionGroups from '../Fitment/ConditionGroups.vue'
-import { entryBySize, entryLineOrNone, papersLine } from '../../fitment/papers'
+import { ABNAHME_REQUIRED, ENTRY_REQUIRED, entryBySize, entryLineOrNone, papersLine } from '../../fitment/papers'
 import type { ConfigVerdict } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -91,8 +91,27 @@ const entryLine = computed(() => {
  */
 const papersExemptLine = computed(() => (entryLine.value === null ? null : papersLine(props.verdict?.papersExempt === true)))
 
-/* An Auflage that says word for word what the entry line above it says is not said twice. */
-const conditions = computed(() => (props.verdict?.conditions ?? []).filter((condition) => condition !== entryLine.value))
+/*
+ * The papers are said once, in the verdict, right under its headline (the client's #21). Where the admin's note on the
+ * Eintragung says it more exactly („…durch eine amtlich anerkannte Prüfstelle…“), the note stands in place of the
+ * general sentence rather than beside it; a note about something else stays beneath. The Auflagen then explain
+ * themselves, and none of them repeats the line: the general sentences are left out of the lists below.
+ */
+const noteRepeats = computed(() => /eintragung|abnahme/i.test(props.verdict?.entryNoteDe ?? ''))
+
+const verdictEntry = computed(() => {
+    const note = props.verdict?.entryNoteDe ?? null
+
+    return entryLine.value === ENTRY_REQUIRED && note !== null && noteRepeats.value ? note : entryLine.value
+})
+
+const entryNote = computed(() => (entryLine.value !== null && props.verdict?.entryNoteDe && !noteRepeats.value ? props.verdict.entryNoteDe : null))
+
+/* What the lists below leave out, because the verdict line says it. */
+const said = computed(() => (entryLine.value === null ? [] : [entryLine.value, verdictEntry.value ?? '', ENTRY_REQUIRED, ABNAHME_REQUIRED]))
+
+/* An Auflage that says word for word what the verdict line says is not said twice. */
+const conditions = computed(() => (props.verdict?.conditions ?? []).filter((condition) => !said.value.includes(condition)))
 
 /*
  * With the detail (Block D, item 15) the panel gives the overview — what there is to do, section by section —
@@ -110,7 +129,7 @@ const overview = computed(() => {
 
     // What there is to do — the notes are not a task, and the sizes have their own line below.
     const lines: string[] = []
-    const items = (title: string): number => view.sections.find((s) => s.title === title)?.items.filter((i) => i.text !== entryLine.value).length ?? 0
+    const items = (title: string): number => view.sections.find((s) => s.title === title)?.items.filter((i) => !said.value.includes(i.text)).length ?? 0
     const work = items('Arbeiten am Fahrzeug')
     const first = view.fasteners[0]
 
@@ -215,6 +234,13 @@ const headline = computed(() => {
         <!-- #23, D-104: nothing to do, only to know — said quietly, never as „Mit Auflagen“. -->
         <p v-if="notesOnly" class="fit__notes">Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.</p>
 
+        <!-- The papers, once, in the verdict (#21): the Eintragung under the headline, nowhere else in the panel. -->
+        <template v-if="verdict && verdictEntry">
+            <p class="fit__entry fit__entry--verdict">{{ verdictEntry }}</p>
+            <p v-if="entryNote" class="quiet fit__note">{{ entryNote }}</p>
+            <p v-if="papersExemptLine" class="fit__entry fit__papers">{{ papersExemptLine }}</p>
+        </template>
+
         <template v-if="verdict">
             <!-- What the answer waits for, asked by name and answered in place; a derived body style or drive
                  stands as such, with „stimmt das?“ (the operator's last prompt §1.1). Keyed by the car (C-08). -->
@@ -252,12 +278,6 @@ const headline = computed(() => {
                  last car's figures under its name (C-08). -->
             <PapersForm v-if="vehicle && verdict.tyre" :key="vehicle.id" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" />
 
-            <p v-if="entryLine" class="fit__entry">{{ entryLine }}</p>
-
-            <p v-if="entryLine && verdict.entryNoteDe" class="quiet fit__note">{{ verdict.entryNoteDe }}</p>
-
-            <p v-if="papersExemptLine" class="fit__entry fit__papers">{{ papersExemptLine }}</p>
-
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->
             <div v-if="detail && overview.length" class="fit__overview">
@@ -265,7 +285,7 @@ const headline = computed(() => {
                 <p class="small fit__overview-line">{{ overview.join(' · ') }} · <a class="fit__to-detail" href="#auflagen" @click="toDetail">alle Auflagen im Wortlaut</a></p>
             </div>
             <!-- Each tyre size's Auflagen with that size, the combination's once (ConditionGroups) — never one blended list. -->
-            <ConditionGroups v-else-if="!detail && verdict.conditionGroups && conditions.length" class="fit__groups" :groups="verdict.conditionGroups" :omit="entryLine ? [entryLine] : []" />
+            <ConditionGroups v-else-if="!detail && verdict.conditionGroups && conditions.length" class="fit__groups" :groups="verdict.conditionGroups" :omit="said" />
             <ul v-else-if="!detail && conditions.length" class="fit__conditions">
                 <li v-for="condition in conditions" :key="condition">{{ condition }}</li>
             </ul>

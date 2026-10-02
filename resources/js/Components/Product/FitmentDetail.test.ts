@@ -19,6 +19,18 @@ describe('FitmentDetail', () => {
         expect(wrapper.text()).toContain(ABNAHME)
     })
 
+    it('leaves out a sentence the verdict above already says (#21), and keeps the document\'s own wording', () => {
+        const ENTRY = 'Eintragung in die Fahrzeugpapiere erforderlich.'
+        const detail = {
+            ...borbetDetail,
+            sections: borbetDetail.sections.map((s) => (s.title === 'Abnahme' ? { ...s, items: [...s.items, { text: ENTRY, measures: [] }] } : s)),
+        }
+        const omitted = mount(FitmentDetail, { props: { detail, vehicleLabel: 'BMW 1er-Reihe 1K4', omit: [ENTRY] } })
+
+        expect(omitted.text()).not.toContain(ENTRY)
+        expect(omitted.text()).toContain(ABNAHME)
+    })
+
     it('gives the millimetres under their sentence, and every bolt set as a row with what the page prints beside it', () => {
         expect(wrapper.findAll('.fdt__measures li').map((li) => li.text())).toEqual(['Vorderachse: von 190 bis 220 mm', 'Hinterachse: von 220 bis 270 mm · aufgeweitet um 30 mm'])
         expect(rows(0)).toEqual([
