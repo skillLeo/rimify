@@ -88,6 +88,15 @@ it('gives Kontakt the envelope in the phone\'s bottom bar', function (): void {
         ->and(DB::table('nav_items')->where('icon', 'phone')->exists())->toBeFalse();
 });
 
+it('links the Felgenrechner from the footer’s shop column, and no blog that does not exist — the client’s #10', function (): void {
+    $this->seed(ContentSeeder::class);
+
+    expect(DB::table('nav_items')->where('menu', 'footer_shop')->orderBy('sort_order')->pluck('label')->all())
+        ->toBe(['Alle Felgen', 'Fahrzeug wählen', 'RIMIFY-Check', 'Felgenrechner'])
+        ->and(DB::table('nav_items')->where('menu', 'footer_shop')->where('label', 'Felgenrechner')->value('route_name'))->toBe('felgenrechner.index')
+        ->and(DB::table('nav_items')->where('label', 'Blog')->exists())->toBeFalse();
+});
+
 it('promises in the promise row only what the client has confirmed', function (): void {
     $this->seed(ContentSeeder::class);
 
