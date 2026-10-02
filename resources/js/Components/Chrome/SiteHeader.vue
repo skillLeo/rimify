@@ -12,10 +12,11 @@
  * at every width. It sits in the flow of the row, so it cannot cover content at any width.
  */
 
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import CartButton from './CartButton.vue'
 import DemoBadge from './DemoBadge.vue'
 import MainMenu from './MainMenu.vue'
 import MegaMenu from './MegaMenu.vue'
@@ -28,6 +29,9 @@ const shared = useShared()
 const shell = useShell()
 
 const vehicle = computed(() => shared.value.vehicle)
+const page = usePage()
+/* The basket left of the menu on a phone (#13, D-122) — not on the basket and the checkout themselves. */
+const showCart = computed(() => !/^\/(warenkorb|kasse)(\/|\?|$)/.test(page.url))
 
 /* Scrolled or not, decided by a sentinel above the header rather than a scroll listener. */
 const sentinel = ref<HTMLElement | null>(null)
@@ -116,8 +120,11 @@ function removeVehicle(): void {
                     <Icon name="car" :size="24" />
                 </Link>
 
-                <!-- The menu: on a phone the destinations and the basket live in it rather than in
-                     a bar across the bottom of every page. -->
+                <!-- The basket, left of the menu, with its count (the client's #13, D-122). -->
+                <CartButton v-if="showCart" class="until-lg" />
+
+                <!-- The menu: on a phone the destinations live in it rather than in a bar across the bottom of
+                     every page. -->
                 <MainMenu class="until-lg" />
 
                 <Link
