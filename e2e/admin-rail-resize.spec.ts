@@ -90,10 +90,16 @@ test.afterEach(async ({ page, isMobile }) => {
 })
 
 test('a drag snaps to 320, and the width is still there after a reload', async ({ page }) => {
-    const saved = page.waitForRequest((request) => request.url().endsWith('/admin/ansicht') && request.method() === 'PATCH' && (request.postData() ?? '').includes('"width":320'))
+    // The save's answer, not its departure: with several PHP workers the reload's GET could be served before the PATCH
+    // was stored, and read 260 (the suite run of 03.10.2026; reproduced by holding the PATCH back 1,5 s).
+    const saved = page.waitForResponse((response) => {
+        const request = response.request()
+
+        return request.url().endsWith('/admin/ansicht') && request.method() === 'PATCH' && (request.postData() ?? '').includes('"width":320')
+    })
 
     await dragTo(page, 324)
-    await saved
+    expect((await saved).ok(), 'the rail width was not saved').toBe(true)
 
     await expect(handle(page)).toHaveAttribute('aria-valuenow', '320')
     expect(await railWidth(page)).toBe(320)
