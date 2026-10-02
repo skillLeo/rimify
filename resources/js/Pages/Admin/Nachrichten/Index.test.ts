@@ -45,7 +45,7 @@ let mounted: VueWrapper[] = []
 
 function mountPage(props: Record<string, unknown> = {}): VueWrapper {
     const wrapper = mount(Page, {
-        props: { items: [ITEM], total: 1, filter: 'ungelesen', filters: FILTERS, canMarkRead: true, keepMonths: 12, ...props },
+        props: { items: [ITEM], count: 1, total: 1, filter: 'ungelesen', filters: FILTERS, canMarkRead: true, keepMonths: 12, ...props },
         attachTo: document.body,
     })
     mounted.push(wrapper)
@@ -65,9 +65,15 @@ describe('Admin › Nachrichten', () => {
         const item = wrapper.find('.nfa-item')
 
         expect(item.find('.nfa-item__subject').text()).toBe('Frage zu einer Felge')
-        expect(item.find('.nfa-item__meta').text()).toContain('Jana Beispiel · jana@example.com · 02.10.2026, 14:05')
+        expect(item.find('.nfa-item__meta').text()).toBe('Jana Beispiel · jana@example.com')
+        expect(item.find('time.nfa-item__at').text()).toBe('02.10.2026, 14:05')
         expect(item.find('.nfa-facts').text()).toContain('BMW 3er Coupé (HSN 0005 · TSN 582)')
+        expect(item.find('.nfa-facts').text()).toContain('Gesendet von der Seite')
         expect(item.find('a.btn').attributes('href')).toBe(ITEM.replyHref)
+    })
+
+    it('counts what the filter finds, not the rows on the page', () => {
+        expect(mountPage({ count: 250 }).text()).toContain('250 ungelesene Nachrichten')
     })
 
     it('marks a message read through its own route', async () => {
@@ -84,7 +90,7 @@ describe('Admin › Nachrichten', () => {
     })
 
     it('says everything is read, and offers the rest, when the queue is empty', () => {
-        const wrapper = mountPage({ items: [], total: 3 })
+        const wrapper = mountPage({ items: [], count: 0, total: 3 })
 
         expect(wrapper.text()).toContain('Alles gelesen.')
         expect(wrapper.findAll('button').some((b) => b.text() === 'Alle zeigen')).toBe(true)

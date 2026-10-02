@@ -81,22 +81,30 @@ class KontaktController extends Controller
         return back();
     }
 
-    /** The car the visitor has chosen, named as the shop names it: key numbers, or Feld K for a car known only from a Gutachten. */
-    private function vehicleLabel(Request $request): ?string
+    /**
+     * The car the box showed, named as the shop names it (Chrome::vehicle): its name, then its key numbers, or Feld K for
+     * a car known only from a Gutachten. The id is the form's — what was ticked is what is sent (KON-05); a page from
+     * before the id travelled sends none, and then the visitor's own cookie names it.
+     */
+    private function vehicleLabel(ContactRequest $request): ?string
     {
-        $raw = $request->cookie(VehicleContext::COOKIE);
-        $id = VehicleContext::decode(is_string($raw) ? $raw : null)?->vehicleId;
+        $id = $request->vehicleId();
+
+        if ($id === null) {
+            $raw = $request->cookie(VehicleContext::COOKIE);
+            $id = VehicleContext::decode(is_string($raw) ? $raw : null)?->vehicleId;
+        }
+
         $vehicle = $id === null ? null : Vehicle::query()->find($id);
 
         if ($vehicle === null) {
             return null;
         }
 
-        // In the words the page showed beside the box (Chrome::vehicle): what was ticked is what is sent.
         $keys = $vehicle->hsn !== null
             ? GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn)
             : GermanFormat::egRange($vehicle->eg_nummer_raw) ?? GermanFormat::KEY_NUMBERS_MISSING;
 
-        return mb_substr(VehicleName::from($vehicle).' ('.$keys.')', 0, 255);
+        return mb_substr(VehicleName::forShop($vehicle->make, $vehicle->model, $vehicle->variant, $vehicle->type_designation).' ('.$keys.')', 0, 255);
     }
 }

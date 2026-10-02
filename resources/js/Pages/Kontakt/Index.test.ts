@@ -6,9 +6,13 @@ import type { ContactProp, VehicleProp } from '../../types/rimify'
 const current: { props: Record<string, unknown> } = { props: {} }
 
 interface PostOptions {
-    onSuccess?: () => void
+    onSuccess?: (page: { component: string }) => void
     onError?: () => void
+    onNetworkError?: () => unknown
 }
+
+/* What the server answers a message that arrived with: this page again. */
+const ARRIVED = { component: 'Kontakt/Index' }
 
 /* What `useForm` posted: the address, the data after `transform`, and the options — the test answers through them. */
 const posted: { url: string; data: Record<string, unknown>; options: PostOptions }[] = []
@@ -39,6 +43,12 @@ vi.mock('@inertiajs/vue3', () => ({
             },
             reset(...keys: string[]) {
                 for (const k of keys) (form as Record<string, unknown>)[k] = initial[k]
+            },
+            setError(field: string, message: string) {
+                form.errors[field] = message
+            },
+            clearErrors(field: string) {
+                delete form.errors[field]
             },
         })
 
@@ -167,7 +177,7 @@ describe('Kontakt — the contact form (#12)', () => {
         await fill(wrapper)
         await wrapper.find('form').trigger('submit')
 
-        posted[0]!.options.onSuccess?.()
+        posted[0]!.options.onSuccess?.(ARRIVED)
         await flushPromises()
 
         expect(wrapper.find('form').exists()).toBe(false)
@@ -176,6 +186,27 @@ describe('Kontakt — the contact form (#12)', () => {
         expect(done.text()).toContain('Danke, Jana Beispiel – deine Nachricht ist angekommen.')
         expect(done.text()).toContain('Wir antworten dir an jana@example.com.')
         expect(document.activeElement).toBe(done.element)
+    })
+
+    it('checks a field when it is left, in the server\'s words, and takes the sentence back once it is right', async () => {
+        const wrapper = mountPage()
+        const email = wrapper.find('#kon-email')
+
+        await email.setValue('jana@')
+        await email.trigger('blur')
+        expect(wrapper.find('#kon-email-err').text()).toBe('Diese E-Mail-Adresse sieht nicht vollständig aus. Bitte prüf sie noch einmal.')
+        expect(email.attributes('aria-invalid')).toBe('true')
+
+        await email.setValue('jana@example.com')
+        expect(wrapper.find('#kon-email-err').text()).toBe('')
+
+        const message = wrapper.find('#kon-message')
+        await message.setValue('Hallo')
+        await message.trigger('blur')
+        expect(wrapper.find('#kon-message-err').text()).toBe('Ein, zwei Sätze mehr, damit wir dir gleich richtig antworten können.')
+
+        // A field never touched carries no sentence.
+        expect(wrapper.find('#kon-name-err').text()).toBe('')
     })
 
     it('promises a copy by mail only where outgoing mail is configured', async () => {
@@ -200,9 +231,58 @@ describe('Kontakt — the contact form (#12)', () => {
         const wrapper = mountPage()
         await fill(wrapper)
         await wrapper.find('form').trigger('submit')
-        posted[0]!.options.onSuccess?.()
+        posted[0]!.options.onSuccess?.(ARRIVED)
 
         expect(window.sessionStorage.getItem('rmf-kontakt-entwurf')).toBeNull()
+    })
+
+    it('opens an empty form for the next message, never the one just sent (KON-02)', async () => {
+        const wrapper = mountPage()
+        await fill(wrapper)
+        await wrapper.find('form').trigger('submit')
+        posted[0]!.options.onSuccess?.(ARRIVED)
+        await flushPromises()
+
+        await wrapper.findAll('button').find((b) => b.text() === 'Noch eine Nachricht schreiben')!.trigger('click')
+        await flushPromises()
+
+        expect((wrapper.find('#kon-message').element as HTMLTextAreaElement).value).toBe('')
+        expect((wrapper.find('#kon-subject').element as HTMLInputElement).value).toBe('')
+        // Name and address stay: the same person is writing again.
+        expect((wrapper.find('#kon-email').element as HTMLInputElement).value).toBe('jana@example.com')
+    })
+
+    it('says so when the message never left, and keeps the words (KON-03)', async () => {
+        const wrapper = mountPage()
+        await fill(wrapper)
+        await wrapper.find('form').trigger('submit')
+
+        expect(posted[0]!.options.onNetworkError?.()).toBe(false)
+        await flushPromises()
+
+        expect(wrapper.find('.kon__offline').attributes('role')).toBe('alert')
+        expect(wrapper.find('.kon__offline').text()).toContain('nicht bei uns angekommen')
+        expect((wrapper.find('#kon-message').element as HTMLTextAreaElement).value).toBe('Passt die Felge auch mit Winterreifen?')
+    })
+
+    it('keeps a half-written message\'s own subject over a linking page\'s (KON-04)', async () => {
+        const first = mountPage()
+        await fill(first)
+        first.unmount()
+        mounted = []
+
+        const back = mountPage({ prefill: { subject: 'Fehler 429', from: null } })
+        await flushPromises()
+
+        expect((back.find('#kon-subject').element as HTMLInputElement).value).toBe('Frage zu einer Felge')
+    })
+
+    it('sends the id of the car the box showed', async () => {
+        const wrapper = mountPage({ vehicle: VEHICLE })
+        await fill(wrapper)
+        await wrapper.find('form').trigger('submit')
+
+        expect(posted[0]!.data).toMatchObject({ withVehicle: true, vehicleId: 3 })
     })
 
     it('makes no reply-time promise and offers no phone the client has not given', () => {

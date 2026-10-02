@@ -110,7 +110,7 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
             <aside class="card faq__help" aria-labelledby="faq-help-title">
                 <h2 id="faq-help-title" class="t-h3">Nicht gefunden, was du suchst?</h2>
                 <!-- No reply-time promise: the client gave hours, and the hours are printed below. -->
-                <p class="t-body faq__help-sub">Schreib uns eine E-Mail – wir helfen dir gern weiter.</p>
+                <p class="t-body faq__help-sub">Schreib uns – wir helfen dir gern weiter.</p>
 
                 <ul class="faq__ways">
                     <li v-if="phone">

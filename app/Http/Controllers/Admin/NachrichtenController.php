@@ -39,7 +39,9 @@ class NachrichtenController extends Controller
         $admin = $request->user('admin');
 
         return Inertia::render('Admin/Nachrichten/Index', [
-            'items' => $query->limit(200)->get()->map(static fn (ContactMessage $message): array => self::row($message))->all(),
+            'items' => (clone $query)->limit(200)->get()->map(static fn (ContactMessage $message): array => self::row($message))->all(),
+            // The filter's own count, not the length of the page: the list shows at most 200.
+            'count' => $query->count(),
             'total' => ContactMessage::query()->count(),
             'filter' => $filter,
             'filters' => collect(self::FILTERS)->map(static fn (string $label, string $value): array => ['value' => $value, 'label' => $label])->values()->all(),

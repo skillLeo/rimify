@@ -18,7 +18,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
-import Icon from '../../Components/Art/Icon.vue'
+import Icon from '../../Components/Ui/Icon.vue'
 import { useShared } from '../../composables/useShared'
 import type { KontaktProps } from '../../types/pages'
 
@@ -87,28 +87,102 @@ onMounted(() => {
 
     form.name = typeof draft.name === 'string' ? draft.name : form.name
     form.email = typeof draft.email === 'string' ? draft.email : form.email
-    // A subject the linking page set wins over an older draft's: the visitor came here about this.
-    form.subject = props.prefill?.subject ? props.prefill.subject : typeof draft.subject === 'string' ? draft.subject : form.subject
     form.message = typeof draft.message === 'string' ? draft.message : form.message
+
+    // A half-written message keeps its own subject — the visitor's words over a linking page's, which may only be the
+    // error page's „Fehler 429“. Without a message, the subject the linking page set is the reason they came.
+    if (form.message.trim() !== '' && typeof draft.subject === 'string' && draft.subject.trim() !== '') {
+        form.subject = draft.subject
+    } else if (!props.prefill?.subject && typeof draft.subject === 'string') {
+        form.subject = draft.subject
+    }
 })
 
 watch(() => [form.name, form.email, form.subject, form.message], writeDraft)
 
+/*
+ * Each field is checked when it is left (DIRECTION §8), in ContactRequest's own words, and again as it is typed once
+ * it carries a sentence, so the sentence goes the moment the field is right. The server checks everything anyway.
+ */
+type Field = 'name' | 'email' | 'subject' | 'message'
+
+function problem(field: Field): string | null {
+    const value = form[field].trim()
+
+    switch (field) {
+        case 'name':
+            return value === '' ? 'Bitte sag uns deinen Namen.' : null
+        case 'email':
+            if (value === '') {
+                return 'Bitte gib deine E-Mail-Adresse an, damit wir dir antworten können.'
+            }
+
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? null : 'Diese E-Mail-Adresse sieht nicht vollständig aus. Bitte prüf sie noch einmal.'
+        case 'subject':
+            return value === '' ? 'Worum geht es? Ein paar Worte als Betreff reichen.' : null
+        case 'message':
+            if (value === '') {
+                return 'Bitte schreib uns deine Frage.'
+            }
+
+            return value.length < 10 ? 'Ein, zwei Sätze mehr, damit wir dir gleich richtig antworten können.' : null
+    }
+}
+
+function check(field: Field): void {
+    const message = problem(field)
+
+    if (message === null) {
+        form.clearErrors(field)
+    } else {
+        form.setError(field, message)
+    }
+}
+
+function recheck(field: Field): void {
+    if (form.errors[field]) {
+        check(field)
+    }
+}
+
+/* A send that never reached the server: said under the button, and the words stay where they are. */
+const offline = ref(false)
+
 function submit(): void {
-    form.transform((data) => ({ ...data, withVehicle: vehicle.value !== null && data.withVehicle })).post('/kontakt', {
+    offline.value = false
+
+    form.transform((data) => ({
+        ...data,
+        // The car the box shows, by its id: what was ticked is what is sent, whatever another tab chose since.
+        withVehicle: vehicle.value !== null && data.withVehicle,
+        vehicleId: vehicle.value !== null && data.withVehicle ? vehicle.value.id : null,
+    })).post('/kontakt', {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (page) => {
+            // A limit (429) or an expired page (419) answers with the shop's error page, which Inertia also hands to
+            // onSuccess: only this page coming back means the message arrived (KON-01). Until then the draft stays.
+            if (page.component !== 'Kontakt/Index') {
+                return
+            }
+
             clearDraft()
             sent.value = true
             void nextTick(() => done.value?.focus())
         },
         onError: () => void nextTick(() => document.querySelector<HTMLElement>('.kon__form [aria-invalid="true"]')?.focus()),
+        onNetworkError: () => {
+            offline.value = true
+
+            return false
+        },
     })
 }
 
 function again(): void {
-    form.reset('subject', 'message')
+    // Set, not reset: after a send the form's defaults are the words just sent, and they must not come back (KON-02).
     form.subject = ''
+    form.message = ''
+    form.clearErrors()
     sent.value = false
     void nextTick(() => document.getElementById('kon-subject')?.focus())
 }
@@ -123,18 +197,23 @@ const backHref = computed(() => props.prefill?.from ?? '/')
     <Head title="Kontakt" />
 
     <section class="section--tight">
-        <div class="container kon">
-            <div class="kon__main">
+        <div class="container grid kon">
+            <header class="kon__head">
                 <h1 class="h1">Kontakt</h1>
-                <p class="kon__lead">Fragen zur Passform, zu einer Bestellung oder zu einem Gutachten? Schreib uns – wir sind {{ contact.hours }} für dich da.</p>
+                <p class="body-l muted prose kon__lead">Fragen zur Passform, zu einer Bestellung oder zu einem Gutachten? Schreib uns.</p>
+            </header>
 
+            <div class="kon__main">
                 <div v-if="sent" ref="done" class="kon__done" role="status" tabindex="-1">
-                    <h2 class="h3">Danke{{ form.name ? `, ${form.name}` : '' }} – deine Nachricht ist angekommen.</h2>
-                    <p class="kon__done-text">
+                    <h2 class="h3 kon__done-title">
+                        <Icon name="check" :size="24" class="kon__done-mark" />
+                        <span>Danke{{ form.name ? `, ${form.name}` : '' }} – deine Nachricht ist angekommen.</span>
+                    </h2>
+                    <p class="body muted kon__done-text">
                         Wir antworten dir an <strong class="kon__email">{{ form.email }}</strong>.<template v-if="copyByMail"> Eine Kopie deiner Nachricht ist schon in deinem Postfach.</template>
                     </p>
                     <div class="kon__done-go">
-                        <Link class="btn btn--primary" :href="backHref">{{ prefill?.from ? 'Zurück, wo du warst' : 'Zur Startseite' }}</Link>
+                        <Link class="btn btn--primary" :href="backHref">{{ prefill?.from ? 'Zurück zur vorherigen Seite' : 'Zur Startseite' }}</Link>
                         <button class="btn btn--secondary" type="button" @click="again">Noch eine Nachricht schreiben</button>
                     </div>
                 </div>
@@ -143,25 +222,25 @@ const backHref = computed(() => props.prefill?.from ?? '/')
                     <div class="kon__pair">
                         <div class="form-field">
                             <label class="form-field__label" for="kon-name">Dein Name</label>
-                            <input id="kon-name" v-model="form.name" class="input" type="text" autocomplete="name" maxlength="120" aria-describedby="kon-name-err" :aria-invalid="form.errors.name ? 'true' : undefined">
+                            <input id="kon-name" v-model="form.name" class="input" type="text" autocomplete="name" maxlength="120" aria-describedby="kon-name-err" :aria-invalid="form.errors.name ? 'true' : undefined" @blur="check('name')" @input="recheck('name')">
                             <p id="kon-name-err" class="form-field__error">{{ form.errors.name ?? '' }}</p>
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" for="kon-email">Deine E-Mail-Adresse</label>
-                            <input id="kon-email" v-model="form.email" class="input" type="email" inputmode="email" autocomplete="email" maxlength="190" aria-describedby="kon-email-err" :aria-invalid="form.errors.email ? 'true' : undefined">
+                            <input id="kon-email" v-model="form.email" class="input" type="email" inputmode="email" autocomplete="email" maxlength="190" aria-describedby="kon-email-err" :aria-invalid="form.errors.email ? 'true' : undefined" @blur="check('email')" @input="recheck('email')">
                             <p id="kon-email-err" class="form-field__error">{{ form.errors.email ?? '' }}</p>
                         </div>
                     </div>
 
                     <div class="form-field">
                         <label class="form-field__label" for="kon-subject">Betreff</label>
-                        <input id="kon-subject" v-model="form.subject" class="input" type="text" maxlength="150" placeholder="z. B. Frage zu einer Felge" aria-describedby="kon-subject-err" :aria-invalid="form.errors.subject ? 'true' : undefined">
+                        <input id="kon-subject" v-model="form.subject" class="input" type="text" maxlength="150" placeholder="z. B. Frage zu einer Felge" aria-describedby="kon-subject-err" :aria-invalid="form.errors.subject ? 'true' : undefined" @blur="check('subject')" @input="recheck('subject')">
                         <p id="kon-subject-err" class="form-field__error">{{ form.errors.subject ?? '' }}</p>
                     </div>
 
                     <div class="form-field">
                         <label class="form-field__label" for="kon-message">Deine Nachricht</label>
-                        <textarea id="kon-message" v-model="form.message" class="input kon__area" rows="7" maxlength="5000" :aria-describedby="vehicle ? 'kon-message-err' : 'kon-message-help kon-message-err'" :aria-invalid="form.errors.message ? 'true' : undefined" />
+                        <textarea id="kon-message" v-model="form.message" class="input kon__area" rows="7" maxlength="5000" :aria-describedby="vehicle ? 'kon-message-err' : 'kon-message-help kon-message-err'" :aria-invalid="form.errors.message ? 'true' : undefined" @blur="check('message')" @input="recheck('message')" />
                         <p v-if="!vehicle" id="kon-message-help" class="form-field__help">Geht es um die Passform? Dann nenn uns gern HSN, TSN und Modell – du findest sie im Fahrzeugschein.</p>
                         <p id="kon-message-err" class="form-field__error">{{ form.errors.message ?? '' }}</p>
                     </div>
@@ -177,7 +256,7 @@ const backHref = computed(() => props.prefill?.from ?? '/')
                         <input id="kon-leer" v-model="form.rmf_leer" type="text" name="rmf_leer" tabindex="-1" autocomplete="off">
                     </div>
 
-                    <p class="kon__privacy">
+                    <p class="small muted kon__privacy">
                         Wir verwenden deine Angaben nur, um deine Nachricht zu beantworten. Mehr dazu in der
                         <Link href="/rechtliches/datenschutz">Datenschutzerklärung</Link>.
                     </p>
@@ -187,43 +266,51 @@ const backHref = computed(() => props.prefill?.from ?? '/')
                             <Icon name="mail" :size="20" />
                             Nachricht senden
                         </button>
-                        <p v-if="copyByMail" class="kon__copy">Du bekommst eine Kopie an deine E-Mail-Adresse.</p>
+                        <p v-if="copyByMail" class="small muted kon__copy">Du bekommst eine Kopie an deine E-Mail-Adresse.</p>
                     </div>
+                    <p v-if="offline" class="notice notice--bad kon__offline" role="alert">
+                        Die Nachricht ist nicht bei uns angekommen – die Verbindung ist gerade weg. Dein Text bleibt hier stehen; schick
+                        ihn gleich noch einmal.
+                    </p>
                 </form>
             </div>
 
             <aside class="kon__aside" aria-labelledby="kon-aside-title">
-                <h2 id="kon-aside-title" class="kon__aside-title">Lieber direkt?</h2>
+                <h2 id="kon-aside-title" class="h4">Lieber direkt?</h2>
                 <ul class="kon__ways">
                     <li>
                         <a class="kon__way" :href="`mailto:${contact.email}`">
-                            <Icon name="mail" :size="20" />
+                            <Icon name="mail" :size="20" class="kon__way-mark" />
                             <span>
                                 <span class="kon__way-value">{{ contact.email }}</span>
-                                <span class="kon__way-note">E-Mail aus deinem eigenen Programm</span>
+                                <span class="kon__way-note">Öffnet dein E-Mail-Programm</span>
                             </span>
                         </a>
                     </li>
                     <li v-if="contact.phone">
                         <a class="kon__way" :href="telHref">
-                            <Icon name="phone" :size="20" />
+                            <Icon name="phone" :size="20" class="kon__way-mark" />
                             <span>
-                                <span class="kon__way-value tabular">{{ contact.phone }}</span>
+                                <span class="kon__way-value num">{{ contact.phone }}</span>
                                 <span class="kon__way-note">Telefon</span>
                             </span>
                         </a>
                     </li>
                     <li v-if="contact.whatsapp">
                         <a class="kon__way" :href="waHref" rel="noopener">
-                            <Icon name="phone" :size="20" />
+                            <!-- The official WhatsApp mark is never redrawn (DIRECTION §7): the slot keeps the rows aligned. -->
+                            <span class="kon__slot" aria-hidden="true" />
                             <span>
-                                <span class="kon__way-value tabular">{{ contact.whatsapp }}</span>
+                                <span class="kon__way-value num">{{ contact.whatsapp }}</span>
                                 <span class="kon__way-note">WhatsApp</span>
                             </span>
                         </a>
                     </li>
+                    <li class="kon__hours">
+                        <Icon name="clock" :size="20" />
+                        <span class="num">{{ contact.hours }}</span>
+                    </li>
                 </ul>
-                <p class="kon__hours">{{ contact.hours }}</p>
             </aside>
         </div>
     </section>
@@ -231,28 +318,34 @@ const backHref = computed(() => props.prefill?.from ?? '/')
 
 <style scoped>
 .kon {
-    display: grid;
-    gap: var(--sp-40);
+    row-gap: var(--sp-24);
 }
 
+.kon__head,
+.kon__main,
+.kon__aside {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+/* On the 12-column grid: the form across six, the aside across the last four, both starting on one line. */
 @media (min-width: 1024px) {
-    .kon {
-        grid-template-columns: minmax(0, 640px) minmax(0, 320px);
-        justify-content: space-between;
-        align-items: start;
+    .kon__main {
+        grid-column: 1 / span 6;
+    }
+
+    .kon__aside {
+        grid-column: 9 / span 4;
     }
 }
 
 .kon__lead {
     margin-top: var(--sp-8);
-    color: var(--c-ink-2);
-    max-width: 60ch;
 }
 
 .kon__form {
     display: grid;
     gap: var(--sp-8);
-    margin-top: var(--sp-24);
 }
 
 .kon__pair {
@@ -296,9 +389,6 @@ const backHref = computed(() => props.prefill?.from ?? '/')
 
 .kon__privacy {
     margin-top: var(--sp-8);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink-2);
 }
 
 .kon__go {
@@ -309,28 +399,30 @@ const backHref = computed(() => props.prefill?.from ?? '/')
     margin-top: var(--sp-8);
 }
 
-.kon__copy {
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink-2);
+.kon__offline {
+    margin-top: var(--sp-8);
 }
 
+/* The thanks stands where the form stood, as text: no card around it (DIRECTION §4). */
 .kon__done {
     display: grid;
     gap: var(--sp-12);
-    margin-top: var(--sp-24);
-    padding: var(--sp-24);
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-tile);
-    background: var(--c-surface);
 }
 
 .kon__done:focus-visible {
-    outline-offset: 2px;
+    outline-offset: 4px;
 }
 
-.kon__done-text {
-    color: var(--c-ink-2);
+.kon__done-title {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-8);
+}
+
+.kon__done-mark {
+    flex: none;
+    margin-top: 4px;
+    color: var(--c-ok);
 }
 
 .kon__email {
@@ -343,7 +435,7 @@ const backHref = computed(() => props.prefill?.from ?? '/')
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-8);
-    margin-top: var(--sp-4);
+    margin-top: var(--sp-8);
 }
 
 .kon__aside {
@@ -353,7 +445,6 @@ const backHref = computed(() => props.prefill?.from ?? '/')
 
 @media (min-width: 1024px) {
     .kon__aside {
-        margin-top: var(--sp-64);
         padding-top: 0;
         padding-left: var(--sp-24);
         border-top: 0;
@@ -361,20 +452,15 @@ const backHref = computed(() => props.prefill?.from ?? '/')
     }
 }
 
-.kon__aside-title {
-    font-size: var(--fs-body);
-    line-height: var(--lh-body);
-    font-weight: 600;
-}
-
 .kon__ways {
     display: grid;
-    margin: var(--sp-8) 0 0;
+    margin: var(--sp-12) 0 0;
     padding: 0;
     list-style: none;
 }
 
-.kon__way {
+.kon__way,
+.kon__hours {
     display: flex;
     align-items: center;
     gap: var(--sp-12);
@@ -384,9 +470,25 @@ const backHref = computed(() => props.prefill?.from ?? '/')
     text-decoration: none;
 }
 
-.kon__way :deep(svg) {
-    flex: none;
+.kon__hours {
+    min-height: 44px;
     color: var(--c-ink-2);
+}
+
+.kon__way :deep(svg),
+.kon__hours :deep(svg) {
+    flex: none;
+}
+
+/* The brand's blue on the marks of the ways to reach us; the hours are a fact, not an action (D-114). */
+.kon__way-mark {
+    color: var(--c-blue);
+}
+
+.kon__slot {
+    flex: none;
+    width: 20px;
+    height: 20px;
 }
 
 .kon__way-value {
@@ -403,16 +505,9 @@ const backHref = computed(() => props.prefill?.from ?? '/')
     color: var(--c-ink-2);
 }
 
-.kon__hours {
-    margin-top: var(--sp-8);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink-2);
-}
-
 @media (hover: hover) and (pointer: fine) {
     .kon__way:hover .kon__way-value {
-        color: var(--c-blue-h);
+        color: var(--c-blue-hover);
         text-decoration: underline;
     }
 }

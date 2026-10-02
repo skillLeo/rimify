@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Storefront\VehicleContext;
 use App\Domain\Storefront\VisitorKey;
+use App\Http\Requests\Storefront\ContactRequest;
 use App\Mail\ContactConfirmationMail;
 use App\Mail\ContactMessageMail;
 use App\Models\AdminUser;
@@ -84,17 +85,42 @@ it('writes the mails in German, with the message word for word', function (): vo
         ->and($toSender)->toContain('Danke, Jana Beispiel')->toContain('Passt die Felge auch mit Winterreifen?')->toContain((string) config('rimify.contact.hours'));
 });
 
-it('sends the car the visitor chose along — named by the server from their cookie, and only while the box is ticked', function (): void {
+it('sends the car the box showed along — named by the server as the shop names it, and only while the box is ticked', function (): void {
+    Mail::fake();
+    $car = Vehicle::factory()->create(['hsn' => '0005', 'tsn' => '582']);
+    $other = Vehicle::factory()->create(['hsn' => '0603', 'tsn' => 'BGN']);
+    $label = VehicleName::forShop($car->make, $car->model, $car->variant, $car->type_designation).' (HSN 0005 · TSN 582)';
+    // Another tab chose another car since the form was opened: what the box showed is what goes (KON-05).
+    $cookie = [VehicleContext::COOKIE => (new VehicleContext((int) $other->id, true))->encode()];
+
+    $this->withCookies($cookie)->post('/kontakt', kontaktForm(['vehicleId' => $car->id]))->assertSessionHasNoErrors();
+    $this->withCookies($cookie)->post('/kontakt', kontaktForm(['vehicleId' => $car->id, 'withVehicle' => false, 'subject' => 'Ohne Auto']))->assertSessionHasNoErrors();
+
+    expect(ContactMessage::query()->where('subject', 'Frage zu einer Felge')->value('vehicle_label'))->toBe($label)
+        ->and(ContactMessage::query()->where('subject', 'Ohne Auto')->value('vehicle_label'))->toBeNull();
+});
+
+it('names the car from the visitor\'s cookie for a page that sent no id', function (): void {
     Mail::fake();
     $car = Vehicle::factory()->create(['hsn' => '0005', 'tsn' => '582']);
     $cookie = [VehicleContext::COOKIE => (new VehicleContext((int) $car->id, true))->encode()];
 
     $this->withCookies($cookie)->post('/kontakt', kontaktForm())->assertSessionHasNoErrors();
-    $this->withCookies($cookie)->post('/kontakt', kontaktForm(['withVehicle' => false, 'subject' => 'Ohne Auto']))->assertSessionHasNoErrors();
 
-    expect(ContactMessage::query()->where('subject', 'Frage zu einer Felge')->value('vehicle_label'))->toBe(VehicleName::from($car).' (HSN 0005 · TSN 582)')
-        ->and(ContactMessage::query()->where('subject', 'Ohne Auto')->value('vehicle_label'))->toBeNull();
+    expect(ContactMessage::query()->value('vehicle_label'))->toEndWith('(HSN 0005 · TSN 582)');
 });
+
+it('takes as the page a visitor came from only a plain path of this shop', function (string $path, ?string $kept): void {
+    expect(ContactRequest::shopPath($path))->toBe($kept);
+})->with([
+    'a product page' => ['/felgen/borbet-db8gt2', '/felgen/borbet-db8gt2'],
+    'with its query' => ['/felgen?zoll=19.0&fahrzeug=3', '/felgen?zoll=19.0&fahrzeug=3'],
+    'another host' => ['//example.org/x', null],
+    'a dot segment' => ['/.//example.org', null],
+    'a parent segment' => ['/felgen/../admin', null],
+    'a trailing line break' => ["/felgen\n", null],
+    'not a path' => ['https://example.org/', null],
+]);
 
 it('answers a filled honeypot like a person, and keeps and sends nothing', function (): void {
     Mail::fake();
@@ -170,6 +196,7 @@ describe('Verkauf › Nachrichten', function (): void {
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/Nachrichten/Index')
                 ->where('filter', 'ungelesen')
+                ->where('count', 1)
                 ->where('total', 2)
                 ->has('items', 1)
                 ->where('items.0.subject', 'Neu')
