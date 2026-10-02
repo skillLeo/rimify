@@ -435,21 +435,18 @@ describe('HeroFrame · motion', () => {
 })
 
 describe('HeroFrame · the lines under the frame', () => {
-    it('prints the spec line, the caption that links to the product, and what the picture shows', () => {
+    it('prints the spec line, the caption naming the product — no price, no link (the client\'s #4) — and what the picture shows', () => {
         const wrapper = mountFrame()
-        const frameLink = wrapper.find('.hero-frame')
-        const caption = wrapper.find('a.hero-mobile__caption')
 
         expect(visibleText(wrapper.find('.hero-mobile__spec'))).toBe(FACTS.specLine)
-        expect(frameLink.element.tagName).toBe('A')
-        expect(frameLink.attributes('href')).toBe('/felgen/motec-mcr4-ultimate')
-        // Named by its content — the picture's alt — never by a label that leaves the visible text out.
-        expect(frameLink.attributes('aria-label')).toBeUndefined()
-        expect(caption.attributes('href')).toBe('/felgen/motec-mcr4-ultimate')
-        expect(caption.text()).toContain('MOTEC MCR4 Ultimate · Light Grey D5')
-        expect(caption.text()).toContain(`ab 189,00${NNBSP}€ · pro Felge`)
-        // PAngV: what the price includes stands beside it.
-        expect(caption.text()).toContain('inkl. MwSt., zzgl. Versand')
+        // The hero shows a wheel and its numbers; the shop starts at the selector (D-108).
+        expect(wrapper.find('.hero-frame').element.tagName).toBe('DIV')
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.find('[href]').exists()).toBe(false)
+        expect(wrapper.find('.hero-mobile__caption').text()).toBe('MOTEC MCR4 Ultimate · Light Grey D5')
+        for (const price of ['pro Felge', `189,00${NNBSP}€`, 'inkl. MwSt.']) {
+            expect(wrapper.text()).not.toContain(price)
+        }
         expect(wrapper.find('.hero-mobile__shown').text()).toBe(CAPTION)
         expect(wrapper.find('.hero-mobile__symbolic').exists()).toBe(false)
         expect(wrapper.text()).not.toContain('Demodaten')

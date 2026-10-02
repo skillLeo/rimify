@@ -29,13 +29,10 @@ import { usePage } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import Picture from '../Ui/Picture.vue'
 import SpecCallout from '../Ui/SpecCallout.vue'
-import ValueText from '../Ui/ValueText.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import HeroSelector from './HeroSelector.vue'
 import HeroHelp from './HeroHelp.vue'
 import { COMPANION_STAGGER_MS, companionScene, companionStyle, DESKTOP_COMPANION, DESKTOP_LAYOUT, DESKTOP_PAIR_LAYOUT, frameStyle, HERO_SIZES_DESKTOP, heroScene, rollStyle } from '../Mobile/Home/calloutSlots'
-import { priceTerms } from '../../composables/usePriceTerms'
-import { formatMoney } from '../../lib/num'
 import type { MakeOption, StartseiteProps } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
 
@@ -54,7 +51,6 @@ const DEMO = 'Demodaten – Beispielsortiment; Preise und Bestände sind Beispie
 
 const page = usePage<SharedProps & { demo?: boolean }>()
 const vehicle = computed(() => page.props.vehicle)
-const terms = computed(() => priceTerms(page.props.smallBusiness === true))
 const product = computed(() => props.hero.product)
 /* Two wheels where the product has a second photographed finish (PROTECTED.md P1): the boxes then all stand on the left. */
 const layout = computed(() => (product.value?.companion?.imageManifest ? DESKTOP_PAIR_LAYOUT : DESKTOP_LAYOUT))
@@ -74,11 +70,9 @@ const callouts = computed(() => (photo.value === null ? [] : scene.value.callout
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
 /*
- * One link, to the product, whenever the product is named — and it is named only over its own
- * photograph: never under the outline, whether the product is symbolic or its photograph failed.
+ * Named only over its own photograph: never under the outline, whether the product is symbolic or its photograph
+ * failed. Never priced and never linked (the client's #4, D-108).
  */
-const linked = computed(() => product.value !== null && !product.value.symbolic && photo.value !== null && product.value.published !== false)
-/* Named over its own photograph; a draft is named without a price (it is shown, not offered). */
 const named = computed(() => product.value !== null && !product.value.symbolic && photo.value !== null)
 
 const title = computed(() =>
@@ -86,7 +80,6 @@ const title = computed(() =>
 )
 const subline = computed(() => (props.hero.subline.trim() === '' ? SUBLINE : props.hero.subline))
 const alt = computed(() => (product.value === null ? '' : `${product.value.brand} ${product.value.name} in ${product.value.finish}, Ansicht von vorn`))
-const perWheel = computed(() => (product.value === null ? '' : formatMoney(product.value.fromPriceCents)))
 
 /* The layout's geometry for the stylesheet, and the leaders' start after the roll (none without one). */
 /* The leaders draw once both wheels stand: after the roll, and after the second wheel's beat when it is there. */
@@ -120,9 +113,9 @@ onMounted(() => {
             </div>
 
             <div class="hero__stage" :style="stageStyle">
-                <!-- One link, one tab stop — the picture and the caption — named by its content (the
-                     picture's alt and the caption): no aria-label, so the visible text is in the name. -->
-                <component :is="linked ? 'a' : 'div'" class="hero__link" :href="linked && product ? `/felgen/${product.slug}` : undefined">
+                <!-- The picture and its caption: no price and no link (the client's #4, D-108) — the hero shows a
+                     wheel and its numbers; the shop starts at the selector. -->
+                <div class="hero__figure">
                     <div class="hero__frame-box">
                         <div ref="frame" class="frame hero__frame">
                             <div class="hero-studio" aria-hidden="true" />
@@ -172,15 +165,11 @@ onMounted(() => {
                         </div>
                     </div>
 
+                    <!-- Brand, model and finish are names: never translated. -->
                     <span v-if="named && product" class="hero__caption">
-                        <!-- Brand, model and finish are names, the price is a figure: neither is
-                             translated. *ab* and *pro Felge* are German and stay translatable. -->
                         <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
-                        <span v-if="linked" class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
-                        <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
-                        <span v-if="linked" class="micro quiet">{{ terms.note }}</span>
                     </span>
-                </component>
+                </div>
 
                 <div v-if="product" class="hero__notes">
                     <!-- The spec line is nothing but tokens and figures — `8,5J × 19 · ET 45 ·
@@ -244,22 +233,11 @@ onMounted(() => {
     min-width: 0;
 }
 
-.hero__link {
+.hero__figure {
     display: flex;
     flex-direction: column;
     gap: var(--sp-8);
     min-height: 0;
-    color: inherit;
-    text-decoration: none;
-}
-
-.hero__link:focus-visible {
-    outline: none;
-}
-
-.hero__link:focus-visible .hero__frame {
-    outline: 2px solid var(--c-blue);
-    outline-offset: 2px;
 }
 
 .hero__frame-box {
@@ -400,12 +378,6 @@ onMounted(() => {
     color: var(--c-ink);
 }
 
-@media (hover: hover) and (pointer: fine) {
-    a.hero__link:hover .hero__caption-name {
-        text-decoration: underline;
-        text-underline-offset: 3px;
-    }
-}
 
 .hero__notes {
     display: grid;
@@ -441,7 +413,7 @@ onMounted(() => {
         container-type: size;
     }
 
-    .hero__link,
+    .hero__figure,
     .hero__frame-box {
         flex: 0 1 auto;
     }
