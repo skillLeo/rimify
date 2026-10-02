@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
+use App\Http\Middleware\VehicleFromUrl;
 use App\Services\Admin\AdminErrorPage;
 use App\Services\Storefront\Chrome;
 use App\Services\Storefront\ErrorPage;
@@ -55,6 +56,8 @@ return Application::configure(basePath: dirname(__DIR__))
             DetectDevice::class,
             // The shop visitor's rate-limit key (VisitorKey), minted on the first request that has none.
             AssignVisitorKey::class,
+            // The car in the address wins over the cookie, before anything reads either (#8, D-116).
+            VehicleFromUrl::class,
             EnsureAdminSessionValid::class,
             HandleInertiaRequests::class,
         ]);

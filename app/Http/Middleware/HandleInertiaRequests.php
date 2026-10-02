@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Storefront\VehicleContext;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
@@ -19,9 +20,11 @@ use App\Support\PreviewRibbon;
 use App\Support\ReleaseStamp;
 use App\Support\Seller;
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Middleware;
 use Throwable;
@@ -40,6 +43,36 @@ class HandleInertiaRequests extends Middleware
     public function version(Request $request): ?string
     {
         return parent::version($request);
+    }
+
+    /**
+     * The address the browser shows (the client's #8, D-116). On a page that answers for one car, the car it was
+     * rendered for stands in it — `?fahrzeug=127` — so the page can be saved and shared, and opening that address
+     * renders the same answer (VehicleFromUrl). Without a car no stale number stays behind; every other page keeps
+     * the address it was asked for.
+     */
+    public function urlResolver(): Closure
+    {
+        return static function (Request $request): string {
+            $url = Str::start(Str::after($request->fullUrl(), $request->getSchemeAndHttpHost()), '/');
+
+            if (! in_array($request->route()?->getName(), VehicleFromUrl::ROUTES, true)) {
+                return $url;
+            }
+
+            $raw = $request->cookie(VehicleContext::COOKIE);
+            $vehicleId = VehicleContext::decode(is_string($raw) ? $raw : null)?->vehicleId;
+            $pairs = array_values(array_filter(
+                explode('&', (string) $request->getQueryString()),
+                static fn (string $pair): bool => $pair !== '' && ! str_starts_with($pair, VehicleFromUrl::PARAM.'='),
+            ));
+
+            if ($vehicleId !== null) {
+                $pairs[] = VehicleFromUrl::PARAM.'='.$vehicleId;
+            }
+
+            return Str::before($url, '?').($pairs === [] ? '' : '?'.implode('&', $pairs));
+        };
     }
 
     /**
