@@ -213,8 +213,8 @@ final readonly class ProductCards
      * showing its cheapest configuration. No fitment claim is made anywhere on these.
      *
      * Options, all optional and all real queries: `order` — `price` (cheapest first, the default),
-     * `newest` (the model's creation date) or `coverage` (the number of document rows behind the
-     * model, which is the closest thing to popularity this catalogue can measure honestly);
+     * `newest` (the model's creation date), `coverage` (the number of document rows behind the
+     * model) or `bestselling` (paid orders that hold the model — BestSellers — then coverage);
      * `maxPriceCents` — only models whose cheapest configuration is at or under it; `modelIds` —
      * only these models, in the order given; `withImageOnly` — only finishes with a cut-out (the
      * homepage's shop window while the demo set is incomplete). Finishes with a photograph come
@@ -256,7 +256,9 @@ final readonly class ProductCards
             ))
             ->orderByRaw('(wf.image_manifest IS NOT NULL) DESC')
             ->when($order === 'newest', fn ($q) => $q->orderBy('wm.created_at', 'desc'))
-            ->when($order === 'coverage', fn ($q) => $q->orderByRaw(
+            // What has sold, then — while nothing has, and among equals — the most approvals (#5, D-110).
+            ->when($order === 'bestselling', fn ($q) => $q->orderByRaw(...BestSellers::orderSql()))
+            ->when($order === 'coverage' || $order === 'bestselling', fn ($q) => $q->orderByRaw(
                 '(SELECT COUNT(*) FROM fitments f JOIN wheel_configs c ON c.id = f.wheel_config_id WHERE c.wheel_model_id = wm.id) DESC',
             ))
             ->orderByRaw('MIN(wc.price_cents) ASC')

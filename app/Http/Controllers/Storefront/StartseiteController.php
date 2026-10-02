@@ -17,6 +17,7 @@ use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Content\PageContent;
 use App\Services\Storefront\CalculatorPrefill;
+use App\Services\Storefront\BestSellers;
 use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\MegaMenu;
@@ -52,10 +53,13 @@ class StartseiteController extends Controller
      * that made a row of one tile, and nothing to compare.)
      */
     private const TABS = [
-        'beliebt' => ['label' => 'Meiste Freigaben', 'options' => ['order' => 'coverage']],
+        'beliebt' => ['label' => 'Meiste Freigaben', 'options' => ['order' => 'bestselling']],
         'neu' => ['label' => 'Neu', 'options' => ['order' => 'newest']],
         'bis200' => ['label' => 'Bis 200 €', 'options' => ['order' => 'price', 'maxPriceCents' => 20_000]],
     ];
+
+    /** The first tab once the shop has sold a wheel (#5, D-110). */
+    public const BESTSELLING_LABEL = 'Meistgekauft';
 
     public function __construct(
         private readonly ProductCards $cards,
@@ -68,6 +72,7 @@ class StartseiteController extends Controller
         private readonly ListingQuery $listing,
         private readonly CalculatorPrefill $calculatorPrefill,
         private readonly PageContent $content,
+        private readonly BestSellers $bestSellers,
     ) {}
 
     public function index(Request $request): Response
@@ -362,7 +367,9 @@ class StartseiteController extends Controller
         $tabs = [];
 
         foreach (self::TABS as $key => $definition) {
-            $tabs[] = ['key' => $key, 'label' => $definition['label']];
+            // „Meistgekauft“ only once something has sold; until then the order it can prove, named for what it counts (#5, D-110).
+            $label = $key === 'beliebt' && $this->bestSellers->any() ? self::BESTSELLING_LABEL : $definition['label'];
+            $tabs[] = ['key' => $key, 'label' => $label];
         }
 
         if ($vehicleId !== null) {
@@ -391,14 +398,30 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The three orders on a set of cards that the listing already chose: `beliebt` keeps the
-     * listing's order, `neu` puts the newest models first, `bis200` keeps the ones from 200 € down.
+     * The three orders on a set of cards that the listing already chose: `beliebt` puts what has sold
+     * first and otherwise keeps the listing's order (#5, D-110), `neu` puts the newest models first,
+     * `bis200` keeps the ones from 200 € down.
      *
      * @param  list<array<string, mixed>>  $cards
      * @return list<array<string, mixed>>
      */
     private function arrange(array $cards, string $tab): array
     {
+        if ($tab === 'beliebt') {
+            $sold = $this->bestSellers->counts();
+
+            if ($sold === []) {
+                return $cards;
+            }
+
+            // Stable: among equals — and among the unsold — the listing's own order stands.
+            $position = array_flip(array_keys($cards));
+            uksort($cards, static fn (int $a, int $b): int => [($sold[(int) $cards[$b]['modelId']] ?? 0), $position[$a]]
+                <=> [($sold[(int) $cards[$a]['modelId']] ?? 0), $position[$b]]);
+
+            return array_values($cards);
+        }
+
         if ($tab === 'bis200') {
             return array_values(array_filter($cards, static fn (array $card): bool => (int) $card['fromPriceCents'] <= 20_000));
         }

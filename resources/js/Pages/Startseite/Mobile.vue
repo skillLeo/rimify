@@ -331,7 +331,7 @@ onBeforeUnmount(() => {
 
             <div v-else class="container empty">
                 <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                <p class="empty__text">Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
+                <p class="empty__text">Schau unter „{{ popular.tabs[0]?.label ?? 'Meiste Freigaben' }}“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
             </div>
         </div>
 
