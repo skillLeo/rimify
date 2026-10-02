@@ -59,6 +59,9 @@ const currentPage = computed(() => props.page ?? 1)
 /* The facets come with a car and without one (#30, D-118): the filters show whenever there is something to narrow. */
 const showFilters = computed(() => Object.values(props.facets ?? {}).some((options) => (options?.length ?? 0) > 0))
 
+/* The vehicle bar under the header, where the server shows it: the sticky filter column starts below it (#24, D-120). */
+const vehicleBar = computed(() => vehicle.value !== null && (shared.value.headerMode === 'WHITE_BOX' || shared.value.headerMode === 'BLUE_BAR'))
+
 /* What the sheet's button shows: the car's total, or the cards of the catalogue. */
 const shownCount = computed(() => props.total ?? props.cards.length)
 
@@ -158,7 +161,7 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- Below 1200px: one sticky bar that opens the filters. -->
-            <div v-if="showFilters" class="plp__bar">
+            <div v-if="showFilters" class="plp__bar" :class="{ 'plp__bar--vbar': vehicleBar }">
                 <button class="btn btn--secondary plp__bar-btn" type="button" @click="sheetOpen = true">
                     <Icon name="filter" :size="20" />
                     Filter
@@ -179,7 +182,7 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <div class="plp__layout" :class="{ 'plp__layout--filters': showFilters }">
+            <div class="plp__layout" :class="{ 'plp__layout--filters': showFilters, 'plp__layout--vbar': vehicleBar }">
                 <aside v-if="showFilters" class="plp__side" aria-label="Filter">
                     <FilterBar
                         :facets="facets"
@@ -425,9 +428,19 @@ onBeforeUnmount(() => {
     }
 }
 
-@media (min-width: 900px) {
+/* Under the vehicle bar too, where it shows (#24, D-120): a sticky row must not slide beneath another. */
+.plp__bar--vbar {
+    top: calc(var(--header-h-m) + var(--vbar-h));
+}
+
+/* The header grows to its desktop height at 1024px (SiteHeader); the bar follows it there, not before. */
+@media (min-width: 1024px) {
     .plp__bar {
         top: var(--header-h);
+    }
+
+    .plp__bar--vbar {
+        top: calc(var(--header-h) + var(--vbar-h));
     }
 }
 
@@ -443,12 +456,26 @@ onBeforeUnmount(() => {
         align-items: start;
     }
 
+    /*
+     * The client's #24 (D-120): the column starts under everything sticky above it — the header and, where it shows,
+     * the vehicle bar — and is never taller than what is left of the window, so its last option and the end of its
+     * scrollbar are on screen; reaching that end does not carry the scroll on into the page.
+     */
+    .plp__layout {
+        --plp-top: calc(var(--header-h) + var(--space-4));
+    }
+
+    .plp__layout--vbar {
+        --plp-top: calc(var(--header-h) + var(--vbar-h) + var(--space-4));
+    }
+
     .plp__side {
         display: block;
         position: sticky;
-        top: calc(var(--header-h) + var(--space-4));
-        max-height: calc(100vh - var(--header-h) - var(--space-6));
+        top: var(--plp-top);
+        max-height: calc(100dvh - var(--plp-top) - var(--space-4));
         overflow-y: auto;
+        overscroll-behavior: contain;
         padding: var(--space-4);
         background: var(--surface);
         border: 1px solid var(--line);
