@@ -596,248 +596,252 @@ onBeforeUnmount(() => treeController?.abort())
                     <TabsTrigger value="scan" class="tabs__trigger">Fahrzeugschein scannen</TabsTrigger>
                 </TabsList>
 
-                <!-- Marke → Modell → Fahrzeug -->
-                <TabsContent value="marke" class="tabs__content">
-                    <div class="sel__row sel__row--pair">
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`${id}-marke`">Marke</label>
-                            <ComboboxRoot v-model="make" class="sel__combo" open-on-click>
-                                <ComboboxAnchor class="sel__anchor">
-                                    <ComboboxInput
-                                        :id="`${id}-marke`"
-                                        class="input"
-                                        placeholder="z. B. BMW"
-                                        autocapitalize="off"
-                                        spellcheck="false"
-                                        :display-value="stringDisplay"
-                                    />
-                                </ComboboxAnchor>
-                                <ComboboxContent class="popover sel__list" aria-label="Marken">
-                                    <ComboboxViewport class="sel__viewport">
-                                        <ComboboxEmpty class="sel__empty small muted">Keine Marke gefunden.</ComboboxEmpty>
-                                        <ComboboxItem
-                                            v-for="m in props.selector.makes"
-                                            :key="m.make"
-                                            :value="m.make"
-                                            :text-value="m.make"
-                                            class="menu__item sel__item"
-                                        >
-                                            <span>{{ m.make }}</span> <span class="small quiet num">{{ anzahl(m.models, 'Modell', 'Modelle') }}</span>
-                                        </ComboboxItem>
-                                    </ComboboxViewport>
-                                </ComboboxContent>
-                            </ComboboxRoot>
-                        </div>
-
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`${id}-modell`">Modell</label>
-                            <ComboboxRoot
-                                v-model="model"
-                                v-model:open="modelOpen"
-                                class="sel__combo"
-                                :disabled="make === undefined || modelsLoading"
-                                open-on-click
-                            >
-                                <ComboboxAnchor class="sel__anchor">
-                                    <ComboboxInput
-                                        :id="`${id}-modell`"
-                                        class="input"
-                                        placeholder="z. B. 3er Coupé"
-                                        autocapitalize="off"
-                                        spellcheck="false"
-                                        :disabled="make === undefined || modelsLoading"
-                                        :display-value="stringDisplay"
-                                    />
-                                </ComboboxAnchor>
-                                <ComboboxContent class="popover sel__list" aria-label="Modelle">
-                                    <ComboboxViewport class="sel__viewport">
-                                        <ComboboxEmpty class="sel__empty small muted">Kein Modell gefunden.</ComboboxEmpty>
-                                        <ComboboxItem
-                                            v-for="m in models"
-                                            :key="m.model"
-                                            :value="m.model"
-                                            :text-value="m.model"
-                                            class="menu__item sel__item"
-                                        >
-                                            <span>{{ m.model }}</span> <span class="small quiet num">{{ anzahl(m.variants, 'Variante', 'Varianten') }}</span>
-                                        </ComboboxItem>
-                                    </ComboboxViewport>
-                                </ComboboxContent>
-                            </ComboboxRoot>
-                        </div>
-                    </div>
-
-                    <div class="sel__row">
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`${id}-fahrzeug`">Fahrzeug</label>
-                            <ComboboxRoot
-                                v-model="variantId"
-                                class="sel__combo"
-                                :disabled="model === undefined || variantsLoading"
-                                open-on-click
-                            >
-                                <ComboboxAnchor class="sel__anchor">
-                                    <ComboboxInput
-                                        :id="`${id}-fahrzeug`"
-                                        class="input"
-                                        placeholder="Variante, Baujahr, kW"
-                                        autocapitalize="off"
-                                        spellcheck="false"
-                                        :disabled="model === undefined || variantsLoading"
-                                        :display-value="variantDisplay"
-                                    />
-                                </ComboboxAnchor>
-                                <ComboboxContent class="popover sel__list" aria-label="Fahrzeuge">
-                                    <ComboboxViewport class="sel__viewport">
-                                        <ComboboxEmpty class="sel__empty small muted">Kein Fahrzeug gefunden.</ComboboxEmpty>
-                                        <ComboboxItem
-                                            v-for="v in variants"
-                                            :key="v.id"
-                                            :value="v.id"
-                                            :text-value="variantLabel(v)"
-                                            class="menu__item sel__item num"
-                                        >
-                                            {{ variantLabel(v) }}
-                                        </ComboboxItem>
-                                    </ComboboxViewport>
-                                </ComboboxContent>
-                            </ComboboxRoot>
-                        </div>
-                    </div>
-
-                    <p v-if="treeFailed" class="small muted sel__tree-failed" role="status">
-                        Die Liste lässt sich gerade nicht laden. Versuch es bitte noch einmal oder nutze die HSN/TSN.
-                    </p>
-                </TabsContent>
-
-                <!-- HSN / TSN -->
-                <TabsContent value="hsn" class="tabs__content">
-                    <!-- Several cars behind one pair of key numbers: a confirmation, never a guess (R-01). -->
-                    <div v-if="chooser && lookup" class="sel__chooser">
-                        <p class="h4">{{ chooser.rows.length }} Fahrzeuge passen zu {{ lookup.hsn }}/{{ lookup.tsn }} – welches ist deins?</p>
-
-                        <p v-if="chooser.indistinguishable" class="small muted">
-                            Die Fahrzeuge unterscheiden sich in keinem Feld, das wir anzeigen können. Die VSN aus
-                            deiner Zulassungsbescheinigung hilft weiter.
-                        </p>
-
-                        <div class="sel__candidates" role="radiogroup" :aria-label="`Fahrzeuge zu ${lookup.hsn}/${lookup.tsn}`">
-                            <label v-for="row in chooser.rows" :key="row.id" class="check sel__candidate">
-                                <input v-model="candidate" type="radio" :name="`${id}-kandidat`" :value="row.id" />
-                                <span class="sel__candidate-text">
-                                    <span>{{ row.label }}</span>
-                                    <span class="small num muted">{{ candidateFacts(row) }}</span>
-                                </span>
-                            </label>
-                        </div>
-
-                        <div class="sel__chooser-actions">
-                            <button
-                                class="btn btn--secondary"
-                                type="button"
-                                :disabled="candidate === null || pending"
-                                :aria-busy="pending ? 'true' : undefined"
-                                @click="chooseCandidate"
-                            >
-                                Dieses Fahrzeug wählen
-                            </button>
-                            <button class="link" type="button" @click="otherNumbers">Andere Nummern eingeben</button>
-                        </div>
-                    </div>
-
-                    <template v-else>
-                        <p v-if="scanFailed" class="notice sel__notice" role="alert">{{ SCAN_FAILED }}</p>
-
-                        <div class="sel__keys">
+                <!-- The three panels share one cell, the inactive ones invisible: the panel is always as tall as its
+                     tallest, so changing the tab moves nothing below it (the client's #7, D-112). -->
+                <div class="sel__panels">
+                    <!-- Marke → Modell → Fahrzeug -->
+                    <TabsContent value="marke" class="tabs__content" force-mount>
+                        <div class="sel__row sel__row--pair">
                             <div class="form-field">
-                                <label class="form-field__label" :for="`${id}-hsn`">HSN (Feld 2.1)</label>
-                                <input
-                                    :id="`${id}-hsn`"
-                                    ref="hsnField"
-                                    class="input input--code"
-                                    :value="hsn"
-                                    inputmode="numeric"
-                                    autocomplete="off"
-                                    enterkeyhint="next"
-                                    :aria-invalid="hsnError || keys.errors.hsn ? 'true' : undefined"
-                                    :aria-describedby="`${id}-hsn-error`"
-                                    @input="onHsn"
-                                    @paste.prevent="onHsnPaste"
-                                    @blur="validateHsn"
-                                />
-                                <p :id="`${id}-hsn-error`" class="form-field__error">{{ hsnError ?? keys.errors.hsn ?? '' }}</p>
+                                <label class="form-field__label" :for="`${id}-marke`">Marke</label>
+                                <ComboboxRoot v-model="make" class="sel__combo" open-on-click>
+                                    <ComboboxAnchor class="sel__anchor">
+                                        <ComboboxInput
+                                            :id="`${id}-marke`"
+                                            class="input"
+                                            placeholder="z. B. BMW"
+                                            autocapitalize="off"
+                                            spellcheck="false"
+                                            :display-value="stringDisplay"
+                                        />
+                                    </ComboboxAnchor>
+                                    <ComboboxContent class="popover sel__list" aria-label="Marken">
+                                        <ComboboxViewport class="sel__viewport">
+                                            <ComboboxEmpty class="sel__empty small muted">Keine Marke gefunden.</ComboboxEmpty>
+                                            <ComboboxItem
+                                                v-for="m in props.selector.makes"
+                                                :key="m.make"
+                                                :value="m.make"
+                                                :text-value="m.make"
+                                                class="menu__item sel__item"
+                                            >
+                                                <span>{{ m.make }}</span> <span class="small quiet num">{{ anzahl(m.models, 'Modell', 'Modelle') }}</span>
+                                            </ComboboxItem>
+                                        </ComboboxViewport>
+                                    </ComboboxContent>
+                                </ComboboxRoot>
                             </div>
-                            <div class="form-field">
-                                <label class="form-field__label" :for="`${id}-tsn`">TSN (Feld 2.2)</label>
-                                <input
-                                    :id="`${id}-tsn`"
-                                    ref="tsnField"
-                                    class="input input--code"
-                                    :value="tsn"
-                                    maxlength="3"
-                                    autocapitalize="characters"
-                                    autocomplete="off"
-                                    enterkeyhint="go"
-                                    :aria-invalid="tsnError || keys.errors.tsn ? 'true' : undefined"
-                                    :aria-describedby="`${id}-tsn-error`"
-                                    @input="onTsn"
-                                    @paste.prevent="onTsnPaste"
-                                    @blur="validateTsn"
-                                />
-                                <p :id="`${id}-tsn-error`" class="form-field__error">{{ tsnError ?? keys.errors.tsn ?? '' }}</p>
-                            </div>
-                        </div>
 
-                        <PopoverRoot v-model:open="helpOpen">
-                            <PopoverTrigger class="link small sel__help" type="button">Wo finde ich HSN und TSN?</PopoverTrigger>
-                            <PopoverPortal>
-                                <PopoverContent
-                                    class="popover popover--padded sel__doc"
-                                    side="bottom"
-                                    align="start"
-                                    :side-offset="8"
-                                    :collision-padding="16"
-                                    aria-label="Wo finde ich HSN und TSN?"
+                            <div class="form-field">
+                                <label class="form-field__label" :for="`${id}-modell`">Modell</label>
+                                <ComboboxRoot
+                                    v-model="model"
+                                    v-model:open="modelOpen"
+                                    class="sel__combo"
+                                    :disabled="make === undefined || modelsLoading"
+                                    open-on-click
                                 >
-                                    <div class="chip-row" role="group" aria-label="Dokument">
-                                        <button class="chip" type="button" :aria-pressed="doc === 'neu'" @click="doc = 'neu'">
-                                            Neue Zulassungsbescheinigung
-                                        </button>
-                                        <button class="chip" type="button" :aria-pressed="doc === 'alt'" @click="doc = 'alt'">
-                                            Alter Fahrzeugschein
-                                        </button>
-                                    </div>
-                                    <DocFacsimile
-                                        :variant="doc"
-                                        :width="480"
-                                        :title="doc === 'neu' ? 'Zulassungsbescheinigung Teil I mit den Feldern 2.1 und 2.2' : 'Alter Fahrzeugschein mit den Feldern 2 und 3'"
-                                    />
-                                    <p class="small muted sel__doc-text">
-                                        Die HSN steht in Feld 2.1, die TSN sind die ersten drei Zeichen von Feld 2.2 deiner
-                                        Zulassungsbescheinigung Teil I.
-                                    </p>
-                                </PopoverContent>
-                            </PopoverPortal>
-                        </PopoverRoot>
-
-                        <!-- No match: what was typed stays, and three ways forward (R-09). -->
-                        <div v-if="notFound && lookup" class="notice sel__notice sel__notfound" role="status">
-                            <div>
-                                <p>Zu {{ lookup.hsn }}/{{ lookup.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
-                                <ul class="sel__routes">
-                                    <li><button class="link" type="button" @click="checkAgain">Nochmal prüfen</button></li>
-                                    <li><button class="link" type="button" @click="viaMake">Über Marke &amp; Modell wählen</button></li>
-                                    <li><a class="link" :href="reach.href">{{ reach.label }}</a></li>
-                                </ul>
+                                    <ComboboxAnchor class="sel__anchor">
+                                        <ComboboxInput
+                                            :id="`${id}-modell`"
+                                            class="input"
+                                            placeholder="z. B. 3er Coupé"
+                                            autocapitalize="off"
+                                            spellcheck="false"
+                                            :disabled="make === undefined || modelsLoading"
+                                            :display-value="stringDisplay"
+                                        />
+                                    </ComboboxAnchor>
+                                    <ComboboxContent class="popover sel__list" aria-label="Modelle">
+                                        <ComboboxViewport class="sel__viewport">
+                                            <ComboboxEmpty class="sel__empty small muted">Kein Modell gefunden.</ComboboxEmpty>
+                                            <ComboboxItem
+                                                v-for="m in models"
+                                                :key="m.model"
+                                                :value="m.model"
+                                                :text-value="m.model"
+                                                class="menu__item sel__item"
+                                            >
+                                                <span>{{ m.model }}</span> <span class="small quiet num">{{ anzahl(m.variants, 'Variante', 'Varianten') }}</span>
+                                            </ComboboxItem>
+                                        </ComboboxViewport>
+                                    </ComboboxContent>
+                                </ComboboxRoot>
                             </div>
                         </div>
-                    </template>
-                </TabsContent>
 
-                <!-- The photo, read on the customer's device -->
-                <TabsContent value="scan" class="tabs__content">
-                    <DocumentScan @confirm="onScan" @failed="onScanFailed" />
-                </TabsContent>
+                        <div class="sel__row">
+                            <div class="form-field">
+                                <label class="form-field__label" :for="`${id}-fahrzeug`">Fahrzeug</label>
+                                <ComboboxRoot
+                                    v-model="variantId"
+                                    class="sel__combo"
+                                    :disabled="model === undefined || variantsLoading"
+                                    open-on-click
+                                >
+                                    <ComboboxAnchor class="sel__anchor">
+                                        <ComboboxInput
+                                            :id="`${id}-fahrzeug`"
+                                            class="input"
+                                            placeholder="Variante, Baujahr, kW"
+                                            autocapitalize="off"
+                                            spellcheck="false"
+                                            :disabled="model === undefined || variantsLoading"
+                                            :display-value="variantDisplay"
+                                        />
+                                    </ComboboxAnchor>
+                                    <ComboboxContent class="popover sel__list" aria-label="Fahrzeuge">
+                                        <ComboboxViewport class="sel__viewport">
+                                            <ComboboxEmpty class="sel__empty small muted">Kein Fahrzeug gefunden.</ComboboxEmpty>
+                                            <ComboboxItem
+                                                v-for="v in variants"
+                                                :key="v.id"
+                                                :value="v.id"
+                                                :text-value="variantLabel(v)"
+                                                class="menu__item sel__item num"
+                                            >
+                                                {{ variantLabel(v) }}
+                                            </ComboboxItem>
+                                        </ComboboxViewport>
+                                    </ComboboxContent>
+                                </ComboboxRoot>
+                            </div>
+                        </div>
+
+                        <p v-if="treeFailed" class="small muted sel__tree-failed" role="status">
+                            Die Liste lässt sich gerade nicht laden. Versuch es bitte noch einmal oder nutze die HSN/TSN.
+                        </p>
+                    </TabsContent>
+
+                    <!-- HSN / TSN -->
+                    <TabsContent value="hsn" class="tabs__content" force-mount>
+                        <!-- Several cars behind one pair of key numbers: a confirmation, never a guess (R-01). -->
+                        <div v-if="chooser && lookup" class="sel__chooser">
+                            <p class="h4">{{ chooser.rows.length }} Fahrzeuge passen zu {{ lookup.hsn }}/{{ lookup.tsn }} – welches ist deins?</p>
+
+                            <p v-if="chooser.indistinguishable" class="small muted">
+                                Die Fahrzeuge unterscheiden sich in keinem Feld, das wir anzeigen können. Die VSN aus
+                                deiner Zulassungsbescheinigung hilft weiter.
+                            </p>
+
+                            <div class="sel__candidates" role="radiogroup" :aria-label="`Fahrzeuge zu ${lookup.hsn}/${lookup.tsn}`">
+                                <label v-for="row in chooser.rows" :key="row.id" class="check sel__candidate">
+                                    <input v-model="candidate" type="radio" :name="`${id}-kandidat`" :value="row.id" />
+                                    <span class="sel__candidate-text">
+                                        <span>{{ row.label }}</span>
+                                        <span class="small num muted">{{ candidateFacts(row) }}</span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="sel__chooser-actions">
+                                <button
+                                    class="btn btn--secondary"
+                                    type="button"
+                                    :disabled="candidate === null || pending"
+                                    :aria-busy="pending ? 'true' : undefined"
+                                    @click="chooseCandidate"
+                                >
+                                    Dieses Fahrzeug wählen
+                                </button>
+                                <button class="link" type="button" @click="otherNumbers">Andere Nummern eingeben</button>
+                            </div>
+                        </div>
+
+                        <template v-else>
+                            <p v-if="scanFailed" class="notice sel__notice" role="alert">{{ SCAN_FAILED }}</p>
+
+                            <div class="sel__keys">
+                                <div class="form-field">
+                                    <label class="form-field__label" :for="`${id}-hsn`">HSN (Feld 2.1)</label>
+                                    <input
+                                        :id="`${id}-hsn`"
+                                        ref="hsnField"
+                                        class="input input--code"
+                                        :value="hsn"
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        enterkeyhint="next"
+                                        :aria-invalid="hsnError || keys.errors.hsn ? 'true' : undefined"
+                                        :aria-describedby="`${id}-hsn-error`"
+                                        @input="onHsn"
+                                        @paste.prevent="onHsnPaste"
+                                        @blur="validateHsn"
+                                    />
+                                    <p :id="`${id}-hsn-error`" class="form-field__error">{{ hsnError ?? keys.errors.hsn ?? '' }}</p>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-field__label" :for="`${id}-tsn`">TSN (Feld 2.2)</label>
+                                    <input
+                                        :id="`${id}-tsn`"
+                                        ref="tsnField"
+                                        class="input input--code"
+                                        :value="tsn"
+                                        maxlength="3"
+                                        autocapitalize="characters"
+                                        autocomplete="off"
+                                        enterkeyhint="go"
+                                        :aria-invalid="tsnError || keys.errors.tsn ? 'true' : undefined"
+                                        :aria-describedby="`${id}-tsn-error`"
+                                        @input="onTsn"
+                                        @paste.prevent="onTsnPaste"
+                                        @blur="validateTsn"
+                                    />
+                                    <p :id="`${id}-tsn-error`" class="form-field__error">{{ tsnError ?? keys.errors.tsn ?? '' }}</p>
+                                </div>
+                            </div>
+
+                            <PopoverRoot v-model:open="helpOpen">
+                                <PopoverTrigger class="link small sel__help" type="button">Wo finde ich HSN und TSN?</PopoverTrigger>
+                                <PopoverPortal>
+                                    <PopoverContent
+                                        class="popover popover--padded sel__doc"
+                                        side="bottom"
+                                        align="start"
+                                        :side-offset="8"
+                                        :collision-padding="16"
+                                        aria-label="Wo finde ich HSN und TSN?"
+                                    >
+                                        <div class="chip-row" role="group" aria-label="Dokument">
+                                            <button class="chip" type="button" :aria-pressed="doc === 'neu'" @click="doc = 'neu'">
+                                                Neue Zulassungsbescheinigung
+                                            </button>
+                                            <button class="chip" type="button" :aria-pressed="doc === 'alt'" @click="doc = 'alt'">
+                                                Alter Fahrzeugschein
+                                            </button>
+                                        </div>
+                                        <DocFacsimile
+                                            :variant="doc"
+                                            :width="480"
+                                            :title="doc === 'neu' ? 'Zulassungsbescheinigung Teil I mit den Feldern 2.1 und 2.2' : 'Alter Fahrzeugschein mit den Feldern 2 und 3'"
+                                        />
+                                        <p class="small muted sel__doc-text">
+                                            Die HSN steht in Feld 2.1, die TSN sind die ersten drei Zeichen von Feld 2.2 deiner
+                                            Zulassungsbescheinigung Teil I.
+                                        </p>
+                                    </PopoverContent>
+                                </PopoverPortal>
+                            </PopoverRoot>
+
+                            <!-- No match: what was typed stays, and three ways forward (R-09). -->
+                            <div v-if="notFound && lookup" class="notice sel__notice sel__notfound" role="status">
+                                <div>
+                                    <p>Zu {{ lookup.hsn }}/{{ lookup.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
+                                    <ul class="sel__routes">
+                                        <li><button class="link" type="button" @click="checkAgain">Nochmal prüfen</button></li>
+                                        <li><button class="link" type="button" @click="viaMake">Über Marke &amp; Modell wählen</button></li>
+                                        <li><a class="link" :href="reach.href">{{ reach.label }}</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </template>
+                    </TabsContent>
+
+                    <!-- The photo, read on the customer's device -->
+                    <TabsContent value="scan" class="tabs__content" force-mount>
+                        <DocumentScan @confirm="onScan" @failed="onScanFailed" />
+                    </TabsContent>
+                </div>
             </TabsRoot>
 
             <!-- F2: the car is known and no document names it — in place of the count line. -->
@@ -1092,6 +1096,21 @@ onBeforeUnmount(() => treeController?.abort())
 
 .sel__go {
     margin-top: var(--sp-16);
+}
+
+/* One cell for the three panels (#7, D-112): the tallest sets the height, the inactive ones are out of sight,
+   out of the tab order and out of the accessibility tree. */
+.sel__panels {
+    display: grid;
+}
+
+.sel__panels > :deep(.tabs__content) {
+    grid-area: 1 / 1;
+    min-width: 0;
+}
+
+.sel__panels > :deep(.tabs__content[data-state='inactive']) {
+    visibility: hidden;
 }
 
 /*
