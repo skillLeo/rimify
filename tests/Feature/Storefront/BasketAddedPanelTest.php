@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\TpmsSensorPrice;
 use App\Support\GermanFormat;
+use App\Support\MakeName;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
 use Tests\Support\Storefront\KomplettradFixture;
@@ -46,6 +48,19 @@ it('flashes a Komplettrad with its tyre named', function (): void {
             && str_starts_with($added['lines'][0]['detail'], 'Komplettrad · ')
             && str_contains($added['lines'][0]['detail'], $tyre->label())
             && $added['lines'][0]['quantity'] === 4);
+});
+
+it('lists the RDKS sensors a „Ja“ adds, so the subtotal under them adds up', function (): void {
+    $set = KomplettradFixture::permitted();
+    $tyre = $set->tyre();
+    TpmsSensorPrice::factory()->ofMake(MakeName::key($set->vehicle->make), MakeName::normalise($set->vehicle->make))->create(['price_cents' => 4_900]);
+
+    $this->withCookies($set->cookies())
+        ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $set->config->id, 'tyreVariantId' => $tyre->id, 'quantity' => 4, 'rdks' => 'ja'])
+        ->assertSessionHas('added', fn (array $added): bool => count($added['lines']) === 2
+            && $added['lines'][1]['title'] === 'RDKS-Sensoren'
+            && $added['lines'][1]['quantity'] === 4
+            && $added['lines'][1]['price'] === GermanFormat::money(19_600));
 });
 
 it('flashes nothing to show for an add the server refused', function (): void {

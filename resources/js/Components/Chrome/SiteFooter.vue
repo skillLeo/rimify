@@ -98,6 +98,11 @@ const year = new Date().getFullYear()
 .footer {
     /* Clear of a phone's home indicator, where there is one (0 everywhere else). */
     padding-block: var(--sp-64) calc(var(--sp-32) + env(safe-area-inset-bottom));
+}
+
+/* Under a price bar fixed at the bottom (the product page, D-132), the footer's last line stays above it. */
+:global(.shell:has(.stickybar)) .footer {
+    padding-bottom: calc(var(--sp-32) + var(--stickybar-h) + env(safe-area-inset-bottom));
     font-size: var(--fs-small);
     line-height: var(--lh-small);
 }

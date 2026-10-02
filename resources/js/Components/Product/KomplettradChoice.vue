@@ -144,28 +144,30 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
             </div>
         </div>
 
-        <fieldset v-else class="kc__tyres">
-            <legend class="micro">Reifen</legend>
+        <!-- The tyres as one ruled list (D-132): a radio on the left, the price in a column on the right. -->
+        <fieldset v-else class="kc__group">
+            <legend class="label kc__legend">Reifen</legend>
             <!-- The minimum as a sentence, never a bare number pair (komplettrad.md §8.1). -->
             <p v-if="offer.minSentence" class="small muted kc__min">{{ offer.minSentence }}</p>
 
-            <div class="kc__list">
-                <label v-for="card in shownCards" :key="card.tyre.id" class="kc-tile" :class="{ 'kc-tile--on': card.tyre.id === tyreId }">
-                    <input v-model="tyreId" class="visually-hidden" type="radio" name="kc-tyre" :value="card.tyre.id">
-                    <span class="kc-tile__body">
-                        <span class="kc-tile__name"><span class="kc-tile__brand">{{ card.tyre.brandName }}</span> {{ card.tyre.name }}</span>
-                        <span class="kc-tile__meta">{{ card.tyre.seasonLabel }} · <span class="data">{{ card.tyre.sizeLabel }}</span></span>
-                        <span v-if="card.label" class="kc-tile__eu num">
-                            Kraftstoffeffizienz {{ card.label.fuel }} · Nasshaftung {{ card.label.wet }} · {{ card.label.noiseDb }}&nbsp;dB ({{ card.label.noiseClass }})
+            <ul class="kc__rows" role="list">
+                <li v-for="card in shownCards" :key="card.tyre.id">
+                    <label class="kc-row" :class="{ 'kc-row--on': card.tyre.id === tyreId }">
+                        <input v-model="tyreId" class="kc-row__radio" type="radio" name="kc-tyre" :value="card.tyre.id">
+                        <span class="kc-row__body">
+                            <span class="kc-row__name"><span class="kc-row__brand">{{ card.tyre.brandName }}</span> {{ card.tyre.name }}</span>
+                            <span class="kc-row__meta">{{ card.tyre.seasonLabel }} · <span class="data">{{ card.tyre.sizeLabel }}</span></span>
+                            <span v-if="card.label" class="kc-row__eu num">
+                                Kraftstoffeffizienz {{ card.label.fuel }} · Nasshaftung {{ card.label.wet }} · {{ card.label.noiseDb }}&nbsp;dB ({{ card.label.noiseClass }})
+                            </span>
                         </span>
-                    </span>
-                    <span class="kc-tile__price">
-                        <span class="kc-tile__amount num">{{ perWheel(card.tyre) }}</span>
-                        <span class="kc-tile__per">je Rad</span>
-                    </span>
-                    <span class="kc-tile__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
-                </label>
-            </div>
+                        <span class="kc-row__price">
+                            <span class="kc-row__amount num">{{ perWheel(card.tyre) }}</span>
+                            <span class="kc-row__per">je Rad</span>
+                        </span>
+                    </label>
+                </li>
+            </ul>
 
             <button v-if="cards.length > SHOWN && !expanded" type="button" class="link kc__more" @click="expanded = true">
                 Alle {{ cards.length }} Reifen zeigen
@@ -175,20 +177,19 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
             <TyreLabel v-if="chosenLabel" v-bind="chosenLabel" class="kc__label" />
         </fieldset>
 
-        <!-- The Wuchtgewichte (#15): the colours the admin keeps active, each set priced with it on the server. -->
+        <!-- The Wuchtgewichte (#15): the colours the admin keeps active, as the page's own colour buttons. -->
         <fieldset v-if="!refusal && options && options.colours.length > 0" class="kc__group">
-            <legend class="micro">Wuchtgewichte</legend>
+            <legend class="label kc__legend">Wuchtgewichte</legend>
             <p class="small muted kc__hint">Die Gewichte sitzen innen an der Felge. Such dir die Farbe aus, die dir besser gefällt.</p>
-            <div class="kc__opts">
-                <label v-for="colour in options.colours" :key="colour.id" class="kc-opt" :class="{ 'kc-opt--on': colour.id === colourId }">
+            <div class="kc__swatches">
+                <label v-for="colour in options.colours" :key="colour.id" class="kc-swatch" :class="{ 'kc-swatch--on': colour.id === colourId }">
                     <input v-model="colourId" class="visually-hidden" type="radio" name="kc-weights" :value="colour.id">
-                    <span class="kc-opt__swatch" data-qa-ignore :style="swatchStyle(colour.swatchHex)" aria-hidden="true" />
-                    <span class="kc-opt__name">{{ colour.name }}</span>
-                    <span class="kc-opt__price num">
+                    <span class="kc-swatch__dot" data-qa-ignore :style="swatchStyle(colour.swatchHex)" aria-hidden="true" />
+                    <span class="kc-swatch__name">{{ colour.name }}</span>
+                    <span class="kc-swatch__price num">
                         <template v-if="colour.surchargeCents === 0">ohne Aufpreis</template>
                         <template v-else>+ {{ colour.surcharge }} je Rad</template>
                     </span>
-                    <span class="kc-opt__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
                 </label>
             </div>
         </fieldset>
@@ -199,7 +200,7 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
             Gutachten's to say (the DB8GT2's asks for metal screw valves where no sensor is fitted) — its conditions say it.
         -->
         <fieldset v-if="!refusal && tpms" class="kc__group">
-            <legend class="micro">RDKS-Sensoren</legend>
+            <legend class="label kc__legend">RDKS-Sensoren</legend>
             <p class="small muted kc__hint">
                 Misst dein Auto den Reifendruck mit Sensoren in den Rädern, brauchen auch die neuen Räder Sensoren. Ob das so ist,
                 steht in der Betriebsanleitung.
@@ -211,14 +212,14 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
                 <label v-if="tpms.available" class="kc-opt" :class="{ 'kc-opt--on': rdks === 'ja' }">
                     <input v-model="rdks" class="visually-hidden" type="radio" name="kc-rdks" value="ja">
                     <span class="kc-opt__name">Mit RDKS-Sensoren</span>
-                    <span class="kc-opt__price num">{{ tpms.yesTotal }}<template v-if="tpms.line"> · {{ tpms.line }}</template></span>
+                    <span class="kc-opt__price num">+ {{ tpms.yesTotal }}<template v-if="tpms.line"> ({{ tpms.line }})</template></span>
                     <span class="kc-opt__sub">Wir setzen die Sensoren gleich mit ein.</span>
                     <span class="kc-opt__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
                 </label>
                 <label class="kc-opt" :class="{ 'kc-opt--on': rdks === 'nein' }">
                     <input v-model="rdks" class="visually-hidden" type="radio" name="kc-rdks" value="nein">
-                    <span class="kc-opt__name">Ohne Sensoren</span>
-                    <span class="kc-opt__price num">0,00&nbsp;€</span>
+                    <span class="kc-opt__name">Ohne RDKS-Sensoren</span>
+                    <span class="kc-opt__price">ohne Aufpreis</span>
                     <span class="kc-opt__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
                 </label>
             </div>
@@ -227,9 +228,10 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
 </template>
 
 <style scoped>
+/* The groups 24 px apart, as the panel's own; inside a group, 8. */
 .kc {
     display: grid;
-    gap: var(--sp-12);
+    gap: var(--sp-24);
 }
 
 .kc__refusal-text {
@@ -244,7 +246,7 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
     margin: var(--sp-12) 0 0;
 }
 
-.kc__tyres {
+.kc__group {
     display: grid;
     gap: var(--sp-8);
     min-width: 0;
@@ -253,100 +255,86 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
     border: 0;
 }
 
-.kc__min {
+.kc__legend {
+    margin-bottom: var(--sp-8);
+}
+
+.kc__min,
+.kc__hint,
+.kc__tpms-notice {
     margin: 0;
 }
 
-.kc__list {
-    display: grid;
-    gap: var(--sp-8);
+/* ── Tyres: one ruled list ──────────────────────────────────────────────────── */
+
+.kc__rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--c-line);
 }
 
-/* The whole tile is the control; the radio stays for the keyboard and the screen reader (the basket's tiles). */
-.kc-tile {
-    position: relative;
+.kc-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--sp-4) var(--sp-16);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--sp-4) var(--sp-12);
     align-items: start;
-    min-height: 64px;
-    padding: var(--sp-12) var(--sp-40) var(--sp-12) var(--sp-16);
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-control);
-    background: var(--c-surface);
+    min-height: 56px;
+    padding-block: var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
     cursor: pointer;
-    transition:
-        border-color var(--d-1) var(--ease-std),
-        background-color var(--d-1) var(--ease-std);
 }
 
-.kc-tile--on {
-    padding: calc(var(--sp-12) - 1px) calc(var(--sp-40) - 1px) calc(var(--sp-12) - 1px) calc(var(--sp-16) - 1px);
-    border: 2px solid var(--c-blue);
-    background: var(--c-blue-tint);
+.kc-row__radio {
+    width: 18px;
+    height: 18px;
+    margin: 3px 0 0;
+    accent-color: var(--c-blue);
 }
 
-.kc-tile:focus-within {
+.kc-row:has(:focus-visible) {
     outline: 2px solid var(--c-blue);
     outline-offset: 2px;
 }
 
-@media (hover: hover) and (pointer: fine) {
-    .kc-tile:hover {
-        border-color: var(--c-ink-3);
-    }
-
-    .kc-tile--on:hover {
-        border-color: var(--c-blue);
-    }
+.kc-row:active {
+    background: var(--c-band);
 }
 
-.kc-tile__body {
+.kc-row__body {
     display: grid;
     gap: var(--sp-4);
     min-width: 0;
 }
 
-.kc-tile__name {
+.kc-row__name {
     font-weight: 600;
     color: var(--c-ink);
 }
 
-.kc-tile__brand {
+.kc-row__brand {
     font-weight: 400;
     color: var(--c-ink-2);
 }
 
-.kc-tile__meta,
-.kc-tile__eu,
-.kc-tile__per {
+.kc-row__meta,
+.kc-row__eu,
+.kc-row__per {
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     color: var(--c-ink-2);
 }
 
-.kc-tile__price {
+.kc-row__price {
     display: grid;
     justify-items: end;
     text-align: right;
 }
 
-.kc-tile__amount {
+.kc-row__amount {
     font-weight: 600;
     color: var(--c-ink);
     white-space: nowrap;
-}
-
-.kc-tile__check {
-    position: absolute;
-    top: var(--sp-12);
-    right: var(--sp-12);
-    display: none;
-    color: var(--c-blue);
-}
-
-.kc-tile--on .kc-tile__check {
-    display: inline-flex;
 }
 
 .kc__more {
@@ -354,29 +342,64 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
     min-height: 44px;
 }
 
-/* ── Wuchtgewichte and RDKS (#15): the same tiles, two or three to a row ─────────── */
+/* The label as wide as the list above it, never a ragged right edge. */
+.kc__label {
+    width: 100%;
+}
 
-.kc__group {
-    display: grid;
+/* ── Wuchtgewichte: the page's colour buttons ────────────────────────────────── */
+
+.kc__swatches {
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--sp-8);
-    min-width: 0;
-    margin: var(--sp-8) 0 0;
-    padding: 0;
-    border: 0;
 }
 
-.kc__hint {
-    margin: 0;
+.kc-swatch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-height: 44px;
+    padding-inline: var(--sp-12);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    cursor: pointer;
 }
 
-.kc__tpms-notice {
-    margin: 0;
+.kc-swatch--on {
+    border-color: var(--c-ink);
+    color: var(--c-ink);
 }
+
+.kc-swatch:has(:focus-visible) {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
+}
+
+/* The colour itself is catalogue data, not a design value: it arrives as a custom property from the row. */
+.kc-swatch__dot {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-round);
+    background: var(--swatch, var(--c-band));
+}
+
+.kc-swatch__name {
+    font-weight: 600;
+}
+
+/* ── RDKS: two tiles, the mode choice's ──────────────────────────────────────── */
 
 /* `auto-fit`: a single tile takes the row rather than a narrow column with its words broken. */
 .kc__opts {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
     gap: var(--sp-8);
 }
 
@@ -386,44 +409,41 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
     align-content: start;
     gap: var(--sp-4);
     min-height: 64px;
-    padding: var(--sp-12) var(--sp-40) var(--sp-12) var(--sp-12);
+    padding: var(--sp-12) var(--sp-40) var(--sp-12) var(--sp-16);
     border: 1px solid var(--c-line);
     border-radius: var(--r-control);
     background: var(--c-surface);
     cursor: pointer;
-    transition:
-        border-color var(--d-1) var(--ease-std),
-        background-color var(--d-1) var(--ease-std);
+    transition: border-color var(--d-1) var(--ease-std);
 }
 
 .kc-opt--on {
-    padding: calc(var(--sp-12) - 1px) calc(var(--sp-40) - 1px) calc(var(--sp-12) - 1px) calc(var(--sp-12) - 1px);
+    padding: calc(var(--sp-12) - 1px) calc(var(--sp-40) - 1px) calc(var(--sp-12) - 1px) calc(var(--sp-16) - 1px);
     border: 2px solid var(--c-blue);
-    background: var(--c-blue-tint);
 }
 
-.kc-opt:focus-within {
+.kc-opt:has(:focus-visible) {
     outline: 2px solid var(--c-blue);
     outline-offset: 2px;
 }
 
+.kc-opt:active {
+    background: var(--c-band);
+}
+
 @media (hover: hover) and (pointer: fine) {
-    .kc-opt:hover {
+    .kc-opt:hover,
+    .kc-swatch:hover {
         border-color: var(--c-ink-3);
     }
 
     .kc-opt--on:hover {
         border-color: var(--c-blue);
     }
-}
 
-/* The colour itself is catalogue data, not a design value: it arrives as a custom property from the row. */
-.kc-opt__swatch {
-    width: 24px;
-    height: 24px;
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-round);
-    background: var(--swatch, var(--c-band));
+    .kc-swatch--on:hover {
+        border-color: var(--c-ink);
+    }
 }
 
 .kc-opt__name {
@@ -450,19 +470,17 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
     display: inline-flex;
 }
 
-.kc__label {
-    margin-top: var(--sp-8);
-}
-
 /* On a narrow phone the price goes under the name rather than squeezing it. */
 @media (max-width: 379px) {
-    .kc-tile {
-        grid-template-columns: minmax(0, 1fr);
+    .kc-row {
+        grid-template-columns: auto minmax(0, 1fr);
     }
 
-    .kc-tile__price {
+    .kc-row__price {
+        grid-column: 2;
         justify-items: start;
         text-align: left;
     }
 }
 </style>
+

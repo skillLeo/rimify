@@ -101,15 +101,15 @@ afterEach(() => {
 describe('KomplettradChoice', () => {
     it('prints each permitted tyre with the server\'s figures, the chosen one marked, and the minimum as a sentence', () => {
         const wrapper = mountChoice(offer({ tyres: [tyre(), tyre({ id: 8, name: 'PremiumContact 7', brandName: 'Continental', perWheel: '990,00 €' })] }))
-        const tiles = wrapper.findAll('.kc-tile')
+        const tiles = wrapper.findAll('.kc-row')
 
         expect(wrapper.find('.kc__min').text()).toBe(MIN_SENTENCE)
         expect(tiles).toHaveLength(2)
         expect(tiles[0]!.text()).toContain('Bridgestone Potenza Sport')
         expect(tiles[0]!.text()).toContain('Sommerreifen · 245/45 R18 100Y')
-        expect(tiles[0]!.find('.kc-tile__amount').text()).toBe('965,00 €')
-        expect(tiles[0]!.classes()).toContain('kc-tile--on')
-        expect(tiles[1]!.classes()).not.toContain('kc-tile--on')
+        expect(tiles[0]!.find('.kc-row__amount').text()).toBe('965,00 €')
+        expect(tiles[0]!.classes()).toContain('kc-row--on')
+        expect(tiles[1]!.classes()).not.toContain('kc-row--on')
         // Nothing here posts: the page's one button adds the set.
         expect(wrapper.find('button[type="submit"]').exists()).toBe(false)
     })
@@ -126,11 +126,11 @@ describe('KomplettradChoice', () => {
         const many = Array.from({ length: 6 }, (_, i) => tyre({ id: 10 + i, name: `Reifen ${i + 1}` }))
         const wrapper = mountChoice(offer({ tyres: many }), 15)
 
-        expect(wrapper.findAll('.kc-tile')).toHaveLength(4)
-        expect(wrapper.find('.kc-tile--on').text()).toContain('Reifen 6')
+        expect(wrapper.findAll('.kc-row')).toHaveLength(4)
+        expect(wrapper.find('.kc-row--on').text()).toContain('Reifen 6')
 
         await wrapper.find('.kc__more').trigger('click')
-        expect(wrapper.findAll('.kc-tile')).toHaveLength(6)
+        expect(wrapper.findAll('.kc-row')).toHaveLength(6)
         expect(wrapper.find('.kc__more').exists()).toBe(false)
     })
 
@@ -138,12 +138,12 @@ describe('KomplettradChoice', () => {
         const label = { fuel: 'B', wetGrip: 'A', noiseDb: 71, noiseClass: 'B', eprelId: '123456' }
         const wrapper = mountChoice(offer({ tyres: [tyre({ label })] }))
 
-        expect(wrapper.find('.kc-tile__eu').text()).toBe('Kraftstoffeffizienz B · Nasshaftung A · 71 dB (B)')
+        expect(wrapper.find('.kc-row__eu').text()).toBe('Kraftstoffeffizienz B · Nasshaftung A · 71 dB (B)')
         expect(wrapper.find('a[href="https://eprel.ec.europa.eu/qr/123456"]').exists()).toBe(true)
 
         // A class the regulation does not know is never shown, nor "corrected".
         const broken = mountChoice(offer({ tyres: [tyre({ label: { ...label, fuel: 'Z' } })] }))
-        expect(broken.find('.kc-tile__eu').exists()).toBe(false)
+        expect(broken.find('.kc-row__eu').exists()).toBe(false)
         expect(broken.text()).not.toContain('Kraftstoffeffizienz')
     })
 
@@ -155,7 +155,7 @@ describe('KomplettradChoice', () => {
         expect(wrapper.find('.kc__refusal').text()).toContain(sentence)
         expect(wrapper.find('.kc__refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
         expect(wrapper.find('a[href^="/kontakt"]').exists()).toBe(false)
-        expect(wrapper.find('.kc-tile').exists()).toBe(false)
+        expect(wrapper.find('.kc-row').exists()).toBe(false)
     })
 
     it('offers the contact form, with this page as the way back, when a person has to look at it (#26)', () => {
@@ -184,26 +184,27 @@ describe('KomplettradChoice', () => {
             ],
         })
         const wrapper = mountChoice(offer({ tyres: [priced] }), 7, { options: options(), colourId: 1 })
-        const colours = wrapper.findAll('.kc-opt').filter((o) => o.find('input[name="kc-weights"]').exists())
+        const colours = wrapper.findAll('.kc-swatch')
 
-        expect(colours.map((c) => c.find('.kc-opt__name').text())).toEqual(['Silber', 'Schwarz'])
-        expect(colours[0]!.find('.kc-opt__price').text()).toBe('ohne Aufpreis')
-        expect(colours[1]!.find('.kc-opt__price').text()).toBe('+ 5,00 € je Rad')
-        expect(colours[0]!.classes()).toContain('kc-opt--on')
+        expect(colours.map((c) => c.find('.kc-swatch__name').text())).toEqual(['Silber', 'Schwarz'])
+        expect(colours[0]!.find('.kc-swatch__price').text()).toBe('ohne Aufpreis')
+        expect(colours[1]!.find('.kc-swatch__price').text()).toBe('+ 5,00 € je Rad')
+        expect(colours[0]!.classes()).toContain('kc-swatch--on')
 
         await colours[1]!.find('input').setValue()
         expect(wrapper.emitted('update:colourId')?.[0]).toEqual([2])
 
         await wrapper.setProps({ colourId: 2 })
-        expect(wrapper.find('.kc-tile__amount').text()).toBe('970,00 €')
+        expect(wrapper.find('.kc-row__amount').text()).toBe('970,00 €')
     })
 
     it('asks about RDKS sensors, unanswered until the visitor answers, and claims nothing about valves', async () => {
         const wrapper = mountChoice(offer(), 7, { options: options(), colourId: 1 })
         const rdks = wrapper.findAll('.kc-opt').filter((o) => o.find('input[name="kc-rdks"]').exists())
 
-        expect(rdks.map((r) => r.find('.kc-opt__name').text())).toEqual(['Mit RDKS-Sensoren', 'Ohne Sensoren'])
-        expect(rdks[0]!.find('.kc-opt__price').text()).toBe('196,00 € · 4 × 49,00 €')
+        expect(rdks.map((r) => r.find('.kc-opt__name').text())).toEqual(['Mit RDKS-Sensoren', 'Ohne RDKS-Sensoren'])
+        expect(rdks[0]!.find('.kc-opt__price').text()).toBe('+ 196,00 € (4 × 49,00 €)')
+        expect(rdks[1]!.find('.kc-opt__price').text()).toBe('ohne Aufpreis')
         expect(rdks[0]!.find('.kc-opt__sub').text()).toBe('Wir setzen die Sensoren gleich mit ein.')
         // Which valves a wheel may take is the Gutachten's to say, in its conditions: never a sentence of ours.
         expect(wrapper.text()).not.toMatch(/Ventil/)
@@ -225,8 +226,10 @@ describe('KomplettradChoice', () => {
     })
 
     it('asks nothing about weights or sensors beside a refusal, or without the options', () => {
-        expect(mountChoice(refused('NO_TYRE_AVAILABLE', 'Ein Satz.'), null, { options: options() }).find('.kc__group').exists()).toBe(false)
-        expect(mountChoice(offer(), 7, { options: null }).find('.kc__group').exists()).toBe(false)
+        const asked = (wrapper: VueWrapper): boolean => wrapper.find('input[name="kc-weights"], input[name="kc-rdks"]').exists()
+
+        expect(asked(mountChoice(refused('NO_TYRE_AVAILABLE', 'Ein Satz.'), null, { options: options() }))).toBe(false)
+        expect(asked(mountChoice(offer(), 7, { options: null }))).toBe(false)
     })
 
     it('still says something if the server sent neither tyres nor a sentence', () => {

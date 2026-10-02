@@ -291,7 +291,7 @@ const headline = computed(() => {
             </ul>
 
             <div v-if="sizes.length" class="fit__tyres">
-                <span class="micro">Zulässige Reifengrößen</span>
+                <span class="label">Zulässige Reifengrößen</span>
                 <p class="data">{{ sizes.join(' · ') }}</p>
             </div>
 
@@ -411,10 +411,13 @@ const headline = computed(() => {
     outline-offset: 2px;
 }
 
+/* The papers under the verdict's headline: in ink, a step below it. */
 .fit__entry {
     margin: var(--space-2) 0 0;
-    font-size: var(--text-small);
-    font-weight: 700;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 500;
+    color: var(--c-ink);
 }
 
 .fit__note {

@@ -198,6 +198,9 @@ function fromVehicleSheet(href: string | undefined): void {
 
 <style scoped>
 .mshell {
+    /* The phone shell carries no vehicle bar under its app bar: whatever sits below it adds nothing for one. */
+    --vbar-h: 0px;
+
     display: flex;
     flex-direction: column;
     min-height: 100dvh;

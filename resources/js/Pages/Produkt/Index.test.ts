@@ -470,11 +470,11 @@ describe('Produkt page', () => {
 
     it('asks Nur Felgen or Komplettrad, and starts with the rims alone', () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })
-        const modes = wrapper.findAll('.pdp-mode')
+        const modes = wrapper.findAll('.bmc-tile')
 
         expect(wrapper.find('.pdp__mode legend').text()).toBe('Was möchtest du bestellen?')
-        expect(modes.map((m) => m.find('.pdp-mode__name').text())).toEqual(['Nur Felgen', 'Komplettrad'])
-        expect(modes[1]!.find('.pdp-mode__sub').text()).toBe('Mit Reifen, fertig montiert · ab 965,00 € je Rad')
+        expect(modes.map((m) => m.find('.bmc-tile__name').text())).toEqual(['Nur Felgen', 'Komplettrad'])
+        expect(modes[1]!.find('.bmc-tile__sub').text()).toBe('Mit Reifen, fertig montiert · ab 965,00 € je Rad')
         expect((wrapper.find('input[value="felgen"]').element as HTMLInputElement).checked).toBe(true)
         // No tyre on screen while the rims alone are chosen.
         expect(wrapper.find('.kc').exists()).toBe(false)
@@ -488,7 +488,7 @@ describe('Produkt page', () => {
         const choice = wrapper.find('.kc')
         expect(choice.text()).toContain(MIN_SENTENCE)
         expect(choice.text()).toContain('Potenza Sport')
-        expect(choice.find('.kc-tile--on').exists()).toBe(true)
+        expect(choice.find('.kc-row--on').exists()).toBe(true)
         expect(wrapper.find('.pdp__total').text()).toBe('3.860,00 €')
         expect(wrapper.find('.pdp__each').text()).toBe('für 4 Kompletträder, je Rad 965,00 €, inkl. MwSt., zzgl. Versand')
         // A set is four: no amount stepper beside it.

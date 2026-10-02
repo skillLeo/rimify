@@ -843,9 +843,11 @@
         color: var(--ink2);
     }
 
+    /* The verdict is the panel's headline: a step above the tyre names and the lines under it (D-132). */
     .rcheck-panel__vehicle {
-        font-size: var(--text-body);
-        font-weight: 700;
+        font-size: var(--fs-h4);
+        line-height: var(--lh-h4);
+        font-weight: 600;
         color: var(--ink);
         margin-top: var(--space-2);
     }

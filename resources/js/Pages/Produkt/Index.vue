@@ -33,6 +33,7 @@ import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, Di
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import AmountStepper from '../../Components/Product/AmountStepper.vue'
+import BuyModeChoice from '../../Components/Product/BuyModeChoice.vue'
 import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import KomplettradChoice from '../../Components/Product/KomplettradChoice.vue'
@@ -525,7 +526,7 @@ onBeforeUnmount(() => observer?.disconnect())
                     <p v-else-if="proofLine" class="t-small pdp__proof">{{ proofLine }}</p>
 
                     <div class="pdp__block">
-                        <span class="micro">Farbe · <span translate="no">{{ finish?.name }}</span></span>
+                        <span class="label">Farbe · <span translate="no">{{ finish?.name }}</span></span>
                         <div class="pdp__swatches">
                             <button
                                 v-for="item in finishes"
@@ -547,7 +548,7 @@ onBeforeUnmount(() => observer?.disconnect())
 
                     <!-- `#groessen`: where the compare page's "Größe wählen" lands. -->
                     <div id="groessen" class="pdp__block">
-                        <span class="micro">Durchmesser (<span translate="no">Zoll</span>)</span>
+                        <span class="label">Durchmesser (<span translate="no">Zoll</span>)</span>
                         <div class="chip-row pdp__chips">
                             <button
                                 v-for="size in config.sizes.value"
@@ -580,26 +581,7 @@ onBeforeUnmount(() => observer?.disconnect())
                     </FitmentPanel>
 
                     <!-- Nur Felgen or Komplettrad (#18): switching keeps the finish, the size, the amount and the tyre. -->
-                    <fieldset class="pdp__block pdp__mode">
-                        <legend class="micro">Was möchtest du bestellen?</legend>
-                        <div class="pdp__modes">
-                            <label class="pdp-mode" :class="{ 'pdp-mode--on': mode === 'felgen' }">
-                                <input v-model="mode" class="visually-hidden" type="radio" name="pdp-mode" value="felgen">
-                                <span class="pdp-mode__name">Nur Felgen</span>
-                                <span class="pdp-mode__sub">Ohne Reifen</span>
-                                <span class="pdp-mode__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
-                            </label>
-                            <label class="pdp-mode" :class="{ 'pdp-mode--on': mode === 'komplettrad' }">
-                                <input v-model="mode" class="visually-hidden" type="radio" name="pdp-mode" value="komplettrad">
-                                <span class="pdp-mode__name">Komplettrad</span>
-                                <span class="pdp-mode__sub">
-                                    <template v-if="setFrom">Mit Reifen, fertig montiert · ab <span class="num" translate="no">{{ setFrom }}</span> je Rad</template>
-                                    <template v-else>Mit Reifen, fertig montiert</template>
-                                </span>
-                                <span class="pdp-mode__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
-                            </label>
-                        </div>
-                    </fieldset>
+                    <BuyModeChoice v-model="mode" class="pdp__block pdp__mode" :rim-price="selected?.price ?? null" :set-from="setFrom" />
 
                     <!-- The tyres the verdict permits on this size, or the sentence why there are none. -->
                     <KomplettradChoice
@@ -818,7 +800,7 @@ onBeforeUnmount(() => observer?.disconnect())
         </div>
     </section>
 
-    <!-- The phone's sticky bar: price and the one action, once the main button is off screen. -->
+    <!-- The sticky bar: price and the one action, once the main button is off screen — on every width (D-132). -->
     <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
         <div v-if="shownPrice" class="pdp__sticky-price">
             <p class="price" translate="no">{{ shownPrice }}</p>
@@ -1185,87 +1167,6 @@ a.pdp__rating {
     margin-top: var(--space-8);
 }
 
-/* ── Nur Felgen | Komplettrad (#18): two tiles, the whole tile the control (the basket's pattern) ── */
-
-.pdp__mode {
-    min-width: 0;
-    padding: 0;
-    border: 0;
-}
-
-.pdp__modes {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
-    margin-top: var(--space-2);
-}
-
-.pdp-mode {
-    position: relative;
-    display: grid;
-    align-content: start;
-    gap: var(--space-1);
-    min-height: 64px;
-    padding: var(--space-3) var(--sp-40) var(--space-3) var(--space-4);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    cursor: pointer;
-    transition:
-        border-color var(--duration-instant) var(--ease-standard),
-        background-color var(--duration-instant) var(--ease-standard);
-}
-
-.pdp-mode--on {
-    padding: calc(var(--space-3) - 1px) calc(var(--sp-40) - 1px) calc(var(--space-3) - 1px) calc(var(--space-4) - 1px);
-    border: 2px solid var(--blue);
-    background: var(--wash);
-}
-
-.pdp-mode:focus-within {
-    outline: 2px solid var(--blue);
-    outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .pdp-mode:hover {
-        border-color: var(--c-ink-3);
-    }
-
-    .pdp-mode--on:hover {
-        border-color: var(--blue);
-    }
-}
-
-.pdp-mode__name {
-    font-weight: 700;
-    color: var(--ink);
-}
-
-.pdp-mode__sub {
-    font-size: var(--text-small);
-    color: var(--ink2);
-}
-
-.pdp-mode__check {
-    position: absolute;
-    top: var(--space-3);
-    right: var(--space-3);
-    display: none;
-    color: var(--blue);
-}
-
-.pdp-mode--on .pdp-mode__check {
-    display: inline-flex;
-}
-
-/* Two tiles side by side down to a narrow phone; below that, one under the other. */
-@media (max-width: 359px) {
-    .pdp__modes {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
 .pdp__specs {
     margin-top: var(--space-8);
     max-width: 880px;
@@ -1355,9 +1256,23 @@ a.pdp__rating {
         top: calc(var(--header-h) + var(--space-4));
     }
 
-    /* The desktop panel keeps its button in view already; the bar is for phones. */
+    /*
+     * On a desktop too, once the button has left the screen (D-132): with the verdict and the Komplettrad's choices above
+     * it, the button stood at 1.470 px — 2.227 px with Komplettrad — on a 900 px screen. The price and the button stand
+     * at the content's right edge, under the purchase column.
+     */
     .pdp__sticky {
-        display: none;
+        justify-content: flex-end;
+        padding-inline: max(var(--page-margin), calc((100% - var(--content-max)) / 2));
+    }
+
+    .pdp__sticky-price {
+        flex: none;
+        text-align: right;
+    }
+
+    .pdp__sticky-btn {
+        min-width: 240px;
     }
 }
 </style>

@@ -149,21 +149,24 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* Under the header, beside the basket on a desktop; under the app bar on a phone, clear of the price bar below. */
+/*
+ * Under the header and the vehicle bar, never over the bar's „Ändern“; on a desktop beside the basket, its right edge on
+ * the content's; on a phone within the page margins, clear of the price bar below. A popover's elevation (DIRECTION §4).
+ */
 .addp-viewport {
     position: fixed;
-    top: calc(var(--header-h-m) + env(safe-area-inset-top) + var(--sp-8));
-    left: var(--sp-12);
-    right: var(--sp-12);
+    top: calc(var(--header-h-m) + env(safe-area-inset-top) + var(--vbar-h) + var(--sp-8));
+    left: var(--page-margin);
+    right: var(--page-margin);
     z-index: var(--z-toast);
     pointer-events: none;
 }
 
 @media (min-width: 1024px) {
     .addp-viewport {
-        top: calc(var(--header-h) + var(--sp-12));
+        top: calc(var(--header-h) + var(--vbar-h) + var(--sp-12));
         left: auto;
-        right: var(--page-margin);
+        right: max(var(--page-margin), calc((100% - var(--content-max)) / 2));
         width: 400px;
     }
 }
@@ -174,7 +177,7 @@ onBeforeUnmount(() => {
     padding: var(--sp-16);
     border-radius: var(--r-tile);
     background: var(--c-surface);
-    box-shadow: var(--e-3);
+    box-shadow: var(--e-2);
     color: var(--c-ink);
     pointer-events: auto;
 }
@@ -186,8 +189,9 @@ onBeforeUnmount(() => {
     gap: var(--sp-8);
 }
 
+/* Ink, not green: green is the verdict's and the stock's (DIRECTION §2), and this says only that the basket took it. */
 .addp__mark {
-    color: var(--c-ok);
+    color: var(--c-ink);
 }
 
 .addp__title {

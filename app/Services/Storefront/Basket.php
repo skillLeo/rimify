@@ -585,11 +585,14 @@ final readonly class Basket
     {
         $summary = $this->summary($request);
         $lines = [];
+        $wheels = 0;
 
         foreach ($summary['lines'] as $line) {
             if (self::entryKey((string) $line['key']) !== $entryKey) {
                 continue;
             }
+
+            $wheels += ($line['isSet'] ?? false) === true ? $quantity : 0;
 
             $tyre = is_array($line['tyre'] ?? null) ? $line['tyre'] : null;
             $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
@@ -605,6 +608,18 @@ final readonly class Basket
                 'detail' => implode(' · ', $detail),
                 'quantity' => $quantity,
                 'price' => LinePrice::total(Money::fromMinor((int) $line['unitPriceCents']), $quantity)->format(),
+            ];
+        }
+
+        // The sensors a „Ja“ adds to these wheels stand as their own line, so the subtotal below adds up (D-132).
+        $tpms = $summary['totals']['tpms'];
+
+        if ($lines !== [] && $wheels > 0 && ($tpms['choice'] ?? null) === 'ja' && is_int($tpms['unitPriceCents'] ?? null)) {
+            $lines[] = [
+                'title' => 'RDKS-Sensoren',
+                'detail' => 'Wir setzen die Sensoren gleich mit ein.',
+                'quantity' => $wheels,
+                'price' => LinePrice::total(Money::fromMinor($tpms['unitPriceCents']), $wheels)->format(),
             ];
         }
 
