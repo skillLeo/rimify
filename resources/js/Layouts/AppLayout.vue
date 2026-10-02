@@ -9,7 +9,7 @@
  */
 
 import { Link, router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from 'vue'
 import CommandPalette from '../Components/Chrome/CommandPalette.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import AddedPanel from '../Components/Chrome/AddedPanel.vue'
@@ -25,6 +25,9 @@ import { provideShell } from '../composables/useShell'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useShared } from '../composables/useShared'
 import { useVehicleChangeHref } from '../lib/vehicleChange'
+
+/* The review's feedback button, for a signed-in admin only (D-142): loaded when the server says so, never for a visitor. */
+const ShopFeedback = defineAsyncComponent(() => import('../Components/Chrome/ShopFeedback.vue'))
 
 withDefaults(defineProps<{ title?: string }>(), { title: undefined })
 
@@ -108,6 +111,7 @@ function removeVehicle(): void {
         <ShortcutsDialog />
         <CookieConsent />
         <Toast />
+        <ShopFeedback v-if="shared.reviewer" />
     </div>
 </template>
 

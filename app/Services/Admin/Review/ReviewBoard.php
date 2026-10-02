@@ -139,12 +139,43 @@ final class ReviewBoard
     }
 
     /**
+     * The shop's own pages a point can be sent from (D-142): a path the page has exactly, and the prefix of the pages
+     * beneath it. `/felgen` is the list, `/felgen/…` a product.
+     *
+     * @var list<array{label: string, exact: string|null, prefix: string|null}>
+     */
+    private const SHOP = [
+        ['label' => 'Shop · Startseite', 'exact' => '', 'prefix' => null],
+        ['label' => 'Shop · Auto wählen', 'exact' => '/felgen-suchen', 'prefix' => '/felgen-suchen/'],
+        ['label' => 'Shop · Felgenliste', 'exact' => '/felgen', 'prefix' => null],
+        ['label' => 'Shop · Produktseite', 'exact' => null, 'prefix' => '/felgen/'],
+        ['label' => 'Shop · RIMIFY-Check', 'exact' => '/rimify-check', 'prefix' => '/rimify-check/'],
+        ['label' => 'Shop · Felgenrechner', 'exact' => '/felgenrechner', 'prefix' => '/felgenrechner/'],
+        ['label' => 'Shop · Warenkorb', 'exact' => '/warenkorb', 'prefix' => '/warenkorb/'],
+        ['label' => 'Shop · Kasse', 'exact' => '/kasse', 'prefix' => '/kasse/'],
+        ['label' => 'Shop · Kontakt', 'exact' => '/kontakt', 'prefix' => '/kontakt/'],
+    ];
+
+    private const SHOP_OTHER = 'Shop · andere Seite';
+
+    /**
      * The screen a URL belongs to, by the board's longest matching link: `/admin/felgen/12` is Felgen.
-     * A URL no screen owns is „Sonstiges“.
+     * A shop page has its own names (`/felgen/borbet-db8gt2` is „Shop · Produktseite“); a URL no screen owns is
+     * „Sonstiges“.
      */
     public static function screenFor(string $url): string
     {
         $path = rtrim((string) (parse_url($url, PHP_URL_PATH) ?: ''), '/');
+
+        if ($path !== '/admin' && ! str_starts_with($path, '/admin/')) {
+            foreach (self::SHOP as $page) {
+                if (($page['exact'] !== null && $path === $page['exact']) || ($page['prefix'] !== null && str_starts_with($path, $page['prefix']))) {
+                    return $page['label'];
+                }
+            }
+
+            return self::SHOP_OTHER;
+        }
         $best = null;
         $length = -1;
 
@@ -181,6 +212,6 @@ final class ReviewBoard
             }
         }
 
-        return [...$labels, 'Sonstiges'];
+        return [...$labels, ...array_column(self::SHOP, 'label'), self::SHOP_OTHER, 'Sonstiges'];
     }
 }

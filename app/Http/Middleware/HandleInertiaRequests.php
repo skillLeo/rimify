@@ -8,6 +8,7 @@ use App\Domain\Storefront\VehicleContext;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Models\ReviewFeedback;
 use App\Payments\Payments;
 use App\Policies\DemoDataPolicy;
 use App\Services\Admin\AdminAlerts;
@@ -116,7 +117,36 @@ class HandleInertiaRequests extends Middleware
              */
             'lookup' => $request->session()->get('lookup'),
             ...$this->admin($request),
+            ...$this->reviewer($request),
         ];
+    }
+
+    /**
+     * The review's feedback button on the shop's own pages (D-142): for a signed-in admin who may send a point
+     * (ReviewFeedbackPolicy — only where the review is on) and whose session still counts — the same rules the admin
+     * area applies (EnsureAdminSessionValid), so a suspended account or a revoked session sees no button here either.
+     * Absent for everyone else: a visitor's page carries no trace of it, and no admin module name or colleague's
+     * name reaches the shop (RoutesRenderTest) — only this person's own role, for the dialog's line.
+     *
+     * @return array{reviewer?: array{role: string|null}}
+     */
+    private function reviewer(Request $request): array
+    {
+        // Not inside the admin's page preview (Inhalte › Seiten, a framed signed link): it shows the page, not the shop.
+        if ($request->is('admin', 'admin/*', 'vorschau/*') || ! (bool) config('rimify.review.enabled', false) || ! $request->hasSession()) {
+            return [];
+        }
+
+        $user = $request->user('admin');
+
+        if (! $user instanceof AdminUser
+            || ! $user->canSignIn()
+            || EnsureAdminSessionValid::revoked($user, $request->session()->get(EnsureAdminSessionValid::SESSION_KEY))
+            || ! $user->can('create', ReviewFeedback::class)) {
+            return [];
+        }
+
+        return ['reviewer' => ['role' => $user->roleLabel()]];
     }
 
     /**

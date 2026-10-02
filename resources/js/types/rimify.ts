@@ -163,6 +163,11 @@ export interface SharedProps {
     /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
     release?: string | null
     flash: { toast: string | null; added?: AddedToBasket | null }
+    /**
+     * A signed-in admin looking at the shop while the review is on (D-142): the feedback button bottom right, and the
+     * role it is sent with. Absent for everyone else — not null, not hidden: absent.
+     */
+    reviewer?: { role: string | null }
     [key: string]: unknown
 }
 

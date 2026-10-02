@@ -24,8 +24,8 @@ dein Passwort selbst fest. Danach meldest du dich unter https://rimify.skillleo.
    freigegeben ist.
 3. **19 Zoll wählen.** Oben steht jetzt *Mit Auflagen freigegeben für BMW X3 X83*. Darunter siehst du, mit welcher
    Reifengröße die Felge in die Fahrzeugpapiere eingetragen werden muss. Ein Klick auf „alle Auflagen im Wortlaut“
-   zeigt dir jede Auflage als ganzen Satz. „Gutachten öffnen (PDF, Seite …)“ führt dich direkt zu der Seite der
-   ABE 55255, auf der dein X3 steht.
+   zeigt dir jede Auflage als ganzen Satz. Mit „Gutachten öffnen (PDF, Seite …)“ landest du im Gutachten zur ABE 55255
+   direkt auf der Seite mit deinem X3.
 4. **18 Zoll wählen.** Jetzt siehst du die Angaben aus dem Nachtrag zur ABE 53841, mit der Zeile
    **„Keine Berichtigung der Fahrzeugpapiere nötig (§ 15 FZV).“** Das Gutachten verlangt trotzdem eine Abnahme durch
    einen Prüfer – auch das steht dort, in einer eigenen Zeile.
@@ -49,12 +49,11 @@ kein Geld.
 
 ## Deine Rückmeldung
 
-Im Admin findest du unten in der Seitenleiste **„Rückmeldung geben“** (auf dem Handy unter „Mehr“). Klick darauf, wähl
-aus, worum es geht – Fehler, Design, Text oder Wunsch –, und schreib einen Satz dazu. Die Adresse der Seite, ein
-Bildschirmfoto und die Angaben zu deinem Gerät schickt RIMIFY automatisch mit.
-
-Den Knopf gibt es nur im Admin. Geht es um eine Seite im Shop, schreib ihre Adresse in deine Rückmeldung oder schick uns
-die Zeile ganz unten auf der Seite mit.
+Sobald du angemeldet bist, hat jede Seite einen Knopf **„Rückmeldung geben“**. Im Shop steht er unten rechts, auf dem
+Handy als Sprechblase. Im Admin steht er unten in der Seitenleiste, auf dem Handy unter „Mehr“. Klick darauf und wähl
+aus, worum es geht: Fehler, Design, Text oder Wunsch. Dann schreib einen Satz dazu. RIMIFY schickt die Adresse der
+Seite, ein Bildschirmfoto und die Angaben zu deinem Gerät selbst mit. Abtippen musst du nichts. Besucher des Shops
+sehen den Knopf nie.
 
 ## Was noch nicht fertig ist
 
