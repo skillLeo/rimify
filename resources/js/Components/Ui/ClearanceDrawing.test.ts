@@ -125,7 +125,7 @@ describe('ClearanceDrawing (the rear view)', () => {
         expect(figure.attributes('aria-label')).toBe(
             `Blick von hinten auf ein Rad im Radhaus, die Felge im Schnitt, rechnerisch. Außenkante: ${mm('23')} weiter außen. Innenkante: ${mm('3')} näher am Federbein. ` +
                 `Neue Felge: Einpresstiefe ET${NNBSP}35, der Abstand von der Felgenmitte zur Anlagefläche; Maulweite 8,5J = ${mm('216')}. ` +
-                'Daneben die Radmitte von außen mit Lochkreis und Mittenlochbohrung. Federbein, Kotflügel, Radschüssel und Schrauben schematisch.'
+                'Daneben ist die Radmitte von außen zu sehen, mit Lochkreis und Mittenlochbohrung. Federbein, Kotflügel, Radschüssel und Schrauben sind schematisch gezeichnet.'
         )
         expect(svg.attributes('viewBox')).toBe(`0 0 ${REAR.width} ${REAR.height}`)
         expect(svg.attributes('aria-hidden')).toBe('true')
@@ -237,7 +237,7 @@ describe('ClearanceDrawing (the rear view)', () => {
         // The viewpoint comes first, before anything in the picture.
         expect(wrapper.find('.cd__stage > :first-child').text()).toBe('Blick von hinten auf ein Rad im Radhaus')
         expect(wrapper.find('.cd__caption').text()).toBe(
-            'Rad und Reifen maßstäblich, beide im selben Maßstab; Radschüssel, Schrauben und Radmitte schematisch. Werte rechnerisch, auf ganze Millimeter gerundet.'
+            'Felge und Reifen maßstäblich, bisher und neu im selben Maßstab; Radschüssel, Schrauben und Radmitte schematisch. Werte rechnerisch, auf ganze Millimeter gerundet.'
         )
         // Both schematic parts are drawn, once, for both wheels.
         expect(wrapper.findAll('.cd__sheet [data-part="strut"]')).toHaveLength(1)

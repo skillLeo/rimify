@@ -367,7 +367,7 @@ describe('RIMIFY-Check', () => {
         const wrapper = mountCheck({ answer: answer({ verdict: verdict({ status: 'NOT_PERMITTED', label: 'Nicht freigegeben', sellable: false }) }) })
 
         expect(wrapper.find('.chk__go').exists()).toBe(false)
-        expect(wrapper.find('.chk__nosale-text').text()).toBe('In dieser Größe ist die Felge für dein Auto nicht freigegeben – deshalb bieten wir sie dir dafür nicht an.')
+        expect(wrapper.find('.chk__nosale-text').text()).toBe('In dieser Größe ist die Felge für dein Auto nicht freigegeben, deshalb bieten wir sie dafür nicht an.')
         expect(wrapper.find('.chk__nosale-go a[href="/felgen"]').text()).toBe('Passende Felgen für BMW X3')
         expect(wrapper.find('.chk__nosale-go a[href^="/kontakt"]').exists()).toBe(true)
     })
@@ -395,14 +395,14 @@ describe('RIMIFY-Check', () => {
 
         expect(wrapper.find('.chk__go').attributes('disabled')).toBeDefined()
         expect(wrapper.find('.chk__go').text()).toBe('Komplettrad gerade nicht möglich')
-        expect(wrapper.find('.chk__why').text()).toBe('Von dieser Felge haben wir nur noch 2 auf Lager – ein Komplettrad-Satz braucht 4.')
+        expect(wrapper.find('.chk__why').text()).toBe('Von dieser Felge haben wir nur noch 2 Stück auf Lager – für einen Satz Kompletträder brauchen wir 4.')
     })
 
     it('says so when a shared link names a wheel or a size the shop no longer has', () => {
         expect(mountCheck({ notFound: 'wheel' }).find('.chk__lost').text()).toBe(
             'Die Felge aus dem Link gibt es bei uns nicht mehr. Wähl einen Hersteller und eine andere Felge.'
         )
-        expect(mountCheck({ notFound: 'size' }).find('.chk__lost').text()).toBe('Die Größe aus dem Link gibt es bei dieser Felge nicht mehr. Wähl eine der Größen oben.')
+        expect(mountCheck({ notFound: 'size' }).find('.chk__lost').text()).toBe('Diese Felge gibt es in der Größe aus dem Link nicht mehr. Wähl oben eine andere Größe.')
         expect(mountCheck().find('.chk__lost').exists()).toBe(false)
     })
 
@@ -418,6 +418,6 @@ describe('RIMIFY-Check', () => {
 
         expect(writeText).toHaveBeenCalledWith(window.location.href)
         // The link carries the car, the wheel and the size — not what the visitor typed from their papers (CHECK-17).
-        expect(show).toHaveBeenCalledWith({ text: 'Link kopiert – er zeigt dieses Auto mit dieser Felge. Werte aus deinen Fahrzeugpapieren bleiben bei dir.' })
+        expect(show).toHaveBeenCalledWith({ text: 'Link kopiert – er führt zu diesem Auto mit dieser Felge. Angaben aus deinen Fahrzeugpapieren stehen nicht darin.' })
     })
 })

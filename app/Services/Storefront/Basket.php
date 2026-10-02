@@ -106,9 +106,9 @@ final readonly class Basket
     public const TYRE_GONE = 'Diesen Reifen gibt es nicht mehr.';
 
     /** The shelf holds fewer than the basket and this add together (PDP-08): the stock, then what the basket holds. */
-    public const WHEEL_HELD = 'Von dieser Felge haben wir %s Stück vorrätig – %s davon liegen schon in deinem Warenkorb.';
+    public const WHEEL_HELD = 'Von dieser Felge haben wir %s Stück auf Lager, davon hast du schon %s im Warenkorb.';
 
-    public const TYRE_HELD = 'Von diesem Reifen haben wir %s Stück vorrätig – %s davon liegen schon in deinem Warenkorb.';
+    public const TYRE_HELD = 'Von diesem Reifen haben wir %s Stück auf Lager, davon hast du schon %s im Warenkorb.';
 
     public const NO_WEIGHT_COLOUR_REFUSAL = 'Kompletträder können wir gerade nicht zusammenstellen. Die Felge allein kannst du bestellen.';
 

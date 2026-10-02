@@ -305,12 +305,12 @@ const setShort = computed(() => {
     const needed = offer.value?.quantity ?? 4
 
     return isSet.value && current !== null && current.inStock && current.stockQty < needed
-        ? `Von dieser Felge haben wir nur noch ${current.stockQty} auf Lager – ein Komplettrad-Satz braucht ${needed}.`
+        ? `Von dieser Felge haben wir nur noch ${current.stockQty} Stück auf Lager – für einen Satz Kompletträder brauchen wir ${needed}.`
         : null
 })
 
 /* Without a connection the add never reached us: said under the button, nothing in the basket (CHECK-09). */
-const OFFLINE_ADD = 'Keine Verbindung – es liegt nichts im Warenkorb. Versuch es gleich noch einmal.'
+const OFFLINE_ADD = 'Keine Verbindung – es wurde nichts in den Warenkorb gelegt. Versuch es gleich noch einmal.'
 const buyOffline = ref(false)
 
 const addError = computed(
@@ -374,9 +374,9 @@ const productHref = computed(() => {
 const noSale = computed(() => {
     switch (config.value?.verdict?.status) {
         case 'NOT_PERMITTED':
-            return 'In dieser Größe ist die Felge für dein Auto nicht freigegeben – deshalb bieten wir sie dir dafür nicht an.'
+            return 'In dieser Größe ist die Felge für dein Auto nicht freigegeben, deshalb bieten wir sie dafür nicht an.'
         default:
-            return 'Eine Freigabe dieser Felge für dein Auto können wir nicht belegen – deshalb bieten wir sie dir dafür nicht an.'
+            return 'Eine Freigabe dieser Felge für dein Auto können wir nicht belegen, deshalb bieten wir sie dafür nicht an.'
     }
 })
 
@@ -392,9 +392,9 @@ const askHref = computed(() =>
 async function copyLink(): Promise<void> {
     try {
         await navigator.clipboard.writeText(window.location.href)
-        toast.show({ text: 'Link kopiert – er zeigt dieses Auto mit dieser Felge. Werte aus deinen Fahrzeugpapieren bleiben bei dir.' })
+        toast.show({ text: 'Link kopiert – er führt zu diesem Auto mit dieser Felge. Angaben aus deinen Fahrzeugpapieren stehen nicht darin.' })
     } catch {
-        toast.show({ text: 'Kopieren ging gerade nicht. Die Adresse oben im Browser führt zu diesem Auto mit dieser Felge.', icon: 'info' })
+        toast.show({ text: 'Der Link ließ sich nicht kopieren. Kopier die Adresse oben im Browser – sie führt zu diesem Auto mit dieser Felge.', icon: 'info' })
     }
 }
 
@@ -405,11 +405,11 @@ async function copyLink(): Promise<void> {
 const STATES: { status: VerdictStatus; text: string }[] = [
     {
         status: 'PERMITTED',
-        text: 'Das Gutachten deckt dein Fahrzeug in dieser Größe ab. Wir nennen die Gutachten-Nummer und ob eine Eintragung nötig ist.',
+        text: 'Das Gutachten deckt dein Fahrzeug in dieser Größe ab. Wir nennen dir die Gutachten-Nummer und sagen, ob eine Eintragung nötig ist.',
     },
     {
         status: 'CONDITIONAL',
-        text: 'Zulässig unter Bedingungen aus dem Gutachten, etwa nur mit bestimmten Radschrauben. Jede Auflage steht als ganzer Satz da.',
+        text: 'Zulässig unter den Bedingungen aus dem Gutachten, etwa nur mit bestimmten Radschrauben. Jede Auflage steht ausformuliert dabei.',
     },
     {
         status: 'NOT_PERMITTED',
@@ -429,8 +429,8 @@ const STATES: { status: VerdictStatus; text: string }[] = [
         <div class="container chk">
             <h1 class="t-h1">Passt diese Felge auf mein Auto?</h1>
             <p class="t-lead chk__lead">
-                Wähl dein Auto und die Felge. Du bekommst eine Antwort für dein Auto und genau diese Felge – mit dem Gutachten,
-                seinen Auflagen und der Seite, auf der es steht.
+                Wähl dein Auto und die Felge. Du bekommst eine Antwort für genau diese Kombination – mit dem Gutachten, seinen
+                Auflagen und der Seite, auf der das steht.
             </p>
 
             <!-- While the car is being chosen the selector takes the page's width: in half of it its rows ran out (CHECK-10). -->
@@ -463,7 +463,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                         />
                         <!-- A change of mind keeps the car already chosen (CHECK-14). -->
                         <p v-if="vehicle" class="chk__cancel">
-                            <button class="link" type="button" @click="cancelChange">Abbrechen – bei {{ vehicle.short }} bleiben</button>
+                            <button class="link" type="button" @click="cancelChange">Abbrechen – {{ vehicle.short }} behalten</button>
                         </p>
                     </template>
                 </section>
@@ -507,13 +507,13 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                     <!-- A size that could not be loaded: said, the choices back on what is answered (CHECK-09). -->
                     <p v-if="offline" class="notice notice--bad chk__lost" role="alert">
                         <Icon name="warning" :size="20" />
-                        <span>Keine Verbindung – die Antwort konnte nicht geladen werden. Wähl die Größe gleich noch einmal.</span>
+                        <span>Keine Verbindung – deine Auswahl konnte nicht geladen werden. Versuch es gleich noch einmal.</span>
                     </p>
 
                     <!-- A shared link that outlived its wheel or its size: said, with the way on. -->
                     <p v-if="notFound" class="notice chk__lost" role="status">
                         <Icon name="info" :size="20" />
-                        <span>{{ notFound === 'wheel' ? 'Die Felge aus dem Link gibt es bei uns nicht mehr. Wähl einen Hersteller und eine andere Felge.' : 'Die Größe aus dem Link gibt es bei dieser Felge nicht mehr. Wähl eine der Größen oben.' }}</span>
+                        <span>{{ notFound === 'wheel' ? 'Die Felge aus dem Link gibt es bei uns nicht mehr. Wähl einen Hersteller und eine andere Felge.' : 'Diese Felge gibt es in der Größe aus dem Link nicht mehr. Wähl oben eine andere Größe.' }}</span>
                     </p>
                 </section>
             </div>

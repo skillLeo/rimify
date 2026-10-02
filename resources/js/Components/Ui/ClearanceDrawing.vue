@@ -239,7 +239,7 @@ const description = computed(
     () =>
         `Blick von hinten auf ein Rad im Radhaus, die Felge im Schnitt, rechnerisch. ${model.value.outer.text}. ${model.value.inner.text}. ` +
         `Neue Felge: Einpresstiefe ${measures.value.et}, der Abstand von der Felgenmitte zur Anlagefläche; Maulweite ${measures.value.width}. ` +
-        'Daneben die Radmitte von außen mit Lochkreis und Mittenlochbohrung. Federbein, Kotflügel, Radschüssel und Schrauben schematisch.'
+        'Daneben ist die Radmitte von außen zu sehen, mit Lochkreis und Mittenlochbohrung. Federbein, Kotflügel, Radschüssel und Schrauben sind schematisch gezeichnet.'
 )
 </script>
 
@@ -368,7 +368,7 @@ const description = computed(
                 <dl class="cd__terms micro">
                     <div>
                         <dt>Lochkreis</dt>
-                        <dd><ValueText text="Zahl der Schrauben × Durchmesser des Kreises durch ihre Mitten, etwa 5 × 112. Er muss genau zu deinem Auto passen; eine andere Größe ändert ihn nicht." /></dd>
+                        <dd><ValueText text="Anzahl der Schrauben × Durchmesser des Kreises durch ihre Mitten, etwa 5 × 112. Er muss genau zu deinem Auto passen und ändert sich nicht mit der Felgengröße." /></dd>
                     </div>
                     <div>
                         <dt>Mittenlochbohrung</dt>
@@ -377,7 +377,7 @@ const description = computed(
                 </dl>
             </div>
 
-            <p class="cd__caption micro quiet">Rad und Reifen maßstäblich, beide im selben Maßstab; Radschüssel, Schrauben und Radmitte schematisch. Werte rechnerisch, auf ganze Millimeter gerundet.</p>
+            <p class="cd__caption micro quiet">Felge und Reifen maßstäblich, bisher und neu im selben Maßstab; Radschüssel, Schrauben und Radmitte schematisch. Werte rechnerisch, auf ganze Millimeter gerundet.</p>
         </div>
     </div>
 </template>
@@ -582,10 +582,11 @@ const description = computed(
     stroke: none;
 }
 
-/* A label on the sheet: it scales with the sheet, and a halo of the page's white lets it cross a line legibly. */
+/* A label on the sheet: it scales with the sheet (14 of its 320 units), and a halo of the page's white lets it cross a
+   line legibly. */
 .cd__tag {
     fill: var(--c-ink);
-    font-size: 13px;
+    font-size: var(--fs-small);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     paint-order: stroke;

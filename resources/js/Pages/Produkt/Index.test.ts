@@ -597,7 +597,7 @@ describe('Produkt page', () => {
         const wrapper = mountPage({ configs: [config({ stockQty: 12, amounts: AMOUNTS })] })
         const form = forms.find((f) => f.kind === 'WHEEL')
 
-        ;(form?.errors as Record<string, string>).wheelConfigId = 'Von dieser Felge haben wir 12 Stück vorrätig – 12 davon liegen schon in deinem Warenkorb.'
+        ;(form?.errors as Record<string, string>).wheelConfigId = 'Von dieser Felge haben wir 12 Stück auf Lager, davon hast du schon 12 im Warenkorb.'
         await nextTick()
         expect(wrapper.find('.pdp__add-error').exists()).toBe(true)
 
