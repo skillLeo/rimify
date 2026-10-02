@@ -5,11 +5,18 @@ import type { LookupResult } from '../../types/pages'
 import type { ContactProp } from '../../types/rimify'
 
 const current: { props: Record<string, unknown>; url?: string } = { props: {} }
+const forms: Array<Record<string, unknown> & { post: ReturnType<typeof vi.fn> }> = []
+const get = vi.fn()
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => current,
-    useForm: (data: Record<string, unknown>) => reactive({ ...data, processing: false, errors: {}, post: vi.fn() }),
-    router: { get: vi.fn() },
+    useForm: (data: Record<string, unknown>) => {
+        const form = reactive({ ...data, processing: false, errors: {}, post: vi.fn() })
+        forms.push(form)
+
+        return form
+    },
+    router: { get: (...args: unknown[]) => get(...args) },
     Link: defineComponent({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
@@ -97,6 +104,64 @@ describe('VehicleSelector — a pair of key numbers in the HSN field', () => {
 
         expect(field(wrapper, '0005').element.value).toBe('0005')
         expect(field(wrapper, '582').element.value).toBe('582')
+    })
+})
+
+/*
+ * On the RIMIFY-Check (#28) the selector keeps the page's wheel in every drill step's address, and sends the visitor back
+ * to the question once the car is chosen — by the drill and by key numbers alike.
+ */
+describe('VehicleSelector — on a page that wants the visitor back', () => {
+    const QUESTION = '/rimify-check?hersteller=borbet&felge=borbet-db8gt2&groesse=110'
+
+    function mountOnCheck(props: Record<string, unknown> = {}, page: Record<string, unknown> = {}): VueWrapper {
+        current.props = { contact: CONTACT, ...page }
+        forms.length = 0
+        get.mockReset()
+        const wrapper = mount(VehicleSelector, {
+            props: {
+                makes: [{ make: 'BMW', models: 3 }], models: [], variants: [], selectedMake: null, selectedModel: null,
+                basePath: '/rimify-check', baseQuery: { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110 }, returnTo: QUESTION,
+                ...props,
+            },
+            global: { stubs: { DocFacsimile: true } },
+        })
+        mounted.push(wrapper)
+
+        return wrapper
+    }
+
+    it('keeps the wheel in the address of every drill step', async () => {
+        const wrapper = mountOnCheck()
+
+        await wrapper.find('.row-item').trigger('click')
+
+        expect(get).toHaveBeenCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110, marke: 'BMW' }, { preserveScroll: true })
+    })
+
+    it('sends the return address with a variant picked and with key numbers', async () => {
+        const variant = {
+            id: 127, variant: 'xDrive30d', typeDesignation: 'G01', keyNumbers: '0005 / CKT', hsn: '0005', tsn: 'CKT', vsn: null,
+            buildWindow: '2017–2021', buildKnown: true, powerPs: 265, bodyForm: null, needsReview: false, approval: null,
+        }
+        const wrapper = mountOnCheck({ selectedMake: 'BMW', selectedModel: 'X3', variants: [variant] })
+        const [keys, choice] = forms
+
+        await wrapper.find('.row-item').trigger('click')
+        expect(choice).toMatchObject({ fahrzeug: 127, zurueck: QUESTION })
+        expect(choice?.post).toHaveBeenCalledWith('/fahrzeug', { preserveScroll: true })
+
+        await wrapper.find('form').trigger('submit')
+        expect(keys).toMatchObject({ zurueck: QUESTION })
+        expect(keys?.post).toHaveBeenCalledWith('/fahrzeug/schluesselnummern', { preserveScroll: true })
+    })
+
+    it('starts the make step again after a key-number miss without losing the wheel', () => {
+        current.url = QUESTION
+        const wrapper = mountOnCheck({}, { lookup: MISS })
+        const restart = wrapper.findAll('.vsel__miss-actions a').find((a) => a.text() === 'Stattdessen Marke wählen')
+
+        expect(restart?.attributes('href')).toBe(QUESTION)
     })
 })
 

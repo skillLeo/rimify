@@ -236,6 +236,25 @@ export interface SelectorProps {
     selectedModel: string | null
 }
 
+/** The RIMIFY-Check (#28): the car's selector, the wheel's three choices, and the answer for the pair. */
+export interface CheckProps extends SelectorProps {
+    wheelBrands: { slug: string; name: string }[]
+    wheelModels: { slug: string; name: string }[]
+    /** `Schwarz matt · 8,5J × 19 · ET 35`, one per configuration. */
+    wheelSizes: { id: number; label: string }[]
+    chosen: { brand: string | null; wheel: string | null; size: number | null }
+    /** A link naming a wheel (`felge`) or a size (`groesse`) the shop no longer has: which of the two. */
+    notFound?: 'wheel' | 'size' | null
+    /** Only for a pair: a car and one size of one wheel. The product page's own row, built by the same code. */
+    answer: CheckAnswer | null
+}
+
+export interface CheckAnswer {
+    product: { slug: string; brandName: string; modelName: string; finishId: number; finishName: string }
+    config: ProduktConfig
+    komplettradOptions: KomplettradOptionsProp | null
+}
+
 /**
  * What a key-number lookup flashes back.
  *

@@ -210,67 +210,13 @@ class FelgenController extends Controller
         $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 
         foreach ($wheel->configs as $config) {
-            $live = $verdicts[$config->id] ?? null;
-            $verdict = $live === null ? null : $this->verdictFor($live);
+            $row = $this->configRow($config, $verdicts[$config->id] ?? null, $colour, $colours);
 
-            // The hump designation the wheel's own approval prints in its size line ("8½ J x 19
-            // H2"). Empty is the same as absent: the details then show no Hump row rather than a
-            // blank one, because a record that holds no designation makes no claim about one.
-            $hump = is_string($config->hump) ? trim($config->hump) : '';
-
-            if ($verdict !== null && $verdict['status'] === VerdictStatus::Unknown->value) {
+            if (($row['verdict']['status'] ?? null) === VerdictStatus::Unknown->value) {
                 $anyUnknown = true;
             }
 
-            $configs[] = [
-                // Price, stock and verdict arrive together in one payload, so selecting a size
-                // changes all three in ONE commit. A page where the price updates a frame before
-                // the legal answer has, for that frame, told the customer something untrue.
-                'verdict' => $verdict,
-                'id' => $config->id,
-                'finishId' => $config->wheel_finish_id,
-                'sku' => $config->sku,
-                'diameterIn' => (float) $config->diameter_in,
-                'widthIn' => (float) $config->width_in,
-                'etMm' => (int) $config->et_mm,
-                'sizeLabel' => GermanFormat::wheelSize(
-                    (float) $config->width_in,
-                    (float) $config->diameter_in,
-                    (int) $config->et_mm,
-                ),
-                'fullLabel' => GermanFormat::wheelLabel(
-                    (float) $config->width_in,
-                    (float) $config->diameter_in,
-                    (int) $config->et_mm,
-                    (int) $config->bolt_holes,
-                    (float) $config->bolt_circle_mm,
-                    (float) $config->centre_bore_mm,
-                ),
-                'boltPattern' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm),
-                // The rim's own bore, and it is labelled as the rim's own on the page: the bore a
-                // document states for the chosen car travels inside the verdict instead (§1, R-06).
-                'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
-                'hump' => $hump === '' ? null : $hump,
-                // `price_cents` is ONE rim (docs/specs/komplettrad.md §9, D-102); the set of four is
-                // computed by LinePrice and formatted here, so the page never multiplies cents (R-10).
-                'priceCents' => (int) $config->price_cents,
-                'price' => $this->rimPrice($config)->format(),
-                'priceForFour' => LinePrice::total($this->rimPrice($config), self::SET_OF)->format(),
-                // The figure for every amount the page offers, so the browser only picks one (D-102).
-                'amounts' => LinePrice::byQuantity($this->rimPrice($config), self::AMOUNTS),
-                'stockQty' => (int) $config->stock_qty,
-                'inStock' => $config->stock_qty > 0,
-                'kbaNumber' => $config->kba_number,
-                'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
-                // The load rating per wheel, from the approval document; null when nobody has
-                // verified one, and the page then shows no row (ACCURACY.md D2).
-                'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
-                // The Komplettrad offer travels with the verdict it depends on, for the same
-                // reason: a size change swaps the tyres and the legal answer in one commit.
-                'komplettrad' => $this->komplettradFor($config, $live, $colour, $colours),
-                // Mischbereifung (#20, D-105): only where the released Gutachten prints its pairing table.
-                'mischbereifung' => $this->mischbereifungFor($config, $live, $colour, $colours),
-            ];
+            $configs[] = $row;
         }
 
         // A model we hold no document for, on a car the customer has chosen, is the single most
@@ -284,6 +230,82 @@ class FelgenController extends Controller
             );
         }
 
+        return $this->renderProduct($request, $wheel, $configs, $vehicleId, $colours);
+    }
+
+    /**
+     * One size of a wheel as the product page — and the RIMIFY-Check (#28) — ships it: price, stock and the verdict
+     * for the chosen car together, with the Komplettrad and Mischbereifung offers that depend on that verdict.
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array<string, mixed>
+     */
+    private function configRow(WheelConfig $config, ?FitmentVerdict $live, ?BalanceWeightColour $colour, Collection $colours): array
+    {
+        $verdict = $live === null ? null : $this->verdictFor($live);
+
+        // The hump designation the wheel's own approval prints in its size line ("8½ J x 19
+        // H2"). Empty is the same as absent: the details then show no Hump row rather than a
+        // blank one, because a record that holds no designation makes no claim about one.
+        $hump = is_string($config->hump) ? trim($config->hump) : '';
+
+        return [
+            // Price, stock and verdict arrive together in one payload, so selecting a size
+            // changes all three in ONE commit. A page where the price updates a frame before
+            // the legal answer has, for that frame, told the customer something untrue.
+            'verdict' => $verdict,
+            'id' => $config->id,
+            'finishId' => $config->wheel_finish_id,
+            'sku' => $config->sku,
+            'diameterIn' => (float) $config->diameter_in,
+            'widthIn' => (float) $config->width_in,
+            'etMm' => (int) $config->et_mm,
+            'sizeLabel' => GermanFormat::wheelSize(
+                (float) $config->width_in,
+                (float) $config->diameter_in,
+                (int) $config->et_mm,
+            ),
+            'fullLabel' => GermanFormat::wheelLabel(
+                (float) $config->width_in,
+                (float) $config->diameter_in,
+                (int) $config->et_mm,
+                (int) $config->bolt_holes,
+                (float) $config->bolt_circle_mm,
+                (float) $config->centre_bore_mm,
+            ),
+            'boltPattern' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm),
+            // The rim's own bore, and it is labelled as the rim's own on the page: the bore a
+            // document states for the chosen car travels inside the verdict instead (§1, R-06).
+            'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
+            'hump' => $hump === '' ? null : $hump,
+            // `price_cents` is ONE rim (docs/specs/komplettrad.md §9, D-102); the set of four is
+            // computed by LinePrice and formatted here, so the page never multiplies cents (R-10).
+            'priceCents' => (int) $config->price_cents,
+            'price' => $this->rimPrice($config)->format(),
+            'priceForFour' => LinePrice::total($this->rimPrice($config), self::SET_OF)->format(),
+            // The figure for every amount the page offers, so the browser only picks one (D-102).
+            'amounts' => LinePrice::byQuantity($this->rimPrice($config), self::AMOUNTS),
+            'stockQty' => (int) $config->stock_qty,
+            'inStock' => $config->stock_qty > 0,
+            'kbaNumber' => $config->kba_number,
+            'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
+            // The load rating per wheel, from the approval document; null when nobody has
+            // verified one, and the page then shows no row (ACCURACY.md D2).
+            'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
+            // The Komplettrad offer travels with the verdict it depends on, for the same
+            // reason: a size change swaps the tyres and the legal answer in one commit.
+            'komplettrad' => $this->komplettradFor($config, $live, $colour, $colours),
+            // Mischbereifung (#20, D-105): only where the released Gutachten prints its pairing table.
+            'mischbereifung' => $this->mischbereifungFor($config, $live, $colour, $colours),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configs
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     */
+    private function renderProduct(Request $request, WheelModel $wheel, array $configs, ?int $vehicleId, Collection $colours): Response
+    {
         $finishes = [];
 
         foreach ($wheel->finishes as $finish) {
@@ -337,20 +359,54 @@ class FelgenController extends Controller
             'demo' => (bool) $wheel->is_demo,
             // Delivery time and shipping, as Einstellungen › Verkäufer & Versand gives them; null while nothing is.
             'shipping' => Shipping::current()->summary(),
-            // What goes with a Komplettrad (#15): the Wuchtgewichte colours the admin keeps active, and the RDKS question
-            // for a set, priced for the car's make — the basket's own block, so the checkout finds it answered.
-            'komplettradOptions' => $colours->isEmpty() ? null : [
-                'colours' => $colours->map(static fn (BalanceWeightColour $c): array => [
-                    'id' => (int) $c->id,
-                    'name' => $c->name_de,
-                    'swatchHex' => $c->swatch_hex,
-                    'surchargeCents' => (int) $c->surcharge_cents,
-                    'surcharge' => GermanFormat::money((int) $c->surcharge_cents, $c->currency),
-                    'isDefault' => (bool) $c->is_default,
-                ])->values()->all(),
-                'tpms' => app(Basket::class)->tpmsOffer($request, self::SET_OF),
-            ],
+            'komplettradOptions' => $this->komplettradOptions($request, $colours),
         ]);
+    }
+
+    /**
+     * The RIMIFY-Check's answer (#28): one size of one wheel for the car the visitor has chosen — the very row the product
+     * page ships, built by the same code, so the two pages can never disagree — and what goes with a Komplettrad.
+     *
+     * @return array{config: array<string, mixed>, komplettradOptions: array<string, mixed>|null}
+     */
+    public function answerFor(Request $request, WheelConfig $config): array
+    {
+        $vehicleId = $this->vehicleId($request);
+        $live = $vehicleId === null ? null : ($this->resolver->resolveMany($vehicleId, [(int) $config->id])[(int) $config->id] ?? null);
+
+        if ($live !== null) {
+            VerdictTally::record('check', [$live->status]);
+        }
+
+        $colour = $vehicleId === null ? null : BalanceWeightColour::default();
+        $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
+
+        return [
+            'config' => $this->configRow($config, $live, $colour, $colours),
+            'komplettradOptions' => $this->komplettradOptions($request, $colours),
+        ];
+    }
+
+    /**
+     * What goes with a Komplettrad (#15): the Wuchtgewichte colours the admin keeps active, and the RDKS question for a
+     * set, priced for the car's make — the basket's own block, so the checkout finds it answered. Null without a car.
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array<string, mixed>|null
+     */
+    private function komplettradOptions(Request $request, Collection $colours): ?array
+    {
+        return $colours->isEmpty() ? null : [
+            'colours' => $colours->map(static fn (BalanceWeightColour $c): array => [
+                'id' => (int) $c->id,
+                'name' => $c->name_de,
+                'swatchHex' => $c->swatch_hex,
+                'surchargeCents' => (int) $c->surcharge_cents,
+                'surcharge' => GermanFormat::money((int) $c->surcharge_cents, $c->currency),
+                'isDefault' => (bool) $c->is_default,
+            ])->values()->all(),
+            'tpms' => app(Basket::class)->tpmsOffer($request, self::SET_OF),
+        ];
     }
 
     /** One rim's price in its own currency (the shop's, EUR, where a row names none). */

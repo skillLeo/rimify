@@ -29,7 +29,8 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
                 <input v-model="mode" class="visually-hidden" type="radio" :name="name ?? 'pdp-mode'" value="felgen">
                 <span class="bmc-tile__name">Nur Felgen</span>
                 <span class="bmc-tile__sub">
-                    Ohne Reifen<template v-if="rimPrice"> · <span class="bmc-tile__price"><span class="num" translate="no">{{ rimPrice }}</span> je Felge</span></template>
+                    Ohne Reifen
+                    <span v-if="rimPrice" class="bmc-tile__price"><span class="num" translate="no">{{ rimPrice }}</span> je Felge</span>
                 </span>
                 <span class="bmc-tile__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
             </label>
@@ -37,7 +38,8 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
                 <input v-model="mode" class="visually-hidden" type="radio" :name="name ?? 'pdp-mode'" value="komplettrad">
                 <span class="bmc-tile__name">Komplettrad</span>
                 <span class="bmc-tile__sub">
-                    Mit Reifen, fertig montiert<template v-if="setFrom"> · <span class="bmc-tile__price">ab <span class="num" translate="no">{{ setFrom }}</span> je Rad</span></template>
+                    Mit Reifen, fertig montiert
+                    <span v-if="setFrom" class="bmc-tile__price">ab <span class="num" translate="no">{{ setFrom }}</span> je Rad</span>
                 </span>
                 <span class="bmc-tile__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
             </label>
@@ -122,8 +124,9 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
     color: var(--c-ink-2);
 }
 
-/* A price and its unit are one phrase: they wrap together, never „269,00 € je“ over „Felge“. */
+/* The price on a line of its own under what the tile is, never split by the line's end („Ohne Reifen ·“ over the price). */
 .bmc-tile__price {
+    display: block;
     white-space: nowrap;
 }
 

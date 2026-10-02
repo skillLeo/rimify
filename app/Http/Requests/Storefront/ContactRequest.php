@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Storefront;
 
 use App\Models\ContactMessage;
+use App\Support\ShopPath;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
@@ -73,13 +74,9 @@ class ContactRequest extends FormRequest
         return $this->boolean('withVehicle') && $id !== null ? (int) $id : null;
     }
 
-    /**
-     * A path of this shop and nothing else: one leading slash, plain characters, at most 250 of them — no `//` anywhere
-     * and no `.` or `..` segment, so nothing a browser could resolve towards another host, and `\z`, not `$`, so a
-     * trailing line break is no path either.
-     */
+    /** A path of this shop and nothing else (ShopPath). */
     public static function shopPath(mixed $value): ?string
     {
-        return is_string($value) && preg_match('#^(?!.*//)(?!.*/\.{1,2}(?:/|\?|\z))/[A-Za-z0-9/_\-.?=&%]{0,249}\z#', $value) === 1 ? $value : null;
+        return ShopPath::of($value);
     }
 }

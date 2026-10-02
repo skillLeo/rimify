@@ -22,12 +22,17 @@ import { ABNAHME_REQUIRED, ENTRY_REQUIRED, entryBySize, entryLineOrNone, papersL
 import type { ConfigVerdict } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
-const props = defineProps<{
-    verdict: ConfigVerdict | null
-    vehicle: VehicleProp | null
-    /** The size shown: „RIMIFY-Check drucken“ freezes the answer for it and this car. */
-    configId?: number | null
-}>()
+const props = withDefaults(
+    defineProps<{
+        verdict: ConfigVerdict | null
+        vehicle: VehicleProp | null
+        /** The size shown: „RIMIFY-Check drucken“ freezes the answer for it and this car. */
+        configId?: number | null
+        /** The freeze's label: on the RIMIFY-Check, whose own address is the link to share, it only prints (#28). */
+        issueLabel?: string
+    }>(),
+    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen' }
+)
 
 /* „RIMIFY-Check drucken“: the answer frozen whole on the server, then its printable page. */
 const issuing = ref(false)
@@ -315,7 +320,7 @@ const headline = computed(() => {
             <!-- The answer to take away: frozen whole, every line of the sum, printable and shareable. -->
             <p v-if="vehicle && configId" class="fit__pdf">
                 <button class="link fit__issue" type="button" :disabled="issuing" :aria-busy="issuing ? 'true' : undefined" @click="issueCheck">
-                    RIMIFY-Check drucken oder teilen
+                    {{ issueLabel }}
                 </button>
             </p>
         </template>

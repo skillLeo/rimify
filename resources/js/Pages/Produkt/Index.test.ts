@@ -477,7 +477,8 @@ describe('Produkt page', () => {
 
         expect(wrapper.find('.pdp__mode legend').text()).toBe('Was möchtest du bestellen?')
         expect(modes.map((m) => m.find('.bmc-tile__name').text())).toEqual(['Nur Felgen', 'Komplettrad'])
-        expect(modes[1]!.find('.bmc-tile__sub').text()).toBe('Mit Reifen, fertig montiert · ab 965,00 € je Rad')
+        expect(modes[1]!.find('.bmc-tile__sub').text()).toMatch(/^Mit Reifen, fertig montiert\s+ab 965,00 € je Rad$/)
+        expect(modes[1]!.find('.bmc-tile__price').text()).toBe('ab 965,00 € je Rad')
         expect((wrapper.find('input[value="felgen"]').element as HTMLInputElement).checked).toBe(true)
         // No tyre on screen while the rims alone are chosen.
         expect(wrapper.find('.kc').exists()).toBe(false)

@@ -37,11 +37,27 @@ const props = withDefaults(
         selectedModel: string | null
         /** Where a drill step navigates to — the selector page or the check page. */
         basePath?: string
+        /** What else the page's address carries and every drill step keeps — the RIMIFY-Check's wheel (#28). */
+        baseQuery?: Record<string, string | number | null>
+        /** Where the visitor goes once the car is chosen: back to this page (the RIMIFY-Check) instead of the listing. */
+        returnTo?: string | null
         /** The homepage fold is tighter than the full-page version. */
         compact?: boolean
     }>(),
-    { basePath: '/felgen-suchen', compact: false }
+    { basePath: '/felgen-suchen', baseQuery: () => ({}), returnTo: null, compact: false }
 )
+
+/* A drill step's address: the step's own parameters over what the page keeps; an empty value is left out. */
+function drill(params: Record<string, string | number | null>): Record<string, string | number> {
+    return Object.fromEntries(Object.entries({ ...props.baseQuery, ...params }).filter((entry): entry is [string, string | number] => entry[1] !== null && entry[1] !== ''))
+}
+
+/* „Stattdessen Marke wählen“: the make step again, keeping what the page keeps. */
+const restartHref = computed(() => {
+    const query = new URLSearchParams(Object.entries(drill({})).map(([k, v]) => [k, String(v)])).toString()
+
+    return query === '' ? props.basePath : `${props.basePath}?${query}`
+})
 
 const page = usePage<{ lookup?: LookupResult; contact?: ContactProp }>()
 const lookup = computed(() => page.props.lookup ?? null)
@@ -51,8 +67,8 @@ const doc = ref<DocVariant>('neu')
 const helpOpen = ref(false)
 const tsnField = ref<HTMLInputElement | null>(null)
 
-const keys = useForm({ hsn: '', tsn: '' })
-const choice = useForm({ fahrzeug: 0 })
+const keys = useForm({ hsn: '', tsn: '', zurueck: null as string | null })
+const choice = useForm({ fahrzeug: 0, zurueck: null as string | null })
 
 /*
  * The third way forward after a miss (R-09) is a question to us: the contact form (#26), opening with the key numbers
@@ -130,17 +146,13 @@ watch(level, () => {
 
 function step(key: string): void {
     if (level.value === 'make') {
-        router.get(props.basePath, { marke: key }, { preserveScroll: true })
+        router.get(props.basePath, drill({ marke: key }), { preserveScroll: true })
 
         return
     }
 
     if (level.value === 'model') {
-        router.get(
-            props.basePath,
-            { marke: props.selectedMake, modell: key },
-            { preserveScroll: true }
-        )
+        router.get(props.basePath, drill({ marke: props.selectedMake, modell: key }), { preserveScroll: true })
 
         return
     }
@@ -148,23 +160,25 @@ function step(key: string): void {
     pick(Number(key))
 }
 
-/** Choosing a variant writes the vehicle and opens the listing. */
+/** Choosing a variant writes the vehicle and opens the listing — or returns to the page that asked (`returnTo`). */
 function pick(vehicleId: number): void {
     choice.fahrzeug = vehicleId
+    choice.zurueck = props.returnTo
     choice.post('/fahrzeug', { preserveScroll: true })
 }
 
 function back(): void {
     if (level.value === 'variant') {
-        router.get(props.basePath, { marke: props.selectedMake }, { preserveScroll: true })
+        router.get(props.basePath, drill({ marke: props.selectedMake }), { preserveScroll: true })
 
         return
     }
 
-    router.get(props.basePath, {}, { preserveScroll: true })
+    router.get(props.basePath, drill({}), { preserveScroll: true })
 }
 
 function submitKeys(): void {
+    keys.zurueck = props.returnTo
     keys.post('/fahrzeug/schluesselnummern', { preserveScroll: true })
 }
 
@@ -362,7 +376,7 @@ function onTsn(event: Event): void {
                     <button class="btn btn--secondary btn--sm" type="button" @click="helpOpen = true">
                         Schlüsselnummern prüfen
                     </button>
-                    <Link :href="basePath" class="btn btn--secondary btn--sm">
+                    <Link :href="restartHref" class="btn btn--secondary btn--sm">
                         Stattdessen Marke wählen
                     </Link>
                     <Link :href="missHref" class="btn btn--quiet btn--sm">Bei uns nachfragen</Link>
