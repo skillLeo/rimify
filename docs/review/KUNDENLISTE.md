@@ -16,9 +16,9 @@ Prüfen und abhaken kannst du alles auf https://rimify.skillleo.com.
 | Nr. | Was es war | Was wir gemacht haben | Commit | Status |
 |---|---|---|---|---|
 | 1 | „Fahrzeug wählen“ im Hero hellblau, solange kein Fahrzeug gewählt ist | | | offen |
-| 2 | Header höher | | | offen |
-| 3 | Leiste über dem Header entfernen | | | offen |
-| 4 | Link zur Felge und Preis aus dem Hero entfernen | | | offen |
+| 2 | Header höher | Der Header ist am Computer jetzt 80 statt 64 Pixel hoch, das RIMIFY-Logo passend größer. Am Handy bleibt er bei 56 Pixeln, damit der erste Bildschirm nicht schrumpft. | 1fa4e017 | erledigt |
+| 3 | Leiste über dem Header entfernen | Die graue Leiste über dem Header ist weg. „Versand aus Deutschland“ und „Gutachten zu jeder Felge“ stehen schon in deinen eigenen Worten in der Reihe direkt unter dem Hero, deshalb nicht doppelt. Neu unter der Fahrzeugwahl (Computer und Handy): „Fragen zu deinem Fahrzeug? Schreib uns · Mo–Fr 9:00–17:00 Uhr“ – der Link führt zum Kontaktformular. | 94a0be4e | erledigt |
+| 4 | Link zur Felge und Preis aus dem Hero entfernen | Im Hero steht kein Preis mehr und die Felge ist nicht mehr verlinkt – am Computer und am Handy. Der Name der Felge mit beiden Farben und die Größenzeile (8,5J × 18 · ET 35 · LK 5 × 120 …) bleiben stehen. | bb6ac504 | erledigt |
 | 5 | „Felgen mit den meisten Freigaben“ → meistgekaufte Felgen | | | offen |
 | 6 | Markierung „Wir lesen das Gutachten · Du bekommst die Antwort“ bei manchen Seitenverhältnissen verrutscht | | | offen |
 | 7 | Hero springt beim Wechsel zwischen „Marke & Modell“, „HSN/TSN“ und „Fahrzeugschein scannen“ | | | offen |
