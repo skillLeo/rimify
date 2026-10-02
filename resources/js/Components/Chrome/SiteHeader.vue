@@ -24,9 +24,11 @@ import SearchBox from './SearchBox.vue'
 import VehicleBar from './VehicleBar.vue'
 import { useShell } from '../../composables/useShell'
 import { useShared } from '../../composables/useShared'
+import { useVehicleChangeHref } from '../../lib/vehicleChange'
 
 const shared = useShared()
 const shell = useShell()
+const changeHref = useVehicleChangeHref()
 
 const vehicle = computed(() => shared.value.vehicle)
 const page = usePage()
@@ -88,7 +90,7 @@ function removeVehicle(): void {
                                 <Link href="/felgen" class="menu__item" prefetch><Icon name="wheel" :size="20" />Passende Felgen anzeigen</Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem as-child>
-                                <Link href="/felgen-suchen" class="menu__item"><Icon name="car" :size="20" />Fahrzeug ändern</Link>
+                                <Link :href="changeHref" class="menu__item"><Icon name="car" :size="20" />Fahrzeug ändern</Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator class="menu__separator" />
                             <DropdownMenuItem class="menu__item" @select="removeVehicle">

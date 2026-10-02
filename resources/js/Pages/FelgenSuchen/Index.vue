@@ -13,13 +13,25 @@
  */
 
 import { Head } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import VehicleSelector from '../../Components/Vehicle/VehicleSelector.vue'
 import type { SelectorProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
-defineProps<SelectorProps>()
+const props = defineProps<SelectorProps & { returnTo?: string | null }>()
+
+/* A page that sent the visitor here gets them back (`zurueck`, the compare table): kept through every drill step. */
+const baseQuery = computed((): Record<string, string> => {
+    const query: Record<string, string> = {}
+
+    if (props.returnTo) {
+        query.zurueck = props.returnTo
+    }
+
+    return query
+})
 </script>
 
 <template>
@@ -41,6 +53,8 @@ defineProps<SelectorProps>()
                     :selected-make="selectedMake"
                     :selected-model="selectedModel"
                     base-path="/felgen-suchen"
+                    :base-query="baseQuery"
+                    :return-to="returnTo ?? null"
                 />
             </div>
         </div>

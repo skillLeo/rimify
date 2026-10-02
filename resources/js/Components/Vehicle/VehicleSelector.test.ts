@@ -136,7 +136,22 @@ describe('VehicleSelector — on a page that wants the visitor back', () => {
 
         await wrapper.find('.row-item').trigger('click')
 
-        expect(get).toHaveBeenCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110, marke: 'BMW' }, { preserveScroll: true })
+        expect(get).toHaveBeenCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110, marke: 'BMW' }, expect.objectContaining({ preserveScroll: true }))
+    })
+
+    it('ignores the second press of a double-click and the rows while a step loads (CHECK-03)', async () => {
+        const wrapper = mountOnCheck()
+        const row = wrapper.find('.row-item')
+
+        await row.trigger('click', { detail: 2 })
+        expect(get).not.toHaveBeenCalled()
+
+        await row.trigger('click', { detail: 1 })
+        expect(get).toHaveBeenCalledTimes(1)
+        expect(row.attributes('disabled')).toBeDefined()
+
+        await row.trigger('click', { detail: 1 })
+        expect(get).toHaveBeenCalledTimes(1)
     })
 
     it('sends the return address with a variant picked and with key numbers', async () => {

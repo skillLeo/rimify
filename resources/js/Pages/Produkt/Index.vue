@@ -60,7 +60,10 @@ const props = defineProps<ProduktProps & { demo?: boolean }>()
 
 const shared = useShared()
 const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
-const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
+const page = usePage()
+/* `groesse` in the link — the RIMIFY-Check's „Alles zur Felge“ — opens the page on the size it answered (CHECK-13). */
+const linkedSize = Number(new URLSearchParams((page.url ?? '').split('?')[1] ?? '').get('groesse')) || null
+const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0, linkedSize)
 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
@@ -71,7 +74,6 @@ function contactHref(contact: string): string {
 }
 
 /* Where the maker's details are missing, a question to us goes through the contact form (#26). */
-const page = usePage()
 const askAboutMaker = computed(() =>
     contactFormHref({ subject: `Herstellerangaben: ${props.product.brandName} ${props.product.modelName}`, from: page.url })
 )

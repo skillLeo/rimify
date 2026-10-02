@@ -43,6 +43,7 @@ use App\Support\GermanFormat;
 use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\Shipping;
+use App\Support\ShopPath;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -78,7 +79,11 @@ class FelgenController extends Controller
         private readonly FitmentDetail $detail,
     ) {}
 
-    /** The vehicle selector: make → model → variant, or the two key numbers. */
+    /**
+     * The vehicle selector: make → model → variant, or the two key numbers. A page that sends the visitor here to choose
+     * a car and wants them back names itself in `zurueck` (the compare table): a path of this shop only (ShopPath),
+     * carried through every drill step and into the choice, which then returns there instead of opening the listing.
+     */
     public function suchen(Request $request): Response
     {
         $make = $request->string('marke')->toString();
@@ -90,6 +95,7 @@ class FelgenController extends Controller
             'selectedModel' => $model === '' ? null : $model,
             'models' => $make === '' ? [] : $this->tree->models($make),
             'variants' => ($make === '' || $model === '') ? [] : $this->tree->variants($make, $model),
+            'returnTo' => ShopPath::of($request->query('zurueck')),
         ]);
     }
 

@@ -6,6 +6,7 @@ use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Models\Brand;
 use App\Models\Vehicle;
+use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
@@ -41,7 +42,7 @@ it('answers for the car and one size with the very row the product page ships fo
         ->and($check['answer']['config'])->toEqual($row)
         ->and($check['answer']['komplettradOptions'])->toEqual($pdp['komplettradOptions'])
         ->and($check['answer']['product'])->toMatchArray(['slug' => $wheel->slug, 'modelName' => $wheel->name])
-        ->and($check['chosen'])->toBe(['brand' => $wheel->brand->slug, 'wheel' => $wheel->slug, 'size' => $set->config->id]);
+        ->and($check['chosen'])->toBe(['brand' => $wheel->brand->slug, 'wheel' => $wheel->slug, 'finish' => (int) $set->config->wheel_finish_id, 'size' => $set->config->id]);
 });
 
 it('asks for the car before it answers, and keeps the wheel and the size chosen', function (): void {
@@ -55,7 +56,35 @@ it('asks for the car before it answers, and keeps the wheel and the size chosen'
             ->where('answer', null)
             ->where('chosen.wheel', $wheel->slug)
             ->where('chosen.size', $set->config->id)
-            ->has('wheelSizes', $wheel->configs()->count()));
+            ->where('chosen.finish', (int) $set->config->wheel_finish_id)
+            // The sizes of the size's own finish, each a size and nothing else (CHECK-05).
+            ->has('wheelSizes', $wheel->configs()->where('wheel_finish_id', $set->config->wheel_finish_id)->count())
+            ->where('changing', false));
+});
+
+it('keeps the size where another finish has it, and opens the first finish until one is chosen (CHECK-05)', function (): void {
+    $set = KomplettradFixture::permitted();
+    $wheel = $set->config->wheelModel;
+    $first = $set->config;
+    $other = WheelFinish::query()->create(['wheel_model_id' => $wheel->id, 'name_de' => 'Zweitfarbe', 'art_finish' => 'black']);
+    $twin = $first->replicate(['sku'])->fill(['wheel_finish_id' => $other->id, 'sku' => $first->sku.'-ZW']);
+    $twin->save();
+
+    $props = checkProps($this->get('/rimify-check?felge='.$wheel->slug.'&groesse='.$first->id.'&ausfuehrung='.$other->id));
+
+    expect($props['chosen']['finish'])->toBe($other->id)
+        ->and($props['chosen']['size'])->toBe($twin->id)
+        ->and(collect($props['wheelFinishes'])->pluck('name'))->toContain('Zweitfarbe')
+        ->and(collect($props['wheelSizes'])->pluck('id')->all())->toContain($twin->id)
+        ->and(collect($props['wheelSizes'])->pluck('label')->first())->not->toContain('·  ');
+
+    // Nothing named: the first finish, its sizes listed, no size chosen while it has several.
+    $fresh = checkProps($this->get('/rimify-check?felge='.$wheel->slug));
+    expect($fresh['chosen']['finish'])->toBe(collect($fresh['wheelFinishes'])->first()['id'])
+        ->and($fresh['wheelSizes'])->not->toBeEmpty();
+
+    // „Ändern“ in the address.
+    expect(checkProps($this->get('/rimify-check?aendern=1'))['changing'])->toBeTrue();
 });
 
 it('takes the car from the address (D-116), so a shared link carries the whole answer', function (): void {
@@ -113,6 +142,15 @@ it('brings the visitor back to the question with the car in its address, from ei
 
     $this->post('/fahrzeug/schluesselnummern', ['hsn' => $unique->hsn, 'tsn' => $unique->tsn, 'zurueck' => '/rimify-check?felge=a'])
         ->assertRedirect('/rimify-check?felge=a&fahrzeug='.$unique->id);
+});
+
+it('carries a return address through the selector page — the compare table’s „Fahrzeug wählen“ — and drops an unsafe one', function (): void {
+    $this->get('/felgen-suchen?zurueck=/vergleich')->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('FelgenSuchen/Index')
+        ->where('returnTo', '/vergleich'));
+
+    $this->get('/felgen-suchen?zurueck=//example.org/x')->assertInertia(fn (AssertableInertia $page) => $page->where('returnTo', null));
+    $this->get('/felgen-suchen')->assertInertia(fn (AssertableInertia $page) => $page->where('returnTo', null));
 });
 
 it('sends a return address that is not a path of this shop to the listing, as before', function (string $unsafe): void {

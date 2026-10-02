@@ -14,7 +14,7 @@
  */
 
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import BuyModeChoice from '../../Components/Product/BuyModeChoice.vue'
 import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
@@ -40,41 +40,146 @@ const page = usePage()
 const vehicle = computed(() => shared.value.vehicle)
 const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
 
+type Query = Record<string, string | number | null | undefined>
+
 /* ── The car ─────────────────────────────────────────────────────────────────── */
 
-/* The selector is open with no car, after „Ändern“, and while the visitor drills through makes. */
-const changing = ref(false)
-const choosingVehicle = computed(() => vehicle.value === null || changing.value || props.selectedMake !== null)
+/*
+ * The selector is open with no car, after „Ändern“, and while the visitor drills through makes. „Ändern“ lives in the
+ * address (`aendern=1`), so every drill step and „Zurück“ keep the selector open, and the car's return address —
+ * which carries no `aendern` — closes it once a car is chosen (CHECK-01, -02).
+ */
+const choosingVehicle = computed(() => vehicle.value === null || props.changing === true || props.selectedMake !== null)
 
 /* ── The wheel: each choice a visit, so the address carries the question ─────── */
 
-const wheelQuery = computed(() => ({ hersteller: props.chosen.brand, felge: props.chosen.wheel, groesse: props.chosen.size }))
+const wheelQuery = computed<Query>(() => ({
+    hersteller: props.chosen.brand,
+    felge: props.chosen.wheel,
+    ausfuehrung: props.chosen.finish ?? null,
+    groesse: props.chosen.size,
+}))
+
+/* What a wheel choice keeps of the car: the drill under way and „Ändern“ (CHECK-15). */
+const carQuery = computed<Query>(() => ({ marke: props.selectedMake, modell: props.selectedModel, aendern: props.changing ? 1 : null }))
+
+/* What the selector's drill steps keep: the wheel, and „Ändern“. */
+const selectorQuery = computed(() => clean({ ...wheelQuery.value, aendern: props.changing ? 1 : null }))
+
+function clean(query: Query): Record<string, string | number> {
+    return Object.fromEntries(Object.entries(query).filter((entry): entry is [string, string | number] => entry[1] !== null && entry[1] !== undefined && entry[1] !== ''))
+}
 
 /* Where the selector sends the visitor once the car is chosen: back here, with the wheel already chosen. */
 const returnTo = computed(() => {
-    const query = new URLSearchParams(
-        Object.entries(wheelQuery.value).filter((entry): entry is [string, string | number] => entry[1] !== null).map(([k, v]) => [k, String(v)])
-    ).toString()
+    const query = new URLSearchParams(Object.entries(clean(wheelQuery.value)).map(([k, v]) => [k, String(v)])).toString()
 
     return query === '' ? '/rimify-check' : `/rimify-check?${query}`
 })
 
-function visit(query: Record<string, string | number | null>): void {
-    const clean = Object.fromEntries(Object.entries(query).filter((entry): entry is [string, string | number] => entry[1] !== null && entry[1] !== ''))
+/*
+ * Each choice is a visit, a beat after the last change: the arrow keys in a closed select fire `change` on every press
+ * in some browsers, and one visit and one history entry per key would answer for sizes nobody chose (CHECK-12). While
+ * a visit is under way the answer below is the old one: it says so, and nothing can be bought from it (CHECK-06).
+ */
+const VISIT_DELAY_MS = 300
+const pending = ref(false)
+const offline = ref(false)
+/* Bumped when a visit fails: the selects are drawn again from what is answered, never left on what was not loaded. */
+const fieldsKey = ref(0)
+const announce = ref('')
+let visitTimer: ReturnType<typeof setTimeout> | undefined
 
-    router.get('/rimify-check', clean, { preserveScroll: true, preserveState: true })
+function visit(query: Query, opts: { delay?: number; reveal?: boolean } = {}): void {
+    if (visitTimer !== undefined) {
+        clearTimeout(visitTimer)
+    }
+
+    pending.value = true
+    offline.value = false
+    visitTimer = setTimeout(() => {
+        visitTimer = undefined
+        router.get('/rimify-check', clean(query), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                if (opts.reveal) {
+                    void nextTick(revealAnswer)
+                }
+            },
+            onNetworkError: () => {
+                offline.value = true
+                fieldsKey.value++
+
+                return false
+            },
+            onFinish: () => {
+                pending.value = false
+            },
+        })
+    }, opts.delay ?? VISIT_DELAY_MS)
 }
 
+onBeforeUnmount(() => {
+    if (visitTimer !== undefined) {
+        clearTimeout(visitTimer)
+    }
+})
+
 function onBrand(event: Event): void {
-    visit({ hersteller: (event.target as HTMLSelectElement).value })
+    visit({ ...carQuery.value, hersteller: (event.target as HTMLSelectElement).value })
 }
 
 function onWheel(event: Event): void {
-    visit({ hersteller: props.chosen.brand, felge: (event.target as HTMLSelectElement).value })
+    visit({ ...carQuery.value, hersteller: props.chosen.brand, felge: (event.target as HTMLSelectElement).value })
+}
+
+function onFinishChoice(event: Event): void {
+    visit({ ...carQuery.value, ...wheelQuery.value, ausfuehrung: Number((event.target as HTMLSelectElement).value) }, { reveal: true })
 }
 
 function onSize(event: Event): void {
-    visit({ ...wheelQuery.value, groesse: Number((event.target as HTMLSelectElement).value) })
+    visit({ ...carQuery.value, ...wheelQuery.value, groesse: Number((event.target as HTMLSelectElement).value) }, { reveal: true })
+}
+
+/* „Ändern“ opens the selector, „Abbrechen“ closes it on the car already chosen (CHECK-14); at once, not after a beat. */
+function changeCar(): void {
+    visit({ ...wheelQuery.value, aendern: 1 }, { delay: 0 })
+}
+
+function cancelChange(): void {
+    visit(wheelQuery.value, { delay: 0 })
+}
+
+/* The focus goes where the step now is: the selector's heading when it opens, „Ändern“ once a car is chosen (CHECK-11). */
+const carHeading = useTemplateRef<HTMLElement>('carHeading')
+const changeButton = useTemplateRef<HTMLElement>('changeButton')
+
+watch(choosingVehicle, (open) => {
+    void nextTick(() => (open ? carHeading.value : changeButton.value)?.focus())
+})
+
+/*
+ * A size chosen far above the answer on a phone: the answer is brought into view and its verdict said once, the focus
+ * left on the select so another size is one key away (CHECK-19).
+ */
+function revealAnswer(): void {
+    const answer = document.getElementById('antwort')
+
+    if (answer === null || props.answer === null) {
+        return
+    }
+
+    const verdict = props.answer.config.verdict?.label ?? ''
+    announce.value = ''
+    void nextTick(() => {
+        announce.value = `Antwort für ${props.answer?.config.sizeLabel ?? ''}: ${verdict}`.trim()
+    })
+
+    if (answer.getBoundingClientRect().top > window.innerHeight * 0.8) {
+        const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+        answer.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+    }
 }
 
 /* ── The answer and the purchase ─────────────────────────────────────────────── */
@@ -91,13 +196,25 @@ const tyreId = ref<number | null>(null)
 const colourId = ref<number | null>(null)
 const rdks = ref<'ja' | 'nein' | null>(null)
 
-// A new answer brings its own tyres and options: the first tyre, the default colour, the answer already given.
+/*
+ * A new answer brings its own tyres and options. What was chosen stays where the new answer still offers it — a refused
+ * add comes back as a new answer object too, and its refusal belongs under the choice it was made under (CHECK-08).
+ */
 watch(
     () => props.answer,
     () => {
-        tyreId.value = offer.value?.tyres[0]?.id ?? null
-        colourId.value = options.value?.colours.find((c) => c.isDefault)?.id ?? options.value?.colours[0]?.id ?? null
-        rdks.value = options.value?.tpms.choice ?? null
+        const tyres = offer.value?.tyres.map((t) => t.id) ?? []
+        const colours = options.value?.colours ?? []
+
+        if (tyreId.value === null || !tyres.includes(tyreId.value)) {
+            tyreId.value = tyres[0] ?? null
+        }
+
+        if (colourId.value === null || !colours.some((c) => c.id === colourId.value)) {
+            colourId.value = colours.find((c) => c.isDefault)?.id ?? colours[0]?.id ?? null
+        }
+
+        rdks.value ??= options.value?.tpms.choice ?? null
     },
     { immediate: true }
 )
@@ -148,10 +265,14 @@ const basket = useForm({
     quantity: 4,
 })
 
+/* After the add, the page is on its way to the basket: nothing more is bought from it (CHECK-07). */
+const leaving = ref(false)
+
 const canBuy = computed(() => {
     const current = config.value
 
-    if (current === null || !sellable.value || !current.inStock) {
+    // Not while another size's answer loads: the one on screen is about to be replaced (CHECK-06).
+    if (current === null || !sellable.value || !current.inStock || pending.value) {
         return false
     }
 
@@ -159,8 +280,12 @@ const canBuy = computed(() => {
 })
 
 const buyLabel = computed(() => {
-    if (basket.processing) {
+    if (basket.processing || leaving.value) {
         return 'Wird hinzugefügt …'
+    }
+
+    if (pending.value) {
+        return 'Antwort wird geladen …'
     }
 
     if (config.value !== null && !config.value.inStock) {
@@ -184,19 +309,32 @@ const setShort = computed(() => {
         : null
 })
 
-const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.quantity ?? null)
+/* Without a connection the add never reached us: said under the button, nothing in the basket (CHECK-09). */
+const OFFLINE_ADD = 'Keine Verbindung – es liegt nichts im Warenkorb. Versuch es gleich noch einmal.'
+const buyOffline = ref(false)
 
-/* A refusal belongs to the choice it was made under: another answer, mode, tyre or colour starts clean (PDP-09). */
-watch([() => props.answer, mode, tyreId, colourId], () => basket.clearErrors())
+const addError = computed(
+    () => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.quantity ?? (buyOffline.value ? OFFLINE_ADD : null)
+)
+
+/*
+ * A refusal belongs to the choice it was made under: another size, mode, tyre or colour starts clean (PDP-09). The size,
+ * not the answer object — a refusal arrives as a new answer object for the same size (CHECK-08).
+ */
+watch([() => props.answer?.config.id, mode, tyreId, colourId], () => {
+    basket.clearErrors()
+    buyOffline.value = false
+})
 
 /* „Jetzt kaufen“: exactly this combination into the basket, then the basket. */
 function buy(): void {
     const current = config.value
 
-    if (current === null || !canBuy.value || basket.processing) {
+    if (current === null || !canBuy.value || basket.processing || leaving.value) {
         return
     }
 
+    buyOffline.value = false
     basket.wheelConfigId = current.id
     basket.tyreVariantId = isSet.value ? (tyre.value?.id ?? null) : null
     basket.weightColourId = isSet.value ? colourId.value : null
@@ -207,16 +345,29 @@ function buy(): void {
         // Only the add's own answer — this page again — leads on to the basket; an error page stays on screen.
         onSuccess: (next) => {
             if (next.component === 'Check/Index') {
-                router.visit('/warenkorb')
+                leaving.value = true
+                router.visit('/warenkorb', {
+                    onNetworkError: () => {
+                        leaving.value = false
+
+                        return false
+                    },
+                })
             }
+        },
+        onNetworkError: () => {
+            buyOffline.value = true
+
+            return false
         },
     })
 }
 
+/* The product page on the size answered, not only its finish (CHECK-13). */
 const productHref = computed(() => {
     const answer = props.answer
 
-    return answer === null ? '/felgen' : `/felgen/${answer.product.slug}?ausfuehrung=${answer.product.finishId}`
+    return answer === null ? '/felgen' : `/felgen/${answer.product.slug}?ausfuehrung=${answer.product.finishId}&groesse=${answer.config.id}`
 })
 
 /* Why there is nothing to buy, in the verdict's own terms; the panel beside it says the rest. */
@@ -233,13 +384,17 @@ const askHref = computed(() =>
     contactHref({ subject: props.answer ? `RIMIFY-Check: ${props.answer.product.brandName} ${props.answer.product.modelName}` : 'RIMIFY-Check', from: page.url })
 )
 
-/* The page's address is the answer: whoever opens it sees this car, this wheel, this size. */
+/*
+ * The page's address is the question: whoever opens it sees this car, this wheel, this size. What the visitor typed
+ * from their own papers stays in their browser and is not in the link, so the toast promises the question, not the
+ * whole answer (CHECK-17).
+ */
 async function copyLink(): Promise<void> {
     try {
         await navigator.clipboard.writeText(window.location.href)
-        toast.show({ text: 'Link kopiert – wer ihn öffnet, sieht genau diese Antwort.' })
+        toast.show({ text: 'Link kopiert – er zeigt dieses Auto mit dieser Felge. Werte aus deinen Fahrzeugpapieren bleiben bei dir.' })
     } catch {
-        toast.show({ text: 'Kopieren ging gerade nicht. Die Adresse oben im Browser führt zu genau dieser Antwort.', icon: 'info' })
+        toast.show({ text: 'Kopieren ging gerade nicht. Die Adresse oben im Browser führt zu diesem Auto mit dieser Felge.', icon: 'info' })
     }
 }
 
@@ -278,62 +433,82 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                 seinen Auflagen und der Seite, auf der es steht.
             </p>
 
-            <div class="chk__pick">
+            <!-- While the car is being chosen the selector takes the page's width: in half of it its rows ran out (CHECK-10). -->
+            <div class="chk__pick" :class="{ 'chk__pick--choosing': choosingVehicle }">
                 <!-- 1 · The car. -->
                 <section class="chk__step" aria-labelledby="chk-car-h">
-                    <h2 id="chk-car-h" class="chk__step-h">Dein Auto</h2>
+                    <h2 id="chk-car-h" ref="carHeading" class="chk__step-h" tabindex="-1">Dein Auto</h2>
 
                     <div v-if="!choosingVehicle && vehicle" class="chk__car">
                         <div class="chk__car-text">
                             <p class="chk__vehicle">{{ vehicle.label }}</p>
                             <p class="data">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
                         </div>
-                        <button class="btn btn--quiet" type="button" @click="changing = true">
+                        <button ref="changeButton" class="btn btn--quiet" type="button" @click="changeCar">
                             Ändern<span class="visually-hidden"> (Fahrzeug)</span>
                         </button>
                     </div>
 
-                    <VehicleSelector
-                        v-else
-                        :makes="makes"
-                        :models="models"
-                        :variants="variants"
-                        :selected-make="selectedMake"
-                        :selected-model="selectedModel"
-                        base-path="/rimify-check"
-                        :base-query="wheelQuery"
-                        :return-to="returnTo"
-                        compact
-                    />
+                    <template v-else>
+                        <VehicleSelector
+                            :makes="makes"
+                            :models="models"
+                            :variants="variants"
+                            :selected-make="selectedMake"
+                            :selected-model="selectedModel"
+                            base-path="/rimify-check"
+                            :base-query="selectorQuery"
+                            :return-to="returnTo"
+                            compact
+                        />
+                        <!-- A change of mind keeps the car already chosen (CHECK-14). -->
+                        <p v-if="vehicle" class="chk__cancel">
+                            <button class="link" type="button" @click="cancelChange">Abbrechen – bei {{ vehicle.short }} bleiben</button>
+                        </p>
+                    </template>
                 </section>
 
-                <!-- 2 · The wheel: Hersteller, Felge, Ausführung und Größe. -->
+                <!-- 2 · The wheel: Hersteller, Felge, Ausführung, Größe. Each option marked `selected` on the server too, so
+                     the first frame of a shared link already shows its choice (CHECK-04). -->
                 <section class="chk__step" aria-labelledby="chk-wheel-h">
                     <h2 id="chk-wheel-h" class="chk__step-h">Deine Felge</h2>
 
-                    <div class="chk__fields">
+                    <div :key="fieldsKey" class="chk__fields">
                         <div class="form-field">
                             <label class="form-field__label" for="chk-brand">Hersteller</label>
                             <select id="chk-brand" class="input" :value="chosen.brand ?? ''" @change="onBrand">
-                                <option value="" disabled>Hersteller wählen</option>
-                                <option v-for="brand in wheelBrands" :key="brand.slug" :value="brand.slug">{{ brand.name }}</option>
+                                <option value="" disabled :selected="!chosen.brand">Hersteller wählen</option>
+                                <option v-for="brand in wheelBrands" :key="brand.slug" :value="brand.slug" :selected="brand.slug === chosen.brand">{{ brand.name }}</option>
                             </select>
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" for="chk-wheel">Felge</label>
                             <select id="chk-wheel" class="input" :value="chosen.wheel ?? ''" :disabled="wheelModels.length === 0" @change="onWheel">
-                                <option value="" disabled>{{ chosen.brand ? 'Felge wählen' : 'Zuerst den Hersteller' }}</option>
-                                <option v-for="model in wheelModels" :key="model.slug" :value="model.slug">{{ model.name }}</option>
+                                <option value="" disabled :selected="!chosen.wheel">{{ chosen.brand ? 'Felge wählen' : 'Zuerst den Hersteller' }}</option>
+                                <option v-for="model in wheelModels" :key="model.slug" :value="model.slug" :selected="model.slug === chosen.wheel">{{ model.name }}</option>
                             </select>
                         </div>
                         <div class="form-field">
-                            <label class="form-field__label" for="chk-size">Ausführung und Größe</label>
+                            <label class="form-field__label" for="chk-finish">Ausführung</label>
+                            <select id="chk-finish" class="input" :value="chosen.finish ?? ''" :disabled="(wheelFinishes ?? []).length === 0" @change="onFinishChoice">
+                                <option value="" disabled :selected="!chosen.finish">{{ chosen.wheel ? 'Ausführung wählen' : 'Zuerst die Felge' }}</option>
+                                <option v-for="finish in wheelFinishes ?? []" :key="finish.id" :value="finish.id" :selected="finish.id === chosen.finish">{{ finish.name }}</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label class="form-field__label" for="chk-size">Größe</label>
                             <select id="chk-size" class="input" :value="chosen.size ?? ''" :disabled="wheelSizes.length === 0" @change="onSize">
-                                <option value="" disabled>{{ chosen.wheel ? 'Größe wählen' : 'Zuerst die Felge' }}</option>
-                                <option v-for="size in wheelSizes" :key="size.id" :value="size.id">{{ size.label }}</option>
+                                <option value="" disabled :selected="!chosen.size">{{ chosen.wheel ? 'Größe wählen' : 'Zuerst die Felge' }}</option>
+                                <option v-for="size in wheelSizes" :key="size.id" :value="size.id" :selected="size.id === chosen.size">{{ size.label }}</option>
                             </select>
                         </div>
                     </div>
+
+                    <!-- A size that could not be loaded: said, the choices back on what is answered (CHECK-09). -->
+                    <p v-if="offline" class="notice notice--bad chk__lost" role="alert">
+                        <Icon name="warning" :size="20" />
+                        <span>Keine Verbindung – die Antwort konnte nicht geladen werden. Wähl die Größe gleich noch einmal.</span>
+                    </p>
 
                     <!-- A shared link that outlived its wheel or its size: said, with the way on. -->
                     <p v-if="notFound" class="notice chk__lost" role="status">
@@ -343,8 +518,18 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                 </section>
             </div>
 
+            <!-- The verdict of a size just chosen, said once without moving the focus (CHECK-19). -->
+            <p class="visually-hidden" role="status" aria-live="polite">{{ announce }}</p>
+
             <!-- 3 · The answer, for exactly this pair. -->
-            <section v-if="answer && config && vehicle" id="antwort" class="chk__answer" aria-labelledby="chk-answer-h">
+            <section
+                v-if="answer && config && vehicle"
+                id="antwort"
+                class="chk__answer"
+                :class="{ 'chk__answer--pending': pending }"
+                aria-labelledby="chk-answer-h"
+                :aria-busy="pending ? 'true' : undefined"
+            >
                 <!-- Named for the outline; on screen the verdict's own headline leads. -->
                 <h2 id="chk-answer-h" class="visually-hidden">Die Antwort</h2>
                 <p class="chk__pair">
@@ -380,8 +565,8 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                             <button
                                 class="btn btn--primary btn--block btn--lg chk__go"
                                 type="button"
-                                :disabled="!canBuy"
-                                :aria-busy="basket.processing ? 'true' : undefined"
+                                :disabled="!canBuy && !basket.processing && !leaving"
+                                :aria-busy="basket.processing || leaving ? 'true' : undefined"
                                 @click="buy"
                             >
                                 {{ buyLabel }}
@@ -449,7 +634,10 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     color: var(--c-ink-2);
 }
 
-/* The two choices side by side from 900, the car first, on the page's columns; one under the other below. */
+/*
+ * The two choices side by side from 900, the car first, on the page's columns; one under the other below — and while the
+ * car is being chosen, when the selector needs the page's width for its own columns (CHECK-10).
+ */
 .chk__pick {
     display: grid;
     gap: var(--sp-32) var(--gutter);
@@ -457,10 +645,25 @@ const STATES: { status: VerdictStatus; text: string }[] = [
 }
 
 @media (min-width: 900px) {
-    .chk__pick {
+    .chk__pick:not(.chk__pick--choosing) {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         align-items: start;
     }
+}
+
+/* The heading takes the focus when the selector opens; a ring there would only flicker. */
+.chk__step-h:focus {
+    outline: none;
+}
+
+.chk__cancel {
+    margin: 0;
+}
+
+/* An answer being replaced: it stays readable, quieter, and nothing in it is bought (CHECK-06). */
+.chk__answer--pending {
+    opacity: 0.55;
+    transition: opacity var(--d-1) var(--ease-std);
 }
 
 /* Each choice under a divider, on the page's white (DIRECTION §2/§4: the band's tone is for tiles, fields and chips). */
@@ -505,11 +708,18 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     gap: var(--sp-8);
 }
 
+/* Brought into view under the header and the vehicle bar: the phone's header is the shorter one (CHECK-22). */
 .chk__answer {
     display: grid;
     gap: var(--sp-16);
     margin-top: var(--sp-48);
-    scroll-margin-top: calc(var(--header-h) + var(--vbar-h) + var(--sp-16));
+    scroll-margin-top: calc(var(--header-h-m) + var(--vbar-h) + var(--sp-16));
+}
+
+@media (min-width: 1024px) {
+    .chk__answer {
+        scroll-margin-top: calc(var(--header-h) + var(--vbar-h) + var(--sp-16));
+    }
 }
 
 .chk__pair {

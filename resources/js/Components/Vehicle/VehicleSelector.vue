@@ -144,15 +144,35 @@ watch(level, () => {
     query.value = ''
 })
 
-function step(key: string): void {
+/*
+ * A drill step under way: the rows wait. The second press of a double-click would otherwise land on the row that has
+ * just appeared under the pointer — a model, or a car nobody read (CHECK-03).
+ */
+const drilling = ref(false)
+
+function drillTo(params: Record<string, string | number | null>): void {
+    drilling.value = true
+    router.get(props.basePath, drill(params), {
+        preserveScroll: true,
+        onFinish: () => {
+            drilling.value = false
+        },
+    })
+}
+
+function step(key: string, event?: MouseEvent): void {
+    if (drilling.value || (event !== undefined && event.detail > 1)) {
+        return
+    }
+
     if (level.value === 'make') {
-        router.get(props.basePath, drill({ marke: key }), { preserveScroll: true })
+        drillTo({ marke: key })
 
         return
     }
 
     if (level.value === 'model') {
-        router.get(props.basePath, drill({ marke: props.selectedMake, modell: key }), { preserveScroll: true })
+        drillTo({ marke: props.selectedMake, modell: key })
 
         return
     }
@@ -246,8 +266,8 @@ function onTsn(event: Event): void {
                     :key="row.key"
                     class="row-item"
                     type="button"
-                    :disabled="choice.processing"
-                    @click="step(row.key)"
+                    :disabled="choice.processing || drilling"
+                    @click="step(row.key, $event)"
                 >
                     <span class="vsel__main">
                         <span class="vsel__label">
@@ -606,10 +626,13 @@ function onTsn(event: Event): void {
     font-weight: 700;
 }
 
+/* A long German word breaks where German breaks it („Höchst-geschwindigkeit:“), never mid-syllable (CHECK-21). */
 .vsel__candidate-values {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
+    hyphens: auto;
+    overflow-wrap: break-word;
 }
 
 .vsel__candidate-cta {

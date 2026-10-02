@@ -215,17 +215,109 @@ describe('RIMIFY-Check', () => {
         expect(wrapper.find('#antwort').exists()).toBe(false)
     })
 
-    it('makes every wheel choice a visit, so the address carries the question', async () => {
-        const wrapper = mountCheck()
+    it('makes every wheel choice a visit, a beat after the last change, so the address carries the question', async () => {
+        vi.useFakeTimers()
+        const wrapper = mountCheck({ selectedMake: 'BMW' })
 
         await wrapper.find('#chk-brand').setValue('motec')
-        expect(get).toHaveBeenLastCalledWith('/rimify-check', { hersteller: 'motec' }, expect.objectContaining({ preserveScroll: true }))
+        vi.advanceTimersByTime(300)
+        // The car's drill under way stays in the address (CHECK-15).
+        expect(get).toHaveBeenLastCalledWith('/rimify-check', { marke: 'BMW', hersteller: 'motec' }, expect.objectContaining({ preserveScroll: true }))
 
         await wrapper.find('#chk-wheel').setValue('borbet-db8gt2')
-        expect(get).toHaveBeenLastCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2' }, expect.anything())
+        vi.advanceTimersByTime(300)
+        expect(get).toHaveBeenLastCalledWith('/rimify-check', { marke: 'BMW', hersteller: 'borbet', felge: 'borbet-db8gt2' }, expect.anything())
+
+        // Three sizes browsed with the arrow keys: one visit, for the last (CHECK-12).
+        get.mockClear()
+        for (const size of ['111', '110', '111']) {
+            await wrapper.find('#chk-size').setValue(size)
+            vi.advanceTimersByTime(100)
+        }
+        vi.advanceTimersByTime(300)
+        expect(get).toHaveBeenCalledTimes(1)
+        expect(get).toHaveBeenLastCalledWith('/rimify-check', { marke: 'BMW', hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 111 }, expect.anything())
+        vi.useRealTimers()
+    })
+
+    it('marks the chosen options selected, so the first frame of a shared link shows its choice (CHECK-04)', () => {
+        const wrapper = mountCheck({ wheelFinishes: [{ id: 3, name: 'Graphite Glossy' }], chosen: { brand: 'borbet', wheel: 'borbet-db8gt2', finish: 3, size: 111 } })
+
+        expect(wrapper.find('#chk-brand option[value="borbet"]').attributes('selected')).toBeDefined()
+        expect(wrapper.find('#chk-wheel option[value="borbet-db8gt2"]').attributes('selected')).toBeDefined()
+        expect(wrapper.find('#chk-finish option[value="3"]').attributes('selected')).toBeDefined()
+        expect(wrapper.find('#chk-size option[value="111"]').attributes('selected')).toBeDefined()
+        expect(wrapper.find('#chk-size option[value="110"]').attributes('selected')).toBeUndefined()
+    })
+
+    it('opens the selector with „Ändern“ in the address and closes it with „Abbrechen“ on the car chosen (CHECK-01, -02, -14)', async () => {
+        vi.useFakeTimers()
+        shared.vehicle = VEHICLE
+        const wrapper = mountCheck()
+
+        await wrapper.find('.chk__car button').trigger('click')
+        vi.advanceTimersByTime(0)
+        expect(get).toHaveBeenLastCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110, aendern: 1 }, expect.anything())
+
+        const open = mountCheck({ changing: true })
+        const selector = open.findComponent(SelectorStub)
+        // Every drill step keeps „Ändern“; the car's return address does not, so a choice closes the selector.
+        expect(selector.props('baseQuery')).toEqual({ hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110, aendern: 1 })
+        expect(selector.props('returnTo')).toBe('/rimify-check?hersteller=borbet&felge=borbet-db8gt2&groesse=110')
+
+        await open.find('.chk__cancel button').trigger('click')
+        vi.advanceTimersByTime(0)
+        expect(get).toHaveBeenLastCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110 }, expect.anything())
+        vi.useRealTimers()
+    })
+
+    it('buys nothing while another size loads, and says so if it cannot load (CHECK-06, -09)', async () => {
+        vi.useFakeTimers()
+        shared.vehicle = VEHICLE
+        const wrapper = mountCheck({ answer: answer() })
 
         await wrapper.find('#chk-size').setValue('111')
-        expect(get).toHaveBeenLastCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 111 }, expect.anything())
+        expect(wrapper.find('.chk__go').attributes('disabled')).toBeDefined()
+        expect(wrapper.find('.chk__go').text()).toBe('Antwort wird geladen …')
+        expect(wrapper.find('#antwort').attributes('aria-busy')).toBe('true')
+
+        vi.advanceTimersByTime(300)
+        const options = get.mock.calls.at(-1)?.[2] as { onNetworkError: () => unknown; onFinish: () => void }
+        expect(options.onNetworkError()).toBe(false)
+        options.onFinish()
+        await flushPromises()
+
+        expect(wrapper.find('.chk__lost[role="alert"]').text()).toContain('Keine Verbindung')
+        expect(wrapper.find('.chk__go').text()).toBe('Jetzt kaufen')
+        vi.useRealTimers()
+    })
+
+    it('keeps the tyre and colour chosen when a refused add comes back as a new answer (CHECK-08)', async () => {
+        shared.vehicle = VEHICLE
+        const twoTyres = answer()
+        const first = twoTyres.config.komplettrad!.tyres[0]!
+        twoTyres.config.komplettrad!.tyres.push({ ...first, id: 8, name: 'Turanza' })
+        const wrapper = mountCheck({ answer: twoTyres })
+
+        await wrapper.find('input[name="chk-mode"][value="komplettrad"]').setValue()
+        await wrapper.find('input[name="kc-tyre"][value="8"]').setValue()
+        await wrapper.find('input[name="kc-weights"][value="2"]').setValue()
+
+        // The refusal: the same size again, a new object, with the sentence under the button.
+        ;(forms[0]?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        await wrapper.setProps({ answer: JSON.parse(JSON.stringify(twoTyres)) as CheckAnswer })
+        await flushPromises()
+
+        expect((wrapper.find('input[name="kc-tyre"][value="8"]').element as HTMLInputElement).checked).toBe(true)
+        expect((wrapper.find('input[name="kc-weights"][value="2"]').element as HTMLInputElement).checked).toBe(true)
+        expect(wrapper.find('.chk__error').text()).toContain('Diesen Reifen haben wir gerade nicht')
+    })
+
+    it('leads to the product page on the size answered (CHECK-13)', () => {
+        shared.vehicle = VEHICLE
+        const link = mountCheck({ answer: answer() }).findAll('.chk__more a').find((a) => a.text() === 'Alles zur Felge auf der Produktseite')
+
+        expect(link?.attributes('href')).toBe('/felgen/borbet-db8gt2?ausfuehrung=3&groesse=110')
     })
 
     it('answers for the pair and buys exactly it: four rims into the basket, then the basket', async () => {
@@ -246,7 +338,13 @@ describe('RIMIFY-Check', () => {
         options.onSuccess({ component: 'Fehler/Index' })
         expect(visit).not.toHaveBeenCalled()
         options.onSuccess({ component: 'Check/Index' })
-        expect(visit).toHaveBeenCalledWith('/warenkorb')
+        expect(visit).toHaveBeenCalledWith('/warenkorb', expect.anything())
+
+        // On its way to the basket the page buys nothing more, however often the button is pressed (CHECK-07).
+        await flushPromises()
+        expect(wrapper.find('.chk__go').attributes('aria-busy')).toBe('true')
+        await wrapper.find('.chk__go').trigger('click')
+        expect(post).toHaveBeenCalledTimes(1)
     })
 
     it('buys the Komplettrad with the tyre and the colour chosen, priced in that colour', async () => {
@@ -319,6 +417,7 @@ describe('RIMIFY-Check', () => {
         await flushPromises()
 
         expect(writeText).toHaveBeenCalledWith(window.location.href)
-        expect(show).toHaveBeenCalledWith({ text: 'Link kopiert – wer ihn öffnet, sieht genau diese Antwort.' })
+        // The link carries the car, the wheel and the size — not what the visitor typed from their papers (CHECK-17).
+        expect(show).toHaveBeenCalledWith({ text: 'Link kopiert – er zeigt dieses Auto mit dieser Felge. Werte aus deinen Fahrzeugpapieren bleiben bei dir.' })
     })
 })

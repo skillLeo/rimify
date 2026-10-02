@@ -16,6 +16,7 @@ import { useSearch, readRecent, remember } from '../../composables/useSearch'
 import { useShell } from '../../composables/useShell'
 import { useShared } from '../../composables/useShared'
 import type { IconName } from '../../icons'
+import { useVehicleChangeHref } from '../../lib/vehicleChange'
 
 interface Entry {
     id: string
@@ -29,6 +30,7 @@ interface Entry {
 
 const shell = useShell()
 const shared = useShared()
+const changeHref = useVehicleChangeHref()
 const search = useSearch()
 const query = ref('')
 const active = ref(0)
@@ -41,7 +43,7 @@ const actions = computed<Entry[]>(() => {
 
     if (vehicle) {
         list.push({ id: 'a-felgen', group: 'Aktionen', label: `Passende Felgen für ${vehicle.short}`, sub: null, href: '/felgen', icon: 'wheel' })
-        list.push({ id: 'a-change', group: 'Aktionen', label: 'Fahrzeug ändern', sub: vehicle.label, href: '/felgen-suchen', icon: 'car' })
+        list.push({ id: 'a-change', group: 'Aktionen', label: 'Fahrzeug ändern', sub: vehicle.label, href: changeHref.value, icon: 'car' })
     } else {
         list.push({ id: 'a-choose', group: 'Aktionen', label: 'Fahrzeug wählen', sub: 'Marke und Modell oder HSN/TSN', href: '/felgen-suchen', icon: 'car' })
     }

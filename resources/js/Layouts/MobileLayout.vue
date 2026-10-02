@@ -33,6 +33,7 @@ import { provideConsent } from '../composables/useConsent'
 import { provideShell } from '../composables/useShell'
 import { useShared } from '../composables/useShared'
 import { useShortcuts } from '../composables/useShortcuts'
+import { useVehicleChangeHref } from '../lib/vehicleChange'
 import { isNavigationVisit, provideMobileShell } from '../composables/mobile/useMobileShell'
 import { installNavigationDirection, markNext } from '../composables/mobile/useNavigationDirection'
 import { stripSheetState } from '../composables/mobile/useSheetHistory'
@@ -68,6 +69,7 @@ const shared = useShared()
 const frame = provideShell()
 provideConsent(shared.value.consent ?? null)
 const shell = provideMobileShell()
+const changeHref = useVehicleChangeHref()
 
 const vehicle = computed(() => shared.value.vehicle)
 
@@ -187,7 +189,7 @@ function fromVehicleSheet(href: string | undefined): void {
             <p class="small muted num">{{ vehicle.approval ?? `${vehicle.buildWindow} · ${vehicle.keyNumbers}` }}</p>
             <div class="mshell__vehicle-rows">
                 <ListRow icon="wheel" title="Passende Felgen anzeigen" href="/felgen" manual @activate="fromVehicleSheet" />
-                <ListRow icon="car" title="Fahrzeug ändern" href="/felgen-suchen" manual @activate="fromVehicleSheet" />
+                <ListRow icon="car" title="Fahrzeug ändern" :href="changeHref" manual @activate="fromVehicleSheet" />
                 <ListRow icon="close" title="Fahrzeug entfernen" :chevron="false" @activate="removeVehicle" />
             </div>
         </BottomSheet>

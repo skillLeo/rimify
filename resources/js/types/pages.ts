@@ -250,11 +250,15 @@ export interface SelectorProps {
 export interface CheckProps extends SelectorProps {
     wheelBrands: { slug: string; name: string }[]
     wheelModels: { slug: string; name: string }[]
-    /** `Schwarz matt · 8,5J × 19 · ET 35`, one per configuration. */
+    /** The wheel's finishes (`ausfuehrung`), chosen on their own. */
+    wheelFinishes?: { id: number; name: string }[]
+    /** `8,5J × 19 · ET 35`, one per configuration of the chosen finish. */
     wheelSizes: { id: number; label: string }[]
-    chosen: { brand: string | null; wheel: string | null; size: number | null }
+    chosen: { brand: string | null; wheel: string | null; finish?: number | null; size: number | null }
     /** A link naming a wheel (`felge`) or a size (`groesse`) the shop no longer has: which of the two. */
     notFound?: 'wheel' | 'size' | null
+    /** „Ändern“ pressed on a chosen car (`aendern=1`): the selector stays open through its drill steps. */
+    changing?: boolean
     /** Only for a pair: a car and one size of one wheel. The product page's own row, built by the same code. */
     answer: CheckAnswer | null
 }

@@ -10,8 +10,10 @@ import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import { useShared } from '../../composables/useShared'
+import { useVehicleChangeHref } from '../../lib/vehicleChange'
 
 const shared = useShared()
+const changeHref = useVehicleChangeHref()
 const vehicle = computed(() => shared.value.vehicle)
 const mode = computed(() => shared.value.headerMode)
 const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BOX' || mode.value === 'BLUE_BAR'))
@@ -27,7 +29,7 @@ const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BO
                 <!-- Feld K alone where it is what tells the car apart; the unknown build window says nothing then. -->
                 <span class="vbar__meta num">· {{ vehicle.approval ?? `${vehicle.buildWindow} · ${vehicle.keyNumbers}` }}</span>
             </p>
-            <Link href="/felgen-suchen" class="vbar__link">Ändern</Link>
+            <Link :href="changeHref" class="vbar__link">Ändern</Link>
             <Link v-if="mode === 'BLUE_BAR'" href="/felgen" class="vbar__link vbar__link--cta" prefetch>Passende Felgen anzeigen</Link>
         </div>
     </div>

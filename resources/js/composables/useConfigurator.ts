@@ -88,10 +88,12 @@ function reasonFor(configs: ProduktConfig[]): string {
 
 export function useConfigurator(
     configs: () => ProduktConfig[],
-    firstFinishId: number
+    firstFinishId: number,
+    /** A size named in the link (`groesse`, the RIMIFY-Check's „Alles zur Felge“): opened on where it is of this finish. */
+    initialConfigId: number | null = null
 ): Configurator {
     const finishId = ref(firstFinishId)
-    const configId = ref<number | null>(null)
+    const configId = ref<number | null>(initialConfigId)
 
     const forFinish = computed(() => configs().filter((c) => c.finishId === finishId.value))
 

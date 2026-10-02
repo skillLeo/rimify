@@ -55,14 +55,31 @@ class CheckController extends Controller
         $brand = $wheel->brand ?? ($brandSlug === '' ? null : Brand::query()->where('slug', $brandSlug)->first());
 
         $configs = $wheel === null ? collect() : $wheel->configs
-            ->sortBy([['diameter_in', 'asc'], ['width_in', 'asc'], ['et_mm', 'asc'], ['wheel_finish_id', 'asc']])
+            ->sortBy([['diameter_in', 'asc'], ['width_in', 'asc'], ['et_mm', 'asc']])
             ->values();
-        $config = $configs->firstWhere('id', $request->integer('groesse')) ?? ($configs->count() === 1 ? $configs->first() : null);
+
+        // The wheel's finishes, each chosen on its own (`ausfuehrung`), so the size select holds a size and nothing else —
+        // a finish and a size in one line was cut off in a phone's select (CHECK-05). The first finish until one is named.
+        $finishes = $configs->map(static fn (WheelConfig $c) => $c->wheelFinish)->unique('id')->sortBy('id')->values();
+        $config = $configs->firstWhere('id', $request->integer('groesse'));
+        $finishId = $request->integer('ausfuehrung') ?: null;
+
+        // Another finish keeps the size where it has it: the same width, diameter and ET.
+        if ($config !== null && $finishId !== null && (int) $config->wheel_finish_id !== $finishId) {
+            $config = $configs->first(static fn (WheelConfig $c): bool => (int) $c->wheel_finish_id === $finishId
+                && (float) $c->width_in === (float) $config->width_in
+                && (float) $c->diameter_in === (float) $config->diameter_in
+                && (int) $c->et_mm === (int) $config->et_mm);
+        }
+
+        $finishId = $finishes->firstWhere('id', $config->wheel_finish_id ?? $finishId)->id ?? $finishes->first()?->id;
+        $sizes = $configs->filter(static fn (WheelConfig $c): bool => (int) $c->wheel_finish_id === $finishId)->values();
+        $config ??= $sizes->count() === 1 ? $sizes->first() : null;
 
         // A shared link outlives a wheel or a size taken out of the shop: the page says which, never shows empty choices.
         $notFound = match (true) {
             $wheelSlug !== '' && $wheel === null => 'wheel',
-            $wheel !== null && $request->filled('groesse') && $config === null => 'size',
+            $wheel !== null && $request->filled('groesse') && $config === null && ! $request->filled('ausfuehrung') => 'size',
             default => null,
         };
 
@@ -82,12 +99,16 @@ class CheckController extends Controller
                 ->get(['slug', 'name'])
                 ->map(static fn (WheelModel $m): array => ['slug' => $m->slug, 'name' => $m->name])
                 ->all(),
-            'wheelSizes' => $configs->map(static fn (WheelConfig $c): array => [
+            'wheelFinishes' => $finishes->map(static fn ($f): array => ['id' => (int) $f->id, 'name' => (string) $f->name_de])->all(),
+            'wheelSizes' => $sizes->map(static fn (WheelConfig $c): array => [
                 'id' => (int) $c->id,
-                'label' => $c->wheelFinish->name_de.' · '.GermanFormat::wheelSize((float) $c->width_in, (float) $c->diameter_in, (int) $c->et_mm),
+                'label' => GermanFormat::wheelSize((float) $c->width_in, (float) $c->diameter_in, (int) $c->et_mm),
             ])->all(),
-            'chosen' => ['brand' => $brand?->slug, 'wheel' => $wheel?->slug, 'size' => $config?->id],
+            'chosen' => ['brand' => $brand?->slug, 'wheel' => $wheel?->slug, 'finish' => $finishId, 'size' => $config?->id],
             'notFound' => $notFound,
+            // „Ändern“ on a chosen car, in the address (CHECK-01, -02): every drill step keeps the selector open, a choice
+            // closes it — the car's return address carries no `aendern`.
+            'changing' => $request->boolean('aendern'),
             // The answer only for a pair: a car and one size of one wheel. Without the car the page asks for it.
             'answer' => $config === null || $wheel === null || ! $vehicleChosen ? null : [
                 'product' => [

@@ -17,10 +17,12 @@ import { useShared } from '../../composables/useShared'
 import { useMobileShell } from '../../composables/mobile/useMobileShell'
 import { useSheetHistory } from '../../composables/mobile/useSheetHistory'
 import type { IconName } from '../../icons'
+import { useVehicleChangeHref } from '../../lib/vehicleChange'
 
 const shared = useShared()
 const shell = useMobileShell()
 const search = useSearch()
+const changeHref = useVehicleChangeHref()
 
 const open = computed({
     get: () => shell.searchOpen.value,
@@ -78,7 +80,7 @@ const quick = computed(() => {
 
     if (vehicle) {
         list.push({ label: `Passende Felgen für ${vehicle.short}`, sub: vehicle.label, href: '/felgen', icon: 'wheel' })
-        list.push({ label: 'Fahrzeug ändern', sub: null, href: '/felgen-suchen', icon: 'car' })
+        list.push({ label: 'Fahrzeug ändern', sub: null, href: changeHref.value, icon: 'car' })
     } else {
         list.push({ label: 'Fahrzeug wählen', sub: 'Marke und Modell oder HSN/TSN', href: '/felgen-suchen', icon: 'car' })
     }
