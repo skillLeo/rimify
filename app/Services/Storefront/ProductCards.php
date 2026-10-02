@@ -13,6 +13,7 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
 use App\Support\DemoWheels;
 use App\Support\GermanFormat;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -220,13 +221,17 @@ final readonly class ProductCards
      * homepage's shop window while the demo set is incomplete). Finishes with a photograph come
      * first in every order: a drawing is a fallback, never the front row.
      *
+     * `filters` — the listing's facets without a car (the client's #30, D-118): Marke, Zoll, Breite, ET and Farbe
+     * narrow the configurations a card stands for, so its price is the cheapest that matches.
+     *
      * @param  int|null  $limit  null for the whole range
-     * @param  array{order?: string, maxPriceCents?: int|null, modelIds?: list<int>, withImageOnly?: bool}  $options
+     * @param  array{order?: string, maxPriceCents?: int|null, modelIds?: list<int>, withImageOnly?: bool, filters?: array<string, mixed>}  $options
      * @return list<array<string, mixed>>
      */
     public function catalogue(?int $limit = 24, ?string $brand = null, array $options = []): array
     {
         $order = $options['order'] ?? 'price';
+        $filters = $options['filters'] ?? [];
         $maxPriceCents = $options['maxPriceCents'] ?? null;
         $modelIds = $options['modelIds'] ?? null;
         $withImageOnly = ($options['withImageOnly'] ?? false) === true;
@@ -245,6 +250,7 @@ final readonly class ProductCards
             ->when($brand !== null, fn ($q) => $q->where('br.slug', $brand))
             ->when($modelIds !== null, fn ($q) => $q->whereIn('wm.id', $modelIds))
             ->when($withImageOnly, fn ($q) => $q->whereNotNull('wf.image_manifest'))
+            ->tap(fn ($q) => self::applyFilters($q, $filters))
             ->groupBy(
                 'wm.id', 'wm.name', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
                 'wm.is_demo', 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish', 'wf.image_manifest',
@@ -307,6 +313,72 @@ final readonly class ProductCards
         }
 
         return $cards;
+    }
+
+    /**
+     * The facets of the catalogue without a car (the client's #30, D-118), as ListingQuery::facets() gives them with
+     * one: every option with the number of cards it would show, counted with the OTHER filters applied and not its own,
+     * zero kept so the page can disable rather than hide. ohne_eintragung is a statement about a car and is not
+     * offered without one.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, list<array{value: string, count: int}>>
+     */
+    public function catalogueFacets(array $filters = []): array
+    {
+        $facets = [];
+
+        foreach (self::CATALOGUE_FACETS as $facet => $column) {
+            $others = $filters;
+            unset($others[$facet]);
+
+            $query = DB::table('wheel_configs as wc')
+                ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
+                ->join('wheel_finishes as wf', 'wf.id', '=', 'wc.wheel_finish_id')
+                ->join('brands as br', 'br.id', '=', 'wm.brand_id')
+                ->whereNull('wc.deleted_at')
+                ->whereNull('wm.deleted_at')
+                ->where('wm.status', CatalogueStatus::Published->value);
+
+            self::applyFilters($query, $others);
+
+            $facets[$facet] = $query
+                ->groupBy($column)
+                ->orderBy($column)
+                ->selectRaw($column.' AS v, COUNT(DISTINCT wm.id, wf.id) AS c')
+                ->get()
+                ->map(static fn (object $row): array => ['value' => (string) $row->v, 'count' => (int) $row->c])
+                ->values()
+                ->all();
+        }
+
+        return $facets;
+    }
+
+    /** The catalogue's facets and the column each reads — a match of constants, so no query string reaches the SQL (R-14). */
+    private const CATALOGUE_FACETS = [
+        'marke' => 'br.name',
+        'zoll' => 'wc.diameter_in',
+        'breite' => 'wc.width_in',
+        'et' => 'wc.et_mm',
+        'farbe' => 'wf.name_de',
+    ];
+
+    /**
+     * The facets' WHERE, every value bound: only the known facets, only non-empty values.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private static function applyFilters(Builder $query, array $filters): void
+    {
+        foreach (self::CATALOGUE_FACETS as $facet => $column) {
+            $value = $filters[$facet] ?? null;
+            $values = array_values(array_filter(is_array($value) ? $value : [$value], static fn (mixed $v): bool => is_scalar($v) && (string) $v !== ''));
+
+            if ($values !== []) {
+                $query->whereIn($column, array_map('strval', $values));
+            }
+        }
     }
 
     /**

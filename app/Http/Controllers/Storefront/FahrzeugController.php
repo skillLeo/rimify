@@ -115,8 +115,12 @@ class FahrzeugController extends Controller
         $raw = request()->cookie(Garage::COOKIE);
         $garage = Garage::decode(is_string($raw) ? $raw : null)->with($vehicleId);
 
+        // The listing's last filters come with the car (the client's #27, D-118): a size or a brand chosen before
+        // the car survives choosing it.
+        $filters = request()->session()->get(FelgenController::FILTERS_SESSION, []);
+
         return redirect()
-            ->route('felgen.index')
+            ->route('felgen.index', is_array($filters) ? $filters : [])
             ->withCookie(Cookie::make(
                 VehicleContext::COOKIE,
                 $context->encode(),

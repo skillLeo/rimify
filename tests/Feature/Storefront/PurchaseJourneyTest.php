@@ -67,7 +67,8 @@ it('walks from an empty session to a checkout with the vehicle intact', function
     $this->withCookies(rimifyVehicleCookie($vehicle->id))
         ->get('/felgen?zoll=18')
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $p) => $p->where('filters.zoll', ['18']));
+        // Written as the size options write it (D-118), so the chosen option shows as chosen.
+        ->assertInertia(fn (AssertableInertia $p) => $p->where('filters.zoll', ['18.0']));
 
     // ── The product page carries a verdict per configuration ────────────────────────────
     $product = $this->withCookies(rimifyVehicleCookie($vehicle->id))

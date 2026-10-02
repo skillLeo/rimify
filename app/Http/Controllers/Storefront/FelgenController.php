@@ -25,6 +25,7 @@ use App\Enums\TyreSeason;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Controller;
 use App\Models\BalanceWeightColour;
+use App\Models\Brand;
 use App\Models\CatalogueGapEvent;
 use App\Models\Review;
 use App\Models\TyreVariant;
@@ -94,22 +95,30 @@ class FelgenController extends Controller
     /** Cards per listing page. The page's pager derives its page count from the same number. */
     private const PER_PAGE = 24;
 
+    /** The listing's last filters, for the vehicle choice to land on (#27, D-118). */
+    public const FILTERS_SESSION = 'listing_filters';
+
     /** The listing. With a vehicle it is a compliance answer; without one it is a catalogue. */
     public function index(Request $request): Response|RedirectResponse
     {
         $vehicleId = $this->vehicleId($request);
         $filters = $this->filters($request);
 
+        // One filter state across the shop (the client's #27, D-118): the listing's last filters are remembered, so
+        // choosing a car — on this page, the homepage or the vehicle page — lands on the same selection for that car.
+        $request->session()->put(self::FILTERS_SESSION, $filters);
+
         if ($vehicleId === null) {
             return Inertia::render('Felgen/Index', [
                 'hasVehicle' => false,
-                // The whole catalogue. This page has no pager without a vehicle and states the
-                // number of cards it shows as the size of the range, so a cap here hid a product
-                // and made "24 Felgen im Sortiment" untrue.
-                'cards' => $this->cards->catalogue(limit: null),
+                // The whole catalogue, narrowed by the same facets a car's listing has (the client's #30, D-118).
+                // This page has no pager without a vehicle and states the number of cards it shows as the size
+                // of the range, so a cap here hid a product and made "24 Felgen im Sortiment" untrue.
+                'cards' => $this->cards->catalogue(limit: null, options: ['filters' => $filters]),
                 'total' => null,
-                'facets' => [],
-                'filters' => $filters,
+                'facets' => $this->cards->catalogueFacets($filters),
+                // „Ohne Eintragung“ is a statement about a car: without one it is neither offered nor applied.
+                'filters' => array_diff_key($filters, ['ohne_eintragung' => true]),
                 'demo' => $this->demo(),
             ]);
         }
@@ -812,6 +821,30 @@ class FelgenController extends Controller
                 is_array($value) ? $value : explode(',', (string) $value),
                 static fn (mixed $v): bool => is_string($v) && $v !== '',
             ));
+
+            // A size arrives as `19` from the homepage's size tiles and as `19.0` from the listing's own options: both are
+            // written as the facets write them (the column's form), so the option shows as chosen and both lead to one
+            // filter. A value that is no number is no size, and is dropped (D-118).
+            $format = match ($facet) {
+                'zoll' => 1,
+                'breite' => 2,
+                'et' => 0,
+                default => null,
+            };
+
+            if ($format !== null) {
+                $values = array_values(array_unique(array_map(
+                    static fn (string $v): string => number_format((float) str_replace(',', '.', $v), $format, '.', ''),
+                    array_filter($values, static fn (string $v): bool => is_numeric(str_replace(',', '.', $v))),
+                )));
+            }
+
+            // A brand arrives by name from the listing's own options and by slug from the homepage's brand wall
+            // (/felgen?marke=oz-racing): both mean the brand, and the listing reads its name.
+            if ($facet === 'marke' && $values !== []) {
+                $names = Brand::query()->whereIn('slug', $values)->pluck('name', 'slug');
+                $values = array_values(array_unique(array_map(static fn (string $v): string => (string) ($names[$v] ?? $v), $values)));
+            }
 
             if ($values !== []) {
                 $filters[$facet] = $values;
