@@ -19,6 +19,7 @@ use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
 use App\Support\ScheduleBeat;
+use App\Support\Security\KnownPasswords;
 use App\Support\Seller;
 use App\Support\Shipping;
 use App\Support\Ssr\BoundedSsrGateway;
@@ -37,7 +38,8 @@ use Throwable;
  * application, rendering, mail, the payment driver, its mode and its webhook, the queue and the
  * scheduler, the database and its engine, the demo data (R-12), the media storage — the full S3 audit
  * as one row, with `--skip-s3` for a quick look — the invoices' private storage, the seller's data,
- * shipping and delivery time, the legal texts, GPSR per brand, and no credential in the code (Block G §8).
+ * shipping and delivery time, the legal texts, GPSR per brand, no credential in the code (Block G §8), and no admin
+ * account that opens with a password from the repository (D-141).
  * A row the live shop cannot go without is NO-GO in production and a warning everywhere else.
  */
 final class Preflight extends Command
@@ -117,6 +119,7 @@ final class Preflight extends Command
         $rows[] = $this->legalTexts($production);
         $rows[] = $this->gpsr($production);
         $rows[] = $this->secrets();
+        $rows[] = $this->knownPasswords($production);
 
         $marks = ['ok' => 'GO', 'warn' => 'Warnung', 'fail' => 'NO-GO', 'skip' => '–'];
         $this->table(['Prüfung', 'Ergebnis', 'Befund'], array_map(static fn (array $r): array => [$r[0], $marks[$r[1]], $r[2]], $rows));
@@ -364,6 +367,25 @@ final class Preflight extends Command
         return $code === 0
             ? ['Geheimnisse im Code', 'ok', 'keines gefunden']
             : ['Geheimnisse im Code', 'fail', Str::limit(str_replace("\n", ' ', $output), 200)];
+    }
+
+    /**
+     * No admin account opens with a password that has stood in the repository (D-141): on the preview ten did until
+     * 02.10.2026, two of them Super-Admin, and the live shop's first seed would have made seven more.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function knownPasswords(bool $production): array
+    {
+        try {
+            $open = KnownPasswords::openAccounts();
+        } catch (Throwable $e) {
+            return ['Bekannte Passwörter', 'fail', $e->getMessage()];
+        }
+
+        return $open === []
+            ? ['Bekannte Passwörter', 'ok', 'kein Konto öffnet mit einem Passwort, das im Repository stand']
+            : ['Bekannte Passwörter', $production ? 'fail' : 'warn', 'öffnen mit einem Passwort aus dem Repository: '.implode(', ', $open).' – neu setzen mit rimify:admin-passwort'];
     }
 
     /**

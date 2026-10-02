@@ -142,6 +142,7 @@ expected there, each NO-GO in production.
 | Speicher: Quelle | GO · Einstellungen im Admin | enter the bucket in Einstellungen › Medien und Speicher |
 | **Speicher: S3-Audit** | **GO · 10 Prüfungen, 0 Warnungen** — this includes the probe that **`invoices/` answers 403** | `$PHP artisan rimify:s3-audit` names the row; row 5 must read `200/200/200` and **403 on `invoices/`**; a 200 there means invoices are public — fix the bucket policy before anything else |
 | Speicher-Tabelle | GO · vorhanden | run the migrations (§4) |
+| Bekannte Passwörter | GO · kein Konto öffnet mit einem Passwort, das im Repository stand | the row names each account: set a new password with `printf '%s\n' "$NEW" \| $PHP artisan rimify:admin-passwort <email> --grund="…"` (asked for on stdin, never an argument; every session of the account ends). Since D-141 the seeders put a development password on no shared copy and reset none — a NO-GO here means someone set one by hand |
 
 **If any row says NO-GO, stop here.** Fix it and run the preflight again; nothing below starts on a red board.
 

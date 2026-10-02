@@ -67,6 +67,7 @@ final class AuditDescriber
         'admin.suspended' => 'team',
         'admin.reactivated' => 'team',
         'admin.sessions_revoked' => 'team',
+        'admin.password_reset' => 'team',
         'admin.password_changed' => 'konto',
         'permission.denied' => 'zugriff',
         'weight_colour.created' => 'katalog',
@@ -308,6 +309,12 @@ final class AuditDescriber
             'admin.suspended' => ['Das Konto '.self::address($p).' wurde gesperrt.', []],
             'admin.reactivated' => ['Das Konto '.self::address($p).' wurde wieder entsperrt.', []],
             'admin.sessions_revoked' => ['Das Konto '.self::address($p).' wurde auf allen Geräten abgemeldet.', []],
+            // Set from the operator's side (rimify:admin-passwort, D-141), never what it was or became.
+            'admin.password_reset' => [
+                'Für das Konto '.self::address($p).' wurde ein neues Passwort gesetzt; es wurde auf allen Geräten abgemeldet.'
+                    .(self::text($p, 'reason') === null ? '' : ' Grund: '.self::text($p, 'reason')),
+                [],
+            ],
             'admin.password_changed' => ['Das eigene Passwort wurde geändert.', []],
             'permission.denied' => [self::denied($p), []],
             'weight_colour.created' => [

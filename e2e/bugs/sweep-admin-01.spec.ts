@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '../fixtures'
+import { REVIEW_PASSWORD } from '../support'
 import { waitForApp } from './faq-support'
 
 /*
@@ -25,16 +25,9 @@ const ACCOUNTS = [
     { role: 'lager', email: 'lager@rimify.test' },
 ]
 
-/** The review accounts' password, as docs/review/ACCOUNTS.md documents it — not repeated here. */
+/** The review accounts' password on the e2e shop's development database (e2e/support.ts, D-141). */
 function reviewPassword(): string {
-    if (process.env.REVIEW_PASSWORD) {
-        return process.env.REVIEW_PASSWORD
-    }
-
-    const line = readFileSync('docs/review/ACCOUNTS.md', 'utf8').split('\n').find((l) => l.includes('`verkauf@rimify.test`')) ?? ''
-    const ticks = [...line.matchAll(/`([^`]+)`/g)].map((m) => m[1])
-
-    return ticks[1] ?? ''
+    return REVIEW_PASSWORD
 }
 
 async function signInAs(page: Page, email: string): Promise<void> {

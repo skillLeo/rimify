@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import { waitForApp } from './bugs/faq-support'
+import { REVIEW_PASSWORD } from './support'
 
 /*
  * The three review accounts, shown (the launch release §2, docs/review/ACCOUNTS.md): each signs in and
@@ -13,8 +14,8 @@ const ACCOUNTS = [
     { role: 'admin', email: 'admin@rimify.test' },
 ]
 
-// The review accounts' documented password (docs/review/ACCOUNTS.md): they exist only where the review is on.
-const PASSWORD = 'rimify-review-2026'
+// The review accounts' password on the e2e shop's development database (e2e/support.ts, D-141).
+const PASSWORD = REVIEW_PASSWORD
 
 async function signInAs(page: Page, email: string): Promise<void> {
     await page.goto('/admin/anmelden', { waitUntil: 'domcontentloaded' })

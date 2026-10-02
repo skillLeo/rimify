@@ -396,6 +396,11 @@ describe('putting every entry into words', function (): void {
             'admin.suspended' => [['user_id' => 9, 'email' => 'neu@rimify.test'], 'Das Konto neu@rimify.test wurde gesperrt.', []],
             'admin.reactivated' => [['user_id' => 9, 'email' => 'neu@rimify.test'], 'Das Konto neu@rimify.test wurde wieder entsperrt.', []],
             'admin.sessions_revoked' => [['user_id' => 9, 'email' => 'neu@rimify.test'], 'Das Konto neu@rimify.test wurde auf allen Geräten abgemeldet.', []],
+            'admin.password_reset' => [
+                ['user_id' => 9, 'email' => 'neu@rimify.test', 'reason' => 'Das alte Passwort stand im öffentlichen Repository.'],
+                'Für das Konto neu@rimify.test wurde ein neues Passwort gesetzt; es wurde auf allen Geräten abgemeldet. Grund: Das alte Passwort stand im öffentlichen Repository.',
+                [],
+            ],
             'admin.password_changed' => [[], 'Das eigene Passwort wurde geändert.', []],
             'permission.denied' => [
                 ['ability' => 'delete', 'route' => 'admin.wuchtgewichte.destroy'],

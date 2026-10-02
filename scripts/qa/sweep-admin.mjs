@@ -4,8 +4,8 @@
 //   node scripts/qa/sweep-admin.mjs [--base https://rimify.skillleo.com] [--roles admin,verkauf,lager]
 //                                   [--widths 1440,390] [--no-links] [--no-shots]
 //
-// The review password is read from REVIEW_PASSWORD, else from the table in docs/review/ACCOUNTS.md — it is never
-// written into this file.
+// Each account's password is read from REVIEW_PASSWORD, else from its line in the operator's docs/review/ACCOUNTS.md
+// (on his machine only, D-141), else on a local base the development password — the preview's are never in this file.
 //
 // READ-ONLY. Every request that is not GET/HEAD is aborted in the browser, except signing in (POST /admin/anmelden)
 // and confirming the password (POST /admin/bestaetigen) — so nothing is released, published, saved, refunded or
@@ -85,20 +85,29 @@ const RULES = [
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
-function password() {
+/**
+ * The account's password: REVIEW_PASSWORD when set; else its own line in the operator's docs/review/ACCOUNTS.md, which
+ * since 02.10.2026 gives each preview account a password of its own and lives only on his machine (D-141); else, on a
+ * development database, the development password.
+ */
+function password(email) {
     if (process.env.REVIEW_PASSWORD) {
         return process.env.REVIEW_PASSWORD
     }
 
-    const doc = fs.readFileSync(path.join(ROOT, 'docs', 'review', 'ACCOUNTS.md'), 'utf8')
-    const line = doc.split('\n').find((l) => l.includes('`verkauf@rimify.test`'))
+    const file = path.join(ROOT, 'docs', 'review', 'ACCOUNTS.md')
+    const line = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').find((l) => l.includes(`\`${email}\``)) : undefined
     const ticks = line ? [...line.matchAll(/`([^`]+)`/g)].map((m) => m[1]) : []
 
-    if (ticks.length < 2) {
-        throw new Error('Kein Passwort: REVIEW_PASSWORD setzen oder docs/review/ACCOUNTS.md prüfen.')
+    if (ticks.length >= 2) {
+        return ticks[ticks.indexOf(email) + 1]
     }
 
-    return ticks[1]
+    if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(ORIGIN)) {
+        return 'rimify-review-2026'
+    }
+
+    throw new Error(`Kein Passwort für ${email}: REVIEW_PASSWORD setzen oder docs/review/ACCOUNTS.md prüfen.`)
 }
 
 function slug(href) {
@@ -255,7 +264,6 @@ async function scan(page) {
 /* ── The run ─────────────────────────────────────────────────────────────── */
 
 const results = { base: BASE, stamp: STAMP, today: berlinToday(), roles: {}, checks: [], findings: [] }
-const pass = password()
 const detailPages = {}
 
 function finding(sev, role, pageName, width, what, expected, evidence = null) {
@@ -269,6 +277,7 @@ const browser = await chromium.launch()
 
 for (const role of ROLE_ORDER) {
     results.roles[role] = { nav: {}, pages: [], forbidden: [], links: [], blocked: [] }
+    const pass = password(ACCOUNTS[role])
 
     for (const width of WIDTHS) {
         const mobile = width < 768
