@@ -831,6 +831,34 @@
         }
     }
 
+    /*
+     * A narrow card — every phone, a three-up tablet — has no room for the verdict and the compare control side by side
+     * on the photograph: the compare box stood over „Mit Auflagen“ (the client's #22). There it leaves the photograph and
+     * takes a row of its own under „Details ansehen“, always shown, above the card's stretched link so it stays its own
+     * control. The verdict keeps the photograph's corner to itself.
+     */
+    @container (width < 280px) {
+        .tile__actions {
+            flex-wrap: wrap;
+            gap: var(--sp-4) var(--sp-12);
+        }
+
+        .tile__compare {
+            position: relative;
+            top: auto;
+            right: auto;
+            flex: 1 1 100%;
+            min-height: 44px;
+            padding: 0;
+            background: transparent;
+            opacity: 1;
+        }
+
+        .tile__compare--full {
+            background: transparent;
+        }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .tile__media::after,
         .tile__media--alt,
