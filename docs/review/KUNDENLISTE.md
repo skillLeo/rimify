@@ -15,13 +15,13 @@ Prüfen und abhaken kannst du alles auf https://rimify.skillleo.com.
 
 | Nr. | Was es war | Was wir gemacht haben | Commit | Status |
 |---|---|---|---|---|
-| 1 | „Fahrzeug wählen“ im Hero hellblau, solange kein Fahrzeug gewählt ist | | | offen |
+| 1 | „Fahrzeug wählen“ im Hero hellblau, solange kein Fahrzeug gewählt ist | Solange kein Fahrzeug gewählt ist, ist „Fahrzeug wählen“ jetzt hellblau mit blauer Schrift (gut lesbar, Kontrast 6,4 : 1) statt grau – am Computer und am Handy. Ein Klick darauf springt zum Feld, das noch fehlt (Marke, Modell, Fahrzeug oder HSN/TSN). Grau bleibt der Knopf nur, wo ein Klick nicht helfen kann, z. B. wenn es für das Fahrzeug noch keine Felgen gibt. | d82fb517 | erledigt |
 | 2 | Header höher | Der Header ist am Computer jetzt 80 statt 64 Pixel hoch, das RIMIFY-Logo passend größer. Am Handy bleibt er bei 56 Pixeln, damit der erste Bildschirm nicht schrumpft. | 1fa4e017 | erledigt |
 | 3 | Leiste über dem Header entfernen | Die graue Leiste über dem Header ist weg. „Versand aus Deutschland“ und „Gutachten zu jeder Felge“ stehen schon in deinen eigenen Worten in der Reihe direkt unter dem Hero, deshalb nicht doppelt. Neu unter der Fahrzeugwahl (Computer und Handy): „Fragen zu deinem Fahrzeug? Schreib uns · Mo–Fr 9:00–17:00 Uhr“ – der Link führt zum Kontaktformular. | 94a0be4e | erledigt |
 | 4 | Link zur Felge und Preis aus dem Hero entfernen | Im Hero steht kein Preis mehr und die Felge ist nicht mehr verlinkt – am Computer und am Handy. Der Name der Felge mit beiden Farben und die Größenzeile (8,5J × 18 · ET 35 · LK 5 × 120 …) bleiben stehen. | bb6ac504 | erledigt |
-| 5 | „Felgen mit den meisten Freigaben“ → meistgekaufte Felgen | | | offen |
-| 6 | Markierung „Wir lesen das Gutachten · Du bekommst die Antwort“ bei manchen Seitenverhältnissen verrutscht | | | offen |
-| 7 | Hero springt beim Wechsel zwischen „Marke & Modell“, „HSN/TSN“ und „Fahrzeugschein scannen“ | | | offen |
+| 5 | „Felgen mit den meisten Freigaben“ → meistgekaufte Felgen | Der erste Reiter der Felgen-Reihe auf der Startseite zeigt jetzt die meistgekauften Felgen zuerst (bezahlte Bestellungen, Felge oder Komplettrad) und heißt dann „Meistgekauft“. Solange noch nichts verkauft ist, bleibt die bisherige Reihenfolge und der Reiter heißt weiter „Meiste Freigaben“ – „Meistgekauft“ ohne einen einzigen Verkauf wäre eine falsche Angabe. | c971a00b | erledigt |
+| 6 | Markierung „Wir lesen das Gutachten · Du bekommst die Antwort“ bei manchen Seitenverhältnissen verrutscht | Die gelbe Markierung im Gutachten-Beispiel („Wir lesen das Gutachten. Du bekommst die Antwort.“) richtet sich jetzt nach der tatsächlichen Zeile statt nach festen Maßen und bleibt bei jedem Seitenverhältnis, Zoom und jeder Schriftgröße auf der BMW-Zeile – am Computer und am Handy. Geprüft bei neun Bildschirmgrößen, hochkant und quer. | ce606175 | erledigt |
+| 7 | Hero springt beim Wechsel zwischen „Marke & Modell“, „HSN/TSN“ und „Fahrzeugschein scannen“ | Beim Wechsel zwischen „Marke & Modell“, „HSN/TSN“ und „Fahrzeugschein scannen“ springt nichts mehr: Der Bereich ist immer so hoch wie der höchste der Reiter. Gemessen am Computer (1440 und 1024 Pixel breit) und am Handy – Höhe und Knopf bleiben exakt an ihrer Stelle. | 41eeacc1 | erledigt |
 | 8 | Fahrzeug in die Adresse (URL), damit man die Seite speichern und teilen kann | | | offen |
 | 9 | Echte Beispielfelge (z. B. Motec) im drehenden Rad | | | Rückfrage |
 | 10 | „Felgenrechner“ und „Blog“ im Footer verlinken | | | Rückfrage |
@@ -43,9 +43,9 @@ Prüfen und abhaken kannst du alles auf https://rimify.skillleo.com.
 | 26 | Alle E-Mail-Knöpfe sollen zum Kontaktformular führen | | | offen |
 | 27 | Zollgröße oder Marke geht verloren, wenn man danach das Fahrzeug wählt | | | offen |
 | 28 | RIMIFY-Check: Fahrzeug und Felge wählen, Antwort nur für dieses Paar, dann direkt kaufen | | | offen |
-| 29 | Auf dem Handy falscher Footer auf der Startseite | | | offen |
+| 29 | Auf dem Handy falscher Footer auf der Startseite | Die Startseite (und Felgenrechner und Vergleich) hatte auf dem Handy einen eigenen, hellen Footer, alle anderen Seiten den dunklen. Jetzt zeigt das Handy überall denselben dunklen Footer. | a9a47250 | erledigt |
 | 30 | Filter auch ohne gewähltes Fahrzeug | | | offen |
 | 31 | Filter-Auswahl in der Liste auch auf dem Handy | | | offen |
 | 32 | Seite etwas farbiger, z. B. hellblaue Abschnitte | | | offen |
-| 33 | Startseite: mehr Blau, z. B. Symbole und der gewählte Reiter | | | offen |
+| 33 | Startseite: mehr Blau, z. B. Symbole und der gewählte Reiter | Mehr Blau auf der Startseite: Der gewählte Reiter ist blau (Schrift und Unterstrich – überall im Shop gleich), die Symbole in der Reihe unter dem Hero und im Service-Bereich sind blau, dazu der hellblaue „Fahrzeug wählen“-Knopf (Nr. 1) und die Hilfe-Zeile (Nr. 3). Der Fokus-Rahmen für die Tastatur war schon blau. Texte bleiben schwarz, damit sie gut lesbar sind. | 3cf44843 | erledigt |
 | 34 | „Product Detail Page needs“ | | | Rückfrage |
