@@ -120,9 +120,9 @@ describe('MischbereifungOffer', () => {
         const chips = wrapper.findAll('.chip')
 
         expect(chips).toHaveLength(2)
-        expect(chips[0].attributes('aria-pressed')).toBe('true')
+        expect(chips[0]?.attributes('aria-pressed')).toBe('true')
 
-        await chips[1].trigger('click')
+        await chips[1]?.trigger('click')
 
         expect(wrapper.text()).toContain('Kombination Nr. 13')
         expect(wrapper.find('.mix-card').exists()).toBe(false)
