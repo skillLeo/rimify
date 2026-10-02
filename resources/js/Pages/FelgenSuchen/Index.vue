@@ -2,9 +2,9 @@
 /**
  * The vehicle selector as a full page.
  *
- * Two routes in — the guided drill and the key numbers. On a phone the key numbers come first,
- * because someone holding their Zulassungsbescheinigung is faster typing seven characters than
- * scrolling a make list; from 900px the two sit side by side. The selector owns that order.
+ * Two routes in — the key numbers and the guided drill. The key numbers come first, because someone
+ * holding their Zulassungsbescheinigung is faster typing seven characters than scrolling a make list;
+ * from 900px the two sit side by side in the same order. The selector owns that order, in its markup.
  *
  * A failure here never clears the form and never dead-ends (R-09): the selector keeps what was
  * typed and offers three ways forward.
@@ -41,8 +41,8 @@ const baseQuery = computed((): Record<string, string> => {
         <div class="wrap">
             <h1 class="t-h1">Auto wählen</h1>
             <p class="t-lead sel__lead">
-                Danach siehst du nur Felgen, deren Gutachten dein Auto nennt. Zwei Wege – über Marke und
-                Modell oder direkt über die Schlüsselnummern aus deinen Fahrzeugpapieren.
+                Danach siehst du nur Felgen, deren Gutachten dein Auto nennt. Zwei Wege – direkt über die
+                Schlüsselnummern aus deinen Fahrzeugpapieren oder über Marke und Modell.
             </p>
 
             <div class="sel__panel">

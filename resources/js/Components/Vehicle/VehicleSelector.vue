@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * The vehicle selector: the guided route and the key numbers, side by side.
+ * The vehicle selector: the key numbers and the guided route, side by side from 900 px — in that order in the markup,
+ * so what is seen first is what Tab and a screen reader reach first.
  *
  * Two routes in, because the two halves of this audience are genuinely different. Someone who
  * knows their car picks Marke → Modell → Variante; someone holding their Fahrzeugschein types four
@@ -237,59 +238,8 @@ function onTsn(event: Event): void {
 
 <template>
     <div class="vsel" :class="{ 'vsel--compact': compact }">
-        <!-- Route one: the guided drill. -->
-        <section class="vsel__col" aria-labelledby="vsel-drill-title">
-            <div class="vsel__head">
-                <button v-if="level !== 'make'" class="vsel__back" type="button" @click="back">
-                    <Icon name="chevron-right" :size="20" />
-                    {{ level === 'variant' ? selectedMake : 'Zurück' }}
-                </button>
-                <h3 id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</h3>
-            </div>
-
-            <label class="visually-hidden" :for="`vsel-q-${basePath}`">Marke oder Modell suchen</label>
-            <div class="vsel__search">
-                <Icon name="search" :size="20" />
-                <input
-                    :id="`vsel-q-${basePath}`"
-                    v-model="query"
-                    class="field vsel__input"
-                    type="search"
-                    placeholder="Suchen"
-                    autocomplete="off"
-                />
-            </div>
-
-            <div class="row-list vsel__rows">
-                <button
-                    v-for="row in rows"
-                    :key="row.key"
-                    class="row-item"
-                    type="button"
-                    :disabled="choice.processing || drilling"
-                    @click="step(row.key, $event)"
-                >
-                    <span class="vsel__main">
-                        <span class="vsel__label">
-                            {{ row.label }}
-                            <span v-if="row.blocked" class="tag tag--unknown vsel__flag">
-                                Daten unvollständig
-                            </span>
-                        </span>
-                        <span v-if="row.sub" class="data vsel__sub">{{ row.sub }}</span>
-                    </span>
-                    <span v-if="row.note" class="data vsel__note">{{ row.note }}</span>
-                </button>
-
-                <p v-if="rows.length === 0" class="quiet vsel__empty">
-                    Kein Treffer. Prüfe die Schreibweise oder nutze die Schlüsselnummern.
-                </p>
-            </div>
-        </section>
-
-        <div class="vsel__divider" aria-hidden="true"><span>oder</span></div>
-
-        <!-- Route two: the key numbers off the registration document. -->
+        <!-- Route one: the key numbers off the registration document — first in the markup, as a person reads and tabs it,
+             on every width; the layout only spaces, it never reorders. -->
         <section class="vsel__col vsel__col--keys" aria-labelledby="vsel-keys-title">
             <h3 id="vsel-keys-title" class="t-h3 vsel__title">Mit Schlüsselnummern</h3>
 
@@ -427,6 +377,58 @@ function onTsn(event: Event): void {
                 </div>
 
                 <DocFacsimile :variant="doc" :width="520" />
+            </div>
+        </section>
+
+        <div class="vsel__divider" aria-hidden="true"><span>oder</span></div>
+
+        <!-- Route two: the guided drill. -->
+        <section class="vsel__col" aria-labelledby="vsel-drill-title">
+            <div class="vsel__head">
+                <button v-if="level !== 'make'" class="vsel__back" type="button" @click="back">
+                    <Icon name="chevron-right" :size="20" />
+                    {{ level === 'variant' ? selectedMake : 'Zurück' }}
+                </button>
+                <h3 id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</h3>
+            </div>
+
+            <label class="visually-hidden" :for="`vsel-q-${basePath}`">Marke oder Modell suchen</label>
+            <div class="vsel__search">
+                <Icon name="search" :size="20" />
+                <input
+                    :id="`vsel-q-${basePath}`"
+                    v-model="query"
+                    class="field vsel__input"
+                    type="search"
+                    placeholder="Suchen"
+                    autocomplete="off"
+                />
+            </div>
+
+            <div class="row-list vsel__rows">
+                <button
+                    v-for="row in rows"
+                    :key="row.key"
+                    class="row-item"
+                    type="button"
+                    :disabled="choice.processing || drilling"
+                    @click="step(row.key, $event)"
+                >
+                    <span class="vsel__main">
+                        <span class="vsel__label">
+                            {{ row.label }}
+                            <span v-if="row.blocked" class="tag tag--unknown vsel__flag">
+                                Daten unvollständig
+                            </span>
+                        </span>
+                        <span v-if="row.sub" class="data vsel__sub">{{ row.sub }}</span>
+                    </span>
+                    <span v-if="row.note" class="data vsel__note">{{ row.note }}</span>
+                </button>
+
+                <p v-if="rows.length === 0" class="quiet vsel__empty">
+                    Kein Treffer. Prüfe die Schreibweise oder nutze die Schlüsselnummern.
+                </p>
             </div>
         </section>
     </div>
@@ -678,16 +680,11 @@ function onTsn(event: Event): void {
     margin-bottom: var(--space-3);
 }
 
-/* The key-number route comes first on a phone: faster for anyone holding their papers. The
-   divider follows it, so "oder" always sits between the two routes. */
-.vsel__col--keys {
-    order: -2;
-}
-
-.vsel__divider {
-    order: -1;
-}
-
+/*
+ * The key-number route comes first — faster for anyone holding their papers — because it is first in the markup, not
+ * because the layout moves it: the order on screen is the order a keyboard and a screen reader meet it. "oder" sits
+ * between the two routes. From 900 px the same order stands in three columns.
+ */
 @media (min-width: 900px) {
     .vsel {
         grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -698,12 +695,7 @@ function onTsn(event: Event): void {
         gap: var(--space-5);
     }
 
-    .vsel__col--keys {
-        order: 0;
-    }
-
     .vsel__divider {
-        order: 0;
         flex-direction: column;
         align-self: stretch;
     }
