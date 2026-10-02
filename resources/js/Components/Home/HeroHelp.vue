@@ -66,4 +66,19 @@ const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.
 .hero-help__hours {
     white-space: nowrap;
 }
+
+/* Under a finger the whole line is the link's target, 44 px tall: the word alone is 15 px high. */
+@media (pointer: coarse) {
+    .hero-help {
+        position: relative;
+        min-height: 44px;
+        padding-block: 12px;
+    }
+
+    .hero-help__link::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+}
 </style>

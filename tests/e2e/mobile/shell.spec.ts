@@ -144,7 +144,7 @@ test.describe('mobile shell', () => {
         await page.getByRole('button', { name: /Dein Fahrzeug:/ }).click()
         const sheet = page.getByRole('dialog', { name: 'Dein Fahrzeug' })
         await sheet.getByRole('link', { name: 'Passende Felgen anzeigen' }).click()
-        await page.waitForURL('**/felgen')
+        await page.waitForURL((url) => url.pathname === '/felgen')
 
         await page.goBack()
         await page.waitForURL((url) => url.pathname === '/')

@@ -26,7 +26,8 @@ test('homepage with a vehicle', async ({ page }) => {
     // The BMW 330i G20 (5 × 112), the car the demo documents cover well; the same as case-routes.json.
     await page.fill('input[id^=tsn]', 'CKT');
     await page.locator('form:has(input[id^=hsn]) button[type=submit]').first().click();
-    await page.waitForURL('**/felgen', { timeout: 20_000 });
+    // The listing carries the car in its address (#8, D-116): `/felgen?fahrzeug=…`.
+    await page.waitForURL((url) => url.pathname === '/felgen', { timeout: 20_000 });
 
     await page.goto('/', { waitUntil: 'networkidle' });
     await settle(page);
