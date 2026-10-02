@@ -92,7 +92,8 @@ const year = new Date().getFullYear()
 
 <style scoped>
 .footer {
-    padding-block: var(--sp-64) var(--sp-32);
+    /* Clear of a phone's home indicator, where there is one (0 everywhere else). */
+    padding-block: var(--sp-64) calc(var(--sp-32) + env(safe-area-inset-bottom));
     font-size: var(--fs-small);
     line-height: var(--lh-small);
 }

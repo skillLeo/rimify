@@ -535,6 +535,11 @@ onBeforeUnmount(() => {
     padding: var(--sp-24) 0 var(--sp-40);
 }
 
+/* The neutral band, as on the desktop (D-115): the studio light (PROTECTED.md P2) is not to show its frame. */
+.home-hero.band {
+    background: var(--c-band);
+}
+
 .home-hero__title {
     max-width: 14ch;
 }
@@ -558,9 +563,9 @@ onBeforeUnmount(() => {
 
 /* ── H3 ─────────────────────────────────────────────────────────────────────── */
 
+/* The hero band's edge is the divider: no hairline on top of it. */
 .home-promises {
     padding: var(--sp-24) 0;
-    border-top: 1px solid var(--c-line);
 }
 
 .home-promises__list {

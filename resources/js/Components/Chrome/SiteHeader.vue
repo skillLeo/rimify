@@ -194,7 +194,8 @@ function removeVehicle(): void {
 
 .sh__vchip {
     max-width: 220px;
-    min-height: 40px;
+    /* Level with the search field and the basket beside it. */
+    min-height: 44px;
     text-decoration: none;
 }
 

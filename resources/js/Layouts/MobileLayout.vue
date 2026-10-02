@@ -156,7 +156,7 @@ function fromVehicleSheet(href: string | undefined): void {
 </script>
 
 <template>
-    <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value }">
+    <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value, 'mshell--footer': footer }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
         <PreviewRibbon />
@@ -205,6 +205,11 @@ function fromVehicleSheet(href: string | undefined): void {
     flex: 1;
     min-width: 0;
     padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* With the footer below it, the footer keeps clear of the home indicator (SiteFooter), not the page (#29). */
+.mshell--footer .mshell__main {
+    padding-bottom: 0;
 }
 
 /* A sticky action bar is the only thing that owns the bottom edge; the page keeps clear of it. */

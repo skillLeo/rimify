@@ -251,17 +251,34 @@ const waiting = computed(
 )
 
 function guide(): void {
-    let suffix: string
+    const field = (suffix: string): HTMLElement | null => document.getElementById(`${uid}-${suffix}`)
+    // A field that can take focus now: a list loading or failed leaves its select disabled.
+    const usable = (el: HTMLElement | null): el is HTMLElement => el !== null && !(el as HTMLSelectElement).disabled
+    let target: HTMLElement | null
 
     if (picker.route.value === 'guided') {
-        suffix = picker.make.value === '' ? 'marke' : picker.model.value === '' ? 'modell' : 'fahrzeug'
+        const order = [field('marke'), field('modell'), field('fahrzeug')]
+        const missing = [picker.make.value === '', picker.model.value === '', true]
+        // The first missing field that can be used; while a later list loads or failed, the last one that can.
+        target = order.find((el, i) => missing[i] && usable(el)) ?? [...order].reverse().find(usable) ?? null
     } else {
-        suffix = picker.hsn.value.length === HSN_LENGTH ? 'tsn' : 'hsn'
+        target = field(picker.hsn.value.length === HSN_LENGTH ? 'tsn' : 'hsn')
     }
 
-    const target = document.getElementById(`${uid}-${suffix}`)
     target?.scrollIntoView({ block: 'center', behavior: 'auto' })
     target?.focus({ preventScroll: true })
+}
+
+/* The two tabs are one stop with the arrow keys between them, as the desktop's tabs are (WAI-ARIA tabs). */
+function onTabKey(event: KeyboardEvent): void {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+        return
+    }
+
+    event.preventDefault()
+    const next: 'guided' | 'keys' = event.key === 'Home' ? 'guided' : event.key === 'End' ? 'keys' : picker.route.value === 'guided' ? 'keys' : 'guided'
+    picker.route.value = next
+    void nextTick(() => document.getElementById(`${uid}-tab-${next}`)?.focus())
 }
 
 function submit(): void {
@@ -403,6 +420,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 type="button"
                 role="tab"
                 :aria-selected="picker.route.value === 'guided'"
+                :tabindex="picker.route.value === 'guided' ? 0 : -1"
+                @keydown="onTabKey"
                 :aria-controls="`${uid}-panel-guided`"
                 :data-state="picker.route.value === 'guided' ? 'active' : 'inactive'"
                 @click="picker.route.value = 'guided'"
@@ -415,6 +434,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 type="button"
                 role="tab"
                 :aria-selected="picker.route.value === 'keys'"
+                :tabindex="picker.route.value === 'keys' ? 0 : -1"
+                @keydown="onTabKey"
                 :aria-controls="`${uid}-panel-keys`"
                 :data-state="picker.route.value === 'keys' ? 'active' : 'inactive'"
                 @click="picker.route.value = 'keys'"
@@ -496,6 +517,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                             @input="onHsn"
                             @paste.prevent="onHsnPaste"
                             @blur="validateHsn"
+                        @keydown.enter.prevent="tsnField?.focus()"
                         >
                     </div>
                     <div class="form-field">

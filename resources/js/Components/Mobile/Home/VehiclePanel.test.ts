@@ -114,6 +114,25 @@ describe('VehiclePanel — the button before a car is chosen (the client\'s #1)'
         expect(routerMock.post).not.toHaveBeenCalled()
         Element.prototype.scrollIntoView = original
     })
+
+    it('answers a complete pair again after a round trip through the other tab, so it can still be sent', async () => {
+        respond('/api/v1/fitment/count', { vehicle: { id: 7, label: 'BMW 320i' }, count: 12, permitted: 12, conditional: 0, ambiguous: [] })
+        const wrapper = mountPanel()
+        const tab = (name: string) => wrapper.findAll('[role="tab"]').find((t) => t.text() === name)
+
+        await tab('HSN/TSN')?.trigger('click')
+        await byLabel(wrapper, 'HSN (Feld 2.1)').setValue('0005')
+        await byLabel(wrapper, 'TSN (Feld 2.2)').setValue('582')
+        await flushPromises()
+        await tab('Marke & Modell')?.trigger('click')
+        await tab('HSN/TSN')?.trigger('click')
+        await flushPromises()
+        await nextTick()
+
+        const go = wrapper.find<HTMLButtonElement>('button.vpanel__go')
+        expect(go.attributes('aria-disabled')).toBeUndefined()
+        expect(go.text()).toContain('12')
+    })
 })
 
 describe('VehiclePanel — nothing found, three ways forward (R-09)', () => {

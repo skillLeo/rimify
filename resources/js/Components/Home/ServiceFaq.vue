@@ -69,7 +69,7 @@ onBeforeUnmount(() => {
                         <a :href="mailHref" class="contacts__link">{{ contact.email }}</a>
                     </li>
                     <li class="contacts__row">
-                        <Icon name="clock" :size="20" />
+                        <Icon name="clock" :size="20" class="contacts__fact" />
                         <span class="num">{{ contact.hours }}</span>
                     </li>
                 </ul>
@@ -152,9 +152,13 @@ onBeforeUnmount(() => {
     color: var(--c-ink-2);
 }
 
-/* The brand's blue on the marks (#33, D-114); the words stay ink. */
+/* The brand's blue on the marks of the ways to reach us (#33, D-114) — the hours are a fact, not an action: ink. */
 .contacts__row > svg {
     color: var(--c-blue);
+}
+
+.contacts__row > .contacts__fact {
+    color: var(--c-ink-2);
 }
 
 .contacts__slot {

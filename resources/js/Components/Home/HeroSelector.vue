@@ -364,16 +364,25 @@ function choose(vehicleId: number): void {
 const waiting = computed(() => selection.value === null && !pending.value && !notFound.value)
 const form = ref<HTMLFormElement | null>(null)
 
+/* A field that can take focus now: a list still loading leaves its field disabled, and focus would go nowhere. */
+function usable(el: HTMLElement | null): el is HTMLElement {
+    return el !== null && !(el as HTMLInputElement).disabled
+}
+
 function guide(): void {
     const field = (suffix: string): HTMLElement | null => document.getElementById(`${id}-${suffix}`)
     let target: HTMLElement | null = null
 
     if (tab.value === 'marke') {
-        target = field(make.value === undefined ? 'marke' : model.value === undefined ? 'modell' : 'fahrzeug')
+        // The first missing field that can be used; while a later list loads, the last one that can.
+        const order = [field('marke'), field('modell'), field('fahrzeug')]
+        const missing = [make.value === undefined, model.value === undefined, true]
+        target = order.find((el, i) => missing[i] && usable(el)) ?? [...order].reverse().find(usable) ?? null
     } else if (tab.value === 'hsn') {
         target = isHsn(hsn.value) ? tsnField.value : hsnField.value
     } else {
-        target = form.value?.querySelector<HTMLElement>('.tabs__content[data-state="active"] button, .tabs__content[data-state="active"] input') ?? null
+        // The scan's own button, never its visually hidden file input.
+        target = form.value?.querySelector<HTMLElement>('.tabs__content[data-state="active"] button:not([disabled])') ?? null
     }
 
     target?.scrollIntoView({ block: 'center', behavior: 'auto' })
@@ -897,15 +906,17 @@ onBeforeUnmount(() => treeController?.abort())
                 While the chooser is up, its own button is the action; the primary would only repeat the lookup.
                 After a not-found answer it stays disabled until the HSN or the TSN changes (R-09: the routes lead on).
             -->
-            <!-- No car yet: light blue, aria-disabled, and a press leads to the missing field (#1, D-109). -->
+            <!-- No car yet: light blue, aria-disabled, and a press leads to the missing field (#1, D-109). A plain
+                 button while it waits, so a press before the page is interactive submits nothing. -->
             <button
                 v-if="!chooser"
                 class="btn btn--primary btn--lg btn--block sel__go"
                 :class="{ 'sel__go--waiting': waiting }"
-                type="submit"
+                :type="waiting ? 'button' : 'submit'"
                 :disabled="!waiting && (selection === null || zero || pending || notFound)"
                 :aria-disabled="waiting ? 'true' : undefined"
                 :aria-busy="pending ? 'true' : undefined"
+                @click="waiting && guide()"
             >
                 {{ buttonLabel }}
             </button>
@@ -1123,6 +1134,8 @@ onBeforeUnmount(() => treeController?.abort())
     background: var(--c-blue-tint);
     color: var(--c-blue);
     transform: none;
+    /* It does something — leads to the missing field — so it is never the "not allowed" hand. */
+    cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {

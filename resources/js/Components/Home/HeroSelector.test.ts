@@ -86,7 +86,8 @@ function mountSelector(): VueWrapper {
 }
 
 function button(wrapper: VueWrapper): DOMWrapper<HTMLButtonElement> {
-    return wrapper.find<HTMLButtonElement>('button[type="submit"]')
+    // The primary: a plain button while it waits for a car (D-109), the form's submit once there is one.
+    return wrapper.find<HTMLButtonElement>('button.sel__go')
 }
 
 function byLabel(wrapper: VueWrapper, text: string): DOMWrapper<HTMLInputElement> {
@@ -179,7 +180,9 @@ describe('HeroSelector — the button and the count', () => {
             Element.prototype.scrollIntoView = original
         })
 
-        await wrapper.find('form').trigger('submit')
+        // A plain button while it waits: a press before the page is interactive submits nothing natively.
+        expect(button(wrapper).attributes('type')).toBe('button')
+        await button(wrapper).trigger('click')
         expect((document.activeElement as HTMLElement | null)?.id).toMatch(/-marke$/)
 
         await openTab(wrapper, 'HSN/TSN')

@@ -43,7 +43,9 @@ swapped for a competitor's, the section has failed.
 
 - About 85 % of any screen is neutral, 10 % photography, 5 % blue.
 - Blue means "act here": primary buttons, links, focus, the selected state. Never a background for
-  mood, never a rule, never an icon that does nothing.
+  mood, never a rule, never an icon that does nothing — with one exception the client asked for
+  (#33, D-114): the small marks of the homepage's promise row and of the ways to reach us are blue, so
+  the eye finds them. A mark beside a plain fact (the opening hours) stays ink.
 - Green, amber and red appear only as verdicts, stock, errors and the Felgenrechner's tolerance
   light (`sections/home-overhaul.md` §3), which never borrows the verdict component or its words.
   `Unbekannt` is neutral grey so it can never be mistaken for a refusal.

@@ -194,6 +194,15 @@ onMounted(() => {
     overflow-x: clip;
 }
 
+/*
+ * The hero keeps the neutral band (D-115): the studio light (PROTECTED.md P2) is cut by its frame, and on the
+ * blue-grey band that cut shows as a pale box above the caption. Whether the light may change so the hero can take
+ * the blue-grey too is the operator's call.
+ */
+.hero.band {
+    background: var(--c-band);
+}
+
 .hero__grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

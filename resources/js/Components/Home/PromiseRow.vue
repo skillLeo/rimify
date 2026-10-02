@@ -34,9 +34,9 @@ function iconOf(name: string): IconName {
 </template>
 
 <style scoped>
+/* The hero band's edge is the divider: no hairline on top of it. */
 .promises {
     padding-block: var(--sp-24);
-    border-top: 1px solid var(--c-line);
 }
 
 .promises__list {

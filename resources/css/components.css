@@ -1029,8 +1029,9 @@
         outline-offset: -2px;
     }
 
+    /* A panel is a tab stop (WAI-ARIA tabs): it shows the ring it receives, drawn inside its own edge. */
     .tabs__content:focus-visible {
-        outline: none;
+        outline-offset: -2px;
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════

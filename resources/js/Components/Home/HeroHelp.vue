@@ -26,7 +26,7 @@ const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.
             Fragen zu deinem Fahrzeug?
             <a v-if="contact.phone" :href="telHref" class="hero-help__link num">{{ contact.phone }}</a>
             <Link v-else href="/kontakt" class="hero-help__link">Schreib uns</Link>
-            <span class="hero-help__hours"> · {{ contact.hours }}</span>
+            {{ ' ' }}<span class="hero-help__hours">· {{ contact.hours }}</span>
         </span>
     </p>
 </template>
@@ -34,7 +34,8 @@ const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.
 <style scoped>
 .hero-help {
     display: flex;
-    align-items: center;
+    /* On two lines the mark stands with the first, not between them. */
+    align-items: flex-start;
     gap: var(--sp-8);
     margin: 0;
     font-size: var(--fs-small);
@@ -51,6 +52,7 @@ const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.
 .hero-help__link {
     color: var(--c-blue);
     font-weight: 500;
+    white-space: nowrap;
     text-decoration: underline;
     text-underline-offset: 3px;
 }

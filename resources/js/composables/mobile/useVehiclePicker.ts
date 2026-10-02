@@ -193,9 +193,17 @@ export function useVehiclePicker() {
         loadCount(`/api/v1/fitment/count?hsn=${encodeURIComponent(hsn.value)}&tsn=${encodeURIComponent(tsn.value)}`)
     })
 
-    watch(route, () => {
+    watch(route, (value) => {
         countSlot.cancel()
         count.value = { status: 'idle' }
+
+        // Back on a route whose input is complete: its answer again — never an idle count beside a full selection,
+        // which would leave a valid pair unsubmittable and a car with no wheels submittable.
+        if (value === 'keys' && keysComplete.value) {
+            loadCount(`/api/v1/fitment/count?hsn=${encodeURIComponent(hsn.value)}&tsn=${encodeURIComponent(tsn.value)}`)
+        } else if (value === 'guided' && variantId.value !== null) {
+            loadCount(`/api/v1/fitment/count?fahrzeug=${variantId.value}`)
+        }
     })
 
     function loadCount(url: string): void {
