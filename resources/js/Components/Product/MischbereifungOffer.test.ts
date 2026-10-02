@@ -114,6 +114,28 @@ describe('MischbereifungOffer', () => {
         expect(forms[0]).toMatchObject({ kind: 'WHEEL', wheelConfigId: 884, tyreVariantId: 11, rearTyreVariantId: 12, quantity: 2 })
     })
 
+    it('shows the set’s price in the Wuchtgewichte colour picked above it — what the basket charges (PDP-07)', () => {
+        const coloured = pair({
+            sets: [
+                {
+                    ...pair().sets[0]!,
+                    prices: [
+                        { colourId: 1, perWheelFront: '465,00 €', perWheelRear: '495,00 €', forFourCents: 192_000, forFour: '1.920,00 €' },
+                        { colourId: 2, perWheelFront: '470,00 €', perWheelRear: '500,00 €', forFourCents: 194_000, forFour: '1.940,00 €' },
+                    ],
+                },
+            ],
+        })
+        const wrapper = mount(MischbereifungOffer, {
+            props: { offer: offer({ pairs: [coloured] }), wheelConfigId: 884, weightColourId: 2 },
+            global: { stubs: { Icon: true } },
+        })
+        wrappers.push(wrapper)
+
+        expect(wrapper.find('.mix-card__price .price').text()).toBe('1.940,00 €')
+        expect(wrapper.text()).toContain('je Rad vorne 470,00 €, hinten 500,00 €')
+    })
+
     it('lets the customer choose between several pairs, and shows only the chosen pair’s sets', async () => {
         const second = pair({ key: '245/40/19|275/35/19', number: 13, front: '245/40 R19', rear: '275/35 R19', sets: [] })
         const wrapper = mountOffer({ offer: offer({ pairs: [pair(), second] }) })

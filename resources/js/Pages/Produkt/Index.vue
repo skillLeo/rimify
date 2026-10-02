@@ -45,6 +45,7 @@ import ValueText from '../../Components/Ui/ValueText.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
+import { claimBottomEdge } from '../../composables/useShell'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { decimal, withUnit } from '../../format'
 import { contactHref as contactFormHref } from '../../lib/contact'
@@ -228,16 +229,17 @@ const sensorLine = computed(() => {
     return isSet.value && rdks.value === 'ja' && tpms?.available && tpms.yesTotal ? `+ ${tpms.yesTotal} für ${tpms.quantity} RDKS-Sensoren` : null
 })
 
-/* `ab 965,00 € je Rad` on the Komplettrad choice: the server's lowest figure, never one the page computed. */
+/* `ab 965,00 € je Rad` on the Komplettrad choice: the server's lowest figure with the colour chosen, never one the page computed. */
 const setFrom = computed(() => {
-    const tyres = offer.value?.tyres ?? []
+    const priced = (offer.value?.tyres ?? []).map(
+        (t) => t.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: t.perWheel, forFourCents: t.forFourCents }
+    )
 
-    if (tyres.length === 0) {
-        return null
-    }
-
-    return tyres.reduce((low, t) => (t.perWheelCents < low.perWheelCents ? t : low)).perWheel
+    return priced.length === 0 ? null : priced.reduce((low, p) => (p.forFourCents < low.forFourCents ? p : low)).perWheel
 })
+
+/* A refusal of the last add belongs to the choice it was made under: another mode, size, tyre or colour starts clean (PDP-09). */
+watch([mode, () => selected.value?.id, tyreId, colourId], () => basket.clearErrors())
 
 /*
  * How many rims (#17): four preselected — a car takes four — and the price beside it is the server's figure for that
@@ -257,6 +259,9 @@ const maxAmount = computed(() => {
 watch(maxAmount, (max) => {
     amount.value = Math.min(Math.max(1, amount.value), max)
 }, { immediate: true })
+
+// Another amount is another choice too: a refusal about the shelf was about the amount it was made with (PDP-09).
+watch(amount, () => basket.clearErrors())
 
 const amountPrice = computed(() => selected.value?.amounts?.find((a) => a.quantity === amount.value) ?? null)
 
@@ -419,6 +424,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => observer?.disconnect())
+
+/* While the bar shows, it owns the bottom edge and the compare tray steps aside (PDP-02). */
+const stickyShown = computed(() => !buyVisible.value && Boolean(selected.value))
+claimBottomEdge(() => stickyShown.value)
 </script>
 
 <template>
@@ -594,9 +603,10 @@ onBeforeUnmount(() => observer?.disconnect())
                         :options="options"
                     />
 
-                    <div v-if="shownPrice" class="pdp__price">
-                        <!-- The price of the amount chosen beside it, as the basket will charge it, and one rim's in the line under it. -->
-                        <div class="pdp__price-row">
+                    <div class="pdp__price">
+                        <!-- The price of the amount chosen beside it, as the basket will charge it, and one rim's in the line under it.
+                             A refused Komplettrad has no price; the stock and the shipping below stand all the same. -->
+                        <div v-if="shownPrice" class="pdp__price-row">
                             <div>
                                 <p class="price price--lg pdp__total" translate="no">{{ shownPrice }}</p>
                                 <p class="price-note pdp__each">{{ shownNote }}</p>
@@ -654,6 +664,8 @@ onBeforeUnmount(() => observer?.disconnect())
                  table of front/rear pairs; the server sends null everywhere else. Not under „Nur Felgen“ (#15). -->
             <MischbereifungOffer
                 v-if="isSet && selected && selected.mischbereifung"
+                :weight-colour-id="colourId"
+                :rdks="rdks"
                 class="pdp__komplettrad"
                 :offer="selected.mischbereifung"
                 :wheel-config-id="selected.id"
@@ -801,7 +813,7 @@ onBeforeUnmount(() => observer?.disconnect())
     </section>
 
     <!-- The sticky bar: price and the one action, once the main button is off screen — on every width (D-132). -->
-    <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
+    <div v-if="stickyShown" class="stickybar pdp__sticky">
         <div v-if="shownPrice" class="pdp__sticky-price">
             <p class="price" translate="no">{{ shownPrice }}</p>
             <p v-if="isSet" class="price-note">für {{ offer?.quantity ?? 4 }} Kompletträder</p>
@@ -1232,8 +1244,8 @@ a.pdp__rating {
     min-width: 0;
 }
 
-/* A price is one figure: it never breaks across lines, and the bar's button keeps a short label beside it. */
-.pdp__sticky-price p {
+/* A price is one figure: it never breaks across lines; the note under it may, at 320 px (PDP-03). */
+.pdp__sticky-price .price {
     white-space: nowrap;
 }
 

@@ -4,12 +4,14 @@
  * opens the same palette the header's search icon opens.
  */
 
-import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
+import { inject, onBeforeUnmount, provide, ref, watch, type InjectionKey, type Ref } from 'vue'
 
 export interface ShellStore {
     readonly paletteOpen: Ref<boolean>
     readonly helpOpen: Ref<boolean>
     readonly vehicleOpen: Ref<boolean>
+    /** A page's own price bar holds the bottom edge: the compare tray steps aside (the product page, D-133). */
+    readonly stickyBar: Ref<boolean>
     focusSearch(): void
     registerSearch(focus: () => void): void
 }
@@ -23,6 +25,7 @@ export function provideShell(): ShellStore {
         paletteOpen: ref(false),
         helpOpen: ref(false),
         vehicleOpen: ref(false),
+        stickyBar: ref(false),
         focusSearch: () => {
             if (focus !== null) {
                 focus()
@@ -51,4 +54,24 @@ export function useShell(): ShellStore {
     }
 
     return store
+}
+
+/**
+ * A page's sticky bar claims the bottom edge while `shown` is true, and gives it back when the page goes. Without a
+ * layout (a component test) there is no edge to claim.
+ */
+export function claimBottomEdge(shown: () => boolean): void {
+    const store = inject(KEY, null)
+
+    if (store === null) {
+        return
+    }
+
+    watch(shown, (on) => {
+        store.stickyBar.value = on
+    }, { immediate: true })
+
+    onBeforeUnmount(() => {
+        store.stickyBar.value = false
+    })
 }

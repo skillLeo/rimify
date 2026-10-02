@@ -12,12 +12,18 @@
 import { useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import Icon from '../Ui/Icon.vue'
-import type { MischbereifungProp } from '../../types/pages'
+import type { MischbereifungProp, MischbereifungSetProp } from '../../types/pages'
 
-const props = defineProps<{
-    offer: MischbereifungProp
-    wheelConfigId: number | null
-}>()
+const props = withDefaults(
+    defineProps<{
+        offer: MischbereifungProp
+        wheelConfigId: number | null
+        /** The Wuchtgewichte colour and the RDKS answer picked in the Komplettrad above (#15): a mixed set takes them too. */
+        weightColourId?: number | null
+        rdks?: 'ja' | 'nein' | null
+    }>(),
+    { weightColourId: null, rdks: null }
+)
 
 const chosenKey = ref<string | null>(props.offer.pairs[0]?.key ?? null)
 
@@ -38,19 +44,32 @@ const form = useForm({
     wheelConfigId: 0,
     tyreVariantId: 0,
     rearTyreVariantId: 0,
+    weightColourId: null as number | null,
+    rdks: null as 'ja' | 'nein' | null,
     quantity: 2,
 })
 
 const error = computed(() => form.errors.tyreVariantId ?? form.errors.rearTyreVariantId ?? form.errors.wheelConfigId ?? null)
 
-function add(frontId: number, rearId: number): void {
+/* The figures for the colour picked above — what the basket charges (PDP-07); the default colour's without one. */
+function priceOf(set: MischbereifungSetProp): Pick<MischbereifungSetProp, 'forFour' | 'perWheelFront' | 'perWheelRear'> {
+    return set.prices?.find((price) => price.colourId === props.weightColourId) ?? set
+}
+
+/* The card whose button was pressed: only it says it is busy, the others keep their label. */
+const pressed = ref<string | null>(null)
+
+function add(key: string, frontId: number, rearId: number): void {
     if (props.wheelConfigId === null || form.processing) {
         return
     }
 
+    pressed.value = key
     form.wheelConfigId = props.wheelConfigId
     form.tyreVariantId = frontId
     form.rearTyreVariantId = rearId
+    form.weightColourId = props.weightColourId
+    form.rdks = props.rdks
     form.quantity = props.offer.perAxle
     form.post('/warenkorb', { preserveScroll: true })
 }
@@ -118,20 +137,21 @@ function add(frontId: number, rearId: number): void {
                             </div>
                         </dl>
                         <div class="mix-card__price">
-                            <p class="price">{{ set.forFour }}</p>
+                            <p class="price">{{ priceOf(set).forFour }}</p>
                             <p class="price-note">
                                 für {{ offer.perAxle }} + {{ offer.perAxle }} Kompletträder ·
-                                je Rad vorne {{ set.perWheelFront }}, hinten {{ set.perWheelRear }}
+                                je Rad vorne {{ priceOf(set).perWheelFront }}, hinten {{ priceOf(set).perWheelRear }}
                             </p>
                             <p v-if="offer.priceOpen" class="price-note">Ohne Montage und Auswuchten – der Preis dafür steht noch nicht fest.</p>
                         </div>
                         <button
                             type="button"
                             class="btn btn--primary btn--block mix-card__add"
-                            :disabled="form.processing || wheelConfigId === null"
-                            @click="add(set.frontTyreId, set.rearTyreId)"
+                            :disabled="wheelConfigId === null"
+                            :aria-busy="form.processing && pressed === set.key ? 'true' : undefined"
+                            @click="add(set.key, set.frontTyreId, set.rearTyreId)"
                         >
-                            {{ form.processing ? 'Wird hinzugefügt …' : 'Als Mischbereifung in den Warenkorb' }}
+                            {{ form.processing && pressed === set.key ? 'Wird hinzugefügt …' : 'Als Mischbereifung in den Warenkorb' }}
                         </button>
                     </li>
                 </ul>

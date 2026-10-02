@@ -5,7 +5,8 @@
  * einkaufen“ and „Zum Warenkorb“. Every figure is the server's (WarenkorbController → Basket::added, R-10).
  *
  * Not a modal: no overlay, no focus trap, the focus stays where the visitor was. It stands under the header beside the
- * basket, is announced once, and goes on ×, Escape, „Weiter einkaufen“, a visit to another page — or by itself after
+ * basket (and there in the Tab order), is announced once — its heading and the subtotal, not its buttons — and goes on
+ * ×, Escape, „Weiter einkaufen“, a visit to another page — or by itself after
  * ten seconds, a clock that stops while the pointer rests on it or the focus is in it. The toast stays quiet for an add
  * that brought this panel, so there is one confirmation, not two.
  *
@@ -14,9 +15,9 @@
  */
 
 import { Link, router, usePage } from '@inertiajs/vue3'
-import { onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, useId, useTemplateRef } from 'vue'
 import Icon from '../Ui/Icon.vue'
-import { addedFrom } from './toast'
+import { addedFrom, firstLoad } from './toast'
 import type { AddedToBasket } from '../../types/rimify'
 
 /** Long enough to read the line and the total twice; the clock stops while the panel is being used. */
@@ -24,6 +25,9 @@ const ADDED_MS = 10_000
 
 const page = usePage()
 const added = ref<AddedToBasket | null>(null)
+/* What a screen reader hears: the heading and the subtotal, never the buttons (PDP-13). */
+const said = ref('')
+const panel = useTemplateRef<HTMLElement>('panel')
 const id = useId()
 let shownPath: string | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -53,13 +57,30 @@ function open(next: AddedToBasket | null, url: string): void {
 
     added.value = next
     shownPath = pathOf(url)
+    returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
     arm()
+
+    // Emptied first, so a second add with the same words is announced again.
+    said.value = ''
+    void nextTick(() => {
+        said.value = `${next.heading} Zwischensumme im Warenkorb: ${next.subtotal}.`
+    })
 }
 
+/* Where the focus was when the panel opened: a close from inside the panel hands it back there, never to <body>. */
+let returnFocus: HTMLElement | null = null
+
 function close(): void {
+    const inside = panel.value?.contains(document.activeElement) ?? false
+
     added.value = null
     shownPath = null
+    said.value = ''
     pause()
+
+    if (inside && returnFocus?.isConnected) {
+        returnFocus.focus()
+    }
 }
 
 /** The clock restarts when focus leaves the panel altogether, not when it moves inside it. */
@@ -73,17 +94,19 @@ function onFocusOut(event: FocusEvent): void {
     arm()
 }
 
+/* Escape is the panel's only while no dialog is open: there it closes the dialog, not this too. */
 function onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && added.value !== null) {
+    if (event.key === 'Escape' && added.value !== null && document.querySelector('[role="dialog"][aria-modal="true"]') === null) {
         close()
     }
 }
 
 onMounted(() => {
-    // A full page load that arrived with the flash (a non-Inertia redirect); never on back/forward.
+    // A full page load that arrived with the flash (a non-Inertia redirect) — the document's first mount only, never on
+    // back/forward and never when a layout mounts again over props restored from history (PDP-04).
     const entry = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined
 
-    if (entry?.type !== 'back_forward') {
+    if (firstLoad('added') && entry?.type !== 'back_forward') {
         open(addedFrom(page.props), page.url)
     }
 
@@ -106,11 +129,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <!-- The live region is always in the document, so the panel inserted into it is announced. -->
-    <div class="addp-viewport" role="status" aria-live="polite">
+    <!-- The live region is always in the document and holds one sentence; the panel's buttons stay out of it. -->
+    <p class="visually-hidden" role="status" aria-live="polite">{{ said }}</p>
+
+    <div class="addp-viewport">
         <Transition name="addp">
             <section
                 v-if="added"
+                ref="panel"
                 class="addp"
                 :aria-labelledby="`${id}-title`"
                 @mouseenter="pause"
@@ -171,8 +197,10 @@ onBeforeUnmount(() => {
     }
 }
 
+/* One column, never wider than the card: an implicit `auto` column grew to its widest child at 320 px (PDP-01). */
 .addp {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--sp-12);
     padding: var(--sp-16);
     border-radius: var(--r-tile);
@@ -256,15 +284,17 @@ onBeforeUnmount(() => {
     white-space: nowrap;
 }
 
+/* Side by side where both fit, one under the other where they do not — a 320 px phone (PDP-01). */
 .addp__go {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
     gap: var(--sp-8);
 }
 
 .addp__btn {
     justify-content: center;
     min-height: 44px;
+    white-space: normal;
 }
 
 /* Arriving from above, leaving faster than it came (DIRECTION §8). */

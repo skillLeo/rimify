@@ -65,7 +65,7 @@ const ROUTE_TITLES: Record<string, string> = {
 }
 
 const shared = useShared()
-provideShell()
+const frame = provideShell()
 provideConsent(shared.value.consent ?? null)
 const shell = provideMobileShell()
 
@@ -168,12 +168,15 @@ function fromVehicleSheet(href: string | undefined): void {
             </template>
         </AppBar>
 
+        <!-- Where it shows, under the app bar: Tab reaches it after the bar, not after the whole page (PDP-10). -->
+        <AddedPanel />
+
         <main id="inhalt" class="mshell__main">
             <slot />
         </main>
 
         <!-- After the page, before the footer; never while a sticky bar owns the bottom edge. -->
-        <CompareTray :hidden="shell.stickyBar.value" />
+        <CompareTray :hidden="shell.stickyBar.value || frame.stickyBar.value" />
 
         <!-- The shop's one footer, as on every other page a phone opens (the client's #29, D-113). -->
         <SiteFooter v-if="footer" />
@@ -192,7 +195,6 @@ function fromVehicleSheet(href: string | undefined): void {
         <SearchSheet />
         <CookieConsent />
         <Toast />
-        <AddedPanel />
     </div>
 </template>
 

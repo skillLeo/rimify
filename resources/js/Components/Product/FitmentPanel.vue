@@ -411,6 +411,15 @@ const headline = computed(() => {
     outline-offset: 2px;
 }
 
+/* Under a finger the toggle is a 44 px row, as every other control. */
+@media (pointer: coarse) {
+    .fit__sum-toggle {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+    }
+}
+
 /* The papers under the verdict's headline: in ink, a step below it. */
 .fit__entry {
     margin: var(--space-2) 0 0;

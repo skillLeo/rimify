@@ -21,7 +21,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }))
 
 const { default: Toast } = await import('./Toast.vue')
-const { toast, toastFrom, TOAST_ACTION_MS, TOAST_MS } = await import('./toast')
+const { resetFirstLoad, toast, toastFrom, TOAST_ACTION_MS, TOAST_MS } = await import('./toast')
 
 /** A server response arriving, as Inertia announces it. */
 function respond(toast: string | null): void {
@@ -38,6 +38,8 @@ describe('Toast', () => {
     beforeEach(() => {
         current.props = { flash: { toast: null } }
         navigationType('navigate')
+        // Each test is a fresh document: its first mount may read the page's own flash.
+        resetFirstLoad()
     })
 
     afterEach(() => {

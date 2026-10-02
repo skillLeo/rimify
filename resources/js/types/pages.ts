@@ -553,6 +553,8 @@ export interface MischbereifungSetProp {
     /** Two of each, from LinePrice on the server — the page never multiplies. */
     forFourCents: number
     forFour: string
+    /** The set priced with each active Wuchtgewichte colour (PDP-07): the card shows the colour picked above it. */
+    prices?: { colourId: number; perWheelFront: string; perWheelRear: string; forFourCents: number; forFour: string }[]
     isDemo: boolean
 }
 

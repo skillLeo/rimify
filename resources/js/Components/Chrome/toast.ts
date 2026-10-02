@@ -19,6 +19,29 @@ export function toastFrom(props: Record<string, unknown> | undefined | null): st
     return typeof toast === 'string' && toast.trim() !== '' ? toast : null
 }
 
+const taken = new Set<'toast' | 'added'>()
+
+/**
+ * Whether a confirmation component may read the page's own flash on mount: once per document, on its first load. A
+ * layout that mounts again later — Back from the homepage's phone layout to a product page — mounts its toast and panel
+ * afresh while Inertia restores that page's props from history, flash and all: the old add must not be shown again
+ * (PDP-04). Every later confirmation arrives through a response (`router.on('success')`).
+ */
+export function firstLoad(kind: 'toast' | 'added'): boolean {
+    if (taken.has(kind)) {
+        return false
+    }
+
+    taken.add(kind)
+
+    return true
+}
+
+/** For tests: a fresh document. */
+export function resetFirstLoad(): void {
+    taken.clear()
+}
+
 /** What a response put in the basket (#16), or null: the panel after an add shows it, and the toast then stays quiet. */
 export function addedFrom(props: Record<string, unknown> | undefined | null): AddedToBasket | null {
     const flash = props?.flash

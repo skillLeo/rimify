@@ -20,7 +20,7 @@
 import { router, usePage } from '@inertiajs/vue3'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
-import { addedFrom, toast, toastFrom, TOAST_ACTION_MS, TOAST_MS, type ToastMessage } from './toast'
+import { addedFrom, firstLoad, toast, toastFrom, TOAST_ACTION_MS, TOAST_MS, type ToastMessage } from './toast'
 
 const page = usePage()
 const message = ref<ToastMessage | null>(null)
@@ -97,7 +97,7 @@ onMounted(() => {
     // that page's flash was already shown the first time round.
     const entry = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined
 
-    if (entry?.type !== 'back_forward') {
+    if (firstLoad('toast') && entry?.type !== 'back_forward') {
         show(fromResponse(page.props))
     }
 

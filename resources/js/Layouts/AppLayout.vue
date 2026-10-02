@@ -79,12 +79,15 @@ function removeVehicle(): void {
 
         <SiteHeader />
 
+        <!-- Where it shows, beside the basket: Tab reaches it after the header, not after the whole page (PDP-10). -->
+        <AddedPanel />
+
         <main id="inhalt" class="shell__main">
             <slot />
         </main>
 
-        <!-- After the page, before the footer: Tab reaches it after the content. -->
-        <CompareTray />
+        <!-- After the page, before the footer: Tab reaches it after the content. Aside while a page's price bar holds the edge. -->
+        <CompareTray :hidden="shell.stickyBar.value" />
 
         <SiteFooter />
 
@@ -103,7 +106,6 @@ function removeVehicle(): void {
         <ShortcutsDialog />
         <CookieConsent />
         <Toast />
-        <AddedPanel />
     </div>
 </template>
 

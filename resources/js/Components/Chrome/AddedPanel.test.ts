@@ -32,6 +32,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }))
 
 const { default: AddedPanel } = await import('./AddedPanel.vue')
+const { resetFirstLoad } = await import('./toast')
 
 const ADDED: AddedToBasket = {
     heading: 'Komplettrad zum Warenkorb hinzugefügt.',
@@ -59,6 +60,7 @@ describe('AddedPanel', () => {
     beforeEach(() => {
         current.props = { flash: { toast: null } }
         vi.spyOn(performance, 'getEntriesByType').mockReturnValue([{ type: 'navigate' } as unknown as PerformanceEntry])
+        resetFirstLoad()
     })
 
     afterEach(() => {
@@ -96,9 +98,23 @@ describe('AddedPanel', () => {
         expect(panel.find('[aria-modal]').exists()).toBe(false)
         expect(document.querySelector('.overlay')).toBeNull()
         expect(document.activeElement).toBe(button)
-        expect(panel.find('.addp-viewport').attributes('role')).toBe('status')
 
         button.remove()
+    })
+
+    it('announces its heading and the subtotal, and keeps its buttons out of the live region (PDP-13)', async () => {
+        const panel = mountPanel()
+        emit('success', '/felgen/borbet-db8gt2', ADDED)
+        await nextTick()
+        await nextTick()
+
+        const status = panel.find('[role="status"]')
+        expect(status.text()).toBe('Komplettrad zum Warenkorb hinzugefügt. Zwischensumme im Warenkorb: 3.048,00 €.')
+        expect(status.find('button').exists()).toBe(false)
+        expect(status.find('a').exists()).toBe(false)
+
+        await panel.find('.addp__close').trigger('click')
+        expect(panel.find('[role="status"]').text()).toBe('')
     })
 
     it('goes on „Weiter einkaufen“, on ×, and on Escape', async () => {

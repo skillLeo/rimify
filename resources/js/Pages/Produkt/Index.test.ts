@@ -34,6 +34,9 @@ vi.mock('@inertiajs/vue3', () => ({
             errors: {} as Record<string, string>,
             processing: false,
             post: (...args: unknown[]) => post(...args),
+            clearErrors: () => {
+                form.errors = {}
+            },
         })
         forms.push(form)
 
@@ -575,6 +578,40 @@ describe('Produkt page', () => {
 
         await wrapper.find('button.pdp__add').trigger('click')
         expect(forms.find((f) => f.kind === 'WHEEL')).toMatchObject({ tyreVariantId: 7, weightColourId: 2, rdks: 'ja', quantity: 4 })
+    })
+
+    it('starts another choice clean: a refusal of the last add goes with the mode it was made under', async () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })
+        const form = forms.find((f) => f.kind === 'WHEEL')
+
+        ;(form?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        await nextTick()
+        expect(wrapper.find('.pdp__add-error').exists()).toBe(true)
+
+        await chooseSet(wrapper)
+        expect(wrapper.find('.pdp__add-error').exists()).toBe(false)
+    })
+
+    it('starts another amount clean too: a refusal about the shelf was about the amount it was made with (PDP-09)', async () => {
+        const wrapper = mountPage({ configs: [config({ stockQty: 12, amounts: AMOUNTS })] })
+        const form = forms.find((f) => f.kind === 'WHEEL')
+
+        ;(form?.errors as Record<string, string>).wheelConfigId = 'Von dieser Felge haben wir 12 Stück vorrätig – 12 davon liegen schon in deinem Warenkorb.'
+        await nextTick()
+        expect(wrapper.find('.pdp__add-error').exists()).toBe(true)
+
+        await wrapper.find('button[aria-label="Anzahl verringern"]').trigger('click')
+        expect(wrapper.find('.pdp__add-error').exists()).toBe(false)
+    })
+
+    it('keeps the stock line where a Komplettrad has no price to show', async () => {
+        const wrapper = mountPage({
+            configs: [config({ komplettrad: komplettrad({ refusal: 'Ein Satz.', refusalCode: 'NO_TYRE_AVAILABLE', tyres: [] }) })],
+        })
+        await chooseSet(wrapper)
+
+        expect(wrapper.find('.pdp__total').exists()).toBe(false)
+        expect(wrapper.find('.pdp__stock').text()).toBe('Auf Lager')
     })
 
     it('prints the server\'s refusal of an add under the button', async () => {

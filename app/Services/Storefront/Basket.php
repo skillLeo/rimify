@@ -105,6 +105,11 @@ final readonly class Basket
 
     public const TYRE_GONE = 'Diesen Reifen gibt es nicht mehr.';
 
+    /** The shelf holds fewer than the basket and this add together (PDP-08): the stock, then what the basket holds. */
+    public const WHEEL_HELD = 'Von dieser Felge haben wir %s Stück vorrätig – %s davon liegen schon in deinem Warenkorb.';
+
+    public const TYRE_HELD = 'Von diesem Reifen haben wir %s Stück vorrätig – %s davon liegen schon in deinem Warenkorb.';
+
     public const NO_WEIGHT_COLOUR_REFUSAL = 'Kompletträder können wir gerade nicht zusammenstellen. Die Felge allein kannst du bestellen.';
 
     /** The product page's code for the sentence above — the one refusal the engine does not raise. */
@@ -364,6 +369,15 @@ final readonly class Basket
             return self::WHEEL_SOLD_OUT;
         }
 
+        // The basket's own lines of this rim count against the same shelf — rims alone, Kompletträder and mixed sets
+        // alike — so the fourth add of four with twelve in stock is refused here, not discovered in the basket (PDP-08).
+        [$rimsHeld, $tyresHeld] = $this->held($request);
+        $held = $rimsHeld[$config->id] ?? 0;
+
+        if ($held > 0 && $config->stock_qty < $held + $wheels) {
+            return self::heldSentence(self::WHEEL_HELD, (int) $config->stock_qty, $held);
+        }
+
         // Everything below is Komplettrad-only.
         if ($tyreVariantId === null) {
             return null;
@@ -388,6 +402,15 @@ final readonly class Basket
 
         if ($refusal !== null) {
             return $refusal->sentenceDe();
+        }
+
+        // The same for the tyres: the engine compared the shelf with this add alone (PDP-08).
+        foreach ([$tyre, $rear] as $one) {
+            $tyreHeld = $one === null ? 0 : ($tyresHeld[$one->id] ?? 0);
+
+            if ($one !== null && $tyreHeld > 0 && $one->stock_qty < $tyreHeld + $quantity) {
+                return self::heldSentence(self::TYRE_HELD, (int) $one->stock_qty, $tyreHeld);
+            }
         }
 
         if ($weightColourId === null) {
@@ -691,6 +714,42 @@ final readonly class Basket
     private function shippingFor(int $subtotal): ?int
     {
         return Shipping::current()->forSubtotal($subtotal);
+    }
+
+    /**
+     * How many of each rim and each tyre the basket holds now, keyed by id: a mixed set's quantity is per axle, so its
+     * rim counts twice and each of its tyres once.
+     *
+     * @return array{0: array<int, int>, 1: array<int, int>}
+     */
+    private function held(Request $request): array
+    {
+        $rims = [];
+        $tyres = [];
+
+        foreach ($this->rawKeyed($request) as $line) {
+            $quantity = max(0, (int) ($line['quantity'] ?? 0));
+            $rim = $this->id($line['wheelConfigId'] ?? null);
+            $front = $this->id($line['tyreVariantId'] ?? null);
+            $rear = $this->id($line['rearTyreVariantId'] ?? null);
+
+            if ($rim !== null) {
+                $rims[$rim] = ($rims[$rim] ?? 0) + ($rear === null ? $quantity : $quantity + $quantity);
+            }
+
+            foreach ([$front, $rear] as $tyre) {
+                if ($tyre !== null) {
+                    $tyres[$tyre] = ($tyres[$tyre] ?? 0) + $quantity;
+                }
+            }
+        }
+
+        return [$rims, $tyres];
+    }
+
+    private static function heldSentence(string $template, int $stock, int $held): string
+    {
+        return sprintf($template, GermanFormat::integer($stock), GermanFormat::integer(min($held, $stock)));
     }
 
     /**

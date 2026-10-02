@@ -16,7 +16,7 @@
  */
 
 import { Link, usePage } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, useTemplateRef } from 'vue'
 import { contactHref } from '../../lib/contact'
 import Icon from '../Ui/Icon.vue'
 import TyreLabel from '../Ui/TyreLabel.vue'
@@ -128,6 +128,15 @@ const shownCards = computed(() => {
 })
 
 const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === tyreId.value)?.label ?? null)
+
+/* „Alle Reifen zeigen“ goes once pressed: the focus moves to the first tyre it revealed, never to the page. */
+const rows = useTemplateRef<HTMLElement>('rows')
+
+async function expand(): Promise<void> {
+    expanded.value = true
+    await nextTick()
+    rows.value?.querySelectorAll<HTMLInputElement>('input[type="radio"]')[SHOWN]?.focus()
+}
 </script>
 
 <template>
@@ -150,7 +159,7 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
             <!-- The minimum as a sentence, never a bare number pair (komplettrad.md §8.1). -->
             <p v-if="offer.minSentence" class="small muted kc__min">{{ offer.minSentence }}</p>
 
-            <ul class="kc__rows" role="list">
+            <ul ref="rows" class="kc__rows" role="list">
                 <li v-for="card in shownCards" :key="card.tyre.id">
                     <label class="kc-row" :class="{ 'kc-row--on': card.tyre.id === tyreId }">
                         <input v-model="tyreId" class="kc-row__radio" type="radio" name="kc-tyre" :value="card.tyre.id">
@@ -169,7 +178,7 @@ const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === t
                 </li>
             </ul>
 
-            <button v-if="cards.length > SHOWN && !expanded" type="button" class="link kc__more" @click="expanded = true">
+            <button v-if="cards.length > SHOWN && !expanded" type="button" class="link kc__more" @click="expand">
                 Alle {{ cards.length }} Reifen zeigen
             </button>
 

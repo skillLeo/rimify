@@ -110,6 +110,12 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
         ->and($mixed['pairs'][0]['sets'][0]['frontTyreId'])->toBe($frontTyre->id)
         ->and($mixed['pairs'][0]['sets'][0]['rearTyreId'])->toBe($rearTyre->id);
 
+    // Priced in every active Wuchtgewichte colour, so the card shows what the basket charges for the colour picked (PDP-07).
+    $prices = collect($mixed['pairs'][0]['sets'][0]['prices']);
+
+    expect($prices->pluck('colourId')->sort()->values()->all())->toBe(BalanceWeightColour::query()->active()->orderBy('id')->pluck('id')->all())
+        ->and($prices->firstWhere('colourId', $colour?->id)['forFour'])->toBe($mixed['pairs'][0]['sets'][0]['forFour']);
+
     // The basket: two of each, as one entry rendered as the front axle's line and the rear's.
     $this->withCookies($fx->cookies())->from('/felgen')->post('/warenkorb', [
         'kind' => 'WHEEL', 'wheelConfigId' => $fx->config->id, 'tyreVariantId' => $frontTyre->id,

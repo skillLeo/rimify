@@ -269,7 +269,7 @@ class FelgenController extends Controller
                 // reason: a size change swaps the tyres and the legal answer in one commit.
                 'komplettrad' => $this->komplettradFor($config, $live, $colour, $colours),
                 // Mischbereifung (#20, D-105): only where the released Gutachten prints its pairing table.
-                'mischbereifung' => $this->mischbereifungFor($config, $live, $colour),
+                'mischbereifung' => $this->mischbereifungFor($config, $live, $colour, $colours),
             ];
         }
 
@@ -478,9 +478,13 @@ class FelgenController extends Controller
      *
      * Nothing here decides a pair. `TyreEligibility` does, and the basket asks it again on every add and render.
      *
+     * Each set carries its price in every Wuchtgewichte colour too, so the card shows what the basket will charge for
+     * the colour picked above it (PDP-07).
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
      * @return array<string, mixed>|null
      */
-    private function mischbereifungFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour): ?array
+    private function mischbereifungFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour, Collection $colours): ?array
     {
         if ($verdict === null) {
             return null;
@@ -554,6 +558,21 @@ class FelgenController extends Controller
                     'perWheelRear' => $rearWheel->format(),
                     'forFourCents' => $forFour->toMinor(),
                     'forFour' => $forFour->format(),
+                    'prices' => $colours->map(function (BalanceWeightColour $c) use ($config, $front, $rear): array {
+                        $frontPrice = $this->pricer->perWheel($config, $front, $c);
+                        $rearPrice = $this->pricer->perWheel($config, $rear, $c);
+                        $frontWheel = Money::fromMinor($frontPrice->knownPerWheelCents(), $frontPrice->currency);
+                        $rearWheel = Money::fromMinor($rearPrice->knownPerWheelCents(), $rearPrice->currency);
+                        $forFour = LinePrice::total($frontWheel, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearWheel, TyreEligibility::MIXED_PER_AXLE));
+
+                        return [
+                            'colourId' => (int) $c->id,
+                            'perWheelFront' => $frontWheel->format(),
+                            'perWheelRear' => $rearWheel->format(),
+                            'forFourCents' => $forFour->toMinor(),
+                            'forFour' => $forFour->format(),
+                        ];
+                    })->values()->all(),
                     'isDemo' => (bool) $front->is_demo || (bool) $rear->is_demo,
                 ];
             }
