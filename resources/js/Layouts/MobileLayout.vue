@@ -18,23 +18,28 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from 'vue'
 import AppBar from '../Components/Mobile/AppBar.vue'
 import BottomSheet from '../Components/Mobile/BottomSheet.vue'
 import ListRow from '../Components/Mobile/ListRow.vue'
-import MobileFooter from '../Components/Mobile/MobileFooter.vue'
 import SearchSheet from '../Components/Mobile/SearchSheet.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
+import SiteFooter from '../Components/Chrome/SiteFooter.vue'
+import AddedPanel from '../Components/Chrome/AddedPanel.vue'
 import Toast from '../Components/Chrome/Toast.vue'
 import CompareTray from '../Components/Compare/CompareTray.vue'
 import { provideConsent } from '../composables/useConsent'
 import { provideShell } from '../composables/useShell'
 import { useShared } from '../composables/useShared'
 import { useShortcuts } from '../composables/useShortcuts'
+import { useVehicleChangeHref } from '../lib/vehicleChange'
 import { isNavigationVisit, provideMobileShell } from '../composables/mobile/useMobileShell'
 import { installNavigationDirection, markNext } from '../composables/mobile/useNavigationDirection'
 import { stripSheetState } from '../composables/mobile/useSheetHistory'
+
+/* The review's feedback button, for a signed-in admin only (D-142): loaded when the server says so, never for a visitor. */
+const ShopFeedback = defineAsyncComponent(() => import('../Components/Chrome/ShopFeedback.vue'))
 
 const props = withDefaults(
     defineProps<{
@@ -64,9 +69,10 @@ const ROUTE_TITLES: Record<string, string> = {
 }
 
 const shared = useShared()
-provideShell()
+const frame = provideShell()
 provideConsent(shared.value.consent ?? null)
 const shell = provideMobileShell()
+const changeHref = useVehicleChangeHref()
 
 const vehicle = computed(() => shared.value.vehicle)
 
@@ -156,7 +162,7 @@ function fromVehicleSheet(href: string | undefined): void {
 </script>
 
 <template>
-    <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value }">
+    <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value, 'mshell--footer': footer }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
         <PreviewRibbon />
@@ -167,14 +173,18 @@ function fromVehicleSheet(href: string | undefined): void {
             </template>
         </AppBar>
 
+        <!-- Where it shows, under the app bar: Tab reaches it after the bar, not after the whole page (PDP-10). -->
+        <AddedPanel />
+
         <main id="inhalt" class="mshell__main">
             <slot />
         </main>
 
         <!-- After the page, before the footer; never while a sticky bar owns the bottom edge. -->
-        <CompareTray :hidden="shell.stickyBar.value" />
+        <CompareTray :hidden="shell.stickyBar.value || frame.stickyBar.value" />
 
-        <MobileFooter v-if="footer" />
+        <!-- The shop's one footer, as on every other page a phone opens (the client's #29, D-113). -->
+        <SiteFooter v-if="footer" />
 
         <!-- The vehicle: its name and key numbers, then the three things one does with it. -->
         <BottomSheet v-if="vehicle" id="fahrzeug" v-model:open="vehicleSheet" title="Dein Fahrzeug">
@@ -182,7 +192,7 @@ function fromVehicleSheet(href: string | undefined): void {
             <p class="small muted num">{{ vehicle.approval ?? `${vehicle.buildWindow} · ${vehicle.keyNumbers}` }}</p>
             <div class="mshell__vehicle-rows">
                 <ListRow icon="wheel" title="Passende Felgen anzeigen" href="/felgen" manual @activate="fromVehicleSheet" />
-                <ListRow icon="car" title="Fahrzeug ändern" href="/felgen-suchen" manual @activate="fromVehicleSheet" />
+                <ListRow icon="car" title="Fahrzeug ändern" :href="changeHref" manual @activate="fromVehicleSheet" />
                 <ListRow icon="close" title="Fahrzeug entfernen" :chevron="false" @activate="removeVehicle" />
             </div>
         </BottomSheet>
@@ -190,11 +200,15 @@ function fromVehicleSheet(href: string | undefined): void {
         <SearchSheet />
         <CookieConsent />
         <Toast />
+        <ShopFeedback v-if="shared.reviewer" />
     </div>
 </template>
 
 <style scoped>
 .mshell {
+    /* The phone shell carries no vehicle bar under its app bar: whatever sits below it adds nothing for one. */
+    --vbar-h: 0px;
+
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
@@ -204,6 +218,11 @@ function fromVehicleSheet(href: string | undefined): void {
     flex: 1;
     min-width: 0;
     padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* With the footer below it, the footer keeps clear of the home indicator (SiteFooter), not the page (#29). */
+.mshell--footer .mshell__main {
+    padding-bottom: 0;
 }
 
 /* A sticky action bar is the only thing that owns the bottom edge; the page keeps clear of it. */

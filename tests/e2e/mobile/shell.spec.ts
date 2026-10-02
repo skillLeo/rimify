@@ -49,7 +49,8 @@ test.describe('mobile shell', () => {
         await open(page, '/')
         await page.getByRole('button', { name: 'Menü' }).click()
         await page.getByRole('menu').getByRole('menuitem', { name: 'Check' }).click()
-        await page.waitForURL('**/rimify-check')
+        // The path, whatever the address carries beside it: the check keeps its car and wheel in the query (#28, D-116).
+        await page.waitForURL((url) => url.pathname === '/rimify-check')
     })
 
     test('no overflow, no target under 44 px, no text under 12 px, and nothing fixed to the bottom edge', async ({ page }) => {
@@ -144,7 +145,7 @@ test.describe('mobile shell', () => {
         await page.getByRole('button', { name: /Dein Fahrzeug:/ }).click()
         const sheet = page.getByRole('dialog', { name: 'Dein Fahrzeug' })
         await sheet.getByRole('link', { name: 'Passende Felgen anzeigen' }).click()
-        await page.waitForURL('**/felgen')
+        await page.waitForURL((url) => url.pathname === '/felgen')
 
         await page.goBack()
         await page.waitForURL((url) => url.pathname === '/')

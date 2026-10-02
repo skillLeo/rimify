@@ -14,6 +14,7 @@ import Accordion, { type AccordionEntry } from '../Ui/Accordion.vue'
 import Icon from '../Ui/Icon.vue'
 import { paragraphs } from '../../format'
 import { useShared } from '../../composables/useShared'
+import { contactHref } from '../../lib/contact'
 import type { FaqPreview } from '../../types/pages'
 
 const props = defineProps<{ faq: FaqPreview[] }>()
@@ -27,7 +28,8 @@ const status = computed(() => shared.value.serviceStatus)
 /* Phone and WhatsApp only when the client has given them; the e-mail and the hours always. */
 const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/[^\d]/g, '')}`)
-const mailHref = computed(() => `mailto:${contact.value.email}`)
+/* The address, to read and copy; the link opens the contact form (#26). */
+const mailHref = contactHref({ subject: 'Frage zur Passform', from: '/' })
 
 const items = computed<AccordionEntry[]>(() => props.faq.map((entry) => ({ id: entry.id, title: entry.question, body: entry.answer })))
 
@@ -66,10 +68,10 @@ onBeforeUnmount(() => {
                     </li>
                     <li class="contacts__row">
                         <Icon name="mail" :size="20" />
-                        <a :href="mailHref" class="contacts__link">{{ contact.email }}</a>
+                        <Link :href="mailHref" class="contacts__link">{{ contact.email }}</Link>
                     </li>
                     <li class="contacts__row">
-                        <Icon name="clock" :size="20" />
+                        <Icon name="clock" :size="20" class="contacts__fact" />
                         <span class="num">{{ contact.hours }}</span>
                     </li>
                 </ul>
@@ -149,6 +151,15 @@ onBeforeUnmount(() => {
     gap: var(--sp-12);
     align-items: center;
     min-height: 44px;
+    color: var(--c-ink-2);
+}
+
+/* The brand's blue on the marks of the ways to reach us (#33, D-114) — the hours are a fact, not an action: ink. */
+.contacts__row > svg {
+    color: var(--c-blue);
+}
+
+.contacts__row > .contacts__fact {
     color: var(--c-ink-2);
 }
 

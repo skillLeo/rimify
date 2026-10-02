@@ -13,6 +13,7 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
 use App\Support\DemoWheels;
 use App\Support\GermanFormat;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -108,7 +109,7 @@ final readonly class ProductCards
      * @param  array<int, FitmentVerdict>  $verdicts  the engine's verdicts for the page, by configuration id
      * @param  list<int>  $configIds
      * @param  array<int, string>  $diameterOf  configuration id → its diameter, formatted
-     * @return array{status: string, requiresEntry: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>}
+     * @return array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>}
      */
     private function claim(array $verdicts, array $configIds, array $diameterOf = []): array
     {
@@ -121,6 +122,8 @@ final readonly class ProductCards
         $vary = false;
         $key = static fn (Condition $c): string => $c->code."\u{0}".$c->sentenceDe();
         $fitting = [];
+        // Every conditional size's Auflagen all Hinweise (#23, D-104): the tile may say „Freigegeben“.
+        $allNotes = true;
 
         foreach ($configIds as $configId) {
             $verdict = $verdicts[$configId] ?? null;
@@ -134,6 +137,7 @@ final readonly class ProductCards
                 ? VerdictStatus::Conditional
                 : VerdictStatus::Permitted;
             $requiresEntry = $requiresEntry || $verdict->requiresEntry;
+            $allNotes = $allNotes && ($verdict->status !== VerdictStatus::Conditional || $verdict->notesOnly());
             $groups = $verdict->conditionGroups();
             $vary = $vary || $groups->differBySize() || $groups->entryDiffers();
 
@@ -152,7 +156,7 @@ final readonly class ProductCards
 
         // The listing and the engine disagree about this card. It makes no positive claim.
         if ($status === null) {
-            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'conditions' => [], 'conditionsVary' => false, 'diametersFitting' => []];
+            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false, 'diametersFitting' => []];
         }
 
         $conditions ??= [];
@@ -169,6 +173,8 @@ final readonly class ProductCards
         return [
             'status' => $status->value,
             'requiresEntry' => $requiresEntry,
+            // Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
+            'notesOnly' => $status === VerdictStatus::Conditional && ! $requiresEntry && $allNotes,
             'conditions' => array_values(array_map(
                 static fn (Condition $c): string => $c->sentenceDe(),
                 $conditions,
@@ -208,20 +214,24 @@ final readonly class ProductCards
      * showing its cheapest configuration. No fitment claim is made anywhere on these.
      *
      * Options, all optional and all real queries: `order` — `price` (cheapest first, the default),
-     * `newest` (the model's creation date) or `coverage` (the number of document rows behind the
-     * model, which is the closest thing to popularity this catalogue can measure honestly);
+     * `newest` (the model's creation date), `coverage` (the number of document rows behind the
+     * model) or `bestselling` (paid orders that hold the model — BestSellers — then coverage);
      * `maxPriceCents` — only models whose cheapest configuration is at or under it; `modelIds` —
      * only these models, in the order given; `withImageOnly` — only finishes with a cut-out (the
      * homepage's shop window while the demo set is incomplete). Finishes with a photograph come
      * first in every order: a drawing is a fallback, never the front row.
      *
+     * `filters` — the listing's facets without a car (the client's #30, D-118): Marke, Zoll, Breite, ET and Farbe
+     * narrow the configurations a card stands for, so its price is the cheapest that matches.
+     *
      * @param  int|null  $limit  null for the whole range
-     * @param  array{order?: string, maxPriceCents?: int|null, modelIds?: list<int>, withImageOnly?: bool}  $options
+     * @param  array{order?: string, maxPriceCents?: int|null, modelIds?: list<int>, withImageOnly?: bool, filters?: array<string, mixed>}  $options
      * @return list<array<string, mixed>>
      */
     public function catalogue(?int $limit = 24, ?string $brand = null, array $options = []): array
     {
         $order = $options['order'] ?? 'price';
+        $filters = $options['filters'] ?? [];
         $maxPriceCents = $options['maxPriceCents'] ?? null;
         $modelIds = $options['modelIds'] ?? null;
         $withImageOnly = ($options['withImageOnly'] ?? false) === true;
@@ -240,6 +250,7 @@ final readonly class ProductCards
             ->when($brand !== null, fn ($q) => $q->where('br.slug', $brand))
             ->when($modelIds !== null, fn ($q) => $q->whereIn('wm.id', $modelIds))
             ->when($withImageOnly, fn ($q) => $q->whereNotNull('wf.image_manifest'))
+            ->tap(fn ($q) => self::applyFilters($q, $filters))
             ->groupBy(
                 'wm.id', 'wm.name', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
                 'wm.is_demo', 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish', 'wf.image_manifest',
@@ -251,7 +262,9 @@ final readonly class ProductCards
             ))
             ->orderByRaw('(wf.image_manifest IS NOT NULL) DESC')
             ->when($order === 'newest', fn ($q) => $q->orderBy('wm.created_at', 'desc'))
-            ->when($order === 'coverage', fn ($q) => $q->orderByRaw(
+            // What has sold, then — while nothing has, and among equals — the most approvals (#5, D-110).
+            ->when($order === 'bestselling', fn ($q) => $q->orderByRaw(...BestSellers::orderSql()))
+            ->when($order === 'coverage' || $order === 'bestselling', fn ($q) => $q->orderByRaw(
                 '(SELECT COUNT(*) FROM fitments f JOIN wheel_configs c ON c.id = f.wheel_config_id WHERE c.wheel_model_id = wm.id) DESC',
             ))
             ->orderByRaw('MIN(wc.price_cents) ASC')
@@ -303,13 +316,79 @@ final readonly class ProductCards
     }
 
     /**
+     * The facets of the catalogue without a car (the client's #30, D-118), as ListingQuery::facets() gives them with
+     * one: every option with the number of cards it would show, counted with the OTHER filters applied and not its own,
+     * zero kept so the page can disable rather than hide. ohne_eintragung is a statement about a car and is not
+     * offered without one.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, list<array{value: string, count: int}>>
+     */
+    public function catalogueFacets(array $filters = []): array
+    {
+        $facets = [];
+
+        foreach (self::CATALOGUE_FACETS as $facet => $column) {
+            $others = $filters;
+            unset($others[$facet]);
+
+            $query = DB::table('wheel_configs as wc')
+                ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
+                ->join('wheel_finishes as wf', 'wf.id', '=', 'wc.wheel_finish_id')
+                ->join('brands as br', 'br.id', '=', 'wm.brand_id')
+                ->whereNull('wc.deleted_at')
+                ->whereNull('wm.deleted_at')
+                ->where('wm.status', CatalogueStatus::Published->value);
+
+            self::applyFilters($query, $others);
+
+            $facets[$facet] = $query
+                ->groupBy($column)
+                ->orderBy($column)
+                ->selectRaw($column.' AS v, COUNT(DISTINCT wm.id, wf.id) AS c')
+                ->get()
+                ->map(static fn (object $row): array => ['value' => (string) $row->v, 'count' => (int) $row->c])
+                ->values()
+                ->all();
+        }
+
+        return $facets;
+    }
+
+    /** The catalogue's facets and the column each reads — a match of constants, so no query string reaches the SQL (R-14). */
+    private const CATALOGUE_FACETS = [
+        'marke' => 'br.name',
+        'zoll' => 'wc.diameter_in',
+        'breite' => 'wc.width_in',
+        'et' => 'wc.et_mm',
+        'farbe' => 'wf.name_de',
+    ];
+
+    /**
+     * The facets' WHERE, every value bound: only the known facets, only non-empty values.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private static function applyFilters(Builder $query, array $filters): void
+    {
+        foreach (self::CATALOGUE_FACETS as $facet => $column) {
+            $value = $filters[$facet] ?? null;
+            $values = array_values(array_filter(is_array($value) ? $value : [$value], static fn (mixed $v): bool => is_scalar($v) && (string) $v !== ''));
+
+            if ($values !== []) {
+                $query->whereIn($column, array_map('strval', $values));
+            }
+        }
+    }
+
+    /**
      * A listing row carries the fitment facts the catalogue path cannot know: the engine's claim
      * about this card's configurations on the chosen car.
      *
      * @param  array<string, mixed>  $row
      * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, image: array<string, mixed>|null, is_demo: bool}>  $presentation
      * @param  array<string, list<string>>  $diameters
-     * @param  array{status: string, requiresEntry: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
+     * @param  array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
      * @return array<string, mixed>
      */
     private function fromListingRow(array $row, array $presentation, array $diameters, array $claim): array

@@ -148,7 +148,12 @@ class AccessSeeder extends Seeder
             ])->save();
 
             $this->seedMatrix($role, $slug === 'super-admin' ? $this->everything() : $spec['modules']);
-            $this->seedUser($role, $slug, $spec['person']);
+
+            // The accounts only where a known password is harmless (D-141): the preview got them on 21.09.2026 with the
+            // development password while the repository was public, and the live shop's first seed would have too.
+            if (app()->environment(['local', 'testing'])) {
+                $this->seedUser($role, $slug, $spec['person']);
+            }
         }
     }
 
@@ -216,9 +221,9 @@ class AccessSeeder extends Seeder
     }
 
     /**
-     * One account per role, all sharing a development password that is printed in the handover and
-     * must be rotated before launch. Super Admin carries a confirmed TOTP secret because two-factor
-     * is mandatory for that role and the login flow has to be reviewable with it switched on.
+     * One account per role, all sharing a development password — local and testing databases only
+     * (run() decides). Super Admin carries a confirmed TOTP secret because two-factor is meant to be
+     * mandatory for that role; the sign-in does not ask for it yet (AdminLoginController).
      */
     private function seedUser(Role $role, string $slug, string $person): void
     {

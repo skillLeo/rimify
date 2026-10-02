@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * The vehicle selector: the guided route and the key numbers, side by side.
+ * The vehicle selector: the key numbers and the guided route, side by side from 900 px — in that order in the markup,
+ * so what is seen first is what Tab and a screen reader reach first.
  *
  * Two routes in, because the two halves of this audience are genuinely different. Someone who
  * knows their car picks Marke → Modell → Variante; someone holding their Fahrzeugschein types four
@@ -24,7 +25,7 @@ import Icon from '../Art/Icon.vue'
 import type { DocVariant } from '../../art'
 import { anzahl } from '../../format'
 import { cleanTsn, splitKeys } from '../../lib/fahrzeugschein'
-import { mailtoHref } from '../../lib/mailto'
+import { contactHref } from '../../lib/contact'
 import type { LookupResult, VariantOption } from '../../types/pages'
 import type { ContactProp } from '../../types/rimify'
 
@@ -37,11 +38,27 @@ const props = withDefaults(
         selectedModel: string | null
         /** Where a drill step navigates to — the selector page or the check page. */
         basePath?: string
+        /** What else the page's address carries and every drill step keeps — the RIMIFY-Check's wheel (#28). */
+        baseQuery?: Record<string, string | number | null>
+        /** Where the visitor goes once the car is chosen: back to this page (the RIMIFY-Check) instead of the listing. */
+        returnTo?: string | null
         /** The homepage fold is tighter than the full-page version. */
         compact?: boolean
     }>(),
-    { basePath: '/felgen-suchen', compact: false }
+    { basePath: '/felgen-suchen', baseQuery: () => ({}), returnTo: null, compact: false }
 )
+
+/* A drill step's address: the step's own parameters over what the page keeps; an empty value is left out. */
+function drill(params: Record<string, string | number | null>): Record<string, string | number> {
+    return Object.fromEntries(Object.entries({ ...props.baseQuery, ...params }).filter((entry): entry is [string, string | number] => entry[1] !== null && entry[1] !== ''))
+}
+
+/* „Stattdessen Marke wählen“: the make step again, keeping what the page keeps. */
+const restartHref = computed(() => {
+    const query = new URLSearchParams(Object.entries(drill({})).map(([k, v]) => [k, String(v)])).toString()
+
+    return query === '' ? props.basePath : `${props.basePath}?${query}`
+})
 
 const page = usePage<{ lookup?: LookupResult; contact?: ContactProp }>()
 const lookup = computed(() => page.props.lookup ?? null)
@@ -51,25 +68,17 @@ const doc = ref<DocVariant>('neu')
 const helpOpen = ref(false)
 const tsnField = ref<HTMLInputElement | null>(null)
 
-const keys = useForm({ hsn: '', tsn: '' })
-const choice = useForm({ fahrzeug: 0 })
+const keys = useForm({ hsn: '', tsn: '', zurueck: null as string | null })
+const choice = useForm({ fahrzeug: 0, zurueck: null as string | null })
 
 /*
- * The third way forward after a miss (R-09) is an e-mail, the shop's one channel (ACCURACY D5):
- * the mail program opens with the key numbers that found nothing already written in. The address
- * is the shared `contact` prop (config), never a literal; were it ever missing, the route still
- * leads somewhere — to the Kontakt page — and never to a dead end.
+ * The third way forward after a miss (R-09) is a question to us: the contact form (#26), opening with the key numbers
+ * that found nothing already in its subject and this page as the way back.
  */
-const contact = computed(() => page.props.contact ?? null)
-const missMailHref = computed(() => {
+const missHref = computed(() => {
     const miss = lookup.value
 
-    return contact.value === null
-        ? '/kontakt'
-        : mailtoHref(contact.value.email, {
-              subject: 'Fahrzeug nicht gefunden',
-              body: `HSN: ${miss?.hsn ?? keys.hsn}\nTSN: ${miss?.tsn ?? keys.tsn}\nMarke und Modell: \n\n`,
-          })
+    return contactHref({ subject: `Fahrzeug nicht gefunden: HSN ${miss?.hsn ?? keys.hsn} · TSN ${miss?.tsn ?? keys.tsn}`, from: page.url })
 })
 
 const level = computed<'make' | 'model' | 'variant'>(() => {
@@ -136,19 +145,35 @@ watch(level, () => {
     query.value = ''
 })
 
-function step(key: string): void {
+/*
+ * A drill step under way: the rows wait. The second press of a double-click would otherwise land on the row that has
+ * just appeared under the pointer — a model, or a car nobody read (CHECK-03).
+ */
+const drilling = ref(false)
+
+function drillTo(params: Record<string, string | number | null>): void {
+    drilling.value = true
+    router.get(props.basePath, drill(params), {
+        preserveScroll: true,
+        onFinish: () => {
+            drilling.value = false
+        },
+    })
+}
+
+function step(key: string, event?: MouseEvent): void {
+    if (drilling.value || (event !== undefined && event.detail > 1)) {
+        return
+    }
+
     if (level.value === 'make') {
-        router.get(props.basePath, { marke: key }, { preserveScroll: true })
+        drillTo({ marke: key })
 
         return
     }
 
     if (level.value === 'model') {
-        router.get(
-            props.basePath,
-            { marke: props.selectedMake, modell: key },
-            { preserveScroll: true }
-        )
+        drillTo({ marke: props.selectedMake, modell: key })
 
         return
     }
@@ -156,23 +181,25 @@ function step(key: string): void {
     pick(Number(key))
 }
 
-/** Choosing a variant writes the vehicle and opens the listing. */
+/** Choosing a variant writes the vehicle and opens the listing — or returns to the page that asked (`returnTo`). */
 function pick(vehicleId: number): void {
     choice.fahrzeug = vehicleId
+    choice.zurueck = props.returnTo
     choice.post('/fahrzeug', { preserveScroll: true })
 }
 
 function back(): void {
     if (level.value === 'variant') {
-        router.get(props.basePath, { marke: props.selectedMake }, { preserveScroll: true })
+        router.get(props.basePath, drill({ marke: props.selectedMake }), { preserveScroll: true })
 
         return
     }
 
-    router.get(props.basePath, {}, { preserveScroll: true })
+    router.get(props.basePath, drill({}), { preserveScroll: true })
 }
 
 function submitKeys(): void {
+    keys.zurueck = props.returnTo
     keys.post('/fahrzeug/schluesselnummern', { preserveScroll: true })
 }
 
@@ -211,59 +238,8 @@ function onTsn(event: Event): void {
 
 <template>
     <div class="vsel" :class="{ 'vsel--compact': compact }">
-        <!-- Route one: the guided drill. -->
-        <section class="vsel__col" aria-labelledby="vsel-drill-title">
-            <div class="vsel__head">
-                <button v-if="level !== 'make'" class="vsel__back" type="button" @click="back">
-                    <Icon name="chevron-right" :size="20" />
-                    {{ level === 'variant' ? selectedMake : 'Zurück' }}
-                </button>
-                <h3 id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</h3>
-            </div>
-
-            <label class="visually-hidden" :for="`vsel-q-${basePath}`">Marke oder Modell suchen</label>
-            <div class="vsel__search">
-                <Icon name="search" :size="20" />
-                <input
-                    :id="`vsel-q-${basePath}`"
-                    v-model="query"
-                    class="field vsel__input"
-                    type="search"
-                    placeholder="Suchen"
-                    autocomplete="off"
-                />
-            </div>
-
-            <div class="row-list vsel__rows">
-                <button
-                    v-for="row in rows"
-                    :key="row.key"
-                    class="row-item"
-                    type="button"
-                    :disabled="choice.processing"
-                    @click="step(row.key)"
-                >
-                    <span class="vsel__main">
-                        <span class="vsel__label">
-                            {{ row.label }}
-                            <span v-if="row.blocked" class="tag tag--unknown vsel__flag">
-                                Daten unvollständig
-                            </span>
-                        </span>
-                        <span v-if="row.sub" class="data vsel__sub">{{ row.sub }}</span>
-                    </span>
-                    <span v-if="row.note" class="data vsel__note">{{ row.note }}</span>
-                </button>
-
-                <p v-if="rows.length === 0" class="quiet vsel__empty">
-                    Kein Treffer. Prüfe die Schreibweise oder nutze die Schlüsselnummern.
-                </p>
-            </div>
-        </section>
-
-        <div class="vsel__divider" aria-hidden="true"><span>oder</span></div>
-
-        <!-- Route two: the key numbers off the registration document. -->
+        <!-- Route one: the key numbers off the registration document — first in the markup, as a person reads and tabs it,
+             on every width; the layout only spaces, it never reorders. -->
         <section class="vsel__col vsel__col--keys" aria-labelledby="vsel-keys-title">
             <h3 id="vsel-keys-title" class="t-h3 vsel__title">Mit Schlüsselnummern</h3>
 
@@ -370,16 +346,12 @@ function onTsn(event: Event): void {
                     <button class="btn btn--secondary btn--sm" type="button" @click="helpOpen = true">
                         Schlüsselnummern prüfen
                     </button>
-                    <Link :href="basePath" class="btn btn--secondary btn--sm">
+                    <Link :href="restartHref" class="btn btn--secondary btn--sm">
                         Stattdessen Marke wählen
                     </Link>
-                    <a v-if="contact" :href="missMailHref" class="btn btn--quiet btn--sm">Per E-Mail nachfragen</a>
-                    <Link v-else href="/kontakt" class="btn btn--quiet btn--sm">Zur Kontaktseite</Link>
+                    <Link :href="missHref" class="btn btn--quiet btn--sm">Bei uns nachfragen</Link>
                 </div>
-                <p v-if="contact" class="field-help vsel__miss-note">
-                    Deine HSN und TSN stehen schon in der E-Mail an
-                    <span class="vsel__miss-address">{{ contact.email }}</span>.
-                </p>
+                <p class="field-help vsel__miss-note">Deine HSN und TSN stehen dann schon im Betreff.</p>
             </div>
 
             <div v-if="helpOpen" class="vsel__doc">
@@ -405,6 +377,58 @@ function onTsn(event: Event): void {
                 </div>
 
                 <DocFacsimile :variant="doc" :width="520" />
+            </div>
+        </section>
+
+        <div class="vsel__divider" aria-hidden="true"><span>oder</span></div>
+
+        <!-- Route two: the guided drill. -->
+        <section class="vsel__col" aria-labelledby="vsel-drill-title">
+            <div class="vsel__head">
+                <button v-if="level !== 'make'" class="vsel__back" type="button" @click="back">
+                    <Icon name="chevron-right" :size="20" />
+                    {{ level === 'variant' ? selectedMake : 'Zurück' }}
+                </button>
+                <h3 id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</h3>
+            </div>
+
+            <label class="visually-hidden" :for="`vsel-q-${basePath}`">Marke oder Modell suchen</label>
+            <div class="vsel__search">
+                <Icon name="search" :size="20" />
+                <input
+                    :id="`vsel-q-${basePath}`"
+                    v-model="query"
+                    class="field vsel__input"
+                    type="search"
+                    placeholder="Suchen"
+                    autocomplete="off"
+                />
+            </div>
+
+            <div class="row-list vsel__rows">
+                <button
+                    v-for="row in rows"
+                    :key="row.key"
+                    class="row-item"
+                    type="button"
+                    :disabled="choice.processing || drilling"
+                    @click="step(row.key, $event)"
+                >
+                    <span class="vsel__main">
+                        <span class="vsel__label">
+                            {{ row.label }}
+                            <span v-if="row.blocked" class="tag tag--unknown vsel__flag">
+                                Daten unvollständig
+                            </span>
+                        </span>
+                        <span v-if="row.sub" class="data vsel__sub">{{ row.sub }}</span>
+                    </span>
+                    <span v-if="row.note" class="data vsel__note">{{ row.note }}</span>
+                </button>
+
+                <p v-if="rows.length === 0" class="quiet vsel__empty">
+                    Kein Treffer. Prüfe die Schreibweise oder nutze die Schlüsselnummern.
+                </p>
             </div>
         </section>
     </div>
@@ -604,10 +628,13 @@ function onTsn(event: Event): void {
     font-weight: 700;
 }
 
+/* A long German word breaks where German breaks it („Höchst-geschwindigkeit:“), never mid-syllable (CHECK-21). */
 .vsel__candidate-values {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
+    hyphens: auto;
+    overflow-wrap: break-word;
 }
 
 .vsel__candidate-cta {
@@ -642,11 +669,6 @@ function onTsn(event: Event): void {
 }
 
 /* A long address breaks rather than widening the card past a 320px screen. */
-.vsel__miss-address {
-    font-weight: 700;
-    overflow-wrap: anywhere;
-}
-
 .vsel__doc {
     margin-top: var(--space-4);
 }
@@ -658,16 +680,11 @@ function onTsn(event: Event): void {
     margin-bottom: var(--space-3);
 }
 
-/* The key-number route comes first on a phone: faster for anyone holding their papers. The
-   divider follows it, so "oder" always sits between the two routes. */
-.vsel__col--keys {
-    order: -2;
-}
-
-.vsel__divider {
-    order: -1;
-}
-
+/*
+ * The key-number route comes first — faster for anyone holding their papers — because it is first in the markup, not
+ * because the layout moves it: the order on screen is the order a keyboard and a screen reader meet it. "oder" sits
+ * between the two routes. From 900 px the same order stands in three columns.
+ */
 @media (min-width: 900px) {
     .vsel {
         grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -678,12 +695,7 @@ function onTsn(event: Event): void {
         gap: var(--space-5);
     }
 
-    .vsel__col--keys {
-        order: 0;
-    }
-
     .vsel__divider {
-        order: 0;
         flex-direction: column;
         align-self: stretch;
     }

@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '../fixtures'
+import { REVIEW_PASSWORD } from '../support'
 import { waitForApp } from './faq-support'
 
 /*
@@ -18,13 +18,7 @@ import { waitForApp } from './faq-support'
  */
 
 function reviewPassword(): string {
-    if (process.env.REVIEW_PASSWORD) {
-        return process.env.REVIEW_PASSWORD
-    }
-
-    const line = readFileSync('docs/review/ACCOUNTS.md', 'utf8').split('\n').find((l) => l.includes('`verkauf@rimify.test`')) ?? ''
-
-    return [...line.matchAll(/`([^`]+)`/g)].map((m) => m[1])[1] ?? ''
+    return REVIEW_PASSWORD
 }
 
 async function signInAsVerkauf(page: Page): Promise<void> {

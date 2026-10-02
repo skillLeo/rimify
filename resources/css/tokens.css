@@ -21,6 +21,10 @@
     --c-line-2: #c9ced5;
     --c-surface: #ffffff;
     --c-band: #f3f4f6;
+    --c-band-blue: #ebf0f7;   /* The section band, alternating with white (the client's #32, D-115); tiles, fields and chips keep --c-band. */
+    /* The hero's studio light (PROTECTED.md P2): the band itself lifted three quarters of the way to white — the same lift the white
+       light gave the neutral band — so the light is the band's own and follows it (D-139). */
+    --c-studio-light: color-mix(in oklab, var(--c-surface) 75%, var(--c-band-blue));
     --c-dark: #0b0f14;
     --c-dark-2: #161b22;
     --c-on-dark-2: #a9b1bc;
@@ -124,8 +128,7 @@
     --page-margin: 20px;
     --gutter: 16px;
     --cols: 4;
-    --utility-h: 32px;
-    --header-h: 64px;
+    --header-h: 80px;           /* The client's #2 (D-106): taller on a desktop, where the utility strip is gone. */
     --header-h-m: 56px;
     --vbar-h: 40px;
     --bottomnav-h: 56px;

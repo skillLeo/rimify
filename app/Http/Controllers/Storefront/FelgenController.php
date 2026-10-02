@@ -25,7 +25,9 @@ use App\Enums\TyreSeason;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Controller;
 use App\Models\BalanceWeightColour;
+use App\Models\Brand;
 use App\Models\CatalogueGapEvent;
+use App\Models\Review;
 use App\Models\TyreVariant;
 use App\Models\VerdictTally;
 use App\Models\WheelConfig;
@@ -33,14 +35,18 @@ use App\Models\WheelModel;
 use App\Services\Commerce\KomplettradPricer;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
+use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
+use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\Shipping;
+use App\Support\ShopPath;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -58,6 +64,9 @@ class FelgenController extends Controller
     /** What one click on `Als Komplettrad in den Warenkorb` adds: a set of four. */
     private const SET_OF = 4;
 
+    /** The amounts the product page offers beside the price, four preselected (#17); each priced by LinePrice. */
+    public const AMOUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
+
     public function __construct(
         private readonly ProductCards $cards,
         private readonly VehicleTree $tree,
@@ -70,7 +79,11 @@ class FelgenController extends Controller
         private readonly FitmentDetail $detail,
     ) {}
 
-    /** The vehicle selector: make → model → variant, or the two key numbers. */
+    /**
+     * The vehicle selector: make → model → variant, or the two key numbers. A page that sends the visitor here to choose
+     * a car and wants them back names itself in `zurueck` (the compare table): a path of this shop only (ShopPath),
+     * carried through every drill step and into the choice, which then returns there instead of opening the listing.
+     */
     public function suchen(Request $request): Response
     {
         $make = $request->string('marke')->toString();
@@ -82,11 +95,15 @@ class FelgenController extends Controller
             'selectedModel' => $model === '' ? null : $model,
             'models' => $make === '' ? [] : $this->tree->models($make),
             'variants' => ($make === '' || $model === '') ? [] : $this->tree->variants($make, $model),
+            'returnTo' => ShopPath::of($request->query('zurueck')),
         ]);
     }
 
     /** Cards per listing page. The page's pager derives its page count from the same number. */
     private const PER_PAGE = 24;
+
+    /** The listing's last filters, for the vehicle choice to land on (#27, D-118). */
+    public const FILTERS_SESSION = 'listing_filters';
 
     /** The listing. With a vehicle it is a compliance answer; without one it is a catalogue. */
     public function index(Request $request): Response|RedirectResponse
@@ -94,16 +111,21 @@ class FelgenController extends Controller
         $vehicleId = $this->vehicleId($request);
         $filters = $this->filters($request);
 
+        // One filter state across the shop (the client's #27, D-118): the listing's last filters are remembered, so
+        // choosing a car — on this page, the homepage or the vehicle page — lands on the same selection for that car.
+        $request->session()->put(self::FILTERS_SESSION, $filters);
+
         if ($vehicleId === null) {
             return Inertia::render('Felgen/Index', [
                 'hasVehicle' => false,
-                // The whole catalogue. This page has no pager without a vehicle and states the
-                // number of cards it shows as the size of the range, so a cap here hid a product
-                // and made "24 Felgen im Sortiment" untrue.
-                'cards' => $this->cards->catalogue(limit: null),
+                // The whole catalogue, narrowed by the same facets a car's listing has (the client's #30, D-118).
+                // This page has no pager without a vehicle and states the number of cards it shows as the size
+                // of the range, so a cap here hid a product and made "24 Felgen im Sortiment" untrue.
+                'cards' => $this->cards->catalogue(limit: null, options: ['filters' => $filters]),
                 'total' => null,
-                'facets' => [],
-                'filters' => $filters,
+                'facets' => $this->cards->catalogueFacets($filters),
+                // „Ohne Eintragung“ is a statement about a car: without one it is neither offered nor applied.
+                'filters' => array_diff_key($filters, ['ohne_eintragung' => true]),
                 'demo' => $this->demo(),
             ]);
         }
@@ -187,68 +209,20 @@ class FelgenController extends Controller
         // counted by state, nothing else kept.
         VerdictTally::record('pdp', array_map(static fn (FitmentVerdict $verdict): VerdictStatus => $verdict->status, array_values($verdicts)));
 
-        // Adding a Komplettrad from this page assigns the admin's default Wuchtgewichte colour
-        // (§4.1); read once for the whole page, and only where an offer could be made at all.
+        // The Komplettrad's Wuchtgewichte (§4.1, #15): the admin's default colour is the one preselected, and every active
+        // colour is offered on the page, each set priced with it; read once for the whole page, and only where an offer
+        // could be made at all.
         $colour = $vehicleId === null ? null : BalanceWeightColour::default();
+        $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 
         foreach ($wheel->configs as $config) {
-            $live = $verdicts[$config->id] ?? null;
-            $verdict = $live === null ? null : $this->verdictFor($live);
+            $row = $this->configRow($config, $verdicts[$config->id] ?? null, $colour, $colours);
 
-            // The hump designation the wheel's own approval prints in its size line ("8½ J x 19
-            // H2"). Empty is the same as absent: the details then show no Hump row rather than a
-            // blank one, because a record that holds no designation makes no claim about one.
-            $hump = is_string($config->hump) ? trim($config->hump) : '';
-
-            if ($verdict !== null && $verdict['status'] === VerdictStatus::Unknown->value) {
+            if (($row['verdict']['status'] ?? null) === VerdictStatus::Unknown->value) {
                 $anyUnknown = true;
             }
 
-            $configs[] = [
-                // Price, stock and verdict arrive together in one payload, so selecting a size
-                // changes all three in ONE commit. A page where the price updates a frame before
-                // the legal answer has, for that frame, told the customer something untrue.
-                'verdict' => $verdict,
-                'id' => $config->id,
-                'finishId' => $config->wheel_finish_id,
-                'sku' => $config->sku,
-                'diameterIn' => (float) $config->diameter_in,
-                'widthIn' => (float) $config->width_in,
-                'etMm' => (int) $config->et_mm,
-                'sizeLabel' => GermanFormat::wheelSize(
-                    (float) $config->width_in,
-                    (float) $config->diameter_in,
-                    (int) $config->et_mm,
-                ),
-                'fullLabel' => GermanFormat::wheelLabel(
-                    (float) $config->width_in,
-                    (float) $config->diameter_in,
-                    (int) $config->et_mm,
-                    (int) $config->bolt_holes,
-                    (float) $config->bolt_circle_mm,
-                    (float) $config->centre_bore_mm,
-                ),
-                'boltPattern' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm),
-                // The rim's own bore, and it is labelled as the rim's own on the page: the bore a
-                // document states for the chosen car travels inside the verdict instead (§1, R-06).
-                'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
-                'hump' => $hump === '' ? null : $hump,
-                // `price_cents` is ONE rim (docs/specs/komplettrad.md §9); the set of four is
-                // computed and formatted here (Money), so the page never multiplies cents (R-10).
-                'priceCents' => (int) $config->price_cents,
-                'price' => $this->rimPrice($config)->format(),
-                'priceForFour' => $this->rimPrice($config)->multiply(self::SET_OF)->format(),
-                'stockQty' => (int) $config->stock_qty,
-                'inStock' => $config->stock_qty > 0,
-                'kbaNumber' => $config->kba_number,
-                'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
-                // The load rating per wheel, from the approval document; null when nobody has
-                // verified one, and the page then shows no row (ACCURACY.md D2).
-                'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
-                // The Komplettrad offer travels with the verdict it depends on, for the same
-                // reason: a size change swaps the tyres and the legal answer in one commit.
-                'komplettrad' => $this->komplettradFor($config, $live, $colour),
-            ];
+            $configs[] = $row;
         }
 
         // A model we hold no document for, on a car the customer has chosen, is the single most
@@ -262,6 +236,82 @@ class FelgenController extends Controller
             );
         }
 
+        return $this->renderProduct($request, $wheel, $configs, $vehicleId, $colours);
+    }
+
+    /**
+     * One size of a wheel as the product page — and the RIMIFY-Check (#28) — ships it: price, stock and the verdict
+     * for the chosen car together, with the Komplettrad and Mischbereifung offers that depend on that verdict.
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array<string, mixed>
+     */
+    private function configRow(WheelConfig $config, ?FitmentVerdict $live, ?BalanceWeightColour $colour, Collection $colours): array
+    {
+        $verdict = $live === null ? null : $this->verdictFor($live);
+
+        // The hump designation the wheel's own approval prints in its size line ("8½ J x 19
+        // H2"). Empty is the same as absent: the details then show no Hump row rather than a
+        // blank one, because a record that holds no designation makes no claim about one.
+        $hump = is_string($config->hump) ? trim($config->hump) : '';
+
+        return [
+            // Price, stock and verdict arrive together in one payload, so selecting a size
+            // changes all three in ONE commit. A page where the price updates a frame before
+            // the legal answer has, for that frame, told the customer something untrue.
+            'verdict' => $verdict,
+            'id' => $config->id,
+            'finishId' => $config->wheel_finish_id,
+            'sku' => $config->sku,
+            'diameterIn' => (float) $config->diameter_in,
+            'widthIn' => (float) $config->width_in,
+            'etMm' => (int) $config->et_mm,
+            'sizeLabel' => GermanFormat::wheelSize(
+                (float) $config->width_in,
+                (float) $config->diameter_in,
+                (int) $config->et_mm,
+            ),
+            'fullLabel' => GermanFormat::wheelLabel(
+                (float) $config->width_in,
+                (float) $config->diameter_in,
+                (int) $config->et_mm,
+                (int) $config->bolt_holes,
+                (float) $config->bolt_circle_mm,
+                (float) $config->centre_bore_mm,
+            ),
+            'boltPattern' => GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm),
+            // The rim's own bore, and it is labelled as the rim's own on the page: the bore a
+            // document states for the chosen car travels inside the verdict instead (§1, R-06).
+            'centreBore' => GermanFormat::millimetres((float) $config->centre_bore_mm),
+            'hump' => $hump === '' ? null : $hump,
+            // `price_cents` is ONE rim (docs/specs/komplettrad.md §9, D-102); the set of four is
+            // computed by LinePrice and formatted here, so the page never multiplies cents (R-10).
+            'priceCents' => (int) $config->price_cents,
+            'price' => $this->rimPrice($config)->format(),
+            'priceForFour' => LinePrice::total($this->rimPrice($config), self::SET_OF)->format(),
+            // The figure for every amount the page offers, so the browser only picks one (D-102).
+            'amounts' => LinePrice::byQuantity($this->rimPrice($config), self::AMOUNTS),
+            'stockQty' => (int) $config->stock_qty,
+            'inStock' => $config->stock_qty > 0,
+            'kbaNumber' => $config->kba_number,
+            'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
+            // The load rating per wheel, from the approval document; null when nobody has
+            // verified one, and the page then shows no row (ACCURACY.md D2).
+            'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
+            // The Komplettrad offer travels with the verdict it depends on, for the same
+            // reason: a size change swaps the tyres and the legal answer in one commit.
+            'komplettrad' => $this->komplettradFor($config, $live, $colour, $colours),
+            // Mischbereifung (#20, D-105): only where the released Gutachten prints its pairing table.
+            'mischbereifung' => $this->mischbereifungFor($config, $live, $colour, $colours),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $configs
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     */
+    private function renderProduct(Request $request, WheelModel $wheel, array $configs, ?int $vehicleId, Collection $colours): Response
+    {
         $finishes = [];
 
         foreach ($wheel->finishes as $finish) {
@@ -294,7 +344,18 @@ class FelgenController extends Controller
                     : GermanFormat::rating($wheel->rating, $wheel->rating_count),
                 // GPSR: the brand's manufacturer as entered in Katalog › Marken, or null (the page then says so).
                 'manufacturer' => $wheel->brand->manufacturer(),
+                // While it has no reviews, what the page can prove instead (#19, D-103): its documents and the cars.
+                'proof' => app(HomeStats::class)->forModel($wheel->id),
             ],
+            // The buyers' visible reviews, newest first (D-103); the rating above is computed from them alone.
+            'reviews' => Review::query()->visible()->where('wheel_model_id', $wheel->id)->orderByDesc('id')->limit(20)->get()
+                ->map(static fn (Review $review): array => [
+                    'id' => $review->id,
+                    'rating' => $review->rating,
+                    'body' => $review->body,
+                    'at' => GermanFormat::date($review->created_at),
+                    'reply' => $review->reply,
+                ])->all(),
             'finishes' => $finishes,
             'configs' => $configs,
             'hasVehicle' => $vehicleId !== null,
@@ -304,7 +365,54 @@ class FelgenController extends Controller
             'demo' => (bool) $wheel->is_demo,
             // Delivery time and shipping, as Einstellungen › Verkäufer & Versand gives them; null while nothing is.
             'shipping' => Shipping::current()->summary(),
+            'komplettradOptions' => $this->komplettradOptions($request, $colours),
         ]);
+    }
+
+    /**
+     * The RIMIFY-Check's answer (#28): one size of one wheel for the car the visitor has chosen — the very row the product
+     * page ships, built by the same code, so the two pages can never disagree — and what goes with a Komplettrad.
+     *
+     * @return array{config: array<string, mixed>, komplettradOptions: array<string, mixed>|null}
+     */
+    public function answerFor(Request $request, WheelConfig $config): array
+    {
+        $vehicleId = $this->vehicleId($request);
+        $live = $vehicleId === null ? null : ($this->resolver->resolveMany($vehicleId, [(int) $config->id])[(int) $config->id] ?? null);
+
+        if ($live !== null) {
+            VerdictTally::record('check', [$live->status]);
+        }
+
+        $colour = $vehicleId === null ? null : BalanceWeightColour::default();
+        $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
+
+        return [
+            'config' => $this->configRow($config, $live, $colour, $colours),
+            'komplettradOptions' => $this->komplettradOptions($request, $colours),
+        ];
+    }
+
+    /**
+     * What goes with a Komplettrad (#15): the Wuchtgewichte colours the admin keeps active, and the RDKS question for a
+     * set, priced for the car's make — the basket's own block, so the checkout finds it answered. Null without a car.
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array<string, mixed>|null
+     */
+    private function komplettradOptions(Request $request, Collection $colours): ?array
+    {
+        return $colours->isEmpty() ? null : [
+            'colours' => $colours->map(static fn (BalanceWeightColour $c): array => [
+                'id' => (int) $c->id,
+                'name' => $c->name_de,
+                'swatchHex' => $c->swatch_hex,
+                'surchargeCents' => (int) $c->surcharge_cents,
+                'surcharge' => GermanFormat::money((int) $c->surcharge_cents, $c->currency),
+                'isDefault' => (bool) $c->is_default,
+            ])->values()->all(),
+            'tpms' => app(Basket::class)->tpmsOffer($request, self::SET_OF),
+        ];
     }
 
     /** One rim's price in its own currency (the shop's, EUR, where a row names none). */
@@ -330,9 +438,13 @@ class FelgenController extends Controller
      * asks it again on every add and on every render (R-13, R-11). What this method adds are the
      * storefront's own two arms — no vehicle, no active weight colour — and the prices.
      *
+     * Each tyre carries its set priced with every active Wuchtgewichte colour (#15), so the page shows the figure for
+     * the colour picked without adding a surcharge itself; `perWheel` and `forFour` stay the default colour's.
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
      * @return array<string, mixed>
      */
-    private function komplettradFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour): array
+    private function komplettradFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour, Collection $colours): array
     {
         // Without a vehicle there is no verdict, so there is no permitted-size list (D-033).
         if ($verdict === null) {
@@ -372,7 +484,7 @@ class FelgenController extends Controller
             $price = $this->pricer->perWheel($config, $variant, $colour);
             $priceOpen = $priceOpen || ! $price->complete();
             $perWheel = Money::fromMinor($price->knownPerWheelCents(), $price->currency);
-            $forFour = $perWheel->multiply(self::SET_OF);
+            $forFour = LinePrice::total($perWheel, self::SET_OF);
 
             $tyres[] = [
                 'id' => (int) $variant->id,
@@ -390,6 +502,17 @@ class FelgenController extends Controller
                 'perWheel' => $perWheel->format(),
                 'forFourCents' => $forFour->toMinor(),
                 'forFour' => $forFour->format(),
+                'prices' => $colours->map(function (BalanceWeightColour $c) use ($config, $variant): array {
+                    $price = $this->pricer->perWheel($config, $variant, $c);
+                    $perWheel = Money::fromMinor($price->knownPerWheelCents(), $price->currency);
+
+                    return [
+                        'colourId' => (int) $c->id,
+                        'perWheel' => $perWheel->format(),
+                        'forFourCents' => LinePrice::total($perWheel, self::SET_OF)->toMinor(),
+                        'forFour' => LinePrice::total($perWheel, self::SET_OF)->format(),
+                    ];
+                })->values()->all(),
                 'label' => Basket::euLabel($variant),
                 'isDemo' => (bool) $variant->is_demo,
             ];
@@ -406,6 +529,134 @@ class FelgenController extends Controller
             'priceOpen' => $priceOpen,
             'quantity' => self::SET_OF,
             'tyres' => $tyres,
+        ];
+    }
+
+    /**
+     * Mischbereifung for one configuration (#20, D-105): every front/rear pair the released Gutachten's table permits
+     * for this car on this rim, each with the tyre sets that meet both axles — two of each, priced by the one pricer —
+     * or the sentence saying why there is none. Null where the document prints no pairing table: the page then says
+     * nothing about it, because there is nothing to offer and nothing to explain.
+     *
+     * Nothing here decides a pair. `TyreEligibility` does, and the basket asks it again on every add and render.
+     *
+     * Each set carries its price in every Wuchtgewichte colour too, so the card shows what the basket will charge for
+     * the colour picked above it (PDP-07).
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array<string, mixed>|null
+     */
+    private function mischbereifungFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour, Collection $colours): ?array
+    {
+        if ($verdict === null) {
+            return null;
+        }
+
+        $offer = $this->eligibility->mixedOfferFor($verdict);
+
+        if (! $offer->hasTable) {
+            return null;
+        }
+
+        $refused = static fn (string $code, string $sentence): array => [
+            'refusal' => $sentence,
+            'refusalCode' => $code,
+            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
+            'rules' => $offer->rulesDe,
+            'sourcePage' => $offer->sourcePage,
+            'priceOpen' => false,
+            'pairs' => [],
+        ];
+
+        if ($offer->refusal !== null) {
+            return $refused($offer->refusal->value, $offer->refusal->sentenceDe());
+        }
+
+        if ($colour === null) {
+            return $refused(Basket::NO_WEIGHT_COLOUR_CODE, Basket::NO_WEIGHT_COLOUR_REFUSAL);
+        }
+
+        $ids = [];
+
+        foreach ($offer->pairs as $pair) {
+            foreach ($pair->sets as $set) {
+                $ids[] = $set['front']->id;
+                $ids[] = $set['rear']->id;
+            }
+        }
+
+        $variants = TyreVariant::query()->with('brand')->whereIn('id', array_values(array_unique($ids)))->get()->keyBy('id');
+        $priceOpen = false;
+        $pairs = [];
+
+        foreach ($offer->pairs as $pair) {
+            $sets = [];
+
+            foreach ($pair->sets as $set) {
+                $front = $variants->get($set['front']->id);
+                $rear = $variants->get($set['rear']->id);
+
+                if (! $front instanceof TyreVariant || ! $rear instanceof TyreVariant) {
+                    continue;
+                }
+
+                $frontPrice = $this->pricer->perWheel($config, $front, $colour);
+                $rearPrice = $this->pricer->perWheel($config, $rear, $colour);
+                $priceOpen = $priceOpen || ! $frontPrice->complete() || ! $rearPrice->complete();
+                $frontWheel = Money::fromMinor($frontPrice->knownPerWheelCents(), $frontPrice->currency);
+                $rearWheel = Money::fromMinor($rearPrice->knownPerWheelCents(), $rearPrice->currency);
+                $forFour = LinePrice::total($frontWheel, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearWheel, TyreEligibility::MIXED_PER_AXLE));
+
+                $sets[] = [
+                    'key' => $front->id.'-'.$rear->id,
+                    'frontTyreId' => (int) $front->id,
+                    'rearTyreId' => (int) $rear->id,
+                    'brandName' => (string) $front->brand?->name,
+                    'name' => (string) $front->name,
+                    'seasonLabel' => TyreSeason::from((string) $front->season)->longLabelDe(),
+                    'frontLabel' => $front->label(),
+                    'rearLabel' => $rear->label(),
+                    'perWheelFront' => $frontWheel->format(),
+                    'perWheelRear' => $rearWheel->format(),
+                    'forFourCents' => $forFour->toMinor(),
+                    'forFour' => $forFour->format(),
+                    'prices' => $colours->map(function (BalanceWeightColour $c) use ($config, $front, $rear): array {
+                        $frontPrice = $this->pricer->perWheel($config, $front, $c);
+                        $rearPrice = $this->pricer->perWheel($config, $rear, $c);
+                        $frontWheel = Money::fromMinor($frontPrice->knownPerWheelCents(), $frontPrice->currency);
+                        $rearWheel = Money::fromMinor($rearPrice->knownPerWheelCents(), $rearPrice->currency);
+                        $forFour = LinePrice::total($frontWheel, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearWheel, TyreEligibility::MIXED_PER_AXLE));
+
+                        return [
+                            'colourId' => (int) $c->id,
+                            'perWheelFront' => $frontWheel->format(),
+                            'perWheelRear' => $rearWheel->format(),
+                            'forFourCents' => $forFour->toMinor(),
+                            'forFour' => $forFour->format(),
+                        ];
+                    })->values()->all(),
+                    'isDemo' => (bool) $front->is_demo || (bool) $rear->is_demo,
+                ];
+            }
+
+            $pairs[] = [
+                'key' => $pair->pairing->key(),
+                'number' => $pair->pairing->number,
+                'front' => $pair->front->labelDe(),
+                'rear' => $pair->rear->labelDe(),
+                'minSentence' => $pair->minimumSentenceDe(),
+                'sets' => $sets,
+            ];
+        }
+
+        return [
+            'refusal' => null,
+            'refusalCode' => null,
+            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
+            'rules' => $offer->rulesDe,
+            'sourcePage' => $offer->sourcePage,
+            'priceOpen' => $priceOpen,
+            'pairs' => $pairs,
         ];
     }
 
@@ -486,7 +737,9 @@ class FelgenController extends Controller
 
         return [
             'status' => $verdict->status->value,
-            'label' => $verdict->status->labelDe(),
+            'label' => $verdict->displayLabelDe(),
+            // Every Auflage a Hinweis (#23, D-104): the page says „Freigegeben“, quietly „mit Hinweisen“.
+            'notesOnly' => $verdict->notesOnly(),
             'sellable' => $verdict->isSellable(),
             'requiresEntry' => $verdict->requiresEntry,
             'entryNoteDe' => $verdict->entryNoteDe,
@@ -680,6 +933,30 @@ class FelgenController extends Controller
                 is_array($value) ? $value : explode(',', (string) $value),
                 static fn (mixed $v): bool => is_string($v) && $v !== '',
             ));
+
+            // A size arrives as `19` from the homepage's size tiles and as `19.0` from the listing's own options: both are
+            // written as the facets write them (the column's form), so the option shows as chosen and both lead to one
+            // filter. A value that is no number is no size, and is dropped (D-118).
+            $format = match ($facet) {
+                'zoll' => 1,
+                'breite' => 2,
+                'et' => 0,
+                default => null,
+            };
+
+            if ($format !== null) {
+                $values = array_values(array_unique(array_map(
+                    static fn (string $v): string => number_format((float) str_replace(',', '.', $v), $format, '.', ''),
+                    array_filter($values, static fn (string $v): bool => is_numeric(str_replace(',', '.', $v))),
+                )));
+            }
+
+            // A brand arrives by name from the listing's own options and by slug from the homepage's brand wall
+            // (/felgen?marke=oz-racing): both mean the brand, and the listing reads its name.
+            if ($facet === 'marke' && $values !== []) {
+                $names = Brand::query()->whereIn('slug', $values)->pluck('name', 'slug');
+                $values = array_values(array_unique(array_map(static fn (string $v): string => (string) ($names[$v] ?? $v), $values)));
+            }
 
             if ($values !== []) {
                 $filters[$facet] = $values;

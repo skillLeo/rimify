@@ -19,8 +19,13 @@ const props = withDefaults(
         size?: 'sm' | 'lg'
         /** A longer wording for the same state, e.g. "Freigegeben für BMW 3er". */
         label?: string
+        /**
+         * A CONDITIONAL answer whose Auflagen are all Hinweise (#23, D-104, decided on the server): it wears the
+         * „Freigegeben“ badge; the caller says „mit Hinweisen“ quietly beside it. Nothing else is ever softened.
+         */
+        notesOnly?: boolean
     }>(),
-    { size: 'sm', label: undefined }
+    { size: 'sm', label: undefined, notesOnly: false }
 )
 
 const LABELS: Record<VerdictStatus, string> = {
@@ -37,8 +42,9 @@ const TONES: Record<VerdictStatus, { cls: string; icon: IconName }> = {
     UNKNOWN: { cls: 'verdict--unk', icon: 'info' },
 }
 
-const tone = computed(() => TONES[props.status])
-const text = computed(() => props.label ?? LABELS[props.status])
+const shown = computed<VerdictStatus>(() => (props.notesOnly && props.status === 'CONDITIONAL' ? 'PERMITTED' : props.status))
+const tone = computed(() => TONES[shown.value])
+const text = computed(() => props.label ?? LABELS[shown.value])
 </script>
 
 <template>

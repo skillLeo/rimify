@@ -51,6 +51,64 @@ export function browserName(agent: string): string {
     return agent.slice(0, 60) || 'unbekannt'
 }
 
+/*
+ * The page's own typeface in its picture (D-142): drawn without it, every line breaks where the fallback face breaks
+ * it, and a Design or Text point arrives with a page that never was. The fonts are read once per page load and kept;
+ * if they cannot be, the picture is drawn as before, without them.
+ */
+let fontCss: Promise<string> | null = null
+
+async function fontEmbedCss(root: HTMLElement, read: (node: HTMLElement) => Promise<string>): Promise<string> {
+    fontCss ??= read(root).catch(() => '')
+
+    return fontCss
+}
+
+/**
+ * How long the picture may take; after that the point goes without one rather than keep the person waiting. A long
+ * page on a phone takes several seconds (measured 03.10.2026: up to ~9 s with every image fetched afresh), so this
+ * is a stop for a picture that never comes, not a budget.
+ */
+export const CAPTURE_TIMEOUT_MS = 30_000
+
+async function capture(): Promise<string | null> {
+    const { toCanvas, getFontEmbedCSS } = await import('html-to-image')
+    const root = document.querySelector<HTMLElement>('.adm') ?? document.body
+    const fonts = await fontEmbedCss(root, getFontEmbedCSS)
+
+    /*
+     * What the person sees: the window where it is scrolled to, not the top of the page. The page is
+     * drawn from its top down to the window's lower edge, and the part above the window is cut off.
+     */
+    const width = window.innerWidth
+    const height = window.innerHeight
+    const top = Math.max(0, Math.round(-root.getBoundingClientRect().top))
+    const page = await toCanvas(root, {
+        width,
+        height: top + height,
+        canvasWidth: width,
+        canvasHeight: top + height,
+        pixelRatio: 1,
+        // Every picture on the page is our own origin's: the browser's cache serves it, nothing is fetched afresh.
+        cacheBust: false,
+        ...(fonts === '' ? { skipFonts: true } : { fontEmbedCSS: fonts }),
+        // A photograph that cannot be drawn leaves a gap, never the whole picture missing.
+        onImageErrorHandler: () => undefined,
+        /*
+         * The button itself never; and a <picture>'s <source> never: the library draws the <img> it holds, but a
+         * <source> left in the copy makes the browser reach for its AVIF or WebP file, which a drawn page may not
+         * load — the photograph came out broken on every page that has one (SHOP-FEEDBACK-05).
+         */
+        filter: (node) => !(node instanceof HTMLSourceElement) && !(node instanceof HTMLElement && node.dataset.feedbackSkip !== undefined),
+    })
+    const view = document.createElement('canvas')
+    view.width = width
+    view.height = height
+    view.getContext('2d')?.drawImage(page, 0, top, width, height, 0, 0, width, height)
+
+    return view.toDataURL('image/png')
+}
+
 export async function startFeedback(): Promise<void> {
     if (feedback.capturing || feedback.open || typeof window === 'undefined') {
         return
@@ -62,35 +120,19 @@ export async function startFeedback(): Promise<void> {
     feedback.browser = browserName(window.navigator.userAgent)
     feedback.screenshot = null
 
-    try {
-        const { toCanvas } = await import('html-to-image')
-        const root = document.querySelector<HTMLElement>('.adm') ?? document.body
+    let timer: ReturnType<typeof setTimeout> | undefined
 
-        /*
-         * What the person sees: the window where it is scrolled to, not the top of the page. The page is
-         * drawn from its top down to the window's lower edge, and the part above the window is cut off.
-         */
-        const width = window.innerWidth
-        const height = window.innerHeight
-        const top = Math.max(0, Math.round(-root.getBoundingClientRect().top))
-        const page = await toCanvas(root, {
-            width,
-            height: top + height,
-            canvasWidth: width,
-            canvasHeight: top + height,
-            pixelRatio: 1,
-            cacheBust: true,
-            skipFonts: true,
-            filter: (node) => !(node instanceof HTMLElement && node.dataset.feedbackSkip !== undefined),
-        })
-        const view = document.createElement('canvas')
-        view.width = width
-        view.height = height
-        view.getContext('2d')?.drawImage(page, 0, top, width, height, 0, 0, width, height)
-        feedback.screenshot = view.toDataURL('image/png')
+    try {
+        feedback.screenshot = await Promise.race([
+            capture(),
+            new Promise<null>((resolve) => {
+                timer = setTimeout(() => resolve(null), CAPTURE_TIMEOUT_MS)
+            }),
+        ])
     } catch {
         feedback.screenshot = null
     } finally {
+        clearTimeout(timer)
         feedback.capturing = false
         feedback.open = true
     }

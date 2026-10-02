@@ -47,7 +47,8 @@ final class ProcessWheelImages extends Command
 
     protected $description = 'Cut the demo wheels out of their photographs and export the responsive images the catalogue serves';
 
-    private const PIPELINE_VERSION = 5;
+    /** 6: the `open` frame for a masked studio shot (the dark band's wheel, #9). */
+    private const PIPELINE_VERSION = 6;
 
     /** Each anchor a photograph may be measured with, and how many numbers it takes. */
     private const ANCHOR_SHAPES = ['centre' => 2, 'wheel' => 3, 'pcd' => 3, 'bore' => 3, 'valve' => 2, 'kba' => 4, 'bead' => 3, 'flanges' => 3];

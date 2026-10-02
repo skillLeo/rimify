@@ -58,7 +58,7 @@ const FRAME = 1080
 // A darker --c-band: --c-ink-2 from resources/css/tokens.css, the same cool grey hue.
 const SHADOW_TINT = '#3a424d'
 const JPEG_BACKGROUND = '#f3f4f6'
-const PIPELINE_VERSION = 5
+const PIPELINE_VERSION = 6
 
 const args = parse(process.argv.slice(2))
 const source = args.source
@@ -184,13 +184,17 @@ const wheelMeta = await sharp(wheelPng).metadata()
 const sourceAnchors = anchors === null ? null : { ...anchors, wheel: anchors.wheel ?? wheelInSource }
 
 // ── 4 + 5 · Two frames on their own contact shadow and one without, each at three widths ─────
+// A masked studio shot gets a fourth: `open`, the shadowless frame with the studio's white seen through the spokes
+// keyed out too — for a dark ground, where that white reads as a disc behind the wheel (the dark band, #9).
 const manifests = {}
-
-for (const [key, frameWidth, frameHeight, share, shadowed] of [
+const FRAMES = [
     ['square', FRAME, FRAME, 0.82, true],
     ['wide', FRAME, Math.round((FRAME * 3) / 4), 0.78, true],
     ['bare', FRAME, FRAME, 0.82, false],
-]) {
+    ...(maskPath !== null ? [['open', FRAME, FRAME, 0.82, false]] : []),
+]
+
+for (const [key, frameWidth, frameHeight, share, shadowed] of FRAMES) {
     // The box the wheel fills: a circle cut is square; a masked angle shot keeps its proportions
     // and fills the box by its longer side, standing on the same baseline.
     const diameter = Math.round(Math.min(frameWidth, frameHeight) * share)
@@ -203,8 +207,9 @@ for (const [key, frameWidth, frameHeight, share, shadowed] of [
     const top = bottom - wheelHeight
 
     const resizedWheel = await sharp(wheelPng).resize({ width: wheelWidth, height: wheelHeight, fit: 'fill' }).png().toBuffer()
+    const placedWheel = key === 'open' ? await keyStudioWhite(resizedWheel) : resizedWheel
 
-    const layers = [{ input: resizedWheel, left, top }]
+    const layers = [{ input: placedWheel, left, top }]
 
     if (shadowed) {
         layers.unshift({ input: await contactShadow(frameWidth, frameHeight, wheelWidth, bottom), left: 0, top: 0 })
@@ -217,7 +222,7 @@ for (const [key, frameWidth, frameHeight, share, shadowed] of [
         .png()
         .toBuffer()
 
-    const name = { square: slug, wide: `${slug}-4x3`, bare: `${slug}-bare` }[key]
+    const name = { square: slug, wide: `${slug}-4x3`, bare: `${slug}-bare`, open: `${slug}-open` }[key]
     const widths = []
 
     for (const width of WIDTHS) {
@@ -261,6 +266,7 @@ const manifest = {
     ...manifests.square,
     wide: manifests.wide,
     bare: manifests.bare,
+    ...(manifests.open !== undefined ? { open: manifests.open } : {}),
     ...(stamp !== null ? { stamp } : {}),
     source: basename(source),
     credit: args['credit-json'] ? JSON.parse(args['credit-json']) : null,
@@ -269,9 +275,73 @@ const manifest = {
 }
 
 writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-console.log(`${slug}: ${wheelMeta.width}×${wheelMeta.height} from ${basename(source)}${maskPath !== null ? ' (masked)' : ''} → ${outDir} (${WIDTHS.length} widths × 3 frames${sourceAnchors !== null ? ', anchored' : ''})`)
+console.log(`${slug}: ${wheelMeta.width}×${wheelMeta.height} from ${basename(source)}${maskPath !== null ? ' (masked)' : ''} → ${outDir} (${WIDTHS.length} widths × ${FRAMES.length} frames${sourceAnchors !== null ? ', anchored' : ''})`)
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The studio's white where it shows through the spokes, made transparent: neutral pixels (no channel more than
+ * `KEY_SPREAD` from the others — the cool curve leaves white at 255, 255, 238) whose mean is at least `KEY_FROM`,
+ * fading out to fully transparent at `KEY_FULL` — but only in regions of at least `KEY_MIN_SHARE` of the wheel's
+ * pixels, so a white logo on the cap, the print on a spoke or a highlight stays on the wheel. The background-removal
+ * mask took the silhouette; this takes the openings.
+ */
+async function keyStudioWhite(png) {
+    const KEY_FROM = 236
+    const KEY_FULL = 248
+    const KEY_SPREAD = 20
+    const KEY_MIN_SHARE = 0.004
+    const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    const { width, height } = info
+    const count = width * height
+    const white = new Uint8Array(count)
+
+    const mean = (p) => (data[p] + data[p + 1] + data[p + 2]) / 3
+
+    for (let i = 0; i < count; i++) {
+        const p = i * 4
+        const lo = Math.min(data[p], data[p + 1], data[p + 2])
+        const hi = Math.max(data[p], data[p + 1], data[p + 2])
+        white[i] = data[p + 3] > 0 && mean(p) >= KEY_FROM && hi - lo <= KEY_SPREAD ? 1 : 0
+    }
+
+    // Four-connected regions of white; the large ones are the openings.
+    const region = new Int32Array(count).fill(-1)
+    const stack = new Int32Array(count)
+    const minArea = Math.round(count * KEY_MIN_SHARE)
+
+    for (let start = 0; start < count; start++) {
+        if (white[start] === 0 || region[start] !== -1) continue
+
+        const members = []
+        let top = 0
+        stack[top++] = start
+        region[start] = start
+
+        while (top > 0) {
+            const i = stack[--top]
+            members.push(i)
+            const x = i % width
+
+            for (const n of [i - width, i + width, x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1]) {
+                if (n >= 0 && n < count && white[n] === 1 && region[n] === -1) {
+                    region[n] = start
+                    stack[top++] = n
+                }
+            }
+        }
+
+        if (members.length < minArea) continue
+
+        for (const i of members) {
+            const p = i * 4
+            const keep = Math.max(0, Math.min(1, (KEY_FULL - mean(p)) / (KEY_FULL - KEY_FROM)))
+            data[p + 3] = Math.round(data[p + 3] * keep)
+        }
+    }
+
+    return sharp(data, { raw: { width, height, channels: 4 } }).png().toBuffer()
+}
 
 /** `--key value` pairs into an object; a flag without a value is `true`. */
 function parse(argv) {

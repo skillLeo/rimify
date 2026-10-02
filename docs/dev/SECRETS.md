@@ -18,6 +18,8 @@ In practice:
 | Stripe **live** keys | Einstellungen › Zahlung on the production site, typed by a person | `.env` on any machine, a deploy script, a chat |
 | S3 keys | Einstellungen › Medien und Speicher (production), `.env` for a test bucket | as above |
 | Database password | `.env` on the server | `DB_URL` in a committed file |
+| An admin account's password on any shared copy (the preview, the live shop) | the operator's `docs/review/ACCOUNTS.md`, which git ignores (D-141); set with `printf '%s\n' "$NEW" \| php artisan rimify:admin-passwort <email>` | a seeder, a test, a committed doc, a command-line argument |
+| Development passwords (`rimify-dev-2026`, `rimify-review-2026`) | local and testing databases only — the seeders set them nowhere else | any shared copy: `rimify:preflight` names every account that still opens with one (NO-GO in production) |
 
 A credential that has been in a file, a commit, a message or a screenshot counts as known: **roll it at
 its provider** (Stripe: Developers › API keys › Roll key). Deleting the file does not make it secret again,
@@ -52,3 +54,17 @@ the file itself holds no shape for the scanner (or anyone's) to find. See `tests
 ## Last full history scan
 
 2026-09-28: `php artisan secrets:scan --history` — no credential found (247 commits, 2 020 481 added lines).
+
+2026-10-02, after the repository had been public since 23.09.2026 (D-141):
+
+- `php artisan secrets:scan --history` — no credential found (475 commits, 2 629 205 added lines).
+- A wider pass over the same history, the reflog and the 56 unreachable commits (10 870 804 and 8 498 921
+  added lines, merge commits included): the host's SSH/hPanel password and its database password, searched
+  for literally, appear nowhere; no `APP_KEY` value, no committed `.env`, no GitHub or Google token, no
+  private key, no database dump, no PDF, no spreadsheet was ever added. The only credential-shaped lines are
+  placeholders (`change_me`, `sk_test_…`) and test passwords; the Stripe fixtures are synthetic
+  (`acct_1FakeRimify00`). Nothing that moves money or opens a client's account was ever in the repository.
+- What was public and mattered: the preview's admin passwords — the three review accounts' and the seven
+  development accounts' (two of them Super-Admin; the sign-in does not ask for a second factor). All ten
+  were rotated on 02.10.2026 and every session of them ended; since then no account on the preview opens
+  with a password that stood in the repository.

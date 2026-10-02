@@ -19,6 +19,8 @@ const G = {
     returns: '<path d="M6.75 3.75l-3.5 3.5 3.5 3.5"/><path d="M3.75 7.25h8.5a4.5 4.5 0 0 1 0 9h-4.5"/>',
     customers: '<circle cx="7.5" cy="7" r="2.75"/><path d="M2.75 16.75v-.5a4.75 4.75 0 0 1 9.5 0v.5"/><path d="M12.75 4.5a2.75 2.75 0 0 1 0 5"/><path d="M14.5 11.75a4.75 4.75 0 0 1 2.75 4.5v.5"/>',
     inquiries: '<path d="M2.75 10.75h4l1 2h4.5l1-2h4"/><path d="M2.75 10.75l2-7h10.5l2 7v5.5h-14.5z"/>',
+    // Bewertungen: a five-pointed star in outline, the one the buyers' stars are drawn from.
+    ratings: '<path d="M10 3.25l1.63 5.01h5.27l-4.27 3.1 1.63 5.01-4.26-3.1-4.26 3.1 1.63-5.01-4.27-3.1h5.27z"/>',
 
     // ── Katalog ─────────────────────────────────────────────────────────────────────────────────
     wheels: '<circle cx="10" cy="10" r="7.25"/><circle cx="10" cy="10" r="2"/><path d="M10 8V2.75M11.9 9.38l5-1.62M11.18 11.62l3.08 4.25M8.82 11.62l-3.08 4.25M8.1 9.38l-5-1.62"/>',
@@ -125,7 +127,7 @@ export const ADMIN_ICON_NAMES = Object.keys(G) as AdminIconName[]
 
 /** The icons the rail can carry: one per object in the brief's list, plus the rail's own few. */
 export const NAV_ICONS = [
-    'overview', 'orders', 'returns', 'customers', 'inquiries', 'wheels', 'tyres', 'complete-wheels', 'brands', 'stock',
+    'overview', 'orders', 'returns', 'customers', 'inquiries', 'ratings', 'wheels', 'tyres', 'complete-wheels', 'brands', 'stock',
     'prices', 'media', 'documents', 'conditions', 'coverage', 'conflicts', 'vehicles', 'review', 'imports', 'pages',
     'guides', 'faq', 'navigation', 'legal', 'reports', 'gap', 'settings', 'branding', 'shipping', 'payment', 'taxes',
     'emails', 'feature-flags', 'storage', 'users', 'roles', 'audit-log', 'system', 'queue', 'search', 'filter', 'feedback',

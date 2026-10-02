@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\AuflagenController;
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Http\Controllers\Admin\BenutzerController;
 use App\Http\Controllers\Admin\BestellungenController;
+use App\Http\Controllers\Admin\BewertungenController;
 use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\ErstattungController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
 use App\Http\Controllers\Admin\MarkenController;
 use App\Http\Controllers\Admin\NachfrageController;
+use App\Http\Controllers\Admin\NachrichtenController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
@@ -42,6 +44,7 @@ use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\VerkaeuferVersandController;
+use App\Http\Controllers\Admin\VersandController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Api\FitmentCountController;
@@ -52,6 +55,7 @@ use App\Http\Controllers\Api\VehicleTreeController;
 use App\Http\Controllers\DesignController;
 use App\Http\Controllers\Storefront\BenachrichtigungController;
 use App\Http\Controllers\Storefront\BestellungController;
+use App\Http\Controllers\Storefront\BewertungController;
 use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugAufbauController;
 use App\Http\Controllers\Storefront\FahrzeugController;
@@ -164,6 +168,9 @@ Route::middleware('auth:customer')->group(function (): void {
 });
 // An invoice's PDF from the private disk, by its signed link only (Invoices::link).
 Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
+// #19, D-103: the review invitation's page — signed, the link is the proof of purchase; the form goes back to it.
+Route::get('/bewertung/{number}', [BewertungController::class, 'show'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-api'])->name('bewertung.show');
+Route::post('/bewertung/{number}', [BewertungController::class, 'store'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-bewertung'])->name('bewertung.store');
 // The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.
 Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
 // The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
@@ -196,6 +203,8 @@ Route::get('/benachrichtigung/abmelden/{token}', [BenachrichtigungController::cl
 
 Route::get('/faq', FaqController::class)->name('faq');
 Route::get('/kontakt', [KontaktController::class, 'index'])->name('kontakt');
+// The contact form (#12, D-123): writes a row and sends two mails, so a visitor gets a handful a minute.
+Route::post('/kontakt', [KontaktController::class, 'store'])->middleware('throttle:shop-kontakt')->name('kontakt.store');
 // The statute's model form (Art. 246a § 1 Abs. 2 EGBGB), before the CMS pages' catch-all.
 Route::get('/rechtliches/widerrufsformular', WiderrufsformularController::class)->name('rechtliches.widerrufsformular');
 Route::get('/rechtliches/{slug?}', RechtlichesController::class)->name('rechtliches');
@@ -292,6 +301,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/auflagen', [GutachtenAuflagenController::class, 'store'])->whereNumber('document')->name('gutachten.auflagen.store');
         Route::post('/gutachten/{document}/auflagen/stapel', [GutachtenAuflagenController::class, 'batch'])->whereNumber('document')->name('gutachten.auflagen.stapel');
         Route::put('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'update'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.update');
+        // #23, D-104: how loud one Auflage is in the shop — on a released document too (ApprovalDocumentPolicy::setLevels).
+        Route::put('/gutachten/{document}/auflagen/{condition}/stufe', [GutachtenAuflagenController::class, 'level'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.stufe');
         Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
         // A load-index limit that differs from the table, confirmed as printed with a reason.
         Route::post('/gutachten/{document}/auflagen/{condition}/grenze', [GutachtenAuflagenController::class, 'confirmLimit'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.grenze');
@@ -473,6 +484,40 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bestellungen/export', [BestellungenController::class, 'export'])
             ->middleware(EnsureAdminMay::class.':orders,export')
             ->name('bestellungen.export');
+        // „Versendet“ and „Zugestellt“ (D-103): the order team's two steps after the money; delivery opens the review.
+        Route::post('/bestellungen/{order}/versendet', [VersandController::class, 'ship'])
+            ->whereNumber('order')
+            ->middleware('throttle:30,1,bestellung-versand')
+            ->name('bestellungen.versendet');
+        Route::post('/bestellungen/{order}/zugestellt', [VersandController::class, 'deliver'])
+            ->whereNumber('order')
+            ->middleware('throttle:30,1,bestellung-versand')
+            ->name('bestellungen.zugestellt');
+        // Verkauf › Bewertungen (#19, D-103): the buyers' reviews — hidden with a reason, shown again, answered.
+        // There is no route that writes one: a review comes only from a delivered order's own signed link.
+        Route::get('/bewertungen', [BewertungenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':orders,view')
+            ->name('bewertungen.index');
+        Route::post('/bewertungen/{review}/ausblenden', [BewertungenController::class, 'hide'])
+            ->whereNumber('review')
+            ->middleware('throttle:60,1,bewertung-moderation')
+            ->name('bewertungen.ausblenden');
+        Route::post('/bewertungen/{review}/einblenden', [BewertungenController::class, 'show'])
+            ->whereNumber('review')
+            ->middleware('throttle:60,1,bewertung-moderation')
+            ->name('bewertungen.einblenden');
+        Route::put('/bewertungen/{review}/antwort', [BewertungenController::class, 'reply'])
+            ->whereNumber('review')
+            ->middleware('throttle:60,1,bewertung-moderation')
+            ->name('bewertungen.antwort');
+        // Verkauf › Nachrichten (#12, D-123): what came through the contact form. Answered by e-mail, marked as read here.
+        Route::get('/nachrichten', [NachrichtenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':orders,view')
+            ->name('nachrichten.index');
+        Route::post('/nachrichten/{message}/gelesen', [NachrichtenController::class, 'markRead'])
+            ->whereNumber('message')
+            ->middleware('throttle:60,1,nachricht-gelesen')
+            ->name('nachrichten.gelesen');
 
         // Gespeicherte Ansichten (step 2.2), for every list in AdminLists: a list's filters under a
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy

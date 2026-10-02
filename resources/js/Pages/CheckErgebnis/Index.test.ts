@@ -5,7 +5,7 @@ import { ABNAHME_REQUIRED, PAPERS_EXEMPT } from '../../fitment/papers'
 import type { CheckResultView } from '../../types/pages'
 import type { VerdictStatus } from '../../types/rimify'
 
-const current: { props: Record<string, unknown> } = { props: {} }
+const current: { props: Record<string, unknown>; url?: string } = { props: {} }
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => current,
@@ -57,19 +57,20 @@ afterEach(() => {
     mounted = []
 })
 
-describe('CheckErgebnis — "no document" leads to e-mail, not to the old form', () => {
-    it('asks by e-mail on UNKNOWN, with the result link already in the mail', () => {
+describe('CheckErgebnis — "no document" leads to the contact form (#26)', () => {
+    it('asks through the contact form on UNKNOWN, the result number in its subject and this result as its path', () => {
+        current.url = '/rimify-check/ergebnis/abc123'
         const wrapper = mountResult('UNKNOWN')
         const primary = wrapper.find('.res__actions a.btn--primary')
         const href = primary.attributes('href') ?? ''
         const query = new URLSearchParams(href.split('?')[1] ?? '')
 
-        expect(primary.text()).toBe('Per E-Mail nachfragen')
-        expect(href.startsWith('mailto:service@example.com?')).toBe(true)
-        // A plain link: a mail program is not an Inertia visit.
-        expect(primary.attributes('data-inertia')).toBeUndefined()
-        expect(query.get('body')).toContain('abc123')
-        expect(wrapper.find('a[href="/kontakt"]').exists()).toBe(false)
+        expect(primary.text()).toBe('Bei uns nachfragen')
+        expect(href.startsWith('/kontakt?')).toBe(true)
+        expect(primary.attributes('data-inertia')).toBe('link')
+        expect(query.get('betreff')).toBe('Anfrage zu meinem RIMIFY-Check (Ergebnis abc123)')
+        expect(query.get('von')).toBe('/rimify-check/ergebnis/abc123')
+        expect(wrapper.html()).not.toContain('mailto:')
     })
 
     it('prints the whole sum unfolded, the answer, its document and the customer’s own figures', () => {

@@ -106,7 +106,7 @@ final class DemoWheels
     }
 
     /**
-     * The optional parts of the manifest contract (docs/phase0/ACCURACY.md §4) — `anchors`, `bare`,
+     * The optional parts of the manifest contract (docs/phase0/ACCURACY.md §4) — `anchors`, `bare`, `open`,
      * `stamp`, and the 4:3 frame's own `anchors` — kept only when they are well-formed and dropped
      * otherwise. A page without anchors draws no photo highlight; a page with wrong ones would point
      * a leader at the wrong part of the wheel.
@@ -120,13 +120,16 @@ final class DemoWheels
             unset($manifest['anchors']);
         }
 
-        if (array_key_exists('bare', $manifest)) {
-            $bare = $manifest['bare'];
+        // `bare`: the shadowless frame. `open`: the same with the studio's white keyed out of the spokes, for a dark ground.
+        foreach (['bare', 'open'] as $frame) {
+            if (! array_key_exists($frame, $manifest)) {
+                continue;
+            }
 
-            if (self::wellFormed($bare)) {
-                $manifest['bare'] = self::withoutMalformedExtras($bare);
+            if (self::wellFormed($manifest[$frame])) {
+                $manifest[$frame] = self::withoutMalformedExtras($manifest[$frame]);
             } else {
-                unset($manifest['bare']);
+                unset($manifest[$frame]);
             }
         }
 

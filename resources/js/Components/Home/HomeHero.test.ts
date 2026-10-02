@@ -155,7 +155,7 @@ let mounted: VueWrapper[] = []
 function mountHero(p: HeroProduct | null = product()): VueWrapper {
     const wrapper = mount(HomeHero, {
         props: { hero: hero(p), selector: { makes: [] } },
-        global: { stubs: { HeroSelector: true } },
+        global: { stubs: { HeroSelector: true, HeroHelp: true } },
         attachTo: document.body,
     })
     mounted.push(wrapper)
@@ -530,19 +530,20 @@ describe('HomeHero · the lines under the picture', () => {
         expect(wrapper.find('.demo-note').text()).toBe(DEMO)
     })
 
-    it('links the picture and the caption once, to the product, with the per-wheel price', () => {
+    it('names the product over its photograph, with no price and no link (the client\'s #4)', () => {
         const wrapper = mountHero()
-        const links = wrapper.findAll('a')
 
-        expect(links).toHaveLength(1)
-        expect(links[0]?.attributes('href')).toBe('/felgen/motec-mcr4-ultimate')
-        // Named by content — the picture's alt and the caption — never by a label that leaves the visible text out.
-        expect(links[0]?.attributes('aria-label')).toBeUndefined()
-        expect(links[0]?.find('img').exists()).toBe(true)
-        expect(links[0]?.text()).toContain('MOTEC MCR4 Ultimate · Light Grey D5')
-        expect(links[0]?.text()).toContain(`ab 189,00${NNBSP}€ · pro Felge`)
-        // PAngV: what the price includes stands beside it.
-        expect(links[0]?.text()).toContain('inkl. MwSt., zzgl. Versand')
+        // The hero shows a wheel and its numbers; the shop starts at the selector (D-108).
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.find('[href]').exists()).toBe(false)
+        expect(wrapper.find('.hero__figure').element.tagName).toBe('DIV')
+        expect(wrapper.find('.hero__figure img').exists()).toBe(true)
+        expect(wrapper.find('.hero__caption-name').text()).toBe('MOTEC MCR4 Ultimate · Light Grey D5')
+        for (const price of ['pro Felge', `189,00${NNBSP}€`, 'inkl. MwSt.']) {
+            expect(wrapper.text()).not.toContain(price)
+        }
+        // The size caption stays: the configuration's values, under the picture.
+        expect(visibleText(wrapper.find('.hero__spec'))).toBe(FACTS.specLine)
         expect(wrapper.text()).not.toContain(SYMBOLIC)
     })
 
@@ -550,7 +551,7 @@ describe('HomeHero · the lines under the picture', () => {
         const wrapper = mountHero(product({ published: false }))
 
         expect(wrapper.findAll('a')).toHaveLength(0)
-        expect(wrapper.find('.hero__link').element.tagName).toBe('DIV')
+        expect(wrapper.find('.hero__figure').element.tagName).toBe('DIV')
         expect(wrapper.find('img').exists()).toBe(true)
         expect(wrapper.find('.hero__caption-name').text()).toBe('MOTEC MCR4 Ultimate · Light Grey D5')
         expect(wrapper.text()).not.toContain('pro Felge')
@@ -565,7 +566,7 @@ describe('HomeHero · the lines under the picture', () => {
 
         expect(wrapper.findAll('a')).toHaveLength(0)
         expect(wrapper.find('[href]').exists()).toBe(false)
-        expect(wrapper.find('.hero__link').element.tagName).toBe('DIV')
+        expect(wrapper.find('.hero__figure').element.tagName).toBe('DIV')
         expect(wrapper.find('.hero__caption').exists()).toBe(false)
         for (const named of ['MOTEC', 'MCR4', 'Light Grey', 'pro Felge', '189,00', '756,00']) {
             expect(text).not.toContain(named)

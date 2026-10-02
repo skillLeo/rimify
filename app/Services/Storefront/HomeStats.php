@@ -57,6 +57,33 @@ final readonly class HomeStats
         return $counts;
     }
 
+    /**
+     * The same two figures for one wheel (#19, D-103): the released documents that approve it, and the vehicle variants
+     * they approve it for. What the product page says under the name while it has no reviews — a count it can prove.
+     * Not cached: a release must show at once, and it is one indexed query.
+     *
+     * @return array{gutachten: int, variants: int}
+     */
+    public function forModel(int $wheelModelId): array
+    {
+        $row = DB::table('fitments as f')
+            ->join('approval_documents as ad', 'ad.id', '=', 'f.approval_document_id')
+            ->join('wheel_configs as wc', 'wc.id', '=', 'f.wheel_config_id')
+            ->join('vehicles as v', 'v.id', '=', 'f.vehicle_id')
+            ->where('wc.wheel_model_id', $wheelModelId)
+            ->where('ad.status', DocumentStatus::Published->value)
+            ->whereNull('ad.valid_to')
+            ->whereNull('wc.deleted_at')
+            ->whereNull('v.deleted_at')
+            ->selectRaw('COUNT(DISTINCT ad.id) AS gutachten, COUNT(DISTINCT f.vehicle_id) AS variants')
+            ->first();
+
+        return [
+            'gutachten' => $row === null ? 0 : (int) $row->gutachten,
+            'variants' => $row === null ? 0 : (int) $row->variants,
+        ];
+    }
+
     public static function forget(): void
     {
         Cache::forget(self::CACHE_KEY);

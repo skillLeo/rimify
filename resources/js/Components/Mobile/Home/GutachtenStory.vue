@@ -10,7 +10,8 @@
  * Gutachten looks like — the steps beside it write the answer out in sentences (R-15).
  */
 
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRowMarker } from '../../../composables/useRowMarker'
 import VerdictBadge from '../../Ui/VerdictBadge.vue'
 import { anzahl } from '../../../format'
 import type { HomeStats } from '../../../types/pages'
@@ -84,16 +85,21 @@ const STEPS = [
 ]
 
 /*
- * The strokes, in the crop's own coordinates: x in thousandths of the table width, y in CSS px
- * (one heading row and three body rows of 28 px; row 4 is the middle one, centred at y 70).
+ * The strokes, in the marked row's own coordinates: x in thousandths of the table width, y in CSS px down
+ * the row (0–28, its middle at 14). The SVG lies over that row, wherever the row turns out to be — measured,
+ * not assumed (the client's #6, D-111): a heading row and one body row of 28 px above it on the first paint.
  * Columns: Hersteller 0–24 % · Typ 24–34 · Genehmigungsnr. 34–64 · Reifengrößen 64–86 · Auflagen 86–100.
  * Each starts a few px before its cell and ends a few after, with a slight wave — a hand, not a rule.
  */
 const STROKES: Record<number, string> = {
-    1: 'M 234 69 C 340 67.5 510 72 648 70',
-    2: 'M -6 70.5 C 250 68.5 700 72.5 1008 69.5',
-    3: 'M 634 69 C 760 71 900 67.5 1008 70',
+    1: 'M 234 13 C 340 11.5 510 16 648 14',
+    2: 'M -6 14.5 C 250 12.5 700 16.5 1008 13.5',
+    3: 'M 634 13 C 760 15 900 11.5 1008 14',
 }
+
+/* The three crops are one table three times: the first one's marked row places the marker in all three. */
+const markedRow = ref<HTMLElement | null>(null)
+const markerStyle = useRowMarker(markedRow, { top: 56, height: 28 })
 </script>
 
 <template>
@@ -124,7 +130,11 @@ const STROKES: Record<number, string> = {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="row in rows" :key="row.type">
+                                <tr
+                                    v-for="(row, r) in rows"
+                                    :key="row.type"
+                                    :ref="(el) => { if (step.n === 1 && r === 1) markedRow = el as HTMLElement | null }"
+                                >
                                     <td>{{ row.maker }}</td>
                                     <td>{{ row.type }}</td>
                                     <td>{{ row.approval }}</td>
@@ -134,7 +144,7 @@ const STROKES: Record<number, string> = {
                             </tbody>
                         </table>
 
-                        <svg class="marker" viewBox="0 0 1000 112" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                        <svg class="marker" :style="markerStyle" viewBox="0 0 1000 28" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                             <defs>
                                 <linearGradient :id="`marker-ink-${step.n}`" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1000" y2="0">
                                     <stop offset="0%" class="marker__stop marker__stop--a" />
@@ -199,6 +209,9 @@ const STROKES: Record<number, string> = {
 .doc {
     position: relative;
     padding: var(--sp-16);
+    /* A phone browser never enlarges the facsimile's type on its own (landscape included): the rows stay the rows. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     border-radius: var(--r-control);
     background: var(--c-surface);
     box-shadow: var(--e-2);
@@ -273,11 +286,13 @@ const STROKES: Record<number, string> = {
 
 /* ── The marker ────────────────────────────────────────────────────────────── */
 
+/* Over the marked row only: its top and height come from the row (useRowMarker). */
 .marker {
     position: absolute;
-    inset: 0;
+    top: var(--mark-top);
+    left: 0;
     width: 100%;
-    height: 100%;
+    height: var(--mark-h);
     overflow: visible;
     pointer-events: none;
     mix-blend-mode: multiply;

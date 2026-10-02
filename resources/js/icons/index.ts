@@ -64,6 +64,8 @@ export const ICON_NAMES = [
     'bell',
     'more',
     'eye-off',
+    // The review's feedback button on the shop's pages (D-142), for a signed-in admin only.
+    'feedback',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -132,6 +134,8 @@ const PATHS: Readonly<Record<IconName, string>> = {
     more: '<circle cx="6" cy="12" r=".75"/><circle cx="12" cy="12" r=".75"/><circle cx="18" cy="12" r=".75"/>',
     // The eye, struck through: hidden from visitors (Inhalte › FAQ, "Im Shop ausblenden").
     'eye-off': '<path d="M2.8 12S6.6 5.8 12 5.8 21.2 12 21.2 12 17.4 18.2 12 18.2 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="2.9"/><path d="m4 4 16 16"/>',
+    // A speech bubble with a line of text in it, as the admin's own — never a chat app's rounded blob.
+    feedback: '<path d="M3.5 4.5h17v12h-10l-5 4v-4h-2Z"/><path d="M7.5 9h9M7.5 12h5.5"/>',
 }
 
 export interface IconOptions {

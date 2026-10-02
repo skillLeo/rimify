@@ -28,7 +28,22 @@ const props = defineProps<{
     unresolved: UnresolvedCode[]
     editable: boolean
     pageCount: number | null
+    /** How loud each Auflage is in the shop (#23, D-104): chosen here, on a released document too. */
+    levels?: { value: string; label: string }[]
+    levelsEditable?: boolean
+    levelFloorSentence?: string
 }>()
+
+/* ── How loud each Auflage is in the shop (#23, D-104) ─────────────────────────── */
+
+function levelLabel(value: string | undefined): string {
+    return props.levels?.find((l) => l.value === value)?.label ?? '–'
+}
+
+function setLevel(condition: DocumentConditionView, value: string): void {
+    sent.value = true
+    router.put(`${base.value}/${condition.id}/stufe`, { level: value }, { preserveScroll: true })
+}
 
 const page = usePage()
 const focus = useFocusAfter()
@@ -49,6 +64,7 @@ const bag = computed<Record<string, string>>(() => {
 })
 const errors = computed(() => (sent.value ? bag.value : {}))
 const listError = computed(() => bag.value.condition ?? '')
+const levelError = computed(() => bag.value.level ?? '')
 
 /* ── One entry: add or change ──────────────────────────────────────────────── */
 
@@ -347,6 +363,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                         <th scope="col">Code</th>
                         <th scope="col">Art</th>
                         <th scope="col">Satz aus dem Gutachten</th>
+                        <th v-if="levels" scope="col">Im Shop</th>
                         <th scope="col" class="num">Seite</th>
                         <th scope="col" class="num">Verwendet</th>
                         <th v-if="editable" scope="col"><span class="visually-hidden">Aktionen</span></th>
@@ -360,6 +377,28 @@ function confirmLimit(condition: DocumentConditionView): void {
                             <span v-if="parameter(condition)" class="adm-table__sub">{{ parameter(condition) }}</span>
                         </td>
                         <td data-label="Satz" class="av__text">{{ condition.text }}</td>
+                        <td v-if="levels" data-label="Im Shop" class="av__level">
+                            <template v-if="levelsEditable">
+                                <label class="visually-hidden" :for="`av-level-${condition.id}`">So erscheint Code {{ condition.code }} im Shop</label>
+                                <select
+                                    :id="`av-level-${condition.id}`"
+                                    class="input av__level-select"
+                                    :value="condition.level"
+                                    :disabled="busy"
+                                    @change="setLevel(condition, ($event.target as HTMLSelectElement).value)"
+                                >
+                                    <option
+                                        v-for="level in levels"
+                                        :key="level.value"
+                                        :value="level.value"
+                                        :disabled="level.value === 'hinweis' && condition.levelFloor === 'auflage'"
+                                    >
+                                        {{ level.label }}
+                                    </option>
+                                </select>
+                            </template>
+                            <template v-else>{{ levelLabel(condition.level) }}</template>
+                        </td>
                         <td data-label="Seite" class="num">{{ condition.page ?? '–' }}</td>
                         <td data-label="Verwendet" data-phone="hide" class="num">{{ uses(condition) }}</td>
                         <td v-if="editable" data-label="Aktionen" data-phone="menu">
@@ -389,6 +428,14 @@ function confirmLimit(condition: DocumentConditionView): void {
             </table>
         </div>
         <p v-else class="adm-note">Noch kein Code. Trag die Auflagen so ein, wie das Gutachten sie druckt – einzeln oder als ganze Legende.</p>
+
+        <!-- „Im Shop“ (#23, D-104): what each level means, and the one rule that cannot be chosen away. -->
+        <p v-if="levels && conditions.length" class="adm-note av__levels-note">
+            „Im Shop“ bestimmt, wie eine Auflage erscheint: Ein Hinweis steht ruhig in Schwarz, eine Auflage gelb. Sind alle Auflagen
+            einer Felge Hinweise, steht „Freigegeben“ statt „Mit Auflagen“. Am Urteil des Gutachtens ändert das nichts.
+            <template v-if="conditions.some((c) => c.levelFloor === 'auflage')"> {{ levelFloorSentence }}</template>
+        </p>
+        <p v-if="levelError" class="adm-alert" role="alert">{{ levelError }}</p>
 
         <!-- A load-index limit that is not twice its index's capacity: kept as printed, confirmed with a reason. -->
         <div v-for="condition in limitWarnings" :key="`limit-${condition.id}`" class="av-limit">

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Storefront\VehicleContext;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Models\ReviewFeedback;
 use App\Payments\Payments;
 use App\Policies\DemoDataPolicy;
 use App\Services\Admin\AdminAlerts;
@@ -19,9 +21,11 @@ use App\Support\PreviewRibbon;
 use App\Support\ReleaseStamp;
 use App\Support\Seller;
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Middleware;
 use Throwable;
@@ -40,6 +44,36 @@ class HandleInertiaRequests extends Middleware
     public function version(Request $request): ?string
     {
         return parent::version($request);
+    }
+
+    /**
+     * The address the browser shows (the client's #8, D-116). On a page that answers for one car, the car it was
+     * rendered for stands in it — `?fahrzeug=127` — so the page can be saved and shared, and opening that address
+     * renders the same answer (VehicleFromUrl). Without a car no stale number stays behind; every other page keeps
+     * the address it was asked for.
+     */
+    public function urlResolver(): Closure
+    {
+        return static function (Request $request): string {
+            $url = Str::start(Str::after($request->fullUrl(), $request->getSchemeAndHttpHost()), '/');
+
+            if (! in_array($request->route()?->getName(), VehicleFromUrl::ROUTES, true)) {
+                return $url;
+            }
+
+            $raw = $request->cookie(VehicleContext::COOKIE);
+            $vehicleId = VehicleContext::decode(is_string($raw) ? $raw : null)?->vehicleId;
+            $pairs = array_values(array_filter(
+                explode('&', (string) $request->getQueryString()),
+                static fn (string $pair): bool => $pair !== '' && ! str_starts_with($pair, VehicleFromUrl::PARAM.'='),
+            ));
+
+            if ($vehicleId !== null) {
+                $pairs[] = VehicleFromUrl::PARAM.'='.$vehicleId;
+            }
+
+            return Str::before($url, '?').($pairs === [] ? '' : '?'.implode('&', $pairs));
+        };
     }
 
     /**
@@ -71,6 +105,8 @@ class HandleInertiaRequests extends Middleware
             'release' => ReleaseStamp::label(),
             'flash' => [
                 'toast' => $request->session()->get('toast'),
+                // What was just put in the basket, for the panel after an add (#16): the line, the count and the total.
+                'added' => $request->session()->get('added'),
             ],
             /*
              * The key-number lookup's outcome. Shared rather than returned as page props because
@@ -81,7 +117,36 @@ class HandleInertiaRequests extends Middleware
              */
             'lookup' => $request->session()->get('lookup'),
             ...$this->admin($request),
+            ...$this->reviewer($request),
         ];
+    }
+
+    /**
+     * The review's feedback button on the shop's own pages (D-142): for a signed-in admin who may send a point
+     * (ReviewFeedbackPolicy — only where the review is on) and whose session still counts — the same rules the admin
+     * area applies (EnsureAdminSessionValid), so a suspended account or a revoked session sees no button here either.
+     * Absent for everyone else: a visitor's page carries no trace of it, and no admin module name or colleague's
+     * name reaches the shop (RoutesRenderTest) — only this person's own role, for the dialog's line.
+     *
+     * @return array{reviewer?: array{role: string|null}}
+     */
+    private function reviewer(Request $request): array
+    {
+        // Not inside the admin's page preview (Inhalte › Seiten, a framed signed link): it shows the page, not the shop.
+        if ($request->is('admin', 'admin/*', 'vorschau/*') || ! (bool) config('rimify.review.enabled', false) || ! $request->hasSession()) {
+            return [];
+        }
+
+        $user = $request->user('admin');
+
+        if (! $user instanceof AdminUser
+            || ! $user->canSignIn()
+            || EnsureAdminSessionValid::revoked($user, $request->session()->get(EnsureAdminSessionValid::SESSION_KEY))
+            || ! $user->can('create', ReviewFeedback::class)) {
+            return [];
+        }
+
+        return ['reviewer' => ['role' => $user->roleLabel()]];
     }
 
     /**

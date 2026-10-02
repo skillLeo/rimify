@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * H5 · Felgen mit den meisten Freigaben, and H5b · Zuletzt angesehen.
+ * H5 · the shop's wheels — first what has sold, „Meistgekauft“ (the client's #5), while nothing has the most
+ * approvals — and H5b · Zuletzt angesehen.
  *
  * Eight real wheels from the catalogue in one of three real orders; with a vehicle chosen the
  * heading names the car, every tile carries its verdict, and the button carries the count. The
@@ -42,6 +43,9 @@ watch(
         active.value = value
     }
 )
+
+/* „Meistgekauft“ once the shop has sold a wheel, „Meiste Freigaben“ until then (#5, D-110): the empty line names the tab as it reads. */
+const firstTab = computed(() => props.popular.tabs[0]?.label ?? 'Meiste Freigaben')
 
 const title = computed(() => {
     if (props.popular.title !== null) {
@@ -142,7 +146,7 @@ function keyOf(card: ProductCardProp): string {
                     </div>
                     <div v-else class="empty">
                         <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                        <p class="empty__text">Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
+                        <p class="empty__text">Schau unter „{{ firstTab }}“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
                     </div>
                 </TabsContent>
             </TabsRoot>
@@ -154,7 +158,7 @@ function keyOf(card: ProductCardProp): string {
                 </div>
                 <div v-else class="empty">
                     <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                    <p class="empty__text">Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
+                    <p class="empty__text">Schau unter „{{ firstTab }}“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
                 </div>
             </template>
 

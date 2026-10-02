@@ -360,7 +360,17 @@ const TONE: Record<string, string | null> = {
                 <h2 id="gs-conditions-h" class="adm-section__title">Auflagenverzeichnis</h2>
             </div>
             <p class="adm-note gs-lead">Die Zeilen nennen nur Codes. Was ein Code bedeutet, steht hier – so, wie dieses Gutachten ihn druckt.</p>
-            <Auflagenverzeichnis :document-id="document.id" :conditions="conditions" :choices="choices" :unresolved="unresolved" :editable="can.edit && draft" :page-count="document.pageCount" />
+            <Auflagenverzeichnis
+                :document-id="document.id"
+                :conditions="conditions"
+                :choices="choices"
+                :unresolved="unresolved"
+                :editable="can.edit && draft"
+                :page-count="document.pageCount"
+                :levels="levels"
+                :levels-editable="can.levels === true"
+                :level-floor-sentence="levelFloorSentence"
+            />
         </section>
 
         <!-- ── What the document states beside its codes ─────────────── -->
@@ -472,7 +482,7 @@ const TONE: Record<string, string | null> = {
                 <li v-for="verdict in preview" :key="verdict.config" class="gs-verdict">
                     <div class="gs-verdict__head">
                         <span class="gs-verdict__wheel">{{ verdict.wheel }}</span>
-                        <span v-if="TONE[verdict.status]" :class="TONE[verdict.status]">{{ verdict.statusLabel }}</span>
+                        <span v-if="!verdict.notesOnly && TONE[verdict.status]" :class="TONE[verdict.status]">{{ verdict.statusLabel }}</span>
                         <span v-else class="gs-verdict__ok">{{ verdict.statusLabel }}</span>
                     </div>
                     <p v-if="verdict.reason" class="gs-verdict__line">{{ verdict.reason }}</p>

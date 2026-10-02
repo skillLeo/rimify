@@ -55,7 +55,8 @@ class ReviewRequest extends FormRequest
             'store' => [
                 'type' => ['required', Rule::in(array_keys(ReviewFeedback::TYPES))],
                 'sentence' => ['required', 'string', 'min:3', 'max:2000'],
-                'url' => ['required', 'string', 'max:500', 'starts_with:/admin'],
+                // A page of this site, the admin's or the shop's (D-142): a path, never another host.
+                'url' => ['required', 'string', 'max:500', 'regex:/^\/(?![\/\\\\])\S*$/'],
                 'viewport' => ['required', 'string', 'max:32', 'regex:/^\d{2,5}×\d{2,5}$/u'],
                 'browser' => ['required', 'string', 'max:120'],
                 'screenshot' => ['nullable', 'string', 'max:'.(int) (self::MAX_SCREENSHOT_BYTES * 1.4)],

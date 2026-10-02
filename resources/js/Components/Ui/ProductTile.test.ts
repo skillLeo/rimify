@@ -199,6 +199,25 @@ describe('ProductTile', () => {
         expect(without.find('.verdict').exists()).toBe(false)
     })
 
+    // #23, D-104: every Auflage a Hinweis (decided on the server) — „Freigegeben“, one quiet line, no list of notes.
+    it('says „Freigegeben“ with one quiet line where every Auflage is a Hinweis, and never where an entry is needed', () => {
+        const notes = mountTile({
+            vehicle,
+            card: card(1, { fitment: { status: 'CONDITIONAL', requiresEntry: false, notesOnly: true, conditions: ['Nur mit den Radschrauben des Herstellers.'] } }),
+        })
+        expect(notes.find('.tile__badge').text()).toBe('Freigegeben')
+        expect(notes.find('.tile__badge').classes()).toContain('verdict--ok')
+        expect(notes.find('.tile__conditions').exists()).toBe(false)
+        expect(notes.text()).toContain('Mit Hinweisen aus dem Gutachten – auf der Produktseite.')
+
+        // An entry is never a note, whatever the flag says.
+        const entry = mountTile({
+            vehicle,
+            card: card(2, { fitment: { status: 'CONDITIONAL', requiresEntry: true, notesOnly: true, conditions: ['Eintragung erforderlich.'] } }),
+        })
+        expect(entry.find('.tile__badge').text()).toBe('Mit Auflagen')
+    })
+
     it('greys a size no document permits on the car, never strikes it', () => {
         const wrapper = mountTile({
             vehicle,

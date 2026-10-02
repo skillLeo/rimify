@@ -82,7 +82,8 @@ function optionLabel(facet: string, value: string): string {
             </button>
         </div>
 
-        <label class="fpanel__opt fpanel__opt--entry">
+        <!-- A statement about a car: offered only with one (#30, D-118). -->
+        <label v-if="facets.ohne_eintragung" class="fpanel__opt fpanel__opt--entry">
             <input type="checkbox" :checked="entryOn" @change="emit('toggle-entry')" />
             <span class="fpanel__label">Ohne Abnahme und Eintragung</span>
             <span v-if="entryCount !== null" class="data fpanel__count">{{ entryCount }}</span>

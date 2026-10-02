@@ -58,8 +58,13 @@ final class ReleaseSeed extends Command
      * v7: the hero's wheel again (D-089). v5 named the DB8GT2 the hero only where no hero was chosen; on a database whose
      * setting still named a demo model, ContentSeeder then cleared it — and the preview's hero showed the outline and
      * no numbers section ever since. GoldenRecordSeeder now replaces a choice that is no real wheel.
+     *
+     * v8: the footer's Felgenrechner link (the client's #10, ContentSeeder) — a menu the team has edited is left alone.
+     *
+     * v9: the dark band's wheel (the client's #9): the photographs' manifests again (GoldenRecordSeeder attaches them), now
+     * with the `open` frame wheels:process-images (pipeline 6) writes for a studio shot.
      */
-    public const VERSION = 7;
+    public const VERSION = 9;
 
     /** From this version on, a kept demo set is written again once, so its frozen labels match. */
     public const DEMO_RENEWED_AT = 4;

@@ -2,7 +2,13 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import illustration from '../../../images/komplettrad-illustration.json'
+import { bandWheelStyle } from '../../../lib/bandWheel'
+import type { BandWheel } from '../../../types/pages'
 import KomplettradWheel from './KomplettradWheel.vue'
+
+function near(actual: number, expected: number, tolerance: number): void {
+    expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance)
+}
 
 /*
  * The Komplettrad in the dark band on a phone (docs/phase0/ACCURACY.md §3.1): a generated
@@ -96,6 +102,31 @@ describe('KomplettradWheel', () => {
         expect(turn?.[1]).toBe('0')
         expect(turn?.[2]).toBe('-720')
         expect(reduced).toMatch(/animation:\s*none/)
+    })
+
+    it('turns the real product where one is photographed: named in its caption, its wheel filling the square about its own axle (#9)', () => {
+        const wheel: BandWheel = {
+            brand: 'BORBET',
+            name: 'DB8GT2',
+            finish: 'Bronze matt',
+            image: { ...illustration, name: 'borbet-db8gt2-bronze-matt-open', base: '/storage/demo/wheels/borbet-db8gt2-bronze-matt/borbet-db8gt2-bronze-matt-open', width: 1080, height: 1080 } as BandWheel['image'],
+            anchor: { x: 0.4691, y: 0.4819, r: 0.3959 },
+        }
+        const wrapper = mount(KomplettradWheel, { props: { wheel }, attachTo: document.body })
+        wrappers.push(wrapper)
+
+        expect(wrapper.find('img').attributes('alt')).toBe('BORBET DB8GT2 in Bronze matt, Ansicht von vorn')
+        expect(wrapper.find('figcaption').text()).toBe('Felge im Bild: BORBET DB8GT2, Bronze matt')
+        expect(wrapper.find('img').attributes('src')).toContain('borbet-db8gt2-bronze-matt-open')
+
+        // 0,92 of the square for the wheel's diameter: the picture 116,19 % wide, the wheel's centre on the square's.
+        const style = wrapper.find('.komplett-wheel__photo').attributes('style') ?? ''
+        expect(style).toContain('width: 116.19%')
+        const placed = Object.fromEntries(Object.entries(bandWheelStyle(wheel)).map(([key, value]) => [key, parseFloat(value) / 100]))
+        // The wheel's centre, carried into the square, lands on the square's centre.
+        near((placed.left ?? 0) + wheel.anchor.x * (placed.width ?? 0), 0.5, 0.0002)
+        near((placed.top ?? 0) + wheel.anchor.y * (placed.width ?? 0), 0.5, 0.0002)
+        near(2 * wheel.anchor.r * (placed.width ?? 0), 0.92, 0.0002)
     })
 
     it('falls back to the drawn wheel when the picture fails, never to a photograph, and keeps its label', async () => {

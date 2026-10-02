@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * to a catalogue row whose name, finish or price may since have changed.
  *
  * @property OrderLineKind $kind
+ * @property string|null $axle `FRONT` or `REAR` on a Mischbereifung line (#20, D-105); null on every other
  */
 class OrderLine extends Model
 {
@@ -23,7 +24,7 @@ class OrderLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_id', 'kind', 'wheel_config_id', 'tyre_variant_id', 'package_group',
+        'order_id', 'kind', 'wheel_config_id', 'tyre_variant_id', 'package_group', 'axle',
         // Which Wuchtgewicht colour and which RDKS price the line was frozen from — for reporting,
         // never for re-reading a price: unit_price_cents and label are what was charged.
         'balance_weight_colour_id', 'tpms_sensor_price_id',

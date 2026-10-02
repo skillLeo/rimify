@@ -13,11 +13,19 @@
 import { computed } from 'vue'
 import type { FitmentDetailView } from '../../types/pages'
 
-const props = defineProps<{
-    detail: FitmentDetailView
-    /** `BMW 1er-Reihe 1K4`, for the heading. */
-    vehicleLabel: string
-}>()
+const props = withDefaults(
+    defineProps<{
+        detail: FitmentDetailView
+        /** `BMW 1er-Reihe 1K4`, for the heading. */
+        vehicleLabel: string
+        /**
+         * Sentences the verdict above already says — the papers' line, „Eintragung in die Fahrzeugpapiere erforderlich.“
+         * — are not listed again (the client's #21): said once, in the verdict; the document's own wording explains it.
+         */
+        omit?: string[]
+    }>(),
+    { omit: () => [] }
+)
 
 const TODO = ['Abnahme', 'Arbeiten am Fahrzeug', 'Befestigung', 'Reifen']
 
@@ -46,7 +54,8 @@ function forSizes(sizes: string[] | undefined): string | null {
  */
 type Item = FitmentDetailView['sections'][number]['items'][number]
 
-function grouped(items: Item[]): { key: string; label: string | null; items: Item[] }[] {
+function grouped(listed: Item[]): { key: string; label: string | null; items: Item[] }[] {
+    const items = listed.filter((i) => !props.omit.includes(i.text))
     const all = items.filter((i) => !i.sizes?.length && !i.own)
     // Our own kW-band sentence names its sizes in its own words: never under „Für jede zulässige Reifengröße“.
     const own = items.filter((i) => !i.sizes?.length && i.own)

@@ -1,5 +1,5 @@
 import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { defineComponent, h, nextTick, reactive } from 'vue'
 import { NNBSP } from '../../format'
 import { COUNT_DEBOUNCE_MS } from '../../composables/useFitmentCount'
@@ -86,7 +86,8 @@ function mountSelector(): VueWrapper {
 }
 
 function button(wrapper: VueWrapper): DOMWrapper<HTMLButtonElement> {
-    return wrapper.find<HTMLButtonElement>('button[type="submit"]')
+    // The primary: a plain button while it waits for a car (D-109), the form's submit once there is one.
+    return wrapper.find<HTMLButtonElement>('button.sel__go')
 }
 
 function byLabel(wrapper: VueWrapper, text: string): DOMWrapper<HTMLInputElement> {
@@ -157,14 +158,43 @@ afterEach(() => {
 })
 
 describe('HeroSelector — the button and the count', () => {
-    it('starts on Marke & Modell with nothing focused and a disabled button', () => {
+    it('starts on Marke & Modell with nothing focused and the button waiting in light blue, not greyed out', () => {
         const wrapper = mountSelector()
 
         expect(wrapper.find('[role="tab"][data-state="active"]').text()).toBe('Marke & Modell')
         expect(document.activeElement).toBe(document.body)
         expect(button(wrapper).text()).toBe('Fahrzeug wählen')
-        expect(button(wrapper).element.disabled).toBe(true)
+        // The client's #1 (D-109): announced as unavailable, but pressable — a press leads to the missing field.
+        expect(button(wrapper).element.disabled).toBe(false)
+        expect(button(wrapper).attributes('aria-disabled')).toBe('true')
+        expect(button(wrapper).classes()).toContain('sel__go--waiting')
         expect(wrapper.find('.sel__count').text()).toBe('')
+    })
+
+    it('leads a press of the waiting button to the field that is missing, and submits nothing', async () => {
+        const wrapper = mountSelector()
+        const scroll = vi.fn()
+        const original = Element.prototype.scrollIntoView
+        Element.prototype.scrollIntoView = scroll
+        onTestFinished(() => {
+            Element.prototype.scrollIntoView = original
+        })
+
+        // A plain button while it waits: a press before the page is interactive submits nothing natively.
+        expect(button(wrapper).attributes('type')).toBe('button')
+        await button(wrapper).trigger('click')
+        expect((document.activeElement as HTMLElement | null)?.id).toMatch(/-marke$/)
+
+        await openTab(wrapper, 'HSN/TSN')
+        await wrapper.find('form').trigger('submit')
+        expect((document.activeElement as HTMLElement | null)?.id).toMatch(/-hsn$/)
+
+        await typeKeys(wrapper, '0005', '')
+        await wrapper.find('form').trigger('submit')
+        expect((document.activeElement as HTMLElement | null)?.id).toMatch(/-tsn$/)
+
+        expect(scroll).toHaveBeenCalled()
+        expect(forms.every((f) => (f.post as ReturnType<typeof vi.fn>).mock.calls.length === 0)).toBe(true)
     })
 
     it('shows the skeleton, then the count sentence, and carries the number into the button', async () => {
@@ -502,7 +532,7 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(wrapper.find('[role="tab"][data-state="active"]').text()).toBe('Marke & Modell')
     })
 
-    it('still offers three routes, the third one the e-mail, while no phone number is published (R-09)', async () => {
+    it('still offers three routes, the third one the contact form, while no phone number is published (R-09, #26)', async () => {
         current.props.contact = WITHOUT_PHONE
         current.props.lookup = { status: 'not_found', hsn: '9999', tsn: 'ZZZ' } satisfies LookupResult
         const wrapper = mountSelector()
@@ -512,9 +542,10 @@ describe('HeroSelector — HSN/TSN', () => {
         expect(notice.text()).toContain('Zu 9999/ZZZ haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.')
 
         const routes = notice.findAll('.link')
-        expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns: service@example.com'])
-        expect(routes[2]!.attributes('href')).toBe('mailto:service@example.com')
+        expect(routes.map((r) => r.text())).toEqual(['Nochmal prüfen', 'Über Marke & Modell wählen', 'Schreib uns'])
+        expect(new URLSearchParams(routes[2]!.attributes('href')!.split('?')[1]).get('betreff')).toBe('Fahrzeug nicht gefunden: HSN 9999 · TSN ZZZ')
         expect(wrapper.find('a[href^="tel:"]').exists()).toBe(false)
+        expect(wrapper.html()).not.toContain('mailto:')
     })
 })
 

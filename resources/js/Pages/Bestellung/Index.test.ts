@@ -6,8 +6,8 @@ import type { BestellungProps } from '../../types/pages'
 /*
  * The order page (findings #3, #38, #42, #43; ACCURACY.md §3.1 F3): a seeded order says it is
  * demonstration data and that its verdicts say nothing about the car; a confirmation mail is named
- * only when it went out; no carrier is named; and questions go to the e-mail with the order number,
- * never to the Kontakt form.
+ * only when it went out; no carrier is named; and questions go to the contact form with the order
+ * number in its subject (#26).
  *
  * Block G: arriving here from Stripe pays nothing. While the payment is being confirmed the page says
  * so and asks the server; a new answer reloads the page's order, and a declined payment leads back
@@ -24,6 +24,7 @@ vi.mock('@inertiajs/vue3', () => ({
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
     router: { reload: (...args: unknown[]) => reload(...args), post: (...args: unknown[]) => routerPost(...args) },
+    usePage: () => ({ props: {}, url: '/bestellung/42' }),
 }))
 
 const { default: Bestellung } = await import('./Index.vue')
@@ -164,11 +165,12 @@ describe('Bestellung', () => {
         expect(pending.text()).not.toContain('DHL')
     })
 
-    it('sends questions to the e-mail with the order number, never to the Kontakt form', () => {
+    it('sends questions to the contact form with the order number in the subject (#26)', () => {
         const wrapper = mountOrder(props())
-        const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
+        const question = wrapper.find('.ord__next-link')
 
-        expect(hrefs).not.toContain('/kontakt')
-        expect(hrefs).toContain(`mailto:info@example.com?subject=${encodeURIComponent('Bestellung RMF-2026-1003')}`)
+        expect(question.attributes('href')).toBe('/kontakt?betreff=Bestellung+RMF-2026-1003&von=%2Fbestellung%2F42')
+        expect(question.text()).toContain('Schreib uns')
+        expect(wrapper.html()).not.toContain('mailto:')
     })
 })

@@ -9,9 +9,10 @@
  */
 
 import { Link, router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from 'vue'
 import CommandPalette from '../Components/Chrome/CommandPalette.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
+import AddedPanel from '../Components/Chrome/AddedPanel.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
 import ShortcutsDialog from '../Components/Chrome/ShortcutsDialog.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
@@ -23,11 +24,16 @@ import { provideConsent } from '../composables/useConsent'
 import { provideShell } from '../composables/useShell'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useShared } from '../composables/useShared'
+import { useVehicleChangeHref } from '../lib/vehicleChange'
+
+/* The review's feedback button, for a signed-in admin only (D-142): loaded when the server says so, never for a visitor. */
+const ShopFeedback = defineAsyncComponent(() => import('../Components/Chrome/ShopFeedback.vue'))
 
 withDefaults(defineProps<{ title?: string }>(), { title: undefined })
 
 const shared = useShared()
 const shell = provideShell()
+const changeHref = useVehicleChangeHref()
 provideConsent(shared.value.consent ?? null)
 
 const vehicle = computed(() => shared.value.vehicle)
@@ -78,12 +84,15 @@ function removeVehicle(): void {
 
         <SiteHeader />
 
+        <!-- Where it shows, beside the basket: Tab reaches it after the header, not after the whole page (PDP-10). -->
+        <AddedPanel />
+
         <main id="inhalt" class="shell__main">
             <slot />
         </main>
 
-        <!-- After the page, before the footer: Tab reaches it after the content. -->
-        <CompareTray />
+        <!-- After the page, before the footer: Tab reaches it after the content. Aside while a page's price bar holds the edge. -->
+        <CompareTray :hidden="shell.stickyBar.value" />
 
         <SiteFooter />
 
@@ -93,7 +102,7 @@ function removeVehicle(): void {
             <p class="small muted num">{{ vehicle.approval ?? `${vehicle.buildWindow} · ${vehicle.keyNumbers}` }}</p>
             <div class="shell__vehicle-actions">
                 <Link href="/felgen" class="btn btn--primary btn--block" prefetch>Passende Felgen anzeigen</Link>
-                <Link href="/felgen-suchen" class="btn btn--secondary btn--block">Fahrzeug ändern</Link>
+                <Link :href="changeHref" class="btn btn--secondary btn--block">Fahrzeug ändern</Link>
                 <button class="btn btn--ghost btn--block" type="button" @click="removeVehicle">Fahrzeug entfernen</button>
             </div>
         </Dialog>
@@ -102,6 +111,7 @@ function removeVehicle(): void {
         <ShortcutsDialog />
         <CookieConsent />
         <Toast />
+        <ShopFeedback v-if="shared.reviewer" />
     </div>
 </template>
 

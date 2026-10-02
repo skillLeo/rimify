@@ -396,6 +396,11 @@ describe('putting every entry into words', function (): void {
             'admin.suspended' => [['user_id' => 9, 'email' => 'neu@rimify.test'], 'Das Konto neu@rimify.test wurde gesperrt.', []],
             'admin.reactivated' => [['user_id' => 9, 'email' => 'neu@rimify.test'], 'Das Konto neu@rimify.test wurde wieder entsperrt.', []],
             'admin.sessions_revoked' => [['user_id' => 9, 'email' => 'neu@rimify.test'], 'Das Konto neu@rimify.test wurde auf allen Geräten abgemeldet.', []],
+            'admin.password_reset' => [
+                ['user_id' => 9, 'email' => 'neu@rimify.test', 'reason' => 'Das alte Passwort stand im öffentlichen Repository.'],
+                'Für das Konto neu@rimify.test wurde ein neues Passwort gesetzt; es wurde auf allen Geräten abgemeldet. Grund: Das alte Passwort stand im öffentlichen Repository.',
+                [],
+            ],
             'admin.password_changed' => [[], 'Das eigene Passwort wurde geändert.', []],
             'permission.denied' => [
                 ['ability' => 'delete', 'route' => 'admin.wuchtgewichte.destroy'],
@@ -505,6 +510,11 @@ describe('putting every entry into words', function (): void {
             'approval.condition_added' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ angelegt.', []],
             'approval.condition_changed' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ geändert.', []],
             'approval.condition_removed' => [['document' => 'ABE 53810', 'code' => 'A01'], 'Aus dem Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ entfernt.', []],
+            'approval.condition_level_set' => [
+                ['document' => 'ABE 55255', 'code' => 'S03', 'old' => 'auflage', 'level' => 'hinweis'],
+                'In „ABE 55255“ erscheint der Code „S03“ im Shop jetzt als „Hinweis – nichts zu tun“.',
+                ['Im Shop: Auflage – etwas ist zu tun oder eingeschränkt → Hinweis – nichts zu tun'],
+            ],
             'approval.fastener_added' => [['document' => 'ABE 55255', 'what' => 'S01 · M14x1,25 · Kegelbund 60°'], 'Zu „ABE 55255“ wurde das Befestigungsmittel „S01 · M14x1,25 · Kegelbund 60°“ eingetragen.', []],
             'approval.fastener_removed' => [['document' => 'ABE 55255', 'what' => 'S01 · M14x1,25 · Kegelbund 60°'], 'Aus „ABE 55255“ wurde das Befestigungsmittel „S01 · M14x1,25 · Kegelbund 60°“ entfernt.', []],
             'approval.notice_added' => [['document' => 'ABE 55255', 'what' => 'Radschrauben nach 50 km nachziehen.'], 'Zu „ABE 55255“ wurde der Pflichthinweis „Radschrauben nach 50 km nachziehen.“ eingetragen.', []],
@@ -546,6 +556,13 @@ describe('putting every entry into words', function (): void {
                 'Die Achslasten und die Höchstgeschwindigkeit von „BMW 3er Limousine“ wurden eingetragen; das Fahrzeug ist vollständig.',
                 [],
             ],
+            'order.shipped' => [['order' => 'RMF-2026-1001', 'tracking' => '00340434 1234'], 'Die Bestellung „RMF-2026-1001“ wurde als versendet markiert, Sendungsnummer „00340434 1234“.', []],
+            'order.delivered' => [['order' => 'RMF-2026-1001'], 'Die Bestellung „RMF-2026-1001“ wurde als zugestellt markiert. Einige Tage danach lädt der Shop zur Bewertung ein.', []],
+            'reviews.invited' => [['count' => 3], '3 Einladungen zur Bewertung wurden verschickt.', []],
+            'review.hidden' => [['review' => 7, 'order' => 'RMF-2026-1001', 'reason' => 'Werbung.'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde ausgeblendet: „Werbung.“.', []],
+            'review.shown' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde wieder eingeblendet.', []],
+            'review.replied' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde geantwortet.', []],
+            'review.reply_removed' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Die Antwort auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde entfernt.', []],
             'page.revision_restored' => [
                 ['page' => 'Startseite', 'slug' => 'startseite', 'revision' => 3, 'revision_at' => '2026-09-26T12:00:00+00:00'],
                 'Für die Seite „Startseite“ wurde die Version vom '.GermanFormat::dateTime(CarbonImmutable::parse('2026-09-26T12:00:00+00:00')).' als Entwurf geladen.',

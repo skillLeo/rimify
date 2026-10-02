@@ -49,6 +49,32 @@ afterEach(() => {
     mounted = []
 })
 
+describe('Felgen — the choices in the list on a phone (the client\'s #31)', () => {
+    const FACETS = {
+        zoll: [{ value: '18.0', count: 3 }, { value: '19.0', count: 0 }],
+        marke: [{ value: 'BORBET', count: 2 }],
+    }
+
+    it('sets the sizes and brands out as chips under the Filter button, the chosen one pressed, an empty one disabled', async () => {
+        const { router } = await import('@inertiajs/vue3')
+        current.props = { vehicle: null, contact: { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: '' } }
+        const wrapper = mount(Felgen, {
+            props: { hasVehicle: false, cards: [], total: null, facets: FACETS, filters: { zoll: ['18.0'] }, page: 1, demo: false },
+            global: { stubs: { FilterBar: true, ProductTile: true } },
+        })
+        mounted.push(wrapper)
+        const chips = wrapper.findAll('.plp__quick .chip')
+
+        expect(chips.map((c) => c.text())).toEqual(['18 Zoll 3', '19 Zoll 0', 'BORBET 2'])
+        expect(chips[0]?.attributes('aria-pressed')).toBe('true')
+        expect(chips[1]?.attributes('disabled')).toBeDefined()
+
+        await chips[2]?.trigger('click')
+
+        expect(router.get).toHaveBeenCalledWith('/felgen', { zoll: ['18.0'], marke: ['BORBET'] }, expect.objectContaining({ replace: true }))
+    })
+})
+
 describe('Felgen — the empty listing for a vehicle', () => {
     it('offers the real notify flow instead of the contact form that sent nothing', () => {
         const wrapper = mountEmpty()

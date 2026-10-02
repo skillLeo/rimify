@@ -21,6 +21,7 @@ import Skeleton from '../../Ui/Skeleton.vue'
 import BottomSheet from '../BottomSheet.vue'
 import { decimal, passendeAnzeigen } from '../../../format'
 import { useShared } from '../../../composables/useShared'
+import { contactHref } from '../../../lib/contact'
 import { cleanHsn, cleanTsn, HSN_LENGTH, splitKeys, TSN_LENGTH, useVehiclePicker, type VariantRow } from '../../../composables/mobile/useVehiclePicker'
 import type { DocVariant } from '../../../art'
 import type { LookupResult, MakeOption } from '../../../types/pages'
@@ -44,15 +45,26 @@ const lookup = computed(() => page.props.lookup ?? null)
 
 /*
  * The third way forward (R-09) and the line under a failed request: the phone when the client has
- * given one, otherwise the e-mail — the same route either way, never an invented number.
+ * given one, otherwise the contact form with the key numbers that found nothing in its subject
+ * (#26) — never an invented number. The sentence still names the address, to read and copy.
  */
 const reach = computed(() => {
     const { phone, phoneIntl, email } = contact.value
+    // The pair as the miss line shows it: what is typed, else what the server looked up.
+    const hsn = picker.hsn.value || lookup.value?.hsn
+    const tsn = picker.tsn.value || lookup.value?.tsn
 
     return phone
-        ? { href: `tel:${(phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}` }
-        : { href: `mailto:${email}`, label: `Schreib uns: ${email}`, sentence: `schreib uns: ${email}` }
+        ? { href: `tel:${(phoneIntl ?? phone).replace(/\s/g, '')}`, label: `Anrufen: ${phone}`, sentence: `ruf uns an: ${phone}`, form: false }
+        : {
+              href: contactHref({ subject: hsn && tsn ? `Fahrzeug nicht gefunden: HSN ${hsn} · TSN ${tsn}` : null, from: page.url }),
+              label: 'Schreib uns',
+              sentence: `schreib uns: ${email}`,
+              form: true,
+          }
 })
+/* The zero notice's way to ask, where no mail can confirm a subscription (F2). */
+const askHref = computed(() => contactHref({ subject: 'Felge für mein Fahrzeug gesucht', from: page.url }))
 
 const picker = useVehiclePicker()
 const uid = useId()
@@ -241,7 +253,53 @@ function pick(id: number): void {
     )
 }
 
+/*
+ * No car yet: the button waits in the brand's light blue, announced as unavailable but pressable, and a press leads
+ * to the field that is missing (the client's #1, D-109). No wheels, a pair not found or a request on its way stay
+ * truly disabled: pressing could not help there.
+ */
+const waiting = computed(
+    () => !canSubmit.value && !zero.value && !submitting.value && count.value.status !== 'not_found' && count.value.status !== 'ambiguous'
+)
+
+function guide(): void {
+    const field = (suffix: string): HTMLElement | null => document.getElementById(`${uid}-${suffix}`)
+    // A field that can take focus now: a list loading or failed leaves its select disabled.
+    const usable = (el: HTMLElement | null): el is HTMLElement => el !== null && !(el as HTMLSelectElement).disabled
+    let target: HTMLElement | null
+
+    if (picker.route.value === 'guided') {
+        const order = [field('marke'), field('modell'), field('fahrzeug')]
+        const missing = [picker.make.value === '', picker.model.value === '', true]
+        // The first missing field that can be used; while a later list loads or failed, the last one that can.
+        target = order.find((el, i) => missing[i] && usable(el)) ?? [...order].reverse().find(usable) ?? null
+    } else {
+        target = field(picker.hsn.value.length === HSN_LENGTH ? 'tsn' : 'hsn')
+    }
+
+    target?.scrollIntoView({ block: 'center', behavior: 'auto' })
+    target?.focus({ preventScroll: true })
+}
+
+/* The two tabs are one stop with the arrow keys between them, as the desktop's tabs are (WAI-ARIA tabs). */
+function onTabKey(event: KeyboardEvent): void {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+        return
+    }
+
+    event.preventDefault()
+    const next: 'guided' | 'keys' = event.key === 'Home' ? 'guided' : event.key === 'End' ? 'keys' : picker.route.value === 'guided' ? 'keys' : 'guided'
+    picker.route.value = next
+    void nextTick(() => document.getElementById(`${uid}-tab-${next}`)?.focus())
+}
+
 function submit(): void {
+    if (waiting.value) {
+        guide()
+
+        return
+    }
+
     if (!canSubmit.value) {
         return
     }
@@ -374,6 +432,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 type="button"
                 role="tab"
                 :aria-selected="picker.route.value === 'guided'"
+                :tabindex="picker.route.value === 'guided' ? 0 : -1"
+                @keydown="onTabKey"
                 :aria-controls="`${uid}-panel-guided`"
                 :data-state="picker.route.value === 'guided' ? 'active' : 'inactive'"
                 @click="picker.route.value = 'guided'"
@@ -386,6 +446,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 type="button"
                 role="tab"
                 :aria-selected="picker.route.value === 'keys'"
+                :tabindex="picker.route.value === 'keys' ? 0 : -1"
+                @keydown="onTabKey"
                 :aria-controls="`${uid}-panel-keys`"
                 :data-state="picker.route.value === 'keys' ? 'active' : 'inactive'"
                 @click="picker.route.value = 'keys'"
@@ -394,123 +456,127 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             </button>
         </div>
 
-        <!-- Route one: three native selects, so the OS picker opens. Both panels stay in the DOM
-             (`v-show`): a tab switch then hides one and shows the other instead of rebuilding fields. -->
-        <div v-show="picker.route.value === 'guided'" :id="`${uid}-panel-guided`" class="vpanel__fields" role="tabpanel" :aria-labelledby="`${uid}-tab-guided`">
-            <div class="form-field">
-                <label class="form-field__label" :for="`${uid}-marke`">Marke</label>
-                <select :id="`${uid}-marke`" v-model="picker.make.value" class="input" autocomplete="off">
-                    <option value="">z. B. BMW</option>
-                    <option v-for="m in makes" :key="m.make" :value="m.make">{{ m.make }}</option>
-                </select>
-            </div>
-
-            <div class="form-field">
-                <label class="form-field__label" :for="`${uid}-modell`">Modell</label>
-                <select
-                    :id="`${uid}-modell`"
-                    v-model="picker.model.value"
-                    class="input"
-                    autocomplete="off"
-                    :disabled="picker.make.value === '' || picker.modelsLoading.value || picker.modelsFailed.value"
-                    :aria-busy="picker.modelsLoading.value ? 'true' : undefined"
-                >
-                    <option value="">{{ picker.modelsLoading.value ? 'Wird geladen …' : 'z. B. 3er Coupé' }}</option>
-                    <option v-for="m in picker.models.value" :key="m.model" :value="m.model">{{ m.model }}</option>
-                </select>
-                <!-- A network failure, not a typing error: the line appears only when it has something to say. -->
-                <p v-if="picker.modelsFailed.value" class="form-field__error">
-                    Die Modelle lassen sich gerade nicht laden.
-                    <Link :href="`/felgen-suchen?marke=${encodeURIComponent(picker.make.value)}`" class="link small">Auf der Fahrzeugseite weitermachen</Link>
-                </p>
-            </div>
-
-            <div class="form-field">
-                <label class="form-field__label" :for="`${uid}-fahrzeug`">Fahrzeug</label>
-                <select
-                    :id="`${uid}-fahrzeug`"
-                    v-model.number="picker.variantId.value"
-                    class="input"
-                    autocomplete="off"
-                    :disabled="picker.model.value === '' || picker.variantsLoading.value || picker.variantsFailed.value"
-                    :aria-busy="picker.variantsLoading.value ? 'true' : undefined"
-                >
-                    <option :value="null">{{ picker.variantsLoading.value ? 'Wird geladen …' : 'Variante, Baujahr, kW' }}</option>
-                    <!-- Incomplete data is said, not refused: the wheel is answered from its Gutachten, and the
-                         tyres wait for the papers (R-03 as amended) — as /felgen-suchen offers the same cars. -->
-                    <option v-for="v in picker.variants.value" :key="v.id" :value="v.id">{{ variantLabel(v) }}</option>
-                </select>
-                <p v-if="picker.variantsFailed.value" class="form-field__error">Die Varianten lassen sich gerade nicht laden.</p>
-                <!-- The whole Feld K line under the select once a variant is picked: the option has room for its range only. -->
-                <p v-else-if="chosenApproval" class="form-field__help num">{{ chosenApproval }}</p>
-            </div>
-        </div>
-
-        <!-- Route two: the key numbers off the Zulassungsbescheinigung. -->
-        <div v-show="picker.route.value === 'keys'" :id="`${uid}-panel-keys`" class="vpanel__fields" role="tabpanel" :aria-labelledby="`${uid}-tab-keys`">
-            <div class="vpanel__keys">
+        <!-- Both panels stay in the DOM and share one cell, the inactive one invisible: the panel is as tall as the
+             taller of the two, so a tab switch moves nothing below it (the client's #7, D-112). -->
+        <div class="vpanel__panels">
+            <!-- Route one: three native selects, so the OS picker opens. -->
+            <div :id="`${uid}-panel-guided`" class="vpanel__fields" :data-state="picker.route.value === 'guided' ? 'active' : 'inactive'" role="tabpanel" :aria-labelledby="`${uid}-tab-guided`">
                 <div class="form-field">
-                    <label class="form-field__label" :for="`${uid}-hsn`">HSN (Feld 2.1)</label>
-                    <input
-                        :id="`${uid}-hsn`"
-                        ref="hsnField"
-                        class="input input--code num"
-                        type="text"
-                        inputmode="numeric"
-                        autocomplete="off"
-                        enterkeyhint="next"
-                        :value="picker.hsn.value"
-                        :aria-invalid="hsnError ? 'true' : undefined"
-                        :aria-describedby="`${uid}-keys-error`"
-                        @input="onHsn"
-                        @paste.prevent="onHsnPaste"
-                        @blur="validateHsn"
-                    >
+                    <label class="form-field__label" :for="`${uid}-marke`">Marke</label>
+                    <select :id="`${uid}-marke`" v-model="picker.make.value" class="input" autocomplete="off">
+                        <option value="">z. B. BMW</option>
+                        <option v-for="m in makes" :key="m.make" :value="m.make">{{ m.make }}</option>
+                    </select>
                 </div>
+
                 <div class="form-field">
-                    <label class="form-field__label" :for="`${uid}-tsn`">TSN (Feld 2.2)</label>
-                    <input
-                        :id="`${uid}-tsn`"
-                        ref="tsnField"
-                        class="input input--code"
-                        type="text"
-                        autocapitalize="characters"
-                        :maxlength="TSN_LENGTH"
+                    <label class="form-field__label" :for="`${uid}-modell`">Modell</label>
+                    <select
+                        :id="`${uid}-modell`"
+                        v-model="picker.model.value"
+                        class="input"
                         autocomplete="off"
-                        enterkeyhint="go"
-                        :value="picker.tsn.value"
-                        :aria-invalid="tsnError ? 'true' : undefined"
-                        :aria-describedby="`${uid}-keys-error`"
-                        @input="onTsn"
-                        @blur="validateTsn"
-                        @keydown.enter.prevent="submit"
+                        :disabled="picker.make.value === '' || picker.modelsLoading.value || picker.modelsFailed.value"
+                        :aria-busy="picker.modelsLoading.value ? 'true' : undefined"
                     >
+                        <option value="">{{ picker.modelsLoading.value ? 'Wird geladen …' : 'z. B. 3er Coupé' }}</option>
+                        <option v-for="m in picker.models.value" :key="m.model" :value="m.model">{{ m.model }}</option>
+                    </select>
+                    <!-- A network failure, not a typing error: the line appears only when it has something to say. -->
+                    <p v-if="picker.modelsFailed.value" class="form-field__error">
+                        Die Modelle lassen sich gerade nicht laden.
+                        <Link :href="`/felgen-suchen?marke=${encodeURIComponent(picker.make.value)}`" class="link small">Auf der Fahrzeugseite weitermachen</Link>
+                    </p>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-field__label" :for="`${uid}-fahrzeug`">Fahrzeug</label>
+                    <select
+                        :id="`${uid}-fahrzeug`"
+                        v-model.number="picker.variantId.value"
+                        class="input"
+                        autocomplete="off"
+                        :disabled="picker.model.value === '' || picker.variantsLoading.value || picker.variantsFailed.value"
+                        :aria-busy="picker.variantsLoading.value ? 'true' : undefined"
+                    >
+                        <option :value="null">{{ picker.variantsLoading.value ? 'Wird geladen …' : 'Variante, Baujahr, kW' }}</option>
+                        <!-- Incomplete data is said, not refused: the wheel is answered from its Gutachten, and the
+                             tyres wait for the papers (R-03 as amended) — as /felgen-suchen offers the same cars. -->
+                        <option v-for="v in picker.variants.value" :key="v.id" :value="v.id">{{ variantLabel(v) }}</option>
+                    </select>
+                    <p v-if="picker.variantsFailed.value" class="form-field__error">Die Varianten lassen sich gerade nicht laden.</p>
+                    <!-- The whole Feld K line under the select once a variant is picked: the option has room for its range only. -->
+                    <p v-else-if="chosenApproval" class="form-field__help num">{{ chosenApproval }}</p>
                 </div>
             </div>
-            <p :id="`${uid}-keys-error`" class="form-field__error">{{ hsnError || tsnError }}</p>
-            <button class="link small vpanel__help" type="button" @click="helpOpen = true">Wo finde ich HSN und TSN?</button>
 
-            <!-- Several vehicles behind one pair: a confirmation, never a guess (R-01). -->
-            <div v-if="count.status === 'ambiguous'" class="vpanel__chooser">
-                <p class="h4">{{ count.rows.length }} Fahrzeuge passen zu {{ picker.hsn.value }}/{{ picker.tsn.value }} – welches ist deins?</p>
-                <label v-for="row in count.rows" :key="row.id" class="check">
-                    <input v-model="candidate" type="radio" :name="`${uid}-kandidat`" :value="row.id">
-                    <span>{{ row.label }}</span>
-                </label>
-                <button class="btn btn--secondary btn--block" type="button" :disabled="candidate === null" @click="candidate !== null && picker.resolveAmbiguity(candidate)">
-                    Dieses Fahrzeug wählen
-                </button>
-                <button class="link small" type="button" @click="retypeKeys">Andere Nummern eingeben</button>
-            </div>
+            <!-- Route two: the key numbers off the Zulassungsbescheinigung. -->
+            <div :id="`${uid}-panel-keys`" class="vpanel__fields" :data-state="picker.route.value === 'keys' ? 'active' : 'inactive'" role="tabpanel" :aria-labelledby="`${uid}-tab-keys`">
+                <div class="vpanel__keys">
+                    <div class="form-field">
+                        <label class="form-field__label" :for="`${uid}-hsn`">HSN (Feld 2.1)</label>
+                        <input
+                            :id="`${uid}-hsn`"
+                            ref="hsnField"
+                            class="input input--code num"
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            enterkeyhint="next"
+                            :value="picker.hsn.value"
+                            :aria-invalid="hsnError ? 'true' : undefined"
+                            :aria-describedby="`${uid}-keys-error`"
+                            @input="onHsn"
+                            @paste.prevent="onHsnPaste"
+                            @blur="validateHsn"
+                            @keydown.enter.prevent="tsnField?.focus()"
+                        >
+                    </div>
+                    <div class="form-field">
+                        <label class="form-field__label" :for="`${uid}-tsn`">TSN (Feld 2.2)</label>
+                        <input
+                            :id="`${uid}-tsn`"
+                            ref="tsnField"
+                            class="input input--code"
+                            type="text"
+                            autocapitalize="characters"
+                            :maxlength="TSN_LENGTH"
+                            autocomplete="off"
+                            enterkeyhint="go"
+                            :value="picker.tsn.value"
+                            :aria-invalid="tsnError ? 'true' : undefined"
+                            :aria-describedby="`${uid}-keys-error`"
+                            @input="onTsn"
+                            @blur="validateTsn"
+                            @keydown.enter.prevent="submit"
+                        >
+                    </div>
+                </div>
+                <p :id="`${uid}-keys-error`" class="form-field__error">{{ hsnError || tsnError }}</p>
+                <button class="link small vpanel__help" type="button" @click="helpOpen = true">Wo finde ich HSN und TSN?</button>
 
-            <!-- Nothing found: what was typed stays, and three ways forward (R-09). -->
-            <div v-if="count.status === 'not_found' || lookup?.status === 'not_found'" class="notice vpanel__notice">
-                <Icon name="warning" :size="20" />
-                <div class="vpanel__miss">
-                    <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
-                    <button class="link" type="button" @click="focusHsn">Nochmal prüfen</button>
-                    <button class="link" type="button" @click="picker.route.value = 'guided'">Über Marke &amp; Modell wählen</button>
-                    <a class="link num" :href="reach.href">{{ reach.label }}</a>
+                <!-- Several vehicles behind one pair: a confirmation, never a guess (R-01). -->
+                <div v-if="count.status === 'ambiguous'" class="vpanel__chooser">
+                    <p class="h4">{{ count.rows.length }} Fahrzeuge passen zu {{ picker.hsn.value }}/{{ picker.tsn.value }} – welches ist deins?</p>
+                    <label v-for="row in count.rows" :key="row.id" class="check">
+                        <input v-model="candidate" type="radio" :name="`${uid}-kandidat`" :value="row.id">
+                        <span>{{ row.label }}</span>
+                    </label>
+                    <button class="btn btn--secondary btn--block" type="button" :disabled="candidate === null" @click="candidate !== null && picker.resolveAmbiguity(candidate)">
+                        Dieses Fahrzeug wählen
+                    </button>
+                    <button class="link small" type="button" @click="retypeKeys">Andere Nummern eingeben</button>
+                </div>
+
+                <!-- Nothing found: what was typed stays, and three ways forward (R-09). -->
+                <div v-if="count.status === 'not_found' || lookup?.status === 'not_found'" class="notice vpanel__notice">
+                    <Icon name="warning" :size="20" />
+                    <div class="vpanel__miss">
+                        <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
+                        <button class="link" type="button" @click="focusHsn">Nochmal prüfen</button>
+                        <button class="link" type="button" @click="picker.route.value = 'guided'">Über Marke &amp; Modell wählen</button>
+                        <component :is="reach.form ? Link : 'a'" class="link num" :href="reach.href">{{ reach.label }}</component>
+                    </div>
                 </div>
             </div>
         </div>
@@ -529,7 +595,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                     <p>Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.</p>
                     <!-- Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). -->
                     <p v-if="shared.notifyByMail !== true" class="small muted">
-                        Schreib uns gern eine E-Mail an <a class="link" :href="`mailto:${contact.email}`">{{ contact.email }}</a>.
+                        <Link class="link" :href="askHref">Schreib uns</Link> – wir sehen nach, was es dafür gibt.
                     </p>
                     <template v-else-if="notifyState === 'done'">
                         <p class="small muted">Danke. Bestätige bitte den Link in der E-Mail, die wir dir gerade geschickt haben.</p>
@@ -550,11 +616,14 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             </div>
         </div>
 
+        <!-- No car yet: light blue, aria-disabled, and a press leads to the missing field (#1, D-109). -->
         <button
             class="btn btn--primary btn--lg btn--block vpanel__go"
+            :class="{ 'vpanel__go--waiting': waiting }"
             type="button"
             data-primary
-            :disabled="!canSubmit || submitting"
+            :disabled="!waiting && (!canSubmit || submitting)"
+            :aria-disabled="waiting ? 'true' : undefined"
             :aria-busy="submitting ? 'true' : undefined"
             @click="submit"
         >
@@ -596,6 +665,30 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     border-radius: var(--r-tile);
     background: var(--c-surface);
     box-shadow: var(--e-2);
+}
+
+/* One cell for both routes (#7, D-112): the taller sets the height; the inactive one is out of sight, out of the tab
+   order and out of the accessibility tree. */
+.vpanel__panels {
+    display: grid;
+}
+
+.vpanel__panels > .vpanel__fields {
+    grid-area: 1 / 1;
+    min-width: 0;
+}
+
+.vpanel__panels > .vpanel__fields[data-state='inactive'] {
+    visibility: hidden;
+}
+
+/* Waiting for a car (#1, D-109): the brand's light blue, the words in blue — 6,4 : 1 — never greyed out. */
+.vpanel__go--waiting,
+.vpanel__go--waiting:active {
+    border-color: var(--c-blue-tint);
+    background: var(--c-blue-tint);
+    color: var(--c-blue);
+    transform: none;
 }
 
 .vpanel--vehicle {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ConditionLevelRequest;
 use App\Http\Requests\Admin\DocumentConditionBatchRequest;
 use App\Http\Requests\Admin\DocumentConditionRequest;
 use App\Http\Requests\Admin\LoadLimitConfirmRequest;
@@ -57,6 +58,14 @@ class GutachtenAuflagenController extends Controller
         $this->conditions->update($condition, $request->payload(), $request->admin());
 
         return back()->with('toast', self::CHANGED);
+    }
+
+    /** How loud the Auflage is in the shop (#23, D-104) — on a released document too. */
+    public function level(ConditionLevelRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
+    {
+        $this->conditions->setLevel($condition, $request->level(), $request->admin());
+
+        return back()->with('toast', 'Gespeichert. Der Shop zeigt die Auflage jetzt als „'.$request->level()->labelDe().'“.');
     }
 
     public function destroy(DocumentConditionRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse

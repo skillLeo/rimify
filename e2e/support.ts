@@ -8,6 +8,12 @@ import type { BrowserContext, Page } from '@playwright/test';
 
 export const CONSENT_COOKIE = 'rmf_consent';
 
+/**
+ * The review accounts' password on a development database (ReviewAccountsSeeder::PASSWORD), which is what the e2e
+ * shop runs on. Never the preview's: those are set by the operator and live only in his docs/review/ACCOUNTS.md (D-141).
+ */
+export const REVIEW_PASSWORD = process.env.REVIEW_PASSWORD ?? 'rimify-review-2026';
+
 /** The choice a returning visitor has already made, so the sheet stays out of a journey. */
 export async function consentGiven(context: BrowserContext, baseURL: string): Promise<void> {
     await context.addCookies([

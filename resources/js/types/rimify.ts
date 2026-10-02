@@ -162,8 +162,24 @@ export interface SharedProps {
     previewRibbon?: boolean
     /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
     release?: string | null
-    flash: { toast: string | null }
+    flash: { toast: string | null; added?: AddedToBasket | null }
+    /**
+     * A signed-in admin looking at the shop while the review is on (D-142): the feedback button bottom right, and the
+     * role it is sent with. Absent for everyone else — not null, not hidden: absent.
+     */
+    reviewer?: { role: string | null }
     [key: string]: unknown
+}
+
+/** What was just put in the basket (#16): the panel after an add prints it; every figure is the server's. */
+export interface AddedToBasket {
+    /** `Komplettrad zum Warenkorb hinzugefügt.` */
+    heading: string
+    /** The line added — for a mixed set its two axles — at the amount added and that amount's price. */
+    lines: { title: string; detail: string; quantity: number; price: string }[]
+    /** The basket as it now stands. */
+    count: number
+    subtotal: string
 }
 
 /** What `wheelSVG()` needs, carried on every card and line. */
@@ -238,6 +254,8 @@ export interface CardFitment {
     conditions?: string[]
     /** Further Auflagen depend on the rim or tyre size: said on the product page, per size. */
     conditionsVary?: boolean
+    /** Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. */
+    notesOnly?: boolean
 }
 
 export interface FacetOption {
@@ -327,6 +345,8 @@ export interface BasketLine {
     verdict?: {
         status: VerdictStatus
         label: string
+        /** Every Auflage a Hinweis (#23, D-104): shown as „Freigegeben“. Additive. */
+        notesOnly?: boolean
         sellable: boolean
         requiresEntry: boolean
         /** The document frees the papers from correction (§ 15 FZV). Additive. */
@@ -341,7 +361,12 @@ export interface BasketLine {
     } | null
     /* docs/specs/komplettrad.md §4.7 — a Komplettrad is a wheel line that carries its tyre. */
     isSet?: boolean
-    setLabel?: 'Felge' | 'Komplettrad'
+    setLabel?: 'Felge' | 'Komplettrad' | 'Komplettrad Vorderachse' | 'Komplettrad Hinterachse'
+    /**
+     * Mischbereifung (#20, D-105): one axle of a mixed set — the two lines are one entry, so a change on either changes
+     * both. Null on every other line. Additive.
+     */
+    mixed?: BasketMixed | null
     /** Null on a Felgen-only line, and on a Komplettrad whose tyre has gone (then `blockReasons` says so). */
     tyre?: BasketTyre | null
     /** Null until a colour is chosen or while the chosen one has gone; the line is then marked. */
@@ -354,6 +379,27 @@ export interface BasketLine {
     priceOpen?: boolean
     /** Full German sentences, never codes; empty when nothing is wrong (R-15). */
     blockReasons?: string[]
+}
+
+/** One axle of a mixed set, as the basket and the order record it (D-105). */
+export interface BasketMixed {
+    setKey: string
+    axle: 'FRONT' | 'REAR'
+    /** `Vorderachse` */
+    axleLabel: string
+    /** `235/45 R19` — this axle's size, and the other axle's. */
+    size: string | null
+    partnerSize: string | null
+    /** The entry of the document's table (`Nr. 8`); null where the pair is no longer listed (then the line is marked). */
+    pairing: number | null
+    sourcePage: number | null
+    /** What the document says beyond the table, in its own words. */
+    rulesDe: string | null
+    minLoadIndex: number | null
+    minSpeedSymbol: string | null
+    axleLoadKg: number | null
+    bindingAxle: 'FRONT' | 'REAR' | null
+    minimumSentence: string | null
 }
 
 /**

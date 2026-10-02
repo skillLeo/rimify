@@ -103,14 +103,20 @@ final class OrderWriter
                 'placed_at' => now(),
             ]));
 
+            // A mixed set's two lines move together: one package group for both axles (#20, D-105).
+            $groups = [];
+
             foreach ($summary['lines'] as $i => $line) {
                 $isSet = ($line['isSet'] ?? false) === true;
+                $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
+                $group = $mixed === null ? $i + 1 : ($groups[(string) $mixed['setKey']] ??= $i + 1);
                 $orderLine = OrderLine::query()->create([
                     'order_id' => $order->id,
                     'kind' => ($isSet ? OrderLineKind::Package : OrderLineKind::Wheel)->value,
                     'wheel_config_id' => (int) $line['wheelConfigId'],
                     'tyre_variant_id' => $isSet ? ($line['tyre']['id'] ?? null) : null,
-                    'package_group' => $isSet ? $i + 1 : null,
+                    'package_group' => $isSet ? $group : null,
+                    'axle' => $mixed === null ? null : (string) $mixed['axle'],
                     'label' => self::label($line),
                     'quantity' => (int) $line['quantity'],
                     'unit_price_cents' => (int) $line['unitPriceCents'],
@@ -119,7 +125,7 @@ final class OrderWriter
                     'currency' => 'EUR',
                 ]);
 
-                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i]);
+                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i], $mixed);
             }
 
             $tpms = $totals['tpms'] ?? [];
@@ -147,9 +153,22 @@ final class OrderWriter
         });
     }
 
-    /** The verdict as the customer is shown it now, frozen onto the line (append-only, R-12). */
-    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict): void
+    /**
+     * The verdict as the customer is shown it now, frozen onto the line (append-only, R-12). On a Mischbereifung line
+     * the axle's own record goes with it (D-105): which axle, its size and the size it was paired with, the document's
+     * table entry and page, and what that axle asked for at its load — each axle separately, on its own line.
+     *
+     * @param  array<string, mixed>|null  $mixed
+     */
+    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict, ?array $mixed = null): void
     {
+        $record = $verdict->toArray();
+
+        if ($mixed !== null) {
+            unset($mixed['setKey']);
+            $record['mixedTyres'] = $mixed;
+        }
+
         (new OrderLineFitment)->forceFill([
             'order_line_id' => $line->id,
             'vehicle_id' => $vehicle->id,
@@ -157,7 +176,7 @@ final class OrderWriter
             'fitment_id' => $verdict->snapshot->fitmentId,
             'approval_document_id' => $verdict->document?->id,
             'document_revision' => $verdict->snapshot->documentRevision ?? $verdict->document?->revision,
-            'verdict' => $verdict->toArray(),
+            'verdict' => $record,
             'verdict_status' => $verdict->status->value,
             'requires_entry' => $verdict->requiresEntry,
             'pdf_sha256' => $verdict->document?->pdfSha256,
@@ -176,8 +195,10 @@ final class OrderWriter
         }
 
         $tyre = is_array($line['tyre'] ?? null) ? (string) ($line['tyre']['label'] ?? $line['tyre']['name'] ?? '') : '';
+        // `Komplettrad Vorderachse: …` — the axle in the frozen words, where the workshop reads it (D-105).
+        $axle = is_array($line['mixed'] ?? null) ? ' '.$line['mixed']['axleLabel'] : '';
 
-        return 'Komplettrad: '.$wheel.($tyre === '' ? '' : ' mit '.$tyre);
+        return 'Komplettrad'.$axle.': '.$wheel.($tyre === '' ? '' : ' mit '.$tyre);
     }
 
     /**

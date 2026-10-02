@@ -30,7 +30,8 @@ swapped for a competitor's, the section has failed.
 ```css
 --c-ink: #0B0F14;      --c-ink-2: #3A424D;      --c-ink-3: #5F6875;       /* text: primary, secondary, tertiary */
 --c-line: #E2E5E9;     --c-line-2: #C9CED5;                                /* dividers, input borders / strong */
---c-surface: #FFFFFF;  --c-band: #F3F4F6;                                  /* page, alternating band, image tiles */
+--c-surface: #FFFFFF;  --c-band: #F3F4F6;                                  /* page; image tiles, fields, chips */
+--c-band-blue: #EBF0F7;                                                     /* the alternating section band (#32) */
 --c-dark: #0B0F14;     --c-dark-2: #161B22;     --c-on-dark-2: #A9B1BC;   /* dark bands */
 --c-blue: #1A44D4;     --c-blue-hover: #1638B4; --c-blue-press: #122E94;  --c-blue-tint: #E8EDFB;  /* action only */
 --c-ok: #1D7A35;       --c-ok-tint: #E6F3E9;    /* Freigegeben, lieferbar */
@@ -42,7 +43,9 @@ swapped for a competitor's, the section has failed.
 
 - About 85 % of any screen is neutral, 10 % photography, 5 % blue.
 - Blue means "act here": primary buttons, links, focus, the selected state. Never a background for
-  mood, never a rule, never an icon that does nothing.
+  mood, never a rule, never an icon that does nothing — with one exception the client asked for
+  (#33, D-114): the small marks of the homepage's promise row and of the ways to reach us are blue, so
+  the eye finds them. A mark beside a plain fact (the opening hours) stays ink.
 - Green, amber and red appear only as verdicts, stock, errors and the Felgenrechner's tolerance
   light (`sections/home-overhaul.md` §3), which never borrows the verdict component or its words.
   `Unbekannt` is neutral grey so it can never be mistaken for a refusal.
@@ -53,8 +56,10 @@ swapped for a competitor's, the section has failed.
   deuteranope. A badge always carries its word, so badges keep `--c-ok` … `--c-unk`.
 - A change against a previous period is an arrow and a sign in ink (`--delta-up`, `--delta-down`),
   never green or red: more is not better for every figure.
-- No tinted section backgrounds. Sections alternate `--c-surface` and `--c-band`; one dark band
-  (`--c-dark`) per page at most.
+- Sections alternate `--c-surface` and `--c-band-blue`, a pale blue-grey (the client's #32, D-115:
+  „Seite etwas farbiger, z. B. hellblaue Abschnitte“); no other tint behind a section. `--c-band`
+  stays the neutral fill of image tiles, fields and chips — photography sits on neutral grey. One dark
+  band (`--c-dark`) per page at most.
 - Text on dark bands is `--c-surface` (primary) and `--c-on-dark-2` (secondary). Scrims over
   photography are `--c-ink` at 40–60 % alpha; they are the only place a gradient may appear, and
   only on an element carrying `.photo-scrim` or `.band-scrim`.

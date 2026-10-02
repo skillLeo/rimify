@@ -276,7 +276,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 return null;
             }
 
-            return Condition::ofKind($code, $definition->kind, $definition->text_de, $note, $definition->source_page, $definition->max_axle_load_kg);
+            return Condition::ofKind($code, $definition->kind, $definition->text_de, $note, $definition->source_page, $definition->max_axle_load_kg, $definition->level, $definition->axle);
         };
 
         $rowConditions = [];

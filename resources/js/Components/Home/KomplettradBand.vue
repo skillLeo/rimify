@@ -6,11 +6,13 @@
  * the featured tyre's own record (only with a verified EPREL entry); and a complete wheel that
  * turns with the scroll.
  *
- * The wheel is an illustration, and the page says so: the parametric rim with a parametric tyre,
- * rendered offline by scripts/3d/render-komplettrad.mjs — generated, no brand, no car, no brake,
- * no lettering (docs/phase0/ACCURACY.md §3.1). It is never a photograph of somebody's wheel on a
- * car, and it claims no size: the label beside it is the featured tyre's, not the picture's. No 3D
- * mounts here (nothing ever did: the viewer's `replacePoster` was never switched on); the picture
+ * The wheel is a real product (the client's #9): the hero's wheel photographed in its other finish, from the cut-out the
+ * client gave us the rights to, captioned with its name — „Felge im Bild“, because the band speaks of Kompletträder and
+ * the photograph shows the rim. Where no wheel is photographed it is the illustration, and the page says so: the
+ * parametric rim with a parametric tyre, rendered offline by scripts/3d/render-komplettrad.mjs — generated, no brand
+ * (docs/phase0/ACCURACY.md §3.1). Never a photograph of somebody else's wheel. Neither claims a size: the label beside
+ * it is the featured tyre's, not the picture's. No 3D mounts here (nothing ever did: the viewer's `replacePoster` was
+ * never switched on); the picture
  * turns 0 → −720° (two full turns) by a CSS `view()` timeline where the browser has one and stands still where it
  * has none — no scroll listener. Under reduced motion nothing turns. No lifestyle photograph beside
  * it (spec H7 "Never"), and no scrim: a scrim would be a second gradient.
@@ -22,13 +24,23 @@ import Picture from '../Ui/Picture.vue'
 import TyreLabel, { type TyreClass } from '../Ui/TyreLabel.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import illustration from '../../images/komplettrad-illustration.json'
-import type { EuTyreLabel } from '../../types/pages'
+import { bandWheelAlt, bandWheelCaption, bandWheelStyle } from '../../lib/bandWheel'
+import type { BandWheel, EuTyreLabel } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
-const props = defineProps<{
-    tyre: EuTyreLabel | null
-    vehicle: VehicleProp | null
-}>()
+const props = withDefaults(
+    defineProps<{
+        tyre: EuTyreLabel | null
+        vehicle: VehicleProp | null
+        /** The photographed wheel (#9); null keeps the illustration. */
+        wheel?: BandWheel | null
+    }>(),
+    { wheel: null }
+)
+
+const photo = computed(() =>
+    props.wheel === null ? null : { image: props.wheel.image, alt: bandWheelAlt(props.wheel), caption: bandWheelCaption(props.wheel), style: bandWheelStyle(props.wheel) }
+)
 
 const TYRE_CLASSES: readonly string[] = ['A', 'B', 'C', 'D', 'E']
 
@@ -78,13 +90,17 @@ const wheelFailed = ref(false)
                 <!-- `error` does not bubble, but it does pass this wrapper in the capture phase. -->
                 <div v-if="!wheelFailed" class="komplett__wheel" @error.capture="wheelFailed = true">
                     <span class="komplett__turn">
-                        <Picture :image="illustration" :alt="WHEEL_ALT" :sizes="WHEEL_SIZES" />
+                        <!-- The photograph placed so the wheel fills the square and its axle is the square's centre. -->
+                        <span v-if="photo" class="komplett__photo" :style="photo.style">
+                            <Picture :image="photo.image" :alt="photo.alt" :sizes="WHEEL_SIZES" />
+                        </span>
+                        <Picture v-else :image="illustration" :alt="WHEEL_ALT" :sizes="WHEEL_SIZES" />
                     </span>
                 </div>
                 <div v-else class="komplett__fallback" aria-hidden="true">
                     <WheelOutline size="60%" />
                 </div>
-                <figcaption class="micro quiet komplett__caption">Illustration</figcaption>
+                <figcaption class="micro quiet komplett__caption">{{ photo && !wheelFailed ? photo.caption : 'Illustration' }}</figcaption>
             </figure>
 
             <div class="komplett__label">
@@ -135,9 +151,26 @@ const wheelFailed = ref(false)
     height: 100%;
 }
 
-.komplett__turn :deep(.picture) {
+.komplett__turn {
+    position: relative;
+}
+
+.komplett__turn > :deep(.picture) {
     width: 100%;
     height: 100%;
+}
+
+/* The photograph's box, set from the wheel's anchor (lib/bandWheel): larger than the square by the cut-out's margin. */
+.komplett__photo {
+    position: absolute;
+    display: block;
+}
+
+.komplett__photo :deep(.picture),
+.komplett__photo :deep(img) {
+    display: block;
+    width: 100%;
+    height: auto;
 }
 
 .komplett__caption {

@@ -112,8 +112,13 @@ class BestellungenController extends Controller
         // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
         request()->attributes->set(AdminNavigation::RECORD, $order->order_number);
 
-        // The Prüfnachweis links its Gutachten only for a reader who may open it (Verkauf may not).
-        return Inertia::render('Admin/Bestellungen/Show', $detail->for($order, $request->user('admin')?->can('viewAny', ApprovalDocument::class) === true));
+        $admin = $request->user('admin');
+
+        // The Prüfnachweis links its Gutachten only for a reader who may open it (Verkauf may not); „Versendet“ and
+        // „Zugestellt“ only for a reader who may change orders (OrderPolicy::update, D-103).
+        return Inertia::render('Admin/Bestellungen/Show', $detail->for($order, $admin?->can('viewAny', ApprovalDocument::class) === true) + [
+            'canFulfil' => $admin?->can('update', $order) === true,
+        ]);
     }
 
     /**

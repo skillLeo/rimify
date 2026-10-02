@@ -10,6 +10,8 @@
 import type {
     BasketLine,
     BasketTotals,
+    BasketTpms,
+    BasketWeightOption,
     ConditionGroupsView,
     ContactProp,
     Facets,
@@ -160,6 +162,15 @@ export interface FelgenrechnerProps {
     state: { current: RechnerSetup; next: RechnerSetup } | null
 }
 
+/** A photographed wheel for the dark band (#9): the shadowless cut-out and where the wheel is in it, in fractions. */
+export interface BandWheel {
+    brand: string
+    name: string
+    finish: string
+    image: ImageManifest
+    anchor: { x: number; y: number; r: number }
+}
+
 export interface GuideTeaser {
     slug: string
     title: string
@@ -214,7 +225,8 @@ export interface StartseiteProps {
      * sample range (`slug` `demo`) never has one (docs/design/sections/home-brands.md §4.2).
      */
     brands: { name: string; slug: string; logo: string | null; logoAspect: number | null; count: number; href: string | null }[]
-    komplettrad: { tyre: EuTyreLabel | null }
+    /** `wheel`: the photographed wheel that turns in the dark band (#9), null where none is photographed. */
+    komplettrad: { tyre: EuTyreLabel | null; wheel?: BandWheel | null }
     calculator: { prefill: CalculatorPrefill | null }
     partners: { enabled: boolean; demo: boolean }
     guides: GuideTeaser[]
@@ -232,6 +244,29 @@ export interface SelectorProps {
     variants: VariantOption[]
     selectedMake: string | null
     selectedModel: string | null
+}
+
+/** The RIMIFY-Check (#28): the car's selector, the wheel's three choices, and the answer for the pair. */
+export interface CheckProps extends SelectorProps {
+    wheelBrands: { slug: string; name: string }[]
+    wheelModels: { slug: string; name: string }[]
+    /** The wheel's finishes (`ausfuehrung`), chosen on their own. */
+    wheelFinishes?: { id: number; name: string }[]
+    /** `8,5J × 19 · ET 35`, one per configuration of the chosen finish. */
+    wheelSizes: { id: number; label: string }[]
+    chosen: { brand: string | null; wheel: string | null; finish?: number | null; size: number | null }
+    /** A link naming a wheel (`felge`) or a size (`groesse`) the shop no longer has: which of the two. */
+    notFound?: 'wheel' | 'size' | null
+    /** „Ändern“ pressed on a chosen car (`aendern=1`): the selector stays open through its drill steps. */
+    changing?: boolean
+    /** Only for a pair: a car and one size of one wheel. The product page's own row, built by the same code. */
+    answer: CheckAnswer | null
+}
+
+export interface CheckAnswer {
+    product: { slug: string; brandName: string; modelName: string; finishId: number; finishName: string }
+    config: ProduktConfig
+    komplettradOptions: KomplettradOptionsProp | null
 }
 
 /**
@@ -293,13 +328,41 @@ export interface ProduktProps {
             euResponsible: { name: string; address: string | null; contact: string | null } | null
             safetyNote: string | null
         } | null
+        /** While the wheel has no reviews, what the page can prove instead: its released documents and the cars (D-103). */
+        proof?: { gutachten: number; variants: number }
     }
+    /** The buyers' visible reviews, newest first (D-103). The rating is computed from them alone. */
+    reviews?: ProductReview[]
     /** `image`: the finish's own studio photograph and its other angles, or null — then it is drawn. */
     finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
     configs: ProduktConfig[]
     hasVehicle: boolean
     /** `Lieferzeit 3–5 Werktage · Versand 4,90 €` (Shipping::summary): only what is given; null while nothing is. */
     shipping?: string | null
+    /** What goes with a Komplettrad (#15): the active Wuchtgewichte colours and the RDKS question for a set; null without a car. */
+    komplettradOptions?: KomplettradOptionsProp | null
+}
+
+export interface KomplettradOptionsProp {
+    colours: BasketWeightOption[]
+    /** The basket's own RDKS block for the set this page adds; `yesTotal` is what „Ja“ would add. */
+    tpms: BasketTpms & { yesTotal: string | null }
+}
+
+/** One buyer's review as the product page shows it: no name, a verified purchase by construction (D-103). */
+export interface ProductReview {
+    id: number
+    rating: number
+    body: string | null
+    at: string | null
+    reply: string | null
+}
+
+/** One amount the product page offers and its price, `{quantity: 4, cents: 91600, text: '916,00 €'}`. */
+export interface AmountPrice {
+    quantity: number
+    cents: number
+    text: string
 }
 
 export interface ProduktConfig {
@@ -321,6 +384,8 @@ export interface ProduktConfig {
     price: string
     /** The set of four, formatted on the server; the page never multiplies cents. */
     priceForFour?: string
+    /** The price of each amount the page offers (1–8), from LinePrice on the server (D-102): the browser only picks. */
+    amounts?: AmountPrice[]
     stockQty: number
     inStock: boolean
     kbaNumber: string | null
@@ -333,6 +398,8 @@ export interface ProduktConfig {
      * in fixtures written before it existed; the server always sends it.
      */
     komplettrad?: KomplettradOfferProp | null
+    /** Mischbereifung (#20, D-105): null where the document prints no pairing table — the page says nothing then. */
+    mischbereifung?: MischbereifungProp | null
 }
 
 /**
@@ -356,6 +423,8 @@ export interface FitmentDetailView {
 export interface ConfigVerdict {
     status: VerdictStatus
     label: string
+    /** Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. Additive. */
+    notesOnly?: boolean
     sellable: boolean
     requiresEntry: boolean
     /** The document frees the papers from correction (§ 15 FZV): its own line (resources/js/fitment/papers.ts). Additive. */
@@ -478,6 +547,8 @@ export interface KomplettradTyreProp {
     /** `perWheel` × 4, formatted on the server (R-10); the page never multiplies cents. */
     forFourCents: number
     forFour: string
+    /** The set priced with each active Wuchtgewichte colour (#15): the page picks the one chosen, never adds a surcharge. */
+    prices?: { colourId: number; perWheel: string; forFourCents: number; forFour: string }[]
     /** The EU label, only where the tyre carries a verified EPREL id (ACCURACY D7). */
     label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
     isDemo: boolean
@@ -497,6 +568,53 @@ export interface KomplettradOfferProp {
     /** What one click adds — a set. */
     quantity: number
     tyres: KomplettradTyreProp[]
+}
+
+/** One tyre set of a mixed pair: one maker's one line, front and rear, priced per wheel and for the 2 + 2 on the server. */
+export interface MischbereifungSetProp {
+    key: string
+    frontTyreId: number
+    rearTyreId: number
+    brandName: string
+    name: string
+    seasonLabel: string
+    /** `235/45 R19 95Y` */
+    frontLabel: string
+    rearLabel: string
+    perWheelFront: string
+    perWheelRear: string
+    /** Two of each, from LinePrice on the server — the page never multiplies. */
+    forFourCents: number
+    forFour: string
+    /** The set priced with each active Wuchtgewichte colour (PDP-07): the card shows the colour picked above it. */
+    prices?: { colourId: number; perWheelFront: string; perWheelRear: string; forFourCents: number; forFour: string }[]
+    isDemo: boolean
+}
+
+/** One front/rear pair the document's table permits for the car on this rim. */
+export interface MischbereifungPairProp {
+    key: string
+    /** The table's entry number (`Nr. 8`). */
+    number: number
+    /** `235/45 R19` */
+    front: string
+    rear: string
+    /** Each axle against its own load, and the axle that asks for more. */
+    minSentence: string
+    sets: MischbereifungSetProp[]
+}
+
+/** Mischbereifung for one configuration (D-105): pairs, or the one sentence saying why there are none. */
+export interface MischbereifungProp {
+    refusal: string | null
+    refusalCode: string | null
+    /** Wheels per axle one click adds. */
+    perAxle: number
+    /** The document's own words beyond the table: one maker, one profile per axle, the confirmation in the car. */
+    rules: string | null
+    sourcePage: number | null
+    priceOpen: boolean
+    pairs: MischbereifungPairProp[]
 }
 
 /** One column of `/vergleich`: the card plus the figures the table lines up (home-overhaul.md §2.6). */
@@ -531,6 +649,8 @@ export interface VergleichProps {
 export interface CheckResultView {
     status: VerdictStatus
     statusLabel: string
+    /** Every Auflage a Hinweis (#23, D-104). Additive. */
+    notesOnly?: boolean
     vehicle: string | null
     wheel: string | null
     /** The wheel half, where the verdict has one. */
@@ -602,6 +722,8 @@ export interface BestellungProps {
         verdict: {
             status: VerdictStatus
             requiresEntry: boolean
+            /** Every Auflage of the frozen answer a Hinweis (#23, D-104). Additive. */
+            notesOnly?: boolean
             /** § 15 FZV as frozen at the purchase. Additive: an older order has none, and claims none. */
             papersExempt?: boolean
             documentRevision: number
@@ -636,6 +758,8 @@ export interface FaqProps {
 
 export interface KontaktProps {
     contact: ContactProp
+    /** What the page that linked here knew (#26): a subject and the path the visitor came from. */
+    prefill?: { subject: string; from: string | null }
 }
 
 export interface RechtlichesProps {

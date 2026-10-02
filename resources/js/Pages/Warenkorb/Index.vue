@@ -158,13 +158,23 @@ const VERDICT_TONE: Record<string, string> = {
                                     </span>
                                 </p>
 
+                                <!-- Mischbereifung (#20): one axle of a set the document pairs; both axles change together. -->
+                                <p v-if="line.mixed" class="bl__mixed">
+                                    Mischbereifung – zusammen mit <span class="data">{{ line.mixed.partnerSize }}</span> auf der
+                                    {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}. Menge und Entfernen gelten für beide Achsen.
+                                    <template v-if="line.mixed.minLoadIndex !== null">
+                                        Auf der {{ line.mixed.axleLabel }} mindestens Tragfähigkeitsindex {{ line.mixed.minLoadIndex }}
+                                        und Geschwindigkeitsindex {{ line.mixed.minSpeedSymbol }}.
+                                    </template>
+                                </p>
+
                                 <p v-if="!line.inStock || line.verdict || line.demo !== false" class="bl__flags">
                                     <span v-if="line.demo !== false" class="tag tag--unknown">Beispielsortiment</span>
                                     <span v-if="!line.inStock" class="tag tag--danger">Nicht mehr verfügbar</span>
                                     <span
                                         v-if="line.verdict"
                                         class="tag"
-                                        :class="VERDICT_TONE[line.verdict.status] ?? 'tag--unknown'"
+                                        :class="VERDICT_TONE[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'tag--unknown'"
                                     >
                                         {{ line.verdict.label }}
                                     </span>
@@ -507,6 +517,13 @@ const VERDICT_TONE: Record<string, string> = {
 }
 
 .bl__tyre-meta {
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
+.bl__mixed {
+    max-width: 60ch;
+    margin: var(--space-2) 0 0;
     font-size: var(--text-small);
     color: var(--ink2);
 }

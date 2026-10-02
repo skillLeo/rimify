@@ -42,6 +42,7 @@ class WarenkorbController extends Controller
     public function store(BasketLineRequest $request): RedirectResponse
     {
         $tyreVariantId = $request->tyreVariantId();
+        $rearTyreVariantId = $request->rearTyreVariantId();
 
         // Every line is a wheel (the request refuses anything else), and every wheel is checked —
         // with its tyre and at the posted quantity, so four Kompletträder against one tyre in
@@ -52,6 +53,7 @@ class WarenkorbController extends Controller
             $tyreVariantId,
             $request->weightColourId(),
             $request->quantity(),
+            $rearTyreVariantId,
         );
 
         if ($refusal !== null) {
@@ -60,20 +62,41 @@ class WarenkorbController extends Controller
             return back()->withErrors([$tyreVariantId === null ? 'wheelConfigId' : 'tyreVariantId' => $refusal]);
         }
 
+        // RDKS sensors chosen beside the Komplettrad (#15) are refused here, before the set is added, where no price for
+        // the car's make has been entered: the checkout would refuse the order on it later.
+        $rdks = $tyreVariantId === null ? null : $request->rdks();
+
+        if ($rdks === 'ja' && ($this->basket->tpmsOffer($request, $request->quantity())['available'] ?? false) !== true) {
+            return back()->withErrors(['rdks' => Basket::TPMS_UNAVAILABLE_REFUSAL]);
+        }
+
         $this->basket->add(
             $request,
             $request->wheelConfigId(),
             $request->quantity(),
             $tyreVariantId,
             $request->weightColourId(),
+            $rearTyreVariantId,
         );
 
-        // Back rather than to the basket: the customer is on a product page configuring, and
-        // taking them away from it after every add is what makes people buy one item instead of
-        // four. The cart badge and a toast are the confirmation.
-        return back()->with('toast', $tyreVariantId === null
-            ? 'Zum Warenkorb hinzugefügt.'
-            : 'Komplettrad zum Warenkorb hinzugefügt.');
+        // The answer, with the quote it was given at, becomes the checkout's own — asked once, not twice.
+        if ($rdks !== null) {
+            $this->basket->answerTpms($request, $rdks);
+        }
+
+        $sentence = match (true) {
+            $tyreVariantId === null => 'Zum Warenkorb hinzugefügt.',
+            $rearTyreVariantId !== null => 'Mischbereifung zum Warenkorb hinzugefügt.',
+            default => 'Komplettrad zum Warenkorb hinzugefügt.',
+        };
+
+        // Back rather than to the basket: the customer is on a product page configuring, and taking them away from it
+        // after every add is what makes people buy one item instead of four. The confirmation is a small panel (#16):
+        // the line just added, the basket's count and total, „Weiter einkaufen“ and „Zum Warenkorb“ — never a modal. The
+        // sentence stays the toast's for any page without the panel; the panel, where it shows, silences the toast.
+        $added = $this->basket->added($request, $this->basket->key($request->wheelConfigId(), $tyreVariantId, $rearTyreVariantId), $request->quantity());
+
+        return back()->with('toast', $sentence)->with('added', $added === null ? null : ['heading' => $sentence, ...$added]);
     }
 
     public function update(Request $request, string $line): RedirectResponse

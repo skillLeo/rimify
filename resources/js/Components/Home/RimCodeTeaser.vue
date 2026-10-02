@@ -30,7 +30,8 @@ import Icon from '../Ui/Icon.vue'
     min-height: 44px;
     padding: var(--sp-24);
     border-radius: var(--r-tile);
-    background: var(--c-band);
+    /* One family of tints on the page (#32): the section band's tone. */
+    background: var(--c-band-blue);
     color: var(--c-ink);
 }
 

@@ -44,6 +44,10 @@ final class ShopRateLimits
         // Mein Konto (Block G §2): signing in, a new password link, „Konto anlegen“ share it — few, as a login deserves,
         // but room for a mistyped password and a forgotten one in the same minute (PAY-10).
         'shop-konto' => [10, false],
+        // A buyer's review through the order's signed link (#19, D-103): one form, a handful of lines at most.
+        'shop-bewertung' => [10, false],
+        // The contact form (#12, D-123): a row and two mails per message — a typo corrected and sent again fits.
+        'shop-kontakt' => [5, false],
     ];
 
     public static function register(): void

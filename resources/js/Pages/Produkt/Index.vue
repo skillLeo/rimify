@@ -11,9 +11,11 @@
  * The verdict sits directly above the basket button, never beside or below it: the legal status is
  * never separated from the control that acts on it.
  *
- * Beneath the purchase panel the page offers the same size as a Komplettrad — only the tyres the
- * verdict permits, priced on the server, or the one sentence saying why there are none. The offer
- * travels inside the configuration, so a size change swaps it in the same commit as the price.
+ * The panel asks one question before the price: Nur Felgen or Komplettrad (the client's #18). The
+ * Komplettrad shows the tyres the verdict permits on the size on screen, priced on the server, or the
+ * one sentence saying why there are none; the offer travels inside the configuration, so a size change
+ * swaps it in the same commit as the price. Switching keeps the finish, the size, the amount of rims
+ * and the tyre picked, and the one button adds whichever is chosen.
  *
  * On a phone the price and the button follow the customer down the page once the main button has
  * scrolled away — the one persistent bar the storefront uses, because it is the page's next action.
@@ -26,13 +28,16 @@
  * is open, Escape or the close button to leave, focus back on the photograph after.
  */
 
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
+import AmountStepper from '../../Components/Product/AmountStepper.vue'
+import BuyModeChoice from '../../Components/Product/BuyModeChoice.vue'
 import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
-import KomplettradOffer from '../../Components/Product/KomplettradOffer.vue'
+import KomplettradChoice from '../../Components/Product/KomplettradChoice.vue'
+import MischbereifungOffer from '../../Components/Product/MischbereifungOffer.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
@@ -40,7 +45,10 @@ import ValueText from '../../Components/Ui/ValueText.vue'
 import { useConfigurator } from '../../composables/useConfigurator'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
+import { claimBottomEdge } from '../../composables/useShell'
+import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { decimal, withUnit } from '../../format'
+import { contactHref as contactFormHref } from '../../lib/contact'
 import type { ProduktConfig, ProduktProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
@@ -52,7 +60,10 @@ const props = defineProps<ProduktProps & { demo?: boolean }>()
 
 const shared = useShared()
 const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
-const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0)
+const page = usePage()
+/* `groesse` in the link — the RIMIFY-Check's „Alles zur Felge“ — opens the page on the size it answered (CHECK-13). */
+const linkedSize = Number(new URLSearchParams((page.url ?? '').split('?')[1] ?? '').get('groesse')) || null
+const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0, linkedSize)
 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
@@ -61,6 +72,11 @@ const selected = computed(() => config.selected.value)
 function contactHref(contact: string): string {
     return contact.includes('@') && !contact.startsWith('http') ? `mailto:${contact}` : contact
 }
+
+/* Where the maker's details are missing, a question to us goes through the contact form (#26). */
+const askAboutMaker = computed(() =>
+    contactFormHref({ subject: `Herstellerangaben: ${props.product.brandName} ${props.product.modelName}`, from: page.url })
+)
 
 /* The finish's photographs: the front view (the manifest itself), then its other angles. */
 const shots = computed<ImageView[]>(() => {
@@ -126,13 +142,142 @@ watch(
     }
 )
 
+/*
+ * Under the name, while the wheel has no reviews (#19, D-103): its released documents and the vehicle variants they
+ * approve it for — counts the shop can prove — and that the approval is checked before the purchase. Nothing where
+ * there is no document.
+ */
+const proofLine = computed(() => {
+    const proof = props.product.proof
+
+    if (!proof || proof.gutachten === 0) {
+        return null
+    }
+
+    const documents = proof.gutachten === 1 ? '1 Gutachten' : `${decimal(proof.gutachten, 0)} Gutachten`
+    const cars = proof.variants === 1 ? 'für 1 Fahrzeugvariante freigegeben' : `für ${decimal(proof.variants, 0)} Fahrzeugvarianten freigegeben`
+
+    return `${documents} · ${cars} · Freigabe vor dem Kauf geprüft`
+})
+
+const reviews = computed(() => props.reviews ?? [])
+
+function starsLabel(n: number): string {
+    return n === 1 ? '1 von 5 Sternen' : `${n} von 5 Sternen`
+}
+
 /* The large view of the photograph on screen. */
 const zoomOpen = ref(false)
 
 const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
+    tyreVariantId: null as number | null,
+    weightColourId: null as number | null,
+    rdks: null as 'ja' | 'nein' | null,
     quantity: 4,
+})
+
+/*
+ * Nur Felgen or Komplettrad (the client's #18): one choice in the panel, and switching keeps everything else — the
+ * finish, the size, the amount of rims and the tyre picked. The Komplettrad shows the tyres the verdict permits on the
+ * size on screen; the page's one button adds what is chosen.
+ */
+type Mode = 'felgen' | 'komplettrad'
+
+const mode = ref<Mode>('felgen')
+const isSet = computed(() => mode.value === 'komplettrad')
+const offer = computed(() => selected.value?.komplettrad ?? null)
+const tyreId = ref<number | null>(null)
+
+// A size brings its own tyres: the one picked stays where the new size offers it too, else the first is picked.
+watch(
+    offer,
+    (current) => {
+        const ids = current?.tyres.map((t) => t.id) ?? []
+
+        if (tyreId.value === null || !ids.includes(tyreId.value)) {
+            tyreId.value = ids[0] ?? null
+        }
+    },
+    { immediate: true }
+)
+
+const tyre = computed(() => offer.value?.tyres.find((t) => t.id === tyreId.value) ?? null)
+
+/*
+ * What goes with a Komplettrad (#15): the Wuchtgewichte colour — the admin's default preselected — and the RDKS
+ * answer, preselected only where the visitor already gave one for this car's make. Nothing of it under „Nur Felgen“.
+ */
+const options = computed(() => props.komplettradOptions ?? null)
+const colourId = ref<number | null>(options.value?.colours.find((c) => c.isDefault)?.id ?? options.value?.colours[0]?.id ?? null)
+const rdks = ref<'ja' | 'nein' | null>(options.value?.tpms.choice ?? null)
+
+/* The set's price with the colour chosen: the server's figure for that colour, the default colour's where none. */
+const setPrice = computed(() => {
+    const current = tyre.value
+
+    if (current === null) {
+        return null
+    }
+
+    return current.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: current.perWheel, forFour: current.forFour }
+})
+
+/* `+ 196,00 € für 4 RDKS-Sensoren` under the set's price, once the visitor said yes. */
+const sensorLine = computed(() => {
+    const tpms = options.value?.tpms
+
+    return isSet.value && rdks.value === 'ja' && tpms?.available && tpms.yesTotal ? `+ ${tpms.yesTotal} für ${tpms.quantity} RDKS-Sensoren` : null
+})
+
+/* `ab 965,00 € je Rad` on the Komplettrad choice: the server's lowest figure with the colour chosen, never one the page computed. */
+const setFrom = computed(() => {
+    const priced = (offer.value?.tyres ?? []).map(
+        (t) => t.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: t.perWheel, forFourCents: t.forFourCents }
+    )
+
+    return priced.length === 0 ? null : priced.reduce((low, p) => (p.forFourCents < low.forFourCents ? p : low)).perWheel
+})
+
+/* A refusal of the last add belongs to the choice it was made under: another mode, size, tyre or colour starts clean (PDP-09). */
+watch([mode, () => selected.value?.id, tyreId, colourId], () => basket.clearErrors())
+
+/*
+ * How many rims (#17): four preselected — a car takes four — and the price beside it is the server's figure for that
+ * amount (`amounts`, LinePrice, D-102): the page picks a number, it never multiplies one. The button adds exactly the
+ * amount on screen; before, it added four under one rim's price without a word (the client's #14).
+ */
+const amount = ref(4)
+
+const maxAmount = computed(() => {
+    const offered = selected.value?.amounts?.map((a) => a.quantity) ?? []
+    const top = offered.length > 0 ? Math.max(...offered) : 1
+
+    return Math.max(1, Math.min(top, selected.value?.stockQty ?? top))
+})
+
+// A size with fewer on the shelf than the amount chosen brings the amount down to what there is.
+watch(maxAmount, (max) => {
+    amount.value = Math.min(Math.max(1, amount.value), max)
+}, { immediate: true })
+
+// Another amount is another choice too: a refusal about the shelf was about the amount it was made with (PDP-09).
+watch(amount, () => basket.clearErrors())
+
+const amountPrice = computed(() => selected.value?.amounts?.find((a) => a.quantity === amount.value) ?? null)
+
+/* `für 4 Felgen, je 229,00 €` — the unit price stays in sight, so the total never reads as one rim's. */
+const amountNote = computed(() => {
+    const current = selected.value
+
+    if (current === null || amountPrice.value === null) {
+        return `pro Felge, ${terms.value.note}`
+    }
+
+    return amount.value === 1
+        ? `für 1 Felge, ${terms.value.note}`
+        : `für ${amount.value} Felgen, je ${current.price}, ${terms.value.note}`
 })
 
 /*
@@ -192,6 +337,12 @@ const canBuy = computed(() => {
         return false
     }
 
+    // A Komplettrad needs a tyre the server offered — which it does only with a car and a verdict that sells — and a
+    // set's worth of rims on the shelf. The server asks the fitment engine again on the add (R-11).
+    if (isSet.value) {
+        return tyre.value !== null && current.stockQty >= (offer.value?.quantity ?? 4)
+    }
+
     // With no vehicle the wheel can still be bought — RIMIFY simply makes no claim about it. With a
     // vehicle, an unsellable verdict is a hard stop.
     return current.verdict === null || current.verdict.sellable
@@ -206,15 +357,47 @@ const buyLabel = computed(() => {
         return 'Ausverkauft'
     }
 
+    if (isSet.value) {
+        return tyre.value === null ? 'Komplettrad gerade nicht möglich' : 'Als Komplettrad in den Warenkorb'
+    }
+
     return 'In den Warenkorb'
 })
 
+/* The price beside the button, and its line: a set of Kompletträder, or the rims of the amount chosen. */
+const shownPrice = computed(() => {
+    if (isSet.value) {
+        return setPrice.value?.forFour ?? null
+    }
+
+    return amountPrice.value?.text ?? selected.value?.price ?? config.fromPrice.value
+})
+
+const shownNote = computed(() => {
+    if (!isSet.value) {
+        return amountNote.value
+    }
+
+    const set = offer.value?.quantity ?? 4
+
+    return setPrice.value === null ? '' : `für ${set} Kompletträder, je Rad ${setPrice.value.perWheel}, ${terms.value.note}`
+})
+
+/* The server's refusal of an add, under whichever key it answered with: the tyre for a Komplettrad, the size for rims. */
+const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.weightColourId ?? null)
+
 function addToBasket(): void {
-    if (selected.value === null || !canBuy.value) {
+    // One add at a time: a second press while the first is on its way does nothing.
+    if (selected.value === null || !canBuy.value || basket.processing) {
         return
     }
 
     basket.wheelConfigId = selected.value.id
+    basket.tyreVariantId = isSet.value ? (tyre.value?.id ?? null) : null
+    // The weights and the sensors go only with a Komplettrad: rims alone carry neither (#15).
+    basket.weightColourId = isSet.value ? colourId.value : null
+    basket.rdks = isSet.value ? rdks.value : null
+    basket.quantity = isSet.value ? (offer.value?.quantity ?? 4) : amount.value
     basket.post('/warenkorb', { preserveScroll: true })
 }
 
@@ -243,6 +426,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => observer?.disconnect())
+
+/* While the bar shows, it owns the bottom edge and the compare tray steps aside (PDP-02). */
+const stickyShown = computed(() => !buyVisible.value && Boolean(selected.value))
+claimBottomEdge(() => stickyShown.value)
 </script>
 
 <template>
@@ -341,13 +528,16 @@ onBeforeUnmount(() => observer?.disconnect())
                          words: a page translator would turn them into English. -->
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
                     <p v-if="product.typeDesignation" class="data pdp__type">Typ <ValueText :text="product.typeDesignation" whole /></p>
-                    <p v-if="product.rating !== null && product.ratingCount > 0" class="stars pdp__rating">
+                    <!-- The buyers' stars, computed from their reviews alone (D-103), leading to them; until there are
+                         any, what the page can prove instead — never an empty row of stars. -->
+                    <a v-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>
                         <span class="tabular"><ValueText :text="product.ratingLabel ?? ''" /></span>
-                    </p>
+                    </a>
+                    <p v-else-if="proofLine" class="t-small pdp__proof">{{ proofLine }}</p>
 
                     <div class="pdp__block">
-                        <span class="micro">Farbe · <span translate="no">{{ finish?.name }}</span></span>
+                        <span class="label">Farbe · <span translate="no">{{ finish?.name }}</span></span>
                         <div class="pdp__swatches">
                             <button
                                 v-for="item in finishes"
@@ -369,7 +559,7 @@ onBeforeUnmount(() => observer?.disconnect())
 
                     <!-- `#groessen`: where the compare page's "Größe wählen" lands. -->
                     <div id="groessen" class="pdp__block">
-                        <span class="micro">Durchmesser (<span translate="no">Zoll</span>)</span>
+                        <span class="label">Durchmesser (<span translate="no">Zoll</span>)</span>
                         <div class="chip-row pdp__chips">
                             <button
                                 v-for="size in config.sizes.value"
@@ -401,11 +591,40 @@ onBeforeUnmount(() => observer?.disconnect())
                         </Link>
                     </FitmentPanel>
 
+                    <!-- Nur Felgen or Komplettrad (#18): switching keeps the finish, the size, the amount and the tyre. -->
+                    <BuyModeChoice v-model="mode" class="pdp__block pdp__mode" :rim-price="selected?.price ?? null" :set-from="setFrom" />
+
+                    <!-- The tyres the verdict permits on this size, or the sentence why there are none. -->
+                    <KomplettradChoice
+                        v-if="isSet && offer"
+                        v-model="tyreId"
+                        v-model:colour-id="colourId"
+                        v-model:rdks="rdks"
+                        class="pdp__block"
+                        :offer="offer"
+                        :options="options"
+                    />
+
                     <div class="pdp__price">
-                        <!-- One rim, as the basket charges it; the set of four stands beside it. -->
-                        <p class="price price--lg" translate="no">{{ selected?.price ?? config.fromPrice.value }}</p>
-                        <p class="price-note">pro Felge, {{ terms.note }}</p>
-                        <p v-if="selected?.priceForFour" class="price-note pdp__four">4 Felgen: <span class="num" translate="no">{{ selected.priceForFour }}</span></p>
+                        <!-- The price of the amount chosen beside it, as the basket will charge it, and one rim's in the line under it.
+                             A refused Komplettrad has no price; the stock and the shipping below stand all the same. -->
+                        <div v-if="shownPrice" class="pdp__price-row">
+                            <div>
+                                <p class="price price--lg pdp__total" translate="no">{{ shownPrice }}</p>
+                                <p class="price-note pdp__each">{{ shownNote }}</p>
+                                <p v-if="isSet && offer?.priceOpen" class="price-note">Ohne Montage und Auswuchten – der Preis dafür steht noch nicht fest.</p>
+                                <p v-if="sensorLine" class="price-note pdp__sensors">{{ sensorLine }}</p>
+                            </div>
+                            <AmountStepper
+                                v-if="!isSet && selected && amountPrice"
+                                v-model="amount"
+                                class="pdp__amount"
+                                label="Anzahl"
+                                :min="1"
+                                :max="maxAmount"
+                                :disabled="!canBuy"
+                            />
+                        </div>
                         <!-- Einstellungen › Verkäufer & Versand: only what is given, never a placeholder (Shipping::summary). -->
                         <p v-if="shipping" class="price-note pdp__shipping">{{ shipping }}</p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
@@ -415,35 +634,43 @@ onBeforeUnmount(() => observer?.disconnect())
                         </p>
                     </div>
 
-                    <!-- `#felgen-kaufen`: where the Komplettrad section's "Nur die Felgen bestellen" lands. -->
-                    <div id="felgen-kaufen" ref="buyButton">
+                    <div ref="buyButton">
+                        <!-- Busy, never disabled, while it sends: a disabled button drops the focus to the page (#16). -->
                         <button
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
-                            :disabled="!canBuy || basket.processing"
+                            :disabled="!canBuy"
+                            :aria-busy="basket.processing ? 'true' : undefined"
                             @click="addToBasket"
                         >
                             {{ buyLabel }}
                         </button>
+                        <p v-if="addError" class="notice notice--bad pdp__add-error" role="alert">
+                            <Icon name="warning" :size="20" />
+                            <span>{{ addError }}</span>
+                        </p>
                     </div>
                 </div>
             </div>
 
             <!-- What the Gutachten asks of the car, in full: the panel above gives the overview and links here. -->
+            <!-- The papers' sentence is the verdict's (#21): not listed here a second time. -->
             <FitmentDetail
                 v-if="selected?.verdict?.detail && shared.vehicle"
                 :detail="selected.verdict.detail"
                 :vehicle-label="shared.vehicle.label"
+                :omit="[ENTRY_REQUIRED, ABNAHME_REQUIRED]"
             />
 
-            <!-- The same size as a Komplettrad: only what the verdict permits, priced on the
-                 server, or one sentence and a way forward. Absent only in fixtures. -->
-            <KomplettradOffer
-                v-if="selected && selected.komplettrad"
+            <!-- Mischbereifung (#20, D-105): a Komplettrad of its own, only where the released Gutachten prints its
+                 table of front/rear pairs; the server sends null everywhere else. Not under „Nur Felgen“ (#15). -->
+            <MischbereifungOffer
+                v-if="isSet && selected && selected.mischbereifung"
+                :weight-colour-id="colourId"
+                :rdks="rdks"
                 class="pdp__komplettrad"
-                :offer="selected.komplettrad"
+                :offer="selected.mischbereifung"
                 :wheel-config-id="selected.id"
-                :contact-email="shared.contact.email"
             />
 
             <!-- Felgendetails: the measured values, mono and right-aligned, for the size chosen above. -->
@@ -523,6 +750,34 @@ onBeforeUnmount(() => observer?.disconnect())
             </section>
 
             <!--
+                The buyers' reviews (#19, D-103), only where there are some: no empty shell. § 5b Abs. 3 UWG asks a shop that
+                shows reviews to say whether and how it checks them — the sentence under the heading does.
+            -->
+            <section v-if="reviews.length > 0" id="bewertungen" class="pdp__reviews" aria-labelledby="pdp-reviews">
+                <h2 id="pdp-reviews" class="t-h2">Bewertungen</h2>
+                <p v-if="product.ratingLabel" class="stars pdp__reviews-sum">
+                    <span class="stars__glyph" aria-hidden="true">★</span>
+                    <span class="tabular"><ValueText :text="product.ratingLabel" /></span>
+                </p>
+                <p class="t-small quiet pdp__reviews-check">
+                    Alle Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über die
+                    Bestellnummer.
+                </p>
+                <ul class="pdp__review-list">
+                    <li v-for="review in reviews" :key="review.id" class="pdp__review">
+                        <p class="pdp__review-head">
+                            <span class="pdp__review-stars" role="img" :aria-label="starsLabel(review.rating)">
+                                <Icon v-for="n in 5" :key="n" name="star" :size="16" :class="n <= review.rating ? 'pdp__star-on' : 'pdp__star-off'" />
+                            </span>
+                            <span class="t-small quiet">Geprüfter Kauf<template v-if="review.at"> · {{ review.at }}</template></span>
+                        </p>
+                        <p v-if="review.body" class="t-body pdp__review-body">{{ review.body }}</p>
+                        <p v-if="review.reply" class="t-small pdp__review-reply"><strong>Antwort von RIMIFY:</strong> {{ review.reply }}</p>
+                    </li>
+                </ul>
+            </section>
+
+            <!--
                 GPSR (Verordnung (EU) 2023/988, Art. 19): the manufacturer as they name themselves, the responsible
                 person in the EU where there is one, the product's identification and the manufacturer's safety
                 information — entered per brand in Katalog › Marken, never filled in by the shop.
@@ -553,25 +808,27 @@ onBeforeUnmount(() => observer?.disconnect())
                 </dl>
                 <p v-else class="t-small quiet">
                     Die Angaben des Herstellers zu dieser Felge liegen uns noch nicht vor. Fragen dazu beantworten wir dir
-                    unter <a :href="`mailto:${shared.contact.email}`">{{ shared.contact.email }}</a>.
+                    gern – <Link :href="askAboutMaker">schreib uns</Link>.
                 </p>
             </section>
         </div>
     </section>
 
-    <!-- The phone's sticky bar: price and the one action, once the main button is off screen. -->
-    <div v-if="!buyVisible && selected" class="stickybar pdp__sticky">
-        <div class="pdp__sticky-price">
-            <p class="price" translate="no">{{ selected.price }}</p>
-            <p class="price-note">pro Felge, {{ terms.note }}</p>
+    <!-- The sticky bar: price and the one action, once the main button is off screen — on every width (D-132). -->
+    <div v-if="stickyShown" class="stickybar pdp__sticky">
+        <div v-if="shownPrice" class="pdp__sticky-price">
+            <p class="price" translate="no">{{ shownPrice }}</p>
+            <p v-if="isSet" class="price-note">für {{ offer?.quantity ?? 4 }} Kompletträder</p>
+            <p v-else class="price-note">{{ amountPrice ? (amount === 1 ? 'für 1 Felge' : `für ${amount} Felgen`) : 'pro Felge' }}</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"
             type="button"
-            :disabled="!canBuy || basket.processing"
+            :disabled="!canBuy"
+            :aria-busy="basket.processing ? 'true' : undefined"
             @click="addToBasket"
         >
-            {{ buyLabel }}
+            {{ isSet && canBuy && !basket.processing ? 'In den Warenkorb' : buyLabel }}
         </button>
     </div>
 </template>
@@ -809,6 +1066,100 @@ onBeforeUnmount(() => observer?.disconnect())
     margin-top: var(--space-5);
 }
 
+.pdp__proof {
+    margin: var(--space-1) 0 0;
+    color: var(--ink2);
+}
+
+a.pdp__rating {
+    color: inherit;
+    text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    a.pdp__rating:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+
+/* ── The buyers' reviews (D-103) ── */
+.pdp__reviews {
+    margin-top: var(--space-8);
+    max-width: 880px;
+}
+
+.pdp__reviews-sum,
+.pdp__reviews-check {
+    margin: var(--space-2) 0 0;
+}
+
+.pdp__review-list {
+    display: grid;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+}
+
+.pdp__review {
+    display: grid;
+    gap: var(--space-2);
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--line-s);
+}
+
+.pdp__review-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin: 0;
+}
+
+.pdp__review-stars {
+    display: inline-flex;
+    gap: 2px;
+}
+
+/* `--c-star`: ratings only (DIRECTION §2). */
+.pdp__star-on {
+    color: var(--c-star);
+}
+
+.pdp__star-off {
+    color: var(--c-line);
+}
+
+.pdp__review-body,
+.pdp__review-reply {
+    margin: 0;
+    max-width: 72ch;
+}
+
+.pdp__review-reply {
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--line);
+    color: var(--ink2);
+}
+
+.pdp__review-reply strong {
+    color: var(--ink);
+}
+
+/* The price and how many, side by side; the stepper drops under the price when the column is narrow. */
+.pdp__price-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-5);
+}
+
+.pdp__amount {
+    flex: none;
+}
+
 .pdp__stock {
     margin-top: var(--space-2);
 }
@@ -820,6 +1171,10 @@ onBeforeUnmount(() => observer?.disconnect())
 
 .pdp__add {
     margin-top: var(--space-4);
+}
+
+.pdp__add-error {
+    margin-top: var(--space-3);
 }
 
 .pdp__komplettrad {
@@ -891,6 +1246,11 @@ onBeforeUnmount(() => observer?.disconnect())
     min-width: 0;
 }
 
+/* A price is one figure: it never breaks across lines; the note under it may, at 320 px (PDP-03). */
+.pdp__sticky-price .price {
+    white-space: nowrap;
+}
+
 .pdp__sticky-btn {
     flex: none;
 }
@@ -910,9 +1270,23 @@ onBeforeUnmount(() => observer?.disconnect())
         top: calc(var(--header-h) + var(--space-4));
     }
 
-    /* The desktop panel keeps its button in view already; the bar is for phones. */
+    /*
+     * On a desktop too, once the button has left the screen (D-132): with the verdict and the Komplettrad's choices above
+     * it, the button stood at 1.470 px — 2.227 px with Komplettrad — on a 900 px screen. The price and the button stand
+     * at the content's right edge, under the purchase column.
+     */
     .pdp__sticky {
-        display: none;
+        justify-content: flex-end;
+        padding-inline: max(var(--page-margin), calc((100% - var(--content-max)) / 2));
+    }
+
+    .pdp__sticky-price {
+        flex: none;
+        text-align: right;
+    }
+
+    .pdp__sticky-btn {
+        min-width: 240px;
     }
 }
 </style>

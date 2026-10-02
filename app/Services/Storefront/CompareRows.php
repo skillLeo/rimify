@@ -261,6 +261,7 @@ final readonly class CompareRows
         $inStock = [];
         $sellable = 0;
         $allNotPermitted = true;
+        $allNotes = true;
         $document = null;
         /** @var array<string, FitmentVerdict> $firstOf */
         $firstOf = [];
@@ -284,6 +285,8 @@ final readonly class CompareRows
 
             $sellable++;
             $anyConditional = $anyConditional || $verdict->status === VerdictStatus::Conditional;
+            // Every conditional size's Auflagen all Hinweise (D-104): the column may say „Freigegeben“.
+            $allNotes = $allNotes && ($verdict->status !== VerdictStatus::Conditional || $verdict->notesOnly());
             $requiresEntry = $requiresEntry || $verdict->requiresEntry;
             $papersExempt = $papersExempt && $verdict->papersExempt();
             $groups = $verdict->conditionGroups();
@@ -353,12 +356,15 @@ final readonly class CompareRows
         $sentences = array_map(static fn (Condition $c): string => $c->sentenceDe(), $conditions);
         $sizes = array_keys($tyreSizes);
         sort($sizes, SORT_NATURAL);
+        $notesOnly = $status === VerdictStatus::Conditional && ! $requiresEntry && $allNotes;
 
         return [
             'status' => $status,
             'verdict' => [
                 'status' => $status->value,
-                'label' => $status->labelDe(),
+                'label' => $notesOnly ? VerdictStatus::Permitted->labelDe() : $status->labelDe(),
+                // Every Auflage of every size a Hinweis (#23, D-104).
+                'notesOnly' => $notesOnly,
                 'sellable' => $status->isSellable(),
                 'requiresEntry' => $requiresEntry,
                 'papersExempt' => $papersExempt,

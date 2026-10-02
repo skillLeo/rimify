@@ -63,7 +63,8 @@ export async function chooseVehicleFromHome(page: Page, hsn = '0005', tsn = 'CKT
     const button = page.locator('[data-primary]')
     await expect(button).toBeEnabled()
     await button.click()
-    await page.waitForURL('**/felgen', { timeout: 30_000 })
+    // The listing carries the car in its address (#8, D-116): `/felgen?fahrzeug=…`.
+    await page.waitForURL((url) => url.pathname === '/felgen', { timeout: 30_000 })
     await page.waitForLoadState('networkidle')
 }
 

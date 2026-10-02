@@ -11,8 +11,10 @@
  * 55.3–47.0° N to y 0–800, which is close enough to a plate carrée for a schematic outline.
  */
 
+import { Link } from '@inertiajs/vue3'
 import { computed, ref, useId } from 'vue'
 import { useShared } from '../../composables/useShared'
+import { contactHref } from '../../lib/contact'
 
 defineProps<{ demo: boolean }>()
 
@@ -125,8 +127,7 @@ const border = `M ${BORDER.map(project).join(' L ')} Z`
                             <a :href="telHref" class="num">{{ contact.phone }}</a>
                         </p>
                         <p v-else class="empty__text">
-                            Schreib uns, wir finden einen Weg:
-                            <a :href="`mailto:${contact.email}`">{{ contact.email }}</a>
+                            <Link :href="contactHref({ subject: `Montagepartner gesucht (PLZ ${searched})`, from: '/' })">Schreib uns</Link>, wir finden einen Weg.
                         </p>
                     </div>
                 </div>

@@ -22,12 +22,13 @@
  * emptied now, not before), declined (back to the Kasse, everything typed still there) or closed.
  */
 
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import type { IconName } from '../../art'
 import { totalNote } from '../../composables/usePriceTerms'
+import { contactHref } from '../../lib/contact'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { PAPERS_EXEMPT, entryBySize, entryLine } from '../../fitment/papers'
 import type { BestellungProps } from '../../types/pages'
@@ -88,12 +89,13 @@ const lines = computed(() =>
 
 /*
  * Questions about the order go to the phone when the client has given one, otherwise to the
- * e-mail with the order number already in the subject — never to an invented number.
+ * contact form with the order number already in the subject (#26) — never to an invented number.
  */
+const page = usePage()
 const questionHref = computed(() =>
     props.contact.phone
         ? `tel:${(props.contact.phoneIntl ?? props.contact.phone).replace(/\s/g, '')}`
-        : `mailto:${props.contact.email}?subject=${encodeURIComponent(`Bestellung ${props.order.number}`)}`
+        : contactHref({ subject: `Bestellung ${props.order.number}`, from: page.url })
 )
 
 /* ── The payment, as the server last answered ─────────────────────────────── */
@@ -302,8 +304,9 @@ function openAccount(): void {
 
                             <div v-if="line.verdict" class="ord__verdict">
                                 <p class="ord__verdict-row">
-                                    <span class="tag" :class="VERDICT_CLASS[line.verdict.status] ?? 'tag--unknown'">
-                                        {{ VERDICT_LABEL[line.verdict.status] ?? 'Keine Freigabe hinterlegt' }}
+                                    <!-- Every Auflage a Hinweis (#23, D-104): „Freigegeben“, as the product page said it. -->
+                                    <span class="tag" :class="VERDICT_CLASS[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'tag--unknown'">
+                                        {{ VERDICT_LABEL[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'Keine Freigabe hinterlegt' }}
                                     </span>
                                     <span class="data">
                                         <template v-if="line.documentNumber">Gutachten {{ line.documentNumber }} · </template>Fassung {{ line.verdict.documentRevision }}
@@ -386,17 +389,17 @@ function openAccount(): void {
                             </div>
                         </li>
                         <li>
-                            <a class="ord__next-row ord__next-link" :href="questionHref">
+                            <component :is="contact.phone ? 'a' : Link" class="ord__next-row ord__next-link" :href="questionHref">
                                 <Icon :name="contact.phone ? 'phone' : 'mail'" :size="20" />
                                 <div>
                                     <p class="ord__next-title">Fragen zur Bestellung</p>
                                     <p class="ord__next-text">
                                         <span v-if="contact.phone" class="tabular">{{ contact.phone }}</span>
-                                        <span v-else>{{ contact.email }}</span> · {{ contact.hours }}
+                                        <span v-else>Schreib uns</span> · {{ contact.hours }}
                                     </p>
                                 </div>
                                 <Icon name="chevron-right" :size="20" />
-                            </a>
+                            </component>
                         </li>
                     </ul>
                 </aside>

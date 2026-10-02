@@ -94,7 +94,7 @@ const rhythm = computed<Partial<Record<SectionKey, string>>>(() => {
 
     <FindFast v-if="showFindFast" :class="rhythm.h6" :sizes="sizes" :brands="brands" :vehicle="vehicle" />
 
-    <KomplettradBand :class="rhythm.h7" :tyre="komplettrad.tyre" :vehicle="vehicle" />
+    <KomplettradBand :class="rhythm.h7" :tyre="komplettrad.tyre" :vehicle="vehicle" :wheel="komplettrad.wheel ?? null" />
 
     <RimCodeSection v-if="showRimCode" :class="rhythm.h8" :product="hero.product" />
 

@@ -188,6 +188,37 @@ final readonly class FitmentVerdict
     }
 
     /**
+     * A CONDITIONAL answer whose Auflagen are all Hinweise (#23, D-104): shown as „Freigegeben“ with a quiet line, not
+     * „Mit Auflagen“. Only where nothing else makes it conditional — no Eintragung, the tyres' half not waiting on the
+     * papers (R-03), no fact missing — and every Auflage, of every size, is a Hinweis (the blended list, D-094: the
+     * louder reading wins). The status itself is untouched; this decides the words and the colour.
+     */
+    public function notesOnly(): bool
+    {
+        if ($this->status !== VerdictStatus::Conditional || $this->requiresEntry || $this->missingFacts !== [] || $this->conditions === []) {
+            return false;
+        }
+
+        if ($this->tyre !== null && $this->tyre->status !== VerdictStatus::Permitted) {
+            return false;
+        }
+
+        foreach ($this->conditions as $condition) {
+            if ($condition->level() !== ConditionLevel::Hinweis) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** The badge's words: „Freigegeben“ for an answer whose Auflagen are all Hinweise (D-104), else the status's own. */
+    public function displayLabelDe(): string
+    {
+        return $this->notesOnly() ? VerdictStatus::Permitted->labelDe() : $this->status->labelDe();
+    }
+
+    /**
      * The papers need no correction (§ 15 FZV): said only where the wheel may go on the car, and only where every
      * document the answer rests on frees them (PapersWording). A document that says nothing claims nothing.
      */

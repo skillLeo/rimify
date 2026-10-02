@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\ContactMessage;
 use App\Support\ScheduleBeat;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -15,5 +16,9 @@ Artisan::command('inspire', function () {
 Schedule::command('demo:assert-clean')->dailyAt('04:30')->timezone('Europe/Berlin')->environments(['production']);
 // Block G: an order unpaid 24 hours after it was placed expires, and its stock goes back on the shelf.
 Schedule::command('orders:expire')->everyTenMinutes()->withoutOverlapping();
+// #19, D-103: once, some days after the team marked an order „Zugestellt“, its buyer is asked to rate the rims.
+Schedule::command('rimify:bewertungen-einladen')->dailyAt('10:00')->timezone('Europe/Berlin')->withoutOverlapping();
+// #12, D-123: a contact-form message is kept twelve months, then deleted with the address in it.
+Schedule::command('model:prune', ['--model' => [ContactMessage::class]])->dailyAt('03:30')->timezone('Europe/Berlin');
 // The scheduler's pulse: rimify:preflight and the admin's health line read it to tell whether the cron line runs.
 Schedule::call(static fn () => ScheduleBeat::record())->everyMinute()->name('schedule-heartbeat');

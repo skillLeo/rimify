@@ -17,7 +17,9 @@ import {
     SCHEMATIC_MM,
     setupGeometry,
     signedText,
+    twoHeaded,
     tyreDiameterMm,
+    WHEEL_MM,
     wholeMmText,
     type FelgenModel,
     type RearScene,
@@ -540,5 +542,83 @@ describe('rear view', SWEEP, () => {
             },
             true
         )
+    })
+})
+
+/* ── The wheel as a wheel (#11): ET, Maulweite, the disc on the face ─────────────────────────────────────────── */
+
+describe('the new wheel’s measures in the arch', SWEEP, () => {
+    const numbers = (d: string) => d.match(/-?[\d.]+/g)?.map(Number) ?? []
+
+    it('dimensions ET from the new centre plane to the mounting face, and the Maulweite edge to edge, on the one scale', () => {
+        eachPair(
+            27,
+            (a, b) => {
+                const model = felgenModel(a, b)
+                const scene = sceneOf(model)
+                const k = scene.unitsPerMm
+                const { et, width } = scene.section
+
+                near(scene.section.planeX, scene.next.centreX, 1e-9)
+                expect(et.drawn).toBe(b.etMm !== 0)
+                near(Math.abs(scene.faceX - scene.section.planeX), Math.abs(b.etMm) * k, 1e-9)
+                near(et.midX, (scene.faceX + scene.section.planeX) / 2, 1e-9)
+                near(width.midX, scene.next.centreX, 1e-9)
+                expect(width.drawn).toBe(true)
+
+                // The ET line lies in the rim's upper half, the Maulweite line in its lower half, both inside the rim.
+                const rimTop = scene.next.rimBottomY - scene.next.rim.height
+                expect(et.y).toBeGreaterThan(rimTop)
+                expect(et.y).toBeLessThan(width.y)
+                expect(width.y).toBeLessThan(scene.next.rimBottomY)
+            },
+            true
+        )
+    })
+
+    it('puts the heads inside where they fit and outside, pointing in, where they do not', () => {
+        const wide = twoHeaded(100, 160, 50)
+        const [, , leftTip, , leftBase] = numbers(wide.heads)
+        expect(wide.shaft).toBe('M100 50 H160')
+        near(leftTip ?? 0, 100, 0.01)
+        expect(leftBase ?? 0).toBeGreaterThan(100)
+
+        const narrow = twoHeaded(100, 110, 50)
+        expect(narrow.shaft).toBe(`M${100 - 2 * REAR.head} 50 H${110 + 2 * REAR.head}`)
+        const [base, , tip] = numbers(narrow.heads)
+        expect(tip).toBe(100)
+        expect(base ?? 0).toBeLessThan(100)
+
+        expect(twoHeaded(100, 100, 50).drawn).toBe(false)
+        expect(twoHeaded(100, 100.2, 50).drawn).toBe(true)
+    })
+
+    it('keeps the disc on the mounting face and inside the new rim, whatever the ET', () => {
+        eachPair(
+            8,
+            (a, b) => {
+                const scene = sceneOf(felgenModel(a, b))
+                // `M x y H x V y H x Z` twice: the x of every M and H.
+                const xs = [...scene.section.disc.matchAll(/[MH](-?[\d.]+)/g)].map((m) => Number(m[1]))
+
+                expect(Math.min(...xs)).toBeCloseTo(scene.faceX, 1)
+                // Inside the rim — unless the rim's outer edge reaches no further than the face: then a 1,5-mm sliver.
+                expect(Math.max(...xs)).toBeLessThanOrEqual(Math.max(scene.next.outerEdgeX, scene.faceX + 1.5 * scene.unitsPerMm) + 0.02)
+            },
+            true
+        )
+    })
+
+    it('draws the worked example: ET 35 is 35 mm, the Maulweite 8,5J is 215,9 mm', () => {
+        const scene = sceneOf(felgenModel(current, next))
+        const k = scene.unitsPerMm
+        const [wFrom, , wTo] = numbers(scene.section.width.shaft)
+
+        // ET 35 is 16,4 units here: too short for two heads inside, so they point in from outside, the line running on.
+        near(scene.faceX - scene.section.planeX, 35 * k, 1e-9)
+        const [etFrom, , etTo] = numbers(scene.section.et.shaft)
+        near((etTo ?? 0) - (etFrom ?? 0), 35 * k + 4 * REAR.head, 0.02)
+        near((wTo ?? 0) - (wFrom ?? 0), 215.9 * k, 0.02)
+        expect(WHEEL_MM.boltCircle * 2).toBe(112)
     })
 })

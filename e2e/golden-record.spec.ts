@@ -167,12 +167,18 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     const draft = await page.getByRole('heading', { name: 'Zeilen hinzufügen' }).isVisible()
 
     if (draft && (await page.locator('.gs-group').count()) === 0) {
-        // The first vehicle the search offers whose legal data is complete (R-03).
-        const hit = page.locator('.rc-hits li', { hasNotText: 'Angaben für die Prüfung fehlen' }).first()
+        // The first vehicle the search offers whose legal data is complete (R-03) — in the vehicles' own column: the
+        // sizes are `.rc-hits` too, and the size list can answer first (GUTACHTEN-54's flake, 03.10.2026).
+        const vehicles = page.locator('section[aria-labelledby="rc-h-vehicles"]')
+        const hit = vehicles.locator('.rc-hits li', { hasNotText: 'Angaben für die Prüfung fehlen' }).first()
         await expect(hit).toBeVisible({ timeout: 20_000 })
         await hit.locator('input[type="checkbox"]').check()
+        await expect(vehicles.locator('.rc-chips li'), 'the car was not chosen').toHaveCount(1)
 
+        // The search's own list, not the first one shown before anything was typed.
+        const searched = page.waitForResponse((r) => new URL(r.url()).pathname.endsWith('/suche/felgen') && new URL(r.url()).searchParams.get('q') === MODEL)
         await page.locator('#rc-wheel-q').fill(MODEL)
+        await searched
         const model = page.locator('.rc-group', { hasText: MODEL }).first()
         await expect(model).toBeVisible({ timeout: 20_000 })
         await model.locator('.rc-hit--model input').check()

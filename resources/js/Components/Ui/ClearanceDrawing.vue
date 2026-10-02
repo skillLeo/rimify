@@ -33,8 +33,8 @@
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ValueText from './ValueText.vue'
-import { felgenModel, REAR, rearFrame, rearScene, type RearFrame, type SetupSide, type WheelFrame, type WheelSetup } from '../../lib/felgenGeometry'
-import { setupLine } from '../../lib/rechner'
+import { felgenModel, REAR, rearFrame, rearScene, twoHeaded, wholeMmText, type RearFrame, type SetupSide, type WheelFrame, type WheelSetup } from '../../lib/felgenGeometry'
+import { etLabel, jLabel, setupLine } from '../../lib/rechner'
 
 const props = defineProps<{ current: WheelSetup; next: WheelSetup }>()
 
@@ -214,104 +214,216 @@ const legend = computed(() => ({
     next: setupLine(props.next),
 }))
 
+/* The wheel's middle from outside: five screws on the bolt circle, the bore inside it — a schematic, in its own units. */
+const FRONT = { size: 200, c: 100, disc: 92, lk: 56, hole: 9, bore: 27, tagY: 186 } as const
+
+const holes = Array.from({ length: 5 }, (_, i) => {
+    const angle = ((-90 + i * 72) * Math.PI) / 180
+
+    return { x: Math.round((FRONT.c + FRONT.lk * Math.cos(angle)) * 100) / 100, y: Math.round((FRONT.c + FRONT.lk * Math.sin(angle)) * 100) / 100 }
+})
+
+/* The bolt circle's diameter, across the middle, between two screws. */
+const lkDim = twoHeaded(FRONT.c - FRONT.lk, FRONT.c + FRONT.lk, FRONT.c)
+
+/*
+ * The new wheel's own measures, written inside the sheet beside the lines they name (#11): the sheet scales as one, so
+ * a label keeps its place against its line at any width. ET 0 has no dimension — the two lines are one.
+ */
+const measures = computed(() => ({
+    et: etLabel(props.next.etMm),
+    width: `${jLabel(props.next.widthIn)} = ${wholeMmText(model.value.next.rimWidthMm)}`,
+}))
+
 const description = computed(
     () =>
-        `Blick von hinten auf ein Rad im Radhaus, rechnerisch. ${model.value.outer.text}. ${model.value.inner.text}. ` +
-        'Federbein und Kotflügel schematisch.'
+        `Blick von hinten auf ein Rad im Radhaus, die Felge im Schnitt, rechnerisch. ${model.value.outer.text}. ${model.value.inner.text}. ` +
+        `Neue Felge: Einpresstiefe ${measures.value.et}, der Abstand von der Felgenmitte zur Anlagefläche; Maulweite ${measures.value.width}. ` +
+        'Daneben ist die Radmitte von außen zu sehen, mit Lochkreis und Mittenlochbohrung. Federbein, Kotflügel, Radschüssel und Schrauben sind schematisch gezeichnet.'
 )
 </script>
 
 <template>
     <!-- One image to assistive tech (the sentence says what it shows); a figure may not carry role="img". -->
     <div v-if="plausible" class="cd" role="img" :aria-label="description">
-        <div class="cd__stage">
-            <p class="cd__view small">Blick von hinten auf ein Rad im Radhaus</p>
-            <div class="cd__parts" :style="parts.row">
-                <span class="cd__cell"><span class="cd__part micro" data-part="strut" :style="parts.strut">← innen · Federbein</span></span>
-                <span class="cd__cell"><span class="cd__part micro" data-part="fender" :style="parts.fender">Kotflügel · außen →</span></span>
+        <div class="cd__body">
+            <div class="cd__stage">
+                <p class="cd__view small">Blick von hinten auf ein Rad im Radhaus</p>
+                <div class="cd__parts" :style="parts.row">
+                    <span class="cd__cell"><span class="cd__part micro" data-part="strut" :style="parts.strut">← innen · Federbein</span></span>
+                    <span class="cd__cell"><span class="cd__part micro" data-part="fender" :style="parts.fender">Kotflügel · außen →</span></span>
+                </div>
+                <p class="cd__note micro quiet">Federbein und Kotflügel: Lage schematisch – je nach Fahrzeug</p>
+
+                <div class="cd__sheet">
+                    <svg
+                        class="cd__svg"
+                        :viewBox="`0 0 ${REAR.width} ${REAR.height}`"
+                        :data-units-per-mm="scene.unitsPerMm"
+                        aria-hidden="true"
+                        focusable="false"
+                    >
+                        <!-- The car: schematic, the same for both wheels. -->
+                        <g class="cd__car">
+                            <rect class="cd__line cd__schematic" data-part="strut" :x="scene.strut.tube.x" :y="scene.strut.tube.y" :width="scene.strut.tube.width" :height="scene.strut.tube.height" />
+                            <path class="cd__line cd__spring" :d="scene.strut.spring" />
+                            <path class="cd__line cd__schematic" data-part="fender" :d="scene.fender.path" />
+                        </g>
+
+                        <!-- The new wheel's tint first, so the current wheel's dashes stay visible across it. -->
+                        <path class="cd__ring" :d="scene.next.ring" fill-rule="evenodd" />
+
+                        <g class="old" data-wheel="current">
+                            <rect class="cd__line cd__old cd__tyre" :x="scene.current.tyre.x" :y="scene.current.tyre.y" :width="scene.current.tyre.width" :height="scene.current.tyre.height" :rx="scene.current.tyre.r" />
+                            <rect class="cd__line cd__old cd__rim" :x="scene.current.rim.x" :y="scene.current.rim.y" :width="scene.current.rim.width" :height="scene.current.rim.height" />
+                        </g>
+                        <g class="new" data-wheel="next">
+                            <rect class="cd__line cd__new cd__tyre" :x="scene.next.tyre.x" :y="scene.next.tyre.y" :width="scene.next.tyre.width" :height="scene.next.tyre.height" :rx="scene.next.tyre.r" />
+                            <rect class="cd__line cd__new cd__rim" :x="scene.next.rim.x" :y="scene.next.rim.y" :width="scene.next.rim.width" :height="scene.next.rim.height" />
+                        </g>
+
+                        <!-- The new wheel as a wheel (#11): its disc on the face, two screws, its centre plane. -->
+                        <g class="cd__section" data-part="section">
+                            <path class="cd__line cd__disc" :d="scene.section.disc" />
+                            <path class="cd__line cd__bolt" :d="scene.section.bolts" />
+                            <path class="cd__line cd__plane" data-part="plane" :d="scene.section.plane" />
+                        </g>
+
+                        <path class="cd__line cd__face" :d="scene.face" />
+
+                        <path v-if="scene.outer.extFrom" class="cd__line cd__ext cd__ext--old" data-dim="outer" :d="scene.outer.extFrom" />
+                        <path v-if="scene.outer.extTo" class="cd__line cd__ext" data-dim="outer" :d="scene.outer.extTo" />
+                        <path v-if="scene.inner.extFrom" class="cd__line cd__ext cd__ext--old" data-dim="inner" :d="scene.inner.extFrom" />
+                        <path v-if="scene.inner.extTo" class="cd__line cd__ext" data-dim="inner" :d="scene.inner.extTo" />
+                        <path v-if="scene.outer.shaft" class="cd__line cd__dim" data-dim="outer" :d="scene.outer.shaft" />
+                        <path v-if="scene.inner.shaft" class="cd__line cd__dim" data-dim="inner" :d="scene.inner.shaft" />
+                        <path v-if="scene.outer.head" class="cd__head" data-dim="outer" :d="scene.outer.head" />
+                        <path v-if="scene.inner.head" class="cd__head" data-dim="inner" :d="scene.inner.head" />
+
+                        <!-- ET: from the centre plane to the mounting face. Maulweite: rim edge to rim edge. -->
+                        <g data-measure="et">
+                            <template v-if="scene.section.et.drawn">
+                                <path class="cd__line cd__mdim" :d="scene.section.et.shaft" />
+                                <path class="cd__mhead" :d="scene.section.et.heads" />
+                            </template>
+                            <text class="cd__tag" :x="scene.section.et.midX" :y="scene.section.et.y - 7" text-anchor="middle" translate="no">{{ measures.et }}</text>
+                        </g>
+                        <g data-measure="width">
+                            <path class="cd__line cd__mdim" :d="scene.section.width.shaft" />
+                            <path class="cd__mhead" :d="scene.section.width.heads" />
+                            <text class="cd__tag" :x="scene.section.width.midX" :y="scene.section.width.y - 7" text-anchor="middle">Maulweite</text>
+                            <text class="cd__tag cd__tag--value" :x="scene.section.width.midX" :y="scene.section.width.y + 17" text-anchor="middle" translate="no">{{ measures.width }}</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <div class="cd__row">
+                    <span class="cd__label micro" data-dim="outer" :style="labels.outer"><ValueText :text="model.outer.text" /></span>
+                </div>
+                <div class="cd__row">
+                    <span class="cd__label micro" data-dim="inner" :style="labels.inner"><ValueText :text="model.inner.text" /></span>
+                </div>
             </div>
-            <p class="cd__note micro quiet">Federbein und Kotflügel: Lage schematisch – je nach Fahrzeug</p>
 
-            <div class="cd__sheet">
-                <svg
-                    class="cd__svg"
-                    :viewBox="`0 0 ${REAR.width} ${REAR.height}`"
-                    :data-units-per-mm="scene.unitsPerMm"
-                    aria-hidden="true"
-                    focusable="false"
-                >
-                    <!-- The car: schematic, the same for both wheels. -->
-                    <g class="cd__car">
-                        <rect class="cd__line cd__schematic" data-part="strut" :x="scene.strut.tube.x" :y="scene.strut.tube.y" :width="scene.strut.tube.width" :height="scene.strut.tube.height" />
-                        <path class="cd__line cd__spring" :d="scene.strut.spring" />
-                        <path class="cd__line cd__schematic" data-part="fender" :d="scene.fender.path" />
-                    </g>
+            <div class="cd__legend micro muted">
+                <span class="cd__key" data-key="current">
+                    <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
+                        <path class="cd__line cd__old" d="M0 4 H32" />
+                    </svg>
+                    <span>bisher <ValueText :text="legend.current" /></span>
+                </span>
+                <span class="cd__key" data-key="next">
+                    <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
+                        <path class="cd__line cd__new" d="M0 4 H32" />
+                    </svg>
+                    <span>neu <ValueText :text="legend.next" /></span>
+                </span>
+                <span class="cd__key" data-key="face">
+                    <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
+                        <path class="cd__line cd__face" d="M0 4 H32" />
+                    </svg>
+                    <span>Anlagefläche: hier wird die Felge angeschraubt</span>
+                </span>
+                <span class="cd__key" data-key="plane">
+                    <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
+                        <path class="cd__line cd__plane" d="M0 4 H32" />
+                    </svg>
+                    <span>Felgenmitte: ihr Abstand zur Anlagefläche ist die Einpresstiefe (ET)</span>
+                </span>
+            </div>
 
-                    <!-- The new wheel's tint first, so the current wheel's dashes stay visible across it. -->
-                    <path class="cd__ring" :d="scene.next.ring" fill-rule="evenodd" />
-
-                    <g class="old" data-wheel="current">
-                        <rect class="cd__line cd__old cd__tyre" :x="scene.current.tyre.x" :y="scene.current.tyre.y" :width="scene.current.tyre.width" :height="scene.current.tyre.height" :rx="scene.current.tyre.r" />
-                        <rect class="cd__line cd__old cd__rim" :x="scene.current.rim.x" :y="scene.current.rim.y" :width="scene.current.rim.width" :height="scene.current.rim.height" />
-                    </g>
-                    <g class="new" data-wheel="next">
-                        <rect class="cd__line cd__new cd__tyre" :x="scene.next.tyre.x" :y="scene.next.tyre.y" :width="scene.next.tyre.width" :height="scene.next.tyre.height" :rx="scene.next.tyre.r" />
-                        <rect class="cd__line cd__new cd__rim" :x="scene.next.rim.x" :y="scene.next.rim.y" :width="scene.next.rim.width" :height="scene.next.rim.height" />
-                    </g>
-
-                    <path class="cd__line cd__face" :d="scene.face" />
-
-                    <path v-if="scene.outer.extFrom" class="cd__line cd__ext cd__ext--old" data-dim="outer" :d="scene.outer.extFrom" />
-                    <path v-if="scene.outer.extTo" class="cd__line cd__ext" data-dim="outer" :d="scene.outer.extTo" />
-                    <path v-if="scene.inner.extFrom" class="cd__line cd__ext cd__ext--old" data-dim="inner" :d="scene.inner.extFrom" />
-                    <path v-if="scene.inner.extTo" class="cd__line cd__ext" data-dim="inner" :d="scene.inner.extTo" />
-                    <path v-if="scene.outer.shaft" class="cd__line cd__dim" data-dim="outer" :d="scene.outer.shaft" />
-                    <path v-if="scene.inner.shaft" class="cd__line cd__dim" data-dim="inner" :d="scene.inner.shaft" />
-                    <path v-if="scene.outer.head" class="cd__head" data-dim="outer" :d="scene.outer.head" />
-                    <path v-if="scene.inner.head" class="cd__head" data-dim="inner" :d="scene.inner.head" />
+            <!-- The wheel's middle from outside (#11): what the bolt circle is. Schematic: the calculator does not know it. -->
+            <div class="cd__front" data-part="front">
+                <p class="cd__view small">Radmitte von außen</p>
+                <svg class="cd__front-svg" :viewBox="`0 0 ${FRONT.size} ${FRONT.size}`" aria-hidden="true" focusable="false">
+                    <circle class="cd__line cd__front-disc" :cx="FRONT.c" :cy="FRONT.c" :r="FRONT.disc" />
+                    <circle class="cd__line cd__lk" :cx="FRONT.c" :cy="FRONT.c" :r="FRONT.lk" />
+                    <circle v-for="(hole, i) in holes" :key="i" class="cd__line cd__hole" :cx="hole.x" :cy="hole.y" :r="FRONT.hole" />
+                    <circle class="cd__line cd__bore" :cx="FRONT.c" :cy="FRONT.c" :r="FRONT.bore" />
+                    <path class="cd__line cd__mdim" :d="lkDim.shaft" />
+                    <path class="cd__mhead" :d="lkDim.heads" />
+                    <path class="cd__line cd__leader" :d="`M${FRONT.c} ${FRONT.c + FRONT.lk} V${FRONT.tagY - 13}`" />
+                    <text class="cd__tag" :x="FRONT.c" :y="FRONT.tagY" text-anchor="middle">Lochkreis</text>
                 </svg>
+                <dl class="cd__terms micro">
+                    <div>
+                        <dt>Lochkreis</dt>
+                        <dd><ValueText text="Anzahl der Schrauben × Durchmesser des Kreises durch ihre Mitten, etwa 5 × 112. Er muss genau zu deinem Auto passen und ändert sich nicht mit der Felgengröße." /></dd>
+                    </div>
+                    <div>
+                        <dt>Mittenlochbohrung</dt>
+                        <dd>Die Öffnung in der Mitte, mit der die Felge auf der Nabe sitzt.</dd>
+                    </div>
+                </dl>
             </div>
 
-            <div class="cd__row">
-                <span class="cd__label micro" data-dim="outer" :style="labels.outer"><ValueText :text="model.outer.text" /></span>
-            </div>
-            <div class="cd__row">
-                <span class="cd__label micro" data-dim="inner" :style="labels.inner"><ValueText :text="model.inner.text" /></span>
-            </div>
+            <p class="cd__caption micro quiet">Felge und Reifen maßstäblich, bisher und neu im selben Maßstab; Radschüssel, Schrauben und Radmitte schematisch. Werte rechnerisch, auf ganze Millimeter gerundet.</p>
         </div>
-
-        <div class="cd__legend micro muted">
-            <span class="cd__key" data-key="current">
-                <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
-                    <path class="cd__line cd__old" d="M0 4 H32" />
-                </svg>
-                <span>bisher <ValueText :text="legend.current" /></span>
-            </span>
-            <span class="cd__key" data-key="next">
-                <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
-                    <path class="cd__line cd__new" d="M0 4 H32" />
-                </svg>
-                <span>neu <ValueText :text="legend.next" /></span>
-            </span>
-            <span class="cd__key" data-key="face">
-                <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
-                    <path class="cd__line cd__face" d="M0 4 H32" />
-                </svg>
-                <span>Anlagefläche: hier wird die Felge angeschraubt</span>
-            </span>
-        </div>
-
-        <p class="cd__caption micro quiet">Rad und Reifen maßstäblich, beide im selben Maßstab. Werte rechnerisch, auf ganze Millimeter gerundet.</p>
     </div>
 </template>
 
 <style scoped>
 .cd {
-    display: grid;
-    gap: var(--sp-12);
+    container-type: inline-size;
     width: 100%;
     min-width: 0;
     margin: 0;
+}
+
+/*
+ * The section in the arch, its key, the wheel's middle from outside, the caption — one under the other; where the
+ * figure has room for both views, the middle stands beside the section and the key runs under both (#11).
+ */
+.cd__body {
+    display: grid;
+    grid-template-areas: 'stage' 'legend' 'front' 'caption';
+    gap: var(--sp-12);
+    min-width: 0;
+}
+
+.cd__stage {
+    grid-area: stage;
+}
+
+.cd__legend {
+    grid-area: legend;
+}
+
+.cd__front {
+    grid-area: front;
+}
+
+.cd__caption {
+    grid-area: caption;
+}
+
+@container (min-width: 560px) {
+    .cd__body {
+        grid-template-columns: minmax(0, 360px) minmax(0, 176px);
+        grid-template-areas: 'stage front' 'legend legend' 'caption caption';
+        column-gap: var(--sp-24);
+        align-items: start;
+    }
 }
 
 /* The sheet and its label rows share one width, so a label's fraction is the sheet's fraction. */
@@ -436,6 +548,115 @@ const description = computed(
 
 .cd__ext--old {
     stroke-dasharray: 2 2;
+}
+
+/* ── The wheel as a wheel (#11) ───────────────────────────────────────────────── */
+
+/* The disc, cut: tinted like the new tyre, outlined like the new wheel. */
+.cd__disc {
+    fill: var(--c-line-2);
+    stroke: var(--c-ink);
+    stroke-width: 1.25;
+}
+
+.cd__bolt {
+    fill: var(--c-surface);
+    stroke: var(--c-ink-2);
+}
+
+/* The centre plane as a drawing office draws a centre line: thin, long dash, dot. */
+.cd__plane {
+    stroke: var(--c-ink);
+    stroke-width: 0.75;
+    stroke-dasharray: 10 3 2 3;
+}
+
+/* ET and Maulweite: the dimension lines of the new wheel, in ink — the figures the visitor typed in. */
+.cd__mdim {
+    stroke: var(--c-ink);
+    stroke-linecap: butt;
+}
+
+.cd__mhead {
+    fill: var(--c-ink);
+    stroke: none;
+}
+
+/* A label on the sheet: it scales with the sheet (14 of its 320 units), and a halo of the page's white lets it cross a
+   line legibly. */
+.cd__tag {
+    fill: var(--c-ink);
+    font-size: var(--fs-small);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    paint-order: stroke;
+    stroke: var(--c-surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.cd__tag--value {
+    font-weight: 500;
+}
+
+.cd__front {
+    display: grid;
+    gap: var(--sp-8);
+    min-width: 0;
+    max-width: 240px;
+}
+
+.cd__front-svg {
+    display: block;
+    width: 100%;
+    max-width: 176px;
+    height: auto;
+    aspect-ratio: 1;
+}
+
+.cd__front-disc {
+    fill: var(--c-surface);
+    stroke: var(--c-ink);
+    stroke-width: 1.25;
+}
+
+/* The bolt circle: a centre line through the screws' middles. */
+.cd__lk {
+    stroke: var(--c-ink-2);
+    stroke-dasharray: 10 3 2 3;
+}
+
+.cd__hole {
+    fill: var(--c-surface);
+    stroke: var(--c-ink);
+    stroke-width: 1.25;
+}
+
+.cd__bore {
+    fill: var(--c-band);
+    stroke: var(--c-ink);
+    stroke-width: 1.25;
+}
+
+.cd__leader {
+    stroke: var(--c-ink-2);
+    stroke-width: 0.75;
+}
+
+.cd__terms {
+    display: grid;
+    gap: var(--sp-8);
+    margin: 0;
+    color: var(--c-ink-2);
+}
+
+.cd__terms dt {
+    color: var(--c-ink);
+    font-weight: 600;
+}
+
+.cd__terms dd {
+    margin: 0;
 }
 
 .cd__legend {

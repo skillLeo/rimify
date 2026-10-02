@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The header. Above it, on a desktop, a utility line that scrolls away; the header itself is 64px,
+ * The header. Nothing above it (the client's #3, D-107); 80px on a desktop (the client's #2, D-106),
  * sticky, and never changes height — once the page has scrolled under it, it gains a hairline and
  * nothing else. On a phone it is 56px: the wordmark, then the search, the vehicle and the menu,
  * which carries the destinations a desktop shows in the navigation, and the basket with its count.
@@ -8,15 +8,15 @@
  * Two rules it never breaks: the navigation is never removed, and the chosen vehicle is one
  * element in one place on every route (the vehicle bar beneath, decided by the server — R-08).
  *
- * While the shop shows demonstration rows, the *Demodaten* badge (ACCURACY D4) opens the utility
- * line on a desktop and follows the wordmark below 1024 px, where that line is gone. Both sit in
- * the flow of their row, so neither can cover content at any width.
+ * While the shop shows demonstration rows, the *Demodaten* badge (ACCURACY D4) follows the wordmark
+ * at every width. It sits in the flow of the row, so it cannot cover content at any width.
  */
 
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import CartButton from './CartButton.vue'
 import DemoBadge from './DemoBadge.vue'
 import MainMenu from './MainMenu.vue'
 import MegaMenu from './MegaMenu.vue'
@@ -24,14 +24,16 @@ import SearchBox from './SearchBox.vue'
 import VehicleBar from './VehicleBar.vue'
 import { useShell } from '../../composables/useShell'
 import { useShared } from '../../composables/useShared'
+import { useVehicleChangeHref } from '../../lib/vehicleChange'
 
 const shared = useShared()
 const shell = useShell()
+const changeHref = useVehicleChangeHref()
 
 const vehicle = computed(() => shared.value.vehicle)
-const contact = computed(() => shared.value.contact)
-/* The phone only when the client has given one; otherwise the e-mail is the help line. */
-const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
+const page = usePage()
+/* The basket left of the menu on a phone (#13, D-122) — not on the basket and the checkout themselves. */
+const showCart = computed(() => !/^\/(warenkorb|kasse)(\/|\?|$)/.test(page.url))
 
 /* Scrolled or not, decided by a sentinel above the header rather than a scroll listener. */
 const sentinel = ref<HTMLElement | null>(null)
@@ -57,30 +59,16 @@ function removeVehicle(): void {
 </script>
 
 <template>
-    <div class="utility from-lg">
-        <div class="container utility__row">
-            <DemoBadge />
-            <span>Versand aus Deutschland</span>
-            <!-- The client's own words. "als PDF" returns only once a download exists (ACCURACY D7). -->
-            <span>Gutachten zu jeder Felge</span>
-            <span class="utility__help">
-                Hilfe:
-                <a v-if="contact.phone" :href="telHref" class="utility__contact num">{{ contact.phone }}</a>
-                <a v-else :href="`mailto:${contact.email}`" class="utility__contact">{{ contact.email }}</a>
-                <!-- The space sits inside the span: between two elements on separate lines the template drops it. -->
-                <span class="quiet"> · {{ contact.hours }}</span>
-            </span>
-        </div>
-    </div>
-
+    <!-- No strip above the header any more (the client's #3, D-107): its promises stand in the promise row under
+         the hero, where to ask stands under the hero's selector. -->
     <div ref="sentinel" class="sh-sentinel" aria-hidden="true" />
 
     <header class="site-header" :class="{ 'site-header--scrolled': scrolled }">
         <div class="container sh__bar">
             <Link href="/" class="brand" aria-label="RIMIFY – Startseite" prefetch>RIMIFY</Link>
 
-            <!-- On a phone and a tablet the utility strip is gone, so the badge sits beside the wordmark. -->
-            <DemoBadge class="until-lg sh__demo" />
+            <!-- The Demodaten badge beside the wordmark, at every width. -->
+            <DemoBadge class="sh__demo" />
 
             <MegaMenu class="from-lg sh__nav" />
 
@@ -89,7 +77,8 @@ function removeVehicle(): void {
 
                 <!-- The vehicle on a desktop: a chip with a small menu. -->
                 <DropdownMenuRoot v-if="vehicle">
-                    <DropdownMenuTrigger class="chip sh__vchip from-lg">
+                    <!-- A chosen car is a selected chip: the brand's blue (#32, D-115). -->
+                    <DropdownMenuTrigger class="chip chip--on sh__vchip from-lg">
                         <Icon name="car" :size="20" />
                         <span class="sh__vname">{{ vehicle.short }}</span>
                         <Icon name="chevron-down" :size="16" />
@@ -101,7 +90,7 @@ function removeVehicle(): void {
                                 <Link href="/felgen" class="menu__item" prefetch><Icon name="wheel" :size="20" />Passende Felgen anzeigen</Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem as-child>
-                                <Link href="/felgen-suchen" class="menu__item"><Icon name="car" :size="20" />Fahrzeug ändern</Link>
+                                <Link :href="changeHref" class="menu__item"><Icon name="car" :size="20" />Fahrzeug ändern</Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator class="menu__separator" />
                             <DropdownMenuItem class="menu__item" @select="removeVehicle">
@@ -133,9 +122,12 @@ function removeVehicle(): void {
                     <Icon name="car" :size="24" />
                 </Link>
 
-                <!-- The menu: on a phone the destinations and the basket live in it rather than in
-                     a bar across the bottom of every page. -->
-                <MainMenu class="until-lg" />
+                <!-- The basket, left of the menu, with its count (the client's #13, D-122). -->
+                <CartButton v-if="showCart" class="until-lg" />
+
+                <!-- The menu: on a phone the destinations live in it rather than in a bar across the bottom of
+                     every page. -->
+                <MainMenu class="until-lg" :count-on-button="!showCart" />
 
                 <Link
                     href="/warenkorb"
@@ -157,38 +149,6 @@ function removeVehicle(): void {
 </template>
 
 <style scoped>
-.utility {
-    height: var(--utility-h);
-    background: var(--c-band);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink-2);
-}
-
-.utility__row {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-24);
-    height: 100%;
-}
-
-.utility__help {
-    margin-left: auto;
-}
-
-.utility__contact {
-    color: var(--c-ink);
-    font-weight: 500;
-    text-decoration: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .utility__contact:hover {
-        text-decoration: underline;
-        text-underline-offset: 3px;
-    }
-}
-
 .sh-sentinel {
     height: 1px;
     margin-top: -1px;
@@ -243,7 +203,8 @@ function removeVehicle(): void {
 
 .sh__vchip {
     max-width: 220px;
-    min-height: 40px;
+    /* Level with the search field and the basket beside it. */
+    min-height: 44px;
     text-decoration: none;
 }
 
@@ -300,6 +261,11 @@ function removeVehicle(): void {
     .sh__bar {
         height: var(--header-h);
         gap: var(--sp-24);
+    }
+
+    /* The wordmark in proportion to the taller bar (#2, D-106). */
+    .brand {
+        font-size: var(--fs-h3);
     }
 }
 </style>

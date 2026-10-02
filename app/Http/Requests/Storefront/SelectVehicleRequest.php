@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Storefront;
 
+use App\Support\ShopPath;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -25,7 +26,15 @@ class SelectVehicleRequest extends FormRequest
     {
         return [
             'fahrzeug' => ['required', 'integer', 'min:1'],
+            // Where the car was chosen from, if that page wants the visitor back (the RIMIFY-Check, #28): a shop path.
+            'zurueck' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    /** The shop page to return to after the choice; null sends the visitor to the listing as before. */
+    public function returnTo(): ?string
+    {
+        return ShopPath::of($this->validated('zurueck'));
     }
 
     /** @return array<string, string> */

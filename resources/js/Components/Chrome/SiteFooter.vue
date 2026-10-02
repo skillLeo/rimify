@@ -5,9 +5,10 @@
  * until then, none are drawn.
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import { contactHref } from '../../lib/contact'
 import { useConsent } from '../../composables/useConsent'
 import { usePriceTerms } from '../../composables/usePriceTerms'
 import { useShell } from '../../composables/useShell'
@@ -20,6 +21,8 @@ const consent = useConsent()
 const shell = useShell()
 
 const contact = computed(() => shared.value.contact)
+const page = usePage()
+const writeHref = computed(() => contactHref({ from: page.url }))
 /* Phone and WhatsApp only when the client has given them; the e-mail and the hours always. */
 const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/[^\d]/g, '')}`)
@@ -43,7 +46,8 @@ const year = new Date().getFullYear()
                             <a :href="waHref" class="footer__contact-link num" rel="noopener" target="_blank"><span class="footer__icon-slot" aria-hidden="true" />WhatsApp {{ contact.whatsapp }}</a>
                         </li>
                         <li>
-                            <a :href="`mailto:${contact.email}`" class="footer__contact-link"><Icon name="mail" :size="20" />{{ contact.email }}</a>
+                            <!-- The address, to read and copy; the link opens the contact form (#26). -->
+                            <Link :href="writeHref" class="footer__contact-link"><Icon name="mail" :size="20" />{{ contact.email }}</Link>
                         </li>
                         <li class="footer__hours"><Icon name="clock" :size="20" />{{ contact.hours }}</li>
                     </ul>
@@ -64,7 +68,8 @@ const year = new Date().getFullYear()
                         <li v-for="item in menus.footer_service" :key="item.label">
                             <Link :href="item.href" class="footer__link">{{ item.label }}</Link>
                         </li>
-                        <li><button class="footer__link footer__button" type="button" @click="shell.helpOpen.value = true">Tastenkürzel</button></li>
+                        <!-- Keyboard shortcuts mean nothing under a finger, and the phone layout has no dialog for them (#29, D-113). -->
+                        <li class="footer__keys"><button class="footer__link footer__button" type="button" @click="shell.helpOpen.value = true">Tastenkürzel</button></li>
                     </ul>
                 </nav>
 
@@ -91,9 +96,15 @@ const year = new Date().getFullYear()
 
 <style scoped>
 .footer {
-    padding-block: var(--sp-64) var(--sp-32);
+    /* Clear of a phone's home indicator, where there is one (0 everywhere else). */
+    padding-block: var(--sp-64) calc(var(--sp-32) + env(safe-area-inset-bottom));
     font-size: var(--fs-small);
     line-height: var(--lh-small);
+}
+
+/* Under a price bar fixed at the bottom (the product page, D-132), the footer's last line stays above it. */
+.shell:has(.stickybar) .footer {
+    padding-bottom: calc(var(--sp-32) + var(--stickybar-h) + env(safe-area-inset-bottom));
 }
 
 .footer__grid {
@@ -165,6 +176,12 @@ const year = new Date().getFullYear()
     min-height: 32px;
     color: var(--c-on-dark-2);
     text-decoration: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .footer__keys {
+        display: none;
+    }
 }
 
 .footer__button {

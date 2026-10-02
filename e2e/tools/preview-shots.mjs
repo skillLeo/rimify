@@ -7,6 +7,8 @@
  * Each region is cut from a full-page capture, so a sticky header never lands in the middle of a picture.
  */
 
+/* global window, document, location -- read inside page.evaluate(), in the browser */
+
 import { chromium, devices } from '@playwright/test'
 import fs from 'node:fs'
 

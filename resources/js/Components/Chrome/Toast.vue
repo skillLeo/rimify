@@ -20,7 +20,7 @@
 import { router, usePage } from '@inertiajs/vue3'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
-import { toast, toastFrom, TOAST_ACTION_MS, TOAST_MS, type ToastMessage } from './toast'
+import { addedFrom, firstLoad, toast, toastFrom, TOAST_ACTION_MS, TOAST_MS, type ToastMessage } from './toast'
 
 const page = usePage()
 const message = ref<ToastMessage | null>(null)
@@ -69,6 +69,11 @@ function act(): void {
     run?.()
 }
 
+/* A response that put something in the basket brings its own panel (#16): one confirmation, not two. */
+function fromResponse(props: Record<string, unknown>): string | null {
+    return addedFrom(props) !== null ? null : toastFrom(props)
+}
+
 /** The clock restarts when focus leaves the toast altogether, not when it moves inside it. */
 function onFocusOut(event: FocusEvent): void {
     const next = event.relatedTarget
@@ -92,12 +97,12 @@ onMounted(() => {
     // that page's flash was already shown the first time round.
     const entry = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined
 
-    if (entry?.type !== 'back_forward') {
-        show(toastFrom(page.props))
+    if (firstLoad('toast') && entry?.type !== 'back_forward') {
+        show(fromResponse(page.props))
     }
 
     stopListening = router.on('success', (event) => {
-        show(toastFrom(event.detail.page.props))
+        show(fromResponse(event.detail.page.props))
     })
 
     stopChannel = toast.subscribe(show)

@@ -142,6 +142,7 @@ expected there, each NO-GO in production.
 | Speicher: Quelle | GO · Einstellungen im Admin | enter the bucket in Einstellungen › Medien und Speicher |
 | **Speicher: S3-Audit** | **GO · 10 Prüfungen, 0 Warnungen** — this includes the probe that **`invoices/` answers 403** | `$PHP artisan rimify:s3-audit` names the row; row 5 must read `200/200/200` and **403 on `invoices/`**; a 200 there means invoices are public — fix the bucket policy before anything else |
 | Speicher-Tabelle | GO · vorhanden | run the migrations (§4) |
+| Bekannte Passwörter | GO · kein Konto öffnet mit einem Passwort, das im Repository stand | the row names each account: set a new password with `printf '%s\n' "$NEW" \| $PHP artisan rimify:admin-passwort <email> --grund="…"` (asked for on stdin, never an argument; every session of the account ends). Since D-141 the seeders put a development password on no shared copy and reset none — a NO-GO here means someone set one by hand |
 
 **If any row says NO-GO, stop here.** Fix it and run the preflight again; nothing below starts on a red board.
 
@@ -305,8 +306,11 @@ SSR_PORT=13714 NODE_BIN=/opt/alt/alt-nodejs22/root/usr/bin/node bash /home/<user
 cd /home/<user>/domains/<production-domain>/public_html && /opt/alt/php84/usr/bin/php artisan schedule:run
 ```
 
-The first keeps the renderer alive: it does nothing while the renderer answers and starts it within a minute
-when the host has stopped it. The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12),
+The first keeps the renderer alive: it looks twice a run — at once and half a minute later — does nothing while
+the renderer answers, and starts it within about half a minute when the host has stopped it; the pages are
+server-rendered again from the first one after the restart (the gateway asks a renderer whose socket is newer
+than its rest at once). Measured on the preview with one look a minute (02.10.2026): renderer back after 52 s,
+the first server-rendered page after 65 s (HOST-FINDINGS 10). The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12),
 `orders:expire` every ten minutes (an order unpaid after 24 hours expires and its stock goes back), and a pulse
 every minute that `rimify:preflight` reads („Zeitplan (Cron)“ turns GO within a minute of the line running).
 
@@ -404,6 +408,7 @@ $PHP artisan up && $PHP artisan rimify:smoke
 | **Staging (Hostinger, MariaDB), 2026-09-29**, with both Borbet drafts in | the preview's database, 429 KB dump, 14 triggers | 0,24 s (archive 8,0 s) | 3,2 s | 5,6 s | **14,4 s**, smoke: every row ok but the product row, which waits for a released, priced wheel (§5) |
 | **Staging, 2026-09-30 — a real release, then its rollback** | the preview's database after Block G, 436 KB dump; 18 triggers before the release, 22 after | 0,25 s (archive 31,8 s, 179 MB) | 3,5 s | 6,4 s | **16,1 s**, smoke: every row ok but the product row (§5) |
 | **Staging, 2026-10-01 — down first, then §1, then 7.2–7.4** | the preview's database with the three Gutachten released and the DB8GT2 priced, 470 KB dump, 22 triggers; a marker table stood in for what a bad release adds | 1,3 s with commit, `.env` and trigger count (no archive: the commit was in the folder's history) | 2,5 s: marker gone, 22 of 22 triggers, the same rows in orders, audit_logs, fitments, admin_users, review_feedback | 19,2 s (4 s of it the two waits) | **25,1 s**, smoke: every row ok, the product row included |
+| **Staging, 2026-10-02 — the same, with the hPanel cron lines in** (release `e982af1a`) | 476 KB dump, 22 triggers, 74 tables; marker table as above | 1,3 s, dump complete, 22 triggers in the dump and live | 2,5 s: marker gone, 22 of 22 triggers; orders 755, audit_logs 955, fitments 3014, admin_users 15, review_feedback 1 — before and after alike | 18,6 s | **24,5 s**, smoke: all 8 rows ok — the product row (229,00 € in the HTML without JavaScript) and the sandbox test order included |
 
 The local row proves the steps, not the time on the host: the same MySQL, but no network between the shell
 and the database, SSD, and no `git reset` (the code was already the backup's commit), so 7.3 is caches and

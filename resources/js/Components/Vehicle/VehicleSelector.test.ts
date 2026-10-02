@@ -4,12 +4,19 @@ import { defineComponent, h, reactive } from 'vue'
 import type { LookupResult } from '../../types/pages'
 import type { ContactProp } from '../../types/rimify'
 
-const current: { props: Record<string, unknown> } = { props: {} }
+const current: { props: Record<string, unknown>; url?: string } = { props: {} }
+const forms: Array<Record<string, unknown> & { post: ReturnType<typeof vi.fn> }> = []
+const get = vi.fn()
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => current,
-    useForm: (data: Record<string, unknown>) => reactive({ ...data, processing: false, errors: {}, post: vi.fn() }),
-    router: { get: vi.fn() },
+    useForm: (data: Record<string, unknown>) => {
+        const form = reactive({ ...data, processing: false, errors: {}, post: vi.fn() })
+        forms.push(form)
+
+        return form
+    },
+    router: { get: (...args: unknown[]) => get(...args) },
     Link: defineComponent({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
@@ -41,26 +48,21 @@ afterEach(() => {
 })
 
 describe('VehicleSelector — a key-number miss (R-09)', () => {
-    it('offers three ways forward, the third an e-mail with the key numbers already written in', () => {
+    it('offers three ways forward, the third the contact form with the key numbers already in its subject (#26)', () => {
+        current.url = '/felgen-suchen?hsn=9999&tsn=ZZZ'
         const wrapper = mountSelector({ lookup: MISS, contact: CONTACT })
         const routes = wrapper.find('.vsel__miss-actions').findAll('a, button')
 
-        expect(routes.map((r) => r.text())).toEqual(['Schlüsselnummern prüfen', 'Stattdessen Marke wählen', 'Per E-Mail nachfragen'])
+        expect(routes.map((r) => r.text())).toEqual(['Schlüsselnummern prüfen', 'Stattdessen Marke wählen', 'Bei uns nachfragen'])
 
         const href = routes[2]!.attributes('href') ?? ''
         const query = new URLSearchParams(href.split('?')[1] ?? '')
 
-        expect(href.startsWith('mailto:service@example.com?')).toBe(true)
-        expect(query.get('subject')).toBe('Fahrzeug nicht gefunden')
-        expect(query.get('body')).toContain('HSN: 9999\r\nTSN: ZZZ')
-        expect(wrapper.find('.vsel__miss-note').text()).toContain('service@example.com')
-    })
-
-    it('never sends the customer to the old contact form', () => {
-        const wrapper = mountSelector({ lookup: MISS, contact: CONTACT })
-
-        expect(wrapper.find('a[href="/kontakt"]').exists()).toBe(false)
-        expect(wrapper.text()).not.toContain('Daten an RIMIFY senden')
+        expect(href.startsWith('/kontakt?')).toBe(true)
+        expect(query.get('betreff')).toBe('Fahrzeug nicht gefunden: HSN 9999 · TSN ZZZ')
+        expect(query.get('von')).toBe('/felgen-suchen?hsn=9999&tsn=ZZZ')
+        expect(wrapper.find('.vsel__miss-note').text()).toBe('Deine HSN und TSN stehen dann schon im Betreff.')
+        expect(wrapper.html()).not.toContain('mailto:')
     })
 
     it('still offers three ways forward if the contact details were ever missing', () => {
@@ -68,7 +70,7 @@ describe('VehicleSelector — a key-number miss (R-09)', () => {
         const routes = wrapper.find('.vsel__miss-actions').findAll('a, button')
 
         expect(routes).toHaveLength(3)
-        expect(routes[2]!.attributes('href')).toBe('/kontakt')
+        expect(routes[2]!.attributes('href')).toMatch(/^\/kontakt\?/)
     })
 
     it('shows no miss panel without a miss', () => {
@@ -102,6 +104,79 @@ describe('VehicleSelector — a pair of key numbers in the HSN field', () => {
 
         expect(field(wrapper, '0005').element.value).toBe('0005')
         expect(field(wrapper, '582').element.value).toBe('582')
+    })
+})
+
+/*
+ * On the RIMIFY-Check (#28) the selector keeps the page's wheel in every drill step's address, and sends the visitor back
+ * to the question once the car is chosen — by the drill and by key numbers alike.
+ */
+describe('VehicleSelector — on a page that wants the visitor back', () => {
+    const QUESTION = '/rimify-check?hersteller=borbet&felge=borbet-db8gt2&groesse=110'
+
+    function mountOnCheck(props: Record<string, unknown> = {}, page: Record<string, unknown> = {}): VueWrapper {
+        current.props = { contact: CONTACT, ...page }
+        forms.length = 0
+        get.mockReset()
+        const wrapper = mount(VehicleSelector, {
+            props: {
+                makes: [{ make: 'BMW', models: 3 }], models: [], variants: [], selectedMake: null, selectedModel: null,
+                basePath: '/rimify-check', baseQuery: { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110 }, returnTo: QUESTION,
+                ...props,
+            },
+            global: { stubs: { DocFacsimile: true } },
+        })
+        mounted.push(wrapper)
+
+        return wrapper
+    }
+
+    it('keeps the wheel in the address of every drill step', async () => {
+        const wrapper = mountOnCheck()
+
+        await wrapper.find('.row-item').trigger('click')
+
+        expect(get).toHaveBeenCalledWith('/rimify-check', { hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110, marke: 'BMW' }, expect.objectContaining({ preserveScroll: true }))
+    })
+
+    it('ignores the second press of a double-click and the rows while a step loads (CHECK-03)', async () => {
+        const wrapper = mountOnCheck()
+        const row = wrapper.find('.row-item')
+
+        await row.trigger('click', { detail: 2 })
+        expect(get).not.toHaveBeenCalled()
+
+        await row.trigger('click', { detail: 1 })
+        expect(get).toHaveBeenCalledTimes(1)
+        expect(row.attributes('disabled')).toBeDefined()
+
+        await row.trigger('click', { detail: 1 })
+        expect(get).toHaveBeenCalledTimes(1)
+    })
+
+    it('sends the return address with a variant picked and with key numbers', async () => {
+        const variant = {
+            id: 127, variant: 'xDrive30d', typeDesignation: 'G01', keyNumbers: '0005 / CKT', hsn: '0005', tsn: 'CKT', vsn: null,
+            buildWindow: '2017–2021', buildKnown: true, powerPs: 265, bodyForm: null, needsReview: false, approval: null,
+        }
+        const wrapper = mountOnCheck({ selectedMake: 'BMW', selectedModel: 'X3', variants: [variant] })
+        const [keys, choice] = forms
+
+        await wrapper.find('.row-item').trigger('click')
+        expect(choice).toMatchObject({ fahrzeug: 127, zurueck: QUESTION })
+        expect(choice?.post).toHaveBeenCalledWith('/fahrzeug', { preserveScroll: true })
+
+        await wrapper.find('form').trigger('submit')
+        expect(keys).toMatchObject({ zurueck: QUESTION })
+        expect(keys?.post).toHaveBeenCalledWith('/fahrzeug/schluesselnummern', { preserveScroll: true })
+    })
+
+    it('starts the make step again after a key-number miss without losing the wheel', () => {
+        current.url = QUESTION
+        const wrapper = mountOnCheck({}, { lookup: MISS })
+        const restart = wrapper.findAll('.vsel__miss-actions a').find((a) => a.text() === 'Stattdessen Marke wählen')
+
+        expect(restart?.attributes('href')).toBe(QUESTION)
     })
 })
 

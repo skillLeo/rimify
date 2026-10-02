@@ -157,6 +157,47 @@ it('gives the hero its second wheel — the other photographed finish — and no
         ->where('hero.product.companion.imageManifest.bare.name', 'db8gt2-bronze-bare'));
 });
 
+it('turns the hero wheel in the dark band — the open cut-out of its other finish — and the illustration without one (#9)', function (): void {
+    $this->seed(GoldenRecordSeeder::class);
+    $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
+    Setting::set('hero_product_id', $model->id);
+    $credit = ['source' => 'Kunde', 'photographer' => 'Borbet', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''];
+
+    DemoWheelFixtures::photoMap($this->dir, [
+        'fixture-front.jpg' => ['slug' => 'db8gt2-schwarz', 'model' => $model->slug, 'finish' => 'Schwarz matt', 'circle' => [540, 540, 500], 'hub' => null, 'credit' => $credit],
+    ]);
+    DemoWheelFixtures::write($this->dir, ['db8gt2-schwarz', 'db8gt2-bronze']);
+    $anchors = ['centre' => ['x' => 0.5, 'y' => 0.47], 'wheel' => ['x' => 0.48, 'y' => 0.47, 'r' => 0.4]];
+    $frame = static fn (array $plain, string $name): array => [...$plain, 'name' => $name, 'anchors' => $anchors];
+    $black = WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Schwarz matt')->firstOrFail();
+    $bronze = WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Bronze matt')->firstOrFail();
+    $blackPlain = (array) DemoWheels::manifest('db8gt2-schwarz');
+    $bronzePlain = (array) DemoWheels::manifest('db8gt2-bronze');
+
+    // Only shadowless frames, none with the spokes opened: the studio's white would show — the illustration stays.
+    $black->update(['image_manifest' => [...$blackPlain, 'anchors' => $anchors, 'bare' => $frame($blackPlain, 'black-bare'), 'stamp' => '53841']]);
+    $bronze->update(['image_manifest' => [...$bronzePlain, 'anchors' => $anchors, 'bare' => $frame($bronzePlain, 'bronze-bare'), 'stamp' => '53841']]);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('komplettrad.wheel', null));
+
+    // The lead finish opened: it turns there.
+    $black->update(['image_manifest' => [...$black->image_manifest, 'open' => $frame($blackPlain, 'black-open')]]);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('komplettrad.wheel.finish', 'Schwarz matt')
+        ->where('komplettrad.wheel.image.name', 'black-open'));
+
+    // The other finish opened too: the band shows that one, so the page shows both finishes.
+    $bronze->update(['image_manifest' => [...$bronze->image_manifest, 'open' => $frame($bronzePlain, 'bronze-open')]]);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('komplettrad.wheel.brand', $model->brand->name)
+        ->where('komplettrad.wheel.name', $model->name)
+        ->where('komplettrad.wheel.finish', 'Bronze matt')
+        ->where('komplettrad.wheel.image.name', 'bronze-open')
+        ->where('komplettrad.wheel.anchor', ['x' => 0.48, 'y' => 0.47, 'r' => 0.4]));
+});
+
 it('says published only when the wheel is in the shop at a price', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();

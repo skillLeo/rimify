@@ -37,9 +37,13 @@ class WheelModel extends Model
 
     use SoftDeletes;
 
+    /**
+     * Never `rating` or `rating_count`: they are what the buyers' visible reviews add up to, written by ReviewSummary
+     * alone (D-103) — no form, import or seeder can type a rating nobody gave (§ 5 UWG).
+     */
     protected $fillable = [
         'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'seo_title', 'seo_description', 'internal_note', 'status',
-        'spoke_count', 'rating', 'rating_count', 'is_demo',
+        'spoke_count', 'is_demo',
     ];
 
     /** @return array<string, string> */

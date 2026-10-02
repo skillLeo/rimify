@@ -45,6 +45,7 @@ import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { priceTerms, totalNote } from '../../composables/usePriceTerms'
 import { entryLine } from '../../fitment/papers'
 import { useShared } from '../../composables/useShared'
+import { contactHref } from '../../lib/contact'
 import {
     loadStripe,
     stripeAppearance,
@@ -773,7 +774,7 @@ function verdictSentence(line: BasketLine): string {
                                     </p>
                                     <!-- The verdict in one sentence on every step; its Auflagen one tap away, in full (R-15). -->
                                     <template v-if="line.verdict">
-                                        <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
+                                        <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
                                         <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                             <summary>Auflagen lesen</summary>
                                             <!-- Each tyre size's Auflagen with that size; a Komplettrad's for its tyre (ConditionGroups). -->
@@ -1178,7 +1179,10 @@ function verdictSentence(line: BasketLine): string {
                                     <!-- No price for this make: no Ja tile at all, and the sentence says why (§5.2). -->
                                     <p v-if="!tpms.available" class="ko__rdks-notice" role="status">
                                         {{ tpms.notice }}
-                                        <a :href="`mailto:${contact.email}`" class="ko__rdks-mail">{{ contact.email }}</a>
+                                        <!-- The contact form (#26) in a tab of its own: everything typed here stays. -->
+                                        <a :href="contactHref({ subject: 'Preis für RDKS-Sensoren', from: '/kasse' })" class="ko__rdks-mail" target="_blank" rel="noopener">
+                                            Zum Kontaktformular<span class="visually-hidden"> (öffnet in einem neuen Tab)</span>
+                                        </a>
                                     </p>
 
                                     <div
@@ -1293,7 +1297,7 @@ function verdictSentence(line: BasketLine): string {
                                             <p class="ko__essential-top">
                                                 <span class="ko__essential-name">
                                                     <span class="tabular">{{ line.quantity }} ×</span>
-                                                    {{ line.isSet ? 'Komplettrad' : 'Felge' }} {{ line.brandName }} {{ line.title }}
+                                                    {{ line.mixed ? line.setLabel : line.isSet ? 'Komplettrad' : 'Felge' }} {{ line.brandName }} {{ line.title }}
                                                 </span>
                                                 <span class="ko__essential-price tabular">{{ line.lineTotal }}</span>
                                             </p>
@@ -1305,7 +1309,7 @@ function verdictSentence(line: BasketLine): string {
                                                 >
                                             </p>
                                             <template v-if="line.verdict">
-                                                <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" /> <span>{{ verdictSentence(line) }}</span></p>
+                                                <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
                                                 <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                                     <summary>Auflagen lesen</summary>
                                                     <ConditionGroups v-if="line.verdict.conditionGroups" class="ko__groups" :groups="line.verdict.conditionGroups" />

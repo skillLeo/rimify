@@ -159,6 +159,60 @@
       }
     }
   },
+  "open": {
+    "name": "borbet-db8gt2-bronze-matt-open",
+    "base": "/storage/demo/wheels/borbet-db8gt2-bronze-matt/borbet-db8gt2-bronze-matt-open",
+    "width": 1080,
+    "height": 1080,
+    "widths": [
+      480,
+      768,
+      1080
+    ],
+    "fallback": "png",
+    "placeholder": "data:image/png;base64,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",
+    "anchors": {
+      "centre": {
+        "x": 0.4884,
+        "y": 0.478
+      },
+      "wheel": {
+        "x": 0.4691,
+        "y": 0.4819,
+        "r": 0.3959
+      },
+      "pcd": {
+        "x": 0.4884,
+        "y": 0.478,
+        "r": 0.0841
+      },
+      "bore": {
+        "x": 0.4761,
+        "y": 0.4819,
+        "r": 0.0509
+      },
+      "valve": {
+        "x": 0.4768,
+        "y": 0.8207
+      },
+      "kba": {
+        "x": 0.2067,
+        "y": 0.6409,
+        "w": 0.037,
+        "h": 0.0602
+      },
+      "bead": {
+        "x": 0.4691,
+        "y": 0.4819,
+        "h": 0.7364
+      },
+      "flanges": {
+        "x": 0.8612,
+        "y": 0.4819,
+        "w": 0.037
+      }
+    }
+  },
   "stamp": "53841",
   "source": "client-borbet-db8gt2-bronze-front.jpg",
   "credit": {
@@ -167,6 +221,6 @@
     "licence": "Vom Kunden bereitgestellt",
     "url": ""
   },
-  "pipeline": 5,
-  "fingerprint": "e05ffee182b5c9e798242dbf7cec37f6a5ee6baa"
+  "pipeline": 6,
+  "fingerprint": "1e1e2420121baf59496d33035ad59b5767518b85"
 }

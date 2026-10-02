@@ -25,6 +25,7 @@
  */
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRowMarker } from '../../composables/useRowMarker'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
 import { anzahl } from '../../format'
 import type { HomeStats } from '../../types/pages'
@@ -66,16 +67,17 @@ const TARGET = 3
 /* ── The marker strokes, in the table's own coordinate space ─────────────────── */
 
 /**
- * The SVG is stretched over the table (`preserveAspectRatio="none"`): x runs 0–1000 across the
- * table's width, y is one unit per CSS pixel of the table's designed height — a 24 px head row
- * and nine 28 px rows. `vector-effect: non-scaling-stroke` keeps the marker 22 px wide whatever
- * the table's width.
+ * The SVG lies over the marked row itself (`preserveAspectRatio="none"`): x runs 0–1000 across the
+ * table's width, y 0–28 down the row. Where the row actually is — its top and height — is measured
+ * from the row and kept current as the document resizes, so the marker stays on the row at every
+ * width, zoom and text size (the client's #6, D-111); the designed values (a 24 px head row, 28 px
+ * rows) are the first paint. `vector-effect: non-scaling-stroke` keeps the marker 22 px wide.
  */
 const VB_W = 1000
 const HEAD_H = 24
 const ROW_H = 28
-const VB_H = HEAD_H + EXAMPLE_ROWS.length * ROW_H
-const ROW_Y = HEAD_H + TARGET * ROW_H + ROW_H / 2
+const VB_H = ROW_H
+const ROW_Y = ROW_H / 2
 
 const edges = COLUMNS.reduce<number[]>((acc, w) => [...acc, (acc[acc.length - 1] ?? 0) + w], [0])
 
@@ -139,6 +141,9 @@ const CENTRE_BAND = '-40% 0px -40% 0px'
 const UPPER_BAND = '0px 0px -75% 0px'
 
 const root = ref<HTMLElement | null>(null)
+const targetRow = ref<HTMLElement | null>(null)
+/* Where the marked row is: designed for the first paint, measured once mounted (#6). */
+const markerStyle = useRowMarker(targetRow, { top: HEAD_H + TARGET * ROW_H, height: ROW_H })
 const fallback = ref(false)
 const reached = ref(0)
 const observers: IntersectionObserver[] = []
@@ -235,7 +240,13 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
                                 <div class="doc__row doc__row--head">
                                     <span v-for="heading in HEADINGS" :key="heading" class="doc__cell doc__cell--head">{{ heading }}</span>
                                 </div>
-                                <div v-for="(row, i) in EXAMPLE_ROWS" :key="i" class="doc__row" :class="{ 'doc__row--target': i === TARGET }">
+                                <div
+                                    v-for="(row, i) in EXAMPLE_ROWS"
+                                    :key="i"
+                                    :ref="(el) => { if (i === TARGET) targetRow = el as HTMLElement | null }"
+                                    class="doc__row"
+                                    :class="{ 'doc__row--target': i === TARGET }"
+                                >
                                     <span class="doc__cell">{{ row.maker }}</span>
                                     <span class="doc__cell">{{ row.trade }}</span>
                                     <span class="doc__cell">{{ row.type }}</span>
@@ -246,7 +257,7 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
                             </div>
 
                             <!-- The highlighter: three strokes, each drawn twice for the uneven edge of a real marker. -->
-                            <svg class="marker" :viewBox="`0 0 ${VB_W} ${VB_H}`" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                            <svg class="marker" :style="markerStyle" :viewBox="`0 0 ${VB_W} ${VB_H}`" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                                 <defs>
                                     <linearGradient id="marker-ink" gradientUnits="userSpaceOnUse" x1="0" y1="0" :x2="VB_W" y2="0">
                                         <stop offset="0%" stop-opacity="0.78" />
@@ -326,6 +337,9 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
 .doc {
     position: relative;
     width: 100%;
+    /* A phone browser never enlarges the facsimile's type on its own: the rows stay the rows the marker lies on. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     padding: var(--sp-24);
     border-radius: var(--r-control);
     background: var(--c-surface);
@@ -392,11 +406,13 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
 
 /* ── The marker ────────────────────────────────────────────────────────────── */
 
+/* Over the marked row only: its top and height come from the row (useRowMarker). */
 .marker {
     position: absolute;
-    inset: 0;
+    top: var(--mark-top);
+    left: 0;
     width: 100%;
-    height: 100%;
+    height: var(--mark-h);
     overflow: visible;
     mix-blend-mode: multiply;
     pointer-events: none;

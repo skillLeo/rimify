@@ -43,7 +43,7 @@ class FahrzeugController extends Controller
             return back()->with('toast', 'Dieses Fahrzeug ist nicht mehr verfügbar.');
         }
 
-        return $this->adopt($vehicle->id);
+        return $this->adopt($vehicle->id, $request->returnTo());
     }
 
     /**
@@ -78,7 +78,7 @@ class FahrzeugController extends Controller
         }
 
         if ($candidates->count() === 1) {
-            return $this->adopt($candidates->first()->id);
+            return $this->adopt($candidates->first()->id, $request->returnTo());
         }
 
         // Never an error state — a confirmation. The rows carry exactly what differs.
@@ -101,13 +101,14 @@ class FahrzeugController extends Controller
     }
 
     /**
-     * Write the vehicle and go to the listing.
+     * Write the vehicle and go to the listing — or back to the page the car was chosen on, where that page asked for
+     * it (the RIMIFY-Check, #28: the question stays on screen and gets its answer).
      *
      * The booking flag is set here and not on arrival: the customer has just committed to a car,
      * and it is that commitment — not the URL they land on — that switches the header from the
      * plain bar to the vehicle presentation.
      */
-    private function adopt(int $vehicleId): RedirectResponse
+    private function adopt(int $vehicleId, ?string $returnTo = null): RedirectResponse
     {
         $context = (new VehicleContext($vehicleId))->enteredBooking();
 
@@ -115,13 +116,31 @@ class FahrzeugController extends Controller
         $raw = request()->cookie(Garage::COOKIE);
         $garage = Garage::decode(is_string($raw) ? $raw : null)->with($vehicleId);
 
-        return redirect()
-            ->route('felgen.index')
+        // The listing's last filters come with the car (the client's #27, D-118): a size or a brand chosen before
+        // the car survives choosing it.
+        $filters = request()->session()->get(FelgenController::FILTERS_SESSION, []);
+
+        // A page that asked for its visitor back gets them, with the car in its address (D-116) so the answer is the new car's.
+        $target = $returnTo === null
+            ? redirect()->route('felgen.index', is_array($filters) ? $filters : [])
+            : redirect()->to($this->withVehicle($returnTo, $vehicleId));
+
+        return $target
             ->withCookie(Cookie::make(
                 VehicleContext::COOKIE,
                 $context->encode(),
                 VehicleContext::LIFETIME_MINUTES,
             ))
             ->withCookie(Cookie::make(Garage::COOKIE, $garage->encode(), Garage::LIFETIME_MINUTES));
+    }
+
+    /** The return path with `fahrzeug=` set to the car just chosen, every other parameter kept. */
+    private function withVehicle(string $path, int $vehicleId): string
+    {
+        [$base, $query] = array_pad(explode('?', $path, 2), 2, '');
+        parse_str($query, $params);
+        $params['fahrzeug'] = $vehicleId;
+
+        return $base.'?'.http_build_query($params);
     }
 }

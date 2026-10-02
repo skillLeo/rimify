@@ -9,7 +9,10 @@ use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Verdict\AxleRequirement;
+use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\LoadIndexCode;
 use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 
@@ -24,9 +27,18 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
  * Only a LIVE verdict is answered. A verdict restored from `order_line_fitments.verdict` is
  * evidence of what was decided on the day, never the input to a fresh decision, and is refused
  * before any rule is read.
+ *
+ * Mischbereifung (#20, D-105) is answered here too, and only through the document: a front/rear pair is offered
+ * where the released Gutachten's own table (`reifen_kombination`, ABE 55255's V19) lists it and the car's row lists
+ * both sizes on their axle; each axle's tyres are measured against that axle's own load.
+ *
+ * @phpstan-import-type AxleMinimum from MixedPair
  */
 final readonly class TyreEligibility
 {
+    /** A mixed set is two wheels on each axle: the least the shelf must hold of each tyre. */
+    public const MIXED_PER_AXLE = 2;
+
     private const MINIMUM_LEAD = 'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex %d und Geschwindigkeitsindex %s.';
 
     private const MINIMUM_BOTH_DERIVED = 'Diese Mindestwerte ergeben sich aus Achslast und Höchstgeschwindigkeit deines Fahrzeugs.';
@@ -86,6 +98,109 @@ final readonly class TyreEligibility
     }
 
     /**
+     * Every front/rear pair the document's table permits for this car on this wheel, each with the tyre sets that meet
+     * both axles — or the sentence saying why there is none (#20, D-105).
+     *
+     * The rules, in order, each failing closed: the verdict sells (rule 1); every tyre rule the document writes is one
+     * the engine reads (rule 2); the document prints a pairing table; the car's axle loads and top speed settled every
+     * axle (R-03 — Mischbereifung is never offered on the document's minimum alone); the pair is in the table, front
+     * first, and the car's row lists the front size on the front axle and the rear size on the rear; each tyre meets
+     * its own axle; front and rear are one maker's one profile, as the table's own sentence asks.
+     */
+    public function mixedOfferFor(FitmentVerdict $verdict, bool $inStockOnly = true): MixedOffer
+    {
+        [$table, $refusal, $source] = $this->mixedGate($verdict);
+
+        if ($refusal !== null) {
+            return MixedOffer::refused($refusal, $table->isRead());
+        }
+
+        $pairs = [];
+
+        foreach ($this->listedPairs($verdict, $table) as [$pairing, $front, $rear]) {
+            $frontMinimum = $this->sizeMinimum($verdict, 'FRONT', $verdict->front, $front);
+            $rearMinimum = $this->sizeMinimum($verdict, 'REAR', $verdict->rear, $rear);
+
+            // A size the axle's load rules out is not a pair this car may have.
+            if (! is_array($frontMinimum) || ! is_array($rearMinimum)) {
+                continue;
+            }
+
+            $perAxle = $inStockOnly ? self::MIXED_PER_AXLE : 0;
+            $fronts = [];
+            $rears = [];
+
+            foreach ($this->catalogue->inSizes([$front, $rear], $inStockOnly) as $tyre) {
+                if ($tyre->size()->matches($front) && $this->axleTyreRefusal($verdict, 'FRONT', $tyre, $perAxle) === null) {
+                    $fronts[] = $tyre;
+                } elseif ($tyre->size()->matches($rear) && $this->axleTyreRefusal($verdict, 'REAR', $tyre, $perAxle) === null) {
+                    $rears[] = $tyre;
+                }
+            }
+
+            $sets = [];
+
+            foreach ($fronts as $frontTyre) {
+                foreach ($rears as $rearTyre) {
+                    if (self::oneMakerOneProfile($frontTyre, $rearTyre)) {
+                        $sets[] = ['front' => $frontTyre, 'rear' => $rearTyre];
+                    }
+                }
+            }
+
+            // Cheapest set first: two of each, so the sum of one of each orders them the same way.
+            usort($sets, static fn (array $a, array $b): int => [$a['front']->priceCents + $a['rear']->priceCents, $a['front']->id]
+                <=> [$b['front']->priceCents + $b['rear']->priceCents, $b['front']->id]);
+
+            $pairs[] = new MixedPair(
+                $pairing,
+                $front,
+                $rear,
+                self::minimum($frontMinimum, $verdict->vehicle->axleLoadFrontKg),
+                self::minimum($rearMinimum, $verdict->vehicle->axleLoadRearKg),
+                $sets,
+            );
+        }
+
+        if ($pairs === []) {
+            return MixedOffer::refused(KomplettradRefusal::NoMixedPairing, true);
+        }
+
+        return new MixedOffer($pairs, null, true, $table->rulesDe, $source?->code, $source?->sourcePage);
+    }
+
+    /**
+     * Null when this front tyre and this rear tyre may be sold as a mixed set on this verdict, `$perAxle` of each;
+     * otherwise why not — the basket's gate on every add and every render (R-11).
+     */
+    public function permitsMixed(FitmentVerdict $verdict, TyreRecord $front, TyreRecord $rear, int $perAxle = self::MIXED_PER_AXLE): ?KomplettradRefusal
+    {
+        [$table, $refusal] = $this->mixedGate($verdict);
+
+        if ($refusal !== null) {
+            return $refusal;
+        }
+
+        $listed = null;
+
+        foreach ($this->listedPairs($verdict, $table) as [$pairing, $frontSize, $rearSize]) {
+            if ($frontSize->matches($front->size()) && $rearSize->matches($rear->size())) {
+                $listed = $pairing;
+
+                break;
+            }
+        }
+
+        if ($listed === null) {
+            return KomplettradRefusal::MixedPairNotListed;
+        }
+
+        return $this->axleTyreRefusal($verdict, 'FRONT', $front, $perAxle)
+            ?? $this->axleTyreRefusal($verdict, 'REAR', $rear, $perAxle)
+            ?? (self::oneMakerOneProfile($front, $rear) ? null : KomplettradRefusal::MixedNotOneMaker);
+    }
+
+    /**
      * `Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und
      * Geschwindigkeitsindex Y. …` — never a bare number pair, and the second sentence credits
      * each half to the source that actually governed it (R-06), never to the combined flag.
@@ -111,37 +226,18 @@ final readonly class TyreEligibility
     /** Rules 1–5 — about the verdict as a whole, before any tyre is looked at. */
     private function verdictRefusal(FitmentVerdict $verdict): ?KomplettradRefusal
     {
-        // Before rule 1, before anything: a snapshot answers nothing.
-        if ($verdict->restored) {
-            return KomplettradRefusal::VerdictRestored;
-        }
-
-        // Rule 1 — a null wheel first: we hold nothing, so we do not claim a refusal. Then the
-        // status, selected case by case and never through one "not sellable" branch (R-07):
-        // only NOT_PERMITTED means "we checked and your car may not have this".
-        if ($verdict->wheel === null) {
-            return KomplettradRefusal::VerdictUnknown;
-        }
-
-        // Since R-03 was split the wheel can be approved while the tyres are not: the sentence names the
-        // half that refused, and never says „kein Gutachten“ about a car the document names.
-        $wheelApproved = in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true);
-        $byStatus = match ($verdict->status) {
-            VerdictStatus::NotPermitted => $wheelApproved ? KomplettradRefusal::TyresNotPermitted : KomplettradRefusal::VerdictNotPermitted,
-            VerdictStatus::Unknown => $wheelApproved ? KomplettradRefusal::TyresUnknown : KomplettradRefusal::VerdictUnknown,
-            VerdictStatus::Permitted, VerdictStatus::Conditional => null,
-        };
+        $byStatus = $this->statusRefusal($verdict);
 
         if ($byStatus !== null) {
             return $byStatus;
         }
 
-        // Rule 2 — the document restricts which tyres may be fitted and we hold no structured
-        // data about which; offering any tyre would be a confident wrong answer.
-        foreach ($verdict->conditions as $condition) {
-            if ($condition->affectsTyreChoice) {
-                return KomplettradRefusal::TyreChoiceRestricted;
-            }
+        // Rule 2 — the document restricts which tyres may be fitted in a way the engine does not read itself;
+        // offering any tyre would be a confident wrong answer. What it reads (D-105) does not stop the offer: a
+        // pairing table says nothing about four identical tyres, an axle code makes the sizes axle-scoped (rule 3b),
+        // and a load-index limit is applied per size from the car's own axle load (rule 8).
+        if ($this->hasUnreadTyreRule($verdict)) {
+            return KomplettradRefusal::TyreChoiceRestricted;
         }
 
         // Rule 3 — two independent staggered guards. 3a: the two axles permit different size
@@ -163,6 +259,62 @@ final readonly class TyreEligibility
         return null;
     }
 
+    /** Rule 1, and the guard before it — the verdict sells, and it is live. */
+    private function statusRefusal(FitmentVerdict $verdict): ?KomplettradRefusal
+    {
+        // Before rule 1, before anything: a snapshot answers nothing.
+        if ($verdict->restored) {
+            return KomplettradRefusal::VerdictRestored;
+        }
+
+        // Rule 1 — a null wheel first: we hold nothing, so we do not claim a refusal. Then the
+        // status, selected case by case and never through one "not sellable" branch (R-07):
+        // only NOT_PERMITTED means "we checked and your car may not have this".
+        if ($verdict->wheel === null) {
+            return KomplettradRefusal::VerdictUnknown;
+        }
+
+        // Since R-03 was split the wheel can be approved while the tyres are not: the sentence names the
+        // half that refused, and never says „kein Gutachten“ about a car the document names.
+        $wheelApproved = in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true);
+
+        return match ($verdict->status) {
+            VerdictStatus::NotPermitted => $wheelApproved ? KomplettradRefusal::TyresNotPermitted : KomplettradRefusal::VerdictNotPermitted,
+            VerdictStatus::Unknown => $wheelApproved ? KomplettradRefusal::TyresUnknown : KomplettradRefusal::VerdictUnknown,
+            VerdictStatus::Permitted, VerdictStatus::Conditional => null,
+        };
+    }
+
+    /**
+     * Whether the document writes a tyre rule the engine does not read itself (D-105). It reads three kinds, and only
+     * when they are whole: a load-index limit that names its index and its axle load (T95 → 95 up to 1.380 kg), and
+     * only once the car's own figures settled every axle; a pairing table it can read strictly; an axle code with its
+     * axle entered. Anything else — a maker list, an unread table, a code without a kind — stops every tyre offer.
+     */
+    private function hasUnreadTyreRule(FitmentVerdict $verdict): bool
+    {
+        $figures = $verdict->tyre?->figuresPermitted === true;
+
+        foreach ($verdict->conditions as $condition) {
+            if (! $condition->affectsTyreChoice) {
+                continue;
+            }
+
+            $read = match ($condition->kind) {
+                ConditionKind::ReifenTragfaehigkeit => $figures && $condition->maxAxleLoadKg !== null && LoadIndexCode::indexNamedBy($condition->code) !== null,
+                ConditionKind::ReifenKombination => TyrePairingTable::parse($condition->textDe)->isRead(),
+                ConditionKind::ReifenAchse => $condition->axle !== null,
+                default => false,
+            };
+
+            if (! $read) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Rules 6–9 — about one tyre, on a verdict that has already passed rules 1–5. */
     private function tyreRefusal(FitmentVerdict $verdict, TyreRecord $tyre, int $quantity): ?KomplettradRefusal
     {
@@ -175,8 +327,8 @@ final readonly class TyreEligibility
         }
 
         // Rules 7 and 8, per axle — front and rear, both.
-        foreach ([$verdict->front, $verdict->rear] as $axle) {
-            $refusal = $this->axleRefusal($axle, $tyre);
+        foreach (['FRONT' => $verdict->front, 'REAR' => $verdict->rear] as $name => $axle) {
+            $refusal = $this->axleRefusal($verdict, $name, $axle, $tyre);
 
             if ($refusal !== null) {
                 return $refusal;
@@ -191,7 +343,25 @@ final readonly class TyreEligibility
         return null;
     }
 
-    private function axleRefusal(AxleRequirement $axle, TyreRecord $tyre): ?KomplettradRefusal
+    /** Rules 6–9 for a tyre on ONE axle of a mixed set: its diameter, its size on that axle, that axle's minimum, the shelf. */
+    private function axleTyreRefusal(FitmentVerdict $verdict, string $name, TyreRecord $tyre, int $quantity): ?KomplettradRefusal
+    {
+        $wheelDiameter = $verdict->wheel?->diameterIn;
+
+        if ($wheelDiameter === null || abs($tyre->diameterIn - $wheelDiameter) > 0.01) {
+            return KomplettradRefusal::DiameterMismatch;
+        }
+
+        $refusal = $this->axleRefusal($verdict, $name, $name === 'FRONT' ? $verdict->front : $verdict->rear, $tyre);
+
+        if ($refusal !== null) {
+            return $refusal;
+        }
+
+        return $tyre->stockQty < $quantity ? KomplettradRefusal::OutOfStock : null;
+    }
+
+    private function axleRefusal(FitmentVerdict $verdict, string $name, AxleRequirement $axle, TyreRecord $tyre): ?KomplettradRefusal
     {
         // Rule 7 — the size must appear on this axle, matched by identity.
         $listed = $this->listedSize($axle, $tyre->size());
@@ -200,37 +370,253 @@ final readonly class TyreEligibility
             return KomplettradRefusal::SizeNotPermitted;
         }
 
-        // Rule 8 — R-06, refined per listed size. Every expression below is a max() against the
-        // axle's already-governed value, so this can only ever RAISE the minimum, never relax it.
-        // It earns its place because the axle's speed merge keeps the last size's document
-        // symbol rather than the strictest; comparing the listed size's own symbol here closes
-        // that hole from the safe side.
-        $axleRank = $this->speedSymbol->rankOf($axle->minSpeedSymbol);
+        // Rule 8 — R-06, refined per listed size (sizeMinimum()).
+        $minimum = $this->sizeMinimum($verdict, $name, $axle, $listed);
 
-        if ($axle->minLoadIndex === null || $axleRank === null) {
-            // A minimum that cannot be stated is not "no minimum" (R-03).
-            return KomplettradRefusal::NoUsableMinimum;
+        if (! is_array($minimum)) {
+            return $minimum;
         }
-
-        $minLoadIndex = max($axle->minLoadIndex, $listed->documentMinLoadIndex ?? 0);
-
-        // An unrecognised document symbol is ignored rather than trusted (D-027): it would rank
-        // as nothing, and the axle's own minimum still stands beneath it.
-        $documentRank = $listed->documentMinSpeedSymbol === null
-            ? null
-            : $this->speedSymbol->rankOf($listed->documentMinSpeedSymbol);
-        $minRank = max($axleRank, $documentRank ?? 0);
 
         // The tyre's own symbol must be one we know: an unrecognised symbol has no rank, and no
         // rank is not "fast enough". Symbols are never compared as letters — H sits between U
         // and V.
         $tyreRank = $this->speedSymbol->rankOf($tyre->speedSymbol);
 
-        if ($tyreRank === null || $tyre->loadIndex < $minLoadIndex || $tyreRank < $minRank) {
+        if ($tyreRank === null || $tyre->loadIndex < $minimum['loadIndex'] || $tyreRank < $minimum['speedRank']) {
             return KomplettradRefusal::BelowMinimum;
         }
 
         return null;
+    }
+
+    /**
+     * What a tyre of this listed size must carry on this axle — R-06, refined per size. Every figure is a max() against
+     * the axle's already-governed value, so this can only ever RAISE the minimum, never relax it:
+     *
+     * - the size's own printed index and symbol (the axle's speed merge keeps the strictest printed symbol, but the
+     *   listed size's own is compared here too, from the safe side);
+     * - the document's load-index limits that apply to THIS size — the row's and its own, never another size's —
+     *   read at this axle's load (D-105): the smallest index whose limit reaches it. The axle requirement merges the
+     *   limits of every size on the axle, which for one size can be a lower index than its own codes allow.
+     *
+     * @return array{loadIndex: int, speedSymbol: string, speedRank: int}|KomplettradRefusal
+     */
+    private function sizeMinimum(FitmentVerdict $verdict, string $name, AxleRequirement $axle, TyreSize $listed): array|KomplettradRefusal
+    {
+        $axleRank = $this->speedSymbol->rankOf($axle->minSpeedSymbol);
+
+        if ($axle->minLoadIndex === null || $axle->minSpeedSymbol === null || $axleRank === null) {
+            // A minimum that cannot be stated is not "no minimum" (R-03).
+            return KomplettradRefusal::NoUsableMinimum;
+        }
+
+        $limit = $this->sizeLimitIndex($verdict, $name, $listed);
+
+        if ($limit instanceof KomplettradRefusal) {
+            return $limit;
+        }
+
+        $loadIndex = max($axle->minLoadIndex, $listed->documentMinLoadIndex ?? 0, $limit ?? 0);
+
+        // An unrecognised document symbol is ignored rather than trusted (D-027): it would rank
+        // as nothing, and the axle's own minimum still stands beneath it.
+        $printed = $listed->documentMinSpeedSymbol;
+        $documentRank = $printed === null ? null : $this->speedSymbol->rankOf($printed);
+
+        return $printed !== null && $documentRank !== null && $documentRank > $axleRank
+            ? ['loadIndex' => $loadIndex, 'speedSymbol' => $printed, 'speedRank' => $documentRank]
+            : ['loadIndex' => $loadIndex, 'speedSymbol' => $axle->minSpeedSymbol, 'speedRank' => $axleRank];
+    }
+
+    /**
+     * The load index this size's own limits (and its row's) ask for at this axle's load: null where none applies; a
+     * refusal where they exist and the axle's load is unknown, or above every one of them.
+     */
+    private function sizeLimitIndex(FitmentVerdict $verdict, string $name, TyreSize $listed): int|KomplettradRefusal|null
+    {
+        // Live verdicts carry the row's own Auflagen apart; without them a size's limits cannot be told from another
+        // size's, and the blended list could hand this size a lower index than its own codes allow.
+        $row = $verdict->combinationConditions;
+        $limits = array_values(array_filter(
+            [...($row ?? []), ...$listed->conditions],
+            static fn (Condition $c): bool => $c->kind === ConditionKind::ReifenTragfaehigkeit
+                && $c->maxAxleLoadKg !== null
+                && LoadIndexCode::indexNamedBy($c->code) !== null,
+        ));
+
+        if ($limits === []) {
+            return $row === null && $this->anyLimit($verdict) ? KomplettradRefusal::NoUsableMinimum : null;
+        }
+
+        $load = $name === 'FRONT' ? $verdict->vehicle->axleLoadFrontKg : $verdict->vehicle->axleLoadRearKg;
+
+        if ($load === null || $load <= 0) {
+            return KomplettradRefusal::NoUsableMinimum;
+        }
+
+        $index = null;
+
+        foreach ($limits as $limit) {
+            $named = (int) LoadIndexCode::indexNamedBy($limit->code);
+
+            if ((int) $limit->maxAxleLoadKg >= $load && ($index === null || $named < $index)) {
+                $index = $named;
+            }
+        }
+
+        return $index ?? KomplettradRefusal::AxleLoadAboveLimit;
+    }
+
+    private function anyLimit(FitmentVerdict $verdict): bool
+    {
+        foreach ($verdict->conditions as $condition) {
+            if ($condition->kind === ConditionKind::ReifenTragfaehigkeit) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Rules 1, 2 and the table, for a mixed set: the verdict sells, every tyre rule is read, a pairing table is
+     * printed, and the car's own figures settled every axle.
+     *
+     * @return array{0: TyrePairingTable, 1: KomplettradRefusal|null, 2: Condition|null}
+     */
+    private function mixedGate(FitmentVerdict $verdict): array
+    {
+        $refusal = $this->statusRefusal($verdict);
+
+        if ($refusal !== null) {
+            return [TyrePairingTable::none(), $refusal, null];
+        }
+
+        [$table, $source] = $this->pairingTable($verdict);
+
+        if ($this->hasUnreadTyreRule($verdict) && ! $this->onlyUnreadForWantOfFigures($verdict)) {
+            return [$table, KomplettradRefusal::TyreChoiceRestricted, $source];
+        }
+
+        if (! $table->isRead()) {
+            return [$table, KomplettradRefusal::NoMixedPairing, $source];
+        }
+
+        // The load calculation runs per axle, from the car's own axle loads and top speed — never on the
+        // document's minimum alone (R-03).
+        if ($verdict->tyre?->figuresPermitted !== true) {
+            return [$table, KomplettradRefusal::NoUsableMinimum, $source];
+        }
+
+        return [$table, null, $source];
+    }
+
+    /**
+     * Whether the only tyre rules left unread are load-index limits waiting for the car's figures — said then as „trag
+     * deine Achslasten ein“, not as „wir klären das persönlich“.
+     */
+    private function onlyUnreadForWantOfFigures(FitmentVerdict $verdict): bool
+    {
+        if ($verdict->tyre?->figuresPermitted === true) {
+            return false;
+        }
+
+        foreach ($verdict->conditions as $condition) {
+            if (! $condition->affectsTyreChoice) {
+                continue;
+            }
+
+            $wellFormed = match ($condition->kind) {
+                ConditionKind::ReifenTragfaehigkeit => $condition->maxAxleLoadKg !== null && LoadIndexCode::indexNamedBy($condition->code) !== null,
+                ConditionKind::ReifenKombination => TyrePairingTable::parse($condition->textDe)->isRead(),
+                ConditionKind::ReifenAchse => $condition->axle !== null,
+                default => false,
+            };
+
+            if (! $wellFormed) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * The table the verdict's `reifen_kombination` Auflagen print, read strictly — where two print one, only the pairs
+     * both permit — and the Auflage it came from, for its code and page.
+     *
+     * @return array{0: TyrePairingTable, 1: Condition|null}
+     */
+    private function pairingTable(FitmentVerdict $verdict): array
+    {
+        $table = null;
+        $source = null;
+        $seen = [];
+
+        foreach ($verdict->conditions as $condition) {
+            if ($condition->kind !== ConditionKind::ReifenKombination || isset($seen[$condition->code."\u{0}".$condition->textDe])) {
+                continue;
+            }
+
+            $seen[$condition->code."\u{0}".$condition->textDe] = true;
+            $read = TyrePairingTable::parse($condition->textDe);
+
+            if (! $read->isRead()) {
+                return [TyrePairingTable::none(), $condition];
+            }
+
+            $table = $table === null ? $read : $table->intersect($read);
+            $source ??= $condition;
+        }
+
+        return [$table ?? TyrePairingTable::none(), $source];
+    }
+
+    /**
+     * The table's pairs this car's row lists on their axles: the front size among the front axle's sizes, the rear
+     * among the rear's, never one size on both ends.
+     *
+     * @return list<array{0: TyrePairing, 1: TyreSize, 2: TyreSize}>
+     */
+    private function listedPairs(FitmentVerdict $verdict, TyrePairingTable $table): array
+    {
+        $pairs = [];
+
+        foreach ($table->pairs as $pairing) {
+            if ($pairing->front->matches($pairing->rear)) {
+                continue;
+            }
+
+            $front = $this->listedSize($verdict->front, $pairing->front);
+            $rear = $this->listedSize($verdict->rear, $pairing->rear);
+
+            if ($front !== null && $rear !== null && $front->coversAxle('FRONT') && $rear->coversAxle('REAR')) {
+                $pairs[] = [$pairing, $front, $rear];
+            }
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * ABE 55255, V19: „Es sind nur Reifen eines Herstellers und achsweise eines Profiltyps zulässig“ — the same maker
+     * and the same tyre line front and rear, in the same season. A name we do not hold is not „the same“.
+     */
+    private static function oneMakerOneProfile(TyreRecord $front, TyreRecord $rear): bool
+    {
+        $same = static fn (?string $a, ?string $b): bool => $a !== null && $b !== null && trim($a) !== ''
+            && mb_strtolower(trim($a)) === mb_strtolower(trim($b));
+
+        return $same($front->brandName, $rear->brandName) && $same($front->name, $rear->name) && $same($front->season, $rear->season);
+    }
+
+    /**
+     * @param  array{loadIndex: int, speedSymbol: string, speedRank: int}  $minimum
+     * @return AxleMinimum
+     */
+    private static function minimum(array $minimum, ?int $axleLoadKg = null): array
+    {
+        return ['loadIndex' => $minimum['loadIndex'], 'speedSymbol' => $minimum['speedSymbol'], 'axleLoadKg' => $axleLoadKg];
     }
 
     private function listedSize(AxleRequirement $axle, TyreSize $size): ?TyreSize

@@ -120,6 +120,17 @@ describe('MainMenu', () => {
         expect(full.find('button').attributes('aria-label')).toBe('Menü, 3 Artikel im Warenkorb')
     })
 
+    it('leaves the count to the basket button where one stands beside it (#13): the header says it once', () => {
+        current.props = { cartCount: 3, routeName: 'startseite', menus: { header: HEADER, footer_pages: [], footer_legal: [], mobile_bottom: PHONE } }
+        const wrapper = mount(MainMenu, { props: { countOnButton: false } })
+        mounted.push(wrapper)
+
+        expect(wrapper.find('.mainmenu__badge').exists()).toBe(false)
+        expect(wrapper.find('button').attributes('aria-label')).toBe('Menü')
+        // Inside the menu the basket row still says how many.
+        expect(wrapper.find('.mainmenu__count').text()).toBe('3')
+    })
+
     it('gives every row an icon', () => {
         expect(mountMenu().findAll('a svg')).toHaveLength(6)
     })

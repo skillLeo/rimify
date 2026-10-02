@@ -248,7 +248,9 @@ it('carries measured anchors into every frame, normalised to it, and writes the 
 
     expect($manifest)->not->toBeNull()
         ->and($manifest['stamp'])->toBe('53810')
-        ->and($manifest['pipeline'])->toBe(5)
+        ->and($manifest['pipeline'])->toBe(6)
+        // A circle cut is a wheel off a car: no studio white to key, no `open` frame.
+        ->and($manifest)->not->toHaveKey('open')
         ->and(DemoWheels::anchorsWellFormed($manifest['anchors']))->toBeTrue()
         ->and(DemoWheels::anchorsWellFormed($manifest['wide']['anchors']))->toBeTrue()
         // `bare` has the square frame's geometry, so its anchors are the square frame's.
@@ -326,6 +328,51 @@ it('exports a bare frame with the square frame\'s geometry and no shadow under t
         ->and($alpha['maxBelow'])->toBe(0)
         ->and($alpha['bareCentre'])->toBe(255)
         ->and($alpha['squareCentre'])->toBe(255);
+});
+
+it('opens the spokes of a studio shot for a dark ground, and keeps a small white mark on the wheel (#9)', function (): void {
+    // A studio shot: white background, a grey rim ring, five dark spokes, a grey hub with a small white mark — the
+    // background seen through the spokes is the studio's white, which the silhouette mask (a full disc) keeps.
+    $studio = $this->dir.DIRECTORY_SEPARATOR.'studio-wheel.png';
+    $mask = $this->dir.DIRECTORY_SEPARATOR.'studio-wheel.mask.png';
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><rect width="900" height="900" fill="#ffffff"/>'
+        .'<circle cx="450" cy="450" r="380" fill="none" stroke="#8a7a66" stroke-width="40"/>'
+        .'<g stroke="#2a2e35" stroke-width="60" stroke-linecap="round">'
+        .'<line x1="450" y1="450" x2="450" y2="90"/><line x1="450" y1="450" x2="792" y2="339"/>'
+        .'<line x1="450" y1="450" x2="661" y2="741"/><line x1="450" y1="450" x2="239" y2="741"/>'
+        .'<line x1="450" y1="450" x2="108" y2="339"/></g>'
+        .'<circle cx="450" cy="450" r="90" fill="#9a9ea6"/><rect x="430" y="444" width="40" height="12" fill="#ffffff"/></svg>';
+    $disc = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><rect width="900" height="900" fill="#000"/><circle cx="450" cy="450" r="400" fill="#fff"/></svg>';
+    $make = new Process([$this->node, '-e', 'const s=require("sharp");Promise.all([s(Buffer.from(process.argv[1])).png().toFile(process.argv[3]),s(Buffer.from(process.argv[2])).extractChannel(0).png().toFile(process.argv[4])]).then(()=>process.exit(0),e=>{console.error(e);process.exit(1)})', $svg, $disc, $studio, $mask], base_path(), timeout: 120);
+    $make->run();
+    expect($make->isSuccessful())->toBeTrue($make->getErrorOutput());
+
+    $this->artisan('wheels:process-images', ['source' => $studio, '--slug' => 'test-studio', '--mask' => $mask])->assertSuccessful();
+
+    $manifest = DemoWheels::manifest('test-studio');
+    $out = $this->dir.DIRECTORY_SEPARATOR.'test-studio'.DIRECTORY_SEPARATOR;
+
+    expect($manifest['open']['name'])->toBe('test-studio-open')
+        ->and($manifest['open']['base'])->toBe(DemoWheels::publicBase().'/test-studio/test-studio-open')
+        ->and(is_file($out.'test-studio-open-480.png'))->toBeTrue();
+
+    // The 1080 frames: the wheel's centre at (540, 0,47 × 1080), its radius 0,41 × 1080. Between the top spoke and the
+    // next (−54°, at 0,55 of the radius) is an opening; on the top spoke, on the hub's white mark and on the rim ring
+    // is wheel.
+    $script = 'const s=require("sharp");Promise.all([process.argv[1],process.argv[2]].map(f=>s(f).raw().toBuffer({resolveWithObject:true}))).then(([bare,open])=>{'
+        .'const a=(img,x,y)=>img.data[(Math.round(y)*img.info.width+Math.round(x))*img.info.channels+img.info.channels-1];'
+        .'const cx=540,cy=0.47*1080,r=0.41*1080,at=(deg,f)=>[cx+Math.cos(deg*Math.PI/180)*f*r,cy+Math.sin(deg*Math.PI/180)*f*r];'
+        .'const gap=at(-54,0.55),spoke=at(-90,0.55),ring=at(-54,0.95);'
+        .'console.log(JSON.stringify({bareGap:a(bare,...gap),openGap:a(open,...gap),openSpoke:a(open,...spoke),openMark:a(open,cx,cy),openRing:a(open,...ring)}))})';
+    $probe = new Process([$this->node, '-e', $script, $out.'test-studio-bare-1080.png', $out.'test-studio-open-1080.png'], base_path(), timeout: 60);
+    $probe->run();
+    $alpha = json_decode(trim($probe->getOutput()), true);
+
+    expect($alpha['bareGap'])->toBe(255)
+        ->and($alpha['openGap'])->toBe(0)
+        ->and($alpha['openSpoke'])->toBe(255)
+        ->and($alpha['openMark'])->toBe(255)
+        ->and($alpha['openRing'])->toBe(255);
 });
 
 it('derives the outer lip of a masked shot from the mask, not from anything typed in', function (): void {

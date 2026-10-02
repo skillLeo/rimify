@@ -16,6 +16,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Content\PageContent;
+use App\Services\Storefront\BestSellers;
 use App\Services\Storefront\CalculatorPrefill;
 use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
@@ -52,10 +53,13 @@ class StartseiteController extends Controller
      * that made a row of one tile, and nothing to compare.)
      */
     private const TABS = [
-        'beliebt' => ['label' => 'Meiste Freigaben', 'options' => ['order' => 'coverage']],
+        'beliebt' => ['label' => 'Meiste Freigaben', 'options' => ['order' => 'bestselling']],
         'neu' => ['label' => 'Neu', 'options' => ['order' => 'newest']],
         'bis200' => ['label' => 'Bis 200 €', 'options' => ['order' => 'price', 'maxPriceCents' => 20_000]],
     ];
+
+    /** The first tab once the shop has sold a wheel (#5, D-110). */
+    public const BESTSELLING_LABEL = 'Meistgekauft';
 
     public function __construct(
         private readonly ProductCards $cards,
@@ -68,6 +72,7 @@ class StartseiteController extends Controller
         private readonly ListingQuery $listing,
         private readonly CalculatorPrefill $calculatorPrefill,
         private readonly PageContent $content,
+        private readonly BestSellers $bestSellers,
     ) {}
 
     public function index(Request $request): Response
@@ -78,6 +83,7 @@ class StartseiteController extends Controller
         $blocks = $this->blocks();
 
         $vehicle = $vehicleId === null ? null : $this->resolver->find($vehicleId);
+        $hero = $this->heroProduct();
 
         return Inertia::render(DevicePage::resolve('Startseite', $request), [
             'hero' => [
@@ -86,7 +92,7 @@ class StartseiteController extends Controller
                 // The phone document's own sentence (required in the editor). Absent or empty, the
                 // phone keeps its short default rather than the desktop's five lines (Mobile.vue).
                 'sublineMobile' => trim((string) ($blocks['hero']['sub_mobile'] ?? '')),
-                'product' => $this->heroProduct(),
+                'product' => $hero,
                 'stats' => $this->stats->counts(),
             ],
             'selector' => ['makes' => $this->tree->makes()],
@@ -100,7 +106,7 @@ class StartseiteController extends Controller
             ),
             'sizes' => $this->sizes($vehicleId),
             'brands' => $this->brands(),
-            'komplettrad' => ['tyre' => $this->featuredTyre()],
+            'komplettrad' => ['tyre' => $this->featuredTyre(), 'wheel' => $this->bandWheel($hero)],
             // The same service /felgenrechner reads: the teaser and the full tool start on one size.
             'calculator' => ['prefill' => $vehicleId === null ? null : $this->calculatorPrefill->forVehicle($vehicleId)],
             'partners' => [
@@ -199,6 +205,49 @@ class StartseiteController extends Controller
             'published' => $published,
             'facts' => $this->heroFacts($config, $kba),
         ];
+    }
+
+    /**
+     * The wheel that turns in the dark band (PROTECTED.md P6, the client's #9): a real product, photographed — the hero's
+     * wheel in its other finish where it has one (so the page shows both), else its leading finish. Only the `open`
+     * cut-out — shadowless, the studio's white keyed out of the spokes, which on the dark band would read as a white disc
+     * behind the wheel — with its wheel anchor, so it turns about its own axle. Null without one: the band keeps its
+     * illustration, labelled as such, and never borrows somebody else's photograph.
+     *
+     * @param  array<string, mixed>|null  $hero
+     * @return array{brand: string, name: string, finish: string, image: array<string, mixed>, anchor: array{x: float, y: float, r: float}}|null
+     */
+    private function bandWheel(?array $hero): ?array
+    {
+        if ($hero === null) {
+            return null;
+        }
+
+        $companion = is_array($hero['companion'] ?? null) ? $hero['companion'] : null;
+        $candidates = [
+            [$companion['finish'] ?? null, $companion['imageManifest'] ?? null],
+            [$hero['finish'] ?? null, $hero['imageManifest'] ?? null],
+        ];
+
+        foreach ($candidates as [$finish, $manifest]) {
+            $open = is_array($manifest) && is_array($manifest['open'] ?? null) ? $manifest['open'] : null;
+            $anchors = $open === null ? null : ($open['anchors'] ?? $manifest['anchors'] ?? null);
+            $wheel = is_array($anchors) && is_array($anchors['wheel'] ?? null) ? $anchors['wheel'] : null;
+
+            if ($open === null || $wheel === null || ! is_string($finish) || ! is_numeric($wheel['r'] ?? null) || (float) $wheel['r'] <= 0) {
+                continue;
+            }
+
+            return [
+                'brand' => (string) $hero['brand'],
+                'name' => (string) $hero['name'],
+                'finish' => $finish,
+                'image' => $open,
+                'anchor' => ['x' => (float) ($wheel['x'] ?? 0.5), 'y' => (float) ($wheel['y'] ?? 0.5), 'r' => (float) $wheel['r']],
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -362,7 +411,9 @@ class StartseiteController extends Controller
         $tabs = [];
 
         foreach (self::TABS as $key => $definition) {
-            $tabs[] = ['key' => $key, 'label' => $definition['label']];
+            // „Meistgekauft“ only once something has sold; until then the order it can prove, named for what it counts (#5, D-110).
+            $label = $key === 'beliebt' && $this->bestSellers->any() ? self::BESTSELLING_LABEL : $definition['label'];
+            $tabs[] = ['key' => $key, 'label' => $label];
         }
 
         if ($vehicleId !== null) {
@@ -391,14 +442,30 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The three orders on a set of cards that the listing already chose: `beliebt` keeps the
-     * listing's order, `neu` puts the newest models first, `bis200` keeps the ones from 200 € down.
+     * The three orders on a set of cards that the listing already chose: `beliebt` puts what has sold
+     * first and otherwise keeps the listing's order (#5, D-110), `neu` puts the newest models first,
+     * `bis200` keeps the ones from 200 € down.
      *
      * @param  list<array<string, mixed>>  $cards
      * @return list<array<string, mixed>>
      */
     private function arrange(array $cards, string $tab): array
     {
+        if ($tab === 'beliebt') {
+            $sold = $this->bestSellers->counts();
+
+            if ($sold === []) {
+                return $cards;
+            }
+
+            // Stable: among equals — and among the unsold — the listing's own order stands.
+            $position = array_flip(array_keys($cards));
+            uksort($cards, static fn (int $a, int $b): int => [($sold[(int) $cards[$b]['modelId']] ?? 0), $position[$a]]
+                <=> [($sold[(int) $cards[$a]['modelId']] ?? 0), $position[$b]]);
+
+            return array_values($cards);
+        }
+
         if ($tab === 'bis200') {
             return array_values(array_filter($cards, static fn (array $card): bool => (int) $card['fromPriceCents'] <= 20_000));
         }

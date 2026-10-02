@@ -59,7 +59,9 @@ final class DocumentPreview
                 'config' => (int) $configId,
                 'wheel' => $names[$configId] ?? $verdict->wheelLabel ?? '#'.$configId,
                 'status' => $verdict->status->value,
-                'statusLabel' => $verdict->status->labelDe(),
+                // As the shop will say it: „Freigegeben“ where every Auflage is a Hinweis (#23, D-104).
+                'statusLabel' => $verdict->displayLabelDe(),
+                'notesOnly' => $verdict->notesOnly(),
                 'reason' => $verdict->status === VerdictStatus::Permitted || $verdict->status === VerdictStatus::Conditional ? null : $verdict->reason?->textDe,
                 'requiresEntry' => $verdict->requiresEntry,
                 // What the shop will say about the papers, word for word (PapersWording).

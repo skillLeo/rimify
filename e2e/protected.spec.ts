@@ -62,6 +62,9 @@ test.describe('protected elements', () => {
         await expect(second.locator('.hero-contact'), 'P2: the second wheel\'s contact shadow is gone').toHaveCount(1);
         await expect(stage.locator('[data-callout="boltCircle"]'), 'P3: the Lochkreis callout is gone').toHaveCount(1);
         await expect(stage.locator('[data-callout="kba"]'), 'P3: the KBA callout is gone').toHaveCount(1);
+        // The client's #4, agreed by the operator (D-108): the hero shows the wheel and its numbers — no price, no link.
+        await expect(stage.locator('a[href^="/felgen/"]'), 'P1: the hero links to a product again — #4 took the link out').toHaveCount(0);
+        await expect(stage.getByText('pro Felge'), 'P1: the hero shows a price again — #4 took it out').toHaveCount(0);
 
         await page.waitForTimeout(2000);
         await expect(stage).toHaveScreenshot(`p1-hero-${testInfo.project.name}.png`, SHOT);

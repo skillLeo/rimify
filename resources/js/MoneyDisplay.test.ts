@@ -7,7 +7,7 @@ import type { ProductCardProp } from './types/rimify'
 /*
  * The money sweep's twin (the launch release §4; tests/Feature/Storefront/MoneyDisplayTest.php): the
  * two surfaces the browser writes from minor units, given exactly the cents the server sends for one
- * rim at 1.234,56 € and four of them — and the text they render, as the customer and the team read it.
+ * rim at 229,00 € and four of them (D-102) — and the text they render, as the customer and the team read it.
  */
 
 vi.mock('@inertiajs/vue3', () => ({
@@ -24,8 +24,8 @@ vi.mock('@inertiajs/vue3', () => ({
 const { default: ProductTile } = await import('./Components/Ui/ProductTile.vue')
 const { default: OrderShow } = await import('./Pages/Admin/Bestellungen/Show.vue')
 
-const RIM = 123_456
-const FOUR = 493_824
+const RIM = 22_900
+const FOUR = 91_600
 
 beforeEach(() => {
     setActivePinia(createPinia())
@@ -46,7 +46,7 @@ describe('MoneyDisplay', () => {
             ratingCount: 0,
             ratingLabel: null,
             fromPriceCents: RIM,
-            fromPrice: '1.234,56\u202F€',
+            fromPrice: '229,00\u202F€',
             inStock: true,
             stockQty: 8,
             diameters: ['18'],
@@ -55,7 +55,7 @@ describe('MoneyDisplay', () => {
 
         const tile = mount(ProductTile, { props: { card, vehicle: null, compare: false, eager: false } })
 
-        expect(tile.find('.tile__price').text()).toBe('ab 1.234,56\u202F€ pro Felge')
+        expect(tile.find('.tile__price').text()).toBe('ab 229,00\u202F€ pro Felge')
         tile.unmount()
     })
 
@@ -66,7 +66,7 @@ describe('MoneyDisplay', () => {
                 order: {
                     id: 1, number: 'RMF-2026-0001', statusLabel: 'Bezahlt', payment: state, fulfilment: state,
                     paymentMethod: null, shippingMethod: null, vehicle: null, keys: null, placedAt: null, paidAt: null,
-                    shippedAt: null, tracking: null, note: null, subtotal: FOUR, shipping: 0, tax: 78_846, total: FOUR, demo: false, test: false,
+                    shippedAt: null, tracking: null, note: null, subtotal: FOUR, shipping: 0, tax: 14_625, total: FOUR, demo: false, test: false,
                 },
                 customer: { name: 'Erika Mustermann', email: null, phone: null },
                 delivery: null,
@@ -77,9 +77,9 @@ describe('MoneyDisplay', () => {
             global: { stubs: { AdminPage: { template: '<div><slot /></div>' } } },
         })
 
-        expect(page.find('.bs-line__qty').text()).toBe('4 × 1.234,56\u202F€')
-        expect(page.find('.bs-line__total').text()).toBe('4.938,24\u202F€')
-        expect(page.text()).toContain('788,46\u202F€')
+        expect(page.find('.bs-line__qty').text()).toBe('4 × 229,00\u202F€')
+        expect(page.find('.bs-line__total').text()).toBe('916,00\u202F€')
+        expect(page.text()).toContain('146,25\u202F€')
         page.unmount()
     })
 })

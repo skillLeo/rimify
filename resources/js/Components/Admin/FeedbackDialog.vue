@@ -3,6 +3,9 @@
  * „Rückmeldung geben“ (the review release §3): one sentence and what kind of point it is — Fehler,
  * Design, Text, Wunsch. The page's address, the window, the browser, the role and a screenshot go
  * with it on their own, and the dialog says so. The `R` key opens it wherever nobody is typing.
+ *
+ * `surface`: the admin's frame, or the shop's own pages (ShopFeedback, D-142) — the same form in the
+ * design system of the page it is opened on.
  */
 
 import { router, usePage } from '@inertiajs/vue3'
@@ -10,6 +13,9 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Dialog from '../Ui/Dialog.vue'
 import { isTyping, overlayOpen } from '../../composables/admin/useAdminShortcuts'
 import { FEEDBACK_TYPES, feedback, startFeedback, type FeedbackType } from '../../composables/admin/useFeedback'
+
+const props = withDefaults(defineProps<{ surface?: 'admin' | 'shop' }>(), { surface: 'admin' })
+const shop = computed(() => props.surface === 'shop')
 
 const page = usePage()
 const type = ref<FeedbackType>('fehler')
@@ -44,11 +50,31 @@ function sendWithout(): void {
     send()
 }
 
-const role = computed(() => {
-    const admin = (page.props as { admin?: { account?: { role?: string | null } | null } }).admin
+/* `1440×900` is what is sent and stored; it reads with spaces, like every other product of two figures („7,5J × 17“). */
+const viewportLabel = computed(() => feedback.viewport.replace('×', ' × '))
 
-    return admin?.account?.role ?? null
+const role = computed(() => {
+    const shared = page.props as { admin?: { account?: { role?: string | null } | null }; reviewer?: { role?: string | null } }
+
+    return shared.admin?.account?.role ?? shared.reviewer?.role ?? null
 })
+
+/*
+ * A send that does not arrive is said here, in the dialog, with the sentence kept — never Inertia's own pane of raw
+ * response over the shop (SHOP-FEEDBACK-01): a sign-in that ran out, too many points at once, a picture too large,
+ * no connection, or anything else.
+ */
+function refused(status: number): string {
+    if (status === 401 || status === 403 || status === 419) {
+        return 'Deine Anmeldung ist abgelaufen. Melde dich im Admin neu an und schick die Rückmeldung dann noch einmal.'
+    }
+
+    if (status === 429) {
+        return 'Das waren viele Rückmeldungen in kurzer Zeit. Warte eine Minute und schick diese dann noch einmal.'
+    }
+
+    return 'Die Rückmeldung ist nicht angekommen. Dein Satz ist noch da – versuch es gleich noch einmal.'
+}
 
 function send(): void {
     if (busy.value) {
@@ -65,13 +91,41 @@ function send(): void {
             onSuccess: () => {
                 feedback.open = false
                 sentence.value = ''
+                type.value = 'fehler'
                 feedback.screenshot = null
             },
             onError: (bag) => (errors.value = bag),
+            onHttpException: (response) => {
+                // Too large to take: the server never read it, so offer the point without its picture.
+                errors.value = response.status === 413 && feedback.screenshot
+                    ? { screenshot: 'Das Bildschirmfoto ist zu groß. Schick die Rückmeldung bitte ohne.' }
+                    : { send: refused(response.status) }
+
+                return false
+            },
+            onNetworkError: () => {
+                errors.value = { send: 'Keine Verbindung zum Server. Dein Satz ist noch da – prüf die Verbindung und versuch es noch einmal.' }
+
+                return false
+            },
             onFinish: () => (busy.value = false),
         }
     )
 }
+
+/* Back, or any other way to another page, while the dialog is open: its address and picture are of the page it was
+   opened on, so it closes rather than file the point under the wrong page (SHOP-FEEDBACK-04). */
+let stopNavigate: (() => void) | undefined
+
+onMounted(() => {
+    stopNavigate = router.on('navigate', (event) => {
+        if (feedback.open && event.detail.page.url !== feedback.url) {
+            feedback.open = false
+        }
+    })
+})
+
+onBeforeUnmount(() => stopNavigate?.())
 
 /* `R` — Rückmeldung — like the panel's other single keys: never while typing, never over a dialog. */
 function onKeydown(event: KeyboardEvent): void {
@@ -92,12 +146,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-    <Dialog v-model:open="open" title="Rückmeldung geben" content-class="adm-dialog" initial-focus="#fb-sentence">
+    <Dialog v-model:open="open" title="Rückmeldung geben" :content-class="shop ? undefined : 'adm-dialog'" initial-focus="#fb-sentence">
         <form class="fb" novalidate @submit.prevent="send">
             <fieldset class="fb-types">
                 <legend class="form-field__label">Worum geht es?</legend>
                 <div class="fb-types__row">
-                    <label v-for="option in FEEDBACK_TYPES" :key="option.value" class="adm-chip fb-type">
+                    <label v-for="option in FEEDBACK_TYPES" :key="option.value" class="fb-type" :class="shop ? ['chip', { 'chip--on': type === option.value }] : 'adm-chip'">
                         <input v-model="type" class="visually-hidden" type="radio" name="fb-type" :value="option.value">
                         {{ option.label }}
                     </label>
@@ -115,13 +169,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                     :aria-invalid="errors.sentence ? 'true' : undefined"
                     aria-describedby="fb-sentence-err fb-context"
                 />
-                <p id="fb-sentence-err" class="form-field__error">{{ errors.sentence ?? errors.type ?? errors.url ?? errors.viewport ?? errors.browser ?? errors.screenshot }}</p>
+                <p id="fb-sentence-err" class="form-field__error" aria-live="polite">{{ errors.send ?? errors.sentence ?? errors.type ?? errors.url ?? errors.viewport ?? errors.browser ?? errors.screenshot }}</p>
                 <button v-if="errors.screenshot && feedback.screenshot" class="btn btn--ghost fb-without" type="button" @click="sendWithout">Ohne Bildschirmfoto senden</button>
             </div>
             <div id="fb-context" class="fb-context">
                 <img v-if="feedback.screenshot" class="fb-shot" :src="feedback.screenshot" alt="Bildschirmfoto dieser Seite, wie es mitgeschickt wird">
-                <p class="adm-note">
-                    Mitgeschickt werden: diese Seite ({{ feedback.url }}), Fenster {{ feedback.viewport }}, {{ feedback.browser }}<template v-if="role">, deine Rolle „{{ role }}“</template>{{ feedback.screenshot ? ' und das Bildschirmfoto.' : '. Ein Bildschirmfoto ließ sich hier nicht machen.' }}
+                <p :class="shop ? 'small muted' : 'adm-note'">
+                    Mitgeschickt werden: diese Seite ({{ feedback.url }}), Fenster {{ viewportLabel }}, {{ feedback.browser }}<template v-if="role">, deine Rolle „{{ role }}“</template>{{ feedback.screenshot ? ' und das Bildschirmfoto.' : '. Ein Bildschirmfoto ließ sich hier nicht machen.' }}
                 </p>
             </div>
         </form>
@@ -191,15 +245,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     border-radius: var(--r-control);
 }
 
-/* On a phone the screenshot is a strip of the page's top, so „Senden“ stays in view. */
+/* On a phone the screenshot is a strip of the page's top, as wide as the form, so „Senden“ stays in view; the four
+   kinds stand two by two rather than leaving one alone on a row. */
 @media (max-width: 767px) {
+    .fb-types__row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .fb-context {
         grid-template-columns: minmax(0, 1fr);
     }
 
     .fb-shot {
         width: 100%;
-        max-width: 240px;
         height: 96px;
         object-fit: cover;
         object-position: top;

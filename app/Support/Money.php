@@ -12,7 +12,7 @@ use InvalidArgumentException;
  * second place; this closes the class.
  *
  *   Money::fromMinor(142500)                 1.425,00 €
- *   ->multiply(4)                            5.700,00 € — a set of four is four rims, never a price ÷ 4
+ *   LinePrice::total($money, 4)              5.700,00 € — a quantity, in the one place it multiplies (D-102)
  *   ->vatIncluded(Money::VAT_STANDARD_BP)    the 19 % a gross German price contains
  *   ->withVat(1900)                          net → gross
  *   ->format()                               through GermanFormat::money (R-10)
@@ -60,11 +60,7 @@ final readonly class Money
         return $this->currency;
     }
 
-    /** This amount, `$factor` times: a quantity of rims, never a fraction. */
-    public function multiply(int $factor): self
-    {
-        return new self($this->minor * $factor, $this->currency);
-    }
+    /* No `multiply`: a quantity times a price is LinePrice's, and only LinePrice's (D-102). */
 
     public function plus(self $other): self
     {

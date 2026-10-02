@@ -27,7 +27,7 @@ import Wheel from '../../Components/Art/Wheel.vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import type { IconName } from '../../art'
 import { useShared } from '../../composables/useShared'
-import { mailtoHref } from '../../lib/mailto'
+import { contactHref } from '../../lib/contact'
 import type { ContactProp, VehicleProp } from '../../types/rimify'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
@@ -39,7 +39,7 @@ const props = withDefaults(
         isMobile?: boolean
         /** Whole seconds the server itself named. Null wherever it named none. */
         retryAfter?: number | null
-        /** Never printed: it travels only in the prepared e-mail, so nothing from the URL is reflected. */
+        /** Never printed: it travels only as the contact form's path, so nothing from the URL is reflected. */
         failedPath?: string | null
         /** Where „neu laden“ goes: empty after a GET (the page itself), the sending page after a form (G-14). */
         reloadHref?: string
@@ -54,7 +54,7 @@ interface Route {
     label: string
     href: string
     tone: Tone
-    /** A full page request rather than an Inertia visit: the reload, and the mail program. */
+    /** A full page request rather than an Inertia visit: the reload. */
     plain?: boolean
 }
 
@@ -71,22 +71,13 @@ const vehicle = computed<VehicleProp | null>(() => shared.value.vehicle ?? null)
 const contact = computed<ContactProp | null>(() => (shared.value.contact as ContactProp | undefined) ?? null)
 
 /*
- * The one channel the shop has confirmed (ACCURACY D5). The address is the shared `contact` prop
- * and never a literal; were it ever missing, this route still leads somewhere — to the Kontakt
- * page — because the rule is three ways forward, not two and a gap.
+ * The third way forward is a question to us: the contact form (#26), its subject naming the status. The page goes
+ * along as the form's path, never printed: after a GET the page that failed, after a form the page it was sent
+ * from — the same page „neu laden“ opens, so the form's way back is never a 405.
  */
-const mailHref = computed<string>(() => {
-    const details = contact.value
-
-    if (details === null) {
-        return '/kontakt'
-    }
-
-    return mailtoHref(details.email, {
-        subject: `RIMIFY – Fehler ${props.status}`,
-        body: `Fehler: ${props.status}\nSeite: ${props.failedPath ?? ''}\n\nWas ich tun wollte:\n\n`,
-    })
-})
+const mailHref = computed<string>(() =>
+    contactHref({ subject: `Fehler ${props.status}`, from: props.reloadHref !== '' ? props.reloadHref : props.failedPath })
+)
 
 /** Where the vehicle already chosen leads, and where its absence leads instead. */
 const felgen = (tone: Tone): Route =>
@@ -109,13 +100,7 @@ const signIn = (tone: Tone): Route => ({
    sent, the server names the page it came from: the form's own address would answer a GET with a 405. */
 const reload = (tone: Tone): Route => ({ key: 'reload', label: 'Diese Seite neu laden', href: props.reloadHref, tone, plain: true })
 
-const ask = (tone: Tone): Route => ({
-    key: 'kontakt',
-    label: contact.value === null ? 'Zur Kontaktseite' : 'Per E-Mail nachfragen',
-    href: mailHref.value,
-    tone,
-    plain: contact.value !== null,
-})
+const ask = (tone: Tone): Route => ({ key: 'kontakt', label: 'Bei uns nachfragen', href: mailHref.value, tone })
 
 /**
  * Only ever the figure the server named, phrased as a wait and never as a promise.
@@ -244,7 +229,7 @@ const view = computed<View>(() => {
 
                 <p v-if="contact" class="t-small err__note">
                     Du erreichst uns unter
-                    <a class="err__mail" :href="mailHref" translate="no">{{ contact.email }}</a>,
+                    <Link class="err__mail" :href="mailHref" translate="no">{{ contact.email }}</Link>,
                     <span translate="no">{{ contact.hours }}</span>.
                 </p>
             </div>

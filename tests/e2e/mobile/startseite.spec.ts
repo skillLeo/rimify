@@ -104,7 +104,8 @@ test.describe('Startseite/Mobile', () => {
         const button = page.locator('[data-primary]')
         await expect(button).toHaveText(/\d+ passende Felgen anzeigen/)
         await button.click()
-        await page.waitForURL('**/felgen', { timeout: 30_000 })
+        // The listing carries the car in its address (#8, D-116): `/felgen?fahrzeug=…`.
+        await page.waitForURL((url) => url.pathname === '/felgen', { timeout: 30_000 })
 
         // Back lands on the homepage again. Inertia restores a popstate page from its history
         // snapshot (the props from before the choice), so the vehicle state is asserted on a
@@ -114,7 +115,8 @@ test.describe('Startseite/Mobile', () => {
 
         await open(page, '/')
         await expect(page.locator('#h2')).toContainText('Dein Fahrzeug')
-        await expect(page.locator('#h2 h1')).toContainText('Felgen, die an deinen BMW')
+        // The heading's wording since the copy sweep (606975ec): the car by name, never a guess at it.
+        await expect(page.locator('#h2 h1')).toContainText('Felgen mit Gutachten für BMW')
         await expect(page.locator('[data-primary]')).toHaveText(/passende Felgen anzeigen/)
     })
 
@@ -173,10 +175,10 @@ test.describe('Startseite/Mobile', () => {
         await expect(page.getByLabel('HSN (Feld 2.1)')).toHaveValue('9999')
         await expect(page.getByRole('button', { name: 'Nochmal prüfen' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Über Marke & Modell wählen' })).toBeVisible()
-        // The third route: the e-mail while the client has published no phone number (R-09).
-        const write = page.locator('#h2').getByRole('link', { name: /^Schreib uns: / })
+        // The third route: the contact form while the client has published no phone number (R-09, #26).
+        const write = page.locator('#h2 .vpanel__miss').getByRole('link', { name: 'Schreib uns', exact: true })
         await expect(write).toBeVisible()
-        await expect(write).toHaveAttribute('href', /^mailto:/)
+        await expect(write).toHaveAttribute('href', /^\/kontakt\?betreff=Fahrzeug\+nicht\+gefunden/)
         await expect(page.locator('[data-primary]')).toBeDisabled()
     })
 
@@ -226,7 +228,7 @@ test.describe('Startseite/Mobile', () => {
         const tiles = await page.locator('#h5 .tile').count()
         expect(tiles).toBeGreaterThan(0)
         expect(await page.locator('#h5 .tile .verdict').count()).toBe(tiles)
-        await expect(page.locator('#h5 h2')).toContainText('Passend für deinen BMW')
+        await expect(page.locator('#h5 h2')).toContainText('Passend für BMW')
     })
 
     test('size shelf and brand grid lead into the listing', async ({ page }) => {
@@ -275,8 +277,9 @@ test.describe('Startseite/Mobile', () => {
                 await expect(page.locator('#h2 .hero-mobile a')).toHaveCount(0)
             }
 
-            // A placeholder drawing has no photographed bolt holes or stamp to point at: no leaders.
-            const drawing = (await frame.locator('img').getAttribute('src'))?.includes('/demo/placeholders/') ?? false
+            // A placeholder drawing has no photographed bolt holes or stamp to point at: no leaders. Two wheels stand in
+            // the frame (e9030909, PROTECTED.md P1); the leading one, fetched first, is the one the callouts point at.
+            const drawing = (await frame.locator('img[fetchpriority="high"]').getAttribute('src'))?.includes('/demo/placeholders/') ?? false
             if (drawing) {
                 await expect(frame.locator('.callout')).toHaveCount(0)
             } else {
@@ -441,10 +444,11 @@ test.describe('Startseite/Mobile', () => {
 
     test('service block: real contact data and five questions', async ({ page }) => {
         await open(page, '/')
-        // The client has published no phone and no WhatsApp: the e-mail is the one link, never an invented number.
+        // The client has published no phone and no WhatsApp: the contact form is the one way to write, never an invented number (#26).
         await expect(page.locator('#h11 a[href^="tel:"]')).toHaveCount(0)
         await expect(page.locator('#h11 a[href*="wa.me"]')).toHaveCount(0)
-        await expect(page.locator('#h11 a[href^="mailto:"]')).toHaveCount(1)
+        await expect(page.locator('#h11 a[href^="/kontakt"]')).toHaveCount(1)
+        await expect(page.locator('#h11 a[href^="mailto:"]')).toHaveCount(0)
         await expect(page.locator('#h11 .accordion__item')).toHaveCount(5)
 
         const first = page.locator('#h11 .accordion__trigger').first()

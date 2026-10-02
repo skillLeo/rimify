@@ -3,9 +3,8 @@
  * The top app bar: 56 px plus the status-bar inset, sticky, never changing height.
  *
  * On a top-level page it carries the wordmark (the homepage) or nothing on the left, and the
- * search, the vehicle and the menu on the right — three targets, which is what fits beside the
- * wordmark at 390 px. On an inner page: the back arrow (44 px), a truncated title, the page's own
- * actions, and the menu — which is where the destinations and the basket live now that no bar
+ * search, the vehicle, the basket and the menu on the right (the basket since the client's #13). On an inner page: the back arrow (44 px), a truncated title, the page's own
+ * actions, the basket and the menu — which is where the destinations live now that no bar
  * crosses the bottom of the screen. A page may ask for a large title: 28 px under the bar, in the
  * flow, which collapses into the bar as it scrolls under it — scroll-driven where the browser
  * can, an IntersectionObserver everywhere else.
@@ -17,10 +16,11 @@
  * and never pushes an action off the row.
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import DemoBadge from '../Chrome/DemoBadge.vue'
+import CartButton from '../Chrome/CartButton.vue'
 import MainMenu from '../Chrome/MainMenu.vue'
 import { useShared } from '../../composables/useShared'
 import { useMobileShell } from '../../composables/mobile/useMobileShell'
@@ -41,6 +41,9 @@ const props = withDefaults(
 
 const shared = useShared()
 const shell = useMobileShell()
+const page = usePage()
+/* The basket left of the menu (#13, D-122) — not on the basket and the checkout themselves, where it would point at itself. */
+const showCart = computed(() => !/^\/(warenkorb|kasse)(\/|\?|$)/.test(page.url))
 const vehicle = computed(() => shared.value.vehicle)
 const showBrand = computed(() => props.top && !props.title)
 
@@ -104,7 +107,8 @@ onBeforeUnmount(() => {
                     <Link v-else href="/felgen-suchen" class="icon-btn m-press" aria-label="Fahrzeug wählen">
                         <Icon name="car" :size="24" />
                     </Link>
-                    <MainMenu />
+                    <CartButton v-if="showCart" class="m-press" />
+                    <MainMenu :count-on-button="!showCart" />
                 </div>
             </template>
 
@@ -115,8 +119,9 @@ onBeforeUnmount(() => {
                 <p class="mbar__title" :aria-hidden="large ? 'true' : undefined">{{ title }}</p>
                 <DemoBadge />
                 <div class="mbar__tools">
-                    <slot name="actions" />
-                    <MainMenu />
+                    <span class="mbar__actions"><slot name="actions" /></span>
+                    <CartButton v-if="showCart" class="m-press" />
+                    <MainMenu :count-on-button="!showCart" />
                 </div>
             </template>
         </div>
@@ -183,8 +188,8 @@ onBeforeUnmount(() => {
     font-weight: 600;
 }
 
-/* Three targets at most, and the menu is always the last of them: a page may contribute two of its
-   own actions, and anything beyond that never renders rather than pushing the menu off the row. */
+/* The basket and the menu are always there, the menu last (#13, D-122): a page may contribute two of its own actions
+   before them, and anything beyond that never renders rather than pushing the menu off the row. */
 .mbar__tools {
     display: flex;
     align-items: center;
@@ -192,7 +197,11 @@ onBeforeUnmount(() => {
     margin-left: auto;
 }
 
-.mbar__tools > :nth-child(n + 4) {
+.mbar__actions {
+    display: contents;
+}
+
+.mbar__actions > :nth-child(n + 3) {
     display: none;
 }
 

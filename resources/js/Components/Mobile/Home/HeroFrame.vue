@@ -4,8 +4,8 @@
  * (`calloutSlots.ts`, docs/phase0/ACCURACY.md §4) — the product's shadowless `bare` cut-out on one
  * CSS contact shadow in a pool of studio light, and two leaders: the Lochkreis, a dashed circle
  * through the bolt-hole centres, and the KBA number at the stamp (only when the photographed stamp
- * is this configuration's number). Under the frame: the spec line, the caption that is the link to
- * the product, the line saying what the picture shows, and the Demodaten line.
+ * is this configuration's number). Under the frame: the spec line, the caption naming the product (no price and
+ * no link, the client's #4), the line saying what the picture shows, and the Demodaten line.
  *
  * With no photograph of the product the frame draws the outline and names no product: no brand,
  * no model, no price, no link, no leader — the spec line and one sentence saying what the drawing
@@ -17,21 +17,17 @@
  * reduced motion everything simply stands there.
  */
 
-import { Link, usePage } from '@inertiajs/vue3'
+import { usePage } from '@inertiajs/vue3'
 import { computed, onMounted, ref } from 'vue'
 import Picture from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
-import ValueText from '../../Ui/ValueText.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
-import { priceTerms } from '../../../composables/usePriceTerms'
-import { formatMoney } from '../../../lib/num'
 import type { HeroProduct } from '../../../types/pages'
 import { COMPANION_STAGGER_MS, companionScene, companionStyle, frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_COMPANION, PHONE_LAYOUT, PHONE_PAIR_LAYOUT, rollStyle } from './calloutSlots'
 
 const props = defineProps<{ product: HeroProduct }>()
 
-const page = usePage<{ demo?: boolean; smallBusiness?: boolean }>()
-const terms = computed(() => priceTerms(page.props.smallBusiness === true))
+const page = usePage<{ demo?: boolean }>()
 
 const CAPTION = 'Abbildung zeigt das Design; Werte der gezeigten Ausführung.'
 const SYMBOLIC = 'Symbolbild – Werte einer Beispielkonfiguration'
@@ -53,13 +49,9 @@ const finishes = computed(() => (pair.value !== null && props.product.companion 
 const callouts = computed(() => (photo.value === null ? [] : scene.value.callouts))
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
-/* The product is named only over its own photograph, never under the outline; linked and priced only in the shop. */
+/* The product is named only over its own photograph, never under the outline; never priced, never linked (#4, D-108). */
 const named = computed(() => !props.product.symbolic && photo.value !== null)
-const linked = computed(() => named.value && props.product.published !== false)
-
-const href = computed(() => `/felgen/${props.product.slug}`)
 const alt = computed(() => `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`)
-const perWheel = computed(() => formatMoney(props.product.fromPriceCents))
 
 /* The leaders draw once both wheels stand: after the roll, and after the second wheel's beat when it is there. */
 const frameVars = computed(() => ({
@@ -82,13 +74,8 @@ onMounted(() => {
 
 <template>
     <div ref="root" class="hero-mobile">
-        <component
-            :is="linked ? Link : 'div'"
-            :href="linked ? href : undefined"
-            class="frame hero-frame"
-            :style="frameVars"
-            :prefetch="linked ? true : undefined"
-        >
+        <!-- No link and no price in the hero (the client's #4, D-108): the picture and its numbers. -->
+        <div class="frame hero-frame" :style="frameVars">
             <span class="hero-studio" aria-hidden="true" />
 
             <!-- The second wheel first, so the leading one paints over it. -->
@@ -99,8 +86,7 @@ onMounted(() => {
                 </span>
             </span>
 
-            <!-- The link's name is the picture's alt: no aria-label, so the visible text is part of the
-                 name. `error` does not bubble, but it does pass this wrapper in the capture phase. -->
+            <!-- `error` does not bubble, but it does pass this wrapper in the capture phase. -->
             <span
                 v-if="photo"
                 class="hero-frame__roll"
@@ -134,20 +120,14 @@ onMounted(() => {
                 :ratio="layout.ratio"
                 :weight="layout.weight"
             />
-        </component>
+        </div>
 
         <!-- Tokens and figures throughout, the stamp's number with them: never translated. -->
         <p class="small num muted hero-mobile__spec" translate="no">
             {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
         </p>
 
-        <Link v-if="linked" :href="href" class="hero-mobile__caption" prefetch>
-            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
-            <span class="small num muted">ab <ValueText :text="perWheel" whole /> · pro Felge</span>
-            <!-- PAngV: wherever a price stands, what it includes stands beside it. -->
-            <span class="micro quiet">{{ terms.note }}</span>
-        </Link>
-        <p v-else-if="named" class="hero-mobile__caption">
+        <p v-if="named" class="hero-mobile__caption">
             <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
         </p>
         <p v-if="photo" class="micro quiet hero-mobile__shown">{{ CAPTION }}</p>
@@ -176,12 +156,23 @@ onMounted(() => {
     text-decoration: none;
 }
 
+/* The studio light, as on the desktop (D-139): the band's own colour lifted, gone before the frame's clipped edges. */
 .hero-studio {
     position: absolute;
     inset: 0;
     z-index: var(--z-base);
     /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-    background-image: radial-gradient(60% 50% at 50% 62%, var(--c-surface) 0%, rgb(255 255 255 / 0) 100%);
+    background-image: radial-gradient(
+        50% 38% at 50% 62%,
+        var(--c-studio-light) 0%,
+        color-mix(in srgb, var(--c-studio-light) 96%, transparent) 15%,
+        color-mix(in srgb, var(--c-studio-light) 83%, transparent) 30%,
+        color-mix(in srgb, var(--c-studio-light) 64%, transparent) 45%,
+        color-mix(in srgb, var(--c-studio-light) 41%, transparent) 60%,
+        color-mix(in srgb, var(--c-studio-light) 19%, transparent) 75%,
+        color-mix(in srgb, var(--c-studio-light) 4%, transparent) 90%,
+        transparent 100%
+    );
 }
 
 /* The square picture's box, where the layout puts it; the roll moves the box, the turn its content. */
@@ -285,21 +276,11 @@ onMounted(() => {
     text-decoration: none;
 }
 
-/* A target to tap only where there is one: the linked caption. */
-a.hero-mobile__caption {
-    min-height: 44px;
-}
 
 .hero-mobile__name {
     font-weight: 500;
 }
 
-@media (hover: hover) and (pointer: fine) {
-    a.hero-mobile__caption:hover .hero-mobile__name {
-        text-decoration: underline;
-        text-underline-offset: 3px;
-    }
-}
 
 @media (prefers-reduced-motion: reduce) {
     .hero-frame__roll--rolling,

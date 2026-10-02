@@ -20,6 +20,7 @@ import GutachtenStory from '../../Components/Mobile/Home/GutachtenStory.vue'
 import HeroFrame from '../../Components/Mobile/Home/HeroFrame.vue'
 import KomplettradWheel from '../../Components/Mobile/Home/KomplettradWheel.vue'
 import VehiclePanel from '../../Components/Mobile/Home/VehiclePanel.vue'
+import HeroHelp from '../../Components/Home/HeroHelp.vue'
 import ListRow from '../../Components/Mobile/ListRow.vue'
 import Shelf from '../../Components/Mobile/Shelf.vue'
 import Accordion from '../../Components/Ui/Accordion.vue'
@@ -28,6 +29,7 @@ import ProductTile from '../../Components/Ui/ProductTile.vue'
 import ProductTileSkeleton from '../../Components/Ui/ProductTileSkeleton.vue'
 import TyreLabel, { type TyreClass } from '../../Components/Ui/TyreLabel.vue'
 import { felgen, NNBSP } from '../../format'
+import { contactHref } from '../../lib/contact'
 import { isIconName, type IconName } from '../../icons'
 import { useShared } from '../../composables/useShared'
 import type { StartseiteProps } from '../../types/pages'
@@ -267,6 +269,8 @@ onBeforeUnmount(() => {
 
             <div class="home-hero__panel">
                 <VehiclePanel :makes="selector.makes" :total="vehicleCount" :garage="garage" />
+                <!-- Where to ask, as on the desktop (#3, D-107). -->
+                <HeroHelp class="home-hero__help" />
             </div>
 
             <div v-if="hero.product" class="home-hero__frame">
@@ -328,7 +332,7 @@ onBeforeUnmount(() => {
 
             <div v-else class="container empty">
                 <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                <p class="empty__text">Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
+                <p class="empty__text">Schau unter „{{ popular.tabs[0]?.label ?? 'Meiste Freigaben' }}“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
             </div>
         </div>
 
@@ -387,7 +391,7 @@ onBeforeUnmount(() => {
             <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br>montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
 
-            <KomplettradWheel class="home-komplett__wheel" />
+            <KomplettradWheel class="home-komplett__wheel" :wheel="komplettrad.wheel ?? null" />
 
             <TyreLabel
                 :title="tyre.title"
@@ -462,7 +466,8 @@ onBeforeUnmount(() => {
             <ListRow v-if="contact.whatsapp" :title="`WhatsApp: ${contact.whatsapp}`" :href="waHref" external :chevron="false">
                 <template #leading><span class="home-contact__slot" aria-hidden="true" /></template>
             </ListRow>
-            <ListRow icon="mail" :title="contact.email" :href="`mailto:${contact.email}`" external :chevron="false" />
+            <!-- The address, to read and copy; the row opens the contact form (#26). -->
+            <ListRow icon="mail" :title="contact.email" sub="Nachricht schreiben" :href="contactHref({ subject: 'Frage zur Passform', from: '/' })" />
             <ListRow icon="clock" :title="contact.hours" static />
         </div>
 
@@ -545,15 +550,19 @@ onBeforeUnmount(() => {
     margin-top: var(--sp-20);
 }
 
+.home-hero__help {
+    margin-top: var(--sp-12);
+}
+
 .home-hero__frame {
     margin-top: var(--sp-32);
 }
 
 /* ── H3 ─────────────────────────────────────────────────────────────────────── */
 
+/* The hero band's edge is the divider: no hairline on top of it. */
 .home-promises {
     padding: var(--sp-24) 0;
-    border-top: 1px solid var(--c-line);
 }
 
 .home-promises__list {
@@ -572,7 +581,8 @@ onBeforeUnmount(() => {
 }
 
 .home-promises__item svg {
-    color: var(--c-ink-2);
+    /* The brand's blue on the marks (#33, D-114). */
+    color: var(--c-blue);
     margin-bottom: var(--sp-4);
 }
 
