@@ -125,7 +125,7 @@ function removeVehicle(): void {
 
                 <!-- The menu: on a phone the destinations live in it rather than in a bar across the bottom of
                      every page. -->
-                <MainMenu class="until-lg" />
+                <MainMenu class="until-lg" :count-on-button="!showCart" />
 
                 <Link
                     href="/warenkorb"

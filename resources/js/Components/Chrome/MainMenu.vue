@@ -30,6 +30,12 @@ import { useMenus, useShared } from '../../composables/useShared'
  */
 defineOptions({ inheritAttrs: false })
 
+/*
+ * Where the basket button stands beside the menu (#13), it carries the count; the menu button then does not, so the
+ * header never shows the same number twice. Inside the menu the basket row keeps its count.
+ */
+const props = withDefaults(defineProps<{ countOnButton?: boolean }>(), { countOnButton: true })
+
 const shared = useShared()
 const menus = useMenus()
 
@@ -79,10 +85,10 @@ const cartCount = computed(() => shared.value.cartCount)
         <DropdownMenuTrigger
             v-bind="$attrs"
             class="icon-btn m-press mainmenu__trigger"
-            :aria-label="cartCount > 0 ? `Menü, ${cartCount} Artikel im Warenkorb` : 'Menü'"
+            :aria-label="props.countOnButton && cartCount > 0 ? `Menü, ${cartCount} Artikel im Warenkorb` : 'Menü'"
         >
             <Icon name="menu" :size="24" />
-            <span v-if="cartCount > 0" class="badge badge--count mainmenu__badge" aria-hidden="true">{{ cartCount }}</span>
+            <span v-if="props.countOnButton && cartCount > 0" class="badge badge--count mainmenu__badge" aria-hidden="true">{{ cartCount }}</span>
         </DropdownMenuTrigger>
 
         <DropdownMenuPortal>

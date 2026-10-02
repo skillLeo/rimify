@@ -108,7 +108,7 @@ onBeforeUnmount(() => {
                         <Icon name="car" :size="24" />
                     </Link>
                     <CartButton v-if="showCart" class="m-press" />
-                    <MainMenu />
+                    <MainMenu :count-on-button="!showCart" />
                 </div>
             </template>
 
@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
                 <div class="mbar__tools">
                     <span class="mbar__actions"><slot name="actions" /></span>
                     <CartButton v-if="showCart" class="m-press" />
-                    <MainMenu />
+                    <MainMenu :count-on-button="!showCart" />
                 </div>
             </template>
         </div>
