@@ -3,13 +3,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, ref } from 'vue'
 
 /*
+ * Fixtures only — not the shop's details, which come from config/rimify.php; the number is hyphenated so the
+ * contact-details guard does not read it as one (as VehiclePanel.test.ts does).
+ *
  * The client's #3 (D-107): of the strip above the header, the one line nothing else on the page says — where to ask
  * and when someone reads it — stands under the hero's selector. It goes to the contact form, never to a mail program
  * (#26), and promises no reply time.
  */
 
 const contact = ref<{ email: string; phone: string | null; phoneIntl: string | null; hours: string }>({
-    email: 'info@rimify.de',
+    email: 'service@example.com',
     phone: null,
     phoneIntl: null,
     hours: 'Mo–Fr 9:00–17:00 Uhr',
@@ -39,9 +42,9 @@ describe('HeroHelp', () => {
     })
 
     it('calls the phone instead, only where the client has given one', () => {
-        contact.value = { ...contact.value, phone: '0221 123 456', phoneIntl: '+49221123456' }
+        contact.value = { ...contact.value, phone: '0800 555 01 00', phoneIntl: '+49-800-5550100' }
         const wrapper = mount(HeroHelp, { global: { stubs: { Icon: true } } })
 
-        expect(wrapper.find('a').attributes('href')).toBe('tel:+49221123456')
+        expect(wrapper.find('a').attributes('href')).toBe('tel:+49-800-5550100')
     })
 })
