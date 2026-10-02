@@ -120,8 +120,7 @@ final class Smoke extends Command
                 $this->post('/fahrzeug', ['fahrzeug' => (string) $vehicle->id]);
                 $html = self::rendered($this->get('/felgen/'.$slug)->body());
                 $this->expect((bool) preg_match('/(Mit Auflagen freigegeben|Freigegeben) für ([^<]+)/u', $html, $m), 'keine Freigabe auf der Produktseite');
-                preg_match('#<a href="([^"]+)"[^>]*>\s*Gutachten öffnen#u', $html, $link);
-                $pdf = isset($link[1]) ? html_entity_decode($link[1]) : null;
+                $pdf = self::pdfLink($html);
 
                 return trim($m[0]).' ('.GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn).')';
             });
@@ -284,6 +283,15 @@ final class Smoke extends Command
         if (! $condition) {
             throw new \RuntimeException($failure);
         }
+    }
+
+    /**
+     * The product page's „Gutachten öffnen“ link, wherever `href` stands among its attributes: since the page's rework it
+     * follows `class` (`<a class="link" href="…">`), and the smoke on the preview read that as no link (03.10.2026).
+     */
+    public static function pdfLink(string $html): ?string
+    {
+        return preg_match('#<a\b[^>]*?\bhref="([^"]+)"[^>]*>\s*Gutachten öffnen#u', $html, $link) === 1 ? html_entity_decode($link[1]) : null;
     }
 
     /** The page as a browser without JavaScript shows it: the page data (JSON) is taken out first. */
