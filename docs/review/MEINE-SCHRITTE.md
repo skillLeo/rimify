@@ -151,13 +151,16 @@ and the host has none to spare (checked 03.10.2026): the key hPanel shows (`id_r
 already another repository's deploy key, so **do not paste the hPanel key**. Until this step is done the preview
 keeps the release it has; a deploy brings it back on that release.
 
-1. **The key itself:** I create it on the host the way RealVows' is set up (its own key, a `github-rimify` alias),
-   and send you its public line. The permission check refuses that unless you allow it — tell me which way you allow
-   it (switch the session to ask before acting and approve the one command, or let me add one allow rule for it).
+1. **The key itself — done 03.10.2026.** Created on the host the way RealVows' is set up (`~/.ssh/rimify_deploy`, a
+   `github-rimify` alias; the preview's copy now pulls through it), with the one command you approved by hand.
 2. **GitHub › skillLeo/rimify › Settings › Deploy keys › Add deploy key** (under *Security*). Title
-   `hostinger-preview (rimify.skillleo.com)`, Key: the line I send you, starting `ssh-ed25519`. Leave
-   *Allow write access* **unticked**. *Add key*.
-3. Tell me. I run a deploy and check that its log says `== now <the new commit>`.
+   `hostinger-preview (rimify.skillleo.com)`, Key — this one line:
+
+   `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPd8PmKByu3V7MWshmkbt85pEQdCLH7HVJrJUsJ8uiY rimify-preview-read`
+
+   Leave *Allow write access* **unticked**. *Add key*. GitHub then shows its fingerprint:
+   `SHA256:Z+nQQk+IjWRhC78APIiyGB41VLWnhceOJSHaKhpz7cQ`.
+3. Tell me. I check that the host can fetch, and then deploy when you say the client is out of it.
 
 ---
 
