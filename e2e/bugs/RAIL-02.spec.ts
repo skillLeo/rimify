@@ -46,6 +46,9 @@ test('RAIL-02 keys, then a page visit within the second: the rail keeps its widt
 
     const first = await firstSave;
     expect(first.request().postData() ?? '', 'rig: the first key is saved at once').toContain('"width":276');
+    // The held-back save — the next one after the first — answered before the reload reads the account: a fixed wait
+    // only knew it had left, and a reload's GET can be served before it is stored (admin-rail-resize, 03.10.2026).
+    const heldSave = page.waitForResponse((response) => isRailSave(response.request().method(), response.url()));
 
     // The visit itself — not the charts' deferred request that follows it.
     const visit = page.waitForResponse(async (response) => {
@@ -72,6 +75,7 @@ test('RAIL-02 keys, then a page visit within the second: the rail keeps its widt
     expect(await handle(page).getAttribute('aria-valuenow'), `the rail jumped back to the width the server had a moment ago; saved: ${saves.join(' ')}`).toBe('308');
     expect(await railWidth(page)).toBe(308);
 
+    expect((await heldSave).ok(), `the held-back save was refused; saved: ${saves.join(' ')}`).toBe(true);
     await page.reload({ waitUntil: 'networkidle' });
     expect(await railWidth(page), `after a reload: the width saved last is not the one the rail was left at; saved: ${saves.join(' ')}`).toBe(308);
 });
