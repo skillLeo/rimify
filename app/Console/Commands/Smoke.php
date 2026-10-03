@@ -7,9 +7,12 @@ namespace App\Console\Commands;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Enums\FitmentStatus;
 use App\Models\Fitment;
+use App\Models\Order;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Payments\Payments;
+use App\Services\Admin\AuditTrail;
+use App\Services\Commerce\OrderPayments;
 use App\Services\Storage\MediaDisks;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
@@ -224,7 +227,30 @@ final class Smoke extends Command
         $page = self::rendered($this->get($confirmation)->body());
         $this->expect(str_contains($page, $number[1]) && str_contains($page, 'Bezahlt'), 'die Bestätigung zeigt die bezahlte Bestellung nicht');
 
-        return "{$number[1]} bezahlt (Testzahlung, kein Geld)";
+        $back = self::returnTestStock($number[1]);
+
+        return "{$number[1]} bezahlt (Testzahlung, kein Geld)".($back > 0 ? ", {$back} Stück wieder auf Lager" : '');
+    }
+
+    /**
+     * A test order's goods back on the shelf (D-146). A paid order keeps its stock by design — money returned puts no
+     * wheel back — so every release's smoke took a wheel from the stock the client reviews: nine in two days on the
+     * preview. Only an order paid with the test payment that still holds its stock, so never twice; written to the
+     * Protokoll. Returns the pieces put back.
+     */
+    public static function returnTestStock(string $number, string $by = 'Smoke-Test', ?string $reason = null): int
+    {
+        $order = Order::query()->where('order_number', $number)->first();
+
+        if ($order === null || $order->getAttribute('payment_method') !== 'sandbox' || ! $order->getAttribute('stock_reserved')) {
+            return 0;
+        }
+
+        $pieces = (int) $order->lines()->where(static fn ($q) => $q->whereNotNull('wheel_config_id')->orWhereNotNull('tyre_variant_id'))->sum('quantity');
+        app(OrderPayments::class)->release($order);
+        AuditTrail::system($by, 'order.test_stock_returned', array_filter(['order' => $number, 'quantity' => $pieces, 'reason' => $reason]), $order);
+
+        return $pieces;
     }
 
     /** Public prefixes readable over HTTP, `invoices/` not — on the bucket by the S3 audit's own probes. */
