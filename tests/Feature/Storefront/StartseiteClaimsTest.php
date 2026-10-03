@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Models\Order;
 use App\Models\OrderLine;
+use App\Models\PaymentEvent;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Services\Storefront\BestSellers;
@@ -88,6 +89,42 @@ it('counts nothing a demonstration order, an unpaid order or a cancelled one hol
     expect(app(BestSellers::class)->any())->toBeFalse();
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('popular.tabs.0.label', 'Meiste Freigaben'));
+});
+
+/*
+ * A test payment sells nothing (D-147): on the review preview every order was paid with the sandbox, and the shelf
+ * said „Meistgekauft“ without a single sale (03.10.2026); Stripe in test mode is the same before the live keys.
+ */
+it('counts no order paid with a test payment — the review\'s sandbox or Stripe in test mode', function (): void {
+    claimsNoSales();
+    [$before, $last] = claimsShelf($this);
+    $config = WheelConfig::query()->where('wheel_model_id', $last)->firstOrFail();
+    $event = static fn (Order $order, bool $live): PaymentEvent => PaymentEvent::query()->create([
+        'provider' => 'stripe', 'event_id' => 'evt_'.$order->id, 'type' => 'payment_intent.succeeded', 'livemode' => $live,
+        'payload' => '{}', 'order_id' => $order->id, 'received_at' => now(),
+    ]);
+
+    $sandbox = Order::factory()->create(['payment_method' => 'sandbox']);
+    OrderLine::factory()->create(['order_id' => $sandbox->id, 'wheel_config_id' => $config->id]);
+    $stripeTest = Order::factory()->create(['payment_method' => 'card']);
+    OrderLine::factory()->create(['order_id' => $stripeTest->id, 'wheel_config_id' => $config->id]);
+    $event($stripeTest, false);
+
+    expect(app(BestSellers::class)->any())->toBeFalse()
+        // Nor does the shelf's own SQL order lift the model the test orders hold.
+        ->and(claimsShelf($this)[0])->toBe($before);
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('popular.tabs.0.label', 'Meiste Freigaben'));
+
+    // The same sale in live mode is one.
+    $live = Order::factory()->create(['payment_method' => 'card']);
+    OrderLine::factory()->create(['order_id' => $live->id, 'wheel_config_id' => $config->id]);
+    $event($live, true);
+
+    expect(app(BestSellers::class)->counts())->toBe([$last => 1]);
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('popular.tabs.0.label', StartseiteController::BESTSELLING_LABEL)
+        ->where('popular.cards.0.modelId', $last)
+    );
 });
 
 it('shows no tyre label without a verified EPREL entry', function (): void {
