@@ -175,9 +175,18 @@ test('where the stored width does not fit, the toggle says so and opens at the w
     // (reka repeats the sentence for assistive technology inside the tooltip, so: contains.)
     await expect(page.locator('.adm-tooltip')).toContainText(`Fenster zu schmal für 400 px, öffnet mit ${fit} px`)
 
+    // The toggle's save, answered, before the reload reads the account: as in the first test, the reload's GET could be
+    // served before the PATCH was stored, and read „collapsed“ — 64 px for 400 (the suite run of 03.10.2026, 07:21).
+    const saved = page.waitForResponse((response) => {
+        const request = response.request()
+
+        return request.url().endsWith('/admin/ansicht') && request.method() === 'PATCH' && (request.postData() ?? '').includes('"rail":"open"')
+    })
+
     await toggle.click()
     await expect(page.locator('.adm')).toHaveAttribute('data-rail', 'open')
     await expect.poll(() => railWidth(page)).toBe(fit)
+    expect((await saved).ok(), 'the opened rail was not saved').toBe(true)
 
     // The stored width is still the person's: a wide window shows all 400 px of it.
     await page.setViewportSize({ width: 1440, height: 900 })

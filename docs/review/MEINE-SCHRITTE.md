@@ -143,6 +143,25 @@ The page keeps only the last four characters of each key; you will never see the
 
 ---
 
+## 6 · When the repository goes private: let the preview read it
+
+The preview pulls every release from GitHub with a key that can only read public repositories (it is the deploy key of
+`skillLeo/skillleo_v1`). Once `skillLeo/rimify` is private, each deploy fails at the pull: the preview goes down for
+the deploy, comes back on the release it already has, and never updates. I may not create a key on the host myself
+(the permission check refuses it as persistence), so this step is yours.
+
+1. **hPanel › Advanced › Git** (*Erweitert › GIT*). **Do not create a repository there** (hPanel's own Git deploy once
+   emptied `public_html`, 23.09). Use only its SSH key part: if it shows a key, copy it; if it offers to generate one,
+   do that and copy the line starting with `ssh-`.
+2. **GitHub › skillLeo/rimify › Settings › Deploy keys › Add deploy key.** Title `hostinger-preview`, Key: the line
+   from step 1, *Allow write access* **off**. *Add key*.
+3. Tell me. I run the next deploy and check that its log says `== now <the new commit>`.
+
+If GitHub answers *Key is already in use*, that key is already `skillleo_v1`'s deploy key. Send me the message and we
+choose between moving it and a second key. If hPanel shows no key and offers none, tell me that too.
+
+---
+
 ## Then
 
 One message: *key added, deploy confirmed, cron lines in, three Gutachten released, DB8GT2 priced and published, test

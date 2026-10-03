@@ -1,4 +1,4 @@
-import { devices, expect, test, type Page } from '../fixtures';
+import { devices, expect, test, type BrowserContext, type Page } from '../fixtures';
 import { SHOP } from '../shop';
 import { consentGiven, open } from '../support';
 import { SHOTS } from './ef-support';
@@ -32,8 +32,31 @@ test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, browserNa
 
 const STEP = 240;
 
+/*
+ * WebKit for Windows sometimes draws no frame at all for minutes in a long suite run — 03.10.2026, run D: 66 steps at
+ * 0,3 s, then one took 158 s and the next never returned (the 180 s timeout); yesterday's run 1 the same. Never alone
+ * (4 of 4 at ≈ 41 s, the machine idle too), and nothing of the page's is involved: the loop is the browser's own
+ * scrolling and frames. Every step is therefore given 15 s; one that takes longer is a stalled browser, not a page that
+ * jumped: it is said in the run's output and the whole sequence starts again on a fresh page, twice at most. A jump
+ * still fails the test, and so does a browser that stalls every time — with that sentence, not a timeout.
+ */
+const STALL_MS = 15_000;
+
+class Stalled extends Error {}
+
+function withinStall<T>(work: Promise<T>, what: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    return Promise.race([
+        work,
+        new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Stalled(`WebKit drew no frame for ${STALL_MS / 1000} s (${what})`)), STALL_MS);
+        }),
+    ]).finally(() => clearTimeout(timer));
+}
+
 async function settle(page: Page): Promise<void> {
-    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 300)))));
+    await withinStall(page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 300))))), 'settling');
 }
 
 /** To the bottom in one fling, then back up a thumb's scroll at a time; every step that moved the content more than it scrolled. */
@@ -44,7 +67,7 @@ async function flingDownThenUp(page: Page, phase: string): Promise<string[]> {
     await settle(page);
 
     for (let i = 0; i < 120; i++) {
-        const step = await page.evaluate(async (dy) => {
+        const step = await withinStall(page.evaluate(async (dy) => {
             const frame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
             const y0 = window.scrollY;
 
@@ -79,7 +102,7 @@ async function flingDownThenUp(page: Page, phase: string): Promise<string[]> {
                 y: Math.round(window.scrollY),
                 anchor: `<${anchor.tagName.toLowerCase()}${cls ? `.${cls}` : ''}> in #${anchor.closest('section[id]')?.id ?? '?'}`,
             };
-        }, STEP);
+        }, STEP), `${phase}, step ${i + 1}`);
 
         if (step === null) {
             break;
@@ -98,17 +121,8 @@ async function flingDownThenUp(page: Page, phase: string): Promise<string[]> {
     return jumps;
 }
 
-test('EF-05 the phone homepage does not jump while scrolling back up after the phone was turned', async ({ page, context }, info) => {
-    test.skip(info.project.name !== 'mobile-390', 'one WebKit run is enough');
-    test.slow();
-
-    await consentGiven(context, SHOP);
-    await open(page, '/');
-
-    const contentVisibility = await page.evaluate(() => CSS.supports('content-visibility', 'auto'));
-
-    test.skip(!contentVisibility, 'this WebKit build has no content-visibility: the placeholders never apply');
-
+/** Portrait, turned, turned back: every step that moved the page under the finger. */
+async function measure(page: Page): Promise<string[]> {
     await expect(page.locator('#h4.home-below'), 'the phone document (Startseite/Mobile) was not served').toHaveCount(1);
     await settle(page);
 
@@ -123,6 +137,55 @@ test('EF-05 the phone homepage does not jump while scrolling back up after the p
     await page.setViewportSize({ width: 393, height: 852 });
     await settle(page);
     jumps.push(...(await flingDownThenUp(page, 'portrait 393×852 (turned back)')));
+
+    return jumps;
+}
+
+test('EF-05 the phone homepage does not jump while scrolling back up after the phone was turned', async ({ page, context, browser }, info) => {
+    test.skip(info.project.name !== 'mobile-390', 'one WebKit run is enough');
+    // ≈ 41 s a run; room for the two fresh starts a stalled browser may need.
+    test.setTimeout(300_000);
+
+    await consentGiven(context, SHOP);
+    await open(page, '/');
+
+    const contentVisibility = await page.evaluate(() => CSS.supports('content-visibility', 'auto'));
+
+    test.skip(!contentVisibility, 'this WebKit build has no content-visibility: the placeholders never apply');
+
+    let current = page;
+    let jumps: string[] | null = null;
+    const fresh: BrowserContext[] = [];
+
+    try {
+        for (let attempt = 1; jumps === null; attempt++) {
+            try {
+                jumps = await measure(current);
+            } catch (error) {
+                if (!(error instanceof Stalled) || attempt === 3) {
+                    throw error;
+                }
+
+                // Said, never silent: in the run's output and on the test.
+                console.log(`EF-05: ${error.message} — attempt ${attempt} of 3, starting again on a fresh page`);
+                info.annotations.push({ type: 'webkit-stall', description: error.message });
+
+                const next = await browser.newContext({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, reducedMotion: 'reduce', baseURL: SHOP });
+                fresh.push(next);
+                await consentGiven(next, SHOP);
+                current = await next.newPage();
+                await open(current, '/');
+            }
+        }
+    } finally {
+        // A stalled browser's context may not answer its close: it is not waited for longer than a stall.
+        await Promise.all(fresh.map((c) => withinStall(c.close(), 'closing').catch(() => undefined)));
+    }
+
+    // The loop ends with a measurement or throws; this only tells the compiler.
+    if (jumps === null) {
+        throw new Error('EF-05 ended without a measurement');
+    }
 
     expect(jumps, `${jumps.length} steps moved the page under the finger:\n${jumps.join('\n')}`).toEqual([]);
 });

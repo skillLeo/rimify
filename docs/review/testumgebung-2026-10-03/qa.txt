@@ -1,0 +1,11 @@
+npm run qa gates against https://rimify.skillleo.com (release 5f23158e), 03.10.2026, QA_BASE_URL set; routes: every
+public route incl. /felgen/{product} resolved from the listing (BORBET DB8GT2), /bestellung/RMF-2026-1001, /admin/anmelden, 404.
+
+every route clean at 12 widths
+OVERFLOW-EXIT 0
+console clean in chromium, webkit, firefox
+CONSOLE-EXIT 0
+axe: zero violations on every route
+AXE-EXIT 0
+style inventory clean: every computed value resolves to a token
+STYLE-EXIT 0
