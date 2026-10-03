@@ -108,7 +108,8 @@ it('runs its checks for Laravel’s mariadb driver too, not only for mysql', fun
 });
 
 it('runs the suite in CI on exactly the engines the app accepts', function (): void {
-    $workflow = (string) file_get_contents(base_path('.github/workflows/tests.yml'));
+    // The release matrix: every engine, on a push to `release` (everyday pushes run MariaDB only, D-148).
+    $workflow = (string) file_get_contents(base_path('.github/workflows/release.yml'));
     preg_match_all('/engine:\s*\'([^\']+)\'/', $workflow, $m);
 
     expect($m[1])->toEqualCanonicalizing(DatabaseEngine::tested());

@@ -13,11 +13,12 @@ run **MariaDB 11.8.9** while the suite had only ever run on **MySQL 8.4.9** (D-0
 | Hostinger (preview, and production on the same plan) | MariaDB 11.8 | — | the host's |
 | Pest, by default (`phpunit.xml`), and the e2e shop (`composer e2e:shop`) | MariaDB 11.8.9 | 3308 | below |
 | `composer test:mysql`, and the development shop's `.env` | MySQL 8.4.9 | 3307 | below |
-| CI (`.github/workflows/tests.yml`) | both, one leg each | — | Docker, with the host's server settings for MariaDB |
+| CI: every push to main (`.github/workflows/checks.yml`) | MariaDB 11.8.9 | — | Docker, with the host's server settings |
+| CI: a push to `release` (`.github/workflows/release.yml`) | both, one leg each | — | the same, and MySQL as shipped |
 
 The app refuses any engine the suite has not run against, at the first connection, naming both
 (`App\Support\DatabaseEngine`, list in `config/rimify.php` › `database.engines`). A test keeps that list and the
-CI matrix equal, so a new engine is added in one change: the CI leg, the list, a green run.
+release matrix equal, so a new engine is added in one change: the CI leg, the list, a green run.
 
 ## Running them locally (Windows, no service)
 
