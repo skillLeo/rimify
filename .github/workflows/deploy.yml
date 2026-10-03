@@ -12,8 +12,8 @@ name: Deploy
 on:
   push:
     branches: [main]
-    # A push of documentation alone changes nothing the host runs (D-148).
-    paths-ignore: ['docs/**', '*.md']
+    # A push of documentation or tests alone changes nothing the host runs (D-148).
+    paths-ignore: ['docs/**', '*.md', 'tests/**', 'e2e/**']
   workflow_dispatch:
 
 concurrency:
