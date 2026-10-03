@@ -1,0 +1,30 @@
+name: Checks
+
+# Every push to main: Pint, Larastan, ESLint, Stylelint, vue-tsc, Vitest and the whole Pest suite on MariaDB 11.8 —
+# the preview host's engine — in one job: one set-up, one rounding to the minute. The full matrix, every engine the
+# app accepts, runs on a push to `release` (release.yml). A push that changes only documentation runs nothing.
+# No browser suite in CI: it runs locally, three clean full runs before a report (D-148).
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '*.md']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/suite.yml
+    with:
+      engine: 'MariaDB 11.8'
+      image: 'mariadb:11.8.9'
+      args: '--sql-mode=NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb-strict-mode=OFF --max-allowed-packet=1G'
+      ping: 'healthcheck.sh --connect --innodb_initialized'
+      static: true

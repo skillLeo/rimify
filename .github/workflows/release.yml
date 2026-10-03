@@ -1,0 +1,43 @@
+name: Release
+
+# A push to `release`: the whole suite on every database engine the app accepts (D-052, config
+# rimify.database.engines — StrictModeTest keeps this matrix and that list equal), with lint, types and Vitest once.
+# Everyday pushes to main run the fast checks only (checks.yml, D-148). A release is cut with
+# `git push origin <commit>:release`.
+
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: ${{ matrix.db.engine }}
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - engine: 'MariaDB 11.8'
+            image: 'mariadb:11.8.9'
+            args: '--sql-mode=NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb-strict-mode=OFF --max-allowed-packet=1G'
+            ping: 'healthcheck.sh --connect --innodb_initialized'
+            static: true
+          - engine: 'MySQL 8.4'
+            image: 'mysql:8.4.9'
+            args: '--log-bin-trust-function-creators=1'
+            ping: 'mysqladmin ping -h 127.0.0.1 -uroot -proot --silent'
+            static: false
+    uses: ./.github/workflows/suite.yml
+    with:
+      engine: ${{ matrix.db.engine }}
+      image: ${{ matrix.db.image }}
+      args: ${{ matrix.db.args }}
+      ping: ${{ matrix.db.ping }}
+      static: ${{ matrix.db.static }}

@@ -12,6 +12,8 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # A push of documentation alone changes nothing the host runs (D-148).
+    paths-ignore: ['docs/**', '*.md']
   workflow_dispatch:
 
 concurrency:
