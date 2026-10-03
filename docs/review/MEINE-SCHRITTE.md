@@ -145,20 +145,19 @@ The page keeps only the last four characters of each key; you will never see the
 
 ## 6 · When the repository goes private: let the preview read it
 
-The preview pulls every release from GitHub with a key that can only read public repositories (it is the deploy key of
-`skillLeo/skillleo_v1`). Once `skillLeo/rimify` is private, each deploy fails at the pull: the preview goes down for
-the deploy, comes back on the release it already has, and never updates. I may not create a key on the host myself
-(the permission check refuses it as persistence), so this step is yours.
+The preview pulls every release from GitHub over SSH. Once `skillLeo/rimify` is private it needs a key of its own,
+and the host has none to spare (checked 03.10.2026): the key hPanel shows (`id_rsa`) is the deploy key of the private
+`skillLeo/skillleo_v1`, and `realvows_deploy` that of the private `skillLeo/RealVows`. GitHub refuses a key that is
+already another repository's deploy key, so **do not paste the hPanel key**. Until this step is done the preview
+keeps the release it has; a deploy brings it back on that release.
 
-1. **hPanel › Advanced › Git** (*Erweitert › GIT*). **Do not create a repository there** (hPanel's own Git deploy once
-   emptied `public_html`, 23.09). Use only its SSH key part: if it shows a key, copy it; if it offers to generate one,
-   do that and copy the line starting with `ssh-`.
-2. **GitHub › skillLeo/rimify › Settings › Deploy keys › Add deploy key.** Title `hostinger-preview`, Key: the line
-   from step 1, *Allow write access* **off**. *Add key*.
-3. Tell me. I run the next deploy and check that its log says `== now <the new commit>`.
-
-If GitHub answers *Key is already in use*, that key is already `skillleo_v1`'s deploy key. Send me the message and we
-choose between moving it and a second key. If hPanel shows no key and offers none, tell me that too.
+1. **The key itself:** I create it on the host the way RealVows' is set up (its own key, a `github-rimify` alias),
+   and send you its public line. The permission check refuses that unless you allow it — tell me which way you allow
+   it (switch the session to ask before acting and approve the one command, or let me add one allow rule for it).
+2. **GitHub › skillLeo/rimify › Settings › Deploy keys › Add deploy key** (under *Security*). Title
+   `hostinger-preview (rimify.skillleo.com)`, Key: the line I send you, starting `ssh-ed25519`. Leave
+   *Allow write access* **unticked**. *Add key*.
+3. Tell me. I run a deploy and check that its log says `== now <the new commit>`.
 
 ---
 
