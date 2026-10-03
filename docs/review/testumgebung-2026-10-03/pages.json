@@ -1,0 +1,206 @@
+[
+  {
+    "nr": "stand",
+    "width": "1440",
+    "ok": true,
+    "seen": "footer: Testumgebung · Stand 5f23158e vom 03.10.2026, 03:11 Uhr"
+  },
+  {
+    "nr": 1,
+    "width": "1440",
+    "ok": true,
+    "seen": "background rgb(232, 237, 251), text rgb(26, 68, 212); after the click the focus is on input#v-7-marke"
+  },
+  {
+    "nr": 2,
+    "width": "1440",
+    "ok": true,
+    "seen": "header 80 px"
+  },
+  {
+    "nr": 3,
+    "width": "1440",
+    "ok": true,
+    "seen": "strip above the header: none; help line → /kontakt"
+  },
+  {
+    "nr": 4,
+    "width": "1440",
+    "ok": true,
+    "seen": "product links 0, price none"
+  },
+  {
+    "nr": 5,
+    "width": "1440",
+    "ok": true,
+    "seen": "first shelf tab „Meiste Freigaben“"
+  },
+  {
+    "nr": 6,
+    "width": "1440",
+    "ok": true,
+    "seen": "1 highlighter strokes drawn (picture 06-story-1440.png)"
+  },
+  {
+    "nr": 7,
+    "width": "1440",
+    "ok": true,
+    "seen": "hero heights per tab: 764, 764, 764 px"
+  },
+  {
+    "nr": 9,
+    "width": "1440",
+    "ok": true,
+    "seen": "Felge im Bild: BORBET DB8GT2, Bronze matt; picture borbet-db8gt2-bronze-matt-open-480.avif loaded"
+  },
+  {
+    "nr": 10,
+    "width": "1440",
+    "ok": true,
+    "seen": "footer: Felgenrechner linked, Blog not linked"
+  },
+  {
+    "nr": 29,
+    "width": "1440",
+    "ok": true,
+    "seen": "homepage footer background rgb(11, 15, 20)"
+  },
+  {
+    "nr": 32,
+    "width": "1440",
+    "ok": true,
+    "seen": "hero rgb(235, 240, 247); 4 bands, all rgb(235, 240, 247)"
+  },
+  {
+    "nr": 33,
+    "width": "1440",
+    "ok": true,
+    "seen": "selected tab rgb(26, 68, 212); promise icon rgb(26, 68, 212)"
+  },
+  {
+    "nr": 30,
+    "width": "1440",
+    "ok": true,
+    "seen": "without a car, filter groups beside the list: Marke, Zoll, Breite, Einpresstiefe, Farbe"
+  },
+  {
+    "nr": 25,
+    "width": "1440",
+    "ok": true,
+    "seen": "„Nur die Felgen bestellen“ on the list: 0"
+  },
+  {
+    "nr": 26,
+    "width": "1440",
+    "ok": true,
+    "seen": "no mailto on nine shop pages"
+  },
+  {
+    "nr": "stand",
+    "width": "390",
+    "ok": true,
+    "seen": "footer: Testumgebung · Stand 5f23158e vom 03.10.2026, 03:11 Uhr"
+  },
+  {
+    "nr": 1,
+    "width": "390",
+    "ok": true,
+    "seen": "background rgb(232, 237, 251), text rgb(26, 68, 212); after the click the focus is on select#v-2-marke"
+  },
+  {
+    "nr": 2,
+    "width": "390",
+    "ok": true,
+    "seen": "header 56 px"
+  },
+  {
+    "nr": 3,
+    "width": "390",
+    "ok": true,
+    "seen": "strip above the header: none; help line → /kontakt"
+  },
+  {
+    "nr": 4,
+    "width": "390",
+    "ok": true,
+    "seen": "product links 0, price none"
+  },
+  {
+    "nr": 5,
+    "width": "390",
+    "ok": true,
+    "seen": "first shelf tab „Meiste Freigaben“"
+  },
+  {
+    "nr": 6,
+    "width": "390",
+    "ok": true,
+    "seen": "3 highlighter strokes drawn (picture 06-story-390.png)"
+  },
+  {
+    "nr": 7,
+    "width": "390",
+    "ok": true,
+    "seen": "hero heights per tab: 1212, 1212 px"
+  },
+  {
+    "nr": 9,
+    "width": "390",
+    "ok": true,
+    "seen": "no Komplettrad band on this width (the phone shows it only beside a verified tyre label, D7)"
+  },
+  {
+    "nr": 10,
+    "width": "390",
+    "ok": true,
+    "seen": "footer: Felgenrechner linked, Blog not linked"
+  },
+  {
+    "nr": 29,
+    "width": "390",
+    "ok": true,
+    "seen": "homepage footer background rgb(11, 15, 20)"
+  },
+  {
+    "nr": 32,
+    "width": "390",
+    "ok": true,
+    "seen": "hero rgb(235, 240, 247); 4 bands, all rgb(235, 240, 247)"
+  },
+  {
+    "nr": 33,
+    "width": "390",
+    "ok": true,
+    "seen": "selected tab rgb(26, 68, 212); promise icon rgb(26, 68, 212)"
+  },
+  {
+    "nr": 13,
+    "width": "390",
+    "ok": true,
+    "seen": "basket at x 286, menu at x 334"
+  },
+  {
+    "nr": 30,
+    "width": "390",
+    "ok": true,
+    "seen": "without a car, filter groups in the sheet: Marke, Zoll, Breite, Einpresstiefe, Farbe"
+  },
+  {
+    "nr": 31,
+    "width": "390",
+    "ok": true,
+    "seen": "4 choice chips under „Filter“: 18 Zoll 4 · 19 Zoll 4 · BORBET 2 · Rimify 2"
+  },
+  {
+    "nr": 25,
+    "width": "390",
+    "ok": true,
+    "seen": "„Nur die Felgen bestellen“ on the list: 0"
+  },
+  {
+    "nr": 26,
+    "width": "390",
+    "ok": true,
+    "seen": "no mailto on nine shop pages"
+  }
+]

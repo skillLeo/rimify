@@ -1,0 +1,176 @@
+[
+  {
+    "nr": 8,
+    "width": "1440",
+    "ok": true,
+    "seen": "landed on /felgen?fahrzeug=127 (BMW X3); a fresh browser without JavaScript gets the car in the HTML: true; /warenkorb?fahrzeug=127 in a fresh browser shows no car: true"
+  },
+  {
+    "nr": 23,
+    "width": "1440",
+    "ok": true,
+    "seen": "listing with BMW X3 X83: BORBET DB8GT2: Mit Auflagen (rgb(251, 240, 217)) · BORBET DB8GT2: Mit Auflagen (rgb(251, 240, 217))"
+  },
+  {
+    "nr": 17,
+    "width": "1440",
+    "ok": true,
+    "seen": "18 Zoll, starts at 4: 916,00 € (für 4 Felgen, je 229,00 €, inkl. MwSt., zzgl. Versand); at 1: 229,00 € (für 1 Felge, inkl. MwSt., zzgl. Versand); at 7: 1.603,00 € (für 7 Felgen, je 229,00 €, inkl. MwSt., zzgl. Versand)"
+  },
+  {
+    "nr": 19,
+    "width": "1440",
+    "ok": true,
+    "seen": "under the name: „Gutachten · für 76 Fahrzeugvarianten“"
+  },
+  {
+    "nr": 16,
+    "width": "1440",
+    "ok": true,
+    "seen": "the window after „In den Warenkorb“: „Zum Warenkorb hinzugefügt. 7 × BORBET DB8GT2 1.603,00 € Felge · 8,5J × 18 · ET 35 · Schwarz matt Zwischensumme im Warenkorb (7 Stück) 1.603,00 € Weiter einkaufen Zum Warenkorb“"
+  },
+  {
+    "nr": 14,
+    "width": "1440",
+    "ok": true,
+    "seen": "7 × 229,00 € = 1.603,00 €: basket agrees, checkout agrees"
+  },
+  {
+    "nr": 21,
+    "width": "1440",
+    "ok": true,
+    "seen": "19 Zoll: „Eintragung“ 1× on the page, the sentence under „Mit Auflagen freigegeben für BMW X3 X83“: „Eintragung in die Fahrzeugpapiere erforderlich mit 255/40 R19, nicht mit 235/45 R19 und 245/40 R19.“ — 18 Zoll: 0×, „Abnahme durch einen Prüfer erforderlich (§ 19 Abs.“"
+  },
+  {
+    "nr": 23,
+    "width": "1440",
+    "ok": true,
+    "seen": "product page: „Mit Auflagen freigegeben für BMW X3 X83“ (an Eintragung and an Abnahme are Auflagen, never notes)"
+  },
+  {
+    "nr": 18,
+    "width": "1440",
+    "ok": true,
+    "seen": "no Komplettrad for BMW X3 X83, said in one sentence with a way on: „Das Gutachten schreibt für diese Kombination bestimmte Reifen vor. Welche das sind, klären wir persönlich mit dir – die Felge allein kannst du sofort bestellen. Schreib uns“"
+  },
+  {
+    "nr": 20,
+    "width": "1440",
+    "ok": true,
+    "seen": "no Mischbereifung offered for this car — it needs the car's axle loads (Felder 8.1/8.2) and top speed (Feld T), which the cars from the Gutachten do not have yet, and tyres in stock"
+  },
+  {
+    "nr": 15,
+    "width": "1440",
+    "ok": true,
+    "seen": "Wuchtgewichte and RDKS appear only once a Komplettrad tyre can be offered, and none can be without axle loads"
+  },
+  {
+    "nr": 27,
+    "width": "1440",
+    "ok": true,
+    "seen": "19 Zoll chosen first, then the car: the list is /felgen?zoll[0]=19.0&fahrzeug=127 — the size kept"
+  },
+  {
+    "nr": 24,
+    "width": "1440",
+    "ok": true,
+    "seen": "with BMW X3 X83, column stuck at y 136 (its top 136 px), ends at 874 in a 900 px window; scrolled to its end, its last control „Schwarz matt1“ ends at 844"
+  },
+  {
+    "nr": 11,
+    "width": "1440",
+    "ok": true,
+    "seen": "new ET 20: the drawing moves, its label „ET 35“ → „ET 20“; labels drawn: ET 20 · Maulweite · 8,5J = 216 mm · Lochkreis"
+  },
+  {
+    "nr": 8,
+    "width": "390",
+    "ok": true,
+    "seen": "landed on /felgen?fahrzeug=127 (BMW X3 X83); a fresh browser without JavaScript gets the car in the HTML: true; /warenkorb?fahrzeug=127 in a fresh browser shows no car: true"
+  },
+  {
+    "nr": 23,
+    "width": "390",
+    "ok": true,
+    "seen": "listing with BMW X3 X83: BORBET DB8GT2: Mit Auflagen (rgb(251, 240, 217)) · BORBET DB8GT2: Mit Auflagen (rgb(251, 240, 217))"
+  },
+  {
+    "nr": 17,
+    "width": "390",
+    "ok": true,
+    "seen": "18 Zoll, starts at 4: 916,00 € (für 4 Felgen, je 229,00 €, inkl. MwSt., zzgl. Versand); at 1: 229,00 € (für 1 Felge, inkl. MwSt., zzgl. Versand); at 7: 1.603,00 € (für 7 Felgen, je 229,00 €, inkl. MwSt., zzgl. Versand)"
+  },
+  {
+    "nr": 19,
+    "width": "390",
+    "ok": true,
+    "seen": "under the name: „Gutachten · für 76 Fahrzeugvarianten“"
+  },
+  {
+    "nr": 16,
+    "width": "390",
+    "ok": true,
+    "seen": "the window after „In den Warenkorb“: „Zum Warenkorb hinzugefügt. 7 × BORBET DB8GT2 1.603,00 € Felge · 8,5J × 18 · ET 35 · Schwarz matt Zwischensumme im Warenkorb (7 Stück) 1.603,00 € Weiter einkaufen Zum Warenkorb“"
+  },
+  {
+    "nr": 14,
+    "width": "390",
+    "ok": true,
+    "seen": "7 × 229,00 € = 1.603,00 €: basket agrees, checkout agrees"
+  },
+  {
+    "nr": 21,
+    "width": "390",
+    "ok": true,
+    "seen": "19 Zoll: „Eintragung“ 1× on the page, the sentence under „Mit Auflagen freigegeben für BMW X3 X83“: „Eintragung in die Fahrzeugpapiere erforderlich mit 255/40 R19, nicht mit 235/45 R19 und 245/40 R19.“ — 18 Zoll: 0×, „Abnahme durch einen Prüfer erforderlich (§ 19 Abs.“"
+  },
+  {
+    "nr": 23,
+    "width": "390",
+    "ok": true,
+    "seen": "product page: „Mit Auflagen freigegeben für BMW X3 X83“ (an Eintragung and an Abnahme are Auflagen, never notes)"
+  },
+  {
+    "nr": 18,
+    "width": "390",
+    "ok": true,
+    "seen": "no Komplettrad for BMW X3 X83, said in one sentence with a way on: „Das Gutachten schreibt für diese Kombination bestimmte Reifen vor. Welche das sind, klären wir persönlich mit dir – die Felge allein kannst du sofort bestellen. Schreib uns“"
+  },
+  {
+    "nr": 20,
+    "width": "390",
+    "ok": true,
+    "seen": "no Mischbereifung offered for this car — it needs the car's axle loads (Felder 8.1/8.2) and top speed (Feld T), which the cars from the Gutachten do not have yet, and tyres in stock"
+  },
+  {
+    "nr": 15,
+    "width": "390",
+    "ok": true,
+    "seen": "Wuchtgewichte and RDKS appear only once a Komplettrad tyre can be offered, and none can be without axle loads"
+  },
+  {
+    "nr": 27,
+    "width": "390",
+    "ok": true,
+    "seen": "19 Zoll chosen first, then the car: the list is /felgen?zoll[0]=19.0&fahrzeug=127 — the size kept"
+  },
+  {
+    "nr": 22,
+    "width": "390",
+    "ok": true,
+    "seen": "BMW X3 X83, 2 tiles: 2 verdict badges on the photos; „Vergleichen“ in 2 tiles, on the photo in 0"
+  },
+  {
+    "nr": 24,
+    "width": "390",
+    "ok": true,
+    "seen": "with BMW X3 X83, scrolled: header ends at 96, car bar ends at 96, the filter row starts at 96"
+  },
+  {
+    "nr": 11,
+    "width": "390",
+    "ok": true,
+    "seen": "new ET 20: the drawing moves, its label „ET 35“ → „ET 20“; labels drawn: ET 20 · Maulweite · 8,5J = 216 mm · Lochkreis"
+  }
+]

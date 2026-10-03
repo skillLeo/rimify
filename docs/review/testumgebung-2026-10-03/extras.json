@@ -1,0 +1,74 @@
+[
+  {
+    "nr": 22,
+    "width": "1440",
+    "ok": true,
+    "seen": "BMW X3 X83 at the desk: „Vergleichen“ at the photo's top right in 2 of 2 tiles"
+  },
+  {
+    "nr": 25,
+    "width": "1440",
+    "ok": true,
+    "seen": "product page with BMW X3 X83: „Nur die Felgen bestellen“ 0× with „Nur Felgen“, 0× under „Komplettrad“ beside the reason"
+  },
+  {
+    "nr": 26,
+    "width": "1440",
+    "ok": true,
+    "seen": "the Komplettrad part's „Schreib uns“ → /kontakt?betreff=Frage+zum+Komplettrad&von=/felgen/borbet-db8gt2?fahrzeug=127"
+  },
+  {
+    "nr": 26,
+    "width": "1440",
+    "ok": true,
+    "seen": "no mailto on the product page, the compare page, the checkout and the 404 page"
+  },
+  {
+    "nr": 25,
+    "width": "390",
+    "ok": true,
+    "seen": "product page with BMW X3 X83: „Nur die Felgen bestellen“ 0× with „Nur Felgen“, 0× under „Komplettrad“ beside the reason"
+  },
+  {
+    "nr": 26,
+    "width": "390",
+    "ok": true,
+    "seen": "the Komplettrad part's „Schreib uns“ → /kontakt?betreff=Frage+zum+Komplettrad&von=/felgen/borbet-db8gt2?fahrzeug=127"
+  },
+  {
+    "nr": 26,
+    "width": "390",
+    "ok": true,
+    "seen": "no mailto on the product page, the compare page, the checkout and the 404 page"
+  },
+  {
+    "nr": 29,
+    "width": "390",
+    "ok": true,
+    "seen": "footer on /felgenrechner rgb(11, 15, 20), /vergleich rgb(11, 15, 20)"
+  },
+  {
+    "nr": 13,
+    "width": "390",
+    "ok": true,
+    "seen": "basket symbols a person sees: 1 on the homepage, 0 in the basket itself"
+  },
+  {
+    "nr": 19,
+    "width": "admin",
+    "ok": true,
+    "seen": "Verkauf › „Bewertungen“ opens; order „Bestellung RMF-2026-1033“ offers „Als versendet markieren“ („Als zugestellt markieren“ follows once it is sent)"
+  },
+  {
+    "nr": 23,
+    "width": "admin",
+    "ok": true,
+    "seen": "366-0350-21-WIRD/N1: Auflagenverzeichnis with the column „Im Shop“ there; 101 Auflagen — 37× Hinweis – nichts zu tun, 64× Auflage – etwas ist zu tun oder eingeschränkt"
+  },
+  {
+    "nr": 23,
+    "width": "admin",
+    "ok": true,
+    "seen": "55255: Auflagenverzeichnis with the column „Im Shop“ there; 76 Auflagen — 59× Auflage – etwas ist zu tun oder eingeschränkt, 17× Hinweis – nichts zu tun"
+  }
+]
