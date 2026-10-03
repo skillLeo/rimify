@@ -82,6 +82,7 @@ final class AuditDescriber
         'orders.exported' => 'verkauf',
         'order.shipped' => 'verkauf',
         'order.delivered' => 'verkauf',
+        'order.test_stock_returned' => 'verkauf',
         'reviews.invited' => 'verkauf',
         'review.hidden' => 'verkauf',
         'review.shown' => 'verkauf',
@@ -353,6 +354,12 @@ final class AuditDescriber
                 [],
             ],
             'order.delivered' => ['Die Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde als zugestellt markiert. Einige Tage danach lädt der Shop zur Bewertung ein.', []],
+            // A test payment sells nothing: the smoke's order, or a check's, gives its goods back (D-146).
+            'order.test_stock_returned' => [
+                'Die Testbestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' war nur mit der Testzahlung bezahlt; die bestellte Ware ('.(int) ($p['quantity'] ?? 0).' Stück) ist wieder auf Lager.'
+                    .(self::text($p, 'reason') === null ? '' : ' Grund: '.self::text($p, 'reason')),
+                [],
+            ],
             'reviews.invited' => [self::count((int) ($p['count'] ?? 0), 'Einladung zur Bewertung wurde', 'Einladungen zur Bewertung wurden').' verschickt.', []],
             'review.hidden' => ['Eine Bewertung zur Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde ausgeblendet: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.', []],
             'review.shown' => ['Eine Bewertung zur Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde wieder eingeblendet.', []],

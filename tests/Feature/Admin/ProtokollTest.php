@@ -558,6 +558,11 @@ describe('putting every entry into words', function (): void {
             ],
             'order.shipped' => [['order' => 'RMF-2026-1001', 'tracking' => '00340434 1234'], 'Die Bestellung „RMF-2026-1001“ wurde als versendet markiert, Sendungsnummer „00340434 1234“.', []],
             'order.delivered' => [['order' => 'RMF-2026-1001'], 'Die Bestellung „RMF-2026-1001“ wurde als zugestellt markiert. Einige Tage danach lädt der Shop zur Bewertung ein.', []],
+            'order.test_stock_returned' => [
+                ['order' => 'RMF-2026-1029', 'quantity' => 1],
+                'Die Testbestellung „RMF-2026-1029“ war nur mit der Testzahlung bezahlt; die bestellte Ware (1 Stück) ist wieder auf Lager.',
+                [],
+            ],
             'reviews.invited' => [['count' => 3], '3 Einladungen zur Bewertung wurden verschickt.', []],
             'review.hidden' => [['review' => 7, 'order' => 'RMF-2026-1001', 'reason' => 'Werbung.'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde ausgeblendet: „Werbung.“.', []],
             'review.shown' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde wieder eingeblendet.', []],
