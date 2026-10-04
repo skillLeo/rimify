@@ -9,6 +9,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
+use App\Services\Reset\TestReset;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -38,11 +39,12 @@ final class AdminNavigation
      * carries; only a queue of work whose goal is zero earns one (admin-shell.md §5.6). A group with
      * exactly one visible page IS that page in the rail. `short` is the group's label for a rail
      * dragged narrower than 248 px — a word of its own, never a label cut mid-word. `super` marks a
-     * page for the Super-Admin role alone, on top of the module right.
+     * page for the Super-Admin role alone, on top of the module right; `testing` one that exists only
+     * in a test environment (TestReset::available()).
      *
      * Every page has its own glyph, so the collapsed rail — icons only — never shows two rows alike.
      *
-     * @var list<array{key: string, label: string, short: string, icon: string, module: string|null, review?: bool, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string, super?: bool}>}>
+     * @var list<array{key: string, label: string, short: string, icon: string, module: string|null, review?: bool, pages: list<array{label: string, href: string, icon: string, count?: string, module?: string, super?: bool, testing?: bool}>}>
      */
     private const GROUPS = [
         [
@@ -196,6 +198,9 @@ final class AdminNavigation
             'pages' => [
                 ['label' => 'Zustand', 'href' => '/admin/system', 'icon' => 'system'],
                 ['label' => 'Warteschlange', 'href' => '/admin/warteschlange', 'icon' => 'queue', 'count' => 'jobs_failed'],
+                // The test environment back to an empty shop (TestReset): the Super-Admin alone, and only where a reset
+                // is possible — never in the live shop, where the page does not exist.
+                ['label' => 'Zurücksetzen', 'href' => '/admin/system/zuruecksetzen', 'icon' => 'reset', 'super' => true, 'testing' => true],
             ],
         ],
     ];
@@ -231,6 +236,7 @@ final class AdminNavigation
         '/admin/faq',
         '/admin/navigation',
         '/admin/system',
+        '/admin/system/zuruecksetzen',
         '/admin/einstellungen/speicher',
         '/admin/einstellungen/zahlung',
         '/admin/einstellungen/verkaeufer-versand',
@@ -317,6 +323,10 @@ final class AdminNavigation
                     continue;
                 }
 
+                if (($page['testing'] ?? false) && ! TestReset::available()) {
+                    continue;
+                }
+
                 $key = $page['count'] ?? null;
                 $count = $key === null ? null : $this->count($key);
 
@@ -391,6 +401,10 @@ final class AdminNavigation
                 }
 
                 if (($page['super'] ?? false) && ! $super) {
+                    continue;
+                }
+
+                if (($page['testing'] ?? false) && ! TestReset::available()) {
                     continue;
                 }
 

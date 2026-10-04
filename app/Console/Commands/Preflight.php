@@ -15,6 +15,7 @@ use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
+use App\Services\Reset\TestReset;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
@@ -27,6 +28,7 @@ use App\Support\Ssr\SsrFallbacks;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -92,6 +94,7 @@ final class Preflight extends Command
         $demo = DemoTables::total();
         $rows[] = ['Demodaten', $demo === 0 ? 'ok' : ($production ? 'fail' : 'warn'), $demo === 0 ? 'keine' : "{$demo} Datensätze – vor dem Start demo:purge"];
         $rows[] = $this->releases($production);
+        $rows[] = $this->testReset($production);
 
         $current = $settings->current();
         $rows[] = ['Speicher: Quelle', $current->isBucket() ? 'ok' : ($production ? 'fail' : 'warn'), match ($current->source) {
@@ -242,6 +245,26 @@ final class Preflight extends Command
         return $production
             ? ['Freigaben', 'fail', "{$found} – im Live-Shop gibt jede Freigabe eine Person im Browser"]
             : ['Freigaben', 'ok', "{$found}, in der Testumgebung zulässig"];
+    }
+
+    /**
+     * Testumgebung zurücksetzen exists in a test environment only: in production its address is not registered and
+     * the service refuses on its own (TestReset). A live shop on which the address answers is NO-GO — whatever let it
+     * in (a misnamed environment, a cached route list from staging) would let one click empty the shop.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function testReset(bool $production): array
+    {
+        $routed = Route::has('admin.zuruecksetzen.show') || Route::has('admin.zuruecksetzen.store');
+
+        if ($production) {
+            return $routed || TestReset::available()
+                ? ['Testumgebung zurücksetzen', 'fail', 'im Live-Shop erreichbar – die Routen dürfen hier nicht registriert sein (Routen-Cache neu bauen: php artisan optimize)']
+                : ['Testumgebung zurücksetzen', 'ok', 'im Live-Shop nicht erreichbar'];
+        }
+
+        return ['Testumgebung zurücksetzen', 'ok', $routed ? 'erreichbar, nur in dieser Testumgebung' : 'nicht registriert'];
     }
 
     /**

@@ -47,6 +47,7 @@ use App\Http\Controllers\Admin\VerkaeuferVersandController;
 use App\Http\Controllers\Admin\VersandController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
+use App\Http\Controllers\Admin\ZuruecksetzenController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
 use App\Http\Controllers\Api\PlzController;
@@ -83,6 +84,7 @@ use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\PaymentSetting;
 use App\Models\StorageSetting;
+use App\Services\Reset\TestReset;
 use App\Support\Seller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -589,6 +591,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->middleware(EnsureAdminMay::class.':settings,view')
             ->name('system.index');
         Route::get('/system/puls', [SystemController::class, 'pulse'])->name('system.puls');
+
+        // System › Testumgebung zurücksetzen (TestReset): registered only where a reset is possible — in production the
+        // address does not exist, and rimify:preflight fails if it did. The Super-Admin alone, then sudo mode.
+        if (TestReset::available()) {
+            Route::prefix('/system/zuruecksetzen')->middleware(['can:view,'.TestReset::class, EnsureSudo::class])->group(function (): void {
+                Route::get('/', [ZuruecksetzenController::class, 'show'])->name('zuruecksetzen.show');
+                Route::post('/', [ZuruecksetzenController::class, 'store'])->middleware('throttle:6,1,zuruecksetzen')->name('zuruecksetzen.store');
+                Route::post('/rueckgaengig', [ZuruecksetzenController::class, 'undo'])->middleware('throttle:6,1,zuruecksetzen-rueckgaengig')->name('zuruecksetzen.undo');
+            });
+        }
 
         // Einstellungen › Zubehörpreise: the Komplettrad options (docs/specs/komplettrad.md §6.2),
         // two tabs under one rail item. Every write is authorised by a Policy on the server; the

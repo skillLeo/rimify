@@ -99,15 +99,16 @@ final class DemoCatalogue
     {
         $reasons = [];
 
-        $lines = DB::table('order_lines')->where('is_demo', false)
+        $named = DB::table('order_lines')->where('is_demo', false)
             ->where(static fn (Builder $q) => $q
                 ->whereIn('wheel_config_id', self::configs())
-                ->orWhereIn('tyre_variant_id', self::tyres()))
-            ->count();
+                ->orWhereIn('tyre_variant_id', self::tyres()));
+        $lines = (clone $named)->count();
 
         if ($lines > 0) {
-            $reasons[] = ($lines === 1 ? 'Eine Bestellposition, die nicht als Demodaten angelegt wurde, nennt' : GermanFormat::integer($lines).' Bestellpositionen, die nicht als Demodaten angelegt wurden, nennen')
-                .' eine Beispielfelge oder einen Beispielreifen. Ihr Prüfnachweis wird nie gelöscht – diese Datenbank wird neu aufgebaut (php artisan migrate:fresh --seed), statt den Beispielkatalog unter ihr wegzuziehen.';
+            $orders = (clone $named)->distinct()->count('order_id');
+            $reasons[] = ($orders === 1 ? 'Eine Bestellung, die nicht als Demodaten angelegt wurde, enthält' : GermanFormat::integer($orders).' Bestellungen, die nicht als Demodaten angelegt wurden, enthalten')
+                .' Beispielfelgen oder Beispielreifen. Der Prüfnachweis einer Bestellung wird nie einzeln gelöscht. Die Demodaten lassen sich deshalb nur zusammen mit allen Shopdaten entfernen (System › Zurücksetzen › Shopdaten).';
         }
 
         $documents = DB::table('approval_documents as d')

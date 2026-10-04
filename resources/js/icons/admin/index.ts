@@ -72,6 +72,8 @@ const G = {
     'audit-log': '<path d="M3.25 10a6.75 6.75 0 1 0 2-4.8"/><path d="M3 3.25v2.75h2.75M10 6.25v4l2.75 1.75"/>',
     system: '<rect x="2.75" y="3.25" width="14.5" height="5.5"/><rect x="2.75" y="11.25" width="14.5" height="5.5"/><path d="M5.5 6h1M5.5 14h1M12.25 6h2.5M12.25 14h2.5"/>',
     queue: '<path d="M5.25 2.75h9.5M5.25 17.25h9.5M6.25 2.75v2.5L10 10l-3.75 4.75v2.5M13.75 2.75v2.5L10 10l3.75 4.75v2.5"/>',
+    // Testumgebung zurücksetzen: an eraser on its line — the shop wiped back to empty, never the Protokoll's clock.
+    reset: '<path d="M7.5 16.25L3 11.75l8-8 6.5 6.5-6 6z"/><path d="M7 7.75l6.5 6.5M7.5 16.25h9.75"/>',
 
     // ── Row actions ─────────────────────────────────────────────────────────────────────────────
     edit: '<path d="M12.75 3.75l3.5 3.5-9 9h-3.5v-3.5z"/><path d="M10.75 5.75l3.5 3.5"/>',
@@ -130,7 +132,7 @@ export const NAV_ICONS = [
     'overview', 'orders', 'returns', 'customers', 'inquiries', 'ratings', 'wheels', 'tyres', 'complete-wheels', 'brands', 'stock',
     'prices', 'media', 'documents', 'conditions', 'coverage', 'conflicts', 'vehicles', 'review', 'imports', 'pages',
     'guides', 'faq', 'navigation', 'legal', 'reports', 'gap', 'settings', 'branding', 'shipping', 'payment', 'taxes',
-    'emails', 'feature-flags', 'storage', 'users', 'roles', 'audit-log', 'system', 'queue', 'search', 'filter', 'feedback',
+    'emails', 'feature-flags', 'storage', 'users', 'roles', 'audit-log', 'system', 'queue', 'reset', 'search', 'filter', 'feedback',
 ] as const satisfies readonly AdminIconName[]
 
 /** What a row of a list can do to its record. */

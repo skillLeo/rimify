@@ -87,7 +87,13 @@ export function useAdmin(): ComputedRef<AdminShared> {
             quickActions: Array.isArray(admin.quickActions) ? admin.quickActions : [],
             demo:
                 admin.demo && typeof admin.demo.rows === 'number' && admin.demo.rows > 0
-                    ? { rows: admin.demo.rows, canPurge: admin.demo.canPurge === true }
+                    ? {
+                          rows: admin.demo.rows,
+                          canPurge: admin.demo.canPurge === true,
+                          blocked: typeof admin.demo.blocked === 'string' && admin.demo.blocked !== '' ? admin.demo.blocked : null,
+                          // Only a way inside the panel: never a link the prop could carry anywhere else.
+                          resetHref: typeof admin.demo.resetHref === 'string' && admin.demo.resetHref.startsWith('/admin/') ? admin.demo.resetHref : null,
+                      }
                     : null,
             review: admin.review === true,
         }

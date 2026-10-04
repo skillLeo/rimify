@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Models\Setting;
 use App\Services\Demo\DemoPurge;
 use App\Services\Demo\DemoTables;
+use App\Services\Reset\TestReset;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
@@ -97,6 +98,14 @@ final class ReleaseSeed extends Command
         }
 
         foreach (self::SEEDERS as $seeder) {
+            $skip = self::skipped($seeder);
+
+            if ($skip !== null) {
+                $this->line(sprintf('%s skipped: %s', class_basename($seeder), $skip));
+
+                continue;
+            }
+
             $status = $this->call('db:seed', ['--class' => $seeder, '--force' => true, '--no-interaction' => true]);
 
             if ($status !== self::SUCCESS) {
@@ -118,5 +127,27 @@ final class ReleaseSeed extends Command
         $this->info(sprintf('Release seed v%d applied.', self::VERSION));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Why a seeder does not run on this database, or null. A test environment that was reset to an empty shop
+     * (TestReset) gets no catalogue, no cars and no Gutachten back from a release, and one whose demo set a person took
+     * away gets no example catalogue back — the reset, the strip and `demo:purge` would otherwise last until the next
+     * release. The reference tables and the content still follow the release.
+     */
+    public static function skipped(string $seeder): ?string
+    {
+        $shop = [VehicleSeeder::class, CatalogueSeeder::class, BrandLogoSeeder::class, GoldenRecordSeeder::class, ApprovalSeeder::class];
+        $examples = [VehicleSeeder::class, CatalogueSeeder::class, ApprovalSeeder::class];
+
+        if (in_array($seeder, $shop, true) && TestReset::shopEmptied()) {
+            return 'the test environment was reset to an empty shop';
+        }
+
+        if (in_array($seeder, $examples, true) && DemoTables::removed()) {
+            return 'the demo data was removed';
+        }
+
+        return null;
     }
 }

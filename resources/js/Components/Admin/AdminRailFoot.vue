@@ -3,10 +3,12 @@
  * The rail's foot: how the shop is, what you can make, and who you are — fixed at the bottom of the
  * rail under a hairline, never scrolling with the navigation above it.
  *
- *   0. Demodaten — only while demo rows exist (DemoTables): „Demodaten aktiv · 1.412 Datensätze ·
- *      entfernen“ in the warning colour, so whoever opens the admin next knows what the figures are
- *      made of. „entfernen“ — for who may (DemoDataPolicy) — asks first (AdminConfirm), then takes
- *      exactly the demo rows away, recorded in the Protokoll.
+ *   0. Demodaten — only while demo rows exist (DemoTables), in the warning colour, so whoever opens
+ *      the admin next knows what the figures are made of. Who may take them away (DemoDataPolicy)
+ *      reads „Demodaten entfernen · 1.412 Datensätze“ and, beneath it, that only the example data
+ *      goes; it asks first (AdminConfirm), then takes exactly the demo rows away, recorded in the
+ *      Protokoll — or, when they cannot go now, says why instead (AdminDemoBlocked). Everyone else
+ *      reads „Demodaten aktiv · 1.412 Datensätze“.
  *   1. Systemzustand — only when something is wrong: an empty foot is the healthy state. One quiet
  *      line of 32 px: the dot carries the colour, then a short label and a count in it („Warteschlange
  *      stockt · 12 Std“), the whole sentence in the tooltip. No way to dismiss it — a problem hidden
@@ -36,6 +38,7 @@ import {
 } from 'reka-ui'
 import { computed, ref } from 'vue'
 import AdminConfirm from './AdminConfirm.vue'
+import AdminDemoBlocked from './AdminDemoBlocked.vue'
 import AdminMenuTip from './AdminMenuTip.vue'
 import Icon from './AdminIcon.vue'
 import Kbd from '../Ui/Kbd.vue'
@@ -70,7 +73,17 @@ function measureWho(event: Event): void {
 
 /* ── Demodaten ─────────────────────────────────────────────────────────────── */
 
-const { demo, rows: demoRows, body: purgeBody, confirming: confirmingPurge, purging, ask: askPurge, purge: purgeDemo } = useDemoStrip()
+const {
+    demo,
+    rows: demoRows,
+    note: purgeNote,
+    body: purgeBody,
+    blocked: purgeBlocked,
+    confirming: confirmingPurge,
+    purging,
+    ask: askPurge,
+    purge: purgeDemo,
+} = useDemoStrip()
 
 const signingOut = ref(false)
 
@@ -91,14 +104,17 @@ function signOut(event: Event): void {
     <!-- Collapsed or not is the stylesheet's call (the rail's own rule, first frame included); the
          prop only turns tooltips on and opens the menus to the side instead of upward. -->
     <div class="adm-foot">
-        <!-- 0 · Demodaten: only while there are any. -->
+        <!-- 0 · Demodaten: only while there are any. The button says what it does, the line beneath what it keeps. -->
         <TooltipRoot v-if="demo" :disabled="!collapsed">
             <TooltipTrigger as-child>
                 <p class="adm-foot__demo" :tabindex="collapsed ? 0 : undefined">
                     <span class="adm-foot__demo-dot" aria-hidden="true" />
                     <span class="adm-foot__demo-text">
-                        Demodaten aktiv · {{ demoRows }}<template v-if="demo.canPurge"> ·
-                            <button class="adm-foot__demo-purge" type="button" @click="askPurge">entfernen</button></template>
+                        <template v-if="demo.canPurge">
+                            <button class="adm-foot__demo-purge" type="button" aria-describedby="adm-foot-demo-note" @click="askPurge">Demodaten entfernen</button> · {{ demoRows }}
+                            <span id="adm-foot-demo-note" class="adm-foot__demo-note">{{ purgeNote }}</span>
+                        </template>
+                        <template v-else>Demodaten aktiv · {{ demoRows }}</template>
                     </span>
                 </p>
             </TooltipTrigger>
@@ -108,7 +124,7 @@ function signOut(event: Event): void {
         </TooltipRoot>
 
         <AdminConfirm
-            v-if="demo?.canPurge"
+            v-if="demo?.canPurge && !purgeBlocked"
             v-model:open="confirmingPurge"
             title="Demodaten entfernen"
             :body="purgeBody"
@@ -116,6 +132,7 @@ function signOut(event: Event): void {
             :busy="purging"
             @confirm="purgeDemo"
         />
+        <AdminDemoBlocked v-if="demo?.canPurge && purgeBlocked" v-model:open="confirmingPurge" :reason="purgeBlocked" :reset-href="demo.resetHref" />
 
         <!-- 1 · Systemzustand: nothing while all is well. -->
         <!-- The ambient reminder: away while the banner says the same thing (useHealthBanner). -->

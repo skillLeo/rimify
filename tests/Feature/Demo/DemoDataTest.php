@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\OrderLine;
+use App\Models\Setting;
 use App\Services\Demo\DemoDashboard;
 use App\Services\Demo\DemoPurge;
 use App\Services\Demo\DemoTables;
+use App\Services\Reset\TestReset;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\DemoDashboardSeeder;
@@ -81,6 +83,31 @@ describe('the fence', function (): void {
         $this->artisan('demo:seed', ['--anchor' => '2026-02-30'])->assertExitCode(2);
 
         expect(DemoTables::total())->toBe(0);
+    });
+
+    it('writes nothing on a deploy where a person took the demo data away, or the test environment was emptied', function (): void {
+        Setting::set(DemoTables::REMOVED, ['at' => now()->toIso8601String(), 'by' => 'Limix Sebastian']);
+
+        $this->artisan('demo:seed', ['--unless-removed' => true])->expectsOutputToContain('nicht wieder geschrieben')->assertSuccessful();
+        expect(DemoTables::total())->toBe(0);
+
+        Setting::query()->whereKey(DemoTables::REMOVED)->delete();
+        Setting::set(TestReset::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => null]);
+
+        $this->artisan('demo:seed', ['--unless-removed' => true])->expectsOutputToContain('nicht wieder geschrieben')->assertSuccessful();
+        expect(DemoTables::total())->toBe(0);
+    });
+
+    it('marks the demo set as removed when a person purges it, and as wanted again when it is written on purpose', function (): void {
+        demoSeeded();
+        app(DemoPurge::class)->run('Test');
+
+        expect(DemoTables::removed())->toBeTrue();
+
+        demoSeeded();
+        $this->artisan('demo:seed', ['--anchor' => '2026-09-27', '--scale' => '0.25'])->assertSuccessful();
+
+        expect(DemoTables::removed())->toBeFalse();
     });
 });
 

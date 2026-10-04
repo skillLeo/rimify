@@ -434,6 +434,27 @@ describe('putting every entry into words', function (): void {
                 'Die Demodaten wurden entfernt: 1.456 Datensätze, eingespielt bis zum 27.09.2026.',
                 ['Bestellungen: 1.412 → 0', 'Protokolleinträge: 44 → 0'],
             ],
+            'demo.purge_refused' => [
+                ['reasons' => ['20 Bestellungen, die nicht als Demodaten angelegt wurden, enthalten Beispielfelgen oder Beispielreifen.']],
+                'Das Entfernen der Demodaten wurde abgelehnt; es hat sich nichts geändert. Grund: 20 Bestellungen, die nicht als Demodaten angelegt wurden, enthalten Beispielfelgen oder Beispielreifen.',
+                [],
+            ],
+            'system.reset' => [
+                ['id' => '20261004-120000-shop', 'level' => 'shop', 'counts' => [['label' => 'Felgen', 'count' => 12], ['label' => 'Bilder', 'count' => 61]], 'environment' => 'staging'],
+                "Die Testumgebung wurde zurückgesetzt („Shopdaten“). Entfernt: 12\u{00A0}Felgen, 61\u{00A0}Bilder. Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.",
+                ['Felgen: 12 → 0', 'Bilder: 61 → 0'],
+            ],
+            'system.reset_undone' => [
+                ['id' => '20261004-120000-shop', 'level' => 'shop', 'reset_at' => '2026-10-04T12:00:00+00:00'],
+                'Das Zurücksetzen der Testumgebung (Shopdaten) wurde rückgängig gemacht. Der Stand davor ist wieder da; Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.',
+                [],
+            ],
+            'system.reset_failed' => [
+                ['reason' => 'Verweise ins Leere'],
+                'Ein Zurücksetzen der Testumgebung ist fehlgeschlagen. Die Datenbank wurde aus der Sicherung wiederhergestellt und ist genauso wie vorher. Grund: Verweise ins Leere',
+                [],
+            ],
+            'system.reset_recovered' => [['id' => '20261004-120000-shop', 'op' => 'reset', 'level' => 'shop'], 'Ein Zurücksetzen der Testumgebung wurde unterbrochen. Die Datenbank wurde aus der Sicherung wiederhergestellt.', []],
             'orders.exported' => [
                 ['format' => 'xlsx', 'filters' => ['status' => 'PAID', 'von' => '2026-09-01', 'bis' => '2026-09-26'], 'count' => 12],
                 'Bestellungen wurden als Excel-Datei exportiert (Status „Bezahlt“, Zeitraum 01.09.2026 bis 26.09.2026) – 12 Bestellungen.',

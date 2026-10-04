@@ -56,7 +56,15 @@ final class DemoTables
     /** The setting that records the demo set in place: its anchor day and scale. */
     public const SETTING = 'demo_set';
 
+    /**
+     * The setting that records a person taking the demo set away (the rail's strip, `demo:purge`, a reset of the test
+     * environment): from then on a deploy writes it no more, and a release brings no example catalogue back.
+     */
+    public const REMOVED = 'demo_removed';
+
     private const CACHE_KEY = 'admin.demo_rows';
+
+    private const BLOCKER_KEY = 'admin.demo_blocker';
 
     /**
      * Demo rows per table — the figures, the demo queue's jobs and the example catalogue. The
@@ -108,9 +116,31 @@ final class DemoTables
         return (int) Cache::remember(self::CACHE_KEY, 300, static fn (): int => self::total());
     }
 
+    /**
+     * Why the set cannot be taken away now (DemoCatalogue::blockers(), the first reason), read as seldom as the
+     * total: the strip says it before anyone presses „Demodaten entfernen“, not after.
+     */
+    public static function cachedBlocker(): ?string
+    {
+        $reason = (string) Cache::remember(self::BLOCKER_KEY, 300, static fn (): string => DemoCatalogue::blockers()[0] ?? '');
+
+        return $reason === '' ? null : $reason;
+    }
+
     public static function forget(): void
     {
         Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::BLOCKER_KEY);
+    }
+
+    /** Whether a person took the demo set away (REMOVED), so it is not written again. */
+    public static function removed(): bool
+    {
+        try {
+            return Setting::get(self::REMOVED) !== null;
+        } catch (QueryException) {
+            return false;
+        }
     }
 
     /**

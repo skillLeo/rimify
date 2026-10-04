@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Console\Commands\ReleaseSeed;
 use App\Models\Setting;
+use App\Services\Demo\DemoTables;
+use App\Services\Reset\TestReset;
+use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\GoldenRecordSeeder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -49,6 +52,31 @@ it('applies the release seed once and records it', function (): void {
     $this->artisan('rimify:release-seed')
         ->expectsOutputToContain('already applied')
         ->assertSuccessful();
+});
+
+it('brings no shop back to a test environment reset to an empty one, and no example catalogue where the demo data was removed', function (): void {
+    Setting::set(TestReset::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => null]);
+
+    $this->artisan('rimify:release-seed')
+        ->expectsOutputToContain('CatalogueSeeder skipped: the test environment was reset to an empty shop')
+        ->assertSuccessful();
+
+    expect(DB::table('wheel_models')->count())->toBe(0)
+        ->and(DB::table('vehicles')->count())->toBe(0)
+        ->and(DB::table('approval_documents')->count())->toBe(0)
+        // The reference tables and the content still follow the release.
+        ->and(DB::table('load_index_table')->count())->toBeGreaterThan(0)
+        ->and(DB::table('pages')->count())->toBeGreaterThan(0);
+
+    Setting::set(TestReset::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => now()->toIso8601String()]);
+    Setting::set(DemoTables::REMOVED, ['at' => now()->toIso8601String(), 'by' => 'Test']);
+
+    $this->artisan('rimify:release-seed', ['--force' => true])
+        ->expectsOutputToContain('CatalogueSeeder skipped: the demo data was removed')
+        ->assertSuccessful();
+
+    expect(DB::table('wheel_models')->where('is_demo', true)->count())->toBe(0)
+        ->and(DB::table('approval_documents')->where('issuer', ApprovalSeeder::ISSUER)->count())->toBe(0);
 });
 
 it('duplicates nothing and loses nothing when it runs again', function (): void {
