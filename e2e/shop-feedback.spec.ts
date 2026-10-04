@@ -8,7 +8,7 @@ import { REVIEW_PASSWORD, consentGiven } from './support'
  * page carries no trace of it. Writes one review point per run, on the development database only.
  */
 
-const BASE = 'http://127.0.0.1:8000'
+const BASE = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000'
 
 async function signIn(page: Page): Promise<void> {
     await page.goto('/admin/anmelden', { waitUntil: 'domcontentloaded' })
