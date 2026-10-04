@@ -115,6 +115,19 @@ it('offers three real orders of the catalogue and never a bestseller claim', fun
     $this->get('/?beliebt=unsinn')->assertInertia(fn (AssertableInertia $page) => $page->where('popular.active', 'beliebt'));
 });
 
+it('says the shop has no wheel at all only when it has none — not when one tab is empty', function (): void {
+    // A tab with nothing in it is not an empty shop: the other tabs still hold wheels.
+    $this->get('/?beliebt=bis200')->assertInertia(fn (AssertableInertia $page) => $page->where('popular.empty', false));
+
+    // A test environment reset to an empty shop: nothing published, so every tab is empty and the page says so once.
+    WheelModel::query()->update(['status' => 'draft']);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('popular.cards', [])
+        ->where('popular.empty', true)
+    );
+});
+
 it('lists seven size tiles, and links a brand exactly when it has wheels on stock', function (): void {
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->has('sizes', 7)

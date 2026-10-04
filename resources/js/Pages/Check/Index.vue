@@ -473,7 +473,13 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                 <section class="chk__step" aria-labelledby="chk-wheel-h">
                     <h2 id="chk-wheel-h" class="chk__step-h">Deine Felge</h2>
 
-                    <div :key="fieldsKey" class="chk__fields">
+                    <!-- No wheel in the shop at all (an emptied test environment): said once, instead of four empty fields. -->
+                    <p v-if="wheelBrands.length === 0" class="chk__none">
+                        Noch ist keine Felge im Sortiment. Sobald die ersten freigegeben sind, prüfst du sie hier.
+                        <Link :href="contactHref({ subject: 'Ich suche eine Felge', from: '/rimify-check' })">Schreib uns, welche du suchst</Link>.
+                    </p>
+
+                    <div v-else :key="fieldsKey" class="chk__fields">
                         <div class="form-field">
                             <label class="form-field__label" for="chk-brand">Hersteller</label>
                             <select id="chk-brand" class="input" :value="chosen.brand ?? ''" @change="onBrand">
@@ -679,6 +685,12 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     font-size: var(--fs-h4);
     line-height: var(--lh-h4);
     font-weight: 600;
+}
+
+.chk__none {
+    max-width: 62ch;
+    margin: var(--sp-12) 0 0;
+    color: var(--c-ink-2);
 }
 
 /* The selector's own titles sit under the step's heading, never above it in size. */

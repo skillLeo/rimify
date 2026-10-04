@@ -55,7 +55,7 @@ function pageProps(overrides: Partial<StartseiteProps> = {}): StartseiteProps {
         selector: { makes: [] },
         fitmentCount: null,
         promises: [],
-        popular: { title: 'Felgen aus dem Sortiment', tabs: [], active: 'beliebt', cards: [], total: null },
+        popular: { title: 'Felgen aus dem Sortiment', tabs: [], active: 'beliebt', cards: [], total: null, empty: false },
         recentlyViewed: [],
         sizes: [],
         // Server order: the sample range first; the wall moves it to the end.

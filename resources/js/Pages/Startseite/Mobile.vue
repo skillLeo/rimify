@@ -303,7 +303,7 @@ onBeforeUnmount(() => {
         <div class="container">
             <h2 id="h5-title" class="h2 home-h2">{{ popularTitle }}</h2>
 
-            <div v-if="popular.tabs.length" class="tabs__list home-tabs" role="tablist" aria-label="Auswahl">
+            <div v-if="popular.tabs.length && !popular.empty" class="tabs__list home-tabs" role="tablist" aria-label="Auswahl">
                 <button
                     v-for="tab in popular.tabs"
                     :key="tab.key"
@@ -330,6 +330,12 @@ onBeforeUnmount(() => {
                 </li>
             </Shelf>
 
+            <!-- No wheel in the shop at all: no tab to try, one sentence and the one way forward that works. -->
+            <div v-else-if="popular.empty" class="container empty">
+                <p class="empty__title">Noch ist keine Felge im Sortiment.</p>
+                <p class="empty__text">Sobald die ersten Felgen mit ihrem Gutachten freigegeben sind, stehen sie hier. Du suchst eine bestimmte? Schreib uns.</p>
+            </div>
+
             <div v-else class="container empty">
                 <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
                 <p class="empty__text">Schau unter „{{ popular.tabs[0]?.label ?? 'Meiste Freigaben' }}“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
@@ -344,7 +350,8 @@ onBeforeUnmount(() => {
                     <button class="btn btn--secondary btn--sm" type="button" @click="popularFailed = false; switchTab(popular.active)">Erneut versuchen</button>
                 </div>
             </div>
-            <Link href="/felgen" class="btn btn--secondary btn--block" prefetch>{{ listingLabel }}</Link>
+            <Link v-if="popular.empty" :href="contactHref({ subject: 'Ich suche eine Felge', from: '/' })" class="btn btn--secondary btn--block">Schreib uns</Link>
+            <Link v-else href="/felgen" class="btn btn--secondary btn--block" prefetch>{{ listingLabel }}</Link>
         </div>
 
         <!-- H5b · Only when the session has history. -->

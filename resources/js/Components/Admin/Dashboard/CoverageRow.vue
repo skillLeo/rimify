@@ -85,7 +85,8 @@ const skeleton = computed<Matrix>(() => {
             title="Abdeckung"
             href="/admin/abdeckung"
             href-label="Abdeckung öffnen"
-            :empty="charts.coverage.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import der Fahrzeugliste.'"
+            :empty="charts.coverage.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich, sobald Fahrzeuge in einem Gutachten eingetragen sind oder der Fahrzeugdatensatz eingespielt ist.'"
+            :empty-link="charts.coverage.rows.length ? null : { label: 'Zu den Gutachten', href: '/admin/gutachten' }"
         >
             <CoverageMatrix :matrix="charts.coverage" />
         </DashWidget>

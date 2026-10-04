@@ -636,7 +636,8 @@ onBeforeUnmount(() => treeController?.abort())
                                     </ComboboxAnchor>
                                     <ComboboxContent class="popover sel__list" aria-label="Marken">
                                         <ComboboxViewport class="sel__viewport">
-                                            <ComboboxEmpty class="sel__empty small muted">Keine Marke gefunden.</ComboboxEmpty>
+                                            <!-- No car in the shop at all (an emptied test environment) is not a miss the visitor caused. -->
+                                            <ComboboxEmpty class="sel__empty small muted">{{ props.selector.makes.length === 0 ? 'Hier ist noch kein Fahrzeug hinterlegt.' : 'Keine Marke gefunden.' }}</ComboboxEmpty>
                                             <ComboboxItem
                                                 v-for="m in props.selector.makes"
                                                 :key="m.make"

@@ -81,6 +81,9 @@ const missHref = computed(() => {
     return contactHref({ subject: `Fahrzeug nicht gefunden: HSN ${miss?.hsn ?? keys.hsn} · TSN ${miss?.tsn ?? keys.tsn}`, from: page.url })
 })
 
+/* An empty list with nothing typed: no car at all to choose from yet. */
+const emptyHref = computed(() => contactHref({ subject: 'Mein Fahrzeug ist nicht dabei', from: page.url }))
+
 const level = computed<'make' | 'model' | 'variant'>(() => {
     if (props.selectedMake === null) {
         return 'make'
@@ -426,8 +429,14 @@ function onTsn(event: Event): void {
                     <span v-if="row.note" class="data vsel__note">{{ row.note }}</span>
                 </button>
 
-                <p v-if="rows.length === 0" class="quiet vsel__empty">
+                <p v-if="rows.length === 0 && query.trim() !== ''" class="quiet vsel__empty">
                     Kein Treffer. Prüfe die Schreibweise oder nutze die Schlüsselnummern.
+                </p>
+                <!-- Nothing typed and still nothing: no car is in the shop yet (an emptied test environment) — said as
+                     that, never as a miss the visitor caused, and with the one way on that works. -->
+                <p v-else-if="rows.length === 0" class="quiet vsel__empty">
+                    Hier ist noch kein Fahrzeug hinterlegt.
+                    <Link :href="emptyHref">Schreib uns, welches Auto du fährst</Link>.
                 </p>
             </div>
         </section>

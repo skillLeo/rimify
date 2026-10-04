@@ -79,7 +79,11 @@ function reset(): void {
         </form>
 
         <AdminState v-if="vehicles.length === 0 && filtered" kind="filtered" :total="review ? counts.review : counts.all" @reset="reset" />
-        <AdminState v-else-if="vehicles.length === 0" kind="empty" :text="review ? 'Kein Fahrzeug wartet auf seine Angaben.' : 'Hier erscheint jedes Fahrzeug, sobald die Fahrzeugdaten eingespielt sind.'" />
+        <AdminState v-else-if="vehicles.length === 0 && review" kind="empty" text="Kein Fahrzeug wartet auf seine Angaben." />
+        <!-- Empty, the way on is the Gutachten: its rows put the cars in, until the vehicle dataset is loaded. -->
+        <AdminState v-else-if="vehicles.length === 0" kind="empty" text="Fahrzeuge erscheinen hier, sobald sie in einem Gutachten eingetragen sind oder der Fahrzeugdatensatz eingespielt ist.">
+            <Link href="/admin/gutachten" class="btn btn--secondary">Zu den Gutachten</Link>
+        </AdminState>
 
         <template v-else>
             <div class="adm-panel">

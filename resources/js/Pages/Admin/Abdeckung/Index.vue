@@ -78,7 +78,12 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
                 </ul>
             </section>
 
-            <DashWidget title="Varianten mit freigegebener Felge, nach Marke und Größe" :empty="matrix.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich mit dem ersten Import.'">
+            <!-- Empty, the way on is the Gutachten: a document's rows are what put cars, and approvals, into the matrix. -->
+            <DashWidget
+                title="Varianten mit freigegebener Felge, nach Marke und Größe"
+                :empty="matrix.rows.length ? null : 'Noch kein Fahrzeug im Katalog. Die Matrix füllt sich, sobald Fahrzeuge in einem Gutachten eingetragen sind oder der Fahrzeugdatensatz eingespielt ist.'"
+                :empty-link="matrix.rows.length ? null : { label: 'Zu den Gutachten', href: '/admin/gutachten' }"
+            >
                 <CoverageMatrix :matrix="matrix" :selected="selection ? { make: selection.make, size: selection.size } : null" />
             </DashWidget>
 
