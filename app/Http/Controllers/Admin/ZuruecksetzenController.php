@@ -34,6 +34,8 @@ class ZuruecksetzenController extends Controller
 
     public function store(TestResetRequest $request, TestReset $reset): RedirectResponse
     {
+        self::keepRunning();
+
         try {
             $result = $reset->reset($request->level(), $request->admin());
         } catch (ResetRefused $refused) {
@@ -49,6 +51,8 @@ class ZuruecksetzenController extends Controller
 
     public function undo(TestResetUndoRequest $request, TestReset $reset): RedirectResponse
     {
+        self::keepRunning();
+
         try {
             $result = $reset->undo($request->admin());
         } catch (ResetRefused $refused) {
@@ -56,5 +60,26 @@ class ZuruecksetzenController extends Controller
         }
 
         return redirect()->route('admin.zuruecksetzen.show')->with('toast', 'Rückgängig gemacht: Der Stand vor dem Zurücksetzen („'.$result['level']->label().'“) ist wieder da.');
+    }
+
+    /**
+     * A reset runs to its end even if the tab is closed or PHP's time limit is near: one stopped half-way leaves its
+     * marker for `rimify:reset --recover`, but a whole one is better. Where the host forbids either call, nothing breaks.
+     * A web request only: in a console process — a test worker running file after file — set_time_limit() would put a
+     * limit on the whole process, which has none (it cut a parallel suite short, 04.10.2026).
+     */
+    private static function keepRunning(): void
+    {
+        if (app()->runningInConsole()) {
+            return;
+        }
+
+        if (function_exists('ignore_user_abort')) {
+            @ignore_user_abort(true);
+        }
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(300);
+        }
     }
 }
