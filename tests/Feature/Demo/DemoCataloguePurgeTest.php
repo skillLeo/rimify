@@ -183,7 +183,8 @@ it('tells the admin that nothing went, and why', function (): void {
 
     $this->actingAs($admin, 'admin')->from('/admin')->post('/admin/demodaten/entfernen')
         ->assertRedirect('/admin')
-        ->assertSessionHas('toast', fn (string $toast): bool => str_starts_with($toast, 'Nichts entfernt. Eine Bestellposition'));
+        ->assertSessionHas('toast', fn (string $toast): bool => str_starts_with($toast, 'Nichts entfernt. Eine Bestellung, die nicht als Demodaten angelegt wurde,')
+            && ! str_contains($toast, 'artisan'));
 
     expect(DB::table('wheel_models')->where('is_demo', true)->count())->toBe(21);
 });

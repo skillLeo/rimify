@@ -420,24 +420,29 @@ class StartseiteController extends Controller
             // The car's own answer, then the tab's order or filter applied to it: the listing
             // decides which cards exist, the tab only arranges them (R-13).
             $result = $this->cards->forVehicle($vehicleId, [], 24, 1);
+            $cards = array_slice($this->arrange($result['cards'], $tab), 0, 8);
 
             return [
                 'title' => null,
                 'tabs' => $tabs,
                 'active' => $tab,
-                'cards' => array_slice($this->arrange($result['cards'], $tab), 0, 8),
+                'cards' => $cards,
                 'total' => $result['total'],
+                'empty' => $cards === [] && $this->cards->catalogue(limit: 1) === [],
             ];
         }
 
         $options = self::TABS[$tab]['options'];
+        $cards = $this->cards->catalogue(limit: 8, options: $options);
 
         return [
             'title' => 'Felgen aus dem Sortiment',
             'tabs' => $tabs,
             'active' => $tab,
-            'cards' => $this->cards->catalogue(limit: 8, options: $options),
+            'cards' => $cards,
             'total' => null,
+            // No wheel at all — a test environment reset to an empty shop: the other tabs hold nothing either.
+            'empty' => $cards === [] && $this->cards->catalogue(limit: 1) === [],
         ];
     }
 

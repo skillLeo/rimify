@@ -10,9 +10,11 @@ use App\Models\Fitment;
 use App\Models\Order;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
+use App\Models\WheelModel;
 use App\Payments\Payments;
 use App\Services\Admin\AuditTrail;
 use App\Services\Commerce\OrderPayments;
+use App\Services\Reset\TestReset;
 use App\Services\Storage\MediaDisks;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
@@ -68,6 +70,10 @@ final class Smoke extends Command
 
         $pair = $this->pair($resolver);
 
+        // A test environment reset to an empty shop (TestReset) sells nothing yet, and says so on its homepage: there
+        // is no wheel for the hero, the product page or a test order — until the team publishes its first.
+        $empty = TestReset::shopEmptied() && ! WheelModel::query()->where('status', 'published')->where('is_demo', false)->exists();
+
         $this->check('Startseite', function (): string {
             $response = $this->get('/');
             $this->expect($response->status() === 200, "HTTP {$response->status()}");
@@ -79,22 +85,28 @@ final class Smoke extends Command
         // The homepage's signature pieces (docs/design/PROTECTED.md P1, P4), asserted where they were lost: on the host.
         // The preview showed the outline and no numbers section for days while every test on a fresh database passed
         // (D-089) — a homepage without a hero product looks like a working page to every other check.
-        $this->check('Startseite: Felgenfoto und Zahlen', function (): string {
-            $html = self::rendered($this->get('/')->body());
-            $hero = preg_match('#<section[^>]*data-section="H2".*?</section>#s', $html, $section) === 1 ? $section[0] : '';
-            $this->expect($hero !== '', 'kein Hero im gerenderten HTML');
-            $this->expect(
-                preg_match('#<img\b[^>]*\bsrc="([^"]+)"#', $hero, $img) === 1,
-                'kein Felgenfoto im Hero – die Startseite hat kein Hero-Produkt und zeigt die Umrisszeichnung (Katalog › Felgen, Einstellung hero_product_id)',
-            );
-            $photo = $this->get(html_entity_decode($img[1]));
-            $this->expect($photo->status() === 200, "das Felgenfoto antwortet mit HTTP {$photo->status()}");
-            $this->expect(str_contains($html, 'data-section="H8"'), 'der Abschnitt „Was die Zahlen auf einer Felge bedeuten“ fehlt');
+        if ($empty) {
+            $this->rows[] = ['Startseite: Felgenfoto und Zahlen', 'übersprungen', 'Testumgebung zurückgesetzt: noch keine Felge veröffentlicht.'];
+        } else {
+            $this->check('Startseite: Felgenfoto und Zahlen', function (): string {
+                $html = self::rendered($this->get('/')->body());
+                $hero = preg_match('#<section[^>]*data-section="H2".*?</section>#s', $html, $section) === 1 ? $section[0] : '';
+                $this->expect($hero !== '', 'kein Hero im gerenderten HTML');
+                $this->expect(
+                    preg_match('#<img\b[^>]*\bsrc="([^"]+)"#', $hero, $img) === 1,
+                    'kein Felgenfoto im Hero – die Startseite hat kein Hero-Produkt und zeigt die Umrisszeichnung (Katalog › Felgen, Einstellung hero_product_id)',
+                );
+                $photo = $this->get(html_entity_decode($img[1]));
+                $this->expect($photo->status() === 200, "das Felgenfoto antwortet mit HTTP {$photo->status()}");
+                $this->expect(str_contains($html, 'data-section="H8"'), 'der Abschnitt „Was die Zahlen auf einer Felge bedeuten“ fehlt');
 
-            return 'Felgenfoto im Hero ('.basename((string) parse_url($img[1], PHP_URL_PATH)).'), Zahlen-Abschnitt da';
-        });
+                return 'Felgenfoto im Hero ('.basename((string) parse_url($img[1], PHP_URL_PATH)).'), Zahlen-Abschnitt da';
+            });
+        }
 
-        if ($pair === null) {
+        if ($pair === null && $empty) {
+            $this->rows[] = ['Produktseite / Prüfung / PDF / Testbestellung', 'übersprungen', 'Testumgebung zurückgesetzt: noch keine freigegebene Felge im Shop.'];
+        } elseif ($pair === null) {
             $this->rows[] = ['Produktseite / Prüfung / PDF / Testbestellung', 'FEHLER', 'Keine freigegebene Felge im Shop (veröffentlichtes Gutachten, veröffentlichte Felge auf Lager, Fahrzeug vollständig).'];
         } else {
             ['config' => $config, 'vehicle' => $vehicle] = $pair;

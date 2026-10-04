@@ -211,6 +211,8 @@ export interface StartseiteProps {
         cards: ProductCardProp[]
         /** The listing's count for the vehicle; null without one. */
         total: number | null
+        /** No wheel in the shop at all (a test environment reset to an empty shop): no tab to try, one sentence instead. */
+        empty: boolean
     }
     recentlyViewed: ProductCardProp[]
     /** `fitting`: how many of the size's models a document permits on the vehicle; null without one. */

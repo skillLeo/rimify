@@ -14,6 +14,7 @@ import { computed, ref, watch } from 'vue'
 import BottomSheet from '../Mobile/BottomSheet.vue'
 import ListRow from '../Mobile/ListRow.vue'
 import AdminConfirm from './AdminConfirm.vue'
+import AdminDemoBlocked from './AdminDemoBlocked.vue'
 import AdminIcon from './AdminIcon.vue'
 import { useDemoStrip } from '../../composables/admin/useDemoStrip'
 import { startFeedback } from '../../composables/admin/useFeedback'
@@ -35,7 +36,17 @@ const actions = computed(() => admin.value.quickActions)
 const initials = computed(() => monogram(account.value?.name))
 const health = useHealth()
 const banner = useHealthBanner()
-const { demo, rows: demoRows, body: purgeBody, confirming: confirmingPurge, purging, ask: askPurge, purge: purgeDemo } = useDemoStrip()
+const {
+    demo,
+    rows: demoRows,
+    note: purgeNote,
+    body: purgeBody,
+    blocked: purgeBlocked,
+    confirming: confirmingPurge,
+    purging,
+    ask: askPurge,
+    purge: purgeDemo,
+} = useDemoStrip()
 
 const groups = computed(() => admin.value.nav.filter((g) => g.key !== 'uebersicht' && !props.exclude.includes(g.key)))
 
@@ -108,12 +119,15 @@ function signOut(): void {
             <p v-if="demo" class="adm-foot__demo adm-more__demo">
                 <span class="adm-foot__demo-dot" aria-hidden="true" />
                 <span class="adm-foot__demo-text">
-                    Demodaten aktiv · {{ demoRows }}<template v-if="demo.canPurge"> ·
-                        <button class="adm-foot__demo-purge" type="button" @click="askPurge">entfernen</button></template>
+                    <template v-if="demo.canPurge">
+                        <button class="adm-foot__demo-purge" type="button" aria-describedby="adm-more-demo-note" @click="askPurge">Demodaten entfernen</button> · {{ demoRows }}
+                        <span id="adm-more-demo-note" class="adm-foot__demo-note">{{ purgeNote }}</span>
+                    </template>
+                    <template v-else>Demodaten aktiv · {{ demoRows }}</template>
                 </span>
             </p>
             <AdminConfirm
-                v-if="demo?.canPurge"
+                v-if="demo?.canPurge && !purgeBlocked"
                 v-model:open="confirmingPurge"
                 title="Demodaten entfernen"
                 :body="purgeBody"
@@ -121,6 +135,7 @@ function signOut(): void {
                 :busy="purging"
                 @confirm="purgeDemo"
             />
+            <AdminDemoBlocked v-if="demo?.canPurge && purgeBlocked" v-model:open="confirmingPurge" :reason="purgeBlocked" :reset-href="demo.resetHref" />
 
             <!-- The review: the sheet closes first, so the screenshot shows the page, not the sheet. -->
             <ListRow v-if="admin.review" title="Rückmeldung geben" sub="Mit Bildschirmfoto an das Team" @activate="giveFeedback">

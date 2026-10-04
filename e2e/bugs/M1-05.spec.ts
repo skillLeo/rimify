@@ -76,7 +76,8 @@ test('M1-05 an open menu or dialog does not narrow the page by the scrollbar', a
         await purge.focus();
         await page.keyboard.press('Enter');
 
-        const dialog = page.getByRole('dialog', { name: 'Demodaten entfernen' });
+        // The question, or — where something real still holds the example catalogue — the reason it cannot go (D-149).
+        const dialog = page.getByRole('dialog', { name: /^(Demodaten entfernen|Die Demodaten lassen sich gerade nicht entfernen)$/ });
 
         await expect(dialog).toBeVisible();
 

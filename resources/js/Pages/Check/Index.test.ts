@@ -215,6 +215,15 @@ describe('RIMIFY-Check', () => {
         expect(wrapper.find('#antwort').exists()).toBe(false)
     })
 
+    it('says once that no wheel is in the shop yet, instead of four empty fields, with a way to ask', () => {
+        const wrapper = mountCheck({ wheelBrands: [] })
+        const none = wrapper.get('.chk__none')
+
+        expect(wrapper.find('#chk-brand').exists()).toBe(false)
+        expect(none.text().replace(/\s+/g, ' ')).toBe('Noch ist keine Felge im Sortiment. Sobald die ersten freigegeben sind, prüfst du sie hier. Schreib uns, welche du suchst.')
+        expect(none.get('a').attributes('href')).toBe('/kontakt?betreff=Ich+suche+eine+Felge&von=%2Frimify-check')
+    })
+
     it('makes every wheel choice a visit, a beat after the last change, so the address carries the question', async () => {
         vi.useFakeTimers()
         const wrapper = mountCheck({ selectedMake: 'BMW' })

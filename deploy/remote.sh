@@ -118,8 +118,9 @@ fi
 if [ "$TARGET_ENV" = staging ]; then
     DEMO_ROWS="$("$PHP" artisan tinker --execute='echo \App\Services\Demo\DemoTables::setTotal();' 2>/dev/null | tail -1)"
     if [ "$DEMO_ROWS" = "0" ]; then
-        echo "== staging: writing the demonstration data"
-        "$PHP" artisan demo:seed --no-interaction | tail -2
+        # Not where a person took it away (the strip, demo:purge, Testumgebung zurücksetzen): that stays so.
+        echo "== staging: writing the demonstration data, unless it was removed"
+        "$PHP" artisan demo:seed --unless-removed --no-interaction | tail -2
     else
         echo "== staging: demonstration data present ($DEMO_ROWS rows)"
     fi

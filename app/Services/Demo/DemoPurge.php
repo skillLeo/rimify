@@ -60,6 +60,8 @@ final class DemoPurge
 
             if ($catalogue) {
                 DemoCatalogue::purge();
+                // Taken away as a whole, by a person: no deploy writes it again (remote.sh, `demo:seed --unless-removed`).
+                Setting::set(DemoTables::REMOVED, ['at' => now()->toIso8601String(), 'by' => $operator]);
             }
         });
 

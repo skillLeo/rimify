@@ -13,6 +13,7 @@ use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Orders\OrderList;
 use App\Services\Content\NavigationSchema;
 use App\Services\Demo\DemoTables;
+use App\Services\Reset\ResetLevel;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
 use Carbon\CarbonImmutable;
@@ -89,6 +90,11 @@ final class AuditDescriber
         'review.replied' => 'verkauf',
         'review.reply_removed' => 'verkauf',
         'demo.purged' => 'protokoll',
+        'demo.purge_refused' => 'protokoll',
+        'system.reset' => 'protokoll',
+        'system.reset_undone' => 'protokoll',
+        'system.reset_failed' => 'protokoll',
+        'system.reset_recovered' => 'protokoll',
         'storage.settings_updated' => 'zugriff',
         'demand.marked' => 'gutachten',
         'demand.unmarked' => 'gutachten',
@@ -346,6 +352,22 @@ final class AuditDescriber
             ],
             'audit_log.exported' => [self::exported($p), []],
             'demo.purged' => self::demoPurged($p),
+            // The strip's „Demodaten entfernen“ refused as a whole: recorded, so a press that changed nothing is still seen.
+            'demo.purge_refused' => [
+                'Das Entfernen der Demodaten wurde abgelehnt; es hat sich nichts geändert.'.(self::list($p, 'reasons') === [] ? '' : ' Grund: '.self::list($p, 'reasons')[0]),
+                [],
+            ],
+            'system.reset' => self::reset($p),
+            'system.reset_undone' => [
+                'Das Zurücksetzen der Testumgebung ('.self::resetLevel($p).') wurde rückgängig gemacht. Der Stand davor ist wieder da; Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.',
+                [],
+            ],
+            'system.reset_failed' => [
+                'Ein Zurücksetzen der Testumgebung ist fehlgeschlagen. Die Datenbank wurde aus der Sicherung wiederhergestellt und ist genauso wie vorher.'
+                    .(self::text($p, 'reason') === null ? '' : ' Grund: '.self::text($p, 'reason')),
+                [],
+            ],
+            'system.reset_recovered' => ['Ein Zurücksetzen der Testumgebung wurde unterbrochen. Die Datenbank wurde aus der Sicherung wiederhergestellt.', []],
             'storage.settings_updated' => self::storageUpdated($p),
             'orders.exported' => [self::ordersExported($p), []],
             'order.shipped' => [
@@ -569,6 +591,38 @@ final class AuditDescriber
         }
 
         return [$sentence, $changes];
+    }
+
+    /**
+     * „Die Testumgebung wurde zurückgesetzt (Shopdaten): 12 Felgen, 3 Gutachten … entfernt.“ — with each count as a
+     * row that went to zero, and what stayed.
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function reset(array $p): array
+    {
+        $changes = [];
+        $what = [];
+
+        foreach (self::map($p, 'counts') as $item) {
+            if (is_array($item) && is_string($item['label'] ?? null) && is_numeric($item['count'] ?? null)) {
+                $changes[] = self::change($item['label'], GermanFormat::integer((int) $item['count']), '0');
+                $what[] = GermanFormat::integer((int) $item['count'])."\u{00A0}".$item['label'];
+            }
+        }
+
+        $sentence = 'Die Testumgebung wurde zurückgesetzt („'.self::resetLevel($p).'“). '
+            .($what === [] ? 'Es war nichts zu entfernen.' : 'Entfernt: '.implode(', ', $what).'.')
+            .' Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.';
+
+        return [$sentence, $changes];
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function resetLevel(array $p): string
+    {
+        return ResetLevel::tryFrom((string) self::text($p, 'level'))?->label() ?? 'Stufe nicht erfasst';
     }
 
     /**

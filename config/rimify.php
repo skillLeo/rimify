@@ -303,6 +303,21 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Resetting the test environment
+    |--------------------------------------------------------------------------
+    |
+    | Einstellungen › System › Testumgebung zurücksetzen (TestReset): never in production. Each reset keeps
+    | its safety copy of the database and the files it moved in its own folder for seven days, so it can be
+    | undone; the baseline is the rows a delivered test environment starts with (`rimify:reset-baseline`).
+    */
+
+    'reset' => [
+        'dir' => env('RIMIFY_RESET_DIR', 'storage/app/private/resets'),
+        'baseline' => env('RIMIFY_RESET_BASELINE', 'database/baseline/testumgebung.sql'),
+    ],
+
     'gutachten' => [
         'disk' => env('RIMIFY_GUTACHTEN_DISK', 'local'),
 

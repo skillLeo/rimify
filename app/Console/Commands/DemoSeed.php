@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\Setting;
 use App\Services\Demo\DemoDashboard;
 use App\Services\Demo\DemoGuard;
 use App\Services\Demo\DemoTables;
+use App\Services\Reset\TestReset;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -22,7 +24,8 @@ final class DemoSeed extends Command
 
     protected $signature = 'demo:seed
         {--scale=1 : How busy the shop is: 0.25, 1 or 3}
-        {--anchor= : The story\'s last day, YYYY-MM-DD (Berlin); today by default}';
+        {--anchor= : The story\'s last day, YYYY-MM-DD (Berlin); today by default}
+        {--unless-removed : Write nothing where a person took the demo data away (the deploy\'s call)}';
 
     protected $description = 'Write the admin\'s demonstration data (local, staging and testing only)';
 
@@ -35,6 +38,14 @@ final class DemoSeed extends Command
             $this->error($refusal);
 
             return self::FAILURE;
+        }
+
+        // A deploy writes the demo set only where nobody took it away: the strip, `demo:purge` or a reset of the test
+        // environment would otherwise be undone by the next release (and fail it, the example catalogue being gone).
+        if ($this->option('unless-removed') && (DemoTables::removed() || TestReset::shopEmptied())) {
+            $this->line('Demodaten wurden entfernt und werden nicht wieder geschrieben.');
+
+            return self::SUCCESS;
         }
 
         $scale = (string) $this->option('scale');
@@ -62,6 +73,9 @@ final class DemoSeed extends Command
 
             return self::FAILURE;
         }
+
+        // Written on purpose: the demo set is there again, and a later deploy keeps it as it keeps any.
+        Setting::query()->whereKey(DemoTables::REMOVED)->delete();
 
         $this->table(['Table', 'Demo rows'], array_map(static fn (string $t, int $n): array => [$t, $n], array_keys($counts), $counts));
         $this->info(sprintf('Demo data up to %s at scale %s, in %.1f s.', $anchor->toDateString(), $scale, microtime(true) - $started));

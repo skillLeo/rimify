@@ -22,6 +22,7 @@ import ProductTile from '../../Components/Ui/ProductTile.vue'
 import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
+import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import type { FelgenProps } from '../../types/pages'
 
@@ -55,6 +56,12 @@ const appliedCount = computed(
 )
 
 const currentPage = computed(() => props.page ?? 1)
+
+/*
+ * No wheel in the shop at all — a test environment reset to an empty shop: choosing a car leads to no wheel either, so
+ * the page says so once and offers the way that works, a question to us.
+ */
+const catalogueEmpty = computed(() => !props.hasVehicle && appliedCount.value === 0 && props.cards.length === 0)
 
 /* The facets come with a car and without one (#30, D-118): the filters show whenever there is something to narrow. */
 const showFilters = computed(() => Object.values(props.facets ?? {}).some((options) => (options?.length ?? 0) > 0))
@@ -152,7 +159,7 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->
-            <div v-if="!hasVehicle" class="plp__notice">
+            <div v-if="!hasVehicle && !catalogueEmpty" class="plp__notice">
                 <Icon name="info" :size="20" />
                 <p class="plp__notice-text">
                     Wähle dein Fahrzeug, um nur Felgen zu sehen, die dafür freigegeben sind.
@@ -221,7 +228,7 @@ onBeforeUnmount(() => {
                             }}
                         </p>
                         <p class="t-body">
-                            RIMIFY zeigt ausschließlich Felgen, für die ein gültiges Gutachten vorliegt.
+                            RIMIFY zeigt ausschließlich Felgen, für die ein gültiges Gutachten vorliegt.<template v-if="catalogueEmpty"> Sobald die ersten freigegeben sind, stehen sie hier.</template>
                         </p>
                         <!-- F2's real endpoint, never the old contact form, which sent nothing (ACCURACY D5). -->
                         <VehicleNotify
@@ -238,7 +245,8 @@ onBeforeUnmount(() => {
                             >
                                 Filter zurücksetzen
                             </button>
-                            <Link href="/felgen-suchen" class="btn btn--secondary">{{ hasVehicle ? 'Anderes Fahrzeug wählen' : 'Fahrzeug wählen' }}</Link>
+                            <Link v-if="catalogueEmpty" :href="contactHref({ subject: 'Ich suche eine Felge', from: '/felgen' })" class="btn btn--secondary">Schreib uns</Link>
+                            <Link v-else href="/felgen-suchen" class="btn btn--secondary">{{ hasVehicle ? 'Anderes Fahrzeug wählen' : 'Fahrzeug wählen' }}</Link>
                         </div>
                     </div>
 

@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Reset;
+
+/**
+ * How far Einstellungen › System › Testumgebung zurücksetzen goes (docs/review/ZURUECKSETZEN.md). Each level takes
+ * everything the one before takes, and none of them ever takes the team, its roles, the settings or the Protokoll.
+ */
+enum ResetLevel: string
+{
+    /** Only the rows born demo (R-12) and the example catalogue they are drawn on — DemoPurge, as the rail's strip. */
+    case Demo = 'demo';
+
+    /** The shop's data: catalogue, Gutachten, cars, orders and everything that hangs off them, and their files. */
+    case Shop = 'shop';
+
+    /** The shop's data, and the pages, FAQ and menus back to how the shop was delivered. */
+    case All = 'all';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Demo => 'Demodaten',
+            self::Shop => 'Shopdaten',
+            self::All => 'Alles',
+        };
+    }
+
+    /** What goes, in one sentence for the screen. */
+    public function removes(): string
+    {
+        return match ($this) {
+            self::Demo => 'Nur die Beispieldaten – die Demo-Bestellungen, das Demo-Team und den Beispielkatalog mit seinen Gutachten.',
+            self::Shop => 'Felgen, Reifen, Marken, Gutachten, Fahrzeuge, Bestellungen, Kunden, Bewertungen, Nachrichten, Rückmeldungen, Anfragen und die hochgeladenen Bilder und PDFs – dazu alle Beispieldaten.',
+            self::All => 'Alles aus „Shopdaten“. Dazu gehen Seiten, FAQ und Menüs auf den Auslieferungszustand zurück.',
+        };
+    }
+
+    /** What stays, in one sentence for the screen. */
+    public function keeps(): string
+    {
+        return match ($this) {
+            self::Demo => 'Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen.',
+            self::Shop => 'Benutzer, Rollen, Einstellungen, das Protokoll sowie Seiten, FAQ und Menüs.',
+            self::All => 'Benutzer, Rollen, Einstellungen und das Protokoll.',
+        };
+    }
+
+    /** Whether the shop's own tables are replaced (not only their demo rows taken out). */
+    public function replacesShop(): bool
+    {
+        return $this !== self::Demo;
+    }
+
+    /** Whether the pages, FAQ and menus go back to the delivered state. */
+    public function replacesContent(): bool
+    {
+        return $this === self::All;
+    }
+}

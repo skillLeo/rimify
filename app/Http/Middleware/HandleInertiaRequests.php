@@ -11,6 +11,7 @@ use App\Models\AdminUser;
 use App\Models\ReviewFeedback;
 use App\Payments\Payments;
 use App\Policies\DemoDataPolicy;
+use App\Policies\TestResetPolicy;
 use App\Services\Admin\AdminAlerts;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\QuickActions;
@@ -248,21 +249,31 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * The rail's demo strip. A count that cannot be read (a locked table) costs the strip, never the
-     * page: the strip only informs — `demo:assert-clean` is what guards a production database.
+     * page: the strip only informs — `demo:assert-clean` is what guards a production database. Who may
+     * take the set away is told before asking when it cannot go now (`blocked`), and — on a test
+     * environment, as the Super-Admin — where the whole shop can be reset instead (`resetHref`).
      *
-     * @return array{rows: int, canPurge: bool}|null
+     * @return array{rows: int, canPurge: bool, blocked: string|null, resetHref: string|null}|null
      */
     private static function demo(AdminUser $user): ?array
     {
         try {
             $rows = DemoTables::cachedTotal();
+            $canPurge = (new DemoDataPolicy)->purge($user);
+            $blocked = $rows > 0 && $canPurge ? DemoTables::cachedBlocker() : null;
         } catch (Throwable $e) {
             report($e);
 
             return null;
         }
 
-        return $rows > 0 ? ['rows' => $rows, 'canPurge' => (new DemoDataPolicy)->purge($user)] : null;
+        return $rows > 0 ? [
+            'rows' => $rows,
+            'canPurge' => $canPurge,
+            'blocked' => $blocked,
+            // Asked of the policy directly, as the purge right: a way not offered is no denied attempt to log.
+            'resetHref' => (new TestResetPolicy)->view($user) ? '/admin/system/zuruecksetzen' : null,
+        ] : null;
     }
 
     /**

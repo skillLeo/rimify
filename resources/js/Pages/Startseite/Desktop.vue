@@ -38,7 +38,8 @@ const vehicle = computed(() => shared.value.vehicle)
 
 /* Which sections the data switches on. H5b lives inside H5 and has no slot of its own. */
 const showPromises = computed(() => props.promises.length > 0)
-const showFindFast = computed(() => props.sizes.length > 0 || props.brands.length > 0)
+/* A size with nothing in it is no tile (FindFast): sizes alone at zero would draw the band and nothing in it. */
+const showFindFast = computed(() => props.sizes.some((s) => s.count > 0) || props.brands.length > 0)
 /* H8 explains the hero wheel's own values: without them there is nothing to explain (ACCURACY §4). */
 const showRimCode = computed(() => rimFactsOf(props.hero.product) !== null)
 const showPartners = computed(() => props.partners.enabled)

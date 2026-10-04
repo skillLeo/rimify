@@ -80,6 +80,26 @@ describe('VehicleSelector — a key-number miss (R-09)', () => {
     })
 })
 
+// An emptied test environment: no car at all is not a miss the visitor caused — and a real miss still says so.
+describe('VehicleSelector — no car in the shop yet', () => {
+    it('says no car is there yet, with a way to ask, and only calls it a miss once something is typed', async () => {
+        current.props = {}
+        current.url = '/rimify-check'
+        const wrapper = mount(VehicleSelector, {
+            props: { makes: [], models: [], variants: [], selectedMake: null, selectedModel: null },
+            global: { stubs: { DocFacsimile: true } },
+        })
+        mounted.push(wrapper)
+
+        expect(wrapper.get('.vsel__empty').text().replace(/\s+/g, ' ')).toBe('Hier ist noch kein Fahrzeug hinterlegt. Schreib uns, welches Auto du fährst.')
+        expect(new URLSearchParams(wrapper.get('.vsel__empty a').attributes('href')?.split('?')[1] ?? '').get('betreff')).toBe('Mein Fahrzeug ist nicht dabei')
+
+        await wrapper.get('input[type="search"]').setValue('Porsche')
+
+        expect(wrapper.get('.vsel__empty').text()).toBe('Kein Treffer. Prüfe die Schreibweise oder nutze die Schlüsselnummern.')
+    })
+})
+
 // The live sweep of 01.10.2026: „0005/582“ pasted into the HSN left „/58“ in the TSN. One rule everywhere (splitKeys).
 describe('VehicleSelector — a pair of key numbers in the HSN field', () => {
     const field = (wrapper: VueWrapper, placeholder: string) => wrapper.find<HTMLInputElement>(`input[placeholder="${placeholder}"]`)

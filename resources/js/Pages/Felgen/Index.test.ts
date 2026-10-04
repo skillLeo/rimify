@@ -94,3 +94,20 @@ describe('Felgen — the empty listing for a vehicle', () => {
         expect(state.text()).toContain('Filter zurücksetzen')
     })
 })
+
+describe('Felgen — no wheel in the shop at all', () => {
+    it('says so once, without sending anyone to choose a car first, and offers to write', () => {
+        current.props = { vehicle: null, contact: { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: '' } }
+        const wrapper = mount(Felgen, {
+            props: { hasVehicle: false, cards: [], total: null, facets: {}, filters: {}, page: 1, demo: false },
+            global: { stubs: { FilterBar: true, ProductTile: true } },
+        })
+        mounted.push(wrapper)
+        const state = wrapper.get('.state')
+
+        expect(wrapper.find('.plp__notice').exists()).toBe(false)
+        expect(state.get('.state__title').text()).toBe('Im Sortiment ist gerade keine Felge.')
+        expect(state.text()).toContain('Sobald die ersten freigegeben sind, stehen sie hier.')
+        expect(state.findAll('a').map((a) => [a.text(), a.attributes('href')])).toEqual([['Schreib uns', '/kontakt?betreff=Ich+suche+eine+Felge&von=%2Ffelgen']])
+    })
+})

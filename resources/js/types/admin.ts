@@ -62,8 +62,11 @@ export interface AdminShared {
     health: AdminHealth | null
     /** „Neu“: what this role may create where the creating page exists. */
     quickActions: AdminQuickAction[]
-    /** The demo set, while there is one: its rows, and whether this person may take it away. */
-    demo: { rows: number; canPurge: boolean } | null
+    /**
+     * The demo set, while there is one: its rows, whether this person may take it away, why it cannot go now (or
+     * null), and where the Super-Admin resets the whole test environment instead (or null).
+     */
+    demo: { rows: number; canPurge: boolean; blocked: string | null; resetHref: string | null } | null
     /** The review kit is on (local and staging): the feedback button is drawn. */
     review?: boolean
     /** Stripe in Testmodus: a strip on every page says that no money moves. Additive. */

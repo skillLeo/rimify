@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 use App\Models\AdminUser;
 use App\Models\AuditLog;
+use App\Models\OrderLine;
 use App\Services\Demo\DemoTables;
 use Database\Seeders\AccessSeeder;
+use Database\Seeders\ApprovalSeeder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 
 /*
- * The rail's demo strip (the density brief §5): every admin page says so while demo rows exist —
- * „Demodaten aktiv · N Datensätze“ — and offers „entfernen“ only to who may (DemoDataPolicy, R-11);
- * the purge behind it takes exactly the demo rows and names who ran it in the Protokoll.
+ * The rail's demo strip (the density brief §5): every admin page says so while demo rows exist, and offers
+ * „Demodaten entfernen“ only to who may (DemoDataPolicy, R-11); the purge behind it takes exactly the demo rows and
+ * names who ran it in the Protokoll. When the set cannot go, who may is told why before pressing, the Super-Admin
+ * where the whole test environment is reset instead — and a press that changed nothing is still in the Protokoll.
  */
 
 beforeEach(function (): void {
@@ -55,8 +58,8 @@ it('says nothing while there are no demo rows', function (): void {
 it('tells everyone how many demo rows there are, and offers the purge only to who may', function (): void {
     stripPlant(3);
 
-    expect(stripProp('super-admin'))->toBe(['rows' => 3, 'canPurge' => true])
-        ->and(stripProp('order-manager'))->toBe(['rows' => 3, 'canPurge' => false]);
+    expect(stripProp('super-admin'))->toBe(['rows' => 3, 'canPurge' => true, 'blocked' => null, 'resetHref' => '/admin/system/zuruecksetzen'])
+        ->and(stripProp('order-manager'))->toBe(['rows' => 3, 'canPurge' => false, 'blocked' => null, 'resetHref' => null]);
 
     // Not offered is not attempted: no denial is written for a strip nobody pressed.
     expect(AuditLog::query()->where('description', 'permission.denied')->count())->toBe(0);
@@ -85,6 +88,29 @@ it('takes the demo rows away for who may, says how many, and names them in the P
         ->and($entry->causer_id)->toBe($admin->id)
         ->and($entry->actor_email)->toBe($admin->email)
         ->and($entry->properties['tables'])->toBe(['customers' => 2]);
+});
+
+it('says why the set cannot go before anyone presses, and records the press that changed nothing', function (): void {
+    $this->seed(ApprovalSeeder::class);
+    OrderLine::factory()->create(['wheel_config_id' => DB::table('wheel_configs')->orderBy('id')->value('id'), 'is_demo' => false]);
+    DemoTables::forget();
+    $total = DemoTables::total();
+
+    $strip = stripProp('super-admin');
+
+    expect($strip['blocked'])->toContain('nicht als Demodaten angelegt', 'System › Zurücksetzen › Shopdaten')
+        ->and($strip['blocked'])->not->toContain('artisan')
+        ->and($strip['resetHref'])->toBe('/admin/system/zuruecksetzen');
+
+    $this->actingAs(stripAdmin('super-admin'), 'admin')->from('/admin')->post('/admin/demodaten/entfernen')
+        ->assertRedirect('/admin')
+        ->assertSessionHas('toast', 'Nichts entfernt. '.$strip['blocked']);
+
+    $entry = AuditLog::query()->where('description', 'demo.purge_refused')->sole();
+
+    expect(DemoTables::total())->toBe($total)
+        ->and($entry->properties['reasons'][0])->toBe($strip['blocked'])
+        ->and(AuditLog::query()->where('description', 'demo.purged')->exists())->toBeFalse();
 });
 
 it('keeps the page when the demo rows cannot be counted', function (): void {

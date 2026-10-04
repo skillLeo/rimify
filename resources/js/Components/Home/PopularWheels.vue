@@ -22,6 +22,7 @@ import { computed, ref, watch } from 'vue'
 import ProductTile from '../Ui/ProductTile.vue'
 import ProductTileSkeleton from '../Ui/ProductTileSkeleton.vue'
 import { decimal } from '../../format'
+import { contactHref } from '../../lib/contact'
 import type { StartseiteProps } from '../../types/pages'
 import type { ProductCardProp, VehicleProp } from '../../types/rimify'
 
@@ -118,7 +119,18 @@ function keyOf(card: ProductCardProp): string {
         <div class="container">
             <h2 id="h5-heading" class="h2 popular__title">{{ title }}</h2>
 
-            <TabsRoot v-if="popular.tabs.length > 0" :model-value="active" class="popular__tabs" @update:model-value="select">
+            <!-- No wheel in the shop at all: no tab to try, one sentence and the one way forward that works. -->
+            <template v-if="popular.empty">
+                <div class="empty popular__none">
+                    <p class="empty__title">Noch ist keine Felge im Sortiment.</p>
+                    <p class="empty__text">Sobald die ersten Felgen mit ihrem Gutachten freigegeben sind, stehen sie hier. Du suchst eine bestimmte? Schreib uns.</p>
+                </div>
+                <div class="popular__more">
+                    <Link :href="contactHref({ subject: 'Ich suche eine Felge', from: '/' })" class="btn btn--secondary">Schreib uns</Link>
+                </div>
+            </template>
+
+            <TabsRoot v-else-if="popular.tabs.length > 0" :model-value="active" class="popular__tabs" @update:model-value="select">
                 <TabsList class="tabs__list" aria-label="Auswahl der Felgen">
                     <TabsTrigger v-for="tab in popular.tabs" :key="tab.key" :value="tab.key" class="tabs__trigger">
                         {{ tab.label }}
@@ -162,7 +174,7 @@ function keyOf(card: ProductCardProp): string {
                 </div>
             </template>
 
-            <div class="popular__more">
+            <div v-if="!popular.empty" class="popular__more">
                 <Link href="/felgen" class="btn btn--secondary" prefetch>{{ buttonLabel }}</Link>
             </div>
 
@@ -177,7 +189,8 @@ function keyOf(card: ProductCardProp): string {
 </template>
 
 <style scoped>
-.popular__tabs {
+.popular__tabs,
+.popular__none {
     margin-top: var(--sp-24);
 }
 

@@ -1,6 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 import { SHOP_DB } from './e2e/shop';
 
+/*
+ * The admin's port: 8000, unless another project on the machine holds it (E2E_ADMIN_PORT). Every spec that names the
+ * admin's address reads E2E_BASE_URL, set from it here; moved, both servers write that address into their links
+ * (APP_URL), so a picture never points at whatever else answers on 8000.
+ */
+const ADMIN_PORT = Number(process.env.E2E_ADMIN_PORT ?? 8000);
+const ADMIN = `http://127.0.0.1:${ADMIN_PORT}`;
+const MOVED: Record<string, string> = ADMIN_PORT !== 8000 ? { APP_URL: ADMIN } : {};
+
+process.env.E2E_BASE_URL ??= ADMIN;
+
 // The eight journeys run at 1440 (desktop) and 390 (mobile). The device split is decided on
 // the server from the User-Agent, so the mobile project sends a real mobile UA.
 export default defineConfig({
@@ -18,7 +29,7 @@ export default defineConfig({
     reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
     outputDir: 'test-results',
     use: {
-        baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000',
+        baseURL: process.env.E2E_BASE_URL,
         locale: 'de-DE',
         timezoneId: 'Europe/Berlin',
         trace: 'retain-on-failure',
@@ -45,8 +56,9 @@ export default defineConfig({
     webServer: [
         {
             // The admin and its demo data.
-            command: 'node scripts/e2e/serve.mjs --port 8000 --workers 4',
-            url: 'http://127.0.0.1:8000/up',
+            command: `node scripts/e2e/serve.mjs --port ${ADMIN_PORT} --workers 4`,
+            env: MOVED,
+            url: `${ADMIN}/up`,
             reuseExistingServer: !process.env.CI,
             timeout: 90_000,
         },
@@ -54,7 +66,7 @@ export default defineConfig({
             // The storefront specs' shop (e2e/shop.ts): its own database, seeded by E2eShopSeeder
             // (`composer e2e:shop`), because example data never reaches the storefront.
             command: 'node scripts/e2e/serve.mjs --port 8010 --workers 4',
-            env: SHOP_DB,
+            env: { ...SHOP_DB, ...MOVED },
             url: 'http://127.0.0.1:8010/up',
             reuseExistingServer: !process.env.CI,
             timeout: 90_000,

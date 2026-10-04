@@ -66,6 +66,7 @@ function popular(overrides: Partial<StartseiteProps['popular']> = {}): Startseit
         active: 'beliebt',
         cards,
         total: null,
+        empty: false,
         ...overrides,
     }
 }
@@ -230,5 +231,17 @@ describe('PopularWheels', () => {
         expect(wrapper.find('.empty__title').text()).toBe('In dieser Auswahl ist gerade nichts.')
         expect(wrapper.find('.empty__text').text()).toBe('Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.')
         expect(wrapper.find('.popular__more a').exists()).toBe(true)
+    })
+
+    it('says once that no wheel is in the shop yet — no tab to try, and the one way on that works', () => {
+        const wrapper = mountPopular({ popular: popular({ cards: [], empty: true }) })
+
+        expect(wrapper.find('.tabs__list').exists()).toBe(false)
+        expect(wrapper.find('.empty__title').text()).toBe('Noch ist keine Felge im Sortiment.')
+        expect(wrapper.find('.empty__text').text()).toBe('Sobald die ersten Felgen mit ihrem Gutachten freigegeben sind, stehen sie hier. Du suchst eine bestimmte? Schreib uns.')
+        expect(wrapper.findAll('.popular__more a').map((a) => [a.text(), a.attributes('href')])).toEqual([
+            ['Schreib uns', '/kontakt?betreff=Ich+suche+eine+Felge&von=%2F'],
+        ])
+        expect(wrapper.text()).not.toContain('Alle Felgen ansehen')
     })
 })

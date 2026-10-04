@@ -315,6 +315,12 @@
     cursor: pointer;
 }
 
+/* What the button keeps, beneath it: quieter than the warning, never truncated. */
+.adm-foot__demo-note {
+    display: block;
+    color: var(--c-ink-3);
+}
+
 /* One quiet line, 32 px, never wrapping: the dot carries the colour, the words stay the rail's own
    grey, and a long label gives way with „…“ (the whole sentence is the tooltip). */
 .adm-foot__health {

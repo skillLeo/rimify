@@ -109,8 +109,10 @@ describe('addresses', function (): void {
 
         $url = Storage::disk('docs_private')->temporaryUrl('exports/R-2026-0001.pdf', now()->addMinutes((int) config('media.signed_url_minutes')));
 
+        // The SDK counts down from its own clock (time()), a moment after ours: across a second's edge the ten minutes
+        // read 599 seconds (the full suite of 04.10.2026) — still ten minutes, never more.
         expect($url)->toContain('/invoices/exports/R-2026-0001.pdf')
-            ->and($url)->toContain('X-Amz-Expires=600')
+            ->and($url)->toMatch('/X-Amz-Expires=(599|600)(&|$)/')
             ->and($url)->toContain('X-Amz-Signature=')
             ->and($url)->not->toContain(MEDIA_SECRET);
     });

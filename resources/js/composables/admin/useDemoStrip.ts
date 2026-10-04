@@ -4,9 +4,11 @@ import { formatNumber } from '../../lib/num'
 import { useAdmin } from './useAdmin'
 
 /**
- * „Demodaten aktiv · 4.416 Datensätze · entfernen“ — the rail's foot on a desk, the Mehr sheet on a
- * phone (M1-10): while demo rows exist, whoever opens the admin is told what the figures are made of,
- * and who may (DemoDataPolicy) can take them away after one question. One source for both places.
+ * „Demodaten entfernen · 4.416 Datensätze“ — the rail's foot on a desk, the Mehr sheet on a phone (M1-10): while
+ * demo rows exist, whoever opens the admin is told what the figures are made of, and who may (DemoDataPolicy) can
+ * take them away after one question. The button says what it does and nothing more: only the example data goes, never
+ * the team's own wheels, Gutachten and orders (the line beneath it says so). When the set cannot go now, the question
+ * is replaced by the reason (AdminDemoBlocked) — before anything is pressed, not after. One source for both places.
  */
 export function useDemoStrip() {
     const admin = useAdmin()
@@ -15,10 +17,15 @@ export function useDemoStrip() {
     // Figure and noun on one line (R-10): a no-break space, never „4.416 / Datensätze“ (M1-15).
     const rows = computed(() => (demo.value ? `${formatNumber(demo.value.rows)}\u00A0${demo.value.rows === 1 ? 'Datensatz' : 'Datensätze'}` : ''))
 
+    /** The promise under the button, word for word what it keeps. */
+    const note = 'Entfernt nur die Beispieldaten, nicht deine eigenen Felgen, Gutachten und Bestellungen.'
+
     const body = computed(
         () =>
-            `${demo.value?.rows === 1 ? 'Der letzte Datensatz der Demodaten wird' : `Alle ${rows.value} der Demodaten werden`} gelöscht – Bestellungen, Prüfungen, Nachfrage, die Einträge des Demo-Teams und der Beispielkatalog mit seinen Gutachten. Echte Daten bleiben unberührt, und das Protokoll hält fest, wer sie entfernt hat.`
+            `${demo.value?.rows === 1 ? 'Der letzte Datensatz der Beispieldaten wird' : `Die ${rows.value} der Beispieldaten werden`} gelöscht – die Demo-Bestellungen, das Demo-Team und der Beispielkatalog mit seinen Gutachten. Deine eigenen Felgen, Gutachten und Bestellungen bleiben, und das Protokoll hält fest, wer die Beispieldaten entfernt hat.`
     )
+
+    const blocked = computed(() => demo.value?.blocked ?? null)
 
     const confirming = ref(false)
     const purging = ref(false)
@@ -45,5 +52,5 @@ export function useDemoStrip() {
         })
     }
 
-    return { demo, rows, body, confirming, purging, ask, purge }
+    return { demo, rows, note, body, blocked, confirming, purging, ask, purge }
 }

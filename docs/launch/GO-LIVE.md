@@ -166,9 +166,16 @@ while it is down; it is saved in `~/backups/rimify-$TS.down`.
 
 ### 4.0 First install on an empty folder (once)
 
+The repository is private (since 03.10.2026). A host reads it with a read-only deploy key of its own and a
+`github-rimify` alias in `~/.ssh/config` — never with a key that is already another repository's deploy key (GitHub
+refuses it: *Key is already in use*; hPanel's `id_rsa` on the preview account belongs to `skillleo_v1`). The preview's
+was made on 03.10.2026: `~/.ssh/rimify_deploy`, created on the host with one command the operator approved by hand,
+its public line added under **GitHub › skillLeo/rimify › Settings › Deploy keys**, *Allow write access* off. Another
+host account needs one more such key, the same way.
+
 ```bash
 cd "$HOME/domains/<production-domain>"
-git clone --branch deploy --depth 1 git@github.com:skillLeo/rimify.git public_html.new
+git clone --branch deploy --depth 1 git@github-rimify:skillLeo/rimify.git public_html.new
 # public_html must contain the project itself: move hPanel's default files aside, then
 mv public_html public_html.hpanel && mv public_html.new public_html && cd "$APP"
 cp ~/rimify.env.backup .env   # or create .env from .env.example and fill DB_*, MAIL_*, APP_URL
@@ -186,7 +193,9 @@ git log -1 --format='%h %s'
 ```
 
 **Correct:** the new commit's line. `.env` is untracked and stays.
-**If not:** *Permission denied (publickey)* → the host's key is not on the GitHub account (Settings › SSH keys).
+**If not:** *Permission denied (publickey)* or *Repository not found* → the host's read key is not among rimify's
+deploy keys (GitHub › Settings › Deploy keys), or `origin` is not `git@github-rimify:skillLeo/rimify.git`
+(`git remote -v`; §4.0).
 
 ### 4.2 The release script
 
@@ -471,6 +480,28 @@ are the tracker until one is chosen.
 - [ ] `$PHP artisan rimify:preflight` → `GO.`
 - [ ] `$PHP artisan rimify:smoke` → every row ok
 - [ ] Keep `~/backups/rimify-$TS*` for a week
+
+---
+
+## 10 · CI: what each push runs, and what it costs
+
+The repository is private since 03.10.2026, so GitHub Actions bills its minutes: 2.000 a month on the free plan, on
+runners with 2 cores. The workflows were split so that an everyday push costs a fraction of a release (D-148).
+**Before moving a job into Checks, widening a matrix or adding the browser suite to CI, put its minutes against this
+table** — at the old cost of 35–46 minutes a push, the month held about 50 pushes.
+
+| A push to … | What runs | Billed minutes |
+|---|---|---|
+| `main`, code | **Checks** (`checks.yml`): Pint, Larastan, ESLint, Stylelint, vue-tsc, Vitest and Pest `--parallel` on MariaDB 11.8, in one job; the **Deploy** build | 13–16 measured on 4 cores (03.10.2026, while public); 15–20 expected on 2 |
+| `main`, tests only (`tests/**`, `e2e/**`) | Checks; no Deploy build | 10–13 measured; ≈ 12–17 expected |
+| `main`, documentation only (`docs/**`, `*.md`) | nothing | 0 |
+| `release` — `git push origin <commit>:release` | **Release** (`release.yml`): the same on MariaDB, plus Pest `--parallel` on MySQL 8.4 | 22 measured on 4 cores; ≈ 25 expected on 2 |
+
+2.000 minutes are about 100–130 everyday code pushes a month; documentation pushes are free. Both workflows run the
+one job definition in `suite.yml`, so the everyday run and the release run cannot drift apart. The browser suite does
+not run in CI: it runs locally, the whole suite three times in a row clean before a report. A production release is
+a commit with a green **Release** run. Read a run's real cost under „Billable time“ on its page, or with
+`C:\tools\gh\bin\gh.exe run view <id>` on the deploying machine.
 
 ---
 

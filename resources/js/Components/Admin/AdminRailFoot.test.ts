@@ -41,6 +41,14 @@ vi.mock('reka-ui', () => {
         TooltipTrigger: child,
         TooltipPortal: defineComponent({ setup: () => () => null }),
         TooltipContent: pass,
+        // The demo strip's questions: drawn only while open, as the primitive does.
+        DialogRoot: defineComponent({ props: { open: Boolean }, setup: (props, { slots }) => () => (props.open ? h('div', { class: 'dlg' }, slots.default?.()) : null) }),
+        DialogPortal: pass,
+        DialogOverlay: pass,
+        DialogContent: pass,
+        DialogTitle: pass,
+        DialogDescription: pass,
+        DialogClose: defineComponent({ setup: (_, { slots, attrs }) => () => h('button', { type: 'button', ...attrs }, slots.default?.()) }),
     }
 })
 
@@ -212,5 +220,54 @@ describe('AdminRailFoot', () => {
 
     it('draws no account row without an account', () => {
         expect(mountFoot({ account: null }).find('.adm-foot__profile').exists()).toBe(false)
+    })
+})
+
+describe('the demo strip', () => {
+    // A test environment: on the live shop the question would open with „Das wirkt sofort im Live-Shop.“
+    const strip = (over: Record<string, unknown> = {}) => ({
+        environment: 'staging',
+        demo: { rows: 13289, canPurge: true, blocked: null, resetHref: '/admin/system/zuruecksetzen', ...over },
+    })
+
+    it('names the button for what it does, the count beside it and what it keeps beneath', () => {
+        const foot = mountFoot(strip())
+
+        expect(foot.get('.adm-foot__demo-purge').text()).toBe('Demodaten entfernen')
+        expect(foot.get('.adm-foot__demo-text').text().replace(/[ \t\n]+/g, ' ')).toMatch(/^Demodaten entfernen · 13\.289\u00A0Datensätze/)
+        expect(foot.get('.adm-foot__demo-note').text()).toBe('Entfernt nur die Beispieldaten, nicht deine eigenen Felgen, Gutachten und Bestellungen.')
+        expect(foot.get('.adm-foot__demo-purge').attributes('aria-describedby')).toBe('adm-foot-demo-note')
+    })
+
+    it('only tells who may not take the set away', () => {
+        const foot = mountFoot(strip({ canPurge: false, resetHref: null }))
+
+        expect(foot.get('.adm-foot__demo-text').text()).toBe('Demodaten aktiv · 13.289\u00A0Datensätze')
+        expect(foot.find('.adm-foot__demo-purge').exists()).toBe(false)
+    })
+
+    it('asks before it takes the example data, saying that the team’s own stays', async () => {
+        const foot = mountFoot(strip())
+
+        await foot.get('.adm-foot__demo-purge').trigger('click')
+
+        expect(foot.get('.adm-confirm__body').text()).toBe(
+            'Die 13.289\u00A0Datensätze der Beispieldaten werden gelöscht – die Demo-Bestellungen, das Demo-Team und der Beispielkatalog mit seinen Gutachten. Deine eigenen Felgen, Gutachten und Bestellungen bleiben, und das Protokoll hält fest, wer die Beispieldaten entfernt hat.'
+        )
+    })
+
+    it('says why, before anything is done, when the set cannot go — and where the Super-Admin resets instead', async () => {
+        const foot = mountFoot(strip({ blocked: '20 Bestellungen, die nicht als Demodaten angelegt wurden, enthalten Beispielfelgen oder Beispielreifen.' }))
+
+        expect(foot.find('.dlg').exists()).toBe(false)
+
+        await foot.get('.adm-foot__demo-purge').trigger('click')
+
+        const dialog = foot.get('.dlg')
+        expect(dialog.text()).toContain('Die Demodaten lassen sich gerade nicht entfernen')
+        expect(dialog.text()).toContain('20 Bestellungen, die nicht als Demodaten angelegt wurden')
+        expect(dialog.get('a[href="/admin/system/zuruecksetzen"]').text()).toBe('Zum Zurücksetzen')
+        expect(dialog.text()).not.toContain('werden gelöscht')
+        expect(post).not.toHaveBeenCalled()
     })
 })
