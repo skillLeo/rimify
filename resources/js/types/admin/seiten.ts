@@ -4,7 +4,7 @@
  * same numbers.
  */
 
-export type FieldKind = 'text' | 'textarea' | 'number' | 'icon'
+export type FieldKind = 'text' | 'textarea' | 'number' | 'icon' | 'choice'
 
 export interface SchemaField {
     key: string
@@ -15,6 +15,8 @@ export interface SchemaField {
     min?: number
     help?: string
     options?: { value: string; label: string }[]
+    /** A `choice`'s value where nothing was chosen yet (content written before the field existed). */
+    default?: string
 }
 
 export interface SchemaList {

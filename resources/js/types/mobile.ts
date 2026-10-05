@@ -26,4 +26,6 @@ export interface FitmentCountResponse {
     conditional: number
     vehicle: { id: number; label: string } | null
     ambiguous: { id: number; label: string }[]
+    /** No wheel published at all: a 0 then says the shop is still empty, not that no document names the car. */
+    shopEmpty?: boolean
 }

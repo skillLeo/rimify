@@ -19,3 +19,15 @@ export const SHOP_DB = {
     DB_PORT: process.env.E2E_SHOP_DB_PORT ?? '3308',
     DB_DATABASE: 'rimify_wf_e2e',
 }
+
+/**
+ * A shop with nothing published (the operator's brief of 05.10.2026, §2): the cars, the content and the hero's
+ * photograph, and no wheel — as after a reset to Shopdaten. Its own server and database (E2eEmptyShopSeeder), rebuilt
+ * with the shop before every run.
+ */
+export const EMPTY_SHOP = process.env.E2E_EMPTY_SHOP_URL ?? 'http://127.0.0.1:8012'
+
+export const EMPTY_SHOP_DB = {
+    DB_PORT: process.env.E2E_SHOP_DB_PORT ?? '3308',
+    DB_DATABASE: 'rimify_wf_e2e_leer',
+}

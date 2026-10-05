@@ -7,8 +7,10 @@ namespace App\Services\Storefront;
 use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\VehicleResolver;
+use App\Enums\CatalogueStatus;
 use App\Support\VehicleName;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The number under the selector: how many wheels a published document permits on this exact
@@ -25,7 +27,10 @@ final readonly class FitmentCount
     public function __construct(private ListingQuery $listing, private VehicleResolver $resolver) {}
 
     /**
-     * @return array{count: int, permitted: int, conditional: int, vehicle: array{id: int, label: string, short: string}, ambiguous: list<never>}
+     * `shopEmpty`: no wheel is published at all — a car's 0 then says the shop is still empty, not that no document
+     * names the car (the operator's brief of 05.10.2026, §2). Asked on every count, never cached with the car's.
+     *
+     * @return array{count: int, permitted: int, conditional: int, vehicle: array{id: int, label: string, short: string}, ambiguous: list<never>, shopEmpty: bool}
      */
     public function forVehicle(VehicleRecord $vehicle): array
     {
@@ -46,11 +51,12 @@ final readonly class FitmentCount
             ...$counts,
             'vehicle' => $this->describe($vehicle),
             'ambiguous' => [],
+            'shopEmpty' => self::shopEmpty(),
         ];
     }
 
     /**
-     * @return array{count: int, permitted: int, conditional: int, vehicle: array{id: int, label: string, short: string}|null, ambiguous: list<array{id: int, label: string, short: string}>}
+     * @return array{count: int, permitted: int, conditional: int, vehicle: array{id: int, label: string, short: string}|null, ambiguous: list<array{id: int, label: string, short: string}>, shopEmpty: bool}
      */
     public function byKeyNumbers(string $hsn, string $tsn): array
     {
@@ -69,12 +75,19 @@ final readonly class FitmentCount
             'conditional' => 0,
             'vehicle' => null,
             'ambiguous' => $candidates->map(fn (VehicleRecord $v): array => $this->describe($v))->values()->all(),
+            'shopEmpty' => self::shopEmpty(),
         ];
     }
 
     public static function forget(int $vehicleId): void
     {
         Cache::forget('fitment.count.'.$vehicleId);
+    }
+
+    /** No wheel published at all: a test environment reset to an empty shop, or a shop before its first wheel. */
+    public static function shopEmpty(): bool
+    {
+        return ! DB::table('wheel_models')->whereNull('deleted_at')->where('status', CatalogueStatus::Published->value)->exists();
     }
 
     /**

@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { SHOP_DB } from './e2e/shop';
+import { EMPTY_SHOP, EMPTY_SHOP_DB, SHOP, SHOP_DB } from './e2e/shop';
 
 /*
  * The admin's port: 8000, unless another project on the machine holds it (E2E_ADMIN_PORT). Every spec that names the
@@ -11,6 +11,9 @@ const ADMIN = `http://127.0.0.1:${ADMIN_PORT}`;
 const MOVED: Record<string, string> = ADMIN_PORT !== 8000 ? { APP_URL: ADMIN } : {};
 
 process.env.E2E_BASE_URL ??= ADMIN;
+
+/* The two shops' addresses in one place (e2e/shop.ts): each server listens where its specs look. */
+const port = (url: string): string => new URL(url).port;
 
 // The eight journeys run at 1440 (desktop) and 390 (mobile). The device split is decided on
 // the server from the User-Agent, so the mobile project sends a real mobile UA.
@@ -65,9 +68,18 @@ export default defineConfig({
         {
             // The storefront specs' shop (e2e/shop.ts): its own database, seeded by E2eShopSeeder
             // (`composer e2e:shop`), because example data never reaches the storefront.
-            command: 'node scripts/e2e/serve.mjs --port 8010 --workers 4',
+            command: `node scripts/e2e/serve.mjs --port ${port(SHOP)} --workers 4`,
             env: { ...SHOP_DB, ...MOVED },
-            url: 'http://127.0.0.1:8010/up',
+            url: `${SHOP}/up`,
+            reuseExistingServer: !process.env.CI,
+            timeout: 90_000,
+        },
+        {
+            // The same shop with nothing published (e2e/shop.ts EMPTY_SHOP, E2eEmptyShopSeeder): the homepage's hero
+            // and the selector's 0 against an empty catalogue (the operator's brief of 05.10.2026, §2).
+            command: `node scripts/e2e/serve.mjs --port ${port(EMPTY_SHOP)} --workers 2`,
+            env: { ...EMPTY_SHOP_DB, ...MOVED },
+            url: `${EMPTY_SHOP}/up`,
             reuseExistingServer: !process.env.CI,
             timeout: 90_000,
         },

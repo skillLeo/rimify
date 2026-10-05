@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Setting;
 use App\Models\WheelConfig;
-use App\Models\WheelFinish;
 use App\Models\WheelModel;
-use App\Support\DemoWheels;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
@@ -16,9 +14,9 @@ use Inertia\Testing\AssertableInertia;
 use Tests\Support\DemoWheelFixtures;
 
 /**
- * The hero's wheel is the golden record's Borbet DB8GT2 (the operator's brief of 28.09.2026): a real
- * product with the client's photographs, shown while it is still a draft — its picture and its values,
- * never a price or a link — and never a demo row.
+ * The hero's wheel is the golden record's Borbet DB8GT2 (the operator's brief of 28.09.2026): the client's photographs
+ * are the brand's (App\Support\HeroPhotos) and stand in every state; the wheel's values go on them only once it is
+ * published (the operator's brief of 05.10.2026, §2) — never a price, never a link, never a demo row.
  */
 beforeEach(function (): void {
     $this->dir = DemoWheelFixtures::emptyDir();
@@ -98,21 +96,16 @@ it('takes the hero back from a choice that is no real wheel — a demo model, on
     }
 });
 
-it('shows the chosen draft in the hero with its photograph and values, but no price and no link', function (): void {
+it('puts the DB8GT2\'s values on the brand\'s photograph while it is a draft, with no price and no link', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
-    Setting::set('hero_product_id', $model->id);
-
     // The black front view, with the stamp the photograph shows (KBA 53841, the 18-inch approval).
-    $finish = WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Schwarz matt')->firstOrFail();
-    DemoWheelFixtures::photoMap($this->dir, ['fixture-front.jpg' => [
-        'slug' => 'db8gt2-schwarz', 'model' => $model->slug, 'finish' => 'Schwarz matt', 'circle' => [540, 540, 500], 'hub' => null,
-        'credit' => ['source' => 'Kunde', 'photographer' => 'Borbet', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
-    ]]);
-    DemoWheelFixtures::write($this->dir, ['db8gt2-schwarz']);
-    $finish->update(['image_manifest' => [...(array) DemoWheels::manifest('db8gt2-schwarz'), 'stamp' => '53841']]);
+    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz']);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.photo.brand', 'Borbet')
+        ->where('hero.photo.finish', 'Schwarz matt')
+        ->where('hero.photo.imageManifest.bare.name', 'db8gt2-schwarz-bare')
         ->where('hero.product.slug', GoldenRecordSeeder::SLUG)
         ->where('hero.product.finish', 'Schwarz matt')
         ->where('hero.product.symbolic', false)
@@ -121,87 +114,92 @@ it('shows the chosen draft in the hero with its photograph and values, but no pr
         ->where('hero.product.facts.kba', '53841')
         ->where('hero.product.config.diameterIn', 18)
         ->where('hero.product.facts.centreBore', "72,5\u{00A0}mm")
+        ->where('hero.product.imageManifest.bare.name', 'db8gt2-schwarz-bare')
     );
+});
+
+it('stands the photograph alone where the catalogue does not hold the wheel in it (the brief of 05.10.2026, §2)', function (): void {
+    // An empty shop: the photograph is the brand's and stays; nothing in the catalogue to take values from.
+    DemoWheelFixtures::heroPhotos($this->dir, GoldenRecordSeeder::SLUG, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze']);
+
+    $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.photo.finish', 'Schwarz matt')
+        ->where('hero.photo.companion.finish', 'Bronze matt')
+        ->where('hero.product', null)
+        ->where('komplettrad.wheel', null));
 });
 
 it('gives the hero its second wheel — the other photographed finish — and none while only one is photographed', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
-    Setting::set('hero_product_id', $model->id);
-    $credit = ['source' => 'Kunde', 'photographer' => 'Borbet', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''];
-
-    DemoWheelFixtures::photoMap($this->dir, [
-        'fixture-front.jpg' => ['slug' => 'db8gt2-schwarz', 'model' => $model->slug, 'finish' => 'Schwarz matt', 'circle' => [540, 540, 500], 'hub' => null, 'credit' => $credit],
-    ]);
-    DemoWheelFixtures::write($this->dir, ['db8gt2-schwarz', 'db8gt2-bronze']);
-    WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Schwarz matt')->firstOrFail()
-        ->update(['image_manifest' => [...(array) DemoWheels::manifest('db8gt2-schwarz'), 'stamp' => '53841']]);
 
     // One finish photographed: one wheel.
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.companion', null));
+    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz']);
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.photo.companion', null));
 
-    // A bronze cut-out without its shadowless frame cannot stand on the floor beside the black one: still one wheel.
-    $bronze = WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Bronze matt')->firstOrFail();
-    $plain = (array) DemoWheels::manifest('db8gt2-bronze');
-    $bronze->update(['image_manifest' => [...$plain, 'stamp' => '53841']]);
-
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.companion', null));
-
-    // With its shadowless frame and the rim measured on it, as `wheels:process-images` writes it: the second wheel.
-    $anchors = ['centre' => ['x' => 0.5, 'y' => 0.47], 'wheel' => ['x' => 0.5, 'y' => 0.47, 'r' => 0.41]];
-    $bronze->update(['image_manifest' => [...$plain, 'anchors' => $anchors, 'bare' => [...$plain, 'name' => 'db8gt2-bronze-bare', 'anchors' => $anchors], 'stamp' => '53841']]);
-
+    // Both: the second stands behind the first, catalogue or not.
+    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze']);
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('hero.product.finish', 'Schwarz matt')
-        ->where('hero.product.companion.finish', 'Bronze matt')
-        ->where('hero.product.companion.imageManifest.bare.name', 'db8gt2-bronze-bare'));
+        ->where('hero.photo.finish', 'Schwarz matt')
+        ->where('hero.photo.companion.finish', 'Bronze matt')
+        ->where('hero.photo.companion.imageManifest.bare.name', 'db8gt2-bronze-bare'));
+
+    // A bronze cut-out without its shadowless frame cannot stand on the floor beside the black one: one wheel again.
+    $bronze = $this->dir.DIRECTORY_SEPARATOR.'db8gt2-bronze'.DIRECTORY_SEPARATOR.'manifest.json';
+    $plain = json_decode((string) file_get_contents($bronze), true);
+    unset($plain['bare']);
+    file_put_contents($bronze, (string) json_encode($plain));
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.photo.companion', null));
+});
+
+it('leads with the photograph chosen in Inhalte, and with the default where the choice names none', function (): void {
+    $this->seed(GoldenRecordSeeder::class);
+    DemoWheelFixtures::heroPhotos($this->dir, GoldenRecordSeeder::SLUG, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze']);
+    $hero = DB::table('page_blocks')->join('pages', 'pages.id', '=', 'page_blocks.page_id')->where('pages.slug', 'startseite')->where('page_blocks.type', 'hero');
+    $choose = static function (?string $slug) use ($hero): void {
+        $block = (clone $hero)->select('page_blocks.id', 'page_blocks.data')->first();
+        $data = json_decode((string) $block->data, true);
+        $data['foto'] = $slug;
+        DB::table('page_blocks')->where('id', $block->id)->update(['data' => json_encode($data)]);
+    };
+
+    $choose('db8gt2-bronze');
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.photo.finish', 'Bronze matt')->where('hero.photo.companion.finish', 'Schwarz matt'));
+
+    // A choice the release no longer ships: the first photograph, never none.
+    $choose('no-such-photo');
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.photo.finish', 'Schwarz matt'));
 });
 
 it('turns the hero wheel in the dark band — the open cut-out of its other finish — and the illustration without one (#9)', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
-    Setting::set('hero_product_id', $model->id);
-    $credit = ['source' => 'Kunde', 'photographer' => 'Borbet', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''];
-
-    DemoWheelFixtures::photoMap($this->dir, [
-        'fixture-front.jpg' => ['slug' => 'db8gt2-schwarz', 'model' => $model->slug, 'finish' => 'Schwarz matt', 'circle' => [540, 540, 500], 'hub' => null, 'credit' => $credit],
-    ]);
-    DemoWheelFixtures::write($this->dir, ['db8gt2-schwarz', 'db8gt2-bronze']);
-    $anchors = ['centre' => ['x' => 0.5, 'y' => 0.47], 'wheel' => ['x' => 0.48, 'y' => 0.47, 'r' => 0.4]];
-    $frame = static fn (array $plain, string $name): array => [...$plain, 'name' => $name, 'anchors' => $anchors];
-    $black = WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Schwarz matt')->firstOrFail();
-    $bronze = WheelFinish::query()->where('wheel_model_id', $model->id)->where('name_de', 'Bronze matt')->firstOrFail();
-    $blackPlain = (array) DemoWheels::manifest('db8gt2-schwarz');
-    $bronzePlain = (array) DemoWheels::manifest('db8gt2-bronze');
 
     // Only shadowless frames, none with the spokes opened: the studio's white would show — the illustration stays.
-    $black->update(['image_manifest' => [...$blackPlain, 'anchors' => $anchors, 'bare' => $frame($blackPlain, 'black-bare'), 'stamp' => '53841']]);
-    $bronze->update(['image_manifest' => [...$bronzePlain, 'anchors' => $anchors, 'bare' => $frame($bronzePlain, 'bronze-bare'), 'stamp' => '53841']]);
+    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze']);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('komplettrad.wheel', null));
 
-    // The lead finish opened: it turns there.
-    $black->update(['image_manifest' => [...$black->image_manifest, 'open' => $frame($blackPlain, 'black-open')]]);
-
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('komplettrad.wheel.finish', 'Schwarz matt')
-        ->where('komplettrad.wheel.image.name', 'black-open'));
-
-    // The other finish opened too: the band shows that one, so the page shows both finishes.
-    $bronze->update(['image_manifest' => [...$bronze->image_manifest, 'open' => $frame($bronzePlain, 'bronze-open')]]);
+    // Opened: the band shows the other finish, so the page shows both.
+    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze'], open: true);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('komplettrad.wheel.brand', $model->brand->name)
         ->where('komplettrad.wheel.name', $model->name)
         ->where('komplettrad.wheel.finish', 'Bronze matt')
-        ->where('komplettrad.wheel.image.name', 'bronze-open')
-        ->where('komplettrad.wheel.anchor', ['x' => 0.48, 'y' => 0.47, 'r' => 0.4]));
+        ->where('komplettrad.wheel.image.name', 'db8gt2-bronze-open')
+        ->where('komplettrad.wheel.anchor', ['x' => 0.5, 'y' => 0.47, 'r' => 0.41]));
+
+    // The wheel archived: the band names nothing it no longer has — back to the illustration.
+    $model->update(['status' => 'archived']);
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('komplettrad.wheel', null));
 });
 
 it('says published only when the wheel is in the shop at a price', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
-    Setting::set('hero_product_id', $model->id);
+    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz']);
     $model->update(['status' => 'published']);
 
     // Published at zero is still not for sale.
@@ -212,15 +210,15 @@ it('says published only when the wheel is in the shop at a price', function (): 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.published', true));
 });
 
-it('never shows a chosen demo or archived model in the hero', function (string $case): void {
+it('never puts a demo or archived model\'s values on the photograph, which stays', function (string $case): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
-    Setting::set('hero_product_id', $model->id);
+    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz']);
 
     // A demo row can only be a draft (the table refuses a published one).
     DB::table('wheel_models')->where('id', $model->id)->update($case === 'demo' ? ['is_demo' => true] : ['status' => 'archived']);
 
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product', null));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product', null)->where('hero.photo.finish', 'Schwarz matt'));
 })->with(['demo', 'archived']);
 
 it('stores a six-spoke wheel', function (): void {

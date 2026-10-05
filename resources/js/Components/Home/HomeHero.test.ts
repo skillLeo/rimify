@@ -4,7 +4,7 @@ import { defineComponent, h, nextTick, reactive } from 'vue'
 import { NNBSP } from '../../format'
 import { HERO_SIZES_DESKTOP } from '../Mobile/Home/calloutSlots'
 import type { ImageManifest, WheelAnchors } from '../Ui/Picture.vue'
-import type { HeroProduct, StartseiteProps } from '../../types/pages'
+import type { HeroPhoto, HeroProduct, StartseiteProps } from '../../types/pages'
 import type { ContactProp, VehicleProp } from '../../types/rimify'
 
 /*
@@ -584,6 +584,42 @@ describe('HomeHero · the lines under the picture', () => {
         expect(wrapper.findAll('.callout-anchor')).toHaveLength(0)
         expect(wrapper.findAll('a')).toHaveLength(0)
         expect(wrapper.find('.hero__notes').exists()).toBe(false)
+    })
+})
+
+describe('HomeHero · the brand\'s photograph, with or without a catalogue (PROTECTED.md P1)', () => {
+    const PHOTO: HeroPhoto = { brand: 'Borbet', name: 'DB8GT2', finish: 'Schwarz matt', imageManifest: manifest(), companion: null }
+
+    function mountWithPhoto(p: HeroProduct | null): VueWrapper {
+        const wrapper = mount(HomeHero, {
+            props: { hero: { ...hero(p), photo: PHOTO }, selector: { makes: [] } },
+            global: { stubs: { HeroSelector: true, HeroHelp: true } },
+            attachTo: document.body,
+        })
+        mounted.push(wrapper)
+
+        return wrapper
+    }
+
+    it('stands with nothing published: the photograph, and no leader, no caption, no spec line', () => {
+        const wrapper = mountWithPhoto(null)
+
+        expect(wrapper.find('.hero__roll picture').exists()).toBe(true)
+        expect(wrapper.find('.hero__roll img').attributes('alt')).toBe('Borbet DB8GT2 in Schwarz matt, Ansicht von vorn')
+        expect(wrapper.find('.hero__outline').exists()).toBe(false)
+        expect(calloutKeys(wrapper)).toEqual([])
+        expect(wrapper.find('.hero__caption').exists()).toBe(false)
+        expect(wrapper.find('.hero__notes').exists()).toBe(false)
+        expect(wrapper.findAll('a')).toHaveLength(0)
+    })
+
+    it('puts the published wheel\'s values on the same photograph, and names it then', () => {
+        const wrapper = mountWithPhoto(product({ imageManifest: null }))
+
+        expect(wrapper.find('.hero__roll picture').exists()).toBe(true)
+        expect(calloutKeys(wrapper)).toEqual(['boltCircle', 'centreBore', 'kba'])
+        expect(wrapper.find('.hero__caption').exists()).toBe(true)
+        expect(visibleText(wrapper.find('.hero__spec'))).toBe(FACTS.specLine)
     })
 })
 

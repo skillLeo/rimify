@@ -34,7 +34,7 @@ export type CountState =
     | { status: 'failed' }
     | { status: 'ambiguous'; rows: { id: number; label: string }[] }
     | { status: 'not_found' }
-    | { status: 'ready'; count: number; vehicle: { id: number; label: string } }
+    | { status: 'ready'; count: number; vehicle: { id: number; label: string }; shopEmpty?: boolean }
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
     const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin', signal })
@@ -216,7 +216,7 @@ export function useVehiclePicker() {
                 } else if (data.vehicle === null) {
                     count.value = { status: 'not_found' }
                 } else {
-                    count.value = { status: 'ready', count: data.count, vehicle: data.vehicle }
+                    count.value = { status: 'ready', count: data.count, vehicle: data.vehicle, shopEmpty: data.shopEmpty === true }
                 }
             },
             () => {

@@ -30,7 +30,7 @@ class FitmentCountController extends Controller
 
             if ($vehicle === null) {
                 return response()->json([
-                    'count' => 0, 'permitted' => 0, 'conditional' => 0, 'vehicle' => null, 'ambiguous' => [],
+                    'count' => 0, 'permitted' => 0, 'conditional' => 0, 'vehicle' => null, 'ambiguous' => [], 'shopEmpty' => FitmentCount::shopEmpty(),
                 ]);
             }
 

@@ -6,11 +6,8 @@ use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\VehicleContext;
 use App\Models\Setting;
 use App\Models\Vehicle;
-use App\Models\WheelFinish;
 use App\Models\WheelModel;
-use App\Support\DemoWheels;
 use Database\Seeders\AccessSeeder;
-use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
 use Illuminate\Support\Facades\DB;
@@ -32,12 +29,16 @@ afterEach(function (): void {
     DemoWheelFixtures::remove($this->dir);
 });
 
-it('ships the hero with a real product and its own values', function (): void {
+it('ships the hero: the brand\'s photograph, and the values of the wheel in it while that one is published', function (): void {
+    $hero = WheelModel::query()->where('status', 'published')->orderBy('id')->firstOrFail();
+    DemoWheelFixtures::heroPhotos($this->dir, $hero->slug, ['Schwarz matt' => 'hero-schwarz'], stamp: null);
+
     $this->get('/')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('hero.title', 'Felgen, die an dein Auto dürfen.')
-            ->has('hero.product.slug')
+            ->where('hero.photo.imageManifest.bare.name', 'hero-schwarz-bare')
+            ->where('hero.product.slug', $hero->slug)
             // The configuration's own values, formatted on the server (R-10, ACCURACY §4).
             ->has('hero.product.facts.width')
             ->has('hero.product.facts.diameter')
@@ -46,9 +47,9 @@ it('ships the hero with a real product and its own values', function (): void {
             ->has('hero.product.facts.centreBore')
             ->has('hero.product.facts.specLine')
             ->has('hero.product.config.widthIn')
-            // No cut-out rendered: no photograph, the outline is drawn and no product is named.
-            ->where('hero.product.imageManifest', null)
-            ->where('hero.product.symbolic', true)
+            // The photograph's own cut-out, and no KBA number: this photograph carries no stamp.
+            ->where('hero.product.imageManifest.bare.name', 'hero-schwarz-bare')
+            ->where('hero.product.symbolic', false)
             ->where('hero.product.facts.kba', null)
             ->has('hero.stats.gutachten')
             ->has('selector.makes')
@@ -58,30 +59,26 @@ it('ships the hero with a real product and its own values', function (): void {
         );
 });
 
-it('shows the hero finish under its own cut-out once the catalogue has one', function (): void {
-    // The seeded setting names the hero; without one the first published model is.
-    $chosen = Setting::get('hero_product_id');
-    $hero = ($chosen === null
-        ? WheelModel::query()->where('status', 'published')->orderBy('id')
-        : WheelModel::query()->whereKey((int) $chosen))->firstOrFail();
-    // A cut-out for the hero's last finish — not merely its cheapest — in a map of the test's own:
-    // the shipped map is empty (example data carries no photograph).
-    $finish = WheelFinish::query()->where('wheel_model_id', $hero->id)->orderByDesc('sort_order')->firstOrFail();
-    DemoWheelFixtures::photoMap($this->dir, DemoWheelFixtures::photoPair($hero->slug, $finish->name_de));
-    $photo = collect(DemoWheels::photos())->first(fn (array $p): bool => ! isset($p['view']));
+it('renders the homepage with its hero photograph when no wheel is published, and only the values go', function (): void {
+    // The brand's photograph shows a wheel the catalogue does not hold — as after a reset to Shopdaten.
+    DemoWheelFixtures::heroPhotos($this->dir, 'borbet-db8gt2', ['Schwarz matt' => 'hero-schwarz', 'Bronze matt' => 'hero-bronze']);
 
-    DemoWheelFixtures::write($this->dir, [$photo['slug']]);
-    $this->seed(CatalogueSeeder::class);
+    // Nothing published at all.
+    DB::table('wheel_models')->update(['status' => 'draft']);
 
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('hero.product.slug', $hero->slug)
-        // The finish shown is the one with the picture, not merely the cheapest.
-        ->where('hero.product.finish', $photo['finish'])
-        ->where('hero.product.imageManifest.name', $photo['slug'])
-        ->where('hero.product.imageManifest.fallback', 'png')
-        ->has('hero.product.imageManifest.wide.height')
-        ->where('hero.product.symbolic', false)
-    );
+    $this->get('/')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('hero.title', 'Felgen, die an dein Auto dürfen.')
+            // The brand's photograph and its second wheel stand — no hole, no outline (the brief of 05.10.2026, §2).
+            ->where('hero.photo.imageManifest.bare.name', 'hero-schwarz-bare')
+            ->where('hero.photo.companion.finish', 'Bronze matt')
+            ->where('hero.photo.brand', 'Borbet')
+            // No leaders, no caption, no spec line: nothing is published to state.
+            ->where('hero.product', null)
+            ->has('selector.makes')
+            ->where('popular.empty', true)
+        );
 });
 
 it('never tells the listing it shows demonstration data: none can be on show', function (): void {
@@ -92,11 +89,14 @@ it('never tells the listing it shows demonstration data: none can be on show', f
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false));
 });
 
-it('shows the admin-chosen hero product', function (): void {
-    $model = WheelModel::query()->where('status', 'published')->orderByDesc('id')->firstOrFail();
-    Setting::set('hero_product_id', $model->id);
+it('states the values of the wheel in the photograph, never another product\'s', function (): void {
+    $photographed = WheelModel::query()->where('status', 'published')->orderBy('id')->firstOrFail();
+    $other = WheelModel::query()->where('status', 'published')->orderByDesc('id')->firstOrFail();
+    DemoWheelFixtures::heroPhotos($this->dir, $photographed->slug, ['Schwarz matt' => 'hero-schwarz']);
+    // An older choice of hero product no longer decides anything: the photograph does.
+    Setting::set('hero_product_id', $other->id);
 
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.slug', $model->slug));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.slug', $photographed->slug));
 });
 
 it('offers three real orders of the catalogue and never a bestseller claim', function (): void {

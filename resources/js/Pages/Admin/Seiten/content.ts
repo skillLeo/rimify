@@ -31,6 +31,10 @@ function emptyValue(field: SchemaField): string | number | null {
         return field.options?.[0]?.value ?? ''
     }
 
+    if (field.kind === 'choice') {
+        return field.default ?? field.options?.[0]?.value ?? ''
+    }
+
     return ''
 }
 
@@ -190,9 +194,9 @@ export function diff(schema: PageSchema, before: PageContent, after: PageContent
     return out
 }
 
-/** A value as a person reads it: a glyph by its name („Werkzeug"), anything else as written. */
+/** A value as a person reads it: a glyph or a choice by its name („Werkzeug"), anything else as written. */
 function shown(field: SchemaField, value: unknown): string {
-    if (field.kind === 'icon') {
+    if (field.kind === 'icon' || field.kind === 'choice') {
         return field.options?.find((option) => option.value === value)?.label ?? words(value)
     }
 

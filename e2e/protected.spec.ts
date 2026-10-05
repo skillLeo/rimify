@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
 import { consentGiven, open } from './support';
-import { SHOP } from './shop';
+import { EMPTY_SHOP, SHOP } from './shop';
 
 /*
  * The protected elements (docs/design/PROTECTED.md), at 1440 and at 390. Each has a structural
@@ -130,5 +130,45 @@ test.describe('protected elements', () => {
         const drawing = page.locator('.calc-drawing').first();
         await expect(drawing, 'P7: the clearance drawing is gone').toBeVisible();
         await expect(drawing).toHaveScreenshot(`p7-calculator-${testInfo.project.name}.png`, SHOT);
+    });
+});
+
+/*
+ * While the catalogue is empty the baseline asserts presence, not pixels (the operator's brief of 05.10.2026, §2): the
+ * hero stands on the brand's photographs in every state, and a run against an empty shop checks that they are there,
+ * load, roll in and stand in their light — but compares no picture, since the leaders (P3) wait for the wheel to be in
+ * the catalogue. The numbers section (P4) and the turning band (P6) need that wheel too, and are not asked for here.
+ */
+test.describe('protected elements while the catalogue is empty — presence, not pixels', () => {
+    test.use({ baseURL: EMPTY_SHOP });
+
+    test.beforeEach(async ({ context }) => {
+        await consentGiven(context, EMPTY_SHOP);
+    });
+
+    test('P1–P2 · the hero stands on its two photographs, rolling in, in studio light; no callout to point with', async ({ page }, testInfo) => {
+        const phone = testInfo.project.name === 'mobile-390';
+        await home(page);
+
+        const stage = page.locator(phone ? '.hero-mobile' : '#h2 .hero__stage');
+        const lead = stage.locator(phone ? '.hero-frame__roll' : '.hero__roll');
+        const second = stage.locator(phone ? '.hero-frame__pair' : '.hero__pair');
+
+        await expect(page.locator('[data-hero="photo"]'), 'the empty shop\'s hero is not in its photograph-only state').toHaveCount(1);
+        await expectPhotograph(lead.locator('img'), 'P1 leading wheel (empty catalogue)');
+        await expect(stage.locator('img'), 'P1: the hero no longer carries two wheels with the catalogue empty').toHaveCount(2);
+        await expectPhotograph(second.locator('img'), 'P1 second wheel (empty catalogue)');
+        await expect(stage.locator(phone ? '.hero-frame__roll--rolling' : '.hero__roll--rolling'), 'P1: the wheel no longer rolls in').toHaveCount(1);
+        await expect(stage.getByText('Symbolbild'), 'P1: a drawing stands where the photograph belongs').toHaveCount(0);
+        await expect(stage.locator(phone ? '.hero-frame__outline' : '.hero__outline'), 'P1: the outline stands where the photograph belongs').toHaveCount(0);
+        await expect(stage.locator('.hero-studio'), 'P2: the studio light is gone').toHaveCount(1);
+        await expect(lead.locator('.hero-contact'), 'P2: the leading wheel\'s contact shadow is gone').toHaveCount(1);
+        await expect(second.locator('.hero-contact'), 'P2: the second wheel\'s contact shadow is gone').toHaveCount(1);
+        // P3 waits for the catalogue: with nothing to state, nothing points.
+        await expect(stage.locator('[data-callout]'), 'P3: a callout points with no wheel in the catalogue to take its value from').toHaveCount(0);
+
+        const box = await stage.boundingBox();
+        expect(box?.height ?? 0, 'P1: the hero stage has no height').toBeGreaterThan(100);
+        // Presence, not pixels: no screenshot is compared while the catalogue is empty.
     });
 });

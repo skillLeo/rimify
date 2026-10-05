@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Content;
 
 use App\Models\Page;
+use App\Support\HeroPhotos;
 
 /**
  * What each editable page holds, field by field — the one place the limits live.
@@ -20,7 +21,7 @@ use App\Models\Page;
  *
  * Blocks come in schema order: every fixed block once, then the page's repeatable sections.
  *
- * @phpstan-type Field array{key: string, label: string, kind: string, required: bool, max: int|null, min?: int, help?: string, options?: list<array{value: string, label: string}>}
+ * @phpstan-type Field array{key: string, label: string, kind: string, required: bool, max: int|null, min?: int, help?: string, options?: list<array{value: string, label: string}>, default?: string}
  * @phpstan-type ItemList array{key: string, label: string, itemLabel: string, one: string, min: int, max: int, fields: list<Field>}
  * @phpstan-type Block array{type: string, label: string, repeat: bool, min: int, max: int, fields: list<Field>, list?: ItemList}
  * @phpstan-type Schema array{page: list<Field>, blocks: list<Block>}
@@ -92,6 +93,9 @@ final class PageSchema
                         // Required: the phone has room for one sentence above the vehicle selector,
                         // so it never falls back to the longer one (Startseite/Mobile.vue).
                         self::textarea('sub_mobile', 'Kürzerer Text für das Handy', 110, true, 'Steht auf dem Handy statt des Texts darüber. Dort ist Platz für einen Satz.'),
+                        // The brand's photograph (PROTECTED.md P1, the operator's brief of 05.10.2026 §2): a brand
+                        // asset, there with or without a catalogue — never a product row.
+                        self::choice('foto', 'Foto', HeroPhotos::options(), HeroPhotos::DEFAULT, 'Steht im Einstieg, auch wenn der Katalog leer ist. Die Maße erscheinen daran, sobald die gezeigte Felge mit mindestens einer Größe im Katalog steht und nicht archiviert ist.'),
                     ],
                 ],
                 [
@@ -226,6 +230,7 @@ final class PageSchema
             $data[$field['key']] = match ($field['kind']) {
                 'number' => $field['min'] ?? 1,
                 'icon' => $field['options'][0]['value'] ?? '',
+                'choice' => $field['default'] ?? ($field['options'][0]['value'] ?? ''),
                 default => '',
             };
         }
@@ -482,6 +487,14 @@ final class PageSchema
             return self::PROMISE_ICONS[$value] ?? $value;
         }
 
+        if ($field['kind'] === 'choice' && is_string($value)) {
+            foreach ($field['options'] ?? [] as $option) {
+                if ($option['value'] === $value) {
+                    return $option['label'];
+                }
+            }
+        }
+
         return is_scalar($value) ? (string) $value : '';
     }
 
@@ -553,6 +566,10 @@ final class PageSchema
             return is_string($value) && isset(self::PROMISE_ICONS[$value]) ? null : 'Bitte wähl ein Symbol aus der Liste.';
         }
 
+        if ($field['kind'] === 'choice') {
+            return in_array($value, array_column($field['options'] ?? [], 'value'), true) ? null : 'Bitte wähl einen Eintrag aus der Liste.';
+        }
+
         $text = is_string($value) ? $value : '';
 
         if ($text === '') {
@@ -583,6 +600,8 @@ final class PageSchema
             $data[$field['key']] = match ($field['kind']) {
                 'number' => is_int($value) ? $value : (is_string($value) && preg_match('/^\s*\d{1,6}\s*$/', $value) === 1 ? (int) $value : null),
                 'icon' => is_string($value) ? $value : '',
+                // Content from before the field existed reads as the default, never as „none chosen“.
+                'choice' => $value === null || $value === '' ? ($field['default'] ?? '') : (is_string($value) ? $value : ''),
                 default => self::string($value),
             };
         }
@@ -617,6 +636,20 @@ final class PageSchema
     private static function textarea(string $key, string $label, int $max, bool $required, ?string $help = null): array
     {
         $field = ['key' => $key, 'label' => $label, 'kind' => 'textarea', 'required' => $required, 'max' => $max];
+
+        return $help === null ? $field : $field + ['help' => $help];
+    }
+
+    /**
+     * One of a fixed set, by name — the hero's photograph. `default` is what content written before the field existed
+     * reads as, so a page never goes without one.
+     *
+     * @param  list<array{value: string, label: string}>  $options
+     * @return Field
+     */
+    private static function choice(string $key, string $label, array $options, string $default, ?string $help = null): array
+    {
+        $field = ['key' => $key, 'label' => $label, 'kind' => 'choice', 'required' => true, 'max' => null, 'options' => $options, 'default' => $default];
 
         return $help === null ? $field : $field + ['help' => $help];
     }

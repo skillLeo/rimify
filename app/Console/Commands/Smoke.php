@@ -14,11 +14,12 @@ use App\Models\WheelModel;
 use App\Payments\Payments;
 use App\Services\Admin\AuditTrail;
 use App\Services\Commerce\OrderPayments;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use App\Services\Storage\MediaDisks;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\GermanFormat;
+use App\Support\HeroPhotos;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\PendingRequest;
@@ -72,7 +73,7 @@ final class Smoke extends Command
 
         // A test environment reset to an empty shop (TestReset) sells nothing yet, and says so on its homepage: there
         // is no wheel for the hero, the product page or a test order — until the team publishes its first.
-        $empty = TestReset::shopEmptied() && ! WheelModel::query()->where('status', 'published')->where('is_demo', false)->exists();
+        $empty = TestEnvironment::shopEmptied() && ! WheelModel::query()->where('status', 'published')->where('is_demo', false)->exists();
 
         $this->check('Startseite', function (): string {
             $response = $this->get('/');
@@ -84,25 +85,33 @@ final class Smoke extends Command
 
         // The homepage's signature pieces (docs/design/PROTECTED.md P1, P4), asserted where they were lost: on the host.
         // The preview showed the outline and no numbers section for days while every test on a fresh database passed
-        // (D-089) — a homepage without a hero product looks like a working page to every other check.
-        if ($empty) {
-            $this->rows[] = ['Startseite: Felgenfoto und Zahlen', 'übersprungen', 'Testumgebung zurückgesetzt: noch keine Felge veröffentlicht.'];
-        } else {
-            $this->check('Startseite: Felgenfoto und Zahlen', function (): string {
-                $html = self::rendered($this->get('/')->body());
-                $hero = preg_match('#<section[^>]*data-section="H2".*?</section>#s', $html, $section) === 1 ? $section[0] : '';
-                $this->expect($hero !== '', 'kein Hero im gerenderten HTML');
-                $this->expect(
-                    preg_match('#<img\b[^>]*\bsrc="([^"]+)"#', $hero, $img) === 1,
-                    'kein Felgenfoto im Hero – die Startseite hat kein Hero-Produkt und zeigt die Umrisszeichnung (Katalog › Felgen, Einstellung hero_product_id)',
-                );
-                $photo = $this->get(html_entity_decode($img[1]));
-                $this->expect($photo->status() === 200, "das Felgenfoto antwortet mit HTTP {$photo->status()}");
-                $this->expect(str_contains($html, 'data-section="H8"'), 'der Abschnitt „Was die Zahlen auf einer Felge bedeuten“ fehlt');
+        // (D-089). The hero's photograph is the brand's and stands in every state, an empty shop included (the
+        // operator's brief of 05.10.2026, §2); only the numbers section waits for a published wheel.
+        // The numbers explain the wheel in the photograph, with its values: due wherever the catalogue holds that wheel
+        // (a draft included, as the hero shows it), and not in an empty shop.
+        $heroLive = WheelModel::query()->where('status', '<>', 'archived')->where('is_demo', false)
+            ->whereIn('slug', array_column(HeroPhotos::all(), 'model'))->exists();
 
-                return 'Felgenfoto im Hero ('.basename((string) parse_url($img[1], PHP_URL_PATH)).'), Zahlen-Abschnitt da';
-            });
-        }
+        $this->check('Startseite: Felgenfoto und Zahlen', function () use ($heroLive): string {
+            $html = self::rendered($this->get('/')->body());
+            $hero = preg_match('#<section[^>]*data-section="H2".*?</section>#s', $html, $section) === 1 ? $section[0] : '';
+            $this->expect($hero !== '', 'kein Hero im gerenderten HTML');
+            $this->expect(
+                preg_match('#<img\b[^>]*\bsrc="([^"]+)"#', $hero, $img) === 1,
+                'kein Felgenfoto im Hero – das Markenfoto (Inhalte › Seiten › Startseite › Einstieg) fehlt auf dem Server; die Startseite zeigt die Umrisszeichnung',
+            );
+            $photo = $this->get(html_entity_decode($img[1]));
+            $this->expect($photo->status() === 200, "das Felgenfoto antwortet mit HTTP {$photo->status()}");
+            $name = basename((string) parse_url($img[1], PHP_URL_PATH));
+
+            if (! $heroLive) {
+                return "Felgenfoto im Hero ({$name}); der Zahlen-Abschnitt wartet, bis die Felge im Foto im Katalog steht";
+            }
+
+            $this->expect(str_contains($html, 'data-section="H8"'), 'der Abschnitt „Was die Zahlen auf einer Felge bedeuten“ fehlt');
+
+            return "Felgenfoto im Hero ({$name}), Zahlen-Abschnitt da";
+        });
 
         if ($pair === null && $empty) {
             $this->rows[] = ['Produktseite / Prüfung / PDF / Testbestellung', 'übersprungen', 'Testumgebung zurückgesetzt: noch keine freigegebene Felge im Shop.'];

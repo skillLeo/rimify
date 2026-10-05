@@ -20,6 +20,7 @@ import Icon from '../../Ui/Icon.vue'
 import Skeleton from '../../Ui/Skeleton.vue'
 import BottomSheet from '../BottomSheet.vue'
 import { decimal, passendeAnzeigen } from '../../../format'
+import { ZERO_LABEL, zeroSentence } from '../../../lib/zeroState'
 import { useShared } from '../../../composables/useShared'
 import { contactHref } from '../../../lib/contact'
 import { cleanHsn, cleanTsn, HSN_LENGTH, splitKeys, TSN_LENGTH, useVehiclePicker, type VariantRow } from '../../../composables/mobile/useVehiclePicker'
@@ -32,9 +33,11 @@ const props = withDefaults(
         makes: MakeOption[]
         /** F1 for the chosen vehicle (`fitmentCount.count`); null without one or while unknown. */
         total?: number | null
+        /** No wheel published at all: the chosen car's 0 then says the shop is still empty (`fitmentCount.shopEmpty`). */
+        shopEmpty?: boolean
         garage?: GarageVehicle[]
     }>(),
-    { total: null, garage: () => [] }
+    { total: null, shopEmpty: false, garage: () => [] }
 )
 
 const shared = useShared()
@@ -228,7 +231,7 @@ const canSubmit = computed(() => {
 
 const buttonLabel = computed(() => {
     if (zero.value) {
-        return 'Keine Felgen für dieses Fahrzeug'
+        return ZERO_LABEL
     }
 
     if (count.value.status === 'ready') {
@@ -392,11 +395,13 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
         <p class="h3">{{ vehicle.label }}</p>
         <!-- Feld K first where it is what tells the car apart; the unknown build window then says nothing. -->
         <p class="small num muted">{{ vehicle.approval ?? `${vehicle.keyNumbers} · ${vehicle.buildWindow}` }}</p>
-        <p v-if="totalLabel !== null" class="small num vpanel__count">
+        <!-- Zero is a state, not a gap: the sentence here, the 0 on the button (the brief of 05.10.2026, §2). -->
+        <p v-if="total === 0" class="small vpanel__count">{{ zeroSentence(shopEmpty) }}</p>
+        <p v-else-if="totalLabel !== null" class="small num vpanel__count">
             <strong>{{ totalLabel }}</strong> {{ total === 1 ? 'Felge' : 'Felgen' }} mit Gutachten für {{ vehicle.label }}
         </p>
         <Link href="/felgen" class="btn btn--primary btn--lg btn--block vpanel__go" data-primary prefetch>
-            {{ total !== null ? passendeAnzeigen(total) : 'Passende Felgen anzeigen' }}
+            {{ total === 0 ? ZERO_LABEL : total !== null ? passendeAnzeigen(total) : 'Passende Felgen anzeigen' }}
         </Link>
         <div class="vpanel__links">
             <Link href="/felgen-suchen" class="link">Fahrzeug ändern</Link>
@@ -592,7 +597,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             <!-- Zero wheels (F2): said plainly, with the one thing we can offer. -->
             <div v-else-if="zero" class="notice vpanel__zero">
                 <div>
-                    <p>Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.</p>
+                    <p>{{ zeroSentence(count.status === 'ready' && count.shopEmpty === true) }}</p>
                     <!-- Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). -->
                     <p v-if="shared.notifyByMail !== true" class="small muted">
                         <Link class="link" :href="askHref">Schreib uns</Link> – wir sehen nach, was es dafür gibt.

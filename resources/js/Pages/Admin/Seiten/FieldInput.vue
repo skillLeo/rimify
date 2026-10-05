@@ -33,7 +33,7 @@ const over = computed(() => overLimit(props.field, model.value))
 const showCounter = computed(() => {
     const max = props.field.max
 
-    if (max === null || props.field.kind === 'number' || props.field.kind === 'icon') {
+    if (max === null || props.field.kind === 'number' || props.field.kind === 'icon' || props.field.kind === 'choice') {
         return false
     }
 
@@ -98,6 +98,19 @@ const iconName = computed(() => (typeof model.value === 'string' && isIconName(m
             :aria-invalid="error || over ? 'true' : undefined"
             :aria-describedby="describedBy"
         />
+
+        <!-- One of a fixed set, by name (the Einstieg's photograph). -->
+        <select
+            v-else-if="field.kind === 'choice'"
+            :id="id"
+            v-model="model"
+            class="input pg-field__choice"
+            :disabled="readonly"
+            :aria-invalid="error ? 'true' : undefined"
+            :aria-describedby="describedBy"
+        >
+            <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
 
         <div v-else-if="field.kind === 'icon'" class="pg-field__icon">
             <span class="pg-field__glyph" aria-hidden="true">
@@ -178,6 +191,10 @@ const iconName = computed(() => (typeof model.value === 'string' && isIconName(m
 
 .pg-field__number {
     max-width: 12ch;
+}
+
+.pg-field__choice {
+    max-width: 48ch;
 }
 
 .pg-field__icon {

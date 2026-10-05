@@ -15,6 +15,7 @@ use App\Services\Content\PageChangedMeanwhile;
 use App\Services\Content\PageContent;
 use App\Services\Content\PagePublisher;
 use App\Services\Content\PageSchema;
+use App\Support\HeroPhotos;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
@@ -189,8 +190,23 @@ it('keeps only what the schema knows: no stray keys, no unknown blocks', functio
     $draft = $home->refresh()->draft;
 
     // MySQL keeps a JSON object's keys in its own order, so the set is what is compared.
-    expect(array_keys($draft['blocks'][0]['data']))->toEqualCanonicalizing(['headline', 'sub', 'sub_mobile'])
+    expect(array_keys($draft['blocks'][0]['data']))->toEqualCanonicalizing(['headline', 'sub', 'sub_mobile', 'foto'])
         ->and(array_column($draft['blocks'], 'type'))->toBe(['hero', 'promise_row']);
+});
+
+it('offers the Einstieg\'s photograph as a choice among the shipped ones, with the default for older content', function (): void {
+    $home = seite('startseite');
+    $content = seitenInhalt($home);
+
+    // Content from before the field existed reads as the default photograph, never as none.
+    unset($content['blocks'][0]['data']['foto']);
+    entwurf($home, $content)->assertRedirect();
+    expect($home->refresh()->draft['blocks'][0]['data']['foto'])->toBe(HeroPhotos::DEFAULT);
+
+    // A photograph the release does not ship is refused by name.
+    $content['blocks'][0]['data']['foto'] = 'irgendein-bild';
+    entwurf($home, $content);
+    expect(PageSchema::errors(PageSchema::for($home->refresh()) ?? [], $home->draft))->toHaveKey('blocks.0.data.foto');
 });
 
 it('refuses to publish a missing or over-long text, names the place, and changes nothing', function (): void {

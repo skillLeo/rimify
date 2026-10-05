@@ -20,6 +20,9 @@ declare(strict_types=1);
 // cast to correct. An entry with a `view` is a further angle of a finish that already has its front
 // view, and is attached to it as a labelled thumbnail.
 //
+// The front shots also carry the wheel's `brand` and `name` as a person reads them: they are the homepage hero's
+// photographs (App\Support\HeroPhotos), shown whether or not the wheel is in the shop, and named in their alt text.
+//
 // `anchors` are measured on the front shots, in source pixels (1080 × 1080): `centre` [x, y], the
 // centre of the bolt circle; `wheel` [x, y, r], the front Felgenhorn's outer edge (typed in: the
 // mask's box would include the barrel the angle shows on the right); `pcd` [x, y, r], r the radius
@@ -35,6 +38,8 @@ return [
     'client-borbet-db8gt2-bronze-front.jpg' => [
         'slug' => 'borbet-db8gt2-bronze-matt',
         'model' => 'borbet-db8gt2',
+        'brand' => 'Borbet',
+        'name' => 'DB8GT2',
         'finish' => 'Bronze matt',
         'mask' => 'client-borbet-db8gt2-bronze-front.mask.png',
         'hub' => null,
@@ -65,6 +70,8 @@ return [
     'client-borbet-db8gt2-schwarz-front.jpg' => [
         'slug' => 'borbet-db8gt2-schwarz-matt',
         'model' => 'borbet-db8gt2',
+        'brand' => 'Borbet',
+        'name' => 'DB8GT2',
         'finish' => 'Schwarz matt',
         'mask' => 'client-borbet-db8gt2-schwarz-front.mask.png',
         'hub' => null,

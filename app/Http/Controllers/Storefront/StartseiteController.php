@@ -11,9 +11,7 @@ use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Fitment;
 use App\Models\Page;
-use App\Models\Setting;
 use App\Models\WheelConfig;
-use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Content\PageContent;
 use App\Services\Storefront\BestSellers;
@@ -25,9 +23,9 @@ use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\BrandLogos;
-use App\Support\DemoWheels;
 use App\Support\DevicePage;
 use App\Support\GermanFormat;
+use App\Support\HeroPhotos;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
@@ -83,7 +81,8 @@ class StartseiteController extends Controller
         $blocks = $this->blocks();
 
         $vehicle = $vehicleId === null ? null : $this->resolver->find($vehicleId);
-        $hero = $this->heroProduct();
+        $photo = HeroPhotos::resolve(is_string($blocks['hero']['foto'] ?? null) ? $blocks['hero']['foto'] : null);
+        $hero = $this->heroProduct($photo);
 
         return Inertia::render(DevicePage::resolve('Startseite', $request), [
             'hero' => [
@@ -92,6 +91,17 @@ class StartseiteController extends Controller
                 // The phone document's own sentence (required in the editor). Absent or empty, the
                 // phone keeps its short default rather than the desktop's five lines (Mobile.vue).
                 'sublineMobile' => trim((string) ($blocks['hero']['sub_mobile'] ?? '')),
+                // The brand's photograph (PROTECTED.md P1), there with or without a catalogue — never a product row.
+                'photo' => $photo === null ? null : [
+                    'brand' => $photo['brand'],
+                    'name' => $photo['name'],
+                    'finish' => $photo['finish'],
+                    'imageManifest' => $photo['imageManifest'],
+                    'companion' => $photo['companion'],
+                ],
+                // The wheel in that photograph, where the catalogue holds it (a draft included): its values for the
+                // leaders, the caption and the spec line. Null with the catalogue empty — the photograph then stands
+                // with the headline and the selector alone.
                 'product' => $hero,
                 'stats' => $this->stats->counts(),
             ],
@@ -123,74 +133,54 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The wheel the hero shows, chosen by the admin (`settings.hero_product_id`); until one is
-     * chosen, the first published model.
+     * The wheel in the hero's photograph, where the catalogue has it (the operator's brief of 05.10.2026, §2): the
+     * photograph is the brand's (HeroPhotos) and stands whatever the catalogue holds; only its values are data. They
+     * come from the photographed model — the same model, never another product whose numbers would land on this
+     * wheel — while it is real and not archived: a draft is shown with the document's values, never a price or a link,
+     * as since the golden record (D-089). With the model not in the catalogue — an empty shop — the photograph stands
+     * without leaders, caption or spec line rather than with a hole.
      *
-     * The picture is the photographed finish's own cut-out (its manifest, with `anchors`, `bare`
-     * and `stamp` passed through when they are well-formed). A model with no photograph at all is
-     * drawn as line art, and the page then names no product (`symbolic`): no stand-in photograph
-     * is ever shown in its place (ACCURACY.md D1, D10).
+     * `facts` are one configuration's values, formatted here (R-10) and nowhere else. Which one is `heroConfig()`'s
+     * choice: a photograph proves the size its stamp names, never the bolt pattern.
      *
-     * `facts` are one configuration's values, formatted here (R-10) and nowhere else. Which one is
-     * `heroConfig()`'s choice: a photograph proves the size its stamp names, never the bolt pattern.
-     *
+     * @param  array{model: string, finish: string, stamp: string|null, imageManifest: array<string, mixed>, companion: array{finish: string, imageManifest: array<string, mixed>}|null}|null  $photo
      * @return array<string, mixed>|null
      */
-    private function heroProduct(): ?array
+    private function heroProduct(?array $photo): ?array
     {
-        $chosen = Setting::get('hero_product_id');
+        if ($photo === null || $photo['model'] === '') {
+            return null;
+        }
 
-        // The chosen wheel is shown while it is still a draft — the photograph and the document's values,
-        // never a price or a link — so the hero is the real product from the day it is entered. Never a
-        // demo row, never an archived one.
         $model = WheelModel::query()
             ->with(['brand'])
-            ->when(
-                is_int($chosen) || is_numeric($chosen),
-                fn ($q) => $q->where('id', (int) $chosen)->where('is_demo', false)->where('status', '<>', CatalogueStatus::Archived->value),
-                fn ($q) => $q->where('status', CatalogueStatus::Published->value),
-            )
-            ->orderBy('id')
+            ->where('slug', $photo['model'])
+            ->where('is_demo', false)
+            ->where('status', '<>', CatalogueStatus::Archived->value)
             ->first();
 
         if ($model === null) {
             return null;
         }
 
-        // The model's photographed finishes, each with its cut-out; a malformed one counts as none.
-        $manifests = [];
-
-        foreach (WheelFinish::query()->where('wheel_model_id', $model->id)->whereNotNull('image_manifest')->orderBy('id')->get() as $pictured) {
-            $raw = $pictured->image_manifest;
-
-            if (DemoWheels::wellFormed($raw)) {
-                $manifests[(int) $pictured->id] = DemoWheels::withoutMalformedExtras($raw);
-            }
-        }
-
-        [$config, $kba] = $this->heroConfig((int) $model->id, $manifests);
+        [$config, $kba] = $this->heroConfig((int) $model->id, $photo['stamp']);
 
         if ($config === null) {
             return null;
         }
 
-        $finish = WheelFinish::query()->find($config->wheel_finish_id);
-        $manifest = $manifests[(int) $config->wheel_finish_id] ?? null;
-        $companion = $manifest === null ? null : $this->heroCompanion($manifests, (int) $config->wheel_finish_id);
-        // Bought and linked only when it is in the shop at a price; a draft is shown, never offered.
-        $published = $model->status === CatalogueStatus::Published && (int) $config->price_cents > 0;
-
         return [
             'slug' => (string) $model->slug,
             'name' => (string) $model->name,
             'brand' => (string) $model->brand->name,
-            'finish' => $finish === null ? '' : (string) $finish->name_de,
+            // The photographed finish: the caption names what the picture shows.
+            'finish' => $photo['finish'],
             'fromPriceCents' => (int) $config->price_cents,
             'fromPrice' => GermanFormat::money((int) $config->price_cents),
-            'imageManifest' => $manifest,
-            // The same wheel in its other photographed finish, behind the leading one (PROTECTED.md P1, the operator's
-            // decision of 01.10.2026): it shows the second finish before anything is clicked. No callouts of its own.
-            'companion' => $companion,
+            // The photograph's own cut-outs, for the numbers section (P4) and the dark band (P6), which mark and turn
+            // this same wheel.
+            'imageManifest' => $photo['imageManifest'],
+            'companion' => $photo['companion'],
             // The configuration's own numbers; the client draws the outline's bolt holes from them.
             'config' => [
                 'widthIn' => (float) $config->width_in,
@@ -200,9 +190,9 @@ class StartseiteController extends Controller
                 'boltCircleMm' => (float) $config->bolt_circle_mm,
                 'centreBoreMm' => (float) $config->centre_bore_mm,
             ],
-            // No photograph of this product: the hero draws the outline and names no product.
-            'symbolic' => $manifest === null,
-            'published' => $published,
+            'symbolic' => false,
+            // In the shop at a price; a draft, or a published wheel still priced at zero, is shown, never offered.
+            'published' => $model->status === CatalogueStatus::Published && (int) $config->price_cents > 0,
             'facts' => $this->heroFacts($config, $kba),
         ];
     }
@@ -251,62 +241,22 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The hero's second wheel: the model's next photographed finish after the leading one — a shadowless cut-out with
-     * its wheel anchor, so it stands on the same floor and rolls without slipping. Null where there is none.
-     *
-     * @param  array<int, array<string, mixed>>  $manifests  finish id → its cut-out
-     * @return array{finish: string, imageManifest: array<string, mixed>}|null
-     */
-    private function heroCompanion(array $manifests, int $leadFinishId): ?array
-    {
-        foreach ($manifests as $finishId => $manifest) {
-            $bare = is_array($manifest['bare'] ?? null) ? $manifest['bare'] : null;
-            $anchors = is_array($bare['anchors'] ?? null) ? $bare['anchors'] : ($manifest['anchors'] ?? null);
-
-            if ($finishId === $leadFinishId || $bare === null || ! is_array($anchors) || ! is_array($anchors['wheel'] ?? null)) {
-                continue;
-            }
-
-            $finish = WheelFinish::query()->find($finishId);
-
-            return $finish === null ? null : ['finish' => (string) $finish->name_de, 'imageManifest' => $manifest];
-        }
-
-        return null;
-    }
-
-    /**
      * The configuration whose values the hero states (ACCURACY.md §3.0).
      *
-     * A cut-out that carries the approval number read off the wheel (`stamp`, e.g. KBA 53810)
-     * proves the size that number approves — not the bolt pattern, which the same ABE covers in
-     * several executions. So among the photographed finish's configurations with exactly that KBA
-     * number: the one with the most fitments a customer can see, then the cheapest, then the
-     * lowest id; and the number is stated. Otherwise the cheapest configuration of a photographed
-     * finish (of the whole model when none is photographed), and no KBA number: the photograph's
-     * stamp is never put next to a configuration it does not belong to.
+     * The photograph carries the approval number read off the wheel (`stamp`, e.g. KBA 53841), which proves the size
+     * that number approves — not the bolt pattern, which the same ABE covers in several executions. So among the
+     * model's configurations with exactly that KBA number: the one with the most fitments a customer can see, then the
+     * cheapest, then the lowest id; and the number is stated. Otherwise the model's cheapest configuration, and no KBA
+     * number: the photograph's stamp is never put next to a configuration it does not belong to.
      *
-     * @param  array<int, array<string, mixed>>  $manifests  finish id → its cut-out
      * @return array{0: WheelConfig|null, 1: string|null}
      */
-    private function heroConfig(int $modelId, array $manifests): array
+    private function heroConfig(int $modelId, ?string $stamp): array
     {
-        $stamps = [];
-
-        foreach ($manifests as $finishId => $manifest) {
-            if (isset($manifest['stamp']) && is_string($manifest['stamp']) && $manifest['stamp'] !== '') {
-                $stamps[$finishId] = $manifest['stamp'];
-            }
-        }
-
-        if ($stamps !== []) {
+        if ($stamp !== null && $stamp !== '') {
             $stamped = WheelConfig::query()
                 ->where('wheel_model_id', $modelId)
-                ->where(function (Builder $any) use ($stamps): void {
-                    foreach ($stamps as $finishId => $stamp) {
-                        $any->orWhere(fn (Builder $one) => $one->where('wheel_finish_id', $finishId)->where('kba_number', $stamp));
-                    }
-                })
+                ->where('kba_number', $stamp)
                 ->withCount(['fitments as published_fitments' => self::visibleFitments(...)])
                 ->orderByDesc('published_fitments')
                 ->orderBy('price_cents')
@@ -314,13 +264,12 @@ class StartseiteController extends Controller
                 ->first();
 
             if ($stamped !== null) {
-                return [$stamped, $stamps[(int) $stamped->wheel_finish_id]];
+                return [$stamped, $stamp];
             }
         }
 
         $cheapest = WheelConfig::query()
             ->where('wheel_model_id', $modelId)
-            ->when($manifests !== [], fn ($q) => $q->whereIn('wheel_finish_id', array_keys($manifests)))
             ->orderBy('price_cents')
             ->orderBy('id')
             ->first();
