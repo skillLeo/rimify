@@ -70,8 +70,14 @@ it('puts the page component\'s own stylesheet in the head, so the server-rendere
     $html = (string) $this->get('/')->assertOk()->getContent();
     $head = substr($html, 0, (int) strpos($html, '</head>'));
 
-    // app.css plus at least the page's and its layout's own stylesheets.
-    expect(substr_count($head, 'rel="stylesheet"'))->toBeGreaterThanOrEqual(3);
+    // app.css plus at least the page's and its layout's own stylesheets — written into the document, with the nonce
+    // (InlineStyles; the operator's brief of 05.10.2026, §5: the first paint waits for the HTML alone).
+    expect(substr_count($head, '<style nonce="'))->toBeGreaterThanOrEqual(3)
+        // Each one's link stays for the bundle to find, disabled: fetched by nobody, applied by nobody …
+        ->and(preg_match_all('/<link rel="stylesheet" href="[^"]+"[^>]*>/', $head, $links))->toBeGreaterThanOrEqual(3)
+        ->and(array_filter($links[0], static fn (string $link): bool => ! str_contains($link, ' disabled')))->toBe([])
+        // … and nothing preloads a stylesheet the document already holds.
+        ->and($head)->not->toContain('as="style"');
 })->skip(fn (): bool => ! is_file(public_path('build/manifest.json')), 'needs the production build');
 
 it('ships the header mode and the menus on every page', function (): void {

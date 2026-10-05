@@ -84,6 +84,25 @@ it('lets pictures come from the media bucket in force, and the upload post to it
     expect((string) $this->get('/_probe')->headers->get('Content-Security-Policy'))->not->toContain('amazonaws');
 });
 
+// The host replaces the header with `upgrade-insecure-requests` (ContentSecurityPolicy, 06.10.2026): the document
+// carries the same policy, first in its head, all but frame-ancestors — which a meta cannot carry and X-Frame-Options says.
+it('repeats the policy in the document, where the host cannot replace it', function (): void {
+    $response = $this->get('/rechtliches/impressum')->assertOk();
+    $html = (string) $response->getContent();
+    $header = (string) $response->headers->get('Content-Security-Policy');
+
+    expect(preg_match('/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/', $html, $meta))->toBe(1);
+    $policy = html_entity_decode($meta[1], ENT_QUOTES);
+
+    expect($policy)->toBe(str_replace("; frame-ancestors 'none'", '', $header))
+        ->not->toContain('frame-ancestors')
+        ->toMatch("/script-src 'self' 'nonce-[A-Za-z0-9+\/=_-]{16,}' 'wasm-unsafe-eval';/");
+
+    // Before the first script, stylesheet or style it governs.
+    $governed = array_filter([strpos($html, '<script'), strpos($html, '<style'), strpos($html, '<link rel="stylesheet"')], 'is_int');
+    expect(strpos($html, '<meta http-equiv="Content-Security-Policy"'))->toBeLessThan(min($governed));
+});
+
 it('uses a fresh CSP nonce per response', function (): void {
     preg_match("/'nonce-([^']+)'/", (string) $this->get('/_probe')->headers->get('Content-Security-Policy'), $first);
     preg_match("/'nonce-([^']+)'/", (string) $this->get('/_probe')->headers->get('Content-Security-Policy'), $second);

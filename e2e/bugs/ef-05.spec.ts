@@ -23,6 +23,10 @@ import { SHOTS } from './ef-support';
  *
  * WebKit only (Safari is where there is no scroll anchoring); it needs `npx playwright install webkit`. Runs once,
  * under the mobile-390 project. Writes nothing.
+ *
+ * Since 06.10.2026 the sections no longer skip their layout at all (Startseite/Mobile.vue says why: Chrome counted the
+ * page as jumping whenever it opened mid-page), so no placeholder is left to be wrong — and this test holds that the
+ * page still never moves under the finger, in any WebKit, content-visibility or not.
  */
 
 const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices['iPhone 16'];
@@ -123,7 +127,8 @@ async function flingDownThenUp(page: Page, phase: string): Promise<string[]> {
 
 /** Portrait, turned, turned back: every step that moved the page under the finger. */
 async function measure(page: Page): Promise<string[]> {
-    await expect(page.locator('#h4.home-below'), 'the phone document (Startseite/Mobile) was not served').toHaveCount(1);
+    // The phone's own vehicle panel in the hero: Startseite/Mobile, not the desktop document.
+    await expect(page.locator('#h2 .vpanel'), 'the phone document (Startseite/Mobile) was not served').toHaveCount(1);
     await settle(page);
 
     const jumps: string[] = [];
@@ -148,10 +153,6 @@ test('EF-05 the phone homepage does not jump while scrolling back up after the p
 
     await consentGiven(context, SHOP);
     await open(page, '/');
-
-    const contentVisibility = await page.evaluate(() => CSS.supports('content-visibility', 'auto'));
-
-    test.skip(!contentVisibility, 'this WebKit build has no content-visibility: the placeholders never apply');
 
     let current = page;
     let jumps: string[] | null = null;

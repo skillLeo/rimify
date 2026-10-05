@@ -58,6 +58,12 @@ final class GoLiveChecks
 
     private const SOLE_REGISTERED = '/\be\.\s?(K|Kfm|Kfr)\.?(\s|$|\b)/u';
 
+    /**
+     * The 27 member states of the EU, nothing else: the check's title says „in der EU“, and a server in the UK or an EEA
+     * state is not that. Whether one of those would do is the client's decision with the Kanzlei (client-questions.md).
+     */
+    private const EU = ['at', 'be', 'bg', 'cy', 'cz', 'de', 'dk', 'ee', 'es', 'fi', 'fr', 'gr', 'hr', 'hu', 'ie', 'it', 'lt', 'lu', 'lv', 'mt', 'nl', 'pl', 'pt', 'ro', 'se', 'si', 'sk'];
+
     public function __construct(private readonly LegalTexts $legal, private readonly PrivateFilesProbe $privateFiles) {}
 
     /**
@@ -511,9 +517,52 @@ final class GoLiveChecks
             $this->check('ci', self::OPERATIONS, 'Beide Datenbank-Engines grün in CI', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Von hier nicht prüfbar: Der Lauf steht auf GitHub (MySQL 8.4 und MariaDB 11.8.9).', '.github/workflows/suite.yml'),
             $this->rendering(),
             $this->cron(),
+            $this->serverLocation((string) gethostname()),
             $this->resetFlag(),
             $this->demoRows(),
         ];
+    }
+
+    /**
+     * Where the server stands, read from its own name — Hostinger names its machines `<country>-<city>-web<n>`
+     * (`us-bos-web1780.main-hosting.eu` is the preview's, 06.10.2026). Null for a name without that scheme.
+     *
+     * @return array{country: string, eu: bool}|null
+     */
+    public static function locationOf(string $hostname): ?array
+    {
+        if (preg_match('/^([a-z]{2})-[a-z]{2,5}-web\d+\b/i', $hostname, $m) !== 1) {
+            return null;
+        }
+
+        $country = strtolower($m[1]);
+
+        return ['country' => $country, 'eu' => in_array($country, self::EU, true)];
+    }
+
+    /**
+     * Customers' names, addresses and orders live on this server, and every page is answered there: in the EU, the
+     * GDPR covers it without a transfer abroad, and a visitor in Germany waits for no ocean crossing.
+     */
+    private function serverLocation(string $hostname): GoLiveCheck
+    {
+        $title = 'Serverstandort in der EU';
+        $place = 'hPanel › Hosting › Rechenzentrum';
+        $where = self::locationOf($hostname);
+
+        if (! app()->environment(['production', 'staging'])) {
+            return $this->check('serverstandort', self::OPERATIONS, $title, GoLiveCheck::HOST, GoLiveCheck::OK, 'Lokal: Diese Prüfung gilt nur für den Testserver und den Live-Shop.', $place);
+        }
+
+        if ($where === null) {
+            return $this->check('serverstandort', self::OPERATIONS, $title, GoLiveCheck::HOST, GoLiveCheck::UNCHECKABLE, "Der Server heißt {$hostname}; aus dem Namen geht der Standort nicht hervor – beim Host nachsehen, ob das Rechenzentrum in der EU steht.", $place);
+        }
+
+        $code = strtoupper($where['country']);
+
+        return $this->check('serverstandort', self::OPERATIONS, $title, GoLiveCheck::HOST, $where['eu'] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $where['eu']
+            ? "Nach dem Namensschema des Hosts steht der Server {$hostname} in der EU ({$code})."
+            : "Nach dem Namensschema des Hosts steht der Server {$hostname} außerhalb der EU ({$code}). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Ein Rechenzentrum in der EU wählen.", $place);
     }
 
     /** CLAUDE.md and the decision log are in the repository — where this copy is one; CI asserts it on every run. */

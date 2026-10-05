@@ -103,6 +103,36 @@ it('names every check once, in four groups, each with an owner, a state and a pl
     }
 });
 
+// The preview's server answered as `us-bos-web1780.main-hosting.eu` (06.10.2026): the host's own naming says where.
+it('reads where the server stands from the host\'s naming, and claims nothing a name does not say', function (string $host, ?array $where): void {
+    expect(GoLiveChecks::locationOf($host))->toBe($where);
+})->with([
+    'the preview, in Boston' => ['us-bos-web1780.main-hosting.eu', ['country' => 'us', 'eu' => false]],
+    'the Netherlands' => ['nl-srv-web1234.main-hosting.eu', ['country' => 'nl', 'eu' => true]],
+    'Lithuania, no domain' => ['lt-vln-web2001', ['country' => 'lt', 'eu' => true]],
+    // „in der EU“ says what it says: the United Kingdom and the EEA states are the client's call, not a pass.
+    'the United Kingdom' => ['uk-lon-web301.main-hosting.eu', ['country' => 'uk', 'eu' => false]],
+    'a desktop' => ['DESKTOP-7Q2K', null],
+    'another host\'s scheme' => ['web123.example.net', null],
+]);
+
+it('gives the server\'s place to the host, and asks it only of the test server and the live shop', function (): void {
+    expect(goLiveById()['serverstandort']->state)->toBe(GoLiveCheck::OK);
+
+    app()->detectEnvironment(static fn (): string => 'staging');
+    $check = goLiveById()['serverstandort'];
+    $where = GoLiveChecks::locationOf((string) gethostname());
+
+    expect($check->owner)->toBe(GoLiveCheck::HOST)
+        ->and($check->group)->toBe(GoLiveChecks::OPERATIONS)
+        ->and($check->state)->toBe(match (true) {
+            $where === null => GoLiveCheck::UNCHECKABLE,
+            $where['eu'] => GoLiveCheck::OK,
+            default => GoLiveCheck::MISSING,
+        })
+        ->and($check->sentence)->toContain((string) gethostname());
+});
+
 it('reads the Impressum from the seller: a GmbH needs its register and its representative, a sole trader neither', function (): void {
     goLivePage('impressum', 'Impressum');
 

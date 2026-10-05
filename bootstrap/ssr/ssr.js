@@ -40306,8 +40306,8 @@ var render = (page) => createInertiaApp({
 		"./Pages/Ratgeber/Desktop.vue": () => import("./assets/Desktop-CgdH-zKE.js"),
 		"./Pages/Rechtliches/Index.vue": () => import("./assets/Index-Bby4JNmo.js"),
 		"./Pages/Rechtliches/Widerrufsformular.vue": () => import("./assets/Widerrufsformular-CpzNqp76.js"),
-		"./Pages/Startseite/Desktop.vue": () => import("./assets/Desktop-XLpYaeJL.js"),
-		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-wDjOUY1H.js"),
+		"./Pages/Startseite/Desktop.vue": () => import("./assets/Desktop-B6E3c6cn.js"),
+		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-BtuEV-3L.js"),
 		"./Pages/Vergleich/Desktop.vue": () => import("./assets/Desktop-CLpnjCE5.js"),
 		"./Pages/Vergleich/Mobile.vue": () => import("./assets/Mobile-h7W92bDA.js"),
 		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-eYd9XKzj.js")

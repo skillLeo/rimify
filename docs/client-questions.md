@@ -104,6 +104,12 @@ title; please confirm every line, or replace it with the wording the shop can st
     the figures from their papers. Please have the Kanzlei confirm that § 25 Abs. 2 Nr. 2 TDDDG covers them — strictly
     necessary for a service the customer asked for — or tell us which need a consent with an equally easy „Ablehnen“.
     Until then `rimify:go-live-check` reports the cookie check as met on that reading.
+35. **Where the live shop's server stands — for the client and the Kanzlei (06.10.2026).** The preview runs on
+    Hostinger's `us-bos-web1780`: by Hostinger's naming, a data centre in Boston, USA. Customers' names, addresses
+    and orders would be stored there, and every page a visitor in Germany opens travels there and back.
+    `rimify:go-live-check` reports „Serverstandort in der EU“ as open until the live shop runs in an EU member state;
+    a server in the United Kingdom or an EEA state stays open too, because whether that suffices is a GDPR question
+    for the Kanzlei. Please choose the live shop's data centre in hPanel, or tell us which one it is.
 
 ## Photography and brands
 

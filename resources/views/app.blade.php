@@ -2,6 +2,11 @@
 <html lang="de">
 <head>
     <meta charset="utf-8">
+    {{-- The policy in the document as well: the host replaces the header with its own (App\Support\ContentSecurityPolicy).
+         First in the head, before anything it governs. --}}
+    @if ($policy = \App\Support\ContentSecurityPolicy::meta(request()))
+        <meta http-equiv="Content-Security-Policy" content="{{ $policy }}">
+    @endif
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#0b0f14">
@@ -64,12 +69,17 @@
         </script>
     @endif
 
+    {{-- A storefront page's stylesheets in the document: the first paint waits for nothing but the HTML. Their links
+         below stay, disabled — fetched by nobody, found by the bundle (App\Support\InlineStyles). --}}
+    @foreach (\App\Support\InlineStyles::for($page['component'] ?? '') as $sheet)
+        <style nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">{!! $sheet['css'] !!}</style>
+    @endforeach
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
     {{-- The page component's stylesheets (and its layout's) in the head with the entry's, so the
          server-rendered page never paints unstyled and shifts at hydration. Styles only — the
          page's script stays a dynamic import (App\Support\PageStyles says why). --}}
     @foreach (\App\Support\PageStyles::for($page['component'] ?? '') as $href)
-        <link rel="stylesheet" href="{{ $href }}">
+        <link rel="stylesheet" href="{{ $href }}" @disabled(\App\Support\InlineStyles::has($href))>
     @endforeach
     @inertiaHead
 </head>
