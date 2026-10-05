@@ -38,12 +38,15 @@ test('FAQ-06 the phone row the server renders is the row the page keeps', async 
     await waitForApp(page);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1_000);
-    await page.screenshot({ path: `${SHOTS}/faq-06-after-hydration-390-${test.info().project.name}.png`, fullPage: true });
 
     const ssr = html.includes('faq-adm__entry');
     const firstFrame = (html.match(/id="faq-up-\d+"/g) ?? []).length;
     const hydrated = await page.locator('[id^="faq-up-"]').count();
+    // Read before the evidence is taken: a full-page screenshot resizes the viewport to the page's height, and the
+    // shifts that capture causes (0,044 now and then, the app bar and the last rows) are the test's, not the page's.
     const cls = await page.evaluate(() => (window as unknown as { __cls: number }).__cls);
+
+    await page.screenshot({ path: `${SHOTS}/faq-06-after-hydration-390-${test.info().project.name}.png`, fullPage: true });
 
     expect(ssr, 'the first response holds no server-rendered rows: SSR is a requirement (CLAUDE.md §4) — start it and run again').toBe(true);
     expect(hydrated, `the server drew ${firstFrame} „nach oben" buttons at 390 px, the hydrated page keeps ${hydrated} (CLS ${cls.toFixed(3)})`).toBe(firstFrame);
