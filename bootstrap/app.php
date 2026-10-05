@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Storefront\PapersBook;
 use App\Http\Middleware\AssignVisitorKey;
+use App\Http\Middleware\CompressDocuments;
 use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
 use App\Http\Middleware\EnsureAdminSessionValid;
@@ -33,6 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Global stack: its response phase runs outermost, after Inertia has set its own Vary.
         $middleware->append(VaryByDevice::class);
+        // First of all, so it compresses last: the body is final by then (CompressDocuments says why).
+        $middleware->prepend(CompressDocuments::class);
 
         /*
          * First in, last out: the security headers are written on the way back, so they are
