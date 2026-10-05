@@ -1,0 +1,10 @@
+# Never served (the operator's brief of 05.10.2026, §2.2): the reset's safety copies, private files, the logs and the
+# framework's working files hold customers' data. On the host the project is the document root and the rewrite to
+# public/ keeps this folder out of reach; should that ever be missing, this answers 403.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+</IfModule>

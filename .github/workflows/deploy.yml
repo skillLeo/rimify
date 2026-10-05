@@ -49,6 +49,30 @@ jobs:
           # refuses. The release ships code only.
           find vendor -type f -iname '*.md' -delete
 
+      # The reset's baseline is the schema this release migrates to (the operator's brief of 05.10.2026, §2.1): asked of
+      # the files alone, and only when a migration is not in it yet built afresh — on the host's engine, as CI starts it
+      # (suite.yml) — and shipped with the release. With dev packages for the seeders, then back to production's.
+      - name: Reset baseline (rebuilt when a migration is not in it)
+        run: |
+          if php artisan rimify:reset-baseline --check; then exit 0; fi
+          composer install --no-interaction --no-progress --prefer-dist
+          docker run -d --name baseline-db -p 3306:3306 -e MARIADB_ROOT_PASSWORD=root mariadb:11.8.9 \
+            --sql-mode=NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION --character-set-server=utf8mb4 \
+            --collation-server=utf8mb4_unicode_ci --innodb-strict-mode=OFF --max-allowed-packet=1G
+          for i in $(seq 1 60); do
+            if docker exec baseline-db healthcheck.sh --connect --innodb_initialized > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec baseline-db mariadb -uroot -proot -e 'CREATE DATABASE rimify_baseline CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+          APP_ENV=local APP_KEY="base64:$(openssl rand -base64 32)" DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 \
+            DB_DATABASE=rimify_baseline DB_USERNAME=root DB_PASSWORD=root CACHE_STORE=array SESSION_DRIVER=array \
+            php artisan rimify:reset-baseline
+          php artisan rimify:reset-baseline --check
+          docker rm -f baseline-db > /dev/null
+          composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+          find vendor -type f -iname '*.md' -delete
+          echo "::notice title=Reset baseline::rebuilt on MariaDB 11.8.9 for this release"
+
       - name: Node dependencies
         run: npm ci --no-audit --no-fund
 
@@ -89,6 +113,8 @@ jobs:
           git config user.name "SkillLeo"
           git config user.email "hassam.dev.571@gmail.com"
           git add -f vendor public/build public/ocr public/3d storage/app/public/demo bootstrap/ssr > /tmp/out 2>&1 || report "git add"
+          # The baseline as the step above left it: rebuilt when a migration was not in it, else as committed.
+          git add database/baseline/testumgebung.sql > /tmp/out 2>&1 || report "git add baseline"
           # Package manifests: shipped when composer produced them; Laravel regenerates any that
           # are missing on first boot.
           for f in bootstrap/cache/packages.php bootstrap/cache/services.php; do

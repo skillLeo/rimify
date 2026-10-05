@@ -6,6 +6,8 @@ namespace App\Console\Commands;
 
 use App\Models\AdminUser;
 use App\Models\Setting;
+use App\Services\Reset\BaselineState;
+use App\Services\Reset\SchemaFingerprint;
 use App\Services\Reset\ScratchDatabase;
 use App\Services\Reset\SqlSnapshot;
 use App\Services\Reset\TestEnvironment;
@@ -43,12 +45,18 @@ final class ResetBaselineCommand extends Command
         'sessions', 'telescope_entries', 'telescope_entries_tags', 'telescope_monitoring',
     ];
 
-    protected $signature = 'rimify:reset-baseline {--path= : Where to write it (default: the configured baseline)}';
+    protected $signature = 'rimify:reset-baseline
+        {--path= : Where to write it (default: the configured baseline)}
+        {--check : Only say whether the baseline holds every migration the code ships (exit 1 when not); writes nothing}';
 
     protected $description = 'Write the baseline a reset of the test environment starts from (local only)';
 
     public function handle(): int
     {
+        if ($this->option('check')) {
+            return $this->check((string) ($this->option('path') ?: TestEnvironment::baseline()));
+        }
+
         if (! app()->environment(['local', 'testing'])) {
             $this->error('The baseline is built on a development machine, never on a host.');
 
@@ -95,10 +103,16 @@ final class ResetBaselineCommand extends Command
                 $scratch->db()->select("SELECT TABLE_NAME AS t FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME"),
             );
             $migrations = array_map(static fn (mixed $m): string => (string) $m, $scratch->db()->table('migrations')->orderBy('id')->pluck('migration')->all());
+            $last = $scratch->db()->table('migrations')->orderByDesc('batch')->orderByDesc('migration')->first(['migration', 'batch']);
 
+            // Its state, so a restore can refuse a baseline that no longer fits (BaselineState, the brief of 05.10.2026,
+            // §2.1): the migrations, the last one, the schema's shape — and which app built it, for whoever reads it.
             $summary = (new SqlSnapshot($scratch->db()))->write($path, $tables, [
                 'purpose' => 'Grundstand der Testumgebung (php artisan rimify:reset-baseline)',
                 'migrations' => $migrations,
+                'last_migration' => ['name' => (string) ($last->migration ?? ''), 'batch' => (int) ($last->batch ?? 0)],
+                'schema' => SchemaFingerprint::of($scratch->db()),
+                'app' => ['commit' => self::commit(), 'release_seed' => ReleaseSeed::VERSION],
             ], self::STRUCTURE_ONLY, portable: true);
 
             $rows = array_sum(array_map(static fn (array $t): int => $t['rows'], $summary['tables']));
@@ -116,6 +130,51 @@ final class ResetBaselineCommand extends Command
             CarbonImmutable::setTestNow();
             $scratch->drop();
         }
+    }
+
+    /**
+     * `--check`: whether the baseline holds exactly the migrations the code ships — read from the files alone, with no
+     * database: the release build asks this to decide whether it must build a new baseline (deploy.yml).
+     */
+    private function check(string $path): int
+    {
+        try {
+            $recorded = BaselineState::recorded($path)['migrations'];
+        } catch (Throwable $e) {
+            $this->error('Die Vorlage lässt sich nicht lesen: '.$e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $code = BaselineState::code();
+
+        if ($recorded !== $code) {
+            $this->error(sprintf(
+                'Die Vorlage passt nicht zum Code: %d Migration(en) fehlen ihr, %d kennt nur sie. Neu bauen: php artisan rimify:reset-baseline',
+                count(array_diff($code, $recorded)),
+                count(array_diff($recorded, $code)),
+            ));
+
+            return self::FAILURE;
+        }
+
+        $this->info('Die Vorlage enthält alle '.count($code).' Migrationen des Codes.');
+
+        return self::SUCCESS;
+    }
+
+    /** The commit the baseline is built from: the release build's, else the working copy's, else none. */
+    private static function commit(): ?string
+    {
+        $sha = getenv('GITHUB_SHA');
+
+        if (is_string($sha) && $sha !== '') {
+            return substr($sha, 0, 8);
+        }
+
+        $head = function_exists('shell_exec') ? @shell_exec('git rev-parse --short=8 HEAD 2>'.(PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null')) : null;
+
+        return is_string($head) && preg_match('/^[0-9a-f]{7,40}$/', trim($head)) === 1 ? trim($head) : null;
     }
 
     /**

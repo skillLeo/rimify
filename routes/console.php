@@ -22,9 +22,10 @@ Schedule::command('rimify:bewertungen-einladen')->dailyAt('10:00')->timezone('Eu
 // #12, D-123: a contact-form message is kept twelve months, then deleted with the address in it.
 Schedule::command('model:prune', ['--model' => [ContactMessage::class]])->dailyAt('03:30')->timezone('Europe/Berlin');
 // Testumgebung zurücksetzen: an interrupted reset is put back from its safety copy within the minute (the site stays in
-// maintenance until then; with nothing interrupted the run touches nothing), and the copies go after the seven days
-// they can be undone in, each with its own line in the Protokoll. Never in production.
+// maintenance until then; with nothing interrupted the run touches nothing), and the copies go within the hour after
+// the seven days they can be undone in, each with its own line in the Protokoll — a copy of the shop's customers has an
+// end (the operator's brief of 05.10.2026, §2.2). The ones kept are sealed and private. Never in production.
 Schedule::command('rimify:reset --recover')->everyMinute()->evenInMaintenanceMode()->environments(TestEnvironment::ENVIRONMENTS);
-Schedule::command('rimify:reset --prune')->dailyAt('03:45')->timezone('Europe/Berlin')->environments(TestEnvironment::ENVIRONMENTS);
+Schedule::command('rimify:reset --prune')->hourly()->environments(TestEnvironment::ENVIRONMENTS);
 // The scheduler's pulse: rimify:preflight and the admin's health line read it to tell whether the cron line runs.
 Schedule::call(static fn () => ScheduleBeat::record())->everyMinute()->name('schedule-heartbeat');

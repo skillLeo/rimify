@@ -207,6 +207,22 @@ fi
 "$PHP" artisan up
 echo "== site is up"
 
+# ── Old backups ────────────────────────────────────────────────────────────────
+# What the host step keeps before each release (GO-LIVE.md §1: the dump, the code archive, a copy of .env, the logs)
+# holds the shop's customers and its keys: kept for a rollback, not for ever (the operator's brief of 05.10.2026, §2.2).
+# The newest five releases' sets always; an older set once it is 14 days old. Only the host step's own
+# `rimify-YYYYMMDD-HHMM.*` files — nothing else in the folder — and never a reason to fail the release.
+BACKUPS="${BACKUP_DIR:-$HOME/backups}"
+if [ -d "$BACKUPS" ]; then
+    KEEP="$(ls -1t "$BACKUPS"/rimify-????????-????.sql.gz 2>/dev/null | head -5 | sed -E 's#^.*/rimify-([0-9]{8}-[0-9]{4})\.sql\.gz$#\1#' || true)"
+    find "$BACKUPS" -maxdepth 1 -type f -name 'rimify-????????-????.*' -mtime +14 2>/dev/null | while read -r OLD; do
+        TS="$(basename "$OLD" | sed -E 's#^rimify-([0-9]{8}-[0-9]{4})\..*$#\1#')"
+        if ! printf '%s\n' "$KEEP" | grep -qx "$TS"; then
+            rm -f "$OLD" && echo "== removed old backup $(basename "$OLD")"
+        fi
+    done || true
+fi
+
 # ── Smoke ──────────────────────────────────────────────────────────────────────
 # The shop as a visitor without JavaScript sees it, the lookup, the PDF, the admin's sign-in, the
 # storage prefixes — and a test order where the sandbox is on. Non-zero on any failure: then follow

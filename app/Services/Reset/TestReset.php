@@ -52,7 +52,11 @@ class TestReset
 
     private const MARKER = 'running.json';
 
-    private const SNAPSHOT = 'snapshot.sql.gz';
+    /** A safety copy, encrypted at rest (SealedFile; the operator's brief of 05.10.2026, §2.2). */
+    public const SNAPSHOT = 'snapshot.sql.enc';
+
+    /** A copy written before 05.10.2026: plain gzip, still read for its undo, sealed by the next prune. */
+    public const LEGACY_SNAPSHOT = 'snapshot.sql.gz';
 
     private const MANIFEST = 'manifest.json';
 
@@ -64,6 +68,9 @@ class TestReset
 
     /** @var resource|null */
     private $lock = null;
+
+    /** @var array{bytes: int, tables: int, rows: int, triggers: int}|null the last safety copy written, as read back */
+    private ?array $backup = null;
 
     public function __construct(
         private readonly ResetFiles $files,
@@ -170,14 +177,15 @@ class TestReset
     }
 
     /**
-     * Resets the test environment. Returns what went.
+     * Resets the test environment. Returns what went, and the safety copy as it was read back.
      *
-     * @return array{id: string, level: ResetLevel, counts: list<array{label: string, count: int}>, files: array{images: int, pdfs: int, failed: int}}
+     * @return array{id: string, level: ResetLevel, counts: list<array{label: string, count: int}>, files: array{images: int, pdfs: int, failed: int}, backup: array{bytes: int, tables: int, rows: int, triggers: int}|null}
      *
      * @throws ResetRefused nothing changed, and the message says why
      */
     public function reset(ResetLevel $level, AdminUser|string $by, ResetOrigin $origin): array
     {
+        $this->backup = null;
         $this->guard($origin);
         $this->acquire();
 
@@ -247,12 +255,15 @@ class TestReset
                 $files = $this->files->trash($level, $dir);
             }
 
-            // R-04.1: the Protokoll entry once the database is what it now is — in a kept table, so it stays.
-            $this->record($by, 'system.reset', ['id' => $id, 'level' => $level->value, 'counts' => $counts, 'via' => $origin->via, 'environment' => (string) app()->environment()]);
-            $this->forgetCaches();
-            $this->writeManifest($dir, ['status' => 'done', 'files' => $files]);
+            // The copy, its manifest and the files moved beside it: this account's alone.
+            self::privateTree($dir);
 
-            return ['id' => $id, 'level' => $level, 'counts' => $counts, 'files' => $files];
+            // R-04.1: the Protokoll entry once the database is what it now is — in a kept table, so it stays.
+            $this->record($by, 'system.reset', ['id' => $id, 'level' => $level->value, 'counts' => $counts, 'via' => $origin->via, 'environment' => (string) app()->environment(), 'backup_bytes' => $this->backup['bytes'] ?? null]);
+            $this->forgetCaches();
+            $this->writeManifest($dir, ['status' => 'done', 'files' => $files, 'backup' => $this->backup]);
+
+            return ['id' => $id, 'level' => $level, 'counts' => $counts, 'files' => $files, 'backup' => $this->backup];
         } finally {
             $this->release();
         }
@@ -262,12 +273,13 @@ class TestReset
      * Undoes the last reset, within seven days: the tables it replaced back from its safety copy, the demo rows of the
      * kept tables back where it took them, its files back. What was made in the shop since is lost — the page says so.
      *
-     * @return array{id: string, level: ResetLevel, files: array{restored: int, failed: int}}
+     * @return array{id: string, level: ResetLevel, files: array{restored: int, failed: int}, backup: array{bytes: int, tables: int, rows: int, triggers: int}|null}
      *
      * @throws ResetRefused nothing changed, and the message says why
      */
     public function undo(AdminUser|string $by, ResetOrigin $origin): array
     {
+        $this->backup = null;
         $this->guard($origin);
         $this->acquire();
 
@@ -282,7 +294,7 @@ class TestReset
 
             $level = ResetLevel::from($last['level']);
             $source = TestEnvironment::dir().'/'.$last['id'];
-            $snapshot = $source.'/'.self::SNAPSHOT;
+            $snapshot = self::snapshotIn($source);
             $this->checkSnapshot($snapshot);
             $this->checkProbe('undo', 'vor dem Rückgängigmachen', $by, $level);
             $this->checkRoom(ResetLevel::Demo);
@@ -353,14 +365,15 @@ class TestReset
             }
 
             $files = $this->files->restore($source);
+            self::privateTree($dir);
 
             // R-04.1: the Protokoll entry once the database is what it now is.
             $this->record($by, 'system.reset_undone', ['id' => $last['id'], 'level' => $level->value, 'reset_at' => $last['at'], 'via' => $origin->via]);
             $this->forgetCaches();
             $this->writeManifest($source, ['status' => 'undone', 'undone_at' => CarbonImmutable::now('UTC')->toIso8601String()]);
-            $this->writeManifest($dir, ['status' => 'done', 'files' => $files]);
+            $this->writeManifest($dir, ['status' => 'done', 'files' => $files, 'backup' => $this->backup]);
 
-            return ['id' => $last['id'], 'level' => $level, 'files' => $files];
+            return ['id' => $last['id'], 'level' => $level, 'files' => $files, 'backup' => $this->backup];
         } finally {
             $this->release();
         }
@@ -384,7 +397,7 @@ class TestReset
         $at = CarbonImmutable::parse((string) ($last['at'] ?? 'now'));
         $until = $at->addDays(TestEnvironment::KEEP_DAYS);
         $undone = is_string($last['undone_at'] ?? null);
-        $snapshot = TestEnvironment::dir().'/'.$last['id'].'/'.self::SNAPSHOT;
+        $snapshot = self::snapshotIn(TestEnvironment::dir().'/'.$last['id']);
 
         $reason = match (true) {
             $undone => 'Dieses Zurücksetzen ist schon rückgängig gemacht.',
@@ -478,6 +491,72 @@ class TestReset
         return $removed;
     }
 
+    /**
+     * The copies still inside their seven days, made private where they are not yet (the operator's brief of 05.10.2026,
+     * §2.2): every folder 0700 and every file 0600, and a plain copy written before that day sealed — then opened again
+     * and compared byte for byte with the plain one before that is removed, so a copy is never lost to its sealing.
+     * Returns how many copies were sealed. Run with every prune.
+     */
+    public function protectCopies(): int
+    {
+        $root = TestEnvironment::dir();
+
+        if (! is_dir($root)) {
+            return 0;
+        }
+
+        self::privateDir($root);
+        $running = $this->readMarker()['id'] ?? null;
+        $sealed = 0;
+
+        foreach (File::directories($root) as $folder) {
+            if (basename($folder) === $running) {
+                continue;
+            }
+
+            try {
+                $legacy = $folder.'/'.self::LEGACY_SNAPSHOT;
+                $target = $folder.'/'.self::SNAPSHOT;
+
+                if (is_file($legacy) && ! is_file($target)) {
+                    SealedFile::seal($legacy, $target);
+                    $opened = SealedFile::open($target);
+
+                    try {
+                        $same = hash_file('sha256', $opened) === hash_file('sha256', $legacy);
+                    } finally {
+                        @unlink($opened);
+                    }
+
+                    if (! $same) {
+                        @unlink($target);
+
+                        throw new RuntimeException("Die versiegelte Sicherung {$target} entspricht nicht der alten; die alte bleibt.");
+                    }
+
+                    @unlink($legacy);
+                    $sealed++;
+                }
+
+                self::privateTree($folder);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $sealed;
+    }
+
+    /** A copy's folder and everything in it: folders 0700, files 0600. */
+    private static function privateTree(string $folder): void
+    {
+        @chmod($folder, 0700);
+
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($folder, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST) as $item) {
+            @chmod($item->getPathname(), $item->isDir() ? 0700 : 0600);
+        }
+    }
+
     /* ── The steps ──────────────────────────────────────────────────────────────── */
 
     /**
@@ -549,11 +628,12 @@ class TestReset
             throw new ResetRefused('Der Server meldet nicht, wie viel Speicherplatz frei ist. Ohne diese Angabe legt der Shop keine Sicherung an. Es wurde nichts verändert.');
         }
 
+        // The free figure itself is not shown: on a shared host it is the whole volume's, not the account's (the brief
+        // of 05.10.2026, §2.2) — what counts there is that the copy is written and read back whole.
         if ($free < $needed) {
             throw new ResetRefused(sprintf(
-                'Für die Sicherung ist nicht genug Speicherplatz frei: Gebraucht werden bis zu %s, frei sind %s. Es wurde nichts verändert.',
+                'Für die Sicherung ist nicht genug Speicherplatz frei: Gebraucht werden bis zu %s, und der Server meldet weniger. Es wurde nichts verändert.',
                 self::megabytes($needed),
-                self::megabytes((int) $free),
             ));
         }
     }
@@ -567,17 +647,19 @@ class TestReset
     private function checkedBaseline(): string
     {
         $path = TestEnvironment::baseline();
-        $summary = is_file($path) ? SqlSnapshot::summary($path) : null;
+
+        // Its migrations against the code's and the database's, its schema against the database's (BaselineState):
+        // a baseline that no longer fits is never restored, whatever else holds.
+        $mismatch = BaselineState::mismatch($path, DB::connection());
+
+        if ($mismatch !== null) {
+            throw new ResetRefused($mismatch);
+        }
+
+        $summary = SqlSnapshot::summary($path);
 
         if ($summary === null) {
             throw new ResetRefused('Die Vorlage für den leeren Shop fehlt (database/baseline/testumgebung.sql). Es wurde nichts verändert.');
-        }
-
-        $meta = SqlSnapshot::meta($path);
-        $migrations = array_values(array_filter((array) ($meta['migrations'] ?? []), 'is_string'));
-
-        if (self::sorted($migrations) !== self::sorted($this->migrationsRan())) {
-            throw new ResetRefused('Die Vorlage für den leeren Shop passt nicht zum Stand der Datenbank. Sie muss neu erzeugt werden (php artisan rimify:reset-baseline). Es wurde nichts verändert.');
         }
 
         $expected = $summary['triggers'];
@@ -627,7 +709,7 @@ class TestReset
                 'database' => DB::connection()->getDatabaseName(),
                 'engine' => (string) DB::selectOne('SELECT VERSION() AS v')->v,
                 'migrations' => $this->migrationsRan(),
-            ]);
+            ], sealed: true);
 
             $this->checkCopy($path, $tables);
         } catch (Throwable $e) {
@@ -636,6 +718,15 @@ class TestReset
 
             throw new ResetRefused('Die Sicherung ließ sich nicht vollständig schreiben und prüfen. Es wurde nichts verändert. Grund: '.mb_substr($e->getMessage(), 0, 200));
         }
+
+        // What the screen and the command say instead of a free-space figure the host does not mean (the brief of
+        // 05.10.2026, §2.2): the copy's own size, and that it was read back whole.
+        $this->backup = [
+            'bytes' => (int) filesize($path),
+            'tables' => count($written['tables']),
+            'rows' => array_sum(array_map(static fn (array $t): int => $t['rows'], $written['tables'])),
+            'triggers' => $written['triggers'],
+        ];
 
         $floors = [];
 
@@ -844,9 +935,9 @@ class TestReset
 
             if (! $done) {
                 $tables = array_values(array_filter((array) ($marker['tables'] ?? []), 'is_string'));
-                $snapshot = TestEnvironment::dir().'/'.$id.'/'.self::SNAPSHOT;
+                $snapshot = self::snapshotIn(TestEnvironment::dir().'/'.$id);
 
-                if ($tables !== [] && SqlSnapshot::summary($snapshot) !== null) {
+                if ($tables !== [] && is_file($snapshot) && SqlSnapshot::summary($snapshot) !== null) {
                     (new SqlSnapshot(DB::connection()))->replace($tables, $snapshot, $snapshot);
                 }
 
@@ -1055,7 +1146,7 @@ class TestReset
      */
     private function acquire(bool $throw = true): bool
     {
-        File::ensureDirectoryExists(TestEnvironment::dir());
+        self::privateDir(TestEnvironment::dir());
         $handle = fopen(TestEnvironment::dir().'/.lock', 'c');
 
         if ($handle === false || ! flock($handle, LOCK_EX | LOCK_NB)) {
@@ -1100,15 +1191,24 @@ class TestReset
             $id = $base.'-'.$n;
         }
 
-        File::ensureDirectoryExists(TestEnvironment::dir().'/'.$id);
+        self::privateDir(TestEnvironment::dir().'/'.$id);
 
         return [$id, TestEnvironment::dir().'/'.$id];
+    }
+
+    /** A folder only this account reads (0700): the copies, their files and the marker hold the shop's customers. */
+    private static function privateDir(string $dir): void
+    {
+        File::ensureDirectoryExists($dir, 0700);
+        @chmod($dir, 0700);
     }
 
     /** @param  array<string, mixed>  $marker */
     private function mark(array $marker): void
     {
-        file_put_contents(TestEnvironment::dir().'/'.self::MARKER, json_encode($marker + ['pid' => getmypid(), 'at' => CarbonImmutable::now('UTC')->toIso8601String()], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $file = TestEnvironment::dir().'/'.self::MARKER;
+        file_put_contents($file, json_encode($marker + ['pid' => getmypid(), 'at' => CarbonImmutable::now('UTC')->toIso8601String()], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        @chmod($file, 0600);
     }
 
     private function unmark(): void
@@ -1128,8 +1228,20 @@ class TestReset
     private function writeManifest(string $dir, array $values): void
     {
         $file = $dir.'/'.self::MANIFEST;
-        File::ensureDirectoryExists($dir);
+        self::privateDir($dir);
         file_put_contents($file, json_encode([...self::readJson($file), ...$values], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        @chmod($file, 0600);
+    }
+
+    /**
+     * The safety copy in a reset's folder: the sealed one, or a plain one written before 05.10.2026 (still read for its
+     * undo, sealed by the next prune).
+     */
+    public static function snapshotIn(string $dir): string
+    {
+        return is_file($dir.'/'.self::LEGACY_SNAPSHOT) && ! is_file($dir.'/'.self::SNAPSHOT)
+            ? $dir.'/'.self::LEGACY_SNAPSHOT
+            : $dir.'/'.self::SNAPSHOT;
     }
 
     /** @return array<string, mixed> */

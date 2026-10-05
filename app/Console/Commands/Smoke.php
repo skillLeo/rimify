@@ -14,6 +14,7 @@ use App\Models\WheelModel;
 use App\Payments\Payments;
 use App\Services\Admin\AuditTrail;
 use App\Services\Commerce\OrderPayments;
+use App\Services\Reset\BaselineState;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Smoke\PrivateFilesProbe;
 use App\Services\Smoke\ResetScreenProbe;
@@ -49,6 +50,7 @@ use Throwable;
  *   9  System › Zurücksetzen per role: 200 to a Super-Admin and 404 to every other role where the reset is available,
  *      404 to everyone elsewhere — production first of all (GO-LIVE.md §4.4)
  *  10  The reset's safety copies, the log and two canaries in storage/app/private: 403 or 404 over HTTP, never 200
+ *  11  The reset's baseline fits this code and this database: its migrations and its schema's fingerprint
  *
  * The product and the car are the first released pair the shop sells (a published document row, a
  * published wheel in stock, a car with complete data) — the golden record on staging — unless
@@ -203,6 +205,21 @@ final class Smoke extends Command
         $this->check('Speicher-Präfixe', fn (): string => $this->storage($settings, $audit, $disks));
 
         $this->check('System › Zurücksetzen', fn (): string => $this->resetScreen($resetScreen));
+
+        // The baseline a reset restores from fits this code and this database (BaselineState; the brief of 05.10.2026,
+        // §2.1): its migrations and its schema's fingerprint. In the live shop there is no reset, and no baseline.
+        $this->check('Vorlage zum Zurücksetzen', function (): string {
+            if (! TestEnvironment::environmentAllows()) {
+                return 'im Live-Shop gibt es kein Zurücksetzen und keine Vorlage';
+            }
+
+            $path = TestEnvironment::baseline();
+            $mismatch = BaselineState::mismatch($path, DB::connection());
+            $this->expect($mismatch === null, (string) $mismatch);
+            $state = BaselineState::recorded($path);
+
+            return 'passt: '.count($state['migrations']).' Migrationen bis „'.$state['last'].'“, Aufbau '.substr((string) $state['schema'], 0, 12);
+        });
 
         $this->check('Private Dateien über HTTP', function () use ($privateFiles): string {
             $results = $privateFiles->run($this->base);

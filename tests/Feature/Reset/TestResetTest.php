@@ -299,7 +299,7 @@ it('says how long the reset can still be undone, closes the window with one sent
         'reason' => 'Die 7 Tage sind vorbei: Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.',
     ]);
 
-    test()->artisan('rimify:reset', ['--prune' => true])->expectsOutputToContain('1 alte Sicherung(en) entfernt.')->assertSuccessful()->run();
+    test()->artisan('rimify:reset', ['--prune' => true])->expectsOutputToContain('1 alte Sicherung(en) entfernt, 0 verschlüsselt.')->assertSuccessful()->run();
 
     $entry = AuditLog::query()->where('description', 'system.reset_backup_removed')->sole();
 
