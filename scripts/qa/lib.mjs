@@ -1,9 +1,10 @@
 // Shared pieces of the QA scripts: the routes every gate walks, the two documents (phone and
 // desktop) and the small argument parser. Every script in this folder runs against a server that is
-// already up — the production build with SSR on, by default at http://127.0.0.1:8000.
+// already up — the production build with SSR on: QA_BASE_URL, else the suite's development shop
+// (E2E_BASE_URL, or E2E_ADMIN_PORT's), and only then :8000 — which may be another project's on this machine.
 import { chromium, firefox, webkit } from '@playwright/test'
 
-export const BASE = process.env.QA_BASE_URL ?? 'http://127.0.0.1:8000'
+export const BASE = process.env.QA_BASE_URL ?? process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.E2E_ADMIN_PORT ?? 8000}`
 
 export const MOBILE_UA =
     'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36'

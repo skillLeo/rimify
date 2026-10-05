@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import { waitForApp } from './bugs/faq-support'
-import { REVIEW_PASSWORD, consentGiven } from './support'
+import { DEV, REVIEW_PASSWORD, consentGiven } from './support'
 
 /*
  * D-142: the review's feedback button on the shop's own pages, where the client spends his review — for a signed-in
@@ -8,7 +8,7 @@ import { REVIEW_PASSWORD, consentGiven } from './support'
  * page carries no trace of it. Writes one review point per run, on the development database only.
  */
 
-const BASE = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000'
+const BASE = DEV
 
 async function signIn(page: Page): Promise<void> {
     await page.goto('/admin/anmelden', { waitUntil: 'domcontentloaded' })

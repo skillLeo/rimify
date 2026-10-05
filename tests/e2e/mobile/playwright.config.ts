@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
-import { SHOP_DB } from '../../../e2e/shop'
+import { SHOP, SHOP_DB } from '../../../e2e/shop'
+
+/* The shop's address in one place (e2e/shop.ts): the server listens where the specs look. */
+const SHOP_PORT = new URL(SHOP).port
 
 /*
  * The device lab for the phone documents. Four iPhones on WebKit, two Androids on Chromium, all
@@ -25,7 +28,7 @@ export default defineConfig({
     outputDir: '../../../test-results/mobile',
     use: {
         // The phone documents are the storefront's: the e2e shop (e2e/shop.ts), its own database.
-        baseURL: process.env.E2E_SHOP_URL ?? 'http://127.0.0.1:8010',
+        baseURL: SHOP,
         locale: 'de-DE',
         timezoneId: 'Europe/Berlin',
         trace: 'retain-on-failure',
@@ -41,10 +44,10 @@ export default defineConfig({
     ],
     // Several PHP workers behind the port (scripts/e2e/serve.mjs), as the main suite.
     webServer: {
-        command: 'node scripts/e2e/serve.mjs --port 8010 --workers 4',
+        command: `node scripts/e2e/serve.mjs --port ${SHOP_PORT} --workers 4`,
         cwd: '../../..',
         env: SHOP_DB,
-        url: 'http://127.0.0.1:8010/up',
+        url: `${SHOP}/up`,
         reuseExistingServer: true,
         timeout: 90_000,
     },

@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { consentGiven, open } from '../support';
+import { DEV, consentGiven, open } from '../support';
 
 /*
  * Shared steps of the storefront sweep's bug tests (docs/qa/BUGS.md, SWEEP-xx; docs/reviews/sweep-storefront.md).
@@ -17,7 +17,7 @@ import { consentGiven, open } from '../support';
  *   - SWEEP-02 puts one wheel into the session's basket (Basket::SESSION_KEY) — normal shopping, no order.
  */
 
-export const SWEEP = process.env.SWEEP_BASE_URL ?? process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+export const SWEEP = process.env.SWEEP_BASE_URL ?? DEV;
 
 /** Where the sweep's bug tests leave their evidence. Relative to the project root, where Playwright runs. */
 export const SHOTS = 'docs/qa/shots/sweep-storefront';

@@ -1,4 +1,5 @@
 import { test as base, expect, type Page, type TestInfo } from '@playwright/test'
+import { SHOP } from '../../../e2e/shop'
 
 /**
  * Shared ground for the device lab: the cookie choice already made, a page opener that waits
@@ -13,7 +14,8 @@ export const CONSENT_COOKIE = {
 export const test = base.extend<{ consent: void }>({
     consent: [
         async ({ context, baseURL }, use) => {
-            await context.addCookies([{ ...CONSENT_COOKIE, url: baseURL ?? 'http://127.0.0.1:8000' }])
+            // The lab's own shop (its config's baseURL); never a port typed in here.
+            await context.addCookies([{ ...CONSENT_COOKIE, url: baseURL ?? SHOP }])
             await use()
         },
         { auto: true },

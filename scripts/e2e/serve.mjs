@@ -9,9 +9,12 @@
  *
  *   node scripts/e2e/serve.mjs --port 8000 --workers 4
  *   node scripts/e2e/serve.mjs --port 8010 --workers 4
+ *   node scripts/e2e/serve.mjs --port 8012 --workers 2
  *
- * The backends listen on port + 100 + i (8100… for 8000, 8110… for 8010). The environment passes through,
- * so a suite's own database reaches every backend. Stopping this process stops them.
+ * The backends listen on ports the operating system hands out, never on a fixed scheme: the old one, port + 100 + i,
+ * put the :8020 server's fourth worker on 8123, where another project on this machine serves — that worker never
+ * started, and the proxy never answered (04.10.2026). The environment passes through, so a suite's own database
+ * reaches every backend. Stopping this process stops them.
  *
  * The shop's port (8010) always serves the shop's database, `rimify_wf_e2e` on the MariaDB the suite reseeds
  * (e2e/shop.ts SHOP_DB, :3308), unless the environment names another. Started by hand with the database's name alone,
@@ -21,6 +24,7 @@
 
 import { spawn } from 'node:child_process'
 import http from 'node:http'
+import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -43,8 +47,26 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const router = path.join(root, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')
 const php = process.env.PHP_BINARY ?? 'php'
 
-const backends = Array.from({ length: count }, (_, i) => {
-    const backendPort = port + 100 + i
+/** `n` ports nothing listens on, from the operating system: all held at once, so no two are the same, then let go. */
+async function freePorts(n) {
+    const probes = await Promise.all(
+        Array.from(
+            { length: n },
+            () =>
+                new Promise((resolve, reject) => {
+                    const probe = net.createServer()
+                    probe.on('error', reject)
+                    probe.listen(0, '127.0.0.1', () => resolve(probe))
+                })
+        )
+    )
+    const ports = probes.map((probe) => probe.address().port)
+    await Promise.all(probes.map((probe) => new Promise((resolve) => probe.close(resolve))))
+
+    return ports
+}
+
+const backends = (await freePorts(count)).map((backendPort) => {
     const child = spawn(php, ['-S', `127.0.0.1:${backendPort}`, router], { cwd: path.join(root, 'public'), env, stdio: 'ignore', windowsHide: true })
 
     return { port: backendPort, child, busy: 0 }

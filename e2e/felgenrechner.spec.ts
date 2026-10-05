@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { consentGiven, expectNoHorizontalOverflow, open } from './support';
+import { DEV, consentGiven, expectNoHorizontalOverflow, open } from './support';
 import { SHOP } from './shop';
 
 // A storefront spec: the shop with wheels in it (e2e/shop.ts).
@@ -17,7 +17,7 @@ test.use({ baseURL: SHOP });
  * Runs against the production build: it needs `npm run build` with this change in it first.
  */
 
-const BASE = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+const BASE = DEV;
 
 interface Case {
     name: string;

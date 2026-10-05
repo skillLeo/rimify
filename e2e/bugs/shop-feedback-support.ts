@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { REVIEW_PASSWORD } from '../support';
+import { DEV, REVIEW_PASSWORD } from '../support';
 import { waitForApp } from './faq-support';
 
 /*
@@ -17,7 +17,7 @@ import { waitForApp } from './faq-support';
  */
 
 export const SHOP_FEEDBACK_BASE =
-    process.env.SHOP_FEEDBACK_BASE_URL ?? process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+    process.env.SHOP_FEEDBACK_BASE_URL ?? DEV;
 
 /** Where the specs leave their evidence. Relative to the project root, where Playwright runs. */
 export const SHOTS = 'docs/qa/shots/shop-feedback-2026-10-03';
