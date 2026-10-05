@@ -6,8 +6,8 @@ namespace App\Console\Commands;
 
 use App\Support\DemoWheels;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Process;
 use Symfony\Component\Process\ExecutableFinder;
-use Symfony\Component\Process\Process;
 
 /**
  * The demo wheels' cut-outs, from the free-licence photographs to the files the catalogue serves.
@@ -339,12 +339,13 @@ final class ProcessWheelImages extends Command
             $arguments[] = $cutout;
         }
 
-        $process = new Process($arguments, base_path(), timeout: 900);
-        $process->run();
+        // Through the Process facade, so a test can stand in for the pipeline and read what it was handed
+        // (ProcessWheelImagesTest); the pipeline's own work is WheelImagePipelineTest's.
+        $result = Process::path(base_path())->timeout(900)->run($arguments);
 
-        if (! $process->isSuccessful()) {
+        if (! $result->successful()) {
             $this->error(sprintf('  %s → %s: wheel-image.mjs failed', $job['file'], $job['slug']));
-            $this->line(trim($process->getErrorOutput()));
+            $this->line(trim($result->errorOutput()));
 
             return false;
         }
@@ -355,7 +356,7 @@ final class ProcessWheelImages extends Command
             return false;
         }
 
-        $this->line('  '.trim($process->getOutput()));
+        $this->line('  '.trim($result->output()));
 
         return true;
     }
@@ -370,16 +371,11 @@ final class ProcessWheelImages extends Command
     {
         $cutout = $outDir.DIRECTORY_SEPARATOR.'source-cutout.png';
 
-        $process = new Process(
-            [$rembg, 'i', '-m', 'birefnet-general', '-dc', $job['path'], $cutout],
-            base_path(),
-            timeout: 900,
-        );
-        $process->run();
+        $result = Process::path(base_path())->timeout(900)->run([$rembg, 'i', '-m', 'birefnet-general', '-dc', $job['path'], $cutout]);
 
-        if (! $process->isSuccessful() || ! is_file($cutout)) {
+        if (! $result->successful() || ! is_file($cutout)) {
             $this->warn(sprintf('  %s: rembg failed, falling back to the circular mask', $job['file']));
-            $this->line(trim($process->getErrorOutput()));
+            $this->line(trim($result->errorOutput()));
 
             return null;
         }

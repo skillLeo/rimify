@@ -116,9 +116,18 @@ jobs:
       # directories (Tests\TestCase).
       - name: Pest
         if: ${{ !cancelled() }}
-        run: php vendor/bin/pest --parallel --log-junit junit.xml
+        run: php vendor/bin/pest --parallel --exclude-group=pipeline --log-junit junit.xml
+
+      # The image pipeline's own test, alone after the parallel run (WheelImagePipelineTest): real work for node and sharp,
+      # which beside a full parallel run would be measured against the machine's load instead of its result (the
+      # operator's brief of 05.10.2026, §4).
+      - name: Pest — the image pipeline, alone
+        if: ${{ !cancelled() }}
+        run: php vendor/bin/pest --group=pipeline --log-junit junit-pipeline.xml
 
       # A red run names its failing tests as annotations, readable on the run page.
       - name: Failures as annotations
         if: failure()
-        run: php scripts/ci/junit-annotations.php junit.xml
+        run: |
+          php scripts/ci/junit-annotations.php junit.xml
+          php scripts/ci/junit-annotations.php junit-pipeline.xml
