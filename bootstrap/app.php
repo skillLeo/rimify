@@ -7,6 +7,7 @@ use App\Http\Middleware\AssignVisitorKey;
 use App\Http\Middleware\DetectDevice;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
 use App\Http\Middleware\EnsureAdminSessionValid;
+use App\Http\Middleware\EnsureResetAvailable;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\VaryByDevice;
@@ -45,9 +46,11 @@ return Application::configure(basePath: dirname(__DIR__))
          * middleware it lost that race — `Authenticate` sits in the framework's priority list and
          * was sorted ahead of it, so a closed panel answered a redirect to its own sign-in screen,
          * which both admits there is something here and sends the reader to a page that is gone.
-         * At the front of the group nothing can be sorted above it.
+         * At the front of the group nothing can be sorted above it. `EnsureResetAvailable` rides beside
+         * it for the same reason: System › Zurücksetzen answers 404, never a 403 or a sign-in, wherever
+         * the reset is not available.
          */
-        $middleware->web(prepend: [SecurityHeaders::class, EnsureAdminPanelEnabled::class]);
+        $middleware->web(prepend: [SecurityHeaders::class, EnsureAdminPanelEnabled::class, EnsureResetAvailable::class]);
 
         // The device split reads a cookie, so it can only run once the cookies are decrypted.
         // An admin session that was revoked or whose account was suspended ends here, after the

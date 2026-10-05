@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { SHOP_DB } from './shop'
+import { EMPTY_SHOP_DB, SHOP_DB } from './shop'
 
 /*
  * Every run of the suite starts from the same shop.
@@ -17,9 +17,12 @@ export default function globalSetup(): void {
         return
     }
 
-    execFileSync(process.env.PHP_BINARY ?? 'php', ['artisan', 'migrate:fresh', '--seed', '--seeder=E2eShopSeeder', '--force', '--no-interaction'], {
-        cwd: new URL('..', import.meta.url),
-        env: { ...process.env, ...SHOP_DB },
-        stdio: 'pipe',
-    })
+    // The shop with wheels, and its twin with none published (EMPTY_SHOP).
+    for (const [seeder, db] of [['E2eShopSeeder', SHOP_DB], ['E2eEmptyShopSeeder', EMPTY_SHOP_DB]] as const) {
+        execFileSync(process.env.PHP_BINARY ?? 'php', ['artisan', 'migrate:fresh', '--seed', `--seeder=${seeder}`, '--force', '--no-interaction'], {
+            cwd: new URL('..', import.meta.url),
+            env: { ...process.env, ...db },
+            stdio: 'pipe',
+        })
+    }
 }

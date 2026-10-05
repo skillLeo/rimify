@@ -6,9 +6,12 @@ use App\Http\Middleware\EnsureSudo;
 use App\Models\AdminUser;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Reset\ResetLevel;
+use App\Services\Reset\ResetOrigin;
 use App\Services\Reset\ResetRefused;
+use App\Services\Reset\TestEnvironment;
 use App\Services\Reset\TestReset;
 use Database\Seeders\AccessSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia;
 use Mockery\MockInterface;
@@ -17,13 +20,20 @@ use Tests\TestCase;
 /*
  * System › Testumgebung zurücksetzen as a page: the Super-Admin alone, behind the password once more; the word typed
  * before anything happens, checked on the server too; the reset and the undo handed to TestReset (whose own work is
- * TestResetTest's), and its refusals said in its words. Never in production: there the page is not even a route.
+ * TestResetTest's) with the screen as their origin, and its refusals said in its words. Wherever the reset is not
+ * available — production, a server without RIMIFY_RESET_ERLAUBT=true, the live shop's database — the address answers
+ * 404, never a 403: it does not say there is something behind it (the reset brief of 05.10.2026, §3.2).
  */
 
 const RESET_URL = '/admin/system/zuruecksetzen';
 
 beforeEach(function (): void {
     $this->seed(AccessSeeder::class);
+    config(['rimify.reset.allowed' => true]);
+});
+
+afterEach(function (): void {
+    app()->detectEnvironment(static fn (): string => 'testing');
 });
 
 function resetAdmin(string $role = 'super-admin'): AdminUser
@@ -51,12 +61,25 @@ function fakeReset(): MockInterface
     return $mock;
 }
 
+/** Every way to ask the page: a guest, a role that may not, the Super-Admin — each GET and both POSTs. */
+function resetRequests(): array
+{
+    return [
+        fn () => test()->get(RESET_URL),
+        fn () => test()->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestEnvironment::WORD]),
+        fn () => asResetAdmin('accountant')->get(RESET_URL),
+        fn () => asResetAdmin()->get(RESET_URL),
+        fn () => asResetAdmin()->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestEnvironment::WORD]),
+        fn () => asResetAdmin()->post(RESET_URL.'/rueckgaengig'),
+    ];
+}
+
 it('is the Super-Admin\'s alone, asks for the password first, and counts what each level would take', function (): void {
     fakeReset();
 
     foreach (['catalogue-manager', 'accountant', 'order-manager'] as $role) {
         asResetAdmin($role)->get(RESET_URL)->assertForbidden();
-        asResetAdmin($role)->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestReset::WORD])->assertForbidden();
+        asResetAdmin($role)->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestEnvironment::WORD])->assertForbidden();
     }
 
     $this->flushSession();
@@ -72,19 +95,50 @@ it('is the Super-Admin\'s alone, asks for the password first, and counts what ea
             ->where('levels.0.blocked', 'Zwanzig Bestellungen halten sie fest.'));
 });
 
-it('resets nothing without the word, and hands the level and the person to the reset with it', function (): void {
+it('answers 404, never 403, wherever the reset is not available — in production first of all', function (): void {
+    $mock = fakeReset();
+    $mock->shouldNotReceive('reset', 'undo');
+
+    $notFound = static function (): void {
+        foreach (resetRequests() as $request) {
+            $request()->assertNotFound();
+        }
+    };
+
+    // Production: for everyone, the Super-Admin in sudo mode included — and with the server's flag set.
+    app()->detectEnvironment(static fn (): string => 'production');
+    $notFound();
+    expect(TestEnvironment::environmentAllows())->toBeFalse();
+    app()->detectEnvironment(static fn (): string => 'testing');
+
+    // A test environment without the server's yes.
+    config(['rimify.reset.allowed' => false]);
+    $notFound();
+    config(['rimify.reset.allowed' => true]);
+
+    // A test server pointed at the live shop's database.
+    DB::table('settings')->where('key', TestEnvironment::MARKER)->update(['value' => json_encode('production')]);
+    $notFound();
+    DB::table('settings')->where('key', TestEnvironment::MARKER)->update(['value' => json_encode('testing')]);
+
+    // Where it is available, a role that may not use it is told so: the 404 above is the reset's, not the role's.
+    asResetAdmin('accountant')->get(RESET_URL)->assertForbidden();
+});
+
+it('resets nothing without the word, and hands the level, the person and the screen as origin to the reset with it', function (): void {
     $mock = fakeReset();
     $mock->shouldNotReceive('reset');
 
     asResetAdmin()->from(RESET_URL)->post(RESET_URL, ['level' => 'shop', 'confirmation' => 'zurücksetzen bitte'])
         ->assertRedirect(RESET_URL)
         ->assertSessionHasErrors(['confirmation' => 'Tippe genau „ZURÜCKSETZEN“, um zu bestätigen.']);
-    asResetAdmin()->from(RESET_URL)->post(RESET_URL, ['level' => 'everything', 'confirmation' => TestReset::WORD])
+    asResetAdmin()->from(RESET_URL)->post(RESET_URL, ['level' => 'everything', 'confirmation' => TestEnvironment::WORD])
         ->assertSessionHasErrors('level');
 
     $fresh = fakeReset();
     $fresh->shouldReceive('reset')->once()
-        ->withArgs(fn (ResetLevel $level, AdminUser $by): bool => $level === ResetLevel::Shop && $by->email === 'super-admin@rimify.test')
+        ->withArgs(fn (ResetLevel $level, AdminUser $by, ResetOrigin $origin): bool => $level === ResetLevel::Shop && $by->email === 'super-admin@rimify.test'
+            && $origin->via === 'System › Zurücksetzen' && $origin->refusal() === null)
         ->andReturn(['id' => 'x', 'level' => ResetLevel::Shop, 'counts' => [['label' => 'Felgen', 'count' => 12], ['label' => 'Gutachten', 'count' => 3]], 'files' => ['images' => 61, 'pdfs' => 3, 'failed' => 0]]);
 
     asResetAdmin()->from(RESET_URL)->post(RESET_URL, ['level' => 'shop', 'confirmation' => ' ZURÜCKSETZEN '])
@@ -95,9 +149,10 @@ it('resets nothing without the word, and hands the level and the person to the r
 it('says a refusal in the reset\'s own words, and undoes the last reset on request', function (): void {
     $mock = fakeReset();
     $mock->shouldReceive('reset')->andThrow(new ResetRefused('In dieser Datenbank stehen echte Zahlungen. Sie wird nicht zurückgesetzt.'));
-    $mock->shouldReceive('undo')->once()->andReturn(['id' => 'x', 'level' => ResetLevel::Shop, 'files' => ['restored' => 64, 'failed' => 0]]);
+    $mock->shouldReceive('undo')->once()->withArgs(fn (AdminUser $by, ResetOrigin $origin): bool => $origin->refusal() === null)
+        ->andReturn(['id' => 'x', 'level' => ResetLevel::Shop, 'files' => ['restored' => 64, 'failed' => 0]]);
 
-    asResetAdmin()->from(RESET_URL)->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestReset::WORD])
+    asResetAdmin()->from(RESET_URL)->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestEnvironment::WORD])
         ->assertRedirect(RESET_URL)
         ->assertSessionHas('toast', 'In dieser Datenbank stehen echte Zahlungen. Sie wird nicht zurückgesetzt.');
 
@@ -108,7 +163,24 @@ it('says a refusal in the reset\'s own words, and undoes the last reset on reque
     asResetAdmin('accountant')->post(RESET_URL.'/rueckgaengig')->assertForbidden();
 });
 
-it('is on the rail for the Super-Admin in a test environment only', function (): void {
+it('shows how long the last reset can still be undone, and once it cannot, says why and offers no button', function (): void {
+    $mock = fakeReset();
+    $mock->shouldReceive('last')->andReturn([
+        'id' => '20261004-175904-shop', 'level' => 'shop', 'label' => 'Shopdaten', 'at' => '2026-10-04T17:59:04+00:00',
+        'atText' => '04.10.2026, 19:59 Uhr', 'by' => 'Konsole (rimify:reset)', 'until' => '11.10.2026, 19:59 Uhr',
+        'remaining' => null, 'undone' => false, 'undoneText' => null, 'undoable' => false,
+        'reason' => 'Die 7 Tage sind vorbei: Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.',
+    ]);
+
+    asResetAdmin()->get(RESET_URL)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('last.undoable', false)
+            ->where('last.remaining', null)
+            ->where('last.reason', 'Die 7 Tage sind vorbei: Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.'));
+});
+
+it('is on the rail for the Super-Admin only where the reset is available', function (): void {
     $hrefs = static fn (AdminUser $user): array => collect(app(AdminNavigation::class)->for($user))->flatMap(fn (array $g) => array_column($g['pages'], 'href'))->all();
 
     expect($hrefs(resetAdmin()))->toContain(RESET_URL)
@@ -116,22 +188,26 @@ it('is on the rail for the Super-Admin in a test environment only', function ():
         ->and(app(AdminNavigation::class)->breadcrumbs(app(AdminNavigation::class)->for(resetAdmin()), RESET_URL))
         ->toBe([['label' => 'System', 'href' => null], ['label' => 'Zurücksetzen', 'href' => null]]);
 
+    config(['rimify.reset.allowed' => false]);
+    expect($hrefs(resetAdmin()))->not->toContain(RESET_URL);
+    config(['rimify.reset.allowed' => true]);
+
     app()->detectEnvironment(static fn (): string => 'production');
 
     expect($hrefs(resetAdmin()))->not->toContain(RESET_URL)
-        ->and(resetAdmin()->can('view', TestReset::class))->toBeFalse();
-
-    app()->detectEnvironment(static fn (): string => 'testing');
+        ->and(resetAdmin()->can('view', TestEnvironment::class))->toBeFalse();
 });
 
-it('fails the preflight in production while the page is a route', function (): void {
+it('fails the preflight in production while the page is a route, the flag is on, or the database is not marked live', function (): void {
     expect(Route::has('admin.zuruecksetzen.show'))->toBeTrue();
 
     app()->detectEnvironment(static fn (): string => 'production');
 
+    // The suite's database was migrated as a test database, and the flag is on: three faults, named together on the
+    // row (one expected text per line of output).
     $this->artisan('rimify:preflight', ['--skip-s3' => true])
-        ->expectsOutputToContain('im Live-Shop erreichbar')
+        ->expectsOutputToContain('im Live-Shop erreichbar – die Routen dürfen hier nicht registriert sein (Routen-Cache neu bauen: php artisan optimize); '
+            .'RIMIFY_RESET_ERLAUBT=true steht in der Umgebung des Live-Shops – herausnehmen; '
+            .'die Datenbank nennt sich nicht die des Live-Shops (datenbank_umgebung: testing)')
         ->assertFailed();
-
-    app()->detectEnvironment(static fn (): string => 'testing');
 });

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { consentGiven, expectNoHorizontalOverflow, open } from './support';
+import { DEV, consentGiven, expectNoHorizontalOverflow, open } from './support';
 import { SHOP } from './shop';
 
 // A storefront spec: the shop with wheels in it (e2e/shop.ts).
@@ -12,7 +12,7 @@ test.use({ baseURL: SHOP });
  * checkbox is disabled at the cap.
  */
 
-const BASE = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+const BASE = DEV;
 
 function tiles(page: Page) {
     return page.locator('#h5 .tile');

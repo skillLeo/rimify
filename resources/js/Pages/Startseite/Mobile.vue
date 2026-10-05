@@ -268,13 +268,14 @@ onBeforeUnmount(() => {
             <p class="body-l muted home-hero__sub">{{ subline }}</p>
 
             <div class="home-hero__panel">
-                <VehiclePanel :makes="selector.makes" :total="vehicleCount" :garage="garage" />
+                <VehiclePanel :makes="selector.makes" :total="vehicleCount" :shop-empty="fitmentCount?.shopEmpty ?? popular.empty" :garage="garage" />
                 <!-- Where to ask, as on the desktop (#3, D-107). -->
                 <HeroHelp class="home-hero__help" />
             </div>
 
-            <div v-if="hero.product" class="home-hero__frame">
-                <HeroFrame :product="hero.product" />
+            <!-- Always: the brand's photograph stands with or without a catalogue (PROTECTED.md P1, the brief of 05.10.2026 §2). -->
+            <div class="home-hero__frame">
+                <HeroFrame :hero-photo="hero.photo ?? null" :product="hero.product" />
             </div>
         </div>
     </section>

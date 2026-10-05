@@ -9,6 +9,13 @@ import type { BrowserContext, Page } from '@playwright/test';
 export const CONSENT_COOKIE = 'rmf_consent';
 
 /**
+ * The development shop and its admin: where the specs that need its data go. One address for every spec, from the
+ * suite's own config (playwright.config.ts sets E2E_BASE_URL from E2E_ADMIN_PORT) — never a port typed into a spec:
+ * :8000 may be another project's on this machine (a helper that took it unasked failed twelve specs, 04.10.2026).
+ */
+export const DEV = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.E2E_ADMIN_PORT ?? 8000}`;
+
+/**
  * The review accounts' password on a development database (ReviewAccountsSeeder::PASSWORD), which is what the e2e
  * shop runs on. Never the preview's: those are set by the operator and live only in his docs/review/ACCOUNTS.md (D-141).
  */

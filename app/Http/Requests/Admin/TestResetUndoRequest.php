@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Models\AdminUser;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Illuminate\Foundation\Http\FormRequest;
 
 /** „Letztes Zurücksetzen rückgängig machen“: the Super-Admin alone (TestResetPolicy). It takes no input. */
@@ -15,7 +15,7 @@ class TestResetUndoRequest extends FormRequest
     {
         $user = $this->user('admin');
 
-        return $user instanceof AdminUser && $user->can('reset', TestReset::class);
+        return $user instanceof AdminUser && $user->can('reset', TestEnvironment::class);
     }
 
     /** @return array<string, list<string>> */

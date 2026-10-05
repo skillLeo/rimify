@@ -311,9 +311,14 @@ return [
     | Einstellungen › System › Testumgebung zurücksetzen (TestReset): never in production. Each reset keeps
     | its safety copy of the database and the files it moved in its own folder for seven days, so it can be
     | undone; the baseline is the rows a delivered test environment starts with (`rimify:reset-baseline`).
+    |
+    | `allowed` is the server's own yes (CLAUDE.md R-04.1): RIMIFY_RESET_ERLAUBT set to exactly `true` — not
+    | 1, not yes. Without it the screen answers 404 and the command refuses, whatever else holds. The test
+    | suite never sets it; a test that drives a reset sets it for itself.
     */
 
     'reset' => [
+        'allowed' => env('RIMIFY_RESET_ERLAUBT', false) === true,
         'dir' => env('RIMIFY_RESET_DIR', 'storage/app/private/resets'),
         'baseline' => env('RIMIFY_RESET_BASELINE', 'database/baseline/testumgebung.sql'),
     ],

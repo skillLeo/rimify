@@ -45,7 +45,13 @@ const confirmBody = computed(() => {
         return ''
     }
 
-    return `Das wird entfernt: ${counted(info)}. Benutzer, Rollen, Einstellungen und das Protokoll bleiben, und du bleibst angemeldet. Du kannst das Zurücksetzen ${props.keepDays} Tage lang rückgängig machen.`
+    /* „Demodaten“ takes the demo team and its entries with it; every other level keeps them all. */
+    const stays =
+        info.key === 'demo'
+            ? 'Die übrigen Benutzer und Protokolleinträge bleiben, wie sie sind'
+            : 'Benutzer, Rollen, Einstellungen und das Protokoll bleiben'
+
+    return `Das wird entfernt: ${counted(info)}. ${stays}, und du bleibst angemeldet. Du kannst das Zurücksetzen ${props.keepDays} Tage lang rückgängig machen.`
 })
 
 /** Safari does not focus a clicked button: focused first, the dialog hands the focus back here on „Abbrechen“. */
@@ -92,7 +98,12 @@ const undoBody = computed(() => {
             ? 'Die Demodaten kommen zurück'
             : `Felgen, Gutachten, Fahrzeuge, Bestellungen und die Bilder und PDFs dazu kommen zurück${last.level === 'all' ? ', ebenso Seiten, FAQ und Menüs' : ''}`
 
-    return `${back}, wie sie am ${last.atText} waren. Was seitdem im Shop angelegt wurde, geht dabei verloren. Benutzer, Rollen, Einstellungen und das Protokoll bleiben, wie sie jetzt sind.`
+    const stays =
+        last.level === 'demo'
+            ? 'Die übrigen Benutzer und Protokolleinträge bleiben, wie sie sind.'
+            : 'Benutzer, Rollen, Einstellungen und das Protokoll bleiben, wie sie jetzt sind.'
+
+    return `${back}, wie sie am ${last.atText} waren. Was seitdem im Shop angelegt wurde, geht dabei verloren. ${stays}`
 })
 
 function askUndo(event: MouseEvent): void {
@@ -120,14 +131,18 @@ function undo(): void {
 
 <template>
     <AdminPage title="Testumgebung zurücksetzen" :context="context">
-        <p class="adm-note zs-lead">Benutzer, Rollen, Einstellungen und das Protokoll bleiben auf jeder Stufe erhalten, und du bleibst angemeldet.</p>
+        <p class="adm-note zs-lead">
+            Benutzer, Rollen, Einstellungen und das Protokoll bleiben auf jeder Stufe erhalten – nur „Demodaten“ entfernt das Demo-Team und seine Einträge. Du bleibst angemeldet.
+        </p>
 
         <section v-if="last" class="zs-last" aria-labelledby="zs-last-heading">
             <h2 id="zs-last-heading" class="adm-form__heading">Letztes Zurücksetzen</h2>
+            <!-- How long the way back stays open, said on the server; once it has closed, the button goes and one
+                 sentence says so (the reset brief of 05.10.2026, §3.3). -->
             <p class="adm-note">
                 {{ last.label }}, am {{ last.atText }} von {{ last.by }}.
                 <template v-if="last.undone">Am {{ last.undoneText }} rückgängig gemacht.</template>
-                <template v-else-if="last.undoable">Rückgängig machen geht bis {{ last.until }}.</template>
+                <template v-else-if="last.undoable">Rückgängig machen ist bis {{ last.until }} möglich ({{ last.remaining }}).</template>
                 <template v-else-if="last.reason">{{ last.reason }}</template>
             </p>
             <div v-if="last.undoable">

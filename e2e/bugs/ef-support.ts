@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { consentGiven, open } from '../support';
+import { DEV as BASE_DEV, consentGiven, open } from '../support';
 
 /*
  * Shared steps of the Block E/F bug tests (docs/qa/BUGS.md, EF-xx).
@@ -22,7 +22,7 @@ import { consentGiven, open } from '../support';
 export const SHOTS = 'docs/qa/shots/block-ef';
 
 /** The development shop, with the cars typed from the Borbet documents. */
-export const DEV = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+export const DEV = BASE_DEV;
 
 export const MAKE = 'BMW';
 export const MODEL = '1er-Reihe';

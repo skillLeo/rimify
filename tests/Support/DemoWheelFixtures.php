@@ -88,6 +88,39 @@ final class DemoWheelFixtures
         ];
     }
 
+    /**
+     * Front shots measured for the hero (App\Support\HeroPhotos), as `wheels:process-images` leaves them: per finish a
+     * map entry with its anchors and stamp, and a manifest with the shadowless `bare` frame and the wheel anchor it rolls
+     * about — and, with `$open`, the opened frame the dark band turns. The map is the test's own.
+     *
+     * @param  array<string, string>  $finishes  finish name => slug, the first leading
+     */
+    public static function heroPhotos(string $dir, string $model, array $finishes, ?string $stamp = '53841', bool $open = false): void
+    {
+        $credit = ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''];
+        $anchors = ['centre' => ['x' => 0.5, 'y' => 0.47], 'wheel' => ['x' => 0.5, 'y' => 0.47, 'r' => 0.41]];
+        $entries = [];
+
+        foreach ($finishes as $finish => $slug) {
+            $entries["fixture-{$slug}.jpg"] = [
+                'slug' => $slug, 'model' => $model, 'brand' => 'Borbet', 'name' => 'DB8GT2', 'finish' => $finish,
+                'circle' => [540, 540, 500], 'hub' => null, 'anchors' => ['centre' => [540, 508], 'wheel' => [540, 508, 443]],
+                'credit' => $credit,
+            ] + ($stamp === null ? [] : ['stamp' => $stamp]);
+
+            $plain = self::manifest($slug);
+            $frame = static fn (string $name): array => [...$plain, 'name' => $name, 'base' => '/storage/demo/wheels/'.$slug.'/'.$name, 'anchors' => $anchors];
+            $manifest = [...$plain, 'anchors' => $anchors, 'bare' => $frame($slug.'-bare')]
+                + ($stamp === null ? [] : ['stamp' => $stamp])
+                + ($open ? ['open' => $frame($slug.'-open')] : []);
+
+            File::ensureDirectoryExists($dir.DIRECTORY_SEPARATOR.$slug);
+            File::put($dir.DIRECTORY_SEPARATOR.$slug.DIRECTORY_SEPARATOR.'manifest.json', (string) json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        }
+
+        self::photoMap($dir, $entries);
+    }
+
     public static function remove(string $dir): void
     {
         File::deleteDirectory($dir);

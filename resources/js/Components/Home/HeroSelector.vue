@@ -39,6 +39,7 @@ import DocumentScan from './DocumentScan.vue'
 import type { DocVariant } from '../../art'
 import { useFitmentCount, type FitmentCountQuery } from '../../composables/useFitmentCount'
 import { anzahl, passendeAnzeigen, withUnit } from '../../format'
+import { ZERO_LABEL, zeroSentence } from '../../lib/zeroState'
 import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import { cleanTsn, isHsn, isTsn, splitKeys } from '../../lib/fahrzeugschein'
@@ -344,7 +345,7 @@ const buttonLabel = computed(() => {
     }
 
     if (zero.value) {
-        return 'Keine Felgen für dieses Fahrzeug'
+        return ZERO_LABEL
     }
 
     if (counted.value !== null && counted.value.count > 0) {
@@ -585,10 +586,12 @@ onBeforeUnmount(() => treeController?.abort())
             <template v-else-if="counted && counted.count > 0">
                 <strong class="sel__n">{{ formatNumber(counted.count) }}</strong> {{ counted.count === 1 ? 'Felge' : 'Felgen' }} mit Gutachten für {{ vehicle.label }}
             </template>
+            <!-- Zero is a state, not a gap: the sentence here, the 0 on the button (the brief of 05.10.2026, §2). -->
+            <template v-else-if="counted">{{ zeroSentence(counted.shopEmpty === true) }}</template>
         </p>
 
         <Link href="/felgen" class="btn btn--primary btn--lg btn--block sel__go" prefetch>
-            {{ counted && counted.count > 0 ? passendeAnzeigen(counted.count) : 'Passende Felgen anzeigen' }}
+            {{ counted && counted.count > 0 ? passendeAnzeigen(counted.count) : counted ? ZERO_LABEL : 'Passende Felgen anzeigen' }}
         </Link>
 
         <div class="sel__vehicle-links">
@@ -612,7 +615,11 @@ onBeforeUnmount(() => treeController?.abort())
                 <TabsList class="tabs__list" aria-label="Fahrzeug angeben">
                     <TabsTrigger value="marke" class="tabs__trigger">Marke &amp; Modell</TabsTrigger>
                     <TabsTrigger value="hsn" class="tabs__trigger">HSN/TSN</TabsTrigger>
-                    <TabsTrigger value="scan" class="tabs__trigger">Fahrzeugschein scannen</TabsTrigger>
+                    <!-- Too narrow for the whole row (373 px), the tab reads „Scannen“; its name stays the full one,
+                         which holds the word it shows (WCAG 2.5.3). -->
+                    <TabsTrigger value="scan" class="tabs__trigger" aria-label="Fahrzeugschein scannen">
+                        <span class="sel__tab-long">Fahrzeugschein scannen</span><span class="sel__tab-short" aria-hidden="true">Scannen</span>
+                    </TabsTrigger>
                 </TabsList>
 
                 <!-- The three panels share one cell, the inactive ones invisible: the panel is always as tall as its
@@ -869,7 +876,7 @@ onBeforeUnmount(() => treeController?.abort())
 
             <div v-else-if="zero && counted" class="notice sel__zero">
                 <div class="sel__zero-body">
-                    <p>Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.</p>
+                    <p>{{ zeroSentence(counted.shopEmpty === true) }}</p>
                     <!-- Only where outgoing mail is configured: otherwise the confirmation would never arrive (F2). -->
                     <p v-if="page.props.notifyByMail !== true">
                         <Link class="link" :href="askHref">Schreib uns</Link> – wir sehen nach, was es dafür gibt.
@@ -975,6 +982,21 @@ onBeforeUnmount(() => treeController?.abort())
     .sel :deep(.tabs__trigger) {
         font-size: var(--fs-small);
         line-height: var(--lh-small);
+    }
+}
+
+/* Under 373 px even the dense row does not fit: the third tab says „Scannen“ rather than being cut mid-word. */
+.sel__tab-short {
+    display: none;
+}
+
+@container sel (width < 373px) {
+    .sel__tab-long {
+        display: none;
+    }
+
+    .sel__tab-short {
+        display: inline;
     }
 }
 

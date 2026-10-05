@@ -211,15 +211,28 @@ function onCircle(circle: { x: number; y: number; r: number }, angle: number): {
 }
 
 /**
- * Everything the hero draws for a product, in one layout. Fails closed: no manifest, no picture;
- * no anchor, no callout; a KBA number only where the photograph's own stamp is that number.
+ * What the hero stands on: a photograph's cut-out — the brand's `HeroPhoto` (PROTECTED.md P1), or a product carrying
+ * one, as older fixtures do — and, where they come with it, the values its leaders state.
  */
-export function heroScene(product: HeroProduct | null, layout: HeroLayout): HeroScene {
-    const manifest = product?.imageManifest ?? null
+export interface HeroPicture {
+    imageManifest?: ImageManifest | null
+    companion?: { finish: string; imageManifest: ImageManifest } | null
+    facts?: HeroProduct['facts'] | null
+}
+
+/**
+ * Everything the hero draws, in one layout: the photograph from `picture`, the leaders from `facts` — the values of the
+ * wheel in it, given as the third argument (they win over any the picture carries). Without values the photograph
+ * stands alone (the operator's brief of 05.10.2026, §2). Fails closed: no manifest, no picture; no anchor or no value,
+ * no callout; a KBA number only where the photograph's own stamp is that number.
+ */
+export function heroScene(picture: HeroPicture | null, layout: HeroLayout, facts?: HeroProduct['facts'] | null): HeroScene {
+    const values = facts === undefined ? (picture?.facts ?? null) : facts
+    const manifest = picture?.imageManifest ?? null
     const bare = manifest?.bare ?? null
-    const picture = bare ?? manifest
+    const frame = bare ?? manifest
     // `bare` has the square frame's geometry, so either set of anchors applies to it.
-    const anchors = picture === null ? null : (picture.anchors ?? manifest?.anchors ?? null)
+    const anchors = frame === null ? null : (frame.anchors ?? manifest?.anchors ?? null)
     const wheel = anchors?.wheel ?? null
 
     const shadow = bare !== null && wheel !== null ? { x: round(wheel.x * 100), y: round((wheel.y + wheel.r) * 100), w: round(wheel.r * 2 * 78) } : null
@@ -252,8 +265,8 @@ export function heroScene(product: HeroProduct | null, layout: HeroLayout): Hero
               }
             : place
 
-    if (product !== null && anchors !== null) {
-        const { facts } = product
+    if (values !== null && anchors !== null) {
+        const facts = values
 
         for (const place of layout.callouts.map(placed)) {
             const inset = place.side === 'left' ? (layout.insetLeft ?? layout.inset) : layout.inset
@@ -287,7 +300,7 @@ export function heroScene(product: HeroProduct | null, layout: HeroLayout): Hero
         }
     }
 
-    return { picture, anchors, shadow, roll, callouts }
+    return { picture: frame, anchors, shadow, roll, callouts }
 }
 
 export interface CompanionScene {
@@ -304,12 +317,12 @@ export interface CompanionScene {
  * no wheel anchor on either: no second wheel.
  */
 export function companionScene(
-    product: HeroProduct | null,
+    picture: HeroPicture | null,
     lead: HeroScene,
     layout: HeroLayout,
     placement: CompanionPlacement,
 ): CompanionScene | null {
-    const manifest = product?.companion?.imageManifest ?? null
+    const manifest = picture?.companion?.imageManifest ?? null
     const bare = manifest?.bare ?? null
     const anchors = bare === null ? null : (bare.anchors ?? manifest?.anchors ?? null)
     const wheel = anchors?.wheel ?? null

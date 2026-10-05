@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Console\Commands\ReleaseSeed;
 use App\Models\Setting;
 use App\Services\Demo\DemoTables;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\GoldenRecordSeeder;
 use Illuminate\Support\Facades\DB;
@@ -55,7 +55,7 @@ it('applies the release seed once and records it', function (): void {
 });
 
 it('brings no shop back to a test environment reset to an empty one, and no example catalogue where the demo data was removed', function (): void {
-    Setting::set(TestReset::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => null]);
+    Setting::set(TestEnvironment::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => null]);
 
     $this->artisan('rimify:release-seed')
         ->expectsOutputToContain('CatalogueSeeder skipped: the test environment was reset to an empty shop')
@@ -68,7 +68,7 @@ it('brings no shop back to a test environment reset to an empty one, and no exam
         ->and(DB::table('load_index_table')->count())->toBeGreaterThan(0)
         ->and(DB::table('pages')->count())->toBeGreaterThan(0);
 
-    Setting::set(TestReset::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => now()->toIso8601String()]);
+    Setting::set(TestEnvironment::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => now()->toIso8601String()]);
     Setting::set(DemoTables::REMOVED, ['at' => now()->toIso8601String(), 'by' => 'Test']);
 
     $this->artisan('rimify:release-seed', ['--force' => true])
@@ -104,7 +104,18 @@ it('gives the hero back its real wheel where the setting still names a demo mode
 
     expect((int) Setting::get('hero_product_id'))->toBe($golden);
 
+    // Whatever the setting says, the hero stands on the brand's photograph (the brief of 05.10.2026, §2) — data can no
+    // longer take it away — alone while the real wheel is a draft, with its values once it is published (D-155).
+    DemoWheelFixtures::heroPhotos($this->dir, GoldenRecordSeeder::SLUG, ['Schwarz matt' => 'db8gt2-schwarz']);
+
     $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.photo.finish', 'Schwarz matt')
+        ->where('hero.product', null));
+
+    DB::table('wheel_models')->where('id', $golden)->update(['status' => 'published']);
+
+    $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.photo.finish', 'Schwarz matt')
         ->where('hero.product.slug', GoldenRecordSeeder::SLUG)
         ->where('hero.product.facts', fn ($facts): bool => $facts !== null && $facts !== []));
 

@@ -9,7 +9,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -40,7 +40,7 @@ final class AdminNavigation
      * exactly one visible page IS that page in the rail. `short` is the group's label for a rail
      * dragged narrower than 248 px — a word of its own, never a label cut mid-word. `super` marks a
      * page for the Super-Admin role alone, on top of the module right; `testing` one that exists only
-     * in a test environment (TestReset::available()).
+     * in a test environment (TestEnvironment::available()).
      *
      * Every page has its own glyph, so the collapsed rail — icons only — never shows two rows alike.
      *
@@ -323,7 +323,7 @@ final class AdminNavigation
                     continue;
                 }
 
-                if (($page['testing'] ?? false) && ! TestReset::available()) {
+                if (($page['testing'] ?? false) && ! TestEnvironment::available()) {
                     continue;
                 }
 
@@ -404,7 +404,7 @@ final class AdminNavigation
                     continue;
                 }
 
-                if (($page['testing'] ?? false) && ! TestReset::available()) {
+                if (($page['testing'] ?? false) && ! TestEnvironment::available()) {
                     continue;
                 }
 

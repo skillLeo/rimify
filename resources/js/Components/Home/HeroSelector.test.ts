@@ -239,6 +239,22 @@ describe('HeroSelector — the button and the count', () => {
         expect(keys.post).toHaveBeenCalledWith('/fahrzeug/schluesselnummern', expect.objectContaining({ preserveScroll: true }))
     })
 
+    it('with an empty shop reads 0 on the button and says once that nothing is in the range yet', async () => {
+        respond('/api/v1/fitment/count', { ...count(0), shopEmpty: true })
+        const wrapper = mountSelector()
+        await openTab(wrapper, 'HSN/TSN')
+        await typeKeys(wrapper, '0005', '582')
+        await settle()
+
+        // The count where it would stand, never left out (the operator's brief of 05.10.2026, §2).
+        expect(button(wrapper).text()).toBe('0 Felgen für dieses Fahrzeug')
+        expect(button(wrapper).element.disabled).toBe(true)
+        expect(wrapper.find('.sel__zero').text()).toContain(
+            'Noch ist keine Felge im Sortiment. Sobald die ersten mit Gutachten freigegeben sind, siehst du hier, welche an dein Auto dürfen.'
+        )
+        expect(wrapper.find('.sel__zero').text()).not.toContain('Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.')
+    })
+
     it('with zero wheels disables the button and offers to tell the customer', async () => {
         respond('/api/v1/fitment/count', count(0))
         respond('/api/v1/fitment/notify', {}, 202)
@@ -247,7 +263,7 @@ describe('HeroSelector — the button and the count', () => {
         await typeKeys(wrapper, '0005', '582')
         await settle()
 
-        expect(button(wrapper).text()).toBe('Keine Felgen für dieses Fahrzeug')
+        expect(button(wrapper).text()).toBe('0 Felgen für dieses Fahrzeug')
         expect(button(wrapper).element.disabled).toBe(true)
         const notice = wrapper.find('.sel__zero')
         expect(notice.text()).toContain('Für dieses Fahrzeug haben wir noch keine Felge mit Gutachten.')

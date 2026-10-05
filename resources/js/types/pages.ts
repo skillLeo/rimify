@@ -53,8 +53,22 @@ export interface VariantOption {
 }
 
 /**
- * The wheel the hero shows: an admin-chosen product and one configuration's own values
- * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4).
+ * The hero's photograph (PROTECTED.md P1): a brand asset chosen in Inhalte › Seiten › Startseite, there with or without
+ * a catalogue (`App\Support\HeroPhotos`). The licensed cut-out with its anchors and stamp, the same wheel in its other
+ * finish behind it, and what it shows, for the alt text.
+ */
+export interface HeroPhoto {
+    brand: string
+    name: string
+    finish: string
+    imageManifest: ImageManifest | null
+    companion?: { finish: string; imageManifest: ImageManifest } | null
+}
+
+/**
+ * The wheel in the hero's photograph, once it is published: one configuration's own values
+ * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4). Null with the catalogue empty or the wheel a
+ * draft (D-155) — the photograph then stands without leaders, caption or spec line.
  */
 export interface HeroProduct {
     slug: string
@@ -78,7 +92,7 @@ export interface HeroProduct {
     /** True when there is no photograph of this product: the outline is drawn and no product is named. */
     symbolic: boolean
     /**
-     * In the shop at a price. False for the chosen wheel while it is a draft: its photograph and its
+     * In the shop at a price. False for a published wheel still priced at zero: its photograph and its
      * values are shown, never a price or a link. Absent (an older fixture) reads as true.
      */
     published?: boolean
@@ -195,12 +209,14 @@ export interface StartseiteProps {
         subline: string
         /** The phone document's shorter sentence; the desktop one when absent. */
         sublineMobile?: string
+        /** Null only where the release shipped without the photograph (rimify:smoke reports it); absent in an older fixture. */
+        photo?: HeroPhoto | null
         product: HeroProduct | null
         stats: HomeStats
     }
     selector: { makes: MakeOption[] }
-    /** F1 for the shared vehicle, in the first paint; null without a vehicle. */
-    fitmentCount: { count: number; permitted: number; conditional: number } | null
+    /** F1 for the shared vehicle, in the first paint; null without a vehicle. `shopEmpty`: no wheel published at all. */
+    fitmentCount: { count: number; permitted: number; conditional: number; shopEmpty?: boolean } | null
     promises: { title: string; text: string; icon: string }[]
     popular: {
         /** Null with a vehicle: the heading then names the vehicle. */

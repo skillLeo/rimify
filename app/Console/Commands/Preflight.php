@@ -15,7 +15,7 @@ use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
@@ -248,23 +248,39 @@ final class Preflight extends Command
     }
 
     /**
-     * Testumgebung zurücksetzen exists in a test environment only: in production its address is not registered and
-     * the service refuses on its own (TestReset). A live shop on which the address answers is NO-GO — whatever let it
-     * in (a misnamed environment, a cached route list from staging) would let one click empty the shop.
+     * Testumgebung zurücksetzen exists in a test environment only (CLAUDE.md R-04.1): in production its address is not
+     * registered and the service refuses on its own (TestEnvironment). A live shop on which the address answers is
+     * NO-GO — whatever let it in (a misnamed environment, a cached route list from staging) would let one click empty
+     * the shop. So is a live shop whose server says RIMIFY_RESET_ERLAUBT=true, or whose database does not name itself
+     * the live shop's: that row is what refuses a reset should a test server ever be pointed at it.
      *
      * @return array{0: string, 1: string, 2: string}
      */
     private function testReset(bool $production): array
     {
         $routed = Route::has('admin.zuruecksetzen.show') || Route::has('admin.zuruecksetzen.store');
+        $database = TestEnvironment::databaseEnvironment();
 
         if ($production) {
-            return $routed || TestReset::available()
-                ? ['Testumgebung zurücksetzen', 'fail', 'im Live-Shop erreichbar – die Routen dürfen hier nicht registriert sein (Routen-Cache neu bauen: php artisan optimize)']
-                : ['Testumgebung zurücksetzen', 'ok', 'im Live-Shop nicht erreichbar'];
+            // Every fault at once: whoever reads the NO-GO fixes them in one go.
+            $faults = array_values(array_filter([
+                $routed || TestEnvironment::available() ? 'im Live-Shop erreichbar – die Routen dürfen hier nicht registriert sein (Routen-Cache neu bauen: php artisan optimize)' : null,
+                config('rimify.reset.allowed') === true ? TestEnvironment::FLAG.'=true steht in der Umgebung des Live-Shops – herausnehmen' : null,
+                $database !== 'production' ? 'die Datenbank nennt sich nicht die des Live-Shops ('.TestEnvironment::MARKER.': '.($database ?? 'fehlt').') – so schützt sie nichts vor einem Zurücksetzen' : null,
+            ]));
+
+            return $faults === []
+                ? ['Testumgebung zurücksetzen', 'ok', 'im Live-Shop nicht erreichbar, die Datenbank als Live-Datenbank gekennzeichnet']
+                : ['Testumgebung zurücksetzen', 'fail', implode('; ', $faults)];
         }
 
-        return ['Testumgebung zurücksetzen', 'ok', $routed ? 'erreichbar, nur in dieser Testumgebung' : 'nicht registriert'];
+        $refusal = TestEnvironment::refusal();
+
+        return ['Testumgebung zurücksetzen', 'ok', match (true) {
+            ! $routed => 'nicht registriert',
+            $refusal !== null => 'hier gesperrt: '.$refusal,
+            default => 'erreichbar, nur in dieser Testumgebung',
+        }];
     }
 
     /**

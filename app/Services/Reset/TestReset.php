@@ -21,41 +21,32 @@ use Throwable;
 
 /**
  * Einstellungen › System › Testumgebung zurücksetzen (docs/review/ZURUECKSETZEN.md): the test environment back to an
- * empty shop, at one of three levels (ResetLevel), and back again within seven days. Never in production — the page
- * does not exist there (routes/web.php), `rimify:preflight` fails if it did, and this refuses on its own as well.
+ * empty shop, at one of three levels (ResetLevel), and back again within seven days. Only where the four conditions of
+ * CLAUDE.md R-04.1 hold at once (TestEnvironment) — and only for the two that can name themselves as its origin
+ * (ResetOrigin): `rimify:reset` and the screen. Nothing else in the code uses this class (ResetReachTest).
  *
- * A reset is a restore, not a run of DELETEs. First one entry in the Protokoll (who, when, which level, what goes),
- * then a safety copy of every table (SqlSnapshot), then — for „Shopdaten“ and „Alles“ — the shop's tables (and for
- * „Alles“ the content's) are made again from their own definitions and filled with the baseline's rows: none for the
- * shop, the delivered pages, FAQ and menus for the content. The kept tables are never replaced: the team, the roles,
- * the settings and the Protokoll stay as they are, and only their demo rows go. „Demodaten“ is the rail's strip
- * (DemoPurge): only rows born demo, refused as a whole while something real names the example catalogue.
+ * A reset is a restore, not a run of DELETEs (R-12.3). First the checks — the four conditions, the schema, and that the
+ * Protokoll and the Prüfnachweise still refuse every change (ResetProbe) — and that there is room for the safety copy
+ * (ResetDisk). Then the safety copy of every table, read back and checked before it counts. Then, for „Shopdaten“ and
+ * „Alles“, the shop's tables (and for „Alles“ the content's) are made again from their own definitions and filled with
+ * the baseline's rows: none for the shop, the delivered pages, FAQ and menus for the content. No row of
+ * `order_line_fitments` or `audit_logs` is updated or deleted on the way — the first is made again, the second is never
+ * touched — and the kept tables keep every row, their demo rows too: those go only with „Demodaten“, the strip's
+ * DemoPurge, through R-12's own exemption for rows born demo. Then the check again, and only then the Protokoll entry,
+ * in the database as it now is.
  *
  * It comes back clean or unchanged, never half: the site is in maintenance for the seconds the tables are replaced;
- * if anything fails — a statement, a trigger that does not come back, a reference that points nowhere — the same
- * tables are put back from the safety copy before the page says so. If the process itself dies, a marker file says
- * what was running, and the next look (the scheduler every minute, or the next reset) puts the copy back.
+ * if anything fails — a statement, a trigger that does not come back or no longer refuses, a reference that points
+ * nowhere — the same tables are put back from the safety copy and the Protokoll says which check failed. If the
+ * process itself dies, a marker file says what was running, and the next look (the scheduler every minute, or the next
+ * reset) puts the copy back.
  *
- * An undo puts the replaced tables back from that copy and brings the kept tables' demo rows back; what was made in
- * the shop since is lost, which the page says before it is done — and the undo takes a safety copy of its own first.
+ * An undo puts the replaced tables back from that copy and brings the kept tables' demo rows back where a reset took
+ * them (the strip's level, and resets made before 05.10.2026); what was made in the shop since is lost, which the page
+ * says before it is done — and the undo takes, and checks, a safety copy of its own first.
  */
 class TestReset
 {
-    /** Where a reset is possible at all. Production never. */
-    public const ENVIRONMENTS = ['local', 'testing', 'staging'];
-
-    /** How long a reset's safety copy and files are kept, and so how long it can be undone. */
-    public const KEEP_DAYS = 7;
-
-    /** What has to be typed before a reset (AdminConfirm's confirmWord). */
-    public const WORD = 'ZURÜCKSETZEN';
-
-    /**
-     * The last reset: {id, level, at, by, undone_at, previous}. A kept table, so it survives the reset it describes;
-     * `previous` is the reset before it, still undoable, so undoing one after another steps back in order.
-     */
-    public const SETTING = 'testumgebung_reset';
-
     /** How many resets back an undo can step. */
     private const CHAIN = 10;
 
@@ -66,8 +57,8 @@ class TestReset
     private const MANIFEST = 'manifest.json';
 
     /**
-     * The demo rows of kept tables: which they are, for the reset that takes them and the undo that brings them back.
-     * Child first.
+     * The demo rows of kept tables an undo can bring back: the strip's level takes them, and so did „Shopdaten“ and
+     * „Alles“ until R-12.3 (05.10.2026) — a reset made before then is still undone whole. Child first.
      */
     private const KEPT_DEMO = ['audit_logs', 'model_has_roles', 'model_has_permissions', 'admin_users', 'jobs', 'settings'];
 
@@ -78,42 +69,9 @@ class TestReset
         private readonly ResetFiles $files,
         private readonly ResetMaintenance $maintenance,
         private readonly DemoPurge $purge,
+        private readonly ResetProbe $probe,
+        private readonly ResetDisk $disk,
     ) {}
-
-    public static function available(): bool
-    {
-        return app()->environment(self::ENVIRONMENTS);
-    }
-
-    public static function dir(): string
-    {
-        $dir = (string) config('rimify.reset.dir', 'storage/app/private/resets');
-
-        return preg_match('~^([a-zA-Z]:[\\\\/]|/)~', $dir) === 1 ? $dir : base_path($dir);
-    }
-
-    public static function baseline(): string
-    {
-        $path = (string) config('rimify.reset.baseline', 'database/baseline/testumgebung.sql');
-
-        return preg_match('~^([a-zA-Z]:[\\\\/]|/)~', $path) === 1 ? $path : base_path($path);
-    }
-
-    /**
-     * Whether a reset that emptied the shop is in force (not undone): the deploy then writes no demo data and no
-     * example catalogue again, and the smoke test expects no wheel.
-     */
-    public static function shopEmptied(): bool
-    {
-        try {
-            $last = Setting::get(self::SETTING);
-        } catch (Throwable) {
-            return false;
-        }
-
-        return is_array($last) && in_array($last['level'] ?? null, [ResetLevel::Shop->value, ResetLevel::All->value], true)
-            && ($last['undone_at'] ?? null) === null;
-    }
 
     /**
      * The three levels with what each would take now, counted from the database and the disks.
@@ -177,7 +135,6 @@ class TestReset
                 [$count('contact_messages'), 'Nachricht', 'Nachrichten'],
                 [$count('review_feedback'), 'Rückmeldung', 'Rückmeldungen'],
                 [$count('fitment_subscriptions'), 'Anfrage', 'Anfragen'],
-                [DB::table('admin_users')->where('is_demo', true)->count(), 'Konto des Demo-Teams', 'Konten des Demo-Teams'],
                 [$files['images'], 'Bild', 'Bilder'],
                 [$files['pdfs'], 'PDF', 'PDFs'],
             ];
@@ -219,19 +176,16 @@ class TestReset
      *
      * @throws ResetRefused nothing changed, and the message says why
      */
-    public function reset(ResetLevel $level, AdminUser|string $by): array
+    public function reset(ResetLevel $level, AdminUser|string $by, ResetOrigin $origin): array
     {
-        $this->guard();
+        $this->guard($origin);
         $this->acquire();
 
         try {
-            $this->recover();
+            $this->recoverMarked();
+            $this->checkProbe('reset', 'vor dem Zurücksetzen', $by, $level);
 
-            $baseline = null;
-
-            if ($level->replacesShop()) {
-                $baseline = $this->checkedBaseline();
-            }
+            $baseline = $level->replacesShop() ? $this->checkedBaseline() : null;
 
             if ($level === ResetLevel::Demo) {
                 if (DemoTables::total() === 0) {
@@ -246,11 +200,10 @@ class TestReset
             }
 
             $counts = $this->counts($level);
+            $this->checkRoom($level);
             [$id, $dir] = $this->folder($level->value);
 
-            // The Protokoll first: the entry is in the safety copy, and in a kept table, so it outlives the reset.
-            $this->record($by, 'system.reset', ['id' => $id, 'level' => $level->value, 'counts' => $counts, 'environment' => (string) app()->environment()]);
-            $this->writeManifest($dir, ['id' => $id, 'op' => 'reset', 'level' => $level->value, 'at' => CarbonImmutable::now('UTC')->toIso8601String(), 'by' => self::name($by), 'counts' => $counts, 'status' => 'running']);
+            $this->writeManifest($dir, ['id' => $id, 'op' => 'reset', 'level' => $level->value, 'at' => CarbonImmutable::now('UTC')->toIso8601String(), 'by' => self::name($by), 'via' => $origin->via, 'counts' => $counts, 'status' => 'running']);
 
             $files = ['images' => 0, 'pdfs' => 0, 'failed' => 0];
 
@@ -263,7 +216,7 @@ class TestReset
             $stuck = false;
 
             try {
-                $this->snapshot($dir, 'Sicherung vor dem Zurücksetzen ('.$level->label().')', $id);
+                $this->safetyCopy($dir, 'Sicherung vor dem Zurücksetzen ('.$level->label().')', $id);
                 $this->mark(['op' => 'reset', 'id' => $id, 'level' => $level->value, 'tables' => ResetTables::replacedBy($level)]);
 
                 if ($level === ResetLevel::Demo) {
@@ -274,8 +227,8 @@ class TestReset
 
                 $this->unmark();
             } catch (ResetStuck $e) {
-                // The copy could not be put back at once: the marker stays and the site stays in maintenance until
-                // recover() has put it back — never a half-reset shop open to visitors.
+                // The copy could not be put back, or came back without its guard: the marker stays and the site stays
+                // in maintenance until recover() has put it back — never a half-reset shop open to visitors.
                 $stuck = true;
 
                 throw $e;
@@ -294,6 +247,8 @@ class TestReset
                 $files = $this->files->trash($level, $dir);
             }
 
+            // R-04.1: the Protokoll entry once the database is what it now is — in a kept table, so it stays.
+            $this->record($by, 'system.reset', ['id' => $id, 'level' => $level->value, 'counts' => $counts, 'via' => $origin->via, 'environment' => (string) app()->environment()]);
             $this->forgetCaches();
             $this->writeManifest($dir, ['status' => 'done', 'files' => $files]);
 
@@ -305,19 +260,19 @@ class TestReset
 
     /**
      * Undoes the last reset, within seven days: the tables it replaced back from its safety copy, the demo rows of the
-     * kept tables back, its files back. What was made in the shop since is lost — the page says so before.
+     * kept tables back where it took them, its files back. What was made in the shop since is lost — the page says so.
      *
      * @return array{id: string, level: ResetLevel, files: array{restored: int, failed: int}}
      *
      * @throws ResetRefused nothing changed, and the message says why
      */
-    public function undo(AdminUser|string $by): array
+    public function undo(AdminUser|string $by, ResetOrigin $origin): array
     {
-        $this->guard();
+        $this->guard($origin);
         $this->acquire();
 
         try {
-            $this->recover();
+            $this->recoverMarked();
 
             $last = $this->last();
 
@@ -326,9 +281,11 @@ class TestReset
             }
 
             $level = ResetLevel::from($last['level']);
-            $source = self::dir().'/'.$last['id'];
+            $source = TestEnvironment::dir().'/'.$last['id'];
             $snapshot = $source.'/'.self::SNAPSHOT;
             $this->checkSnapshot($snapshot);
+            $this->checkProbe('undo', 'vor dem Rückgängigmachen', $by, $level);
+            $this->checkRoom(ResetLevel::Demo);
 
             // The demo rows of the kept tables, read out of the copy before anything changes — and refused if an id
             // they had has been given to something else since (it would be overwritten, or the row lost).
@@ -336,8 +293,7 @@ class TestReset
 
             [$id, $dir] = $this->folder('undo');
 
-            $this->record($by, 'system.reset_undone', ['id' => $last['id'], 'level' => $level->value, 'reset_at' => $last['at']]);
-            $this->writeManifest($dir, ['id' => $id, 'op' => 'undo', 'level' => $level->value, 'undoes' => $last['id'], 'at' => CarbonImmutable::now('UTC')->toIso8601String(), 'by' => self::name($by), 'status' => 'running']);
+            $this->writeManifest($dir, ['id' => $id, 'op' => 'undo', 'level' => $level->value, 'undoes' => $last['id'], 'at' => CarbonImmutable::now('UTC')->toIso8601String(), 'by' => self::name($by), 'via' => $origin->via, 'status' => 'running']);
 
             $tables = $level === ResetLevel::Demo ? ResetTables::SHOP : ResetTables::replacedBy($level);
 
@@ -345,14 +301,15 @@ class TestReset
             $stuck = false;
 
             try {
-                $floors = $this->snapshot($dir, 'Sicherung vor dem Rückgängigmachen', $id);
+                $floors = $this->safetyCopy($dir, 'Sicherung vor dem Rückgängigmachen', $id);
                 $this->mark(['op' => 'undo', 'id' => $id, 'undoes' => $last['id'], 'level' => $level->value, 'tables' => $tables]);
 
                 $before = $this->triggerCount();
 
                 try {
-                    (new SqlSnapshot(DB::connection()))->replace($tables, $snapshot, $snapshot, $floors);
+                    $this->replaceTables($tables, $snapshot, $snapshot, $floors);
                     $this->checkTriggers($before);
+                    $this->assertProbe('nach dem Rückgängigmachen');
 
                     DB::transaction(function () use ($staged): void {
                         foreach ($staged as $table => $stage) {
@@ -362,7 +319,7 @@ class TestReset
                         // One step back: the reset before this one is the last again (and can be undone in its turn,
                         // within its own seven days), or — with none before — this one is marked undone.
                         $current = $this->setting();
-                        Setting::set(self::SETTING, is_array($current['previous'] ?? null)
+                        Setting::set(TestEnvironment::SETTING, is_array($current['previous'] ?? null)
                             ? $current['previous']
                             : [...$current, 'undone_at' => CarbonImmutable::now('UTC')->toIso8601String()]);
 
@@ -374,7 +331,7 @@ class TestReset
                         $this->checkReferences();
                     });
                 } catch (Throwable $e) {
-                    $this->putBack($tables, $dir.'/'.self::SNAPSHOT, $e);
+                    $this->putBack($tables, $dir.'/'.self::SNAPSHOT, $e, $id, 'undo');
                 }
 
                 $this->unmark();
@@ -396,6 +353,9 @@ class TestReset
             }
 
             $files = $this->files->restore($source);
+
+            // R-04.1: the Protokoll entry once the database is what it now is.
+            $this->record($by, 'system.reset_undone', ['id' => $last['id'], 'level' => $level->value, 'reset_at' => $last['at'], 'via' => $origin->via]);
             $this->forgetCaches();
             $this->writeManifest($source, ['status' => 'undone', 'undone_at' => CarbonImmutable::now('UTC')->toIso8601String()]);
             $this->writeManifest($dir, ['status' => 'done', 'files' => $files]);
@@ -407,9 +367,10 @@ class TestReset
     }
 
     /**
-     * The last reset, as the page shows it, with whether — and if not, why not — it can be undone.
+     * The last reset, as the page shows it: when, by whom, how long it can still be undone — and, once it cannot, the
+     * one sentence that says why.
      *
-     * @return array{id: string, level: string, label: string, at: string, atText: string, by: string, until: string, undone: bool, undoneText: string|null, undoable: bool, reason: string|null}|null
+     * @return array{id: string, level: string, label: string, at: string, atText: string, by: string, until: string, remaining: string|null, undone: bool, undoneText: string|null, undoable: bool, reason: string|null}|null
      */
     public function last(): ?array
     {
@@ -421,14 +382,14 @@ class TestReset
 
         $level = ResetLevel::from((string) $last['level']);
         $at = CarbonImmutable::parse((string) ($last['at'] ?? 'now'));
-        $until = $at->addDays(self::KEEP_DAYS);
+        $until = $at->addDays(TestEnvironment::KEEP_DAYS);
         $undone = is_string($last['undone_at'] ?? null);
-        $snapshot = self::dir().'/'.$last['id'].'/'.self::SNAPSHOT;
+        $snapshot = TestEnvironment::dir().'/'.$last['id'].'/'.self::SNAPSHOT;
 
         $reason = match (true) {
-            $undone => null,
-            $until->isPast() => 'Die Sicherung ist älter als '.self::KEEP_DAYS.' Tage und lässt sich nicht mehr zurückspielen.',
-            ! is_file($snapshot) => 'Die Sicherung dieses Zurücksetzens ist nicht mehr da.',
+            $undone => 'Dieses Zurücksetzen ist schon rückgängig gemacht.',
+            $until->isPast() => 'Die '.TestEnvironment::KEEP_DAYS.' Tage sind vorbei: Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.',
+            ! is_file($snapshot) => 'Die Sicherung dieses Zurücksetzens ist nicht mehr vorhanden. Deshalb lässt es sich nicht mehr rückgängig machen.',
             default => null,
         };
 
@@ -440,87 +401,77 @@ class TestReset
             'atText' => (string) GermanFormat::dateTime($at),
             'by' => (string) ($last['by'] ?? '–'),
             'until' => (string) GermanFormat::dateTime($until),
+            'remaining' => $reason === null ? GermanFormat::remaining($until) : null,
             'undone' => $undone,
             'undoneText' => $undone ? GermanFormat::dateTime(CarbonImmutable::parse((string) $last['undone_at'])) : null,
-            'undoable' => ! $undone && $reason === null,
-            'reason' => $undone ? 'Dieses Zurücksetzen ist schon rückgängig gemacht.' : $reason,
+            'undoable' => $reason === null,
+            'reason' => $reason,
         ];
+    }
+
+    /** Whether a reset or undo was cut off with its marker still there — read from the disk alone. */
+    public function interrupted(): bool
+    {
+        return $this->readMarker() !== null;
     }
 
     /**
      * An interrupted reset or undo — the process died with the marker still there — finished or put back. Returns
-     * what was done, or null when nothing was interrupted. Called by the scheduler every minute and before every
-     * reset; the lock tells a running one from a dead one.
+     * what was done, or null when nothing was interrupted. Called by the scheduler every minute (`rimify:reset
+     * --recover`), which finds nothing to do almost always and then touches nothing at all.
+     *
+     * @throws ResetRefused where the four conditions do not hold
      */
-    public function recover(): ?string
+    public function recover(ResetOrigin $origin): ?string
     {
-        $marker = $this->readMarker();
-
-        if ($marker === null) {
+        if (! $this->interrupted()) {
             return null;
         }
 
-        $mine = $this->lock !== null;
+        $refusal = TestEnvironment::refusal($origin);
 
-        if (! $mine && ! $this->acquire(throw: false)) {
-            // Still running in another process.
-            return null;
+        if ($refusal !== null) {
+            throw new ResetRefused($refusal);
         }
 
-        try {
-            $id = (string) ($marker['id'] ?? '');
-            $last = $this->setting();
-            // A reset is done once the setting names it; an undo once the setting no longer names its reset as in force.
-            $done = ($marker['op'] ?? '') === 'reset'
-                ? ($last['id'] ?? null) === $id
-                : ! (($last['id'] ?? null) === ($marker['undoes'] ?? null) && ($last['undone_at'] ?? null) === null);
-
-            if (! $done) {
-                $tables = array_values(array_filter((array) ($marker['tables'] ?? []), 'is_string'));
-                $snapshot = self::dir().'/'.$id.'/'.self::SNAPSHOT;
-
-                if ($tables !== [] && SqlSnapshot::summary($snapshot) !== null) {
-                    (new SqlSnapshot(DB::connection()))->replace($tables, $snapshot, $snapshot);
-                }
-
-                AuditTrail::system('System', 'system.reset_recovered', ['id' => $id, 'op' => $marker['op'] ?? null, 'level' => $marker['level'] ?? null]);
-                $this->writeManifest(self::dir().'/'.$id, ['status' => 'failed', 'reason' => 'unterbrochen, aus der Sicherung zurückgeholt']);
-            }
-
-            $this->unmark();
-            $this->forgetCaches();
-
-            if ($this->maintenance->active()) {
-                $this->maintenance->off();
-            }
-
-            return $done ? 'abgeschlossen' : 'aus der Sicherung zurückgeholt';
-        } finally {
-            if (! $mine) {
-                $this->release();
-            }
-        }
+        return $this->recoverMarked();
     }
 
-    /** Removes the folders of resets older than KEEP_DAYS. Returns how many went. */
+    /**
+     * Removes the folders of resets older than KEEP_DAYS, and says so in the Protokoll — one entry per safety copy, so
+     * the end of the undo window is never silent. Returns how many went.
+     */
     public function prune(): int
     {
-        $root = self::dir();
+        $root = TestEnvironment::dir();
 
         if (! is_dir($root)) {
             return 0;
         }
 
         $running = $this->readMarker()['id'] ?? null;
-        $cutoff = CarbonImmutable::now('UTC')->subDays(self::KEEP_DAYS);
+        $cutoff = CarbonImmutable::now('UTC')->subDays(TestEnvironment::KEEP_DAYS);
         $removed = 0;
 
         foreach (File::directories($root) as $folder) {
             $manifest = self::readJson($folder.'/'.self::MANIFEST);
             $at = is_string($manifest['at'] ?? null) ? CarbonImmutable::parse($manifest['at']) : CarbonImmutable::createFromTimestampUTC((int) filemtime($folder));
 
-            if (basename($folder) !== $running && $at->lessThan($cutoff) && File::deleteDirectory($folder)) {
+            if (basename($folder) === $running || ! $at->lessThan($cutoff)) {
+                continue;
+            }
+
+            $bytes = self::folderBytes($folder);
+
+            if (File::deleteDirectory($folder)) {
                 $removed++;
+                AuditTrail::system('System', 'system.reset_backup_removed', [
+                    'id' => basename($folder),
+                    'op' => is_string($manifest['op'] ?? null) ? $manifest['op'] : null,
+                    'level' => is_string($manifest['level'] ?? null) ? $manifest['level'] : null,
+                    'at' => $at->toIso8601String(),
+                    'bytes' => $bytes,
+                ]);
             }
         }
 
@@ -529,15 +480,17 @@ class TestReset
 
     /* ── The steps ──────────────────────────────────────────────────────────────── */
 
-    /** @throws ResetRefused */
-    private function guard(): void
+    /**
+     * The four conditions (R-04.1), and that the schema is one this code can reset. Writes nothing.
+     *
+     * @throws ResetRefused
+     */
+    private function guard(ResetOrigin $origin): void
     {
-        if (! self::available()) {
-            throw new ResetRefused('Das Zurücksetzen gibt es nur in der Testumgebung, nie im Live-Shop.');
-        }
+        $refusal = TestEnvironment::refusal($origin);
 
-        if (DB::table('payment_events')->where('livemode', true)->exists()) {
-            throw new ResetRefused('In dieser Datenbank stehen echte Zahlungen. Sie wird nicht zurückgesetzt.');
+        if ($refusal !== null) {
+            throw new ResetRefused($refusal);
         }
 
         $pending = $this->pendingMigrations();
@@ -554,6 +507,58 @@ class TestReset
     }
 
     /**
+     * The append-only guard, asked before anything changes: a database that has lost it is not reset on top of the
+     * loss. The refusal is recorded — it is a fault in the database, not a wrong click.
+     *
+     * @throws ResetRefused
+     */
+    private function checkProbe(string $op, string $when, AdminUser|string $by, ResetLevel $level): void
+    {
+        $failures = $this->probe->failures();
+
+        if ($failures === []) {
+            return;
+        }
+
+        $this->record($by, 'system.reset_refused', ['op' => $op, 'level' => $level->value, 'when' => $when, 'failures' => $failures]);
+
+        throw new ResetRefused('Die Prüfung '.$when.' ist fehlgeschlagen: '.$failures[0]['text'].'. Es wurde nichts verändert.');
+    }
+
+    /** @throws ResetCheckFailed */
+    private function assertProbe(string $when): void
+    {
+        $failures = $this->probe->failures();
+
+        if ($failures !== []) {
+            throw new ResetCheckFailed($failures, $when);
+        }
+    }
+
+    /**
+     * Room for the safety copy and the files a level moves, before a byte of either is written.
+     *
+     * @throws ResetRefused
+     */
+    private function checkRoom(ResetLevel $level): void
+    {
+        $needed = $this->disk->needed($this->files->bytes($level));
+        $free = $this->disk->free(TestEnvironment::dir());
+
+        if ($free === null) {
+            throw new ResetRefused('Der Server meldet nicht, wie viel Speicherplatz frei ist. Ohne diese Angabe legt der Shop keine Sicherung an. Es wurde nichts verändert.');
+        }
+
+        if ($free < $needed) {
+            throw new ResetRefused(sprintf(
+                'Für die Sicherung ist nicht genug Speicherplatz frei: Gebraucht werden bis zu %s, frei sind %s. Es wurde nichts verändert.',
+                self::megabytes($needed),
+                self::megabytes((int) $free),
+            ));
+        }
+    }
+
+    /**
      * The baseline, checked: written to the end, made from the same migrations as this database, and with as many
      * triggers as this database has — a database that lost a trigger is not reset on top of the loss.
      *
@@ -561,7 +566,7 @@ class TestReset
      */
     private function checkedBaseline(): string
     {
-        $path = self::baseline();
+        $path = TestEnvironment::baseline();
         $summary = is_file($path) ? SqlSnapshot::summary($path) : null;
 
         if ($summary === null) {
@@ -601,30 +606,81 @@ class TestReset
     }
 
     /**
-     * The safety copy of every table, and the AUTO_INCREMENT each stood at — the floor an undo keeps them above.
+     * The safety copy of every table, written and then read back (R-04.1: written and verified before anything goes):
+     * to its last line, with every table, every table's rows as the database counts them now, and every trigger.
+     * Returns the AUTO_INCREMENT each table stood at — the floor an undo keeps them above.
      *
      * @return array<string, int>
+     *
+     * @throws ResetRefused nothing changed: the copy is not there, and nothing else was touched
      */
-    private function snapshot(string $dir, string $purpose, string $id): array
+    private function safetyCopy(string $dir, string $purpose, string $id): array
     {
-        $summary = (new SqlSnapshot(DB::connection()))->write($dir.'/'.self::SNAPSHOT, $this->tables(), [
-            'purpose' => $purpose,
-            'id' => $id,
-            'created_at' => CarbonImmutable::now('UTC')->toIso8601String(),
-            'database' => DB::connection()->getDatabaseName(),
-            'engine' => (string) DB::selectOne('SELECT VERSION() AS v')->v,
-            'migrations' => $this->migrationsRan(),
-        ]);
+        $path = $dir.'/'.self::SNAPSHOT;
+        $tables = $this->tables();
+
+        try {
+            $written = (new SqlSnapshot(DB::connection()))->write($path, $tables, [
+                'purpose' => $purpose,
+                'id' => $id,
+                'created_at' => CarbonImmutable::now('UTC')->toIso8601String(),
+                'database' => DB::connection()->getDatabaseName(),
+                'engine' => (string) DB::selectOne('SELECT VERSION() AS v')->v,
+                'migrations' => $this->migrationsRan(),
+            ]);
+
+            $this->checkCopy($path, $tables);
+        } catch (Throwable $e) {
+            report($e);
+            @unlink($path);
+
+            throw new ResetRefused('Die Sicherung ließ sich nicht vollständig schreiben und prüfen. Es wurde nichts verändert. Grund: '.mb_substr($e->getMessage(), 0, 200));
+        }
 
         $floors = [];
 
-        foreach ($summary['tables'] as $table => $info) {
+        foreach ($written['tables'] as $table => $info) {
             if ($info['auto_increment'] !== null) {
                 $floors[$table] = $info['auto_increment'];
             }
         }
 
         return $floors;
+    }
+
+    /**
+     * The copy as it lies on the disk, against the database it was taken from — the site is in maintenance, so the two
+     * must agree row for row.
+     *
+     * @param  list<string>  $tables
+     *
+     * @throws RuntimeException naming what does not agree
+     */
+    private function checkCopy(string $path, array $tables): void
+    {
+        $summary = SqlSnapshot::summary($path);
+
+        if ($summary === null) {
+            throw new RuntimeException('die Sicherung endet vor ihrer letzten Zeile');
+        }
+
+        $missing = array_diff($tables, array_keys($summary['tables']));
+
+        if ($missing !== []) {
+            throw new RuntimeException('in der Sicherung fehlen Tabellen: '.implode(', ', $missing));
+        }
+
+        foreach ($tables as $table) {
+            $live = DB::table($table)->count();
+
+            if ($summary['tables'][$table]['rows'] !== $live) {
+                throw new RuntimeException("{$table}: {$summary['tables'][$table]['rows']} Zeilen gesichert, {$live} in der Datenbank");
+            }
+        }
+
+        if ($summary['triggers'] !== $this->triggerCount()) {
+            throw new RuntimeException("{$summary['triggers']} Trigger gesichert, {$this->triggerCount()} in der Datenbank");
+        }
     }
 
     /** @throws ResetRefused */
@@ -636,7 +692,17 @@ class TestReset
             throw new ResetRefused($refused->reasons[0] ?? 'Die Demodaten lassen sich gerade nicht entfernen.');
         }
 
-        Setting::set(self::SETTING, $this->entry($id, $level, $by));
+        Setting::set(TestEnvironment::SETTING, $this->entry($id, $level, $by));
+
+        // „Nach jedem Zurücksetzen“ (R-12.3) — this level too. It replaced no table, so the guard can only be gone if it
+        // went by some other way; the demo set comes back with „rückgängig machen“ either way.
+        $failures = $this->probe->failures();
+
+        if ($failures !== []) {
+            AuditTrail::system('System', 'system.reset_failed', ['id' => $id, 'op' => 'reset', 'level' => $level->value, 'reason' => 'Prüfung nach dem Entfernen der Demodaten', 'failures' => $failures]);
+
+            throw new ResetRefused('Die Demodaten sind entfernt, aber die Prüfung danach ist fehlgeschlagen: '.$failures[0]['text'].'. Zurückholen lassen sie sich mit „Letztes Zurücksetzen rückgängig machen“ – innerhalb von '.TestEnvironment::KEEP_DAYS.' Tagen und erst, wenn die Prüfung keinen Fehler mehr findet.');
+        }
     }
 
     /**
@@ -648,7 +714,7 @@ class TestReset
     private function entry(string $id, ResetLevel $level, AdminUser|string $by): array
     {
         $previous = $this->setting();
-        $cutoff = CarbonImmutable::now('UTC')->subDays(self::KEEP_DAYS);
+        $cutoff = CarbonImmutable::now('UTC')->subDays(TestEnvironment::KEEP_DAYS);
         $depth = 0;
         $trim = static function (mixed $entry) use (&$trim, &$depth, $cutoff): ?array {
             if (! is_array($entry) || ! is_string($entry['id'] ?? null) || ($entry['undone_at'] ?? null) !== null
@@ -669,7 +735,12 @@ class TestReset
         ];
     }
 
-    /** @throws ResetRefused */
+    /**
+     * The shop's tables (and at „Alles“ the content's) made again from the copy's own definitions and the baseline's
+     * rows. Nothing else changes: the kept tables keep every row (R-12.3).
+     *
+     * @throws ResetRefused
+     */
     private function replaceShop(string $dir, string $baseline, ResetLevel $level, AdminUser|string $by, string $id): void
     {
         $tables = ResetTables::replacedBy($level);
@@ -679,56 +750,134 @@ class TestReset
         try {
             // The tables' own definitions from the copy just taken — so the schema is exactly this database's — and
             // the baseline's rows: none for the shop, the delivered content for „Alles“.
-            (new SqlSnapshot(DB::connection()))->replace($tables, $snapshot, $baseline);
+            $this->replaceTables($tables, $snapshot, $baseline);
             $this->checkTriggers($before);
+            $this->assertProbe('nach dem Einspielen');
 
             DB::transaction(function () use ($by, $id, $level): void {
-                $this->takeKeptDemo();
-                Setting::set(self::SETTING, $this->entry($id, $level, $by));
+                Setting::set(TestEnvironment::SETTING, $this->entry($id, $level, $by));
                 Setting::set(DemoTables::REMOVED, ['at' => CarbonImmutable::now('UTC')->toIso8601String(), 'by' => self::name($by)]);
                 $this->checkReferences();
             });
         } catch (Throwable $e) {
-            $this->putBack($tables, $snapshot, $e);
+            $this->putBack($tables, $snapshot, $e, $id, 'reset');
         }
     }
 
     /**
-     * Puts the replaced tables back from the safety copy after a failure, and says so.
+     * Makes `$tables` again from `$structure`, filled from `$rows` — the restore of a reset and of an undo. Its own
+     * method so a test can stand in for a restore that brings a table back without its guard, which the check after it
+     * must catch (ResetGuardsTest); putting a copy back after a failure never goes through it.
+     *
+     * @param  list<string>  $tables
+     * @param  array<string, int>  $floors
+     */
+    protected function replaceTables(array $tables, string $structure, ?string $rows, array $floors = []): void
+    {
+        (new SqlSnapshot(DB::connection()))->replace($tables, $structure, $rows, $floors);
+    }
+
+    /**
+     * Puts the replaced tables back from the safety copy after a failure, checks the guard again, and says so in the
+     * Protokoll — with each check that did not hold, by name.
      *
      * @param  list<string>  $tables
      *
-     * @throws ResetRefused always
+     * @throws ResetRefused always — ResetStuck when the copy could not be put back, or came back without its guard
      */
-    private function putBack(array $tables, string $snapshot, Throwable $cause): never
+    private function putBack(array $tables, string $snapshot, Throwable $cause, string $id, string $op): never
     {
         report($cause);
+
+        $failures = $cause instanceof ResetCheckFailed ? $cause->failures : [];
+        $reason = mb_substr($cause->getMessage(), 0, 300);
 
         try {
             (new SqlSnapshot(DB::connection()))->replace($tables, $snapshot, $snapshot);
         } catch (Throwable $e) {
             report($e);
+            AuditTrail::system('System', 'system.reset_failed', ['id' => $id, 'op' => $op, 'reason' => $reason, 'failures' => $failures, 'put_back' => 'failed']);
 
-            throw new ResetStuck('Das ist fehlgeschlagen, und die Sicherung ließ sich nicht sofort zurückspielen. Der Shop bleibt in Wartung, bis sie zurückgespielt ist – das geschieht innerhalb einer Minute von selbst (rimify:reset --recover). Grund: '.$cause->getMessage());
+            throw new ResetStuck('Das ist fehlgeschlagen, und die Sicherung ließ sich nicht sofort zurückspielen. Der Shop bleibt im Wartungsmodus, bis sie zurückgespielt ist und die Prüfung keinen Fehler mehr findet – das versucht der Shop jede Minute von selbst (rimify:reset --recover). Grund: '.$reason);
         }
 
-        AuditTrail::system('System', 'system.reset_failed', ['reason' => mb_substr($cause->getMessage(), 0, 300)]);
+        $after = $this->probe->failures();
 
-        throw new ResetRefused('Das hat nicht geklappt; die Datenbank ist wieder genau wie vorher. Grund: '.mb_substr($cause->getMessage(), 0, 300));
+        if ($after !== []) {
+            AuditTrail::system('System', 'system.reset_failed', ['id' => $id, 'op' => $op, 'reason' => $reason, 'failures' => $failures, 'put_back' => 'unchecked', 'put_back_failures' => $after]);
+
+            throw new ResetStuck('Das ist fehlgeschlagen. Die Sicherung ist zurückgespielt, aber auch danach schlägt die Prüfung fehl: '.$after[0]['text'].'. Der Shop bleibt im Wartungsmodus.');
+        }
+
+        AuditTrail::system('System', 'system.reset_failed', ['id' => $id, 'op' => $op, 'reason' => $reason, 'failures' => $failures]);
+
+        throw new ResetRefused('Das hat nicht geklappt; die Datenbank ist wieder genau wie vorher. Grund: '.$reason);
     }
 
-    /** The demo rows of the kept tables — DemoPurge's rows, for the levels that replace instead of purging. */
-    private function takeKeptDemo(): void
+    /**
+     * The interrupted reset or undo, with the lock held or taken: finished (the setting already names it) or put back
+     * from its copy — and then checked, as every reset is. A put-back whose check fails stays marked, so the site stays
+     * in maintenance, and says so once.
+     */
+    private function recoverMarked(): ?string
     {
-        $users = DB::table('admin_users')->where('is_demo', true)->whereNotNull('demo_ref')->pluck('id')->all();
-        $morph = (new AdminUser)->getMorphClass();
+        $marker = $this->readMarker();
 
-        DB::table('audit_logs')->where('is_demo', true)->whereNotNull('demo_ref')->delete();
-        DB::table('model_has_roles')->where('model_type', $morph)->whereIn('model_id', $users)->delete();
-        DB::table('model_has_permissions')->where('model_type', $morph)->whereIn('model_id', $users)->delete();
-        DB::table('admin_users')->whereIn('id', $users)->delete();
-        DB::table('jobs')->where('queue', DemoTables::QUEUE)->delete();
-        Setting::query()->whereKey(DemoTables::SETTING)->delete();
+        if ($marker === null) {
+            return null;
+        }
+
+        $mine = $this->lock !== null;
+
+        if (! $mine && ! $this->acquire(throw: false)) {
+            // Still running in another process.
+            return null;
+        }
+
+        try {
+            $id = (string) ($marker['id'] ?? '');
+            $last = $this->setting();
+            // A reset is done once the setting names it; an undo once the setting no longer names its reset as in force.
+            $done = ($marker['op'] ?? '') === 'reset'
+                ? ($last['id'] ?? null) === $id
+                : ! (($last['id'] ?? null) === ($marker['undoes'] ?? null) && ($last['undone_at'] ?? null) === null);
+
+            if (! $done) {
+                $tables = array_values(array_filter((array) ($marker['tables'] ?? []), 'is_string'));
+                $snapshot = TestEnvironment::dir().'/'.$id.'/'.self::SNAPSHOT;
+
+                if ($tables !== [] && SqlSnapshot::summary($snapshot) !== null) {
+                    (new SqlSnapshot(DB::connection()))->replace($tables, $snapshot, $snapshot);
+                }
+
+                $failures = $this->probe->failures();
+
+                if ($failures !== []) {
+                    if (($marker['reported'] ?? false) !== true) {
+                        AuditTrail::system('System', 'system.reset_failed', ['id' => $id, 'op' => $marker['op'] ?? null, 'reason' => 'Unterbrochen; nach dem Zurückspielen schlägt die Prüfung fehl', 'failures' => $failures, 'put_back' => 'unchecked']);
+                        $this->mark([...$marker, 'reported' => true]);
+                    }
+
+                    return null;
+                }
+
+                AuditTrail::system('System', 'system.reset_recovered', ['id' => $id, 'op' => $marker['op'] ?? null, 'level' => $marker['level'] ?? null]);
+                $this->writeManifest(TestEnvironment::dir().'/'.$id, ['status' => 'failed', 'reason' => 'unterbrochen, aus der Sicherung zurückgeholt']);
+            }
+
+            $this->unmark();
+            $this->forgetCaches();
+
+            if ($this->maintenance->active()) {
+                $this->maintenance->off();
+            }
+
+            return $done ? 'abgeschlossen' : 'aus der Sicherung zurückgeholt';
+        } finally {
+            if (! $mine) {
+                $this->release();
+            }
+        }
     }
 
     /**
@@ -764,7 +913,10 @@ class TestReset
         return $staged;
     }
 
-    /** One kept table's demo rows back from its staged copy; rows that are there already stay as they are. */
+    /**
+     * One kept table's demo rows back from its staged copy; rows that are there already stay as they are. An INSERT —
+     * the one write the append-only tables take.
+     */
     private function bringBack(string $table, string $stage): void
     {
         $columns = array_values(array_filter(
@@ -888,7 +1040,7 @@ class TestReset
     /** @return array<string, mixed> */
     private function setting(): array
     {
-        $value = Setting::get(self::SETTING);
+        $value = Setting::get(TestEnvironment::SETTING);
 
         return is_array($value) ? $value : [];
     }
@@ -903,8 +1055,8 @@ class TestReset
      */
     private function acquire(bool $throw = true): bool
     {
-        File::ensureDirectoryExists(self::dir());
-        $handle = fopen(self::dir().'/.lock', 'c');
+        File::ensureDirectoryExists(TestEnvironment::dir());
+        $handle = fopen(TestEnvironment::dir().'/.lock', 'c');
 
         if ($handle === false || ! flock($handle, LOCK_EX | LOCK_NB)) {
             if (is_resource($handle)) {
@@ -944,30 +1096,30 @@ class TestReset
         $base = CarbonImmutable::now('UTC')->format('Ymd-His').'-'.$what;
         $id = $base;
 
-        for ($n = 2; is_dir(self::dir().'/'.$id); $n++) {
+        for ($n = 2; is_dir(TestEnvironment::dir().'/'.$id); $n++) {
             $id = $base.'-'.$n;
         }
 
-        File::ensureDirectoryExists(self::dir().'/'.$id);
+        File::ensureDirectoryExists(TestEnvironment::dir().'/'.$id);
 
-        return [$id, self::dir().'/'.$id];
+        return [$id, TestEnvironment::dir().'/'.$id];
     }
 
     /** @param  array<string, mixed>  $marker */
     private function mark(array $marker): void
     {
-        file_put_contents(self::dir().'/'.self::MARKER, json_encode($marker + ['pid' => getmypid(), 'at' => CarbonImmutable::now('UTC')->toIso8601String()], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        file_put_contents(TestEnvironment::dir().'/'.self::MARKER, json_encode($marker + ['pid' => getmypid(), 'at' => CarbonImmutable::now('UTC')->toIso8601String()], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
     private function unmark(): void
     {
-        @unlink(self::dir().'/'.self::MARKER);
+        @unlink(TestEnvironment::dir().'/'.self::MARKER);
     }
 
     /** @return array<string, mixed>|null */
     private function readMarker(): ?array
     {
-        $marker = self::readJson(self::dir().'/'.self::MARKER);
+        $marker = self::readJson(TestEnvironment::dir().'/'.self::MARKER);
 
         return $marker === [] ? null : $marker;
     }
@@ -990,6 +1142,22 @@ class TestReset
         $data = json_decode((string) file_get_contents($file), true);
 
         return is_array($data) ? $data : [];
+    }
+
+    private static function folderBytes(string $folder): int
+    {
+        $bytes = 0;
+
+        foreach (File::allFiles($folder, true) as $file) {
+            $bytes += (int) $file->getSize();
+        }
+
+        return $bytes;
+    }
+
+    private static function megabytes(int $bytes): string
+    {
+        return GermanFormat::decimal($bytes / 1_048_576, 1).GermanFormat::NBSP.'MB';
     }
 
     private static function name(AdminUser|string $by): string

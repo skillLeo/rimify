@@ -7,9 +7,10 @@
  * is this configuration's number). Under the frame: the spec line, the caption naming the product (no price and
  * no link, the client's #4), the line saying what the picture shows, and the Demodaten line.
  *
- * With no photograph of the product the frame draws the outline and names no product: no brand,
- * no model, no price, no link, no leader — the spec line and one sentence saying what the drawing
- * is. The bundled stand-in photograph is retired.
+ * The photograph is the brand's (`heroPhoto`, chosen in Inhalte; PROTECTED.md P1) and stands whatever the catalogue holds;
+ * the leaders, the spec line and the caption are the values of the wheel in it, where the catalogue holds that wheel
+ * (`product`), and with the catalogue empty they are simply not there (the operator's brief of 05.10.2026, §2). Only where the release shipped without the photograph is
+ * the outline drawn — with no brand, no model, no price, no link and no leader.
  *
  * On a tall phone the frame is in the first viewport and its picture is the LCP, so it loads
  * eagerly (app.blade.php preloads it with the same `sizes`). Once, on load, the wheel rolls in and
@@ -22,10 +23,10 @@ import { computed, onMounted, ref } from 'vue'
 import Picture from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
-import type { HeroProduct } from '../../../types/pages'
+import type { HeroPhoto, HeroProduct } from '../../../types/pages'
 import { COMPANION_STAGGER_MS, companionScene, companionStyle, frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_COMPANION, PHONE_LAYOUT, PHONE_PAIR_LAYOUT, rollStyle } from './calloutSlots'
 
-const props = defineProps<{ product: HeroProduct }>()
+const props = withDefaults(defineProps<{ heroPhoto?: HeroPhoto | null; product: HeroProduct | null }>(), { heroPhoto: null })
 
 const page = usePage<{ demo?: boolean }>()
 
@@ -33,25 +34,27 @@ const CAPTION = 'Abbildung zeigt das Design; Werte der gezeigten Ausführung.'
 const SYMBOLIC = 'Symbolbild – Werte einer Beispielkonfiguration'
 const DEMO = 'Demodaten – Beispielsortiment; Preise und Bestände sind Beispielwerte.'
 
-/* Two wheels where the product has a second photographed finish (PROTECTED.md P1): both boxes then stand on the left. */
-const layout = computed(() => (props.product.companion?.imageManifest ? PHONE_PAIR_LAYOUT : PHONE_LAYOUT))
-const scene = computed(() => heroScene(props.product, layout.value))
+/* The brand's photograph; an older payload without one stands on the product's own (both carry the same cut-out). */
+const source = computed(() => props.heroPhoto ?? props.product ?? null)
+/* Two wheels where the photograph has its second finish (PROTECTED.md P1): both boxes then stand on the left. */
+const layout = computed(() => (source.value?.companion?.imageManifest ? PHONE_PAIR_LAYOUT : PHONE_LAYOUT))
+const scene = computed(() => heroScene(source.value, layout.value, props.product?.facts ?? null))
 
 /* The photograph failed to load: the outline, and no leaders — they would point at nothing. */
 const failed = ref(false)
 const photo = computed(() => (failed.value ? null : scene.value.picture))
 /* The second wheel, behind the first; it goes quietly if its own file fails, and never without the first. */
 const pairFailed = ref(false)
-const pair = computed(() => (photo.value === null || pairFailed.value ? null : companionScene(props.product, scene.value, layout.value, PHONE_COMPANION)))
+const pair = computed(() => (photo.value === null || pairFailed.value ? null : companionScene(source.value, scene.value, layout.value, PHONE_COMPANION)))
 const pairStyle = computed(() => (pair.value === null ? {} : companionStyle(pair.value)))
-const pairAlt = computed(() => (props.product.companion ? `${props.product.brand} ${props.product.name} in ${props.product.companion.finish}, Ansicht von vorn` : ''))
-const finishes = computed(() => (pair.value !== null && props.product.companion ? `${props.product.finish} und ${props.product.companion.finish}` : props.product.finish))
+const pairAlt = computed(() => (source.value?.companion && source.value.brand ? `${source.value.brand} ${source.value.name} in ${source.value.companion.finish}, Ansicht von vorn` : ''))
+const finishes = computed(() => (source.value === null ? '' : pair.value !== null && source.value.companion ? `${source.value.finish} und ${source.value.companion.finish}` : source.value.finish))
 const callouts = computed(() => (photo.value === null ? [] : scene.value.callouts))
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
-/* The product is named only over its own photograph, never under the outline; never priced, never linked (#4, D-108). */
-const named = computed(() => !props.product.symbolic && photo.value !== null)
-const alt = computed(() => `${props.product.brand} ${props.product.name} in ${props.product.finish}, Ansicht von vorn`)
+/* Named only where the catalogue holds the wheel, over its own photograph; never priced, never linked (#4, D-108). */
+const named = computed(() => props.product !== null && !props.product.symbolic && photo.value !== null)
+const alt = computed(() => (source.value === null || !source.value.brand ? 'Felge, Ansicht von vorn' : `${source.value.brand} ${source.value.name} in ${source.value.finish}, Ansicht von vorn`))
 
 /* The leaders draw once both wheels stand: after the roll, and after the second wheel's beat when it is there. */
 const frameVars = computed(() => ({
@@ -73,7 +76,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="root" class="hero-mobile">
+    <div ref="root" class="hero-mobile" :data-hero="product ? 'values' : 'photo'">
         <!-- No link and no price in the hero (the client's #4, D-108): the picture and its numbers. -->
         <div class="frame hero-frame" :style="frameVars">
             <span class="hero-studio" aria-hidden="true" />
@@ -100,7 +103,7 @@ onMounted(() => {
                 </span>
             </span>
             <span v-else class="hero-frame__outline" aria-hidden="true">
-                <WheelOutline :bolts="product.config.boltHoles" size="82%" />
+                <WheelOutline :bolts="product?.config.boltHoles ?? 5" size="82%" />
             </span>
 
             <SpecCallout
@@ -122,16 +125,19 @@ onMounted(() => {
             />
         </div>
 
-        <!-- Tokens and figures throughout, the stamp's number with them: never translated. -->
-        <p class="small num muted hero-mobile__spec" translate="no">
-            {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
-        </p>
+        <!-- The wheel's values and name, under its photograph; with the catalogue empty, none of it. -->
+        <template v-if="product">
+            <!-- Tokens and figures throughout, the stamp's number with them: never translated. -->
+            <p class="small num muted hero-mobile__spec" translate="no">
+                {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
+            </p>
 
-        <p v-if="named" class="hero-mobile__caption">
-            <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
-        </p>
-        <p v-if="photo" class="micro quiet hero-mobile__shown">{{ CAPTION }}</p>
-        <p v-else class="micro quiet hero-mobile__symbolic">{{ SYMBOLIC }}</p>
+            <p v-if="named" class="hero-mobile__caption">
+                <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
+            </p>
+            <p v-if="photo" class="micro quiet hero-mobile__shown">{{ CAPTION }}</p>
+            <p v-else class="micro quiet hero-mobile__symbolic">{{ SYMBOLIC }}</p>
+        </template>
         <!-- Seeded demonstration rows: the page says so, once (OVERHAUL.md §2). -->
         <p v-if="page.props.demo" class="micro quiet demo-note">{{ DEMO }}</p>
     </div>

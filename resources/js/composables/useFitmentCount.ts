@@ -25,6 +25,8 @@ export interface FitmentCountResult {
     conditional: number
     vehicle: CountVehicle | null
     ambiguous: CountVehicle[]
+    /** No wheel published at all: a 0 then says the shop is still empty, not that no document names the car. */
+    shopEmpty?: boolean
 }
 
 export type FitmentCountQuery = { fahrzeug: number } | { hsn: string; tsn: string }

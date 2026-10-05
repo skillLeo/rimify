@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { REVIEW_PASSWORD } from '../support';
+import { DEV, REVIEW_PASSWORD } from '../support';
 import { waitForApp } from './faq-support';
 
 /*
@@ -7,15 +7,17 @@ import { waitForApp } from './faq-support';
  * docs/qa/reviews/SHOP-FEEDBACK-2026-10-03.md): the review's „Rückmeldung geben“ on the shop's own pages (D-142) —
  * ShopFeedback.vue, FeedbackDialog.vue (surface „shop“), useFeedback.ts, HandleInertiaRequests::reviewer().
  *
- * The development shop at :8000 (as e2e/shop-feedback.spec.ts): the review is on there and the review accounts carry the
- * development password. `SHOP_FEEDBACK_BASE_URL` names another copy. Nothing in these specs needs a wheel in the
- * catalogue: the pages used are /kontakt and /faq, and the compare list is put into the browser's own storage.
+ * The development shop, the admin's address (as e2e/shop-feedback.spec.ts — :8000 unless E2E_ADMIN_PORT moves it): the
+ * review is on there and the review accounts carry the development password. `SHOP_FEEDBACK_BASE_URL` names another
+ * copy. Nothing in these specs needs a wheel in the catalogue: the pages used are /kontakt and /faq, and the compare
+ * list is put into the browser's own storage.
  *
  * Nothing is written: `guardSends` stops every POST to /admin/review/rueckmeldungen in the browser unless a spec has put
  * its own handler in front (SHOP-FEEDBACK-01 answers it in the browser). No point reaches the database.
  */
 
-export const SHOP_FEEDBACK_BASE = process.env.SHOP_FEEDBACK_BASE_URL ?? 'http://127.0.0.1:8000';
+export const SHOP_FEEDBACK_BASE =
+    process.env.SHOP_FEEDBACK_BASE_URL ?? DEV;
 
 /** Where the specs leave their evidence. Relative to the project root, where Playwright runs. */
 export const SHOTS = 'docs/qa/shots/shop-feedback-2026-10-03';
@@ -82,7 +84,10 @@ export async function openShop(page: Page, path: string): Promise<Locator> {
 
     const button = feedbackButton(page);
 
-    await expect(button, `precondition: no feedback button on ${path} for the signed-in review account`).toBeVisible({ timeout: 15_000 });
+    await expect(
+        button,
+        `precondition: no feedback button on ${path} for the signed-in review account`,
+    ).toBeVisible({ timeout: 15_000 });
 
     return button;
 }
@@ -110,7 +115,10 @@ export function fmt(box: Box): string {
  * What a finger or a pointer would hit on `target`: its centre, or a point 12 px inside its right end. `inside` is true
  * when the topmost element there is the target or inside it.
  */
-export async function topmostAt(target: Locator, where: 'centre' | 'right' = 'centre'): Promise<{ inside: boolean; what: string }> {
+export async function topmostAt(
+    target: Locator,
+    where: 'centre' | 'right' = 'centre',
+): Promise<{ inside: boolean; what: string }> {
     return target.evaluate((element, at) => {
         const r = element.getBoundingClientRect();
         const x = at === 'right' ? r.right - Math.min(12, r.width / 4) : r.left + r.width / 2;
@@ -122,7 +130,10 @@ export async function topmostAt(target: Locator, where: 'centre' | 'right' = 'ce
             }
 
             const id = el.id ? `#${el.id}` : '';
-            const classes = typeof el.className === 'string' && el.className.trim() !== '' ? `.${el.className.trim().split(/\s+/).join('.')}` : '';
+            const classes =
+                typeof el.className === 'string' && el.className.trim() !== ''
+                    ? `.${el.className.trim().split(/\s+/).join('.')}`
+                    : '';
             const text = (el.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48);
 
             return `<${el.tagName.toLowerCase()}${id}${classes}>${text === '' ? '' : ` „${text}“`}`;

@@ -32,10 +32,12 @@ export interface ResetLast {
     by: string
     /** Until when it can be undone, as `atText`. */
     until: string
+    /** How long that is from the page's moment, said on the server: `noch 6 Tage und 23 Stunden`; null once it cannot. */
+    remaining: string | null
     undone: boolean
     undoneText: string | null
     undoable: boolean
-    /** Why it cannot be undone, or null. */
+    /** Why it cannot be undone — once the window has closed, the one sentence that says so — or null. */
     reason: string | null
 }
 

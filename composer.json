@@ -93,6 +93,15 @@
             "@putenv DB_DATABASE=rimify_wf_e2e",
             "@php artisan migrate:fresh --seed --seeder=E2eShopSeeder --force"
         ],
+        "test:parallel": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/pest --parallel --exclude-group=pipeline",
+            "@php vendor/bin/pest --group=pipeline"
+        ],
+        "test:pipeline": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/pest --group=pipeline"
+        ],
         "test:mysql": [
             "Composer\\Config::disableProcessTimeout",
             "@putenv DB_PORT=3307",

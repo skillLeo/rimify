@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { consentGiven, open } from './support';
+import { DEV, consentGiven, open } from './support';
 
 /*
  * The vehicle selector's focus order is its reading order, at 390 (WCAG 1.3.2, 2.4.3; the operator's decision of
@@ -97,7 +97,7 @@ async function tabStops(page: Page): Promise<Stop[]> {
 for (const route of ROUTES) {
     test(`the vehicle selector is tabbed in the order it is read, at 390 — ${route}`, async ({ page, baseURL }) => {
         await page.setViewportSize({ width: 390, height: 844 });
-        await consentGiven(page.context(), baseURL ?? 'http://127.0.0.1:8000');
+        await consentGiven(page.context(), baseURL ?? DEV);
         await open(page, route);
 
         const stops = await tabStops(page);

@@ -60,6 +60,8 @@ final class DemoWheels
      * @return array<string, array{
      *     slug: string,
      *     model: string,
+     *     brand?: string,
+     *     name?: string,
      *     finish: string,
      *     circle?: array{0: int, 1: int, 2: int},
      *     mask?: string,

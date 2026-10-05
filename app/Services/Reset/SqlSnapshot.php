@@ -7,6 +7,7 @@ namespace App\Services\Reset;
 use Generator;
 use Illuminate\Database\Connection;
 use RuntimeException;
+use Throwable;
 
 /**
  * Tables of the database as one SQL file, and tables put back from one — the safety copy every reset of the test
@@ -64,12 +65,17 @@ final class SqlSnapshot
             throw new RuntimeException("Die Sicherung kann nicht nach {$path} geschrieben werden.");
         }
 
+        // Every write is checked: a disk or a quota that runs out mid-copy stops the copy, never shortens it quietly.
         $put = $portable
-            ? static function (string $line) use ($out): void {
-                fwrite($out, $line."\n");
+            ? static function (string $line) use ($out, $path): void {
+                if (fwrite($out, $line."\n") !== strlen($line) + 1) {
+                    throw new RuntimeException("Die Sicherung {$path} ließ sich nicht zu Ende schreiben (Speicherplatz?).");
+                }
             }
-        : static function (string $line) use ($out): void {
-            gzwrite($out, $line."\n");
+        : static function (string $line) use ($out, $path): void {
+            if (gzwrite($out, $line."\n") !== strlen($line) + 1) {
+                throw new RuntimeException("Die Sicherung {$path} ließ sich nicht zu Ende schreiben (Speicherplatz?).");
+            }
         };
 
         $summary = [];
@@ -90,11 +96,23 @@ final class SqlSnapshot
             $put('--@footer');
             $put('SET FOREIGN_KEY_CHECKS = 1;');
             $put('--@end '.json_encode(['tables' => $summary, 'triggers' => $triggers], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
-        } finally {
-            $portable ? fclose($out) : gzclose($out);
+        } catch (Throwable $e) {
+            $portable ? @fclose($out) : @gzclose($out);
+            @unlink($part);
+
+            throw $e;
+        }
+
+        // Closing flushes the last compressed block: where the disk is full, this is where it says so.
+        if (! ($portable ? fclose($out) : gzclose($out))) {
+            @unlink($part);
+
+            throw new RuntimeException("Die Sicherung {$path} ließ sich nicht zu Ende schreiben (Speicherplatz?).");
         }
 
         if (! rename($part, $path)) {
+            @unlink($part);
+
             throw new RuntimeException("Die Sicherung {$path} konnte nicht abgeschlossen werden.");
         }
 

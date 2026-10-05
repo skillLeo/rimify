@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
 use App\Services\Admin\AuditDescriber;
 use App\Services\Admin\AuditTrail;
+use App\Services\Reset\ResetProbe;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Database\Seeders\AccessSeeder;
@@ -455,6 +456,16 @@ describe('putting every entry into words', function (): void {
                 [],
             ],
             'system.reset_recovered' => [['id' => '20261004-120000-shop', 'op' => 'reset', 'level' => 'shop'], 'Ein Zurücksetzen der Testumgebung wurde unterbrochen. Die Datenbank wurde aus der Sicherung wiederhergestellt.', []],
+            'system.reset_refused' => [
+                ['op' => 'reset', 'level' => 'shop', 'when' => 'vor dem Zurücksetzen', 'failures' => [['check' => 'triggers', 'text' => ResetProbe::CHECKS['triggers'], 'detail' => 'es fehlt '.ResetProbe::TRIGGERS['trg_audit_no_update']]]],
+                'Ein Zurücksetzen der Testumgebung wurde abgelehnt, bevor sich etwas änderte. Prüfung vor dem Zurücksetzen: Nicht alle Trigger, die das Protokoll und die Prüfnachweise schützen, sind vorhanden – es fehlt der Änderungsschutz des Protokolls.',
+                [],
+            ],
+            'system.reset_backup_removed' => [
+                ['id' => '20261004-175904-shop', 'op' => 'reset', 'level' => 'shop', 'at' => '2026-10-04T17:59:04+00:00', 'bytes' => 6_082_560],
+                'Die Sicherung des Zurücksetzens vom '.GermanFormat::dateTime(CarbonImmutable::parse('2026-10-04T17:59:04+00:00'))." („Shopdaten“, 5,8\u{00A0}MB) wurde nach 7 Tagen gelöscht. Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.",
+                [],
+            ],
             'orders.exported' => [
                 ['format' => 'xlsx', 'filters' => ['status' => 'PAID', 'von' => '2026-09-01', 'bis' => '2026-09-26'], 'count' => 12],
                 'Bestellungen wurden als Excel-Datei exportiert (Status „Bezahlt“, Zeitraum 01.09.2026 bis 26.09.2026) – 12 Bestellungen.',
@@ -613,6 +624,29 @@ describe('putting every entry into words', function (): void {
                     $described['changes'],
                 ))->toBe($changes, $event);
         }
+    });
+
+    it('names an undo as an undo, and says at „Demodaten“ that the demo team went and came back', function (): void {
+        $admin = protokollAdmin();
+        $describer = app(AuditDescriber::class);
+        $sentence = static fn (string $event, array $properties): string => $describer->describe(protokollEntry($admin, $event, $properties))['sentence'];
+        $failure = ['check' => 'snapshot_update', 'text' => ResetProbe::CHECKS['snapshot_update'], 'detail' => 'die Anweisung ging durch'];
+
+        expect($sentence('system.reset_refused', ['op' => 'undo', 'level' => 'shop', 'when' => 'vor dem Rückgängigmachen', 'failures' => [$failure]]))
+            ->toBe('Das Rückgängigmachen eines Zurücksetzens der Testumgebung wurde abgelehnt, bevor sich etwas änderte. Prüfung vor dem Rückgängigmachen: Eine Änderung an einem Prüfnachweis wurde nicht abgelehnt (erwartet: SQLSTATE 45000) – die Anweisung ging durch.')
+            // Written before entries carried `op`: the undo's id says what it was.
+            ->and($sentence('system.reset_failed', ['id' => '20261004-130000-undo', 'reason' => 'Verweise ins Leere']))
+            ->toBe('Das Rückgängigmachen eines Zurücksetzens der Testumgebung ist fehlgeschlagen. Die Datenbank wurde aus der Sicherung wiederhergestellt und ist genauso wie vorher. Grund: Verweise ins Leere')
+            ->and($sentence('system.reset_failed', ['id' => '20261004-120000-shop', 'op' => 'reset', 'reason' => 'x', 'failures' => [$failure], 'put_back' => 'unchecked', 'put_back_failures' => [$failure]]))
+            ->toBe('Ein Zurücksetzen der Testumgebung ist fehlgeschlagen. Die Sicherung ist zurückgespielt, aber auch danach schlägt die Prüfung fehl; der Shop bleibt im Wartungsmodus. Nach dem Zurückspielen: Eine Änderung an einem Prüfnachweis wurde nicht abgelehnt (erwartet: SQLSTATE 45000) – die Anweisung ging durch. Fehlgeschlagen: Eine Änderung an einem Prüfnachweis wurde nicht abgelehnt (erwartet: SQLSTATE 45000) – die Anweisung ging durch.')
+            ->and($sentence('system.reset_recovered', ['id' => '20261004-130000-undo', 'op' => 'undo', 'level' => 'shop']))
+            ->toBe('Das Rückgängigmachen eines Zurücksetzens der Testumgebung wurde unterbrochen. Die Datenbank wurde aus der Sicherung wiederhergestellt.')
+            ->and($sentence('system.reset', ['id' => '20261004-120000-demo', 'level' => 'demo', 'counts' => [['label' => 'Konten des Demo-Teams', 'count' => 4]]]))
+            ->toBe("Die Testumgebung wurde zurückgesetzt („Demodaten“). Entfernt: 4\u{00A0}Konten des Demo-Teams. Die übrigen Benutzer und Protokolleinträge sind geblieben.")
+            ->and($sentence('system.reset_undone', ['id' => '20261004-120000-demo', 'level' => 'demo']))
+            ->toBe('Das Zurücksetzen der Testumgebung (Demodaten) wurde rückgängig gemacht. Die Demodaten sind wieder da, auch das Demo-Team und seine Protokolleinträge. Die übrigen Benutzer und Protokolleinträge sind geblieben.')
+            ->and($sentence('system.reset_backup_removed', ['id' => '20261004-130000-undo', 'op' => 'undo', 'at' => '2026-10-04T13:00:00+00:00', 'bytes' => 629_146]))
+            ->toBe('Die Sicherung vor dem Rückgängigmachen vom '.GermanFormat::dateTime(CarbonImmutable::parse('2026-10-04T13:00:00+00:00'))." (0,6\u{00A0}MB) wurde nach 7 Tagen gelöscht.");
     });
 
     it('says a role is gone rather than naming it wrongly', function (): void {

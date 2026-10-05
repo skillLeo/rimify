@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Models\FaqEntry;
 use App\Models\Setting;
 use App\Models\WheelModel;
+use App\Support\HeroPhotos;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -236,6 +237,8 @@ class ContentSeeder extends Seeder
             'sub' => 'Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen. Du gibst dein Auto an, wir prüfen den Rest.',
             // The phone document has room for one sentence.
             'sub_mobile' => 'Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.',
+            // The brand's photograph: there with or without a catalogue (HeroPhotos, PROTECTED.md P1).
+            'foto' => HeroPhotos::DEFAULT,
         ]);
 
         /*

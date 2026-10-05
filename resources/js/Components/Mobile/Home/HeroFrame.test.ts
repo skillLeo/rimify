@@ -4,7 +4,7 @@ import { defineComponent, h, nextTick } from 'vue'
 import { NNBSP } from '../../../format'
 import { HERO_SIZES_PHONE } from './calloutSlots'
 import type { ImageManifest, WheelAnchors } from '../../Ui/Picture.vue'
-import type { HeroProduct } from '../../../types/pages'
+import type { HeroPhoto, HeroProduct } from '../../../types/pages'
 
 /*
  * The hero on a phone (docs/phase0/ACCURACY.md D10, §3.0, §4): the same `bare` cut-out and anchors
@@ -539,5 +539,36 @@ describe('HeroFrame · a broken photograph', () => {
 
         expect(wrapper.find('.hero-frame img').exists()).toBe(true)
         expect(wrapper.findAll('.callout')).toHaveLength(2)
+    })
+})
+
+describe('HeroFrame · the brand\'s photograph, with or without a catalogue (PROTECTED.md P1)', () => {
+    const PHOTO: HeroPhoto = { brand: 'Borbet', name: 'DB8GT2', finish: 'Schwarz matt', imageManifest: manifest(), companion: null }
+
+    function mountWithPhoto(p: HeroProduct | null): VueWrapper {
+        const wrapper = mount(HeroFrame, { props: { heroPhoto: PHOTO, product: p }, attachTo: document.body })
+        wrappers.push(wrapper)
+
+        return wrapper
+    }
+
+    it('stands with nothing published: the photograph, and no leader, no spec line, no caption', () => {
+        const wrapper = mountWithPhoto(null)
+
+        expect(wrapper.find('.hero-frame__roll picture').exists()).toBe(true)
+        expect(wrapper.find('.hero-frame__roll img').attributes('alt')).toBe('Borbet DB8GT2 in Schwarz matt, Ansicht von vorn')
+        expect(wrapper.find('.hero-frame__outline').exists()).toBe(false)
+        expect(wrapper.findAll('.callout')).toHaveLength(0)
+        expect(wrapper.find('.hero-mobile__spec').exists()).toBe(false)
+        expect(wrapper.find('.hero-mobile__caption').exists()).toBe(false)
+        expect(wrapper.find('.hero-mobile__shown').exists()).toBe(false)
+    })
+
+    it('puts the published wheel\'s values on the same photograph', () => {
+        const wrapper = mountWithPhoto(product({ imageManifest: null }))
+
+        expect(wrapper.find('.hero-frame__roll picture').exists()).toBe(true)
+        expect(wrapper.findAll('.callout')).toHaveLength(2)
+        expect(wrapper.find('.hero-mobile__spec').exists()).toBe(true)
     })
 })

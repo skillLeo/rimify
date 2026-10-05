@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { consentGiven, open } from './support';
+import { DEV, consentGiven, open } from './support';
 import { SHOP } from './shop';
 
 // A storefront spec: the shop with wheels in it (e2e/shop.ts).
@@ -11,7 +11,7 @@ test.use({ baseURL: SHOP });
 
 test.describe('command palette', () => {
     test.beforeEach(async ({ context, baseURL }) => {
-        await consentGiven(context, baseURL ?? 'http://127.0.0.1:8000');
+        await consentGiven(context, baseURL ?? DEV);
     });
 
     test('opens with the shortcut and takes a typo to the product', async ({ page }, testInfo) => {
