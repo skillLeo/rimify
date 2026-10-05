@@ -34,6 +34,20 @@ it('keeps the path closed while only seeds carry key numbers, and says so on eve
     $this->get('/rechtliches/impressum')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('keyNumbersClosed', KeyNumberSearch::CLOSED));
 });
 
+// The preview after the Shopdaten reset holds no car at all: Marke & Modell offers nothing, so the sentence does not
+// send anyone there (06.10.2026).
+it('sends nobody to Marke & Modell while the shop holds no car at all', function (): void {
+    expect(Vehicle::query()->exists())->toBeFalse()
+        ->and(KeyNumberSearch::closedSentence())->toBe(KeyNumberSearch::CLOSED_NO_CARS)
+        ->and(KeyNumberSearch::CLOSED_NO_CARS)->not->toContain('Marke & Modell');
+
+    $this->get('/rechtliches/impressum')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('keyNumbersClosed', KeyNumberSearch::CLOSED_NO_CARS));
+
+    // Any car is enough for Marke & Modell to find one — while the key-number path stays closed.
+    keyNumberCar(VehicleSource::Entwicklung);
+    expect(KeyNumberSearch::closedSentence())->toBe(KeyNumberSearch::CLOSED);
+});
+
 it('answers no lookup while closed: what was typed comes back, and no gap is counted', function (): void {
     keyNumberCar(VehicleSource::Entwicklung);
 

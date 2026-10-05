@@ -39,9 +39,9 @@ function respond(path: string, body: unknown, status = 200): void {
 
 let mounted: VueWrapper[] = []
 
-function mountPanel(): VueWrapper {
+function mountPanel(makes: { make: string; models: number }[] = [{ make: 'BMW', models: 3 }]): VueWrapper {
     const wrapper = mount(VehiclePanel, {
-        props: { makes: [{ make: 'BMW', models: 3 }] },
+        props: { makes },
         global: { stubs: { BottomSheet: true } },
         attachTo: document.body,
     })
@@ -312,5 +312,26 @@ describe('VehiclePanel — no vehicle dataset yet', () => {
 
         await wrapper.find('.vpanel__closed button').trigger('click')
         expect(wrapper.find('[role="tabpanel"][data-state="active"]').attributes('id')).toContain('panel-guided')
+    })
+
+    // An emptied test environment holds no car at all (the preview after Shopdaten, 06.10.2026): the desktop said so in
+    // its list, the phone said nothing — now both, with the one way on, as /felgen-suchen does.
+    it('sends nobody to Marke & Modell while the shop holds no car, and says so under the Marke field', () => {
+        const CLOSED_NO_CARS = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind.'
+        current.props.keyNumbersClosed = CLOSED_NO_CARS
+        const wrapper = mountPanel([])
+
+        expect(wrapper.find('.vpanel__closed').text()).toBe(CLOSED_NO_CARS)
+        expect(wrapper.find('.vpanel__closed button').exists()).toBe(false)
+
+        const line = wrapper.find('.vpanel__no-cars')
+        expect(line.text()).toBe('Hier ist noch kein Fahrzeug hinterlegt. Schreib uns, welches Auto du fährst.')
+        expect(line.find('a').attributes('href')).toMatch(/^\/kontakt\?betreff=Mein\+Fahrzeug\+ist\+nicht\+dabei/)
+    })
+
+    it('says nothing of an empty shop while cars are there', () => {
+        const wrapper = mountPanel()
+
+        expect(wrapper.find('.vpanel__no-cars').exists()).toBe(false)
     })
 })

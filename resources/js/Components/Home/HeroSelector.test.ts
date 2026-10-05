@@ -74,9 +74,9 @@ function wait(ms: number): Promise<void> {
 
 let mounted: VueWrapper[] = []
 
-function mountSelector(): VueWrapper {
+function mountSelector(makes = MAKES): VueWrapper {
     const wrapper = mount(HeroSelector, {
-        props: { selector: { makes: MAKES } },
+        props: { selector: { makes } },
         global: { stubs: { DocumentScan: true } },
         attachTo: document.body,
     })
@@ -634,5 +634,27 @@ describe('HeroSelector — no vehicle dataset yet', () => {
 
         expect(wrapper.find('.sel__closed').exists()).toBe(false)
         expect(wrapper.findAll('input.input--code')).toHaveLength(2)
+    })
+
+    // An emptied test environment holds no car at all (the preview after Shopdaten, 06.10.2026): Marke & Modell has
+    // nothing to offer, so nothing leads there; the fields say so, with the one way on — as /felgen-suchen does.
+    it('sends nobody to Marke & Modell while the shop holds no car, and says so under the fields', () => {
+        const CLOSED_NO_CARS = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind.'
+        current.props.keyNumbersClosed = CLOSED_NO_CARS
+        const wrapper = mountSelector([])
+
+        const closed = wrapper.findAll('.sel__closed')
+        expect(closed).toHaveLength(2)
+        expect(closed.every((c) => c.text() === CLOSED_NO_CARS && !c.find('button').exists())).toBe(true)
+
+        const line = wrapper.find('.sel__no-cars')
+        expect(line.text()).toBe('Hier ist noch kein Fahrzeug hinterlegt. Schreib uns, welches Auto du fährst.')
+        expect(line.find('a').attributes('href')).toMatch(/^\/kontakt\?betreff=Mein\+Fahrzeug\+ist\+nicht\+dabei/)
+    })
+
+    it('says nothing of an empty shop while cars are there', () => {
+        const wrapper = mountSelector()
+
+        expect(wrapper.find('.sel__no-cars').exists()).toBe(false)
     })
 })

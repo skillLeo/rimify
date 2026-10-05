@@ -70,6 +70,12 @@ const reach = computed(() => {
 })
 /* The zero notice's way to ask, where no mail can confirm a subscription (F2). */
 const askHref = computed(() => contactHref({ subject: 'Felge für mein Fahrzeug gesucht', from: page.url }))
+/*
+ * No car in the shop at all — an emptied test environment: said under the Marke field, with the one way on that works,
+ * as /felgen-suchen says it (VehicleSelector); and nothing leads to Marke & Modell, which has nothing to offer.
+ */
+const noCars = computed(() => props.makes.length === 0)
+const emptyHref = computed(() => contactHref({ subject: 'Mein Fahrzeug ist nicht dabei', from: page.url }))
 
 const picker = useVehiclePicker()
 const uid = useId()
@@ -477,6 +483,9 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                         <option value="">z. B. BMW</option>
                         <option v-for="m in makes" :key="m.make" :value="m.make">{{ m.make }}</option>
                     </select>
+                    <p v-if="noCars" class="form-field__help vpanel__no-cars">
+                        Hier ist noch kein Fahrzeug hinterlegt. <Link class="link" :href="emptyHref">Schreib uns, welches Auto du fährst</Link>.
+                    </p>
                 </div>
 
                 <div class="form-field">
@@ -525,7 +534,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 <!-- No vehicle dataset yet (KeyNumberSearch): one sentence and the way that works, never fields that find nothing. -->
                 <div v-if="keysClosed" class="notice vpanel__notice vpanel__closed">
                     <p>{{ keysClosed }}</p>
-                    <button class="link" type="button" @click="picker.route.value = 'guided'">Marke &amp; Modell wählen</button>
+                    <button v-if="!noCars" class="link" type="button" @click="picker.route.value = 'guided'">Marke &amp; Modell wählen</button>
                 </div>
                 <template v-else>
                     <div class="vpanel__keys">

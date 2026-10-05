@@ -19,6 +19,12 @@ final class KeyNumberSearch
     /** What the key-number path says while it is closed. */
     public const CLOSED = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind – bis dahin findest du dein Auto über Marke & Modell.';
 
+    /**
+     * The same while the shop holds no car at all — an emptied test environment (Shopdaten takes the cars): Marke &
+     * Modell has nothing to offer either, and a sentence sending the visitor there would be wrong (06.10.2026).
+     */
+    public const CLOSED_NO_CARS = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind.';
+
     /** The sources that are a dataset: what an import or a person brought, never a seed or a Gutachten's own car. */
     private const DATASETS = [
         VehicleSource::ImportKba,
@@ -49,6 +55,10 @@ final class KeyNumberSearch
     /** The sentence while the path is closed, or null while it is open — what the pages are given. */
     public static function closedSentence(): ?string
     {
-        return self::available() ? null : self::CLOSED;
+        if (self::available()) {
+            return null;
+        }
+
+        return Vehicle::query()->exists() ? self::CLOSED : self::CLOSED_NO_CARS;
     }
 }

@@ -84,6 +84,12 @@ const reach = computed(() => {
 })
 /* The zero notice's way to ask, where no mail can confirm a subscription (F2). */
 const askHref = computed(() => contactHref({ subject: 'Felge für mein Fahrzeug gesucht', from: page.url }))
+/*
+ * No car in the shop at all — an emptied test environment: said under the fields, with the one way on that works, as
+ * /felgen-suchen says it (VehicleSelector); and nothing leads to Marke & Modell, which has nothing to offer.
+ */
+const noCars = computed(() => props.selector.makes.length === 0)
+const emptyHref = computed(() => contactHref({ subject: 'Mein Fahrzeug ist nicht dabei', from: page.url }))
 
 const id = useId()
 const tab = ref<Tab>('marke')
@@ -737,8 +743,12 @@ onBeforeUnmount(() => treeController?.abort())
                             </div>
                         </div>
 
-                        <p v-if="treeFailed" class="small muted sel__tree-failed" role="status">
-                            Die Liste lässt sich gerade nicht laden. Versuch es bitte noch einmal oder nutze die HSN/TSN.
+                        <p v-if="noCars" class="small muted sel__tree-failed sel__no-cars">
+                            Hier ist noch kein Fahrzeug hinterlegt. <Link class="link" :href="emptyHref">Schreib uns, welches Auto du fährst</Link>.
+                        </p>
+                        <p v-else-if="treeFailed" class="small muted sel__tree-failed" role="status">
+                            <!-- The key numbers are offered as the other way only while that way is open. -->
+                            {{ keysClosed ? 'Die Liste lässt sich gerade nicht laden. Versuch es bitte noch einmal.' : 'Die Liste lässt sich gerade nicht laden. Versuch es bitte noch einmal oder nutze die HSN/TSN.' }}
                         </p>
                     </TabsContent>
 
@@ -747,7 +757,7 @@ onBeforeUnmount(() => treeController?.abort())
                         <!-- No vehicle dataset yet: one sentence and the way that works, never a form that finds nothing. -->
                         <div v-if="keysClosed" class="notice sel__notice sel__closed">
                             <p>{{ keysClosed }}</p>
-                            <button class="link" type="button" @click="viaMake">Marke &amp; Modell wählen</button>
+                            <button v-if="!noCars" class="link" type="button" @click="viaMake">Marke &amp; Modell wählen</button>
                         </div>
 
                         <!-- Several cars behind one pair of key numbers: a confirmation, never a guess (R-01). -->
@@ -877,7 +887,7 @@ onBeforeUnmount(() => treeController?.abort())
                         <!-- The scan reads the key numbers: closed with them. -->
                         <div v-if="keysClosed" class="notice sel__notice sel__closed">
                             <p>{{ keysClosed }}</p>
-                            <button class="link" type="button" @click="viaMake">Marke &amp; Modell wählen</button>
+                            <button v-if="!noCars" class="link" type="button" @click="viaMake">Marke &amp; Modell wählen</button>
                         </div>
                         <DocumentScan v-else @confirm="onScan" @failed="onScanFailed" />
                     </TabsContent>
