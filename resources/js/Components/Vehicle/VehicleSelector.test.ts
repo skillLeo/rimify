@@ -230,3 +230,25 @@ describe('VehicleSelector — the halves of one car', () => {
         expect(wrapper.findAll('.vsel__note')).toHaveLength(0)
     })
 })
+
+/*
+ * No vehicle dataset yet (KeyNumberSearch, the operator's brief of 05.10.2026, §8): the key-number column says so in one
+ * sentence; Marke & Modell beside it is the way that works.
+ */
+describe('VehicleSelector — no vehicle dataset yet', () => {
+    const CLOSED = 'Die Suche nach Schlüsselnummern kommt mit den Fahrzeugdaten – bis dahin findest du dein Auto über Marke & Modell.'
+
+    it('says so in place of the key-number form', () => {
+        const wrapper = mountSelector({ keyNumbersClosed: CLOSED })
+
+        expect(wrapper.find('.vsel__closed').text()).toBe(CLOSED)
+        expect(wrapper.find('.vsel__col--keys form').exists()).toBe(false)
+    })
+
+    it('shows the form once the search is open', () => {
+        const wrapper = mountSelector({ keyNumbersClosed: null })
+
+        expect(wrapper.find('.vsel__closed').exists()).toBe(false)
+        expect(wrapper.find('.vsel__col--keys form').exists()).toBe(true)
+    })
+})

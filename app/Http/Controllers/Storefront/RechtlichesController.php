@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
 use App\Models\Page;
+use App\Services\Content\LegalTexts;
 use App\Services\Content\PageContent;
 use App\Support\Operator;
 use App\Support\Seller;
@@ -89,6 +90,8 @@ class RechtlichesController extends Controller
             'active' => $slug,
             'blocks' => $blocks,
             'provider' => $provider,
+            // Where the Kanzlei's text is outstanding, the page says who prepares it, in one sentence.
+            'preparing' => LegalTexts::PREPARING,
         ]);
     }
 }

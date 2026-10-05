@@ -59,6 +59,8 @@ const KW_PER_PS = 0.73549875
 
 const page = usePage<SharedProps & { lookup?: LookupResult | null }>()
 const vehicle = computed(() => page.props.vehicle)
+/* No vehicle dataset yet (KeyNumberSearch): the key-number tabs say so in one sentence and lead to Marke & Modell. */
+const keysClosed = computed(() => page.props.keyNumbersClosed ?? null)
 const contact = computed(() => page.props.contact)
 const garage = computed(() => (page.props.garage ?? []).filter((g) => g.id !== vehicle.value?.id))
 /*
@@ -389,7 +391,7 @@ function guide(): void {
         const order = [field('marke'), field('modell'), field('fahrzeug')]
         const missing = [make.value === undefined, model.value === undefined, true]
         target = order.find((el, i) => missing[i] && usable(el)) ?? [...order].reverse().find(usable) ?? null
-    } else if (tab.value === 'hsn') {
+    } else if (tab.value === 'hsn' && keysClosed.value === null) {
         target = isHsn(hsn.value) ? tsnField.value : hsnField.value
     } else {
         // The scan's own button, never its visually hidden file input.
@@ -742,8 +744,14 @@ onBeforeUnmount(() => treeController?.abort())
 
                     <!-- HSN / TSN -->
                     <TabsContent value="hsn" class="tabs__content" force-mount>
+                        <!-- No vehicle dataset yet: one sentence and the way that works, never a form that finds nothing. -->
+                        <div v-if="keysClosed" class="notice sel__notice sel__closed">
+                            <p>{{ keysClosed }}</p>
+                            <button class="link" type="button" @click="viaMake">Marke &amp; Modell wählen</button>
+                        </div>
+
                         <!-- Several cars behind one pair of key numbers: a confirmation, never a guess (R-01). -->
-                        <div v-if="chooser && lookup" class="sel__chooser">
+                        <div v-else-if="chooser && lookup" class="sel__chooser">
                             <p class="h4">{{ chooser.rows.length }} Fahrzeuge passen zu {{ lookup.hsn }}/{{ lookup.tsn }} – welches ist deins?</p>
 
                             <p v-if="chooser.indistinguishable" class="small muted">
@@ -866,7 +874,12 @@ onBeforeUnmount(() => treeController?.abort())
 
                     <!-- The photo, read on the customer's device -->
                     <TabsContent value="scan" class="tabs__content" force-mount>
-                        <DocumentScan @confirm="onScan" @failed="onScanFailed" />
+                        <!-- The scan reads the key numbers: closed with them. -->
+                        <div v-if="keysClosed" class="notice sel__notice sel__closed">
+                            <p>{{ keysClosed }}</p>
+                            <button class="link" type="button" @click="viaMake">Marke &amp; Modell wählen</button>
+                        </div>
+                        <DocumentScan v-else @confirm="onScan" @failed="onScanFailed" />
                     </TabsContent>
                 </div>
             </TabsRoot>
@@ -1068,6 +1081,13 @@ onBeforeUnmount(() => treeController?.abort())
 
 .sel__notice {
     margin-bottom: var(--sp-16);
+}
+
+/* The key-number tabs while no vehicle dataset is loaded: the sentence, then the way that works. */
+.sel__closed {
+    display: grid;
+    justify-items: start;
+    gap: var(--sp-8);
 }
 
 .sel__notfound {

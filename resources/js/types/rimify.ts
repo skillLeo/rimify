@@ -164,6 +164,11 @@ export interface SharedProps {
     release?: string | null
     flash: { toast: string | null; added?: AddedToBasket | null }
     /**
+     * The search by key numbers — HSN/TSN and the Fahrzeugschein scan — while no vehicle dataset is loaded: the one
+     * sentence the path says instead of its form, pointing to Marke & Modell. Null while the search is open (KeyNumberSearch).
+     */
+    keyNumbersClosed?: string | null
+    /**
      * A signed-in admin looking at the shop while the review is on (D-142): the feedback button bottom right, and the
      * role it is sent with. Absent for everyone else — not null, not hidden: absent.
      */

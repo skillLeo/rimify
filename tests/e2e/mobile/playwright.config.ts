@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-import { SHOP, SHOP_DB } from '../../../e2e/shop'
+import { E2E_FEATURES, SHOP, SHOP_DB } from '../../../e2e/shop'
 
 /* The shop's address in one place (e2e/shop.ts): the server listens where the specs look. */
 const SHOP_PORT = new URL(SHOP).port
@@ -46,7 +46,7 @@ export default defineConfig({
     webServer: {
         command: `node scripts/e2e/serve.mjs --port ${SHOP_PORT} --workers 4`,
         cwd: '../../..',
-        env: SHOP_DB,
+        env: { ...SHOP_DB, ...E2E_FEATURES },
         url: `${SHOP}/up`,
         reuseExistingServer: true,
         timeout: 90_000,

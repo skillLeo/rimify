@@ -18,6 +18,8 @@ vi.mock('@inertiajs/vue3', () => ({
 
 const { default: Rechtliches } = await import('./Index.vue')
 
+const PREPARING = 'Diesen Text erstellt gerade die Kanzlei des Shopbetreibers; er steht hier, sobald er vorliegt.'
+
 const tabs = [
     { slug: 'impressum', title: 'Impressum' },
     { slug: 'datenschutz', title: 'Datenschutz' },
@@ -25,7 +27,7 @@ const tabs = [
 
 describe('Rechtliches', () => {
     it('lists every cookie on the Datenschutz page, the two functional ones with how to clear them', () => {
-        const wrapper = mount(Rechtliches, { props: { tabs, active: 'datenschutz', blocks: [] } })
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'datenschutz', blocks: [], preparing: PREPARING } })
         const rows = wrapper.findAll('#cookies tbody tr').map((row) => row.findAll('th, td').map((cell) => cell.text()))
         const byName = Object.fromEntries(rows.map((cells) => [cells[0], cells]))
 
@@ -38,7 +40,7 @@ describe('Rechtliches', () => {
     })
 
     it('shows the table on the Datenschutz page only', () => {
-        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [] } })
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], preparing: PREPARING } })
 
         expect(wrapper.find('#cookies').exists()).toBe(false)
     })
@@ -51,7 +53,7 @@ describe('Rechtliches', () => {
                 { label: 'Anschrift', value: 'Musterweg 1' },
             ],
         }
-        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider } })
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider, preparing: PREPARING } })
         const section = wrapper.get('.rec__provider')
 
         expect(section.text()).toContain('Angaben gemäß § 5 DDG')
@@ -61,14 +63,27 @@ describe('Rechtliches', () => {
 
     it('drops the „Vorläufig" note once every fact is given', () => {
         const provider = { complete: true, rows: [{ label: 'Anbieter', value: 'Beispiel Handels GmbH' }] }
-        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider } })
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider, preparing: PREPARING } })
 
         expect(wrapper.get('.rec__provider').text()).not.toContain('Vorläufig')
     })
 
+    // The operator's brief of 05.10.2026, §8: while the Kanzlei's text is outstanding, one full sentence says who
+    // prepares it — the seeded marker is never shown.
+    it('says who prepares a text that is outstanding, never the seeded marker', () => {
+        const blocks = [{ id: 1, type: 'legal_body', data: { heading: 'AGB', text: '[Rechtstext folgt von der Kanzlei — Abschnitt: AGB]', placeholder: true } }]
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks, preparing: PREPARING } })
+
+        expect(wrapper.get('.rec__block .rec__placeholder').text()).toBe(PREPARING)
+        expect(wrapper.text()).not.toContain('[Rechtstext folgt')
+
+        const empty = mount(Rechtliches, { props: { tabs, active: 'datenschutz', blocks: [], preparing: PREPARING } })
+        expect(empty.text()).toContain(PREPARING)
+    })
+
     it('marks placeholder values as placeholders, never as the operator’s own', () => {
         const provider = { complete: false, placeholder: true, rows: [{ label: 'Anbieter', value: 'Beispiel Handels GmbH' }] }
-        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider } })
+        const wrapper = mount(Rechtliches, { props: { tabs, active: 'impressum', blocks: [], provider, preparing: PREPARING } })
         const note = wrapper.get('.rec__placeholder')
 
         expect(note.text()).toBe('Platzhalter: Die folgenden Angaben sind Beispielwerte, nicht die des Betreibers. Sie werden vor dem Start ersetzt.')

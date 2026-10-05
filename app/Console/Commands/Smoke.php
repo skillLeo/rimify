@@ -24,6 +24,7 @@ use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
 use App\Support\GermanFormat;
 use App\Support\HeroPhotos;
+use App\Support\KeyNumberSearch;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\PendingRequest;
@@ -159,8 +160,9 @@ final class Smoke extends Command
 
             $pdf = null;
             $this->check('HSN/TSN-Abfrage und Freigabe', function () use ($vehicle, $slug, &$pdf): string {
-                // A car typed from a Gutachten has no key numbers yet: it is chosen from the list, as a customer would.
-                if ($vehicle->hsn !== null && $vehicle->tsn !== null) {
+                // A car typed from a Gutachten has no key numbers yet: it is chosen from the list, as a customer would — and so
+                // is any car while no vehicle dataset has opened the search by key numbers (KeyNumberSearch).
+                if ($vehicle->hsn !== null && $vehicle->tsn !== null && KeyNumberSearch::available()) {
                     $this->post('/fahrzeug/schluesselnummern', ['hsn' => $vehicle->hsn, 'tsn' => $vehicle->tsn]);
                 }
                 // Several cars behind one pair of numbers: the chooser, and this one is chosen (R-01).

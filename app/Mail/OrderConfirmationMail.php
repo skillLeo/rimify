@@ -129,8 +129,9 @@ class OrderConfirmationMail extends Mailable
                 'invoiceUrl' => Invoices::link($this->invoice),
                 // Signed: the page opens on any device the customer reads this mail on, not only where they ordered.
                 'orderUrl' => URL::signedRoute('bestellung.show', ['order' => $order->order_number]),
-                'agb' => $legal->text('agb'),
-                'widerruf' => $legal->text('widerrufsbelehrung'),
+                // While the Kanzlei's text is outstanding, who prepares it — never the seeded marker (LegalTexts::PREPARING).
+                'agb' => $legal->placeholder('agb') ? LegalTexts::PREPARING : $legal->text('agb'),
+                'widerruf' => $legal->placeholder('widerrufsbelehrung') ? LegalTexts::PREPARING : $legal->text('widerrufsbelehrung'),
                 'form' => WithdrawalForm::text(Seller::current()),
                 'legalAttached' => self::legalAttachedSentence($legal),
             ],

@@ -606,3 +606,33 @@ describe('HeroSelector — with a vehicle, and the garage', () => {
         expect(choice.post).toHaveBeenCalledWith('/fahrzeug', expect.objectContaining({ preserveScroll: true }))
     })
 })
+
+/*
+ * No vehicle dataset yet (KeyNumberSearch, the operator's brief of 05.10.2026, §8): the key-number tab and the scan say
+ * in one sentence that the search comes with the vehicle data, and lead to Marke & Modell — never a form that finds nothing.
+ */
+describe('HeroSelector — no vehicle dataset yet', () => {
+    const CLOSED = 'Die Suche nach Schlüsselnummern kommt mit den Fahrzeugdaten – bis dahin findest du dein Auto über Marke & Modell.'
+
+    it('says so on the key-number tab and the scan, and leads to Marke & Modell', async () => {
+        current.props.keyNumbersClosed = CLOSED
+        const wrapper = mountSelector()
+        const closed = wrapper.findAll('.sel__closed')
+
+        expect(closed).toHaveLength(2)
+        expect(closed.every((c) => c.text().includes(CLOSED))).toBe(true)
+        expect(wrapper.find('input.input--code').exists()).toBe(false)
+
+        await closed[0]!.find('button').trigger('click')
+        await nextTick()
+        expect(wrapper.findAll('.tabs__trigger').find((t) => t.text() === 'Marke & Modell')!.attributes('data-state')).toBe('active')
+    })
+
+    it('shows the key-number form once the search is open', () => {
+        current.props.keyNumbersClosed = null
+        const wrapper = mountSelector()
+
+        expect(wrapper.find('.sel__closed').exists()).toBe(false)
+        expect(wrapper.findAll('input.input--code')).toHaveLength(2)
+    })
+})

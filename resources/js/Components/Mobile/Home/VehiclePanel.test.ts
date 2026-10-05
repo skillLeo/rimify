@@ -294,3 +294,23 @@ describe('VehiclePanel — a failed notify request', () => {
         expect(await failNotify(wrapper)).toBe('Das hat nicht geklappt. Versuch es bitte noch einmal oder ruf uns an: 0800 555 01 00.')
     })
 })
+
+/*
+ * No vehicle dataset yet (KeyNumberSearch, the operator's brief of 05.10.2026, §8): the key-number route says so in one
+ * sentence and leads to Marke & Modell; the camera, which reads the key numbers, waits with them.
+ */
+describe('VehiclePanel — no vehicle dataset yet', () => {
+    const CLOSED = 'Die Suche nach Schlüsselnummern kommt mit den Fahrzeugdaten – bis dahin findest du dein Auto über Marke & Modell.'
+
+    it('says so on the key-number route, hides the camera, and leads to Marke & Modell', async () => {
+        current.props.keyNumbersClosed = CLOSED
+        const wrapper = mountPanel()
+
+        expect(wrapper.find('.vpanel__closed').text()).toContain(CLOSED)
+        expect(wrapper.findAll('button').some((b) => b.text().includes('Fahrzeugschein fotografieren'))).toBe(false)
+        expect(wrapper.find('input.input--code').exists()).toBe(false)
+
+        await wrapper.find('.vpanel__closed button').trigger('click')
+        expect(wrapper.find('[role="tabpanel"][data-state="active"]').attributes('id')).toContain('panel-guided')
+    })
+})

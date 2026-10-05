@@ -239,6 +239,11 @@ return [
         // never arrive and nobody would ever be told. Off until outgoing mail is configured; while
         // it is off, the forms offer the shop's e-mail address instead.
         'notify_by_mail' => (bool) env('RIMIFY_FEATURE_NOTIFY_BY_MAIL', false),
+        // The search by key numbers — HSN/TSN, and the Fahrzeugschein scan that reads them (KeyNumberSearch). `auto`
+        // opens it once a vehicle dataset is loaded: an import, or cars checked by hand — never the development seeds,
+        // and a car typed from a Gutachten has no key numbers. `on` and `off` force it. While it is closed, the path
+        // says so in one sentence and the server answers no lookup (the operator's brief of 05.10.2026, §8).
+        'key_numbers' => env('RIMIFY_FEATURE_KEY_NUMBERS', 'auto'),
     ],
 
     /*

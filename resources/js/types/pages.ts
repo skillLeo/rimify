@@ -295,7 +295,8 @@ export interface CheckAnswer {
  * speeds differ by 10 km/h, which is exactly the field the legal tyre requirement turns on.
  */
 export interface LookupResult {
-    status: 'ambiguous' | 'not_found'
+    /** `closed`: no vehicle dataset is loaded, the search by key numbers is not open yet (KeyNumberSearch). */
+    status: 'ambiguous' | 'not_found' | 'closed'
     hsn: string
     tsn: string
     distinction?: {
@@ -787,6 +788,8 @@ export interface RechtlichesProps {
     /** The Impressum's facts from the seller data (§ 5 DDG), each null while not given; null on every other tab. */
     /** `placeholder`: the values are the admin's placeholders, shown here only, and marked. */
     provider?: { rows: { label: string; value: string | null }[]; complete: boolean; placeholder?: boolean; notice?: string } | null
+    /** What the page says while the Kanzlei's text is outstanding: one sentence naming who prepares it (LegalTexts::PREPARING). */
+    preparing: string
 }
 
 export interface AdminAnmeldenProps {

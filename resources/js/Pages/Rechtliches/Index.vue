@@ -93,14 +93,13 @@ const blocks = computed(() =>
 
                 <div v-for="block in blocks" :key="block.id" class="rec__block">
                     <h2 v-if="block.heading" class="t-h3">{{ block.heading }}</h2>
-                    <p v-if="block.placeholder" class="t-body rec__placeholder">{{ block.text }}</p>
+                    <!-- The Kanzlei's text outstanding: who prepares it, in one sentence — never the seeded marker. -->
+                    <p v-if="block.placeholder" class="t-body rec__placeholder">{{ preparing }}</p>
                     <!-- The Kanzlei's text as its paragraphs: a blank line typed in the admin is a new one. -->
                     <p v-for="(paragraph, p) in paragraphs(block.text)" v-else :key="p" class="t-body rec__para">{{ paragraph }}</p>
                 </div>
 
-                <p v-if="blocks.length === 0" class="t-body rec__placeholder">
-                    Für diesen Abschnitt liegt noch kein Text vor.
-                </p>
+                <p v-if="blocks.length === 0" class="t-body rec__placeholder">{{ preparing }}</p>
 
                 <!--
                     The cookies as facts, from the list the cookie settings show (legal/cookies.ts) — beside the

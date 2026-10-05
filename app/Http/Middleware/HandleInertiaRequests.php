@@ -18,6 +18,7 @@ use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
 use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
+use App\Support\KeyNumberSearch;
 use App\Support\PreviewRibbon;
 use App\Support\ReleaseStamp;
 use App\Support\Seller;
@@ -117,6 +118,8 @@ class HandleInertiaRequests extends Middleware
              * Null on every ordinary request, so it costs nothing to carry.
              */
             'lookup' => $request->session()->get('lookup'),
+            // The key-number path's one sentence while no vehicle dataset is loaded, null while it is open (KeyNumberSearch).
+            'keyNumbersClosed' => fn (): ?string => KeyNumberSearch::closedSentence(),
             ...$this->admin($request),
             ...$this->reviewer($request),
         ];
