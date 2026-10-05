@@ -13,8 +13,8 @@
  * photograph's measured anchors (`calloutSlots.ts`); nothing is typed here, nothing is measured.
  *
  * The photograph is the brand's (`hero.photo`, chosen in Inhalte; PROTECTED.md P1) and stands whatever the catalogue
- * holds; only its leaders, its caption and its spec line are data — the values of the wheel in it, where the catalogue
- * holds that wheel, a draft included (`hero.product`). With the catalogue empty the photograph stands with the headline
+ * holds; only its leaders, its caption and its spec line are data — the values of the wheel in it, once that wheel is
+ * published (`hero.product`, D-155). Without it — the catalogue empty, the wheel a draft — the photograph stands with the headline
  * and the selector alone: no hole, no outline, no shift (the operator's brief of 05.10.2026, §2). Only where the release shipped without the photograph does the stage
  * draw the outline — and `rimify:smoke` says so on the host.
  *

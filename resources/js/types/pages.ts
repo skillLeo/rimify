@@ -66,9 +66,9 @@ export interface HeroPhoto {
 }
 
 /**
- * The wheel in the hero's photograph, where the catalogue holds it (a draft included): one configuration's own values
- * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4). Null with the catalogue empty — the
- * photograph then stands without leaders, caption or spec line.
+ * The wheel in the hero's photograph, once it is published: one configuration's own values
+ * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4). Null with the catalogue empty or the wheel a
+ * draft (D-155) — the photograph then stands without leaders, caption or spec line.
  */
 export interface HeroProduct {
     slug: string
@@ -92,7 +92,7 @@ export interface HeroProduct {
     /** True when there is no photograph of this product: the outline is drawn and no product is named. */
     symbolic: boolean
     /**
-     * In the shop at a price. False for the chosen wheel while it is a draft: its photograph and its
+     * In the shop at a price. False for a published wheel still priced at zero: its photograph and its
      * values are shown, never a price or a link. Absent (an older fixture) reads as true.
      */
     published?: boolean

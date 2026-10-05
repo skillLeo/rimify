@@ -99,9 +99,9 @@ class StartseiteController extends Controller
                     'imageManifest' => $photo['imageManifest'],
                     'companion' => $photo['companion'],
                 ],
-                // The wheel in that photograph, where the catalogue holds it (a draft included): its values for the
-                // leaders, the caption and the spec line. Null with the catalogue empty — the photograph then stands
-                // with the headline and the selector alone.
+                // The wheel in that photograph, once it is published: its values for the leaders, the caption and the
+                // spec line. Null with the catalogue empty or the wheel a draft — the photograph then stands with the
+                // headline and the selector alone.
                 'product' => $hero,
                 'stats' => $this->stats->counts(),
             ],
