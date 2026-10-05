@@ -1,8 +1,8 @@
 # Was dem Live-Shop noch fehlt
 
-Stand: 05.10.2026, 20:49 Uhr · erzeugt mit `php artisan rimify:go-live-check --markdown=docs/review/WAS-FEHLT.md` aus dem Zustand des Shops zu diesem Zeitpunkt – nichts darin ist von Hand geschrieben.
+Stand: 06.10.2026, 00:12 Uhr · erzeugt mit `php artisan rimify:go-live-check --markdown=docs/review/WAS-FEHLT.md` aus dem Zustand des Shops zu diesem Zeitpunkt – nichts darin ist von Hand geschrieben.
 
-**17 von 30 erfüllt · 2 bei uns · 8 beim Kunden · 3 nicht prüfbar**
+**17 von 31 erfüllt · 2 bei uns · 8 beim Kunden · 1 beim Host · 3 nicht prüfbar**
 
 ## Offen beim Kunden: 8
 
@@ -20,9 +20,9 @@ Stand: 05.10.2026, 20:49 Uhr · erzeugt mit `php artisan rimify:go-live-check -
 - **Bestellbestätigung (§ 312f BGB)** – MAIL_MAILER=log: Die Bestätigung wird nicht verschickt. *Wo:* `MAIL_MAILER`
 - **Letzte vollständige Testmatrix** – Noch nie gelaufen – die Testmatrix braucht die Testschlüssel. *Wo:* `docs/dev/STRIPE.md`
 
-## Offen beim Host: 0
+## Offen beim Host: 1
 
-Nichts.
+- **Serverstandort in der EU** – Nach dem Namensschema des Hosts steht der Server us-bos-web1780.main-hosting.eu außerhalb der EU (US). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Ein Rechenzentrum in der EU wählen. *Wo:* `hPanel › Hosting › Rechenzentrum`
 
 ## Alle Prüfungen
 
@@ -72,6 +72,7 @@ Nichts.
 | Rechnungen nicht öffentlich | wir | ok | Rechnungen liegen im privaten Speicher des Servers, nicht im Bucket, und sind nur über signierte Links abrufbar. | `FILESYSTEM_DISK` |
 | Beide Datenbank-Engines grün in CI | wir | nicht prüfbar | Von hier nicht prüfbar: Der Lauf steht auf GitHub (MySQL 8.4 und MariaDB 11.8.9). | `.github/workflows/suite.yml` |
 | Server-Rendering | wir | ok | Der Renderer antwortet; jede Seite kommt fertig aufgebaut an. | `deploy/ssr-watch.sh` |
-| Cron-Zeilen für Zeitplan und Wächter | host | ok | Der Zeitplan lief vor 50 Sekunden. | `hPanel › Cron-Jobs` |
+| Cron-Zeilen für Zeitplan und Wächter | host | ok | Der Zeitplan lief vor 37 Sekunden. | `hPanel › Cron-Jobs` |
+| Serverstandort in der EU | host | fehlt | Nach dem Namensschema des Hosts steht der Server us-bos-web1780.main-hosting.eu außerhalb der EU (US). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Ein Rechenzentrum in der EU wählen. | `hPanel › Hosting › Rechenzentrum` |
 | Schalter zum Zurücksetzen passend zur Umgebung | wir | ok | Der Testserver darf zurückgesetzt werden, der Live-Shop nie. | `RIMIFY_RESET_ERLAUBT` |
 | Keine Demodaten veröffentlicht | wir | ok | Es gibt keine Demodaten. | `/admin/system` |
