@@ -26,13 +26,14 @@ const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.
             Fragen zu deinem Fahrzeug?
             <a v-if="contact.phone" :href="telHref" class="hero-help__link num">{{ contact.phone }}</a>
             <Link v-else href="/kontakt" class="hero-help__link">Schreib uns</Link>
-            {{ ' ' }}<span class="hero-help__hours">· {{ contact.hours }}</span>
+            {{ ' ' }}<span class="hero-help__sep" aria-hidden="true">·&nbsp;</span><span class="hero-help__hours">{{ contact.hours }}</span>
         </span>
     </p>
 </template>
 
 <style scoped>
 .hero-help {
+    container-type: inline-size;
     display: flex;
     /* On two lines the mark stands with the first, not between them. */
     align-items: flex-start;
@@ -65,6 +66,20 @@ const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.
 
 .hero-help__hours {
     white-space: nowrap;
+}
+
+/*
+ * The line needs 440 px. Narrower, the hours take a line of their own — never one that opens with the separator
+ * („· Mo–Fr …“ at 390 px); the separator then goes.
+ */
+@container (width < 440px) {
+    .hero-help__sep {
+        display: none;
+    }
+
+    .hero-help__hours {
+        display: block;
+    }
 }
 
 /* Under a finger the whole line is the link's target, 44 px tall: the word alone is 15 px high. */

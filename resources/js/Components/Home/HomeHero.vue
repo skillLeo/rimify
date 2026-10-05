@@ -454,6 +454,16 @@ onMounted(() => {
         width: min(100cqw, 100cqh * var(--frame-ratio));
         max-width: none;
     }
+
+    /*
+     * The photograph alone (nothing published): no caption and no notes under it, so the wheels come down by half the
+     * room those leave — at most 48 px — instead of hanging at the top of the stage over an empty block. Capped, so a
+     * selector notice that makes the copy column taller does not move them; decided on the server (`data-hero`), so
+     * nothing moves after the first paint either.
+     */
+    .hero[data-hero='photo'] .hero__figure {
+        margin-top: clamp(0px, (100cqh - 100cqw / var(--frame-ratio)) / 2, var(--sp-48));
+    }
 }
 
 /* ── ≥ 1280: split 5 / 7, the bleed reaching past the centred content ─────────── */

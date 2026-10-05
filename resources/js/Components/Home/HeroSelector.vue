@@ -615,7 +615,11 @@ onBeforeUnmount(() => treeController?.abort())
                 <TabsList class="tabs__list" aria-label="Fahrzeug angeben">
                     <TabsTrigger value="marke" class="tabs__trigger">Marke &amp; Modell</TabsTrigger>
                     <TabsTrigger value="hsn" class="tabs__trigger">HSN/TSN</TabsTrigger>
-                    <TabsTrigger value="scan" class="tabs__trigger">Fahrzeugschein scannen</TabsTrigger>
+                    <!-- Too narrow for the whole row (373 px), the tab reads „Scannen“; its name stays the full one,
+                         which holds the word it shows (WCAG 2.5.3). -->
+                    <TabsTrigger value="scan" class="tabs__trigger" aria-label="Fahrzeugschein scannen">
+                        <span class="sel__tab-long">Fahrzeugschein scannen</span><span class="sel__tab-short" aria-hidden="true">Scannen</span>
+                    </TabsTrigger>
                 </TabsList>
 
                 <!-- The three panels share one cell, the inactive ones invisible: the panel is always as tall as its
@@ -978,6 +982,21 @@ onBeforeUnmount(() => treeController?.abort())
     .sel :deep(.tabs__trigger) {
         font-size: var(--fs-small);
         line-height: var(--lh-small);
+    }
+}
+
+/* Under 373 px even the dense row does not fit: the third tab says „Scannen“ rather than being cut mid-word. */
+.sel__tab-short {
+    display: none;
+}
+
+@container sel (width < 373px) {
+    .sel__tab-long {
+        display: none;
+    }
+
+    .sel__tab-short {
+        display: inline;
     }
 }
 
