@@ -51,7 +51,7 @@ final class GoLiveChecks
     public const GROUPS = [self::LEGAL, self::WHEEL, self::PAYMENT, self::OPERATIONS];
 
     /** What a customer is told when live payment is refused: it names no check — those are for the admin. */
-    public const LIVE_REFUSAL = 'Bestellen ist gerade nicht möglich. Es wurde nichts abgebucht. Schreib uns, wir melden uns.';
+    public const LIVE_REFUSAL = 'Bestellen ist gerade nicht möglich. Es wird nichts abgebucht. Schreib uns – wir melden uns bei dir.';
 
     /** The legal forms that are entered in a register and, but for the e. K., act through a named representative. */
     private const REGISTERED = '/\b(GmbH|gGmbH|UG|AG|SE|KGaA|KG|OHG|eG|e\.\s?K\.?|e\.\s?Kfm\.?|e\.\s?Kfr\.?)(\s|$|\b)/u';
@@ -76,9 +76,9 @@ final class GoLiveChecks
     {
         return [
             $this->impressum(),
-            $this->legalPage('agb', 'AGB', 'Die AGB sind noch Platzhalter: der Text der Kanzlei fehlt.', 'Die AGB stehen im Shop, im Wortlaut der Kanzlei.'),
+            $this->legalPage('agb', 'AGB', 'Die AGB sind noch ein Platzhalter: Der Text der Kanzlei fehlt.', 'Die AGB stehen im Shop, im Wortlaut der Kanzlei.'),
             $this->withdrawal(),
-            $this->legalPage('datenschutz', 'Datenschutzerklärung', 'Die Datenschutzerklärung ist noch ein Platzhalter: der Text der Kanzlei fehlt.', 'Die Datenschutzerklärung steht im Shop, im Wortlaut der Kanzlei.'),
+            $this->legalPage('datenschutz', 'Datenschutzerklärung', 'Die Datenschutzerklärung ist noch ein Platzhalter: Der Text der Kanzlei fehlt.', 'Die Datenschutzerklärung steht im Shop, im Wortlaut der Kanzlei.'),
             $this->shipping(),
             $this->vat(),
             $this->invoiceFields(),
@@ -137,7 +137,7 @@ final class GoLiveChecks
         $place = '/admin/einstellungen/verkaeufer-versand';
 
         if ($seller->placeholder) {
-            return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::MISSING, 'Die Verkäuferangaben sind noch Platzhalter: Name, Anschrift, Vertretung, Register und USt-IdNr. fehlen.', $place);
+            return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::MISSING, 'Die Verkäuferangaben sind noch Platzhalter: Name, Anschrift, Vertretung, Register und Umsatzsteuer-Identifikationsnummer fehlen.', $place);
         }
 
         $registered = $seller->name !== null && preg_match(self::REGISTERED, $seller->name) === 1;
@@ -146,7 +146,7 @@ final class GoLiveChecks
             'Anschrift' => $seller->street === null || $seller->zip === null || $seller->city === null,
             'Vertretungsberechtigte' => $registered && preg_match(self::SOLE_REGISTERED, (string) $seller->name) !== 1 && $seller->managingDirector === null,
             'Registergericht und -nummer' => $registered && $seller->register === null,
-            'USt-IdNr.' => $seller->vatId === null,
+            'Umsatzsteuer-Identifikationsnummer' => $seller->vatId === null,
             'E-Mail-Adresse' => $seller->email === null,
             'Text der Kanzlei' => $this->legal->placeholder('impressum'),
         ]));
@@ -155,8 +155,8 @@ final class GoLiveChecks
             return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::MISSING, 'Im Impressum fehlen: '.implode(', ', $missing).'.', $place);
         }
 
-        return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::OK, 'Name, Anschrift, Vertretung, Register, USt-IdNr. und E-Mail stehen im Impressum.'
-            .($seller->phone === null ? ' Eine Telefonnummer steht nicht da; das Kontaktformular ist der zweite schnelle Weg.' : ''), $place);
+        return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::OK, 'Name, Anschrift, Umsatzsteuer-Identifikationsnummer und E-Mail stehen im Impressum; Vertretung und Register ebenso, wo die Rechtsform sie verlangt.'
+            .($seller->phone === null ? ' Eine Telefonnummer ist nicht angegeben; der zweite schnelle Kontaktweg ist das Kontaktformular.' : ''), $place);
     }
 
     /** A legal page: there, published, and the Kanzlei's text rather than the seeded placeholder. */
@@ -178,7 +178,7 @@ final class GoLiveChecks
 
         return $this->check('widerruf', self::LEGAL, 'Widerrufsbelehrung und Muster-Widerrufsformular', GoLiveCheck::CLIENT, $missing === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $missing === []
             ? 'Die Widerrufsbelehrung steht im Shop; das Formular nennt den Verkäufer mit Anschrift.'
-            : 'Es fehlen '.implode(' und ', $missing).'.', $this->pagePlace('widerrufsbelehrung'));
+            : 'Noch offen: '.implode(' und ', $missing).'.', $this->pagePlace('widerrufsbelehrung'));
     }
 
     private function shipping(): GoLiveCheck
@@ -197,7 +197,7 @@ final class GoLiveChecks
         $small = Seller::current()->smallBusiness;
 
         return $this->check('mwst', self::LEGAL, 'Umsatzsteuer und Bruttopreise', GoLiveCheck::US, $small ? GoLiveCheck::MISSING : GoLiveCheck::OK, $small
-            ? 'Der Shop rechnet als Kleinunternehmer ohne Umsatzsteuer – der Kunde ist keiner.'
+            ? 'Der Shop rechnet als Kleinunternehmer ohne Umsatzsteuer – der Betreiber ist aber keiner.'
             : 'Jeder Preis ist ein Bruttopreis mit 19 % Umsatzsteuer, auf der Seite, in der Bestellung und auf der Rechnung.', 'RIMIFY_SELLER_SMALL_BUSINESS');
     }
 
@@ -219,7 +219,7 @@ final class GoLiveChecks
 
         return $this->check('rechnung', self::LEGAL, 'Rechnungsangaben (§ 14 UStG)', GoLiveCheck::CLIENT, $missing === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $missing === []
             ? 'Jede Rechnung trägt Verkäufer, Steuernummer oder USt-IdNr., Datum, Nummer, Menge, Leistungszeitraum, Netto, Satz und Steuer.'
-            : 'Bis dahin ist jede Rechnung eine Testrechnung – es fehlen: '.implode(', ', $missing).'.', '/admin/einstellungen/verkaeufer-versand');
+            : 'Solange etwas fehlt, ist jede Rechnung eine Testrechnung. Es fehlen: '.implode(', ', $missing).'.', '/admin/einstellungen/verkaeufer-versand');
     }
 
     /** § 312j Abs. 3 BGB: the button says „Zahlungspflichtig bestellen" — read from the page the checkout is built from. */
@@ -230,11 +230,11 @@ final class GoLiveChecks
         $found = preg_match('/<button[^>]*class="[^"]*ko__pay[^"]*"[^>]*>\s*Zahlungspflichtig bestellen\s*<\/button>/', $source) === 1;
 
         if ($source === '') {
-            return $this->check('bestellknopf', self::LEGAL, 'Bestellknopf (§ 312j BGB)', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Die Seite der Kasse liegt dieser Kopie nicht bei; die Tests der Kasse prüfen den Wortlaut.', $page);
+            return $this->check('bestellknopf', self::LEGAL, 'Bestellknopf (§ 312j BGB)', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Die Seite der Kasse liegt dieser Installation nicht bei; die Tests der Kasse prüfen den Wortlaut.', $page);
         }
 
         return $this->check('bestellknopf', self::LEGAL, 'Bestellknopf (§ 312j BGB)', GoLiveCheck::US, $found ? GoLiveCheck::OK : GoLiveCheck::MISSING, $found
-            ? 'Der Knopf der Kasse sagt „Zahlungspflichtig bestellen“, direkt unter Ware, Versand, Lieferzeit und Gesamtpreis.'
+            ? 'Der Knopf der Kasse sagt „Zahlungspflichtig bestellen“.'
             : 'Der Knopf der Kasse sagt nicht wörtlich „Zahlungspflichtig bestellen“.', $page);
     }
 
@@ -244,14 +244,14 @@ final class GoLiveChecks
         $mailer = (string) config('mail.default');
 
         if (in_array($mailer, ['log', 'array'], true)) {
-            return $this->check('bestaetigung', self::LEGAL, 'Bestellbestätigung (§ 312f BGB)', GoLiveCheck::US, GoLiveCheck::MISSING, "MAIL_MAILER={$mailer}: die Bestätigung wird nicht verschickt.", 'MAIL_MAILER');
+            return $this->check('bestaetigung', self::LEGAL, 'Bestellbestätigung (§ 312f BGB)', GoLiveCheck::US, GoLiveCheck::MISSING, "MAIL_MAILER={$mailer}: Die Bestätigung wird nicht verschickt.", 'MAIL_MAILER');
         }
 
         $texts = ! $this->legal->placeholder('agb') && ! $this->legal->placeholder('widerrufsbelehrung');
 
         return $this->check('bestaetigung', self::LEGAL, 'Bestellbestätigung (§ 312f BGB)', GoLiveCheck::US, GoLiveCheck::OK, $texts
-            ? "Die Bestätigung geht über {$mailer} hinaus, mit Rechnung, AGB und Widerrufsbelehrung als PDF."
-            : "Die Bestätigung geht über {$mailer} hinaus, mit der Rechnung; AGB und Widerrufsbelehrung hängen als PDF an, sobald ihre Texte da sind.", 'MAIL_MAILER');
+            ? "Die Bestätigung wird über {$mailer} verschickt, mit Rechnung, AGB und Widerrufsbelehrung als PDF."
+            : "Die Bestätigung wird über {$mailer} verschickt, mit der Rechnung; AGB und Widerrufsbelehrung hängen als PDF an, sobald die Texte der Kanzlei vorliegen.", 'MAIL_MAILER');
     }
 
     /** § 25 TDDDG: only what the shop needs, so nothing to ask — read from the cookie list the notice and the page share. */
@@ -264,12 +264,12 @@ final class GoLiveChecks
         $asking = array_values(array_diff($categories, ['Notwendig', 'Funktional']));
 
         if ($categories === []) {
-            return $this->check('cookies', self::LEGAL, 'Cookies (§ 25 TDDDG)', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Die Liste der Cookies liegt dieser Kopie nicht bei.', $file);
+            return $this->check('cookies', self::LEGAL, 'Cookies (§ 25 TDDDG)', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Die Liste der Cookies liegt dieser Installation nicht bei.', $file);
         }
 
         return $this->check('cookies', self::LEGAL, 'Cookies (§ 25 TDDDG)', GoLiveCheck::US, $asking === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $asking === []
-            ? 'Der Shop setzt nur Cookies, die er für den Einkauf braucht oder die du selbst anlegst; er fragt nichts ab, also gibt es nichts gleichwertig abzulehnen.'
-            : 'Cookies der Art '.implode(', ', $asking).' brauchen eine Einwilligung mit gleichwertigem Ablehnen – der Hinweis bietet keine.', $file);
+            ? 'Der Shop setzt nur Cookies der Kategorien „Notwendig“ und „Funktional“ und fragt keine Einwilligung ab – es gibt also nichts gleichwertig abzulehnen.'
+            : 'Cookies der Kategorie '.implode(', ', $asking).' brauchen eine Einwilligung mit gleichwertigem Ablehnen – der Cookie-Hinweis bietet keine.', $file);
     }
 
     /** GPSR: every brand on sale names its manufacturer. */
@@ -308,7 +308,7 @@ final class GoLiveChecks
         $visible = Review::query()->visible()->count();
 
         if ($source === '') {
-            return $this->check('bewertungen', self::LEGAL, 'Prüfung der Bewertungen (§ 5b UWG)', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Die Produktseite liegt dieser Kopie nicht bei.', $file);
+            return $this->check('bewertungen', self::LEGAL, 'Prüfung der Bewertungen (§ 5b UWG)', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Die Produktseite liegt dieser Installation nicht bei.', $file);
         }
 
         return $this->check('bewertungen', self::LEGAL, 'Prüfung der Bewertungen (§ 5b UWG)', GoLiveCheck::US, $said ? GoLiveCheck::OK : GoLiveCheck::MISSING, $said
@@ -325,7 +325,7 @@ final class GoLiveChecks
 
         return [
             $this->check('gutachten', self::WHEEL, 'Mindestens ein freigegebenes Gutachten', GoLiveCheck::CLIENT, $released->isEmpty() ? GoLiveCheck::MISSING : GoLiveCheck::OK, $released->isEmpty()
-                ? 'Kein Gutachten ist freigegeben: ohne eines zeigt der Shop zu keinem Fahrzeug eine Felge.'
+                ? 'Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge.'
                 : ($released->count() === 1 ? 'Ein Gutachten ist freigegeben' : "{$released->count()} Gutachten sind freigegeben").' und gültig.', '/admin/gutachten'),
             $this->reachable(),
             $this->annexes($released->all()),
@@ -345,10 +345,10 @@ final class GoLiveChecks
             ->pluck('name')
             ->all();
 
-        return $this->check('freigabeweg', self::WHEEL, 'Jede veröffentlichte Felge hat einen Freigabeweg', GoLiveCheck::US, $lost === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
-            $lost !== [] => count($lost).' von '.$total.' veröffentlichten Felgen nennt kein freigegebenes Gutachten: '.implode(', ', array_slice($lost, 0, 5)).(count($lost) > 5 ? ' …' : '').'.',
+        return $this->check('freigabeweg', self::WHEEL, 'Jede veröffentlichte Felge steht in einem freigegebenen Gutachten', GoLiveCheck::US, $lost === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
+            $lost !== [] => 'Kein freigegebenes Gutachten nennt '.count($lost).' von '.$total.' veröffentlichten Felgen: '.implode(', ', array_slice($lost, 0, 5)).(count($lost) > 5 ? ' …' : '').'.',
             $total === 0 => 'Noch ist keine Felge veröffentlicht.',
-            default => "Alle {$total} veröffentlichten Felgen nennt ein freigegebenes Gutachten für mindestens ein Fahrzeug.",
+            default => "Jede der {$total} veröffentlichten Felgen steht für mindestens ein Fahrzeug in einem freigegebenen Gutachten.",
         }, '/admin/felgen');
     }
 
@@ -372,7 +372,7 @@ final class GoLiveChecks
 
         return $this->check('anlagen', self::WHEEL, 'Anlagen der Gutachten vollständig', GoLiveCheck::CLIENT, $gaps === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $gaps === []
             ? ($released === [] ? 'Noch ist kein Gutachten freigegeben.' : 'Jedes freigegebene Gutachten liegt mit allen Anlagen vor.')
-            : implode('; ', $gaps).'. Ein Fahrzeug, das nur dort steht, bekommt „noch nicht gelesen“, nie ein Nein.', '/admin/gutachten');
+            : implode('; ', $gaps).'. Ein Fahrzeug, das nur in einer fehlenden Anlage steht, bekommt „noch nicht gelesen“, nie ein Nein.', '/admin/gutachten');
     }
 
     /** `1–15` → 15, `3, 5–7` → 4: how many Anlagen a document's gap names. */
@@ -400,7 +400,7 @@ final class GoLiveChecks
             ->count();
 
         return $this->check('entwicklung', self::WHEEL, 'Kein Entwicklungsfahrzeug in einem freigegebenen Gutachten', GoLiveCheck::US, $count === 0 ? GoLiveCheck::OK : GoLiveCheck::MISSING, $count === 0
-            ? 'Jedes Fahrzeug in einem freigegebenen Gutachten stammt aus einem Datensatz oder ist von Hand geprüft.'
+            ? 'Kein Fahrzeug in einem freigegebenen Gutachten ist ein Entwicklungsfahrzeug.'
             : ($count === 1 ? 'Ein Entwicklungsfahrzeug steht' : "{$count} Entwicklungsfahrzeuge stehen").' in einem freigegebenen Gutachten – vor dem Start durch Fahrzeuge aus dem Datensatz ersetzen.', '/admin/fahrzeuge');
     }
 
@@ -417,8 +417,8 @@ final class GoLiveChecks
             ->count();
 
         return $this->check('achslasten', self::WHEEL, 'Achslasten und Höchstgeschwindigkeit der Fahrzeuge', GoLiveCheck::US, $without === 0 ? GoLiveCheck::OK : GoLiveCheck::MISSING, $without === 0
-            ? ($total === 0 ? 'Noch nennt kein freigegebenes Gutachten ein Fahrzeug.' : "Alle {$total} Fahrzeuge der freigegebenen Gutachten haben Achslasten und Höchstgeschwindigkeit.")
-            : "{$without} von {$total} Fahrzeugen der freigegebenen Gutachten fehlen Achslasten oder Höchstgeschwindigkeit: ihre Reifenfreigabe bleibt „mit Auflagen“ (R-03).", '/admin/fahrzeuge');
+            ? ($total === 0 ? 'Noch nennt kein freigegebenes Gutachten ein Fahrzeug.' : "Für alle {$total} Fahrzeuge der freigegebenen Gutachten sind Achslasten und Höchstgeschwindigkeit hinterlegt.")
+            : "{$without} von {$total} Fahrzeugen der freigegebenen Gutachten fehlen Achslasten oder Höchstgeschwindigkeit: Ihre Reifenfreigabe bleibt „mit Auflagen“.", '/admin/fahrzeuge');
     }
 
     // ── Zahlung ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -432,8 +432,8 @@ final class GoLiveChecks
 
         $keys = match (true) {
             ! $config->complete() => [GoLiveCheck::MISSING, 'Noch keine vollständigen Stripe-Schlüssel – der Shop nimmt keine Zahlung an.'],
-            $production && $config->testMode() => [GoLiveCheck::MISSING, 'Im Live-Shop stehen Testschlüssel: es wird kein Geld abgebucht.'],
-            ! $production && ! $config->testMode() => [GoLiveCheck::MISSING, 'Außerhalb des Live-Shops stehen Live-Schlüssel – sie gehören nur dorthin (R-16).'],
+            $production && $config->testMode() => [GoLiveCheck::MISSING, 'Im Live-Shop stehen Testschlüssel: Es wird kein Geld abgebucht.'],
+            ! $production && ! $config->testMode() => [GoLiveCheck::MISSING, 'Außerhalb des Live-Shops stehen Live-Schlüssel – sie gehören nur dorthin.'],
             default => [GoLiveCheck::OK, ($config->testMode() ? 'Testschlüssel' : 'Live-Schlüssel').' im '.($production ? 'Live-Shop' : 'Testsystem').', passend zur Umgebung.'],
         };
 
@@ -441,8 +441,8 @@ final class GoLiveChecks
             $this->check('schluessel', self::PAYMENT, 'Zahlungsschlüssel passend zur Umgebung', GoLiveCheck::CLIENT, $keys[0], $keys[1], $place),
             $this->webhook($config, $place),
             $this->check('apple-pay', self::PAYMENT, 'Domain für Apple Pay', GoLiveCheck::CLIENT, GoLiveCheck::UNCHECKABLE, $config->complete()
-                ? 'Von hier nicht prüfbar: im Stripe-Dashboard unter Zahlungsmethoden-Domains muss diese Domain stehen.'
-                : 'Erst mit Schlüsseln: dann muss diese Domain im Stripe-Dashboard für Apple Pay registriert werden.', 'Stripe-Dashboard › Zahlungsmethoden-Domains'),
+                ? 'Von hier nicht prüfbar: Im Stripe-Dashboard unter Zahlungsmethoden-Domains muss diese Domain stehen.'
+                : 'Sobald die Schlüssel eingetragen sind, muss diese Domain im Stripe-Dashboard für Apple Pay registriert werden.', 'Stripe-Dashboard › Zahlungsmethoden-Domains'),
             $this->testMatrix(),
         ];
     }
@@ -461,17 +461,17 @@ final class GoLiveChecks
         }
 
         if (! $unique) {
-            return $this->check('webhook', self::PAYMENT, 'Stripe-Webhook', GoLiveCheck::US, GoLiveCheck::MISSING, 'Die Ereignisse tragen keine eindeutige Kennung in der Datenbank: ein zweimal zugestelltes Ereignis könnte zweimal wirken.', $place);
+            return $this->check('webhook', self::PAYMENT, 'Stripe-Webhook', GoLiveCheck::US, GoLiveCheck::MISSING, 'Die Datenbank erzwingt keine eindeutige Ereignis-ID: Ein zweimal zugestelltes Ereignis könnte zweimal wirken.', $place);
         }
 
         if ($config->webhookSecret === null) {
-            return $this->check('webhook', self::PAYMENT, 'Stripe-Webhook', GoLiveCheck::US, GoLiveCheck::MISSING, 'Das Webhook-Geheimnis fehlt: ohne es wird keine Bestellung je bezahlt.', $place);
+            return $this->check('webhook', self::PAYMENT, 'Stripe-Webhook', GoLiveCheck::US, GoLiveCheck::MISSING, 'Der Webhook-Signaturschlüssel fehlt. Ohne ihn gilt keine Bestellung als bezahlt.', $place);
         }
 
         $gateway = Payments::gateway();
 
         if ($gateway === null || $gateway->method() !== 'stripe') {
-            return $this->check('webhook', self::PAYMENT, 'Stripe-Webhook', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Geheimnis und eindeutige Kennung sind da; ob Stripe den Endpunkt kennt, prüft erst ein Stripe in Kraft.', $place);
+            return $this->check('webhook', self::PAYMENT, 'Stripe-Webhook', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Signaturschlüssel und eindeutige Ereignis-ID sind vorhanden; ob Stripe den Endpunkt kennt, lässt sich erst prüfen, wenn Stripe als Zahlungsart in Kraft ist.', $place);
         }
 
         try {
@@ -481,7 +481,7 @@ final class GoLiveChecks
         }
 
         return $this->check('webhook', self::PAYMENT, 'Stripe-Webhook', GoLiveCheck::US, $problem === null ? GoLiveCheck::OK : GoLiveCheck::MISSING, $problem === null
-            ? 'Stripe kennt den Endpunkt mit jedem Ereignis, das der Shop braucht; jedes Ereignis wirkt einmal.'
+            ? 'Der Endpunkt ist bei Stripe für jedes Ereignis registriert, das der Shop braucht; jedes Ereignis wirkt nur einmal.'
             : 'Stripe-Webhook: '.$problem, $place);
     }
 
@@ -491,7 +491,7 @@ final class GoLiveChecks
         $run = Setting::get('payments.test_matrix');
 
         if (! is_array($run) || ! isset($run['date'], $run['result'])) {
-            return $this->check('testmatrix', self::PAYMENT, 'Letzte vollständige Testmatrix', GoLiveCheck::US, GoLiveCheck::MISSING, 'Noch nie gelaufen: die Kartenmatrix braucht die Testschlüssel.', 'docs/dev/STRIPE.md');
+            return $this->check('testmatrix', self::PAYMENT, 'Letzte vollständige Testmatrix', GoLiveCheck::US, GoLiveCheck::MISSING, 'Noch nie gelaufen – die Testmatrix braucht die Testschlüssel.', 'docs/dev/STRIPE.md');
         }
 
         $passed = $run['result'] === 'bestanden';
@@ -506,9 +506,9 @@ final class GoLiveChecks
     {
         return [
             $this->rulebook(),
-            $network ? $this->backups() : $this->check('sicherungen', self::OPERATIONS, 'Sicherungen nicht über HTTP erreichbar', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Hier nicht gefragt: der Server fragte sich sonst selbst. rimify:go-live-check und rimify:smoke prüfen es.', 'storage/app/private/.htaccess'),
+            $network ? $this->backups() : $this->check('sicherungen', self::OPERATIONS, 'Sicherungen nicht über HTTP erreichbar', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Auf dieser Seite nicht geprüft, weil der Server sonst bei sich selbst anfragen müsste; rimify:go-live-check und rimify:smoke prüfen es.', 'storage/app/private/.htaccess'),
             $this->invoiceBucket(),
-            $this->check('ci', self::OPERATIONS, 'Beide Datenbank-Engines grün in CI', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Von hier nicht prüfbar: der Lauf steht auf GitHub (MySQL 8.4 und MariaDB 11.8.9).', '.github/workflows/suite.yml'),
+            $this->check('ci', self::OPERATIONS, 'Beide Datenbank-Engines grün in CI', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Von hier nicht prüfbar: Der Lauf steht auf GitHub (MySQL 8.4 und MariaDB 11.8.9).', '.github/workflows/suite.yml'),
             $this->rendering(),
             $this->cron(),
             $this->resetFlag(),
@@ -520,7 +520,7 @@ final class GoLiveChecks
     private function rulebook(): GoLiveCheck
     {
         if (! is_dir(base_path('.git')) || ! is_file(base_path('CLAUDE.md'))) {
-            return $this->check('regelwerk', self::OPERATIONS, 'CLAUDE.md und Entscheidungsprotokoll im Repository', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Diese Kopie ist kein Arbeitsverzeichnis des Repositorys; CI prüft es bei jedem Lauf.', 'CLAUDE.md');
+            return $this->check('regelwerk', self::OPERATIONS, 'CLAUDE.md und Entscheidungsprotokoll im Repository', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Diese Installation ist kein Arbeitsverzeichnis des Repositorys; CI prüft es bei jedem Lauf.', 'CLAUDE.md');
         }
 
         try {
@@ -565,10 +565,10 @@ final class GoLiveChecks
 
             return $this->check('rechnungen', self::OPERATIONS, 'Rechnungen nicht öffentlich', GoLiveCheck::US, $exposed ? GoLiveCheck::MISSING : GoLiveCheck::OK, $exposed
                 ? 'Der Ordner invoices/ liegt im öffentlichen Verzeichnis.'
-                : 'Rechnungen liegen auf der privaten Platte des Servers, nicht im Bucket, und nur über signierte Links.', 'FILESYSTEM_DISK');
+                : 'Rechnungen liegen im privaten Speicher des Servers, nicht im Bucket, und sind nur über signierte Links abrufbar.', 'FILESYSTEM_DISK');
         }
 
-        return $this->check('rechnungen', self::OPERATIONS, 'Rechnungen nicht öffentlich', GoLiveCheck::HOST, GoLiveCheck::UNCHECKABLE, 'Die Rechnungen liegen im Bucket: dass invoices/ dort 403 antwortet, prüft rimify:preflight mit dem S3-Audit.', 'Einstellungen › Medien und Speicher');
+        return $this->check('rechnungen', self::OPERATIONS, 'Rechnungen nicht öffentlich', GoLiveCheck::HOST, GoLiveCheck::UNCHECKABLE, 'Die Rechnungen liegen im Bucket: Dass invoices/ dort 403 antwortet, prüft rimify:preflight mit dem S3-Audit.', 'Einstellungen › Medien und Speicher');
     }
 
     /** The renderer answers: without it pages are drawn by the browser and empty for search engines. */
@@ -588,7 +588,7 @@ final class GoLiveChecks
         }
 
         return $this->check('ssr', self::OPERATIONS, 'Server-Rendering', GoLiveCheck::US, $ready ? GoLiveCheck::OK : GoLiveCheck::MISSING, $ready
-            ? 'Der Renderer antwortet; jede Seite kommt fertig gezeichnet an.'
+            ? 'Der Renderer antwortet; jede Seite kommt fertig aufgebaut an.'
             : 'Der Renderer antwortet nicht – deploy/ssr-watch.sh startet ihn neu, wenn die Cron-Zeile läuft.', 'deploy/ssr-watch.sh');
     }
 
@@ -598,7 +598,7 @@ final class GoLiveChecks
         $ago = ScheduleBeat::secondsAgo();
 
         return $this->check('cron', self::OPERATIONS, 'Cron-Zeilen für Zeitplan und Wächter', GoLiveCheck::HOST, $ago !== null && $ago <= 180 ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
-            $ago === null => 'Der Zeitplan ist noch nie gelaufen: die Cron-Zeile für schedule:run fehlt.',
+            $ago === null => 'Der Zeitplan ist noch nie gelaufen – fehlt die Cron-Zeile für schedule:run?',
             $ago > 180 => 'Der Zeitplan lief zuletzt vor '.intdiv($ago, 60).' Minuten – läuft die Cron-Zeile noch?',
             default => "Der Zeitplan lief vor {$ago} Sekunden.",
         }, 'hPanel › Cron-Jobs');
@@ -614,7 +614,7 @@ final class GoLiveChecks
             app()->environment('production') => [GoLiveCheck::OK, 'Im Live-Shop steht kein Schalter zum Zurücksetzen.'],
             app()->environment('staging') && $lines !== ['true'] => [GoLiveCheck::MISSING, 'Der Testserver braucht genau eine Zeile RIMIFY_RESET_ERLAUBT=true.'],
             app()->environment('staging') => [GoLiveCheck::OK, 'Der Testserver darf zurückgesetzt werden, der Live-Shop nie.'],
-            default => [GoLiveCheck::OK, 'Lokal: der Schalter gilt nur für den Testserver und den Live-Shop.'],
+            default => [GoLiveCheck::OK, 'Lokal: Diese Prüfung gilt nur für den Testserver und den Live-Shop.'],
         };
 
         return $this->check('zuruecksetzen', self::OPERATIONS, 'Schalter zum Zurücksetzen passend zur Umgebung', GoLiveCheck::US, $state, $sentence, 'RIMIFY_RESET_ERLAUBT');
@@ -628,7 +628,7 @@ final class GoLiveChecks
 
         return $this->check('demodaten', self::OPERATIONS, 'Keine Demodaten veröffentlicht', GoLiveCheck::US, $published === 0 ? GoLiveCheck::OK : GoLiveCheck::MISSING, $published === 0
             ? ($total === 0 ? 'Es gibt keine Demodaten.' : "Keine Demofelge ist veröffentlicht; {$total} Demodatensätze liegen noch zum Löschen bereit.")
-            : "{$published} Demofelgen sind veröffentlicht – vor dem Start demo:purge.", '/admin/system');
+            : "{$published} Demofelgen sind veröffentlicht – vor dem Start mit demo:purge löschen.", '/admin/system');
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────────────────────────────────

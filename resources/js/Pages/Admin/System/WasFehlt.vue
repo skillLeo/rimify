@@ -16,7 +16,7 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminWasFehltProps>()
 
-const STATE_WORD: Record<GoLiveState, string> = { ok: 'Erledigt', fehlt: 'Fehlt', 'nicht prüfbar': 'Nicht prüfbar' }
+const STATE_WORD: Record<GoLiveState, string> = { ok: 'Erfüllt', fehlt: 'Offen', 'nicht prüfbar': 'Nicht prüfbar' }
 const STATE_DOT: Record<GoLiveState, string> = { ok: 'ok', fehlt: 'bad', 'nicht prüfbar': 'warn' }
 const STATE_ORDER: Record<GoLiveState, number> = { fehlt: 0, 'nicht prüfbar': 1, ok: 2 }
 const OWNER_WORD: Record<GoLiveOwner, string> = { kunde: 'Kunde', wir: 'RIMIFY', host: 'Host' }
@@ -48,11 +48,11 @@ const isAdminPath = (place: string): boolean => place.startsWith('/admin')
     <AdminPage title="Was fehlt" :context="`Stand: ${checkedAt}`">
         <p class="wf-summary" role="status">{{ summary }}</p>
         <p class="wf-intro">
-            Jede Prüfung liest den Zustand, den der Shop gerade hat. Echte Zahlungen bleiben gesperrt, solange unter „Recht und Pflichtangaben“
-            etwas fehlt.
+            Die Prüfungen zeigen den aktuellen Zustand des Shops. Echte Zahlungen bleiben gesperrt, bis unter „Recht und Pflichtangaben“ alles
+            erfüllt ist.
         </p>
 
-        <nav class="wf-filter" aria-label="Wessen Punkte">
+        <nav class="wf-filter" aria-label="Nach Zuständigkeit filtern">
             <Link
                 v-for="filter in FILTERS"
                 :key="filter.key"
@@ -67,7 +67,7 @@ const isAdminPath = (place: string): boolean => place.startsWith('/admin')
             </Link>
         </nav>
 
-        <p v-if="shown.length === 0" class="wf-empty">Hier ist nichts zu prüfen.</p>
+        <p v-if="shown.length === 0" class="wf-empty">Für diese Auswahl gibt es keine Prüfung.</p>
 
         <section v-for="part in shown" :key="part.group" class="wf-group" :aria-labelledby="`wf-${part.group}`">
             <h2 :id="`wf-${part.group}`" class="adm-form__heading">{{ part.group }}</h2>

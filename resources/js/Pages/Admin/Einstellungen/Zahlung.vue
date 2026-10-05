@@ -100,7 +100,7 @@ function openSeries(): void {
         <div v-if="liveBlockedBy.length > 0" class="adm-note za-blocked" role="status">
             <p>
                 {{ inForce.mode === 'live' ? 'Echte Zahlungen sind gesperrt' : 'Im Livemodus nimmt der Shop keine echte Zahlung an' }}, solange diese
-                Pflichtangaben fehlen:
+                Punkte offen sind:
             </p>
             <ul class="za-blocked__list">
                 <li v-for="check in liveBlockedBy" :key="check.id">
@@ -109,7 +109,7 @@ function openSeries(): void {
                     – {{ check.sentence }}
                 </li>
             </ul>
-            <p><Link href="/admin/system/was-fehlt">Alles, was noch fehlt</Link></p>
+            <p><Link href="/admin/system/was-fehlt">Alle Prüfungen unter System › Was fehlt</Link></p>
         </div>
 
         <form class="adm-form" novalidate @submit.prevent="editor.save">

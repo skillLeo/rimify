@@ -496,6 +496,11 @@ are the tracker until one is chosen.
       sandbox is on (staging), every test order carries the tag „Testbestellung“ in Verkauf › Bestellungen and, on its page, „Testbestellung über die Testzahlung – dabei fließt kein Geld …“
 - [ ] `$PHP artisan rimify:preflight` → `GO.`
 - [ ] `$PHP artisan rimify:smoke` → every row ok
+- [ ] `$PHP artisan rimify:go-live-check` → exit 0, and its count line shows nothing open „beim Kunden“ under „Recht
+      und Pflichtangaben“ — while one of those is open the checkout takes no real payment (D-168); the client reads the
+      same list in System › Was fehlt
+- [ ] `grep RIMIFY_FEATURE_KEY_NUMBERS .env` → nothing or `auto`: the search by HSN/TSN opens by itself once the vehicle
+      dataset is imported (KeyNumberSearch, D-167); `on` belongs to a development copy only
 - [ ] Keep `~/backups/rimify-$TS*` for a week
 
 ---

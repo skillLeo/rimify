@@ -20,7 +20,7 @@ final class LegalTexts
      * What a legal page — and the order mail in its place — says while the Kanzlei's text is outstanding: one full
      * sentence naming who prepares it (the operator's brief of 05.10.2026, §8), never the seeded marker.
      */
-    public const PREPARING = 'Diesen Text erstellt gerade die Kanzlei des Shopbetreibers; er steht hier, sobald er vorliegt.';
+    public const PREPARING = 'Diesen Text erstellt gerade die Kanzlei des Shopbetreibers; sobald er vorliegt, steht er im Shop unter Rechtliches.';
 
     public function text(string $slug): ?string
     {

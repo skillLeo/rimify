@@ -38,11 +38,11 @@ it('writes the report as Markdown: each side’s open items first, then every ch
         $markdown = (string) file_get_contents($path);
 
         expect($markdown)->toStartWith('# Was dem Live-Shop noch fehlt')
-            ->toContain('## Offen beim Kunden (')
-            ->toContain('## Offen bei uns (RIMIFY) (')
+            ->toContain('## Offen beim Kunden: ')
+            ->toContain('## Offen bei uns: ')
             ->toContain('## Alle Prüfungen')
             ->toContain('### Recht und Pflichtangaben')
-            ->toContain('| Prüfung | Zuständig | Stand | Befund | Wo |')
+            ->toContain('| Prüfung | Zuständig | Status | Befund | Wo |')
             ->toMatch('/\*\*\d+ von \d+ erfüllt · /');
     } finally {
         @unlink($path);

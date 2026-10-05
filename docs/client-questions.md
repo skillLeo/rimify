@@ -97,6 +97,13 @@ title; please confirm every line, or replace it with the wording the shop can st
     need the client's lawyer's text. The site links to them; it never writes them.
 11. Statements about law in the guides (HSN/TSN, ABE vs Teilegutachten vs ECE, Einpresstiefe) are
     written for a lay reader and marked for review; please have them checked before launch.
+12. **Cookies of the category „Funktional“ — for the Kanzlei (05.10.2026).** The shop sets only „Notwendig“ and
+    „Funktional“ cookies and asks for no consent, so its notice offers „Verstanden“ alone (resources/js/legal/cookies.ts
+    lists each with what it stores and how to clear it). The two functional ones: `rmf_geraet`, a random key set on the
+    first visit that the rate limit counts by instead of the IP address, and `rmf_papiere`, set when a customer types
+    the figures from their papers. Please have the Kanzlei confirm that § 25 Abs. 2 Nr. 2 TDDDG covers them — strictly
+    necessary for a service the customer asked for — or tell us which need a consent with an equally easy „Ablehnen“.
+    Until then `rimify:go-live-check` reports the cookie check as met on that reading.
 
 ## Photography and brands
 

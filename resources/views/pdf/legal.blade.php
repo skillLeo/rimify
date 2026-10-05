@@ -20,7 +20,7 @@
 </head>
 <body>
     <h1>{{ $title }}</h1>
-    <div class="meta">Stand: {{ $date }}@if ($order !== null) · zu deiner Bestellung {{ $order }}@endif</div>
+    <div class="meta">Erstellt am {{ $date }}@if ($order !== null) · zu deiner Bestellung {{ $order }}@endif</div>
     <div class="text">{{ $text }}</div>
     @if ($form !== null)
         <h2>{{ \App\Support\WithdrawalForm::TITLE }}</h2>

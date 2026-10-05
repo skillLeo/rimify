@@ -16,7 +16,7 @@ final class WasFehlt
     /** Who closes a check, as the page names them. */
     public const OWNERS = [
         GoLiveCheck::CLIENT => 'beim Kunden',
-        GoLiveCheck::US => 'bei uns (RIMIFY)',
+        GoLiveCheck::US => 'bei uns',
         GoLiveCheck::HOST => 'beim Host',
     ];
 
@@ -26,7 +26,7 @@ final class WasFehlt
         $out = [
             '# Was dem Live-Shop noch fehlt',
             '',
-            'Stand: '.GermanFormat::dateTime($at).' · erzeugt von `php artisan rimify:go-live-check --markdown=docs/review/WAS-FEHLT.md` aus dem Zustand, den der Shop gerade hat – nichts darin ist von Hand geschrieben.',
+            'Stand: '.GermanFormat::dateTime($at).' · erzeugt mit `php artisan rimify:go-live-check --markdown=docs/review/WAS-FEHLT.md` aus dem Zustand des Shops zu diesem Zeitpunkt – nichts darin ist von Hand geschrieben.',
             '',
             '**'.GoLiveChecks::countLine($checks).'**',
             '',
@@ -35,7 +35,7 @@ final class WasFehlt
         foreach (self::OWNERS as $owner => $label) {
             $open = array_values(array_filter($checks, static fn (GoLiveCheck $c): bool => $c->missing() && $c->owner === $owner));
 
-            $out[] = '## Offen '.$label.' ('.count($open).')';
+            $out[] = '## Offen '.$label.': '.count($open);
             $out[] = '';
 
             if ($open === []) {
@@ -55,7 +55,7 @@ final class WasFehlt
         foreach (GoLiveChecks::GROUPS as $group) {
             $out[] = "### {$group}";
             $out[] = '';
-            $out[] = '| Prüfung | Zuständig | Stand | Befund | Wo |';
+            $out[] = '| Prüfung | Zuständig | Status | Befund | Wo |';
             $out[] = '|---|---|---|---|---|';
 
             foreach ($checks as $check) {

@@ -198,7 +198,7 @@ final class AdminNavigation
             'pages' => [
                 ['label' => 'Zustand', 'href' => '/admin/system', 'icon' => 'system'],
                 // What the live shop still needs, check by check (GoLiveChecks): read only, the client's own items first.
-                ['label' => 'Was fehlt', 'href' => '/admin/system/was-fehlt', 'icon' => 'check-circle'],
+                ['label' => 'Was fehlt', 'href' => '/admin/system/was-fehlt', 'icon' => 'check'],
                 ['label' => 'Warteschlange', 'href' => '/admin/warteschlange', 'icon' => 'queue', 'count' => 'jobs_failed'],
                 // The test environment back to an empty shop (TestReset): the Super-Admin alone, and only where a reset
                 // is possible — never in the live shop, where the page does not exist.

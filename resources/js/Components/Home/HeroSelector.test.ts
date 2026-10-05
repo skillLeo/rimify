@@ -612,7 +612,7 @@ describe('HeroSelector — with a vehicle, and the garage', () => {
  * in one sentence that the search comes with the vehicle data, and lead to Marke & Modell — never a form that finds nothing.
  */
 describe('HeroSelector — no vehicle dataset yet', () => {
-    const CLOSED = 'Die Suche nach Schlüsselnummern kommt mit den Fahrzeugdaten – bis dahin findest du dein Auto über Marke & Modell.'
+    const CLOSED = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind – bis dahin findest du dein Auto über Marke & Modell.'
 
     it('says so on the key-number tab and the scan, and leads to Marke & Modell', async () => {
         current.props.keyNumbersClosed = CLOSED

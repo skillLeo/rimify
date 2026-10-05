@@ -236,7 +236,7 @@ describe('VehicleSelector — the halves of one car', () => {
  * sentence; Marke & Modell beside it is the way that works.
  */
 describe('VehicleSelector — no vehicle dataset yet', () => {
-    const CLOSED = 'Die Suche nach Schlüsselnummern kommt mit den Fahrzeugdaten – bis dahin findest du dein Auto über Marke & Modell.'
+    const CLOSED = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind – bis dahin findest du dein Auto über Marke & Modell.'
 
     it('says so in place of the key-number form', () => {
         const wrapper = mountSelector({ keyNumbersClosed: CLOSED })

@@ -300,7 +300,7 @@ describe('VehiclePanel — a failed notify request', () => {
  * sentence and leads to Marke & Modell; the camera, which reads the key numbers, waits with them.
  */
 describe('VehiclePanel — no vehicle dataset yet', () => {
-    const CLOSED = 'Die Suche nach Schlüsselnummern kommt mit den Fahrzeugdaten – bis dahin findest du dein Auto über Marke & Modell.'
+    const CLOSED = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind – bis dahin findest du dein Auto über Marke & Modell.'
 
     it('says so on the key-number route, hides the camera, and leads to Marke & Modell', async () => {
         current.props.keyNumbersClosed = CLOSED

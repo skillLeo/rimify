@@ -61,9 +61,9 @@ describe('System › Was fehlt', () => {
         const wrapper = mount(Page, { props: props() })
         const rows = wrapper.findAll('.wf-check')
 
-        expect(rows[0]!.find('.wf-check__state').text()).toBe('Fehlt')
+        expect(rows[0]!.find('.wf-check__state').text()).toBe('Offen')
         expect(rows[0]!.find('.wf-check__place a').attributes('href')).toBe('/admin/einstellungen/verkaeufer-versand')
-        expect(rows[1]!.find('.wf-check__state').text()).toBe('Erledigt')
+        expect(rows[1]!.find('.wf-check__state').text()).toBe('Erfüllt')
         expect(rows[2]!.find('.wf-check__state').text()).toBe('Nicht prüfbar')
         expect(rows[2]!.find('.wf-check__place code').text()).toBe('Stripe-Dashboard › Zahlungsmethoden-Domains')
     })

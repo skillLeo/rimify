@@ -97,7 +97,8 @@ it('names every check once, in four groups, each with an owner, a state and a pl
     foreach ($checks as $check) {
         expect($check->owner)->toBeIn([GoLiveCheck::US, GoLiveCheck::CLIENT, GoLiveCheck::HOST])
             ->and($check->state)->toBeIn([GoLiveCheck::OK, GoLiveCheck::MISSING, GoLiveCheck::UNCHECKABLE])
-            ->and($check->sentence)->toEndWith('.')
+            // A full sentence: a statement, or the question the check cannot answer from here.
+            ->and($check->sentence)->toMatch('/[.?]$/')
             ->and($check->place)->not->toBe('');
     }
 });
@@ -111,7 +112,7 @@ it('reads the Impressum from the seller: a GmbH needs its register and its repre
     goLiveSeller(['name' => 'Erika Mustermann Felgenhandel', 'register_court' => null, 'register_number' => null, 'managing_director' => null]);
     expect(goLiveById()['impressum']->state)->toBe(GoLiveCheck::OK)
         // No telephone is no gap: the contact form is the second fast way (§ 5 Abs. 1 Nr. 2 DDG).
-        ->and(goLiveById()['impressum']->sentence)->toContain('das Kontaktformular ist der zweite schnelle Weg');
+        ->and(goLiveById()['impressum']->sentence)->toContain('der zweite schnelle Kontaktweg ist das Kontaktformular');
 
     goLiveSeller(['placeholder' => true]);
     expect(goLiveById()['impressum']->state)->toBe(GoLiveCheck::MISSING)
@@ -124,7 +125,7 @@ it('says a legal page is missing while it holds the placeholder, and points at t
     $agb = goLiveById()['agb'];
 
     expect($agb->state)->toBe(GoLiveCheck::MISSING)
-        ->and($agb->sentence)->toBe('Die AGB sind noch Platzhalter: der Text der Kanzlei fehlt.')
+        ->and($agb->sentence)->toBe('Die AGB sind noch ein Platzhalter: Der Text der Kanzlei fehlt.')
         ->and($agb->place)->toBe('/admin/seiten/'.Page::query()->where('slug', 'agb')->value('id'));
 
     goLivePage('agb', 'AGB');

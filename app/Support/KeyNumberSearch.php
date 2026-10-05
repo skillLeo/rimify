@@ -17,7 +17,7 @@ use App\Models\Vehicle;
 final class KeyNumberSearch
 {
     /** What the key-number path says while it is closed. */
-    public const CLOSED = 'Die Suche nach Schlüsselnummern kommt mit den Fahrzeugdaten – bis dahin findest du dein Auto über Marke & Modell.';
+    public const CLOSED = 'Die Suche nach Schlüsselnummern ist erst möglich, wenn unsere Fahrzeugdaten hinterlegt sind – bis dahin findest du dein Auto über Marke & Modell.';
 
     /** The sources that are a dataset: what an import or a person brought, never a seed or a Gutachten's own car. */
     private const DATASETS = [
