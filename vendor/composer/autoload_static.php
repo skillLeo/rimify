@@ -991,6 +991,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Http\\Controllers\\Storefront\\WarenkorbController' => __DIR__ . '/../..' . '/app/Http/Controllers/Storefront/WarenkorbController.php',
         'App\\Http\\Controllers\\Storefront\\WiderrufsformularController' => __DIR__ . '/../..' . '/app/Http/Controllers/Storefront/WiderrufsformularController.php',
         'App\\Http\\Middleware\\AssignVisitorKey' => __DIR__ . '/../..' . '/app/Http/Middleware/AssignVisitorKey.php',
+        'App\\Http\\Middleware\\CompressDocuments' => __DIR__ . '/../..' . '/app/Http/Middleware/CompressDocuments.php',
         'App\\Http\\Middleware\\DetectDevice' => __DIR__ . '/../..' . '/app/Http/Middleware/DetectDevice.php',
         'App\\Http\\Middleware\\EnsureAdminMay' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureAdminMay.php',
         'App\\Http\\Middleware\\EnsureAdminPanelEnabled' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureAdminPanelEnabled.php',

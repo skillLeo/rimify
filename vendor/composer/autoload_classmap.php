@@ -220,6 +220,7 @@ return array(
     'App\\Http\\Controllers\\Storefront\\WarenkorbController' => $baseDir . '/app/Http/Controllers/Storefront/WarenkorbController.php',
     'App\\Http\\Controllers\\Storefront\\WiderrufsformularController' => $baseDir . '/app/Http/Controllers/Storefront/WiderrufsformularController.php',
     'App\\Http\\Middleware\\AssignVisitorKey' => $baseDir . '/app/Http/Middleware/AssignVisitorKey.php',
+    'App\\Http\\Middleware\\CompressDocuments' => $baseDir . '/app/Http/Middleware/CompressDocuments.php',
     'App\\Http\\Middleware\\DetectDevice' => $baseDir . '/app/Http/Middleware/DetectDevice.php',
     'App\\Http\\Middleware\\EnsureAdminMay' => $baseDir . '/app/Http/Middleware/EnsureAdminMay.php',
     'App\\Http\\Middleware\\EnsureAdminPanelEnabled' => $baseDir . '/app/Http/Middleware/EnsureAdminPanelEnabled.php',
