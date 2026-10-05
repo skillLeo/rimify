@@ -278,8 +278,8 @@ test.describe('Startseite/Mobile', () => {
             }
 
             // A placeholder drawing has no photographed bolt holes or stamp to point at: no leaders. Two wheels stand in
-            // the frame (e9030909, PROTECTED.md P1); the leading one, fetched first, is the one the callouts point at.
-            const drawing = (await frame.locator('img[fetchpriority="high"]').getAttribute('src'))?.includes('/demo/placeholders/') ?? false
+            // the frame (e9030909, PROTECTED.md P1); the leading one, in front, is the one the callouts point at.
+            const drawing = (await frame.locator('.hero-frame__roll img').getAttribute('src'))?.includes('/demo/placeholders/') ?? false
             if (drawing) {
                 await expect(frame.locator('.callout')).toHaveCount(0)
             } else {

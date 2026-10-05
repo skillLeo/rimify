@@ -85,8 +85,10 @@ const sheetVisible = computed(() => consent.decided.value === null)
     box-shadow: var(--e-3);
 }
 
+/* In Archivo's characters, not `ch`: the text keeps its lines when the font arrives, and the sheet — anchored at the
+   bottom — does not move its top edge (0,027 at 768 px before, tokens.css --ch-*). */
 .consent__text {
-    max-width: 52ch;
+    max-width: calc(52 * var(--ch-text));
     color: var(--c-ink-2);
 }
 

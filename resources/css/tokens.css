@@ -49,7 +49,15 @@
 
     /* ── Type · one family, one scale ────────────────────────────────────────────
        Sizes below are the desktop scale; the phone scale follows under a media query. */
-    --font-sans: 'Archivo Variable', 'Archivo Variable fallback', Arial, sans-serif;
+    --font-sans: 'Archivo Variable', 'Archivo fallback Arial', 'Archivo fallback Roboto', Arial, sans-serif;
+    /* A measure in characters, as Archivo sets it at the text, heading and display styles (the width of its „0",
+       fonts-fallback.json `zero`). `ch` is the „0" of whichever font is drawing — the fallback's until Archivo arrives,
+       and no fallback matches one glyph and the average at once — so a box measured in `ch` changes width on the swap:
+       the hero's 14ch headline was 9 % narrower until then and lost a line to it (05.10.2026). Write
+       calc(14 * var(--ch-heading)), never 14ch, where the box's width moves text; fonts.test.ts holds these to the font. */
+    --ch-text: 0.5727em;
+    --ch-heading: 0.6645em;
+    --ch-display: 0.6784em;
     --wdth-display: 112%;
     --wdth-heading: 110%;
     --wdth-text: 100%;

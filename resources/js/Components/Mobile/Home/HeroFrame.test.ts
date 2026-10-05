@@ -237,7 +237,7 @@ afterEach(() => {
 })
 
 describe('HeroFrame · the picture', () => {
-    it('is the shadowless bare frame, eager at the preloaded phone sizes, on exactly one CSS contact shadow', () => {
+    it('is the shadowless bare frame, lazy and last at the phone sizes, on exactly one CSS contact shadow', () => {
         const wrapper = mountFrame()
         const img = wrapper.find('.hero-frame img')
 
@@ -247,8 +247,10 @@ describe('HeroFrame · the picture', () => {
             `${BARE_BASE}-480.avif 480w, ${BARE_BASE}-768.avif 768w, ${BARE_BASE}-1080.avif 1080w`
         )
         expect(img.attributes('sizes')).toBe(HERO_SIZES_PHONE)
-        expect(img.attributes('loading')).toBe('eager')
-        expect(img.attributes('fetchpriority')).toBe('high')
+        // Just below the first screen of a 390 × 844 phone: the headline is the LCP, and the frame takes no byte
+        // from it (the operator's brief of 05.10.2026, §5).
+        expect(img.attributes('loading')).toBe('lazy')
+        expect(img.attributes('fetchpriority')).toBe('low')
         expect(img.attributes('alt')).toBe('MOTEC MCR4 Ultimate in Light Grey D5, Ansicht von vorn')
 
         const shadows = wrapper.findAll('.hero-contact')

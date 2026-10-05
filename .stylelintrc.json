@@ -39,6 +39,7 @@
     "ignoreFiles": [
         "resources/css/tokens.css",
         "resources/css/fonts.css",
+        "resources/css/fonts-fallback.css",
         "resources/css/legacy.css",
         "resources/js/Layouts/PrototypeLayout.vue",
         "node_modules/**",

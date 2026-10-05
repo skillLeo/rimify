@@ -148,11 +148,10 @@ function keyOf(card: ProductCardProp): string {
                     </div>
                     <div v-else-if="popular.cards.length > 0" class="tile-grid popular__grid">
                         <ProductTile
-                            v-for="(card, i) in popular.cards"
+                            v-for="card in popular.cards"
                             :key="keyOf(card)"
                             :card="card"
                             :vehicle="vehicle"
-                            :eager="i < 4"
                             compare
                         />
                     </div>
@@ -166,7 +165,7 @@ function keyOf(card: ProductCardProp): string {
             <!-- No tabs from the server: the row stands alone. -->
             <template v-else>
                 <div v-if="popular.cards.length > 0" class="tile-grid popular__grid popular__grid--vehicle">
-                    <ProductTile v-for="(card, i) in popular.cards" :key="keyOf(card)" :card="card" :vehicle="vehicle" :eager="i < 4" compare />
+                    <ProductTile v-for="card in popular.cards" :key="keyOf(card)" :card="card" :vehicle="vehicle" compare />
                 </div>
                 <div v-else class="empty">
                     <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>

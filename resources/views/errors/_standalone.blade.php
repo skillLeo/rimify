@@ -71,6 +71,11 @@
                 U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
         }
 
+        /* The shop's own fallback faces, so the swap moves nothing here either (the operator's brief of 05.10.2026, §4). */
+        @if (is_file(resource_path('css/fonts-fallback.css')))
+{!! file_get_contents(resource_path('css/fonts-fallback.css')) !!}
+        @endif
+
         :root {
             color-scheme: light;
             --c-ink: #0b0f14;
@@ -123,7 +128,7 @@
             padding: var(--sp-64) var(--sp-20) calc(var(--sp-64) + env(safe-area-inset-bottom));
             background: var(--c-surface);
             color: var(--c-ink);
-            font-family: 'Archivo Variable', Arial, Helvetica, sans-serif;
+            font-family: 'Archivo Variable', 'Archivo fallback Arial', 'Archivo fallback Roboto', Arial, Helvetica, sans-serif;
             font-size: var(--fs-body);
             line-height: var(--lh-body);
             -webkit-font-smoothing: antialiased;

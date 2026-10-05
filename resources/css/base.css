@@ -363,14 +363,22 @@
         }
     }
 
-    /* Motion off means motion off. Every element rests in its end state. */
+    /*
+     * Motion off means motion off. Every element rests in its end state. Transitions are switched off, not shortened:
+     * every element's `transition-property` is `all` by default, so a duration given to all of them started a
+     * transition wherever a style settled after the first — the selector's fieldset showed one frame at the browser's
+     * own padding, and the hero moved under reduced motion only (CLS 0,054 at 1024 px, measured 05.10.2026; the
+     * operator's brief of that day, §4). Animations keep 0,01 ms: only an element that names one runs one, and its
+     * `animationend` still fires.
+     */
     @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
         *::after {
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
+            transition-duration: 0s !important;
+            transition-delay: 0s !important;
             scroll-behavior: auto !important;
         }
     }

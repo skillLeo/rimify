@@ -326,8 +326,8 @@ onBeforeUnmount(() => {
             </Shelf>
 
             <Shelf v-else-if="popular.cards.length" bare hide-head :title="popularTitle" width="62vw" list-label="Felgen">
-                <li v-for="(card, i) in popular.cards" :key="`${card.modelId}-${card.finishId}`">
-                    <ProductTile :card="card" :vehicle="vehicle" :eager="i < 2" compare />
+                <li v-for="card in popular.cards" :key="`${card.modelId}-${card.finishId}`">
+                    <ProductTile :card="card" :vehicle="vehicle" compare />
                 </li>
             </Shelf>
 
@@ -545,12 +545,13 @@ onBeforeUnmount(() => {
     padding: var(--sp-24) 0 var(--sp-40);
 }
 
+/* Measured in Archivo's characters, not `ch`: the box keeps its width when the font arrives (tokens.css --ch-*). */
 .home-hero__title {
-    max-width: 14ch;
+    max-width: calc(14 * var(--ch-heading));
 }
 
 .home-hero__sub {
-    max-width: 54ch;
+    max-width: calc(54 * var(--ch-text));
     margin-top: var(--sp-12);
 }
 
