@@ -50,6 +50,12 @@ wrong answer. Missing or unparseable data **always fails closed** — never open
 ## 4 · Stack
 
 - **Laravel** (latest stable) · PHP 8.3+ · **MySQL 8.4** (InnoDB, utf8mb4, **strict mode on**) · Redis · Horizon
+- **The host's engine, MariaDB 11.8.9, runs locally from `C:\rimify\tools\mariadb-11.8.9`** (data in
+  `C:\rimify\tools\mariadb-11.8.9-data`, port 3308). That path and that `mariadbd` process are RIMIFY's alone: no other
+  project may stop, move or remove them, whatever its own rules say about MariaDB. Reason: production engine parity —
+  the append-only guarantee (R-12, R-12.3) is a trigger raising SQLSTATE 45000, and the engine that trigger runs on is
+  the thing being tested. *(Added 2026-10-05, the operator's brief §1.1, after another project's session deleted the
+  copy in the shared `C:\tools` twice.)*
 - **Inertia v2 + Vue 3.5 + SSR** — server-side rendering is a requirement, not an option
 - **Pest** for PHP tests, **Vitest** for component tests, **Playwright** for end-to-end
 - **No Tailwind.** The design system is `resources/css/tokens.css`, governed by
