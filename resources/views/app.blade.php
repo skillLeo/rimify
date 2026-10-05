@@ -69,12 +69,17 @@
         </script>
     @endif
 
+    {{-- A storefront page's stylesheets in the document: the first paint waits for nothing but the HTML. Their links
+         below stay, disabled — fetched by nobody, found by the bundle (App\Support\InlineStyles). --}}
+    @foreach (\App\Support\InlineStyles::for($page['component'] ?? '') as $sheet)
+        <style nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">{!! $sheet['css'] !!}</style>
+    @endforeach
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
     {{-- The page component's stylesheets (and its layout's) in the head with the entry's, so the
          server-rendered page never paints unstyled and shifts at hydration. Styles only — the
          page's script stays a dynamic import (App\Support\PageStyles says why). --}}
     @foreach (\App\Support\PageStyles::for($page['component'] ?? '') as $href)
-        <link rel="stylesheet" href="{{ $href }}">
+        <link rel="stylesheet" href="{{ $href }}" @disabled(\App\Support\InlineStyles::has($href))>
     @endforeach
     @inertiaHead
 </head>

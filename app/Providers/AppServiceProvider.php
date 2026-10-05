@@ -9,6 +9,7 @@ use App\Listeners\FailedJobAlert;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
 use App\Support\DatabaseEngine;
+use App\Support\InlineStyles;
 use App\Support\SlowQueries;
 use App\Support\Ssr\BoundedSsrGateway;
 use Illuminate\Contracts\Foundation\Application;
@@ -112,7 +113,16 @@ class AppServiceProvider extends ServiceProvider
         // came 0,3 s earlier for this alone, 0,55 s with the font preload gone as well (the operator's brief of
         // 05.10.2026, §5; measured over nine interleaved loads). Stylesheet preloads keep their priority.
         Vite::useScriptTagAttributes(['fetchpriority' => 'low']);
-        Vite::usePreloadTagAttributes(static fn (string $src, string $url): array => str_ends_with($url, '.js') ? ['fetchpriority' => 'low'] : []);
+        // A storefront document carries its stylesheets itself (InlineStyles): their links stay, disabled, so the bundle
+        // finds them and fetches nothing twice, and their preloads go.
+        Vite::useStyleTagAttributes(static fn (string $src, string $url): array => InlineStyles::has($url) ? ['disabled' => true] : []);
+        Vite::usePreloadTagAttributes(static function (string $src, string $url): array|false {
+            if (InlineStyles::has($url)) {
+                return false;
+            }
+
+            return str_ends_with($url, '.js') ? ['fetchpriority' => 'low'] : [];
+        });
     }
 
     /** True while the strict-mode check runs: a reconnect inside it is not checked a second time. */

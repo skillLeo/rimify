@@ -22,10 +22,17 @@ final class PageStyles
     /** @var array<string, array{file?: string, css?: list<string>, imports?: list<string>, isEntry?: bool}>|null */
     private static ?array $manifest = null;
 
-    private static int $manifestTime = 0;
+    /** The file the cached manifest was read from and its time: another public path, or a new build, reads again. */
+    private static string $manifestKey = '';
 
     /** @return list<string> absolute URLs, in cascade order */
     public static function for(string $component): array
+    {
+        return array_map(static fn (string $file): string => asset('build/'.$file), self::files($component));
+    }
+
+    /** @return list<string> paths under public/build, in cascade order */
+    public static function files(string $component): array
     {
         if ($component === '' || is_file(public_path('hot'))) {
             return [];
@@ -63,11 +70,11 @@ final class PageStyles
 
         $walk($key);
 
-        return array_map(static fn (string $file): string => asset('build/'.$file), array_keys($css));
+        return array_keys($css);
     }
 
     /** @return array<string, array{file?: string, css?: list<string>, imports?: list<string>, isEntry?: bool}>|null */
-    private static function manifest(): ?array
+    public static function manifest(): ?array
     {
         $path = public_path('build/manifest.json');
 
@@ -75,14 +82,14 @@ final class PageStyles
             return null;
         }
 
-        $time = (int) filemtime($path);
+        $key = $path.'@'.(int) filemtime($path);
 
-        if (self::$manifest === null || self::$manifestTime !== $time) {
+        if (self::$manifest === null || self::$manifestKey !== $key) {
             $decoded = json_decode((string) file_get_contents($path), true);
             /** @var array<string, array{file?: string, css?: list<string>, imports?: list<string>, isEntry?: bool}>|null $typed */
             $typed = is_array($decoded) ? $decoded : null;
             self::$manifest = $typed;
-            self::$manifestTime = $time;
+            self::$manifestKey = $key;
         }
 
         return self::$manifest;
