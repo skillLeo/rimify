@@ -35,6 +35,11 @@ export interface AdminZahlungProps {
         invoice: OpenedSeries | null
         credit_note: OpenedSeries | null
     }
+    /**
+     * The checks of „Recht und Pflichtangaben" not yet met (GoLiveChecks): while there is one, the shop takes no real
+     * payment, whatever the mode — named here, each with the place it is closed.
+     */
+    liveBlockedBy: Array<{ id: string; title: string; sentence: string; place: string }>
 }
 
 /** A real invoice series, opened: `RE-001043`, the next number, when and by whom. */

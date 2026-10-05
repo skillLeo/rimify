@@ -18,9 +18,12 @@ use App\Models\WheelConfig;
 use App\Services\Commerce\CheckoutShown;
 use App\Services\Commerce\OrderPayments;
 use App\Services\Content\LegalPdf;
+use App\Services\Content\LegalTexts;
+use App\Services\GoLive\GoLiveChecks;
 use App\Services\Storefront\Basket;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -234,6 +237,29 @@ it('refuses a real order without a delivery time, and lets a test order go with 
     }
 });
 
+// The operator's brief of 05.10.2026, §7: no real payment while a check of „Recht und Pflichtangaben" fails. The live
+// shop with live keys and a delivery time, but the seeded legal pages still placeholders: the page says so plainly,
+// and the server refuses to start the payment — no order, no PaymentIntent.
+it('takes no real payment while a legal check fails, and names no check to the customer', function (): void {
+    app()['env'] = 'production';
+
+    try {
+        config(['rimify.review.enabled' => false, 'services.stripe.mode' => 'live', 'services.stripe.key' => 'pk_live_fakeKey', 'services.stripe.secret' => 'sk_live_fakeKey']);
+
+        $this->withCookies(checkoutCookies($this->vehicle))->withSession(checkoutBasket($this->config))->get('/kasse')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('payment.testMode', false)->where('orderRefusal', GoLiveChecks::LIVE_REFUSAL));
+
+        // The live environment checks the CSRF token, which a test request does not carry: what is asserted is the refusal.
+        $this->withoutMiddleware(PreventRequestForgery::class);
+        checkoutPay($this)->assertStatus(409)->assertJson(['refusal' => GoLiveChecks::LIVE_REFUSAL]);
+
+        expect(Order::query()->where('payment_method', 'stripe')->count())->toBe(0)
+            ->and($this->stripe->to('POST', '/v1/payment_intents'))->toBe([]);
+    } finally {
+        app()['env'] = 'testing';
+    }
+});
+
 it('pays nothing at the return address: the order waits for the webhook, and so does the basket', function (): void {
     $number = checkoutPay($this)->assertOk()->json('order');
     $order = Order::query()->where('order_number', $number)->sole();
@@ -331,9 +357,12 @@ it('attaches the AGB and the Widerrufsbelehrung as PDFs once their pages hold th
         $section($slug, ['text' => '[Rechtstext folgt von der Kanzlei]', 'placeholder' => true]);
     }
 
-    // While the pages hold the placeholder: the invoice alone, and no sentence claiming more.
+    // While the pages hold the placeholder: the invoice alone, no sentence claiming more — and in the text, who prepares
+    // the terms, never the seeded marker (the brief's §8).
     expect(array_keys(checkoutMailFiles($mail)))->toBe([$invoicePdf])
-        ->and($mail->render())->not->toContain('als PDF an dieser Mail');
+        ->and($mail->render())->not->toContain('als PDF an dieser Mail')
+        ->and($mail->render())->toContain(LegalTexts::PREPARING)
+        ->and($mail->render())->not->toContain('[Rechtstext folgt');
 
     // The Kanzlei's texts arrive.
     foreach ($pages as $slug => [, $text]) {

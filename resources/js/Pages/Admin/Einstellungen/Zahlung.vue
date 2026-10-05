@@ -13,7 +13,7 @@
  * print it, and asks for the check against the accounting — it cannot be undone. Opened, it names when and by whom.
  */
 
-import { router, useForm } from '@inertiajs/vue3'
+import { Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
@@ -95,6 +95,22 @@ function openSeries(): void {
             Der Shop nimmt noch keine Zahlungen über Stripe an (Zahlungsart in Kraft: {{ driver === 'sandbox' ? 'Testzahlung der Vorschau' : 'keine' }}).
             Die Schlüssel kannst du trotzdem schon eintragen und prüfen.
         </p>
+
+        <!-- No real payment while a legal check fails (GoLiveChecks::liveRefusal): named here, each with where it is closed. -->
+        <div v-if="liveBlockedBy.length > 0" class="adm-note za-blocked" role="status">
+            <p>
+                {{ inForce.mode === 'live' ? 'Echte Zahlungen sind gesperrt' : 'Im Livemodus nimmt der Shop keine echte Zahlung an' }}, solange diese
+                Pflichtangaben fehlen:
+            </p>
+            <ul class="za-blocked__list">
+                <li v-for="check in liveBlockedBy" :key="check.id">
+                    <Link v-if="check.place.startsWith('/admin')" :href="check.place">{{ check.title }}</Link>
+                    <template v-else>{{ check.title }}</template>
+                    – {{ check.sentence }}
+                </li>
+            </ul>
+            <p><Link href="/admin/system/was-fehlt">Alles, was noch fehlt</Link></p>
+        </div>
 
         <form class="adm-form" novalidate @submit.prevent="editor.save">
             <fieldset class="adm-form__group">
@@ -237,6 +253,18 @@ function openSeries(): void {
 
 .za-series {
     margin-top: var(--sp-32);
+}
+
+.za-blocked {
+    display: grid;
+    gap: var(--sp-8);
+}
+
+.za-blocked__list {
+    display: grid;
+    gap: var(--sp-4);
+    padding-left: var(--sp-16);
+    list-style: disc;
 }
 
 .za-number {

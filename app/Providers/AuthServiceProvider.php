@@ -32,6 +32,7 @@ use App\Policies\DemoDataPolicy;
 use App\Policies\DocumentUploadPolicy;
 use App\Policies\FaqEntryPolicy;
 use App\Policies\FitmentConflictPolicy;
+use App\Policies\GoLivePolicy;
 use App\Policies\NavItemPolicy;
 use App\Policies\OrderPolicy;
 use App\Policies\PagePolicy;
@@ -45,6 +46,7 @@ use App\Policies\VehiclePolicy;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
 use App\Services\Demo\DemoTables;
+use App\Services\GoLive\GoLiveChecks;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Storage\PdfUpload;
 use App\Support\Seller;
@@ -90,6 +92,8 @@ final class AuthServiceProvider extends ServiceProvider
         PdfUpload::class => DocumentUploadPolicy::class,
         // Not a model: the test environment as a whole (TestReset), reset from System › Testumgebung zurücksetzen.
         TestEnvironment::class => TestResetPolicy::class,
+        // Not a model: what the live shop still needs (GoLiveChecks), read on System › Was fehlt.
+        GoLiveChecks::class => GoLivePolicy::class,
         WheelModel::class => WheelModelPolicy::class,
         Brand::class => BrandPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,

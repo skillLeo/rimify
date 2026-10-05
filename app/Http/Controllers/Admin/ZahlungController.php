@@ -13,6 +13,8 @@ use App\Payments\Stripe\StripeGateway;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\PaymentSettingsWriter;
 use App\Services\Commerce\InvoiceSeries;
+use App\Services\GoLive\GoLiveCheck;
+use App\Services\GoLive\GoLiveChecks;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,7 +27,7 @@ use Inertia\Response;
  */
 class ZahlungController extends Controller
 {
-    public function edit(PaymentSettingsViewRequest $request): Response
+    public function edit(PaymentSettingsViewRequest $request, GoLiveChecks $checks): Response
     {
         $row = PaymentSetting::current();
         $config = PaymentConfig::current();
@@ -43,6 +45,11 @@ class ZahlungController extends Controller
             'webhookUrl' => route('webhooks.payment', ['provider' => 'stripe']),
             // The real invoice numbers: opened once, at the client's own (InvoiceSeries), or still closed.
             'invoiceSeries' => InvoiceSeries::state(),
+            // No real payment while a check of „Recht und Pflichtangaben" fails (GoLiveChecks::liveRefusal): named here.
+            'liveBlockedBy' => array_values(array_map(
+                static fn (GoLiveCheck $c): array => ['id' => $c->id, 'title' => $c->title, 'sentence' => $c->sentence, 'place' => $c->place],
+                array_filter($checks->legalChecks(), static fn (GoLiveCheck $c): bool => ! $c->ok()),
+            )),
         ]);
     }
 

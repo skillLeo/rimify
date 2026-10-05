@@ -45,6 +45,7 @@ use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\VerkaeuferVersandController;
 use App\Http\Controllers\Admin\VersandController;
+use App\Http\Controllers\Admin\WasFehltController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Admin\ZuruecksetzenController;
@@ -592,6 +593,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->middleware(EnsureAdminMay::class.':settings,view')
             ->name('system.index');
         Route::get('/system/puls', [SystemController::class, 'pulse'])->name('system.puls');
+        // System › Was fehlt: rimify:go-live-check in the admin — read only, the settings right (GoLivePolicy).
+        Route::get('/system/was-fehlt', [WasFehltController::class, 'show'])
+            ->middleware(EnsureAdminMay::class.':settings,view')
+            ->name('system.was-fehlt');
 
         // System › Testumgebung zurücksetzen (TestReset): registered only in a test environment — in production the
         // address does not exist, and rimify:preflight fails if it did; anywhere the reset is not available it answers
