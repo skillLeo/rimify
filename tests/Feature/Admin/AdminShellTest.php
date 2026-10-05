@@ -102,7 +102,7 @@ describe('the tree', function (): void {
             ->and(array_column($nav[6]['pages'], 'label'))->toBe(['Zubehörpreise', 'Medien und Speicher', 'Zahlung', 'Verkäufer & Versand'])
             ->and(array_column($nav[7]['pages'], 'label'))->toBe(['Benutzer', 'Rollen & Rechte', 'Protokoll'])
             // „Zurücksetzen“: a test environment's, the Super-Admin's alone (TestReset) — never on the live shop's rail.
-            ->and(array_column($nav[8]['pages'], 'label'))->toBe(['Zustand', 'Zurücksetzen']);
+            ->and(array_column($nav[8]['pages'], 'label'))->toBe(['Zustand', 'Was fehlt', 'Zurücksetzen']);
     });
 
     it('lets a page belong to another area than its group: the Protokoll needs the audit log, not the roles', function (): void {

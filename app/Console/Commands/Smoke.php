@@ -14,16 +14,22 @@ use App\Models\WheelModel;
 use App\Payments\Payments;
 use App\Services\Admin\AuditTrail;
 use App\Services\Commerce\OrderPayments;
+use App\Services\Reset\BaselineState;
 use App\Services\Reset\TestEnvironment;
+use App\Services\Smoke\PrivateFilesProbe;
+use App\Services\Smoke\ResetScreenProbe;
 use App\Services\Storage\MediaDisks;
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
+use App\Support\DatabaseEngine;
 use App\Support\GermanFormat;
 use App\Support\HeroPhotos;
+use App\Support\KeyNumberSearch;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Throwable;
@@ -41,6 +47,11 @@ use Throwable;
  *   5  The admin's sign-in page renders
  *   6  A test order completes — only where the sandbox payment is on (never in production)
  *   7  The four storage prefixes: public ones readable, `invoices/` not
+ *   8  The database engine and its version, named on every run, so a wrong engine never passes unnoticed
+ *   9  System › Zurücksetzen per role: 200 to a Super-Admin and 404 to every other role where the reset is available,
+ *      404 to everyone elsewhere — production first of all (GO-LIVE.md §4.4)
+ *  10  The reset's safety copies, the log and two canaries in storage/app/private: 403 or 404 over HTTP, never 200
+ *  11  The reset's baseline fits this code and this database: its migrations and its schema's fingerprint
  *
  * The product and the car are the first released pair the shop sells (a published document row, a
  * published wheel in stock, a car with complete data) — the golden record on staging — unless
@@ -63,11 +74,24 @@ final class Smoke extends Command
 
     private string $base;
 
-    public function handle(FitmentResolver $resolver, StorageSettings $settings, S3Audit $audit, MediaDisks $disks): int
+    public function handle(FitmentResolver $resolver, StorageSettings $settings, S3Audit $audit, MediaDisks $disks, ResetScreenProbe $resetScreen, PrivateFilesProbe $privateFiles): int
     {
         $this->base = rtrim((string) ($this->option('url') ?: config('app.url')), '/');
         $this->jar = new CookieJar;
         $this->line("Smoke-Test gegen {$this->base}");
+
+        // The engine is part of what is tested (D-052): named on every run, so a wrong one never passes unnoticed.
+        $this->check('Datenbank-Engine', static function (): string {
+            $version = (string) DB::selectOne('SELECT VERSION() AS v')->v;
+            [$engine, $series] = DatabaseEngine::parse($version);
+            $refusal = DatabaseEngine::refusal($version);
+
+            if ($refusal !== null) {
+                throw new \RuntimeException($refusal);
+            }
+
+            return "{$engine} {$version} (die Suite läuft auf ".implode(' und ', DatabaseEngine::tested()).", hier {$engine} {$series})";
+        });
 
         $pair = $this->pair($resolver);
 
@@ -136,8 +160,9 @@ final class Smoke extends Command
 
             $pdf = null;
             $this->check('HSN/TSN-Abfrage und Freigabe', function () use ($vehicle, $slug, &$pdf): string {
-                // A car typed from a Gutachten has no key numbers yet: it is chosen from the list, as a customer would.
-                if ($vehicle->hsn !== null && $vehicle->tsn !== null) {
+                // A car typed from a Gutachten has no key numbers yet: it is chosen from the list, as a customer would — and so
+                // is any car while no vehicle dataset has opened the search by key numbers (KeyNumberSearch).
+                if ($vehicle->hsn !== null && $vehicle->tsn !== null && KeyNumberSearch::available()) {
                     $this->post('/fahrzeug/schluesselnummern', ['hsn' => $vehicle->hsn, 'tsn' => $vehicle->tsn]);
                 }
                 // Several cars behind one pair of numbers: the chooser, and this one is chosen (R-01).
@@ -180,6 +205,32 @@ final class Smoke extends Command
         });
 
         $this->check('Speicher-Präfixe', fn (): string => $this->storage($settings, $audit, $disks));
+
+        $this->check('System › Zurücksetzen', fn (): string => $this->resetScreen($resetScreen));
+
+        // The baseline a reset restores from fits this code and this database (BaselineState; the brief of 05.10.2026,
+        // §2.1): its migrations and its schema's fingerprint. In the live shop there is no reset, and no baseline.
+        $this->check('Vorlage zum Zurücksetzen', function (): string {
+            if (! TestEnvironment::environmentAllows()) {
+                return 'im Live-Shop gibt es kein Zurücksetzen und keine Vorlage';
+            }
+
+            $path = TestEnvironment::baseline();
+            $mismatch = BaselineState::mismatch($path, DB::connection());
+            $this->expect($mismatch === null, (string) $mismatch);
+            $state = BaselineState::recorded($path);
+
+            return 'passt: '.count($state['migrations']).' Migrationen bis „'.$state['last'].'“, Aufbau '.substr((string) $state['schema'], 0, 12);
+        });
+
+        $this->check('Private Dateien über HTTP', function () use ($privateFiles): string {
+            $results = $privateFiles->run($this->base);
+            $faults = PrivateFilesProbe::faults($results);
+            $this->expect($faults === [], implode(' · ', $faults));
+            $this->expect($results !== [], 'nichts zu prüfen – storage/app/private fehlt');
+
+            return implode(', ', array_map(static fn (array $r): string => basename($r['path']).' '.$r['status'], $results));
+        });
 
         $this->table(['Prüfung', 'Ergebnis', 'Befund'], $this->rows);
         $failed = array_filter($this->rows, static fn (array $r): bool => $r[1] === 'FEHLER');
@@ -314,6 +365,33 @@ final class Smoke extends Command
         }
 
         return 'lokal: '.count($seen).' öffentliche lesbar, invoices/ nicht';
+    }
+
+    /**
+     * System › Zurücksetzen as every role meets it (ResetScreenProbe) — and as a guest meets it from outside: the sign-in
+     * where the reset is available, the 404 everywhere else.
+     */
+    private function resetScreen(ResetScreenProbe $probe): string
+    {
+        $available = ResetScreenProbe::available();
+        $statuses = $probe->statuses();
+        $faults = ResetScreenProbe::faults($statuses, $available);
+
+        $guest = self::http(15)->withoutRedirecting()->get($this->base.ResetScreenProbe::URL);
+        $signIn = $guest->redirect() && str_contains((string) $guest->header('Location'), '/admin/anmelden');
+
+        if ($available && ! $signIn) {
+            $faults[] = "ohne Anmeldung HTTP {$guest->status()} statt der Weiterleitung zur Anmeldung";
+        } elseif (! $available && $guest->status() !== 404) {
+            $faults[] = "ohne Anmeldung HTTP {$guest->status()} statt 404";
+        }
+
+        $this->expect($faults === [], implode(' · ', $faults));
+        $others = count($statuses) - ($available ? 1 : 0);
+
+        return $available
+            ? "Super-Admin 200, {$others} weitere Rollen 404, ohne Anmeldung zur Anmeldung"
+            : 'alle '.count($statuses).' Rollen und ohne Anmeldung 404 – hier nicht verfügbar: '.(TestEnvironment::refusal() ?? 'nicht verfügbar');
     }
 
     private function check(string $name, callable $run): void

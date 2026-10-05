@@ -6,8 +6,9 @@
  * (LG München I, 20.01.2022, Az. 3 O 17493/20).
  *
  * Only the latin and latin-ext subsets — latin-ext carries Š for Škoda, which is a make in the
- * vehicle table. The file used above the fold is preloaded from the root template, and a
- * metric-matched fallback face is generated at build time so the swap moves nothing.
+ * vehicle table. Neither is preloaded: the text paints first in a metric-matched fallback
+ * (fonts-fallback.css, generated from the latin file per weight and width), and the swap moves
+ * nothing — the first paint does not wait for 90 KB of font (the operator's brief of 05.10.2026, §5).
  */
 
 @font-face {

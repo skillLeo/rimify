@@ -14,34 +14,54 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="RIMIFY">
 
-    {{-- The typeface used above the fold, fetched before the stylesheet asks for it. --}}
-    <link rel="preload" href="/fonts/archivo-latin-wdth.woff2" as="font" type="font/woff2" crossorigin>
+    {{-- No font preload: the first paint takes the metric-matched fallback (fonts-fallback.css), and the swap moves
+         nothing; 90 KB of font in the first round of requests held the first paint back on a phone (fonts.css). --}}
 
-    {{-- The homepage's LCP image on both documents: the picture the hero shows — the shadowless
-         `bare` frame, else the square one — fetched before the bundle asks for it. With no
-         photograph the hero draws an outline and nothing is preloaded. `imagesizes` must equal the
-         picture's `sizes` (HERO_SIZES_DESKTOP / HERO_SIZES_PHONE in
-         Components/Mobile/Home/calloutSlots.ts; calloutSlots.test.ts holds them equal). --}}
-    @if (in_array($page['component'] ?? '', ['Startseite/Desktop', 'Startseite/Mobile'], true))
-        @php
-            $heroManifest = $page['props']['hero']['product']['imageManifest'] ?? null;
-            $heroPicture = is_array($heroManifest) && is_array($heroManifest['bare'] ?? null) ? $heroManifest['bare'] : $heroManifest;
-            // The best format the picture offers (Picture.vue's `formats`, AVIF by default); a drawing
-            // with none offers its fallback (`svg`).
-            $heroFormat = is_array($heroPicture) ? (is_array($heroPicture['formats'] ?? null) ? ($heroPicture['formats'][0] ?? ($heroPicture['fallback'] ?? 'jpg')) : 'avif') : null;
-            $heroSet = is_array($heroPicture) && isset($heroPicture['base'], $heroPicture['widths']) && is_array($heroPicture['widths'])
-                ? implode(', ', array_map(fn ($w) => $heroPicture['base'].'-'.$w.'.'.$heroFormat.' '.$w.'w', $heroPicture['widths']))
-                : null;
-            $heroType = $heroFormat === null ? null : (['avif' => 'image/avif', 'webp' => 'image/webp', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'svg' => 'image/svg+xml'][$heroFormat] ?? null);
-            $heroSizes = ($page['component'] ?? '') === 'Startseite/Mobile'
-                ? '(min-width: 768px) calc(77vw - 49px), calc(77vw - 31px)'
-                : '(min-width: 1280px) 500px, (min-width: 1024px) 33vw, (min-width: 768px) 373px, calc(67vw - 27px)';
-        @endphp
-        @if ($heroSet !== null && $heroType !== null)
-            <link rel="preload" as="image" fetchpriority="high" type="{{ $heroType }}"
-                  imagesrcset="{{ $heroSet }}"
-                  imagesizes="{{ $heroSizes }}">
-        @endif
+    {{-- The desktop homepage's hero pictures — the photograph the stage shows and its second wheel — fetched before
+         the bundle asks for them; the phone's frame stands below the first screen and gets none (App\Support\HeroPreload
+         says why, and holds `imagesizes` equal to the pictures' `sizes`). --}}
+    @foreach (\App\Support\HeroPreload::links($page) as $heroPicture)
+        <link rel="preload" as="image" fetchpriority="high" type="{{ $heroPicture['type'] }}"
+              imagesrcset="{{ $heroPicture['srcset'] }}"
+              imagesizes="{{ $heroPicture['sizes'] }}">
+    @endforeach
+
+    @if (str_starts_with($page['component'] ?? '', 'Admin/'))
+        {{-- The admin's content keeps 960 px. Decided before the first paint — the same answer the layout then
+             starts from, so nothing opens and snaps shut (AdminLayout, railResize.ts): in a window without room for
+             the rail at the width this person gave it, the rail is drawn as wide as there is room for; without room
+             even for its narrowest 232 px, it is collapsed by the window, with no handle to pull at.
+             Asked from the head, in the first frame that shows the shell (a frame callback runs before that frame's
+             layout, and only once the stylesheets are in): at the end of the body it ran after the browser had
+             painted the open rail, and the page jumped by the rail's width (CLS 0,19 at 1024 px, 05.10.2026). --}}
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+            (function () {
+                var scheduled = false;
+                var observer = new MutationObserver(function () {
+                    if (!scheduled && document.querySelector('.adm')) {
+                        scheduled = true;
+                        observer.disconnect();
+                        requestAnimationFrame(fit);
+                    }
+                });
+
+                function fit() {
+                    var shell = document.querySelector('.adm');
+                    if (!shell || !window.matchMedia('(min-width: 1024px)').matches) return;
+                    var room = Math.min(400, shell.clientWidth - 960);
+                    var width = parseInt(shell.style.getPropertyValue('--rail-w'), 10) || 260;
+                    if (room < 232) {
+                        shell.setAttribute('data-rail', 'collapsed');
+                        shell.setAttribute('data-rail-forced', '');
+                    } else if (room < width) {
+                        shell.style.setProperty('--rail-w', room + 'px');
+                        shell.setAttribute('data-labels', room < 248 ? 'short' : 'full');
+                    }
+                }
+
+                observer.observe(document.documentElement, { childList: true, subtree: true });
+            })();
+        </script>
     @endif
 
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
@@ -56,27 +76,5 @@
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}
 <body class="{{ ($page['props']['isMobile'] ?? false) ? 'is-mobile' : 'is-desktop' }}">
     @inertia
-    @if (str_starts_with($page['component'] ?? '', 'Admin/'))
-        {{-- The admin's content keeps 960 px. Before the first paint — the same answer the layout then
-             starts from, so nothing opens and snaps shut (AdminLayout, railResize.ts): in a window
-             without room for the rail at the width this person gave it, the rail is drawn as wide as
-             there is room for; without room even for its narrowest 232 px, it is collapsed by the
-             window, with no handle to pull at. --}}
-        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-            (function () {
-                var shell = document.querySelector('.adm');
-                if (!shell || !window.matchMedia('(min-width: 1024px)').matches) return;
-                var room = Math.min(400, shell.clientWidth - 960);
-                var width = parseInt(shell.style.getPropertyValue('--rail-w'), 10) || 260;
-                if (room < 232) {
-                    shell.setAttribute('data-rail', 'collapsed');
-                    shell.setAttribute('data-rail-forced', '');
-                } else if (room < width) {
-                    shell.style.setProperty('--rail-w', room + 'px');
-                    shell.setAttribute('data-labels', room < 248 ? 'short' : 'full');
-                }
-            })();
-        </script>
-    @endif
 </body>
 </html>

@@ -3,6 +3,18 @@
 
 Options -Indexes
 
+# Without mod_rewrite nothing below would keep the project's own folders — storage/ with the reset's safety copies,
+# .env, vendor/ — out of reach: then nothing is served at all (fails closed; the operator's brief of 05.10.2026, §2.2).
+<IfModule !mod_rewrite.c>
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

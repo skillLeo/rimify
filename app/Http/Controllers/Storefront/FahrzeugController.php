@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\ResolveKeyNumbersRequest;
 use App\Http\Requests\Storefront\SelectVehicleRequest;
 use App\Models\CatalogueGapEvent;
+use App\Support\KeyNumberSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cookie;
 
@@ -56,6 +57,12 @@ class FahrzeugController extends Controller
     {
         $hsn = $request->hsn();
         $tsn = $request->tsn();
+
+        // No vehicle dataset loaded: every lookup would end in „not found". The path is closed and says so; what was
+        // typed comes back, and the page points to Marke & Modell (KeyNumberSearch, the brief of 05.10.2026, §8).
+        if (! KeyNumberSearch::available()) {
+            return back()->withInput()->with('lookup', ['status' => 'closed', 'hsn' => $hsn, 'tsn' => $tsn]);
+        }
 
         $candidates = $this->resolver->byKeyNumbers($hsn, $tsn);
 

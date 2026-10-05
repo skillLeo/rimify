@@ -17,6 +17,7 @@ use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Ssr\HttpGateway;
 use RuntimeException;
@@ -104,6 +105,14 @@ class AppServiceProvider extends ServiceProvider
 
         // The shop's own slow query log (storage/logs/slow-queries-*.log): the host keeps none.
         SlowQueries::listen();
+
+        // The scripts come after what paints: every page is server-rendered, so the first paint needs the stylesheets
+        // and nothing else, and the bundle only hydrates what is already there. Fetched at low priority it no longer
+        // takes the stylesheets' bandwidth — on a throttled phone (Slow 4G, 4× CPU) the homepage's first paint and LCP
+        // came 0,3 s earlier for this alone, 0,55 s with the font preload gone as well (the operator's brief of
+        // 05.10.2026, §5; measured over nine interleaved loads). Stylesheet preloads keep their priority.
+        Vite::useScriptTagAttributes(['fetchpriority' => 'low']);
+        Vite::usePreloadTagAttributes(static fn (string $src, string $url): array => str_ends_with($url, '.js') ? ['fetchpriority' => 'low'] : []);
     }
 
     /** True while the strict-mode check runs: a reconnect inside it is not checked a second time. */

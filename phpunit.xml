@@ -49,5 +49,7 @@
         <env name="RIMIFY_DEMO_PLACEHOLDERS_DIR" value="storage/framework/testing/demo-placeholders"/>
         <!-- The review kit is off, as on the live shop; its own tests turn it on (ReviewKitTest). -->
         <env name="RIMIFY_REVIEW" value="false"/>
+        <!-- The suites' cars are seeds, not a vehicle dataset: the search by key numbers is opened for them (KeyNumberSearch). -->
+        <env name="RIMIFY_FEATURE_KEY_NUMBERS" value="on"/>
     </php>
 </phpunit>

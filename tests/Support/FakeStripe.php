@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use Stripe\ApiRequestor;
+use Stripe\Exception\ApiConnectionException;
 use Stripe\HttpClient\ClientInterface;
 
 /**
@@ -29,6 +30,9 @@ final class FakeStripe implements ClientInterface
 
     /** @var array<string, array{0: int, 1: array<string, mixed>}> "METHOD /path" => [status, error] */
     private array $refusals = [];
+
+    /** @var array<string, int> "METHOD /path" => how many more replies to this endpoint are lost on their way back */
+    private array $lost = [];
 
     /** @var array<string, mixed> */
     public array $account;
@@ -60,6 +64,16 @@ final class FakeStripe implements ClientInterface
     public function refuse(string $endpoint, int $status, string $message, string $type = 'invalid_request_error', ?string $code = null): void
     {
         $this->refusals[$endpoint] = [$status, ['error' => array_filter(['message' => $message, 'type' => $type, 'code' => $code])]];
+    }
+
+    /**
+     * The next $times calls to this endpoint are done at Stripe — the object created, the reply kept under its
+     * idempotency key — but the reply never arrives: the connection drops on its way back, and the SDK throws
+     * ApiConnectionException, as its own HTTP client does. Only a retry with the same key learns what was created.
+     */
+    public function loseReply(string $endpoint, int $times = 1): void
+    {
+        $this->lost[$endpoint] = $times;
     }
 
     /** @return array<string, mixed> */
@@ -97,6 +111,16 @@ final class FakeStripe implements ClientInterface
 
         if ($key !== null) {
             $this->replies[$key] = [$status, $json];
+        }
+
+        foreach ($this->lost as $endpoint => $left) {
+            [$m, $pattern] = explode(' ', $endpoint, 2);
+
+            if ($left > 0 && $m === $method && preg_match('#^'.$pattern.'$#', $path) === 1) {
+                $this->lost[$endpoint] = $left - 1;
+
+                throw ApiConnectionException::factory('Could not connect to Stripe: the connection dropped before the reply arrived (FakeStripe).');
+            }
         }
 
         return [$json, $status, ['request-id' => 'req_fake_'.(++$this->sequence)]];

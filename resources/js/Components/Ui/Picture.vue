@@ -2,8 +2,8 @@
 /**
  * A photograph from the image pipeline (scripts/images.mjs): AVIF, then WebP, then JPEG, at the
  * widths the manifest lists, with the frame's own dimensions so nothing shifts, and the 24 px
- * placeholder behind it until the real file has painted. The hero passes `eager`; everything
- * below the fold is lazy.
+ * placeholder behind it until the real file has painted. The desktop hero passes `eager`; everything
+ * below the fold is lazy, and the phone's hero, just below the first screen, `late`.
  */
 
 import { computed, onMounted, ref } from 'vue'
@@ -83,8 +83,13 @@ const props = withDefaults(
          * but never competing with the LCP picture for the first bytes.
          */
         soon?: boolean
+        /**
+         * Lazy and last: a picture just below the first screen — the phone's hero frame — that must not take a
+         * byte from what is painted first (the operator's brief of 05.10.2026, §5).
+         */
+        late?: boolean
     }>(),
-    { sizes: '100vw', eager: false, soon: false }
+    { sizes: '100vw', eager: false, soon: false, late: false }
 )
 
 const emit = defineEmits<{ (e: 'loaded'): void; (e: 'failed'): void }>()
@@ -124,8 +129,8 @@ function onLoad(): void {
             :alt="alt"
             :width="image.width"
             :height="image.height"
-            :loading="eager || soon ? 'eager' : 'lazy'"
-            :fetchpriority="eager ? 'high' : soon ? 'low' : undefined"
+            :loading="(eager || soon) && !late ? 'eager' : 'lazy'"
+            :fetchpriority="late ? 'low' : eager ? 'high' : soon ? 'low' : undefined"
             decoding="async"
             @load="onLoad"
             @error="emit('failed')"

@@ -30,11 +30,14 @@ it('resets after the word, names the level and what went, and says how to undo i
     fakeConsoleReset()->shouldReceive('reset')->once()
         ->withArgs(fn (ResetLevel $level, string $by, ResetOrigin $origin): bool => $level === ResetLevel::Shop && $by === 'Konsole (rimify:reset)'
             && $origin->via === 'rimify:reset' && $origin->refusal() === null)
-        ->andReturn(['id' => 'x', 'level' => ResetLevel::Shop, 'counts' => [['label' => 'Felgen', 'count' => 12]], 'files' => ['images' => 0, 'pdfs' => 0, 'failed' => 0]]);
+        ->andReturn(['id' => 'x', 'level' => ResetLevel::Shop, 'counts' => [['label' => 'Felgen', 'count' => 12]], 'files' => ['images' => 0, 'pdfs' => 0, 'failed' => 0],
+            'backup' => ['bytes' => 3_145_728, 'tables' => 80, 'rows' => 1_234, 'triggers' => 6]]);
 
     $this->artisan('rimify:reset', ['--level' => 'shop'])
         ->expectsQuestion('Zum Bestätigen ZURÜCKSETZEN tippen', 'ZURÜCKSETZEN')
         ->expectsOutputToContain('Zurückgesetzt (Shopdaten): 12 Felgen.')
+        // The copy's own size as read back — never the host's free-space figure (the brief of 05.10.2026, §2.2).
+        ->expectsOutputToContain("Sicherung: 3,0\u{00A0}MB, verschlüsselt, gelesen und geprüft (80 Tabellen, 1.234 Zeilen, 6 Trigger).")
         ->expectsOutputToContain('rimify:reset --undo')
         ->assertSuccessful();
 });
@@ -55,14 +58,15 @@ it('changes nothing without the word, without a level, or without --force where 
 it('undoes, recovers and prunes, and says a refusal in the reset\'s words', function (): void {
     $mock = fakeConsoleReset();
     $mock->shouldReceive('undo')->once()->withArgs(fn (string $by, ResetOrigin $origin): bool => $origin->refusal() === null)
-        ->andReturn(['id' => 'x', 'level' => ResetLevel::All, 'files' => ['restored' => 5, 'failed' => 0]]);
+        ->andReturn(['id' => 'x', 'level' => ResetLevel::All, 'files' => ['restored' => 5, 'failed' => 0], 'backup' => null]);
     $mock->shouldReceive('recover')->once()->withArgs(fn (ResetOrigin $origin): bool => $origin->refusal() === null)->andReturn(null);
     $mock->shouldReceive('prune')->once()->andReturn(2);
+    $mock->shouldReceive('protectCopies')->once()->andReturn(1);
     $mock->shouldReceive('reset')->once()->andThrow(new ResetRefused('In dieser Datenbank stehen echte Zahlungen. Sie wird nicht zurückgesetzt.'));
 
     $this->artisan('rimify:reset', ['--undo' => true, '--force' => true])->expectsOutputToContain('Rückgängig gemacht: das Zurücksetzen „Alles“. 5 Dateien zurückgeholt.')->assertSuccessful();
     $this->artisan('rimify:reset', ['--recover' => true])->expectsOutputToContain('Nichts unterbrochen.')->assertSuccessful();
-    $this->artisan('rimify:reset', ['--prune' => true])->expectsOutputToContain('2 alte Sicherung(en) entfernt.')->assertSuccessful();
+    $this->artisan('rimify:reset', ['--prune' => true])->expectsOutputToContain('2 alte Sicherung(en) entfernt, 1 verschlüsselt.')->assertSuccessful();
     $this->artisan('rimify:reset', ['--level' => 'all', '--force' => true])->expectsOutputToContain('echte Zahlungen')->assertFailed();
 });
 

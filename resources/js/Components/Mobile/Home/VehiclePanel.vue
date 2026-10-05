@@ -41,7 +41,9 @@ const props = withDefaults(
 )
 
 const shared = useShared()
-const page = usePage<{ lookup?: LookupResult | null }>()
+const page = usePage<{ lookup?: LookupResult | null; keyNumbersClosed?: string | null }>()
+/* No vehicle dataset yet (KeyNumberSearch): the key-number route and the camera say so, and lead to Marke & Modell. */
+const keysClosed = computed(() => page.props.keyNumbersClosed ?? null)
 const vehicle = computed(() => shared.value.vehicle)
 const contact = computed(() => shared.value.contact)
 const lookup = computed(() => page.props.lookup ?? null)
@@ -410,25 +412,28 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
     </div>
 
     <div v-else class="vpanel">
-        <!-- The camera, above everything: the fastest route for anyone holding their papers. -->
-        <button class="btn btn--secondary btn--block m-press" type="button" @click="openCamera">
-            <Icon name="camera" :size="20" />
-            Fahrzeugschein fotografieren
-        </button>
-        <input
-            ref="fileInput"
-            class="visually-hidden"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            tabindex="-1"
-            aria-hidden="true"
-            @change="onFile"
-        >
-        <p class="small quiet vpanel__scan-note">Die Erkennung läuft auf deinem Gerät. Das Foto wird nicht hochgeladen.</p>
-        <p v-if="scanUnavailable" class="notice vpanel__notice" role="status">
-            Wir konnten HSN und TSN nicht lesen. Trag sie bitte von Hand ein.
-        </p>
+        <!-- The camera, above everything: the fastest route for anyone holding their papers. It reads the key numbers,
+             so it waits with them while no vehicle dataset is loaded (KeyNumberSearch). -->
+        <template v-if="!keysClosed">
+            <button class="btn btn--secondary btn--block m-press" type="button" @click="openCamera">
+                <Icon name="camera" :size="20" />
+                Fahrzeugschein fotografieren
+            </button>
+            <input
+                ref="fileInput"
+                class="visually-hidden"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                tabindex="-1"
+                aria-hidden="true"
+                @change="onFile"
+            >
+            <p class="small quiet vpanel__scan-note">Die Erkennung läuft auf deinem Gerät. Das Foto wird nicht hochgeladen.</p>
+            <p v-if="scanUnavailable" class="notice vpanel__notice" role="status">
+                Wir konnten HSN und TSN nicht lesen. Trag sie bitte von Hand ein.
+            </p>
+        </template>
 
         <div class="tabs__list" role="tablist" aria-label="Fahrzeug wählen">
             <button
@@ -438,9 +443,9 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 role="tab"
                 :aria-selected="picker.route.value === 'guided'"
                 :tabindex="picker.route.value === 'guided' ? 0 : -1"
-                @keydown="onTabKey"
                 :aria-controls="`${uid}-panel-guided`"
                 :data-state="picker.route.value === 'guided' ? 'active' : 'inactive'"
+                @keydown="onTabKey"
                 @click="picker.route.value = 'guided'"
             >
                 Marke &amp; Modell
@@ -452,9 +457,9 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 role="tab"
                 :aria-selected="picker.route.value === 'keys'"
                 :tabindex="picker.route.value === 'keys' ? 0 : -1"
-                @keydown="onTabKey"
                 :aria-controls="`${uid}-panel-keys`"
                 :data-state="picker.route.value === 'keys' ? 'active' : 'inactive'"
+                @keydown="onTabKey"
                 @click="picker.route.value = 'keys'"
             >
                 HSN/TSN
@@ -517,72 +522,79 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
 
             <!-- Route two: the key numbers off the Zulassungsbescheinigung. -->
             <div :id="`${uid}-panel-keys`" class="vpanel__fields" :data-state="picker.route.value === 'keys' ? 'active' : 'inactive'" role="tabpanel" :aria-labelledby="`${uid}-tab-keys`">
-                <div class="vpanel__keys">
-                    <div class="form-field">
-                        <label class="form-field__label" :for="`${uid}-hsn`">HSN (Feld 2.1)</label>
-                        <input
-                            :id="`${uid}-hsn`"
-                            ref="hsnField"
-                            class="input input--code num"
-                            type="text"
-                            inputmode="numeric"
-                            autocomplete="off"
-                            enterkeyhint="next"
-                            :value="picker.hsn.value"
-                            :aria-invalid="hsnError ? 'true' : undefined"
-                            :aria-describedby="`${uid}-keys-error`"
-                            @input="onHsn"
-                            @paste.prevent="onHsnPaste"
-                            @blur="validateHsn"
-                            @keydown.enter.prevent="tsnField?.focus()"
-                        >
-                    </div>
-                    <div class="form-field">
-                        <label class="form-field__label" :for="`${uid}-tsn`">TSN (Feld 2.2)</label>
-                        <input
-                            :id="`${uid}-tsn`"
-                            ref="tsnField"
-                            class="input input--code"
-                            type="text"
-                            autocapitalize="characters"
-                            :maxlength="TSN_LENGTH"
-                            autocomplete="off"
-                            enterkeyhint="go"
-                            :value="picker.tsn.value"
-                            :aria-invalid="tsnError ? 'true' : undefined"
-                            :aria-describedby="`${uid}-keys-error`"
-                            @input="onTsn"
-                            @blur="validateTsn"
-                            @keydown.enter.prevent="submit"
-                        >
-                    </div>
+                <!-- No vehicle dataset yet (KeyNumberSearch): one sentence and the way that works, never fields that find nothing. -->
+                <div v-if="keysClosed" class="notice vpanel__notice vpanel__closed">
+                    <p>{{ keysClosed }}</p>
+                    <button class="link" type="button" @click="picker.route.value = 'guided'">Marke &amp; Modell wählen</button>
                 </div>
-                <p :id="`${uid}-keys-error`" class="form-field__error">{{ hsnError || tsnError }}</p>
-                <button class="link small vpanel__help" type="button" @click="helpOpen = true">Wo finde ich HSN und TSN?</button>
+                <template v-else>
+                    <div class="vpanel__keys">
+                        <div class="form-field">
+                            <label class="form-field__label" :for="`${uid}-hsn`">HSN (Feld 2.1)</label>
+                            <input
+                                :id="`${uid}-hsn`"
+                                ref="hsnField"
+                                class="input input--code num"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                enterkeyhint="next"
+                                :value="picker.hsn.value"
+                                :aria-invalid="hsnError ? 'true' : undefined"
+                                :aria-describedby="`${uid}-keys-error`"
+                                @input="onHsn"
+                                @paste.prevent="onHsnPaste"
+                                @blur="validateHsn"
+                                @keydown.enter.prevent="tsnField?.focus()"
+                            >
+                        </div>
+                        <div class="form-field">
+                            <label class="form-field__label" :for="`${uid}-tsn`">TSN (Feld 2.2)</label>
+                            <input
+                                :id="`${uid}-tsn`"
+                                ref="tsnField"
+                                class="input input--code"
+                                type="text"
+                                autocapitalize="characters"
+                                :maxlength="TSN_LENGTH"
+                                autocomplete="off"
+                                enterkeyhint="go"
+                                :value="picker.tsn.value"
+                                :aria-invalid="tsnError ? 'true' : undefined"
+                                :aria-describedby="`${uid}-keys-error`"
+                                @input="onTsn"
+                                @blur="validateTsn"
+                                @keydown.enter.prevent="submit"
+                            >
+                        </div>
+                    </div>
+                    <p :id="`${uid}-keys-error`" class="form-field__error">{{ hsnError || tsnError }}</p>
+                    <button class="link small vpanel__help" type="button" @click="helpOpen = true">Wo finde ich HSN und TSN?</button>
 
-                <!-- Several vehicles behind one pair: a confirmation, never a guess (R-01). -->
-                <div v-if="count.status === 'ambiguous'" class="vpanel__chooser">
-                    <p class="h4">{{ count.rows.length }} Fahrzeuge passen zu {{ picker.hsn.value }}/{{ picker.tsn.value }} – welches ist deins?</p>
-                    <label v-for="row in count.rows" :key="row.id" class="check">
-                        <input v-model="candidate" type="radio" :name="`${uid}-kandidat`" :value="row.id">
-                        <span>{{ row.label }}</span>
-                    </label>
-                    <button class="btn btn--secondary btn--block" type="button" :disabled="candidate === null" @click="candidate !== null && picker.resolveAmbiguity(candidate)">
-                        Dieses Fahrzeug wählen
-                    </button>
-                    <button class="link small" type="button" @click="retypeKeys">Andere Nummern eingeben</button>
-                </div>
-
-                <!-- Nothing found: what was typed stays, and three ways forward (R-09). -->
-                <div v-if="count.status === 'not_found' || lookup?.status === 'not_found'" class="notice vpanel__notice">
-                    <Icon name="warning" :size="20" />
-                    <div class="vpanel__miss">
-                        <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
-                        <button class="link" type="button" @click="focusHsn">Nochmal prüfen</button>
-                        <button class="link" type="button" @click="picker.route.value = 'guided'">Über Marke &amp; Modell wählen</button>
-                        <component :is="reach.form ? Link : 'a'" class="link num" :href="reach.href">{{ reach.label }}</component>
+                    <!-- Several vehicles behind one pair: a confirmation, never a guess (R-01). -->
+                    <div v-if="count.status === 'ambiguous'" class="vpanel__chooser">
+                        <p class="h4">{{ count.rows.length }} Fahrzeuge passen zu {{ picker.hsn.value }}/{{ picker.tsn.value }} – welches ist deins?</p>
+                        <label v-for="row in count.rows" :key="row.id" class="check">
+                            <input v-model="candidate" type="radio" :name="`${uid}-kandidat`" :value="row.id">
+                            <span>{{ row.label }}</span>
+                        </label>
+                        <button class="btn btn--secondary btn--block" type="button" :disabled="candidate === null" @click="candidate !== null && picker.resolveAmbiguity(candidate)">
+                            Dieses Fahrzeug wählen
+                        </button>
+                        <button class="link small" type="button" @click="retypeKeys">Andere Nummern eingeben</button>
                     </div>
-                </div>
+
+                    <!-- Nothing found: what was typed stays, and three ways forward (R-09). -->
+                    <div v-if="count.status === 'not_found' || lookup?.status === 'not_found'" class="notice vpanel__notice">
+                        <Icon name="warning" :size="20" />
+                        <div class="vpanel__miss">
+                            <p>Zu {{ picker.hsn.value || lookup?.hsn }}/{{ picker.tsn.value || lookup?.tsn }} haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.</p>
+                            <button class="link" type="button" @click="focusHsn">Nochmal prüfen</button>
+                            <button class="link" type="button" @click="picker.route.value = 'guided'">Über Marke &amp; Modell wählen</button>
+                            <component :is="reach.form ? Link : 'a'" class="link num" :href="reach.href">{{ reach.label }}</component>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -752,6 +764,13 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
 
 .vpanel__notice {
     align-items: flex-start;
+}
+
+/* The key-number route while no vehicle dataset is loaded: the sentence, then the way that works. */
+.vpanel__closed {
+    display: grid;
+    justify-items: start;
+    gap: var(--sp-8);
 }
 
 .vpanel__miss {

@@ -18,6 +18,12 @@ class TestResetUndoRequest extends FormRequest
         return $user instanceof AdminUser && $user->can('reset', TestEnvironment::class);
     }
 
+    /** A 404, never a 403: the address does not say there is something behind it (EnsureResetPermitted). */
+    protected function failedAuthorization(): void
+    {
+        abort(404);
+    }
+
     /** @return array<string, list<string>> */
     public function rules(): array
     {

@@ -8,15 +8,22 @@ use App\Enums\OrderStatus;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Http\Controllers\Storefront\KasseZahlungController;
 use App\Mail\OrderConfirmationMail;
+use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Models\Page;
+use App\Models\PaymentEvent;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Services\Commerce\CheckoutShown;
 use App\Services\Commerce\OrderPayments;
+use App\Services\Content\LegalPdf;
+use App\Services\Content\LegalTexts;
+use App\Services\GoLive\GoLiveChecks;
 use App\Services\Storefront\Basket;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -230,6 +237,29 @@ it('refuses a real order without a delivery time, and lets a test order go with 
     }
 });
 
+// The operator's brief of 05.10.2026, §7: no real payment while a check of „Recht und Pflichtangaben" fails. The live
+// shop with live keys and a delivery time, but the seeded legal pages still placeholders: the page says so plainly,
+// and the server refuses to start the payment — no order, no PaymentIntent.
+it('takes no real payment while a legal check fails, and names no check to the customer', function (): void {
+    app()['env'] = 'production';
+
+    try {
+        config(['rimify.review.enabled' => false, 'services.stripe.mode' => 'live', 'services.stripe.key' => 'pk_live_fakeKey', 'services.stripe.secret' => 'sk_live_fakeKey']);
+
+        $this->withCookies(checkoutCookies($this->vehicle))->withSession(checkoutBasket($this->config))->get('/kasse')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('payment.testMode', false)->where('orderRefusal', GoLiveChecks::LIVE_REFUSAL));
+
+        // The live environment checks the CSRF token, which a test request does not carry: what is asserted is the refusal.
+        $this->withoutMiddleware(PreventRequestForgery::class);
+        checkoutPay($this)->assertStatus(409)->assertJson(['refusal' => GoLiveChecks::LIVE_REFUSAL]);
+
+        expect(Order::query()->where('payment_method', 'stripe')->count())->toBe(0)
+            ->and($this->stripe->to('POST', '/v1/payment_intents'))->toBe([]);
+    } finally {
+        app()['env'] = 'testing';
+    }
+});
+
 it('pays nothing at the return address: the order waits for the webhook, and so does the basket', function (): void {
     $number = checkoutPay($this)->assertOk()->json('order');
     $order = Order::query()->where('order_number', $number)->sole();
@@ -280,6 +310,123 @@ it('is paid by the signed webhook: basket emptied, invoice = order = intent to t
             && str_contains($html, 'Hiermit widerrufe(n) ich/wir')
             && count($mail->attachments()) === 1;
     });
+});
+
+/** @return array<string, string> each attachment's file name => its bytes */
+function checkoutMailFiles(OrderConfirmationMail $mail): array
+{
+    $files = [];
+
+    foreach ($mail->attachments() as $attachment) {
+        $files[(string) $attachment->as] = (string) $attachment->attachWith(static fn (): string => '', static fn (Closure $data): string => $data());
+    }
+
+    return $files;
+}
+
+// The operator's brief of 05.10.2026, §6 (§ 312f Abs. 2 BGB): the AGB and the Widerrufsbelehrung with the Formular
+// attached as PDFs — once their pages hold the Kanzlei's text. A placeholder is never sent as terms, and the mail names
+// only what is attached.
+it('attaches the AGB and the Widerrufsbelehrung as PDFs once their pages hold the Kanzlei’s text, never a placeholder', function (): void {
+    $number = checkoutPay($this)->assertOk()->json('order');
+    $order = Order::query()->where('order_number', $number)->sole();
+    $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
+
+    [$payload, $signature] = FakeStripe::event('payment_intent.succeeded', ['status' => 'succeeded', 'amount_received' => $intent['amount']] + $intent, CHECKOUT_WEBHOOK_SECRET);
+    $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
+
+    $mail = null;
+    Mail::assertSent(OrderConfirmationMail::class, function (OrderConfirmationMail $sent) use (&$mail): bool {
+        $mail = $sent;
+
+        return true;
+    });
+    $invoicePdf = $mail->invoice->number.'.pdf';
+    $pages = [
+        'agb' => ['Allgemeine Geschäftsbedingungen', 'Diese AGB gelten für jede Bestellung bei RIMIFY.'],
+        'widerrufsbelehrung' => ['Widerrufsbelehrung', 'Du hast das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.'],
+    ];
+    // The legal pages as ContentSeeder writes them: published, one section holding the marked placeholder.
+    $section = static function (string $slug, array $data) use ($pages): void {
+        $page = Page::query()->firstOrCreate(['slug' => $slug], ['locale' => 'de', 'kind' => Page::KIND_LEGAL, 'title' => $pages[$slug][0], 'status' => Page::STATUS_PUBLISHED, 'published_at' => now()]);
+        $page->blocks()->delete();
+        $page->blocks()->create(['type' => 'legal_body', 'sort_order' => 10, 'data' => ['heading' => $pages[$slug][0]] + $data]);
+    };
+
+    foreach (array_keys($pages) as $slug) {
+        $section($slug, ['text' => '[Rechtstext folgt von der Kanzlei]', 'placeholder' => true]);
+    }
+
+    // While the pages hold the placeholder: the invoice alone, no sentence claiming more — and in the text, who prepares
+    // the terms, never the seeded marker (the brief's §8).
+    expect(array_keys(checkoutMailFiles($mail)))->toBe([$invoicePdf])
+        ->and($mail->render())->not->toContain('als PDF an dieser Mail')
+        ->and($mail->render())->toContain(LegalTexts::PREPARING)
+        ->and($mail->render())->not->toContain('[Rechtstext folgt');
+
+    // The Kanzlei's texts arrive.
+    foreach ($pages as $slug => [, $text]) {
+        $section($slug, ['text' => $text]);
+    }
+
+    $files = checkoutMailFiles($mail);
+
+    expect(array_keys($files))->toBe([$invoicePdf, LegalPdf::AGB, LegalPdf::WIDERRUF])
+        ->and(array_map(static fn (string $bytes): string => substr($bytes, 0, 5), $files))->each->toBe('%PDF-')
+        ->and($mail->render())->toContain('Die AGB und die Widerrufsbelehrung mit dem Muster-Widerrufsformular hängen ebenfalls als PDF an dieser Mail.');
+});
+
+// The brief's §6: the idempotency key proven by a forced retry, not only by a double click. The first press reaches
+// Stripe and the intent is made there — but the reply is lost on its way back. The customer is told nothing was
+// charged and presses again: the same key answers the same intent, and Stripe holds one.
+it('takes the same PaymentIntent on the retry after the reply to the first press was lost: one intent, one order', function (): void {
+    $this->stripe->loseReply('POST /v1/payment_intents');
+    $shown = checkoutShown($this);
+
+    checkoutPay($this, [], $shown)->assertStatus(409)->assertJson(['refusal' => KasseZahlungController::PAYMENT_UNAVAILABLE]);
+
+    // Stripe made the intent; the shop never heard of it.
+    $order = Order::query()->where('payment_method', 'stripe')->sole();
+
+    expect($this->stripe->intents)->toHaveCount(1)
+        ->and($order->stripe_payment_intent_id)->toBeNull();
+
+    $retry = $this->withCookies(checkoutCookies($this->vehicle))->withCredentials()->postJson('/kasse/zahlung', checkoutForm() + ['shown' => $shown])->assertOk();
+    $created = $this->stripe->to('POST', '/v1/payment_intents');
+    $intent = (string) array_key_first($this->stripe->intents);
+
+    expect($retry->json('order'))->toBe($order->order_number)
+        ->and($retry->json('clientSecret'))->toBe($intent.'_secret_fake')
+        ->and($order->fresh()->stripe_payment_intent_id)->toBe($intent)
+        ->and($this->stripe->intents)->toHaveCount(1)
+        ->and($created)->toHaveCount(2)
+        ->and($created[1]['headers']['idempotency-key'])->toBe($created[0]['headers']['idempotency-key'])
+        ->and(Order::query()->where('payment_method', 'stripe')->count())->toBe(1);
+});
+
+// The brief's §6: the unique event id, proven by a replay. Stripe delivers an event again until it hears 200, and a
+// second event for the same intent can follow; neither pays twice. One state change, one invoice, one mail.
+it('pays once however often Stripe delivers: one state change, one invoice, one mail', function (): void {
+    $number = checkoutPay($this)->assertOk()->json('order');
+    $order = Order::query()->where('order_number', $number)->sole();
+    $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
+    $object = ['status' => 'succeeded', 'amount_received' => $intent['amount']] + $intent;
+
+    foreach (['evt_paid_once', 'evt_paid_once', 'evt_paid_once', 'evt_paid_again'] as $id) {
+        [$payload, $signature] = FakeStripe::event('payment_intent.succeeded', $object, CHECKOUT_WEBHOOK_SECRET, $id);
+        $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
+    }
+
+    $paidMoves = AuditLog::query()->where('description', 'order.status_changed')->get()
+        ->filter(static fn (AuditLog $entry): bool => ($entry->properties['order'] ?? null) === $number && ($entry->properties['to'] ?? null) === 'PAID');
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Paid)
+        ->and(PaymentEvent::query()->where('event_id', 'evt_paid_once')->count())->toBe(1)
+        ->and(PaymentEvent::query()->where('event_id', 'evt_paid_once')->value('outcome'))->toBe('succeeded')
+        ->and(PaymentEvent::query()->where('event_id', 'evt_paid_again')->value('outcome'))->toBe('ignored: PAID')
+        ->and($paidMoves)->toHaveCount(1)
+        ->and(Invoice::query()->where('order_id', $order->id)->count())->toBe(1);
+    Mail::assertSent(OrderConfirmationMail::class, 1);
 });
 
 it('keeps the order and the typed data after a declined card, and takes the same order on the retry', function (): void {

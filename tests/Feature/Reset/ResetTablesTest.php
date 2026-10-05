@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Console\Commands\ResetBaselineCommand;
 use App\Services\Reset\ResetLevel;
 use App\Services\Reset\ResetTables;
+use App\Services\Reset\SchemaFingerprint;
 use App\Services\Reset\SqlSnapshot;
 use App\Services\Reset\TestEnvironment;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,10 @@ it('keeps a baseline made from the migrations as they are now, with every table 
         ->and($summary)->not->toBeNull()
         // A migration without a new baseline: php artisan rimify:reset-baseline (with the suite's MariaDB in .env).
         ->and($recorded)->toBe($files)
+        // Its state (the brief of 05.10.2026, §2.1): the last migration, and the schema as this engine has it — the
+        // fingerprint is the same on MariaDB 11.8 and MySQL 8.4, so both legs of the suite hold it to the same value.
+        ->and($meta['last_migration']['name'])->toBe(last($files))
+        ->and($meta['schema'])->toBe(SchemaFingerprint::of(DB::connection()))
         // The same tables, in whatever order the engine lists them: MariaDB and MySQL sort „review_feedback“ and
         // „reviews“ differently, and the suite runs on both.
         ->and(array_keys($summary['tables']))->toEqualCanonicalizing(rtTables())

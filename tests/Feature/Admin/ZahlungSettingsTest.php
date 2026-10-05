@@ -87,6 +87,18 @@ it('stores the keys encrypted, shows them as their last four only, and puts them
         ->assertDontSee('fakeKeyC3d4');
 });
 
+// The operator's brief of 05.10.2026, §7: no real payment while a check of „Recht und Pflichtangaben" fails — named on
+// this page, each with the place where it is closed. A fresh database holds no seller and no legal text.
+it('names the legal checks that keep real payments shut, each with where it is closed', function (): void {
+    $this->actingAs(zahlungAdmin(), 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])->get(ZAHLUNG_URL)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('liveBlockedBy', fn ($checks): bool => collect($checks)->pluck('id')->contains('impressum')
+                && collect($checks)->firstWhere('id', 'impressum')['place'] === '/admin/einstellungen/verkaeufer-versand'
+                && collect($checks)->every(fn (array $c): bool => $c['title'] !== '' && $c['sentence'] !== ''))
+            ->where('liveBlockedBy', fn ($checks): bool => ! collect($checks)->pluck('id')->contains('mwst')));
+});
+
 it('keeps a stored key when its field is left empty', function (): void {
     zahlungSave(zahlungForm())->assertSessionHasNoErrors();
     zahlungSave(zahlungForm(['secret_key' => '', 'publishable_key' => '']))->assertSessionHasNoErrors();

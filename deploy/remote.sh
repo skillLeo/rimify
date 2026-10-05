@@ -39,6 +39,13 @@ esac
 cd "$APP"
 echo "== code: $(git log -1 --format='%h %s')"
 
+# CLAUDE.md R-04.1, before anything changes: the reset's own flag as this environment requires it — absent in the live
+# shop, `true` or `false` on a test server (deploy/check-env.php). The host step runs the same check against the fetched
+# release before it takes the site down; this covers a manual run.
+if [ -f .env ]; then
+    "$PHP" deploy/check-env.php .env "$TARGET_ENV"
+fi
+
 # A manual run may not have taken the site down first. This covers that case; it is a no-op when
 # the workflow already did. It may fail before composer has run, hence `|| true`.
 "$PHP" artisan down --render="errors::503" --retry=60 > /dev/null 2>&1 || true
@@ -47,6 +54,8 @@ echo "== code: $(git log -1 --format='%h %s')"
 if [ ! -f .env ]; then
     cp .env.example .env
     echo "== .env created from .env.example"
+    # A new test server decides the reset's flag before its first release (GO-LIVE.md §4.4); a new live shop passes.
+    "$PHP" deploy/check-env.php .env "$TARGET_ENV"
 fi
 
 set_env() { "$PHP" deploy/env.php "$1" "${2:-}"; }
@@ -64,9 +73,8 @@ else
     set_env DEMO_DATA 0
     set_env RIMIFY_REVIEW false
     set_env RIMIFY_PAYMENTS none
-    # CLAUDE.md R-04.1: the live shop never says yes to Testumgebung zurücksetzen, whatever its .env said before.
-    # (A test server's yes is set there by hand, once — never by this script.)
-    set_env RIMIFY_RESET_ERLAUBT false
+    # CLAUDE.md R-04.1: the live shop's .env has no RIMIFY_RESET_ERLAUBT line at all — deploy/check-env.php refused the
+    # release above if it had one. A test server's line is set there by hand, once — never by this script.
     # Production's mail settings are the operator's (.env, GO-LIVE.md): never overwritten here, and
     # rimify:preflight refuses a production that only writes its mail to the log.
 fi
@@ -198,6 +206,22 @@ fi
 # Last, and only when everything above succeeded (set -e).
 "$PHP" artisan up
 echo "== site is up"
+
+# ── Old backups ────────────────────────────────────────────────────────────────
+# What the host step keeps before each release (GO-LIVE.md §1: the dump, the code archive, a copy of .env, the logs)
+# holds the shop's customers and its keys: kept for a rollback, not for ever (the operator's brief of 05.10.2026, §2.2).
+# The newest five releases' sets always; an older set once it is 14 days old. Only the host step's own
+# `rimify-YYYYMMDD-HHMM.*` files — nothing else in the folder — and never a reason to fail the release.
+BACKUPS="${BACKUP_DIR:-$HOME/backups}"
+if [ -d "$BACKUPS" ]; then
+    KEEP="$(ls -1t "$BACKUPS"/rimify-????????-????.sql.gz 2>/dev/null | head -5 | sed -E 's#^.*/rimify-([0-9]{8}-[0-9]{4})\.sql\.gz$#\1#' || true)"
+    find "$BACKUPS" -maxdepth 1 -type f -name 'rimify-????????-????.*' -mtime +14 2>/dev/null | while read -r OLD; do
+        TS="$(basename "$OLD" | sed -E 's#^rimify-([0-9]{8}-[0-9]{4})\..*$#\1#')"
+        if ! printf '%s\n' "$KEEP" | grep -qx "$TS"; then
+            rm -f "$OLD" && echo "== removed old backup $(basename "$OLD")"
+        fi
+    done || true
+fi
 
 # ── Smoke ──────────────────────────────────────────────────────────────────────
 # The shop as a visitor without JavaScript sees it, the lookup, the PDF, the admin's sign-in, the

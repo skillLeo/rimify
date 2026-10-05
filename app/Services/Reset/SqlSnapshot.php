@@ -44,22 +44,27 @@ final class SqlSnapshot
     /**
      * Writes `$tables` to `$path`: structure, rows and triggers. `$structureOnly` tables are written without their
      * rows. `$portable` writes what the repository keeps: no AUTO_INCREMENT counters and no compression, so the file
-     * reads the same however often it is written.
+     * reads the same however often it is written. `$sealed` writes it encrypted at rest (SealedFile): a safety copy of
+     * the shop's customers; the compressed plain text exists only as the `.part` it is sealed from, removed at once.
      *
      * @param  list<string>  $tables
      * @param  array<string, mixed>  $meta
      * @param  list<string>  $structureOnly
      * @return array{tables: array<string, array{rows: int, auto_increment: int|null, triggers: int}>, triggers: int}
      */
-    public function write(string $path, array $tables, array $meta = [], array $structureOnly = [], bool $portable = false): array
+    public function write(string $path, array $tables, array $meta = [], array $structureOnly = [], bool $portable = false, bool $sealed = false): array
     {
         $part = $path.'.part';
 
         if (! is_dir(dirname($path))) {
-            mkdir(dirname($path), 0775, true);
+            mkdir(dirname($path), $portable ? 0775 : 0700, true);
         }
 
         $out = $portable ? fopen($part, 'wb') : gzopen($part, 'wb6');
+
+        if (! $portable) {
+            @chmod($part, 0600);
+        }
 
         if ($out === false) {
             throw new RuntimeException("Die Sicherung kann nicht nach {$path} geschrieben werden.");
@@ -110,10 +115,24 @@ final class SqlSnapshot
             throw new RuntimeException("Die Sicherung {$path} ließ sich nicht zu Ende schreiben (Speicherplatz?).");
         }
 
+        if ($sealed) {
+            try {
+                SealedFile::seal($part, $path);
+            } finally {
+                @unlink($part);
+            }
+
+            return ['tables' => $summary, 'triggers' => $triggers];
+        }
+
         if (! rename($part, $path)) {
             @unlink($part);
 
             throw new RuntimeException("Die Sicherung {$path} konnte nicht abgeschlossen werden.");
+        }
+
+        if (! $portable) {
+            @chmod($path, 0600);
         }
 
         return ['tables' => $summary, 'triggers' => $triggers];
@@ -249,15 +268,22 @@ final class SqlSnapshot
     }
 
     /**
-     * The statements of a file, in order: `meta` and `end` with their data, the rest with their SQL.
+     * The statements of a file, in order: `meta` and `end` with their data, the rest with their SQL. A sealed copy is
+     * decrypted into a file of its own first (0600, beside it) and that file removed once it has been read — or once the
+     * reader stops early.
      *
      * @return Generator<int, array{kind: string, table: string, name: string|null, sql: string, data: array<string, mixed>}>
      */
     public static function frames(string $path, bool $stopAfterMeta = false): Generator
     {
-        $in = @gzopen($path, 'rb');
+        $opened = SealedFile::isSealed($path) ? SealedFile::open($path) : null;
+        $in = @gzopen($opened ?? $path, 'rb');
 
         if ($in === false) {
+            if ($opened !== null) {
+                @unlink($opened);
+            }
+
             throw new RuntimeException("Die Sicherung {$path} lässt sich nicht öffnen.");
         }
 
@@ -303,6 +329,10 @@ final class SqlSnapshot
             }
         } finally {
             gzclose($in);
+
+            if ($opened !== null) {
+                @unlink($opened);
+            }
         }
     }
 

@@ -7,6 +7,7 @@ use App\Domain\Storefront\VehicleContext;
 use App\Models\Setting;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
+use App\Support\HeroPreload;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
@@ -79,6 +80,33 @@ it('renders the homepage with its hero photograph when no wheel is published, an
             ->has('selector.makes')
             ->where('popular.empty', true)
         );
+});
+
+// The operator's brief of 05.10.2026, §5: the desktop document preloads the pictures the stage shows — the brand's
+// photograph and its second wheel, with the catalogue empty too (before, the preload read the product alone, and an
+// empty shop preloaded nothing). The phone's frame stands below the first screen and fetches lazily: no preload.
+it('preloads the photograph and its second wheel on the desktop, with or without a catalogue, and nothing on a phone', function (): void {
+    DemoWheelFixtures::heroPhotos($this->dir, 'borbet-db8gt2', ['Schwarz matt' => 'hero-schwarz', 'Bronze matt' => 'hero-bronze']);
+    DB::table('wheel_models')->update(['status' => 'draft']);
+
+    $html = $this->get('/')->assertOk()->getContent();
+    preg_match_all('/<link rel="preload" as="image" fetchpriority="high" type="image\/avif"\s+imagesrcset="([^"]+)"\s+imagesizes="([^"]+)">/', (string) $html, $links);
+
+    expect($links[1])->toHaveCount(2)
+        ->and($links[1][0])->toContain('hero-schwarz-bare-')->toEndWith('w')
+        ->and($links[1][1])->toContain('hero-bronze-bare-')
+        ->and(array_unique($links[2]))->toBe([e(HeroPreload::SIZES)])
+        // The scripts follow what paints, and the font comes after the first paint (the fallback faces hold the room).
+        ->and((string) $html)->toMatch('/<script type="module" src="[^"]+"[^>]* fetchpriority="low"/')
+        ->and((string) $html)->toMatch('/<link rel="modulepreload"[^>]* fetchpriority="low"/')
+        ->and((string) $html)->not->toMatch('/<link rel="preload" as="style"[^>]* fetchpriority="low"/')
+        ->and((string) $html)->not->toContain('as="font"');
+
+    $phone = $this->withHeaders(['User-Agent' => 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36'])
+        ->get('/')->assertOk();
+
+    $phone->assertInertia(fn (AssertableInertia $page) => $page->component('Startseite/Mobile'));
+    expect((string) $phone->getContent())->not->toContain('rel="preload" as="image"');
 });
 
 it('never tells the listing it shows demonstration data: none can be on show', function (): void {

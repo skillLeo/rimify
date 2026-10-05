@@ -9,6 +9,7 @@ use App\Services\Reset\ResetOrigin;
 use App\Services\Reset\ResetRefused;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Reset\TestReset;
+use App\Support\GermanFormat;
 use Illuminate\Console\Command;
 
 /**
@@ -16,7 +17,8 @@ use Illuminate\Console\Command;
  * Testumgebung zurücksetzen does it (TestReset) — only where the four conditions of CLAUDE.md R-04.1 hold, and never in
  * production, where it refuses before it reads or writes anything. `--undo` takes the last reset back (seven days),
  * `--recover` finishes or puts back an interrupted one (the scheduler runs it every minute, and with nothing
- * interrupted it touches nothing), `--prune` removes the safety copies older than seven days (daily) and records each.
+ * interrupted it touches nothing), `--prune` removes the safety copies older than seven days (hourly) and records
+ * each, and makes the ones still kept private: sealed, folders 0700, files 0600.
  */
 final class ResetCommand extends Command
 {
@@ -58,7 +60,9 @@ final class ResetCommand extends Command
         }
 
         if ($this->option('prune')) {
-            $this->line(sprintf('%d alte Sicherung(en) entfernt.', $reset->prune()));
+            $removed = $reset->prune();
+            $sealed = $reset->protectCopies();
+            $this->line(sprintf('%d alte Sicherung(en) entfernt, %d verschlüsselt.', $removed, $sealed));
 
             return self::SUCCESS;
         }
@@ -103,6 +107,7 @@ final class ResetCommand extends Command
             if ($this->option('undo')) {
                 $result = $reset->undo('Konsole (rimify:reset)', ResetOrigin::console($this));
                 $this->info("Rückgängig gemacht: das Zurücksetzen „{$result['level']->label()}“. {$result['files']['restored']} Dateien zurückgeholt.");
+                $this->backupLine($result['backup']);
 
                 return self::SUCCESS;
             }
@@ -117,9 +122,31 @@ final class ResetCommand extends Command
 
         $what = array_map(static fn (array $c): string => $c['count'].' '.$c['label'], $result['counts']);
         $this->info('Zurückgesetzt ('.$level->label().'): '.($what === [] ? 'es war nichts zu entfernen' : implode(', ', $what)).'.');
+        $this->backupLine($result['backup']);
         $this->line('Rückgängig machen bis zu '.TestEnvironment::KEEP_DAYS.' Tage lang: php artisan rimify:reset --undo');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The safety copy as it was read back — its own size, never the host's free-space figure, which on a shared host is
+     * the whole volume's (the operator's brief of 05.10.2026, §2.2).
+     *
+     * @param  array{bytes: int, tables: int, rows: int, triggers: int}|null  $backup
+     */
+    private function backupLine(?array $backup): void
+    {
+        if ($backup === null) {
+            return;
+        }
+
+        $this->line(sprintf(
+            'Sicherung: %s, verschlüsselt, gelesen und geprüft (%s Tabellen, %s Zeilen, %s Trigger).',
+            GermanFormat::decimal($backup['bytes'] / 1_048_576, 1).GermanFormat::NBSP.'MB',
+            GermanFormat::integer($backup['tables']),
+            GermanFormat::integer($backup['rows']),
+            GermanFormat::integer($backup['triggers']),
+        ));
     }
 
     private function confirmed(?ResetLevel $level): bool

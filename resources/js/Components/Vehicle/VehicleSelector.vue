@@ -60,7 +60,9 @@ const restartHref = computed(() => {
     return query === '' ? props.basePath : `${props.basePath}?${query}`
 })
 
-const page = usePage<{ lookup?: LookupResult; contact?: ContactProp }>()
+const page = usePage<{ lookup?: LookupResult; contact?: ContactProp; keyNumbersClosed?: string | null }>()
+/* No vehicle dataset yet (KeyNumberSearch): the key-number column says so instead of offering a form that finds nothing. */
+const keysClosed = computed(() => page.props.keyNumbersClosed ?? null)
 const lookup = computed(() => page.props.lookup ?? null)
 
 const query = ref('')
@@ -246,7 +248,10 @@ function onTsn(event: Event): void {
         <section class="vsel__col vsel__col--keys" aria-labelledby="vsel-keys-title">
             <h3 id="vsel-keys-title" class="t-h3 vsel__title">Mit Schlüsselnummern</h3>
 
-            <form @submit.prevent="submitKeys">
+            <!-- No vehicle dataset yet (KeyNumberSearch): one sentence, and Marke & Modell beside it is the way that works. -->
+            <p v-if="keysClosed" class="vsel__closed">{{ keysClosed }}</p>
+
+            <form v-else @submit.prevent="submitKeys">
                 <div class="vsel__keys">
                     <div>
                         <label class="field-label" :for="`hsn-${basePath}`">HSN</label>
@@ -675,6 +680,12 @@ function onTsn(event: Event): void {
 
 .vsel__miss-note {
     margin-top: var(--space-3);
+}
+
+/* The key-number column while no vehicle dataset is loaded: one sentence in place of the form. */
+.vsel__closed {
+    margin: 0;
+    color: var(--c-ink-2);
 }
 
 /* A long address breaks rather than widening the card past a 320px screen. */

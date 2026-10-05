@@ -16,6 +16,7 @@
 @layer base, legacy, components;
 
 @import './fonts.css';
+@import './fonts-fallback.css';
 @import './tokens.css';
 @import './base.css';
 @import './components.css';

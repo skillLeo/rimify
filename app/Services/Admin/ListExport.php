@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Admin;
 
 use App\Support\Money;
+use Closure;
+use ErrorException;
+use Illuminate\Support\Facades\File;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Writer\XLSX\Options;
 use OpenSpout\Writer\XLSX\Writer;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -71,7 +75,8 @@ final class ListExport
     private static function xlsx(string $filename, array $header, iterable $rows): StreamedResponse
     {
         return response()->streamDownload(static function () use ($header, $rows): void {
-            $writer = new Writer;
+            $temp = self::tempFolder();
+            $writer = new Writer(new Options(tempFolder: $temp));
             $writer->openToFile('php://output');
 
             $bold = (new Style)->withFontBold(true);
@@ -89,8 +94,49 @@ final class ListExport
                 }, $row)));
             }
 
-            $writer->close();
+            self::closeWriter($writer->close(...), $temp);
         }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /**
+     * Where the XLSX writer keeps its working files: a folder of our own, so what it could not remove can be swept —
+     * an hour on, at the next export.
+     */
+    private static function tempFolder(): string
+    {
+        $dir = storage_path('framework/cache/xlsx');
+        File::ensureDirectoryExists($dir);
+
+        foreach (File::directories($dir) as $folder) {
+            if ((int) filemtime($folder) < time() - 3600) {
+                File::deleteDirectory($folder);
+            }
+        }
+
+        return $dir;
+    }
+
+    /**
+     * Closes the writer. It copies the finished file to the output first and only then removes its working folder,
+     * so a folder Windows will not let go of yet — a scanner holding one of its files for a moment (BestellungenTest,
+     * one run in twenty under load, 05.10.2026) — is left to the sweep rather than turned into a failed download.
+     * Only that is let go: an `rmdir` or `unlink` inside our own temp folder; anything else is still an error.
+     *
+     * @param  Closure(): void  $close
+     */
+    public static function closeWriter(Closure $close, string $tempFolder): void
+    {
+        try {
+            $close();
+        } catch (ErrorException $e) {
+            $message = $e->getMessage();
+            $cleanup = (str_starts_with($message, 'rmdir(') || str_starts_with($message, 'unlink('))
+                && str_contains(str_replace('\\', '/', $message), str_replace('\\', '/', $tempFolder));
+
+            if (! $cleanup) {
+                throw $e;
+            }
+        }
     }
 
     /**

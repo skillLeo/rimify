@@ -12,6 +12,7 @@ use App\Services\Commerce\CheckoutShown;
 use App\Services\Commerce\OrderRefused;
 use App\Services\Commerce\OrderWriter;
 use App\Services\Commerce\PendingOrder;
+use App\Services\GoLive\GoLiveChecks;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use App\Support\Shipping;
@@ -193,7 +194,13 @@ class KasseController extends Controller
             return self::PREVIEW_REFUSAL;
         }
 
-        return self::deliveryTime() === null && ! $test ? self::DELIVERY_REFUSAL : null;
+        if (self::deliveryTime() === null && ! $test) {
+            return self::DELIVERY_REFUSAL;
+        }
+
+        // No real payment while a check of „Recht und Pflichtangaben" fails (the operator's brief of 05.10.2026, §7): the
+        // customer is told plainly; Einstellungen › Zahlung and System › Was fehlt name the checks to the admin.
+        return app(GoLiveChecks::class)->liveRefusal() === null ? null : GoLiveChecks::LIVE_REFUSAL;
     }
 
     /**

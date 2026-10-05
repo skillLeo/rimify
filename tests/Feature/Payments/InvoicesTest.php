@@ -10,8 +10,10 @@ use App\Models\Order;
 use App\Models\Refund;
 use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
+use App\Support\GermanFormat;
 use App\Support\Money;
 use App\Support\Seller;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -75,6 +77,39 @@ it('shows 19 % VAT inside the gross on a standard invoice, and no § 19 sentence
         ->and($html)->toContain("Umsatzsteuer 19\u{00A0}%")
         ->and($html)->toContain("Alle Preise enthalten 19\u{00A0}% Umsatzsteuer.")
         ->and($html)->not->toContain('§ 19 UStG');
+});
+
+// The operator's brief of 05.10.2026, §6: every field § 14 Abs. 4 UStG asks of an invoice, one by one, as printed.
+it('prints every field § 14 Abs. 4 UStG asks for', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00', 'Europe/Berlin'));
+    $order = invoiceOrder();
+    $html = invoiceHtml($order);
+    $invoice = Invoice::query()->sole();
+    // As the PDF prints an amount: DejaVu Sans has no narrow no-break space, so a plain one stands before the €.
+    $money = static fn (int $cents): string => str_replace("\u{202F}", "\u{00A0}", (string) GermanFormat::money($cents));
+
+    expect($html)
+        // Nr. 1: the seller's and the buyer's full name and address.
+        ->toContain('Beispiel Handels GmbH')->toContain('Musterweg 1')->toContain('50667 Köln')
+        ->toContain('Erika Mustermann')->toContain('Hauptstraße 12')
+        // Nr. 2: the seller's USt-IdNr. (or Steuernummer).
+        ->toContain('USt-IdNr. DE000000000')
+        // Nr. 3: the date of issue.
+        ->toContain('<td>Datum</td><td>05.10.2026</td>')
+        // Nr. 4: the number, once and in sequence.
+        ->toContain('<td>Rechnung Nr.</td><td>RE-000001</td>')
+        // Nr. 5: the quantity and the kind of the goods.
+        ->toContain('<td>4</td>')->toContain('Testfelge 8,5J × 18 ET45')
+        // Nr. 6: the time of delivery — the calendar month suffices (§ 31 Abs. 4 UStDV).
+        ->toContain('<td>Leistungszeitraum</td><td>10/2026</td>')
+        // Nr. 7 and 8: the net amount, the rate and the tax on it.
+        ->toContain('<td>Nettobetrag</td><td class="num">'.$money($invoice->net_cents).'</td>')
+        ->toContain("<td>Umsatzsteuer 19\u{00A0}%</td><td class=\"num\">".$money($invoice->tax_cents).'</td>')
+        // And the gross, as the customer paid it.
+        ->toContain('<td>Gesamtbetrag</td><td class="num">'.$money($invoice->gross_cents).'</td>');
+
+    expect($invoice->net_cents + $invoice->tax_cents)->toBe($invoice->gross_cents)
+        ->and($invoice->gross_cents)->toBe($order->total_cents);
 });
 
 it('shows no VAT on a Kleinunternehmer’s invoice and carries the § 19 sentence instead', function (): void {

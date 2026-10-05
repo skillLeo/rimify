@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { EMPTY_SHOP, EMPTY_SHOP_DB, SHOP, SHOP_DB } from './e2e/shop';
+import { E2E_FEATURES, EMPTY_SHOP, EMPTY_SHOP_DB, SHOP, SHOP_DB } from './e2e/shop';
 
 /*
  * The admin's port: 8000, unless another project on the machine holds it (E2E_ADMIN_PORT). Every spec that names the
@@ -60,7 +60,7 @@ export default defineConfig({
         {
             // The admin and its demo data.
             command: `node scripts/e2e/serve.mjs --port ${ADMIN_PORT} --workers 4`,
-            env: MOVED,
+            env: { ...E2E_FEATURES, ...MOVED },
             url: `${ADMIN}/up`,
             reuseExistingServer: !process.env.CI,
             timeout: 90_000,
@@ -69,7 +69,7 @@ export default defineConfig({
             // The storefront specs' shop (e2e/shop.ts): its own database, seeded by E2eShopSeeder
             // (`composer e2e:shop`), because example data never reaches the storefront.
             command: `node scripts/e2e/serve.mjs --port ${port(SHOP)} --workers 4`,
-            env: { ...SHOP_DB, ...MOVED },
+            env: { ...SHOP_DB, ...E2E_FEATURES, ...MOVED },
             url: `${SHOP}/up`,
             reuseExistingServer: !process.env.CI,
             timeout: 90_000,
@@ -78,7 +78,7 @@ export default defineConfig({
             // The same shop with nothing published (e2e/shop.ts EMPTY_SHOP, E2eEmptyShopSeeder): the homepage's hero
             // and the selector's 0 against an empty catalogue (the operator's brief of 05.10.2026, §2).
             command: `node scripts/e2e/serve.mjs --port ${port(EMPTY_SHOP)} --workers 2`,
-            env: { ...EMPTY_SHOP_DB, ...MOVED },
+            env: { ...EMPTY_SHOP_DB, ...E2E_FEATURES, ...MOVED },
             url: `${EMPTY_SHOP}/up`,
             reuseExistingServer: !process.env.CI,
             timeout: 90_000,

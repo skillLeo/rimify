@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\Content\LegalTexts;
 use Inertia\Testing\AssertableInertia;
 
 /*
@@ -38,6 +39,14 @@ it('says what is missing instead of inventing it', function (): void {
         ->where('provider.rows.1.value', null)
         // The shop's own contact address is the one fact that is never a guess.
         ->where('provider.rows.2.value', 'info@rimify.de'));
+});
+
+// The operator's brief of 05.10.2026, §8: while the Kanzlei's text is outstanding, the page says who prepares it, in
+// one sentence — the same the order mail says in its place.
+it('says who prepares a legal text that is outstanding', function (): void {
+    $this->get('/rechtliches/agb')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('preparing', LegalTexts::PREPARING)
+        ->where('preparing', fn (string $sentence): bool => str_contains($sentence, 'Kanzlei') && str_ends_with($sentence, '.')));
 });
 
 // The live sweep of 01.10.2026: /rechtliches/gibt-es-nicht answered 200 with the Impressum under an address naming

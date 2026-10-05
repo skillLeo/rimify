@@ -12,10 +12,11 @@
  * (`product`), and with the catalogue empty they are simply not there (the operator's brief of 05.10.2026, §2). Only where the release shipped without the photograph is
  * the outline drawn — with no brand, no model, no price, no link and no leader.
  *
- * On a tall phone the frame is in the first viewport and its picture is the LCP, so it loads
- * eagerly (app.blade.php preloads it with the same `sizes`). Once, on load, the wheel rolls in and
- * the leaders draw after it; the resting frame is the default, so without JavaScript and under
- * reduced motion everything simply stands there.
+ * The frame stands just below the first screen (its top at 861 px on a 390 × 844 phone, measured on
+ * 05.10.2026): the headline is the page's LCP, so neither wheel is preloaded or fetched early — both are
+ * `late`, lazy and last, and take no byte from the first paint (the operator's brief of 05.10.2026, §5).
+ * Once, on load, the wheel rolls in and the leaders draw after it; the resting frame is the default,
+ * so without JavaScript and under reduced motion everything simply stands there.
  */
 
 import { usePage } from '@inertiajs/vue3'
@@ -85,7 +86,7 @@ onMounted(() => {
             <span v-if="pair" class="hero-frame__pair" :class="{ 'hero-frame__pair--rolling': pair.roll !== null }" :style="pairStyle" @error.capture="pairFailed = true">
                 <span v-if="pair.shadow" class="hero-contact" aria-hidden="true" />
                 <span class="hero-frame__spin">
-                    <Picture :image="pair.picture" :alt="pairAlt" :sizes="HERO_SIZES_PHONE" soon />
+                    <Picture :image="pair.picture" :alt="pairAlt" :sizes="HERO_SIZES_PHONE" late />
                 </span>
             </span>
 
@@ -99,7 +100,7 @@ onMounted(() => {
             >
                 <span v-if="scene.shadow" class="hero-contact" aria-hidden="true" />
                 <span class="hero-frame__spin">
-                    <Picture :image="photo" :alt="alt" :sizes="HERO_SIZES_PHONE" eager />
+                    <Picture :image="photo" :alt="alt" :sizes="HERO_SIZES_PHONE" late />
                 </span>
             </span>
             <span v-else class="hero-frame__outline" aria-hidden="true">

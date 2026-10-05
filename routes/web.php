@@ -45,6 +45,7 @@ use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\VerkaeuferVersandController;
 use App\Http\Controllers\Admin\VersandController;
+use App\Http\Controllers\Admin\WasFehltController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Admin\ZuruecksetzenController;
@@ -80,6 +81,7 @@ use App\Http\Controllers\Storefront\VorschauController;
 use App\Http\Controllers\Storefront\WarenkorbController;
 use App\Http\Controllers\Storefront\WiderrufsformularController;
 use App\Http\Middleware\EnsureAdminMay;
+use App\Http\Middleware\EnsureResetPermitted;
 use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\PaymentSetting;
@@ -591,12 +593,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->middleware(EnsureAdminMay::class.':settings,view')
             ->name('system.index');
         Route::get('/system/puls', [SystemController::class, 'pulse'])->name('system.puls');
+        // System › Was fehlt: rimify:go-live-check in the admin — read only, the settings right (GoLivePolicy).
+        Route::get('/system/was-fehlt', [WasFehltController::class, 'show'])
+            ->middleware(EnsureAdminMay::class.':settings,view')
+            ->name('system.was-fehlt');
 
         // System › Testumgebung zurücksetzen (TestReset): registered only in a test environment — in production the
         // address does not exist, and rimify:preflight fails if it did; anywhere the reset is not available it answers
-        // 404 at the front of the web group (EnsureResetAvailable). The Super-Admin alone, then sudo mode.
+        // 404 at the front of the web group (EnsureResetAvailable). The Super-Admin alone — anyone else signed in gets
+        // the same 404 (EnsureResetPermitted) — then sudo mode.
         if (TestEnvironment::environmentAllows()) {
-            Route::prefix('/system/zuruecksetzen')->middleware(['can:view,'.TestEnvironment::class, EnsureSudo::class])->group(function (): void {
+            Route::prefix('/system/zuruecksetzen')->middleware([EnsureResetPermitted::class, EnsureSudo::class])->group(function (): void {
                 Route::get('/', [ZuruecksetzenController::class, 'show'])->name('zuruecksetzen.show');
                 Route::post('/', [ZuruecksetzenController::class, 'store'])->middleware('throttle:6,1,zuruecksetzen')->name('zuruecksetzen.store');
                 Route::post('/rueckgaengig', [ZuruecksetzenController::class, 'undo'])->middleware('throttle:6,1,zuruecksetzen-rueckgaengig')->name('zuruecksetzen.undo');

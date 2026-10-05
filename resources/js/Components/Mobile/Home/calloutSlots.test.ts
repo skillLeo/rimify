@@ -176,10 +176,11 @@ function onPicture(layout: HeroLayout, point: { tx: number; ty: number }): { x: 
 }
 
 /*
- * The preload's `imagesizes`, read from the template itself, the way styles.test.ts and
- * claims.test.ts read their sources (a raw import resolved by Vite, no runtime path).
+ * The preload's `imagesizes`, read from the template and the class that writes it, the way
+ * styles.test.ts and claims.test.ts read their sources (a raw import resolved by Vite, no runtime path).
  */
 const BLADE = Object.values(import.meta.glob<string>('../../../../views/app.blade.php', { query: '?raw', import: 'default', eager: true }))[0] ?? ''
+const PRELOAD = Object.values(import.meta.glob<string>('../../../../../app/Support/HeroPreload.php', { query: '?raw', import: 'default', eager: true }))[0] ?? ''
 
 describe('heroScene · the picture', () => {
     it('is the shadowless bare frame when there is one, on one CSS contact shadow at the bottom of the rim', () => {
@@ -433,18 +434,18 @@ describe('rollStyle', () => {
     })
 })
 
-describe('the hero preload in app.blade.php', () => {
-    it('preloads the hero picture as an image', () => {
+describe('the hero preload (app.blade.php, App\\Support\\HeroPreload)', () => {
+    it('preloads the desktop stage’s pictures as images, and nothing for the phone, whose frame is below the first screen', () => {
         expect(BLADE).toContain('rel="preload" as="image"')
-        expect(BLADE).toMatch(/imagesizes="\{\{\s*\$heroSizes\s*\}\}"/)
+        expect(BLADE).toMatch(/HeroPreload::links\(\$page\)/)
+        expect(BLADE).toMatch(/imagesizes="\{\{\s*\$heroPicture\['sizes'\]\s*\}\}"/)
+        expect(PRELOAD).toContain("($page['component'] ?? null) !== 'Startseite/Desktop'")
+        // The phone's frame fetches lazily and last (HeroFrame.vue), at its own sizes — nothing here names them.
+        expect(PRELOAD).not.toContain(HERO_SIZES_PHONE)
     })
 
-    it('asks for it at exactly the sizes each document gives the picture', () => {
-        const match = BLADE.match(/\$heroSizes\s*=\s*\(\$page\['component'\]\s*\?\?\s*''\)\s*===\s*'Startseite\/Mobile'\s*\?\s*'([^']*)'\s*:\s*'([^']*)'/)
-
-        expect(match).not.toBeNull()
-        expect(match?.[1]).toBe(HERO_SIZES_PHONE)
-        expect(match?.[2]).toBe(HERO_SIZES_DESKTOP)
+    it('asks for them at exactly the sizes the desktop stage gives its pictures', () => {
+        expect(PRELOAD.match(/public const SIZES = '([^']*)'/)?.[1]).toBe(HERO_SIZES_DESKTOP)
     })
 })
 

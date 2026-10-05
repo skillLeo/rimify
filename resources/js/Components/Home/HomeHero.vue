@@ -212,13 +212,14 @@ onMounted(() => {
     min-width: 0;
 }
 
+/* Measured in Archivo's characters, not `ch`: the box keeps its width when the font arrives (tokens.css --ch-*). */
 .hero__title {
-    max-width: 14ch;
+    max-width: calc(14 * var(--ch-heading));
     color: var(--c-ink);
 }
 
 .hero__subline {
-    max-width: 54ch;
+    max-width: calc(54 * var(--ch-text));
     margin-top: var(--sp-16);
     color: var(--c-ink-2);
 }
