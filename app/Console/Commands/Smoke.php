@@ -52,6 +52,7 @@ use Throwable;
  *      404 to everyone elsewhere — production first of all (GO-LIVE.md §4.4)
  *  10  The reset's safety copies, the log and two canaries in storage/app/private: 403 or 404 over HTTP, never 200
  *  11  The reset's baseline fits this code and this database: its migrations and its schema's fingerprint
+ *  12  The shop's security policy reaches the browser, in the header or in the document (the host replaces the header)
  *
  * The product and the car are the first released pair the shop sells (a published document row, a
  * published wheel in stock, a car with complete data) — the golden record on staging — unless
@@ -105,6 +106,26 @@ final class Smoke extends Command
             $this->expect(str_contains($response->body(), 'data-server-rendered'), 'ohne Server-Rendering ausgeliefert');
 
             return '200, auf dem Server gerendert';
+        });
+
+        // The shop's policy reaches the browser. The host replaces the header with its own (ContentSecurityPolicy), so
+        // the document carries it too — asserted where the header was lost: on the host, over HTTP.
+        $this->check('Sicherheitsrichtlinie (CSP)', function (): string {
+            $response = $this->get('/');
+            $header = (string) $response->header('Content-Security-Policy');
+            $meta = preg_match('/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/', $response->body(), $found) === 1
+                ? html_entity_decode($found[1], ENT_QUOTES)
+                : '';
+            $ours = static fn (string $policy): bool => preg_match("/script-src 'self' 'nonce-[^']+'/", $policy) === 1;
+            $this->expect($ours($meta) || $ours($header), 'weder der Header noch das Dokument enthält die Richtlinie des Shops – der Browser schränkt Skripte und Styles nicht ein');
+
+            // Each half said for what it is: the row never claims the document carries what only the header does.
+            return match (true) {
+                $ours($header) && $ours($meta) => 'im Header und im Dokument',
+                $ours($header) => 'nur im Header – im Dokument fehlt sie',
+                $header === '' => 'im Dokument; einen Header sendet der Host nicht',
+                default => 'im Dokument; den Header ersetzt der Host durch „'.$header.'“',
+            };
         });
 
         // The homepage's signature pieces (docs/design/PROTECTED.md P1, P4), asserted where they were lost: on the host.

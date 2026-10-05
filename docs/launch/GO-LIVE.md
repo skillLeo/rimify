@@ -292,6 +292,7 @@ $PHP artisan rimify:smoke
 | Prüfung | Correct result |
 |---|---|
 | Startseite | ok · 200, auf dem Server gerendert |
+| Sicherheitsrichtlinie (CSP) | ok · im Dokument; den Header ersetzt der Host durch „upgrade-insecure-requests“ — or „im Header und im Dokument“ |
 | Produktseite ohne JavaScript | ok · „<model>“ und <price> im HTML |
 | HSN/TSN-Abfrage und Freigabe | ok · Freigegeben für <car> (<HSN>/<TSN>) — or „Mit Auflagen freigegeben für …“ |
 | Gutachten-PDF | ok · öffnet, Seite <n> |
@@ -311,6 +312,10 @@ That row is then expected — every other row must be ok.
   remove the line or set it to `true`, then `$PHP artisan config:cache`.
 - *ohne Server-Rendering ausgeliefert* / *kein Preis im gerenderten HTML* → the renderer is not answering:
   `bash deploy/ssr-watch.sh`, wait 5 s, run the smoke again. Search engines see an empty page until this is ok.
+- *Sicherheitsrichtlinie: weder der Header noch das Dokument …* → the release's `app.blade.php` lacks the policy's
+  meta, or the page was served from somewhere else: **roll back** (§7). Hostinger's LiteSpeed answers every page with
+  `Content-Security-Policy: upgrade-insecure-requests` in place of the shop's header (found 06.10.2026, D-171), so on
+  this host the meta in the document is the policy; the row says which of the two carries it.
 - *Keine freigegebene Felge im Shop* → no published wheel with a freigegebenes Gutachten (see „Do not start“).
 - *keine Freigabe auf der Produktseite* → the lookup or the engine answers differently than the admin shows:
   **roll back** (§7) — a verdict the shop cannot show correctly is never left online.

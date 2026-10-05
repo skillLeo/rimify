@@ -2,6 +2,11 @@
 <html lang="de">
 <head>
     <meta charset="utf-8">
+    {{-- The policy in the document as well: the host replaces the header with its own (App\Support\ContentSecurityPolicy).
+         First in the head, before anything it governs. --}}
+    @if ($policy = \App\Support\ContentSecurityPolicy::meta(request()))
+        <meta http-equiv="Content-Security-Policy" content="{{ $policy }}">
+    @endif
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#0b0f14">
