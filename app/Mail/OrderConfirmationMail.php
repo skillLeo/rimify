@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
 use App\Services\Commerce\PackageTyreSizes;
+use App\Services\Content\LegalPdf;
 use App\Services\Content\LegalTexts;
 use App\Support\GermanFormat;
 use App\Support\Seller;
@@ -27,10 +28,15 @@ use Throwable;
  * The order confirmation, sent when the payment is confirmed (§ 312f Abs. 2 BGB): the contract on a durable
  * medium — what was bought at what price, each wheel's frozen verdict with its Auflagen in full, the address, the
  * delivery time — and, in the mail's own text, the AGB, the Widerrufsbelehrung and the Muster-Widerrufsformular as
- * they stand today. The invoice is attached as issued (Invoices), with a signed link beside it.
+ * they stand today. The invoice is attached as issued (Invoices), with a signed link beside it; the AGB and the
+ * Widerrufsbelehrung with the Formular are attached as PDFs too (LegalPdf; the operator's brief of 05.10.2026, §6) —
+ * each once its page holds the Kanzlei's text, never a placeholder.
  */
 class OrderConfirmationMail extends Mailable
 {
+    /** The legal pages attached as PDFs, by slug: the file name each goes by. */
+    private const LEGAL_PDFS = ['agb' => LegalPdf::AGB, 'widerrufsbelehrung' => LegalPdf::WIDERRUF];
+
     public function __construct(public Order $order, public Invoice $invoice) {}
 
     public function envelope(): Envelope
@@ -126,6 +132,7 @@ class OrderConfirmationMail extends Mailable
                 'agb' => $legal->text('agb'),
                 'widerruf' => $legal->text('widerrufsbelehrung'),
                 'form' => WithdrawalForm::text(Seller::current()),
+                'legalAttached' => self::legalAttachedSentence($legal),
             ],
         );
     }
@@ -134,10 +141,35 @@ class OrderConfirmationMail extends Mailable
     public function attachments(): array
     {
         $invoice = $this->invoice;
-
-        return [
+        $pdf = app(LegalPdf::class);
+        $attachments = [
             Attachment::fromData(static fn (): string => app(Invoices::class)->pdf($invoice), $invoice->number.'.pdf')->withMime('application/pdf'),
         ];
+
+        // Rendered here, so a page that holds no text of the Kanzlei's is left out rather than attached empty.
+        foreach (self::LEGAL_PDFS as $slug => $name) {
+            $bytes = $slug === 'agb' ? $pdf->agb($this->order->order_number) : $pdf->widerruf($this->order->order_number);
+
+            if ($bytes !== null) {
+                $attachments[] = Attachment::fromData(static fn (): string => $bytes, $name)->withMime('application/pdf');
+            }
+        }
+
+        return $attachments;
+    }
+
+    /** The sentence naming the legal PDFs attached, as attachments() decides them — or null while there are none. */
+    private static function legalAttachedSentence(LegalTexts $legal): ?string
+    {
+        $agb = ! $legal->placeholder('agb');
+        $widerruf = ! $legal->placeholder('widerrufsbelehrung');
+
+        return match (true) {
+            $agb && $widerruf => 'Die AGB und die Widerrufsbelehrung mit dem Muster-Widerrufsformular hängen ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
+            $agb => 'Die AGB hängen ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
+            $widerruf => 'Die Widerrufsbelehrung mit dem Muster-Widerrufsformular hängt ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
+            default => null,
+        };
     }
 
     /**

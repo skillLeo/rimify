@@ -55,6 +55,10 @@ Nur bei {{ $size['size'] }} ({{ $size['axle'] }}):
 **Lieferzeit:** {{ $deliveryTime ?? 'Wir melden uns mit dem Versanddatum.' }}
 
 Deine Rechnung **{{ $invoiceNumber }}** hängt an dieser Mail. Du kannst sie auch [hier herunterladen]({{ $invoiceUrl }}) (der Link gilt sieben Tage).
+@if ($legalAttached)
+
+{{ $legalAttached }}
+@endif
 
 <x-mail::button :url="$orderUrl">
 Bestellung ansehen
