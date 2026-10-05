@@ -45,6 +45,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The rulebook belongs to the repository (the operator's brief of 05.10.2026, §1.3): CLAUDE.md is the written
+      # spec of the triggers R-12 rests on, and a copy on one machine is no spec. Untracked or empty, the run fails here.
+      - name: The rulebook is tracked
+        run: |
+          git ls-files --error-unmatch CLAUDE.md docs/decisions.md
+          test -s CLAUDE.md
+          test -s docs/decisions.md
+
       - name: Start ${{ inputs.engine }}
         run: |
           docker run -d --name db -p 3306:3306 \
