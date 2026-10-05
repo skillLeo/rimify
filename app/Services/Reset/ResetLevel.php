@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Reset;
 
 /**
- * How far Einstellungen › System › Testumgebung zurücksetzen goes (docs/review/ZURUECKSETZEN.md). Each level takes
- * everything the one before takes, and none of them ever takes the team, its roles, the settings or the Protokoll.
+ * How far Einstellungen › System › Testumgebung zurücksetzen goes (docs/review/ZURUECKSETZEN.md). None of them ever
+ * takes the team, its roles, the settings or the Protokoll. „Shopdaten“ and „Alles“ replace tables and delete no row
+ * (CLAUDE.md R-12.3), so the demo team and its Protokoll entries — rows of kept tables — stay with them; only
+ * „Demodaten“ takes those, through R-12's exemption for rows born demo.
  */
 enum ResetLevel: string
 {
@@ -33,7 +35,7 @@ enum ResetLevel: string
     {
         return match ($this) {
             self::Demo => 'Nur die Beispieldaten – die Demo-Bestellungen, das Demo-Team und den Beispielkatalog mit seinen Gutachten.',
-            self::Shop => 'Felgen, Reifen, Marken, Gutachten, Fahrzeuge, Bestellungen, Kunden, Bewertungen, Nachrichten, Rückmeldungen, Anfragen und die hochgeladenen Bilder und PDFs – dazu alle Beispieldaten.',
+            self::Shop => 'Felgen, Reifen, Marken, Gutachten, Fahrzeuge, Bestellungen, Kunden, Bewertungen, Nachrichten, Rückmeldungen, Anfragen sowie die Bilder und PDFs dazu – auch die Beispieldaten darunter.',
             self::All => 'Alles aus „Shopdaten“. Dazu gehen Seiten, FAQ und Menüs auf den Auslieferungszustand zurück.',
         };
     }
@@ -43,8 +45,8 @@ enum ResetLevel: string
     {
         return match ($this) {
             self::Demo => 'Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen.',
-            self::Shop => 'Benutzer, Rollen, Einstellungen, das Protokoll sowie Seiten, FAQ und Menüs.',
-            self::All => 'Benutzer, Rollen, Einstellungen und das Protokoll.',
+            self::Shop => 'Benutzer, Rollen, Einstellungen, das Protokoll sowie Seiten, FAQ und Menüs. Auch die Konten des Demo-Teams und ihre Protokolleinträge bleiben. Die entfernst du danach mit der Stufe „Demodaten“.',
+            self::All => 'Benutzer, Rollen, Einstellungen und das Protokoll. Auch die Konten des Demo-Teams und ihre Protokolleinträge bleiben. Die entfernst du danach mit der Stufe „Demodaten“.',
         };
     }
 

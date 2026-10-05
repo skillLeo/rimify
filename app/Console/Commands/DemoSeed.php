@@ -8,7 +8,7 @@ use App\Models\Setting;
 use App\Services\Demo\DemoDashboard;
 use App\Services\Demo\DemoGuard;
 use App\Services\Demo\DemoTables;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -42,7 +42,7 @@ final class DemoSeed extends Command
 
         // A deploy writes the demo set only where nobody took it away: the strip, `demo:purge` or a reset of the test
         // environment would otherwise be undone by the next release (and fail it, the example catalogue being gone).
-        if ($this->option('unless-removed') && (DemoTables::removed() || TestReset::shopEmptied())) {
+        if ($this->option('unless-removed') && (DemoTables::removed() || TestEnvironment::shopEmptied())) {
             $this->line('Demodaten wurden entfernt und werden nicht wieder geschrieben.');
 
             return self::SUCCESS;

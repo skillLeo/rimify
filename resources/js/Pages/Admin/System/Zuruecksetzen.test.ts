@@ -78,7 +78,9 @@ describe('System › Testumgebung zurücksetzen', () => {
     it('says first what always stays, and counts what „Shopdaten“ would take', () => {
         const wrapper = mount(Page, { props: props() })
 
-        expect(wrapper.find('.zs-lead').text()).toBe('Benutzer, Rollen, Einstellungen und das Protokoll bleiben auf jeder Stufe erhalten, und du bleibst angemeldet.')
+        expect(wrapper.find('.zs-lead').text()).toBe(
+            'Benutzer, Rollen, Einstellungen und das Protokoll bleiben auf jeder Stufe erhalten – nur „Demodaten“ entfernt das Demo-Team und seine Einträge. Du bleibst angemeldet.'
+        )
         expect(wrapper.findAll('.zs-level__name').map((n) => n.text())).toEqual(['Demodaten', 'Shopdaten', 'Alles'])
         expect((wrapper.get('input[value="shop"]').element as HTMLInputElement).checked).toBe(true)
         expect(wrapper.findAll('.zs-counts__item').map((i) => i.text().replace(/\s+/g, ' '))).toEqual(['12 Felgen', '3 Gutachten', '76 Fahrzeuge', '1.061 Bilder'])
@@ -130,6 +132,7 @@ describe('System › Testumgebung zurücksetzen', () => {
                     atText: '04.10.2026, 14:00\u00A0Uhr',
                     by: 'Limix Sebastian',
                     until: '11.10.2026, 14:00\u00A0Uhr',
+                    remaining: 'noch 6\u00A0Tage und 23\u00A0Stunden',
                     undone: false,
                     undoneText: null,
                     undoable: true,
@@ -140,7 +143,7 @@ describe('System › Testumgebung zurücksetzen', () => {
 
         expect(wrapper.find('.ctx').text()).toBe('Nur in der Testumgebung, nie im Live-Shop')
         expect(wrapper.get('.zs-last .adm-note').text().replace(/\s+/g, ' ')).toBe(
-            'Shopdaten, am 04.10.2026, 14:00 Uhr von Limix Sebastian. Rückgängig machen geht bis 11.10.2026, 14:00 Uhr.'
+            'Shopdaten, am 04.10.2026, 14:00 Uhr von Limix Sebastian. Rückgängig machen ist bis 11.10.2026, 14:00 Uhr möglich (noch 6 Tage und 23 Stunden).'
         )
 
         await wrapper.get('.zs-last button').trigger('click')
@@ -152,5 +155,67 @@ describe('System › Testumgebung zurücksetzen', () => {
         await confirm.get('.confirm__yes').trigger('click')
 
         expect(post.mock.calls[0]?.[0]).toBe('/admin/system/zuruecksetzen/rueckgaengig')
+    })
+
+    it('says at „Demodaten“ that the demo team goes and comes back, and that everyone else stays', async () => {
+        const levels = props().levels.map((l) => (l.key === 'demo' ? { ...l, blocked: null } : l))
+        const wrapper = mount(Page, {
+            props: props({
+                levels,
+                last: {
+                    id: '20261004-120000-demo',
+                    level: 'demo',
+                    label: 'Demodaten',
+                    at: '2026-10-04T12:00:00+00:00',
+                    atText: '04.10.2026, 14:00 Uhr',
+                    by: 'Limix Sebastian',
+                    until: '11.10.2026, 14:00 Uhr',
+                    remaining: 'noch 6 Tage und 23 Stunden',
+                    undone: false,
+                    undoneText: null,
+                    undoable: true,
+                    reason: null,
+                },
+            }),
+        })
+
+        await wrapper.get('input[value="demo"]').setValue(true)
+        await wrapper.get('form').trigger('submit')
+
+        expect(wrapper.get('.confirm__body').text()).toBe(
+            'Das wird entfernt: 729 Bestellungen. Die übrigen Benutzer und Protokolleinträge bleiben, wie sie sind, und du bleibst angemeldet. Du kannst das Zurücksetzen 7 Tage lang rückgängig machen.'
+        )
+
+        await wrapper.get('.zs-last button').trigger('click')
+
+        expect(wrapper.findAll('.confirm__body').at(-1)?.text()).toBe(
+            'Die Demodaten kommen zurück, wie sie am 04.10.2026, 14:00 Uhr waren. Was seitdem im Shop angelegt wurde, geht dabei verloren. Die übrigen Benutzer und Protokolleinträge bleiben, wie sie sind.'
+        )
+    })
+
+    it('closes the way back with one sentence once the seven days are over, and offers no button', () => {
+        const wrapper = mount(Page, {
+            props: props({
+                last: {
+                    id: '20261004-120000-shop',
+                    level: 'shop',
+                    label: 'Shopdaten',
+                    at: '2026-10-04T12:00:00+00:00',
+                    atText: '04.10.2026, 14:00\u00A0Uhr',
+                    by: 'Konsole (rimify:reset)',
+                    until: '11.10.2026, 14:00\u00A0Uhr',
+                    remaining: null,
+                    undone: false,
+                    undoneText: null,
+                    undoable: false,
+                    reason: 'Die 7 Tage sind vorbei: Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.',
+                },
+            }),
+        })
+
+        expect(wrapper.get('.zs-last .adm-note').text().replace(/\s+/g, ' ')).toBe(
+            'Shopdaten, am 04.10.2026, 14:00 Uhr von Konsole (rimify:reset). Die 7 Tage sind vorbei: Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.'
+        )
+        expect(wrapper.find('.zs-last button').exists()).toBe(false)
     })
 })

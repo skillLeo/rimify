@@ -6,7 +6,7 @@ use App\Console\Commands\ResetBaselineCommand;
 use App\Services\Reset\ResetLevel;
 use App\Services\Reset\ResetTables;
 use App\Services\Reset\SqlSnapshot;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -43,7 +43,7 @@ it('never lets a level replace the team, the settings, the Protokoll or the froz
 });
 
 it('keeps a baseline made from the migrations as they are now, with every table and every trigger', function (): void {
-    $path = TestReset::baseline();
+    $path = TestEnvironment::baseline();
     $meta = SqlSnapshot::meta($path);
     $summary = SqlSnapshot::summary($path);
 
@@ -59,12 +59,14 @@ it('keeps a baseline made from the migrations as they are now, with every table 
         ->and($summary)->not->toBeNull()
         // A migration without a new baseline: php artisan rimify:reset-baseline (with the suite's MariaDB in .env).
         ->and($recorded)->toBe($files)
-        ->and(array_keys($summary['tables']))->toBe(rtTables())
+        // The same tables, in whatever order the engine lists them: MariaDB and MySQL sort „review_feedback“ and
+        // „reviews“ differently, and the suite runs on both.
+        ->and(array_keys($summary['tables']))->toEqualCanonicalizing(rtTables())
         ->and($summary['triggers'])->toBe($triggers);
 });
 
 it('holds a delivered shop and nothing else: no catalogue, no car, no order, no demo row, no known password', function (): void {
-    $summary = SqlSnapshot::summary(TestReset::baseline());
+    $summary = SqlSnapshot::summary(TestEnvironment::baseline());
     $rows = array_map(static fn (array $t): int => $t['rows'], $summary['tables']);
 
     foreach (ResetTables::SHOP as $table) {
@@ -77,12 +79,14 @@ it('holds a delivered shop and nothing else: no catalogue, no car, no order, no 
         ->and($rows['pages'])->toBeGreaterThan(0)
         ->and($rows['load_index_table'])->toBeGreaterThan(0);
 
-    $sql = (string) file_get_contents(TestReset::baseline());
+    $sql = (string) file_get_contents(TestEnvironment::baseline());
 
     // The three review accounts, opening with a password nobody knows (D-141) — not the development accounts.
     expect($sql)->toContain('verkauf@rimify.test', 'lager@rimify.test', 'admin@rimify.test', ResetBaselineCommand::UNKNOWN_PASSWORD)
         ->and($sql)->not->toContain('super-admin@rimify.test')
         ->and(substr_count($sql, ResetBaselineCommand::UNKNOWN_PASSWORD))->toBe(3)
         // Loadable by any account: no trigger names its definer.
-        ->and($sql)->not->toMatch('/DEFINER\s*=/i');
+        ->and($sql)->not->toMatch('/DEFINER\s*=/i')
+        // No environment's: the row in which a database names its own (R-04.1) is never in the baseline.
+        ->and($sql)->not->toContain(TestEnvironment::MARKER);
 });

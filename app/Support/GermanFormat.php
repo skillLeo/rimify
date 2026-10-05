@@ -241,6 +241,38 @@ final class GermanFormat
         };
     }
 
+    /**
+     * How long until a moment, in its two largest units: `noch 6 Tage und 23 Stunden`, `noch 1 Tag`, `noch 5 Stunden
+     * und 12 Minuten`, `noch 12 Minuten`, `noch weniger als eine Minute`; null once it has passed. Counted down and cut,
+     * never rounded up: a deadline is never later than it says.
+     */
+    public static function remaining(DateTimeInterface $until, ?DateTimeInterface $now = null): ?string
+    {
+        $seconds = $until->getTimestamp() - ($now ?? CarbonImmutable::now())->getTimestamp();
+
+        if ($seconds <= 0) {
+            return null;
+        }
+
+        if ($seconds < 60) {
+            return 'noch weniger als eine Minute';
+        }
+
+        $minutes = intdiv($seconds, 60);
+        $days = intdiv($minutes, 1440);
+        $hours = intdiv($minutes % 1440, 60);
+        $rest = $minutes % 60;
+        $unit = static fn (int $n, string $one, string $many): string => $n.self::NBSP.($n === 1 ? $one : $many);
+
+        $parts = match (true) {
+            $days > 0 => [$unit($days, 'Tag', 'Tage'), $hours > 0 ? $unit($hours, 'Stunde', 'Stunden') : null],
+            $hours > 0 => [$unit($hours, 'Stunde', 'Stunden'), $rest > 0 ? $unit($rest, 'Minute', 'Minuten') : null],
+            default => [$unit($rest, 'Minute', 'Minuten')],
+        };
+
+        return 'noch '.implode(' und ', array_filter($parts));
+    }
+
     /** `03/2018` */
     public static function monthYear(?DateTimeInterface $date): ?string
     {

@@ -64,6 +64,9 @@ else
     set_env DEMO_DATA 0
     set_env RIMIFY_REVIEW false
     set_env RIMIFY_PAYMENTS none
+    # CLAUDE.md R-04.1: the live shop never says yes to Testumgebung zurücksetzen, whatever its .env said before.
+    # (A test server's yes is set there by hand, once — never by this script.)
+    set_env RIMIFY_RESET_ERLAUBT false
     # Production's mail settings are the operator's (.env, GO-LIVE.md): never overwritten here, and
     # rimify:preflight refuses a production that only writes its mail to the log.
 fi

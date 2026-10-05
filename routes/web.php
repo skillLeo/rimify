@@ -84,7 +84,7 @@ use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\PaymentSetting;
 use App\Models\StorageSetting;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use App\Support\Seller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -592,10 +592,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('system.index');
         Route::get('/system/puls', [SystemController::class, 'pulse'])->name('system.puls');
 
-        // System › Testumgebung zurücksetzen (TestReset): registered only where a reset is possible — in production the
-        // address does not exist, and rimify:preflight fails if it did. The Super-Admin alone, then sudo mode.
-        if (TestReset::available()) {
-            Route::prefix('/system/zuruecksetzen')->middleware(['can:view,'.TestReset::class, EnsureSudo::class])->group(function (): void {
+        // System › Testumgebung zurücksetzen (TestReset): registered only in a test environment — in production the
+        // address does not exist, and rimify:preflight fails if it did; anywhere the reset is not available it answers
+        // 404 at the front of the web group (EnsureResetAvailable). The Super-Admin alone, then sudo mode.
+        if (TestEnvironment::environmentAllows()) {
+            Route::prefix('/system/zuruecksetzen')->middleware(['can:view,'.TestEnvironment::class, EnsureSudo::class])->group(function (): void {
                 Route::get('/', [ZuruecksetzenController::class, 'show'])->name('zuruecksetzen.show');
                 Route::post('/', [ZuruecksetzenController::class, 'store'])->middleware('throttle:6,1,zuruecksetzen')->name('zuruecksetzen.store');
                 Route::post('/rueckgaengig', [ZuruecksetzenController::class, 'undo'])->middleware('throttle:6,1,zuruecksetzen-rueckgaengig')->name('zuruecksetzen.undo');

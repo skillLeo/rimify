@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TestResetRequest;
 use App\Http\Requests\Admin\TestResetUndoRequest;
 use App\Http\Requests\Admin\TestResetViewRequest;
+use App\Services\Reset\ResetOrigin;
 use App\Services\Reset\ResetRefused;
+use App\Services\Reset\TestEnvironment;
 use App\Services\Reset\TestReset;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
@@ -17,8 +19,10 @@ use Inertia\Response;
 
 /**
  * Einstellungen › System › Testumgebung zurücksetzen (TestReset): the three levels with what each would take, counted
- * now; the reset after the word is typed; and the last reset, with „rückgängig machen“ for seven days. Only in a test
- * environment — in production the routes are not even registered (routes/web.php, rimify:preflight).
+ * now; the reset after the word is typed; and the last reset, with how long „rückgängig machen“ still works. Only
+ * where the reset is available (TestEnvironment) — in production the routes are not even registered, and anywhere the
+ * four conditions do not hold the address answers 404 (EnsureResetAvailable, rimify:preflight). One of the two ways in
+ * to the reset (ResetOrigin::screen); the command is the other.
  */
 class ZuruecksetzenController extends Controller
 {
@@ -27,8 +31,8 @@ class ZuruecksetzenController extends Controller
         return Inertia::render('Admin/System/Zuruecksetzen', [
             'levels' => $reset->preview(),
             'last' => $reset->last(),
-            'word' => TestReset::WORD,
-            'keepDays' => TestReset::KEEP_DAYS,
+            'word' => TestEnvironment::WORD,
+            'keepDays' => TestEnvironment::KEEP_DAYS,
         ]);
     }
 
@@ -37,7 +41,7 @@ class ZuruecksetzenController extends Controller
         self::keepRunning();
 
         try {
-            $result = $reset->reset($request->level(), $request->admin());
+            $result = $reset->reset($request->level(), $request->admin(), ResetOrigin::screen($request));
         } catch (ResetRefused $refused) {
             return back()->with('toast', $refused->getMessage());
         }
@@ -54,7 +58,7 @@ class ZuruecksetzenController extends Controller
         self::keepRunning();
 
         try {
-            $result = $reset->undo($request->admin());
+            $result = $reset->undo($request->admin(), ResetOrigin::screen($request));
         } catch (ResetRefused $refused) {
             return back()->with('toast', $refused->getMessage());
         }

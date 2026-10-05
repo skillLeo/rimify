@@ -6,7 +6,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\AdminUser;
 use App\Services\Reset\ResetLevel;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -21,7 +21,7 @@ class TestResetRequest extends FormRequest
     {
         $user = $this->user('admin');
 
-        return $user instanceof AdminUser && $user->can('reset', TestReset::class);
+        return $user instanceof AdminUser && $user->can('reset', TestEnvironment::class);
     }
 
     /** @return array<string, list<mixed>> */
@@ -39,7 +39,7 @@ class TestResetRequest extends FormRequest
         return [
             'level.required' => 'Wähl eine Stufe aus.',
             'level.enum' => 'Wähl eine der drei Stufen aus.',
-            'confirmation.required' => 'Tippe „'.TestReset::WORD.'“, um zu bestätigen.',
+            'confirmation.required' => 'Tippe „'.TestEnvironment::WORD.'“, um zu bestätigen.',
         ];
     }
 
@@ -49,7 +49,7 @@ class TestResetRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 if ($validator->errors()->has('confirmation') === false && ! $this->confirmedWord()) {
-                    $validator->errors()->add('confirmation', 'Tippe genau „'.TestReset::WORD.'“, um zu bestätigen.');
+                    $validator->errors()->add('confirmation', 'Tippe genau „'.TestEnvironment::WORD.'“, um zu bestätigen.');
                 }
             },
         ];
@@ -70,6 +70,6 @@ class TestResetRequest extends FormRequest
 
     private function confirmedWord(): bool
     {
-        return trim((string) $this->input('confirmation')) === TestReset::WORD;
+        return trim((string) $this->input('confirmation')) === TestEnvironment::WORD;
     }
 }

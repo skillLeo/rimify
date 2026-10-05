@@ -7,7 +7,7 @@ namespace App\Console\Commands;
 use App\Models\Setting;
 use App\Services\Demo\DemoPurge;
 use App\Services\Demo\DemoTables;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\BrandLogoSeeder;
 use Database\Seeders\CatalogueSeeder;
@@ -140,7 +140,7 @@ final class ReleaseSeed extends Command
         $shop = [VehicleSeeder::class, CatalogueSeeder::class, BrandLogoSeeder::class, GoldenRecordSeeder::class, ApprovalSeeder::class];
         $examples = [VehicleSeeder::class, CatalogueSeeder::class, ApprovalSeeder::class];
 
-        if (in_array($seeder, $shop, true) && TestReset::shopEmptied()) {
+        if (in_array($seeder, $shop, true) && TestEnvironment::shopEmptied()) {
             return 'the test environment was reset to an empty shop';
         }
 

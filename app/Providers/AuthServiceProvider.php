@@ -45,7 +45,7 @@ use App\Policies\VehiclePolicy;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
 use App\Services\Demo\DemoTables;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use App\Services\Storage\PdfUpload;
 use App\Support\Seller;
 use Illuminate\Auth\Access\Response;
@@ -89,7 +89,7 @@ final class AuthServiceProvider extends ServiceProvider
         // Not a model: a PDF upload before its row exists (PdfUpload).
         PdfUpload::class => DocumentUploadPolicy::class,
         // Not a model: the test environment as a whole (TestReset), reset from System › Testumgebung zurücksetzen.
-        TestReset::class => TestResetPolicy::class,
+        TestEnvironment::class => TestResetPolicy::class,
         WheelModel::class => WheelModelPolicy::class,
         Brand::class => BrandPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,

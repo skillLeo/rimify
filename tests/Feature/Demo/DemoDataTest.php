@@ -9,7 +9,7 @@ use App\Models\Setting;
 use App\Services\Demo\DemoDashboard;
 use App\Services\Demo\DemoPurge;
 use App\Services\Demo\DemoTables;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Carbon\CarbonImmutable;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\DemoDashboardSeeder;
@@ -92,7 +92,7 @@ describe('the fence', function (): void {
         expect(DemoTables::total())->toBe(0);
 
         Setting::query()->whereKey(DemoTables::REMOVED)->delete();
-        Setting::set(TestReset::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => null]);
+        Setting::set(TestEnvironment::SETTING, ['id' => 'x', 'level' => 'shop', 'at' => now()->toIso8601String(), 'by' => 'Test', 'undone_at' => null]);
 
         $this->artisan('demo:seed', ['--unless-removed' => true])->expectsOutputToContain('nicht wieder geschrieben')->assertSuccessful();
         expect(DemoTables::total())->toBe(0);

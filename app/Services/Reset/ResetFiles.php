@@ -7,8 +7,10 @@ namespace App\Services\Reset;
 use App\Services\Admin\Catalogue\BrandLogoStore;
 use App\Services\Demo\DemoPlaceholders;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FileAttributes;
 use Throwable;
 
 /**
@@ -46,6 +48,29 @@ final class ResetFiles
             'images' => count(self::listed(self::disk('media_products'), '')) + count(self::listed(Storage::disk('public'), BrandLogoStore::DIR)) + count(self::drawings()),
             'pdfs' => count(self::listed(self::disk('docs_public'), '')),
         ];
+    }
+
+    /**
+     * The bytes a level would move (or, at the demo level, copy) into its folder — what ResetDisk counts before the
+     * safety copy is begun. Sizes come from the listing itself, so a bucket answers in one request per page of files.
+     */
+    public function bytes(ResetLevel $level): int
+    {
+        $total = 0;
+
+        foreach (self::drawings() as $absolute) {
+            $total += (int) @filesize($absolute);
+        }
+
+        if (! $level->replacesShop()) {
+            return $total;
+        }
+
+        foreach ([[self::disk('media_products'), ''], [Storage::disk('public'), BrandLogoStore::DIR], [self::disk('docs_public'), '']] as [$disk, $prefix]) {
+            $total += self::sized($disk, $prefix);
+        }
+
+        return $total;
     }
 
     /**
@@ -134,6 +159,30 @@ final class ResetFiles
             report($e);
 
             return [];
+        }
+    }
+
+    /** The bytes of every file under a prefix of a disk, skipping dotfiles as listed() does; 0 when it cannot be listed. */
+    private static function sized(Filesystem $disk, string $prefix): int
+    {
+        try {
+            if ($disk instanceof FilesystemAdapter) {
+                $sum = 0;
+
+                foreach ($disk->getDriver()->listContents($prefix, true) as $item) {
+                    if ($item instanceof FileAttributes && ! str_starts_with(basename($item->path()), '.')) {
+                        $sum += (int) ($item->fileSize() ?? 0);
+                    }
+                }
+
+                return $sum;
+            }
+
+            return array_sum(array_map(static fn (string $path): int => (int) $disk->size($path), self::listed($disk, $prefix)));
+        } catch (Throwable $e) {
+            report($e);
+
+            return 0;
         }
     }
 

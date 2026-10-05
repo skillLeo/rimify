@@ -8,7 +8,7 @@ use App\Models\AdminUser;
 use App\Models\Setting;
 use App\Services\Reset\ScratchDatabase;
 use App\Services\Reset\SqlSnapshot;
-use App\Services\Reset\TestReset;
+use App\Services\Reset\TestEnvironment;
 use Carbon\CarbonImmutable;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ContentSeeder;
@@ -55,7 +55,7 @@ final class ResetBaselineCommand extends Command
             return self::FAILURE;
         }
 
-        $path = (string) ($this->option('path') ?: TestReset::baseline());
+        $path = (string) ($this->option('path') ?: TestEnvironment::baseline());
         $default = (string) config('database.default');
         $name = substr((string) config("database.connections.{$default}.database"), 0, 50).'_baseline';
         $scratch = ScratchDatabase::create($name, 'baseline');
@@ -86,6 +86,9 @@ final class ResetBaselineCommand extends Command
             DB::setDefaultConnection('baseline');
             $this->onlyReviewAccounts();
             Setting::set(ReleaseSeed::SETTING, ReleaseSeed::VERSION);
+            // The row in which a database names its own environment (R-04.1): a baseline is no environment's, and its
+            // settings are never loaded anyway — `settings` is a kept table — so it carries none.
+            Setting::query()->whereKey(TestEnvironment::MARKER)->delete();
 
             $tables = array_map(
                 static fn (object $r): string => (string) $r->t,

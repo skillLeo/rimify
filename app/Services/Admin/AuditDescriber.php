@@ -14,6 +14,7 @@ use App\Services\Admin\Orders\OrderList;
 use App\Services\Content\NavigationSchema;
 use App\Services\Demo\DemoTables;
 use App\Services\Reset\ResetLevel;
+use App\Services\Reset\TestEnvironment;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
 use Carbon\CarbonImmutable;
@@ -94,7 +95,9 @@ final class AuditDescriber
         'system.reset' => 'protokoll',
         'system.reset_undone' => 'protokoll',
         'system.reset_failed' => 'protokoll',
+        'system.reset_refused' => 'protokoll',
         'system.reset_recovered' => 'protokoll',
+        'system.reset_backup_removed' => 'protokoll',
         'storage.settings_updated' => 'zugriff',
         'demand.marked' => 'gutachten',
         'demand.unmarked' => 'gutachten',
@@ -359,15 +362,21 @@ final class AuditDescriber
             ],
             'system.reset' => self::reset($p),
             'system.reset_undone' => [
-                'Das Zurücksetzen der Testumgebung ('.self::resetLevel($p).') wurde rückgängig gemacht. Der Stand davor ist wieder da; Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.',
+                'Das Zurücksetzen der Testumgebung ('.self::resetLevel($p).') wurde rückgängig gemacht. '
+                    .(self::text($p, 'level') === ResetLevel::Demo->value
+                        ? 'Die Demodaten sind wieder da, auch das Demo-Team und seine Protokolleinträge. Die übrigen Benutzer und Protokolleinträge sind geblieben.'
+                        : 'Der Stand davor ist wieder da; Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.'),
                 [],
             ],
-            'system.reset_failed' => [
-                'Ein Zurücksetzen der Testumgebung ist fehlgeschlagen. Die Datenbank wurde aus der Sicherung wiederhergestellt und ist genauso wie vorher.'
-                    .(self::text($p, 'reason') === null ? '' : ' Grund: '.self::text($p, 'reason')),
+            'system.reset_failed' => [self::resetFailed($p), []],
+            // The append-only check refused a reset or an undo before anything changed (ResetProbe, R-12.3).
+            'system.reset_refused' => [
+                self::resetAction($p).' wurde abgelehnt, bevor sich etwas änderte. '.self::checks($p, 'failures', 'Prüfung '.(self::text($p, 'when') ?? 'vorher')),
                 [],
             ],
-            'system.reset_recovered' => ['Ein Zurücksetzen der Testumgebung wurde unterbrochen. Die Datenbank wurde aus der Sicherung wiederhergestellt.', []],
+            'system.reset_recovered' => [self::resetAction($p).' wurde unterbrochen. Die Datenbank wurde aus der Sicherung wiederhergestellt.', []],
+            // The undo window closing is never silent (the reset brief of 05.10.2026, §3.3).
+            'system.reset_backup_removed' => [self::backupRemoved($p), []],
             'storage.settings_updated' => self::storageUpdated($p),
             'orders.exported' => [self::ordersExported($p), []],
             'order.shipped' => [
@@ -612,9 +621,12 @@ final class AuditDescriber
             }
         }
 
+        // „Demodaten“ takes the demo team and its entries (R-12's exemption); every other level keeps them all.
         $sentence = 'Die Testumgebung wurde zurückgesetzt („'.self::resetLevel($p).'“). '
             .($what === [] ? 'Es war nichts zu entfernen.' : 'Entfernt: '.implode(', ', $what).'.')
-            .' Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.';
+            .(self::text($p, 'level') === ResetLevel::Demo->value
+                ? ' Die übrigen Benutzer und Protokolleinträge sind geblieben.'
+                : ' Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.');
 
         return [$sentence, $changes];
     }
@@ -623,6 +635,80 @@ final class AuditDescriber
     private static function resetLevel(array $p): string
     {
         return ResetLevel::tryFrom((string) self::text($p, 'level'))?->label() ?? 'Stufe nicht erfasst';
+    }
+
+    /**
+     * What was refused, failed or cut off: a reset or the undo of one. Entries written before they carried `op` name
+     * an undo in their id („…-undo“) or in when the check ran.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function resetAction(array $p): string
+    {
+        $op = self::text($p, 'op');
+        $undo = $op === 'undo' || ($op === null && (str_contains((string) self::text($p, 'id'), '-undo')
+            || str_contains((string) self::text($p, 'when'), 'Rückgängigmachen')));
+
+        return $undo ? 'Das Rückgängigmachen eines Zurücksetzens der Testumgebung' : 'Ein Zurücksetzen der Testumgebung';
+    }
+
+    /**
+     * A reset that failed, and in what state it left the database: put back and checked, put back and still not
+     * protected (the shop stays in maintenance), or not put back yet — with each check that did not hold, by name.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function resetFailed(array $p): string
+    {
+        $state = match (self::text($p, 'put_back')) {
+            'failed' => 'Die Sicherung ließ sich nicht sofort zurückspielen; der Shop bleibt im Wartungsmodus, bis sie zurückgespielt ist und die Prüfung keinen Fehler mehr findet.',
+            'unchecked' => 'Die Sicherung ist zurückgespielt, aber auch danach schlägt die Prüfung fehl; der Shop bleibt im Wartungsmodus. '.self::checks($p, 'put_back_failures', 'Nach dem Zurückspielen'),
+            default => self::text($p, 'level') === ResetLevel::Demo->value
+                ? 'Die Demodaten sind entfernt. Zurückholen lassen sie sich mit „Letztes Zurücksetzen rückgängig machen“ – innerhalb von '.TestEnvironment::KEEP_DAYS.' Tagen und erst, wenn die Prüfung keinen Fehler mehr findet.'
+                : 'Die Datenbank wurde aus der Sicherung wiederhergestellt und ist genauso wie vorher.',
+        };
+
+        return trim(self::resetAction($p).' ist fehlgeschlagen. '.$state
+            .(self::map($p, 'failures') === [] ? '' : ' '.self::checks($p, 'failures', 'Fehlgeschlagen'))
+            .(self::text($p, 'reason') === null || self::map($p, 'failures') !== [] ? '' : ' Grund: '.self::text($p, 'reason')));
+    }
+
+    /**
+     * „Fehlgeschlagen: Eine Änderung an einem Protokolleintrag wurde nicht abgelehnt (erwartet: SQLSTATE 45000) – die Anweisung ging
+     * durch.“ — each check that did not hold (ResetProbe), with what the database answered.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function checks(array $p, string $key, string $lead): string
+    {
+        $items = [];
+
+        foreach (self::map($p, $key) as $failure) {
+            if (is_array($failure) && is_string($failure['text'] ?? null)) {
+                $items[] = $failure['text'].(is_string($failure['detail'] ?? null) && $failure['detail'] !== '' ? ' – '.$failure['detail'] : '');
+            }
+        }
+
+        return $items === [] ? '' : $lead.': '.implode('; ', $items).'.';
+    }
+
+    /**
+     * „Die Sicherung des Zurücksetzens vom 04.10.2026, 19:59 Uhr („Shopdaten“, 5,8 MB) wurde nach sieben Tagen
+     * gelöscht. Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.“
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function backupRemoved(array $p): string
+    {
+        $at = self::text($p, 'at');
+        $when = $at === null ? '' : ' vom '.GermanFormat::dateTime(CarbonImmutable::parse($at));
+        $size = is_numeric($p['bytes'] ?? null) ? GermanFormat::decimal(((int) $p['bytes']) / 1_048_576, 1)."\u{00A0}MB" : null;
+
+        if (self::text($p, 'op') === 'undo') {
+            return 'Die Sicherung vor dem Rückgängigmachen'.$when.($size === null ? '' : ' ('.$size.')').' wurde nach '.TestEnvironment::KEEP_DAYS.' Tagen gelöscht.';
+        }
+
+        return 'Die Sicherung des Zurücksetzens'.$when.' („'.self::resetLevel($p).'“'.($size === null ? '' : ', '.$size).') wurde nach '.TestEnvironment::KEEP_DAYS.' Tagen gelöscht. Dieses Zurücksetzen lässt sich nicht mehr rückgängig machen.';
     }
 
     /**
