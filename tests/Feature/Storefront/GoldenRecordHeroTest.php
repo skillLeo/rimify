@@ -96,11 +96,18 @@ it('takes the hero back from a choice that is no real wheel — a demo model, on
     }
 });
 
-it('puts the DB8GT2\'s values on the brand\'s photograph while it is a draft, with no price and no link', function (): void {
+it('states nothing on the photograph while the DB8GT2 is a draft, and its values once published — no price, no link', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
     // The black front view, with the stamp the photograph shows (KBA 53841, the 18-inch approval).
     DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz']);
+
+    // A draft's values are not released: the photograph stands alone, as in an empty shop.
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.photo.finish', 'Schwarz matt')
+        ->where('hero.product', null));
+
+    $model->update(['status' => 'published']);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('hero.photo.brand', 'Borbet')
@@ -175,6 +182,8 @@ it('leads with the photograph chosen in Inhalte, and with the default where the 
 it('turns the hero wheel in the dark band — the open cut-out of its other finish — and the illustration without one (#9)', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
+    // The band names the hero's wheel, so it turns once that wheel is published (D-155).
+    $model->update(['status' => 'published']);
 
     // Only shadowless frames, none with the spokes opened: the studio's white would show — the illustration stays.
     DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze']);

@@ -105,8 +105,14 @@ it('gives the hero back its real wheel where the setting still names a demo mode
     expect((int) Setting::get('hero_product_id'))->toBe($golden);
 
     // Whatever the setting says, the hero stands on the brand's photograph (the brief of 05.10.2026, §2) — data can no
-    // longer take it away — with the real wheel's values, a draft as it is.
+    // longer take it away — alone while the real wheel is a draft, with its values once it is published (D-155).
     DemoWheelFixtures::heroPhotos($this->dir, GoldenRecordSeeder::SLUG, ['Schwarz matt' => 'db8gt2-schwarz']);
+
+    $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('hero.photo.finish', 'Schwarz matt')
+        ->where('hero.product', null));
+
+    DB::table('wheel_models')->where('id', $golden)->update(['status' => 'published']);
 
     $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->where('hero.photo.finish', 'Schwarz matt')

@@ -133,12 +133,12 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The wheel in the hero's photograph, where the catalogue has it (the operator's brief of 05.10.2026, §2): the
+     * The wheel in the hero's photograph, where the shop has it (the operator's brief of 05.10.2026, §2): the
      * photograph is the brand's (HeroPhotos) and stands whatever the catalogue holds; only its values are data. They
      * come from the photographed model — the same model, never another product whose numbers would land on this
-     * wheel — while it is real and not archived: a draft is shown with the document's values, never a price or a link,
-     * as since the golden record (D-089). With the model not in the catalogue — an empty shop — the photograph stands
-     * without leaders, caption or spec line rather than with a hole.
+     * wheel — once it is real and published, and never with a price or a link (D-108). A draft states nothing, as no
+     * other page of the shop shows one: its values are not released yet (D-155). Without a published model — an empty
+     * shop, or the wheel still a draft — the photograph stands without leaders, caption or spec line, never with a hole.
      *
      * `facts` are one configuration's values, formatted here (R-10) and nowhere else. Which one is `heroConfig()`'s
      * choice: a photograph proves the size its stamp names, never the bolt pattern.
@@ -156,7 +156,7 @@ class StartseiteController extends Controller
             ->with(['brand'])
             ->where('slug', $photo['model'])
             ->where('is_demo', false)
-            ->where('status', '<>', CatalogueStatus::Archived->value)
+            ->where('status', CatalogueStatus::Published->value)
             ->first();
 
         if ($model === null) {
@@ -191,8 +191,8 @@ class StartseiteController extends Controller
                 'centreBoreMm' => (float) $config->centre_bore_mm,
             ],
             'symbolic' => false,
-            // In the shop at a price; a draft, or a published wheel still priced at zero, is shown, never offered.
-            'published' => $model->status === CatalogueStatus::Published && (int) $config->price_cents > 0,
+            // In the shop at a price; a published wheel still priced at zero is shown, never offered.
+            'published' => (int) $config->price_cents > 0,
             'facts' => $this->heroFacts($config, $kba),
         ];
     }

@@ -87,9 +87,9 @@ final class Smoke extends Command
         // The preview showed the outline and no numbers section for days while every test on a fresh database passed
         // (D-089). The hero's photograph is the brand's and stands in every state, an empty shop included (the
         // operator's brief of 05.10.2026, §2); only the numbers section waits for a published wheel.
-        // The numbers explain the wheel in the photograph, with its values: due wherever the catalogue holds that wheel
-        // (a draft included, as the hero shows it), and not in an empty shop.
-        $heroLive = WheelModel::query()->where('status', '<>', 'archived')->where('is_demo', false)
+        // The numbers explain the wheel in the photograph, with its values: due once that wheel is published, as the hero
+        // states them (D-155), and not while it is a draft or the shop is empty.
+        $heroLive = WheelModel::query()->where('status', 'published')->where('is_demo', false)
             ->whereIn('slug', array_column(HeroPhotos::all(), 'model'))->exists();
 
         $this->check('Startseite: Felgenfoto und Zahlen', function () use ($heroLive): string {
@@ -105,7 +105,7 @@ final class Smoke extends Command
             $name = basename((string) parse_url($img[1], PHP_URL_PATH));
 
             if (! $heroLive) {
-                return "Felgenfoto im Hero ({$name}); der Zahlen-Abschnitt wartet, bis die Felge im Foto im Katalog steht";
+                return "Felgenfoto im Hero ({$name}); der Zahlen-Abschnitt wartet, bis die Felge im Foto veröffentlicht ist";
             }
 
             $this->expect(str_contains($html, 'data-section="H8"'), 'der Abschnitt „Was die Zahlen auf einer Felge bedeuten“ fehlt');

@@ -95,7 +95,7 @@ final class PageSchema
                         self::textarea('sub_mobile', 'Kürzerer Text für das Handy', 110, true, 'Steht auf dem Handy statt des Texts darüber. Dort ist Platz für einen Satz.'),
                         // The brand's photograph (PROTECTED.md P1, the operator's brief of 05.10.2026 §2): a brand
                         // asset, there with or without a catalogue — never a product row.
-                        self::choice('foto', 'Foto', HeroPhotos::options(), HeroPhotos::DEFAULT, 'Steht im Einstieg, auch wenn der Katalog leer ist. Die Maße erscheinen daran, sobald die gezeigte Felge mit mindestens einer Größe im Katalog steht und nicht archiviert ist.'),
+                        self::choice('foto', 'Foto', HeroPhotos::options(), HeroPhotos::DEFAULT, 'Steht im Einstieg, auch wenn der Katalog leer ist. Die Maße erscheinen daran, sobald die gezeigte Felge veröffentlicht ist und mindestens eine Größe hat.'),
                     ],
                 ],
                 [

@@ -11,8 +11,7 @@ entfernt wird, und du bestätigst mit dem Wort ZURÜCKSETZEN.
 Benutzer, Rollen und Einstellungen bleiben auf jeder Stufe erhalten, ebenso das Protokoll. Nur **Demodaten** entfernt
 die Konten des Demo-Teams und ihre Einträge. Du bleibst angemeldet, und im Protokoll steht, wer wann mit welcher Stufe
 zurückgesetzt hat. Den Live-Shop betrifft das nie: Dort gibt es diese Seite nicht. Das Foto im Einstieg der Startseite
-bleibt auch im leeren Shop stehen; die Maße daran erscheinen wieder, sobald die Felge auf dem Foto mit mindestens einer
-Größe im Katalog steht.
+bleibt auch im leeren Shop stehen; die Maße daran erscheinen wieder, sobald die Felge auf dem Foto veröffentlicht ist.
 
 Vor jedem Zurücksetzen sichert der Shop die ganze Datenbank und prüft die Sicherung. Sieben Tage lang kannst du deshalb
 mit **„Letztes Zurücksetzen rückgängig machen“** zum Stand davor zurückkehren, mit allen Felgen, Gutachten,

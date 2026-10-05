@@ -35,9 +35,20 @@ class E2eShopSeeder extends Seeder
 
         $this->call(DatabaseSeeder::class);
 
-        // The catalogue is this database's shop. The tyres too, so a Komplettrad can be walked. The
-        // golden record's wheel (DatabaseSeeder) is real and stays as it is: a draft until priced.
+        // The catalogue is this database's shop. The tyres too, so a Komplettrad can be walked.
         DB::table('wheel_models')->where('is_demo', true)->update(['is_demo' => false, 'status' => 'published']);
         DB::table('tyre_variants')->update(['is_demo' => false]);
+
+        // The golden record's wheel — the one in the hero's photograph — published and priced as the client's shop had
+        // it before its reset (229 € at 18″, 269 € at 19″, 12 a size): the hero states a wheel's values only once it is
+        // published (D-155), and the protected suite needs them (P3). A seeded draft has no price, so this is its own.
+        $golden = DB::table('wheel_models')->where('slug', GoldenRecordSeeder::SLUG)->value('id');
+
+        if ($golden !== null) {
+            $unpriced = DB::table('wheel_configs')->where('wheel_model_id', $golden)->where('price_cents', 0);
+            (clone $unpriced)->where('diameter_in', '<', 19)->update(['price_cents' => 22_900, 'stock_qty' => 12]);
+            (clone $unpriced)->where('diameter_in', '>=', 19)->update(['price_cents' => 26_900, 'stock_qty' => 12]);
+            DB::table('wheel_models')->where('id', $golden)->update(['status' => 'published']);
+        }
     }
 }
