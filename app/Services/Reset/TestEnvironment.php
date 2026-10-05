@@ -105,6 +105,27 @@ final class TestEnvironment
         };
     }
 
+    /**
+     * The values of every RIMIFY_RESET_ERLAUBT line in a .env file — read from the file itself, since a cached
+     * configuration no longer says whether the line is there at all (deploy/check-env.php reads it the same way). The
+     * live shop's list must be empty: a line there is a defect even with false (GO-LIVE.md §4.4).
+     *
+     * @return list<string>
+     */
+    public static function flagLines(?string $file = null): array
+    {
+        $file ??= base_path('.env');
+        $values = [];
+
+        foreach (is_file($file) ? (preg_split('/\R/', (string) file_get_contents($file)) ?: []) : [] as $line) {
+            if (preg_match('/^\s*(?:export\s+)?'.self::FLAG.'\s*=\s*(.*?)\s*$/', $line, $m) === 1) {
+                $values[] = trim($m[1], "\"' \t");
+            }
+        }
+
+        return $values;
+    }
+
     /** The environment this database was made in, as its marker row says, or null. */
     public static function databaseEnvironment(): ?string
     {

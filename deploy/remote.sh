@@ -39,6 +39,13 @@ esac
 cd "$APP"
 echo "== code: $(git log -1 --format='%h %s')"
 
+# CLAUDE.md R-04.1, before anything changes: the reset's own flag as this environment requires it — absent in the live
+# shop, `true` or `false` on a test server (deploy/check-env.php). The host step runs the same check against the fetched
+# release before it takes the site down; this covers a manual run.
+if [ -f .env ]; then
+    "$PHP" deploy/check-env.php .env "$TARGET_ENV"
+fi
+
 # A manual run may not have taken the site down first. This covers that case; it is a no-op when
 # the workflow already did. It may fail before composer has run, hence `|| true`.
 "$PHP" artisan down --render="errors::503" --retry=60 > /dev/null 2>&1 || true
@@ -47,6 +54,8 @@ echo "== code: $(git log -1 --format='%h %s')"
 if [ ! -f .env ]; then
     cp .env.example .env
     echo "== .env created from .env.example"
+    # A new test server decides the reset's flag before its first release (GO-LIVE.md §4.4); a new live shop passes.
+    "$PHP" deploy/check-env.php .env "$TARGET_ENV"
 fi
 
 set_env() { "$PHP" deploy/env.php "$1" "${2:-}"; }
@@ -64,9 +73,8 @@ else
     set_env DEMO_DATA 0
     set_env RIMIFY_REVIEW false
     set_env RIMIFY_PAYMENTS none
-    # CLAUDE.md R-04.1: the live shop never says yes to Testumgebung zurücksetzen, whatever its .env said before.
-    # (A test server's yes is set there by hand, once — never by this script.)
-    set_env RIMIFY_RESET_ERLAUBT false
+    # CLAUDE.md R-04.1: the live shop's .env has no RIMIFY_RESET_ERLAUBT line at all — deploy/check-env.php refused the
+    # release above if it had one. A test server's line is set there by hand, once — never by this script.
     # Production's mail settings are the operator's (.env, GO-LIVE.md): never overwritten here, and
     # rimify:preflight refuses a production that only writes its mail to the log.
 fi

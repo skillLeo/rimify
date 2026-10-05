@@ -262,10 +262,17 @@ final class Preflight extends Command
         $database = TestEnvironment::databaseEnvironment();
 
         if ($production) {
+            $lines = TestEnvironment::flagLines();
+
             // Every fault at once: whoever reads the NO-GO fixes them in one go.
             $faults = array_values(array_filter([
                 $routed || TestEnvironment::available() ? 'im Live-Shop erreichbar – die Routen dürfen hier nicht registriert sein (Routen-Cache neu bauen: php artisan optimize)' : null,
-                config('rimify.reset.allowed') === true ? TestEnvironment::FLAG.'=true steht in der Umgebung des Live-Shops – herausnehmen' : null,
+                match (true) {
+                    config('rimify.reset.allowed') === true => TestEnvironment::FLAG.'=true steht in der Umgebung des Live-Shops – herausnehmen',
+                    // GO-LIVE.md §6.3: in the live shop the line is a defect whatever it says.
+                    $lines !== [] => TestEnvironment::FLAG.' steht in der .env des Live-Shops („'.implode('“, „', $lines).'“) – herausnehmen, auch false gehört dort nicht hin',
+                    default => null,
+                },
                 $database !== 'production' ? 'die Datenbank nennt sich nicht die des Live-Shops ('.TestEnvironment::MARKER.': '.($database ?? 'fehlt').') – so schützt sie nichts vor einem Zurücksetzen' : null,
             ]));
 

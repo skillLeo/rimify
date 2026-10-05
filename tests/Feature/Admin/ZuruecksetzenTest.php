@@ -75,11 +75,21 @@ function resetRequests(): array
 }
 
 it('is the Super-Admin\'s alone, asks for the password first, and counts what each level would take', function (): void {
-    fakeReset();
+    $mock = fakeReset();
+    $mock->shouldNotReceive('reset', 'undo');
 
-    foreach (['catalogue-manager', 'accountant', 'order-manager'] as $role) {
-        asResetAdmin($role)->get(RESET_URL)->assertForbidden();
-        asResetAdmin($role)->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestEnvironment::WORD])->assertForbidden();
+    // Every other role: the 404 an unknown address gets, never a 403 — and never asked for the password first (the
+    // operator's brief of 05.10.2026, §0).
+    foreach (DB::table('roles')->where('name', '<>', 'super-admin')->pluck('name') as $role) {
+        $user = AdminUser::factory()->create();
+        $user->assignRole($role);
+
+        $this->actingAs($user, 'admin')->get(RESET_URL)->assertNotFound();
+        $this->actingAs($user, 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])->get(RESET_URL)->assertNotFound();
+        $this->actingAs($user, 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])
+            ->post(RESET_URL, ['level' => 'shop', 'confirmation' => TestEnvironment::WORD])->assertNotFound();
+        $this->actingAs($user, 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])
+            ->post(RESET_URL.'/rueckgaengig')->assertNotFound();
     }
 
     $this->flushSession();
@@ -121,8 +131,10 @@ it('answers 404, never 403, wherever the reset is not available — in productio
     $notFound();
     DB::table('settings')->where('key', TestEnvironment::MARKER)->update(['value' => json_encode('testing')]);
 
-    // Where it is available, a role that may not use it is told so: the 404 above is the reset's, not the role's.
-    asResetAdmin('accountant')->get(RESET_URL)->assertForbidden();
+    // Where it is available the Super-Admin sees it — the 404s above are the reset's — and every other role still gets
+    // a 404 of its own.
+    asResetAdmin()->get(RESET_URL)->assertOk();
+    asResetAdmin('accountant')->get(RESET_URL)->assertNotFound();
 });
 
 it('resets nothing without the word, and hands the level, the person and the screen as origin to the reset with it', function (): void {
@@ -160,7 +172,7 @@ it('says a refusal in the reset\'s own words, and undoes the last reset on reque
         ->assertRedirect(RESET_URL)
         ->assertSessionHas('toast', 'Rückgängig gemacht: Der Stand vor dem Zurücksetzen („Shopdaten“) ist wieder da.');
 
-    asResetAdmin('accountant')->post(RESET_URL.'/rueckgaengig')->assertForbidden();
+    asResetAdmin('accountant')->post(RESET_URL.'/rueckgaengig')->assertNotFound();
 });
 
 it('shows how long the last reset can still be undone, and once it cannot, says why and offers no button', function (): void {

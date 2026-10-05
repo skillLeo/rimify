@@ -260,6 +260,23 @@ A person, on the production site, never through the repository (R-16, `docs/dev/
 Versand und Lieferzeit GO, Rechnungsnummern GO („nächste RE-… und GS-…, eröffnet am … von …“). **If not**, the row
 says what is missing, in a sentence.
 
+### 4.4 `RIMIFY_RESET_ERLAUBT` — the reset's own flag, per environment
+
+System › Zurücksetzen and `rimify:reset` empty a test shop (CLAUDE.md R-04.1). The server's own yes is one of the
+four conditions, and the value it may have depends on the server:
+
+| Environment | Required in `.env` | Without it |
+|---|---|---|
+| staging (the review preview) | `RIMIFY_RESET_ERLAUBT=true` — or `false` where the reset is meant to be off | the release refuses before maintenance; the screen would answer 404 to the Super-Admin |
+| production (the live shop) | **no line at all** | — |
+
+**Setting it in production is a defect**, whatever the value — `false` included: the live shop has no reset to allow
+or forbid, and a line there is one typo away from `true`. The host step runs `php deploy/check-env.php .env
+<production|staging>` against the fetched release **before** `artisan down`, and `deploy/remote.sh` runs it again
+before it changes anything; either refuses with the line named. `rimify:preflight` fails a production `.env` that
+has the line, and `rimify:smoke` asserts the result: on staging the screen answers 200 to a Super-Admin and 404 to
+every other role, in production 404 to everyone, the Super-Admin included.
+
 ---
 
 ## 5 · `rimify:smoke`
