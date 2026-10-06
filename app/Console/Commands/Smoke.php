@@ -98,7 +98,8 @@ final class Smoke extends Command
 
         // A test environment reset to an empty shop (TestReset) sells nothing yet, and says so on its homepage: there
         // is no wheel for the hero, the product page or a test order — until the team publishes its first.
-        $empty = TestEnvironment::shopEmptied() && ! WheelModel::query()->where('status', 'published')->where('is_demo', false)->exists();
+        // The acceptance set counts as a wheel on sale here (AcceptanceSet): with it, the smoke runs in full.
+        $empty = TestEnvironment::shopEmptied() && ! WheelModel::query()->onSale()->exists();
 
         $this->check('Startseite', function (): string {
             $response = $this->get('/');
@@ -128,13 +129,12 @@ final class Smoke extends Command
             };
         });
 
-        // The homepage's signature pieces (docs/design/PROTECTED.md P1, P4), asserted where they were lost: on the host.
+        // The homepage's signature pieces (docs/design/PROTECTED.md P1, P3, P4), asserted where they were lost: on the host.
         // The preview showed the outline and no numbers section for days while every test on a fresh database passed
         // (D-089). The hero's photograph is the brand's and stands in every state, an empty shop included (the
-        // operator's brief of 05.10.2026, §2); only the numbers section waits for a published wheel.
-        // The numbers explain the wheel in the photograph, with its values: due once that wheel is published, as the hero
-        // states them (D-155), and not while it is a draft or the shop is empty.
-        $heroLive = WheelModel::query()->where('status', 'published')->where('is_demo', false)
+        // operator's brief of 05.10.2026, §2), with the photograph's own values (the client's #4); only the numbers
+        // section waits for the wheel in the photograph to be on sale.
+        $heroLive = WheelModel::query()->onSale()
             ->whereIn('slug', array_column(HeroPhotos::all(), 'model'))->exists();
 
         $this->check('Startseite: Felgenfoto und Zahlen', function () use ($heroLive): string {
@@ -148,6 +148,10 @@ final class Smoke extends Command
             $photo = $this->get(html_entity_decode($img[1]));
             $this->expect($photo->status() === 200, "das Felgenfoto antwortet mit HTTP {$photo->status()}");
             $name = basename((string) parse_url($img[1], PHP_URL_PATH));
+            // Its values with it, whatever the catalogue holds — and the photograph never linked, never priced (the client's #4).
+            $stage = (string) strstr($hero, 'hero__stage');
+            $this->expect(str_contains($hero, 'data-hero="values"'), 'der Hero zeigt die Werte des Fotos nicht (Maße am Foto und Größenzeile)');
+            $this->expect(preg_match('#<a\b[^>]*>(?:(?!</a>).)*?<img#s', $stage) !== 1 && ! str_contains($stage, '€'), 'das Felgenfoto im Hero ist verlinkt oder trägt einen Preis');
 
             if (! $heroLive) {
                 return "Felgenfoto im Hero ({$name}); der Zahlen-Abschnitt wartet, bis die Felge im Foto veröffentlicht ist";
@@ -282,7 +286,7 @@ final class Smoke extends Command
             ->with(['wheelConfig.wheelModel', 'vehicle'])
             ->where('status', FitmentStatus::Published->value)
             ->whereHas('wheelConfig', static fn ($q) => $q->where('stock_qty', '>', 0))
-            ->whereHas('wheelConfig.wheelModel', static fn ($q) => $q->where('status', 'published')->where('is_demo', false)
+            ->whereHas('wheelConfig.wheelModel', static fn ($q) => $q->onSale()
                 ->when(is_string($slug) && $slug !== '', static fn ($q) => $q->where('slug', $slug)))
             ->whereHas('vehicle', static fn ($q) => $q->when(is_string($hsn) && $hsn !== '', static fn ($q) => $q->where('hsn', $hsn))
                 ->when(is_string($tsn) && $tsn !== '', static fn ($q) => $q->where('tsn', strtoupper((string) $tsn))))

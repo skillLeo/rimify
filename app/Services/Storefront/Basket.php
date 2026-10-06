@@ -344,7 +344,8 @@ final readonly class Basket
         $config = WheelConfig::query()->with('wheelModel')->find($wheelConfigId);
         $model = $config?->wheelModel;
 
-        if ($config === null || $model === null || $model->is_demo || $model->status !== CatalogueStatus::Published) {
+        // The acceptance set's wheels are the one exception, off production (AcceptanceSet).
+        if ($config === null || $model === null || $model->refusedAsDemo() || $model->status !== CatalogueStatus::Published) {
             return self::WHEEL_GONE;
         }
 
@@ -1004,8 +1005,8 @@ final readonly class Basket
             'inStock' => $config->stock_qty + ($held['configs'][$config->id] ?? 0) >= $wheels
                 && ($tyre === null || $tyre->stock_qty + ($held['tyres'][$tyre->id] ?? 0) >= $quantity),
             // A seeded demonstration row — the model or, on a Komplettrad, the tyre: it may sit in
-            // the basket, it can never be ordered (ACCURACY.md D4).
-            'demo' => (bool) $model->is_demo || ($tyre !== null && $tyre->is_demo),
+            // the basket, it can never be ordered (ACCURACY.md D4) — unless it is the acceptance set's, off production.
+            'demo' => $model->refusedAsDemo() || ($tyre !== null && $tyre->refusedAsDemo()),
             // A Komplettrad's tyre is chosen: its line says that size's Auflagen and no other's.
             'verdict' => $verdict === null ? null : $this->verdictArray($verdict, $tyre === null ? null : TyreSize::keyOf((int) $tyre->width_mm, (int) $tyre->aspect, (float) $tyre->diameter_in), $mixed),
             // Mischbereifung (#20): the axle, the pair and what the axle asks for — set by renderMixed().
