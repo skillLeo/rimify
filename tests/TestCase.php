@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Services\Mail\DnsLookup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\ParallelTesting;
@@ -22,6 +23,15 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // No test asks the network's DNS (SenderDns): every name answers nothing, unless a test binds records of its own.
+        $this->app->instance(DnsLookup::class, new class extends DnsLookup
+        {
+            public function records(string $host, int $type): array
+            {
+                return [];
+            }
+        });
 
         $token = ParallelTesting::token();
 

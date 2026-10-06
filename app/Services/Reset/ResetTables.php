@@ -34,10 +34,11 @@ final class ResetTables
         'users',
         'sessions',
         'password_reset_tokens',
-        // How the shop is set up: Einstellungen, Zubehörpreise, the bucket's and Stripe's keys.
+        // How the shop is set up: Einstellungen, Zubehörpreise, the bucket's, Stripe's and SES's keys.
         'settings',
         'payment_settings',
         'storage_settings',
+        'mail_settings',
         'balance_weight_colours',
         'tpms_sensor_prices',
         // The invoice numbers count on, whatever goes (no number is ever given twice).
@@ -104,8 +105,9 @@ final class ResetTables
         'disputes',
         'stripe_events',
         'reviews',
-        // What visitors and the review sent in.
+        // What visitors and the review sent in, and the addresses SES reported back.
         'contact_messages',
+        'mail_suppressions',
         'review_feedback',
         'fitment_subscriptions',
         'check_results',

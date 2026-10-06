@@ -6,6 +6,7 @@ namespace App\Services\Storage;
 
 use Aws\CommandInterface;
 use Aws\S3\S3Client;
+use Aws\SesV2\SesV2Client;
 use Aws\Sts\StsClient;
 use Closure;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -30,6 +31,17 @@ class AwsClients
     public function sts(StorageConfig $set): StsClient
     {
         return new StsClient($this->with($set->client()));
+    }
+
+    /** Amazon SES for Einstellungen › E-Mail's test (SesProbe) — the shop's own mail goes through Laravel's transport. */
+    public function ses(string $region, #[\SensitiveParameter] string $key, #[\SensitiveParameter] string $secret): SesV2Client
+    {
+        return new SesV2Client($this->with([
+            'version' => 'latest',
+            'region' => $region,
+            'credentials' => ['key' => $key, 'secret' => $secret],
+            'http' => ['connect_timeout' => 5, 'timeout' => 10],
+        ]));
     }
 
     /** The transport a disk's client is switched to after it is built; null keeps the SDK's. */

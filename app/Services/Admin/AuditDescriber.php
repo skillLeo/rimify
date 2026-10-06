@@ -99,6 +99,10 @@ final class AuditDescriber
         'system.reset_recovered' => 'protokoll',
         'system.reset_backup_removed' => 'protokoll',
         'storage.settings_updated' => 'zugriff',
+        'mail.settings_updated' => 'zugriff',
+        'mail.sns_subscribed' => 'zugriff',
+        'mail.suppressed' => 'verkauf',
+        'mail.suppression_released' => 'verkauf',
         'demand.marked' => 'gutachten',
         'demand.unmarked' => 'gutachten',
         'page.created' => 'inhalte',
@@ -378,6 +382,12 @@ final class AuditDescriber
             // The undo window closing is never silent (the reset brief of 05.10.2026, §3.3).
             'system.reset_backup_removed' => [self::backupRemoved($p), []],
             'storage.settings_updated' => self::storageUpdated($p),
+            'mail.settings_updated' => self::mailUpdated($p),
+            'mail.sns_subscribed' => ['Amazon SES meldet unzustellbare Adressen und Beschwerden ab jetzt an den Shop (Thema '.self::q(self::text($p, 'topic') ?? 'ohne Namen').').', []],
+            'mail.suppressed' => [(($p['reason'] ?? null) === 'complaint'
+                ? 'Amazon SES meldet eine Beschwerde von '.self::q(self::text($p, 'email') ?? 'unbekannt').' ('.(self::text($p, 'detail') ?? 'ohne Angabe').'): Der Shop schickt dieser Adresse nichts mehr.'
+                : 'Amazon SES meldet '.self::q(self::text($p, 'email') ?? 'unbekannt').' als dauerhaft unzustellbar ('.(self::text($p, 'detail') ?? 'ohne Angabe').'): Der Shop schickt dieser Adresse nichts mehr.'), []],
+            'mail.suppression_released' => ['Die Sperre für '.self::q(self::text($p, 'email') ?? 'unbekannt').' wurde aufgehoben: Der Shop schickt dieser Adresse wieder Mails.', []],
             'orders.exported' => [self::ordersExported($p), []],
             'order.shipped' => [
                 'Die Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde als versendet markiert'
@@ -723,6 +733,30 @@ final class AuditDescriber
         $fields = array_values(array_filter(is_array($p['changed'] ?? null) ? $p['changed'] : [], 'is_string'));
         $sentence = 'Die Speicher-Einstellungen wurden '.($fields === [] ? 'gespeichert' : 'geändert: '.implode(', ', $fields)).'.'
             .(($p['active'] ?? false) === true ? ' Sie gelten ab jetzt.' : ' Die Verbindung klappte damit nicht; es gelten weiter die bisherigen.');
+        $changes = [];
+
+        foreach (['key_last4' => 'Zugriffsschlüssel', 'signing_key_last4' => 'Geheimer Schlüssel'] as $key => $label) {
+            $pair = self::map($p, $key);
+            $old = is_string($pair['old'] ?? null) ? '…'.$pair['old'] : self::NOTHING;
+            $new = is_string($pair['new'] ?? null) ? '…'.$pair['new'] : self::NOTHING;
+
+            if ($old !== $new) {
+                $changes[] = self::change($label, $old, $new);
+            }
+        }
+
+        return [$sentence, $changes];
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function mailUpdated(array $p): array
+    {
+        $fields = array_values(array_filter(is_array($p['changed'] ?? null) ? $p['changed'] : [], 'is_string'));
+        $sentence = 'Die E-Mail-Einstellungen wurden '.($fields === [] ? 'gespeichert' : 'geändert: '.implode(', ', $fields)).'.'
+            .(($p['active'] ?? false) === true ? ' Der Zugang zu Amazon SES funktioniert.' : ' Der Zugang zu Amazon SES klappte damit nicht; es gelten weiter die bisherigen.');
         $changes = [];
 
         foreach (['key_last4' => 'Zugriffsschlüssel', 'signing_key_last4' => 'Geheimer Schlüssel'] as $key => $label) {

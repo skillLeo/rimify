@@ -66,7 +66,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Stripe posts a signed raw body; it can carry no CSRF token and must not be touched.
-        $middleware->validateCsrfTokens(except: ['webhooks/stripe']);
+        $middleware->validateCsrfTokens(except: ['webhooks/stripe', 'webhooks/ses']);
 
         // rmf_view is a harmless layout preference for client demos and rmf_consent is the cookie
         // choice, written by the browser itself; rmf_vehicle stays encrypted and authenticated.

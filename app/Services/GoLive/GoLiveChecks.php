@@ -8,6 +8,7 @@ use App\Enums\CatalogueStatus;
 use App\Enums\VehicleSource;
 use App\Models\ApprovalDocument;
 use App\Models\Brand;
+use App\Models\MailSetting;
 use App\Models\Page;
 use App\Models\Review;
 use App\Models\Setting;
@@ -19,6 +20,8 @@ use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
+use App\Services\Mail\MailSettings;
+use App\Services\Mail\SenderDns;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Smoke\PrivateFilesProbe;
 use App\Support\ScheduleBeat;
@@ -64,7 +67,7 @@ final class GoLiveChecks
      */
     private const EU = ['at', 'be', 'bg', 'cy', 'cz', 'de', 'dk', 'ee', 'es', 'fi', 'fr', 'gr', 'hr', 'hu', 'ie', 'it', 'lt', 'lu', 'lv', 'mt', 'nl', 'pl', 'pt', 'ro', 'se', 'si', 'sk'];
 
-    public function __construct(private readonly LegalTexts $legal, private readonly PrivateFilesProbe $privateFiles) {}
+    public function __construct(private readonly LegalTexts $legal, private readonly PrivateFilesProbe $privateFiles, private readonly MailSettings $mail, private readonly SenderDns $dns) {}
 
     /**
      * Every check, in the order the report gives them. `$network` false leaves out what asks the shop's own address
@@ -247,7 +250,8 @@ final class GoLiveChecks
     /** § 312f Abs. 2 BGB: the confirmation leaves the server, with the AGB and the Widerrufsbelehrung as PDFs. */
     private function confirmation(): GoLiveCheck
     {
-        $mailer = (string) config('mail.default');
+        // Amazon SES once Einstellungen › E-Mail clears it — the configuration only says so once mail was sent.
+        $mailer = $this->mail->sending() !== null ? 'Amazon SES' : (string) config('mail.default');
 
         if (in_array($mailer, ['log', 'array'], true)) {
             return $this->check('bestaetigung', self::LEGAL, 'Bestellbestätigung (§ 312f BGB)', GoLiveCheck::US, GoLiveCheck::MISSING, "MAIL_MAILER={$mailer}: Die Bestätigung wird nicht verschickt.", 'MAIL_MAILER');
@@ -517,10 +521,85 @@ final class GoLiveChecks
             $this->check('ci', self::OPERATIONS, 'Beide Datenbank-Engines grün in CI', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Von hier nicht prüfbar: Der Lauf steht auf GitHub (MySQL 8.4 und MariaDB 11.8.9).', '.github/workflows/suite.yml'),
             $this->rendering(),
             $this->cron(),
+            $this->mailSending(),
+            $this->senderDns(),
             $this->serverLocation((string) gethostname()),
             $this->resetFlag(),
             $this->demoRows(),
         ];
+    }
+
+    /**
+     * The shop's mail — the order confirmation first (§ 312f BGB) — goes through Amazon SES in the bucket's region (the
+     * brief „AFTER CI“, §3). Until Einstellungen › E-Mail holds a key whose test clears it, mail is written to the log
+     * and reaches nobody: „fehlt“, naming what is open.
+     */
+    private function mailSending(): GoLiveCheck
+    {
+        $title = 'E-Mail-Versand über Amazon SES';
+        $place = 'Einstellungen › E-Mail · docs/ops/MAIL-SES.md';
+        $sending = $this->mail->sending();
+
+        if ($sending !== null) {
+            return $this->check('mailversand', self::OPERATIONS, $title, GoLiveCheck::US, GoLiveCheck::OK, "Die Mails des Shops gehen über Amazon SES ({$sending->region}), Absender {$sending->from_address}.", $place);
+        }
+
+        $set = self::mailSet();
+        /** @var array<string, mixed> $test */
+        $test = $set->last_test ?? [];
+        $open = match (true) {
+            $set === null => ['der Zugang zu Amazon SES in Einstellungen › E-Mail'],
+            $set->state === MailSetting::PENDING || ($test['ok'] ?? false) !== true => ['ein Zugang zu Amazon SES, der funktioniert – der gespeicherte klappt nicht'],
+            default => array_values(array_filter([
+                ($test['production_access'] ?? false) === true ? null : 'der Produktionszugang bei AWS (das Konto ist noch in der Sandbox)',
+                ($test['identity_verified'] ?? false) === true ? null : 'die bestätigte Absenderdomain '.($set->domain() ?? ''),
+                ($test['sending_enabled'] ?? false) === true ? null : 'der freigeschaltete Versand des SES-Kontos',
+            ])),
+        };
+        $mailer = (string) config('mail.default');
+
+        return $this->check('mailversand', self::OPERATIONS, $title, GoLiveCheck::US, GoLiveCheck::MISSING, "Die Mails gehen über „{$mailer}“ und erreichen bis dahin niemanden. Es fehlt: ".implode(', ', $open).'.', $place);
+    }
+
+    /**
+     * SPF, DKIM (the three CNAMEs SES names) and DMARC on the sender's domain, looked up as the world sees them (the
+     * brief „AFTER CI“, §3). „fehlt“ while any is missing — with each missing record named, type, name and value, so the
+     * line says what to enter at the domain's DNS.
+     */
+    private function senderDns(): GoLiveCheck
+    {
+        $title = 'Absenderdomain: SPF, DKIM und DMARC';
+        $set = self::mailSet();
+        $domain = MailSetting::domainOf($set?->from_address) ?? MailSetting::domainOf((string) config('mail.from.address'));
+        $place = 'DNS der Domain · Einstellungen › E-Mail';
+
+        if ($domain === null || in_array($domain, ['example.com', 'localhost'], true)) {
+            return $this->check('mail_dns', self::OPERATIONS, $title, GoLiveCheck::CLIENT, GoLiveCheck::MISSING, 'Noch keine Absenderadresse: Sie wird in Einstellungen › E-Mail eingetragen, dann nennt diese Prüfung jeden DNS-Eintrag.', $place);
+        }
+
+        /** @var array<string, mixed> $test */
+        $test = $set->last_test ?? [];
+        $records = $this->dns->records(
+            $domain,
+            array_values(array_filter((array) ($test['dkim_tokens'] ?? []), 'is_string')),
+            is_string($test['mail_from_domain'] ?? null) ? $test['mail_from_domain'] : null,
+        );
+        $missing = array_filter($records, static fn (array $r): bool => ! $r['found']);
+
+        return $this->check('mail_dns', self::OPERATIONS, $title, GoLiveCheck::CLIENT, $missing === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $missing === []
+            ? "SPF, DKIM (drei CNAME-Einträge) und DMARC für {$domain} stehen im DNS."
+            : "Für {$domain} fehlen im DNS: ".SenderDns::missingSentence($records).'.', $place);
+    }
+
+    /** The mail settings shown: a set saved but not working before the one in force — it is what the operator entered last. */
+    private static function mailSet(): ?MailSetting
+    {
+        try {
+            return MailSetting::query()->where('state', MailSetting::PENDING)->first()
+                ?? MailSetting::query()->where('state', MailSetting::ACTIVE)->first();
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

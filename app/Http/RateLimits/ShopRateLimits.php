@@ -48,6 +48,8 @@ final class ShopRateLimits
         'shop-bewertung' => [10, false],
         // The contact form (#12, D-123): a row and two mails per message — a typo corrected and sent again fits.
         'shop-kontakt' => [5, false],
+        // Amazon SNS reporting SES's bounces and complaints (D-182): one server, bursts after a bulk of mail.
+        'shop-ses-meldungen' => [120, false],
     ];
 
     public static function register(): void

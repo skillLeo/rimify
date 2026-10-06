@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\BestellungenController;
 use App\Http\Controllers\Admin\BewertungenController;
 use App\Http\Controllers\Admin\DemoDataController;
 use App\Http\Controllers\Admin\EinladungController;
+use App\Http\Controllers\Admin\EmailController;
 use App\Http\Controllers\Admin\ErstattungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
@@ -74,6 +75,7 @@ use App\Http\Controllers\Storefront\RatgeberController;
 use App\Http\Controllers\Storefront\RechnungController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\RobotsController;
+use App\Http\Controllers\Storefront\SesWebhookController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
@@ -84,6 +86,7 @@ use App\Http\Middleware\EnsureAdminMay;
 use App\Http\Middleware\EnsureResetPermitted;
 use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
+use App\Models\MailSetting;
 use App\Models\PaymentSetting;
 use App\Models\StorageSetting;
 use App\Services\Reset\TestEnvironment;
@@ -179,6 +182,9 @@ Route::post('/bewertung/{number}', [BewertungController::class, 'store'])->where
 Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
 // The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
 Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['stripe'])->name('webhooks.payment');
+// Amazon SES's bounces and complaints, by SNS (outside the CSRF check): the signature and the configured topic are the
+// authorization (SesNotificationRequest).
+Route::post('/webhooks/ses', SesWebhookController::class)->middleware('throttle:shop-ses-meldungen')->name('webhooks.ses');
 
 /*
  * The JSON endpoints the shell calls. They sit in the web group on purpose: the session and the
@@ -547,6 +553,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::post('/test', [ZahlungController::class, 'test'])->middleware('throttle:10,1,zahlung-test')->name('zahlung.test');
             // The real invoice numbers, opened once at the client's own (InvoiceSeries) — there is no route back.
             Route::post('/rechnungsnummern', [RechnungsnummernController::class, 'store'])->middleware('throttle:5,1,rechnungsnummern')->name('zahlung.rechnungsnummern');
+        });
+
+        // Einstellungen › E-Mail: the Amazon SES key, as the bucket's — the Super-Admin alone, then sudo mode.
+        Route::prefix('/einstellungen/e-mail')->middleware(['can:view,'.MailSetting::class, EnsureSudo::class])->group(function (): void {
+            Route::get('/', [EmailController::class, 'edit'])->name('e-mail.edit');
+            Route::put('/', [EmailController::class, 'update'])->middleware('throttle:10,1,e-mail-update')->name('e-mail.update');
+            Route::post('/test', [EmailController::class, 'test'])->middleware('throttle:10,1,e-mail-test')->name('e-mail.test');
+            Route::delete('/sperren/{suppression}', [EmailController::class, 'release'])->whereNumber('suppression')->middleware('throttle:30,1,e-mail-release')->name('e-mail.release');
         });
 
         // Einstellungen › Verkäufer & Versand: the seller as the law names it and the shipping terms, read by the
