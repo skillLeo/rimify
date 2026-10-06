@@ -51,5 +51,8 @@
         <env name="RIMIFY_REVIEW" value="false"/>
         <!-- The suites' cars are seeds, not a vehicle dataset: the search by key numbers is opened for them (KeyNumberSearch). -->
         <env name="RIMIFY_FEATURE_KEY_NUMBERS" value="on"/>
+        <!-- The reset is not allowed, as on a server without the flag; a test that needs it says so (D-179). A developer's
+             .env with RIMIFY_RESET_ERLAUBT=true once made three tests pass here that CI failed for a day. -->
+        <env name="RIMIFY_RESET_ERLAUBT" value="false" force="true"/>
     </php>
 </phpunit>

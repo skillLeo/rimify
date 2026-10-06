@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Demo;
 
+use App\Services\Reset\TestEnvironment;
 use App\Support\GermanFormat;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\CatalogueSeeder;
@@ -107,8 +108,11 @@ final class DemoCatalogue
 
         if ($lines > 0) {
             $orders = (clone $named)->distinct()->count('order_id');
+            // The page that resets the whole shop is named only where it exists (TestEnvironment): on a server without
+            // RIMIFY_RESET_ERLAUBT it answers 404, and a way that leads nowhere is not named as one (D-179).
             $reasons[] = ($orders === 1 ? 'Eine Bestellung, die nicht als Demodaten angelegt wurde, enthält' : GermanFormat::integer($orders).' Bestellungen, die nicht als Demodaten angelegt wurden, enthalten')
-                .' Beispielfelgen oder Beispielreifen. Der Prüfnachweis einer Bestellung wird nie einzeln gelöscht. Die Demodaten lassen sich deshalb nur zusammen mit allen Shopdaten entfernen (System › Zurücksetzen › Shopdaten).';
+                .' Beispielfelgen oder Beispielreifen. Der Prüfnachweis einer Bestellung wird nie einzeln gelöscht. Die Demodaten lassen sich deshalb nur zusammen mit allen Shopdaten entfernen'
+                .(TestEnvironment::available() ? ' (System › Zurücksetzen › Shopdaten).' : '.');
         }
 
         $documents = DB::table('approval_documents as d')
