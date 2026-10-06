@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CatalogueStatus;
+use App\Services\Demo\AcceptanceSet;
 use Database\Factories\WheelModelFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +31,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property float|null $rating
  * @property int $rating_count
  * @property bool $is_demo
+ * @property string|null $demo_ref `abnahme:…` for the acceptance set's rows (AcceptanceSet), else null
  */
 class WheelModel extends Model
 {
@@ -43,7 +46,7 @@ class WheelModel extends Model
      */
     protected $fillable = [
         'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'seo_title', 'seo_description', 'internal_note', 'status',
-        'spoke_count', 'is_demo',
+        'spoke_count', 'is_demo', 'demo_ref',
     ];
 
     /** @return array<string, string> */
@@ -58,6 +61,29 @@ class WheelModel extends Model
             'rating' => 'float',
             'rating_count' => 'integer',
         ];
+    }
+
+    /**
+     * The models the shop sells: published, and real — or the acceptance set's, off production (AcceptanceSet).
+     *
+     * @param  Builder<WheelModel>  $query
+     */
+    public function scopeOnSale(Builder $query): void
+    {
+        $query->where('status', CatalogueStatus::Published->value)
+            ->where(static function (Builder $sold): void {
+                $sold->where('is_demo', false);
+
+                if (! app()->environment('production')) {
+                    $sold->orWhere('demo_ref', 'like', AcceptanceSet::PREFIX.'%');
+                }
+            });
+    }
+
+    /** Demo data the shop must not show or sell: every demo model but the acceptance set's off production. */
+    public function refusedAsDemo(): bool
+    {
+        return AcceptanceSet::refused((bool) $this->is_demo, $this->demo_ref);
     }
 
     /** @return BelongsTo<Brand, $this> */

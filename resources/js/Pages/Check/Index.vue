@@ -546,8 +546,15 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                 </p>
 
                 <div class="chk__answer-grid">
-                    <!-- The page's own address is the link to share; the panel's freeze only prints here. -->
-                    <FitmentPanel :verdict="config.verdict ?? null" :vehicle="vehicle" :config-id="config.id" issue-label="RIMIFY-Check drucken" />
+                    <!-- The page's own address is the link to share; the panel's freeze only prints here. With a Komplettrad's
+                         tyre chosen, the answer for that tyre's size, as on the product page (#18). -->
+                    <FitmentPanel
+                        :verdict="config.verdict ?? null"
+                        :vehicle="vehicle"
+                        :config-id="config.id"
+                        issue-label="RIMIFY-Check drucken"
+                        :chosen="isSet ? (tyre?.answer ?? null) : null"
+                    />
 
                     <div class="chk__buy">
                         <template v-if="sellable">
@@ -720,18 +727,12 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     gap: var(--sp-8);
 }
 
-/* Brought into view under the header and the vehicle bar: the phone's header is the shorter one (CHECK-22). */
+/* Brought into view under the header and the vehicle bar, whose heights are tokens at every width (CHECK-22, #2). */
 .chk__answer {
     display: grid;
     gap: var(--sp-16);
     margin-top: var(--sp-48);
-    scroll-margin-top: calc(var(--header-h-m) + var(--vbar-h) + var(--sp-16));
-}
-
-@media (min-width: 1024px) {
-    .chk__answer {
-        scroll-margin-top: calc(var(--header-h) + var(--vbar-h) + var(--sp-16));
-    }
+    scroll-margin-top: calc(var(--header-h) + var(--vbar-h) + var(--sp-16));
 }
 
 .chk__pair {

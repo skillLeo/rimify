@@ -38,7 +38,8 @@ final class FitmentDetail
      *     sections: list<array{title: string, items: list<array{text: string, measures: list<string>, sizes: list<string>, own: bool}>}>,
      *     fasteners: list<array{number: string|null, thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>,
      *     tyres: list<array{label: string, axle: string, minimum: string|null, band: string|null}>,
-     *     notices: list<string>
+     *     notices: list<string>,
+     *     original: list<array{text: string, page: int|null}>
      * }
      */
     public function for(FitmentVerdict $verdict): array
@@ -52,6 +53,7 @@ final class FitmentDetail
 
         return [
             'sections' => $this->sections($verdict->conditions, $documentIds, $type, $this->sizesOwning($verdict, $documentIds)),
+            'original' => $this->original($verdict->conditions),
             'fasteners' => $this->fasteners($verdict->conditions, $documentIds, $type, EgNumber::parse(is_string($eg) ? $eg : null)),
             'tyres' => $this->tyres($verdict),
             'notices' => $documentIds === [] ? [] : DocumentNotice::query()
@@ -112,6 +114,29 @@ final class FitmentDetail
     private static function key(Condition $condition): string
     {
         return $condition->code."\u{0}".$condition->sentenceDe();
+    }
+
+    /**
+     * The documents' own wording for this car, as printed and with the page it stands on (the client's #21): no section,
+     * no size grouping, nothing left out because the verdict line already says it. The page may arrange the Auflagen;
+     * it may not change what they say, so this stays one click away. Our own kW-band sentence is not the document's.
+     *
+     * @param  list<Condition>  $conditions
+     * @return list<array{text: string, page: int|null}>
+     */
+    private function original(array $conditions): array
+    {
+        $out = [];
+
+        foreach ($conditions as $condition) {
+            if (str_starts_with($condition->code, 'KW ')) {
+                continue;
+            }
+
+            $out[self::key($condition)] = ['text' => $condition->sentenceDe(), 'page' => $condition->sourcePage];
+        }
+
+        return array_values($out);
     }
 
     /**

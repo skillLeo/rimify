@@ -12,6 +12,7 @@
  * scripts/3d/render-komplettrad.mjs — no brand, no size claimed. The alt text says what the picture is.
  */
 
+import { Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Picture from '../../Ui/Picture.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
@@ -43,13 +44,27 @@ const failed = ref(false)
                 <WheelOutline size="60%" />
             </span>
         </div>
-        <figcaption class="micro quiet komplett-figure__label">{{ photo && !failed ? photo.caption : 'Illustration' }}</figcaption>
+        <!-- The photographed wheel is in the shop (the client's #9): its caption leads to its page. -->
+        <figcaption class="micro quiet komplett-figure__label">
+            <Link v-if="photo && !failed && wheel?.href" :href="wheel.href" class="komplett-figure__link">{{ photo.caption }}</Link>
+            <template v-else>{{ photo && !failed ? photo.caption : 'Illustration' }}</template>
+        </figcaption>
     </figure>
 </template>
 
 <style scoped>
 .komplett-figure {
     margin: 0;
+}
+
+/* On the dark band: the caption's own colour, underlined so it reads as the link it is; 44 px to tap. */
+.komplett-figure__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .komplett-wheel {

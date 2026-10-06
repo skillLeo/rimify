@@ -1,26 +1,14 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick } from 'vue'
+import { defineComponent, h } from 'vue'
 import { NNBSP } from '../../format'
 import { formatMoney } from '../../lib/num'
 import type { StartseiteProps } from '../../types/pages'
 import type { ProductCardProp, VehicleProp } from '../../types/rimify'
 
-type VisitOptions = {
-    only?: string[]
-    preserveScroll?: boolean
-    preserveState?: boolean
-    onStart?: () => void
-    onSuccess?: () => void
-    onCancel?: () => void
-    onFinish?: () => void
-}
-
-const get = vi.fn<(url: string, data: Record<string, string>, options: VisitOptions) => void>()
-
 vi.mock('@inertiajs/vue3', () => ({
-    router: { get: (...args: [string, Record<string, string>, VisitOptions]) => get(...args) },
+    router: { get: vi.fn() },
     usePage: () => ({ props: {} }),
     Link: defineComponent({
         props: { href: { type: String, required: true } },
@@ -55,20 +43,10 @@ function card(n: number, overrides: Partial<ProductCardProp> = {}): ProductCardP
 
 const cards = Array.from({ length: 8 }, (_, i) => card(i + 1))
 
-function popular(overrides: Partial<StartseiteProps['popular']> = {}): StartseiteProps['popular'] {
-    return {
-        title: 'Felgen aus dem Sortiment',
-        tabs: [
-            { key: 'beliebt', label: 'Meiste Freigaben' },
-            { key: 'neu', label: 'Neu' },
-            { key: 'bis200', label: 'Bis 200 €' },
-        ],
-        active: 'beliebt',
-        cards,
-        total: null,
-        empty: false,
-        ...overrides,
-    }
+type Shelf = NonNullable<StartseiteProps['popular']>
+
+function popular(overrides: Partial<Shelf> = {}): Shelf {
+    return { title: 'Neu im Shop', ranking: 'neu', cards, total: null, ...overrides }
 }
 
 const vehicle: VehicleProp = {
@@ -86,10 +64,10 @@ const vehicle: VehicleProp = {
 
 let wrappers: VueWrapper[] = []
 
-function mountPopular(props: Partial<{ popular: StartseiteProps['popular']; recentlyViewed: ProductCardProp[]; vehicle: VehicleProp | null }> = {}): VueWrapper {
+function mountPopular(props: { popular?: StartseiteProps['popular']; recentlyViewed?: ProductCardProp[]; vehicle?: VehicleProp | null } = {}): VueWrapper {
     const wrapper = mount(PopularWheels, {
         props: {
-            popular: props.popular ?? popular(),
+            popular: props.popular === undefined ? popular() : props.popular,
             recentlyViewed: props.recentlyViewed ?? [],
             vehicle: props.vehicle ?? null,
         },
@@ -101,7 +79,6 @@ function mountPopular(props: Partial<{ popular: StartseiteProps['popular']; rece
 }
 
 beforeEach(() => {
-    get.mockReset()
     // The tiles read the compare store.
     setActivePinia(createPinia())
 })
@@ -134,66 +111,51 @@ describe('PopularWheels', () => {
         expect(wrapper.find('#h5 .tile__price').text()).toBe(`ab ${formatMoney(19000)} pro Felge`)
         expect(wrapper.text()).not.toMatch(/Details(?! ansehen)/)
         expect(wrapper.text()).not.toContain('Sehr gut')
-        expect(wrapper.find('h2').text()).toBe('Felgen aus dem Sortiment')
         expect(wrapper.find('.popular__more a').text()).toBe('Alle Felgen ansehen')
         // No popularity claim without sales or view data behind it (ACCURACY.md D7, #51).
         expect(wrapper.text()).not.toMatch(/beliebt/i)
     })
 
-    it('reloads only the popular row when a tab changes, keeping scroll and state', async () => {
-        const wrapper = mountPopular()
+    it('@kunde-05 heads the shelf with the server\'s word — „Meistgekaufte Felgen“ after a sale, „Neu im Shop“ before — and no tabs', () => {
+        const sold = mountPopular({ popular: popular({ title: 'Meistgekaufte Felgen', ranking: 'meistgekauft' }) })
 
-        const neu = wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Neu')
-        expect(neu).toBeDefined()
-        await neu?.trigger('mousedown', { button: 0 })
-        await neu?.trigger('click')
-        await nextTick()
+        expect(sold.find('h2').text()).toBe('Meistgekaufte Felgen')
+        expect(sold.find('#h5').attributes('data-ranking')).toBe('meistgekauft')
+        expect(sold.findAll('[role="tab"]')).toHaveLength(0)
 
-        expect(get).toHaveBeenCalledTimes(1)
-        const [url, data, options] = get.mock.calls[0] as [string, Record<string, string>, VisitOptions]
-        expect(url).toBe('/')
-        expect(data).toEqual({ beliebt: 'neu' })
-        expect(options.only).toEqual(['popular'])
-        expect(options.preserveScroll).toBe(true)
-        expect(options.preserveState).toBe(true)
+        const none = mountPopular()
+
+        expect(none.find('h2').text()).toBe('Neu im Shop')
+        expect(none.find('#h5').attributes('data-ranking')).toBe('neu')
     })
 
-    it('shows eight skeletons while a tab loads and says so when the request fails', async () => {
-        const wrapper = mountPopular()
+    it('@kunde-05 shows no shelf at all below four wheels — absent, not empty — and the recently viewed alone if any', () => {
+        const absent = mountPopular({ popular: null })
 
-        const neu = wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Neu')
-        await neu?.trigger('mousedown', { button: 0 })
-        await neu?.trigger('click')
-        await nextTick()
+        expect(absent.find('#h5-heading').exists()).toBe(false)
+        expect(absent.findAll('.tile')).toHaveLength(0)
+        expect(absent.find('.empty').exists()).toBe(false)
+        expect(absent.find('.popular__more').exists()).toBe(false)
 
-        const options = (get.mock.calls[0] as [string, Record<string, string>, VisitOptions])[2]
-        options.onStart?.()
-        await nextTick()
+        const recent = mountPopular({ popular: null, recentlyViewed: [card(21)] })
 
-        expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true)
-        expect(wrapper.findAll('#h5 .skeleton--tile')).toHaveLength(8)
-
-        options.onFinish?.()
-        await nextTick()
-
-        expect(wrapper.find('.notice--bad').text()).toContain('Die Felgen lassen sich gerade nicht laden.')
-        expect(wrapper.find('.notice--bad button').text()).toBe('Erneut versuchen')
-        // The last good tiles stay under the notice.
-        expect(wrapper.findAll('#h5 .tile')).toHaveLength(8)
+        expect(recent.find('#h5b h2').text()).toBe('Zuletzt angesehen')
+        expect(recent.find('#h5-heading').exists()).toBe(false)
     })
 
-    it('names the vehicle, keeps the tabs the server sends, carries the count on the button and a verdict on every tile', () => {
+    it('names the vehicle under the heading, carries the count on the button and a verdict on every tile', () => {
         const wrapper = mountPopular({
             vehicle,
             popular: popular({
-                title: null,
+                title: 'Meistgekaufte Felgen',
+                ranking: 'meistgekauft',
                 total: 1247,
                 cards: cards.map((c, i) => card(i + 1, { fitment: { status: i % 2 ? 'CONDITIONAL' : 'PERMITTED', requiresEntry: false, conditions: i % 2 ? ['Die Änderung ist in die Fahrzeugpapiere einzutragen.'] : [] } })),
             }),
         })
 
-        expect(wrapper.find('h2').text()).toBe('Passend für BMW 3er')
-        expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Meiste Freigaben', 'Neu', 'Bis 200 €'])
+        expect(wrapper.find('h2').text()).toBe('Meistgekaufte Felgen')
+        expect(wrapper.find('.popular__for').text()).toBe('Passend für BMW 3er')
         expect(wrapper.find('.popular__more a').text()).toBe('1.247 passende Felgen anzeigen')
         expect(wrapper.find('.popular__more a').attributes('href')).toBe('/felgen')
 
@@ -205,12 +167,11 @@ describe('PopularWheels', () => {
         expect(wrapper.text()).toContain('Die Änderung ist in die Fahrzeugpapiere einzutragen.')
     })
 
-    it('renders the row alone when the server sends no tabs', () => {
-        const wrapper = mountPopular({ vehicle, popular: popular({ title: null, tabs: [], active: 'beliebt', total: 3 }) })
+    it('says in one sentence when none of the shelf fits the car, and leads to the listing', () => {
+        const wrapper = mountPopular({ vehicle, popular: popular({ cards: [], total: 0 }) })
 
-        expect(wrapper.findAll('[role="tab"]')).toHaveLength(0)
-        expect(wrapper.findAll('#h5 .tile')).toHaveLength(8)
-        expect(wrapper.find('.popular__more a').text()).toBe('3 passende Felgen anzeigen')
+        expect(wrapper.find('.empty__title').text()).toBe('Für dein Fahrzeug ist hier gerade keine dabei.')
+        expect(wrapper.find('.popular__more a').attributes('href')).toBe('/felgen')
     })
 
     it('renders Zuletzt angesehen only with history', () => {
@@ -223,25 +184,5 @@ describe('PopularWheels', () => {
         expect(recent.exists()).toBe(true)
         expect(recent.find('h2').text()).toBe('Zuletzt angesehen')
         expect(recent.findAll('.tile')).toHaveLength(2)
-    })
-
-    it('shows the designed empty state when a tab has nothing', () => {
-        const wrapper = mountPopular({ popular: popular({ active: 'bis200', cards: [] }) })
-
-        expect(wrapper.find('.empty__title').text()).toBe('In dieser Auswahl ist gerade nichts.')
-        expect(wrapper.find('.empty__text').text()).toBe('Schau unter „Meiste Freigaben“ oder „Neu“ – oder sieh dir alle Felgen an.')
-        expect(wrapper.find('.popular__more a').exists()).toBe(true)
-    })
-
-    it('says once that no wheel is in the shop yet — no tab to try, and the one way on that works', () => {
-        const wrapper = mountPopular({ popular: popular({ cards: [], empty: true }) })
-
-        expect(wrapper.find('.tabs__list').exists()).toBe(false)
-        expect(wrapper.find('.empty__title').text()).toBe('Noch ist keine Felge im Sortiment.')
-        expect(wrapper.find('.empty__text').text()).toBe('Sobald die ersten Felgen mit ihrem Gutachten freigegeben sind, stehen sie hier. Du suchst eine bestimmte? Schreib uns.')
-        expect(wrapper.findAll('.popular__more a').map((a) => [a.text(), a.attributes('href')])).toEqual([
-            ['Schreib uns', '/kontakt?betreff=Ich+suche+eine+Felge&von=%2F'],
-        ])
-        expect(wrapper.text()).not.toContain('Alle Felgen ansehen')
     })
 })

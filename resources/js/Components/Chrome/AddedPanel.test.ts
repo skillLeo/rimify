@@ -5,8 +5,9 @@ import type { AddedToBasket } from '../../types/rimify'
 
 /*
  * The panel after an add (#16): the line just added, the basket's count and subtotal, „Weiter einkaufen“ and „Zum
- * Warenkorb“ — and never a modal: no overlay, no focus taken, gone on ×, Escape, the first button, another page, or by
- * itself while nobody uses it.
+ * Warenkorb“ — a card-sized dialog that takes the focus, keeps Tab among its controls and gives the focus back to the
+ * basket button; never an overlay, gone on ×, Escape, the first button, a press elsewhere, another page, or by itself
+ * while nobody uses it.
  */
 
 type Listener = (event: { detail: { page: { url: string; props: Record<string, unknown> } } }) => void
@@ -71,7 +72,7 @@ describe('AddedPanel', () => {
         for (const key of Object.keys(listeners)) delete listeners[key]
     })
 
-    it('shows the line added at its amount and price, the basket\'s count and subtotal, and the two ways on', async () => {
+    it('shows the line added at its amount and price, the basket\'s count and subtotal, and the two ways on @kunde-16', async () => {
         const panel = mountPanel()
         emit('success', '/felgen/borbet-db8gt2', ADDED)
         await nextTick()
@@ -85,39 +86,64 @@ describe('AddedPanel', () => {
         expect(panel.find('a[href="/warenkorb"]').exists()).toBe(true)
     })
 
-    it('is no modal: no dialog role, no overlay, and the focus stays where it was', async () => {
+    it('takes the focus, keeps Tab among its controls, and gives the focus back to the basket button @kunde-16', async () => {
         const button = document.createElement('button')
+        button.textContent = 'In den Warenkorb'
         document.body.appendChild(button)
         button.focus()
 
         const panel = mountPanel()
         emit('success', '/felgen/borbet-db8gt2', ADDED)
         await nextTick()
+        await nextTick()
 
-        expect(panel.find('[role="dialog"]').exists()).toBe(false)
-        expect(panel.find('[aria-modal]').exists()).toBe(false)
+        // A card-sized dialog, named by its heading and described by the subtotal — no overlay over the page.
+        const card = panel.find('.addp')
+        expect(card.attributes('role')).toBe('dialog')
+        expect(document.getElementById(card.attributes('aria-labelledby') ?? '')?.textContent).toBe('Komplettrad zum Warenkorb hinzugefügt.')
+        expect(document.getElementById(card.attributes('aria-describedby') ?? '')?.textContent).toContain('3.048,00 €')
         expect(document.querySelector('.overlay')).toBeNull()
+        expect(document.activeElement).toBe(card.element)
+
+        // Tab goes round: × → „Weiter einkaufen“ → „Zum Warenkorb“ → ×; Shift+Tab from the card or × to the last.
+        const [close, onward, basket] = [panel.find('.addp__close'), panel.find('.addp__go button'), panel.find('.addp__go a')]
+        const tab = async (shiftKey = false) => card.trigger('keydown', { key: 'Tab', shiftKey })
+
+        await tab(true)
+        expect(document.activeElement).toBe(basket.element)
+        await tab()
+        expect(document.activeElement).toBe(close.element)
+        await tab(true)
+        expect(document.activeElement).toBe(basket.element)
+        // Between the first and the last the browser's own order holds: „Weiter einkaufen“ is one of the three.
+        expect([close, onward, basket].map((c) => c.text())).toEqual(['', 'Weiter einkaufen', 'Zum Warenkorb'])
+
+        // Escape: closed, and the focus back on the button the add came from.
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+        await nextTick()
+        expect(panel.find('.addp').exists()).toBe(false)
         expect(document.activeElement).toBe(button)
 
         button.remove()
     })
 
-    it('announces its heading and the subtotal, and keeps its buttons out of the live region (PDP-13)', async () => {
+    it('closes on a press elsewhere, leaving the focus where the visitor pressed — nothing blocks @kunde-16', async () => {
+        const elsewhere = document.createElement('button')
+        document.body.appendChild(elsewhere)
+
         const panel = mountPanel()
         emit('success', '/felgen/borbet-db8gt2', ADDED)
         await nextTick()
+        expect(panel.find('.addp').exists()).toBe(true)
+
+        elsewhere.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
         await nextTick()
+        expect(panel.find('.addp').exists()).toBe(false)
 
-        const status = panel.find('[role="status"]')
-        expect(status.text()).toBe('Komplettrad zum Warenkorb hinzugefügt. Zwischensumme im Warenkorb: 3.048,00 €.')
-        expect(status.find('button').exists()).toBe(false)
-        expect(status.find('a').exists()).toBe(false)
-
-        await panel.find('.addp__close').trigger('click')
-        expect(panel.find('[role="status"]').text()).toBe('')
+        elsewhere.remove()
     })
 
-    it('goes on „Weiter einkaufen“, on ×, and on Escape', async () => {
+    it('goes on „Weiter einkaufen“, on ×, and on Escape @kunde-16', async () => {
         const panel = mountPanel()
 
         for (const close of [

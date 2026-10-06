@@ -41,6 +41,23 @@ it('masks key shapes, environment secrets and password columns, and leaves the r
         ->and($out['line'])->toBe('DB [verborgen] · Konto [verborgen] · sk_live_[verborgen] · [verborgen] · PASSWORD=[verborgen] · RIMIFY');
 });
 
+it('leaves a value alone that also stands openly under a name that does not say secret', function (): void {
+    $root = sys_get_temp_dir().'/rimify-redact-'.bin2hex(random_bytes(4));
+    mkdir($root);
+    file_put_contents($root.'/.env.e2e', "DB_DATABASE=rimify\nDB_PASSWORD=rimify\nSTRIPE_SECRET=geheim-456\n");
+
+    try {
+        $script = 'import { knownSecrets } from "./scripts/dev/redact.mjs"; console.log(JSON.stringify(knownSecrets('.json_encode($root).')));';
+        $process = runNode(['--input-type=module', '-e', $script]);
+
+        expect($process->isSuccessful())->toBeTrue($process->getErrorOutput())
+            ->and(json_decode(trim($process->getOutput()), true))->toBe(['geheim-456']);
+    } finally {
+        unlink($root.'/.env.e2e');
+        rmdir($root);
+    }
+});
+
 it('streams a piped output through, line by line', function (): void {
     $process = runNode(['scripts/dev/redact.mjs'], "erste Zeile\n".'whsec_'."abcdef123456\n");
 

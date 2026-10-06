@@ -169,7 +169,7 @@ function removeVehicle(): void {
     display: flex;
     align-items: center;
     gap: var(--sp-16);
-    height: var(--header-h-m);
+    height: var(--header-h);
 }
 
 .brand {
@@ -258,8 +258,8 @@ function removeVehicle(): void {
 }
 
 @media (min-width: 1024px) {
+    /* The height is the token's, 72px here (tokens.css): only the row's spacing changes. */
     .sh__bar {
-        height: var(--header-h);
         gap: var(--sp-24);
     }
 

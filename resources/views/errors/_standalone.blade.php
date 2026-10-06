@@ -12,7 +12,9 @@
      * file the build writes. Change a token there, change it here.
      *
      * Three ways on, like every other failure state (R-09): try this page again, go to the shop,
-     * write to us. Two of the three are plain links, so they work with no JavaScript at all.
+     * write to us — all three plain links, so they work with no JavaScript at all. „Schreib uns“ is the contact form,
+     * never the visitor's mail program (the client's #26); the address stands beside it as text to copy, for the
+     * moment the form is down with the rest of the shop.
      *
      * The stylesheet carries the CSP nonce. `style-src` is `'self' 'nonce-…'` with no
      * `'unsafe-inline'` (SecurityHeaders), so without it the browser refuses this <style> outright
@@ -27,9 +29,7 @@
     $detail = $detail ?? null;
     $nonce = \Illuminate\Support\Facades\Vite::cspNonce();
 
-    $mailto = 'mailto:'.$contact['email']
-        .'?subject='.rawurlencode('RIMIFY ist nicht erreichbar ('.$status.')')
-        .'&body='.rawurlencode("Ich wollte die Seite öffnen und habe die Fehlerseite ".$status." bekommen.\r\n\r\nWas ich tun wollte:\r\n");
+    $write = '/kontakt?'.http_build_query(['betreff' => 'RIMIFY ist nicht erreichbar ('.$status.')']);
 @endphp
 <!DOCTYPE html>
 <html lang="de">
@@ -255,7 +255,12 @@
             color: var(--c-ink-3);
         }
 
-        .note a { color: var(--c-blue); }
+        /* The address to copy: text, never a link that opens a mail program (#26). */
+        .note__address {
+            color: var(--c-ink);
+            font-weight: 500;
+            user-select: all;
+        }
 
         .mark {
             display: grid;
@@ -292,12 +297,12 @@
                 {{-- An empty href is the current document: "try this again" with no JavaScript. --}}
                 <a class="btn btn--primary" href="">Diese Seite neu laden</a>
                 <a class="btn btn--secondary" href="/">Zur Startseite</a>
-                <a class="btn btn--ghost" href="{{ $mailto }}">Per E-Mail schreiben</a>
+                <a class="btn btn--ghost" href="{{ $write }}">Schreib uns</a>
             </nav>
 
             <p class="note">
-                Du erreichst uns unter
-                <a href="{{ $mailto }}" translate="no">{{ $contact['email'] }}</a>,
+                Geht auch das Formular gerade nicht, erreichst du uns per E-Mail an
+                <span class="note__address" translate="no">{{ $contact['email'] }}</span>,
                 <span translate="no">{{ $contact['hours'] }}</span>.
             </p>
         </div>

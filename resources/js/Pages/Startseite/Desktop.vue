@@ -38,10 +38,12 @@ const vehicle = computed(() => shared.value.vehicle)
 
 /* Which sections the data switches on. H5b lives inside H5 and has no slot of its own. */
 const showPromises = computed(() => props.promises.length > 0)
+/* The shelf only from four wheels on sale (the client's #5) — the recently viewed may still stand alone. */
+const showPopular = computed(() => props.popular !== null || props.recentlyViewed.length > 0)
 /* A size with nothing in it is no tile (FindFast): sizes alone at zero would draw the band and nothing in it. */
 const showFindFast = computed(() => props.sizes.some((s) => s.count > 0) || props.brands.length > 0)
-/* H8 explains the hero wheel's own values: without them there is nothing to explain (ACCURACY §4). */
-const showRimCode = computed(() => rimFactsOf(props.hero.product) !== null)
+/* H8 explains the values of the hero's wheel where the shop sells it: without it there is nothing to explain (ACCURACY §4). */
+const showRimCode = computed(() => rimFactsOf(props.photoWheel) !== null)
 const showPartners = computed(() => props.partners.enabled)
 const showGuides = computed(() => props.guides.length > 0)
 
@@ -52,8 +54,9 @@ type SectionKey = 'h4' | 'h5' | 'h6' | 'h7' | 'h8' | 'h9' | 'h10' | 'h11'
  * light ones only — the dark band keeps its own colour and takes no turn in the alternation.
  */
 const rhythm = computed<Partial<Record<SectionKey, string>>>(() => {
-    const order: SectionKey[] = ['h4', 'h5']
+    const order: SectionKey[] = ['h4']
 
+    if (showPopular.value) order.push('h5')
     if (showFindFast.value) order.push('h6')
     order.push('h7')
     if (showRimCode.value) order.push('h8')
@@ -89,15 +92,15 @@ const rhythm = computed<Partial<Record<SectionKey, string>>>(() => {
 
     <PromiseRow v-if="showPromises" :promises="promises" />
 
-    <GutachtenStory :class="rhythm.h4" :stats="hero.stats" />
+    <GutachtenStory :class="rhythm.h4" :stats="stats" />
 
-    <PopularWheels :class="rhythm.h5" :popular="popular" :recently-viewed="recentlyViewed" :vehicle="vehicle" />
+    <PopularWheels v-if="showPopular" :class="rhythm.h5" :popular="popular" :recently-viewed="recentlyViewed" :vehicle="vehicle" />
 
     <FindFast v-if="showFindFast" :class="rhythm.h6" :sizes="sizes" :brands="brands" :vehicle="vehicle" />
 
     <KomplettradBand :class="rhythm.h7" :tyre="komplettrad.tyre" :vehicle="vehicle" :wheel="komplettrad.wheel ?? null" />
 
-    <RimCodeSection v-if="showRimCode" :class="rhythm.h8" :product="hero.product" />
+    <RimCodeSection v-if="showRimCode" :class="rhythm.h8" :product="photoWheel" />
 
     <PartnersSection v-if="showPartners" :class="rhythm.h9" :demo="partners.demo" />
 

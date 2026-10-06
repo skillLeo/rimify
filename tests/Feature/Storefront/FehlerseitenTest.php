@@ -154,11 +154,14 @@ it('renders the maintenance page on its own, with no asset the build produces', 
         ->not->toContain('rel="stylesheet"')
         ->not->toContain('rel="preload"');
 
-    // The three ways on: reload this page, go to the shop, write to us.
+    // The three ways on: reload this page, go to the shop, write to us — through the contact form, never a mail program
+    // (the client's #26), with the address beside it as text for the moment the form is down too.
     expect(substr_count($html, 'class="btn'))->toBe(3)
         ->and($html)->toContain('href=""')
         ->and($html)->toContain('href="/"')
-        ->and($html)->toContain('mailto:');
+        ->and($html)->toContain('href="/kontakt?betreff=')
+        ->and($html)->toContain('class="note__address"')
+        ->and($html)->not->toContain('mailto:');
 });
 
 it('renders the boot-failure page on its own too', function (): void {

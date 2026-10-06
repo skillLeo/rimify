@@ -50,7 +50,13 @@ beforeEach(function (): void {
     ]);
 });
 
-it('shows 229,00 € for one rim and 916,00 € for four, on every surface, and no other number', function (): void {
+it('shows 229,00 € for one rim and the amount\'s own total on all nine surfaces, at 1, 2, 3, 4 and 5 rims, and no other number @kunde-14', function (int $quantity): void {
+    // The amount's total and the VAT inside it: one rim's cents times the amount, written once (LinePrice), never divided.
+    $total = MONEY_RIM * $quantity;
+    $totalText = moneyText($total);
+    $vatText = moneyText((int) round($total * 19 / 119));
+    $csvTotal = str_replace('.', ',', sprintf('%.2f', $total / 100));
+
     $fx = KomplettradFixture::permitted();
     $config = $fx->config;
     $config->forceFill(['price_cents' => MONEY_RIM, 'stock_qty' => 100, 'currency' => 'EUR'])->save();
@@ -93,6 +99,7 @@ it('shows 229,00 € for one rim and 916,00 € for four, on every surface, and 
     expect($amounts->keys()->all())->toBe(FelgenController::AMOUNTS)
         ->and($amounts[1])->toBe(['quantity' => 1, 'cents' => MONEY_RIM, 'text' => MONEY_RIM_TEXT])
         ->and($amounts[4])->toBe(['quantity' => 4, 'cents' => MONEY_FOUR, 'text' => MONEY_FOUR_TEXT])
+        ->and($amounts[$quantity])->toBe(['quantity' => $quantity, 'cents' => $total, 'text' => $totalText])
         ->and($amounts->every(static fn (array $a): bool => $a['cents'] === MONEY_RIM * $a['quantity']))->toBeTrue();
 
     // The variant selector: each size its own price, the „ab“ price the cheapest of the finish.
@@ -122,26 +129,26 @@ it('shows 229,00 € for one rim and 916,00 € for four, on every surface, and 
             ->where('totals.total', MONEY_RIM_TEXT)
             ->where('totals.tax', MONEY_RIM_VAT_TEXT));
 
-    // 4 · 5 · The basket at four: the line (4 × one rim) and the total with the VAT it contains.
-    $basket = [Basket::SESSION_KEY => ['wheel:'.$config->id => ['kind' => 'WHEEL', 'wheelConfigId' => $config->id, 'tyreVariantId' => null, 'quantity' => 4]]];
+    // 4 · 5 · The basket at the amount: the line (amount × one rim) and the total with the VAT it contains.
+    $basket = [Basket::SESSION_KEY => ['wheel:'.$config->id => ['kind' => 'WHEEL', 'wheelConfigId' => $config->id, 'tyreVariantId' => null, 'quantity' => $quantity]]];
 
     $this->withCookies($fx->cookies())->withSession($basket)->get('/warenkorb')->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('lines.0.quantity', 4)
+            ->where('lines.0.quantity', $quantity)
             ->where('lines.0.unitPrice', MONEY_RIM_TEXT)
-            ->where('lines.0.lineTotal', MONEY_FOUR_TEXT)
-            ->where('lines.0.components.0.lineTotal', MONEY_FOUR_TEXT)
-            ->where('totals.subtotal', MONEY_FOUR_TEXT)
-            ->where('totals.total', MONEY_FOUR_TEXT)
-            ->where('totals.tax', MONEY_FOUR_VAT_TEXT));
+            ->where('lines.0.lineTotal', $totalText)
+            ->where('lines.0.components.0.lineTotal', $totalText)
+            ->where('totals.subtotal', $totalText)
+            ->where('totals.total', $totalText)
+            ->where('totals.tax', $vatText));
 
     // 6 · The checkout summary: the same lines and totals, written by the same basket.
     $this->withCookies($fx->cookies())->withSession($basket)->get('/kasse')->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('lines.0.unitPrice', MONEY_RIM_TEXT)
-            ->where('lines.0.lineTotal', MONEY_FOUR_TEXT)
-            ->where('totals.total', MONEY_FOUR_TEXT)
-            ->where('totals.tax', MONEY_FOUR_VAT_TEXT));
+            ->where('lines.0.lineTotal', $totalText)
+            ->where('totals.total', $totalText)
+            ->where('totals.tax', $vatText));
 
     // 7 · The order line: frozen as cents, shown on the confirmation and in the admin.
     $this->withCookies($fx->cookies())->withSession($basket)->from('/kasse')->post('/kasse', [
@@ -152,26 +159,27 @@ it('shows 229,00 € for one rim and 916,00 € for four, on every surface, and 
     $order = Order::query()->latest('id')->firstOrFail();
     $line = OrderLine::query()->where('order_id', $order->id)->sole();
 
-    expect($line->unit_price_cents)->toBe(MONEY_RIM)
-        ->and($line->line_total_cents)->toBe(MONEY_FOUR)
-        ->and($order->total_cents)->toBe(MONEY_FOUR);
+    expect($line->quantity)->toBe($quantity)
+        ->and($line->unit_price_cents)->toBe(MONEY_RIM)
+        ->and($line->line_total_cents)->toBe($total)
+        ->and($order->total_cents)->toBe($total);
 
     $this->get('/bestellung/'.$order->order_number)->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('lines.0.unitPrice', MONEY_RIM_TEXT)
-            ->where('lines.0.lineTotal', MONEY_FOUR_TEXT)
-            ->where('order.total', MONEY_FOUR_TEXT)
-            ->where('order.tax', MONEY_FOUR_VAT_TEXT));
+            ->where('lines.0.lineTotal', $totalText)
+            ->where('order.total', $totalText)
+            ->where('order.tax', $vatText));
 
     $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
 
     $this->actingAs($admin, 'admin')->get('/admin/bestellungen/'.$order->id)->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('lines.0.unit', MONEY_RIM)
-            ->where('lines.0.total', MONEY_FOUR)
-            ->where('order.total', MONEY_FOUR));
+            ->where('lines.0.total', $total)
+            ->where('order.total', $total));
 
-    // 8 · The invoice: built from the frozen line, 229,00 € a rim and 916,00 € for the four, on the PDF as stored.
+    // 8 · The invoice: built from the frozen line, 229,00 € a rim and the amount's total, on the PDF as stored.
     $template = null;
     View::composer('pdf.invoice', function (Illuminate\View\View $view) use (&$template): void {
         $template ??= $view->getData();
@@ -181,18 +189,18 @@ it('shows 229,00 € for one rim and 916,00 € for four, on every surface, and 
     $pdfText = static fn (string $text): string => str_replace("\u{202F}", "\u{00A0}", $text);
     $html = view('pdf.invoice', (array) $template)->render();
 
-    expect($invoice->gross_cents)->toBe(MONEY_FOUR)
+    expect($invoice->gross_cents)->toBe($total)
         ->and($invoice->lines[0]['unitGrossCents'])->toBe(MONEY_RIM)
-        ->and($invoice->lines[0]['grossCents'])->toBe(MONEY_FOUR)
+        ->and($invoice->lines[0]['grossCents'])->toBe($total)
         ->and($html)->toContain($pdfText(MONEY_RIM_TEXT))
-        ->and($html)->toContain($pdfText(MONEY_FOUR_TEXT));
+        ->and($html)->toContain($pdfText($totalText));
 
     // 9 · The CSV export: the amount a spreadsheet sums, both cents kept.
     $csv = $this->actingAs($admin, 'admin')->get('/admin/bestellungen/export?format=csv&q='.$order->order_number)
         ->assertOk()->streamedContent();
 
-    expect($csv)->toContain(';916,00;');
-});
+    expect($csv)->toContain(';'.$csvTotal.';');
+})->with([1, 2, 3, 4, 5]);
 
 function moneyText(int $cents): string
 {

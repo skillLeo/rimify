@@ -33,7 +33,8 @@ final class PublishCheck
         $blockers = [];
         $hints = [];
 
-        if ($model->is_demo) {
+        // The acceptance set's models are published by `rimify:demo --abnahme` itself, off production (AcceptanceSet).
+        if ($model->refusedAsDemo()) {
             $blockers[] = WheelModelPolicy::DEMO_REFUSED;
         }
 

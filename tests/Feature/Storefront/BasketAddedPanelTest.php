@@ -50,7 +50,7 @@ it('flashes a Komplettrad with its tyre named', function (): void {
             && $added['lines'][0]['quantity'] === 4);
 });
 
-it('lists the RDKS sensors a „Ja“ adds, so the subtotal under them adds up', function (): void {
+it('lists the RDKS sensors a „Ja“ adds, so the subtotal under them adds up @kunde-15 @kunde-16', function (): void {
     $set = KomplettradFixture::permitted();
     $tyre = $set->tyre();
     TpmsSensorPrice::factory()->ofMake(MakeName::key($set->vehicle->make), MakeName::normalise($set->vehicle->make))->create(['price_cents' => 4_900]);

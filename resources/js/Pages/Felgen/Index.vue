@@ -355,7 +355,7 @@ onBeforeUnmount(() => {
 /* Sticky under the header, so the filters are one tap away wherever the customer has scrolled. */
 .plp__bar {
     position: sticky;
-    top: var(--header-h-m);
+    top: var(--header-h);
     z-index: var(--z-sticky);
     margin: 0 calc(var(--gutter) * -1) var(--space-4);
     padding: var(--space-2) var(--gutter);
@@ -436,20 +436,10 @@ onBeforeUnmount(() => {
     }
 }
 
-/* Under the vehicle bar too, where it shows (#24, D-120): a sticky row must not slide beneath another. */
+/* Under the vehicle bar too, where it shows (#24, D-120): a sticky row must not slide beneath another. The header's
+   height is one token at every width (tokens.css, the client's #2): no breakpoint here repeats it. */
 .plp__bar--vbar {
-    top: calc(var(--header-h-m) + var(--vbar-h));
-}
-
-/* The header grows to its desktop height at 1024px (SiteHeader); the bar follows it there, not before. */
-@media (min-width: 1024px) {
-    .plp__bar {
-        top: var(--header-h);
-    }
-
-    .plp__bar--vbar {
-        top: calc(var(--header-h) + var(--vbar-h));
-    }
+    top: calc(var(--header-h) + var(--vbar-h));
 }
 
 @media (min-width: 1200px) {
@@ -483,6 +473,8 @@ onBeforeUnmount(() => {
         top: var(--plp-top);
         max-height: calc(100dvh - var(--plp-top) - var(--space-4));
         overflow-y: auto;
+        /* The scrollbar's room is kept whether or not it shows, so nothing moves as the column fills (#24). */
+        scrollbar-gutter: stable;
         overscroll-behavior: contain;
         padding: var(--space-4);
         background: var(--surface);

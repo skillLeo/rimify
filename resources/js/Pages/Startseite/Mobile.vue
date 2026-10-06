@@ -10,7 +10,7 @@
  * Same props as the desktop document; the split is presentation only.
  */
 
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
 import BrandWall from '../../Components/Home/BrandWall.vue'
@@ -26,7 +26,6 @@ import Shelf from '../../Components/Mobile/Shelf.vue'
 import Accordion from '../../Components/Ui/Accordion.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import ProductTile from '../../Components/Ui/ProductTile.vue'
-import ProductTileSkeleton from '../../Components/Ui/ProductTileSkeleton.vue'
 import TyreLabel, { type TyreClass } from '../../Components/Ui/TyreLabel.vue'
 import { felgen, NNBSP } from '../../format'
 import { contactHref } from '../../lib/contact'
@@ -57,7 +56,7 @@ const title = computed(() => (vehicle.value ? `Felgen mit Gutachten für ${vehic
 const subline = computed(() => props.hero.sublineMobile || PHONE_SUBLINE)
 
 /** F1 for the shared vehicle, in the first paint; the listing's total is the same figure's fallback. */
-const vehicleCount = computed(() => props.fitmentCount?.count ?? props.popular.total)
+const vehicleCount = computed(() => props.fitmentCount?.count ?? props.popular?.total ?? null)
 
 /** `1 passende Felge` · `9 passende Felgen` — `felgen()` with the adjective between the number and the noun. */
 const passende = (count: number): string => felgen(count).replace(NNBSP, `${NNBSP}passende `)
@@ -68,39 +67,9 @@ const promiseIcon = (name: string): IconName => (isIconName(name) ? name : 'chec
 
 /* ── H5 ─────────────────────────────────────────────────────────────────────── */
 
-// Coverage is a count of approvals, not of sales: no "Beliebt" without data behind it (D7).
-const popularTitle = computed(() =>
-    vehicle.value ? `Passend für ${vehicle.value.short}` : (props.popular.title ?? 'Felgen aus dem Sortiment')
-)
-const popularLoading = ref(false)
-const popularFailed = ref(false)
-
-function switchTab(key: string): void {
-    if (key === props.popular.active || popularLoading.value) {
-        return
-    }
-
-    popularFailed.value = false
-    router.get(
-        '/',
-        { beliebt: key },
-        {
-            only: ['popular'],
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-            onStart: () => {
-                popularLoading.value = true
-            },
-            onError: () => {
-                popularFailed.value = true
-            },
-            onFinish: () => {
-                popularLoading.value = false
-            },
-        }
-    )
-}
+// The server's heading — „Meistgekaufte Felgen“ by the last 90 days' sales, else „Neu im Shop“ (the client's #5): no
+// "Beliebt" without data behind it (D7). Null below four wheels on sale: no shelf at all.
+const popularTitle = computed(() => props.popular?.title ?? '')
 
 const listingLabel = computed(() =>
     vehicle.value && vehicleCount.value !== null ? `${passende(vehicleCount.value)} anzeigen` : 'Alle Felgen ansehen'
@@ -167,11 +136,13 @@ const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').re
 const rendered = computed(() => {
     const list: { id: string; on: boolean; dark?: boolean }[] = [
         { id: 'h4', on: true },
-        { id: 'h5', on: true },
+        { id: 'h5', on: props.popular !== null || props.recentlyViewed.length > 0 },
         { id: 'h6', on: sizes.value.length > 0 || props.brands.length > 0 },
-        { id: 'h7', on: tyre.value !== null, dark: true },
+        // The turning wheel (P6, the client's #9) stands where it stands on the desktop: with the photographed wheel, the
+        // tyre's label beside it only where a tyre has a verified one.
+        { id: 'h7', on: tyre.value !== null || (props.komplettrad.wheel ?? null) !== null, dark: true },
         // H8 explains the hero wheel's own values; without them there is no section (ACCURACY §4).
-        { id: 'h8', on: rimFactsOf(props.hero.product) !== null },
+        { id: 'h8', on: rimFactsOf(props.photoWheel) !== null },
         { id: 'h9', on: props.partners.enabled },
         { id: 'h10', on: props.guides.length > 0 },
         { id: 'h11', on: true },
@@ -268,14 +239,14 @@ onBeforeUnmount(() => {
             <p class="body-l muted home-hero__sub">{{ subline }}</p>
 
             <div class="home-hero__panel">
-                <VehiclePanel :makes="selector.makes" :total="vehicleCount" :shop-empty="fitmentCount?.shopEmpty ?? popular.empty" :garage="garage" />
+                <VehiclePanel :makes="selector.makes" :total="vehicleCount" :shop-empty="fitmentCount?.shopEmpty ?? shopEmpty" :garage="garage" />
                 <!-- Where to ask, as on the desktop (#3, D-107). -->
                 <HeroHelp class="home-hero__help" />
             </div>
 
             <!-- Always: the brand's photograph stands with or without a catalogue (PROTECTED.md P1, the brief of 05.10.2026 §2). -->
             <div class="home-hero__frame">
-                <HeroFrame :hero-photo="hero.photo ?? null" :product="hero.product" />
+                <HeroFrame :hero-photo="hero.photo ?? null" />
             </div>
         </div>
     </section>
@@ -295,65 +266,34 @@ onBeforeUnmount(() => {
     <section id="h4" data-section="H4" :class="cls('h4')" aria-labelledby="h4-title">
         <div class="container">
             <h2 id="h4-title" class="h2 home-h2">Wir lesen das Gutachten. Du bekommst die Antwort.</h2>
-            <GutachtenStory :stats="hero.stats" />
+            <GutachtenStory :stats="stats" />
         </div>
     </section>
 
-    <!-- H5 · The real catalogue, one row, and what the visitor looked at last. -->
-    <section id="h5" data-section="H5" :class="cls('h5')" aria-labelledby="h5-title">
-        <div class="container">
-            <h2 id="h5-title" class="h2 home-h2">{{ popularTitle }}</h2>
-
-            <div v-if="popular.tabs.length && !popular.empty" class="tabs__list home-tabs" role="tablist" aria-label="Auswahl">
-                <button
-                    v-for="tab in popular.tabs"
-                    :key="tab.key"
-                    class="tabs__trigger"
-                    type="button"
-                    role="tab"
-                    :aria-selected="tab.key === popular.active"
-                    :data-state="tab.key === popular.active ? 'active' : 'inactive'"
-                    @click="switchTab(tab.key)"
-                >
-                    {{ tab.label }}
-                </button>
+    <!-- H5 · The shelf — „Meistgekaufte Felgen“ or „Neu im Shop“, from four wheels on sale (the client's #5) — and what
+         the visitor looked at last. -->
+    <section v-if="rendered.h5" id="h5" data-section="H5" :data-ranking="popular?.ranking" :class="cls('h5')" :aria-labelledby="popular ? 'h5-title' : undefined" :aria-label="popular ? undefined : 'Zuletzt angesehen'">
+        <template v-if="popular">
+            <div class="container">
+                <h2 id="h5-title" class="h2 home-h2">{{ popularTitle }}</h2>
+                <p v-if="vehicle" class="body muted home-h5__for">Passend für {{ vehicle.short }}</p>
             </div>
-        </div>
 
-        <div :aria-busy="popularLoading ? 'true' : undefined">
-            <Shelf v-if="popularLoading && popular.cards.length === 0" bare hide-head :title="popularTitle" width="62vw" list-label="Felgen werden geladen">
-                <li v-for="n in 4" :key="n"><ProductTileSkeleton /></li>
-            </Shelf>
-
-            <Shelf v-else-if="popular.cards.length" bare hide-head :title="popularTitle" width="62vw" list-label="Felgen">
+            <Shelf v-if="popular.cards.length" bare hide-head :title="popularTitle" width="62vw" list-label="Felgen">
                 <li v-for="card in popular.cards" :key="`${card.modelId}-${card.finishId}`">
                     <ProductTile :card="card" :vehicle="vehicle" compare />
                 </li>
             </Shelf>
 
-            <!-- No wheel in the shop at all: no tab to try, one sentence and the one way forward that works. -->
-            <div v-else-if="popular.empty" class="container empty">
-                <p class="empty__title">Noch ist keine Felge im Sortiment.</p>
-                <p class="empty__text">Sobald die ersten Felgen mit ihrem Gutachten freigegeben sind, stehen sie hier. Du suchst eine bestimmte? Schreib uns.</p>
-            </div>
-
             <div v-else class="container empty">
-                <p class="empty__title">In dieser Auswahl ist gerade nichts.</p>
-                <p class="empty__text">Schau unter „{{ popular.tabs[0]?.label ?? 'Meiste Freigaben' }}“ oder „Neu“ – oder sieh dir alle Felgen an.</p>
+                <p class="empty__title">Für dein Fahrzeug ist hier gerade keine dabei.</p>
+                <p class="empty__text">In der Felgenliste siehst du alles, was das Gutachten für dein Fahrzeug erlaubt.</p>
             </div>
-        </div>
 
-        <div class="container home-h5__foot">
-            <div v-if="popularFailed" class="notice notice--bad">
-                <Icon name="warning" :size="20" />
-                <div class="home-notice__body">
-                    <p>Die Felgen lassen sich gerade nicht laden.</p>
-                    <button class="btn btn--secondary btn--sm" type="button" @click="popularFailed = false; switchTab(popular.active)">Erneut versuchen</button>
-                </div>
+            <div class="container home-h5__foot">
+                <Link href="/felgen" class="btn btn--secondary btn--block" prefetch>{{ listingLabel }}</Link>
             </div>
-            <Link v-if="popular.empty" :href="contactHref({ subject: 'Ich suche eine Felge', from: '/' })" class="btn btn--secondary btn--block">Schreib uns</Link>
-            <Link v-else href="/felgen" class="btn btn--secondary btn--block" prefetch>{{ listingLabel }}</Link>
-        </div>
+        </template>
 
         <!-- H5b · Only when the session has history. -->
         <div v-if="recentlyViewed.length" id="h5b" data-section="H5b" class="home-h5b">
@@ -394,7 +334,7 @@ onBeforeUnmount(() => {
     </section>
 
     <!-- H7 · The one dark band: what a Komplettrad is, and its tyre's regulated facts. -->
-    <section v-if="tyre" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
+    <section v-if="rendered.h7" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
             <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br>montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
@@ -402,6 +342,7 @@ onBeforeUnmount(() => {
             <KomplettradWheel class="home-komplett__wheel" :wheel="komplettrad.wheel ?? null" />
 
             <TyreLabel
+                v-if="tyre"
                 :title="tyre.title"
                 :fuel="tyre.fuel as TyreClass"
                 :wet="tyre.wet as TyreClass"
@@ -420,7 +361,7 @@ onBeforeUnmount(() => {
         <div class="container">
             <h2 id="h8-title" class="h2 home-h2">Was die Zahlen auf einer Felge bedeuten</h2>
             <p class="body muted home-lead">Tippe auf einen Wert – das Foto oder die Schnittzeichnung zeigt, wo er an der Felge liegt.</p>
-            <RimCode :product="hero.product" layout="phone" />
+            <RimCode :product="photoWheel" layout="phone" />
         </div>
     </section>
 
@@ -612,12 +553,12 @@ onBeforeUnmount(() => {
 
 /* ── H5 ─────────────────────────────────────────────────────────────────────── */
 
-.home-tabs {
-    margin: var(--sp-24) 0;
+.home-h5__for {
+    margin-top: var(--sp-8);
 }
 
-#h5 > .container + div,
-#h5 .home-h2 + div {
+#h5 > .container + .mshelf,
+#h5 > .container + .empty {
     margin-top: var(--sp-24);
 }
 

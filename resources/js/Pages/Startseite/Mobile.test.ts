@@ -51,11 +51,14 @@ const vehicle: VehicleProp = {
 
 function pageProps(overrides: Partial<StartseiteProps> = {}): StartseiteProps {
     return {
-        hero: { title: 'Felgen mit Gutachten', subline: 'Ein Satz.', product: null, stats: { gutachten: 1, variants: 1, wheels: 38, brands: 2 } },
+        hero: { title: 'Felgen mit Gutachten', subline: 'Ein Satz.' },
+        stats: { gutachten: 1, variants: 1, wheels: 38, brands: 2 },
+        photoWheel: null,
         selector: { makes: [] },
         fitmentCount: null,
         promises: [],
-        popular: { title: 'Felgen aus dem Sortiment', tabs: [], active: 'beliebt', cards: [], total: null, empty: false },
+        popular: { title: 'Neu im Shop', ranking: 'neu', cards: [], total: null },
+        shopEmpty: false,
         recentlyViewed: [],
         sizes: [],
         // Server order: the sample range first; the wall moves it to the end.

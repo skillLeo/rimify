@@ -146,7 +146,7 @@ test.describe('protected elements while the catalogue is empty — presence, not
         await consentGiven(context, EMPTY_SHOP);
     });
 
-    test('P1–P2 · the hero stands on its two photographs, rolling in, in studio light; no callout to point with', async ({ page }, testInfo) => {
+    test('P1–P3 · the hero stands on its two photographs, rolling in, in studio light, with the photograph\'s callouts', async ({ page }, testInfo) => {
         const phone = testInfo.project.name === 'mobile-390';
         await home(page);
 
@@ -154,7 +154,10 @@ test.describe('protected elements while the catalogue is empty — presence, not
         const lead = stage.locator(phone ? '.hero-frame__roll' : '.hero__roll');
         const second = stage.locator(phone ? '.hero-frame__pair' : '.hero__pair');
 
-        await expect(page.locator('[data-hero="photo"]'), 'the empty shop\'s hero is not in its photograph-only state').toHaveCount(1);
+        // The client's #4 (the operator's brief „THE 34“): the hero asks the catalogue nothing, so its callouts and spec
+        // line — the photograph's own values — stand with the shop empty too.
+        await expect(page.locator('[data-hero="values"]'), 'P3: the empty shop\'s hero lost the photograph\'s values').toHaveCount(1);
+        await expect(stage.locator('[data-callout]').first(), 'P3: no callout on the photograph with the shop empty').toBeAttached();
         await expectPhotograph(lead.locator('img'), 'P1 leading wheel (empty catalogue)');
         await expect(stage.locator('img'), 'P1: the hero no longer carries two wheels with the catalogue empty').toHaveCount(2);
         await expectPhotograph(second.locator('img'), 'P1 second wheel (empty catalogue)');

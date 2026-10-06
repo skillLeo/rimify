@@ -45,6 +45,8 @@ class KontaktController extends Controller
                 'subject' => mb_substr(trim((string) $request->query('betreff', '')), 0, 150),
                 'from' => ContactRequest::shopPath($request->query('von')),
             ],
+            // When the form was handed out, sealed: a message back sooner than a person writes one is a script's (#12).
+            'ticket' => ContactRequest::ticket(),
         ]);
     }
 

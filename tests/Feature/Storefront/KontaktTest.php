@@ -12,6 +12,7 @@ use App\Models\ContactMessage;
 use App\Models\Vehicle;
 use App\Support\VehicleName;
 use Database\Seeders\AccessSeeder;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 
@@ -37,6 +38,8 @@ function kontaktForm(array $overrides = []): array
         'withVehicle' => true,
         'from' => '/felgen/beispiel',
         'rmf_leer' => '',
+        // Handed out half a minute ago: a person had time to write.
+        'ticket' => ContactRequest::ticket(now()->subSeconds(30)->getTimestamp()),
     ], $overrides);
 }
 
@@ -52,7 +55,7 @@ it('opens with the subject and the page the visitor came from, both taken only a
         ->assertInertia(fn (AssertableInertia $page) => $page->where('prefill.from', null)->where('prefill.subject', ''));
 });
 
-it('keeps the message, mails it to the shop with the sender as reply-to, and confirms it to the sender', function (): void {
+it('keeps the message, mails it to the shop with the sender as reply-to, and confirms it to the sender @kunde-12', function (): void {
     Mail::fake();
 
     $this->from('/kontakt')->post('/kontakt', kontaktForm())->assertRedirect('/kontakt')->assertSessionHasNoErrors();
@@ -85,7 +88,7 @@ it('writes the mails in German, with the message word for word', function (): vo
         ->and($toSender)->toContain('Danke, Jana Beispiel')->toContain('Passt die Felge auch mit Winterreifen?')->toContain((string) config('rimify.contact.hours'));
 });
 
-it('sends the car the box showed along — named by the server as the shop names it, and only while the box is ticked', function (): void {
+it('sends the car the box showed along — named by the server as the shop names it, and only while the box is ticked @kunde-12', function (): void {
     Mail::fake();
     $car = Vehicle::factory()->create(['hsn' => '0005', 'tsn' => '582']);
     $other = Vehicle::factory()->create(['hsn' => '0603', 'tsn' => 'BGN']);
@@ -122,13 +125,57 @@ it('takes as the page a visitor came from only a plain path of this shop', funct
     'not a path' => ['https://example.org/', null],
 ]);
 
-it('answers a filled honeypot like a person, and keeps and sends nothing', function (): void {
+it('answers a filled honeypot like a person, and keeps and sends nothing @kunde-12', function (): void {
     Mail::fake();
 
     $this->from('/kontakt')->post('/kontakt', kontaktForm(['rmf_leer' => 'https://spam.example']))->assertRedirect('/kontakt')->assertSessionHasNoErrors();
 
     expect(ContactMessage::query()->count())->toBe(0);
     Mail::assertNothingSent();
+});
+
+it('keeps nothing sent sooner than a person writes, and says so — a second send later goes through @kunde-12', function (): void {
+    Mail::fake();
+    $this->travelTo(now()->startOfMinute());
+    $ticket = ContactRequest::ticket();
+
+    // One second after the form was handed out: no person wrote four fields in that.
+    $this->travel(1)->seconds();
+    $this->from('/kontakt')->post('/kontakt', kontaktForm(['ticket' => $ticket]))
+        ->assertRedirect('/kontakt')
+        ->assertSessionHasErrors(['ticket' => ContactRequest::TOO_FAST]);
+
+    expect(ContactMessage::query()->count())->toBe(0);
+    Mail::assertNothingSent();
+
+    // The same form, sent again a little later: kept, as any message.
+    $this->travel(ContactRequest::MIN_SECONDS)->seconds();
+    $this->from('/kontakt')->post('/kontakt', kontaktForm(['ticket' => $ticket]))->assertRedirect('/kontakt')->assertSessionHasNoErrors();
+
+    expect(ContactMessage::query()->count())->toBe(1);
+});
+
+it('keeps nothing from a form without a ticket of ours, and asks for the page again @kunde-12', function (?string $ticket): void {
+    Mail::fake();
+
+    $this->from('/kontakt')->post('/kontakt', kontaktForm(['ticket' => $ticket]))
+        ->assertRedirect('/kontakt')
+        ->assertSessionHasErrors(['ticket' => ContactRequest::NO_TICKET]);
+
+    expect(ContactMessage::query()->count())->toBe(0);
+})->with([
+    'none' => [null],
+    'empty' => [''],
+    'made up' => ['eyJpdiI6ImFiYyJ9'],
+    'sealed, but no time' => [fn (): string => Crypt::encryptString('gestern')],
+]);
+
+it('hands the form out with its ticket, and takes no captcha from anyone else @kunde-12', function (): void {
+    $this->get('/kontakt')->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('ticket', fn (string $ticket): bool => $ticket !== ''))
+        ->assertDontSee('recaptcha')
+        ->assertDontSee('hcaptcha')
+        ->assertDontSee('turnstile');
 });
 
 it('names in German what is missing, and keeps nothing incomplete', function (): void {
@@ -155,7 +202,7 @@ it('keeps the message when the mail cannot be sent', function (): void {
     expect(ContactMessage::query()->count())->toBe(1);
 });
 
-it('lets a visitor send five messages a minute', function (): void {
+it('lets a visitor send five messages a minute @kunde-12', function (): void {
     Mail::fake();
     $visitor = [VisitorKey::COOKIE => str_pad('kontakt', 40, 'x')];
 
@@ -187,7 +234,7 @@ describe('Verkauf › Nachrichten', function (): void {
         return AdminUser::query()->where('email', $role.'@rimify.test')->firstOrFail();
     }
 
-    it('lists the unread messages first, with the car and an answer addressed to the sender', function (): void {
+    it('lists the unread messages first, with the car and an answer addressed to the sender @kunde-12', function (): void {
         $read = ContactMessage::query()->create(['name' => 'A', 'email' => 'a@example.com', 'subject' => 'Gelesen', 'message' => 'Schon beantwortet.']);
         $read->forceFill(['read_at' => now()])->save();
         ContactMessage::query()->create(['name' => 'Jana Beispiel', 'email' => 'jana@example.com', 'subject' => 'Neu', 'message' => 'Passt das?', 'vehicle_label' => 'BMW 3er (HSN 0005 · TSN 582)']);

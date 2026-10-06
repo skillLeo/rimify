@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Demo;
 
+use App\Http\Controllers\Admin\GutachtenController;
 use App\Services\Reset\TestEnvironment;
 use App\Support\GermanFormat;
 use Database\Seeders\ApprovalSeeder;
@@ -11,6 +12,8 @@ use Database\Seeders\CatalogueSeeder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * The example catalogue (CatalogueSeeder, ApprovalSeeder) is demo, and it goes with the rest of the demo
@@ -47,6 +50,8 @@ final class DemoCatalogue
         'wheel_finishes',
         'wheel_models',
         'tyre_variants',
+        'balance_weight_colours',
+        'tpms_sensor_prices',
         'brands',
         'vehicles',
     ];
@@ -68,7 +73,9 @@ final class DemoCatalogue
         'wheel_finishes' => 'Farben der Beispielfelgen',
         'wheel_models' => 'Beispielfelgen',
         'tyre_variants' => 'Beispielreifen',
-        'brands' => 'Erfundene Marken',
+        'balance_weight_colours' => 'Wuchtgewicht-Farben der Demodaten',
+        'tpms_sensor_prices' => 'RDKS-Preise der Demodaten',
+        'brands' => 'Erfundene Marken und Marken der Demodaten',
         'vehicles' => 'Entwicklungsfahrzeuge (ausgeblendet, nie gelöscht)',
     ];
 
@@ -196,6 +203,10 @@ final class DemoCatalogue
         DB::table('wheel_models')->where('is_demo', true)->delete();
         DB::table('tyre_variants')->where('is_demo', true)->delete();
 
+        // The acceptance set's accessories (`rimify:demo --abnahme`), born demo: the shop's own are never touched.
+        DB::table('balance_weight_colours')->where('is_demo', true)->delete();
+        DB::table('tpms_sensor_prices')->where('is_demo', true)->delete();
+
         // After the models and tyres: now a brand of the list is invented and bare, or it stays.
         self::rows('brands')->delete();
 
@@ -215,6 +226,20 @@ final class DemoCatalogue
         if (! $shown && File::isDirectory(DemoPlaceholders::dir())) {
             File::deleteDirectory(DemoPlaceholders::dir());
         }
+
+        // The acceptance set's copies of the Gutachten PDFs (`gutachten/abnahme-…`), once no document names them. A
+        // file that cannot be listed or removed costs nothing but the file: the purge itself is done.
+        try {
+            $disk = Storage::disk(GutachtenController::DISK);
+
+            foreach ($disk->files('gutachten') as $file) {
+                if (str_starts_with(basename($file), 'abnahme-') && DB::table('approval_documents')->where('pdf_key', $file)->doesntExist()) {
+                    $disk->delete($file);
+                }
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /** The rows of one table that belong to the example catalogue. */
@@ -232,8 +257,10 @@ final class DemoCatalogue
             'document_conditions', 'document_fasteners', 'document_notices', 'document_speed_deratings' => DB::table($table)->whereIn('approval_document_id', self::documents()),
             'approval_documents' => DB::table($table)->whereIn('id', self::documents()),
             'wheel_configs', 'wheel_finishes' => DB::table($table)->whereIn('wheel_model_id', self::models()),
-            'wheel_models', 'tyre_variants' => DB::table($table)->where('is_demo', true),
-            'brands' => DB::table($table)->whereIn('name', CatalogueSeeder::BRANDS)
+            'wheel_models', 'tyre_variants', 'balance_weight_colours', 'tpms_sensor_prices' => DB::table($table)->where('is_demo', true),
+            // An invented brand of the example catalogue, or one the acceptance set brought (born demo) — and either only
+            // while no real model or tyre carries it.
+            'brands' => DB::table($table)->where(static fn (Builder $q) => $q->whereIn('name', CatalogueSeeder::BRANDS)->orWhere('is_demo', true))
                 ->whereNotExists(static fn (Builder $q) => $q->selectRaw('1')->from('wheel_models as m')
                     ->whereColumn('m.brand_id', 'brands.id')->where('m.is_demo', false))
                 ->whereNotExists(static fn (Builder $q) => $q->selectRaw('1')->from('tyre_variants as t')
@@ -269,11 +296,14 @@ final class DemoCatalogue
         return DB::table('vehicles')->select('id')->where('is_demo', true);
     }
 
-    /** The example documents: the invented issuer, and not one row on a real wheel. */
+    /**
+     * The example documents: the invented issuer, or born demo (the acceptance set's copies of real Gutachten) — and not
+     * one row on a real wheel.
+     */
     private static function documents(): Builder
     {
         return DB::table('approval_documents as ed')->select('ed.id')
-            ->where('ed.issuer', ApprovalSeeder::ISSUER)
+            ->where(static fn (Builder $q) => $q->where('ed.issuer', ApprovalSeeder::ISSUER)->orWhere('ed.is_demo', true))
             ->whereNotExists(static fn (Builder $q) => $q->selectRaw('1')->from('fitments as ef')
                 ->whereColumn('ef.approval_document_id', 'ed.id')
                 ->whereNotIn('ef.wheel_config_id', self::configs()));

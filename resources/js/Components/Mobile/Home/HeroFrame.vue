@@ -7,10 +7,10 @@
  * is this configuration's number). Under the frame: the spec line, the caption naming the product (no price and
  * no link, the client's #4), the line saying what the picture shows, and the Demodaten line.
  *
- * The photograph is the brand's (`heroPhoto`, chosen in Inhalte; PROTECTED.md P1) and stands whatever the catalogue holds;
- * the leaders, the spec line and the caption are the values of the wheel in it, where the catalogue holds that wheel
- * (`product`), and with the catalogue empty they are simply not there (the operator's brief of 05.10.2026, §2). Only where the release shipped without the photograph is
- * the outline drawn — with no brand, no model, no price, no link and no leader.
+ * The photograph is the brand's (`heroPhoto`, chosen in Inhalte; PROTECTED.md P1) and stands whatever the catalogue holds,
+ * with its leaders, spec line and caption: the wheel's own values as its document states them for the stamped size
+ * (`heroPhoto.facts`) — no product query, so they stand with the shop empty too (the client's #4). Only where the release
+ * shipped without the photograph is the outline drawn — with no brand, no model, no price, no link and no leader.
  *
  * The frame stands just below the first screen (its top at 861 px on a 390 × 844 phone, measured on
  * 05.10.2026): the headline is the page's LCP, so neither wheel is preloaded or fetched early — both are
@@ -24,10 +24,10 @@ import { computed, onMounted, ref } from 'vue'
 import Picture from '../../Ui/Picture.vue'
 import SpecCallout from '../../Ui/SpecCallout.vue'
 import WheelOutline from '../../Ui/WheelOutline.vue'
-import type { HeroPhoto, HeroProduct } from '../../../types/pages'
+import type { HeroPhoto } from '../../../types/pages'
 import { COMPANION_STAGGER_MS, companionScene, companionStyle, frameStyle, HERO_SIZES_PHONE, heroScene, PHONE_COMPANION, PHONE_LAYOUT, PHONE_PAIR_LAYOUT, rollStyle } from './calloutSlots'
 
-const props = withDefaults(defineProps<{ heroPhoto?: HeroPhoto | null; product: HeroProduct | null }>(), { heroPhoto: null })
+const props = withDefaults(defineProps<{ heroPhoto?: HeroPhoto | null }>(), { heroPhoto: null })
 
 const page = usePage<{ demo?: boolean }>()
 
@@ -35,11 +35,12 @@ const CAPTION = 'Abbildung zeigt das Design; Werte der gezeigten Ausführung.'
 const SYMBOLIC = 'Symbolbild – Werte einer Beispielkonfiguration'
 const DEMO = 'Demodaten – Beispielsortiment; Preise und Bestände sind Beispielwerte.'
 
-/* The brand's photograph; an older payload without one stands on the product's own (both carry the same cut-out). */
-const source = computed(() => props.heroPhoto ?? props.product ?? null)
+/* The brand's photograph and the values its document states for the stamped size (#4: no product query). */
+const source = computed(() => props.heroPhoto ?? null)
+const facts = computed(() => props.heroPhoto?.facts ?? null)
 /* Two wheels where the photograph has its second finish (PROTECTED.md P1): both boxes then stand on the left. */
 const layout = computed(() => (source.value?.companion?.imageManifest ? PHONE_PAIR_LAYOUT : PHONE_LAYOUT))
-const scene = computed(() => heroScene(source.value, layout.value, props.product?.facts ?? null))
+const scene = computed(() => heroScene(source.value, layout.value, facts.value))
 
 /* The photograph failed to load: the outline, and no leaders — they would point at nothing. */
 const failed = ref(false)
@@ -53,8 +54,8 @@ const finishes = computed(() => (source.value === null ? '' : pair.value !== nul
 const callouts = computed(() => (photo.value === null ? [] : scene.value.callouts))
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
-/* Named only where the catalogue holds the wheel, over its own photograph; never priced, never linked (#4, D-108). */
-const named = computed(() => props.product !== null && !props.product.symbolic && photo.value !== null)
+/* Named over its own photograph only; never priced, never linked (#4, D-108). */
+const named = computed(() => facts.value !== null && photo.value !== null && source.value !== null && source.value.brand !== '')
 const alt = computed(() => (source.value === null || !source.value.brand ? 'Felge, Ansicht von vorn' : `${source.value.brand} ${source.value.name} in ${source.value.finish}, Ansicht von vorn`))
 
 /* The leaders draw once both wheels stand: after the roll, and after the second wheel's beat when it is there. */
@@ -77,7 +78,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div ref="root" class="hero-mobile" :data-hero="product ? 'values' : 'photo'">
+    <div ref="root" class="hero-mobile" :data-hero="facts ? 'values' : 'photo'">
         <!-- No link and no price in the hero (the client's #4, D-108): the picture and its numbers. -->
         <div class="frame hero-frame" :style="frameVars">
             <span class="hero-studio" aria-hidden="true" />
@@ -104,7 +105,7 @@ onMounted(() => {
                 </span>
             </span>
             <span v-else class="hero-frame__outline" aria-hidden="true">
-                <WheelOutline :bolts="product?.config.boltHoles ?? 5" size="82%" />
+                <WheelOutline :bolts="5" size="82%" />
             </span>
 
             <SpecCallout
@@ -126,15 +127,15 @@ onMounted(() => {
             />
         </div>
 
-        <!-- The wheel's values and name, under its photograph; with the catalogue empty, none of it. -->
-        <template v-if="product">
+        <!-- The wheel's values and name, under its photograph. -->
+        <template v-if="facts">
             <!-- Tokens and figures throughout, the stamp's number with them: never translated. -->
             <p class="small num muted hero-mobile__spec" translate="no">
-                {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
+                {{ facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
             </p>
 
             <p v-if="named" class="hero-mobile__caption">
-                <span class="small hero-mobile__name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
+                <span class="small hero-mobile__name" translate="no">{{ source?.brand }} {{ source?.name }} · {{ finishes }}</span>
             </p>
             <p v-if="photo" class="micro quiet hero-mobile__shown">{{ CAPTION }}</p>
             <p v-else class="micro quiet hero-mobile__symbolic">{{ SYMBOLIC }}</p>

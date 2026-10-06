@@ -100,7 +100,11 @@ const wheelFailed = ref(false)
                 <div v-else class="komplett__fallback" aria-hidden="true">
                     <WheelOutline size="60%" />
                 </div>
-                <figcaption class="micro quiet komplett__caption">{{ photo && !wheelFailed ? photo.caption : 'Illustration' }}</figcaption>
+                <!-- The photographed wheel is in the shop (the client's #9): its caption leads to its page. -->
+                <figcaption class="micro quiet komplett__caption">
+                    <Link v-if="photo && !wheelFailed && wheel?.href" :href="wheel.href" class="komplett__caption-link">{{ photo.caption }}</Link>
+                    <template v-else>{{ photo && !wheelFailed ? photo.caption : 'Illustration' }}</template>
+                </figcaption>
             </figure>
 
             <div class="komplett__label">
@@ -177,6 +181,16 @@ const wheelFailed = ref(false)
     display: block;
     margin-top: var(--sp-8);
     text-align: center;
+}
+
+/* On the dark band: the caption's own colour, underlined so it reads as the link it is; 44 px to tap. */
+.komplett__caption-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .komplett__fallback {

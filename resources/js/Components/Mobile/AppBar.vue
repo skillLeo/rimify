@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
     position: sticky;
     top: 0;
     z-index: var(--z-header);
-    height: calc(var(--header-h-m) + env(safe-area-inset-top));
+    height: calc(var(--header-h) + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
     background: var(--c-surface);
     view-transition-name: m-appbar;
@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: var(--sp-8);
-    height: var(--header-h-m);
+    height: var(--header-h);
     padding-inline: var(--sp-12);
 }
 

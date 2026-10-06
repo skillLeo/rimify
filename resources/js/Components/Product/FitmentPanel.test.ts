@@ -204,7 +204,7 @@ describe('FitmentPanel', () => {
     })
 
     /* The client's #21: „Eintragung“ stood three times on a wheel with Auflagen — the line, the admin's note, the list. */
-    it('says the Eintragung once, in the verdict under its headline, the more exact note in its place', () => {
+    it('says the Eintragung once, in the verdict under its headline, the more exact note in its place @kunde-21', () => {
         const wrapper = mount(FitmentPanel, {
             props: {
                 vehicle,
@@ -271,7 +271,7 @@ describe('FitmentPanel', () => {
         expect(wrapper.find('.fit__doc').text()).toBe('TG-123')
     })
 
-    it('opens the Gutachten at the page the answer stands on, and says the entry once', () => {
+    it('opens the Gutachten at the page the answer stands on, and says the entry once @kunde-21 @kunde-28', () => {
         const wrapper = mount(FitmentPanel, {
             props: {
                 vehicle,
@@ -298,6 +298,54 @@ describe('FitmentPanel', () => {
         })
 
         expect(wrapper.find('.fit__pdf').exists()).toBe(false)
+    })
+
+    /*
+     * The client's #18: a Komplettrad's tyre chosen, the answer is the one for that combination — ABE 55255 asks the X3
+     * for an Abnahme with 255/40 R19 alone. The server sends each tyre's size answer (ConditionGroups); the panel says it.
+     */
+    it('answers for the tyre chosen: that size\'s Eintragung and that size\'s work, nothing another size alone needs @kunde-18', () => {
+        const detail = {
+            ...borbetDetail,
+            sections: borbetDetail.sections.map((s) => (s.title === 'Abnahme' ? { ...s, items: [{ text: ABNAHME, measures: [], sizes: ['245/35 R18'] }] } : s)),
+        }
+        const base = verdict({
+            status: 'CONDITIONAL',
+            requiresEntry: true,
+            conditions: [ABNAHME],
+            tyreSizes: ['245/35 R18', '255/35 R18'],
+            detail,
+            conditionGroups: {
+                combination: [],
+                sizes: [
+                    { size: '245/35 R18', axle: 'nur Hinterachse', conditions: [ABNAHME], entry: true },
+                    { size: '255/35 R18', axle: 'nur Hinterachse', conditions: [], entry: false },
+                ],
+                chosen: null,
+                entry: null,
+            },
+        })
+        const panel = (chosen: string | null, entry: boolean | null) =>
+            mount(FitmentPanel, { props: { vehicle, verdict: base, chosen: chosen === null ? null : { combination: [], sizes: [], chosen, entry } } })
+        const KEGEL = 'Kegelbundschraube M12x1,5 (120 Nm) oder ein anderer Schraubensatz – welcher, hängt von deinem Fahrzeug ab'
+
+        // Before a tyre is chosen: what any size may need, said as depending on the size.
+        expect(panel(null, null).find('.fit__overview-line').text()).toBe(
+            `Abnahme beim Prüfer, je nach Reifengröße · bis zu 2 Arbeiten am Fahrzeug, je nach Reifengröße · ${KEGEL} · alle Auflagen im Wortlaut`
+        )
+
+        // The tyre whose size carries the Abnahme: the Eintragung, and both pieces of work.
+        const wide = panel('245/35 R18', true)
+        expect(wide.find('.fit__entry--verdict').text()).toBe('Eintragung in die Fahrzeugpapiere erforderlich.')
+        expect(wide.find('.fit__overview-h').text()).toBe('Das verlangt das Gutachten mit 245/35 R18')
+        expect(wide.find('.fit__overview-line').text()).toBe(`Abnahme beim Prüfer · 2 Arbeiten am Fahrzeug · ${KEGEL} · alle Auflagen im Wortlaut`)
+
+        // The other: no Eintragung, and only the work every size needs.
+        const narrow = panel('255/35 R18', false)
+        expect(narrow.find('.fit__entry--verdict').text()).toBe('Keine Eintragung erforderlich.')
+        expect(narrow.find('.fit__overview-line').text()).toBe(`1 Arbeit am Fahrzeug · ${KEGEL} · alle Auflagen im Wortlaut`)
+        // The verdict itself stays the combination's: „Mit Auflagen“, never upgraded by the choice of a tyre.
+        expect(narrow.find('.rcheck-panel__vehicle').text()).toBe('Mit Auflagen freigegeben für BMW 3er Coupe')
     })
 
     it('gives the overview of what the Gutachten asks and links to it in full, keeping the purchase close', () => {

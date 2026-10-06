@@ -8,6 +8,7 @@ use App\Domain\Fitment\Resolver\VehicleDisambiguator;
 use App\Domain\Fitment\Resolver\VehicleResolver;
 use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\VehicleContext;
+use App\Domain\Storefront\VehicleKey;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\ResolveKeyNumbersRequest;
 use App\Http\Requests\Storefront\SelectVehicleRequest;
@@ -129,7 +130,7 @@ class FahrzeugController extends Controller
 
         // A page that asked for its visitor back gets them, with the car in its address (D-116) so the answer is the new car's.
         $target = $returnTo === null
-            ? redirect()->route('felgen.index', is_array($filters) ? $filters : [])
+            ? redirect()->route('felgen.index', FelgenController::listingQuery(is_array($filters) ? $filters : []))
             : redirect()->to($this->withVehicle($returnTo, $vehicleId));
 
         return $target
@@ -141,12 +142,13 @@ class FahrzeugController extends Controller
             ->withCookie(Cookie::make(Garage::COOKIE, $garage->encode(), Garage::LIFETIME_MINUTES));
     }
 
-    /** The return path with `fahrzeug=` set to the car just chosen, every other parameter kept. */
+    /** The return path with `fahrzeug=` set to the car just chosen — its key numbers (VehicleKey) — every other parameter kept. */
     private function withVehicle(string $path, int $vehicleId): string
     {
         [$base, $query] = array_pad(explode('?', $path, 2), 2, '');
         parse_str($query, $params);
-        $params['fahrzeug'] = $vehicleId;
+        $vehicle = $this->resolver->find($vehicleId);
+        $params['fahrzeug'] = $vehicle === null ? (string) $vehicleId : VehicleKey::of($vehicle);
 
         return $base.'?'.http_build_query($params);
     }

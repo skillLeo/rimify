@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Demo\AcceptanceSet;
 use App\Support\GermanFormat;
 use Database\Factories\TyreVariantFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $eu_noise_class
  * @property string|null $eprel_id
  * @property bool $is_demo
+ * @property string|null $demo_ref `abnahme:…` for the acceptance set's rows (AcceptanceSet), else null
  */
 class TyreVariant extends Model
 {
@@ -39,7 +41,7 @@ class TyreVariant extends Model
         'brand_id', 'name', 'season', 'width_mm', 'aspect', 'diameter_in',
         'load_index', 'speed_symbol', 'speed_rank',
         'eu_fuel_class', 'eu_wet_grip_class', 'eu_noise_db', 'eu_noise_class', 'eprel_id',
-        'price_cents', 'currency', 'stock_qty', 'is_demo',
+        'price_cents', 'currency', 'stock_qty', 'is_demo', 'demo_ref',
     ];
 
     /** @return array<string, string> */
@@ -57,6 +59,12 @@ class TyreVariant extends Model
             // A seeded demonstration row. Never real stock, and the demo gate refuses to sell it.
             'is_demo' => 'boolean',
         ];
+    }
+
+    /** Demo data the shop must not sell: every demo tyre but the acceptance set's off production. */
+    public function refusedAsDemo(): bool
+    {
+        return AcceptanceSet::refused((bool) $this->is_demo, $this->demo_ref);
     }
 
     /** `245/45 R18 92Y` */

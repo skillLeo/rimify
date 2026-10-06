@@ -196,7 +196,7 @@ test.describe('Startseite/Mobile', () => {
         expect(new URL(page.url()).pathname).toBe('/')
     })
 
-    test('popular row: a shelf that scrolls sideways, tabs that reload only the row', async ({ page }) => {
+    test('popular row: a shelf that scrolls sideways, under one heading', async ({ page }) => {
         await open(page, '/')
 
         const track = page.locator('#h5 .mshelf__track').first()
@@ -207,16 +207,9 @@ test.describe('Startseite/Mobile', () => {
         // A narrow no-break space joins the number and the €, as format.ts writes it.
         await expect(page.locator('#h5 .tile__price').first()).toHaveText(/^ab \d{1,3}(\.\d{3})*,\d{2}[\s\u202F]€\s?pro Felge$/)
 
-        // Scoped to the row: the calculator teaser has a tab named "Neu" as well.
-        const neu = page.locator('#h5').getByRole('tab', { name: 'Neu' })
-        // Scrolled to, then tapped, the way a person does it. Tapping in the same instant as the
-        // scroll is a gesture no reader makes, and on the taller phones it was being swallowed.
-        await neu.scrollIntoViewIfNeeded()
-        await page.waitForTimeout(150)
-        await neu.click()
-        await expect.poll(() => new URL(page.url()).searchParams.get('beliebt')).toBe('neu')
-        await expect(neu).toHaveAttribute('aria-selected', 'true')
-        expect(await page.locator('#h5 .tile').count()).toBeGreaterThanOrEqual(1)
+        // One heading, no tabs (the client's #5).
+        await expect(page.locator('#h5 h2').first()).toHaveText(/^(Meistgekaufte Felgen|Neu im Shop)$/)
+        await expect(page.locator('#h5').getByRole('tab')).toHaveCount(0)
     })
 
     test('with a vehicle every tile carries a verdict; without one, none does', async ({ page }) => {

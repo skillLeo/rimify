@@ -1219,7 +1219,7 @@ a.adm-foot__health {
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: var(--sp-12);
-        height: calc(var(--header-h-m) + env(safe-area-inset-top));
+        height: calc(var(--adm-topbar-h) + env(safe-area-inset-top));
         padding: env(safe-area-inset-top) var(--sp-16) 0;
         background: var(--c-surface);
         border-bottom: 1px solid var(--c-line);

@@ -383,6 +383,19 @@ function choose(vehicleId: number): void {
 const waiting = computed(() => selection.value === null && !pending.value && !notFound.value)
 const form = ref<HTMLFormElement | null>(null)
 
+/* Why it waits, read with the button for whoever cannot see the light blue (#1): the step that is missing. */
+const waitingWhy = computed(() => {
+    if (tab.value === 'hsn') {
+        return 'Noch kein Fahrzeug gewählt: Trag zuerst HSN und TSN aus deinem Fahrzeugschein ein.'
+    }
+
+    if (tab.value === 'scan') {
+        return 'Noch kein Fahrzeug gewählt: Scanne zuerst deinen Fahrzeugschein.'
+    }
+
+    return 'Noch kein Fahrzeug gewählt: Wähl zuerst Marke, Modell und Fahrzeug.'
+})
+
 /* A field that can take focus now: a list still loading leaves its field disabled, and focus would go nowhere. */
 function usable(el: HTMLElement | null): el is HTMLElement {
     return el !== null && !(el as HTMLInputElement).disabled
@@ -956,11 +969,13 @@ onBeforeUnmount(() => treeController?.abort())
                 :type="waiting ? 'button' : 'submit'"
                 :disabled="!waiting && (selection === null || zero || pending || notFound)"
                 :aria-disabled="waiting ? 'true' : undefined"
+                :aria-describedby="waiting ? `${id}-why` : undefined"
                 :aria-busy="pending ? 'true' : undefined"
                 @click="waiting && guide()"
             >
                 {{ buttonLabel }}
             </button>
+            <span v-if="!chooser && waiting" :id="`${id}-why`" class="visually-hidden">{{ waitingWhy }}</span>
         </fieldset>
 
         <div v-if="garage.length" class="sel__garage">

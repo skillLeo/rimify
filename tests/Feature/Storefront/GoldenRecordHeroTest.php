@@ -96,16 +96,19 @@ it('takes the hero back from a choice that is no real wheel — a demo model, on
     }
 });
 
-it('states nothing on the photograph while the DB8GT2 is a draft, and its values once published — no price, no link', function (): void {
+it('states the photograph\'s own values whatever the DB8GT2\'s state, and gives the numbers section the wheel once published', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
     // The black front view, with the stamp the photograph shows (KBA 53841, the 18-inch approval).
     DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz']);
 
-    // A draft's values are not released: the photograph stands alone, as in an empty shop.
+    // A draft: the hero states the photograph's values (the client's #4: it asks the catalogue nothing); the numbers
+    // section, which explains a wheel the shop sells, waits.
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('hero.photo.finish', 'Schwarz matt')
-        ->where('hero.product', null));
+        ->where('hero.photo.facts.kba', '53841')
+        ->where('hero.photo.facts.centreBore', "72,5\u{00A0}mm")
+        ->where('photoWheel', null));
 
     $model->update(['status' => 'published']);
 
@@ -113,26 +116,28 @@ it('states nothing on the photograph while the DB8GT2 is a draft, and its values
         ->where('hero.photo.brand', 'Borbet')
         ->where('hero.photo.finish', 'Schwarz matt')
         ->where('hero.photo.imageManifest.bare.name', 'db8gt2-schwarz-bare')
-        ->where('hero.product.slug', GoldenRecordSeeder::SLUG)
-        ->where('hero.product.finish', 'Schwarz matt')
-        ->where('hero.product.symbolic', false)
-        ->where('hero.product.published', false)
+        ->where('hero.photo.facts.kba', '53841')
+        ->where('photoWheel.slug', GoldenRecordSeeder::SLUG)
+        ->where('photoWheel.finish', 'Schwarz matt')
+        ->where('photoWheel.symbolic', false)
+        ->where('photoWheel.published', false)
         // The configuration the stamp proves, stated from its record, never typed in the page.
-        ->where('hero.product.facts.kba', '53841')
-        ->where('hero.product.config.diameterIn', 18)
-        ->where('hero.product.facts.centreBore', "72,5\u{00A0}mm")
-        ->where('hero.product.imageManifest.bare.name', 'db8gt2-schwarz-bare')
+        ->where('photoWheel.facts.kba', '53841')
+        ->where('photoWheel.config.diameterIn', 18)
+        ->where('photoWheel.facts.centreBore', "72,5\u{00A0}mm")
+        ->where('photoWheel.imageManifest.bare.name', 'db8gt2-schwarz-bare')
     );
 });
 
-it('stands the photograph alone where the catalogue does not hold the wheel in it (the brief of 05.10.2026, §2)', function (): void {
-    // An empty shop: the photograph is the brand's and stays; nothing in the catalogue to take values from.
+it('stands the photograph with its values where the catalogue does not hold the wheel in it (the client\'s #4)', function (): void {
+    // An empty shop: the photograph is the brand's and stays, with the values its document states.
     DemoWheelFixtures::heroPhotos($this->dir, GoldenRecordSeeder::SLUG, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze']);
 
     $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->where('hero.photo.finish', 'Schwarz matt')
         ->where('hero.photo.companion.finish', 'Bronze matt')
-        ->where('hero.product', null)
+        ->has('hero.photo.facts.specLine')
+        ->where('photoWheel', null)
         ->where('komplettrad.wheel', null));
 });
 
@@ -212,11 +217,11 @@ it('says published only when the wheel is in the shop at a price', function (): 
     $model->update(['status' => 'published']);
 
     // Published at zero is still not for sale.
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.published', false));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('photoWheel.published', false));
 
     WheelConfig::query()->where('wheel_model_id', $model->id)->update(['price_cents' => 24_900]);
 
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.published', true));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('photoWheel.published', true));
 });
 
 it('never puts a demo or archived model\'s values on the photograph, which stays', function (string $case): void {
@@ -227,7 +232,7 @@ it('never puts a demo or archived model\'s values on the photograph, which stays
     // A demo row can only be a draft (the table refuses a published one).
     DB::table('wheel_models')->where('id', $model->id)->update($case === 'demo' ? ['is_demo' => true] : ['status' => 'archived']);
 
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product', null)->where('hero.photo.finish', 'Schwarz matt'));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('photoWheel', null)->where('hero.photo.finish', 'Schwarz matt'));
 })->with(['demo', 'archived']);
 
 it('stores a six-spoke wheel', function (): void {

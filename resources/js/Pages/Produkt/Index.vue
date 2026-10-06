@@ -56,7 +56,7 @@ defineOptions({ layout: AppLayout })
 /** The load rating per wheel travels with each configuration; null where none is verified. */
 type RatedConfig = ProduktConfig & { maxLoadKg?: number | null }
 
-const props = defineProps<ProduktProps & { demo?: boolean }>()
+const props = defineProps<ProduktProps & { demo?: boolean; acceptance?: boolean }>()
 
 const shared = useShared()
 const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
@@ -68,9 +68,12 @@ const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0, 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
 
-/** GPSR's electronic address as a link: an e-mail opens the mail program, a web address its page. */
-function contactHref(contact: string): string {
-    return contact.includes('@') && !contact.startsWith('http') ? `mailto:${contact}` : contact
+/**
+ * GPSR's electronic address: a web address as its link, an e-mail address as text to copy — no button on the shop opens
+ * a mail program (the client's #26); the maker's address is the maker's, so it cannot lead to our contact form either.
+ */
+function webAddress(contact: string): string | null {
+    return /^https?:\/\//i.test(contact.trim()) ? contact.trim() : null
 }
 
 /* Where the maker's details are missing, a question to us goes through the contact form (#26). */
@@ -267,7 +270,11 @@ watch(amount, () => basket.clearErrors())
 
 const amountPrice = computed(() => selected.value?.amounts?.find((a) => a.quantity === amount.value) ?? null)
 
-/* `für 4 Felgen, je 229,00 €` — the unit price stays in sight, so the total never reads as one rim's. */
+/*
+ * `4 × 229,00 € = 916,00 €` (the operator's wording for the client's #17): the amount, one rim's price and the total in
+ * one line, so the figure beside the stepper can never be read as one rim's. Both prices are the server's — the line
+ * shows the sum, it does not compute it.
+ */
 const amountNote = computed(() => {
     const current = selected.value
 
@@ -275,9 +282,7 @@ const amountNote = computed(() => {
         return `pro Felge, ${terms.value.note}`
     }
 
-    return amount.value === 1
-        ? `für 1 Felge, ${terms.value.note}`
-        : `für ${amount.value} Felgen, je ${current.price}, ${terms.value.note}`
+    return `${amount.value} × ${current.price} = ${amountPrice.value.text}, ${terms.value.note}`
 })
 
 /*
@@ -585,7 +590,14 @@ claimBottomEdge(() => stickyShown.value)
                         <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
                     </div>
 
-                    <FitmentPanel class="pdp__fit" :verdict="selected?.verdict ?? null" :vehicle="shared.vehicle" :config-id="selected?.id ?? null">
+                    <!-- With a Komplettrad's tyre chosen, the answer for that tyre's size (#18): its Eintragung, its Auflagen. -->
+                    <FitmentPanel
+                        class="pdp__fit"
+                        :verdict="selected?.verdict ?? null"
+                        :vehicle="shared.vehicle"
+                        :config-id="selected?.id ?? null"
+                        :chosen="isSet ? (tyre?.answer ?? null) : null"
+                    >
                         <Link v-if="!hasVehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm pdp__fit-cta">
                             Fahrzeug wählen
                         </Link>
@@ -631,6 +643,10 @@ claimBottomEdge(() => stickyShown.value)
                         <p v-if="demo" class="t-small pdp__demo">
                             Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
                             legen, bestellen kannst du sie noch nicht.
+                        </p>
+                        <!-- The acceptance set (rimify:demo --abnahme): demo data, ordered with the test payment only. -->
+                        <p v-else-if="acceptance" class="t-small pdp__demo">
+                            Demodaten zum Ausprobieren: Bestellen geht hier nur mit der Testzahlung, verschickt wird nichts.
                         </p>
                     </div>
 
@@ -787,7 +803,7 @@ claimBottomEdge(() => stickyShown.value)
                 <dl v-if="product.manufacturer" class="pdp__gpsr-list">
                     <div class="pdp__gpsr-row">
                         <dt>Hersteller</dt>
-                        <dd class="pdp__gpsr-value">{{ product.manufacturer.name }}<br>{{ product.manufacturer.address }}<br><a class="link" :href="contactHref(product.manufacturer.contact)">{{ product.manufacturer.contact }}</a></dd>
+                        <dd class="pdp__gpsr-value">{{ product.manufacturer.name }}<br>{{ product.manufacturer.address }}<br><a v-if="webAddress(product.manufacturer.contact)" class="link" :href="webAddress(product.manufacturer.contact) ?? undefined" rel="noopener" target="_blank">{{ product.manufacturer.contact }}</a><span v-else translate="no">{{ product.manufacturer.contact }}</span></dd>
                     </div>
                     <div v-if="product.manufacturer.euResponsible" class="pdp__gpsr-row">
                         <dt>Verantwortliche Person in der EU</dt>

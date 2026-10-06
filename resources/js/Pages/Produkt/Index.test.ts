@@ -266,21 +266,21 @@ describe('Produkt page', () => {
         expect(post.mock.calls[0]?.[0]).toBe('/warenkorb')
     })
 
-    it('preselects four, prices the four beside the stepper, and adds exactly the amount on screen (#17, #14)', async () => {
+    it('preselects four, prices the four beside the stepper as „4 × 229,00 € = 916,00 €“, and adds exactly the amount on screen @kunde-17 @kunde-14', async () => {
         const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, stockQty: 5, amounts: AMOUNTS })] })
         const less = wrapper.find('button[aria-label="Anzahl verringern"]')
         const more = wrapper.find('button[aria-label="Anzahl erhöhen"]')
 
         expect(wrapper.find('.amt output').text()).toBe('4')
         expect(wrapper.find('.pdp__total').text()).toBe(`916,00${NNBSP}€`)
-        expect(wrapper.find('.pdp__each').text()).toBe(`für 4 Felgen, je 229,00${NNBSP}€, inkl. MwSt., zzgl. Versand`)
+        expect(wrapper.find('.pdp__each').text()).toBe(`4 × 229,00${NNBSP}€ = 916,00${NNBSP}€, inkl. MwSt., zzgl. Versand`)
 
         for (let i = 0; i < 3; i++) {
             await less.trigger('click')
         }
 
         expect(wrapper.find('.pdp__total').text()).toBe(`229,00${NNBSP}€`)
-        expect(wrapper.find('.pdp__each').text()).toBe('für 1 Felge, inkl. MwSt., zzgl. Versand')
+        expect(wrapper.find('.pdp__each').text()).toBe(`1 × 229,00${NNBSP}€ = 229,00${NNBSP}€, inkl. MwSt., zzgl. Versand`)
         expect(less.attributes('disabled')).toBeDefined()
 
         await wrapper.find('button.pdp__add').trigger('click')
@@ -298,7 +298,7 @@ describe('Produkt page', () => {
         expect(more.attributes('disabled')).toBeDefined()
     })
 
-    it('brings the amount down to what is on the shelf', () => {
+    it('brings the amount down to what is on the shelf @kunde-17', () => {
         const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, stockQty: 2, amounts: AMOUNTS })] })
 
         expect(wrapper.find('.amt output').text()).toBe('2')
@@ -471,7 +471,7 @@ describe('Produkt page', () => {
         await wrapper.find('input[name="pdp-mode"][value="komplettrad"]').setValue()
     }
 
-    it('asks Nur Felgen or Komplettrad, and starts with the rims alone', () => {
+    it('asks Nur Felgen or Komplettrad, and starts with the rims alone @kunde-18', () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })
         const modes = wrapper.findAll('.bmc-tile')
 
@@ -485,7 +485,7 @@ describe('Produkt page', () => {
         expect(wrapper.find('button.pdp__add').text()).toBe('In den Warenkorb')
     })
 
-    it('shows the permitted tyres with Komplettrad chosen, prices the set and adds the tyre as a set of four', async () => {
+    it('shows the permitted tyres with Komplettrad chosen, prices the set and adds the tyre as a set of four @kunde-18', async () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), amounts: AMOUNTS })] })
         await chooseSet(wrapper)
 
@@ -506,7 +506,7 @@ describe('Produkt page', () => {
         expect(wrapper.find('button.pdp__add').text()).toBe('Als Komplettrad in den Warenkorb')
     })
 
-    it('keeps the amount of rims when switching to Komplettrad and back, and adds rims without a tyre', async () => {
+    it('keeps the amount of rims when switching to Komplettrad and back, and adds rims without a tyre @kunde-18', async () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, komplettrad: komplettrad(), amounts: AMOUNTS })] })
 
         await wrapper.find('button[aria-label="Anzahl verringern"]').trigger('click')
@@ -521,7 +521,7 @@ describe('Produkt page', () => {
         expect(forms.find((form) => form.kind === 'WHEEL')).toMatchObject({ tyreVariantId: null, quantity: 2 })
     })
 
-    it('shows a refusal with a route forward instead of an empty Komplettrad choice, and adds nothing', async () => {
+    it('shows a refusal with a route forward instead of an empty Komplettrad choice, and adds nothing @kunde-25 @kunde-18', async () => {
         const sentence =
             'Für ein Komplettrad brauchen wir zuerst dein Fahrzeug – erst dann wissen wir, welche Reifengrößen für dich freigegeben sind.'
         const wrapper = mountPage({
@@ -537,7 +537,7 @@ describe('Produkt page', () => {
         expect(wrapper.text()).not.toContain('Nur die Felgen bestellen')
     })
 
-    it('sends the colour and the RDKS answer with a Komplettrad, prices the colour picked, and sends neither with rims (#15)', async () => {
+    it('sends the colour and the RDKS answer with a Komplettrad, prices the colour picked, and sends neither with rims (#15) @kunde-15', async () => {
         const priced = komplettrad({
             tyres: [
                 {

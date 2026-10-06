@@ -13,6 +13,7 @@ import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from 'vue'
 import CommandPalette from '../Components/Chrome/CommandPalette.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import AddedPanel from '../Components/Chrome/AddedPanel.vue'
+import CanonicalLink from '../Components/Chrome/CanonicalLink.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
 import ShortcutsDialog from '../Components/Chrome/ShortcutsDialog.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
@@ -79,6 +80,8 @@ function removeVehicle(): void {
          mode, so the SSR frame and the client agree (R-08). -->
     <div class="shell" :class="{ 'shell--vbar': vehicle !== null && (shared.headerMode === 'WHITE_BOX' || shared.headerMode === 'BLUE_BAR') }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
+
+        <CanonicalLink />
 
         <PreviewRibbon />
 

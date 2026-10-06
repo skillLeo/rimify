@@ -136,8 +136,10 @@
     --page-margin: 20px;
     --gutter: 16px;
     --cols: 4;
-    --header-h: 80px;           /* The client's #2 (D-106): taller on a desktop, where the utility strip is gone. */
-    --header-h-m: 56px;
+    /* The header's one height (the client's #2, the operator's brief „THE 34“): 64px below 1024px, 72px from there
+       (below). The header, every sticky offset, every anchor's scroll margin, the mega menu, the listing's filter column
+       and the phone's app bar read it; no stylesheet types a header height (e2e/kundenliste, @kunde-02). */
+    --header-h: 64px;
     --vbar-h: 40px;
     --bottomnav-h: 56px;
     --stickybar-h: 64px;
@@ -149,7 +151,7 @@
        references them, and no admin surface is dark by default (DIRECTION §8a, D-030). */
     --adm-rail-w: 260px;        /* Holds the longest second-level label at --fs-small untruncated. */
     --adm-rail-w-min: 64px;     /* 40px icon button + 2 × --sp-12. */
-    --adm-topbar-h: 56px;       /* --adm-row-h + 2 × --sp-8; the same measure as --header-h-m. */
+    --adm-topbar-h: 56px;       /* --adm-row-h + 2 × --sp-8: the admin's own bar, desktop and phone. */
     --adm-row-h: 40px;          /* --lh-body + 2 × --sp-8: single-line table row, menu row. The rail's
                                    36px item is a control height (--adm-control-h), not a row. */
     --adm-row-h-lg: 56px;       /* Two-line rows. */
@@ -266,6 +268,7 @@
 
 @media (min-width: 1024px) {
     :root {
+        --header-h: 72px;
         --page-margin: 40px;
         --gutter: 24px;
         --cols: 12;

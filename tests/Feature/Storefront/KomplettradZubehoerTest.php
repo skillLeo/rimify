@@ -42,7 +42,7 @@ function zubehoerCard(mixed $page, int $configId, int $tyreId): array
     return collect($config['komplettrad']['tyres'] ?? [])->firstWhere('id', $tyreId) ?? throw new RuntimeException("Tyre {$tyreId} is not offered.");
 }
 
-it('ships the active colours, the RDKS question and every set priced per colour — and none of it without a car', function (): void {
+it('ships the active colours, the RDKS question and every set priced per colour — and none of it without a car @kunde-15', function (): void {
     $set = KomplettradFixture::permitted();
     $tyre = $set->tyre();
     $black = BalanceWeightColour::query()->where('name_de', 'Schwarz')->firstOrFail();
@@ -91,7 +91,7 @@ it('prices the sensors for the car\'s make, and says so where no price is entere
             ->where('komplettradOptions.tpms.yesTotal', GermanFormat::money(19_600)));
 });
 
-it('adds the set with the colour picked and records the RDKS answer as the checkout\'s own', function (): void {
+it('adds the set with the colour picked and records the RDKS answer as the checkout\'s own @kunde-15', function (): void {
     $set = KomplettradFixture::permitted();
     $tyre = $set->tyre();
     $black = BalanceWeightColour::query()->where('name_de', 'Schwarz')->firstOrFail();
@@ -126,7 +126,7 @@ it('refuses sensors where no price is entered for the make, and adds nothing', f
     expect(session(Basket::SESSION_TPMS)['choice'])->toBe('nein');
 });
 
-it('leaves the RDKS question alone for rims added without a tyre', function (): void {
+it('leaves the RDKS question alone for rims added without a tyre @kunde-15', function (): void {
     $set = KomplettradFixture::permitted();
 
     $this->withCookies($set->cookies())->post('/warenkorb', zubehoerPost($set, null, ['rdks' => 'ja']))->assertSessionHasNoErrors();

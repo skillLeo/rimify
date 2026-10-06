@@ -8,8 +8,9 @@
  *
  * The chosen car is offered as a ticked box — the first thing we would ask is which car the question is about — and
  * the server names it from the visitor's own cookie, never from the form. `rmf_leer` is the honeypot: a field nobody
- * sees, so a filled one is a script. A draft survives a failed send (a limit, an expired page) in this tab's own
- * storage, so the visitor never finds the form cleared (R-09).
+ * sees, so a filled one is a script; `ticket` is the time the server handed the form out, and a message back sooner
+ * than a person writes one is refused with a sentence under the button (ContactRequest). A draft survives a failed send
+ * (a limit, an expired page) in this tab's own storage, so the visitor never finds the form cleared (R-09).
  *
  * Every contact detail renders from `config('rimify.contact')` (D-023). No reply-time promise: the client gave service
  * hours, not a response time.
@@ -43,6 +44,7 @@ const form = useForm({
     withVehicle: true,
     from: props.prefill?.from ?? null,
     rmf_leer: '',
+    ticket: props.ticket ?? '',
 })
 
 const sent = ref(false)
@@ -272,6 +274,8 @@ const backHref = computed(() => props.prefill?.from ?? '/')
                         Die Nachricht ist nicht bei uns angekommen – die Verbindung ist gerade weg. Dein Text bleibt hier stehen; schick
                         ihn gleich noch einmal.
                     </p>
+                    <!-- Sent sooner than a person writes, or from a page without a ticket: said, never swallowed (#12). -->
+                    <p v-if="form.errors.ticket" class="notice notice--bad kon__offline" role="alert">{{ form.errors.ticket }}</p>
                 </form>
             </div>
 

@@ -1805,7 +1805,7 @@
 
     /* The phone document has no vehicle bar: the app bar alone, plus the notch. */
     .compare--phone .compare__stick {
-        top: calc(var(--header-h-m) + env(safe-area-inset-top));
+        top: calc(var(--header-h) + env(safe-area-inset-top));
     }
 
     .compare__stick .compare__cell {

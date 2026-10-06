@@ -154,6 +154,8 @@ export interface SharedProps {
     notifyByMail?: boolean
     isMobile: boolean
     locale: string
+    /** The page's one address, the car as its key numbers (the client's #8): `<link rel="canonical">` (CanonicalLink.vue). */
+    canonical?: string | null
     /** Remote photography layered over the drawn art — a temporary client-review flag. */
     photography: boolean
     /** The seller is a Kleinunternehmer (§ 19 UStG): no VAT on any price note or summary (usePriceTerms). */

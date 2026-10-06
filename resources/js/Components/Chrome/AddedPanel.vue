@@ -4,11 +4,13 @@
  * amount's price, for a mixed set its two axles — the basket's count and subtotal as they now stand, „Weiter
  * einkaufen“ and „Zum Warenkorb“. Every figure is the server's (WarenkorbController → Basket::added, R-10).
  *
- * Not a modal: no overlay, no focus trap, the focus stays where the visitor was. It stands under the header beside the
- * basket (and there in the Tab order), is announced once — its heading and the subtotal, not its buttons — and goes on
- * ×, Escape, „Weiter einkaufen“, a visit to another page — or by itself after
- * ten seconds, a clock that stops while the pointer rests on it or the focus is in it. The toast stays quiet for an add
- * that brought this panel, so there is one confirmation, not two.
+ * A dialog the size of a card, never the screen's (the operator's brief „THE 34“, #16, superseding D-129's „no focus
+ * trap“): it takes the focus when it opens, so a keyboard user is where the next step is rather than deep in the page
+ * below it; Tab and Shift+Tab stay among its three controls; Escape, × and „Weiter einkaufen“ close it and give the focus
+ * back to the button the add came from. Nothing blocks: there is no overlay, a click anywhere else closes it, and it
+ * never closes by itself while the focus is in it — on a pointer's leave it goes after ten seconds. Its name is its
+ * heading and its description the subtotal, read once when the focus arrives. The toast stays quiet for an add that
+ * brought this panel, so there is one confirmation, not two.
  *
  * Like the toast it listens for server responses, so the second add in a row shows again and a page restored by the
  * back button does not replay an old one.
@@ -25,8 +27,6 @@ const ADDED_MS = 10_000
 
 const page = usePage()
 const added = ref<AddedToBasket | null>(null)
-/* What a screen reader hears: the heading and the subtotal, never the buttons (PDP-13). */
-const said = ref('')
 const panel = useTemplateRef<HTMLElement>('panel')
 const id = useId()
 let shownPath: string | null = null
@@ -55,19 +55,20 @@ function open(next: AddedToBasket | null, url: string): void {
         return
     }
 
+    // A second add while the panel is open keeps the button it first came from.
+    if (added.value === null) {
+        returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
+    }
+
     added.value = next
     shownPath = pathOf(url)
-    returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
     arm()
 
-    // Emptied first, so a second add with the same words is announced again.
-    said.value = ''
-    void nextTick(() => {
-        said.value = `${next.heading} Zwischensumme im Warenkorb: ${next.subtotal}.`
-    })
+    // Into the panel: its name and the subtotal are read, and Tab goes on to its controls.
+    void nextTick(() => panel.value?.focus({ preventScroll: true }))
 }
 
-/* Where the focus was when the panel opened: a close from inside the panel hands it back there, never to <body>. */
+/* Where the focus was when the panel opened — the basket button: a close from inside hands it back there, never to <body>. */
 let returnFocus: HTMLElement | null = null
 
 function close(): void {
@@ -75,11 +76,45 @@ function close(): void {
 
     added.value = null
     shownPath = null
-    said.value = ''
     pause()
 
     if (inside && returnFocus?.isConnected) {
         returnFocus.focus()
+    }
+}
+
+/* Tab and Shift+Tab go round the panel's controls; the panel itself, focused on open, leads to the first or the last. */
+function trap(event: KeyboardEvent): void {
+    const card = panel.value
+
+    if (event.key !== 'Tab' || card === null) {
+        return
+    }
+
+    const controls = [...card.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')]
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+
+    if (first === undefined || last === undefined) {
+        return
+    }
+
+    const active = document.activeElement
+
+    if (event.shiftKey && (active === first || active === card)) {
+        event.preventDefault()
+        last.focus()
+    } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+    }
+}
+
+/* A press anywhere else closes it — no overlay to dismiss, and the focus goes where the visitor pressed. */
+function onPointerDown(event: PointerEvent): void {
+    if (added.value !== null && event.target instanceof Node && !(panel.value?.contains(event.target) ?? false)) {
+        returnFocus = null
+        close()
     }
 }
 
@@ -94,9 +129,11 @@ function onFocusOut(event: FocusEvent): void {
     arm()
 }
 
-/* Escape is the panel's only while no dialog is open: there it closes the dialog, not this too. */
+/* Escape is the panel's only while no other dialog is open: there it closes that dialog, not this too. */
 function onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && added.value !== null && document.querySelector('[role="dialog"][aria-modal="true"]') === null) {
+    const other = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some((d) => d !== panel.value)
+
+    if (event.key === 'Escape' && added.value !== null && !other) {
         close()
     }
 }
@@ -118,31 +155,36 @@ onMounted(() => {
         }
     })
     document.addEventListener('keydown', onKeydown)
+    document.addEventListener('pointerdown', onPointerDown, true)
 })
 
 onBeforeUnmount(() => {
     stopSuccess?.()
     stopNavigate?.()
     document.removeEventListener('keydown', onKeydown)
+    document.removeEventListener('pointerdown', onPointerDown, true)
     pause()
 })
 </script>
 
 <template>
-    <!-- The live region is always in the document and holds one sentence; the panel's buttons stay out of it. -->
-    <p class="visually-hidden" role="status" aria-live="polite">{{ said }}</p>
-
     <div class="addp-viewport">
         <Transition name="addp">
+            <!-- A card-sized dialog: named by its heading, described by the subtotal, the focus kept among its controls. -->
             <section
                 v-if="added"
                 ref="panel"
                 class="addp"
+                role="dialog"
+                aria-modal="true"
+                tabindex="-1"
                 :aria-labelledby="`${id}-title`"
+                :aria-describedby="`${id}-sum`"
                 @mouseenter="pause"
                 @mouseleave="arm"
                 @focusin="pause"
                 @focusout="onFocusOut"
+                @keydown="trap"
             >
                 <div class="addp__head">
                     <Icon name="check-circle" :size="20" class="addp__mark" />
@@ -160,7 +202,7 @@ onBeforeUnmount(() => {
                     </li>
                 </ul>
 
-                <p class="addp__sum">
+                <p :id="`${id}-sum`" class="addp__sum">
                     <span>Zwischensumme im Warenkorb <span class="num addp__count">({{ added.count }} Stück)</span></span>
                     <span class="num addp__sum-value" translate="no">{{ added.subtotal }}</span>
                 </p>
@@ -181,7 +223,7 @@ onBeforeUnmount(() => {
  */
 .addp-viewport {
     position: fixed;
-    top: calc(var(--header-h-m) + env(safe-area-inset-top) + var(--vbar-h) + var(--sp-8));
+    top: calc(var(--header-h) + env(safe-area-inset-top) + var(--vbar-h) + var(--sp-8));
     left: var(--page-margin);
     right: var(--page-margin);
     z-index: var(--z-toast);
@@ -208,6 +250,16 @@ onBeforeUnmount(() => {
     box-shadow: var(--e-2);
     color: var(--c-ink);
     pointer-events: auto;
+}
+
+/* Focused on open: a ring for the keyboard only, as every control's. */
+.addp:focus {
+    outline: none;
+}
+
+.addp:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
 }
 
 .addp__head {
