@@ -204,7 +204,7 @@ class StartseiteController extends Controller
      * illustration, labelled as such, and never borrows somebody else's photograph.
      *
      * @param  array<string, mixed>|null  $hero
-     * @return array{brand: string, name: string, finish: string, image: array<string, mixed>, anchor: array{x: float, y: float, r: float}}|null
+     * @return array{brand: string, name: string, finish: string, image: array<string, mixed>, anchor: array{x: float, y: float, r: float}, href: string}|null
      */
     private function bandWheel(?array $hero): ?array
     {
@@ -233,6 +233,8 @@ class StartseiteController extends Controller
                 'finish' => $finish,
                 'image' => $open,
                 'anchor' => ['x' => (float) ($wheel['x'] ?? 0.5), 'y' => (float) ($wheel['y'] ?? 0.5), 'r' => (float) $wheel['r']],
+                // The wheel is in the shop (the client's #9): its caption leads to its page.
+                'href' => '/felgen/'.$hero['slug'],
             ];
         }
 

@@ -138,7 +138,9 @@ const rendered = computed(() => {
         { id: 'h4', on: true },
         { id: 'h5', on: props.popular !== null || props.recentlyViewed.length > 0 },
         { id: 'h6', on: sizes.value.length > 0 || props.brands.length > 0 },
-        { id: 'h7', on: tyre.value !== null, dark: true },
+        // The turning wheel (P6, the client's #9) stands where it stands on the desktop: with the photographed wheel, the
+        // tyre's label beside it only where a tyre has a verified one.
+        { id: 'h7', on: tyre.value !== null || (props.komplettrad.wheel ?? null) !== null, dark: true },
         // H8 explains the hero wheel's own values; without them there is no section (ACCURACY §4).
         { id: 'h8', on: rimFactsOf(props.photoWheel) !== null },
         { id: 'h9', on: props.partners.enabled },
@@ -332,7 +334,7 @@ onBeforeUnmount(() => {
     </section>
 
     <!-- H7 · The one dark band: what a Komplettrad is, and its tyre's regulated facts. -->
-    <section v-if="tyre" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
+    <section v-if="rendered.h7" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
             <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br>montiert und gewuchtet.</h2>
             <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
@@ -340,6 +342,7 @@ onBeforeUnmount(() => {
             <KomplettradWheel class="home-komplett__wheel" :wheel="komplettrad.wheel ?? null" />
 
             <TyreLabel
+                v-if="tyre"
                 :title="tyre.title"
                 :fuel="tyre.fuel as TyreClass"
                 :wet="tyre.wet as TyreClass"

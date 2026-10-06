@@ -273,6 +273,13 @@ const waiting = computed(
     () => !canSubmit.value && !zero.value && !submitting.value && count.value.status !== 'not_found' && count.value.status !== 'ambiguous'
 )
 
+/* Why it waits, read with the button for whoever cannot see the light blue (#1): the step that is missing. */
+const waitingWhy = computed(() =>
+    picker.route.value === 'guided'
+        ? 'Noch kein Fahrzeug gewählt: Wähl zuerst Marke, Modell und Fahrzeug.'
+        : 'Noch kein Fahrzeug gewählt: Trag zuerst HSN und TSN aus deinem Fahrzeugschein ein.'
+)
+
 function guide(): void {
     const field = (suffix: string): HTMLElement | null => document.getElementById(`${uid}-${suffix}`)
     // A field that can take focus now: a list loading or failed leaves its select disabled.
@@ -650,11 +657,13 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
             data-primary
             :disabled="!waiting && (!canSubmit || submitting)"
             :aria-disabled="waiting ? 'true' : undefined"
+            :aria-describedby="waiting ? `${uid}-why` : undefined"
             :aria-busy="submitting ? 'true' : undefined"
             @click="submit"
         >
             {{ buttonLabel }}
         </button>
+        <span v-if="waiting" :id="`${uid}-why`" class="visually-hidden">{{ waitingWhy }}</span>
 
         <!-- Saved vehicles (F7). -->
         <div v-if="garage.length" class="vpanel__garage">

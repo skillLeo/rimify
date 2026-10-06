@@ -184,6 +184,8 @@ export interface BandWheel {
     finish: string
     image: ImageManifest
     anchor: { x: number; y: number; r: number }
+    /** The wheel's own page: it is in the shop (the client's #9). Absent in an older fixture. */
+    href?: string | null
 }
 
 export interface GuideTeaser {
@@ -442,6 +444,8 @@ export interface FitmentDetailView {
     fasteners: { number?: string | null; thread: string; label: string; torque: string | null; article: string | null; limit: string | null }[]
     tyres: { label: string; axle: string; minimum: string | null; band: string | null }[]
     notices: string[]
+    /** The documents' sentences as printed, with their page, nothing grouped or left out (#21). Additive. */
+    original?: { text: string; page: number | null }[]
 }
 
 export interface ConfigVerdict {
@@ -576,6 +580,8 @@ export interface KomplettradTyreProp {
     /** The EU label, only where the tyre carries a verified EPREL id (ACCURACY D7). */
     label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
     isDemo: boolean
+    /** The answer with this tyre fitted (#18): its size's Auflagen and Eintragung, as the basket line says them. Additive. */
+    answer?: ConditionGroupsView | null
 }
 
 /**
@@ -784,6 +790,8 @@ export interface KontaktProps {
     contact: ContactProp
     /** What the page that linked here knew (#26): a subject and the path the visitor came from. */
     prefill?: { subject: string; from: string | null }
+    /** When the server handed the form out, sealed (#12): sent back with the message. */
+    ticket?: string
 }
 
 export interface RechtlichesProps {
