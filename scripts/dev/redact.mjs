@@ -12,7 +12,8 @@
 //   - anything shaped like a credential, whatever it belongs to: Stripe keys (sk_/rk_/pk_ live and test, whsec_), an
 //     AWS access key id (AKIA…), a private-key block, and the value after MYSQL_PWD=, password=, secret= or token=.
 //
-// A value shorter than six characters is not masked by itself (it would mask ordinary words); the shapes still apply.
+// A value shorter than six characters is not masked by itself (it would mask ordinary words), nor is one that also
+// stands openly under a name that does not say secret (a database named like its password); the shapes still apply.
 // The command reads its input line by line, so a long output streams through without waiting for its end.
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -45,6 +46,21 @@ export function fromEnv(text) {
             if (value !== '' && value !== 'null') {
                 values.push(value)
             }
+        }
+    }
+
+    return values
+}
+
+/** The values in .env-style text whose names do not say secret — they are printed openly, so they are never masked. */
+export function openValues(text) {
+    const values = []
+
+    for (const line of text.split(/\r?\n/)) {
+        const m = /^\s*(?:export\s+)?([A-Za-z0-9_]+)\s*=\s*(.*)$/.exec(line)
+
+        if (m && !SECRET_NAME.test(m[1])) {
+            values.push(m[2].trim().replace(/^(['"])(.*)\1$/, '$2'))
         }
     }
 
@@ -94,8 +110,13 @@ export function knownSecrets(root = ROOT) {
         }
     })()
 
+    // A local database whose password is its own name (DB_DATABASE=rimify, DB_PASSWORD=rimify) holds no secret, and
+    // masking that word would blank every path and database name in an output.
+    const env = files.map((name) => read(join(root, name)))
+    const open = new Set(env.flatMap(openValues))
+
     const values = [
-        ...files.flatMap((name) => fromEnv(read(join(root, name)))),
+        ...env.flatMap(fromEnv).filter((value) => !open.has(value)),
         ...fromAccounts(read(join(root, 'docs', 'review', 'ACCOUNTS.md'))),
         ...read(join(root, '.redact')).split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
     ]
