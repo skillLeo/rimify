@@ -130,7 +130,7 @@ class FahrzeugController extends Controller
 
         // A page that asked for its visitor back gets them, with the car in its address (D-116) so the answer is the new car's.
         $target = $returnTo === null
-            ? redirect()->route('felgen.index', is_array($filters) ? $filters : [])
+            ? redirect()->route('felgen.index', FelgenController::listingQuery(is_array($filters) ? $filters : []))
             : redirect()->to($this->withVehicle($returnTo, $vehicleId));
 
         return $target

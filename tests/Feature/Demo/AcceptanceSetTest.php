@@ -13,6 +13,7 @@ use App\Models\WheelModel;
 use App\Services\Demo\AcceptanceSeeder;
 use App\Services\Demo\DemoPurge;
 use App\Services\Storefront\Basket;
+use App\Services\Storefront\FitmentDetail;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -107,6 +108,26 @@ it('answers from the two real Gutachten: Abnahme and Radlauf for the E46 at 19 Z
     expect($e90->status)->toBe(VerdictStatus::Unknown)
         ->and($e90->isSellable())->toBeFalse()
         ->and($e90->reason?->code)->toBe('TYRE_UNKNOWN');
+});
+
+it('keeps the Gutachten\'s wording as printed beside the arranged Auflagen, every sentence with its page @kunde-21', function (): void {
+    seedAcceptanceSet();
+    $verdict = app(FitmentResolver::class)->resolve((int) acceptanceCar('e46')->id, acceptanceConfig(19, 'Schwarz matt'));
+    $original = app(FitmentDetail::class)->for($verdict)['original'];
+    $printed = array_column($original, 'text');
+
+    // Every sentence of the answer's documents — nothing left out because the verdict line says it — and none of ours.
+    expect($verdict->conditions)->not->toBeEmpty();
+
+    foreach ($verdict->conditions as $condition) {
+        str_starts_with($condition->code, 'KW ')
+            ? expect($printed)->not->toContain($condition->sentenceDe())
+            : expect($printed)->toContain($condition->sentenceDe());
+    }
+
+    // The page each stands on, where the document gives one — the codes never (R-15).
+    expect(array_filter(array_column($original, 'page')))->not->toBeEmpty()
+        ->and(implode(' ', $printed))->not->toMatch('/\b(A01|K42|K1c)\b/');
 });
 
 it('sells the set with the test payment off production, and never in production', function (): void {

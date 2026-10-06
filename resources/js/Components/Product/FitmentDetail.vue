@@ -78,6 +78,13 @@ const hasOwn = computed(() => props.detail.sections.some((s) => s.items.some((i)
 
 /* „nur bis Nachtrag 03“ names the car's type approval, not this document (D-08): said once, under the sets. */
 const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtrag/.test(f.limit ?? '')))
+
+/*
+ * The documents' wording as printed (the client's #21): the page arranges the Auflagen and says the Eintragung once, in
+ * the verdict; what the Gutachten says stays one click away, unarranged and with nothing left out. Closed by default — a
+ * native disclosure, so it opens without script.
+ */
+const original = computed(() => props.detail.original ?? [])
 </script>
 
 <template>
@@ -158,6 +165,16 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
                 </div>
             </div>
         </div>
+
+        <details v-if="original.length" class="fdt__original" data-original>
+            <summary class="fdt__original-toggle">Originaltext anzeigen</summary>
+            <p class="small muted fdt__original-lede">So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.</p>
+            <ul class="fdt__list fdt__list--note">
+                <li v-for="item in original" :key="item.text">
+                    {{ item.text }}<span v-if="item.page" class="fdt__page"> (Seite {{ item.page }})</span>
+                </li>
+            </ul>
+        </details>
     </section>
 </template>
 
@@ -259,6 +276,46 @@ p.fdt__for {
     line-height: var(--lh-small);
     font-variant-numeric: tabular-nums;
     color: var(--c-ink);
+}
+
+/* The wording as printed, below both columns: the check panel's „So haben wir gerechnet“ disclosure, in the same blue. */
+.fdt__original {
+    margin-top: var(--sp-32);
+    padding-top: var(--sp-16);
+    border-top: 1px solid var(--line-s);
+}
+
+.fdt__original-toggle {
+    cursor: pointer;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fdt__original-toggle:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
+}
+
+/* Under a finger the toggle is a 44 px row, as every other control. */
+@media (pointer: coarse) {
+    .fdt__original-toggle {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+    }
+}
+
+.fdt__original-lede {
+    margin: var(--sp-8) 0 0;
+}
+
+.fdt__page {
+    color: var(--c-ink-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 /* The Felgendetails' hairline rows, as a table: the values line up. */

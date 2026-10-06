@@ -105,6 +105,33 @@ class FelgenController extends Controller
     /** The listing's last filters, for the vehicle choice to land on (#27, D-118). */
     public const FILTERS_SESSION = 'listing_filters';
 
+    /**
+     * A filter state as an address writes it — `zoll=19.0`, `marke=BORBET`, several values joined by commas — the form
+     * the homepage's tiles and the menu use, which filters() reads back as it is. The listing a car is chosen onto
+     * (#27) keeps a readable address to save and share (#8), never `zoll%5B0%5D=19.0`. A value that holds a comma
+     * itself keeps the list form, so it is never split.
+     *
+     * @param  array<string, mixed>  $filters  as filters() returns them
+     * @return array<string, string|list<string>>
+     */
+    public static function listingQuery(array $filters): array
+    {
+        $query = [];
+
+        foreach ($filters as $facet => $value) {
+            if ($value === true) {
+                $query[$facet] = '1';
+
+                continue;
+            }
+
+            $values = array_values(array_map(static fn (mixed $v): string => is_scalar($v) ? (string) $v : '', is_array($value) ? $value : [$value]));
+            $query[$facet] = array_filter($values, static fn (string $v): bool => str_contains($v, ',')) === [] ? implode(',', $values) : $values;
+        }
+
+        return $query;
+    }
+
     /** The listing. With a vehicle it is a compliance answer; without one it is a catalogue. */
     public function index(Request $request): Response|RedirectResponse
     {
@@ -473,6 +500,10 @@ class FelgenController extends Controller
 
         $tyres = [];
         $priceOpen = false;
+        // What the answer is with each tyre (the client's #18): the Auflagen and the Eintragung of the tyre's own size, as
+        // the basket line will say them — one size may need the Abnahme where another does not (ABE 55255, X3: A01 with
+        // 255/40 R19 alone).
+        $groups = $verdict->conditionGroups();
 
         foreach ($offer->tyres as $record) {
             $variant = $variants->get($record->id);
@@ -517,6 +548,7 @@ class FelgenController extends Controller
                 })->values()->all(),
                 'label' => Basket::euLabel($variant),
                 'isDemo' => $variant->refusedAsDemo(),
+                'answer' => $groups->toArray(TyreSize::keyOf((int) $variant->width_mm, (int) $variant->aspect, (float) $variant->diameter_in)),
             ];
         }
 

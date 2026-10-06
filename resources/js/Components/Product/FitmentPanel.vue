@@ -20,7 +20,7 @@ import type { IconName } from '../../art'
 import ConditionGroups from '../Fitment/ConditionGroups.vue'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED, entryBySize, entryLineOrNone, papersLine } from '../../fitment/papers'
 import type { ConfigVerdict } from '../../types/pages'
-import type { VehicleProp } from '../../types/rimify'
+import type { ConditionGroupsView, VehicleProp } from '../../types/rimify'
 
 const props = withDefaults(
     defineProps<{
@@ -30,9 +30,17 @@ const props = withDefaults(
         configId?: number | null
         /** The freeze's label: on the RIMIFY-Check, whose own address is the link to share, it only prints (#28). */
         issueLabel?: string
+        /**
+         * A Komplettrad's tyre chosen (the client's #18): the answer for its size, as the server grouped it — the Eintragung
+         * and the Auflagen of that size alone, the same the basket line will say. Null: the answer for every size.
+         */
+        chosen?: ConditionGroupsView | null
     }>(),
-    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen' }
+    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen', chosen: null }
 )
+
+/* `255/40 R19` — the size of the tyre chosen, where the server answered for it. */
+const chosenSize = computed(() => props.chosen?.chosen ?? null)
 
 /* „RIMIFY-Check drucken“: the answer frozen whole on the server, then its printable page. */
 const issuing = ref(false)
@@ -86,6 +94,11 @@ const entryLine = computed(() => {
         return null
     }
 
+    // A tyre chosen: that size's own answer — with 255/40 R19 the Abnahme, with 235/45 R19 none (#18).
+    if (chosenSize.value !== null) {
+        return entryLineOrNone(props.chosen?.entry ?? verdict.requiresEntry, verdict.papersExempt === true)
+    }
+
     // One size needs the Abnahme, another does not (ABE 55255, X3 X83: A01 with 255/40R19 alone): the line names them.
     return entryBySize(verdict.conditionGroups?.sizes, verdict.papersExempt === true) ?? entryLineOrNone(verdict.requiresEntry, verdict.papersExempt === true)
 })
@@ -132,17 +145,20 @@ const overview = computed(() => {
         return []
     }
 
-    // What there is to do — the notes are not a task, and the sizes have their own line below.
+    // What there is to do — the notes are not a task, and the sizes have their own line below. With a tyre chosen, only
+    // what its size carries: a sentence another size alone hangs off is not this combination's (D-04, #18).
     const lines: string[] = []
-    const items = (title: string): number => view.sections.find((s) => s.title === title)?.items.filter((i) => !said.value.includes(i.text)).length ?? 0
+    const chosen = chosenSize.value
+    const applies = (i: { sizes?: string[] }): boolean => chosen === null || !i.sizes?.length || i.sizes.includes(chosen)
+    const items = (title: string): number => view.sections.find((s) => s.title === title)?.items.filter((i) => !said.value.includes(i.text) && applies(i)).length ?? 0
     const work = items('Arbeiten am Fahrzeug')
     const first = view.fasteners[0]
 
     // A size's own work counts only with that size (D-04): „bis zu“ while the size decides.
-    const bySize = view.sections.find((s) => s.title === 'Arbeiten am Fahrzeug')?.items.some((i) => i.sizes?.length) ?? false
+    const bySize = chosen === null && (view.sections.find((s) => s.title === 'Arbeiten am Fahrzeug')?.items.some((i) => i.sizes?.length) ?? false)
 
     // An Abnahme only some sizes carry is said as such, as the work is (D-04).
-    const abnahmeBySize = view.sections.find((s) => s.title === 'Abnahme')?.items.some((i) => i.sizes?.length) ?? false
+    const abnahmeBySize = chosen === null && (view.sections.find((s) => s.title === 'Abnahme')?.items.some((i) => i.sizes?.length) ?? false)
 
     if (items('Abnahme') > 0) lines.push(abnahmeBySize ? 'Abnahme beim Prüfer, je nach Reifengröße' : 'Abnahme beim Prüfer')
     if (work > 0) lines.push(`${bySize ? 'bis zu ' : ''}${work} ${work === 1 ? 'Arbeit' : 'Arbeiten'} am Fahrzeug${bySize ? ', je nach Reifengröße' : ''}`)
@@ -286,10 +302,11 @@ const headline = computed(() => {
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->
             <div v-if="detail && overview.length" class="fit__overview">
-                <p class="label fit__overview-h">Das verlangt das Gutachten</p>
+                <p class="label fit__overview-h">Das verlangt das Gutachten<template v-if="chosenSize"> mit <span class="data" translate="no">{{ chosenSize }}</span></template></p>
                 <p class="small fit__overview-line">{{ overview.join(' · ') }} · <a class="fit__to-detail" href="#auflagen" @click="toDetail">alle Auflagen im Wortlaut</a></p>
             </div>
             <!-- Each tyre size's Auflagen with that size, the combination's once (ConditionGroups) — never one blended list. -->
+            <ConditionGroups v-else-if="!detail && chosen" class="fit__groups" :groups="chosen" :omit="said" />
             <ConditionGroups v-else-if="!detail && verdict.conditionGroups && conditions.length" class="fit__groups" :groups="verdict.conditionGroups" :omit="said" />
             <ul v-else-if="!detail && conditions.length" class="fit__conditions">
                 <li v-for="condition in conditions" :key="condition">{{ condition }}</li>

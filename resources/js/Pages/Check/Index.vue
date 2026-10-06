@@ -546,8 +546,15 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                 </p>
 
                 <div class="chk__answer-grid">
-                    <!-- The page's own address is the link to share; the panel's freeze only prints here. -->
-                    <FitmentPanel :verdict="config.verdict ?? null" :vehicle="vehicle" :config-id="config.id" issue-label="RIMIFY-Check drucken" />
+                    <!-- The page's own address is the link to share; the panel's freeze only prints here. With a Komplettrad's
+                         tyre chosen, the answer for that tyre's size, as on the product page (#18). -->
+                    <FitmentPanel
+                        :verdict="config.verdict ?? null"
+                        :vehicle="vehicle"
+                        :config-id="config.id"
+                        issue-label="RIMIFY-Check drucken"
+                        :chosen="isSet ? (tyre?.answer ?? null) : null"
+                    />
 
                     <div class="chk__buy">
                         <template v-if="sellable">

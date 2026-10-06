@@ -270,7 +270,11 @@ watch(amount, () => basket.clearErrors())
 
 const amountPrice = computed(() => selected.value?.amounts?.find((a) => a.quantity === amount.value) ?? null)
 
-/* `für 4 Felgen, je 229,00 €` — the unit price stays in sight, so the total never reads as one rim's. */
+/*
+ * `4 × 229,00 € = 916,00 €` (the operator's wording for the client's #17): the amount, one rim's price and the total in
+ * one line, so the figure beside the stepper can never be read as one rim's. Both prices are the server's — the line
+ * shows the sum, it does not compute it.
+ */
 const amountNote = computed(() => {
     const current = selected.value
 
@@ -278,9 +282,7 @@ const amountNote = computed(() => {
         return `pro Felge, ${terms.value.note}`
     }
 
-    return amount.value === 1
-        ? `für 1 Felge, ${terms.value.note}`
-        : `für ${amount.value} Felgen, je ${current.price}, ${terms.value.note}`
+    return `${amount.value} × ${current.price} = ${amountPrice.value.text}, ${terms.value.note}`
 })
 
 /*
@@ -588,7 +590,14 @@ claimBottomEdge(() => stickyShown.value)
                         <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
                     </div>
 
-                    <FitmentPanel class="pdp__fit" :verdict="selected?.verdict ?? null" :vehicle="shared.vehicle" :config-id="selected?.id ?? null">
+                    <!-- With a Komplettrad's tyre chosen, the answer for that tyre's size (#18): its Eintragung, its Auflagen. -->
+                    <FitmentPanel
+                        class="pdp__fit"
+                        :verdict="selected?.verdict ?? null"
+                        :vehicle="shared.vehicle"
+                        :config-id="selected?.id ?? null"
+                        :chosen="isSet ? (tyre?.answer ?? null) : null"
+                    >
                         <Link v-if="!hasVehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm pdp__fit-cta">
                             Fahrzeug wählen
                         </Link>

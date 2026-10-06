@@ -19,7 +19,7 @@ describe('FitmentDetail', () => {
         expect(wrapper.text()).toContain(ABNAHME)
     })
 
-    it('leaves out a sentence the verdict above already says (#21), and keeps the document\'s own wording', () => {
+    it('leaves out a sentence the verdict above already says, and keeps the document\'s own wording @kunde-21', () => {
         const ENTRY = 'Eintragung in die Fahrzeugpapiere erforderlich.'
         const detail = {
             ...borbetDetail,
@@ -27,8 +27,25 @@ describe('FitmentDetail', () => {
         }
         const omitted = mount(FitmentDetail, { props: { detail, vehicleLabel: 'BMW 1er-Reihe 1K4', omit: [ENTRY] } })
 
-        expect(omitted.text()).not.toContain(ENTRY)
+        expect(omitted.find('.fdt__cols').text()).not.toContain(ENTRY)
         expect(omitted.text()).toContain(ABNAHME)
+    })
+
+    it('keeps the wording as printed one click away, under „Originaltext anzeigen“ — nothing left out, each with its page @kunde-21', () => {
+        const ENTRY = 'Eintragung in die Fahrzeugpapiere erforderlich.'
+        const detail = { ...borbetDetail, original: [{ text: ABNAHME, page: 4 }, { text: ENTRY, page: null }] }
+        const printed = mount(FitmentDetail, { props: { detail, vehicleLabel: 'BMW 1er-Reihe 1K4', omit: [ENTRY] } })
+        const disclosure = printed.find('details[data-original]')
+
+        // Closed until asked for: the arranged lists above are what the customer reads first.
+        expect(disclosure.exists()).toBe(true)
+        expect(disclosure.attributes('open')).toBeUndefined()
+        expect(disclosure.find('summary').text()).toBe('Originaltext anzeigen')
+        // The sentence the verdict line says is still there, word for word; the page where the document gives one.
+        expect(disclosure.findAll('li').map((li) => li.text())).toEqual([`${ABNAHME} (Seite 4)`, ENTRY])
+
+        // No wording to show, no toggle.
+        expect(wrapper.find('details[data-original]').exists()).toBe(false)
     })
 
     it('gives the millimetres under their sentence, and every bolt set as a row with what the page prints beside it', () => {
