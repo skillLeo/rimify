@@ -68,9 +68,12 @@ const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0, 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
 
-/** GPSR's electronic address as a link: an e-mail opens the mail program, a web address its page. */
-function contactHref(contact: string): string {
-    return contact.includes('@') && !contact.startsWith('http') ? `mailto:${contact}` : contact
+/**
+ * GPSR's electronic address: a web address as its link, an e-mail address as text to copy — no button on the shop opens
+ * a mail program (the client's #26); the maker's address is the maker's, so it cannot lead to our contact form either.
+ */
+function webAddress(contact: string): string | null {
+    return /^https?:\/\//i.test(contact.trim()) ? contact.trim() : null
 }
 
 /* Where the maker's details are missing, a question to us goes through the contact form (#26). */
@@ -791,7 +794,7 @@ claimBottomEdge(() => stickyShown.value)
                 <dl v-if="product.manufacturer" class="pdp__gpsr-list">
                     <div class="pdp__gpsr-row">
                         <dt>Hersteller</dt>
-                        <dd class="pdp__gpsr-value">{{ product.manufacturer.name }}<br>{{ product.manufacturer.address }}<br><a class="link" :href="contactHref(product.manufacturer.contact)">{{ product.manufacturer.contact }}</a></dd>
+                        <dd class="pdp__gpsr-value">{{ product.manufacturer.name }}<br>{{ product.manufacturer.address }}<br><a v-if="webAddress(product.manufacturer.contact)" class="link" :href="webAddress(product.manufacturer.contact) ?? undefined" rel="noopener" target="_blank">{{ product.manufacturer.contact }}</a><span v-else translate="no">{{ product.manufacturer.contact }}</span></dd>
                     </div>
                     <div v-if="product.manufacturer.euResponsible" class="pdp__gpsr-row">
                         <dt>Verantwortliche Person in der EU</dt>

@@ -1633,7 +1633,7 @@
         }
 
         .hdr__bar {
-            height: var(--header-h-m);
+            height: var(--header-h);
             gap: var(--space-3);
         }
 

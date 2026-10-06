@@ -720,18 +720,12 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     gap: var(--sp-8);
 }
 
-/* Brought into view under the header and the vehicle bar: the phone's header is the shorter one (CHECK-22). */
+/* Brought into view under the header and the vehicle bar, whose heights are tokens at every width (CHECK-22, #2). */
 .chk__answer {
     display: grid;
     gap: var(--sp-16);
     margin-top: var(--sp-48);
-    scroll-margin-top: calc(var(--header-h-m) + var(--vbar-h) + var(--sp-16));
-}
-
-@media (min-width: 1024px) {
-    .chk__answer {
-        scroll-margin-top: calc(var(--header-h) + var(--vbar-h) + var(--sp-16));
-    }
+    scroll-margin-top: calc(var(--header-h) + var(--vbar-h) + var(--sp-16));
 }
 
 .chk__pair {

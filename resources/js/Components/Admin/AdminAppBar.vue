@@ -36,7 +36,7 @@ function observe(): void {
         return
     }
 
-    // 56 px is the bar (`--header-h-m`): the heading counts as gone once it is under the bar.
+    // 56 px is the bar (`--adm-topbar-h`): the heading counts as gone once it is under the bar.
     observer = new IntersectionObserver(
         ([entry]) => {
             titled.value = entry !== undefined && !entry.isIntersecting && entry.boundingClientRect.bottom <= 56

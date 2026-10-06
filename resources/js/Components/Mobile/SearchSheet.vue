@@ -227,7 +227,7 @@ function useSuggestion(): void {
     display: flex;
     align-items: center;
     gap: var(--sp-8);
-    min-height: var(--header-h-m);
+    min-height: var(--header-h);
     padding: var(--sp-8) var(--sp-12) var(--sp-8) var(--page-margin);
     border-bottom: 1px solid var(--c-line);
 }

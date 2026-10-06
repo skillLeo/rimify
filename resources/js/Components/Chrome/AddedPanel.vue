@@ -181,7 +181,7 @@ onBeforeUnmount(() => {
  */
 .addp-viewport {
     position: fixed;
-    top: calc(var(--header-h-m) + env(safe-area-inset-top) + var(--vbar-h) + var(--sp-8));
+    top: calc(var(--header-h) + env(safe-area-inset-top) + var(--vbar-h) + var(--sp-8));
     left: var(--page-margin);
     right: var(--page-margin);
     z-index: var(--z-toast);
