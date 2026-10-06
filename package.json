@@ -12,7 +12,7 @@
         "lint": "eslint resources/js e2e",
         "lint:css": "stylelint \"resources/css/**/*.css\" \"resources/js/**/*.vue\"",
         "format": "prettier --write resources/js e2e",
-        "qa": "node scripts/qa/overflow.mjs && node scripts/qa/console.mjs && node scripts/qa/axe.mjs && node scripts/qa/style-inventory.mjs",
+        "qa": "node scripts/qa/third-party.mjs && node scripts/qa/overflow.mjs && node scripts/qa/console.mjs && node scripts/qa/axe.mjs && node scripts/qa/style-inventory.mjs",
         "qa:shots": "node scripts/qa/review-shots.mjs",
         "qa:lighthouse": "node scripts/qa/lighthouse.mjs",
         "ocr:assets": "node scripts/ocr-assets.mjs",
