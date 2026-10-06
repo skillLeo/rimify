@@ -54,6 +54,12 @@ function sharedNav(AdminUser $admin): array
 }
 
 describe('the tree', function (): void {
+    // A test environment whose server allows the reset (the preview's .env), so its page is in the tree and opened too;
+    // phpunit.xml pins the flag off, and the last test of this group holds the rail without it (D-179).
+    beforeEach(function (): void {
+        config(['rimify.reset.allowed' => true]);
+    });
+
     it('opens every entry it offers, for every role — no dead link and no 403 after a click', function (string $role): void {
         $admin = shellAdmin($role);
 
@@ -125,6 +131,13 @@ describe('the tree', function (): void {
     it('always keeps Übersicht, so the rail is never empty', function (string $role): void {
         expect(sharedNav(shellAdmin($role))[0]['label'])->toBe('Übersicht');
     })->with(fn (): array => shellRoles());
+
+    it('never offers „Zurücksetzen“ where the server has not allowed the reset — not even to the Super-Admin', function (): void {
+        config(['rimify.reset.allowed' => false]);
+        $system = collect(sharedNav(shellAdmin()))->firstWhere('key', 'system');
+
+        expect(array_column($system['pages'] ?? [], 'label'))->toBe(['Zustand', 'Was fehlt']);
+    });
 });
 
 describe('the counts', function (): void {

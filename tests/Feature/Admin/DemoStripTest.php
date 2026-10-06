@@ -56,6 +56,8 @@ it('says nothing while there are no demo rows', function (): void {
 });
 
 it('tells everyone how many demo rows there are, and offers the purge only to who may', function (): void {
+    // A test environment whose server allows the reset: the Super-Admin is shown the way to it (D-179).
+    config(['rimify.reset.allowed' => true]);
     stripPlant(3);
 
     expect(stripProp('super-admin'))->toBe(['rows' => 3, 'canPurge' => true, 'blocked' => null, 'resetHref' => '/admin/system/zuruecksetzen'])
@@ -91,6 +93,8 @@ it('takes the demo rows away for who may, says how many, and names them in the P
 });
 
 it('says why the set cannot go before anyone presses, and records the press that changed nothing', function (): void {
+    // A test environment whose server allows the reset: the reason names it, and the strip leads there (D-179).
+    config(['rimify.reset.allowed' => true]);
     $this->seed(ApprovalSeeder::class);
     OrderLine::factory()->create(['wheel_config_id' => DB::table('wheel_configs')->orderBy('id')->value('id'), 'is_demo' => false]);
     DemoTables::forget();
@@ -111,6 +115,21 @@ it('says why the set cannot go before anyone presses, and records the press that
     expect(DemoTables::total())->toBe($total)
         ->and($entry->properties['reasons'][0])->toBe($strip['blocked'])
         ->and(AuditLog::query()->where('description', 'demo.purged')->exists())->toBeFalse();
+});
+
+// D-179: on a server without RIMIFY_RESET_ERLAUBT the reset page answers 404 — the reason says why the set cannot go,
+// and names no way that leads nowhere; nor does the strip offer one.
+it('names no way to the reset where the server has not allowed it', function (): void {
+    config(['rimify.reset.allowed' => false]);
+    $this->seed(ApprovalSeeder::class);
+    OrderLine::factory()->create(['wheel_config_id' => DB::table('wheel_configs')->orderBy('id')->value('id'), 'is_demo' => false]);
+    DemoTables::forget();
+
+    $strip = stripProp('super-admin');
+
+    expect($strip['blocked'])->toContain('nur zusammen mit allen Shopdaten entfernen.')
+        ->and($strip['blocked'])->not->toContain('Zurücksetzen')
+        ->and($strip['resetHref'])->toBeNull();
 });
 
 it('keeps the page when the demo rows cannot be counted', function (): void {
