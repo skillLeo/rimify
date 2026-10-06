@@ -111,6 +111,13 @@ title; please confirm every line, or replace it with the wording the shop can st
     Deutschland“ as open until the server stands there (D-181). What the client does: buy the live shop's Hostinger
     plan with the data centre „Deutschland“ — then nothing has to move — or let us know, and the existing plan moves
     by `docs/ops/UMZUG-DE.md`, on the operator's word.
+36. **How long invoices must be kept — for the Kanzlei (06.10.2026).** The processing record
+    (`docs/legal/VERARBEITUNG.md`, written by `app/Services/Legal/ProcessingRecord.php`) keeps orders, invoices and
+    credit notes without end and names „§ 147 AO, § 14b UStG“ for the period after which they could go. As far as we
+    know, the Viertes Bürokratieentlastungsgesetz cut the period for Buchungsbelege, invoices included, to eight years
+    from 01.01.2025, while books and records stay at ten. Please have the Kanzlei confirm the period for invoices,
+    credit notes and the order records before the deletion the record lists as open (its § 3) is set. Until then the
+    record names the two paragraphs and no period.
 
 ## Photography and brands
 

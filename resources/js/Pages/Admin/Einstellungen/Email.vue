@@ -95,7 +95,7 @@ const context = props.sending
 
                 <div class="form-field">
                     <span class="form-field__label">Region</span>
-                    <p class="em-fixed"><code>{{ region }}</code> – dieselbe wie der Bucket.</p>
+                    <p class="em-fixed"><code>{{ region }}</code> – dieselbe wie beim Bucket.</p>
                 </div>
             </section>
 
@@ -120,7 +120,8 @@ const context = props.sending
                         <button class="btn btn--secondary btn--sm" type="button" @click="replaceSecret">Neuen Schlüssel eintragen</button>
                     </div>
                     <input v-else id="em-secret" v-model="form.secret" class="input em-secret" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="em-secret-help em-secret-error" :aria-invalid="form.errors.secret ? 'true' : undefined">
-                    <p v-if="newSecret" id="em-secret-help" class="form-field__help">Leer lassen behält den gespeicherten Schlüssel.</p>
+                    <!-- Only where a secret is stored: with none, an empty field keeps nothing. -->
+                    <p v-if="newSecret && secretMasked !== null" id="em-secret-help" class="form-field__help">Leer lassen behält den gespeicherten Schlüssel.</p>
                     <p id="em-secret-error" class="form-field__error">{{ form.errors.secret }}</p>
                 </div>
             </section>
@@ -146,7 +147,7 @@ const context = props.sending
                 <h2 id="em-dns" class="adm-form__heading">DNS-Einträge der Absenderdomain</h2>
                 <p v-if="domain === null" class="adm-form__note">Erst mit einer Absenderadresse lässt sich sagen, welche Einträge die Domain braucht.</p>
                 <template v-else>
-                    <p class="adm-form__note">So, wie die Welt sie für {{ domain }} gerade sieht (alle zehn Minuten neu nachgesehen). Einzutragen beim Anbieter der Domain.</p>
+                    <p class="adm-form__note">So, wie sie für {{ domain }} gerade im öffentlichen DNS stehen (alle zehn Minuten neu abgefragt). Einzutragen beim Anbieter der Domain.</p>
                     <div class="adm-panel">
                         <table class="adm-table">
                             <caption class="visually-hidden">Die DNS-Einträge, die Amazon SES für die Absenderdomain braucht</caption>
@@ -184,7 +185,7 @@ const context = props.sending
                 <div class="form-field">
                     <label class="form-field__label" for="em-topic">SNS-Thema (ARN) <span class="form-field__optional">optional</span></label>
                     <input id="em-topic" v-model="form.topic_arn" class="input" type="text" autocomplete="off" spellcheck="false" aria-describedby="em-topic-help em-topic-error" :aria-invalid="form.errors.topic_arn ? 'true' : undefined">
-                    <p id="em-topic-help" class="form-field__help">Nur Meldungen dieses Themas nimmt der Shop an. Leer: Er nimmt keine an.</p>
+                    <p id="em-topic-help" class="form-field__help">Nur Meldungen dieses Themas nimmt der Shop an. Leer lassen heißt: Er nimmt keine an.</p>
                     <p id="em-topic-error" class="form-field__error">{{ form.errors.topic_arn }}</p>
                 </div>
 

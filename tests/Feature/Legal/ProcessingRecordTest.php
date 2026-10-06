@@ -38,9 +38,9 @@ it('says each provider\'s state here, as the configuration has it', function ():
 
     $record = processingRecord();
 
-    expect($record)->toContain('In Betrieb: Server `us-bos-web1780.main-hosting.eu` in USA. Entschieden ist Hostingers Rechenzentrum in Deutschland')
+    expect($record)->toContain('In Betrieb: Server `us-bos-web1780.main-hosting.eu`, Standort USA. Entschieden ist Hostingers Rechenzentrum in Deutschland')
         ->and($record)->toContain('Nicht in Betrieb: Der Shop nimmt keine Zahlungen an.')
-        ->and($record)->toContain('Noch nicht eingesetzt: Die Mails des Shops gehen ins Protokoll (`log`)')
+        ->and($record)->toContain('Noch nicht in Betrieb: Die Mails des Shops gehen ins Server-Log (`log`)')
         ->and($record)->toContain('Der Server steht noch nicht in Deutschland (1.1)');
 
     config(['rimify.payments.driver' => 'sandbox']);
@@ -51,21 +51,28 @@ it('says each provider\'s state here, as the configuration has it', function ():
 
     $germany = processingRecord('de-fra-web1500.main-hosting.eu');
 
-    expect($germany)->toContain('In Betrieb: Server `de-fra-web1500.main-hosting.eu` in Deutschland.')
+    expect($germany)->toContain('In Betrieb: Server `de-fra-web1500.main-hosting.eu`, Standort Deutschland.')
         ->and($germany)->not->toContain('Der Server steht noch nicht in Deutschland')
         ->and($germany)->toContain('Nicht in Betrieb: Bestellungen werden mit der eingebauten Testzahlung abgeschlossen')
         ->and($germany)->toContain('In Betrieb: Absender `bestellung@rimify.de`, Region `eu-north-1`.');
 });
 
 it('names the periods the code enforces, the seven-day reset copy among them — and follows a changed setting', function (): void {
+    // The stack of a fresh checkout writes one file that never rotates: the record says so, rather than a period.
+    config(['logging.default' => 'stack', 'logging.channels.stack.channels' => ['single']]);
+
     expect(processingRecord())->toContain('| Kontaktanfragen | '.ContactMessage::KEEP_MONTHS.' Monate |')
         ->toContain('| Sicherungskopien beim Zurücksetzen der Testumgebung | '.TestEnvironment::KEEP_DAYS.' Tage, dann gelöscht und protokolliert')
-        ->toContain('| Server-Log | 14 Tage |')
+        ->toContain('| Server-Log | unbefristet: eine einzige Datei, die nicht rotiert wird |')
+        ->toContain('Das Server-Log ist eine einzige Datei, die nicht rotiert wird (`LOG_STACK=single`)')
+        ->toContain('§ 147 AO, § 14b UStG – die Frist bestätigt die Kanzlei')
         ->toContain('| `rmf_papiere` |');
 
-    config(['logging.channels.daily.max_files' => 30, 'session.lifetime' => 45]);
+    // As the preview writes it (LOG_STACK=daily): the daily file's own period, and no open point about it.
+    config(['logging.channels.stack.channels' => ['daily'], 'logging.channels.daily.max_files' => 30, 'session.lifetime' => 45]);
 
     expect(processingRecord())->toContain('| Server-Log | 30 Tage |')
+        ->not->toContain('`LOG_STACK=single`')
         ->toContain('| Sitzung (Warenkorb, Anmeldung) | 45 Minuten ohne Aktivität |');
 });
 

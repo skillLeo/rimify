@@ -55,7 +55,7 @@ final class SesProbe
             ['step' => 'Produktionszugang: Versand an jede Adresse', 'ok' => $facts['production_access'], 'detail' => $facts['production_access']
                 ? 'Bis zu '.GermanFormat::integer((int) ($quota['Max24HourSend'] ?? 0)).' Mails in 24 Stunden.'
                 : 'Das Konto ist noch in der Sandbox: SES stellt nur an bestätigte Adressen zu, eine Bestellbestätigung an Kunden käme nicht an. Produktionszugang in der SES-Konsole beantragen (docs/ops/MAIL-SES.md).'],
-            ['step' => 'SES sperrt unzustellbare und beschwerende Adressen selbst', 'ok' => $selfSuppressing, 'detail' => $selfSuppressing ? null : 'In der SES-Konsole unter „Suppression list“ für Bounces und Beschwerden einschalten.'],
+            ['step' => 'SES führt eine eigene Sperrliste für unzustellbare Adressen und Beschwerden', 'ok' => $selfSuppressing, 'detail' => $selfSuppressing ? null : 'In der SES-Konsole unter „Suppression list“ für Bounces und Beschwerden einschalten.'],
         ];
 
         try {
@@ -77,7 +77,7 @@ final class SesProbe
         $facts['mail_from_domain'] = isset($mailFrom['MailFromDomain']) && $mailFrom['MailFromDomain'] !== '' ? (string) $mailFrom['MailFromDomain'] : null;
         $facts['mail_from_status'] = isset($mailFrom['MailFromDomainStatus']) ? (string) $mailFrom['MailFromDomainStatus'] : null;
 
-        $steps[] = ['step' => "Absenderdomain {$domain} bestätigt", 'ok' => $facts['identity_verified'], 'detail' => $facts['identity_verified'] ? null : 'SES wartet auf die DKIM-Einträge im DNS der Domain; die Prüfung unten nennt sie.'];
+        $steps[] = ['step' => "Absenderdomain {$domain} bestätigt", 'ok' => $facts['identity_verified'], 'detail' => $facts['identity_verified'] ? null : 'SES wartet auf die DKIM-Einträge im DNS der Domain; sie stehen unten unter „DNS-Einträge der Absenderdomain“.'];
         $steps[] = ['step' => 'DKIM-Signatur', 'ok' => $facts['dkim_status'] === 'SUCCESS', 'detail' => match ($facts['dkim_status']) {
             'SUCCESS' => null,
             'PENDING' => 'SES hat die drei CNAME-Einträge noch nicht gefunden.',

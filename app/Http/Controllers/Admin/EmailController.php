@@ -105,6 +105,6 @@ class EmailController extends Controller
             AuditTrail::record($request->admin(), 'mail.suppression_released', ['email' => $suppression->email]);
         }
 
-        return back()->with('toast', "Die Sperre für {$suppression->email} ist aufgehoben. Steht die Adresse auch auf der Sperrliste von SES, dort ebenfalls entfernen.");
+        return back()->with('toast', "Die Sperre für {$suppression->email} ist aufgehoben. Steht die Adresse auch auf der Sperrliste von SES, entferne sie dort ebenfalls.");
     }
 }

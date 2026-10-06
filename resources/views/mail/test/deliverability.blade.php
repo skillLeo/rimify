@@ -7,7 +7,7 @@ Bitte notiere nur, wo sie gelandet ist: im Posteingang, unter Werbung oder im Sp
 
 <x-mail::button :url="$shop">Zum Shop</x-mail::button>
 
-Die beiden Anhänge sind Muster und tragen das auf jeder Seite.
+Die beiden Anhänge sind Muster; das steht auf jeder Seite.
 
 RIMIFY
 </x-mail::message>

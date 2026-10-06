@@ -558,7 +558,7 @@ final class GoLiveChecks
         };
         $mailer = (string) config('mail.default');
 
-        return $this->check('mailversand', self::OPERATIONS, $title, GoLiveCheck::US, GoLiveCheck::MISSING, "Die Mails gehen über „{$mailer}“ und erreichen bis dahin niemanden. Es fehlt: ".implode(', ', $open).'.', $place);
+        return $this->check('mailversand', self::OPERATIONS, $title, GoLiveCheck::US, GoLiveCheck::MISSING, "Die Mails gehen über „{$mailer}“ und erreichen bis dahin niemanden. Noch offen: ".implode(', ', $open).'.', $place);
     }
 
     /**
@@ -635,7 +635,7 @@ final class GoLiveChecks
         }
 
         if ($where === null) {
-            return $this->check('serverstandort', self::OPERATIONS, $title, GoLiveCheck::HOST, GoLiveCheck::UNCHECKABLE, "Der Server heißt {$hostname}; aus dem Namen geht der Standort nicht hervor – beim Host nachsehen, ob das Rechenzentrum in der EU steht.", $place);
+            return $this->check('serverstandort', self::OPERATIONS, $title, GoLiveCheck::HOST, GoLiveCheck::UNCHECKABLE, "Der Server heißt {$hostname}; aus dem Namen geht der Standort nicht hervor – beim Host nachsehen, ob das Rechenzentrum in Deutschland steht.", $place);
         }
 
         $code = strtoupper($where['country']);

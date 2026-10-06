@@ -64,7 +64,7 @@ final class ProcessingRecord
             '',
             '> Erzeugt mit `php artisan rimify:verarbeitung` aus der Konfiguration dieser Installation – nicht von Hand geschrieben.',
             '> Stand: '.GermanFormat::dateTime($at).' · Server: `'.$hostname.'` · Umgebung: `'.app()->environment().'`.',
-            '> Für den Kunden und die Kanzlei: was der Shop heute tatsächlich tut. Was offen ist, steht als „offen“ da.',
+            '> Für den Betreiber und die Kanzlei: was der Shop heute tatsächlich tut. Was offen ist, steht als „offen“ da.',
             '',
             '## 1 · Dienstleister, die personenbezogene Daten für den Shop verarbeiten',
             '',
@@ -75,7 +75,7 @@ final class ProcessingRecord
             $lines[] = '';
             $lines[] = '| | |';
             $lines[] = '|---|---|';
-            $lines[] = '| Stand hier | '.$p['status'].' |';
+            $lines[] = '| Stand in dieser Installation | '.$p['status'].' |';
             $lines[] = '| Unternehmen | '.$p['company'].' |';
             $lines[] = '| Ort der Verarbeitung | '.$p['where'].' |';
             $lines[] = '| Zweck | '.$p['purpose'].' |';
@@ -87,10 +87,10 @@ final class ProcessingRecord
 
         $lines[] = '### Keine Dienstleister im Sinne dieser Liste';
         $lines[] = '';
-        $lines[] = '- **Im Browser lädt der Shop nichts von Dritten:** Schriften, Bilder, Skripte und Stile kommen vom eigenen Server; einzige Ausnahmen sind der Medien-Bucket (1.2) und Stripe auf der Kasse (1.4). Die Qualitätsprüfung `scripts/qa/third-party.mjs` (G8) lässt jede andere Anfrage an einen fremden Server scheitern.';
+        $lines[] = '- **Im Browser lädt der Shop nichts von Dritten:** Schriften, Bilder, Skripte und Stile kommen vom eigenen Server; einzige Ausnahmen sind der Medien-Bucket (1.2) und Stripe an der Kasse (1.4). Die Qualitätsprüfung `scripts/qa/third-party.mjs` (G8) schlägt bei jeder anderen Anfrage an einen fremden Server fehl.';
         $lines[] = '- **Fahrzeugschein-Erkennung:** läuft auf dem Gerät des Kunden; das Foto verlässt es nicht.';
         $lines[] = '- **GitHub:** Quellcode und Tests des Shops, keine Kundendaten.';
-        $lines[] = '- **Keine Statistik, keine Werbung, kein Tracking:** Der Shop setzt nur notwendige und funktionale Cookies (2.3).';
+        $lines[] = '- **Keine Statistik, keine Werbung, kein Tracking:** Der Shop setzt nur notwendige und funktionale Cookies (2.1).';
         $lines[] = '';
 
         $lines[] = '## 2 · Speicherfristen, wie der Code sie umsetzt';
@@ -103,7 +103,7 @@ final class ProcessingRecord
         }
 
         $lines[] = '';
-        $lines[] = '### 2.3 · Cookies';
+        $lines[] = '### 2.1 · Cookies';
         $lines[] = '';
         $lines[] = '| Cookie | Speichert | Dauer |';
         $lines[] = '|---|---|---|';
@@ -139,13 +139,13 @@ final class ProcessingRecord
             'name' => 'Hosting: Webserver, Datenbank, CDN',
             'status' => $where === null
                 ? "Auf dieser Installation (`{$hostname}`) nicht feststellbar – sie läuft nicht bei Hostinger."
-                : "In Betrieb: Server `{$hostname}` in {$country}.".($where['country'] === 'de' ? '' : ' Entschieden ist Hostingers Rechenzentrum in Deutschland (D-181, docs/ops/UMZUG-DE.md).'),
+                : "In Betrieb: Server `{$hostname}`, Standort {$country}.".($where['country'] === 'de' ? '' : ' Entschieden ist Hostingers Rechenzentrum in Deutschland (D-181, docs/ops/UMZUG-DE.md).'),
             'company' => self::HOSTINGER,
-            'where' => $country === null ? 'Rechenzentrum laut Hostinger-Vertrag' : "Rechenzentrum in {$country}; der Shop läuft hinter Hostingers CDN.",
+            'where' => $country === null ? 'Rechenzentrum laut Hostinger-Vertrag.' : "Standort des Rechenzentrums: {$country}. Der Shop läuft hinter Hostingers CDN.",
             'purpose' => 'Betrieb des Shops: Webserver, Datenbank, Dateien auf dem Server, Server-Logs, das CDN vor der Seite, Hostingers eigene Sicherungen.',
             'data' => 'Alle Daten des Shops: Kundenkonten, Liefer- und Rechnungsanschriften, Bestellungen und Rechnungen, Fahrzeugangaben (HSN/TSN, Angaben aus dem Fahrzeugschein), Nachrichten aus dem Kontaktformular, Bewertungen, das Protokoll; IP-Adressen in den Server-Logs.',
             'basis' => 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag), lit. c (Aufbewahrungspflichten), lit. f (sicherer Betrieb).',
-            'agreement' => 'Hostinger stellt seinen Auftragsverarbeitungsvertrag (Data Processing Agreement) als Teil seiner Nutzungsbedingungen bereit. Für den Vertrag des Live-Shops: offen – der Vertragsinhaber bestätigt ihn bei Hostinger.',
+            'agreement' => 'Hostinger stellt seinen Auftragsverarbeitungsvertrag (Data Processing Agreement) als Teil seiner Nutzungsbedingungen bereit. Für den Live-Shop offen: Der Vertragsinhaber bestätigt den Auftragsverarbeitungsvertrag bei Hostinger.',
         ];
     }
 
@@ -179,9 +179,9 @@ final class ProcessingRecord
             'name' => 'E-Mail-Versand (Amazon SES)',
             'status' => $sending !== null
                 ? 'In Betrieb: Absender `'.$sending->from_address.'`, Region `'.$sending->region.'`.'
-                : 'Noch nicht eingesetzt: Die Mails des Shops gehen ins Protokoll (`'.config('mail.default').'`) und erreichen niemanden, bis der Zugang in Einstellungen › E-Mail eingetragen und freigegeben ist (D-182).',
+                : 'Noch nicht in Betrieb: Die Mails des Shops gehen ins Server-Log (`'.config('mail.default').'`) und erreichen niemanden, bis der Zugang in Einstellungen › E-Mail eingetragen und freigegeben ist (D-182).',
             'company' => self::AWS,
-            'where' => 'AWS-Region `eu-north-1` (Stockholm, Schweden) – dieselbe wie der Bucket.',
+            'where' => 'AWS-Region `eu-north-1` (Stockholm, Schweden) – dieselbe wie beim Bucket.',
             'purpose' => 'Versand der Mails des Shops: Bestellbestätigung mit Rechnung, AGB und Widerrufsbelehrung, Versand- und Erstattungsmails, Anmeldelinks, Antworten auf Anfragen; Rückmeldung unzustellbarer Adressen und Beschwerden.',
             'data' => 'E-Mail-Adresse und Name der Empfänger, der Inhalt der Mails mit ihren Anhängen, Zustellmeldungen (unzustellbar, Beschwerde).',
             'basis' => 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag, § 312f BGB), lit. c.',
@@ -208,7 +208,7 @@ final class ProcessingRecord
                 default => 'Nicht in Betrieb: Der Shop nimmt keine Zahlungen an.',
             },
             'company' => self::STRIPE,
-            'where' => 'Irland (EWR). Stripe.js lädt im Browser nur auf der Kasse.',
+            'where' => 'Irland (EWR). Stripe.js lädt im Browser nur an der Kasse.',
             'purpose' => 'Abwicklung der Zahlung: Karte, Lastschrift und Wallets, Erstattungen und Rückbuchungen.',
             'data' => 'Name, E-Mail-Adresse, Rechnungsanschrift, Betrag und Bestellnummer. Kartendaten und Bankverbindung gibt der Kunde direkt in Stripes Feldern ein – sie erreichen den Server des Shops nie. Geräte- und Verbindungsdaten zur Betrugsabwehr erhebt Stripe selbst.',
             'basis' => 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag); die Betrugsabwehr verantwortet Stripe nach Art. 6 Abs. 1 lit. f selbst.',
@@ -242,33 +242,68 @@ final class ProcessingRecord
             'purpose' => 'Empfang der Mails an den Shop: Kontaktanfragen (der Shop schickt jede auch dorthin), Antworten von Kunden, Meldungen an das Team.',
             'data' => 'Name und E-Mail-Adresse der Schreibenden, der Inhalt ihrer Nachrichten, Bestellnummern.',
             'basis' => 'Art. 6 Abs. 1 lit. b DSGVO (Anfragen zu Vertrag und Bestellung), lit. f (sonstige Anfragen).',
-            'agreement' => 'Offen: der Vertrag des Kunden mit dem Anbieter seines Postfachs; Anbieter wie IONOS stellen den Auftragsverarbeitungsvertrag im Kundenkonto bereit.',
+            'agreement' => 'Offen: der Vertrag des Betreibers mit dem Anbieter seines Postfachs; Anbieter wie IONOS stellen den Auftragsverarbeitungsvertrag im Kundenkonto bereit.',
         ];
+    }
+
+    /**
+     * The server log as this installation writes it: the channel in force — through the stack, which LOG_STACK names —
+     * kept its `max_files` days when it rotates daily, and a single file that only grows when it does not. A fresh
+     * checkout's `.env.example` says `single`; the preview says `daily` (read 06.10.2026).
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private static function serverLog(): array
+    {
+        $default = (string) config('logging.default');
+        $names = $default === 'stack' ? array_values(array_filter((array) config('logging.channels.stack.channels', []), 'is_string')) : [$default];
+        $rotated = [];
+        $single = [];
+
+        foreach ($names as $name) {
+            match ((string) config("logging.channels.{$name}.driver")) {
+                'daily' => $rotated[] = (int) config("logging.channels.{$name}.max_files", 14),
+                'single' => $single[] = $name,
+                default => null,
+            };
+        }
+
+        return match (true) {
+            $single !== [] => ['Server-Log', 'unbefristet: eine einzige Datei, die nicht rotiert wird', 'Kanal „'.implode('“, „', $single).'“ (`LOG_STACK`) – **offen** (3)'],
+            $rotated !== [] => ['Server-Log', max($rotated).' Tage', 'täglich neue Datei, `config/logging.php` › `max_files` (Kanal „'.implode('“, „', $names).'“)'],
+            default => ['Server-Log', 'nach dem Kanal „'.$default.'“', '`config/logging.php`'],
+        };
+    }
+
+    /** Whether the server log only grows: one file, never rotated. */
+    private static function serverLogUnrotated(): bool
+    {
+        return str_starts_with(self::serverLog()[1], 'unbefristet');
     }
 
     /** @return list<array{0: string, 1: string, 2: string}> */
     private function retention(): array
     {
-        $logDays = (int) config('logging.channels.daily.max_files', 14);
         $slowDays = (int) config('logging.channels.slow_queries.max_files', 14);
 
         return [
-            ['Kontaktanfragen', ContactMessage::KEEP_MONTHS.' Monate', '`model:prune` täglich 03:30 (`ContactMessage::KEEP_MONTHS`)'],
+            ['Kontaktanfragen', ContactMessage::KEEP_MONTHS.' Monate', '`model:prune` täglich um 03:30'.GermanFormat::NBSP.'Uhr (`ContactMessage::KEEP_MONTHS`)'],
             ['Unbezahlte Bestellungen', 'verfallen nach '.OrderPayments::HOURS_TO_PAY.' Stunden; der Bestand geht zurück, der Datensatz bleibt', '`orders:expire` alle zehn Minuten (`OrderPayments::HOURS_TO_PAY`) – eine Löschung ist **nicht umgesetzt** (3)'],
-            ['Bestellungen, Rechnungen, Gutschriften', 'ohne Ende; Rechnungen unveränderlich', 'Datenbank-Trigger; eine Löschung nach Ablauf der Pflicht (§ 147 AO, § 14b UStG: 10 Jahre) ist **nicht umgesetzt** (3)'],
-            ['Prüfnachweise der Bestellungen, Protokoll', 'ohne Ende, unveränderlich', 'CLAUDE.md R-12: Trigger mit SQLSTATE 45000'],
-            ['Zahlungsereignisse von Stripe', 'ohne Ende, unveränderlich', 'Trigger auf `payment_events`'],
+            // No period named here: which one applies to invoices since 2025 is the Kanzlei's to say (client-questions 36).
+            ['Bestellungen, Rechnungen, Gutschriften', 'unbefristet; Rechnungen unveränderlich', 'Datenbank-Trigger; eine Löschung nach Ablauf der Aufbewahrungspflicht (§ 147 AO, § 14b UStG – die Frist bestätigt die Kanzlei) ist **nicht umgesetzt** (3)'],
+            ['Prüfnachweise der Bestellungen, Protokoll', 'unbefristet, unveränderlich', 'CLAUDE.md R-12: Trigger mit SQLSTATE 45000'],
+            ['Zahlungsereignisse von Stripe', 'unbefristet, unveränderlich', 'Trigger auf `payment_events`'],
             ['Kundenkonto', 'bis der Kunde es löscht (Konto › Konto löschen); Bestellungen und Rechnungen bleiben', '`KontoController::destroy`'],
             ['Gesperrte E-Mail-Adressen (unzustellbar, Beschwerde)', 'bis ein Admin die Sperre aufhebt', 'Einstellungen › E-Mail'],
-            ['Server-Log', $logDays.' Tage', '`config/logging.php` › `daily.max_files`'],
+            self::serverLog(),
             ['Log langsamer Datenbankabfragen', $slowDays.' Tage', '`config/logging.php` › `slow_queries.max_files`'],
-            ['Log des Server-Renderings (`storage/logs/ssr.log`)', 'ohne Ende', 'wird angehängt, nicht rotiert – **offen** (3)'],
+            ['Log des Server-Renderings (`storage/logs/ssr.log`)', 'unbefristet', 'wächst fortlaufend, wird nicht rotiert – **offen** (3)'],
             ['Sitzung (Warenkorb, Anmeldung)', config('session.lifetime').' Minuten ohne Aktivität', '`config/session.php`'],
-            ['Link zum Passwort des Kundenkontos', CustomerAccount::LINK_HOURS.' Stunden', '`CustomerAccount::LINK_HOURS`'],
+            ['Link zum Festlegen des Passworts für das Kundenkonto', CustomerAccount::LINK_HOURS.' Stunden', '`CustomerAccount::LINK_HOURS`'],
             ['Einladung ins Team', AdminInvitation::VALID_DAYS.' Tage', '`AdminInvitation::VALID_DAYS`'],
-            ['Einladung zur Bewertung', 'geht '.config('rimify.reviews.invite_after_days').' Tage nach der Zustellung; ihr Link gilt '.config('rimify.reviews.link_days').' Tage', '`config/rimify.php` › `reviews`'],
+            ['Einladung zur Bewertung', 'wird '.config('rimify.reviews.invite_after_days').' Tage nach der Zustellung verschickt; ihr Link gilt '.config('rimify.reviews.link_days').' Tage', '`config/rimify.php` › `reviews`'],
             ['Sicherungskopien beim Zurücksetzen der Testumgebung', TestEnvironment::KEEP_DAYS.' Tage, dann gelöscht und protokolliert – nur in der Testumgebung, nie im Live-Shop', '`rimify:reset --prune` stündlich (`TestEnvironment::KEEP_DAYS`)'],
-            ['Sicherung vor einem Release', 'eine Woche auf dem Server, von Hand gelöscht', 'docs/launch/GO-LIVE.md §1'],
+            ['Sicherung vor einem Release', 'eine Woche auf dem Server, von Hand gelöscht', 'docs/launch/GO-LIVE.md § 1'],
             ['Hostingers eigene Sicherungen', 'nach Hostingers Tarif', 'Hostinger, nicht der Shop'],
         ];
     }
@@ -282,8 +317,9 @@ final class ProcessingRecord
             $where !== null && $where['country'] !== 'de' ? 'Der Server steht noch nicht in Deutschland (1.1): Umzug nach docs/ops/UMZUG-DE.md oder Live-Shop gleich in Deutschland anlegen.' : null,
             'Abgelaufene unbezahlte Bestellungen bleiben mit Name und Anschrift gespeichert. Frist und Löschung festlegen.',
             'Bestellungen, Rechnungen und Prüfnachweise werden nicht gelöscht, auch nicht nach Ablauf der Aufbewahrungspflicht. Frist festlegen; die Prüfnachweise und das Protokoll sind nach CLAUDE.md R-12 unveränderlich, eine Löschung braucht eine eigene Entscheidung.',
+            self::serverLogUnrotated() ? 'Das Server-Log ist eine einzige Datei, die nicht rotiert wird (`LOG_STACK=single`): auf `daily` umstellen, dann gilt die Frist aus `max_files`.' : null,
             'Das Log des Server-Renderings wird nicht rotiert (es enthält Seitenpfade, keine Kundendaten).',
-            'Verträge zur Auftragsverarbeitung für den Live-Shop nachweisen: Hostinger (1.1), Postfach (1.5); AWS und Stripe gelten mit ihren Bedingungen.',
+            'Verträge zur Auftragsverarbeitung für den Live-Shop nachweisen: Hostinger (1.1), Postfach (1.5); bei AWS und Stripe sind sie Teil der Vertragsbedingungen.',
         ]));
     }
 

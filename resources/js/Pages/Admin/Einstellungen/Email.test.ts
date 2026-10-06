@@ -56,6 +56,15 @@ describe('Einstellungen › E-Mail', () => {
         expect(wrapper.text()).toContain('Die Mails des Shops gehen noch nicht über Amazon SES.')
     })
 
+    it('promises to keep the stored secret only where one is stored', async () => {
+        const fresh = mount(Page, { props: props({ keyMasked: null, secretMasked: null }) })
+        expect(fresh.find('#em-secret-help').exists()).toBe(false)
+
+        const stored = mount(Page, { props: props() })
+        await stored.findAll('button').find((b) => b.text() === 'Neuen Schlüssel eintragen' && b.element.closest('.form-field')?.querySelector('#em-secret'))!.trigger('click')
+        expect(stored.find('#em-secret-help').text()).toBe('Leer lassen behält den gespeicherten Schlüssel.')
+    })
+
     it('lists each DNS record with its state, and marks what is missing', () => {
         const wrapper = mount(Page, {
             props: props({

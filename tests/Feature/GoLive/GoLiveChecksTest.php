@@ -232,7 +232,7 @@ it('reads „fehlt“ for the mail while no SES key is in, naming every DNS reco
     $dns = goLiveById()['mail_dns'];
 
     expect($sending->state)->toBe(GoLiveCheck::MISSING)
-        ->and($sending->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Es fehlt: der Zugang zu Amazon SES in Einstellungen › E-Mail.')
+        ->and($sending->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Noch offen: der Zugang zu Amazon SES in Einstellungen › E-Mail.')
         ->and($dns->state)->toBe(GoLiveCheck::MISSING)
         ->and($dns->owner)->toBe(GoLiveCheck::CLIENT)
         // The sender .env names (noreply@rimify.de) until the screen holds one; DKIM's three names come from SES.
@@ -242,7 +242,7 @@ it('reads „fehlt“ for the mail while no SES key is in, naming every DNS reco
 it('names what keeps a working SES key from carrying the mail: the sandbox, an unverified domain', function (): void {
     goLiveMailSet(['production_access' => false, 'identity_verified' => false]);
 
-    expect(goLiveById()['mailversand']->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Es fehlt: der Produktionszugang bei AWS (das Konto ist noch in der Sandbox), die bestätigte Absenderdomain rimify.de.');
+    expect(goLiveById()['mailversand']->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Noch offen: der Produktionszugang bei AWS (das Konto ist noch in der Sandbox), die bestätigte Absenderdomain rimify.de.');
 });
 
 it('passes the mail once SES carries it and every record is in the DNS, and the confirmation says SES', function (): void {
