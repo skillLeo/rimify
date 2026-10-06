@@ -104,7 +104,7 @@
         ],
         "test:mysql": [
             "Composer\\Config::disableProcessTimeout",
-            "@putenv DB_PORT=3307",
+            "@putenv TEST_DB_PORT=3307",
             "@php vendor/bin/pest"
         ],
         "verify:php": [

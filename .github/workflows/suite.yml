@@ -36,12 +36,14 @@ jobs:
     name: ${{ inputs.static && format('Lint, types, Vitest, Pest on {0}', inputs.engine) || format('Pest on {0}', inputs.engine) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # The one thing a test run takes from the machine is its database server, and only under these names (D-180):
+    # every other variable the app reads is pinned in tests/env.php, and no .env is read.
     env:
-      DB_HOST: 127.0.0.1
-      DB_PORT: 3306
-      DB_DATABASE: rimify_test
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 3306
+      TEST_DB_DATABASE: rimify_test
+      TEST_DB_USERNAME: root
+      TEST_DB_PASSWORD: root
     steps:
       - uses: actions/checkout@v4
 
@@ -109,12 +111,6 @@ jobs:
       - name: Client build
         if: ${{ !cancelled() }}
         run: npm run build
-
-      - name: Environment
-        if: ${{ !cancelled() }}
-        run: |
-          cp .env.example .env
-          php artisan key:generate --force
 
       - name: The engine the suite runs on
         if: ${{ !cancelled() }}

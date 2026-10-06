@@ -11,8 +11,8 @@ run **MariaDB 11.8.9** while the suite had only ever run on **MySQL 8.4.9** (D-0
 | Where | Engine | Port | How it is started |
 |---|---|---|---|
 | Hostinger (preview, and production on the same plan) | MariaDB 11.8 | — | the host's |
-| Pest, by default (`phpunit.xml`), and the e2e shop (`composer e2e:shop`) | MariaDB 11.8.9 | 3308 | below |
-| `composer test:mysql`, and the development shop's `.env` | MySQL 8.4.9 | 3307 | below |
+| Pest, by default (`tests/env.php`), and the e2e shop (`composer e2e:shop`) | MariaDB 11.8.9 | 3308 | below |
+| `composer test:mysql` (`TEST_DB_PORT=3307`), and the development shop's `.env` | MySQL 8.4.9 | 3307 | below |
 | CI: every push to main (`.github/workflows/checks.yml`) | MariaDB 11.8.9 | — | Docker, with the host's server settings |
 | CI: a push to `release` (`.github/workflows/release.yml`) | both, one leg each | — | the same, and MySQL as shipped |
 
@@ -20,17 +20,23 @@ The app refuses any engine the suite has not run against, at the first connectio
 (`App\Support\DatabaseEngine`, list in `config/rimify.php` › `database.engines`). A test keeps that list and the
 release matrix equal, so a new engine is added in one change: the CI leg, the list, a green run.
 
+A test run takes its server only from `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_DATABASE`, `TEST_DB_USERNAME` and
+`TEST_DB_PASSWORD` — names the app never reads — and refuses to start while the shell sets a `DB_*` it would not use
+(D-180): a `.env` or an exported `DB_PORT` can no longer point the suite at another server, or let it report on an
+engine nobody asked about.
+
 ## Running them locally (Windows, no service)
 
 MariaDB 11.8.9, the portable zip from archive.mariadb.org (SHA-256 checked against the published
-`sha256sums.txt`), unpacked to `C:\tools\mariadb-11.8.9-winx64`, data in `C:\tools\mariadb-11.8.9-data`. Its
+`sha256sums.txt`), unpacked to `C:\rimify\tools\mariadb-11.8.9`, data in `C:\rimify\tools\mariadb-11.8.9-data` —
+RIMIFY's own copy, which no other project may stop, move or remove (CLAUDE.md §4). Its
 `my.ini` mirrors the host as read there: a lax global `sql_mode` (`NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION`,
 the app sets its own per session), `utf8mb4` with `utf8mb4_unicode_ci` as the server's collation,
 `innodb_strict_mode=OFF`, UTC. Only `lower_case_table_names` cannot match on Windows (it must be 1 there, 0 on
 the host); every table name is lower case.
 
 ```powershell
-Start-Process -WindowStyle Hidden 'C:\tools\mariadb-11.8.9-winx64\bin\mariadbd.exe' -ArgumentList '--defaults-file=C:\tools\mariadb-11.8.9-data\my.ini'
+Start-Process -WindowStyle Hidden 'C:\rimify\tools\mariadb-11.8.9\bin\mariadbd.exe' -ArgumentList '--defaults-file=C:\rimify\tools\mariadb-11.8.9-data\my.ini'
 Start-Process -WindowStyle Hidden 'C:\Program Files\MySQL\MySQL Server 8.4\bin\mysqld.exe' -ArgumentList '--defaults-file="C:\ProgramData\MySQL\MySQL Server 8.4\my.ini"'
 ```
 
