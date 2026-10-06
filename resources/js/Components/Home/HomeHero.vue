@@ -13,10 +13,10 @@
  * photograph's measured anchors (`calloutSlots.ts`); nothing is typed here, nothing is measured.
  *
  * The photograph is the brand's (`hero.photo`, chosen in Inhalte; PROTECTED.md P1) and stands whatever the catalogue
- * holds; only its leaders, its caption and its spec line are data — the values of the wheel in it, once that wheel is
- * published (`hero.product`, D-155). Without it — the catalogue empty, the wheel a draft — the photograph stands with the headline
- * and the selector alone: no hole, no outline, no shift (the operator's brief of 05.10.2026, §2). Only where the release shipped without the photograph does the stage
- * draw the outline — and `rimify:smoke` says so on the host.
+ * holds, with its leaders, its caption and its spec line: the wheel's own values as its document states them for the
+ * stamped size (`hero.photo.facts`). The hero asks the catalogue nothing — no product, no price, no link — so it stands
+ * complete with the shop empty (the client's #4, the operator's brief „THE 34“). Only where the release shipped without
+ * the photograph does the stage draw the outline — and `rimify:smoke` says so on the host.
  *
  * Motion (DIRECTION.md §5): once, on load, the wheel rolls in — 1,6 picture widths, from past the
  * right edge, turning counter-clockwise by exactly the distance over its radius, about its own
@@ -54,12 +54,12 @@ const DEMO = 'Demodaten – Beispielsortiment; Preise und Bestände sind Beispie
 
 const page = usePage<SharedProps & { demo?: boolean }>()
 const vehicle = computed(() => page.props.vehicle)
-const product = computed(() => props.hero.product)
-/* The brand's photograph; an older payload without one stands on the product's own (both carry the same cut-out). */
-const source = computed(() => props.hero.photo ?? props.hero.product ?? null)
+/* The brand's photograph and the values its document states for the stamped size (#4: no product query). */
+const source = computed(() => props.hero.photo ?? null)
+const facts = computed(() => props.hero.photo?.facts ?? null)
 /* Two wheels where the photograph has its second finish (PROTECTED.md P1): the boxes then all stand on the left. */
 const layout = computed(() => (source.value?.companion?.imageManifest ? DESKTOP_PAIR_LAYOUT : DESKTOP_LAYOUT))
-const scene = computed(() => heroScene(source.value, layout.value, product.value?.facts ?? null))
+const scene = computed(() => heroScene(source.value, layout.value, facts.value))
 
 /* The photograph failed to load: the outline, and no leaders — they would point at nothing. */
 const failed = ref(false)
@@ -75,10 +75,9 @@ const callouts = computed(() => (photo.value === null ? [] : scene.value.callout
 /* The callouts are drawing, hidden from assistive technology; the stamp's number is read with the spec line. */
 const kba = computed(() => callouts.value.find((c) => c.key === 'kba') ?? null)
 /*
- * Named only where the catalogue holds the wheel, and only over its own photograph — never under the outline. Never
- * priced and never linked (the client's #4, D-108).
+ * Named over its own photograph only — never under the outline. Never priced and never linked (the client's #4, D-108).
  */
-const named = computed(() => product.value !== null && !product.value.symbolic && photo.value !== null)
+const named = computed(() => facts.value !== null && photo.value !== null && source.value !== null && source.value.brand !== '')
 
 const title = computed(() =>
     vehicle.value === null ? props.hero.title : `Felgen mit Gutachten für ${vehicle.value.short}.`
@@ -109,7 +108,7 @@ onMounted(() => {
 <template>
     <!-- `data-hero`: the photograph alone (nothing published) or with the wheel's values — what the protected-element
          suite reads before it compares pixels (PROTECTED.md P1). -->
-    <section id="h2" class="hero band" data-section="H2" aria-labelledby="h2-title" :data-hero="product ? 'values' : 'photo'">
+    <section id="h2" class="hero band" data-section="H2" aria-labelledby="h2-title" :data-hero="facts ? 'values' : 'photo'">
         <div class="container hero__grid">
             <div class="hero__copy">
                 <h1 id="h2-title" class="h1 hero__title">{{ title }}</h1>
@@ -149,7 +148,7 @@ onMounted(() => {
                                 </span>
                             </span>
                             <span v-else class="hero__outline" aria-hidden="true">
-                                <WheelOutline :bolts="product?.config.boltHoles ?? 5" size="82%" />
+                                <WheelOutline :bolts="5" size="82%" />
                             </span>
 
                             <SpecCallout
@@ -173,17 +172,17 @@ onMounted(() => {
                     </div>
 
                     <!-- Brand, model and finish are names: never translated. -->
-                    <span v-if="named && product" class="hero__caption">
-                        <span class="small hero__caption-name" translate="no">{{ product.brand }} {{ product.name }} · {{ finishes }}</span>
+                    <span v-if="named && source" class="hero__caption">
+                        <span class="small hero__caption-name" translate="no">{{ source.brand }} {{ source.name }} · {{ finishes }}</span>
                     </span>
                 </div>
 
-                <div v-if="product" class="hero__notes">
+                <div v-if="facts" class="hero__notes">
                     <!-- The spec line is nothing but tokens and figures — `8,5J × 19 · ET 45 ·
                          LK 5 × 112 · MLB 66,6 mm · Traglast 620 kg` — so the whole line, the
                          stamp's number with it, is kept from the translator. -->
                     <p class="small num hero__spec" translate="no">
-                        {{ product.facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
+                        {{ facts.specLine }}<span v-if="kba" class="visually-hidden"> · {{ kba.label }} {{ kba.value }}</span>
                     </p>
                     <span v-if="photo" class="micro quiet hero__shown">{{ CAPTION }}</span>
                     <span v-else class="micro quiet hero__symbolic">{{ SYMBOLIC }}</span>

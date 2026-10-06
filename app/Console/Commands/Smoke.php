@@ -209,7 +209,11 @@ final class Smoke extends Command
                 return 'öffnet, Seite '.(preg_match('/#page=(\d+)/', (string) $pdf, $page) ? $page[1] : '–');
             });
 
-            if (Payments::sandbox()) {
+            if ($config->wheelModel->is_demo) {
+                // The acceptance set's wheel (AcceptanceSet): a paid order would get an invoice, and an invoice is never
+                // deleted — the set could then only go with all the shop's data, not in the one press it is promised.
+                $this->rows[] = ['Testbestellung', 'übersprungen', 'Im Shop sind nur die Demodaten der Abnahme: Eine bezahlte Testbestellung bekäme eine Rechnung, die nie gelöscht wird, und „Demodaten entfernen“ ginge dann nicht mehr in einem Schritt.'];
+            } elseif (Payments::sandbox()) {
                 $this->check('Testbestellung (Sandbox)', fn (): string => $this->order($config));
             } else {
                 $this->rows[] = ['Testbestellung', 'übersprungen', 'Keine Testzahlung in dieser Umgebung (im Live-Shop immer aus).'];
@@ -294,7 +298,8 @@ final class Smoke extends Command
             ->limit(200)
             ->get();
 
-        foreach ($rows as $row) {
+        // A real wheel first, where the shop has one: the acceptance set's is checked only while it is all there is.
+        foreach ($rows->sortBy(static fn (Fitment $row): int => (int) (bool) $row->wheelConfig?->wheelModel?->is_demo) as $row) {
             if ($row->wheelConfig === null || $row->vehicle === null) {
                 continue;
             }

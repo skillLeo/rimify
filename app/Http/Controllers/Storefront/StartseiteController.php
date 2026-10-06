@@ -41,23 +41,19 @@ use Inertia\Response;
 class StartseiteController extends Controller
 {
     /**
-     * The three tabs of the row, each a real query. The first orders by coverage — the number of
-     * approvals (fitment rows) a model has — so it is labelled for what it counts: there is no
-     * sales or view data behind a "Beliebt". The `beliebt` query key stays, because links carry it.
+     * The shelf's one heading (the client's #5, the operator's brief „THE 34“): what sold in the last 90 days, by paid
+     * order lines (BestSellers) — or, before the first sale, what is newest in the shop. Never a claim the data does not
+     * hold: no „Meistgekauft“ without a sale, no „Beliebt“ at all.
      */
-    /*
-     * Every tab shows up to eight wheels, photographed or drawn: the catalogue orders photographed
-     * finishes first. (It once showed photographed finishes only; with one photographed model left
-     * that made a row of one tile, and nothing to compare.)
-     */
-    private const TABS = [
-        'beliebt' => ['label' => 'Meiste Freigaben', 'options' => ['order' => 'bestselling']],
-        'neu' => ['label' => 'Neu', 'options' => ['order' => 'newest']],
-        'bis200' => ['label' => 'Bis 200 €', 'options' => ['order' => 'price', 'maxPriceCents' => 20_000]],
-    ];
+    public const BESTSELLING_LABEL = 'Meistgekaufte Felgen';
 
-    /** The first tab once the shop has sold a wheel (#5, D-110). */
-    public const BESTSELLING_LABEL = 'Meistgekauft';
+    public const NEWEST_LABEL = 'Neu im Shop';
+
+    /** Below four wheels on sale the shelf is not shown at all — absent, never an empty row. */
+    public const SHELF_MIN = 4;
+
+    /** Up to eight wheels, photographed or drawn: the catalogue puts photographed finishes first. */
+    private const SHELF_SIZE = 8;
 
     public function __construct(
         private readonly ProductCards $cards,
@@ -76,13 +72,13 @@ class StartseiteController extends Controller
     public function index(Request $request): Response
     {
         $vehicleId = $this->vehicleId($request);
-        $tab = $request->string('beliebt')->toString();
-        $tab = array_key_exists($tab, self::TABS) ? $tab : 'beliebt';
         $blocks = $this->blocks();
 
         $vehicle = $vehicleId === null ? null : $this->resolver->find($vehicleId);
         $photo = HeroPhotos::resolve(is_string($blocks['hero']['foto'] ?? null) ? $blocks['hero']['foto'] : null);
-        $hero = $this->heroProduct($photo);
+        // The wheel in the photograph where the shop sells it: for the numbers section (H8) and the turning band (P6) —
+        // never for the hero, which asks the catalogue nothing (the client's #4).
+        $wheel = $this->heroProduct($photo);
 
         return Inertia::render(DevicePage::resolve('Startseite', $request), [
             'hero' => [
@@ -91,32 +87,36 @@ class StartseiteController extends Controller
                 // The phone document's own sentence (required in the editor). Absent or empty, the
                 // phone keeps its short default rather than the desktop's five lines (Mobile.vue).
                 'sublineMobile' => trim((string) ($blocks['hero']['sub_mobile'] ?? '')),
-                // The brand's photograph (PROTECTED.md P1), there with or without a catalogue — never a product row.
+                // The brand's photograph (PROTECTED.md P1) with the values its document states for the stamped size —
+                // the leaders, the caption and the spec line — in every state of the catalogue: no product query, no
+                // price, no link (the client's #4, the operator's brief „THE 34“).
                 'photo' => $photo === null ? null : [
                     'brand' => $photo['brand'],
                     'name' => $photo['name'],
                     'finish' => $photo['finish'],
                     'imageManifest' => $photo['imageManifest'],
                     'companion' => $photo['companion'],
+                    'facts' => $this->photoFacts($photo),
                 ],
-                // The wheel in that photograph, once it is published: its values for the leaders, the caption and the
-                // spec line. Null with the catalogue empty or the wheel a draft — the photograph then stands with the
-                // headline and the selector alone.
-                'product' => $hero,
-                'stats' => $this->stats->counts(),
             ],
+            // The counts the story (H4) shows: Gutachten, cars, wheels.
+            'stats' => $this->stats->counts(),
+            // The published wheel in the photograph, for the numbers section (H8); null while the shop does not sell it.
+            'photoWheel' => $wheel,
             'selector' => ['makes' => $this->tree->makes()],
             // F1 for the chosen vehicle, in the first paint rather than one round trip later.
             'fitmentCount' => $vehicle === null ? null : $this->count->forVehicle($vehicle),
             'promises' => $this->promises($blocks),
-            'popular' => $this->popular($vehicleId, $tab),
+            'popular' => $this->popular($vehicleId),
+            // No wheel on sale at all — a test environment reset to an empty shop: the selector says so.
+            'shopEmpty' => ! WheelModel::query()->onSale()->exists(),
             'recentlyViewed' => $this->cards->catalogue(
                 limit: 12,
                 options: ['modelIds' => $this->recentlyViewed->ids($request->session())],
             ),
             'sizes' => $this->sizes($vehicleId),
             'brands' => $this->brands(),
-            'komplettrad' => ['tyre' => $this->featuredTyre(), 'wheel' => $this->bandWheel($hero)],
+            'komplettrad' => ['tyre' => $this->featuredTyre(), 'wheel' => $this->bandWheel($wheel)],
             // The same service /felgenrechner reads: the teaser and the full tool start on one size.
             'calculator' => ['prefill' => $vehicleId === null ? null : $this->calculatorPrefill->forVehicle($vehicleId)],
             'partners' => [
@@ -155,8 +155,7 @@ class StartseiteController extends Controller
         $model = WheelModel::query()
             ->with(['brand'])
             ->where('slug', $photo['model'])
-            ->where('is_demo', false)
-            ->where('status', CatalogueStatus::Published->value)
+            ->onSale()
             ->first();
 
         if ($model === null) {
@@ -297,13 +296,59 @@ class StartseiteController extends Controller
      */
     private function heroFacts(WheelConfig $config, ?string $kba): array
     {
-        $boltPattern = GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm);
-        $centreBore = GermanFormat::millimetres((float) $config->centre_bore_mm);
-        $maxLoad = $config->max_load_kg === null ? null : GermanFormat::kilograms((int) $config->max_load_kg);
+        return self::facts(
+            (float) $config->width_in,
+            (float) $config->diameter_in,
+            (int) $config->et_mm,
+            (int) $config->bolt_holes,
+            (float) $config->bolt_circle_mm,
+            (float) $config->centre_bore_mm,
+            $config->max_load_kg === null ? null : (int) $config->max_load_kg,
+            $kba,
+        );
+    }
+
+    /**
+     * The hero's values: the photographed wheel's, as its document states them for the size stamped on it — so the KBA
+     * number is that stamp's (the client's #4: no product query). Null where the photograph's record names none.
+     *
+     * @param  array{stamp: string|null, facts: array<string, int|float>|null}  $photo
+     * @return array{width: string, diameter: string, et: string, boltPattern: string, centreBore: string, kba: string|null, maxLoad: string|null, specLine: string}|null
+     */
+    private function photoFacts(array $photo): ?array
+    {
+        $f = $photo['facts'];
+
+        if ($f === null || ! isset($f['width_in'], $f['diameter_in'], $f['et_mm'], $f['bolt_holes'], $f['bolt_circle_mm'], $f['centre_bore_mm'])) {
+            return null;
+        }
+
+        return self::facts(
+            (float) $f['width_in'],
+            (float) $f['diameter_in'],
+            (int) $f['et_mm'],
+            (int) $f['bolt_holes'],
+            (float) $f['bolt_circle_mm'],
+            (float) $f['centre_bore_mm'],
+            isset($f['max_load_kg']) ? (int) $f['max_load_kg'] : null,
+            $photo['stamp'],
+        );
+    }
+
+    /**
+     * One wheel's values, each formatted once, here (ACCURACY.md §4).
+     *
+     * @return array{width: string, diameter: string, et: string, boltPattern: string, centreBore: string, kba: string|null, maxLoad: string|null, specLine: string}
+     */
+    private static function facts(float $width, float $diameter, int $et, int $holes, float $circle, float $bore, ?int $maxLoadKg, ?string $kba): array
+    {
+        $boltPattern = GermanFormat::boltPattern($holes, $circle);
+        $centreBore = GermanFormat::millimetres($bore);
+        $maxLoad = $maxLoadKg === null ? null : GermanFormat::kilograms($maxLoadKg);
 
         $line = [
-            GermanFormat::rimSize((float) $config->width_in, (float) $config->diameter_in),
-            GermanFormat::offset((int) $config->et_mm),
+            GermanFormat::rimSize($width, $diameter),
+            GermanFormat::offset($et),
             'LK'.GermanFormat::NBSP.$boltPattern,
             'MLB'.GermanFormat::NBSP.$centreBore,
         ];
@@ -313,9 +358,9 @@ class StartseiteController extends Controller
         }
 
         return [
-            'width' => GermanFormat::rimWidth((float) $config->width_in),
-            'diameter' => GermanFormat::trimmedDecimal((float) $config->diameter_in, 1),
-            'et' => GermanFormat::offset((int) $config->et_mm),
+            'width' => GermanFormat::rimWidth($width),
+            'diameter' => GermanFormat::trimmedDecimal($diameter, 1),
+            'et' => GermanFormat::offset($et),
             'boltPattern' => $boltPattern,
             'centreBore' => $centreBore,
             'kba' => $kba,
@@ -350,69 +395,53 @@ class StartseiteController extends Controller
     }
 
     /**
-     * Eight tiles. With a vehicle the row is a compliance answer for that car and the tabs give
-     * way to the count; without one it is the catalogue in one of three real orders.
+     * The shelf (the client's #5): up to eight wheels under one heading — „Meistgekaufte Felgen“, by the paid order
+     * lines of the last 90 days, or before the first sale „Neu im Shop“, newest first. With a vehicle the cards are that
+     * car's answer and the order only arranges them (R-13); without one they are the catalogue. Null — no shelf, not an
+     * empty one — while fewer than four wheels are on sale.
      *
-     * @return array<string, mixed>
+     * @return array{title: string, ranking: string, cards: list<array<string, mixed>>, total: int|null}|null
      */
-    private function popular(?int $vehicleId, string $tab): array
+    private function popular(?int $vehicleId): ?array
     {
-        $tabs = [];
-
-        foreach (self::TABS as $key => $definition) {
-            // „Meistgekauft“ only once something has sold; until then the order it can prove, named for what it counts (#5, D-110).
-            $label = $key === 'beliebt' && $this->bestSellers->any() ? self::BESTSELLING_LABEL : $definition['label'];
-            $tabs[] = ['key' => $key, 'label' => $label];
+        if (WheelModel::query()->onSale()->count() < self::SHELF_MIN) {
+            return null;
         }
 
+        $sold = $this->bestSellers->counts();
+        $ranking = $sold === [] ? 'neu' : 'meistgekauft';
+        $title = $sold === [] ? self::NEWEST_LABEL : self::BESTSELLING_LABEL;
+
         if ($vehicleId !== null) {
-            // The car's own answer, then the tab's order or filter applied to it: the listing
-            // decides which cards exist, the tab only arranges them (R-13).
             $result = $this->cards->forVehicle($vehicleId, [], 24, 1);
-            $cards = array_slice($this->arrange($result['cards'], $tab), 0, 8);
 
             return [
-                'title' => null,
-                'tabs' => $tabs,
-                'active' => $tab,
-                'cards' => $cards,
+                'title' => $title,
+                'ranking' => $ranking,
+                'cards' => array_slice($this->arrange($result['cards'], $sold), 0, self::SHELF_SIZE),
                 'total' => $result['total'],
-                'empty' => $cards === [] && $this->cards->catalogue(limit: 1) === [],
             ];
         }
 
-        $options = self::TABS[$tab]['options'];
-        $cards = $this->cards->catalogue(limit: 8, options: $options);
-
         return [
-            'title' => 'Felgen aus dem Sortiment',
-            'tabs' => $tabs,
-            'active' => $tab,
-            'cards' => $cards,
+            'title' => $title,
+            'ranking' => $ranking,
+            'cards' => $this->cards->catalogue(limit: self::SHELF_SIZE, options: ['order' => $sold === [] ? 'newest' : 'bestselling']),
             'total' => null,
-            // No wheel at all — a test environment reset to an empty shop: the other tabs hold nothing either.
-            'empty' => $cards === [] && $this->cards->catalogue(limit: 1) === [],
         ];
     }
 
     /**
-     * The three orders on a set of cards that the listing already chose: `beliebt` puts what has sold
-     * first and otherwise keeps the listing's order (#5, D-110), `neu` puts the newest models first,
-     * `bis200` keeps the ones from 200 € down.
+     * The shelf's order on a set of cards the listing already chose: what sold in the window first — stable, so among
+     * equals the listing's own order stands — or, before the first sale, the newest models first.
      *
      * @param  list<array<string, mixed>>  $cards
+     * @param  array<int, int>  $sold  model id → paid order lines in the window
      * @return list<array<string, mixed>>
      */
-    private function arrange(array $cards, string $tab): array
+    private function arrange(array $cards, array $sold): array
     {
-        if ($tab === 'beliebt') {
-            $sold = $this->bestSellers->counts();
-
-            if ($sold === []) {
-                return $cards;
-            }
-
-            // Stable: among equals — and among the unsold — the listing's own order stands.
+        if ($sold !== []) {
             $position = array_flip(array_keys($cards));
             uksort($cards, static fn (int $a, int $b): int => [($sold[(int) $cards[$b]['modelId']] ?? 0), $position[$a]]
                 <=> [($sold[(int) $cards[$a]['modelId']] ?? 0), $position[$b]]);
@@ -420,19 +449,13 @@ class StartseiteController extends Controller
             return array_values($cards);
         }
 
-        if ($tab === 'bis200') {
-            return array_values(array_filter($cards, static fn (array $card): bool => (int) $card['fromPriceCents'] <= 20_000));
-        }
+        $ids = array_values(array_unique(array_map(static fn (array $card): int => (int) $card['modelId'], $cards)));
+        $created = DB::table('wheel_models')->whereIn('id', $ids)->pluck('created_at', 'id');
 
-        if ($tab === 'neu') {
-            $ids = array_values(array_unique(array_map(static fn (array $card): int => (int) $card['modelId'], $cards)));
-            $created = DB::table('wheel_models')->whereIn('id', $ids)->pluck('created_at', 'id');
-
-            usort($cards, static fn (array $a, array $b): int => strcmp(
-                (string) ($created[(int) $b['modelId']] ?? ''),
-                (string) ($created[(int) $a['modelId']] ?? ''),
-            ));
-        }
+        usort($cards, static fn (array $a, array $b): int => strcmp(
+            (string) ($created[(int) $b['modelId']] ?? ''),
+            (string) ($created[(int) $a['modelId']] ?? ''),
+        ));
 
         return $cards;
     }

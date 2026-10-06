@@ -30,7 +30,7 @@ afterEach(function (): void {
     DemoWheelFixtures::remove($this->dir);
 });
 
-it('ships the hero: the brand\'s photograph, and the values of the wheel in it while that one is published', function (): void {
+it('ships the hero: the brand\'s photograph with its own values, and the published wheel in it for the numbers section', function (): void {
     $hero = WheelModel::query()->where('status', 'published')->orderBy('id')->firstOrFail();
     DemoWheelFixtures::heroPhotos($this->dir, $hero->slug, ['Schwarz matt' => 'hero-schwarz'], stamp: null);
 
@@ -39,20 +39,18 @@ it('ships the hero: the brand\'s photograph, and the values of the wheel in it w
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('hero.title', 'Felgen, die an dein Auto dürfen.')
             ->where('hero.photo.imageManifest.bare.name', 'hero-schwarz-bare')
-            ->where('hero.product.slug', $hero->slug)
-            // The configuration's own values, formatted on the server (R-10, ACCURACY §4).
-            ->has('hero.product.facts.width')
-            ->has('hero.product.facts.diameter')
-            ->has('hero.product.facts.et')
-            ->has('hero.product.facts.boltPattern')
-            ->has('hero.product.facts.centreBore')
-            ->has('hero.product.facts.specLine')
-            ->has('hero.product.config.widthIn')
-            // The photograph's own cut-out, and no KBA number: this photograph carries no stamp.
-            ->where('hero.product.imageManifest.bare.name', 'hero-schwarz-bare')
-            ->where('hero.product.symbolic', false)
-            ->where('hero.product.facts.kba', null)
-            ->has('hero.stats.gutachten')
+            // The hero asks the catalogue nothing (the client's #4): its values are the photograph's own, formatted on
+            // the server (R-10, ACCURACY §4), and no KBA number — this photograph carries no stamp.
+            ->missing('hero.product')
+            ->where('hero.photo.facts.specLine', "8,5J\u{00A0}×\u{00A0}18 · ET\u{00A0}35 · LK\u{00A0}5\u{00A0}×\u{00A0}120 · MLB\u{00A0}72,5\u{00A0}mm · Traglast\u{00A0}650\u{00A0}kg")
+            ->where('hero.photo.facts.kba', null)
+            // The published wheel in the photograph, for the numbers section (H8).
+            ->where('photoWheel.slug', $hero->slug)
+            ->has('photoWheel.facts.width')
+            ->has('photoWheel.config.widthIn')
+            ->where('photoWheel.imageManifest.bare.name', 'hero-schwarz-bare')
+            ->where('photoWheel.symbolic', false)
+            ->has('stats.gutachten')
             ->has('selector.makes')
             ->has('promises', 4)
             // This shop is the test's own (tests/Pest.php): nothing on show is demonstration data.
@@ -60,7 +58,7 @@ it('ships the hero: the brand\'s photograph, and the values of the wheel in it w
         );
 });
 
-it('renders the homepage with its hero photograph when no wheel is published, and only the values go', function (): void {
+it('@kunde-04 renders the whole hero with no wheel published: the photograph, its values, no price, no link', function (): void {
     // The brand's photograph shows a wheel the catalogue does not hold — as after a reset to Shopdaten.
     DemoWheelFixtures::heroPhotos($this->dir, 'borbet-db8gt2', ['Schwarz matt' => 'hero-schwarz', 'Bronze matt' => 'hero-bronze']);
 
@@ -75,10 +73,15 @@ it('renders the homepage with its hero photograph when no wheel is published, an
             ->where('hero.photo.imageManifest.bare.name', 'hero-schwarz-bare')
             ->where('hero.photo.companion.finish', 'Bronze matt')
             ->where('hero.photo.brand', 'Borbet')
-            // No leaders, no caption, no spec line: nothing is published to state.
-            ->where('hero.product', null)
+            // Its leaders, caption and spec line stand too: the photograph's own values (the client's #4) — only the
+            // numbers section, which explains a wheel the shop sells, waits.
+            ->has('hero.photo.facts.specLine')
+            ->where('hero.photo.facts.kba', '53841')
+            ->missing('hero.photo.facts.fromPrice')
+            ->where('photoWheel', null)
             ->has('selector.makes')
-            ->where('popular.empty', true)
+            ->where('popular', null)
+            ->where('shopEmpty', true)
         );
 });
 
@@ -124,36 +127,29 @@ it('states the values of the wheel in the photograph, never another product\'s',
     // An older choice of hero product no longer decides anything: the photograph does.
     Setting::set('hero_product_id', $other->id);
 
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.product.slug', $photographed->slug));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('photoWheel.slug', $photographed->slug));
 });
 
-it('offers three real orders of the catalogue and never a bestseller claim', function (): void {
+it('@kunde-05 offers one shelf under one heading, at most eight wheels, and no tabs', function (): void {
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('popular.title', 'Felgen aus dem Sortiment')
-        ->has('popular.tabs', 3)
-        ->where('popular.active', 'beliebt')
+        ->where('popular.title', fn (string $title): bool => in_array($title, ['Meistgekaufte Felgen', 'Neu im Shop'], true))
+        ->missing('popular.tabs')
+        ->where('popular.cards', fn ($cards): bool => count($cards) > 0 && count($cards) <= 8)
         ->where('popular.total', null)
     );
-
-    $this->get('/?beliebt=bis200')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('popular.active', 'bis200')
-        ->where('popular.cards', fn ($cards) => collect($cards)->every(fn (array $card): bool => $card['fromPriceCents'] <= 20_000))
-    );
-
-    $this->get('/?beliebt=unsinn')->assertInertia(fn (AssertableInertia $page) => $page->where('popular.active', 'beliebt'));
 });
 
-it('says the shop has no wheel at all only when it has none — not when one tab is empty', function (): void {
-    // A tab with nothing in it is not an empty shop: the other tabs still hold wheels.
-    $this->get('/?beliebt=bis200')->assertInertia(fn (AssertableInertia $page) => $page->where('popular.empty', false));
+it('@kunde-05 shows no shelf below four wheels on sale — absent, not empty — and says the shop is empty only when it is', function (): void {
+    $published = WheelModel::query()->where('status', 'published')->orderBy('id')->pluck('id');
+    expect($published->count())->toBeGreaterThanOrEqual(4);
 
-    // A test environment reset to an empty shop: nothing published, so every tab is empty and the page says so once.
+    // Three left on sale: no shelf.
+    WheelModel::query()->whereIn('id', $published->slice(3)->all())->update(['status' => 'draft']);
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('popular', null)->where('shopEmpty', false));
+
+    // A test environment reset to an empty shop.
     WheelModel::query()->update(['status' => 'draft']);
-
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('popular.cards', [])
-        ->where('popular.empty', true)
-    );
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('popular', null)->where('shopEmpty', true));
 });
 
 it('lists seven size tiles, and links a brand exactly when it has wheels on stock', function (): void {
@@ -182,7 +178,7 @@ it('answers for the chosen vehicle in the first paint', function (): void {
             ->where('fitmentCount.count', fn ($n) => is_int($n) && $n > 0)
             ->where('sizes', fn ($sizes) => collect($sizes)->every(fn (array $s): bool => is_int($s['fitting'])))
             ->where('sizes', fn ($sizes) => collect($sizes)->sum('fitting') > 0)
-            ->where('popular.title', null)
+            ->where('popular.title', fn (string $title): bool => in_array($title, ['Meistgekaufte Felgen', 'Neu im Shop'], true))
             ->where('popular.total', fn ($n) => is_int($n) && $n > 0)
             ->has('calculator.prefill.widthIn')
         );

@@ -122,8 +122,10 @@ function product(overrides: Partial<HeroProduct> = {}): HeroProduct {
 
 let wrappers: VueWrapper[] = []
 
+/* The fixture's wheel as the frame carries it now: the photograph with its own values (the client's #4) — no product. */
 function mountFrame(p: HeroProduct = product()): VueWrapper {
-    const wrapper = mount(HeroFrame, { props: { product: p }, attachTo: document.body })
+    const heroPhoto: HeroPhoto = { brand: p.brand, name: p.name, finish: p.finish, imageManifest: p.imageManifest ?? null, companion: p.companion ?? null, facts: p.facts }
+    const wrapper = mount(HeroFrame, { props: { heroPhoto }, attachTo: document.body })
     wrappers.push(wrapper)
 
     return wrapper
@@ -544,33 +546,35 @@ describe('HeroFrame · a broken photograph', () => {
     })
 })
 
-describe('HeroFrame · the brand\'s photograph, with or without a catalogue (PROTECTED.md P1)', () => {
-    const PHOTO: HeroPhoto = { brand: 'Borbet', name: 'DB8GT2', finish: 'Schwarz matt', imageManifest: manifest(), companion: null }
+describe('HeroFrame · the brand\'s photograph, in every state of the catalogue (PROTECTED.md P1, the client\'s #4)', () => {
+    const PHOTO: HeroPhoto = { brand: 'Borbet', name: 'DB8GT2', finish: 'Schwarz matt', imageManifest: manifest(), companion: null, facts: FACTS }
 
-    function mountWithPhoto(p: HeroProduct | null): VueWrapper {
-        const wrapper = mount(HeroFrame, { props: { heroPhoto: PHOTO, product: p }, attachTo: document.body })
+    function mountWithPhoto(photo: HeroPhoto): VueWrapper {
+        const wrapper = mount(HeroFrame, { props: { heroPhoto: photo }, attachTo: document.body })
         wrappers.push(wrapper)
 
         return wrapper
     }
 
-    it('stands with nothing published: the photograph, and no leader, no spec line, no caption', () => {
-        const wrapper = mountWithPhoto(null)
+    it('@kunde-04 stands complete from the photograph alone: leaders, spec line and caption, no price and no link', () => {
+        const wrapper = mountWithPhoto(PHOTO)
 
         expect(wrapper.find('.hero-frame__roll picture').exists()).toBe(true)
         expect(wrapper.find('.hero-frame__roll img').attributes('alt')).toBe('Borbet DB8GT2 in Schwarz matt, Ansicht von vorn')
         expect(wrapper.find('.hero-frame__outline').exists()).toBe(false)
+        expect(wrapper.findAll('.callout')).toHaveLength(2)
+        expect(visibleText(wrapper.find('.hero-mobile__spec'))).toBe(FACTS.specLine)
+        expect(wrapper.find('.hero-mobile__caption').text()).toBe('Borbet DB8GT2 · Schwarz matt')
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.text()).not.toContain('€')
+    })
+
+    it('says no value its photograph\'s record does not name: a photograph without values stands alone', () => {
+        const wrapper = mountWithPhoto({ ...PHOTO, facts: null })
+
+        expect(wrapper.find('.hero-frame__roll picture').exists()).toBe(true)
         expect(wrapper.findAll('.callout')).toHaveLength(0)
         expect(wrapper.find('.hero-mobile__spec').exists()).toBe(false)
         expect(wrapper.find('.hero-mobile__caption').exists()).toBe(false)
-        expect(wrapper.find('.hero-mobile__shown').exists()).toBe(false)
-    })
-
-    it('puts the published wheel\'s values on the same photograph', () => {
-        const wrapper = mountWithPhoto(product({ imageManifest: null }))
-
-        expect(wrapper.find('.hero-frame__roll picture').exists()).toBe(true)
-        expect(wrapper.findAll('.callout')).toHaveLength(2)
-        expect(wrapper.find('.hero-mobile__spec').exists()).toBe(true)
     })
 })

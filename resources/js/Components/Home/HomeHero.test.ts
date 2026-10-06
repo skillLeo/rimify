@@ -140,13 +140,13 @@ function product(overrides: Partial<HeroProduct> = {}): HeroProduct {
     }
 }
 
+/* The fixture's wheel as the hero carries it now: the photograph with its own values (the client's #4) — no product. */
 function hero(p: HeroProduct | null): StartseiteProps['hero'] {
     return {
         title: 'Felgen, die an dein Auto dürfen.',
         subline: '',
         sublineMobile: '',
-        product: p,
-        stats: { gutachten: 1, variants: 1, wheels: 1, brands: 1 },
+        photo: p === null ? null : { brand: p.brand, name: p.name, finish: p.finish, imageManifest: p.imageManifest ?? null, companion: p.companion ?? null, facts: p.facts },
     }
 }
 
@@ -587,12 +587,12 @@ describe('HomeHero · the lines under the picture', () => {
     })
 })
 
-describe('HomeHero · the brand\'s photograph, with or without a catalogue (PROTECTED.md P1)', () => {
-    const PHOTO: HeroPhoto = { brand: 'Borbet', name: 'DB8GT2', finish: 'Schwarz matt', imageManifest: manifest(), companion: null }
+describe('HomeHero · the brand\'s photograph, in every state of the catalogue (PROTECTED.md P1, the client\'s #4)', () => {
+    const PHOTO: HeroPhoto = { brand: 'Borbet', name: 'DB8GT2', finish: 'Schwarz matt', imageManifest: manifest(), companion: null, facts: FACTS }
 
-    function mountWithPhoto(p: HeroProduct | null): VueWrapper {
+    function mountWithPhoto(photo: HeroPhoto): VueWrapper {
         const wrapper = mount(HomeHero, {
-            props: { hero: { ...hero(p), photo: PHOTO }, selector: { makes: [] } },
+            props: { hero: { ...hero(null), photo }, selector: { makes: [] } },
             global: { stubs: { HeroSelector: true, HeroHelp: true } },
             attachTo: document.body,
         })
@@ -601,25 +601,26 @@ describe('HomeHero · the brand\'s photograph, with or without a catalogue (PROT
         return wrapper
     }
 
-    it('stands with nothing published: the photograph, and no leader, no caption, no spec line', () => {
-        const wrapper = mountWithPhoto(null)
+    it('@kunde-04 stands complete from the photograph alone: leaders, caption and spec line, no price and no link', () => {
+        const wrapper = mountWithPhoto(PHOTO)
 
         expect(wrapper.find('.hero__roll picture').exists()).toBe(true)
         expect(wrapper.find('.hero__roll img').attributes('alt')).toBe('Borbet DB8GT2 in Schwarz matt, Ansicht von vorn')
         expect(wrapper.find('.hero__outline').exists()).toBe(false)
+        expect(calloutKeys(wrapper)).toEqual(['boltCircle', 'centreBore', 'kba'])
+        expect(wrapper.find('.hero__caption-name').text()).toBe('Borbet DB8GT2 · Schwarz matt')
+        expect(visibleText(wrapper.find('.hero__spec'))).toBe(FACTS.specLine)
+        expect(wrapper.findAll('a')).toHaveLength(0)
+        expect(wrapper.text()).not.toContain('€')
+    })
+
+    it('says no value its photograph\'s record does not name: a photograph without values stands alone', () => {
+        const wrapper = mountWithPhoto({ ...PHOTO, facts: null })
+
+        expect(wrapper.find('.hero__roll picture').exists()).toBe(true)
         expect(calloutKeys(wrapper)).toEqual([])
         expect(wrapper.find('.hero__caption').exists()).toBe(false)
         expect(wrapper.find('.hero__notes').exists()).toBe(false)
-        expect(wrapper.findAll('a')).toHaveLength(0)
-    })
-
-    it('puts the published wheel\'s values on the same photograph, and names it then', () => {
-        const wrapper = mountWithPhoto(product({ imageManifest: null }))
-
-        expect(wrapper.find('.hero__roll picture').exists()).toBe(true)
-        expect(calloutKeys(wrapper)).toEqual(['boltCircle', 'centreBore', 'kba'])
-        expect(wrapper.find('.hero__caption').exists()).toBe(true)
-        expect(visibleText(wrapper.find('.hero__spec'))).toBe(FACTS.specLine)
     })
 })
 

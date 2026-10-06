@@ -37,10 +37,12 @@ test.describe('an empty shop', () => {
         expect((await photo.boundingBox())?.height ?? 0, 'the hero photograph has no height').toBeGreaterThan(100)
         await expect(hero.locator(phone ? '.hero-frame__outline' : '.hero__outline'), 'the outline stands where the photograph belongs').toHaveCount(0)
 
-        // Nothing to state: no leader, no caption, no spec line — and the page says which state it is in.
-        await expect(page.locator('[data-hero="photo"]'), 'the hero is not in its photograph-only state').toHaveCount(1)
-        await expect(hero.locator('[data-callout]')).toHaveCount(0)
-        await expect(hero.locator(phone ? '.hero-mobile__spec' : '.hero__spec')).toHaveCount(0)
+        // The photograph's own values, with nothing published (the client's #4: the hero asks the catalogue nothing) —
+        // the leaders and the spec line, never a price or a link.
+        await expect(page.locator('[data-hero="values"]'), 'the hero lost its values with the shop empty').toHaveCount(1)
+        await expect(hero.locator('[data-callout]').first()).toBeAttached()
+        await expect(hero.locator(phone ? '.hero-mobile__spec' : '.hero__spec')).toHaveCount(1)
+        await expect(hero.locator('a')).toHaveCount(0)
         await expect(hero.getByText('Symbolbild')).toHaveCount(0)
 
         await expectNoHorizontalOverflow(page)

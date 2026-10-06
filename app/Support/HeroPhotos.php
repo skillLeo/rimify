@@ -12,8 +12,9 @@ namespace App\Support;
  * chosen in Inhalte › Seiten › Startseite › Einstieg (PageSchema, field `foto`); the other front shot of the same wheel
  * stands behind it.
  *
- * The photograph alone says nothing about a product: the hero's leaders, its caption and its spec line come from the
- * wheel in the photograph only while that wheel is published (StartseiteController::heroProduct).
+ * The photograph says nothing about a product of the shop: no price, no link, no stock. What it does carry is the wheel's
+ * own values as its document states them for the stamped size (`facts`, wheel-photos.php) — the hero's leaders, caption
+ * and spec line — so the hero makes no product query and stands complete with an empty catalogue (the client's #4).
  */
 final class HeroPhotos
 {
@@ -23,7 +24,7 @@ final class HeroPhotos
     /**
      * Every front shot measured for the hero, by its slug.
      *
-     * @return array<string, array{slug: string, model: string, brand: string, name: string, finish: string, stamp: string|null}>
+     * @return array<string, array{slug: string, model: string, brand: string, name: string, finish: string, stamp: string|null, facts: array<string, int|float>|null}>
      */
     public static function all(): array
     {
@@ -41,6 +42,7 @@ final class HeroPhotos
                 'name' => $entry['name'] ?? '',
                 'finish' => $entry['finish'],
                 'stamp' => $entry['stamp'] ?? null,
+                'facts' => is_array($entry['facts'] ?? null) ? $entry['facts'] : null,
             ];
         }
 
@@ -72,7 +74,7 @@ final class HeroPhotos
      * cut-out and the second wheel behind it. Null only where no photograph of the choice is on the disk: a release
      * that shipped without its images, which `rimify:smoke` reports on the host.
      *
-     * @return array{slug: string, model: string, brand: string, name: string, finish: string, stamp: string|null, imageManifest: array<string, mixed>, companion: array{finish: string, imageManifest: array<string, mixed>}|null}|null
+     * @return array{slug: string, model: string, brand: string, name: string, finish: string, stamp: string|null, facts: array<string, int|float>|null, imageManifest: array<string, mixed>, companion: array{finish: string, imageManifest: array<string, mixed>}|null}|null
      */
     public static function resolve(?string $chosen): ?array
     {
@@ -102,7 +104,7 @@ final class HeroPhotos
     /**
      * The other front shot of the same wheel, or null.
      *
-     * @return array{slug: string, model: string, brand: string, name: string, finish: string, stamp: string|null}|null
+     * @return array{slug: string, model: string, brand: string, name: string, finish: string, stamp: string|null, facts: array<string, int|float>|null}|null
      */
     private static function companionOf(string $slug): ?array
     {

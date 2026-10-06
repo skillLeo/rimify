@@ -34,6 +34,13 @@ declare(strict_types=1);
 // number on the wheel:
 // "KBA 53841", legible on both angle shots of the same wheels (docs/review/DATA-CONFLICTS.md, conflict
 // 4) — the 18-inch approval, so the hero states the 18-inch configuration's values.
+//
+// `facts` are those values, as the document states them for the stamped size: what the hero's leaders, caption and spec
+// line say about the wheel in the photograph, in every state of the catalogue (the client's #4, the operator's brief
+// „THE 34“: the hero makes no product query). 8,5J × 18 H2, ET 35, LK 5/120, Mittenloch 72,5 mm, Radlast 650 kg —
+// Gutachten 366-0350-21-WIRD/N1, page 1, the Nachtrag to ABE 53841 (GoldenRecordSeeder).
+$stamped = ['width_in' => 8.5, 'diameter_in' => 18.0, 'et_mm' => 35, 'bolt_holes' => 5, 'bolt_circle_mm' => 120.0, 'centre_bore_mm' => 72.5, 'max_load_kg' => 650];
+
 return [
     'client-borbet-db8gt2-bronze-front.jpg' => [
         'slug' => 'borbet-db8gt2-bronze-matt',
@@ -55,6 +62,7 @@ return [
             'flanges' => [1006, 540, 48],
         ],
         'stamp' => '53841',
+        'facts' => $stamped,
         'credit' => ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
     ],
     'client-borbet-db8gt2-bronze-angle.jpg' => [
@@ -87,6 +95,7 @@ return [
             'flanges' => [1024, 540, 42],
         ],
         'stamp' => '53841',
+        'facts' => $stamped,
         'credit' => ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''],
     ],
     'client-borbet-db8gt2-schwarz-angle.jpg' => [

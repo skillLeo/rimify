@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\File;
  */
 final class DemoWheelFixtures
 {
+    /** The values the real photograph map gives the DB8GT2's stamped 18-inch size (wheel-photos.php `facts`). */
+    public const STAMPED = ['width_in' => 8.5, 'diameter_in' => 18.0, 'et_mm' => 35, 'bolt_holes' => 5, 'bolt_circle_mm' => 120.0, 'centre_bore_mm' => 72.5, 'max_load_kg' => 650];
+
     /** A fresh, empty directory, and the config pointed at it. */
     public static function emptyDir(): string
     {
@@ -94,8 +97,10 @@ final class DemoWheelFixtures
      * about — and, with `$open`, the opened frame the dark band turns. The map is the test's own.
      *
      * @param  array<string, string>  $finishes  finish name => slug, the first leading
+     * @param  array<string, int|float>|null  $facts  the photographed wheel's values (wheel-photos.php `facts`); the
+     *                                                DB8GT2's stamped 18-inch size unless given, none with null
      */
-    public static function heroPhotos(string $dir, string $model, array $finishes, ?string $stamp = '53841', bool $open = false): void
+    public static function heroPhotos(string $dir, string $model, array $finishes, ?string $stamp = '53841', bool $open = false, ?array $facts = self::STAMPED): void
     {
         $credit = ['source' => 'Kunde', 'photographer' => 'Borbet (Herstellerbild)', 'licence' => 'Vom Kunden bereitgestellt', 'url' => ''];
         $anchors = ['centre' => ['x' => 0.5, 'y' => 0.47], 'wheel' => ['x' => 0.5, 'y' => 0.47, 'r' => 0.41]];
@@ -106,7 +111,7 @@ final class DemoWheelFixtures
                 'slug' => $slug, 'model' => $model, 'brand' => 'Borbet', 'name' => 'DB8GT2', 'finish' => $finish,
                 'circle' => [540, 540, 500], 'hub' => null, 'anchors' => ['centre' => [540, 508], 'wheel' => [540, 508, 443]],
                 'credit' => $credit,
-            ] + ($stamp === null ? [] : ['stamp' => $stamp]);
+            ] + ($stamp === null ? [] : ['stamp' => $stamp]) + ($facts === null ? [] : ['facts' => $facts]);
 
             $plain = self::manifest($slug);
             $frame = static fn (string $name): array => [...$plain, 'name' => $name, 'base' => '/storage/demo/wheels/'.$slug.'/'.$name, 'anchors' => $anchors];

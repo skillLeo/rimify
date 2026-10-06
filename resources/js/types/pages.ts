@@ -63,12 +63,18 @@ export interface HeroPhoto {
     finish: string
     imageManifest: ImageManifest | null
     companion?: { finish: string; imageManifest: ImageManifest } | null
+    /**
+     * The photographed wheel's values as its document states them for the stamped size — the leaders, the caption and
+     * the spec line — in every state of the catalogue (the client's #4: the hero asks the catalogue nothing). Null where
+     * the photograph's record names none; absent in an older fixture.
+     */
+    facts?: HeroProduct['facts'] | null
 }
 
 /**
  * The wheel in the hero's photograph, once it is published: one configuration's own values
- * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4). Null with the catalogue empty or the wheel a
- * draft (D-155) — the photograph then stands without leaders, caption or spec line.
+ * (`StartseiteController::heroConfig`, docs/phase0/ACCURACY.md §3.0 and §4) — for the numbers section (H8) and the band.
+ * Null with the catalogue empty or the wheel a draft (D-155); the hero itself stands on the photograph's own values.
  */
 export interface HeroProduct {
     slug: string
@@ -130,11 +136,6 @@ export interface HomeStats {
     variants: number
     wheels: number
     brands: number
-}
-
-export interface PopularTab {
-    key: 'beliebt' | 'neu' | 'bis200'
-    label: string
 }
 
 export type TyreClass = 'A' | 'B' | 'C' | 'D' | 'E'
@@ -211,25 +212,29 @@ export interface StartseiteProps {
         sublineMobile?: string
         /** Null only where the release shipped without the photograph (rimify:smoke reports it); absent in an older fixture. */
         photo?: HeroPhoto | null
-        product: HeroProduct | null
-        stats: HomeStats
     }
+    /** The counts the story (H4) shows. */
+    stats: HomeStats
+    /** The wheel in the hero's photograph where the shop sells it, for the numbers section (H8); null otherwise. */
+    photoWheel: HeroProduct | null
     selector: { makes: MakeOption[] }
     /** F1 for the shared vehicle, in the first paint; null without a vehicle. `shopEmpty`: no wheel published at all. */
     fitmentCount: { count: number; permitted: number; conditional: number; shopEmpty?: boolean } | null
     promises: { title: string; text: string; icon: string }[]
+    /**
+     * The shelf (the client's #5): „Meistgekaufte Felgen“ by the paid order lines of the last 90 days, or before the
+     * first sale „Neu im Shop“, newest first. With a vehicle the cards are that car's answer. Null — no shelf at all —
+     * while fewer than four wheels are on sale.
+     */
     popular: {
-        /** Null with a vehicle: the heading then names the vehicle. */
-        title: string | null
-        /** Empty with a vehicle: the row is that car's answer, not a catalogue order. */
-        tabs: PopularTab[]
-        active: string
+        title: string
+        ranking: 'meistgekauft' | 'neu'
         cards: ProductCardProp[]
         /** The listing's count for the vehicle; null without one. */
         total: number | null
-        /** No wheel in the shop at all (a test environment reset to an empty shop): no tab to try, one sentence instead. */
-        empty: boolean
-    }
+    } | null
+    /** No wheel on sale at all (a test environment reset to an empty shop). */
+    shopEmpty: boolean
     recentlyViewed: ProductCardProp[]
     /** `fitting`: how many of the size's models a document permits on the vehicle; null without one. */
     sizes: { inch: number; count: number; fitting: number | null; href: string }[]
