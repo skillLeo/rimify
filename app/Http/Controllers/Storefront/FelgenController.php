@@ -361,8 +361,10 @@ class FelgenController extends Controller
             'hasVehicle' => $vehicleId !== null,
             // A seeded demonstration model: the page shows "Beispielbestand" rather than "Auf
             // Lager" and says it cannot be ordered yet. The basket stays walkable; the checkout
-            // refuses the order on the server (ACCURACY.md D4).
-            'demo' => (bool) $wheel->is_demo,
+            // refuses the order on the server (ACCURACY.md D4). The acceptance set's is sold with the test payment,
+            // off production, and says that it is demo data (`acceptance`).
+            'demo' => $wheel->refusedAsDemo(),
+            'acceptance' => (bool) $wheel->is_demo && ! $wheel->refusedAsDemo(),
             // Delivery time and shipping, as Einstellungen › Verkäufer & Versand gives them; null while nothing is.
             'shipping' => Shipping::current()->summary(),
             'komplettradOptions' => $this->komplettradOptions($request, $colours),
@@ -514,7 +516,7 @@ class FelgenController extends Controller
                     ];
                 })->values()->all(),
                 'label' => Basket::euLabel($variant),
-                'isDemo' => (bool) $variant->is_demo,
+                'isDemo' => $variant->refusedAsDemo(),
             ];
         }
 
@@ -635,7 +637,7 @@ class FelgenController extends Controller
                             'forFour' => $forFour->format(),
                         ];
                     })->values()->all(),
-                    'isDemo' => (bool) $front->is_demo || (bool) $rear->is_demo,
+                    'isDemo' => $front->refusedAsDemo() || $rear->refusedAsDemo(),
                 ];
             }
 

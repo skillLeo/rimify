@@ -56,7 +56,7 @@ defineOptions({ layout: AppLayout })
 /** The load rating per wheel travels with each configuration; null where none is verified. */
 type RatedConfig = ProduktConfig & { maxLoadKg?: number | null }
 
-const props = defineProps<ProduktProps & { demo?: boolean }>()
+const props = defineProps<ProduktProps & { demo?: boolean; acceptance?: boolean }>()
 
 const shared = useShared()
 const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
@@ -631,6 +631,10 @@ claimBottomEdge(() => stickyShown.value)
                         <p v-if="demo" class="t-small pdp__demo">
                             Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
                             legen, bestellen kannst du sie noch nicht.
+                        </p>
+                        <!-- The acceptance set (rimify:demo --abnahme): demo data, ordered with the test payment only. -->
+                        <p v-else-if="acceptance" class="t-small pdp__demo">
+                            Demodaten zum Ausprobieren: Bestellen geht hier nur mit der Testzahlung, verschickt wird nichts.
                         </p>
                     </div>
 
