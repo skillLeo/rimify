@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Fitment\Resolver\VehicleResolver;
 use App\Domain\Storefront\VehicleContext;
+use App\Domain\Storefront\VehicleKey;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
@@ -50,32 +52,37 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * The address the browser shows (the client's #8, D-116). On a page that answers for one car, the car it was
-     * rendered for stands in it — `?fahrzeug=127` — so the page can be saved and shared, and opening that address
-     * renders the same answer (VehicleFromUrl). Without a car no stale number stays behind; every other page keeps
-     * the address it was asked for.
+     * rendered for stands in it — `?fahrzeug=0005-Z90-00001`, its key numbers (VehicleKey) — so the page can be saved
+     * and shared, and opening that address renders the same answer (VehicleFromUrl). Without a car no stale key stays
+     * behind; every other page keeps the address it was asked for.
      */
     public function urlResolver(): Closure
     {
-        return static function (Request $request): string {
-            $url = Str::start(Str::after($request->fullUrl(), $request->getSchemeAndHttpHost()), '/');
+        return static fn (Request $request): string => self::address($request);
+    }
 
-            if (! in_array($request->route()?->getName(), VehicleFromUrl::ROUTES, true)) {
-                return $url;
-            }
+    /** The page's address as urlResolver() writes it: a path of this shop with its query. */
+    public static function address(Request $request): string
+    {
+        $url = Str::start(Str::after($request->fullUrl(), $request->getSchemeAndHttpHost()), '/');
 
-            $raw = $request->cookie(VehicleContext::COOKIE);
-            $vehicleId = VehicleContext::decode(is_string($raw) ? $raw : null)?->vehicleId;
-            $pairs = array_values(array_filter(
-                explode('&', (string) $request->getQueryString()),
-                static fn (string $pair): bool => $pair !== '' && ! str_starts_with($pair, VehicleFromUrl::PARAM.'='),
-            ));
+        if (! in_array($request->route()?->getName(), VehicleFromUrl::ROUTES, true)) {
+            return $url;
+        }
 
-            if ($vehicleId !== null) {
-                $pairs[] = VehicleFromUrl::PARAM.'='.$vehicleId;
-            }
+        $raw = $request->cookie(VehicleContext::COOKIE);
+        $vehicleId = VehicleContext::decode(is_string($raw) ? $raw : null)?->vehicleId;
+        $vehicle = $vehicleId === null ? null : app(VehicleResolver::class)->find($vehicleId);
+        $pairs = array_values(array_filter(
+            explode('&', (string) $request->getQueryString()),
+            static fn (string $pair): bool => $pair !== '' && ! str_starts_with($pair, VehicleFromUrl::PARAM.'='),
+        ));
 
-            return Str::before($url, '?').($pairs === [] ? '' : '?'.implode('&', $pairs));
-        };
+        if ($vehicle !== null && ! $vehicle->isDeleted) {
+            $pairs[] = VehicleFromUrl::PARAM.'='.VehicleKey::of($vehicle);
+        }
+
+        return Str::before($url, '?').($pairs === [] ? '' : '?'.implode('&', $pairs));
     }
 
     /**
@@ -92,6 +99,9 @@ class HandleInertiaRequests extends Middleware
             ...$this->chrome->share($request),
             'isMobile' => (bool) $request->attributes->get(DetectDevice::ATTRIBUTE, false),
             'locale' => 'de',
+            // The page's one address (the client's #8): the shop's own host and the address the browser shows — with the
+            // car as its key numbers — written into the first frame as <link rel="canonical"> (StorefrontLayout).
+            'canonical' => $request->is('admin', 'admin/*') ? null : rtrim((string) config('app.url'), '/').self::address($request),
             /*
              * Whether photography is layered over the drawn art (config/rimify.php). Shared
              * rather than compiled in, so one env change turns it off without a build.

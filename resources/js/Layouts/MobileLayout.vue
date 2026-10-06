@@ -23,6 +23,7 @@ import AppBar from '../Components/Mobile/AppBar.vue'
 import BottomSheet from '../Components/Mobile/BottomSheet.vue'
 import ListRow from '../Components/Mobile/ListRow.vue'
 import SearchSheet from '../Components/Mobile/SearchSheet.vue'
+import CanonicalLink from '../Components/Chrome/CanonicalLink.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
@@ -164,6 +165,8 @@ function fromVehicleSheet(href: string | undefined): void {
 <template>
     <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value, 'mshell--footer': footer }">
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
+
+        <CanonicalLink />
 
         <PreviewRibbon />
 
