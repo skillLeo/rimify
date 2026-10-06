@@ -1,10 +1,10 @@
 # Was dem Live-Shop noch fehlt
 
-Stand: 06.10.2026, 00:12 Uhr · erzeugt mit `php artisan rimify:go-live-check --markdown=docs/review/WAS-FEHLT.md` aus dem Zustand des Shops zu diesem Zeitpunkt – nichts darin ist von Hand geschrieben.
+Stand: 06.10.2026, 21:33 Uhr · erzeugt mit `php artisan rimify:go-live-check --markdown=docs/review/WAS-FEHLT.md` aus dem Zustand des Shops zu diesem Zeitpunkt – nichts darin ist von Hand geschrieben.
 
-**17 von 31 erfüllt · 2 bei uns · 8 beim Kunden · 1 beim Host · 3 nicht prüfbar**
+**17 von 33 erfüllt · 3 bei uns · 9 beim Kunden · 1 beim Host · 3 nicht prüfbar**
 
-## Offen beim Kunden: 8
+## Offen beim Kunden: 9
 
 - **Impressum (§ 5 DDG)** – Im Impressum fehlen: Name des Unternehmens, Anschrift, Umsatzsteuer-Identifikationsnummer, Text der Kanzlei. *Wo:* `/admin/einstellungen/verkaeufer-versand`
 - **AGB** – Die AGB sind noch ein Platzhalter: Der Text der Kanzlei fehlt. *Wo:* `/admin/seiten/6`
@@ -14,15 +14,17 @@ Stand: 06.10.2026, 00:12 Uhr · erzeugt mit `php artisan rimify:go-live-check -
 - **Rechnungsangaben (§ 14 UStG)** – Solange etwas fehlt, ist jede Rechnung eine Testrechnung. Es fehlen: Name des Unternehmens, Straße und Hausnummer, PLZ, Ort, USt-IdNr. oder Steuernummer, die eröffneten Rechnungsnummern (Einstellungen › Zahlung). *Wo:* `/admin/einstellungen/verkaeufer-versand`
 - **Erklärung zur Barrierefreiheit (BFSG)** – Die Erklärung zur Barrierefreiheit fehlt; ein Online-Shop braucht sie seit 28.06.2025, außer bei einem Kleinstunternehmen. *Wo:* `/admin/seiten`
 - **Mindestens ein freigegebenes Gutachten** – Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge. *Wo:* `/admin/gutachten`
+- **Absenderdomain: SPF, DKIM und DMARC** – Für rimify.de fehlen im DNS: SPF: TXT bounce.rimify.de → „v=spf1 include:amazonses.com ~all“; SPF: MX bounce.rimify.de → „10 feedback-smtp.eu-north-1.amazonses.com“; DKIM: CNAME (drei Einträge)._domainkey.rimify.de → „(…).dkim.amazonses.com – SES nennt sie, sobald die Domain dort angelegt ist“. *Wo:* `DNS der Domain · Einstellungen › E-Mail`
 
-## Offen bei uns: 2
+## Offen bei uns: 3
 
 - **Bestellbestätigung (§ 312f BGB)** – MAIL_MAILER=log: Die Bestätigung wird nicht verschickt. *Wo:* `MAIL_MAILER`
 - **Letzte vollständige Testmatrix** – Noch nie gelaufen – die Testmatrix braucht die Testschlüssel. *Wo:* `docs/dev/STRIPE.md`
+- **E-Mail-Versand über Amazon SES** – Die Mails gehen über „log“ und erreichen bis dahin niemanden. Noch offen: der Zugang zu Amazon SES in Einstellungen › E-Mail. *Wo:* `Einstellungen › E-Mail · docs/ops/MAIL-SES.md`
 
 ## Offen beim Host: 1
 
-- **Serverstandort in der EU** – Nach dem Namensschema des Hosts steht der Server us-bos-web1780.main-hosting.eu außerhalb der EU (US). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Ein Rechenzentrum in der EU wählen. *Wo:* `hPanel › Hosting › Rechenzentrum`
+- **Serverstandort in Deutschland** – Nach dem Namensschema des Hosts steht der Server us-bos-web1780.main-hosting.eu außerhalb der EU (US). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Entschieden ist Hostingers Rechenzentrum in Deutschland für Webserver und Datenbank. *Wo:* `hPanel › Hosting › Rechenzentrum · docs/ops/UMZUG-DE.md`
 
 ## Alle Prüfungen
 
@@ -72,7 +74,9 @@ Stand: 06.10.2026, 00:12 Uhr · erzeugt mit `php artisan rimify:go-live-check -
 | Rechnungen nicht öffentlich | wir | ok | Rechnungen liegen im privaten Speicher des Servers, nicht im Bucket, und sind nur über signierte Links abrufbar. | `FILESYSTEM_DISK` |
 | Beide Datenbank-Engines grün in CI | wir | nicht prüfbar | Von hier nicht prüfbar: Der Lauf steht auf GitHub (MySQL 8.4 und MariaDB 11.8.9). | `.github/workflows/suite.yml` |
 | Server-Rendering | wir | ok | Der Renderer antwortet; jede Seite kommt fertig aufgebaut an. | `deploy/ssr-watch.sh` |
-| Cron-Zeilen für Zeitplan und Wächter | host | ok | Der Zeitplan lief vor 37 Sekunden. | `hPanel › Cron-Jobs` |
-| Serverstandort in der EU | host | fehlt | Nach dem Namensschema des Hosts steht der Server us-bos-web1780.main-hosting.eu außerhalb der EU (US). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Ein Rechenzentrum in der EU wählen. | `hPanel › Hosting › Rechenzentrum` |
+| Cron-Zeilen für Zeitplan und Wächter | host | ok | Der Zeitplan lief vor 52 Sekunden. | `hPanel › Cron-Jobs` |
+| E-Mail-Versand über Amazon SES | wir | fehlt | Die Mails gehen über „log“ und erreichen bis dahin niemanden. Noch offen: der Zugang zu Amazon SES in Einstellungen › E-Mail. | `Einstellungen › E-Mail · docs/ops/MAIL-SES.md` |
+| Absenderdomain: SPF, DKIM und DMARC | kunde | fehlt | Für rimify.de fehlen im DNS: SPF: TXT bounce.rimify.de → „v=spf1 include:amazonses.com ~all“; SPF: MX bounce.rimify.de → „10 feedback-smtp.eu-north-1.amazonses.com“; DKIM: CNAME (drei Einträge)._domainkey.rimify.de → „(…).dkim.amazonses.com – SES nennt sie, sobald die Domain dort angelegt ist“. | `DNS der Domain · Einstellungen › E-Mail` |
+| Serverstandort in Deutschland | host | fehlt | Nach dem Namensschema des Hosts steht der Server us-bos-web1780.main-hosting.eu außerhalb der EU (US). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Entschieden ist Hostingers Rechenzentrum in Deutschland für Webserver und Datenbank. | `hPanel › Hosting › Rechenzentrum · docs/ops/UMZUG-DE.md` |
 | Schalter zum Zurücksetzen passend zur Umgebung | wir | ok | Der Testserver darf zurückgesetzt werden, der Live-Shop nie. | `RIMIFY_RESET_ERLAUBT` |
 | Keine Demodaten veröffentlicht | wir | ok | Es gibt keine Demodaten. | `/admin/system` |
