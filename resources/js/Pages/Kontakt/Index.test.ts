@@ -81,11 +81,11 @@ const VEHICLE: VehicleProp = {
 let mounted: VueWrapper[] = []
 
 function mountPage(
-    options: { contact?: ContactProp; vehicle?: VehicleProp | null; prefill?: { subject: string; from: string | null }; mail?: boolean } = {}
+    options: { contact?: ContactProp; vehicle?: VehicleProp | null; prefill?: { subject: string; from: string | null }; mail?: boolean; ticket?: string } = {}
 ): VueWrapper {
     const contact = options.contact ?? CONTACT
     current.props = { contact, vehicle: options.vehicle ?? null, notifyByMail: options.mail ?? true }
-    const wrapper = mount(Kontakt, { props: { contact, prefill: options.prefill }, attachTo: document.body })
+    const wrapper = mount(Kontakt, { props: { contact, prefill: options.prefill, ticket: options.ticket }, attachTo: document.body })
     mounted.push(wrapper)
 
     return wrapper
@@ -129,6 +129,25 @@ describe('Kontakt — the contact form (#12)', () => {
             withVehicle: false,
             rmf_leer: '',
         })
+    })
+
+    it('sends the ticket the page was handed out with, and says the server\'s refusal under the button @kunde-12', async () => {
+        const wrapper = mountPage({ ticket: 'versiegelt-123' })
+        await fill(wrapper)
+        await wrapper.find('form').trigger('submit')
+
+        expect(posted[0]!.data.ticket).toBe('versiegelt-123')
+        // The honeypot stays empty and out of reach: hidden from people and screen readers, never in the Tab order.
+        expect(wrapper.find('.kon__trap').attributes('aria-hidden')).toBe('true')
+        expect(wrapper.find('#kon-leer').attributes('tabindex')).toBe('-1')
+
+        // Sent sooner than a person writes: the server's sentence, said — and the words stay in the form.
+        const form = (wrapper.vm as unknown as { form: { errors: Record<string, string> } }).form
+        form.errors.ticket = 'Das ging zu schnell. Bitte schick deine Nachricht noch einmal ab.'
+        await flushPromises()
+
+        expect(wrapper.find('.kon__form [role="alert"]').text()).toBe('Das ging zu schnell. Bitte schick deine Nachricht noch einmal ab.')
+        expect((wrapper.find('#kon-message').element as HTMLTextAreaElement).value).toBe('Passt die Felge auch mit Winterreifen?')
     })
 
     it('starts with the subject and the page the link came from', async () => {
