@@ -1,0 +1,485 @@
+import { t as AppLayout_default } from "./AppLayout-DhCuH0p_.js";
+import { a as link_default, c as router, i as head_default, s as usePage, u as vue_exports } from "../ssr.js";
+import { t as server_renderer_exports } from "./server-renderer-CE7M1dwI.js";
+import { t as _plugin_vue_export_helper_default } from "./_plugin-vue_export-helper-BOaGB7Aw.js";
+import { n as formatNumber } from "./num-Br8qlecZ.js";
+import { f as contactHref, x as useShared } from "./useShortcuts-B6ckgfRC.js";
+import { t as Icon_default } from "./Icon-58DOAUuC.js";
+import { t as BuildForm_default } from "./BuildForm-D9IpoIx0.js";
+import { t as ProductTile_default } from "./ProductTile-DUTdYNap.js";
+//#region resources/js/Components/Listing/FilterBar.vue?vue&type=script&setup=true&lang.ts
+var FilterBar_vue_vue_type_script_setup_true_lang_default = /*@__PURE__*/ (0, vue_exports.defineComponent)({
+	__name: "FilterBar",
+	__ssrInlineRender: true,
+	props: {
+		facets: {},
+		filters: {},
+		total: {}
+	},
+	emits: [
+		"toggle",
+		"toggle-entry",
+		"reset"
+	],
+	setup(__props, { emit: __emit }) {
+		/**
+		* The filter panel: one vertical list of facets, used as the desktop sidebar and, unchanged,
+		* inside the phone's filter sheet — one component, so the two can never offer different filters.
+		*
+		* `Ohne Eintragung` comes first and stands on its own: for many German buyers whether the wheel
+		* needs an entry in the vehicle papers is the deciding attribute of the purchase.
+		*
+		* An option that would return nothing is DISABLED, never hidden. Disabling teaches the shape of
+		* the catalogue; hiding makes the panel change length every time it is opened.
+		*
+		* Counts carry the other filters but not the facet's own, so "18 Zoll (12)" means "12 results if
+		* you add this", which is the number a customer is actually deciding on.
+		*/
+		const props = __props;
+		const FACETS = [
+			{
+				key: "marke",
+				label: "Marke"
+			},
+			{
+				key: "zoll",
+				label: "Durchmesser (Zoll)"
+			},
+			{
+				key: "breite",
+				label: "Breite (Zoll)"
+			},
+			{
+				key: "et",
+				label: "Einpresstiefe (ET)"
+			},
+			{
+				key: "farbe",
+				label: "Farbe"
+			}
+		];
+		const entryOn = (0, vue_exports.computed)(() => props.filters.ohne_eintragung === true);
+		const entryCount = (0, vue_exports.computed)(() => props.facets.ohne_eintragung?.[0]?.count ?? null);
+		const anyApplied = (0, vue_exports.computed)(() => Object.keys(props.filters).filter((key) => key !== "seite").length > 0);
+		function selected(facet) {
+			const value = props.filters[facet];
+			return Array.isArray(value) ? value.map(String) : [];
+		}
+		function optionsFor(facet) {
+			return props.facets[facet] ?? [];
+		}
+		function optionLabel(facet, value) {
+			if (facet !== "zoll" && facet !== "breite" && facet !== "et") return value;
+			const n = Number(value);
+			if (!Number.isFinite(n)) return value;
+			return formatNumber(n, Number.isInteger(n) ? 0 : Number.isInteger(n * 10) ? 1 : 2);
+		}
+		return (_ctx, _push, _parent, _attrs) => {
+			_push(`<div${(0, server_renderer_exports.ssrRenderAttrs)((0, vue_exports.mergeProps)({ class: "fpanel" }, _attrs))} data-v-5a79b3b2><div class="between fpanel__head" data-v-5a79b3b2><h2 class="t-h3" data-v-5a79b3b2>Filter</h2>`);
+			if (anyApplied.value) _push(`<button class="btn btn--quiet btn--sm" type="button" data-v-5a79b3b2> Zurücksetzen </button>`);
+			else _push(`<!---->`);
+			_push(`</div>`);
+			if (__props.facets.ohne_eintragung) {
+				_push(`<label class="fpanel__opt fpanel__opt--entry" data-v-5a79b3b2><input type="checkbox"${(0, server_renderer_exports.ssrIncludeBooleanAttr)(entryOn.value) ? " checked" : ""} data-v-5a79b3b2><span class="fpanel__label" data-v-5a79b3b2>Ohne Abnahme und Eintragung</span>`);
+				if (entryCount.value !== null) _push(`<span class="data fpanel__count" data-v-5a79b3b2>${(0, server_renderer_exports.ssrInterpolate)(entryCount.value)}</span>`);
+				else _push(`<!---->`);
+				_push(`</label>`);
+			} else _push(`<!---->`);
+			_push(`<!--[-->`);
+			(0, server_renderer_exports.ssrRenderList)(FACETS, (facet) => {
+				_push(`<fieldset class="fpanel__group" data-v-5a79b3b2><legend class="micro fpanel__legend" data-v-5a79b3b2>${(0, server_renderer_exports.ssrInterpolate)(facet.label)}</legend><!--[-->`);
+				(0, server_renderer_exports.ssrRenderList)(optionsFor(facet.key), (option) => {
+					_push(`<label class="${(0, server_renderer_exports.ssrRenderClass)([{ "fpanel__opt--off": option.count === 0 && !selected(facet.key).includes(option.value) }, "fpanel__opt"])}" data-v-5a79b3b2><input type="checkbox"${(0, server_renderer_exports.ssrIncludeBooleanAttr)(selected(facet.key).includes(option.value)) ? " checked" : ""}${(0, server_renderer_exports.ssrIncludeBooleanAttr)(option.count === 0 && !selected(facet.key).includes(option.value)) ? " disabled" : ""} data-v-5a79b3b2><span class="fpanel__label" data-v-5a79b3b2>${(0, server_renderer_exports.ssrInterpolate)(optionLabel(facet.key, option.value))}</span><span class="data fpanel__count" data-v-5a79b3b2>${(0, server_renderer_exports.ssrInterpolate)((0, vue_exports.unref)(formatNumber)(option.count))}</span></label>`);
+				});
+				_push(`<!--]-->`);
+				if (optionsFor(facet.key).length === 0) _push(`<p class="quiet t-small" data-v-5a79b3b2>Keine Auswahl verfügbar.</p>`);
+				else _push(`<!---->`);
+				_push(`</fieldset>`);
+			});
+			_push(`<!--]--></div>`);
+		};
+	}
+});
+//#endregion
+//#region resources/js/Components/Listing/FilterBar.vue
+var _sfc_setup$2 = FilterBar_vue_vue_type_script_setup_true_lang_default.setup;
+FilterBar_vue_vue_type_script_setup_true_lang_default.setup = (props, ctx) => {
+	const ssrContext = (0, vue_exports.useSSRContext)();
+	(ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("resources/js/Components/Listing/FilterBar.vue");
+	return _sfc_setup$2 ? _sfc_setup$2(props, ctx) : void 0;
+};
+var FilterBar_default = /*#__PURE__*/ _plugin_vue_export_helper_default(FilterBar_vue_vue_type_script_setup_true_lang_default, [["__scopeId", "data-v-5a79b3b2"]]);
+//#endregion
+//#region resources/js/Components/Vehicle/VehicleNotify.vue?vue&type=script&setup=true&lang.ts
+var VehicleNotify_vue_vue_type_script_setup_true_lang_default = /*@__PURE__*/ (0, vue_exports.defineComponent)({
+	__name: "VehicleNotify",
+	__ssrInlineRender: true,
+	props: {
+		vehicleId: {},
+		vehicleLabel: {}
+	},
+	setup(__props) {
+		/**
+		* "Benachrichtigen, sobald verfügbar" (F2), where the listing is empty for the chosen vehicle.
+		*
+		* It posts to the real endpoint, `POST /api/v1/fitment/notify` (FitmentNotifyController: a Form
+		* Request, double opt-in, one row per address and vehicle), and it says only what that endpoint
+		* answered: 202 is a thank-you, 422 names the field in German, anything else offers the shop's
+		* e-mail address instead — a failed request is never a dead end (R-09).
+		*
+		* The listing used to send this customer to the Kontakt form, which sent nothing (ACCURACY D5).
+		*/
+		const props = __props;
+		const shared = useShared();
+		(0, vue_exports.computed)(() => shared.value.contact);
+		const byMail = (0, vue_exports.computed)(() => shared.value.notifyByMail === true);
+		const page = usePage();
+		const askHref = (0, vue_exports.computed)(() => contactHref({
+			subject: `Felge gesucht für ${props.vehicleLabel}`,
+			from: page.url
+		}));
+		const id = (0, vue_exports.useId)();
+		const email = (0, vue_exports.ref)("");
+		const state = (0, vue_exports.ref)("idle");
+		const error = (0, vue_exports.ref)("");
+		return (_ctx, _push, _parent, _attrs) => {
+			_push(`<div${(0, server_renderer_exports.ssrRenderAttrs)((0, vue_exports.mergeProps)({ class: "vnotify" }, _attrs))} data-v-5ecc8a2f>`);
+			if (!byMail.value) {
+				_push(`<p class="t-body" data-v-5ecc8a2f> Du suchst eine Felge für ${(0, server_renderer_exports.ssrInterpolate)(__props.vehicleLabel)}? `);
+				_push((0, server_renderer_exports.ssrRenderComponent)((0, vue_exports.unref)(link_default), {
+					class: "link",
+					href: askHref.value
+				}, {
+					default: (0, vue_exports.withCtx)((_, _push, _parent, _scopeId) => {
+						if (_push) _push(`Schreib uns`);
+						else return [(0, vue_exports.createTextVNode)("Schreib uns")];
+					}),
+					_: 1
+				}, _parent));
+				_push(` – wir sehen nach, was es dafür gibt. </p>`);
+			} else if (state.value === "sent") _push(`<p class="t-body vnotify__done" role="status" data-v-5ecc8a2f> Danke. Bestätige bitte den Link in unserer E-Mail – erst dann melden wir uns. </p>`);
+			else _push(`<form class="vnotify__form" data-v-5ecc8a2f><p class="t-body" data-v-5ecc8a2f> Sag uns deine E-Mail-Adresse – wir melden uns, sobald ein Gutachten dein Fahrzeug nennt. </p><label class="field-label vnotify__label"${(0, server_renderer_exports.ssrRenderAttr)("for", `${(0, vue_exports.unref)(id)}-mail`)} data-v-5ecc8a2f>E-Mail-Adresse</label><div class="vnotify__row" data-v-5ecc8a2f><input${(0, server_renderer_exports.ssrRenderAttr)("id", `${(0, vue_exports.unref)(id)}-mail`)}${(0, server_renderer_exports.ssrRenderAttr)("value", email.value)} class="${(0, server_renderer_exports.ssrRenderClass)([{ "field--error": state.value === "error" }, "field vnotify__input"])}" type="email" inputmode="email" autocomplete="email" enterkeyhint="send" required${(0, server_renderer_exports.ssrRenderAttr)("aria-invalid", state.value === "error" ? "true" : void 0)}${(0, server_renderer_exports.ssrRenderAttr)("aria-describedby", `${(0, vue_exports.unref)(id)}-error`)} data-v-5ecc8a2f><button class="btn btn--primary vnotify__send" type="submit"${(0, server_renderer_exports.ssrIncludeBooleanAttr)(state.value === "sending") ? " disabled" : ""}${(0, server_renderer_exports.ssrRenderAttr)("aria-busy", state.value === "sending" ? "true" : void 0)} data-v-5ecc8a2f> Benachrichtigen, sobald verfügbar </button></div><p${(0, server_renderer_exports.ssrRenderAttr)("id", `${(0, vue_exports.unref)(id)}-error`)} class="field-error" aria-live="polite" data-v-5ecc8a2f>${(0, server_renderer_exports.ssrInterpolate)(error.value)}</p><p class="t-small quiet" data-v-5ecc8a2f>Du bekommst zuerst eine Bestätigungsmail. Abmelden geht jederzeit mit einem Klick.</p></form>`);
+			_push(`</div>`);
+		};
+	}
+});
+//#endregion
+//#region resources/js/Components/Vehicle/VehicleNotify.vue
+var _sfc_setup$1 = VehicleNotify_vue_vue_type_script_setup_true_lang_default.setup;
+VehicleNotify_vue_vue_type_script_setup_true_lang_default.setup = (props, ctx) => {
+	const ssrContext = (0, vue_exports.useSSRContext)();
+	(ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("resources/js/Components/Vehicle/VehicleNotify.vue");
+	return _sfc_setup$1 ? _sfc_setup$1(props, ctx) : void 0;
+};
+var VehicleNotify_default = /*#__PURE__*/ _plugin_vue_export_helper_default(VehicleNotify_vue_vue_type_script_setup_true_lang_default, [["__scopeId", "data-v-5ecc8a2f"]]);
+//#endregion
+//#region resources/js/composables/useListingFilters.ts
+/**
+* Filter state lives in the query string, never in a store.
+*
+* 726 results behind client-side state is unindexable, unshareable and impossible to get back to.
+* Writing every change to the URL means the back button works, a filtered listing can be sent to a
+* friend, and the server renders exactly what the link describes.
+*/
+function useListingFilters(filters, path = "/felgen") {
+	const current = (0, vue_exports.computed)(() => filters());
+	function visit(next) {
+		router.get(path, next, {
+			preserveScroll: true,
+			preserveState: true,
+			replace: true
+		});
+	}
+	function toggle(facet, value) {
+		const next = { ...current.value };
+		const raw = next[facet];
+		const values = Array.isArray(raw) ? raw.map(String) : [];
+		const updated = values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
+		if (updated.length === 0) delete next[facet];
+		else next[facet] = updated;
+		delete next.seite;
+		visit(next);
+	}
+	function toggleEntry() {
+		const next = { ...current.value };
+		if (next.ohne_eintragung === true) delete next.ohne_eintragung;
+		else next.ohne_eintragung = 1;
+		delete next.seite;
+		visit(next);
+	}
+	function reset() {
+		visit({});
+	}
+	function goToPage(page) {
+		const next = { ...current.value };
+		if (page <= 1) delete next.seite;
+		else next.seite = page;
+		router.get(path, next, { preserveState: true });
+	}
+	return {
+		current,
+		toggle,
+		toggleEntry,
+		reset,
+		goToPage
+	};
+}
+//#endregion
+//#region resources/js/Pages/Felgen/Index.vue?vue&type=script&setup=true&lang.ts
+var PAGE_SIZE = 24;
+var Index_vue_vue_type_script_setup_true_lang_default = /*@__PURE__*/ (0, vue_exports.defineComponent)({
+	layout: AppLayout_default,
+	__name: "Index",
+	__ssrInlineRender: true,
+	props: {
+		hasVehicle: { type: Boolean },
+		cards: {},
+		total: {},
+		facets: {},
+		filters: {},
+		page: {},
+		demo: { type: Boolean },
+		missing: {}
+	},
+	setup(__props) {
+		/**
+		* The listing.
+		*
+		* With a vehicle it is a compliance answer — only wheels with a valid Gutachten for that car, and
+		* the count says so. Without one it is the open catalogue, and a notice above the grid says so
+		* rather than quietly implying everything fits.
+		*
+		* One page for every width. The filters are a sticky sidebar from 1200px; below that they open in
+		* a sheet from a sticky bar, with the live result count on the button that closes it.
+		*
+		* The page count is derived from the result count. It is never a literal.
+		*/
+		const props = __props;
+		const shared = useShared();
+		const vehicle = (0, vue_exports.computed)(() => shared.value.vehicle);
+		const filters = useListingFilters(() => props.filters);
+		const sheetOpen = (0, vue_exports.ref)(false);
+		const heading = (0, vue_exports.computed)(() => vehicle.value === null ? "Alle Felgen" : `Felgen für ${vehicle.value.short}`);
+		/** A body style or drive the owner gave or the car's name did: the grid rests on it, so the page says it. */
+		const buildGiven = (0, vue_exports.computed)(() => {
+			const build = vehicle.value?.build;
+			return build != null && [build.bodySource, build.driveSource].some((source) => source === "name" || source === "customer");
+		});
+		const appliedCount = (0, vue_exports.computed)(() => Object.entries(props.filters).filter(([key, value]) => key !== "seite" && (Array.isArray(value) ? value.length > 0 : value)).length);
+		const currentPage = (0, vue_exports.computed)(() => props.page ?? 1);
+		const catalogueEmpty = (0, vue_exports.computed)(() => !props.hasVehicle && appliedCount.value === 0 && props.cards.length === 0);
+		const showFilters = (0, vue_exports.computed)(() => Object.values(props.facets ?? {}).some((options) => (options?.length ?? 0) > 0));
+		const vehicleBar = (0, vue_exports.computed)(() => vehicle.value !== null && (shared.value.headerMode === "WHITE_BOX" || shared.value.headerMode === "BLUE_BAR"));
+		const shownCount = (0, vue_exports.computed)(() => props.total ?? props.cards.length);
+		const quick = (0, vue_exports.computed)(() => {
+			const chosen = (facet, value) => {
+				const raw = props.filters[facet];
+				return Array.isArray(raw) && raw.map(String).includes(value);
+			};
+			const sizes = (props.facets?.zoll ?? []).map((o) => ({
+				facet: "zoll",
+				value: o.value,
+				label: `${formatNumber(Number(o.value))} Zoll`,
+				count: o.count,
+				on: chosen("zoll", o.value)
+			}));
+			const brands = (props.facets?.marke ?? []).map((o) => ({
+				facet: "marke",
+				value: o.value,
+				label: o.value,
+				count: o.count,
+				on: chosen("marke", o.value)
+			}));
+			return [...sizes, ...brands];
+		});
+		const lastPage = (0, vue_exports.computed)(() => props.total === null ? 1 : Math.max(1, Math.ceil(props.total / PAGE_SIZE)));
+		/** A window of page numbers around the current one, never a hard-coded run. */
+		const pages = (0, vue_exports.computed)(() => {
+			const last = lastPage.value;
+			const from = Math.max(1, Math.min(currentPage.value - 2, last - 4));
+			const to = Math.min(last, from + 4);
+			return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+		});
+		(0, vue_exports.watch)(sheetOpen, (open) => {
+			if (typeof document !== "undefined") document.body.style.overflow = open ? "hidden" : "";
+		});
+		(0, vue_exports.onBeforeUnmount)(() => {
+			if (typeof document !== "undefined") document.body.style.removeProperty("overflow");
+		});
+		return (_ctx, _push, _parent, _attrs) => {
+			_push(`<!--[-->`);
+			_push((0, server_renderer_exports.ssrRenderComponent)((0, vue_exports.unref)(head_default), { title: "Felgen" }, null, _parent));
+			_push(`<section class="section-dense" data-v-53c09865><div class="wrap" data-v-53c09865><nav class="plp__crumbs t-small" aria-label="Brotkrumen" data-v-53c09865>`);
+			_push((0, server_renderer_exports.ssrRenderComponent)((0, vue_exports.unref)(link_default), { href: "/" }, {
+				default: (0, vue_exports.withCtx)((_, _push, _parent, _scopeId) => {
+					if (_push) _push(`Startseite`);
+					else return [(0, vue_exports.createTextVNode)("Startseite")];
+				}),
+				_: 1
+			}, _parent));
+			_push(`<span aria-hidden="true" data-v-53c09865>/</span><span aria-current="page" data-v-53c09865>Felgen</span></nav><div class="plp__head" data-v-53c09865><h1 class="t-h1" data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)(heading.value)} `);
+			if (__props.demo) _push(`<span class="badge demo-note plp__demo" data-v-53c09865>Demodaten</span>`);
+			else _push(`<!---->`);
+			_push(`</h1><p class="plp__count" data-v-53c09865>`);
+			if (__props.total !== null) _push(`<!--[--><strong class="tabular" data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)((0, vue_exports.unref)(formatNumber)(__props.total ?? 0))}</strong> ${(0, server_renderer_exports.ssrInterpolate)(__props.total === 1 ? "Felge" : "Felgen")} mit gültigem Gutachten für dieses Fahrzeug <!--]-->`);
+			else _push(`<!--[-->${(0, server_renderer_exports.ssrInterpolate)((0, vue_exports.unref)(formatNumber)(__props.cards.length))} ${(0, server_renderer_exports.ssrInterpolate)(__props.cards.length === 1 ? "Felge" : "Felgen")} im Sortiment<!--]-->`);
+			_push(`</p>`);
+			if (__props.demo) _push(`<p class="micro quiet" data-v-53c09865>Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>`);
+			else _push(`<!---->`);
+			_push(`</div>`);
+			if (__props.hasVehicle && vehicle.value && (__props.missing?.length || buildGiven.value)) {
+				_push(`<div class="${(0, server_renderer_exports.ssrRenderClass)([{ "plp__ask--said": !__props.missing?.length }, "plp__ask"])}" data-v-53c09865>`);
+				_push((0, server_renderer_exports.ssrRenderComponent)(BuildForm_default, {
+					key: `build-${vehicle.value.id}`,
+					"vehicle-id": vehicle.value.id,
+					build: vehicle.value.build ?? null,
+					missing: __props.missing ?? []
+				}, null, _parent));
+				_push(`</div>`);
+			} else _push(`<!---->`);
+			if (!__props.hasVehicle && !catalogueEmpty.value) {
+				_push(`<div class="plp__notice" data-v-53c09865>`);
+				_push((0, server_renderer_exports.ssrRenderComponent)(Icon_default, {
+					name: "info",
+					size: 20
+				}, null, _parent));
+				_push(`<p class="plp__notice-text" data-v-53c09865> Wähle dein Fahrzeug, um nur Felgen zu sehen, die dafür freigegeben sind. </p>`);
+				_push((0, server_renderer_exports.ssrRenderComponent)((0, vue_exports.unref)(link_default), {
+					href: "/felgen-suchen",
+					class: "btn btn--primary"
+				}, {
+					default: (0, vue_exports.withCtx)((_, _push, _parent, _scopeId) => {
+						if (_push) _push(`Fahrzeug wählen`);
+						else return [(0, vue_exports.createTextVNode)("Fahrzeug wählen")];
+					}),
+					_: 1
+				}, _parent));
+				_push(`</div>`);
+			} else _push(`<!---->`);
+			if (showFilters.value) {
+				_push(`<div class="${(0, server_renderer_exports.ssrRenderClass)([{ "plp__bar--vbar": vehicleBar.value }, "plp__bar"])}" data-v-53c09865><button class="btn btn--secondary plp__bar-btn" type="button" data-v-53c09865>`);
+				_push((0, server_renderer_exports.ssrRenderComponent)(Icon_default, {
+					name: "filter",
+					size: 20
+				}, null, _parent));
+				_push(` Filter `);
+				if (appliedCount.value > 0) _push(`<span class="plp__bar-n tabular" data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)(appliedCount.value)}</span>`);
+				else _push(`<!---->`);
+				_push(`</button>`);
+				if (quick.value.length > 0) {
+					_push(`<div class="plp__quick" role="group" aria-label="Schnellauswahl: Größe und Marke" data-v-53c09865><!--[-->`);
+					(0, server_renderer_exports.ssrRenderList)(quick.value, (option) => {
+						_push(`<button class="chip plp__chip" type="button"${(0, server_renderer_exports.ssrRenderAttr)("aria-pressed", option.on)}${(0, server_renderer_exports.ssrIncludeBooleanAttr)(option.count === 0 && !option.on) ? " disabled" : ""} data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)(option.label)} <span class="plp__chip-n tabular" data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)(option.count)}</span></button>`);
+					});
+					_push(`<!--]--></div>`);
+				} else _push(`<!---->`);
+				_push(`</div>`);
+			} else _push(`<!---->`);
+			_push(`<div class="${(0, server_renderer_exports.ssrRenderClass)([{
+				"plp__layout--filters": showFilters.value,
+				"plp__layout--vbar": vehicleBar.value
+			}, "plp__layout"])}" data-v-53c09865>`);
+			if (showFilters.value) {
+				_push(`<aside class="plp__side" aria-label="Filter" data-v-53c09865>`);
+				_push((0, server_renderer_exports.ssrRenderComponent)(FilterBar_default, {
+					facets: __props.facets,
+					filters: (0, vue_exports.unref)(filters).current.value,
+					total: __props.total,
+					onToggle: (0, vue_exports.unref)(filters).toggle,
+					onToggleEntry: (0, vue_exports.unref)(filters).toggleEntry,
+					onReset: (0, vue_exports.unref)(filters).reset
+				}, null, _parent));
+				_push(`</aside>`);
+			} else _push(`<!---->`);
+			_push(`<div class="plp__results" data-v-53c09865>`);
+			if (__props.cards.length > 0) {
+				_push(`<div class="tile-grid plp__grid" data-v-53c09865><!--[-->`);
+				(0, server_renderer_exports.ssrRenderList)(__props.cards, (card, i) => {
+					_push((0, server_renderer_exports.ssrRenderComponent)(ProductTile_default, {
+						key: `${card.modelId}-${card.finishId}`,
+						card,
+						vehicle: vehicle.value,
+						eager: i < 4,
+						sizes: "(min-width: 1280px) 240px, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 45vw",
+						compare: ""
+					}, null, _parent));
+				});
+				_push(`<!--]--></div>`);
+			} else {
+				_push(`<div class="state" data-v-53c09865>`);
+				_push((0, server_renderer_exports.ssrRenderComponent)(Icon_default, {
+					name: "info",
+					size: 24
+				}, null, _parent));
+				_push(`<p class="state__title" data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)(appliedCount.value > 0 ? "Keine Felgen für diese Filter." : __props.hasVehicle ? "Für dieses Fahrzeug haben wir noch keine freigegebenen Felgen." : "Im Sortiment ist gerade keine Felge.")}</p><p class="t-body" data-v-53c09865> RIMIFY zeigt ausschließlich Felgen, für die ein gültiges Gutachten vorliegt.`);
+				if (catalogueEmpty.value) _push(`<!--[--> Sobald die ersten freigegeben sind, stehen sie hier.<!--]-->`);
+				else _push(`<!---->`);
+				_push(`</p>`);
+				if (appliedCount.value === 0 && vehicle.value) _push((0, server_renderer_exports.ssrRenderComponent)(VehicleNotify_default, {
+					"vehicle-id": vehicle.value.id,
+					"vehicle-label": vehicle.value.short
+				}, null, _parent));
+				else _push(`<!---->`);
+				_push(`<div class="cluster" data-v-53c09865>`);
+				if (appliedCount.value > 0) _push(`<button class="btn btn--primary" type="button" data-v-53c09865> Filter zurücksetzen </button>`);
+				else _push(`<!---->`);
+				if (catalogueEmpty.value) _push((0, server_renderer_exports.ssrRenderComponent)((0, vue_exports.unref)(link_default), {
+					href: (0, vue_exports.unref)(contactHref)({
+						subject: "Ich suche eine Felge",
+						from: "/felgen"
+					}),
+					class: "btn btn--secondary"
+				}, {
+					default: (0, vue_exports.withCtx)((_, _push, _parent, _scopeId) => {
+						if (_push) _push(`Schreib uns`);
+						else return [(0, vue_exports.createTextVNode)("Schreib uns")];
+					}),
+					_: 1
+				}, _parent));
+				else _push((0, server_renderer_exports.ssrRenderComponent)((0, vue_exports.unref)(link_default), {
+					href: "/felgen-suchen",
+					class: "btn btn--secondary"
+				}, {
+					default: (0, vue_exports.withCtx)((_, _push, _parent, _scopeId) => {
+						if (_push) _push(`${(0, server_renderer_exports.ssrInterpolate)(__props.hasVehicle ? "Anderes Fahrzeug wählen" : "Fahrzeug wählen")}`);
+						else return [(0, vue_exports.createTextVNode)((0, vue_exports.toDisplayString)(__props.hasVehicle ? "Anderes Fahrzeug wählen" : "Fahrzeug wählen"), 1)];
+					}),
+					_: 1
+				}, _parent));
+				_push(`</div></div>`);
+			}
+			if (lastPage.value > 1) {
+				_push(`<nav class="pager plp__pager" aria-label="Seiten" data-v-53c09865><!--[-->`);
+				(0, server_renderer_exports.ssrRenderList)(pages.value, (n) => {
+					_push(`<button class="${(0, server_renderer_exports.ssrRenderClass)([{ "pager__page--on": currentPage.value === n }, "pager__page"])}" type="button"${(0, server_renderer_exports.ssrRenderAttr)("aria-current", currentPage.value === n ? "page" : void 0)} data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)(n)}</button>`);
+				});
+				_push(`<!--]--></nav>`);
+			} else _push(`<!---->`);
+			_push(`</div></div></div></section>`);
+			if (sheetOpen.value) {
+				_push(`<!--[--><div class="scrim" data-v-53c09865></div><div class="sheet plp__sheet" role="dialog" aria-modal="true" aria-label="Filter" data-v-53c09865><div class="sheet__grab" data-v-53c09865></div>`);
+				_push((0, server_renderer_exports.ssrRenderComponent)(FilterBar_default, {
+					facets: __props.facets,
+					filters: (0, vue_exports.unref)(filters).current.value,
+					total: __props.total,
+					onToggle: (0, vue_exports.unref)(filters).toggle,
+					onToggleEntry: (0, vue_exports.unref)(filters).toggleEntry,
+					onReset: (0, vue_exports.unref)(filters).reset
+				}, null, _parent));
+				_push(`<div class="plp__apply" data-v-53c09865><button class="btn btn--primary btn--block" type="button" data-v-53c09865>${(0, server_renderer_exports.ssrInterpolate)((0, vue_exports.unref)(formatNumber)(shownCount.value))} ${(0, server_renderer_exports.ssrInterpolate)(shownCount.value === 1 ? "Felge" : "Felgen")} anzeigen </button></div></div><!--]-->`);
+			} else _push(`<!---->`);
+			_push(`<!--]-->`);
+		};
+	}
+});
+//#endregion
+//#region resources/js/Pages/Felgen/Index.vue
+var _sfc_setup = Index_vue_vue_type_script_setup_true_lang_default.setup;
+Index_vue_vue_type_script_setup_true_lang_default.setup = (props, ctx) => {
+	const ssrContext = (0, vue_exports.useSSRContext)();
+	(ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("resources/js/Pages/Felgen/Index.vue");
+	return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+var Index_default = /*#__PURE__*/ _plugin_vue_export_helper_default(Index_vue_vue_type_script_setup_true_lang_default, [["__scopeId", "data-v-53c09865"]]);
+//#endregion
+export { Index_default as default };
