@@ -120,7 +120,7 @@ it('fills the label fields and the demo flag through the model instead of droppi
         ->and($stored->fresh()?->is_demo)->toBeTrue();
 });
 
-it('freezes the colour and the sensor price ids on a line, and the make on the order', function (): void {
+it('freezes the colour and the sensor price ids on a line, and the make on the order @kunde-15', function (): void {
     $line = OrderLine::factory()->create();
 
     expect($line->fresh()?->balance_weight_colour_id)->toBeNull()

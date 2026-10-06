@@ -165,7 +165,7 @@ describe('KomplettradChoice', () => {
         expect(wrapper.find('a[href="/felgen-suchen"]').exists()).toBe(false)
     })
 
-    it('carries no link that only points at the page\'s own button (#25), whatever the refusal', () => {
+    it('carries no link that only points at the page\'s own button (#25), whatever the refusal @kunde-25', () => {
         for (const code of ['NO_VEHICLE', 'NO_TYRE_AVAILABLE', 'VERDICT_NOT_PERMITTED', 'TYRES_UNKNOWN'] as const) {
             const wrapper = mountChoice(refused(code, 'Ein Satz.'), null)
 

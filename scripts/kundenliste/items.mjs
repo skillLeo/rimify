@@ -92,7 +92,7 @@ export const ITEMS = [
     {
         nr: 12,
         wish: 'Kontaktformular auf der Kontaktseite',
-        now: 'Die Kontaktseite hat ein Formular mit Name, E-Mail, Betreff und Nachricht, nimmt das gewählte Fahrzeug mit, schützt sich ohne fremdes Captcha vor Spam und legt jede Nachricht im Admin ab.',
+        now: 'Die Kontaktseite hat ein Formular mit Name, E-Mail, Betreff, Nachricht und einem Satz zum Datenschutz; das gewählte Fahrzeug ist angehakt dabei. Gegen Spam hilft kein fremdes Captcha, sondern ein verstecktes Feld, eine Zeitprüfung und höchstens fünf Nachrichten pro Minute. Jede Nachricht liegt im Admin unter Verkauf › Nachrichten; die Bestätigung an den Absender geht raus, sobald der E-Mail-Versand eingerichtet ist.',
         state: 'erledigt',
         commits: [],
     },
@@ -121,7 +121,7 @@ export const ITEMS = [
     {
         nr: 16,
         wish: 'Nach „In den Warenkorb“ ein Fenster, damit man leichter weiterkommt',
-        now: 'Nach dem Hinzufügen zeigt ein Fenster die neue Position und die Summe mit „Weiter einkaufen“ und „Zum Warenkorb“; es lässt sich mit der Tastatur bedienen und mit Esc schließen, am Handy ohne den ganzen Bildschirm zu verdecken.',
+        now: 'Nach dem Hinzufügen zeigt ein Fenster die neue Position und die Summe mit „Weiter einkaufen“ und „Zum Warenkorb“. Die Tastatur landet darin und bleibt darin; Esc schließt es und führt zurück zum Warenkorb-Knopf. Am Handy verdeckt es nur einen Teil des Bildschirms.',
         state: 'erledigt',
         commits: [],
     },
@@ -135,7 +135,7 @@ export const ITEMS = [
     {
         nr: 18,
         wish: 'Auswahl „Nur Felgen“ / „Felgen + Reifen“, mit passenden Reifen direkt',
-        now: 'Du wählst zwischen „Nur Felgen“ und „Komplettrad“ und legst passende Reifen direkt dazu; mit dem Reifen wird das Ergebnis neu geprüft, und eine Kombination, die das Gutachten nicht erlaubt, lässt sich nicht kaufen.',
+        now: 'Du wählst zwischen „Nur Felgen“ und „Komplettrad“, ohne dass Größe, Farbe oder Anzahl verloren gehen, und legst passende Reifen direkt dazu. Wählst du einen Reifen, zeigt die Prüfung, was das Gutachten für genau diese Reifengröße verlangt – beim BMW X3 etwa die Abnahme nur mit 255/40 R19. Eine Kombination, die das Gutachten nicht erlaubt, lässt sich nicht kaufen.',
         state: 'erledigt',
         commits: [],
     },
@@ -157,7 +157,7 @@ export const ITEMS = [
     {
         nr: 21,
         wish: '„Eintragung“ steht bei Felgen mit Auflagen dreimal',
-        now: '„Eintragung“ steht nur noch einmal, im Ergebnis; der Wortlaut des Gutachtens bleibt hinter „Originaltext anzeigen“ erreichbar.',
+        now: '„Eintragung“ steht nur noch einmal, im Ergebnis direkt unter der Überschrift; die Auflagen darunter wiederholen es nicht. Der Wortlaut des Gutachtens bleibt hinter „Originaltext anzeigen“ erreichbar, jeder Satz mit seiner Seite.',
         state: 'erledigt',
         commits: [],
     },
@@ -207,7 +207,7 @@ export const ITEMS = [
     {
         nr: 28,
         wish: 'RIMIFY-Check: Fahrzeug und Felge wählen, Antwort nur für dieses Paar, dann direkt kaufen',
-        now: 'Der RIMIFY-Check gibt für ein Auto und eine Felge eine Antwort mit Auflagen, Gutachten und Seite und bietet „Jetzt kaufen“ mit Reifen an; passt das Paar nicht, gibt es keinen Kaufknopf.',
+        now: 'Der RIMIFY-Check gibt für ein Auto und eine Felge eine Antwort mit Auflagen, Gutachten und Seite und bietet „Jetzt kaufen“ an, das Komplettrad gleich daneben; passt das Paar nicht, gibt es keinen Kaufknopf.',
         state: 'erledigt',
         commits: [],
     },
@@ -235,7 +235,7 @@ export const ITEMS = [
     {
         nr: 32,
         wish: 'Seite etwas farbiger, z. B. hellblaue Abschnitte',
-        now: 'Eine helle Flächenfarbe wechselt sich mit Weiß ab, nicht jeder Abschnitt ist getönt.',
+        now: 'Eine helle blaugraue Flächenfarbe wechselt sich mit Weiß ab, nicht jeder Abschnitt ist getönt. Vorher und nachher nebeneinander: 32-vorher-1440.png und 32-1440.png, ebenso für 390.',
         state: 'Urteil offen',
         commits: [],
     },

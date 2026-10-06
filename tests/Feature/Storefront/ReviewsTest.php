@@ -119,7 +119,7 @@ it('opens the review page only through the signed link, and only for a delivered
     $this->get(ReviewLink::for($paid))->assertNotFound();
 });
 
-it('writes one verified review per rim, once, and the wheel\'s rating is what the visible reviews add up to', function (): void {
+it('writes one verified review per rim, once, and the wheel\'s rating is what the visible reviews add up to @kunde-19', function (): void {
     $order = deliveredOrder();
     $line = $order->lines->first();
     $model = WheelConfig::query()->findOrFail($line->wheel_config_id)->wheel_model_id;
@@ -147,7 +147,7 @@ it('refuses a rating outside one to five stars, in a sentence', function (): voi
     expect(Review::query()->count())->toBe(0);
 });
 
-it('lets the team hide a review with a reason, show it again and answer it — and never write one', function (): void {
+it('lets the team hide a review with a reason, show it again and answer it — and never write one @kunde-19', function (): void {
     $order = deliveredOrder();
     $line = $order->lines->first();
     $link = ReviewLink::for($order);
@@ -185,7 +185,7 @@ it('rounds the average to one decimal, half away from zero, without a float', fu
         ->and(ReviewSummary::oneDecimal(14, 3))->toBe(4.7); // 4,666…
 });
 
-it('shows a wheel without reviews no stars, and a wheel with reviews its average, its count and how they are checked', function (): void {
+it('shows a wheel without reviews no stars, and a wheel with reviews its average, its count and how they are checked @kunde-19', function (): void {
     $this->seed(ReferenceDataSeeder::class);
     $order = deliveredOrder();
     $line = $order->lines->first();

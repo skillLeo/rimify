@@ -39,14 +39,123 @@ const SHOTS = 'docs/qa/shots/kundenliste'
 
 /** The item's picture at this width: the element itself where one is given, never the whole page by default. */
 export async function shot(target: Page | Locator, nr: number, info: TestInfo, options: { fullPage?: boolean } = {}): Promise<void> {
+    if ('scrollIntoViewIfNeeded' in target) {
+        await shotAround(target.page(), [target], nr, info, 0)
+
+        return
+    }
+
     mkdirSync(SHOTS, { recursive: true })
     const path = `${SHOTS}/${String(nr).padStart(2, '0')}-${breite(info)}.png`
 
-    if ('scrollIntoViewIfNeeded' in target) {
-        await target.scrollIntoViewIfNeeded()
-        await target.screenshot({ path, animations: 'disabled' })
-    } else {
-        await target.screenshot({ path, animations: 'disabled', fullPage: options.fullPage ?? false })
+    await target.screenshot({ path, animations: 'disabled', fullPage: options.fullPage ?? false })
+    await info.attach(`kunde-${String(nr).padStart(2, '0')}-${breite(info)}`, { path, contentType: 'image/png' })
+}
+
+/** The union of the targets' boxes, in the window's coordinates. */
+async function union(targets: Locator[]): Promise<{ x: number; y: number; width: number; height: number }> {
+    const boxes = await Promise.all(targets.map((t) => box(t)))
+    const x = Math.min(...boxes.map((b) => b.x))
+    const y = Math.min(...boxes.map((b) => b.y))
+
+    return { x, y, width: Math.max(...boxes.map((b) => b.x + b.width)) - x, height: Math.max(...boxes.map((b) => b.y + b.height)) - y }
+}
+
+/**
+ * The bars that stay put while the page scrolls — the header and the vehicle bar at the top, a price bar at the bottom:
+ * how far they reach into the window from each edge. A picture of one of them is not covered by itself.
+ */
+async function bars(target: Locator): Promise<{ top: number; bottom: number }> {
+    return target.evaluate((el) => {
+        const edge = (e: Element): 'top' | 'bottom' | null => {
+            if (!['fixed', 'sticky'].includes(getComputedStyle(e).position)) {
+                return null
+            }
+
+            const r = e.getBoundingClientRect()
+
+            return r.top <= 5 ? 'top' : r.bottom >= window.innerHeight - 5 ? 'bottom' : null
+        }
+        const own = new Set<string>()
+
+        for (let e: Element | null = el; e !== null; e = e.parentElement) {
+            const at = edge(e)
+
+            if (at !== null) {
+                own.add(at)
+            }
+        }
+
+        let top = 0
+        let bottom = 0
+
+        for (const e of document.querySelectorAll('body *')) {
+            const r = e.getBoundingClientRect()
+
+            if (r.height === 0 || r.height >= window.innerHeight / 2 || r.bottom <= 0 || r.top >= window.innerHeight) {
+                continue
+            }
+
+            const at = edge(e)
+
+            if (at === 'top' && !own.has('top')) {
+                top = Math.max(top, r.bottom)
+            } else if (at === 'bottom' && !own.has('bottom')) {
+                bottom = Math.max(bottom, window.innerHeight - r.top)
+            }
+        }
+
+        return { top, bottom }
+    })
+}
+
+/**
+ * The item's picture around one element or several at once — a heading and the line under it, a row and the note about
+ * it — `pad` pixels round them, taken inside the window: scrolled to stand just under the header and the vehicle bar
+ * (which would otherwise cover its top), and the window made taller first where it does not fit. A full-page capture is
+ * not used: it enlarges the window as it takes the picture, and a page that sizes by the window's height (the product
+ * photograph, 56vh on a phone) then lies elsewhere than where it was measured.
+ */
+export async function shotAround(page: Page, targets: Locator[], nr: number, info: TestInfo, pad = 16): Promise<void> {
+    mkdirSync(SHOTS, { recursive: true })
+    const path = `${SHOTS}/${String(nr).padStart(2, '0')}-${breite(info)}.png`
+    const view = page.viewportSize() ?? { width: 1440, height: 900 }
+    const first = targets[0]
+
+    if (first === undefined) {
+        throw new Error('a picture of nothing')
+    }
+
+    await first.scrollIntoViewIfNeeded()
+    let chrome = await bars(first)
+    let area = await union(targets)
+    // Room for a price bar that appears only once the page has scrolled (the product page's, on a phone).
+    const reserve = 160
+    const needed = Math.ceil(area.height + 2 * pad + chrome.top + Math.max(chrome.bottom, reserve))
+    const taller = needed > view.height
+
+    if (taller) {
+        await page.setViewportSize({ width: view.width, height: needed })
+        await page.waitForTimeout(200)
+        area = await union(targets)
+    }
+
+    // Just under the bars at the top, then measured again where it now stands — and the bars with it, since a price
+    // bar comes and goes with the scroll.
+    await page.evaluate((by) => window.scrollBy(0, by), area.y - chrome.top - pad)
+    await page.waitForTimeout(150)
+    area = await union(targets)
+    chrome = await bars(first)
+
+    const height = (page.viewportSize() ?? view).height
+    const x = Math.max(0, area.x - pad)
+    const y = Math.max(chrome.top, area.y - pad)
+    const clip = { x, y, width: Math.min(view.width, area.x + area.width + pad) - x, height: Math.min(height - chrome.bottom, area.y + area.height + pad) - y }
+
+    await page.screenshot({ path, animations: 'disabled', clip })
+
+    if (taller) {
+        await page.setViewportSize(view)
     }
 
     await info.attach(`kunde-${String(nr).padStart(2, '0')}-${breite(info)}`, { path, contentType: 'image/png' })

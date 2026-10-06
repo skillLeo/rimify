@@ -85,7 +85,7 @@ function mixedTyreOf(TyreSize $size, array $attributes = []): TyreVariant
     ]);
 }
 
-it('offers the listed pair on the product page, sells it as two axle lines and freezes each axle on its own order line', function (): void {
+it('offers the listed pair on the product page, sells it as two axle lines and freezes each axle on its own order line @kunde-20', function (): void {
     [$fx, $front, $rear, $unlisted] = mixedSetup();
     $frontTyre = mixedTyreOf($front);
     $rearTyre = mixedTyreOf($rear, ['brand_id' => $frontTyre->brand_id, 'price_cents' => 18_000]);
@@ -162,7 +162,7 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
         ->and($frozen[1]['axleLoadKg'])->toBe($fx->vehicle->axle_load_rear_kg);
 });
 
-it('refuses at the basket a plausible pair the table does not list, and the listed pair the wrong way round — R-11', function (): void {
+it('refuses at the basket a plausible pair the table does not list, and the listed pair the wrong way round — R-11 @kunde-20', function (): void {
     [$fx, $front, $rear, $unlisted] = mixedSetup();
     $frontTyre = mixedTyreOf($front);
     $rearTyre = mixedTyreOf($rear, ['brand_id' => $frontTyre->brand_id]);
@@ -177,7 +177,7 @@ it('refuses at the basket a plausible pair the table does not list, and the list
     expect(session(Basket::SESSION_KEY, []))->toBe([]);
 });
 
-it('says nothing about Mischbereifung on a product page whose document prints no pairing table', function (): void {
+it('says nothing about Mischbereifung on a product page whose document prints no pairing table @kunde-20', function (): void {
     $fx = KomplettradFixture::permitted();
     $page = $this->withCookies($fx->cookies())->get('/felgen/'.$fx->config->wheelModel?->slug)->assertOk()->viewData('page');
 

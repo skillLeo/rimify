@@ -37,7 +37,7 @@ it('gives an Auflage written without a level the operator\'s default', function 
         ->and($abnahme->refresh()->level)->toBe(ConditionLevel::Auflage);
 });
 
-it('sets how loud an Auflage is on a released Gutachten, and writes it to the Protokoll', function (): void {
+it('sets how loud an Auflage is on a released Gutachten, and writes it to the Protokoll @kunde-23', function (): void {
     $document = ApprovalDocument::factory()->create();
     $bolts = DocumentCondition::factory()->kind(ConditionKind::Befestigung, 'Nur mit den Radschrauben des Herstellers.')->create(['approval_document_id' => $document->id, 'code' => 'S03']);
 
@@ -50,7 +50,7 @@ it('sets how loud an Auflage is on a released Gutachten, and writes it to the Pr
         ->and(AuditLog::query()->where('description', 'approval.condition_level_set')->exists())->toBeTrue();
 });
 
-it('refuses to make an Abnahme a Hinweis, and says why in one sentence', function (): void {
+it('refuses to make an Abnahme a Hinweis, and says why in one sentence @kunde-23', function (): void {
     $document = ApprovalDocument::factory()->create();
     $abnahme = DocumentCondition::factory()->kind(ConditionKind::Abnahme, 'Abnahme durch einen Prüfer.')->create(['approval_document_id' => $document->id, 'code' => 'A01']);
 
@@ -60,13 +60,13 @@ it('refuses to make an Abnahme a Hinweis, and says why in one sentence', functio
     expect($abnahme->refresh()->level)->toBe(ConditionLevel::Auflage);
 });
 
-it('holds the floor in the database too', function (): void {
+it('holds the floor in the database too @kunde-23', function (): void {
     $arch = DocumentCondition::factory()->kind(ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.')->create(['code' => 'K1b']);
 
     expect(fn () => DB::table('document_conditions')->where('id', $arch->id)->update(['level' => 'hinweis']))->toThrow(QueryException::class);
 });
 
-it('lets only who may edit Gutachten choose a level', function (): void {
+it('lets only who may edit Gutachten choose a level @kunde-23', function (): void {
     $document = ApprovalDocument::factory()->create();
     $note = DocumentCondition::factory()->create(['approval_document_id' => $document->id, 'code' => 'A18']);
 
@@ -75,7 +75,7 @@ it('lets only who may edit Gutachten choose a level', function (): void {
     expect($note->refresh()->level)->toBe(ConditionLevel::Hinweis);
 });
 
-it('shows each Auflage\'s level, its floor and the one sentence on the Gutachten', function (): void {
+it('shows each Auflage\'s level, its floor and the one sentence on the Gutachten @kunde-23', function (): void {
     $document = ApprovalDocument::factory()->create();
     DocumentCondition::factory()->kind(ConditionKind::Abnahme, 'Abnahme durch einen Prüfer.')->create(['approval_document_id' => $document->id, 'code' => 'A01']);
 
