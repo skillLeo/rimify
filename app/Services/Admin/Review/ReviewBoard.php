@@ -72,6 +72,7 @@ final class ReviewBoard
             ['label' => 'Protokoll', 'href' => '/admin/protokoll', 'state' => self::DONE, 'line' => 'Jede Änderung im Admin, in Worten.'],
             ['label' => 'Zubehörpreise', 'href' => '/admin/zubehoerpreise', 'state' => self::DONE, 'line' => 'Wuchtgewichte und RDKS-Sensoren für Kompletträder.'],
             ['label' => 'Zahlung', 'href' => '/admin/einstellungen/zahlung', 'state' => self::DONE, 'line' => 'Die Stripe-Schlüssel eintragen, Verbindung testen, Rechnungsnummern eröffnen.'],
+            ['label' => 'E-Mail', 'href' => '/admin/einstellungen/e-mail', 'state' => self::DONE, 'line' => 'Den Zugang zu Amazon SES eintragen, Verbindung testen, die DNS-Einträge der Absenderdomain prüfen, gesperrte Adressen freigeben.'],
             ['label' => 'Verkäufer & Versand', 'href' => '/admin/einstellungen/verkaeufer-versand', 'state' => self::DONE, 'line' => 'Firmendaten für Impressum und Rechnung, Versandkosten und Lieferzeit.'],
             ['label' => 'Allgemein', 'href' => null, 'state' => self::MISSING, 'line' => 'Weitere Einstellungen des Shops. Die Rechtstexte stehen unter Inhalte › Seiten.'],
         ]],

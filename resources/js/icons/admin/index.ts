@@ -59,6 +59,8 @@ const G = {
     branding: '<path d="M10 2.75l5.25 5.25-2.5 8.25h-5.5l-2.5-8.25z"/><path d="M10 2.75v6.5M7.25 16.25h5.5"/><circle cx="10" cy="10.75" r="1.5"/>',
     shipping: '<path d="M10 2.75l6.75 3.5v7.5L10 17.25l-6.75-3.5v-7.5z"/><path d="M3.25 6.25L10 9.75l6.75-3.5M10 9.75v7.5M6.5 4.5l6.75 3.5"/>',
     payment: '<rect x="2.75" y="4.75" width="14.5" height="10.5"/><path d="M2.75 7.75h14.5M2.75 9.5h14.5M5.25 12.75h3"/>',
+    // E-Mail (the SES key): a message on its way out, where Nachrichten is the envelope that came in.
+    'mail-send': '<path d="M17.25 2.75L2.75 8.75l5.5 3 3 5.5z"/><path d="M8.25 11.75l9-9"/>',
     taxes: '<path d="M4.75 2.75h10.5v14.5l-1.75-1.25-1.75 1.25-1.75-1.25-1.75 1.25-1.75-1.25-1.75 1.25z"/><path d="M7.25 6.75h5.5M7.25 9.75h5.5M7.25 12.75h3"/>',
     emails: '<rect x="2.75" y="4.75" width="14.5" height="10.5"/><path d="M2.75 4.75L10 10.75l7.25-6"/>',
     'feature-flags': '<rect x="2.75" y="6.25" width="14.5" height="7.5" rx="3.75"/><circle cx="13.5" cy="10" r="2"/>',

@@ -14,7 +14,9 @@ correct result looks like, and what to do when it is not that. Nothing here is r
 - The real catalogue is in and **at least one wheel is published with a freigegebenes Gutachten** for a car. The
   example catalogue never reaches production, so without one real wheel the smoke test (§5) cannot pass —
   and a shop without a wheel is not ready to open.
-- The mail account on the shop's domain exists (SMTP host, user, password), with SPF, DKIM and DMARC set.
+- Mail goes through Amazon SES (`eu-north-1`, D-182): the key is in Einstellungen › E-Mail, the account has production
+  access, and `rimify:go-live-check` shows „E-Mail-Versand über Amazon SES“ and „Absenderdomain: SPF, DKIM und DMARC“
+  as erfüllt — `docs/ops/MAIL-SES.md` has every step and the deliverability test.
 - The media bucket's key is at hand for Einstellungen › Medien und Speicher (or already entered).
 - The rollback has been rehearsed on staging and timed (§7.4) — done on the preview on 2026-09-29: 14,4 s.
 
@@ -496,7 +498,10 @@ are the tracker until one is chosen.
 
 - [ ] `grep -E '^APP_(ENV|DEBUG)=' .env` → `APP_ENV=production` and `APP_DEBUG=false`; `grep RIMIFY_ADMIN_ENABLED .env` → nothing, or `true`
 - [ ] `$PHP artisan demo:assert-clean` → `No demo data.`
-- [ ] `$PHP artisan rimify:mail-test <your address>` → `Sent …` — and the mail arrives, from `…@<domain>`, not in spam
+- [ ] `$PHP artisan rimify:mail-test <your address> --anhaenge` → `Sent via ses-v2 …, with two PDF attachments` — and it
+      arrives, from `…@<domain>`, in the inbox, both PDFs open; the deliverability test of `docs/ops/MAIL-SES.md` (Gmail,
+      Outlook, GMX) recorded there with its date
+- [ ] `$PHP artisan rimify:append-only-check` → „Protokoll und Prüfnachweise lehnen jede Änderung ab.“
 - [ ] `grep -E '^RIMIFY_PAYMENTS=' .env` → `RIMIFY_PAYMENTS=none` (never `sandbox` on the live shop). Where the
       sandbox is on (staging), every test order carries the tag „Testbestellung“ in Verkauf › Bestellungen and, on its page, „Testbestellung über die Testzahlung – dabei fließt kein Geld …“
 - [ ] `$PHP artisan rimify:preflight` → `GO.`

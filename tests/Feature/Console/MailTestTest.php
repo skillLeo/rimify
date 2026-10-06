@@ -28,6 +28,24 @@ it('sends one message from the configured sender and says so', function (): void
         ->and($sent[0]->getFrom()[0]->getAddress())->toBe('shop@rimify.de');
 });
 
+it('sends the deliverability test in the confirmation\'s layout, with two PDFs, for Gmail, Outlook and GMX to judge', function (): void {
+    config(['mail.default' => 'array', 'mail.from.address' => 'bestellung@rimify.de']);
+    $sent = [];
+    Event::listen(MessageSent::class, function (MessageSent $event) use (&$sent): void {
+        $sent[] = $event->message;
+    });
+
+    $this->artisan('rimify:mail-test', ['to' => 'pruefung@gmx.de', '--anhaenge' => true])->assertFailed();
+
+    $attachments = $sent[0]->getAttachments();
+
+    expect($sent)->toHaveCount(1)
+        ->and($sent[0]->getSubject())->toBe('RIMIFY – Zustellprüfung mit zwei PDF-Anhängen')
+        ->and($sent[0]->getHtmlBody())->toContain('Zustellprüfung')
+        ->and(array_map(static fn ($a): ?string => $a->getFilename(), $attachments))->toBe(['Rechnung-Muster.pdf', 'Widerrufsbelehrung-Muster.pdf'])
+        ->and(array_map(static fn ($a): string => substr($a->getBody(), 0, 5), $attachments))->toBe(['%PDF-', '%PDF-']);
+});
+
 it('refuses what is not an address', function (): void {
     $this->artisan('rimify:mail-test', ['to' => 'kein-empfaenger'])->expectsOutputToContain('Not an e-mail address')->assertExitCode(2);
 });

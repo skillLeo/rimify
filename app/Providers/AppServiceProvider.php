@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Http\RateLimits\ShopRateLimits;
+use App\Listeners\DropSuppressedRecipients;
 use App\Listeners\FailedJobAlert;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
+use App\Services\Mail\MailSettings;
 use App\Support\DatabaseEngine;
 use App\Support\InlineStyles;
 use App\Support\SlowQueries;
@@ -15,6 +17,8 @@ use App\Support\Ssr\BoundedSsrGateway;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Mail\MailManager;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
@@ -103,6 +107,13 @@ class AppServiceProvider extends ServiceProvider
         Queue::failing(static function (JobFailed $event): void {
             app(FailedJobAlert::class)->handle($event);
         });
+
+        // Amazon SES once Einstellungen › E-Mail clears it (MailSettings) — asked when mail is first sent, not before;
+        // and never a message to an address SES reported as undeliverable or complaining (DropSuppressedRecipients).
+        $this->app->afterResolving('mail.manager', static function (MailManager $manager): void {
+            app(MailSettings::class)->apply($manager);
+        });
+        Event::listen(MessageSending::class, DropSuppressedRecipients::class);
 
         // The shop's own slow query log (storage/logs/slow-queries-*.log): the host keeps none.
         SlowQueries::listen();

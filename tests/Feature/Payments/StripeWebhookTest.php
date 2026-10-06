@@ -11,6 +11,8 @@ use App\Models\PaymentEvent;
 use App\Models\WheelConfig;
 use App\Services\Commerce\OrderPayments;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\FakeStripe;
 
@@ -107,6 +109,32 @@ it('treats a replayed event as a no-op', function (): void {
 
     expect(PaymentEvent::query()->count())->toBe(1)
         ->and(AuditLog::query()->where('description', 'order.status_changed')->count())->toBe(1);
+});
+
+// The brief „AFTER CI“, §5: the replay is refused by the unique index itself, not only by the lookup before it — two
+// deliveries at once both find nothing, and the database lets one of them store the event.
+it('stores a racing second delivery of one event never: the unique index refuses it, and it is answered as a repeat', function (): void {
+    $order = stripeOrder();
+    $raced = false;
+
+    // The other delivery stores the event between this one's lookup and its insert, as two requests at once do.
+    PaymentEvent::creating(static function (PaymentEvent $event) use (&$raced): void {
+        if (! $raced) {
+            $raced = true;
+            DB::table('payment_events')->insert(['provider' => $event->provider, 'event_id' => $event->event_id, 'type' => $event->type, 'payload' => $event->payload, 'received_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        }
+    });
+
+    deliver('payment_intent.succeeded', intent($order, ['status' => 'succeeded']), 'evt_race')
+        ->assertOk()->assertJson(['received' => true, 'duplicate' => true]);
+
+    expect($raced)->toBeTrue()
+        ->and(PaymentEvent::query()->where('event_id', 'evt_race')->count())->toBe(1)
+        // This delivery did nothing with it: the one that stored it does the work.
+        ->and(AuditLog::query()->where('description', 'order.status_changed')->count())->toBe(0)
+        // And the index alone, without the app in front of it.
+        ->and(fn () => DB::table('payment_events')->insert(['provider' => 'stripe', 'event_id' => 'evt_race', 'type' => 'payment_intent.succeeded', 'payload' => '{}', 'received_at' => now()]))
+        ->toThrow(UniqueConstraintViolationException::class);
 });
 
 it('keeps an order paid when processing arrives after succeeded', function (): void {

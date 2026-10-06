@@ -46,6 +46,23 @@ and a committed key stays in the history until the history is rewritten.
   when it saves, and at boot for `.env`, where a refused key is dropped, logged masked, and fails
   `rimify:preflight` until `.env` is corrected.
 
+## Nothing printed into a tool's output (D-184)
+
+On 06.10.2026 a PowerShell masking command printed the review accounts' passwords into a tool output; all ten were
+rotated the same hour. Since then two scripts keep a credential out of every command's output on the machine:
+
+- **`scripts/dev/redact.mjs`** — a filter: `<command> | node scripts/dev/redact.mjs`. It masks, as `[verborgen]`, the
+  value of every secret-named key in `.env` and `.env.*` (not `.env.example`), every cell of a „Passwort“ column in
+  `docs/review/ACCOUNTS.md`, every line of a local `.redact` file (further values, never committed), and anything
+  shaped like a key (Stripe `sk_`/`rk_`/`pk_` live and test, `whsec_`, `AKIA…`, a private-key block, the value after
+  `MYSQL_PWD=`, `password=`, `secret=`, `token=`).
+- **`scripts/dev/guard-secrets.mjs`** — the machine's Claude Code `PreToolUse` hook (in `.claude/settings.json`, which
+  stays out of the repository): a shell command that reads `ACCOUNTS.md`, a `.env`, the environment, the configuration
+  (`tinker`, `config:show`), the deployment notes, or runs anything on the host (`ssh`, `plink`, `scp`) is refused
+  unless its output goes through the filter — and the refusal says how to run it.
+
+`tests/Feature/Platform/RedactionTest.php` proves both.
+
 ## Writing tests about keys
 
 A test that needs a key-shaped string assembles it at run time — `'sk_'.'live_'.str_repeat('Ab3', 8)` — so

@@ -104,12 +104,20 @@ title; please confirm every line, or replace it with the wording the shop can st
     the figures from their papers. Please have the Kanzlei confirm that § 25 Abs. 2 Nr. 2 TDDDG covers them — strictly
     necessary for a service the customer asked for — or tell us which need a consent with an equally easy „Ablehnen“.
     Until then `rimify:go-live-check` reports the cookie check as met on that reading.
-35. **Where the live shop's server stands — for the client and the Kanzlei (06.10.2026).** The preview runs on
-    Hostinger's `us-bos-web1780`: by Hostinger's naming, a data centre in Boston, USA. Customers' names, addresses
-    and orders would be stored there, and every page a visitor in Germany opens travels there and back.
-    `rimify:go-live-check` reports „Serverstandort in der EU“ as open until the live shop runs in an EU member state;
-    a server in the United Kingdom or an EEA state stays open too, because whether that suffices is a GDPR question
-    for the Kanzlei. Please choose the live shop's data centre in hPanel, or tell us which one it is.
+35. **Where the live shop's server stands — decided, not a question (06.10.2026).** Hostinger's data centre in
+    **Germany** (Frankfurt am Main) for the web server and the database; the bucket stays in AWS `eu-north-1`
+    (Sweden), payments go through Stripe Payments Europe (Ireland). Never the United Kingdom or the USA. The preview
+    still runs on Hostinger's `us-bos-web1780` (Boston, USA): `rimify:go-live-check` reports „Serverstandort in
+    Deutschland“ as open until the server stands there (D-181). What the client does: buy the live shop's Hostinger
+    plan with the data centre „Deutschland“ — then nothing has to move — or let us know, and the existing plan moves
+    by `docs/ops/UMZUG-DE.md`, on the operator's word.
+36. **How long invoices must be kept — for the Kanzlei (06.10.2026).** The processing record
+    (`docs/legal/VERARBEITUNG.md`, written by `app/Services/Legal/ProcessingRecord.php`) keeps orders, invoices and
+    credit notes without end and names „§ 147 AO, § 14b UStG“ for the period after which they could go. As far as we
+    know, the Viertes Bürokratieentlastungsgesetz cut the period for Buchungsbelege, invoices included, to eight years
+    from 01.01.2025, while books and records stay at ten. Please have the Kanzlei confirm the period for invoices,
+    credit notes and the order records before the deletion the record lists as open (its § 3) is set. Until then the
+    record names the two paragraphs and no period.
 
 ## Photography and brands
 

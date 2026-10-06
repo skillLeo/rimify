@@ -105,7 +105,7 @@ describe('the tree', function (): void {
             ->and(array_column($nav[3]['pages'], 'label'))->toBe(['Dokumente', 'Auflagen', 'Abdeckung', 'Konflikte'])
             ->and(array_column($nav[4]['pages'], 'label'))->toBe(['Fahrzeuge', 'Zur Prüfung'])
             ->and(array_column($nav[5]['pages'], 'label'))->toBe(['Seiten', 'FAQ', 'Navigation'])
-            ->and(array_column($nav[6]['pages'], 'label'))->toBe(['Zubehörpreise', 'Medien und Speicher', 'Zahlung', 'Verkäufer & Versand'])
+            ->and(array_column($nav[6]['pages'], 'label'))->toBe(['Zubehörpreise', 'Medien und Speicher', 'Zahlung', 'E-Mail', 'Verkäufer & Versand'])
             ->and(array_column($nav[7]['pages'], 'label'))->toBe(['Benutzer', 'Rollen & Rechte', 'Protokoll'])
             // „Zurücksetzen“: a test environment's, the Super-Admin's alone (TestReset) — never on the live shop's rail.
             ->and(array_column($nav[8]['pages'], 'label'))->toBe(['Zustand', 'Was fehlt', 'Zurücksetzen']);

@@ -178,7 +178,8 @@ const disks = computed(() => Object.entries(props.disks).map(([name, spec]) => (
                         <button class="btn btn--secondary btn--sm" type="button" @click="replaceSecret">Neuen Schlüssel eintragen</button>
                     </div>
                     <input v-else id="sp-secret" v-model="form.secret" class="input sp-secret" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="sp-secret-help sp-secret-error" :aria-invalid="form.errors.secret ? 'true' : undefined">
-                    <p v-if="newSecret" id="sp-secret-help" class="form-field__help">Leer lassen behält den gespeicherten Schlüssel.</p>
+                    <!-- Only where a secret is stored: with none, an empty field keeps nothing. -->
+                    <p v-if="newSecret && secretMasked !== null" id="sp-secret-help" class="form-field__help">Leer lassen behält den gespeicherten Schlüssel.</p>
                     <p id="sp-secret-error" class="form-field__error">{{ form.errors.secret }}</p>
                 </div>
             </section>

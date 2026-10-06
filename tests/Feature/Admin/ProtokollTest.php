@@ -430,6 +430,26 @@ describe('putting every entry into words', function (): void {
                 'Die Speicher-Einstellungen wurden geändert: Bucket, Geheimer Schlüssel. Sie gelten ab jetzt.',
                 ['Geheimer Schlüssel: …X9Y8 → …Q7R6'],
             ],
+            'mail.settings_updated' => [
+                ['changed' => ['Absenderadresse', 'Zugriffsschlüssel'], 'key_last4' => ['old' => 'TS12', 'new' => 'KS99'], 'signing_key_last4' => ['old' => 'X9Y8', 'new' => 'X9Y8'], 'active' => true, 'sending' => false],
+                'Die E-Mail-Einstellungen wurden geändert: Absenderadresse, Zugriffsschlüssel. Der Zugang zu Amazon SES funktioniert.',
+                ['Zugriffsschlüssel: …TS12 → …KS99'],
+            ],
+            'mail.sns_subscribed' => [
+                ['topic' => 'arn:aws:sns:eu-north-1:123456789012:rimify-ses-meldungen'],
+                'Amazon SES meldet unzustellbare Adressen und Beschwerden ab jetzt an den Shop (Thema „arn:aws:sns:eu-north-1:123456789012:rimify-ses-meldungen“).',
+                [],
+            ],
+            'mail.suppressed' => [
+                ['email' => 'kunde@example.org', 'reason' => 'bounce', 'detail' => 'Permanent/General'],
+                'Amazon SES meldet „kunde@example.org“ als dauerhaft unzustellbar (Permanent/General): Der Shop schickt dieser Adresse nichts mehr.',
+                [],
+            ],
+            'mail.suppression_released' => [
+                ['email' => 'kunde@example.org'],
+                'Die Sperre für „kunde@example.org“ wurde aufgehoben: Der Shop schickt dieser Adresse wieder Mails.',
+                [],
+            ],
             'demo.purged' => [
                 ['tables' => ['orders' => 1412, 'audit_logs' => 44], 'total' => 1456, 'anchor' => '2026-09-27', 'operator' => 'Konsole (demo:purge)', 'environment' => 'staging'],
                 'Die Demodaten wurden entfernt: 1.456 Datensätze, eingespielt bis zum 27.09.2026.',

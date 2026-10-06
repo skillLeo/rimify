@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\MailSetting;
 use App\Models\Page;
 use App\Models\Setting;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\GoLive\GoLiveCheck;
 use App\Services\GoLive\GoLiveChecks;
+use App\Services\Mail\DnsLookup;
 use App\Support\Seller;
 
 /*
@@ -110,7 +112,7 @@ it('reads where the server stands from the host\'s naming, and claims nothing a 
     'the preview, in Boston' => ['us-bos-web1780.main-hosting.eu', ['country' => 'us', 'eu' => false]],
     'the Netherlands' => ['nl-srv-web1234.main-hosting.eu', ['country' => 'nl', 'eu' => true]],
     'Lithuania, no domain' => ['lt-vln-web2001', ['country' => 'lt', 'eu' => true]],
-    // „in der EU“ says what it says: the United Kingdom and the EEA states are the client's call, not a pass.
+    'Germany' => ['de-fra-web1500.main-hosting.eu', ['country' => 'de', 'eu' => true]],
     'the United Kingdom' => ['uk-lon-web301.main-hosting.eu', ['country' => 'uk', 'eu' => false]],
     'a desktop' => ['DESKTOP-7Q2K', null],
     'another host\'s scheme' => ['web123.example.net', null],
@@ -127,11 +129,27 @@ it('gives the server\'s place to the host, and asks it only of the test server a
         ->and($check->group)->toBe(GoLiveChecks::OPERATIONS)
         ->and($check->state)->toBe(match (true) {
             $where === null => GoLiveCheck::UNCHECKABLE,
-            $where['eu'] => GoLiveCheck::OK,
+            $where['country'] === 'de' => GoLiveCheck::OK,
             default => GoLiveCheck::MISSING,
         })
         ->and($check->sentence)->toContain((string) gethostname());
 });
+
+// Decided (D-181): Germany for the web server and the database. Another EU state is no pass, and says what was decided.
+it('passes the server\'s place in Germany alone', function (string $host, string $state, string $says): void {
+    app()->detectEnvironment(static fn (): string => 'production');
+
+    $check = (fn (string $h) => $this->serverLocation($h))->call(app(GoLiveChecks::class), $host);
+
+    expect($check->state)->toBe($state)
+        ->and($check->sentence)->toContain($says)
+        ->and($check->title)->toBe('Serverstandort in Deutschland');
+})->with([
+    'Frankfurt' => ['de-fra-web1500.main-hosting.eu', GoLiveCheck::OK, 'in Deutschland.'],
+    'the Netherlands' => ['nl-srv-web1234.main-hosting.eu', GoLiveCheck::MISSING, 'in der EU (NL), aber nicht in Deutschland'],
+    'Boston' => ['us-bos-web1780.main-hosting.eu', GoLiveCheck::MISSING, 'außerhalb der EU (US)'],
+    'London' => ['uk-lon-web301.main-hosting.eu', GoLiveCheck::MISSING, 'außerhalb der EU (UK)'],
+]);
 
 it('reads the Impressum from the seller: a GmbH needs its register and its representative, a sole trader neither', function (): void {
     goLivePage('impressum', 'Impressum');
@@ -195,4 +213,59 @@ it('takes no real payment while a legal check fails — and says nothing of it i
     } finally {
         app()['env'] = 'testing';
     }
+});
+
+// ── Mail (the brief „AFTER CI“, §3) ─────────────────────────────────────────────────────────────────────────────────
+
+/** A set in Einstellungen › E-Mail with its last SES test. */
+function goLiveMailSet(array $test, string $state = MailSetting::ACTIVE): MailSetting
+{
+    return MailSetting::query()->forceCreate([
+        'state' => $state, 'from_address' => 'bestellung@rimify.de', 'access_key' => 'FAKESESKEYFORTESTS12', 'secret' => 'fake/ses/secret/for/tests/only/00X9Y8',
+        'verified_at' => $state === MailSetting::ACTIVE ? now() : null,
+        'last_test' => ['ok' => true, 'steps' => [], 'at' => now()->toIso8601String(), 'production_access' => true, 'sending_enabled' => true, 'identity_verified' => true, 'dkim_status' => 'SUCCESS', 'dkim_tokens' => ['tok1', 'tok2', 'tok3'], 'mail_from_domain' => 'bounce.rimify.de', 'mail_from_status' => 'SUCCESS', ...$test],
+    ]);
+}
+
+it('reads „fehlt“ for the mail while no SES key is in, naming every DNS record the sender needs', function (): void {
+    $sending = goLiveById()['mailversand'];
+    $dns = goLiveById()['mail_dns'];
+
+    expect($sending->state)->toBe(GoLiveCheck::MISSING)
+        ->and($sending->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Noch offen: der Zugang zu Amazon SES in Einstellungen › E-Mail.')
+        ->and($dns->state)->toBe(GoLiveCheck::MISSING)
+        ->and($dns->owner)->toBe(GoLiveCheck::CLIENT)
+        // The sender .env names (noreply@rimify.de) until the screen holds one; DKIM's three names come from SES.
+        ->and($dns->sentence)->toBe('Für rimify.de fehlen im DNS: SPF: TXT bounce.rimify.de → „v=spf1 include:amazonses.com ~all“; SPF: MX bounce.rimify.de → „10 feedback-smtp.eu-north-1.amazonses.com“; DKIM: CNAME (drei Einträge)._domainkey.rimify.de → „(…).dkim.amazonses.com – SES nennt sie, sobald die Domain dort angelegt ist“; DMARC: TXT _dmarc.rimify.de → „v=DMARC1; p=none; rua=mailto:dmarc@rimify.de“.');
+});
+
+it('names what keeps a working SES key from carrying the mail: the sandbox, an unverified domain', function (): void {
+    goLiveMailSet(['production_access' => false, 'identity_verified' => false]);
+
+    expect(goLiveById()['mailversand']->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Noch offen: der Produktionszugang bei AWS (das Konto ist noch in der Sandbox), die bestätigte Absenderdomain rimify.de.');
+});
+
+it('passes the mail once SES carries it and every record is in the DNS, and the confirmation says SES', function (): void {
+    goLiveMailSet([]);
+    app()->instance(DnsLookup::class, new class extends DnsLookup
+    {
+        public function records(string $host, int $type): array
+        {
+            return match (true) {
+                $type === DNS_TXT && $host === 'bounce.rimify.de' => [['txt' => 'v=spf1 include:amazonses.com ~all']],
+                $type === DNS_MX && $host === 'bounce.rimify.de' => [['target' => 'feedback-smtp.eu-north-1.amazonses.com']],
+                $type === DNS_CNAME => [['target' => str_replace('._domainkey.rimify.de', '', $host).'.dkim.amazonses.com']],
+                $type === DNS_TXT && $host === '_dmarc.rimify.de' => [['txt' => 'v=DMARC1; p=quarantine; rua=mailto:dmarc@rimify.de']],
+                default => [],
+            };
+        }
+    });
+
+    $checks = goLiveById();
+
+    expect($checks['mailversand']->state)->toBe(GoLiveCheck::OK)
+        ->and($checks['mailversand']->sentence)->toBe('Die Mails des Shops gehen über Amazon SES (eu-north-1), Absender bestellung@rimify.de.')
+        ->and($checks['mail_dns']->state)->toBe(GoLiveCheck::OK)
+        ->and($checks['mail_dns']->sentence)->toBe('SPF, DKIM (drei CNAME-Einträge) und DMARC für rimify.de stehen im DNS.')
+        ->and($checks['bestaetigung']->sentence)->toStartWith('Die Bestätigung wird über Amazon SES verschickt');
 });
