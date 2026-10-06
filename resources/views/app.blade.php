@@ -81,6 +81,13 @@
     @foreach (\App\Support\PageStyles::for($page['component'] ?? '') as $href)
         <link rel="stylesheet" href="{{ $href }}" @disabled(\App\Support\InlineStyles::has($href))>
     @endforeach
+    {{-- A desktop storefront page paints once its footer is parsed (SiteFooter's last element). With the stylesheets in
+         the document nothing else held the first paint back, and a footer painted half-built at the foot of a short
+         page grew upwards as its last rows arrived: CLS 0,024 at 1440 (D-177). The phone's first paint is its LCP and
+         keeps its head start. --}}
+    @if (! ($page['props']['isMobile'] ?? false) && ! str_starts_with($page['component'] ?? '', 'Admin/'))
+        <link rel="expect" href="#seitenende" blocking="render">
+    @endif
     @inertiaHead
 </head>
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}

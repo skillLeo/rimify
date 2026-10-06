@@ -80,6 +80,16 @@ it('puts the page component\'s own stylesheet in the head, so the server-rendere
         ->and($head)->not->toContain('as="style"');
 })->skip(fn (): bool => ! is_file(public_path('build/manifest.json')), 'needs the production build');
 
+// D-177: a desktop page painted half-built grew its footer upwards at the foot of a short page (CLS 0,024 at 1440).
+it('lets a desktop storefront page paint once its footer is parsed, and the phone at once', function (): void {
+    $desktop = (string) $this->get('/rechtliches/impressum')->assertOk()->getContent();
+    $phone = (string) $this->withHeaders(['User-Agent' => 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36'])
+        ->get('/rechtliches/impressum')->assertOk()->getContent();
+
+    expect($desktop)->toContain('<link rel="expect" href="#seitenende" blocking="render">')
+        ->and($phone)->not->toContain('rel="expect"');
+});
+
 it('ships the header mode and the menus on every page', function (): void {
     $this->get('/faq')
         ->assertOk()

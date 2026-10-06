@@ -91,6 +91,9 @@ const year = new Date().getFullYear()
                 <span v-if="shared.release" class="num footer__release" data-release>{{ shared.release }}</span>
             </div>
         </div>
+        <!-- The document's last word: the desktop page paints once this is parsed (app.blade.php, `rel="expect"`), so
+             the footer at the foot of a short page is never painted half-built and then grows upwards (D-177). -->
+        <span id="seitenende" hidden />
     </footer>
 </template>
 

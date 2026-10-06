@@ -126,6 +126,20 @@ test('the storefront stays within 0,02 while the font arrives late, under reduce
     expect(over, over.join('\n')).toEqual([]);
 });
 
+/*
+ * D-177: with the stylesheets in the document (InlineStyles), nothing else held a desktop page's first paint back, and a
+ * footer painted half-built at the foot of a short page grew upwards as its last rows were parsed — /warenkorb 0,0238
+ * and /rechtliches/impressum 0,0218 at 1440, one load in about thirty. The page now paints once the footer's last
+ * element is parsed: that element must be there, last in the footer, and the head must wait for it.
+ */
+test('a desktop page waits for its footer’s last element before it paints', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-1440', 'the phone paints at once: its first paint is its LCP');
+    await page.goto(`${SHOP}/rechtliches/impressum`);
+
+    await expect(page.locator('head link[rel="expect"][blocking="render"]')).toHaveAttribute('href', '#seitenende');
+    await expect(page.locator('footer.footer > #seitenende:last-child'), 'the element the first paint waits for is not the footer’s last').toHaveCount(1);
+});
+
 test('the homepage stays within 0,02 with motion, in the shop and with the catalogue empty', async ({
     browser,
 }) => {
