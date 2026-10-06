@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type BrowserContextOptions } from './fixtures';
+import { expect, test, type Browser, type BrowserContextOptions, type Page } from './fixtures';
 import { signIn } from './bugs/faq-support';
 import { EMPTY_SHOP, SHOP } from './shop';
 
@@ -138,6 +138,61 @@ test('a desktop page waits for its footer’s last element before it paints', as
 
     await expect(page.locator('head link[rel="expect"][blocking="render"]')).toHaveAttribute('href', '#seitenende');
     await expect(page.locator('footer.footer > #seitenende:last-child'), 'the element the first paint waits for is not the footer’s last').toHaveCount(1);
+});
+
+/*
+ * D-178: the phone homepage lets the sections below the fold skip their layout until they scroll near (its taps stay
+ * quick), except on a page view that opens part-way down: met skipped where the browser put the scroll, they counted
+ * as jumping — a link to /#h5 0,68, a reload mid-page up to 0,91 (06.10.2026).
+ */
+test('the phone homepage opened part-way down stays within 0,02: a link to a section, a reload', async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-390', 'only the phone homepage lets its sections skip their layout');
+    test.setTimeout(120_000);
+    const options = { ...testInfo.project.use, baseURL: SHOP } as BrowserContextOptions;
+    const over: string[] = [];
+    const shifts = async (page: Page): Promise<number> =>
+        page.evaluate(() => (window as unknown as { __cls: number }).__cls);
+
+    for (const journey of ['link to /#h5', 'reload part-way down'] as const) {
+        const context = await browser.newContext(options);
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+            const w = window as unknown as { __cls: number };
+            w.__cls = 0;
+            new PerformanceObserver((list) => {
+                for (const entry of list.getEntries() as Array<PerformanceEntry & { value: number; hadRecentInput: boolean }>) {
+                    if (!entry.hadRecentInput) {
+                        w.__cls += entry.value;
+                    }
+                }
+            }).observe({ type: 'layout-shift', buffered: true });
+        });
+
+        if (journey === 'link to /#h5') {
+            await page.goto(`${SHOP}/#h5`, { waitUntil: 'load' });
+        } else {
+            await page.goto(`${SHOP}/`, { waitUntil: 'networkidle' });
+            for (let i = 0; i < 10; i++) {
+                await page.mouse.wheel(0, 360);
+                await page.waitForTimeout(120);
+            }
+            await page.waitForTimeout(800);
+            await page.reload({ waitUntil: 'load' });
+        }
+
+        await page.waitForTimeout(2_500);
+        const cls = await shifts(page);
+        const where = await page.evaluate(() => Math.round(window.scrollY));
+
+        if (cls > BUDGET) {
+            over.push(`${journey} (scrolled to ${where}): ${cls.toFixed(4)}`);
+        }
+
+        expect(where, `${journey}: the page did not open part-way down, so nothing was tested`).toBeGreaterThan(800);
+        await context.close();
+    }
+
+    expect(over, over.join('\n')).toEqual([]);
 });
 
 test('the homepage stays within 0,02 with motion, in the shop and with the catalogue empty', async ({

@@ -88,6 +88,20 @@
     @if (! ($page['props']['isMobile'] ?? false) && ! str_starts_with($page['component'] ?? '', 'Admin/'))
         <link rel="expect" href="#seitenende" blocking="render">
     @endif
+    @if (($page['component'] ?? '') === 'Startseite/Mobile')
+        {{-- The phone homepage opened part-way down — a reload, back/forward, a link with a hash — renders every
+             section from its first frame; every other visit lets the sections below skip their layout (D-178). --}}
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+            (function () {
+                try {
+                    var nav = performance.getEntriesByType('navigation')[0];
+                    if (location.hash || (nav && (nav.type === 'reload' || nav.type === 'back_forward'))) {
+                        document.documentElement.classList.add('cv-off');
+                    }
+                } catch (e) {}
+            })();
+        </script>
+    @endif
     @inertiaHead
 </head>
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}
