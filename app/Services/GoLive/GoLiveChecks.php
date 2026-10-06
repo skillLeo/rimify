@@ -59,8 +59,8 @@ final class GoLiveChecks
     private const SOLE_REGISTERED = '/\be\.\s?(K|Kfm|Kfr)\.?(\s|$|\b)/u';
 
     /**
-     * The 27 member states of the EU, nothing else: the check's title says „in der EU“, and a server in the UK or an EEA
-     * state is not that. Whether one of those would do is the client's decision with the Kanzlei (client-questions.md).
+     * The 27 member states of the EU, nothing else — a server in the UK or an EEA state is not in it. Only Germany passes
+     * the server's place (D-181); the list lets the sentence say whether another place is at least in the EU.
      */
     private const EU = ['at', 'be', 'bg', 'cy', 'cz', 'de', 'dk', 'ee', 'es', 'fi', 'fr', 'gr', 'hr', 'hu', 'ie', 'it', 'lt', 'lu', 'lv', 'mt', 'nl', 'pl', 'pt', 'ro', 'se', 'si', 'sk'];
 
@@ -541,12 +541,13 @@ final class GoLiveChecks
     }
 
     /**
-     * Customers' names, addresses and orders live on this server, and every page is answered there: in the EU, the
-     * GDPR covers it without a transfer abroad, and a visitor in Germany waits for no ocean crossing.
+     * Customers' names, addresses and orders live on this server, and every page is answered there. Decided (D-181):
+     * Hostinger's data centre in Germany for the web server and the database — any other place, another EU state
+     * included, is open until the plan stands there (docs/ops/UMZUG-DE.md).
      */
     private function serverLocation(string $hostname): GoLiveCheck
     {
-        $title = 'Serverstandort in der EU';
+        $title = 'Serverstandort in Deutschland';
         $place = 'hPanel › Hosting › Rechenzentrum';
         $where = self::locationOf($hostname);
 
@@ -559,10 +560,13 @@ final class GoLiveChecks
         }
 
         $code = strtoupper($where['country']);
+        $germany = $where['country'] === 'de';
 
-        return $this->check('serverstandort', self::OPERATIONS, $title, GoLiveCheck::HOST, $where['eu'] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $where['eu']
-            ? "Nach dem Namensschema des Hosts steht der Server {$hostname} in der EU ({$code})."
-            : "Nach dem Namensschema des Hosts steht der Server {$hostname} außerhalb der EU ({$code}). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Ein Rechenzentrum in der EU wählen.", $place);
+        return $this->check('serverstandort', self::OPERATIONS, $title, GoLiveCheck::HOST, $germany ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
+            $germany => "Nach dem Namensschema des Hosts steht der Server {$hostname} in Deutschland.",
+            $where['eu'] => "Nach dem Namensschema des Hosts steht der Server {$hostname} in der EU ({$code}), aber nicht in Deutschland. Entschieden ist Hostingers Rechenzentrum in Deutschland für Webserver und Datenbank.",
+            default => "Nach dem Namensschema des Hosts steht der Server {$hostname} außerhalb der EU ({$code}). Die Kundendaten würden dort gespeichert, und jeder Seitenaufruf ginge dorthin und zurück. Entschieden ist Hostingers Rechenzentrum in Deutschland für Webserver und Datenbank.",
+        }, $place.' · docs/ops/UMZUG-DE.md');
     }
 
     /** CLAUDE.md and the decision log are in the repository — where this copy is one; CI asserts it on every run. */

@@ -110,7 +110,7 @@ it('reads where the server stands from the host\'s naming, and claims nothing a 
     'the preview, in Boston' => ['us-bos-web1780.main-hosting.eu', ['country' => 'us', 'eu' => false]],
     'the Netherlands' => ['nl-srv-web1234.main-hosting.eu', ['country' => 'nl', 'eu' => true]],
     'Lithuania, no domain' => ['lt-vln-web2001', ['country' => 'lt', 'eu' => true]],
-    // „in der EU“ says what it says: the United Kingdom and the EEA states are the client's call, not a pass.
+    'Germany' => ['de-fra-web1500.main-hosting.eu', ['country' => 'de', 'eu' => true]],
     'the United Kingdom' => ['uk-lon-web301.main-hosting.eu', ['country' => 'uk', 'eu' => false]],
     'a desktop' => ['DESKTOP-7Q2K', null],
     'another host\'s scheme' => ['web123.example.net', null],
@@ -127,11 +127,27 @@ it('gives the server\'s place to the host, and asks it only of the test server a
         ->and($check->group)->toBe(GoLiveChecks::OPERATIONS)
         ->and($check->state)->toBe(match (true) {
             $where === null => GoLiveCheck::UNCHECKABLE,
-            $where['eu'] => GoLiveCheck::OK,
+            $where['country'] === 'de' => GoLiveCheck::OK,
             default => GoLiveCheck::MISSING,
         })
         ->and($check->sentence)->toContain((string) gethostname());
 });
+
+// Decided (D-181): Germany for the web server and the database. Another EU state is no pass, and says what was decided.
+it('passes the server\'s place in Germany alone', function (string $host, string $state, string $says): void {
+    app()->detectEnvironment(static fn (): string => 'production');
+
+    $check = (fn (string $h) => $this->serverLocation($h))->call(app(GoLiveChecks::class), $host);
+
+    expect($check->state)->toBe($state)
+        ->and($check->sentence)->toContain($says)
+        ->and($check->title)->toBe('Serverstandort in Deutschland');
+})->with([
+    'Frankfurt' => ['de-fra-web1500.main-hosting.eu', GoLiveCheck::OK, 'in Deutschland.'],
+    'the Netherlands' => ['nl-srv-web1234.main-hosting.eu', GoLiveCheck::MISSING, 'in der EU (NL), aber nicht in Deutschland'],
+    'Boston' => ['us-bos-web1780.main-hosting.eu', GoLiveCheck::MISSING, 'außerhalb der EU (US)'],
+    'London' => ['uk-lon-web301.main-hosting.eu', GoLiveCheck::MISSING, 'außerhalb der EU (UK)'],
+]);
 
 it('reads the Impressum from the seller: a GmbH needs its register and its representative, a sole trader neither', function (): void {
     goLivePage('impressum', 'Impressum');
