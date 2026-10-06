@@ -80,6 +80,18 @@ it('puts the page component\'s own stylesheet in the head, so the server-rendere
         ->and($head)->not->toContain('as="style"');
 })->skip(fn (): bool => ! is_file(public_path('build/manifest.json')), 'needs the production build');
 
+// D-178: the phone homepage opened part-way down renders every section from its first frame; nothing else asks.
+it('decides on the phone homepage alone, before it paints, whether the sections below may skip their layout', function (): void {
+    $desktop = (string) $this->get('/')->assertOk()->getContent();
+    $phone = (string) $this->withHeaders(['User-Agent' => 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36'])
+        ->get('/')->assertOk()->getContent();
+    $phoneHead = substr($phone, 0, (int) strpos($phone, '</head>'));
+
+    expect($phoneHead)->toContain("classList.add('cv-off')")
+        ->toMatch('/<script nonce="[^"]+">\s*\(function \(\) \{\s*try \{\s*var nav = performance/')
+        ->and($desktop)->not->toContain('cv-off');
+});
+
 // D-177: a desktop page painted half-built grew its footer upwards at the foot of a short page (CLS 0,024 at 1440).
 it('lets a desktop storefront page paint once its footer is parsed, and the phone at once', function (): void {
     $desktop = (string) $this->get('/rechtliches/impressum')->assertOk()->getContent();
