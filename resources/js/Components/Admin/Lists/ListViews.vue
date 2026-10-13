@@ -131,7 +131,12 @@ function revealCurrent(): void {
     ;(tab?.closest<HTMLElement>('.lv__item') ?? tab)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 
-onMounted(revealCurrent)
+onMounted(() => {
+    revealCurrent()
+    // The row has its final widths only once the web font is in: revealed before that, a view far along the row ended
+    // with its menu a few pixels out of sight again (SV-02a, seen on a load where the font came after the mount).
+    void document.fonts?.ready.then(revealCurrent)
+})
 watch(
     () => props.views.active,
     () => void nextTick(revealCurrent)
