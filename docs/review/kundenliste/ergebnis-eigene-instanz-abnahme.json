@@ -1,0 +1,78 @@
+{
+  "instance": "eigene-instanz",
+  "where": "http://127.0.0.1:8014",
+  "commit": "Arbeitsstand",
+  "at": "2026-10-13T17:01:01.254Z",
+  "items": {
+    "1": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "Arbeitsstand",
+      "at": "2026-10-13T17:01:01.254Z"
+    },
+    "2": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "Arbeitsstand",
+      "at": "2026-10-13T17:01:01.254Z"
+    },
+    "3": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "Arbeitsstand",
+      "at": "2026-10-13T17:01:01.254Z"
+    },
+    "4": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "Arbeitsstand",
+      "at": "2026-10-13T17:01:01.254Z"
+    },
+    "5": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "Arbeitsstand",
+      "at": "2026-10-13T17:01:01.254Z"
+    },
+    "6": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "Arbeitsstand",
+      "at": "2026-10-13T17:01:01.254Z"
+    },
+    "7": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "Arbeitsstand",
+      "at": "2026-10-13T17:01:01.254Z"
+    }
+  }
+}
