@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '../fixtures'
-import { SHOP } from '../shop'
+import { EMPTY_SHOP, SHOP } from '../shop'
 import { ABNAHME, box, consent, isPhone, open, shot } from './support'
 
 /*
@@ -81,7 +81,7 @@ test('without a car the hero\'s button waits in pale blue, focusable, says why, 
 test('the hero is no link, has no price, keeps its measurements — and stands whole with the shop empty', { tag: '@kunde-04' }, async ({ page }, info) => {
     const phone = isPhone(info)
 
-    for (const base of [ABNAHME, 'http://127.0.0.1:8012']) {
+    for (const base of [ABNAHME, EMPTY_SHOP]) {
         await open(page, `${base}/`)
         const hero = page.locator(phone ? '.hero-mobile' : '#h2 .hero__stage').first()
 

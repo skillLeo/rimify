@@ -39,7 +39,7 @@ final class FitmentDetail
      *     fasteners: list<array{number: string|null, thread: string, label: string, torque: string|null, article: string|null, limit: string|null}>,
      *     tyres: list<array{label: string, axle: string, minimum: string|null, band: string|null}>,
      *     notices: list<string>,
-     *     original: list<array{text: string, page: int|null}>
+     *     original: list<array{text: string, page: int|null, sizes: list<string>}>
      * }
      */
     public function for(FitmentVerdict $verdict): array
@@ -51,9 +51,11 @@ final class FitmentDetail
         $type = $verdict->vehicle->typeDesignation;
         $eg = Vehicle::withTrashed()->whereKey($verdict->vehicle->id)->value('eg_nummer_norm');
 
+        $sizesOwning = $this->sizesOwning($verdict, $documentIds);
+
         return [
-            'sections' => $this->sections($verdict->conditions, $documentIds, $type, $this->sizesOwning($verdict, $documentIds)),
-            'original' => $this->original($verdict->conditions),
+            'sections' => $this->sections($verdict->conditions, $documentIds, $type, $sizesOwning),
+            'original' => $this->original($verdict->conditions, $sizesOwning),
             'fasteners' => $this->fasteners($verdict->conditions, $documentIds, $type, EgNumber::parse(is_string($eg) ? $eg : null)),
             'tyres' => $this->tyres($verdict),
             'notices' => $documentIds === [] ? [] : DocumentNotice::query()
@@ -118,13 +120,18 @@ final class FitmentDetail
 
     /**
      * The documents' own wording for this car, as printed and with the page it stands on (the client's #21): no section,
-     * no size grouping, nothing left out because the verdict line already says it. The page may arrange the Auflagen;
-     * it may not change what they say, so this stays one click away. Our own kW-band sentence is not the document's.
+     * nothing left out because the verdict line already says it. The page may arrange the Auflagen; it may not change
+     * what they say, so this stays one click away. Our own kW-band sentence is not the document's.
+     *
+     * One thing stays with a sentence: the sizes its document hangs it off (D-04). The document says that with a code
+     * beside the size, and a code is never shown (R-15) — without the sizes, „nur feingliedrige Schneeketten“ and
+     * „Schneeketten nicht zulässig“ would stand side by side as if both held for the same tyre (SWEEP-01).
      *
      * @param  list<Condition>  $conditions
-     * @return list<array{text: string, page: int|null}>
+     * @param  array<string, list<string>>  $sizesOwning
+     * @return list<array{text: string, page: int|null, sizes: list<string>}>
      */
-    private function original(array $conditions): array
+    private function original(array $conditions, array $sizesOwning = []): array
     {
         $out = [];
 
@@ -133,7 +140,11 @@ final class FitmentDetail
                 continue;
             }
 
-            $out[self::key($condition)] = ['text' => $condition->sentenceDe(), 'page' => $condition->sourcePage];
+            $out[self::key($condition)] = [
+                'text' => $condition->sentenceDe(),
+                'page' => $condition->sourcePage,
+                'sizes' => $sizesOwning[self::key($condition)] ?? [],
+            ];
         }
 
         return array_values($out);

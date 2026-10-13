@@ -98,6 +98,40 @@ describe('FitmentDetail', () => {
         }
     })
 
+    // SWEEP-01 again, in the wording as printed: the document ties a sentence to a size with a code, and we show no codes.
+    it('keeps each size’s sentences under that size in the „Originaltext“ too — the one thing kept with the wording @kunde-21', () => {
+        const chains = 'Es dürfen nur feingliedrige bzw. die lt. Betriebsanleitung/Handbuch vorgeschriebenen Schneeketten an der Hinterachse verwendet werden.'
+        const none = 'Die Verwendung von Schneeketten ist nicht zulässig.'
+        const tubeless = 'Es sind nur schlauchlose Reifen zulässig.'
+        const x3 = mount(FitmentDetail, {
+            props: {
+                detail: {
+                    sections: [],
+                    fasteners: [],
+                    tyres: [],
+                    notices: [],
+                    original: [
+                        { text: chains, page: 7, sizes: ['235/45 R19', '245/40 R19'] },
+                        { text: none, page: 7, sizes: ['255/40 R19'] },
+                        { text: tubeless, page: 6, sizes: [] },
+                    ],
+                },
+                vehicleLabel: 'BMW X3 X83',
+            },
+        })
+        const printed = x3.find('details[data-original]')
+
+        expect(printed.findAll('.fdt__for').map((s) => s.text())).toEqual(['Für jede zulässige Reifengröße', 'Nur bei 235/45 R19 und 245/40 R19', 'Nur bei 255/40 R19'])
+        expect(printed.findAll('ul').map((ul) => ul.findAll('li').map((li) => li.text()))).toEqual([[`${tubeless} (Seite 6)`], [`${chains} (Seite 7)`], [`${none} (Seite 7)`]])
+        expect(printed.find('.fdt__original-lede').text()).toBe('So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen. Gilt ein Satz nur für bestimmte Reifengrößen, steht das darüber.')
+
+        // Nothing size-bound: one list, no label, and the lede says nothing about sizes.
+        const plain = mount(FitmentDetail, { props: { detail: { ...borbetDetail, original: [{ text: ABNAHME, page: 4 }] }, vehicleLabel: 'BMW 1er-Reihe 1K4' } })
+
+        expect(plain.find('details[data-original]').findAll('.fdt__for')).toHaveLength(0)
+        expect(plain.find('.fdt__original-lede').text()).toBe('So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.')
+    })
+
     it('marks our own sentences apart from the document’s wording', () => {
         expect(wrapper.find('.fdt__lede').text()).toBe('Wörtlich aus dem Gutachten. Was mit „Unser Hinweis“ beginnt, kommt von uns.')
         expect(wrapper.findAll('.fdt__own').map((s) => s.element.parentElement?.textContent?.trim())).toEqual([

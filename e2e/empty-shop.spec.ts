@@ -38,11 +38,14 @@ test.describe('an empty shop', () => {
         await expect(hero.locator(phone ? '.hero-frame__outline' : '.hero__outline'), 'the outline stands where the photograph belongs').toHaveCount(0)
 
         // The photograph's own values, with nothing published (the client's #4: the hero asks the catalogue nothing) —
-        // the leaders and the spec line, never a price or a link.
+        // the leaders and the spec line, never a price or a link to a wheel. The one link the hero does carry is the
+        // contact line under the selector, which stood in the strip above the header until that went (the client's #3).
         await expect(page.locator('[data-hero="values"]'), 'the hero lost its values with the shop empty').toHaveCount(1)
         await expect(hero.locator('[data-callout]').first()).toBeAttached()
         await expect(hero.locator(phone ? '.hero-mobile__spec' : '.hero__spec')).toHaveCount(1)
-        await expect(hero.locator('a')).toHaveCount(0)
+        await expect(hero.locator('a[href*="/felgen"]'), 'the hero links to a wheel with none in the shop').toHaveCount(0)
+        await expect(hero.locator('a'), 'the hero carries a link other than the contact line').toHaveCount(1)
+        await expect(hero.locator('a')).toHaveAttribute('href', '/kontakt')
         await expect(hero.getByText('Symbolbild')).toHaveCount(0)
 
         await expectNoHorizontalOverflow(page)

@@ -446,8 +446,11 @@ export interface FitmentDetailView {
     fasteners: { number?: string | null; thread: string; label: string; torque: string | null; article: string | null; limit: string | null }[]
     tyres: { label: string; axle: string; minimum: string | null; band: string | null }[]
     notices: string[]
-    /** The documents' sentences as printed, with their page, nothing grouped or left out (#21). Additive. */
-    original?: { text: string; page: number | null }[]
+    /**
+     * The documents' sentences as printed, with their page, no section and nothing left out (#21). `sizes` as in
+     * `sections`: the one thing kept with a sentence, so two sizes' sentences never stand in one list. Additive.
+     */
+    original?: { text: string; page: number | null; sizes?: string[] }[]
 }
 
 export interface ConfigVerdict {

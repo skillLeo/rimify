@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-import { E2E_FEATURES, SHOP, SHOP_DB } from './e2e/shop'
+import { E2E_FEATURES, EMPTY_SHOP, EMPTY_SHOP_DB, SHOP, SHOP_DB } from './e2e/shop'
 import { ABNAHME, ABNAHME_DB } from './e2e/kundenliste/support'
 
 /*
@@ -44,6 +44,14 @@ export default defineConfig({
             command: `node scripts/e2e/serve.mjs --port ${port(SHOP)} --workers 4`,
             env: { ...SHOP_DB, ...E2E_FEATURES },
             url: `${SHOP}/up`,
+            reuseExistingServer: true,
+            timeout: 120_000,
+        },
+        {
+            // #4 asks the hero to stand whole with nothing published: the empty shop, as the main suite serves it.
+            command: `node scripts/e2e/serve.mjs --port ${port(EMPTY_SHOP)} --workers 2`,
+            env: { ...EMPTY_SHOP_DB, ...E2E_FEATURES },
+            url: `${EMPTY_SHOP}/up`,
             reuseExistingServer: true,
             timeout: 120_000,
         },

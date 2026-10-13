@@ -273,6 +273,13 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
     expect($items->firstWhere('text', printedSentence('abe-55255.json', 'K14'))['sizes'] ?? null)->toContain('235/35 R19')
         ->and($items->firstWhere('text', printedSentence('abe-55255.json', 'A01'))['sizes'] ?? null)->toBe([]);
 
+    // The same in the wording as printed (#21): the size stays with the sentence the document prints it beside —
+    // without it two sizes' sentences read as one tyre's (SWEEP-01).
+    $printed = collect($shown['detail']['original']);
+
+    expect($printed->firstWhere('text', printedSentence('abe-55255.json', 'K14'))['sizes'] ?? null)->toContain('235/35 R19')
+        ->and($printed->firstWhere('text', printedSentence('abe-55255.json', 'A01'))['sizes'] ?? null)->toBe([]);
+
     // The 18″ on a 1K4 from Modelljahr 2012 (page 3): the rework millimetres the Nachtrag prints for type 1K4
     // (page 22), both bolt sets the page gives a 1K4 with what it prints beside each, the 50 km torque check, and
     // the base it lacks. Its row prints „Kombilimousine; Allradantrieb; Heckantrieb“ — this document's word for

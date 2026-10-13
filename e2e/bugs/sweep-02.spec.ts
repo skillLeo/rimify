@@ -31,13 +31,24 @@ test('SWEEP-02 the Warenkorb says which tyre size needs the Eintragung (BMW X3 X
 
     await expect(line, 'the 19″ did not reach the basket').toBeVisible();
 
-    // The groups are there and keep the snow chains apart (holds by reading).
-    await expect(line.locator('[data-condition-groups]')).toBeVisible();
-    expect(await listsWithBothChainSentences(line)).toEqual([]);
+    // The plain answer stands on the line itself, to be read without a press: a Gutachten's paragraphs are folded
+    // under their count (D-197), the papers' line never is.
+    const entry = line.locator('.bl__entry').first();
 
+    await expect(entry, 'the basket line shows no papers line').toBeVisible();
     await line.screenshot({ path: `${SHOTS}/sweep-02-warenkorb-line-${info.project.name}.png` });
 
-    const said = norm((await line.textContent()) ?? '');
+    const said = norm((await entry.textContent()) ?? '');
 
     expect(said, `the basket line says nothing about the Eintragung: „${said.slice(0, 200)}…“`).toContain(ENTRY_BY_SIZE);
+
+    // The groups are there — one press away where the wording is long — and keep the snow chains apart.
+    const fold = line.locator('details[data-auflagen] > summary');
+
+    if ((await fold.count()) > 0) {
+        await fold.click();
+    }
+
+    await expect(line.locator('[data-condition-groups]')).toBeVisible();
+    expect(await listsWithBothChainSentences(line)).toEqual([]);
 });

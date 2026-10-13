@@ -359,6 +359,30 @@ test('„Eintragung“ once, in the verdict — and the Gutachten\'s own wording
     await shot(page.locator('.pdp__fit'), 21, info)
 })
 
+test('the wording as printed keeps each tyre size\'s sentences under that size: fine-link chains and no chains never in one list', { tag: '@kunde-21' }, async ({ page }) => {
+    // The X3 at 19 Zoll: ABE 55255 allows fine-link chains with 235/45 and 245/40, none with 255/40 — by a code beside
+    // each size, which the page never shows. Found by the full suite (SWEEP-01) in the list of #21 as first built.
+    await withCar(page, 'x3', PRODUCT)
+    await onSize(page, 19, 'Schwarz matt')
+
+    const original = page.locator('details[data-original]')
+    await original.locator('summary').click()
+
+    const lists = await original.locator('ul').evaluateAll((uls) =>
+        uls.map((ul) => {
+            const before = ul.previousElementSibling
+            // \s takes the narrow and the non-breaking space with it: the sizes read as a visitor reads them.
+            const plain = (text: string | null | undefined): string => (text ?? '').replace(/\s+/g, ' ').trim()
+
+            return { label: before?.classList.contains('fdt__for') ? plain(before.textContent) : null, text: plain(ul.textContent) }
+        }),
+    )
+
+    expect(lists.filter((l) => l.text.includes('feingliedrige')).map((l) => l.label)).toEqual(['Nur bei 235/45 R19 und 245/40 R19'])
+    expect(lists.filter((l) => l.text.includes('Die Verwendung von Schneeketten ist nicht zulässig')).map((l) => l.label)).toEqual(['Nur bei 255/40 R19'])
+    await expect(original.locator('.fdt__original-lede')).toContainText('Gilt ein Satz nur für bestimmte Reifengrößen, steht das darüber.')
+})
+
 test('no dead „Nur die Felgen bestellen“: where no Komplettrad can be offered, one sentence, a way on, and „Nur Felgen“ right above', { tag: '@kunde-25' }, async ({ page }, info) => {
     // The E46 at 19 Zoll: front and rear sizes differ, so there are no four equal tyres to offer.
     await withCar(page, 'e46', PRODUCT)

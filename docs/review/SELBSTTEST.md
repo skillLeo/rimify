@@ -7,6 +7,12 @@ of every check is `npm run kundenliste` (docs/review/KUNDENLISTE.md, pictures in
 ## Before you start
 
 - **Address:** `https://rimify.skillleo.com` (the preview). Paths below are relative to it.
+- **Which build.** The preview's footer prints `Testumgebung · Stand <commit>`. These checks describe the D-199 commit of
+  13.10.2026 or later (`git log --grep D-199`). On 13.10.2026 the preview still stood on `ac0bbcc6`: GitHub Actions refuses to start any job („recent account
+  payments have failed or your spending limit needs to be increased“ — GitHub › Settings › Billing & plans), so no
+  release has been built since. What `ac0bbcc6` does not have yet: the counted Auflagen on a card and in the basket
+  (#22, #15), the listing's sentence about the test payment (#30), and the database rule that keeps a demo wheel
+  without a reference from being published (D-196) — the reason the acceptance set is not seeded on that build.
 - **Two sizes.** *Desktop* = a browser window 1440 × 900 (Chrome DevTools › Dimensions, or a maximised window on a
   1440-wide screen). *Phone* = DevTools device mode at 390 × 844 (iPhone 12/13/14 preset), or a real phone.
 - **A clean window for each check that says so:** a private window, so no car, basket or cookie from an earlier check
@@ -189,6 +195,10 @@ of every check is `npm run kundenliste` (docs/review/KUNDENLISTE.md, pictures in
 - **Do:** read the RIMIFY-Check panel and the section „Was das Gutachten … verlangt“; open „Originaltext anzeigen“.
 - **Look at:** the papers' sentence once, in the verdict under its headline, nowhere else; „Originaltext anzeigen“
   shows the Gutachten's sentences as printed, each with its page.
+- **Then, one more:** ◆ `/felgen/borbet-db8gt2?fahrzeug=0005-Z83-00001`, 19 Zoll, open „Originaltext anzeigen“. The
+  sentence about fine-link snow chains stands under „Nur bei 235/45 R19 und 245/40 R19“, „Die Verwendung von
+  Schneeketten ist nicht zulässig.“ under „Nur bei 255/40 R19“ — never in one list. As first built for this item the
+  list was flat and the two stood side by side; the full test run found it on 13.10. (D-199), not he.
 
 ### 22 · „Vergleichen“ covers „Mit Auflagen“ on the phone list
 - **Where:** ◆ `/felgen?fahrzeug=0005-Z46-00001`. Phone at 320, 360, 390 and 414 px wide.

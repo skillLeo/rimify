@@ -136,8 +136,9 @@ test.describe('protected elements', () => {
 /*
  * While the catalogue is empty the baseline asserts presence, not pixels (the operator's brief of 05.10.2026, §2): the
  * hero stands on the brand's photographs in every state, and a run against an empty shop checks that they are there,
- * load, roll in and stand in their light — but compares no picture, since the leaders (P3) wait for the wheel to be in
- * the catalogue. The numbers section (P4) and the turning band (P6) need that wheel too, and are not asked for here.
+ * load, roll in and stand in their light, with the photograph's own callouts (P3; the client's #4: the hero asks the
+ * catalogue nothing) — but compares no picture. The numbers section (P4) and the turning band (P6) need a wheel in the
+ * catalogue, and are not asked for here.
  */
 test.describe('protected elements while the catalogue is empty — presence, not pixels', () => {
     test.use({ baseURL: EMPTY_SHOP });
@@ -167,8 +168,6 @@ test.describe('protected elements while the catalogue is empty — presence, not
         await expect(stage.locator('.hero-studio'), 'P2: the studio light is gone').toHaveCount(1);
         await expect(lead.locator('.hero-contact'), 'P2: the leading wheel\'s contact shadow is gone').toHaveCount(1);
         await expect(second.locator('.hero-contact'), 'P2: the second wheel\'s contact shadow is gone').toHaveCount(1);
-        // P3 waits for the catalogue: with nothing to state, nothing points.
-        await expect(stage.locator('[data-callout]'), 'P3: a callout points with no wheel in the catalogue to take its value from').toHaveCount(0);
 
         const box = await stage.boundingBox();
         expect(box?.height ?? 0, 'P1: the hero stage has no height').toBeGreaterThan(100);
