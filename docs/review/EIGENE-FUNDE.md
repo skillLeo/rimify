@@ -55,4 +55,5 @@ case of 103) · the basket with one and with many lines, and the checkout to the
 customer · the Fahrzeugschein path · a real contact submission · the Gutachten PDF opening at its page · the 500 page ·
 the list of terms used for the same thing (2.5) · speed on a quiet machine (2.9).
 
-Sixteen entries so far, ten of them fixed in the last two days, two waiting for a decision, four small ones open.
+Seventeen entries so far: eight fixed in the last two days, two waiting for a decision (103, 104), four small ones
+open (110–113), two listed as opinion (114, 115), one to be checked on a real iPhone (116).
