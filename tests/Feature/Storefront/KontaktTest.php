@@ -39,7 +39,7 @@ function kontaktForm(array $overrides = []): array
         'from' => '/felgen/beispiel',
         'rmf_leer' => '',
         // Handed out half a minute ago: a person had time to write.
-        'ticket' => ContactRequest::ticket(now()->subSeconds(30)->getTimestamp()),
+        'ticket' => ContactRequest::ticket(now()->subSeconds(30)->getTimestampMs()),
     ], $overrides);
 }
 
@@ -150,6 +150,26 @@ it('keeps nothing sent sooner than a person writes, and says so — a second sen
 
     // The same form, sent again a little later: kept, as any message.
     $this->travel(ContactRequest::MIN_SECONDS)->seconds();
+    $this->from('/kontakt')->post('/kontakt', kontaktForm(['ticket' => $ticket]))->assertRedirect('/kontakt')->assertSessionHasNoErrors();
+
+    expect(ContactMessage::query()->count())->toBe(1);
+});
+
+it('counts the three seconds to the millisecond: handed out late in one second and sent early in another is still too quick @kunde-12', function (): void {
+    Mail::fake();
+    // Handed out at …,9 s. In whole seconds the send 2,1 s later, at …3,0 s, counted as three seconds old.
+    $this->travelTo(now()->startOfMinute()->addMilliseconds(900));
+    $ticket = ContactRequest::ticket();
+
+    $this->travelTo(now()->addMilliseconds(2_100));
+    $this->from('/kontakt')->post('/kontakt', kontaktForm(['ticket' => $ticket]))
+        ->assertRedirect('/kontakt')
+        ->assertSessionHasErrors(['ticket' => ContactRequest::TOO_FAST]);
+
+    expect(ContactMessage::query()->count())->toBe(0);
+
+    // At three seconds it is kept.
+    $this->travelTo(now()->addMilliseconds(900));
     $this->from('/kontakt')->post('/kontakt', kontaktForm(['ticket' => $ticket]))->assertRedirect('/kontakt')->assertSessionHasNoErrors();
 
     expect(ContactMessage::query()->count())->toBe(1);
