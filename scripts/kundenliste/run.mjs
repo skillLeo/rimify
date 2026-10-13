@@ -8,6 +8,9 @@
 //
 //   npm run kundenliste                 everything (rebuilds the acceptance shop first, ≈ 2 min)
 //   npm run kundenliste -- --skip=pest  leave a framework out (pest, vitest, playwright); its items count as not run
+//   npm run kundenliste -- --report     write the table again from the last run's results and pictures, running nothing
+//                                       (after items.mjs changed — its sentences, its commits); dated by that run
+//   npm run kundenliste -- --only=pest  run one framework again, take the others' results and pictures from the last run
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -17,8 +20,29 @@ const ROOT = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/
 const OUT = join(ROOT, 'test-results', 'kundenliste-run')
 const SHOTS = 'docs/qa/shots/kundenliste'
 const TAG = /@kunde-(\d{2})\b/g
-const skip = new Set((process.argv.find((a) => a.startsWith('--skip=')) ?? '--skip=').slice(7).split(',').filter(Boolean))
-const started = Date.now()
+const report = process.argv.includes('--report')
+const only = new Set((process.argv.find((a) => a.startsWith('--only=')) ?? '--only=').slice(7).split(',').filter(Boolean))
+const skip = new Set(report || only.size > 0 ? [] : (process.argv.find((a) => a.startsWith('--skip=')) ?? '--skip=').slice(7).split(',').filter(Boolean))
+
+/** Runs a framework now — or not: only the last results are reported, it is skipped, or another one alone runs again. */
+const live = (framework) => !report && !skip.has(framework) && (only.size === 0 || only.has(framework))
+
+/** When the pictures were taken: now — or, where Playwright does not run again, when its last run began. */
+const started = (() => {
+    if (live('playwright')) {
+        return Date.now()
+    }
+
+    const json = join(OUT, 'playwright.json')
+    const at = existsSync(json) ? Date.parse(JSON.parse(readFileSync(json, 'utf8')).stats?.startTime ?? '') : NaN
+
+    if (Number.isNaN(at)) {
+        process.stderr.write('no Playwright result of an earlier run to take the pictures from\n')
+        process.exit(1)
+    }
+
+    return at
+})()
 
 mkdirSync(OUT, { recursive: true })
 
@@ -42,7 +66,11 @@ function run(label, command, args, env = {}) {
 // Pest: one run of the tagged tests, its JUnit report read back.
 if (!skip.has('pest')) {
     const junit = join(OUT, 'pest.xml')
-    run('Pest', 'php', ['vendor/bin/pest', '--filter', '@kunde-', '--log-junit', junit])
+
+    // `kunde-`, never `@kunde-`: PHPUnit reads `@` in a filter as the start of a data set's name, so that matched nothing.
+    if (live('pest')) {
+        run('Pest', 'php', ['vendor/bin/pest', '--filter', 'kunde-', '--log-junit', junit])
+    }
 
     if (existsSync(junit)) {
         ran.add('pest')
@@ -60,7 +88,10 @@ if (!skip.has('pest')) {
 // Vitest: the tagged component tests, its JSON report read back.
 if (!skip.has('vitest')) {
     const json = join(OUT, 'vitest.json')
-    run('Vitest', 'npx', ['vitest', 'run', '-t', '@kunde-', '--reporter=json', `--outputFile=${json}`, '--passWithNoTests'])
+
+    if (live('vitest')) {
+        run('Vitest', 'npx', ['vitest', 'run', '-t', '@kunde-', '--reporter=json', `--outputFile=${json}`, '--passWithNoTests'])
+    }
 
     if (existsSync(json)) {
         ran.add('vitest')
@@ -78,7 +109,10 @@ if (!skip.has('vitest')) {
 // Playwright: both widths, its JSON report read back.
 if (!skip.has('playwright')) {
     const json = join(OUT, 'playwright.json')
-    run('Playwright', 'npx', ['playwright', 'test', '-c', 'playwright.kundenliste.config.ts', '--grep', '@kunde-'], { KUNDENLISTE_JSON: json })
+
+    if (live('playwright')) {
+        run('Playwright', 'npx', ['playwright', 'test', '-c', 'playwright.kundenliste.config.ts', '--grep', '@kunde-'], { KUNDENLISTE_JSON: json })
+    }
 
     if (existsSync(json)) {
         ran.add('playwright')
@@ -116,7 +150,9 @@ const picture = (nr, width) => {
 const commit = (() => {
     try {
         const sha = execFileSync('git', ['rev-parse', '--short=8', 'HEAD'], { cwd: ROOT }).toString().trim()
-        const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: ROOT }).toString().trim() !== ''
+        // Only what the tests ran against: the shop's code and the tests — not the docs, not this table's own sentences.
+        const tested = ['app', 'bootstrap', 'config', 'database', 'resources', 'routes', 'tests', 'e2e']
+        const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=no', '--', ...tested], { cwd: ROOT }).toString().trim() !== ''
 
         return dirty ? `${sha} mit lokalen Änderungen` : sha
     } catch {
@@ -149,7 +185,7 @@ const frameworks = (tests) =>
         .map((t) => cell(t))
         .join('<br>')
 
-const stamp = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Berlin' }).format(new Date())
+const stamp = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Berlin' }).format(new Date(started))
 const lines = [
     '# Deine Änderungsliste – Stand der Umsetzung',
     '',

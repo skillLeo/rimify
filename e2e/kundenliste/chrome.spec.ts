@@ -57,6 +57,8 @@ test('the header is 72 px on a computer and 64 px on a phone, from one token eve
     await shot(header, 2, info)
 })
 
+// Playwright asks for a destructured first argument even where no fixture is used.
+// eslint-disable-next-line no-empty-pattern
 test('no stylesheet types a header height: the old phone token is gone, and no rule writes the number', { tag: '@kunde-02' }, async ({}, info) => {
     test.skip(isPhone(info), 'a check of the source, once')
 

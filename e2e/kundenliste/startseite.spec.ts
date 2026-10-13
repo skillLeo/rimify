@@ -124,6 +124,9 @@ const STORY_SIZES = [
 ]
 
 test('the highlight lies on the BMW row at every width and height of the matrix', { tag: '@kunde-06' }, async ({ page }, info) => {
+    // Seven windows, each a page of its own.
+    test.setTimeout(420_000)
+
     const sizes = isPhone(info) ? [{ width: 390, height: 844 }, { width: 360, height: 640 }] : STORY_SIZES
 
     for (const size of sizes) {
@@ -253,11 +256,13 @@ test('judgement: the bands alternate a pale surface with white, not every sectio
         }
     })
 
-    // The one pale token and white, alternating: some bands tinted, some white — never every section.
+    // The one pale token and white, alternating: some bands tinted, some white — never every section. A white band paints
+    // nothing of its own: it shows the page's white ground through a transparent background.
     const tinted = tones.sections.filter((c) => c === tones.band).length
+    const white = tones.sections.filter((c) => c === tones.white || c === 'rgba(0, 0, 0, 0)').length
     expect(tinted, 'no band carries the pale surface').toBeGreaterThan(0)
     expect(tinted, 'every section is tinted').toBeLessThan(tones.sections.length)
-    expect(tones.sections.filter((c) => c === tones.white).length, 'no white section between the bands').toBeGreaterThan(0)
+    expect(white, 'no white section between the bands').toBeGreaterThan(0)
 
     // After: the page as it is.
     await shot(page, 32, info, { fullPage: true })
