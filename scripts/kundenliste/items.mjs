@@ -43,7 +43,7 @@ export const ITEMS = [
     {
         nr: 5,
         wish: '„Felgen mit den meisten Freigaben“ → meistgekaufte Felgen',
-        now: 'Die Reihe heißt „Meistgekaufte Felgen“ und ordnet nach den bezahlten Bestellungen der letzten 90 Tage; ohne Verkauf heißt sie „Neu im Shop“, und mit weniger als vier Felgen im Shop erscheint sie nicht.',
+        now: 'Die Reihe heißt „Meistgekaufte Felgen“ und ordnet nach den bezahlten Bestellungen der letzten 90 Tage; ohne Verkauf heißt sie „Neu im Shop“, und mit weniger als vier Felgen im Shop erscheint sie nicht. Das Bild stammt deshalb aus unserem Testshop mit gezeichneten Beispielfelgen – in deinem Shop steht bisher ein Modell.',
         state: 'erledigt',
         commits: ['c971a00b', '5f23158e', 'f9be5257'],
     },
@@ -116,7 +116,7 @@ export const ITEMS = [
         now: 'Beim Komplettrad stehen Wuchtgewichte und RDKS-Sensoren als eigene Zeilen mit Preis und Steuer im Warenkorb, die Anzahl richtet sich nach den Rädern; bei „Nur Felgen“ erscheint nichts davon.',
         reason: 'Ventile bieten wir noch nicht einzeln an: Deine Antwort, welche Ventile ihr ohne Sensoren montiert, steht noch aus.',
         state: 'erledigt',
-        commits: ['ed39c419', 'ed3f8f46', 'f93d5667'],
+        commits: ['ed39c419', 'ed3f8f46', 'f93d5667', '1ba18a7d'],
     },
     {
         nr: 16,
@@ -164,9 +164,9 @@ export const ITEMS = [
     {
         nr: 22,
         wish: 'Handy-Liste: „Vergleichen“ verdeckt „Mit Auflagen“',
-        now: 'Bei 320, 360, 390 und 414 Pixeln Breite überdeckt „Vergleichen“ das Ergebnis nicht mehr, und keins von beiden wird abgeschnitten.',
+        now: 'Bei 320, 360, 390 und 414 Pixeln Breite überdeckt „Vergleichen“ das Ergebnis nicht mehr, und keins von beiden wird abgeschnitten. Dabei aufgefallen und behoben: Mit den langen Sätzen echter Gutachten wurde eine Karte über 2.500 Pixel hoch. Lange Auflagen stehen auf der Karte jetzt als Anzahl, ihr Wortlaut auf der Produktseite.',
         state: 'erledigt',
-        commits: ['9dc3cdda'],
+        commits: ['9dc3cdda', '1ba18a7d'],
     },
     {
         nr: 23,
@@ -179,7 +179,7 @@ export const ITEMS = [
     {
         nr: 24,
         wish: 'Scrollbalken der Filter am Ende manchmal fehlerhaft',
-        now: 'Die Filterspalte lässt sich am Computer bis zum letzten Eintrag scrollen, ohne dass etwas springt.',
+        now: 'Die Filterspalte lässt sich am Computer bis zum letzten Eintrag scrollen, ohne dass etwas springt. Das Bild zeigt unseren Testshop: So lang wird die Spalte erst mit vielen Felgen.',
         state: 'erledigt',
         commits: ['548cf489', '3951e65e'],
     },
@@ -223,12 +223,12 @@ export const ITEMS = [
         wish: 'Filter auch ohne gewähltes Fahrzeug',
         now: 'Ohne Fahrzeug funktionieren alle Filter; Ergebnisse zu einem Auto stehen dann nicht dabei, und ein Satz sagt das.',
         state: 'erledigt',
-        commits: ['43a54a2a'],
+        commits: ['43a54a2a', '1ba18a7d'],
     },
     {
         nr: 31,
         wish: 'Filter-Auswahl in der Liste auch auf dem Handy',
-        now: 'Am Handy öffnet „Filter“ eine Auswahl von unten mit denselben Filtern und Anzahlen wie am Computer.',
+        now: 'Am Handy öffnet „Filter“ eine Auswahl von unten mit denselben Filtern und Anzahlen wie am Computer. Das Bild zeigt unseren Testshop mit Beispielfelgen.',
         state: 'erledigt',
         commits: ['43a54a2a'],
     },
