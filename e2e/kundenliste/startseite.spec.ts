@@ -264,6 +264,21 @@ test('judgement: the bands alternate a pale surface with white, not every sectio
     expect(tinted, 'every section is tinted').toBeLessThan(tones.sections.length)
     expect(white, 'no white section between the bands').toBeGreaterThan(0)
 
+    // The whole page as a visitor who has scrolled through it sees it. A full-page capture of a page that was never
+    // scrolled leaves the sections below the fold blank (they render when they come near, `content-visibility: auto`) —
+    // the first pair of phone pictures showed white where the bands are. `cv-off` is the page's own switch for that.
+    await page.evaluate(async () => {
+        document.documentElement.classList.add('cv-off')
+
+        for (let y = 0; y < document.documentElement.scrollHeight; y += Math.round(window.innerHeight * 0.8)) {
+            window.scrollTo(0, y)
+            await new Promise((done) => setTimeout(done, 120))
+        }
+
+        window.scrollTo(0, 0)
+        await new Promise((done) => setTimeout(done, 300))
+    })
+
     // After: the page as it is.
     await shot(page, 32, info, { fullPage: true })
 

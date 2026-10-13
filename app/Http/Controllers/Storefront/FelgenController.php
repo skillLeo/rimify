@@ -154,6 +154,7 @@ class FelgenController extends Controller
                 // „Ohne Eintragung“ is a statement about a car: without one it is neither offered nor applied.
                 'filters' => array_diff_key($filters, ['ohne_eintragung' => true]),
                 'demo' => $this->demo(),
+                'acceptance' => $this->acceptance(),
             ]);
         }
 
@@ -194,6 +195,7 @@ class FelgenController extends Controller
             'filters' => $filters,
             'page' => $page,
             'demo' => $this->demo(),
+            'acceptance' => $this->acceptance(),
             // What of the car the page's answers wait for, asked for by name the moment the car is chosen (§1.1).
             'missing' => $result['missing'],
         ]);
@@ -206,6 +208,16 @@ class FelgenController extends Controller
     private function demo(): bool
     {
         return WheelModel::query()->where('is_demo', true)->where('status', CatalogueStatus::Published->value)->exists();
+    }
+
+    /**
+     * Whether the demo wheels on the page are the acceptance set, sold here with the test payment (`rimify:demo
+     * --abnahme`, D-185): the listing then says that, as the product page does — never „bestellen kannst du noch nicht“
+     * above wheels that can be ordered.
+     */
+    private function acceptance(): bool
+    {
+        return WheelModel::query()->onSale()->where('is_demo', true)->exists();
     }
 
     /**

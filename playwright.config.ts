@@ -19,6 +19,9 @@ const port = (url: string): string => new URL(url).port;
 // the server from the User-Agent, so the mobile project sends a real mobile UA.
 export default defineConfig({
     testDir: './e2e',
+    // The client's list is a suite of its own, against the acceptance shop (playwright.kundenliste.config.ts,
+    // `npm run kundenliste`): run from here it would ask this config's servers for a shop they do not hold.
+    testIgnore: '**/kundenliste/**',
     // The e2e shop, rebuilt before every run: the specs that buy leave it with less stock (e2e/global-setup.ts).
     globalSetup: './e2e/global-setup.ts',
     fullyParallel: false,

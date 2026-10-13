@@ -276,8 +276,18 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await expect(summary).toContainText(/196,00\s€/)
     await expect(summary).toContainText('MwSt')
 
-    // The picture: the Komplettrad's own lines and the order's sensor line, without the Auflagen between them.
-    await shotAround(page, [line.locator('.bl__parts'), summary], 15, info)
+    // The Gutachten's paragraphs are folded behind one line (D-197): the verdict and the papers' line stay in sight, the
+    // wording opens in place, and „Zur Kasse“ stays within reach — printed whole, this basket was 9.900 px on a phone.
+    const auflagen = line.locator('details[data-auflagen]')
+    await expect(auflagen.locator('summary')).toHaveText(/^\s*\d+ Auflagen und Hinweise aus dem Gutachten lesen\s*$/)
+    expect(await auflagen.getAttribute('open')).toBeNull()
+    await expect(line.locator('.bl__entry').first()).toBeVisible()
+    expect((await box(page.locator('.cart'))).height, 'the basket runs far past the window').toBeLessThan((page.viewportSize()?.height ?? 0) * 3)
+    await auflagen.locator('summary').click()
+    await expect(auflagen.locator('li').first()).toBeVisible()
+    await auflagen.locator('summary').click()
+
+    await shot(page.locator('.cart'), 15, info)
 
     // The rims alone: no Reifen, no Wuchtgewichte, no sensors.
     await context.clearCookies()

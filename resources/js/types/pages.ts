@@ -330,6 +330,8 @@ export interface FelgenProps {
     page?: number
     /** True while any published wheel model is seeded demo data; the listing shows the *Demodaten* note. */
     demo: boolean
+    /** Those demo wheels are the acceptance set and sold here with the test payment: the note says that instead. */
+    acceptance?: boolean
     /** What of the chosen car the page's answers wait for — `bodyForm`, `driveAxle` (§1.1). Additive. */
     missing?: string[]
 }
