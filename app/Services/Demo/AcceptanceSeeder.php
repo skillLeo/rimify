@@ -135,10 +135,9 @@ final class AcceptanceSeeder
             return ['counts' => [], 'notes' => ['Der Abnahme-Satz ist schon da. Entfernen: System › Zurücksetzen › Demodaten.']];
         }
 
-        $this->refuseDoubles();
-
         /** @var array{documents: array<string, array<string, mixed>>, fitments: list<array<string, mixed>>, templates: array<string, array<string, mixed>>} $data */
         $data = $this->data ?? require database_path('seeders/content/abnahme/gutachten.php');
+        $this->refuseDoubles($data['documents']);
         $this->refuseWithoutPdfs($data['documents']);
         $counts = [];
         $notes = [];
@@ -161,8 +160,25 @@ final class AcceptanceSeeder
         return ['counts' => $counts, 'notes' => $notes];
     }
 
-    private function refuseDoubles(): void
+    /**
+     * The set never doubles something real: the wheel by its address, its two Gutachten by their numbers — and by the
+     * fingerprint of their PDFs. On the client's preview (13.10.2026) the wheel was already there as „Borbet DBGT8“ and
+     * the Nachtrag as „ABE, KBA 53841“: other words for the same wheel and the very same file. A number is typed; a file
+     * is what it is.
+     *
+     * @param  array<string, array<string, mixed>>  $documents
+     */
+    private function refuseDoubles(array $documents): void
     {
+        $hashes = array_values(array_filter(array_map(static fn (array $d): ?string => is_string($d['pdf']['sha256'] ?? null) ? $d['pdf']['sha256'] : null, $documents)));
+        $same = $hashes === [] ? null : DB::table('approval_documents')->where('is_demo', false)->whereIn('pdf_sha256', $hashes)
+            ->first(['kind', 'kba_number', 'report_number']);
+
+        if ($same !== null) {
+            throw new RuntimeException('Ein Gutachten des Abnahme-Satzes ist schon im Shop: dieselbe PDF-Datei liegt dort als „'
+                .trim($same->kind.' '.($same->kba_number ?: $same->report_number ?: '')).'“. Der Abnahme-Satz würde es – und die Felge dazu – doppeln und wird nicht geschrieben.');
+        }
+
         if (WheelModel::withTrashed()->where('slug', self::SLUG)->where('is_demo', false)->exists()) {
             throw new RuntimeException('Die echte BORBET DB8GT2 ist schon im Shop. Der Abnahme-Satz würde sie doppeln und wird nicht geschrieben.');
         }

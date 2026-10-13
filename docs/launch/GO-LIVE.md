@@ -304,6 +304,14 @@ $PHP artisan rimify:smoke
 
 The last line reads `Smoke-Test bestanden.`
 
+**The smoke never orders by itself** (since 13.10.2026). Where payments are in test mode it goes to the point before
+the purchase — one wheel in its own basket, the basket and the checkout read, „Zahlungspflichtig bestellen“ found and
+not pressed — and the rows read `Warenkorb und Kasse (ohne Bestellung) | ok` and `Testbestellung | übersprungen · Nur
+auf Wunsch (--testbestellung) …`. A paid test order is placed only by `rimify:smoke --testbestellung`, by hand, on an
+instance where an order that stays for good (R-12) is wanted: never on one a client works in. The release script does
+not pass the switch (`tests/Feature/Smoke/NoOrderByItselfTest.php`). Why: the release of 13.10.2026 left
+RMF-2026-0003 in the client's preview, the first release after his shop had begun to sell a wheel of its own.
+
 On the review preview the product rows (product page, lookup, PDF, test order) read *Keine freigegebene Felge im
 Shop* until a real wheel is released and priced: its example catalogue is drafts only (release seed v4), and the
 golden record's DB8GT2 waits for the operator to release both Gutachten and enter a price (PRESENT.md, steps 3–4).

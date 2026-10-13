@@ -6,6 +6,7 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
 use App\Domain\Storefront\VehicleKey;
+use App\Models\ApprovalDocument;
 use App\Models\BalanceWeightColour;
 use App\Models\Brand;
 use App\Models\Vehicle;
@@ -185,6 +186,30 @@ it('refuses to double a real DB8GT2', function (): void {
     expect(Artisan::call('rimify:demo', ['--abnahme' => true]))->toBe(1)
         ->and(Artisan::output())->toContain('Die echte BORBET DB8GT2 ist schon im Shop')
         ->and(DB::table('approval_documents')->count())->toBe(0);
+});
+
+it('refuses to double a Gutachten the shop holds under another name: the same PDF is the same document', function (): void {
+    // As on the client's preview on 13.10.2026: the set's Nachtrag, entered by hand as „ABE, KBA 53841“ — another kind,
+    // another number, the very same file.
+    $dir = sys_get_temp_dir().'/rimify-abnahme-pdfs';
+    $data = require database_path('seeders/content/abnahme/gutachten.php');
+
+    foreach ($data['documents'] as $key => $document) {
+        $path = $dir.'/'.$document['pdf']['source'];
+        is_dir(dirname($path)) || mkdir(dirname($path), 0777, true);
+        file_put_contents($path, "%PDF-1.4\n% stand-in for {$key}\n");
+        $data['documents'][$key]['pdf']['sha256'] = hash_file('sha256', $path);
+    }
+
+    ApprovalDocument::factory()->draft()->create([
+        'kind' => 'ABE', 'kba_number' => '53841',
+        'pdf_sha256' => $data['documents']['nachtrag-366-0350-21']['pdf']['sha256'],
+    ]);
+
+    expect(fn () => (new AcceptanceSeeder($dir, $data))->seed())
+        ->toThrow(RuntimeException::class, 'dieselbe PDF-Datei liegt dort als „ABE 53841“')
+        ->and(DB::table('wheel_models')->count())->toBe(0)
+        ->and(DB::table('approval_documents')->where('is_demo', true)->count())->toBe(0);
 });
 
 it('goes in one press, the shop\'s own accessories untouched, the cars hidden and never deleted (R-04)', function (): void {
