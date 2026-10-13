@@ -116,7 +116,7 @@ export const ITEMS = [
         now: 'Beim Komplettrad stehen Wuchtgewichte und RDKS-Sensoren als eigene Zeilen mit Preis und Steuer im Warenkorb, die Anzahl richtet sich nach den Rädern; bei „Nur Felgen“ erscheint nichts davon.',
         reason: 'Ventile bieten wir noch nicht einzeln an: Deine Antwort, welche Ventile ihr ohne Sensoren montiert, steht noch aus.',
         state: 'erledigt',
-        commits: ['ed39c419', 'ed3f8f46', 'f93d5667', '1ba18a7d'],
+        commits: ['ed39c419', 'ed3f8f46', 'f93d5667', '1ba18a7d', 'a0edd0f5'],
     },
     {
         nr: 16,
@@ -159,14 +159,14 @@ export const ITEMS = [
         wish: '„Eintragung“ steht bei Felgen mit Auflagen dreimal',
         now: '„Eintragung“ steht nur noch einmal, im Ergebnis direkt unter der Überschrift; die Auflagen darunter wiederholen es nicht. Der Wortlaut des Gutachtens bleibt hinter „Originaltext anzeigen“ erreichbar, jeder Satz mit Seitenzahl. Gilt ein Satz nur für bestimmte Reifengrößen, steht er unter diesen Größen – das fehlte zunächst und ist bei einem Testlauf aufgefallen.',
         state: 'erledigt',
-        commits: ['b5e26679', 'f93d5667', '53896f28', '170a2316'],
+        commits: ['b5e26679', 'f93d5667', '53896f28', '170a2316', 'a0edd0f5'],
     },
     {
         nr: 22,
         wish: 'Handy-Liste: „Vergleichen“ verdeckt „Mit Auflagen“',
         now: 'Bei 320, 360, 390 und 414 Pixeln Breite überdeckt „Vergleichen“ das Ergebnis (z. B. „Mit Auflagen“) nicht mehr, und keins von beiden wird abgeschnitten. Dabei aufgefallen und behoben: Mit den langen Sätzen echter Gutachten wurde eine Kachel über 2.500 Pixel hoch. Bei langen Auflagen nennt die Kachel jetzt nur ihre Anzahl; der Wortlaut steht auf der Produktseite.',
         state: 'erledigt',
-        commits: ['9dc3cdda', '1ba18a7d'],
+        commits: ['9dc3cdda', '1ba18a7d', 'a0edd0f5'],
     },
     {
         nr: 23,
@@ -223,7 +223,7 @@ export const ITEMS = [
         wish: 'Filter auch ohne gewähltes Fahrzeug',
         now: 'Ohne Fahrzeug funktionieren alle Filter; Ergebnisse zu einem Auto stehen dann nicht dabei, und ein Satz sagt das.',
         state: 'erledigt',
-        commits: ['43a54a2a', '1ba18a7d'],
+        commits: ['43a54a2a', '1ba18a7d', 'a0edd0f5'],
     },
     {
         nr: 31,
