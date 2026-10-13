@@ -192,7 +192,7 @@ const originalBySize = computed(() => originalGroups.value.some((group) => group
         <details v-if="original.length" class="fdt__original" data-original>
             <summary class="fdt__original-toggle">Originaltext anzeigen</summary>
             <p class="small muted fdt__original-lede">
-                So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.<template v-if="originalBySize"> Gilt ein Satz nur für bestimmte Reifengrößen, steht das darüber.</template>
+                So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.<template v-if="originalBySize"> Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.</template>
             </p>
             <template v-for="group in originalGroups" :key="group.key">
                 <p v-if="group.label" class="fdt__for">{{ group.label }}</p>

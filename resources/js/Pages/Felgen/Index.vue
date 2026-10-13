@@ -148,7 +148,7 @@ onBeforeUnmount(() => {
                     <template v-else>{{ formatNumber(cards.length) }} {{ cards.length === 1 ? 'Felge' : 'Felgen' }} im Sortiment</template>
                 </p>
                 <!-- The acceptance set is sold with the test payment (rimify:demo --abnahme): the product page's own words. -->
-                <p v-if="demo && acceptance" class="micro quiet">Demodaten zum Ausprobieren – Preise und Bestände sind Beispielwerte; bestellen geht nur mit der Testzahlung, verschickt wird nichts.</p>
+                <p v-if="demo && acceptance" class="micro quiet">Demodaten zum Ausprobieren – Preise und Bestände sind Beispielwerte; bestellen geht hier nur mit der Testzahlung, verschickt wird nichts.</p>
                 <p v-else-if="demo" class="micro quiet">Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>
             </div>
 

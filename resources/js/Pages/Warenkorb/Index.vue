@@ -194,7 +194,7 @@ const VERDICT_TONE: Record<string, string> = {
                                     data-auflagen
                                 >
                                     <summary v-if="!fitsWhole(line.verdict.conditions, LINE_ROOM)" class="bl__auflagen-toggle">
-                                        {{ countedDe(line.verdict.conditions.length, line.verdict.notesOnly === true) }} lesen
+                                        {{ countedDe(line.verdict.conditions.length, line.verdict.notesOnly === true) }} anzeigen
                                     </summary>
                                     <ConditionGroups v-if="line.verdict.conditionGroups" class="bl__groups" :groups="line.verdict.conditionGroups" />
                                     <ul v-else class="bl__conditions">

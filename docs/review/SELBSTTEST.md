@@ -7,11 +7,11 @@ of every check is `npm run kundenliste` (docs/review/KUNDENLISTE.md, pictures in
 ## Before you start
 
 - **Address:** `https://rimify.skillleo.com` (the preview). Paths below are relative to it.
-- **Which build.** The preview's footer prints `Testumgebung · Stand <commit>`. These checks describe the D-199 commit of
-  13.10.2026 or later (`git log --grep D-199`). On 13.10.2026 the preview still stood on `ac0bbcc6`: GitHub Actions refuses to start any job („recent account
+- **Which build.** The preview's footer prints `Testumgebung · Stand <commit>`. These checks describe `170a2316` or later. On 13.10.2026 the preview still stood on `ac0bbcc6`: GitHub Actions refuses to start any job („recent account
   payments have failed or your spending limit needs to be increased“ — GitHub › Settings › Billing & plans), so no
   release has been built since. What `ac0bbcc6` does not have yet: the counted Auflagen on a card and in the basket
-  (#22, #15), the listing's sentence about the test payment (#30), and the database rule that keeps a demo wheel
+  (#22, #15), the listing's sentence about the test payment (#30), the tyre sizes over the sentences in „Originaltext anzeigen“
+  (#21, D-199), and the database rule that keeps a demo wheel
   without a reference from being published (D-196) — the reason the acceptance set is not seeded on that build.
 - **Two sizes.** *Desktop* = a browser window 1440 × 900 (Chrome DevTools › Dimensions, or a maximised window on a
   1440-wide screen). *Phone* = DevTools device mode at 390 × 844 (iPhone 12/13/14 preset), or a real phone.
@@ -150,8 +150,10 @@ of every check is `npm run kundenliste` (docs/review/KUNDENLISTE.md, pictures in
 - **Look at:** the Komplettrad line lists Felge, Reifen, Montage und Auswuchten and Wuchtgewichte (Silber), each
   „4 × …“ with its price; the summary has its own row „RDKS-Sensoren (4 × 49,00 €)“ with 196,00 €; the VAT row.
   With „Nur Felgen“ none of them. The Gutachten's long Auflagen sit folded behind „… Auflagen und Hinweise aus dem
-  Gutachten lesen“ and open in place, so „Zur Kasse“ stays within reach on a phone. **Open question for the client:** valves. No valve is offered on its own yet — which
-  valves you fit without sensors is still unanswered (the DB8GT2's Gutachten asks for metal screw-in valves).
+  Gutachten anzeigen“ and open in place, so „Zur Kasse“ stays within reach on a phone; the papers' line („Eintragung
+  … erforderlich mit …“) stays on the line itself, never behind the fold. **Open question for the client:** valves.
+  No valve is offered on its own yet — which valves you fit without sensors is still unanswered (the DB8GT2's
+  Gutachten asks for metal screw-in valves).
 
 ### 16 · A panel after „In den Warenkorb“
 - **Where:** ◆ `/felgen/borbet-db8gt2`, 18 Zoll. Desktop and phone.

@@ -43,7 +43,7 @@ export const ITEMS = [
     {
         nr: 5,
         wish: '„Felgen mit den meisten Freigaben“ → meistgekaufte Felgen',
-        now: 'Die Reihe heißt „Meistgekaufte Felgen“ und ordnet nach den bezahlten Bestellungen der letzten 90 Tage; ohne Verkauf heißt sie „Neu im Shop“, und mit weniger als vier Felgen im Shop erscheint sie nicht. Das Bild stammt deshalb aus unserem Testshop mit gezeichneten Beispielfelgen – in deinem Shop steht bisher ein Modell.',
+        now: 'Die Reihe heißt „Meistgekaufte Felgen“ und ist nach den bezahlten Bestellungen der letzten 90 Tage sortiert; ohne Verkauf heißt sie „Neu im Shop“, und mit weniger als vier Felgen im Shop erscheint sie nicht. Das Bild stammt deshalb aus unserem Testshop mit gezeichneten Beispielfelgen – in deinem Shop steht bisher nur ein Modell.',
         state: 'erledigt',
         commits: ['c971a00b', '5f23158e', 'f9be5257'],
     },
@@ -157,14 +157,14 @@ export const ITEMS = [
     {
         nr: 21,
         wish: '„Eintragung“ steht bei Felgen mit Auflagen dreimal',
-        now: '„Eintragung“ steht nur noch einmal, im Ergebnis direkt unter der Überschrift; die Auflagen darunter wiederholen es nicht. Der Wortlaut des Gutachtens bleibt hinter „Originaltext anzeigen“ erreichbar, jeder Satz mit seiner Seite.',
+        now: '„Eintragung“ steht nur noch einmal, im Ergebnis direkt unter der Überschrift; die Auflagen darunter wiederholen es nicht. Der Wortlaut des Gutachtens bleibt hinter „Originaltext anzeigen“ erreichbar, jeder Satz mit Seitenzahl. Gilt ein Satz nur für bestimmte Reifengrößen, steht er unter diesen Größen – das fehlte zunächst und ist bei einem Testlauf aufgefallen.',
         state: 'erledigt',
-        commits: ['b5e26679', 'f93d5667', '53896f28'],
+        commits: ['b5e26679', 'f93d5667', '53896f28', '170a2316'],
     },
     {
         nr: 22,
         wish: 'Handy-Liste: „Vergleichen“ verdeckt „Mit Auflagen“',
-        now: 'Bei 320, 360, 390 und 414 Pixeln Breite überdeckt „Vergleichen“ das Ergebnis nicht mehr, und keins von beiden wird abgeschnitten. Dabei aufgefallen und behoben: Mit den langen Sätzen echter Gutachten wurde eine Karte über 2.500 Pixel hoch. Lange Auflagen stehen auf der Karte jetzt als Anzahl, ihr Wortlaut auf der Produktseite.',
+        now: 'Bei 320, 360, 390 und 414 Pixeln Breite überdeckt „Vergleichen“ das Ergebnis (z. B. „Mit Auflagen“) nicht mehr, und keins von beiden wird abgeschnitten. Dabei aufgefallen und behoben: Mit den langen Sätzen echter Gutachten wurde eine Kachel über 2.500 Pixel hoch. Bei langen Auflagen nennt die Kachel jetzt nur ihre Anzahl; der Wortlaut steht auf der Produktseite.',
         state: 'erledigt',
         commits: ['9dc3cdda', '1ba18a7d'],
     },
@@ -228,7 +228,7 @@ export const ITEMS = [
     {
         nr: 31,
         wish: 'Filter-Auswahl in der Liste auch auf dem Handy',
-        now: 'Am Handy öffnet „Filter“ eine Auswahl von unten mit denselben Filtern und Anzahlen wie am Computer. Das Bild zeigt unseren Testshop mit Beispielfelgen.',
+        now: 'Am Handy öffnet „Filter“ von unten eine Auswahl mit denselben Filtern und Trefferzahlen wie am Computer. Das Bild zeigt unseren Testshop mit Beispielfelgen.',
         state: 'erledigt',
         commits: ['43a54a2a'],
     },

@@ -119,7 +119,7 @@ test('without a car every filter works, no tile carries a verdict, and one sente
     await expect(page.locator('main .verdict')).toHaveCount(0)
     await expect(page.locator('.plp__notice')).toContainText('Wähle dein Fahrzeug, um nur Felgen zu sehen, die dafür freigegeben sind.')
     // The acceptance set is sold with the test payment: the listing says so, as its product page does — never „noch nicht“.
-    await expect(page.locator('main')).toContainText('bestellen geht nur mit der Testzahlung')
+    await expect(page.locator('main')).toContainText('bestellen geht hier nur mit der Testzahlung')
     await expect(page.locator('main')).not.toContainText('bestellen kannst du noch nicht')
 
     const before = await page.locator('main .tile').count()

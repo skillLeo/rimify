@@ -18,7 +18,8 @@ describe('auflagen', () => {
     })
 
     it('counts in German: one Auflage, several Auflagen und Hinweise, and Hinweise where the server says all are', () => {
-        expect(countedDe(1)).toBe('1 Auflage aus dem Gutachten')
+        // One sentence: which kind it is the caller is not told, so the count claims neither.
+        expect(countedDe(1)).toBe('1 Auflage oder Hinweis aus dem Gutachten')
         expect(countedDe(9)).toBe('9 Auflagen und Hinweise aus dem Gutachten')
         expect(countedDe(1, true)).toBe('1 Hinweis aus dem Gutachten')
         expect(countedDe(3, true)).toBe('3 Hinweise aus dem Gutachten')

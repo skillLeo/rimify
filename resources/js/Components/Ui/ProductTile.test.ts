@@ -218,7 +218,7 @@ describe('ProductTile', () => {
 
         // One long sentence is one Auflage, said as one.
         const one = mountTile({ vehicle, card: card(2, { fitment: { status: 'CONDITIONAL', requiresEntry: false, conditions: [V19] } }) })
-        expect(one.find('[data-conditions="counted"]').text()).toBe('1 Auflage aus dem Gutachten – im Wortlaut auf der Produktseite.')
+        expect(one.find('[data-conditions="counted"]').text()).toBe('1 Auflage oder Hinweis aus dem Gutachten – im Wortlaut auf der Produktseite.')
 
         // Two short ones stand in full, as before.
         const short = mountTile({

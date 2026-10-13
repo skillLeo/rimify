@@ -123,7 +123,7 @@ describe('FitmentDetail', () => {
 
         expect(printed.findAll('.fdt__for').map((s) => s.text())).toEqual(['Für jede zulässige Reifengröße', 'Nur bei 235/45 R19 und 245/40 R19', 'Nur bei 255/40 R19'])
         expect(printed.findAll('ul').map((ul) => ul.findAll('li').map((li) => li.text()))).toEqual([[`${tubeless} (Seite 6)`], [`${chains} (Seite 7)`], [`${none} (Seite 7)`]])
-        expect(printed.find('.fdt__original-lede').text()).toBe('So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen. Gilt ein Satz nur für bestimmte Reifengrößen, steht das darüber.')
+        expect(printed.find('.fdt__original-lede').text()).toBe('So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen. Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.')
 
         // Nothing size-bound: one list, no label, and the lede says nothing about sizes.
         const plain = mount(FitmentDetail, { props: { detail: { ...borbetDetail, original: [{ text: ABNAHME, page: 4 }] }, vehicleLabel: 'BMW 1er-Reihe 1K4' } })
