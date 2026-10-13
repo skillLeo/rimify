@@ -1,0 +1,78 @@
+{
+  "instance": "vorschau",
+  "where": "https://rimify.skillleo.com",
+  "commit": "d126238d",
+  "at": "2026-10-13T21:11:14.278Z",
+  "items": {
+    "1": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "d126238d",
+      "at": "2026-10-13T21:11:14.278Z"
+    },
+    "2": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "d126238d",
+      "at": "2026-10-13T21:11:14.278Z"
+    },
+    "3": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "d126238d",
+      "at": "2026-10-13T21:11:14.278Z"
+    },
+    "4": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "d126238d",
+      "at": "2026-10-13T21:11:14.278Z"
+    },
+    "5": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "d126238d",
+      "at": "2026-10-13T21:11:14.278Z"
+    },
+    "6": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "d126238d",
+      "at": "2026-10-13T21:11:14.278Z"
+    },
+    "7": {
+      "passed": true,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "d126238d",
+      "at": "2026-10-13T21:11:14.278Z"
+    }
+  }
+}

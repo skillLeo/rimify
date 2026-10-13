@@ -90,3 +90,22 @@ Every hand-built release gets one entry below: the commit, who built it, what wa
 
 | Date | Release of | Proven locally | Not proven |
 |---|---|---|---|
+| 13.10.2026, 21:02 UTC (preview) | `d126238d` → release `4d7a6184`, on top of `44350a22` (the CI release of `ac0bbcc6`) | Pint, Larastan; Pest 2.545 passed, coverage 93,0 % (MariaDB 11.8.9); Vitest 1.542 passed; Playwright main config 411 passed, mobile config 184 passed; `npm run qa`; the client's list 73 passed. The release against the previous one: `vendor/` differs in `league/commonmark` (6 files) and 4 files of `vendor/composer`; executable files 253 = 253. On the host: migration `2026_10_07_000200` ran, 49 s from maintenance to up, baseline holds all 83 migrations, reset screen 200 for the Super-Admin and 404 for six roles. | **The MySQL 8.4 leg** — neither in CI nor here (`composer test:mysql` not run for this build). CI's own build of the same commit, for comparison (§4). |
+
+### What the first hand-built release met on the host (13.10.2026)
+
+Not caused by the build, and each would have met a CI release the same way:
+
+- **`rimify:smoke` ended red on two rows.** „Gutachten-PDF: HTTP 403“ — the shop's storage had been switched to the S3
+  bucket after the client uploaded two Gutachten PDFs to the host's disk; nothing copies files at the switch, and the
+  product page links a PDF wherever storage points *now* (`FelgenController::pdfLink`). Repaired the same hour by copying
+  exactly those two files into the bucket under their keys, each read back with the SHA-256 on record; both addresses
+  answer 200 as PDF. „Speicher-Präfixe: 7 CORS“ — the bucket's IAM user may not read the bucket's CORS setting
+  (`s3:GetBucketCORS` denied), so the audit cannot tell a missing rule from an unreadable one; that is the bucket
+  owner's to grant or to set.
+- **The smoke placed its sandbox order in the client's shop** (RMF-2026-0003, 400,00 €, test payment, stock returned,
+  invoice issued): it orders whenever a real product is on sale and payments are in test mode, and until 10.10. the
+  preview had none. An order's frozen approval is never deleted (R-12), so it stays. **Before the next release to an
+  instance the client works in, the smoke must stop before paying** — tracked as the first thing to change.
+- **The host's tree is not clean after a release**: `vendor/composer/installed.php` reads as modified, because
+  `deploy/remote.sh` runs composer there and it rewrites the install path. The next release resets it; nothing to do.

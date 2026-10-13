@@ -1,11 +1,11 @@
 Nr,Skill Leo,Description
-1,Open,Built and tested on our side. Not on your preview yet.
-2,Open,Built and tested on our side. Not on your preview yet.
-3,Open,Built and tested on our side. Not on your preview yet.
-4,Open,Built and tested on our side. Not on your preview yet.
-5,Open,Built and tested on our side. Not on your preview yet.
-6,Open,Built and tested on our side. Not on your preview yet.
-7,Open,Built and tested on our side. Not on your preview yet.
+1,SkillLeo Done,"The hero button is light blue until a vehicle is chosen, says why it is waiting, and a click takes you to the vehicle picker."
+2,SkillLeo Done,"The header is taller: 72 px on desktop, 64 px on mobile. Jump links now land with the heading visible."
+3,SkillLeo Done,The strip above the header is gone. What it said is still on the page.
+4,SkillLeo Done,The hero wheel photo is no longer a link and shows no price; its measurements stay.
+5,SkillLeo Done,"The row is now „Meistgekaufte Felgen“, sorted by paid orders of the last 90 days. Before the first sale it reads „Neu im Shop“; with fewer than four wheels in the shop it is hidden."
+6,SkillLeo Done,"The highlight in „Wir lesen das Gutachten“ sits on the right row at every screen size we checked, low windows included."
+7,SkillLeo Done,Switching between the three vehicle tabs no longer makes the hero jump.
 8,Open,Built and tested on our side. Not on your preview yet.
 9,Open,Built and tested on our side. Not on your preview yet.
 10,Open,Built and tested on our side. Not on your preview yet.
