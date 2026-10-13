@@ -42,7 +42,7 @@ final class HeroPhotos
                 'name' => $entry['name'] ?? '',
                 'finish' => $entry['finish'],
                 'stamp' => $entry['stamp'] ?? null,
-                'facts' => is_array($entry['facts'] ?? null) ? $entry['facts'] : null,
+                'facts' => $entry['facts'] ?? null,
             ];
         }
 

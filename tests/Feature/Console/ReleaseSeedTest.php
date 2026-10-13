@@ -104,20 +104,22 @@ it('gives the hero back its real wheel where the setting still names a demo mode
 
     expect((int) Setting::get('hero_product_id'))->toBe($golden);
 
-    // Whatever the setting says, the hero stands on the brand's photograph (the brief of 05.10.2026, §2) — data can no
-    // longer take it away — alone while the real wheel is a draft, with its values once it is published (D-155).
+    // Whatever the setting says, the hero stands on the brand's photograph with the values its document states (the brief
+    // of 05.10.2026, §2) — data can no longer take it away, and the hero asks the catalogue nothing (the client's #4, D-187).
+    // The real wheel comes in beside it once it is published: the numbers section's `photoWheel` (D-155).
     DemoWheelFixtures::heroPhotos($this->dir, GoldenRecordSeeder::SLUG, ['Schwarz matt' => 'db8gt2-schwarz']);
 
     $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->where('hero.photo.finish', 'Schwarz matt')
-        ->where('hero.product', null));
+        ->missing('hero.product')
+        ->where('photoWheel', null));
 
     DB::table('wheel_models')->where('id', $golden)->update(['status' => 'published']);
 
     $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->where('hero.photo.finish', 'Schwarz matt')
-        ->where('hero.product.slug', GoldenRecordSeeder::SLUG)
-        ->where('hero.product.facts', fn ($facts): bool => $facts !== null && $facts !== []));
+        ->missing('hero.product')
+        ->where('photoWheel.slug', GoldenRecordSeeder::SLUG));
 
     // A real wheel a person chose stays chosen.
     $chosen = (int) DB::table('wheel_models')->where('is_demo', false)->where('id', '<>', $golden)->value('id');
