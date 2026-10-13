@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Storefront\VehicleContext;
+use App\Domain\Storefront\VehicleKey;
 use App\Enums\CatalogueStatus;
 use App\Models\Brand;
 use App\Models\Vehicle;
@@ -128,9 +129,10 @@ it('brings the visitor back to the question with the car in its address, from ei
     $location = $this->post('/fahrzeug', ['fahrzeug' => $set->vehicle->id, 'zurueck' => $question])
         ->assertRedirect()->assertCookie(VehicleContext::COOKIE)->headers->get('Location');
 
+    // The car as its key numbers where it has them, its number otherwise (VehicleKey, the client's #8).
     expect(parse_url((string) $location, PHP_URL_PATH))->toBe('/rimify-check');
     parse_str((string) parse_url((string) $location, PHP_URL_QUERY), $query);
-    expect($query)->toBe(['hersteller' => 'x', 'felge' => $set->config->wheelModel->slug, 'groesse' => (string) $set->config->id, 'fahrzeug' => (string) $set->vehicle->id]);
+    expect($query)->toBe(['hersteller' => 'x', 'felge' => $set->config->wheelModel->slug, 'groesse' => (string) $set->config->id, 'fahrzeug' => VehicleKey::of($set->vehicle)]);
 
     // By key numbers: a pair that names exactly one car.
     $unique = Vehicle::query()->whereNotNull('hsn')->whereNotNull('tsn')->get()
@@ -141,7 +143,7 @@ it('brings the visitor back to the question with the car in its address, from ei
     expect($unique)->not->toBeNull();
 
     $this->post('/fahrzeug/schluesselnummern', ['hsn' => $unique->hsn, 'tsn' => $unique->tsn, 'zurueck' => '/rimify-check?felge=a'])
-        ->assertRedirect('/rimify-check?felge=a&fahrzeug='.$unique->id);
+        ->assertRedirect('/rimify-check?felge=a&fahrzeug='.VehicleKey::of($unique));
 });
 
 it('carries a return address through the selector page — the compare table’s „Fahrzeug wählen“ — and drops an unsafe one', function (): void {

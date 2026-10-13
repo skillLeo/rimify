@@ -83,8 +83,31 @@ const namesNachtrag = computed(() => props.detail.fasteners.some((f) => /Nachtra
  * The documents' wording as printed (the client's #21): the page arranges the Auflagen and says the Eintragung once, in
  * the verdict; what the Gutachten says stays one click away, unarranged and with nothing left out. Closed by default — a
  * native disclosure, so it opens without script.
+ *
+ * One thing stays with a sentence here too: the sizes its document hangs it off. The Gutachten says that with a code
+ * beside the size; we show no codes, so without the label two sizes' sentences would read as one tyre's — fine-link
+ * chains and no chains at all (SWEEP-01). What holds for every size first, then a list per set of sizes.
  */
+type Printed = NonNullable<FitmentDetailView['original']>[number]
+
 const original = computed(() => props.detail.original ?? [])
+
+const originalGroups = computed(() => {
+    const all = original.value.filter((i) => !i.sizes?.length)
+    const bySizes = new Map<string, Printed[]>()
+
+    for (const item of original.value.filter((i) => i.sizes?.length)) {
+        const label = forSizes(item.sizes) ?? ''
+        bySizes.set(label, [...(bySizes.get(label) ?? []), item])
+    }
+
+    return [
+        ...(all.length ? [{ key: 'all', label: bySizes.size > 0 ? 'Für jede zulässige Reifengröße' : null, items: all }] : []),
+        ...[...bySizes.entries()].map(([label, items]) => ({ key: label, label, items })),
+    ]
+})
+
+const originalBySize = computed(() => originalGroups.value.some((group) => group.label !== null))
 </script>
 
 <template>
@@ -168,12 +191,17 @@ const original = computed(() => props.detail.original ?? [])
 
         <details v-if="original.length" class="fdt__original" data-original>
             <summary class="fdt__original-toggle">Originaltext anzeigen</summary>
-            <p class="small muted fdt__original-lede">So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.</p>
-            <ul class="fdt__list fdt__list--note">
-                <li v-for="item in original" :key="item.text">
-                    {{ item.text }}<span v-if="item.page" class="fdt__page"> (Seite {{ item.page }})</span>
-                </li>
-            </ul>
+            <p class="small muted fdt__original-lede">
+                So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.<template v-if="originalBySize"> Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.</template>
+            </p>
+            <template v-for="group in originalGroups" :key="group.key">
+                <p v-if="group.label" class="fdt__for">{{ group.label }}</p>
+                <ul class="fdt__list fdt__list--note">
+                    <li v-for="item in group.items" :key="item.text">
+                        {{ item.text }}<span v-if="item.page" class="fdt__page"> (Seite {{ item.page }})</span>
+                    </li>
+                </ul>
+            </template>
         </details>
     </section>
 </template>

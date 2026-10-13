@@ -221,7 +221,9 @@ test.describe('Startseite/Mobile', () => {
         const tiles = await page.locator('#h5 .tile').count()
         expect(tiles).toBeGreaterThan(0)
         expect(await page.locator('#h5 .tile .verdict').count()).toBe(tiles)
-        await expect(page.locator('#h5 h2')).toContainText('Passend für BMW')
+        // One shelf under one heading since the client's #5 — what has sold, or before a sale what is new; the car
+        // changes the verdicts on its tiles, not its name („Passend für BMW“ went with the tabs).
+        await expect(page.locator('#h5 h2')).toHaveText(/^(Meistgekaufte Felgen|Neu im Shop)$/)
     })
 
     test('size shelf and brand grid lead into the listing', async ({ page }) => {
@@ -333,12 +335,14 @@ test.describe('Startseite/Mobile', () => {
         expect(Math.round(box?.width ?? 0)).toBeLessThanOrEqual(240)
         expect(Math.round(box?.width ?? 0)).toBe(Math.round(box?.height ?? 0))
         /*
-         * A cut-out, never a lifestyle photograph — the band sells Kompletträder, so it shows one:
-         * a rim with a tyre on it, drawn, on the band's own ground. The check is that it is one of
-         * the shop's own cut-outs and that it carries a German alt text; which cut-out is a design
-         * decision, and naming one file here only breaks the test when that decision is revisited.
+         * A cut-out, never a lifestyle photograph — the band sells Kompletträder, so it shows a wheel on
+         * the band's own ground. Since the client's #9 that is a wheel one can buy: the cut-out
+         * photograph of a published product, from the shop's own storage; while no wheel with a
+         * photograph is on sale it is the drawn one. The check is that it is one of the two and that it
+         * carries a German alt text; which wheel is the catalogue's decision, and naming one file here
+         * only breaks the test when that changes.
          */
-        await expect(wheel.locator('img')).toHaveAttribute('src', /^\/images\/(komplettrad-illustration|hero-wheel)\//)
+        await expect(wheel.locator('img')).toHaveAttribute('src', /^\/(images\/(komplettrad-illustration|hero-wheel)|storage\/(demo\/)?wheels)\//)
         await expect(wheel.locator('img')).toHaveAttribute('alt', /\S/)
     })
 
@@ -485,8 +489,7 @@ test.describe('Startseite/Mobile', () => {
         await settle()
         await page.getByRole('tab', { name: 'Marke & Modell' }).click()
         await settle()
-        await page.locator('#h5').getByRole('tab', { name: 'Neu' }).click()
-        await settle()
+        // (The shelf's „Neu“ tab was pressed here until the client's #5 made it one shelf without tabs.)
         await page.locator('#h11 .accordion__trigger').first().scrollIntoViewIfNeeded()
         await settle()
         await page.locator('#h11 .accordion__trigger').first().click()

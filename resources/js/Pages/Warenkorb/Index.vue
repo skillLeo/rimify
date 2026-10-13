@@ -31,6 +31,7 @@ import { computed, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
+import { LINE_ROOM, countedDe, fitsWhole } from '../../fitment/auflagen'
 import { papersLines } from '../../fitment/papers'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import { useBasket } from '../../composables/useBasket'
@@ -183,20 +184,25 @@ const VERDICT_TONE: Record<string, string> = {
                                 <!-- The papers, as the product page says them: per size where the sizes differ, a Komplettrad's tyre's. -->
                                 <p v-for="sentence in papersLines(line.verdict)" :key="sentence" class="bl__entry">{{ sentence }}</p>
 
-                                <!-- Auflagen in full, never a badge on its own — each tyre size's with that size, a Komplettrad's for its tyre. -->
-                                <ConditionGroups
-                                    v-if="line.verdict && line.verdict.conditionGroups && line.verdict.conditions.length"
-                                    class="bl__groups"
-                                    :groups="line.verdict.conditionGroups"
-                                />
-                                <ul
-                                    v-else-if="line.verdict && line.verdict.conditions.length"
-                                    class="bl__conditions"
+                                <!-- Auflagen in full, never a badge on its own — each tyre size's with that size, a Komplettrad's
+                                     for its tyre. Where they are a Gutachten's paragraphs they unfold in place (D-197): the
+                                     badge and the papers' line above stay in sight, and „Zur Kasse“ stays within reach. -->
+                                <component
+                                    :is="fitsWhole(line.verdict.conditions, LINE_ROOM) ? 'div' : 'details'"
+                                    v-if="line.verdict && line.verdict.conditions.length"
+                                    class="bl__auflagen"
+                                    data-auflagen
                                 >
-                                    <li v-for="condition in line.verdict.conditions" :key="condition">
-                                        {{ condition }}
-                                    </li>
-                                </ul>
+                                    <summary v-if="!fitsWhole(line.verdict.conditions, LINE_ROOM)" class="bl__auflagen-toggle">
+                                        {{ countedDe(line.verdict.conditions.length, line.verdict.notesOnly === true) }} anzeigen
+                                    </summary>
+                                    <ConditionGroups v-if="line.verdict.conditionGroups" class="bl__groups" :groups="line.verdict.conditionGroups" />
+                                    <ul v-else class="bl__conditions">
+                                        <li v-for="condition in line.verdict.conditions" :key="condition">
+                                            {{ condition }}
+                                        </li>
+                                    </ul>
+                                </component>
 
                                 <!-- Marked, not dropped: say what changed and offer both ways out. -->
                                 <div
@@ -544,6 +550,33 @@ const VERDICT_TONE: Record<string, string> = {
 .bl__groups {
     margin-top: var(--space-2);
     font-size: var(--text-small);
+}
+
+/* A Gutachten's paragraphs, folded: the product page's own disclosure („So haben wir gerechnet“), in the same blue. */
+details.bl__auflagen {
+    margin-top: var(--space-2);
+}
+
+.bl__auflagen-toggle {
+    cursor: pointer;
+    font-size: var(--text-small);
+    color: var(--c-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.bl__auflagen-toggle:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
+}
+
+/* Under a finger the toggle is a 44 px row, as every other control. */
+@media (pointer: coarse) {
+    .bl__auflagen-toggle {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+    }
 }
 
 .bl__conditions {

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '../fixtures'
-import { SHOP } from '../shop'
+import { EMPTY_SHOP, SHOP } from '../shop'
 import { ABNAHME, box, consent, isPhone, open, shot } from './support'
 
 /*
@@ -81,7 +81,7 @@ test('without a car the hero\'s button waits in pale blue, focusable, says why, 
 test('the hero is no link, has no price, keeps its measurements — and stands whole with the shop empty', { tag: '@kunde-04' }, async ({ page }, info) => {
     const phone = isPhone(info)
 
-    for (const base of [ABNAHME, 'http://127.0.0.1:8012']) {
+    for (const base of [ABNAHME, EMPTY_SHOP]) {
         await open(page, `${base}/`)
         const hero = page.locator(phone ? '.hero-mobile' : '#h2 .hero__stage').first()
 
@@ -124,6 +124,9 @@ const STORY_SIZES = [
 ]
 
 test('the highlight lies on the BMW row at every width and height of the matrix', { tag: '@kunde-06' }, async ({ page }, info) => {
+    // Seven windows, each a page of its own.
+    test.setTimeout(420_000)
+
     const sizes = isPhone(info) ? [{ width: 390, height: 844 }, { width: 360, height: 640 }] : STORY_SIZES
 
     for (const size of sizes) {
@@ -253,11 +256,28 @@ test('judgement: the bands alternate a pale surface with white, not every sectio
         }
     })
 
-    // The one pale token and white, alternating: some bands tinted, some white — never every section.
+    // The one pale token and white, alternating: some bands tinted, some white — never every section. A white band paints
+    // nothing of its own: it shows the page's white ground through a transparent background.
     const tinted = tones.sections.filter((c) => c === tones.band).length
+    const white = tones.sections.filter((c) => c === tones.white || c === 'rgba(0, 0, 0, 0)').length
     expect(tinted, 'no band carries the pale surface').toBeGreaterThan(0)
     expect(tinted, 'every section is tinted').toBeLessThan(tones.sections.length)
-    expect(tones.sections.filter((c) => c === tones.white).length, 'no white section between the bands').toBeGreaterThan(0)
+    expect(white, 'no white section between the bands').toBeGreaterThan(0)
+
+    // The whole page as a visitor who has scrolled through it sees it. A full-page capture of a page that was never
+    // scrolled leaves the sections below the fold blank (they render when they come near, `content-visibility: auto`) —
+    // the first pair of phone pictures showed white where the bands are. `cv-off` is the page's own switch for that.
+    await page.evaluate(async () => {
+        document.documentElement.classList.add('cv-off')
+
+        for (let y = 0; y < document.documentElement.scrollHeight; y += Math.round(window.innerHeight * 0.8)) {
+            window.scrollTo(0, y)
+            await new Promise((done) => setTimeout(done, 120))
+        }
+
+        window.scrollTo(0, 0)
+        await new Promise((done) => setTimeout(done, 300))
+    })
 
     // After: the page as it is.
     await shot(page, 32, info, { fullPage: true })

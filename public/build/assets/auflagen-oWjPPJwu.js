@@ -1,0 +1,1 @@
+var e={sentences:2,characters:160},t={sentences:3,characters:420};function n(e,t){return e.length<=t.sentences&&e.join(` `).length<=t.characters}function r(e,t=!1){return t?e===1?`1 Hinweis aus dem Gutachten`:`${e} Hinweise aus dem Gutachten`:e===1?`1 Auflage oder Hinweis aus dem Gutachten`:`${e} Auflagen und Hinweise aus dem Gutachten`}export{n as i,t as n,r,e as t};

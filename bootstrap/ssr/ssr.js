@@ -14835,10 +14835,9 @@ var require_source_map_generator = /* @__PURE__ */ __commonJSMin(((exports) => {
 			next = "";
 			if (mapping.generatedLine !== previousGeneratedLine) {
 				previousGeneratedColumn = 0;
-				while (mapping.generatedLine !== previousGeneratedLine) {
-					next += ";";
-					previousGeneratedLine++;
-				}
+				var lineDelta = mapping.generatedLine - previousGeneratedLine;
+				next += lineDelta === 1 ? ";" : ";".repeat(lineDelta);
+				previousGeneratedLine = mapping.generatedLine;
 			} else if (i > 0) {
 				if (!util.compareByGeneratedPositionsInflated(mapping, mappings[i - 1])) continue;
 				next += ",";
@@ -15019,6 +15018,14 @@ var require_quick_sort = /* @__PURE__ */ __commonJSMin(((exports) => {
 		let template = SortTemplate.toString();
 		return new Function(`return ${template}`)()(comparator);
 	}
+	var isEvalAllowed = (function() {
+		try {
+			new Function("return 0")();
+			return true;
+		} catch {
+			return false;
+		}
+	})();
 	/**
 	* Sort the given array in-place with the given comparator function.
 	*
@@ -15029,7 +15036,7 @@ var require_quick_sort = /* @__PURE__ */ __commonJSMin(((exports) => {
 	*/
 	var sortCache = /* @__PURE__ */ new WeakMap();
 	exports.quickSort = function(ary, comparator, start = 0) {
-		let doQuickSort = sortCache.get(comparator);
+		let doQuickSort = isEvalAllowed ? sortCache.get(comparator) : SortTemplate(comparator);
 		if (doQuickSort === void 0) {
 			doQuickSort = cloneSort(comparator);
 			sortCache.set(comparator, doQuickSort);
@@ -15045,6 +15052,7 @@ var require_source_map_consumer = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var ArraySet = require_array_set().ArraySet;
 	var base64VLQ = require_base64_vlq();
 	var quickSort = require_quick_sort().quickSort;
+	var MAX_SECTION_OFFSET_LINE = 1e7;
 	function SourceMapConsumer(aSourceMap, aSourceMapURL) {
 		var sourceMap = aSourceMap;
 		if (typeof aSourceMap === "string") sourceMap = util.parseSourceMapInput(aSourceMap);
@@ -15646,21 +15654,37 @@ var require_source_map_consumer = /* @__PURE__ */ __commonJSMin(((exports) => {
 			line: -1,
 			column: 0
 		};
+		var maxOffsetLine = 0;
 		this._sections = sections.map(function(s) {
 			if (s.url) throw new Error("Support for url field in sections not implemented.");
 			var offset = util.getArg(s, "offset");
 			var offsetLine = util.getArg(offset, "line");
 			var offsetColumn = util.getArg(offset, "column");
+			if (!isValidOffset(offsetLine) || !isValidOffset(offsetColumn)) throw new Error("Section offset line and column must be non-negative integers.");
+			if (offsetLine > MAX_SECTION_OFFSET_LINE) throw new Error("Section offset line must not exceed " + MAX_SECTION_OFFSET_LINE + ".");
 			if (offsetLine < lastOffset.line || offsetLine === lastOffset.line && offsetColumn < lastOffset.column) throw new Error("Section offsets must be ordered and non-overlapping.");
 			lastOffset = offset;
+			var consumer = new SourceMapConsumer(util.getArg(s, "map"), aSourceMapURL);
+			var totalOffsetLine = offsetLine + (consumer._maxOffsetLine || 0);
+			if (totalOffsetLine > MAX_SECTION_OFFSET_LINE) throw new Error("Section offset line must not exceed " + MAX_SECTION_OFFSET_LINE + ", including offsets of nested sections.");
+			if (totalOffsetLine > maxOffsetLine) maxOffsetLine = totalOffsetLine;
 			return {
 				generatedOffset: {
 					generatedLine: offsetLine + 1,
 					generatedColumn: offsetColumn + 1
 				},
-				consumer: new SourceMapConsumer(util.getArg(s, "map"), aSourceMapURL)
+				consumer
 			};
 		});
+		this._maxOffsetLine = maxOffsetLine;
+	}
+	/**
+	* Section offsets come from untrusted input and are used as line/column
+	* numbers, so only accept non-negative safe integers (rejects NaN, Infinity,
+	* strings, fractions, etc).
+	*/
+	function isValidOffset(aValue) {
+		return typeof aValue === "number" && aValue >= 0 && aValue <= 9007199254740991 && Math.floor(aValue) === aValue;
 	}
 	IndexedSourceMapConsumer.prototype = Object.create(SourceMapConsumer.prototype);
 	IndexedSourceMapConsumer.prototype.constructor = SourceMapConsumer;
@@ -15673,7 +15697,10 @@ var require_source_map_consumer = /* @__PURE__ */ __commonJSMin(((exports) => {
 	*/
 	Object.defineProperty(IndexedSourceMapConsumer.prototype, "sources", { get: function() {
 		var sources = [];
-		for (var i = 0; i < this._sections.length; i++) for (var j = 0; j < this._sections[i].consumer.sources.length; j++) sources.push(this._sections[i].consumer.sources[j]);
+		for (var i = 0; i < this._sections.length; i++) {
+			var sectionSources = this._sections[i].consumer.sources;
+			for (var j = 0; j < sectionSources.length; j++) sources.push(sectionSources[j]);
+		}
 		return sources;
 	} });
 	/**
@@ -15880,6 +15907,10 @@ var require_source_node = /* @__PURE__ */ __commonJSMin(((exports) => {
 				}
 			}
 			while (lastGeneratedLine < mapping.generatedLine) {
+				if (remainingLinesIndex >= remainingLines.length) {
+					lastGeneratedLine = mapping.generatedLine;
+					break;
+				}
 				node.add(shiftNextLine());
 				lastGeneratedLine++;
 			}
@@ -40229,7 +40260,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Admin/Benutzer/Index.vue": () => import("./assets/Index-BcTl5kEM.js"),
 		"./Pages/Admin/Bestaetigen/Index.vue": () => import("./assets/Index-BanuR3Sz.js"),
 		"./Pages/Admin/Bestellungen/FilterFields.vue": () => import("./assets/FilterFields-DAAZfKEH.js").then((n) => n.n),
-		"./Pages/Admin/Bestellungen/Index.vue": () => import("./assets/Index-BHgET0gw.js"),
+		"./Pages/Admin/Bestellungen/Index.vue": () => import("./assets/Index-ClzViF6V.js"),
 		"./Pages/Admin/Bestellungen/Show.vue": () => import("./assets/Show-CNphnY7S.js"),
 		"./Pages/Admin/Bewertungen/Index.vue": () => import("./assets/Index--PCV9sPd.js"),
 		"./Pages/Admin/Einladung/Index.vue": () => import("./assets/Index-CxJGRKcT.js"),
@@ -40243,7 +40274,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Admin/Fehler/Index.vue": () => import("./assets/Index-CJWI33gR.js"),
 		"./Pages/Admin/Felgen/Edit.vue": () => import("./assets/Edit-dcsPW-J4.js"),
 		"./Pages/Admin/Felgen/FinishPhotos.vue": () => import("./assets/FinishPhotos-gBnevFJR.js").then((n) => n.n),
-		"./Pages/Admin/Felgen/Index.vue": () => import("./assets/Index-CSmbXOCC.js"),
+		"./Pages/Admin/Felgen/Index.vue": () => import("./assets/Index-DfcOFMLi.js"),
 		"./Pages/Admin/Felgen/MatrixPanel.vue": () => import("./assets/MatrixPanel-DRA8wfwU.js").then((n) => n.n),
 		"./Pages/Admin/Felgen/SizesTable.vue": () => import("./assets/SizesTable-D6YZfqNw.js").then((n) => n.n),
 		"./Pages/Admin/Gutachten/Auflagenverzeichnis.vue": () => import("./assets/Auflagenverzeichnis--tiaMghM.js").then((n) => n.n),
@@ -40287,12 +40318,12 @@ var render = (page) => createInertiaApp({
 		"./Pages/Admin/Wuchtgewichte/Index.vue": () => import("./assets/Index-DGPKMpeT.js"),
 		"./Pages/Bestellung/Index.vue": () => import("./assets/Index-dUroo6ej.js"),
 		"./Pages/Bewertung/Index.vue": () => import("./assets/Index-bI1xaB8r.js"),
-		"./Pages/Check/Index.vue": () => import("./assets/Index-BXB6gbrN.js"),
+		"./Pages/Check/Index.vue": () => import("./assets/Index-ur07OVV4.js"),
 		"./Pages/CheckErgebnis/Index.vue": () => import("./assets/Index-00vd6SBO.js"),
-		"./Pages/Design/Index.vue": () => import("./assets/Index-CPCJdMJs.js"),
+		"./Pages/Design/Index.vue": () => import("./assets/Index-CDEDQMr5.js"),
 		"./Pages/Faq/Index.vue": () => import("./assets/Index-lFlcZjB3.js"),
 		"./Pages/Fehler/Index.vue": () => import("./assets/Index-WuDp7YmA.js"),
-		"./Pages/Felgen/Index.vue": () => import("./assets/Index-DrRi5hzz.js"),
+		"./Pages/Felgen/Index.vue": () => import("./assets/Index-390DRklw.js"),
 		"./Pages/FelgenSuchen/Index.vue": () => import("./assets/Index-DgeZoQ7t.js"),
 		"./Pages/Felgenrechner/Desktop.vue": () => import("./assets/Desktop-CR5dJa_7.js"),
 		"./Pages/Felgenrechner/Mobile.vue": () => import("./assets/Mobile-BmrG3ZdI.js"),
@@ -40303,15 +40334,15 @@ var render = (page) => createInertiaApp({
 		"./Pages/Konto/Index.vue": () => import("./assets/Index-Cj2xVA4q.js"),
 		"./Pages/Konto/Passwort.vue": () => import("./assets/Passwort-DviTQbkJ.js"),
 		"./Pages/Konto/Vergessen.vue": () => import("./assets/Vergessen-Bc99a1tH.js"),
-		"./Pages/Produkt/Index.vue": () => import("./assets/Index-DRNDITH5.js"),
+		"./Pages/Produkt/Index.vue": () => import("./assets/Index-cndXIIpT.js"),
 		"./Pages/Ratgeber/Desktop.vue": () => import("./assets/Desktop-v4cFXtPP.js"),
 		"./Pages/Rechtliches/Index.vue": () => import("./assets/Index-CBf8Bdr5.js"),
 		"./Pages/Rechtliches/Widerrufsformular.vue": () => import("./assets/Widerrufsformular-MAYdRpd_.js"),
-		"./Pages/Startseite/Desktop.vue": () => import("./assets/Desktop-BYMeGTUB.js"),
-		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-C5GG4e0P.js"),
+		"./Pages/Startseite/Desktop.vue": () => import("./assets/Desktop-Zv5UzFcZ.js"),
+		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-D4012hFt.js"),
 		"./Pages/Vergleich/Desktop.vue": () => import("./assets/Desktop-A5_6BD7i.js"),
 		"./Pages/Vergleich/Mobile.vue": () => import("./assets/Mobile-BxHsWxYq.js"),
-		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-CcITNfUq.js")
+		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index--bbL630r.js")
 	})),
 	setup({ App, props, plugin }) {
 		return (0, vue_exports.createSSRApp)({ render: () => root(App, props) }).use(plugin).use(createPinia());

@@ -51,6 +51,37 @@ it('pins with a string as a .env line carries it, or null for the config default
     }
 });
 
+it('runs only on the committed list: its fingerprint stands beside it, and a list a tool left changed is refused', function (): void {
+    // The list in the repository is the one its fingerprint names.
+    expect(PinnedEnvironment::changedPins(pinnedRoot()))->toBeNull();
+
+    // A copy with one pin flipped — what the look-back left behind when the machine went down mid-run.
+    $root = sys_get_temp_dir().'/rimify-pins-'.bin2hex(random_bytes(4));
+    mkdir($root.'/tests', 0777, true);
+    $list = (string) file_get_contents(pinnedRoot().'/tests/env.php');
+    file_put_contents($root.'/tests/env.php', preg_replace("/'RIMIFY_FEATURE_PARTNERS' => null,/", "'RIMIFY_FEATURE_PARTNERS' => 'true',", $list, 1, $flipped));
+    copy(pinnedRoot().'/'.PinnedEnvironment::FINGERPRINT, $root.'/'.PinnedEnvironment::FINGERPRINT);
+
+    try {
+        expect($flipped)->toBe(1)
+            ->and(PinnedEnvironment::changedPins($root))->toContain('is not the committed list')->toContain('git checkout -- tests/env.php')
+            ->and(fn () => PinnedEnvironment::apply(require $root.'/tests/env.php', $root))->toThrow(RuntimeException::class, 'is not the committed list');
+
+        // A checkout that writes CRLF is the same list.
+        file_put_contents($root.'/tests/env.php', str_replace("\n", "\r\n", str_replace("\r\n", "\n", $list)));
+        expect(PinnedEnvironment::changedPins($root))->toBeNull();
+
+        // No fingerprint, no run: nothing then says which list this is.
+        unlink($root.'/'.PinnedEnvironment::FINGERPRINT);
+        expect(PinnedEnvironment::changedPins($root))->toContain('is missing or empty');
+    } finally {
+        is_file($root.'/'.PinnedEnvironment::FINGERPRINT) && unlink($root.'/'.PinnedEnvironment::FINGERPRINT);
+        unlink($root.'/tests/env.php');
+        rmdir($root.'/tests');
+        rmdir($root);
+    }
+});
+
 it('refuses a run while the shell sets a variable the application reads that the list does not name', function (): void {
     $read = ['RIMIFY_NEW_FLAG' => ['config/rimify.php'], 'APP_ENV' => ['config/app.php']];
     $pins = ['APP_ENV' => 'testing'];

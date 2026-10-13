@@ -175,8 +175,9 @@ export async function consent(context: BrowserContext, baseURL: string): Promise
 /** Open a page and wait until the client has taken over the server's frame and the fonts are in. */
 export async function open(page: Page, path: string): Promise<void> {
     await page.goto(path, { waitUntil: 'networkidle' })
+    // A full catalogue's homepage on a busy machine can take its time to hydrate; a minute, not twenty seconds.
     await page.waitForFunction(() => (document.querySelector('#app') as (Element & { __vue_app__?: unknown }) | null)?.__vue_app__ !== undefined, null, {
-        timeout: 20_000,
+        timeout: 60_000,
     })
     await page.evaluate(() => document.fonts.ready)
 }

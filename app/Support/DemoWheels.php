@@ -70,6 +70,7 @@ final class DemoWheels
      *     colour?: string,
      *     anchors?: array<string, list<int>>,
      *     stamp?: string,
+     *     facts?: array<string, int|float>,
      *     credit: array{source: string, photographer: string, licence: string, url: string}
      * }>
      */

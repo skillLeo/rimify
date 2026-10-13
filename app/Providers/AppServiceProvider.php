@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Http\RateLimits\ShopRateLimits;
 use App\Listeners\DropSuppressedRecipients;
 use App\Listeners\FailedJobAlert;
+use App\Mail\LiteralMarkdown;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
 use App\Services\Mail\MailSettings;
@@ -19,6 +20,7 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\MailManager;
+use Illuminate\Mail\Markdown;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
@@ -65,6 +67,14 @@ class AppServiceProvider extends ServiceProvider
         // Server-side rendering with short, bounded waits: a slow or stopped renderer costs a page
         // half a second at most, never the HTTP client's 10 + 30 seconds (BoundedSsrGateway).
         $this->app->singleton(HttpGateway::class, BoundedSsrGateway::class);
+
+        // Every mail prints what it is given literally: a visitor's words and a Gutachten's sentences are text, never
+        // Markdown (LiteralMarkdown). The framework's renderer, with its own settings, in our class.
+        $this->app->extend(Markdown::class, static fn (Markdown $markdown, Application $app): Markdown => new LiteralMarkdown($app->make('view'), [
+            'theme' => $app->make('config')->get('mail.markdown.theme', 'default'),
+            'paths' => $app->make('config')->get('mail.markdown.paths', []),
+            'extensions' => $app->make('config')->get('mail.markdown.extensions', []),
+        ]));
     }
 
     /**

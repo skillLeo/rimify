@@ -35,10 +35,14 @@ class ContactRequest extends FormRequest
 
     public const NO_TICKET = 'Das Formular ist abgelaufen. Bitte lade die Seite neu und schick deine Nachricht noch einmal ab.';
 
-    /** The ticket a form is handed out with: when it was, sealed with the app's key. */
-    public static function ticket(?int $issuedAt = null): string
+    /**
+     * The ticket a form is handed out with: when it was, sealed with the app's key — to the millisecond, so MIN_SECONDS
+     * is what it says. In whole seconds a form handed out at x,9 s and sent at x+3,0 s counted as three seconds old
+     * after 2,1. (A ticket of that older kind, on a page left open over a release, reads as long ago: it is.)
+     */
+    public static function ticket(?int $issuedAtMs = null): string
     {
-        return Crypt::encryptString((string) ($issuedAt ?? now()->getTimestamp()));
+        return Crypt::encryptString((string) ($issuedAtMs ?? now()->getTimestampMs()));
     }
 
     public function authorize(): bool
@@ -80,14 +84,14 @@ class ContactRequest extends FormRequest
 
                 if ($issuedAt === null) {
                     $validator->errors()->add('ticket', self::NO_TICKET);
-                } elseif (now()->getTimestamp() - $issuedAt < self::MIN_SECONDS) {
+                } elseif (now()->getTimestampMs() - $issuedAt < self::MIN_SECONDS * 1000) {
                     $validator->errors()->add('ticket', self::TOO_FAST);
                 }
             },
         ];
     }
 
-    /** When the form was handed out, from its ticket; null for none, or for one this app did not seal. */
+    /** When the form was handed out, in milliseconds, from its ticket; null for none, or for one this app did not seal. */
     private function issuedAt(): ?int
     {
         $ticket = $this->input('ticket');

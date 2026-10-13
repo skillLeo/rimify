@@ -32,6 +32,20 @@ final class PinnedEnvironment
         'TEST_DB_PASSWORD' => 'DB_PASSWORD',
     ];
 
+    /**
+     * The committed list's fingerprint: the SHA-256 of tests/env.php, line ends as LF, in a file beside it. The list is
+     * the one file whose job is to make the suite honest, and a tool that rewrites it — the look-back flips a pin, runs,
+     * and puts it back — can die in between: the machine went down mid-flip once, and the next run there would have read
+     * a poisoned pin and reported green. A run on a list that is not the committed one is refused (changedPins()).
+     */
+    public const FINGERPRINT = 'tests/env.sha256';
+
+    /**
+     * Said by the one run that changes pins on purpose, the look-back (D-180) — `TEST_LOOKBACK=1` — and by nothing else:
+     * with it the fingerprint is not asked for. A name the application never reads, as the TEST_DB_* are.
+     */
+    public const LOOKBACK = 'TEST_LOOKBACK';
+
     /** Files that replace what the pins decide: a cached config skips the environment altogether. */
     public const CACHES = ['bootstrap/cache/config.php', 'bootstrap/cache/routes-v7.php', 'bootstrap/cache/events.php'];
 
@@ -202,6 +216,32 @@ final class PinnedEnvironment
         return array_values(array_filter(self::CACHES, static fn (string $file): bool => is_file($root.'/'.$file)));
     }
 
+    /** A file's fingerprint: SHA-256 with line ends as LF, so a checkout that writes CRLF reads the same. */
+    public static function fingerprint(string $file): string
+    {
+        return hash('sha256', str_replace("\r\n", "\n", (string) file_get_contents($file)));
+    }
+
+    /**
+     * Why the run is refused when the list under $root is not the committed one — null when it is. A missing fingerprint
+     * is refused too: nothing then says which list this is.
+     */
+    public static function changedPins(string $root): ?string
+    {
+        $recorded = is_file($root.'/'.self::FINGERPRINT) ? trim((string) file_get_contents($root.'/'.self::FINGERPRINT)) : '';
+        $actual = self::fingerprint($root.'/tests/env.php');
+
+        if ($recorded === $actual) {
+            return null;
+        }
+
+        return 'tests/env.php is not the committed list: its fingerprint is '.$actual.', '.self::FINGERPRINT.' '
+            .($recorded === '' ? 'is missing or empty' : 'says '.$recorded).'. A run on other pins reports on another '
+            .'environment and can read green where the suite is red (D-180). If a tool left the file changed, restore it '
+            .'(`git checkout -- tests/env.php`); if the list was changed on purpose, write the new fingerprint into '
+            .self::FINGERPRINT.'. Only the look-back runs on changed pins, and says so with '.self::LOOKBACK.'=1.';
+    }
+
     /**
      * apply(), once per process: a parallel run's main process reaches it through Tests\CreatesApplication once per
      * worker and again through tests/bootstrap.php, and the scan behind the refusal costs a moment each time.
@@ -219,7 +259,8 @@ final class PinnedEnvironment
     }
 
     /**
-     * Refuses a cached config, an unpinned variable or a DB_* from the shell, then writes every pin where Laravel reads
+     * Refuses a cached config, a list that is not the committed one, an unpinned variable or a DB_* from the shell, then
+     * writes every pin where Laravel reads
      * it ($_SERVER first, $_ENV, the process environment) and removes every null from all three.
      *
      * @param  array<string, string|null>  $pins
@@ -237,6 +278,15 @@ final class PinnedEnvironment
 
         /** @var array<string, string> $ambient */
         $ambient = getenv();
+
+        if (self::lookup($ambient, self::LOOKBACK) !== '1') {
+            $changed = self::changedPins($root);
+
+            if ($changed !== null) {
+                throw new RuntimeException($changed);
+            }
+        }
+
         $unpinned = self::refusal($ambient, $pins, self::readKeys($root));
 
         if ($unpinned !== []) {

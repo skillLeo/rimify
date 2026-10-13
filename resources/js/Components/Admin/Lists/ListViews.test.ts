@@ -87,6 +87,30 @@ beforeEach(() => {
 })
 
 describe('ListViews', () => {
+    // SV-02a: revealed once at the mount, a view far along the row lost its menu again when the font came in later.
+    it('brings the open view into sight when it mounts, and again once the web font is in and the widths are final', async () => {
+        const reveal = vi.fn()
+        const before = Element.prototype.scrollIntoView
+        let fontsIn: () => void = () => {}
+
+        Element.prototype.scrollIntoView = reveal
+        Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: new Promise<void>((resolve) => (fontsIn = resolve)) } })
+
+        try {
+            mountBar(views({ active: 1 }), { status: 'bezahlt' })
+            expect(reveal).toHaveBeenCalledTimes(1)
+
+            fontsIn()
+            await new Promise((resolve) => setTimeout(resolve, 0))
+            expect(reveal).toHaveBeenCalledTimes(2)
+            // The item with its menu, not the link alone.
+            expect((reveal.mock.contexts.at(-1) as HTMLElement).classList.contains('lv__item')).toBe(true)
+        } finally {
+            Element.prototype.scrollIntoView = before
+            Reflect.deleteProperty(document, 'fonts')
+        }
+    })
+
     it('marks where one is: the whole list with nothing filtered, else the open view', () => {
         const plain = mountBar(views())
         expect(plain.findAll('[aria-current="page"]').map((a) => a.text())).toEqual(['Alle Bestellungen'])

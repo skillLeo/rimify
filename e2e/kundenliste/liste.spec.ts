@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '../fixtures'
 import { SHOP } from '../shop'
-import { ABNAHME, CARS, box, consent, isPhone, open, shot, withCar } from './support'
+import { ABNAHME, CARS, box, consent, isPhone, onSize, open, shot, shotAround, withCar } from './support'
 
 /*
  * The client's list on the listing: the car in the address (#8, with #27's filters), the compare control beside the
@@ -62,8 +62,32 @@ test('the car is in the address: a clean window, no JavaScript and back/forward 
     await expect(page.locator('body')).toContainText('320i Limousine (Demo)')
     await expect(page).toHaveURL(new RegExp(`fahrzeug=${CARS.e46.key}`))
 
+    // The picture: the E46's listing as its address opens it — the car named in the bar, its answers on the cards.
     await withCar(page, 'e46')
-    await shot(page.locator('main .tile').first(), 8, info)
+    await shot(page, 8, info)
+})
+
+test('a card stays a card with a real Gutachten\'s wording: its Auflagen are counted, their text one press away, never cut', { tag: '@kunde-22' }, async ({ page }) => {
+    // The E46 at 19 Zoll carries paragraphs — one of them the whole table of 27 tyre pairings. Printed on the card, a
+    // card stood 2.500 px tall (found in this suite's own picture of #8, 13.10.2026).
+    await withCar(page, 'e46')
+
+    const view = page.viewportSize() ?? { width: 0, height: 0 }
+
+    for (const tile of await page.locator('main .tile').all()) {
+        await expect(tile.locator('.verdict').first()).toContainText('Mit Auflagen')
+        await expect(tile.locator('[data-conditions="counted"]')).toHaveText(/^\d+ Auflagen und Hinweise aus dem Gutachten – im Wortlaut auf der Produktseite\.$/)
+        // No sentence cut short, and none of the long ones on the card.
+        await expect(tile).not.toContainText('Reifenkombinationen')
+        expect((await box(tile)).height, 'the card is taller than the window').toBeLessThanOrEqual(view.height)
+    }
+
+    // One press away: the product page prints every one of them, for the size they belong to.
+    await page.locator('main .tile a').first().click()
+    await page.waitForURL(/\/felgen\/borbet-db8gt2/)
+    await page.waitForLoadState('networkidle')
+    await onSize(page, 19, 'Schwarz matt')
+    await expect(page.locator('#auflagen')).toContainText('Reifenkombinationen')
 })
 
 test('a size or a brand chosen first stays chosen when the car is chosen after it', { tag: '@kunde-27' }, async ({ page, context }, info) => {
@@ -94,6 +118,9 @@ test('without a car every filter works, no tile carries a verdict, and one sente
 
     await expect(page.locator('main .verdict')).toHaveCount(0)
     await expect(page.locator('.plp__notice')).toContainText('Wähle dein Fahrzeug, um nur Felgen zu sehen, die dafür freigegeben sind.')
+    // The acceptance set is sold with the test payment: the listing says so, as its product page does — never „noch nicht“.
+    await expect(page.locator('main')).toContainText('bestellen geht hier nur mit der Testzahlung')
+    await expect(page.locator('main')).not.toContainText('bestellen kannst du noch nicht')
 
     const before = await page.locator('main .tile').count()
     await open(page, '/felgen?zoll=18')
@@ -102,7 +129,8 @@ test('without a car every filter works, no tile carries a verdict, and one sente
     expect(after).toBeLessThanOrEqual(before)
     await expect(page.locator('main .verdict')).toHaveCount(0)
 
-    await shot(page.locator(isPhone(info) ? '.plp__bar' : '.plp__layout').first(), 30, info)
+    // The whole of it in one picture: the sentence that says why, the filter chosen, and the tiles it leaves — no verdict.
+    await shotAround(page, [page.locator('.plp__notice'), isPhone(info) ? page.locator('main .tile').first() : page.locator('.plp__layout')], 30, info)
 })
 
 /** Every filter group with its options and counts, as the panel shows them: `Durchmesser (Zoll) · 19 · 30`. */

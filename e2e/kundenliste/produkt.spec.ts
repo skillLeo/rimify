@@ -276,8 +276,18 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await expect(summary).toContainText(/196,00\s€/)
     await expect(summary).toContainText('MwSt')
 
-    // The picture: the Komplettrad's own lines and the order's sensor line, without the Auflagen between them.
-    await shotAround(page, [line.locator('.bl__parts'), summary], 15, info)
+    // The Gutachten's paragraphs are folded behind one line (D-197): the verdict and the papers' line stay in sight, the
+    // wording opens in place, and „Zur Kasse“ stays within reach — printed whole, this basket was 9.900 px on a phone.
+    const auflagen = line.locator('details[data-auflagen]')
+    await expect(auflagen.locator('summary')).toHaveText(/^\s*\d+ Auflagen und Hinweise aus dem Gutachten anzeigen\s*$/)
+    expect(await auflagen.getAttribute('open')).toBeNull()
+    await expect(line.locator('.bl__entry').first()).toBeVisible()
+    expect((await box(page.locator('.cart'))).height, 'the basket runs far past the window').toBeLessThan((page.viewportSize()?.height ?? 0) * 3)
+    await auflagen.locator('summary').click()
+    await expect(auflagen.locator('li').first()).toBeVisible()
+    await auflagen.locator('summary').click()
+
+    await shot(page.locator('.cart'), 15, info)
 
     // The rims alone: no Reifen, no Wuchtgewichte, no sensors.
     await context.clearCookies()
@@ -347,6 +357,30 @@ test('„Eintragung“ once, in the verdict — and the Gutachten\'s own wording
     await expect(original).toContainText('(Seite')
 
     await shot(page.locator('.pdp__fit'), 21, info)
+})
+
+test('the wording as printed keeps each tyre size\'s sentences under that size: fine-link chains and no chains never in one list', { tag: '@kunde-21' }, async ({ page }) => {
+    // The X3 at 19 Zoll: ABE 55255 allows fine-link chains with 235/45 and 245/40, none with 255/40 — by a code beside
+    // each size, which the page never shows. Found by the full suite (SWEEP-01) in the list of #21 as first built.
+    await withCar(page, 'x3', PRODUCT)
+    await onSize(page, 19, 'Schwarz matt')
+
+    const original = page.locator('details[data-original]')
+    await original.locator('summary').click()
+
+    const lists = await original.locator('ul').evaluateAll((uls) =>
+        uls.map((ul) => {
+            const before = ul.previousElementSibling
+            // \s takes the narrow and the non-breaking space with it: the sizes read as a visitor reads them.
+            const plain = (text: string | null | undefined): string => (text ?? '').replace(/\s+/g, ' ').trim()
+
+            return { label: before?.classList.contains('fdt__for') ? plain(before.textContent) : null, text: plain(ul.textContent) }
+        }),
+    )
+
+    expect(lists.filter((l) => l.text.includes('feingliedrige')).map((l) => l.label)).toEqual(['Nur bei 235/45 R19 und 245/40 R19'])
+    expect(lists.filter((l) => l.text.includes('Die Verwendung von Schneeketten ist nicht zulässig')).map((l) => l.label)).toEqual(['Nur bei 255/40 R19'])
+    await expect(original.locator('.fdt__original-lede')).toContainText('Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.')
 })
 
 test('no dead „Nur die Felgen bestellen“: where no Komplettrad can be offered, one sentence, a way on, and „Nur Felgen“ right above', { tag: '@kunde-25' }, async ({ page }, info) => {

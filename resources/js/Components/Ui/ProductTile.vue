@@ -7,7 +7,8 @@
  * above the stretched link, so a keyboard reaches the CTA and then the checkbox.
  *
  * With a vehicle chosen, the engine's verdict sits in the image corner, and a `CONDITIONAL`
- * verdict brings its Auflagen with it as sentences (R-15). Without a vehicle, no compatibility
+ * verdict brings its Auflagen with it as sentences (R-15) — or, where they are a Gutachten's
+ * paragraphs, their count and the way to their wording (D-197). Without a vehicle, no compatibility
  * claim is made at all. A size no document permits on the car is greyed and named as such for
  * assistive technology — never struck.
  *
@@ -23,6 +24,7 @@ import ValueText from './ValueText.vue'
 import VerdictBadge from './VerdictBadge.vue'
 import WheelOutline from './WheelOutline.vue'
 import { toast } from '../Chrome/toast'
+import { CARD_ROOM, countedDe, fitsWhole } from '../../fitment/auflagen'
 import { NNBSP, zoll } from '../../format'
 import { usePriceTerms } from '../../composables/usePriceTerms'
 import { formatMoney } from '../../lib/num'
@@ -88,6 +90,13 @@ const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: bo
         notesOnly: notes,
     }
 })
+
+/*
+ * The Auflagen in full while they are a line or two; counted where a real Gutachten's paragraphs would make the card
+ * taller than the screen (fitment/auflagen.ts, D-197) — the wording then stands on the product page, one press away.
+ */
+const conditionsWhole = computed(() => fitsWhole(verdict.value?.conditions ?? [], CARD_ROOM))
+const conditionsCounted = computed(() => `${countedDe(verdict.value?.conditions.length ?? 0)} – im Wortlaut auf der Produktseite.`)
 
 /* ── Sizes ──────────────────────────────────────────────────────────────────── */
 
@@ -189,9 +198,12 @@ function onCompareLabelClick(event: MouseEvent): void {
         <p class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
         <span class="tile__legal">{{ terms.note }}</span>
 
-        <ul v-if="verdict && verdict.conditions.length" class="tile__conditions">
-            <li v-for="condition in verdict.conditions" :key="condition">{{ condition }}</li>
-        </ul>
+        <template v-if="verdict && verdict.conditions.length">
+            <ul v-if="conditionsWhole" class="tile__conditions">
+                <li v-for="condition in verdict.conditions" :key="condition">{{ condition }}</li>
+            </ul>
+            <p v-else class="tile__vary" data-conditions="counted">{{ conditionsCounted }}</p>
+        </template>
         <!-- Never one blended list: what depends on the size is said per size on the product page. -->
         <p v-if="verdict && verdict.vary" class="tile__vary">Weitere Auflagen je nach Größe – auf der Produktseite.</p>
         <p v-if="verdict && verdict.notesOnly" class="tile__vary">Mit Hinweisen aus dem Gutachten – auf der Produktseite.</p>

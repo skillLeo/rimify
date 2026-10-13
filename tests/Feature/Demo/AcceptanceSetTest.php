@@ -18,6 +18,7 @@ use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia;
 
 /*
  * The acceptance set (`rimify:demo --abnahme`, the operator's brief „THE 34“ §1.3): the BORBET DB8GT2 on its two real
@@ -146,6 +147,25 @@ it('sells the set with the test payment off production, and never in production'
         expect($basket->refusalFor($request, $config, quantity: 4))->toBe(Basket::WHEEL_GONE)
             ->and(WheelModel::query()->onSale()->count())->toBe(0)
             ->and(Artisan::call('rimify:demo', ['--abnahme' => true]))->toBe(1);
+    } finally {
+        app()->detectEnvironment(static fn (): string => (string) $environment);
+    }
+});
+
+it('says on the listing what the product page says: demo data, ordered with the test payment — never „noch nicht“', function (): void {
+    seedAcceptanceSet();
+
+    $this->get('/felgen')->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('demo', true)->where('acceptance', true));
+
+    // In production the set is not on sale (the basket refuses it): the listing makes no such offer and says what the
+    // product page says there — demo data, not to be ordered.
+    $environment = app()->environment();
+    app()->detectEnvironment(static fn (): string => 'production');
+
+    try {
+        $this->get('/felgen')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('demo', true)->where('acceptance', false));
     } finally {
         app()->detectEnvironment(static fn (): string => (string) $environment);
     }

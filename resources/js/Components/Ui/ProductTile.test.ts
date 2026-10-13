@@ -199,6 +199,36 @@ describe('ProductTile', () => {
         expect(without.find('.verdict').exists()).toBe(false)
     })
 
+    /*
+     * D-197: a real Gutachten's Auflagen are paragraphs (ABE 55255's V19 names 27 pairings in one sentence). Printed whole,
+     * a card on the E46's listing stood 2.500 px tall. Counted there, the wording one press away — and never cut short.
+     */
+    it('counts the Auflagen where they are a Gutachten\'s paragraphs, and prints them where they are a line or two @kunde-22', () => {
+        const V19 = `Bei Verwendung verschiedener Reifengrößen an Vorder- und Hinterachse sind folgende Reifenkombinationen möglich: ${'Nr. 1: 215/35R19 – 245/30R19; '.repeat(12)}`
+        const long = mountTile({
+            vehicle,
+            card: card(1, { fitment: { status: 'CONDITIONAL', requiresEntry: true, conditions: ['Die Verwendung von Schneeketten ist nicht zulässig.', V19, 'Zur Befestigung der Räder dürfen nur die mitgelieferten Befestigungsmittel verwendet werden.'] } }),
+        })
+
+        expect(long.find('.tile__badge').text()).toBe('Mit Auflagen')
+        expect(long.find('.tile__conditions').exists()).toBe(false)
+        expect(long.find('[data-conditions="counted"]').text()).toBe('3 Auflagen und Hinweise aus dem Gutachten – im Wortlaut auf der Produktseite.')
+        // No sentence is cut: none of the long one stands on the card.
+        expect(long.text()).not.toContain('Reifenkombinationen')
+
+        // One long sentence is one Auflage, said as one.
+        const one = mountTile({ vehicle, card: card(2, { fitment: { status: 'CONDITIONAL', requiresEntry: false, conditions: [V19] } }) })
+        expect(one.find('[data-conditions="counted"]').text()).toBe('1 Auflage oder Hinweis aus dem Gutachten – im Wortlaut auf der Produktseite.')
+
+        // Two short ones stand in full, as before.
+        const short = mountTile({
+            vehicle,
+            card: card(3, { fitment: { status: 'CONDITIONAL', requiresEntry: true, conditions: ['Eintragung in die Fahrzeugpapiere erforderlich.', 'Bördeln der Radläufe erforderlich.'] } }),
+        })
+        expect(short.findAll('.tile__conditions li').map((li) => li.text())).toEqual(['Eintragung in die Fahrzeugpapiere erforderlich.', 'Bördeln der Radläufe erforderlich.'])
+        expect(short.find('[data-conditions="counted"]').exists()).toBe(false)
+    })
+
     // #23, D-104: every Auflage a Hinweis (decided on the server) — „Freigegeben“, one quiet line, no list of notes.
     it('says „Freigegeben“ with one quiet line where every Auflage is a Hinweis, and never where an entry is needed', () => {
         const notes = mountTile({

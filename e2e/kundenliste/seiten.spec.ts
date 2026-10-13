@@ -56,20 +56,38 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
     await expect(form.locator('#kon-leer')).toHaveAttribute('tabindex', '-1')
     expect(await page.locator('iframe, script[src*="captcha"], script[src*="turnstile"]').count()).toBe(0)
 
-    await form.locator('#kon-name').fill('Jana Beispiel')
-    await form.locator('#kon-email').fill('jana@example.com')
-    await form.locator('#kon-subject').fill('Frage zur DB8GT2')
-    await form.locator('#kon-message').fill('Passt die Felge auch mit Winterreifen auf mein Auto?')
+    const write = async (): Promise<void> => {
+        await form.locator('#kon-name').fill('Jana Beispiel')
+        await form.locator('#kon-email').fill('jana@example.com')
+        await form.locator('#kon-subject').fill('Frage zur DB8GT2')
+        await form.locator('#kon-message').fill('Passt die Felge auch mit Winterreifen auf mein Auto?')
+    }
 
+    await write()
     await shot(form, 12, info)
 
-    // Sent in the second after the page came: no person writes that fast — said, and the words stay.
-    const sent = await page.evaluate(() => performance.now())
-    if (sent < 2_500) {
+    // Sent in the moment after the page came: no person writes that fast — said, and the words stay. The page is asked
+    // for anew, so its ticket is fresh, and the send follows at once. The browser's clock starts before the server hands
+    // the form out, so it never reads less than the ticket's age: under 1,5 s here leaves the send as long again to
+    // arrive. A page that came slower is asked for once more — never passed over, or the refusal would go unshown.
+    let refused = false
+
+    for (let attempt = 0; attempt < 3 && !refused; attempt++) {
+        await page.reload({ waitUntil: 'domcontentloaded' })
+        await page.waitForFunction(() => (document.querySelector('#app') as (Element & { __vue_app__?: unknown }) | null)?.__vue_app__ !== undefined)
+        await write()
+
+        if ((await page.evaluate(() => performance.now())) > 1_500) {
+            continue
+        }
+
         await form.getByRole('button', { name: 'Nachricht senden' }).click()
         await expect(form.getByRole('alert')).toHaveText('Das ging zu schnell. Bitte schick deine Nachricht noch einmal ab.')
         await expect(form.locator('#kon-message')).toHaveValue('Passt die Felge auch mit Winterreifen auf mein Auto?')
+        refused = true
     }
+
+    expect(refused, 'the form never came within 1,5 s in three tries — the refusal of a quick send could not be shown').toBe(true)
 
     // A moment later the same form goes through, and is kept for the team.
     await page.waitForTimeout(3_200)
