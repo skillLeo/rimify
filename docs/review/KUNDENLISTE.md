@@ -1,6 +1,6 @@
 # Deine Änderungsliste – Stand der Umsetzung
 
-Erzeugt mit `npm run kundenliste` am 13.10.2026, 18:05 Uhr, geprüft auf dem Stand 11720fd5. Nichts darin ist von Hand als erledigt eingetragen: Ein Punkt ist **erledigt**, wenn sein Test besteht und die beiden Bilder zeigen, worum es geht.
+Erzeugt mit `npm run kundenliste` am 13.10.2026, 22:24 Uhr, geprüft auf dem Stand 6315105b. Nichts darin ist von Hand als erledigt eingetragen: Ein Punkt ist **erledigt**, wenn sein Test besteht und die beiden Bilder zeigen, worum es geht.
 
 **28 erledigt · 2 anders gelöst · 3 Urteil offen · 1 Rückfrage · 0 offen**
 

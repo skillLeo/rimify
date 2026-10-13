@@ -1,17 +1,19 @@
 import { chooseVehicleFromHome, expect, open, screenChecks, test } from './fixtures'
 
 test.describe('mobile shell', () => {
-    test('app bar is 56 px, sticky, and carries the wordmark, search, vehicle and menu', async ({ page }) => {
+    // 64 px since the client's #2 (one token, `--header-h`), and the basket beside the menu since his #13.
+    test('app bar is 64 px, sticky, and carries the wordmark, search, vehicle, basket and menu', async ({ page }) => {
         await open(page, '/')
 
         const bar = page.locator('header.mbar')
         await expect(bar).toBeVisible()
         const box = await bar.boundingBox()
-        expect(Math.round(box?.height ?? 0)).toBe(56)
+        expect(Math.round(box?.height ?? 0)).toBe(64)
 
         await expect(bar.getByRole('link', { name: 'RIMIFY – Startseite' })).toBeVisible()
         await expect(bar.getByRole('button', { name: 'Suche' })).toBeVisible()
         await expect(bar.getByRole('link', { name: 'Fahrzeug wählen' })).toBeVisible()
+        await expect(bar.getByRole('link', { name: 'Warenkorb' })).toBeVisible()
         await expect(bar.getByRole('button', { name: 'Menü' })).toBeVisible()
 
         // Mobile WebKit has no mouse wheel; the page scrolls the way a script would.
@@ -19,7 +21,7 @@ test.describe('mobile shell', () => {
         await page.waitForTimeout(300)
         const after = await bar.boundingBox()
         expect(Math.round(after?.y ?? -1)).toBe(0)
-        expect(Math.round(after?.height ?? 0)).toBe(56)
+        expect(Math.round(after?.height ?? 0)).toBe(64)
         await expect(bar).toHaveClass(/mbar--scrolled/)
     })
 
