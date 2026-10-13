@@ -15,6 +15,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ITEMS, STATES } from './items.mjs'
+import { DONE, INSTANCES, sheetRow, toCsv } from './sheet.mjs'
 
 const ROOT = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
 const OUT = join(ROOT, 'test-results', 'kundenliste-run')
@@ -178,6 +179,41 @@ const rows = ITEMS.map((item) => {
     return { item, tests, failed, shots, missing, state, result }
 })
 
+// Every result with the instance it came from (the operator's addendum of 13.10.2026). This run is always against our
+// own instance — the local acceptance shop; the preview's results are written by the acceptance run (`abnahme`), which
+// is the suite that may be pointed at the site the client looks at. The two are never merged: the table shows both, and
+// only the preview's can tick his sheet (sheet.mjs).
+const RESULTS = join(ROOT, 'docs', 'review', 'kundenliste')
+const resultFile = (instance) => join(RESULTS, `ergebnis-${instance}.json`)
+const readResult = (instance) => (existsSync(resultFile(instance)) ? JSON.parse(readFileSync(resultFile(instance), 'utf8')) : null)
+
+mkdirSync(RESULTS, { recursive: true })
+writeFileSync(
+    resultFile(INSTANCES.ours),
+    JSON.stringify(
+        {
+            instance: INSTANCES.ours,
+            where: 'unser lokaler Abnahme-Shop (127.0.0.1)',
+            commit,
+            at: new Date(started).toISOString(),
+            items: Object.fromEntries(rows.map((r) => [r.item.nr, { passed: r.missing.length === 0, tests: r.tests.length, failed: r.failed.length }])),
+        },
+        null,
+        2,
+    ) + '\n',
+)
+
+const preview = readResult(INSTANCES.preview)
+const day = (iso) => new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(iso))
+const onPreview = (nr) => {
+    const result = preview?.items?.[nr]
+
+    return result === undefined ? 'noch nicht geprüft' : result.passed ? `bestanden (${day(preview.at)})` : 'nicht bestanden'
+}
+
+const sheet = rows.map((r) => sheetRow(r.item, { passed: r.missing.length === 0 }, preview?.items?.[r.item.nr] ?? null))
+writeFileSync(join(ROOT, 'docs', 'review', 'KUNDENLISTE.csv'), toCsv(sheet))
+
 const count = (state) => rows.filter((r) => r.state === state).length
 const cell = (text) => String(text ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
 const frameworks = (tests) =>
@@ -193,20 +229,23 @@ const lines = [
     '',
     `**${count('erledigt')} erledigt · ${count('anders gelöst')} anders gelöst · ${count('Urteil offen')} Urteil offen · ${count('Rückfrage')} Rückfrage · ${count('offen')} offen**`,
     '',
+    `Geprüft wurde hier auf **unserer eigenen Instanz** (ein lokaler Shop mit dem Abnahme-Satz), nicht auf deiner Vorschau. Was auf der Vorschau geprüft ist, steht in der Spalte „Auf der Vorschau“${preview ? ` (Stand ${preview.commit}, ${day(preview.at)})` : ''} – erst das zählt für deine Liste: ${sheet.filter((r) => r.value === DONE).length} von 34.`,
+    '',
     'Die Status:',
     '',
     ...Object.entries(STATES).map(([state, meaning]) => `- **${state}** – ${meaning}`),
     '',
     'Die Bilder liegen unter `docs/qa/shots/kundenliste/`: je Punkt eines am Computer (1440 Pixel breit) und eines am Handy (390 Pixel).',
     '',
-    '| Nr. | Dein Wunsch | Was es jetzt tut | Stand | Test | Ergebnis | Bilder | Commit |',
-    '|---|---|---|---|---|---|---|---|',
+    '| Nr. | Dein Wunsch | Was es jetzt tut | Stand | Auf der Vorschau | Test | Ergebnis | Bilder | Commit |',
+    '|---|---|---|---|---|---|---|---|---|',
     ...rows.map(({ item, tests, shots, missing, state, result }) =>
         [
             item.nr,
             cell(item.wish),
             cell(item.now + (item.reason ? ` ${item.reason}` : '') + (missing.length > 0 ? ` **Offen: ${missing.join('; ')}.**` : '')),
             `**${state}**`,
+            onPreview(item.nr),
             frameworks(tests) || '–',
             result,
             ['1440', '390'].map((w) => (shots[w] ? `[${w}](../qa/shots/kundenliste/${shots[w].split('/').pop()})` : `${w}: –`)).join(' · '),
@@ -222,7 +261,8 @@ const notRun = ['pest', 'vitest', 'playwright'].filter((f) => !ran.has(f))
 const failedItems = rows.filter((r) => r.failed.length > 0).map((r) => r.item.nr)
 
 process.stdout.write(
-    `\nKUNDENLISTE.md: ${count('erledigt')} erledigt, ${count('anders gelöst')} anders gelöst, ${count('Urteil offen')} Urteil offen, ${count('Rückfrage')} Rückfrage, ${count('offen')} offen` +
+    `\nKUNDENLISTE.md (unsere Instanz): ${count('erledigt')} erledigt, ${count('anders gelöst')} anders gelöst, ${count('Urteil offen')} Urteil offen, ${count('Rückfrage')} Rückfrage, ${count('offen')} offen` +
+        `\nKUNDENLISTE.csv (zählt nur die Vorschau): ${sheet.filter((r) => r.value === DONE).length} × ${DONE}, ${sheet.filter((r) => r.value !== DONE).length} × Open` +
         (notRun.length ? ` · nicht gelaufen: ${notRun.join(', ')}` : '') +
         (failedItems.length ? ` · Tests rot bei Nr. ${failedItems.join(', ')}` : '') +
         '\n',
