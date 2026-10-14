@@ -55,7 +55,7 @@ function anchor(key: string): string {
     gap: var(--sp-12);
     /* Two lines — the car, then its key numbers — so the shell's two-line row, exactly: the figures
        column (count, bar, who waits) fits inside it. */
-    min-height: var(--adm-row-h-lg);
+    min-height: var(--dg-row-h, var(--adm-row-h-lg));
     padding: var(--sp-4) var(--adm-card-pad);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--adm-fs-table);

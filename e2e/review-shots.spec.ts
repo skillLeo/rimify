@@ -10,6 +10,10 @@ import { signIn, waitForApp } from './bugs/faq-support'
 const DIR = 'docs/qa/shots/m-review'
 
 test('the board, a point with its screenshot, and the list', async ({ page }, info) => {
+    // A walk of full-page shots: half a minute on a desktop, near the minute on a phone's 2,6× pixels — and over it on
+    // a busy machine (14.10.2026, 1,2 min). Its budget is its own; nothing in it measures time.
+    test.setTimeout(180_000)
+
     const width = info.project.name.includes('390') ? 390 : 1440
     const errors: string[] = []
 

@@ -35,8 +35,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ retry: [] }>()
 
-/** A lead line and five two-line rows of 56 px: the list's box, loaded or not. */
-const DEMAND_HEIGHT = 28 + 5 * 56
+/**
+ * A lead line and five rows: the list's box, loaded or not. A row is two lines — the car, its key numbers — and on a
+ * phone three, where a car's name may wrap (UEB-02, 14.10.2026: „Mercedes-Benz C-Klasse C 43 AMG“ grew the loaded list
+ * past its skeleton). The row's height is one variable, set below for the widget and read by DemandGaps' rows.
+ */
+const DEMAND_HEIGHT = 'calc(28px + 5 * var(--dg-row-h))'
 
 const FAILED = 'Diese Auswertung konnte nicht geladen werden. Die übrigen Zahlen der Übersicht sind davon nicht betroffen.'
 
@@ -95,7 +99,7 @@ const skeleton = computed<Matrix>(() => {
     <template v-if="keys.includes('demand')">
         <DashWidget
             v-if="!charts || !charts.demand"
-            class="dash__cell"
+            class="dash__cell demand-widget"
             :style="demandStyle"
             title="Nachfrage-Lücken"
             :body-height="DEMAND_HEIGHT"
@@ -105,7 +109,7 @@ const skeleton = computed<Matrix>(() => {
         />
         <DashWidget
             v-else
-            class="dash__cell"
+            class="dash__cell demand-widget"
             :style="demandStyle"
             title="Nachfrage-Lücken"
             :href="`/admin/nachfrage${periodQuery}`"
@@ -123,6 +127,17 @@ const skeleton = computed<Matrix>(() => {
 </template>
 
 <style scoped>
+/* Five rows the same height, loaded or not: two lines each, three on a phone (see DEMAND_HEIGHT). */
+.demand-widget {
+    --dg-row-h: var(--adm-row-h-lg);
+}
+
+@media (max-width: 480px) {
+    .demand-widget {
+        --dg-row-h: calc(var(--adm-row-h-lg) + var(--adm-lh-table));
+    }
+}
+
 .demand-lead {
     margin: 0 0 var(--sp-8);
     font-size: var(--fs-small);
