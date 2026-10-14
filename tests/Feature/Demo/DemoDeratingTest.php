@@ -49,7 +49,7 @@ it('answers a fast car honestly UNKNOWN on DEMO-0007, and definitely on a docume
     $verdict = $resolver->resolve((int) $without->vehicle_id, (int) $without->wheel_config_id);
 
     expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->tyre?->summary)->toStartWith('Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.');
+        ->and($verdict->tyre?->summary)->toStartWith('Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt.');
 
     $with = fastRowOf('DEMO-0001');
     $answered = $resolver->resolve((int) $with->vehicle_id, (int) $with->wheel_config_id);

@@ -81,6 +81,17 @@ const askAboutMaker = computed(() =>
     contactFormHref({ subject: `Herstellerangaben: ${props.product.brandName} ${props.product.modelName}`, from: page.url })
 )
 
+/*
+ * Finding 103: the tyres a customer wants checked by hand — the contact form with this wheel and size as the subject and
+ * this page as where they wrote from; the chosen car is ticked there by itself.
+ */
+const askAboutTyres = computed(() =>
+    contactFormHref({
+        subject: `Wunschreifen prüfen: ${props.product.brandName} ${props.product.modelName}${selected.value ? `, ${selected.value.sizeLabel}` : ''}`,
+        from: page.url,
+    })
+)
+
 /* The finish's photographs: the front view (the manifest itself), then its other angles. */
 const shots = computed<ImageView[]>(() => {
     const image = finish.value?.image ?? null
@@ -136,6 +147,16 @@ const blockedNote = computed(() => {
 
     return refused ? 'Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben.' : 'Für durchgestrichene Größen liegt uns für dein Fahrzeug keine Freigabe vor.'
 })
+
+/*
+ * Grey is not struck through (finding 103): the wheel is approved for the car and only the tyre size is unconfirmed.
+ * The legend says the difference in plain words — unverified is neither forbidden nor unavailable.
+ */
+const unconfirmedNote = computed(() =>
+    config.sizes.value.some((s) => s.unconfirmed)
+        ? 'Grau markierte Größen können wir für dein Fahrzeug noch nicht bestätigen. Das heißt nicht, dass sie unzulässig sind, sondern dass uns die Unterlagen dazu fehlen.'
+        : null
+)
 
 // Another finish starts on its own front view.
 watch(
@@ -573,6 +594,7 @@ claimBottomEdge(() => stickyShown.value)
                                 :class="{
                                     'chip--on': selected?.id === size.config.id,
                                     'chip--blocked': size.blocked,
+                                    'chip--unconfirmed': size.unconfirmed,
                                 }"
                                 type="button"
                                 :disabled="size.blocked"
@@ -588,6 +610,7 @@ claimBottomEdge(() => stickyShown.value)
 
                         <!-- Shown, not hidden: it tells the customer something true about their car. -->
                         <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
+                        <p v-if="unconfirmedNote" class="t-small quiet pdp__note" data-note="unconfirmed">{{ unconfirmedNote }}</p>
                     </div>
 
                     <!-- With a Komplettrad's tyre chosen, the answer for that tyre's size (#18): its Eintragung, its Auflagen. -->
@@ -597,6 +620,7 @@ claimBottomEdge(() => stickyShown.value)
                         :vehicle="shared.vehicle"
                         :config-id="selected?.id ?? null"
                         :chosen="isSet ? (tyre?.answer ?? null) : null"
+                        :ask-href="askAboutTyres"
                     >
                         <Link v-if="!hasVehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm pdp__fit-cta">
                             Fahrzeug wählen

@@ -527,6 +527,13 @@
         pointer-events: none;
     }
 
+    /* Unverified, which is neither forbidden nor unavailable (finding 103): grey and dashed, never struck through —
+       the wheel is approved for the car, and only the tyre size could not be confirmed. It can be chosen. */
+    .chip--unconfirmed {
+        color: var(--ink3);
+        border-style: dashed;
+    }
+
     .chip--static {
         cursor: default;
         min-height: 32px;

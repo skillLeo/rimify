@@ -10,8 +10,9 @@
  * does not cover this" are different facts, and only one of them is about the customer's car.
  */
 
-import { router } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import { tyreUnconfirmed } from '../../composables/useConfigurator'
 import Icon from '../Art/Icon.vue'
 import ValueText from '../Ui/ValueText.vue'
 import BuildForm from './BuildForm.vue'
@@ -35,8 +36,13 @@ const props = withDefaults(
          * and the Auflagen of that size alone, the same the basket line will say. Null: the answer for every size.
          */
         chosen?: ConditionGroupsView | null
+        /**
+         * Where a customer names the tyres they want checked by hand (finding 103): the contact form, with the wheel as
+         * the subject and this page as where they wrote from — the car is ticked there by itself. Null: no such offer.
+         */
+        askHref?: string | null
     }>(),
-    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen', chosen: null }
+    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen', chosen: null, askHref: null }
 )
 
 /* `255/40 R19` — the size of the tyre chosen, where the server answered for it. */
@@ -238,11 +244,31 @@ const headline = computed(() => {
         default:
             // Where the answer waits for the car's body style or drive, it is not „none on file“ but not yet
             // given: the question right below says what it waits for (the operator's ruling on EF-01, D-041).
-            return (props.verdict.missing ?? []).length > 0
-                ? `Noch offen für ${props.vehicle.label}`
+            if ((props.verdict.missing ?? []).length > 0) {
+                return `Noch offen für ${props.vehicle.label}`
+            }
+
+            // The wheel is approved and only the tyre size is unconfirmed (finding 103): lead with what is true — the
+            // customer's first question is whether this wheel may go on this car — then the caveat.
+            return tyreOpen.value
+                ? `${wheelApproved.value} · Reifengröße noch nicht bestätigt`
                 : `Keine Freigabe hinterlegt für ${props.vehicle.label}`
     }
 })
+
+/*
+ * Finding 103 (the operator's decision of 14.10.2026): a wheel its Gutachten approves for the car, with a tyre half
+ * that has no answer, was headed „Keine Freigabe hinterlegt“ — the false half first, on the client's own wheel and car.
+ * Unverified is neither forbidden nor unavailable; the panel says which half is which, why, and what resolves it. Every
+ * sentence states what is on record with us, never what the document does or does not print (R-17).
+ */
+const tyreOpen = computed(() => tyreUnconfirmed(props.verdict))
+const wheelApproved = computed(() => (props.verdict?.wheelStatus === 'CONDITIONAL' ? 'Felge freigegeben mit Auflagen' : 'Felge freigegeben'))
+const openLead = computed(() =>
+    tyreOpen.value && props.vehicle
+        ? `Die Felge selbst ist für deinen ${props.vehicle.label} freigegeben${props.verdict?.wheelStatus === 'CONDITIONAL' ? ', mit Auflagen' : ''}. Nicht bestätigen können wir die Reifengröße.`
+        : null
+)
 </script>
 
 <template>
@@ -252,6 +278,8 @@ const headline = computed(() => {
         </p>
 
         <p class="rcheck-panel__vehicle">{{ headline }}</p>
+        <!-- Finding 103: which half is approved and which is open, before anything else. -->
+        <p v-if="openLead" class="fit__open" data-open="tyre">{{ openLead }}</p>
         <!-- #23, D-104: nothing to do, only to know — said quietly, never as „Mit Auflagen“. -->
         <p v-if="notesOnly" class="fit__notes">Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.</p>
 
@@ -294,6 +322,11 @@ const headline = computed(() => {
             <ul v-else-if="verdict.tyre?.lines.length" class="fit__tyre-lines">
                 <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
             </ul>
+            <!-- Finding 103: an unverified size is no dead end — what settles it by itself, and what the customer can do now. -->
+            <p v-if="tyreOpen" class="fit__open-next" data-open="next">
+                Sobald dazu eine Tragfähigkeitstabelle hinterlegt ist, prüfen wir das automatisch nach. Wenn du deine Wunschreifen nennst, prüfen wir sie vorab von Hand.
+                <Link v-if="askHref" class="link fit__open-ask" :href="askHref">Wunschreifen nennen</Link>
+            </p>
             <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->
             <!-- Keyed by the car: another car chosen meanwhile (in another tab) gets a fresh form, never the
                  last car's figures under its name (C-08). -->
@@ -362,6 +395,25 @@ const headline = computed(() => {
     margin: var(--space-1) 0 0;
     color: var(--ink2);
     font-size: var(--text-small);
+}
+
+/* Finding 103: which half is approved and which is open — body size under the headline; the way on, small, below. */
+.fit__open {
+    margin: var(--sp-8) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.fit__open-next {
+    margin: var(--sp-8) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.fit__open-ask {
+    white-space: nowrap;
 }
 
 .fit__half {

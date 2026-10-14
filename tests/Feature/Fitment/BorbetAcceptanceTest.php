@@ -399,7 +399,7 @@ it('answers UNKNOWN for the tyres of every car over 210 km/h on the 18″, in a 
     $fast = borbetVerdict($f20, 'BOR-DB8GT2-8518-SM');
 
     expect($fast->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($fast->tyre?->summary)->toBe('Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit. Für 250 km/h können wir die Reifen deshalb nicht bestätigen.')
+        ->and($fast->tyre?->summary)->toBe('Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt. Für 250 km/h können wir die Reifen deshalb nicht bestätigen.')
         ->and($fast->status)->not->toBe(VerdictStatus::Permitted)
         ->and($fast->status)->toBe(VerdictStatus::Unknown)
         // The wheel itself stays approved by the Nachtrag.
