@@ -13,7 +13,9 @@ use App\Enums\FitmentStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ApprovalCompletenessRequest;
 use App\Http\Requests\Admin\ApprovalDocumentRequest;
+use App\Http\Requests\Admin\ApprovalReleaseRequest;
 use App\Http\Requests\Admin\ApprovalStepRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -33,6 +35,7 @@ use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\Approvals\LoadLimitCheck;
 use App\Services\Admin\AuditTrail;
+use App\Services\Storage\DocumentFiles;
 use App\Services\Storage\PdfUpload;
 use App\Services\Storage\UploadRejected;
 use App\Support\GermanFormat;
@@ -282,9 +285,9 @@ class GutachtenController extends Controller
         return back()->with('toast', self::SAVED);
     }
 
-    public function release(ApprovalStepRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
+    public function release(ApprovalReleaseRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
-        $result = $release->release($document, $request->admin());
+        $result = $release->release($document, $request->admin(), null, $request->declaration());
         $toast = match ($result['rows']) {
             // A base without rows of its own (DocumentRelease): its facts now reach the shop through its Nachträge.
             0 => 'Freigegeben: Der Shop übernimmt die Angaben dieses Grundgutachtens jetzt für seine Nachträge.',
@@ -298,6 +301,14 @@ class GutachtenController extends Controller
         }
 
         return back()->with('toast', $toast);
+    }
+
+    /** The completeness question answered for a released document (D-227): recorded, in the Protokoll, read by the shop. */
+    public function completeness(ApprovalCompletenessRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
+    {
+        $release->answerCompleteness($document, $request->admin(), (string) $request->validated('completeness'), $request->validated('missing') === null ? null : (string) $request->validated('missing'));
+
+        return back()->with('toast', 'Gespeichert: '.$document->refresh()->completenessDe().'.');
     }
 
     /** @return array{path: string, sha256: string} */
@@ -333,16 +344,13 @@ class GutachtenController extends Controller
         $url = null;
         $missing = false;
 
-        // A link is offered only to a file that is there: a stored key without its file says so
-        // instead of opening a 404. One existence check, on the one document on screen.
+        // A link is offered only to a file that is there — on the disk in force, or on the server's disk it
+        // stayed on after a switch to the bucket (D-229): a stored key without its file says so instead of
+        // opening a 403.
         if ($document->pdf_key !== null) {
-            try {
-                $disk = Storage::disk(self::DISK);
-                $missing = ! $disk->exists($document->pdf_key);
-                $url = $missing ? null : $disk->url($document->pdf_key);
-            } catch (Throwable) {
-                $url = null;
-            }
+            $found = app(DocumentFiles::class)->locate($document->pdf_key);
+            $missing = $found['state'] === DocumentFiles::MISSING;
+            $url = $found['url'];
         }
 
         return [
@@ -369,6 +377,12 @@ class GutachtenController extends Controller
             },
             'validFrom' => GermanFormat::date($document->valid_from),
             'validTo' => GermanFormat::date($document->valid_to),
+            // „Sind alle Anlagen und alle Fahrzeuge erfasst?“ (D-227): the answer, who gave it and when — or that nobody has.
+            'completeness' => $document->completeness,
+            'completenessLabel' => $document->completenessDe(),
+            'completenessBy' => $document->completeness_by === null ? null : AdminUser::query()->whereKey($document->completeness_by)->value('name'),
+            'completenessAt' => $document->completeness_at === null ? null : GermanFormat::dateTime($document->completeness_at),
+            'missingAnnexes' => (string) ($document->missing_annexes ?? ''),
             'pdfUrl' => $url,
             'hasPdf' => $document->pdf_key !== null,
             'pdfMissing' => $missing,

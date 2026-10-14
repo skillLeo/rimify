@@ -27,6 +27,12 @@ final readonly class VerdictReason
      */
     public const ANNEX_MISSING = 'ANNEX_MISSING';
 
+    /**
+     * The rows do not name the car, and nobody has asserted that every Anlage and every vehicle of the document is entered
+     * (EIGENE-FUNDE 119, D-227): a document is incomplete until someone says it is complete. Not a refusal.
+     */
+    public const COVERAGE_UNCONFIRMED = 'COVERAGE_UNCONFIRMED';
+
     public const OUTSIDE_BUILD_WINDOW = 'OUTSIDE_BUILD_WINDOW';
 
     public const WIDTH_OR_ET_OUTSIDE_RANGE = 'WIDTH_OR_ET_OUTSIDE_RANGE';
@@ -89,7 +95,9 @@ final readonly class VerdictReason
             self::VEHICLE_INCOMPLETE => 'Dieses Fahrzeug führen wir nicht mehr in unseren Daten. Wähl dein Fahrzeug bitte neu aus – dann prüfen wir die Felge dafür.',
             self::NO_DOCUMENT => 'Für diese Kombination liegt uns kein Gutachten vor.',
             self::NOT_COVERED => 'Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.',
-            self::ANNEX_MISSING => 'Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor. Bis dahin können wir die Freigabe nicht bestätigen.',
+            // The operator's words (brief of 14.10.2026, §2): keeps the customer, and gives us a reason to chase the document.
+            self::ANNEX_MISSING => 'Für dieses Fahrzeug liegt uns die passende Anlage des Gutachtens noch nicht vor – sag uns dein Auto, und wir holen sie.',
+            self::COVERAGE_UNCONFIRMED => 'Dein Fahrzeug ist zu diesem Gutachten bei uns noch nicht erfasst. Sag uns dein Auto, und wir prüfen, ob das Gutachten es nennt.',
             self::OUTSIDE_BUILD_WINDOW => 'Das Gutachten gilt nicht für den Bauzeitraum dieses Fahrzeugs.',
             self::WIDTH_OR_ET_OUTSIDE_RANGE => 'Breite oder Einpresstiefe liegen außerhalb der Freigabe.',
             self::NO_TYRE_SIZE => 'Für diese Kombination ist keine Reifengröße freigegeben.',

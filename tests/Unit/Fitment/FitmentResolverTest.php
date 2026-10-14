@@ -133,6 +133,21 @@ function incompleteDocument(): DocumentRecord
     return new DocumentRecord(id: 11, kind: 'NACHTRAG', number: '366-0350-21-WIRD/N1', revision: 1, missingAnnexes: '1–15');
 }
 
+it('never refuses a car the rows do not name until someone asserted the document is entered whole (EIGENE-FUNDE 119, D-227)', function (?string $answer, string $status, string $reason): void {
+    // The document names another car, never this one.
+    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: RS4_SECOND, document: FitmentFixtures::document(completeness: $answer))])
+        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status->value)->toBe($status)
+        ->and($verdict->reason?->code)->toBe($reason)
+        ->and($verdict->isSellable())->toBeFalse();
+})->with([
+    'nobody answered — read as partial' => [null, 'UNKNOWN', VerdictReason::COVERAGE_UNCONFIRMED],
+    'answered: partial, nothing named' => ['partial', 'UNKNOWN', VerdictReason::COVERAGE_UNCONFIRMED],
+    'answered: not known' => ['unknown', 'UNKNOWN', VerdictReason::COVERAGE_UNCONFIRMED],
+    'answered: every Anlage and every vehicle' => ['complete', 'NOT_PERMITTED', VerdictReason::NOT_COVERED],
+]);
+
 it('says UNKNOWN for a car the pages we hold do not name while Anlagen of the document are missing', function (): void {
     // The document names another car, never this one.
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: RS4_SECOND, document: incompleteDocument())])
@@ -140,7 +155,7 @@ it('says UNKNOWN for a car the pages we hold do not name while Anlagen of the do
 
     expect($verdict->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->reason?->code)->toBe(VerdictReason::ANNEX_MISSING)
-        ->and($verdict->reason?->textDe)->toBe('Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor. Bis dahin können wir die Freigabe nicht bestätigen.')
+        ->and($verdict->reason?->textDe)->toBe('Für dieses Fahrzeug liegt uns die passende Anlage des Gutachtens noch nicht vor – sag uns dein Auto, und wir holen sie.')
         ->and($verdict->document?->id)->toBe(11)
         ->and($verdict->isSellable())->toBeFalse();
 });

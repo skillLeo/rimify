@@ -191,14 +191,50 @@ it('says a legal page is missing while it holds the placeholder, and points at t
     expect(goLiveById()['agb']->state)->toBe(GoLiveCheck::OK);
 });
 
-it('names each released Gutachten whose Anlagen are missing, with how many', function (): void {
-    ApprovalDocument::factory()->create(['kind' => 'ABE', 'kba_number' => '53841', 'status' => 'published', 'missing_annexes' => '1–15', 'valid_from' => null, 'valid_to' => null]);
+it('passes „Anlagen und Fahrzeuge vollständig erfasst“ only on an explicit yes, and names every other answer (EIGENE-FUNDE 119, D-227)', function (): void {
+    // Released before the question existed: no note, no answer — the old check called this an all-clear.
+    $silent = ApprovalDocument::factory()->unanswered()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'valid_from' => null, 'valid_to' => null]);
 
     $anlagen = goLiveById()['anlagen'];
 
     expect($anlagen->state)->toBe(GoLiveCheck::MISSING)
-        ->and($anlagen->sentence)->toStartWith('ABE 53841: 15 Anlagen fehlen (1–15).')
-        ->and($anlagen->sentence)->toContain('„noch nicht gelesen“, nie ein Nein');
+        ->and($anlagen->sentence)->toStartWith('Teilegutachten 1810080716: nicht beantwortet, ob alles erfasst ist.')
+        ->and($anlagen->sentence)->toContain('„noch nicht bestätigt“, nie „nicht freigegeben“');
+
+    ApprovalDocument::factory()->create(['kind' => 'ABE', 'kba_number' => '53841', 'completeness' => ApprovalDocument::PARTIAL, 'missing_annexes' => 'Anlagen 1–15', 'valid_from' => null, 'valid_to' => null]);
+    ApprovalDocument::factory()->create(['kind' => 'ABE', 'kba_number' => '55255', 'completeness' => ApprovalDocument::UNKNOWN, 'valid_from' => null, 'valid_to' => null]);
+
+    expect(goLiveById()['anlagen']->sentence)->toContain('ABE 53841: teilweise erfasst, es fehlen Anlagen 1–15')
+        ->and(goLiveById()['anlagen']->sentence)->toContain('ABE 55255: nicht bekannt, ob alles erfasst ist')
+        ->and(GoLiveChecks::unanswered())->toBe(['Teilegutachten 1810080716']);
+
+    // Every document answered „complete“: only now the check passes.
+    ApprovalDocument::query()->update(['completeness' => ApprovalDocument::COMPLETE, 'missing_annexes' => null, 'completeness_at' => now(), 'completeness_revision' => 1]);
+
+    expect(goLiveById()['anlagen']->state)->toBe(GoLiveCheck::OK)
+        ->and(GoLiveChecks::unanswered())->toBe([])
+        ->and($silent->refresh()->completeness)->toBe(ApprovalDocument::COMPLETE);
+});
+
+it('holds live payments while a released Gutachten has no completeness answer (D-227)', function (): void {
+    goLiveLegalComplete();
+    $document = ApprovalDocument::factory()->unanswered()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'valid_from' => null, 'valid_to' => null]);
+    app()['env'] = 'production';
+
+    try {
+        config(['rimify.payments.driver' => 'stripe', 'rimify.review.enabled' => false, 'services.stripe.mode' => 'live', 'services.stripe.key' => 'pk_live_fakeKey', 'services.stripe.secret' => 'sk_live_fakeKey', 'services.stripe.webhook_secret' => 'whsec_live_x']);
+
+        $refused = app(GoLiveChecks::class)->liveRefusal() ?? [];
+
+        expect(array_map(static fn (GoLiveCheck $c): string => $c->id, $refused))->toBe(['anlagen-beantwortet'])
+            ->and($refused[0]->sentence)->toContain('Teilegutachten 1810080716');
+
+        $document->forceFill(['completeness' => ApprovalDocument::PARTIAL, 'missing_annexes' => 'weitere Anlagen des Prüfberichts', 'completeness_at' => now(), 'completeness_revision' => 1])->save();
+
+        expect(app(GoLiveChecks::class)->liveRefusal())->toBeNull();
+    } finally {
+        app()['env'] = 'testing';
+    }
 });
 
 it('counts the pairs of a vehicle and a wheel that stand on „Reifengröße noch nicht bestätigt“ (finding 103, §1.5)', function (): void {

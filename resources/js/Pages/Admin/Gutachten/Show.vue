@@ -23,6 +23,7 @@ import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
 import DeratingTable from './DeratingTable.vue'
 import DocumentExtras from './DocumentExtras.vue'
 import FactsDialog from './FactsDialog.vue'
+import ReleaseDialog from './ReleaseDialog.vue'
 import RowComposer from './RowComposer.vue'
 import RowFields from './RowFields.vue'
 import { codesText, formFromRow, payload, unreadable } from './rows'
@@ -85,7 +86,8 @@ const more = computed<AdminPageAction[]>(() => {
 /* ── Freigabe ──────────────────────────────────────────────────────────────── */
 
 const releaseOpen = ref(false)
-const releasing = ref(false)
+/* „Ist alles erfasst?“ for a released document (D-227): answered once, read by the shop and the go-live check. */
+const answerOpen = ref(false)
 
 /*
  * What „Freigeben" does, said before it is pressed. A base without rows of its own (ABE 53841: its Verwendungsbereich
@@ -109,32 +111,9 @@ const releaseBody = computed(() => {
     return `${what} Ein freigegebenes Gutachten ändert sich nicht mehr; Änderungen kommen mit einer neuen Fassung.`
 })
 
-/* The button that opened the confirm goes with the Freigabe: the keyboard lands on the document's new state. */
+/* The button that opened the dialog goes with the Freigabe: the keyboard lands on the document's new state. */
 function focusState(): void {
     void nextTick(() => document.getElementById('gs-state-h')?.focus())
-}
-
-/*
- * The confirm closes first and the request goes once it is gone: a dialog still closing while the
- * page beneath it changes shape (the Freigeben button leaves, the composer goes) never finished its exit
- * and stayed on screen. `releasing` stops a second press in between.
- */
-function release(): void {
-    if (releasing.value) {
-        return
-    }
-
-    releasing.value = true
-    releaseOpen.value = false
-    afterDialogsClose(() => {
-        router.post(`/admin/gutachten/${props.document.id}/freigeben`, {}, {
-            preserveScroll: true,
-            onFinish: () => {
-                releasing.value = false
-                focusState()
-            },
-        })
-    })
 }
 
 /* ── One row: change or take out ──────────────────────────────────────────── */
@@ -305,6 +284,13 @@ const TONE: Record<string, string | null> = {
             <p v-else-if="document.status === 'withdrawn'" class="adm-note">Dieses Dokument wurde zurückgezogen. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else-if="document.status === 'superseded'" class="adm-note">Eine neuere Fassung hat dieses Dokument ersetzt. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else class="adm-note">Ein freigegebenes Gutachten ändert sich nicht mehr. Für Änderungen legst du eine neue Fassung an, die es ersetzt.</p>
+            <!-- D-227: a released document is read as partial until someone says what was entered — and the go-live check waits for it. -->
+            <div v-if="document.status === 'published'" class="gs-complete" :class="{ 'gs-complete--open': !document.completeness }">
+                <p class="adm-note">
+                    <strong>Erfasst:</strong> {{ document.completenessLabel }}<template v-if="document.completenessBy || document.completenessAt"> · {{ [document.completenessBy, document.completenessAt].filter(Boolean).join(', ') }}</template>
+                </p>
+                <button v-if="can.release" class="btn btn--secondary" type="button" @click="answerOpen = true">{{ document.completeness ? 'Antwort ändern' : 'Jetzt beantworten' }}</button>
+            </div>
             <p v-if="openConflicts" class="adm-note">
                 {{ openConflicts === 1 ? 'Eine Zeile widerspricht' : `${decimal(openConflicts, 0)} Zeilen widersprechen` }} einem anderen Gutachten. Bis unter
                 <a href="/admin/konflikte">Konflikte</a> entschieden ist, sagt der Shop dort „Unbekannt“.
@@ -500,14 +486,8 @@ const TONE: Record<string, string | null> = {
             <p v-else-if="preview" class="adm-note">Für dieses Fahrzeug gibt es in diesem Gutachten keine Zeile.</p>
         </section>
 
-        <AdminConfirm
-            v-model:open="releaseOpen"
-            title="Gutachten freigeben?"
-            :body="releaseBody"
-            confirm-label="Freigeben"
-            :busy="releasing"
-            @confirm="release"
-        />
+        <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" mode="release" :document="document" :rows="rows.length" :note="releaseBody" @done="focusState" />
+        <ReleaseDialog v-if="can.release && document.status === 'published'" v-model:open="answerOpen" mode="answer" :document="document" :rows="rows.length" />
 
         <AdminConfirm
             v-model:open="removeOpen"
@@ -559,6 +539,18 @@ const TONE: Record<string, string | null> = {
     padding-left: var(--sp-20);
     font-size: var(--fs-small);
     line-height: var(--lh-small);
+}
+
+.gs-complete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8) var(--sp-16);
+}
+
+.gs-complete--open .adm-note {
+    color: var(--c-warn);
 }
 
 .gs-state .adm-alert {

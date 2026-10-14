@@ -24,12 +24,14 @@ use App\Services\Mail\MailSettings;
 use App\Services\Mail\SenderDns;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Smoke\PrivateFilesProbe;
+use App\Services\Storage\DocumentFiles;
 use App\Support\GermanFormat;
 use App\Support\ScheduleBeat;
 use App\Support\Seller;
 use App\Support\Shipping;
 use App\Support\Ssr\BoundedSsrGateway;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
@@ -114,6 +116,14 @@ final class GoLiveChecks
         }
 
         $failing = array_values(array_filter($this->legalChecks(), static fn (GoLiveCheck $c): bool => ! $c->ok()));
+
+        // A released Gutachten nobody has answered the completeness question for holds live mode too (D-227).
+        $unanswered = self::unanswered();
+
+        if ($unanswered !== []) {
+            $failing[] = $this->check('anlagen-beantwortet', self::WHEEL, 'Vollständigkeit jedes freigegebenen Gutachtens beantwortet', GoLiveCheck::CLIENT, GoLiveCheck::MISSING,
+                'Noch nicht beantwortet, ob alle Anlagen und alle Fahrzeuge erfasst sind: '.implode(', ', $unanswered).'. Bis dahin nimmt der Shop keine echte Zahlung an.', '/admin/gutachten');
+        }
 
         return $failing === [] ? null : $failing;
     }
@@ -339,6 +349,7 @@ final class GoLiveChecks
                 ? 'Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge.'
                 : ($released->count() === 1 ? 'Ein Gutachten ist freigegeben' : "{$released->count()} Gutachten sind freigegeben").' und gültig.', '/admin/gutachten'),
             $this->reachable(),
+            $this->pdfs($released->all(), $fresh),
             $this->annexes($released->all()),
             $this->developmentVehicles(),
             $this->axleLoads(),
@@ -365,7 +376,66 @@ final class GoLiveChecks
     }
 
     /**
-     * The Anlagen of each released document we do not hold: a car named only there gets „not yet read", never a no.
+     * Every released Gutachten's PDF opens (EIGENE-FUNDE 105, D-229): a released document whose PDF cannot be opened is a
+     * legal gap, not an inconvenience — the customer cannot check our claim. Found where it is (DocumentFiles), and, where
+     * the check may use the network, fetched at the address the shop links: it must answer with a PDF.
+     *
+     * @param  list<ApprovalDocument>  $released
+     */
+    private function pdfs(array $released, bool $network): GoLiveCheck
+    {
+        $files = app(DocumentFiles::class);
+        $broken = [];
+        $elsewhere = 0;
+
+        foreach ($released as $document) {
+            $name = trim($document->kind->labelDe().' '.($document->number() ?? ''));
+
+            if ($document->pdf_key === null) {
+                $broken[] = "{$name}: kein PDF hinterlegt";
+
+                continue;
+            }
+
+            $files->forget((string) $document->pdf_key);
+            $found = $files->locate((string) $document->pdf_key);
+
+            if ($found['url'] === null) {
+                $broken[] = "{$name}: das PDF liegt in keinem Speicher";
+
+                continue;
+            }
+
+            $elsewhere += $found['state'] === DocumentFiles::ELSEWHERE ? 1 : 0;
+
+            if ($network) {
+                try {
+                    $response = Http::timeout(15)->withHeaders(['Range' => 'bytes=0-4'])->get($found['url']);
+                    $ok = in_array($response->status(), [200, 206], true) && str_starts_with($response->body(), '%PDF-');
+                } catch (Throwable) {
+                    $ok = false;
+                    $response = null;
+                }
+
+                if (! $ok) {
+                    $broken[] = "{$name}: die Adresse antwortet ".($response === null ? 'nicht' : 'mit HTTP '.$response->status().($response->successful() ? ', aber nicht mit einem PDF' : ''));
+                }
+            }
+        }
+
+        return $this->check('gutachten-pdf', self::WHEEL, 'Jedes freigegebene Gutachten-PDF lässt sich öffnen', GoLiveCheck::US, $broken === [] && $released !== [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
+            $released === [] => 'Noch ist kein Gutachten freigegeben.',
+            $broken === [] => (count($released) === 1 ? 'Das PDF des freigegebenen Gutachtens' : 'Jedes der '.count($released).' PDFs der freigegebenen Gutachten').($network ? ' wurde abgerufen und ist ein PDF' : ' liegt im Speicher').'.'
+                .($elsewhere > 0 ? " {$elsewhere} davon noch auf dem Server statt im Bucket – rimify:pdf-migrate holt sie herüber." : ''),
+            default => implode('; ', $broken).'. Ein Kunde kann unsere Angabe dann nicht im Gutachten nachlesen.',
+        }, '/admin/gutachten');
+    }
+
+    /**
+     * „Anlagen vollständig“ reads the assertion, never the absence of a note (EIGENE-FUNDE 119, D-227): it passes only
+     * where a person said of every released document that every Anlage and every vehicle is entered. A check that
+     * cannot fail is worse than none, because it is quoted — this one fails on every document nobody has answered for,
+     * and names each partial one with what it lacks.
      *
      * @param  list<ApprovalDocument>  $released
      */
@@ -374,17 +444,37 @@ final class GoLiveChecks
         $gaps = [];
 
         foreach ($released as $document) {
-            $missing = trim((string) $document->missing_annexes);
-
-            if ($missing !== '') {
-                $count = self::annexCount($missing);
-                $gaps[] = trim($document->kind->labelDe().' '.($document->number() ?? '')).': '.($count === 1 ? 'eine Anlage fehlt' : "{$count} Anlagen fehlen")." ({$missing})";
+            if ($document->completeness === ApprovalDocument::COMPLETE) {
+                continue;
             }
+
+            $missing = trim((string) $document->missing_annexes);
+            $name = trim($document->kind->labelDe().' '.($document->number() ?? ''));
+            $gaps[] = $name.': '.match ($document->completeness) {
+                ApprovalDocument::PARTIAL => $missing === '' ? 'teilweise erfasst' : 'teilweise erfasst, es fehlen '.$missing,
+                ApprovalDocument::UNKNOWN => 'nicht bekannt, ob alles erfasst ist',
+                default => 'nicht beantwortet, ob alles erfasst ist',
+            };
         }
 
-        return $this->check('anlagen', self::WHEEL, 'Anlagen der Gutachten vollständig', GoLiveCheck::CLIENT, $gaps === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $gaps === []
-            ? ($released === [] ? 'Noch ist kein Gutachten freigegeben.' : 'Jedes freigegebene Gutachten liegt mit allen Anlagen vor.')
-            : implode('; ', $gaps).'. Ein Fahrzeug, das nur in einer fehlenden Anlage steht, bekommt „noch nicht gelesen“, nie ein Nein.', '/admin/gutachten');
+        return $this->check('anlagen', self::WHEEL, 'Anlagen und Fahrzeuge der Gutachten vollständig erfasst', GoLiveCheck::CLIENT, $gaps === [] && $released !== [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
+            $released === [] => 'Noch ist kein Gutachten freigegeben.',
+            $gaps === [] => 'Zu jedem freigegebenen Gutachten ist bestätigt, dass alle Anlagen und alle Fahrzeuge erfasst sind.',
+            default => implode('; ', $gaps).'. Ein Fahrzeug, das dort nicht steht, ist im Shop „noch nicht bestätigt“, nie „nicht freigegeben“.',
+        }, '/admin/gutachten');
+    }
+
+    /**
+     * The released documents nobody has answered the completeness question for (D-227): while there is one, live mode
+     * waits — every verdict on it stands on an assertion that was never made.
+     *
+     * @return list<string>
+     */
+    public static function unanswered(): array
+    {
+        return ApprovalDocument::query()->currentlyValid()->whereNull('completeness')->orderBy('id')->get()
+            ->map(static fn (ApprovalDocument $d): string => trim($d->kind->labelDe().' '.($d->number() ?? '')))
+            ->values()->all();
     }
 
     /** `1–15` → 15, `3, 5–7` → 4: how many Anlagen a document's gap names. */

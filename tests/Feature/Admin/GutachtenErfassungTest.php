@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\ReleaseAnswers;
 
 /**
  * Gutachten-Erfassung (the review release §4.3): the PDF and the document's facts, the
@@ -169,7 +170,7 @@ it('releases the whole document at once, and replaces the revision it supersedes
     $document = ApprovalDocument::factory()->draft()->create(['supersedes_id' => $old->id, 'revision' => 2]);
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload(Vehicle::factory()->count(2)->create()->all(), [wheelSize()]));
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
         ->assertSessionHas('toast', 'Freigegeben: 2 Zeilen sind jetzt im Shop.');
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Published)
@@ -186,7 +187,7 @@ it('releases the whole document at once, and replaces the revision it supersedes
 it('does not release a document without rows or without its PDF, and says why', function (): void {
     $document = ApprovalDocument::factory()->draft()->create(['pdf_key' => null]);
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
         ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: Das PDF des Gutachtens fehlt. Es gibt noch keine Zeile im Verwendungsbereich.']);
 });
 
@@ -202,7 +203,7 @@ it('releases a base without rows once a Nachtrag supplements it — for its own 
     expect($nachtrag->refresh()->papersCorrectionRequired())->toBeNull()
         ->and(app(DocumentRelease::class)->check($base))->toBe([]);
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$base->id}/freigeben")
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$base->id}/freigeben", ReleaseAnswers::for($base))
         ->assertSessionHas('toast', 'Freigegeben: Der Shop übernimmt die Angaben dieses Grundgutachtens jetzt für seine Nachträge.');
 
     expect($base->refresh()->status)->toBe(DocumentStatus::Published)
@@ -254,7 +255,7 @@ it('never releases a row on a development car, in any environment — and does o
         app()['env'] = 'testing';
     }
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: '.$sentence]);
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: '.$sentence]);
     expect($document->refresh()->status)->toBe(DocumentStatus::Draft);
 
     // A car typed from a real Gutachten has no key numbers and is real vehicle data: it may be named.
@@ -262,7 +263,7 @@ it('never releases a row on a development car, in any environment — and does o
     $fromDocument = Vehicle::factory()->create(['source' => 'gutachten', 'source_document_id' => $source->id, 'source_page' => 7]);
     $other = ApprovalDocument::factory()->draft()->create();
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/zeilen", rowPayload([$fromDocument], [wheelSize()]));
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/freigeben")->assertSessionHasNoErrors();
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/freigeben", ReleaseAnswers::for($other))->assertSessionHasNoErrors();
 
     expect($other->refresh()->status)->toBe(DocumentStatus::Published);
 });
@@ -287,7 +288,7 @@ it('records where two documents disagree, releases anyway, and says the shop ans
     $document = ApprovalDocument::factory()->draft()->create();
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size]));
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")
+    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
         ->assertSessionHas('toast', fn (string $t): bool => str_contains($t, 'Widerspr') && str_contains($t, '„Unbekannt“'));
 
     $conflicts = FitmentConflict::query()->get();
@@ -302,7 +303,7 @@ it('asks the Gutachten rights on the server (R-11)', function (): void {
 
     $this->actingAs(erfassung('support-agent'), 'admin')->get('/admin/gutachten/neu')->assertForbidden();
     $this->actingAs(erfassung('support-agent'), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([Vehicle::factory()->create()], [wheelSize()]))->assertForbidden();
-    $this->actingAs(erfassung('support-agent'), 'admin')->post("/admin/gutachten/{$document->id}/freigeben")->assertForbidden();
+    $this->actingAs(erfassung('support-agent'), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertForbidden();
 
     $this->actingAs(erfassung('support-agent'), 'admin')->get("/admin/gutachten/{$document->id}")
         ->assertOk()
@@ -341,8 +342,8 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
 
         $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$abe->id}/zeilen", rowPayload([$vehicle], [$narrow], ['conditions' => [['code' => 'A01', 'note' => null]]]))->assertSessionHasNoErrors();
         $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$tg->id}/zeilen", rowPayload([$vehicle], [$wide], ['conditions' => [['code' => 'A01', 'note' => null]]]))->assertSessionHasNoErrors();
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$abe->id}/freigeben")->assertSessionHasNoErrors();
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$tg->id}/freigeben")->assertSessionHasNoErrors();
+        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$abe->id}/freigeben", ReleaseAnswers::for($abe))->assertSessionHasNoErrors();
+        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$tg->id}/freigeben", ReleaseAnswers::for($tg))->assertSessionHasNoErrors();
 
         $verdicts = app(FitmentResolver::class)->resolveMany($vehicle->id, [$narrow->id, $wide->id]);
         $sentences = fn ($v): array => array_map(fn ($c): string => $c->sentenceDe(), $v->conditions);

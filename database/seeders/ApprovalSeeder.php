@@ -503,6 +503,10 @@ class ApprovalSeeder extends Seeder
             'pdf_sha256' => hash('sha256', $reportNumber),
             'page_count' => $pageCount,
             'status' => DocumentStatus::Published->value,
+            // An example document is its whole Verwendungsbereich — the seed writes every row it has (D-227).
+            'completeness' => ApprovalDocument::COMPLETE,
+            'completeness_at' => $document->completeness_at ?? now(),
+            'completeness_revision' => 1,
         ])->save();
 
         return $document;

@@ -18,6 +18,7 @@ use App\Models\WheelModel;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\ReleaseAnswers;
 
 /**
  * Gutachten › Konflikte (the corrections memo §3): two current documents that disagree about a car and a
@@ -61,7 +62,7 @@ function disagreeing(): array
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => []]],
         'conditions' => [],
     ])->assertSessionHasNoErrors();
-    test()->actingAs(konfliktAdmin(), 'admin')->post("/admin/gutachten/{$tg->id}/freigeben")->assertSessionHasNoErrors();
+    test()->actingAs(konfliktAdmin(), 'admin')->post("/admin/gutachten/{$tg->id}/freigeben", ReleaseAnswers::for($tg))->assertSessionHasNoErrors();
 
     return ['vehicle' => $vehicle, 'config' => $config, 'abe' => $abe, 'tg' => $tg->refresh()];
 }

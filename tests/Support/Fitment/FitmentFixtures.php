@@ -51,9 +51,11 @@ final class FitmentFixtures
 
     /**
      * The fixture document prints the table of tyre load at speed that ABE 55255 prints on its page 6 — a
-     * document without one answers UNKNOWN above 210 km/h (pass `withTable: false`).
+     * document without one answers UNKNOWN above 210 km/h (pass `withTable: false`). It is entered whole, and a person
+     * said so at release (D-227): only then is a car its rows do not name refused (pass `completeness: null` for an
+     * unanswered one).
      */
-    public static function document(int $revision = 2, string $kind = 'TEILEGUTACHTEN', bool $withTable = true): DocumentRecord
+    public static function document(int $revision = 2, string $kind = 'TEILEGUTACHTEN', bool $withTable = true, ?string $completeness = DocumentRecord::COMPLETE): DocumentRecord
     {
         return new DocumentRecord(
             id: 57,
@@ -65,6 +67,7 @@ final class FitmentFixtures
             pdfSha256: str_repeat('9f2c', 16),
             sourcePage: 7,
             speedDerating: $withTable ? self::deratingTable() : null,
+            completeness: $completeness,
         );
     }
 

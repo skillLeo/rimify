@@ -22,7 +22,6 @@ use App\Domain\Storefront\VehicleContext;
 use App\Enums\ApprovalKind;
 use App\Enums\CatalogueStatus;
 use App\Enums\TyreSeason;
-use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Controller;
 use App\Models\BalanceWeightColour;
 use App\Models\Brand;
@@ -33,6 +32,7 @@ use App\Models\VerdictTally;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Commerce\KomplettradPricer;
+use App\Services\Storage\DocumentFiles;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
 use App\Services\Storefront\HomeStats;
@@ -47,10 +47,8 @@ use App\Support\ShopPath;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 /**
  * The selector, the listing and the product page.
@@ -874,9 +872,10 @@ class FelgenController extends Controller
     }
 
     /**
-     * The document's PDF, at the page its row cites; null where no file is stored. The URL is the
-     * public document disk's own (ABEs/ on the bucket): the customer reads the very file the verdict
-     * rests on, the one whose hash an order freezes.
+     * The document's PDF, at the page its row cites; null where no file is stored. The URL is where
+     * the file IS (DocumentFiles, D-229) — the disk in force, or the server's disk it stayed on after
+     * a switch to the bucket — never a link built for a file that is not there: the customer reads the
+     * very file the verdict rests on, the one whose hash an order freezes.
      *
      * @return array{url: string, page: int|null}|null
      */
@@ -886,9 +885,9 @@ class FelgenController extends Controller
             return null;
         }
 
-        try {
-            $url = Storage::disk(GutachtenController::DISK)->url($document->pdfKey);
-        } catch (Throwable) {
+        $url = app(DocumentFiles::class)->locate($document->pdfKey)['url'];
+
+        if ($url === null) {
             return null;
         }
 
