@@ -514,7 +514,8 @@ claimBottomEdge(() => stickyShown.value)
                             :aria-label="view.label"
                             @click="shotIndex = i"
                         >
-                            <Picture :image="view" alt="" sizes="72px" class="pdp__thumb-picture" />
+                            <!-- On the first screen beside the photograph: loaded at once, after it (the image rule). -->
+                            <Picture :image="view" alt="" sizes="72px" soon class="pdp__thumb-picture" />
                         </button>
                     </div>
 

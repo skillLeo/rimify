@@ -88,8 +88,14 @@ const props = withDefaults(
          * byte from what is painted first (the operator's brief of 05.10.2026, §5).
          */
         late?: boolean
+        /**
+         * On the first screen without being the page's main picture — a listing's first rows: loaded at once, never
+         * lazily, with the priority left to the browser. `eager` is for the one picture that is the page's largest
+         * paint; it asks for the first bytes.
+         */
+        prompt?: boolean
     }>(),
-    { sizes: '100vw', eager: false, soon: false, late: false }
+    { sizes: '100vw', eager: false, soon: false, late: false, prompt: false }
 )
 
 const emit = defineEmits<{ (e: 'loaded'): void; (e: 'failed'): void }>()
@@ -129,7 +135,7 @@ function onLoad(): void {
             :alt="alt"
             :width="image.width"
             :height="image.height"
-            :loading="(eager || soon) && !late ? 'eager' : 'lazy'"
+            :loading="(eager || soon || prompt) && !late ? 'eager' : 'lazy'"
             :fetchpriority="late ? 'low' : eager ? 'high' : soon ? 'low' : undefined"
             decoding="async"
             @load="onLoad"

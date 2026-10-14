@@ -82,8 +82,8 @@ test('nothing stands above the header, and what the strip said is still on the p
         expect(above.top, `something stands above the header: ${above.texts.join(' | ')}`).toBe(0)
     }
 
-    // What the strip carried: the two promises, and the help line with the hours. (The section is named „Was wir
-    // zusagen“ on the desktop and „Was RIMIFY zusagt“ on the phone — one thing named two ways; noted for the sweep.)
+    // What the strip carried: the two promises, and the help line with the hours. (Until D-219 the phone called the
+    // section „Was RIMIFY zusagt“; a release from before it still does, so both names are taken.)
     const promises = page.getByRole('region', { name: /^Was (wir zusagen|RIMIFY zusagt)$/ })
     await expect(promises).toContainText('Versand aus Deutschland')
     await expect(promises).toContainText('Gutachten zu jeder Felge')

@@ -252,7 +252,7 @@ onBeforeUnmount(() => {
     </section>
 
     <!-- H3 · Four facts, promising nothing beyond their titles. -->
-    <section v-if="promises.length" id="h3" data-section="H3" class="home-promises" aria-label="Was RIMIFY zusagt">
+    <section v-if="promises.length" id="h3" data-section="H3" class="home-promises" aria-label="Was wir zusagen">
         <ul class="container home-promises__list">
             <li v-for="item in promises" :key="item.title" class="home-promises__item">
                 <Icon :name="promiseIcon(item.icon)" :size="20" />

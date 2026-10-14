@@ -12,9 +12,12 @@
  * (`heroPhoto.facts`) — no product query, so they stand with the shop empty too (the client's #4). Only where the release
  * shipped without the photograph is the outline drawn — with no brand, no model, no price, no link and no leader.
  *
- * The frame stands just below the first screen (its top at 861 px on a 390 × 844 phone, measured on
- * 05.10.2026): the headline is the page's LCP, so neither wheel is preloaded or fetched early — both are
- * `late`, lazy and last, and take no byte from the first paint (the operator's brief of 05.10.2026, §5).
+ * The frame stands at the foot of the first screen — its top between 838 and 861 px on a 390 × 844 phone, and well
+ * inside on a taller one — so neither wheel is lazy (the image rule of 14.10.2026, D-219) and neither is preloaded:
+ * both are `soon`, asked for at once at low priority. The page's first paint needs the document alone; measured on a
+ * throttled phone (Slow 4G, CPU × 4, seven interleaved loads) FCP and LCP stand where they stood with the wheels lazy
+ * (1,94 s / 3,39 s against 1,96 s / 3,12 s) and the wheel is there 1,9 s sooner. Until then they were `late`, lazy
+ * and last (the operator's brief of 05.10.2026, §5), on the measurement that put the frame's top at 861 px.
  * Once, on load, the wheel rolls in and the leaders draw after it; the resting frame is the default,
  * so without JavaScript and under reduced motion everything simply stands there.
  */
@@ -87,7 +90,7 @@ onMounted(() => {
             <span v-if="pair" class="hero-frame__pair" :class="{ 'hero-frame__pair--rolling': pair.roll !== null }" :style="pairStyle" @error.capture="pairFailed = true">
                 <span v-if="pair.shadow" class="hero-contact" aria-hidden="true" />
                 <span class="hero-frame__spin">
-                    <Picture :image="pair.picture" :alt="pairAlt" :sizes="HERO_SIZES_PHONE" late />
+                    <Picture :image="pair.picture" :alt="pairAlt" :sizes="HERO_SIZES_PHONE" soon />
                 </span>
             </span>
 
@@ -101,7 +104,7 @@ onMounted(() => {
             >
                 <span v-if="scene.shadow" class="hero-contact" aria-hidden="true" />
                 <span class="hero-frame__spin">
-                    <Picture :image="photo" :alt="alt" :sizes="HERO_SIZES_PHONE" late />
+                    <Picture :image="photo" :alt="alt" :sizes="HERO_SIZES_PHONE" soon />
                 </span>
             </span>
             <span v-else class="hero-frame__outline" aria-hidden="true">

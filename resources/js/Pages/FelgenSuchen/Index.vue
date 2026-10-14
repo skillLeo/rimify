@@ -55,6 +55,7 @@ const baseQuery = computed((): Record<string, string> => {
                     base-path="/felgen-suchen"
                     :base-query="baseQuery"
                     :return-to="returnTo ?? null"
+                    :heading-level="2"
                 />
             </div>
         </div>
