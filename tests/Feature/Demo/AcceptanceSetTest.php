@@ -212,6 +212,16 @@ it('refuses to double a Gutachten the shop holds under another name: the same PD
         ->toThrow(RuntimeException::class, 'dieselbe PDF-Datei liegt dort als „ABE 53841“')
         ->and(DB::table('wheel_models')->count())->toBe(0)
         ->and(DB::table('approval_documents')->where('is_demo', true)->count())->toBe(0);
+
+    // Said explicitly (the operator's decision of 14.10.2026 for that preview): written beside it, every row demo, the real
+    // document untouched — and the note names it.
+    $real = ApprovalDocument::query()->where('is_demo', false)->sole();
+    ['notes' => $notes] = (new AcceptanceSeeder($dir, $data, besideSamePdf: true))->seed();
+
+    expect($notes)->toContain('Neben „ABE 53841“ (Gutachten #'.$real->id.', dieselbe PDF-Datei) geschrieben, wie mit --neben-gleicher-pdf verlangt. Das echte Gutachten bleibt, wie es ist.')
+        ->and(DB::table('approval_documents')->where('is_demo', true)->count())->toBe(2)
+        ->and($real->fresh()?->getAttributes())->toBe($real->getAttributes())
+        ->and(DB::table('wheel_models')->where('is_demo', false)->count())->toBe(0);
 });
 
 it('goes in one press, the shop\'s own accessories untouched, the cars hidden and never deleted (R-04)', function (): void {
