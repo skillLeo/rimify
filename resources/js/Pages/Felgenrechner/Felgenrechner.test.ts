@@ -74,7 +74,7 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         const wrapper = mountPage(page, { prefill: PREFILL })
 
         expect(wrapper.find('.rechner__prefill').text()).toBe(
-            'Aktuell ist vorbelegt mit der kleinsten Größe, die ein Gutachten für BMW 330i nennt – nicht unbedingt mit deiner heutigen Bereifung.'
+            '„Bisher“ ist vorbelegt mit der kleinsten Größe, die ein Gutachten für BMW 330i nennt – nicht unbedingt mit deiner heutigen Bereifung.'
         )
     })
 
@@ -142,7 +142,7 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         })
 
         expect(wrapper.find('[data-result="implausible"] .calc-result__say').text()).toBe(
-            'Diese Reifenbreite und diese Maulweite gehören so nicht zusammen – prüf die Angaben.'
+            'Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen – prüf die Angaben.'
         )
         expect(wrapper.find('.cd').exists()).toBe(false)
         expect(wrapper.find('.specs').exists()).toBe(false)

@@ -93,9 +93,9 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="share">
-        <label class="label" :for="`${uid}-share`">Link zu dieser Rechnung</label>
+        <label class="label" :for="`${uid}-share`">Link zu dieser Berechnung</label>
         <div class="share__row" :class="{ 'share__row--block': block }">
-            <input :id="`${uid}-share`" class="input share__input" type="url" readonly :value="href" aria-label="Link zu dieser Rechnung" @focus="selectAll" />
+            <input :id="`${uid}-share`" class="input share__input" type="url" readonly :value="href" aria-label="Link zu dieser Berechnung" @focus="selectAll" />
             <button class="btn btn--secondary" :class="block ? 'btn--block' : 'btn--sm'" type="button" :aria-busy="busy ? 'true' : undefined" @click="copy">
                 Link kopieren
             </button>

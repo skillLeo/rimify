@@ -179,7 +179,7 @@ describe('Startseite (phone) — Nach Marke', () => {
         expect(cells[1]?.classes()).toContain('brand-cell--none')
         expect(cells[1]?.attributes('href')).toBeUndefined()
         expect(cells[1]?.find('.brand-cell__count').exists()).toBe(false)
-        expect(cells[1]?.text()).toContain('Noch keine Felgen auf Lager')
+        expect(cells[1]?.text()).toContain('Zurzeit keine Felgen lieferbar')
         expect(cells[2]?.attributes('data-kind')).toBe('sample')
         expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
     })

@@ -128,9 +128,9 @@ export function rimTokens(facts: RimFacts): RimToken[] {
         out.push({
             key: 'width',
             text: width,
-            term: 'Maulweite',
+            term: 'Felgenbreite',
             sentence:
-                `Die Maulweite ist der Abstand zwischen den Innenseiten der beiden Felgenhörner in Zoll – hier ${width}; ` +
+                `Die Felgenbreite ist der Abstand zwischen den Innenseiten der beiden Felgenhörner in Zoll – hier ${width}; ` +
                 'das „J“ bezeichnet die Form des Felgenhorns, nicht die Breite.',
         })
     }
@@ -266,7 +266,7 @@ export interface PhotoLabel {
  * - KBA: a box around the stamp (`kba`), a little larger than the stamp so it frames it, and only
  *   when the stamp on the photograph is the number the token explains;
  * - Felgendurchmesser: a vertical dimension line at the bead seat (`bead`);
- * - Maulweite: a dimension across the barrel between the Felgenhörner, where the photograph shows it
+ * - Felgenbreite: a dimension across the barrel between the Felgenhörner, where the photograph shows it
  *   (`flanges`).
  *
  * The ET has no feature a front view shows: null — the cross-section explains it. So does any value
@@ -295,11 +295,11 @@ export function photoShape(key: RimKey, frame: PhotoFrame | null, kba: string | 
         return { key, kind: 'line', x1: a.bead.x * w, y1: a.bead.y * h - half, x2: a.bead.x * w, y2: a.bead.y * h + half, label: 'am Wulstsitz' }
     }
 
-    // The Maulweite: the barrel between the two Felgenhörner, where the angle shows it.
+    // The Felgenbreite: the barrel between the two Felgenhörner, where the angle shows it.
     if (key === 'width' && a.flanges !== undefined && finitePoint(a.flanges) && Number.isFinite(a.flanges.w) && a.flanges.w > 0) {
         const half = (a.flanges.w * w) / 2
 
-        return { key, kind: 'line', x1: a.flanges.x * w - half, y1: a.flanges.y * h, x2: a.flanges.x * w + half, y2: a.flanges.y * h, label: 'Maulweite' }
+        return { key, kind: 'line', x1: a.flanges.x * w - half, y1: a.flanges.y * h, x2: a.flanges.x * w + half, y2: a.flanges.y * h, label: 'Felgenbreite' }
     }
 
     if (key === 'kba' && a.kba !== undefined && kba !== null && frame.stamp === kba && boxOk(a.kba)) {
@@ -358,7 +358,7 @@ export function photoLabel(shape: PhotoShape, frame: PhotoFrame): PhotoLabel {
  * `etDrawn` is the cross-section's own answer (`RimCode`'s `showEt`): it draws the ET dimension for
  * a positive ET only. For any other ET the line may not send the reader to a dimension that is not
  * there, so it says only that the photograph does not show it (CLAUDE.md §2 — silent, never
- * confidently wrong). The Maulweite, the Felgendurchmesser, the Lochkreis and the
+ * confidently wrong). The Felgenbreite, the Felgendurchmesser, the Lochkreis and the
  * Mittenlochbohrung are always drawn, so their lines point at the drawing unconditionally.
  */
 export function photoHint(key: RimKey, marked: boolean, etDrawn = true): string {
@@ -366,7 +366,7 @@ export function photoHint(key: RimKey, marked: boolean, etDrawn = true): string 
         case 'width':
             return marked
                 ? 'Markiert: das Felgenbett zwischen den beiden Felgenhörnern – rechts, wo das Rad schräg steht.'
-                : 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Maulweite.'
+                : 'Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Felgenbreite.'
         case 'diameter':
             return marked
                 ? 'Markiert: der Durchmesser am Wulstsitz, knapp innerhalb des Felgenhorns.'

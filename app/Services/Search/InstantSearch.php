@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Search;
 
+use App\Support\GermanFormat;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,7 @@ final readonly class InstantSearch
         ['label' => 'RIMIFY-Check', 'href' => '/rimify-check', 'keys' => 'check prüfen prüfung passt gutachten freigabe'],
         ['label' => 'Fahrzeug wählen', 'href' => '/felgen-suchen', 'keys' => 'fahrzeug auto hsn tsn schlüsselnummer marke modell'],
         ['label' => 'Alle Felgen', 'href' => '/felgen', 'keys' => 'alle sortiment katalog'],
-        ['label' => 'Fragen und Antworten', 'href' => '/faq', 'keys' => 'faq fragen hilfe antworten'],
+        ['label' => 'Häufige Fragen', 'href' => '/faq', 'keys' => 'faq fragen hilfe antworten'],
         ['label' => 'Kontakt', 'href' => '/kontakt', 'keys' => 'kontakt telefon whatsapp mail anrufen'],
         ['label' => 'Warenkorb', 'href' => '/warenkorb', 'keys' => 'warenkorb bestellung kasse'],
         // No carrier among the keys: none is confirmed (ACCURACY.md D7).
@@ -183,7 +184,7 @@ final readonly class InstantSearch
             $inch = (string) $m[1];
 
             if ($this->sizeExists($inch)) {
-                $out[] = ['label' => $inch.' Zoll', 'sub' => 'Felgen in dieser Größe', 'href' => '/felgen?zoll='.$inch];
+                $out[] = ['label' => $inch.GermanFormat::NBSP.'Zoll', 'sub' => 'Felgen in dieser Größe', 'href' => '/felgen?zoll='.$inch];
             }
         }
 

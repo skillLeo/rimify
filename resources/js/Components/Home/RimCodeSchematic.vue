@@ -3,7 +3,7 @@
  * The cross-section of a rim, schematic and not to scale (ACCURACY.md §5): both flanges, the bead
  * seats with their humps, the well, the disc, the hub pad and its Anlagefläche, the rim centre plane
  * as a dashed line exactly halfway between the flange inner faces, and the wheel axis. Five
- * dimensions sit on it — Maulweite, ½ Felgendurchmesser, Einpresstiefe (ET), ½ Lochkreis and
+ * dimensions sit on it — Felgenbreite, ½ Felgendurchmesser, Einpresstiefe (ET), ½ Lochkreis and
  * ½ Mittenlochbohrung — in the tertiary ink; the one the visitor chose is traced in the selection
  * colour, with the faces it is taken from, and its label and reference parts in the full ink.
  *
@@ -50,7 +50,7 @@ const dimensions = computed(() => DIMENSION_ORDER.filter((key) => key !== 'et' |
 const traced = computed(() => (props.active !== null && dimensions.value.some((d) => d.key === props.active) ? props.active : null))
 
 const TERMS: Record<SchematicKey, string> = {
-    width: 'die Maulweite',
+    width: 'die Felgenbreite',
     diameter: 'der Felgendurchmesser',
     et: 'die Einpresstiefe',
     lk: 'der Lochkreis',
@@ -63,7 +63,7 @@ const description = computed(() => {
 
     return (
         'Schnittzeichnung einer Felge, schematisch und nicht maßstäblich; links liegt die Fahrzeugmitte, rechts die Außenseite. ' +
-        `Die Maulweite reicht von Innenseite zu Innenseite der Felgenhörner, der Felgendurchmesser wird am Wulstsitz gemessen${et}.${marked}`
+        `Die Felgenbreite reicht von Innenseite zu Innenseite der Felgenhörner, der Felgendurchmesser wird am Wulstsitz gemessen${et}.${marked}`
     )
 })
 </script>

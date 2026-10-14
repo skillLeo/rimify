@@ -179,7 +179,7 @@ describe('no verdict', () => {
     })
 
     it('says an implausible pairing in one sentence', () => {
-        expect(IMPLAUSIBLE).toBe('Diese Reifenbreite und diese Maulweite gehören so nicht zusammen – prüf die Angaben.')
+        expect(IMPLAUSIBLE).toBe('Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen – prüf die Angaben.')
     })
 })
 
@@ -193,7 +193,7 @@ describe('valueParts: the figures a translator must leave alone', () => {
             [`Umfang ${mm('1.993')} · ET${NNBSP}−10 · ${pct('±0,00')}`, [mm('1.993'), `ET${NNBSP}−10`, pct('±0,00')]],
             ['Teil I (Felder 15.1 und 15.2), UN-Regelung Nr. 39', ['15.1', '15.2', '39']],
             [`zwischen −30 und 70${NNBSP}mm.`, ['−30', `70${NNBSP}mm`]],
-            ['Diese Reifenbreite und diese Maulweite gehören so nicht zusammen.', []],
+            ['Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen.', []],
         ]
 
         for (const [text, values] of cases) {

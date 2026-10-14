@@ -130,7 +130,7 @@ type FormKey = keyof typeof form
 
 const REQUIRED: [FormKey, string][] = [
     ['email', 'Bitte gib deine E-Mail-Adresse an.'],
-    ['name', 'Bitte gib deinen vollständigen Namen an.'],
+    ['name', 'Bitte gib deinen Vor- und Nachnamen an.'],
     ['street', 'Bitte gib die Straße an.'],
     ['houseNumber', 'Bitte gib die Hausnummer an.'],
     ['zip', 'Bitte gib die PLZ an.'],
@@ -418,7 +418,7 @@ async function confirm(clientSecret: string, returnUrl: string): Promise<void> {
         confirmParams: { return_url: new URL(returnUrl, window.location.origin).href },
     })
 
-    payError.value = error?.message ?? 'Die Zahlung wurde nicht abgeschlossen. Es wurde nichts abgebucht. Versuch es noch einmal oder wähl eine andere Zahlungsart.'
+    payError.value = error?.message ?? 'Die Zahlung wurde nicht abgeschlossen. Es wurde nichts abgebucht. Versuch es noch einmal oder wähle eine andere Zahlungsart.'
 }
 
 async function payWithStripe(): Promise<void> {
@@ -833,6 +833,8 @@ function verdictSentence(line: BasketLine): string {
                         <!-- Step 1 · Adresse -->
                         <template v-if="step === 1">
                             <h2 class="t-h2 ko__step-title" tabindex="-1" data-step-title>Adresse</h2>
+                            <!-- The asterisk explained once, before the first field that carries it. -->
+                            <p class="field-help"><span class="field-label__req">*</span> Pflichtfeld</p>
 
                             <fieldset class="ko__group">
                                 <legend class="t-h3">Kontakt</legend>
@@ -855,7 +857,7 @@ function verdictSentence(line: BasketLine): string {
                                             @blur="touch('email')"
                                         >
                                         <p id="ko-mail-help" class="field-help">
-                                            Hierhin schicken wir dir Infos zu deiner Bestellung.
+                                            An diese Adresse schicken wir dir die Bestellbestätigung.
                                         </p>
                                         <span id="ko-mail-err" class="field-error">{{ errors.email ?? '' }}</span>
                                     </div>
@@ -881,7 +883,7 @@ function verdictSentence(line: BasketLine): string {
                                 <div class="ko__grid">
                                     <div class="ko__wide">
                                         <label class="field-label" for="ko-name">
-                                            Vollständiger Name <span class="field-label__req">*</span>
+                                            Vor- und Nachname <span class="field-label__req">*</span>
                                         </label>
                                         <input
                                             id="ko-name"
@@ -1006,7 +1008,7 @@ function verdictSentence(line: BasketLine): string {
                                 <div v-if="billingOther" class="ko__grid ko__billing">
                                     <div class="ko__wide">
                                         <label class="field-label" for="ko-b-name">
-                                            Vollständiger Name <span class="field-label__req">*</span>
+                                            Vor- und Nachname <span class="field-label__req">*</span>
                                         </label>
                                         <input
                                             id="ko-b-name"

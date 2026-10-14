@@ -12,6 +12,7 @@
 import { useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import Icon from '../Ui/Icon.vue'
+import { usePriceTerms } from '../../composables/usePriceTerms'
 import type { MischbereifungProp, MischbereifungSetProp } from '../../types/pages'
 
 const props = withDefaults(
@@ -24,6 +25,9 @@ const props = withDefaults(
     }>(),
     { weightColourId: null, rdks: null }
 )
+
+/* „inkl. MwSt., zzgl. Versandkosten“ — or the Kleinunternehmer's line — as every price on the site says it. */
+const terms = usePriceTerms()
 
 const chosenKey = ref<string | null>(props.offer.pairs[0]?.key ?? null)
 
@@ -140,8 +144,10 @@ function add(key: string, frontId: number, rearId: number): void {
                             <p class="price">{{ priceOf(set).forFour }}</p>
                             <p class="price-note">
                                 für {{ offer.perAxle }} + {{ offer.perAxle }} Kompletträder ·
-                                je Rad vorne {{ priceOf(set).perWheelFront }}, hinten {{ priceOf(set).perWheelRear }}
+                                pro Rad vorne {{ priceOf(set).perWheelFront }}, hinten {{ priceOf(set).perWheelRear }}
                             </p>
+                            <!-- Each set is its own purchase, with its own button: its price carries the PAngV line. -->
+                            <p class="price-legal">{{ terms.note }}</p>
                             <p v-if="offer.priceOpen" class="price-note">Ohne Montage und Auswuchten – der Preis dafür steht noch nicht fest.</p>
                         </div>
                         <button

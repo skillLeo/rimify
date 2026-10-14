@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\DB;
  */
 
 beforeEach(function (): void {
+    // The minimums this test names are the legal ones: margins as shipped, stated (the look-back, D-232).
+    config(['rimify.speed_symbol_margin_steps' => 0, 'rimify.load_index_margin_steps' => 0]);
     $this->seed(VehicleSeeder::class);
     $this->resolver = new VehicleResolver(app(VehicleRepository::class));
 });

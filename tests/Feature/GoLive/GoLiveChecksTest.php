@@ -363,6 +363,8 @@ function goLiveMailSet(array $test, string $state = MailSetting::ACTIVE): MailSe
 }
 
 it('reads „fehlt“ for the mail while no SES key is in, naming every DNS record the sender needs', function (): void {
+    // The transport and the sender this test names, stated rather than taken from the pinned environment (D-232).
+    config(['mail.default' => 'array', 'mail.from.address' => 'noreply@rimify.de']);
     $sending = goLiveById()['mailversand'];
     $dns = goLiveById()['mail_dns'];
 
@@ -375,6 +377,7 @@ it('reads „fehlt“ for the mail while no SES key is in, naming every DNS reco
 });
 
 it('names what keeps a working SES key from carrying the mail: the sandbox, an unverified domain', function (): void {
+    config(['mail.default' => 'array', 'mail.from.address' => 'noreply@rimify.de']);
     goLiveMailSet(['production_access' => false, 'identity_verified' => false]);
 
     expect(goLiveById()['mailversand']->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Noch offen: der Produktionszugang bei AWS (das Konto ist noch in der Sandbox), die bestätigte Absenderdomain rimify.de.');

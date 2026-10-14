@@ -62,9 +62,9 @@ class BasketLineRequest extends FormRequest
             'weightColourId.integer' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
             'weightColourId.min' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
             'rdks.in' => 'Bitte sag uns, ob du RDKS-Sensoren brauchst.',
-            'quantity.required' => 'Bitte gib eine Menge an.',
-            'quantity.integer' => 'Bitte gib eine Menge als ganze Zahl an.',
-            'quantity.min' => 'Die Menge muss mindestens 1 sein.',
+            'quantity.required' => 'Bitte gib eine Anzahl an.',
+            'quantity.integer' => 'Bitte gib die Anzahl als ganze Zahl an.',
+            'quantity.min' => 'Die Anzahl muss mindestens 1 sein.',
             'quantity.max' => 'Mehr als 99 Stück passen nicht in eine Position.',
         ];
     }

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * „Was möchtest du bestellen?“ — Nur Felgen or Komplettrad (the client's #18), two radio tiles, the whole tile the
+ * „Was möchtest du bestellen?“ — Nur Felgen or Kompletträder (the client's #18), two radio tiles, the whole tile the
  * control. The product page and the RIMIFY-Check (#28) ask it the same way; what follows the choice is theirs.
  *
- * Each tile says what it costs in the same words: the rims „je Felge“, the Komplettrad „ab … je Rad“ — figures the server
+ * Each tile says what it costs in the same words: the rims „pro Felge“, the Kompletträder „ab … pro Rad“ — figures the server
  * formatted. One selected state for every tile on the page: a 2 px blue border and the check, no tint (D-132).
  */
 
@@ -30,16 +30,16 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
                 <span class="bmc-tile__name">Nur Felgen</span>
                 <span class="bmc-tile__sub">
                     Ohne Reifen
-                    <span v-if="rimPrice" class="bmc-tile__price"><span class="num" translate="no">{{ rimPrice }}</span> je Felge</span>
+                    <span v-if="rimPrice" class="bmc-tile__price"><span class="num" translate="no">{{ rimPrice }}</span> pro Felge</span>
                 </span>
                 <span class="bmc-tile__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
             </label>
             <label class="bmc-tile" :class="{ 'bmc-tile--on': mode === 'komplettrad' }">
                 <input v-model="mode" class="visually-hidden" type="radio" :name="name ?? 'pdp-mode'" value="komplettrad">
-                <span class="bmc-tile__name">Komplettrad</span>
+                <span class="bmc-tile__name">Kompletträder</span>
                 <span class="bmc-tile__sub">
                     Mit Reifen, fertig montiert
-                    <span v-if="setFrom" class="bmc-tile__price">ab <span class="num" translate="no">{{ setFrom }}</span> je Rad</span>
+                    <span v-if="setFrom" class="bmc-tile__price">ab <span class="num" translate="no">{{ setFrom }}</span> pro Rad</span>
                 </span>
                 <span class="bmc-tile__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
             </label>

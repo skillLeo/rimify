@@ -99,7 +99,7 @@ describe('PopularWheels', () => {
         for (const tile of tiles) {
             // The narrow no-break space before the € is part of the format (R-10).
             expect(tile.find('.tile__price').text()).toMatch(new RegExp(`^ab \\d{1,3}(\\.\\d{3})*,\\d{2}${NNBSP}€ pro Felge$`))
-            expect(tile.find('.tile__legal').text()).toBe('inkl. MwSt., zzgl. Versand')
+            expect(tile.find('.tile__legal').text()).toBe('inkl. MwSt., zzgl. Versandkosten')
             expect(tile.find('.star, [class*="rating"]').exists()).toBe(false)
             expect(tile.find('.verdict').exists()).toBe(false)
             // One link per card, and it says what happens.

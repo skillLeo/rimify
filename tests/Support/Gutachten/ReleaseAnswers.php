@@ -16,12 +16,20 @@ use App\Services\Admin\Approvals\ReleaseDeclaration;
  */
 final class ReleaseAnswers
 {
-    /** @return array<string, string|int|null> */
-    public static function for(ApprovalDocument $document, string $completeness = ApprovalDocument::COMPLETE): array
+    /**
+     * Without an answer given, the entry's own: partial where its form already names missing Anlagen (the Nachtrag to ABE
+     * 53841 holds Anlage 16 of 16), complete otherwise. The missing ones are said as the document prints them („1–15“).
+     *
+     * @return array<string, string|int|null>
+     */
+    public static function for(ApprovalDocument $document, ?string $completeness = null): array
     {
+        $named = trim((string) $document->missing_annexes);
+        $completeness ??= $named === '' ? ApprovalDocument::COMPLETE : ApprovalDocument::PARTIAL;
+
         $answers = [
             'completeness' => $completeness,
-            'missing' => $completeness === ApprovalDocument::PARTIAL ? 'Anlagen 1–15' : null,
+            'missing' => $completeness === ApprovalDocument::PARTIAL ? ($named === '' ? '1–15' : $named) : null,
         ];
 
         if (! Fitment::query()->where('approval_document_id', $document->id)->whereNot('status', FitmentStatus::Retired->value)->exists()) {

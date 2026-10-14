@@ -52,11 +52,11 @@ it('refuses, in words, a body style or drive the engine does not know, and an em
     $vehicle = Vehicle::factory()->create();
 
     $this->post("/fahrzeug/{$vehicle->id}/aufbau", ['body_form' => 'Pickup'])
-        ->assertSessionHasErrorsIn('aufbau', ['body_form' => 'Wähl eine der gezeigten Karosserieformen.']);
+        ->assertSessionHasErrorsIn('aufbau', ['body_form' => 'Wähle eine der gezeigten Karosserieformen.']);
     $this->post("/fahrzeug/{$vehicle->id}/aufbau", ['drive_axle' => 'Kette'])
-        ->assertSessionHasErrorsIn('aufbau', ['drive_axle' => 'Wähl eine der gezeigten Antriebsarten.']);
+        ->assertSessionHasErrorsIn('aufbau', ['drive_axle' => 'Wähle eine der gezeigten Antriebsarten.']);
     $this->post("/fahrzeug/{$vehicle->id}/aufbau", [])
-        ->assertSessionHasErrorsIn('aufbau', ['body_form' => 'Wähl die Karosserieform oder die Antriebsart deines Fahrzeugs.']);
+        ->assertSessionHasErrorsIn('aufbau', ['body_form' => 'Wähle die Karosserieform oder die Antriebsart deines Fahrzeugs.']);
 });
 
 // As for 8.1, 8.2 and T: a car the shop no longer offers is not found, before the policy is even asked.

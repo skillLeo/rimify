@@ -85,7 +85,7 @@ const copy = computed<Copy>(() => {
         case 'UNKNOWN':
             return {
                 tag: 'tag--unknown',
-                label: 'Keine Angabe',
+                label: 'Noch nicht bestätigt',
                 title: 'Für diese Kombination können wir die Freigabe nicht bestätigen.',
                 // The wheel approved and only the tyres open (R-03 split): never „kein Gutachten“ then.
                 body: props.result?.wheelLabel

@@ -151,7 +151,7 @@ describe('a conflict between two documents', function (): void {
 
         expect($data['title'])->toBe("Zwei Gutachten widersprechen sich beim {$vehicle?->make} {$vehicle?->model} {$vehicle?->variant}.")
             ->and($data['detail'])->toContain(GermanFormat::wheelSize($config->width_in, $config->diameter_in, $config->et_mm))
-            ->and($data['detail'])->toEndWith('Eines verlangt eine Eintragung, das andere nicht. Bis jemand unter Konflikte entscheidet, sagt der Shop dazu „Unbekannt“.')
+            ->and($data['detail'])->toEndWith('Eines verlangt eine Eintragung, das andere nicht. Bis jemand unter Konflikte entscheidet, sagt der Shop dazu „Noch nicht bestätigt“.')
             ->and($data['detail'])->not->toContain('ENTRY_REQUIREMENT');
     });
 

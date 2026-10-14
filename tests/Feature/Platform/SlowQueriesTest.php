@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Support\SlowQueries;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 /*
  * The shop's own slow query log (docs/launch/GO-LIVE.md §8): a statement over the threshold is written
@@ -15,6 +16,9 @@ beforeEach(function (): void {
     $this->dir = storage_path('framework/testing/slow-'.bin2hex(random_bytes(4)));
     File::ensureDirectoryExists($this->dir);
     config(['logging.channels.slow_queries.path' => $this->dir.'/slow-queries.log']);
+    // A channel already built — by a slow statement while the app booted, under load — would still write to the old
+    // path, and this test would read an empty folder (the look-back, D-232): built again, here.
+    Log::forgetChannel('slow_queries');
 });
 
 afterEach(function (): void {

@@ -16,7 +16,7 @@ describe('rimTokens', () => {
 
         expect(tokens.map((t) => t.key)).toEqual(['width', 'diameter', 'et', 'lk', 'mlb', 'kba'])
         expect(tokens.map((t) => t.text)).toEqual(['8,5J', '19', `ET${NBSP}45`, `LK${NBSP}5${NBSP}×${NBSP}112`, `MLB${NBSP}66,6${NBSP}mm`, `KBA${NBSP}53810`])
-        expect(tokens.map((t) => t.term)).toEqual(['Maulweite', 'Felgendurchmesser', 'Einpresstiefe (ET)', 'Lochkreis', 'Mittenlochbohrung', 'KBA-Nummer'])
+        expect(tokens.map((t) => t.term)).toEqual(['Felgenbreite', 'Felgendurchmesser', 'Einpresstiefe (ET)', 'Lochkreis', 'Mittenlochbohrung', 'KBA-Nummer'])
     })
 
     it('shows the KBA token only when the server says the photographed stamp belongs to this configuration', () => {
@@ -37,7 +37,7 @@ describe('rimTokens', () => {
         const byKey = Object.fromEntries(rimTokens(FACTS).map((t) => [t.key, t.sentence]))
 
         expect(byKey.width).toBe(
-            'Die Maulweite ist der Abstand zwischen den Innenseiten der beiden Felgenhörner in Zoll – hier 8,5J; das „J“ bezeichnet die Form des Felgenhorns, nicht die Breite.'
+            'Die Felgenbreite ist der Abstand zwischen den Innenseiten der beiden Felgenhörner in Zoll – hier 8,5J; das „J“ bezeichnet die Form des Felgenhorns, nicht die Breite.'
         )
         expect(byKey.diameter).toBe(`Der Felgendurchmesser – hier 19${NBSP}Zoll – wird am Wulstsitz gemessen, dort, wo der Reifen aufliegt, nicht am Felgenhorn.`)
         expect(byKey.et).toContain('von der Felgenmitte bis zur Anlagefläche des Rades an der Nabe')
@@ -177,7 +177,7 @@ describe('photoShape', () => {
         expect(photoShape('mlb', photoFrame(frame('x', { centre: ANCHORS.centre, bore: { x: 0.5, y: 0.5, r: 0 } })))).toBeNull()
     })
 
-    it('draws the diameter at the bead seat and the Maulweite across the barrel where they were measured', () => {
+    it('draws the diameter at the bead seat and the Felgenbreite across the barrel where they were measured', () => {
         const g = photoFrame(frame('x', { ...ANCHORS, bead: { x: 0.47, y: 0.48, h: 0.74 }, flanges: { x: 0.86, y: 0.48, w: 0.04 } }))
         const diameter = photoShape('diameter', g)
         const width = photoShape('width', g)
@@ -185,7 +185,7 @@ describe('photoShape', () => {
         // Vertical: the one axis a wheel turned sideways does not foreshorten.
         expect(diameter).toMatchObject({ key: 'diameter', kind: 'line', x1: 0.47 * 1080, x2: 0.47 * 1080, label: 'am Wulstsitz' })
         expect(diameter?.kind === 'line' ? diameter.y2 - diameter.y1 : 0).toBeCloseTo(0.74 * 1080, 6)
-        expect(width).toMatchObject({ key: 'width', kind: 'line', y1: 0.48 * 1080, y2: 0.48 * 1080, label: 'Maulweite' })
+        expect(width).toMatchObject({ key: 'width', kind: 'line', y1: 0.48 * 1080, y2: 0.48 * 1080, label: 'Felgenbreite' })
         expect(width?.kind === 'line' ? width.x2 - width.x1 : 0).toBeCloseTo(0.04 * 1080, 6)
         expect(photoHint('diameter', true)).toContain('Wulstsitz')
         expect(photoHint('width', true)).toContain('Felgenhörnern')
@@ -212,7 +212,7 @@ describe('photoShape', () => {
 
 describe('photoHint and schematicKey', () => {
     it('points the values a front view cannot show to the cross-section', () => {
-        expect(photoHint('width', false)).toBe('Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Maulweite.')
+        expect(photoHint('width', false)).toBe('Auf dem Foto nicht zu sehen – die Schnittzeichnung zeigt die Felgenbreite.')
         expect(photoHint('et', false)).toContain('Schnittzeichnung zeigt die Einpresstiefe')
         expect(photoHint('mlb', true)).toBe('Markiert: die Nabenkappe – die Mittenlochbohrung liegt dahinter.')
         expect(photoHint('lk', false)).toContain('nicht markiert')
@@ -234,7 +234,7 @@ describe('photoHint and schematicKey', () => {
         expect(photoHint('et', false, false)).not.toContain('Schnittzeichnung')
 
         // The four the drawing always carries keep their pointer whatever the ET is.
-        expect(photoHint('width', false, false)).toContain('Schnittzeichnung zeigt die Maulweite')
+        expect(photoHint('width', false, false)).toContain('Schnittzeichnung zeigt die Felgenbreite')
         expect(photoHint('diameter', false, false)).toContain('Schnittzeichnung zeigt den Felgendurchmesser')
         expect(photoHint('lk', false, false)).toContain('Schnittzeichnung zeigt den Lochkreis')
         expect(photoHint('mlb', false, false)).toContain('Schnittzeichnung zeigt die Mittenlochbohrung')
@@ -331,7 +331,7 @@ describe('RimCode', () => {
 
         expect(mounted[0]?.findAll('[data-token]').map((b) => b.attributes('data-token'))).toEqual(KEYS)
         expect(first.pressed).toEqual(['width'])
-        expect(first.term).toBe('Maulweite')
+        expect(first.term).toBe('Felgenbreite')
     })
 
     it('changes the term, the sentence and the highlighted element on every value', async () => {

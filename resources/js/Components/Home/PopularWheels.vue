@@ -58,7 +58,7 @@ function keyOf(card: ProductCardProp): string {
                 </div>
                 <div v-else class="empty popular__none">
                     <p class="empty__title">Für dein Fahrzeug ist hier gerade keine dabei.</p>
-                    <p class="empty__text">In der Felgenliste siehst du alles, was das Gutachten für dein Fahrzeug erlaubt.</p>
+                    <p class="empty__text">In der Felgenliste siehst du jede Felge, deren Freigabe für dein Fahrzeug bei uns hinterlegt ist.</p>
                 </div>
 
                 <div class="popular__more">

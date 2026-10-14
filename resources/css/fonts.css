@@ -11,6 +11,19 @@
  * nothing — the first paint does not wait for 90 KB of font (the operator's brief of 05.10.2026, §5).
  */
 
+/*
+ * The Gutachten facsimile's narrow small print (finding 116, D-231): static cuts of the same font at the two widths it
+ * uses, 70 % and 85 %, in the three weights it uses. WebKit as Playwright runs it applies a variable width to the
+ * spacing but not to the letters, and the facsimile's words overlapped; a static cut has no axis to get wrong. Same
+ * outlines as Archivo Variable at those coordinates (scripts/fonts/doc-cuts.ps1). Fetched only where the facsimile is.
+ */
+@font-face { font-family: 'Archivo Doc'; font-style: normal; font-display: swap; font-weight: 400; font-stretch: 50% 77.4%; src: url('/fonts/archivo-doc-70-400.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Doc'; font-style: normal; font-display: swap; font-weight: 500; font-stretch: 50% 77.4%; src: url('/fonts/archivo-doc-70-500.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Doc'; font-style: normal; font-display: swap; font-weight: 600; font-stretch: 50% 77.4%; src: url('/fonts/archivo-doc-70-600.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Doc'; font-style: normal; font-display: swap; font-weight: 400; font-stretch: 77.5% 200%; src: url('/fonts/archivo-doc-85-400.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Doc'; font-style: normal; font-display: swap; font-weight: 500; font-stretch: 77.5% 200%; src: url('/fonts/archivo-doc-85-500.woff2') format('woff2'); }
+@font-face { font-family: 'Archivo Doc'; font-style: normal; font-display: swap; font-weight: 600; font-stretch: 77.5% 200%; src: url('/fonts/archivo-doc-85-600.woff2') format('woff2'); }
+
 @font-face {
     font-family: 'Archivo Variable';
     font-style: normal;

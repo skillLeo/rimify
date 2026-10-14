@@ -18,7 +18,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { felgen, NNBSP } from './format'
+import { modelle, NNBSP } from './format'
 import { formatMoney } from './lib/num'
 import type { Brand } from './Components/Home/brandWall'
 import type { ProductCardProp, VehicleProp } from './types/rimify'
@@ -268,7 +268,7 @@ describe('BrandWall', () => {
     it('marks the wordmark and the count, and leaves the note under the wall translatable', () => {
         const wrapper = keep(mount(BrandWall, { props: { brands, vehicle: null } }))
 
-        expect(untranslated(wrapper)).toEqual(['MOTEC', felgen(18), 'Rial', felgen(1)])
+        expect(untranslated(wrapper)).toEqual(['MOTEC', modelle(18), 'Rial', modelle(1)])
         expect(guardOn(wrapper, '.brand-wall__note')).toBeNull()
         expect(wrapper.find('.brand-wall__note').text()).not.toBe('')
     })

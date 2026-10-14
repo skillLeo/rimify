@@ -23,6 +23,8 @@ use Inertia\Testing\AssertableInertia;
  * the tree is checked the way a person would find a dead link — by opening every entry it offers.
  */
 beforeEach(function (): void {
+    // The review pages off, as in the live shop: switched on, the tree gains them (the look-back, D-232).
+    config(['rimify.review.enabled' => false]);
     $this->seed(AccessSeeder::class);
     RateLimiter::clear('super-admin@rimify.test|127.0.0.1');
 });

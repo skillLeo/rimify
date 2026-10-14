@@ -85,7 +85,7 @@ it('renames an entry and the shop shows it on the very next page, despite the me
 });
 
 it('never stores a target that is not one of the shop\'s own pages', function (string $target): void {
-    $item = navItem('header', 'FAQ');
+    $item = navItem('header', 'Häufige Fragen');
 
     $this->actingAs(navAdmin(), 'admin')->from('/admin/navigation')
         ->put('/admin/navigation/'.$item->id, navPayload($item, ['target' => $target]))
@@ -203,7 +203,7 @@ it('takes the right to publish for every change, because every change is live', 
     $role = (int) DB::table('roles')->where('name', 'content-editor')->value('id');
     DB::table('role_permissions')->where('role_id', $role)->where('module', 'content')->where('action', 'publish')->update(['allowed' => false]);
     $editor = navAdmin('content-editor');
-    $item = navItem('header', 'FAQ');
+    $item = navItem('header', 'Häufige Fragen');
 
     $this->actingAs($editor, 'admin')->put('/admin/navigation/'.$item->id, navPayload($item, ['label' => 'Fragen']))->assertForbidden();
     $this->actingAs($editor, 'admin')->delete('/admin/navigation/'.$item->id)->assertForbidden();
@@ -233,7 +233,7 @@ it('refuses an order that is out of date rather than half applying it', function
 it('never lets a release write the seeded menus over the team\'s', function (): void {
     $item = navItem('header', 'Kontakt');
     $this->actingAs(navAdmin(), 'admin')->put('/admin/navigation/'.$item->id, navPayload($item, ['label' => 'Hilfe']));
-    $this->actingAs(navAdmin(), 'admin')->delete('/admin/navigation/'.navItem('header', 'FAQ')->id);
+    $this->actingAs(navAdmin(), 'admin')->delete('/admin/navigation/'.navItem('header', 'Häufige Fragen')->id);
 
     $this->seed(ContentSeeder::class);
 

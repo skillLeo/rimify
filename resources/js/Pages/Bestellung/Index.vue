@@ -41,7 +41,7 @@ const VERDICT_LABEL: Record<string, string> = {
     PERMITTED: 'Freigegeben',
     CONDITIONAL: 'Freigegeben mit Auflagen',
     NOT_PERMITTED: 'Nicht freigegeben',
-    UNKNOWN: 'Keine Freigabe hinterlegt',
+    UNKNOWN: 'Noch nicht bestätigt',
 }
 
 const VERDICT_CLASS: Record<string, string> = {
@@ -306,7 +306,7 @@ function openAccount(): void {
                                 <p class="ord__verdict-row">
                                     <!-- Every Auflage a Hinweis (#23, D-104): „Freigegeben“, as the product page said it. -->
                                     <span class="tag" :class="VERDICT_CLASS[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'tag--unknown'">
-                                        {{ VERDICT_LABEL[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'Keine Freigabe hinterlegt' }}
+                                        {{ VERDICT_LABEL[line.verdict.notesOnly ? 'PERMITTED' : line.verdict.status] ?? 'Noch nicht bestätigt' }}
                                     </span>
                                     <span class="data">
                                         <template v-if="line.documentNumber">Gutachten {{ line.documentNumber }} · </template>Fassung {{ line.verdict.documentRevision }}

@@ -43,8 +43,8 @@ return [
     'nennt dazu nur Hinweise – nichts, was du tun musst' => ['backed', 'every recorded condition of the answer is a note (FitmentVerdict::notesOnly)'],
     'Zulässig unter den Auflagen des Gutachtens, etwa nur mit bestimmten Radschrauben' => ['backed', 'the legend of CONDITIONAL: the recorded conditions; the example is one'],
     'Das Gutachten lässt die Kombination nur unter Bedingungen zu' => ['backed', 'a CONDITIONAL answer: the recorded conditions'],
-    'Das Gutachten deckt diese Größe für dein Fahrzeug nicht ab' => ['open', 'EIGENE-FUNDE 119: also said where the recorded rows simply do not name the car'],
-    'Das Gutachten lässt diese Kombination für das Fahrzeug nicht zu' => ['open', 'EIGENE-FUNDE 119: also said where the recorded rows simply do not name the car'],
+    'Das Gutachten deckt diese Größe für dein Fahrzeug nicht ab' => ['backed', 'a NOT_PERMITTED answer: a recorded row restricts the car, or the document is asserted complete (approval_documents.completeness, D-227); an unnamed car in a document nobody asserted complete is „Noch nicht bestätigt“'],
+    'Das Gutachten lässt diese Kombination für das Fahrzeug nicht zu' => ['backed', 'a NOT_PERMITTED answer: a recorded row restricts the car, or the document is asserted complete (approval_documents.completeness, D-227); an unnamed car in a document nobody asserted complete is „Noch nicht bestätigt“'],
 
     // ── Read by the operator, not by a customer ──────────────────────────────────────────────────────────────────────
     'Ein Dokument kann sich nicht selbst ablösen' => ['ours', 'a rule of the record'],
@@ -62,7 +62,7 @@ return [
     'Ein Gutachten wird nur im PDF-Format angenommen' => ['ours', 'a rule of the upload'],
     '(nur bis|ab) Nachtrag' => ['code', 'the pattern that reads a recorded limit'],
 
-    // ── The admin — recorded this round, not changed (ADMIN-GEFUNDEN 505) ───────────────────────────────────────────
+    // ── The admin — ADMIN-GEFUNDEN 505's seven reworded to „hinterlegt“ (brief of 14.10.2026 §9, D-236) ─────────────
     'Für diese Kombination gilt jetzt nur das gewählte Gutachten' => ['ours', 'the decision just recorded'],
     'Ein Nachtrag ergänzt ein Gutachten, keinen anderen Nachtrag' => ['ours', 'a rule of the record'],
     'Ersetzt werden kann nur ein freigegebenes Dokument' => ['ours', 'a rule of the record'],
@@ -72,20 +72,16 @@ return [
     'Dieses Gutachten gehört nicht zu dem Konflikt' => ['ours', 'a relation between two of our records'],
     'Nennt das Gutachten nicht' => ['backed', 'this choice is the recorded absence: the person entering the document says it names none'],
     'Steht nicht im Dokument' => ['backed', 'this choice is the recorded absence'],
-    'im Gutachten nicht definiert' => ['open', 'ADMIN-GEFUNDEN 505: the code is missing from the recorded Auflagenverzeichnis, which is not the same'],
-    'ist in diesem Gutachten nicht definiert' => ['open', 'ADMIN-GEFUNDEN 505: as above, as a reason a release is blocked'],
     'so, wie das Gutachten ihn druckt' => ['ours', 'an instruction for entering a code'],
     'bei keinem Fahrzeug als passend gezeigt, bis ein Gutachten für sie freigegeben ist' => ['ours', 'what the shop does until a release'],
     'steht in einem Gutachten und kann nicht entfernt werden' => ['ours', 'R-05, said to whoever edits a wheel'],
     'Kein freigegebenes Gutachten nennt sie' => ['ours', 'counts versions without a row in a released document'],
     'Das Dokument ist nicht mehr auffindbar' => ['ours', 'a file of ours that is gone'],
+    'Gutachten-PDF nicht gefunden' => ['ours', 'a log line: our file was looked for on both disks and is on neither (DocumentFiles::locate)'],
     'Fahrzeuge ohne Felgen, Gutachten-Lücken' => ['code', 'a list of report names'],
     'Entfernt nur die Beispieldaten, nicht deine eigenen Felgen, Gutachten und Bestellungen' => ['ours', 'what the button removes'],
-    'Diese Gutachten drucken keine Tabelle zur Tragfähigkeit' => ['open', 'ADMIN-GEFUNDEN 505: the sentence finding 104 corrected in the shop, still in the admin'],
-    'Noch kein Gutachten nennt dieses Fahrzeug' => ['open', 'ADMIN-GEFUNDEN 505: means „no recorded row“'],
     'und das Gutachten ist so lange nicht freigebbar' => ['ours', 'a rule of the release'],
     'Am Urteil des Gutachtens ändert das nichts' => ['ours', 'what an edit of ours does not change'],
-    'Dieses Gutachten hat noch keine Tabelle' => ['open', 'ADMIN-GEFUNDEN 505: means „none entered yet“'],
     'nicht aus diesem Gutachten übertragen' => ['backed', 'the recorded origin of a demo table (seeded_from)'],
     'Entwurf, noch nicht freigegeben' => ['ours', 'the state of a record'],
     'Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben' => ['ours', 'the state of a record: only a released one can be taken back (D-225)'],
@@ -96,7 +92,15 @@ return [
     'Codes, die das Gutachten nur bei dieser Größe druckt' => ['ours', 'an instruction for entering codes'],
     'und das Gutachten nicht freigebbar, bis der Code dort steht' => ['ours', 'a rule of the release'],
     'Ein freigegebenes Gutachten ändert sich nicht mehr' => ['ours', 'R-12\'s neighbour: a released record is not edited'],
-    'gibt es in diesem Gutachten keine Zeile' => ['open', 'ADMIN-GEFUNDEN 505: means „no recorded row“'],
-    'HSN und TSN stehen in keinem Gutachten' => ['open', 'ADMIN-GEFUNDEN 505: a statement about every Gutachten there is — true of each one read so far'],
     'Für keine Lücke wurde bisher ein Gutachten angefordert' => ['ours', 'the state of our requests'],
+
+    // ── The second pattern: a document word beside „wörtlich“, „vollständig“, „alle“, „immer“ (D-236) ─────────────────
+    'der Geschwindigkeitsindex steht so im Gutachten' => ['backed', 'the speed symbol recorded as the document\'s own minimum (source „document“, R-06)'],
+    'Der Tragfähigkeitsindex steht so im Gutachten' => ['backed', 'the load index recorded as the document\'s own minimum (source „document“, R-06)'],
+    'bis unter Konflikte entschieden ist, sagt der Shop dort' => ['ours', 'what the shop answers while two documents disagree — the fourth answer (D-234)'],
+    'trag alle drei ein oder lass alle drei leer' => ['ours', 'a form rule: the manufacturer\'s name, address and contact go together'],
+    'die E-Mails an alle Anfragen, auf die ein neues Gutachten passt' => ['ours', 'names a queue job of ours in an alert'],
+    'Alle Fahrzeugvarianten, suchbar nach Name und HSN/TSN' => ['ours', 'describes an admin screen and the rows we hold per vehicle'],
+    'Vollständigkeit jedes freigegebenen Gutachtens beantwortet' => ['ours', 'names our own recorded answer (D-227), not the document'],
+    'Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen' => ['ours', 'what a reset level removes'],
 ];

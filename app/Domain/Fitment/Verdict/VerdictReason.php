@@ -92,7 +92,7 @@ final readonly class VerdictReason
     {
         return match ($code) {
             self::VEHICLE_NOT_FOUND => 'Zu dieser Kombination haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.',
-            self::VEHICLE_INCOMPLETE => 'Dieses Fahrzeug führen wir nicht mehr in unseren Daten. Wähl dein Fahrzeug bitte neu aus – dann prüfen wir die Felge dafür.',
+            self::VEHICLE_INCOMPLETE => 'Dieses Fahrzeug führen wir nicht mehr in unseren Daten. Wähle dein Fahrzeug bitte neu aus – dann prüfen wir die Felge dafür.',
             self::NO_DOCUMENT => 'Für diese Kombination liegt uns kein Gutachten vor.',
             self::NOT_COVERED => 'Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.',
             // The operator's words (brief of 14.10.2026, §2): keeps the customer, and gives us a reason to chase the document.

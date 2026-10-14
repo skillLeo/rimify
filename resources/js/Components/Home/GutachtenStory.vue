@@ -104,7 +104,9 @@ const facts = computed<string | null>(() => {
         return null
     }
 
-    return `${anzahl(gutachten, 'Gutachten', 'Gutachten')} · ${anzahl(variants, 'Fahrzeugvariante', 'Fahrzeugvarianten')} · ${anzahl(wheels, 'Felge', 'Felgen')} mit Gutachten`
+    // `wheels` counts models, not finishes: „Felgenmodelle“, so it never reads as the listing's count — nor, beside the
+    // Fahrzeugvarianten, as car models.
+    return `${anzahl(gutachten, 'Gutachten', 'Gutachten')} · ${anzahl(variants, 'Fahrzeugvariante', 'Fahrzeugvarianten')} · ${anzahl(wheels, 'Felgenmodell', 'Felgenmodelle')} mit Gutachten`
 })
 
 /* ── The steps ────────────────────────────────────────────────────────────────── */
@@ -112,7 +114,7 @@ const facts = computed<string | null>(() => {
 const STEPS = [
     {
         title: 'Fahrzeug eindeutig erkennen',
-        text: 'Aus Marke, Modell und Variante – oder aus HSN und TSN – bestimmen wir die Typgenehmigung deines Fahrzeugs. Stehen zwei Fahrzeuge hinter einem Schlüssel, fragen wir nach, statt zu raten.',
+        text: 'Aus Marke, Modell und Variante – oder aus HSN und TSN – bestimmen wir die Typgenehmigung deines Fahrzeugs. Gehören zu einer Schlüsselnummer mehrere Fahrzeuge, fragen wir nach, statt zu raten.',
     },
     {
         title: 'Gutachten abgleichen',
@@ -120,7 +122,7 @@ const STEPS = [
     },
     {
         title: 'Klare Antwort',
-        text: 'Du bekommst eine von vier Antworten: freigegeben, mit Auflagen, nicht freigegeben oder unbekannt. Nennt das Gutachten Auflagen, schreiben wir sie aus:',
+        text: 'Du bekommst eine von vier Antworten: freigegeben, mit Auflagen, nicht freigegeben oder noch nicht bestätigt. Nennt das Gutachten Auflagen, schreiben wir sie aus:',
     },
 ] as const
 
@@ -347,6 +349,7 @@ onBeforeUnmount(() => observers.forEach((o) => o.disconnect()))
     color: var(--c-ink);
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
+    font-family: var(--font-doc);
     font-stretch: 85%;
     font-variant-numeric: tabular-nums;
 }

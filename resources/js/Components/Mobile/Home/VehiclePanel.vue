@@ -19,7 +19,7 @@ import DocFacsimile from '../../Art/DocFacsimile.vue'
 import Icon from '../../Ui/Icon.vue'
 import Skeleton from '../../Ui/Skeleton.vue'
 import BottomSheet from '../BottomSheet.vue'
-import { decimal, passendeAnzeigen } from '../../../format'
+import { decimal, passendeAnzeigen, withUnit } from '../../../format'
 import { ZERO_LABEL, zeroSentence } from '../../../lib/zeroState'
 import { useShared } from '../../../composables/useShared'
 import { contactHref } from '../../../lib/contact'
@@ -209,7 +209,7 @@ watch(
 /* ── Guided ────────────────────────────────────────────────────────────────── */
 
 function variantLabel(v: VariantRow): string {
-    const power = v.powerPs === null ? null : `${decimal(Math.round(v.powerPs * 0.7355), 0)} kW`
+    const power = v.powerPs === null ? null : withUnit(decimal(Math.round(v.powerPs * 0.7355), 0), 'kW')
     // Feld K's range tells apart the halves a Gutachten splits one car into, where no key numbers do yet — and
     // it stands where a closed select and the picker wheel still show it, in place of the unknown build window.
     const parts = [v.variant, power, v.approvalShort ?? v.buildWindow].filter((p): p is string => p !== null && p !== '')
@@ -276,7 +276,7 @@ const waiting = computed(
 /* Why it waits, read with the button for whoever cannot see the light blue (#1): the step that is missing. */
 const waitingWhy = computed(() =>
     picker.route.value === 'guided'
-        ? 'Noch kein Fahrzeug gewählt: Wähl zuerst Marke, Modell und Fahrzeug.'
+        ? 'Noch kein Fahrzeug gewählt: Wähle zuerst Marke, Modell und Variante.'
         : 'Noch kein Fahrzeug gewählt: Trag zuerst HSN und TSN aus deinem Fahrzeugschein ein.'
 )
 
@@ -428,10 +428,13 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
         <!-- The camera, above everything: the fastest route for anyone holding their papers. It reads the key numbers,
              so it waits with them while no vehicle dataset is loaded (KeyNumberSearch). -->
         <template v-if="!keysClosed">
-            <button class="btn btn--secondary btn--block m-press" type="button" @click="openCamera">
+            <!-- One verb on every device, „scannen“ (the desktop's tab says it too); the line under it says what the
+                 press opens here: the camera. -->
+            <button class="btn btn--secondary btn--block m-press" type="button" :aria-describedby="`${uid}-scan-how`" @click="openCamera">
                 <Icon name="camera" :size="20" />
-                Fahrzeugschein fotografieren
+                Fahrzeugschein scannen
             </button>
+            <p :id="`${uid}-scan-how`" class="small quiet">Foto aufnehmen</p>
             <input
                 ref="fileInput"
                 class="visually-hidden"
@@ -516,7 +519,7 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                 </div>
 
                 <div class="form-field">
-                    <label class="form-field__label" :for="`${uid}-fahrzeug`">Fahrzeug</label>
+                    <label class="form-field__label" :for="`${uid}-fahrzeug`">Variante</label>
                     <select
                         :id="`${uid}-fahrzeug`"
                         v-model.number="picker.variantId.value"

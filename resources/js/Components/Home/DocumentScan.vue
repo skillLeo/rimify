@@ -11,6 +11,7 @@
 import { nextTick, ref, useId } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import { useOcr } from '../../composables/useOcr'
+import { useShared } from '../../composables/useShared'
 import { cleanHsn, cleanTsn, isHsn, isTsn, parseKeyNumbers } from '../../lib/fahrzeugschein'
 
 const emit = defineEmits<{
@@ -27,6 +28,13 @@ const tsn = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const hsnField = ref<HTMLInputElement | null>(null)
 const ocr = useOcr()
+
+/*
+ * One label on every device, „Fahrzeugschein scannen“; the line under it says what the press opens — the camera on a
+ * phone, a file on a computer. The server knows which document it renders, so the line is right before any script.
+ */
+const shared = useShared()
+const how = shared.value?.isMobile === true ? 'Foto aufnehmen' : 'Datei wählen'
 
 function pick(): void {
     fileInput.value?.click()
@@ -112,12 +120,15 @@ function onTsn(event: Event): void {
                 class="btn btn--secondary btn--block"
                 type="button"
                 :aria-busy="phase === 'busy' ? 'true' : undefined"
+                :aria-describedby="`${id}-how`"
                 :disabled="phase === 'busy'"
                 @click="pick"
             >
                 <Icon name="camera" :size="20" />
-                Fahrzeugschein fotografieren
+                Fahrzeugschein scannen
             </button>
+
+            <p :id="`${id}-how`" class="small quiet scan__how">{{ how }}</p>
 
             <p class="small quiet scan__privacy">
                 Die Erkennung läuft auf deinem Gerät. Das Foto wird nicht hochgeladen.
@@ -174,7 +185,7 @@ function onTsn(event: Event): void {
                 >
                     Übernehmen
                 </button>
-                <button class="link small" type="button" @click="reset">Noch einmal fotografieren</button>
+                <button class="link small" type="button" @click="reset">Noch einmal scannen</button>
             </div>
         </div>
     </div>

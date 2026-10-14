@@ -25,6 +25,11 @@ export function felgen(count: number): string {
     return `${decimal(count, 0)}${NNBSP}${count === 1 ? 'Felge' : 'Felgen'}`
 }
 
+/** `18 Modelle` — wheel designs, held together like felgen() (EIGENE-FUNDE 128: the homepage counts designs, the listing finishes). */
+export function modelle(count: number): string {
+    return `${decimal(count, 0)}${NNBSP}${count === 1 ? 'Modell' : 'Modelle'}`
+}
+
 /** `1 Modell` · `1.234 Modelle` — a count and its noun, in the singular for one. */
 export function anzahl(count: number, one: string, many: string): string {
     return `${decimal(count, 0)} ${count === 1 ? one : many}`

@@ -252,7 +252,7 @@ const headline = computed(() => {
             // customer's first question is whether this wheel may go on this car — then the caveat.
             return tyreOpen.value
                 ? `${wheelApproved.value} · Reifengröße noch nicht bestätigt`
-                : `Keine Freigabe hinterlegt für ${props.vehicle.label}`
+                : `Noch nicht bestätigt für ${props.vehicle.label}`
     }
 })
 

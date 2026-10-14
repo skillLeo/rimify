@@ -15,7 +15,7 @@ const next: WheelSetup = { widthIn: 8.5, diameterIn: 19, etMm: 35, tyreWidthMm: 
 const RULE = `der häufig genannten Faustregel von ${pct('−2,5')} bis ${pct('+1,5')} (keine gesetzliche Grenze)`
 const R39 = `Der Tacho darf nie weniger anzeigen als die tatsächliche Geschwindigkeit, höchstens ${pct('10')} + ${kmh('4')} mehr (UN-Regelung Nr. 39).`
 const ADJUST = 'Zeigt der Tacho dadurch weniger an, als du fährst, kann eine Tachoangleichung nötig sein – prüfe dazu die Auflagen des Gutachtens.'
-const IMPLAUSIBLE = 'Diese Reifenbreite und diese Maulweite gehören so nicht zusammen – prüf die Angaben.'
+const IMPLAUSIBLE = 'Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen – prüf die Angaben.'
 
 /** Words that would make arithmetic sound like a verdict (ACCURACY.md D8, §6; brief W6). */
 const VERDICT = /zulässig|passt|legal|eintragungsfrei|toleranz|ohne gewähr|freigegeben|erlaubt|\bok\b/i
@@ -200,7 +200,7 @@ describe('FitmentResults', () => {
         expect(wrapper.text()).not.toMatch(/\d/)
 
         const both = mountResults({ ...current, widthIn: 12, tyreWidthMm: 135 }, { widthIn: 5.5, diameterIn: 19, etMm: 35, tyreWidthMm: 305, aspect: 30 })
-        expect(block(both, 'implausible').find('.label').text()).toBe('Aktuell und Neu')
+        expect(block(both, 'implausible').find('.label').text()).toBe('Bisher und Neu')
     })
 
     it('keeps the translator off every figure: each value sits in translate="no"', () => {

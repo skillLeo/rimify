@@ -427,7 +427,7 @@ final class GoLiveChecks
             $released === [] => 'Noch ist kein Gutachten freigegeben.',
             $broken === [] => (count($released) === 1 ? 'Das PDF des freigegebenen Gutachtens' : 'Jedes der '.count($released).' PDFs der freigegebenen Gutachten').($network ? ' wurde abgerufen und ist ein PDF' : ' liegt im Speicher').'.'
                 .($elsewhere > 0 ? " {$elsewhere} davon noch auf dem Server statt im Bucket – rimify:pdf-migrate holt sie herüber." : ''),
-            default => implode('; ', $broken).'. Ein Kunde kann unsere Angabe dann nicht im Gutachten nachlesen.',
+            default => implode('; ', $broken).'. Ein Kunde kann unsere Angabe dann nicht selbst nachlesen.',
         }, '/admin/gutachten');
     }
 
@@ -448,10 +448,10 @@ final class GoLiveChecks
                 continue;
             }
 
-            $missing = trim((string) $document->missing_annexes);
+            $missing = $document->missingAnnexesDe();
             $name = trim($document->kind->labelDe().' '.($document->number() ?? ''));
             $gaps[] = $name.': '.match ($document->completeness) {
-                ApprovalDocument::PARTIAL => $missing === '' ? 'teilweise erfasst' : 'teilweise erfasst, es fehlen '.$missing,
+                ApprovalDocument::PARTIAL => $missing === null ? 'teilweise erfasst' : 'teilweise erfasst, es fehlen '.$missing,
                 ApprovalDocument::UNKNOWN => 'nicht bekannt, ob alles erfasst ist',
                 default => 'nicht beantwortet, ob alles erfasst ist',
             };

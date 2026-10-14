@@ -144,6 +144,7 @@ final class AuditDescriber
         'approval.row_deleted' => 'gutachten',
         'approval.released' => 'gutachten',
         'approval.taken_back' => 'gutachten',
+        'approval.completeness_answered' => 'gutachten',
         'approval.entry_overridden' => 'gutachten',
         'approval.condition_added' => 'gutachten',
         'approval.condition_changed' => 'gutachten',
@@ -458,6 +459,13 @@ final class AuditDescriber
             'approval.row_deleted' => ['Eine Zeile wurde aus dem Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' entfernt.', []],
             'approval.released' => [self::released($p), []],
             'approval.taken_back' => [self::takenBack($p), []],
+            // D-227: what a person asserted about the entry, in the words the admin shows beside the document.
+            'approval.completeness_answered' => ['Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde festgehalten: '.match ($p['completeness'] ?? null) {
+                'complete' => 'alle Anlagen und alle Fahrzeuge sind erfasst.',
+                'partial' => 'teilweise erfasst'.(self::text($p, 'missing') === null ? '.' : ' – es fehlen: '.self::text($p, 'missing').'.'),
+                'unknown' => 'nicht bekannt, ob alles erfasst ist.',
+                default => 'eine Antwort, die es nicht gibt.',
+            }, []],
             'approval.entry_overridden' => [
                 match ($p['override'] ?? null) {
                     'required' => 'In einer Zeile von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Eintragung abweichend von den Codes auf „erforderlich“ gesetzt: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.',

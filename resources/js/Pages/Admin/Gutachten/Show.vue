@@ -293,7 +293,7 @@ const TONE: Record<string, string | null> = {
             </div>
             <p v-if="openConflicts" class="adm-note">
                 {{ openConflicts === 1 ? 'Eine Zeile widerspricht' : `${decimal(openConflicts, 0)} Zeilen widersprechen` }} einem anderen Gutachten. Bis unter
-                <a href="/admin/konflikte">Konflikte</a> entschieden ist, sagt der Shop dort „Unbekannt“.
+                <a href="/admin/konflikte">Konflikte</a> entschieden ist, sagt der Shop dort „Noch nicht bestätigt“.
             </p>
             <p v-if="releaseError" class="adm-alert" role="alert">{{ releaseError }}</p>
         </section>
@@ -483,7 +483,7 @@ const TONE: Record<string, string | null> = {
                     </template>
                 </li>
             </ul>
-            <p v-else-if="preview" class="adm-note">Für dieses Fahrzeug gibt es in diesem Gutachten keine Zeile.</p>
+            <p v-else-if="preview" class="adm-note">Für dieses Fahrzeug ist zu diesem Gutachten keine Zeile hinterlegt.</p>
         </section>
 
         <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" mode="release" :document="document" :rows="rows.length" :note="releaseBody" @done="focusState" />

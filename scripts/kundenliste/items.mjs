@@ -87,7 +87,7 @@ export const ITEMS = [
     {
         nr: 11,
         wish: 'Bessere Illustration im Felgenrechner (wie bei jr-wheels.com)',
-        now: 'Eine eigene Schnittzeichnung zeigt Einpresstiefe, Maulweite und Lochkreis; ändert man die ET, wandert das Rad sichtbar im Radhaus.',
+        now: 'Eine eigene Schnittzeichnung zeigt Einpresstiefe, Felgenbreite und Lochkreis; ändert man die ET, wandert das Rad sichtbar im Radhaus.',
         state: 'Urteil offen',
         commits: ['9056fa1f'],
     },

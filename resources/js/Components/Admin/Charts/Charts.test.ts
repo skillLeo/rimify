@@ -64,7 +64,7 @@ describe('StackedBar', () => {
             { key: 'PERMITTED', label: 'Freigegeben' },
             { key: 'CONDITIONAL', label: 'Mit Auflagen' },
             { key: 'NOT_PERMITTED', label: 'Nicht freigegeben' },
-            { key: 'UNKNOWN', label: 'Unbekannt' },
+            { key: 'UNKNOWN', label: 'Noch nicht bestätigt' },
         ],
         weeks: [
             { key: 'w1', label: 'KW 38', range: '14.09.–20.09.2026', values: { PERMITTED: 6, CONDITIONAL: 2, NOT_PERMITTED: 0, UNKNOWN: 2 }, total: 10 },
@@ -76,7 +76,7 @@ describe('StackedBar', () => {
     }
 
     it('names every series in the legend, in words', () => {
-        expect(mount(StackedBar, { props: { chart, label: 'Verdikte' } }).findAll('.sb__key').map((k) => k.text())).toEqual(['Freigegeben', 'Mit Auflagen', 'Nicht freigegeben', 'Unbekannt'])
+        expect(mount(StackedBar, { props: { chart, label: 'Verdikte' } }).findAll('.sb__key').map((k) => k.text())).toEqual(['Freigegeben', 'Mit Auflagen', 'Nicht freigegeben', 'Noch nicht bestätigt'])
     })
 
     it('stacks only the series a week has, each in its verdict’s chart colour — reserved for verdicts', () => {

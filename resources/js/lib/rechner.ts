@@ -43,7 +43,7 @@ export const OPTIONS: Record<SelectField, number[]> = {
 }
 
 export const SIDES: { key: Side; label: string }[] = [
-    { key: 'current', label: 'Aktuell' },
+    { key: 'current', label: 'Bisher' },
     { key: 'next', label: 'Neu' },
 ]
 

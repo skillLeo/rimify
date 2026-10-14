@@ -13,7 +13,7 @@ import { computed, type ComputedRef } from 'vue'
 
 export interface PriceTerms {
     smallBusiness: boolean
-    /** Beside a price: „inkl. MwSt., zzgl. Versand“. */
+    /** Beside a price: „inkl. MwSt., zzgl. Versandkosten“ — the PAngV form, word for word on every price (14.10.2026). */
     note: string
     /** The footer's one line about every price. */
     footer: string
@@ -21,14 +21,14 @@ export interface PriceTerms {
 
 export const STANDARD_TERMS: PriceTerms = {
     smallBusiness: false,
-    note: 'inkl. MwSt., zzgl. Versand',
-    footer: 'Alle Preise inkl. gesetzl. MwSt., zzgl. Versandkosten.',
+    note: 'inkl. MwSt., zzgl. Versandkosten',
+    footer: 'Alle Preise inkl. MwSt., zzgl. Versandkosten.',
 }
 
 /* `§ 19`: a no-break space, so the § never ends a line in a narrow tile. */
 export const SMALL_BUSINESS_TERMS: PriceTerms = {
     smallBusiness: true,
-    note: 'zzgl. Versand, keine MwSt. nach § 19 UStG',
+    note: 'zzgl. Versandkosten, keine MwSt. nach § 19 UStG',
     footer: 'Alle Preise zzgl. Versandkosten. Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
 }
 

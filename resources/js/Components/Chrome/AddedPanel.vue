@@ -20,7 +20,11 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import { nextTick, onBeforeUnmount, onMounted, ref, useId, useTemplateRef } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import { addedFrom, firstLoad } from './toast'
+import { usePriceTerms } from '../../composables/usePriceTerms'
 import type { AddedToBasket } from '../../types/rimify'
+
+/* The prices here carry the line every price on the site carries — or the Kleinunternehmer's. */
+const terms = usePriceTerms()
 
 /** Long enough to read the line and the total twice; the clock stops while the panel is being used. */
 const ADDED_MS = 10_000
@@ -206,6 +210,7 @@ onBeforeUnmount(() => {
                     <span>Zwischensumme im Warenkorb <span class="num addp__count">({{ added.count }} Stück)</span></span>
                     <span class="num addp__sum-value" translate="no">{{ added.subtotal }}</span>
                 </p>
+                <p class="price-legal">Alle Preise {{ terms.note }}.</p>
 
                 <div class="addp__go">
                     <button class="btn btn--secondary addp__btn" type="button" @click="close">Weiter einkaufen</button>

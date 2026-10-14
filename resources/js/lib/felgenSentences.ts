@@ -14,7 +14,7 @@ import { decimal, withUnit } from '../format'
 import { kmhText, percentText, SPEEDO_MAX_OVER_KMH, SPEEDO_MAX_OVER_PERCENT, wholeMmText, type FelgenModel } from './felgenGeometry'
 
 /** When the tyre and the rim of a side do not belong together (felgenGeometry `rimSuitsTyre`). */
-export const IMPLAUSIBLE = 'Diese Reifenbreite und diese Maulweite gehören so nicht zusammen – prüf die Angaben.'
+export const IMPLAUSIBLE = 'Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen – prüf die Angaben.'
 
 /**
  * The speedometer rule, quoted (UN R39 para. 5.4 — accuracy-research-motec.md §3b). It is a rule

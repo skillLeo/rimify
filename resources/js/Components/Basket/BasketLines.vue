@@ -39,7 +39,7 @@ const VERDICT_TONE: Record<string, string> = {
         <thead>
             <tr>
                 <th scope="col">Artikel</th>
-                <th scope="col">Menge</th>
+                <th scope="col">Anzahl</th>
                 <th scope="col" class="num">Einzelpreis</th>
                 <th scope="col" class="num">Summe</th>
             </tr>
@@ -101,7 +101,7 @@ const VERDICT_TONE: Record<string, string> = {
                         <button
                             class="bl__step"
                             type="button"
-                            aria-label="Menge verringern"
+                            aria-label="Anzahl verringern"
                             @click="basket.setQuantity(line.key, line.quantity - 1)"
                         >
                             −
@@ -110,7 +110,7 @@ const VERDICT_TONE: Record<string, string> = {
                         <button
                             class="bl__step"
                             type="button"
-                            aria-label="Menge erhöhen"
+                            aria-label="Anzahl erhöhen"
                             @click="basket.setQuantity(line.key, line.quantity + 1)"
                         >
                             +

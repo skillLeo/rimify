@@ -102,8 +102,8 @@ final class DocumentRelease
         // A code its own document does not define has no sentence: never released, never borrowed from
         // another document (the corrections memo §1).
         foreach (DocumentConditions::unresolvedIn($document) as $open) {
-            $blockers[] = "Code {$open['code']} ist in diesem Gutachten nicht definiert".($open['rows'] === 1 ? ' (eine Zeile).' : " ({$open['rows']} Zeilen).")
-                .' Leg ihn im Auflagenverzeichnis an oder nimm ihn aus den Zeilen.';
+            $blockers[] = "Code {$open['code']} ist im Auflagenverzeichnis dieses Gutachtens nicht hinterlegt".($open['rows'] === 1 ? ' (eine Zeile).' : " ({$open['rows']} Zeilen).")
+                .' Leg ihn dort an oder nimm ihn aus den Zeilen.';
         }
 
         return $blockers;

@@ -48,7 +48,7 @@ describe('PapersForm', () => {
 
         await photograph(wrapper, '8.1 1.120 8.2 1.180 T 250 P.2/P.4 140/5500')
 
-        expect(wrapper.find('[role="alert"]').text()).toContain('Laut Foto hat dein Fahrzeug 140 kW (Feld P.2), gewählt ist eine Variante mit 110 kW.')
+        expect(wrapper.find('[role="alert"]').text()).toContain('Laut Foto hat dein Fahrzeug 140 kW (Feld P.2), gewählt ist eine Variante mit 110 kW.')
     })
 
     it('starts closed behind one button, and „Abbrechen“ closes it again with the keyboard back on that button', async () => {
@@ -81,7 +81,7 @@ describe('PapersForm', () => {
         await wrapper.findAll('button').find((b) => b.text() === 'Abbrechen')?.trigger('click')
         await flushPromises()
 
-        expect(wrapper.find('.pp__summary').text()).toContain('8.1 1.100 kg')
+        expect(wrapper.find('.pp__summary').text()).toContain('8.1 1.100 kg')
         expect(document.activeElement?.id).toBe('pp-change')
 
         await wrapper.find('#pp-change').trigger('click')

@@ -126,7 +126,7 @@ const OFFLINE = 'Keine Verbindung zum Server. Deine Änderung ist nicht gespeich
 function refusal(status: number): string {
     switch (status) {
         case 404:
-            return 'Dieses Fahrzeug gibt es bei uns nicht mehr. Wähl dein Fahrzeug bitte neu.'
+            return 'Dieses Fahrzeug gibt es bei uns nicht mehr. Wähle dein Fahrzeug bitte neu.'
         case 419:
             return 'Die Seite war zu lange offen, deshalb ist nichts gespeichert. Lade sie neu und versuch es noch einmal.'
         case 429:
@@ -214,7 +214,7 @@ function forget(): void {
             <p :id="`bf-${fact}-h`" class="bf__label">{{ NAMES[fact] }}</p>
             <!-- The papers name a body style in their own words: the drawing is the one to go by (G-11). -->
             <p v-if="fact === 'bodyForm'" id="bf-bodyForm-hint" class="bf__hint">
-                Wähl die Form, die dein Auto hat. In der Zulassungsbescheinigung heißt auch manches Schrägheck „Kombilimousine“.
+                Wähle die Form, die dein Auto hat. In der Zulassungsbescheinigung heißt auch manches Schrägheck „Kombilimousine“.
             </p>
             <div class="bf__options" :class="fact === 'bodyForm' ? 'bf__options--body' : 'bf__options--drive'">
                 <template v-if="fact === 'bodyForm'">

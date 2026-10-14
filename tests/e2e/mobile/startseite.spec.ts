@@ -70,12 +70,14 @@ test.describe('Startseite/Mobile', () => {
         expect(tones.filter((t) => t === 'dark').length).toBeLessThanOrEqual(1)
     })
 
-    test('promise row has four items with the confirmed titles', async ({ page }) => {
+    // Two of the client's titles are down until he answers (D-235): no guarantee, no delivery speed.
+    test('promise row has four items, none promising a guarantee or a delivery speed', async ({ page }) => {
         await open(page, '/')
         const items = page.locator('#h3 li')
         await expect(items).toHaveCount(4)
-        await expect(items.nth(0)).toContainText('Garantierte Passgenauigkeit')
-        await expect(items.nth(3)).toContainText('Express-Versand aus Deutschland')
+        await expect(items.nth(0)).toContainText('Nur Felgen mit Freigabe')
+        await expect(items.nth(3)).toContainText('Versand aus Deutschland')
+        await expect(page.locator('#h3')).not.toContainText(/Garantie|Express/)
     })
 
     test('scan button opens the camera input', async ({ page }) => {
@@ -83,7 +85,7 @@ test.describe('Startseite/Mobile', () => {
         const input = page.locator('#h2 input[type="file"]')
         await expect(input).toHaveAttribute('accept', 'image/*')
         await expect(input).toHaveAttribute('capture', 'environment')
-        await expect(page.getByRole('button', { name: 'Fahrzeugschein fotografieren' })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Fahrzeugschein scannen' })).toBeVisible()
     })
 
     test('HSN/TSN: the live count lands in the button and leads to the listing; back shows the vehicle', async ({ page }) => {
@@ -126,7 +128,7 @@ test.describe('Startseite/Mobile', () => {
         // `exact`: the tab panel is labelled "Marke & Modell" and would match a substring query.
         const make = page.getByLabel('Marke', { exact: true })
         const model = page.getByLabel('Modell', { exact: true })
-        const vehicle = page.getByLabel('Fahrzeug', { exact: true })
+        const vehicle = page.getByLabel('Variante', { exact: true })
 
         await expect(model).toBeDisabled()
         await make.selectOption({ index: 1 })

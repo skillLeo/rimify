@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The Komplettrad in the purchase panel (the client's #18): with „Komplettrad“ chosen, the tyres the verdict permits on
+ * The Komplettrad in the purchase panel (the client's #18): with „Kompletträder“ chosen, the tyres the verdict permits on
  * the chosen size, one of them chosen — or the one sentence saying why there are none, always with a way forward. The
  * page's own button adds the set; nothing here posts.
  *
@@ -17,6 +17,7 @@
 
 import { Link, usePage } from '@inertiajs/vue3'
 import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { withUnit } from '../../format'
 import { contactHref } from '../../lib/contact'
 import Icon from '../Ui/Icon.vue'
 import TyreLabel from '../Ui/TyreLabel.vue'
@@ -167,12 +168,12 @@ async function expand(): Promise<void> {
                             <span class="kc-row__name"><span class="kc-row__brand">{{ card.tyre.brandName }}</span> {{ card.tyre.name }}</span>
                             <span class="kc-row__meta">{{ card.tyre.seasonLabel }} · <span class="data">{{ card.tyre.sizeLabel }}</span></span>
                             <span v-if="card.label" class="kc-row__eu num">
-                                Kraftstoffeffizienz {{ card.label.fuel }} · Nasshaftung {{ card.label.wet }} · {{ card.label.noiseDb }}&nbsp;dB ({{ card.label.noiseClass }})
+                                Kraftstoffeffizienz {{ card.label.fuel }} · Nasshaftung {{ card.label.wet }} · {{ withUnit(card.label.noiseDb, 'dB') }} ({{ card.label.noiseClass }})
                             </span>
                         </span>
                         <span class="kc-row__price">
                             <span class="kc-row__amount num">{{ perWheel(card.tyre) }}</span>
-                            <span class="kc-row__per">je Rad</span>
+                            <span class="kc-row__per">pro Rad</span>
                         </span>
                     </label>
                 </li>
@@ -197,7 +198,7 @@ async function expand(): Promise<void> {
                     <span class="kc-swatch__name">{{ colour.name }}</span>
                     <span class="kc-swatch__price num">
                         <template v-if="colour.surchargeCents === 0">ohne Aufpreis</template>
-                        <template v-else>+ {{ colour.surcharge }} je Rad</template>
+                        <template v-else>+ {{ colour.surcharge }} pro Rad</template>
                     </span>
                 </label>
             </div>

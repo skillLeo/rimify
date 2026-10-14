@@ -154,13 +154,13 @@ const originalBySize = computed(() => originalGroups.value.some((group) => group
 
                     <table v-if="section.title === 'Reifen' && detail.tyres.length" class="fdt__table">
                         <thead>
-                            <tr><th scope="col">Größe</th><th scope="col">Achse</th><th scope="col">Leistung</th><th scope="col">Mindestens laut Gutachten</th></tr>
+                            <tr><th scope="col">Größe</th><th scope="col">Achse</th><th scope="col">Motorleistung</th><th scope="col">Mindestens laut Gutachten</th></tr>
                         </thead>
                         <tbody>
                             <tr v-for="size in detail.tyres" :key="size.label">
                                 <td data-label="Größe" class="fdt__key fdt__num">{{ size.label }}</td>
                                 <td data-label="Achse">{{ size.axle }}</td>
-                                <td data-label="Leistung" class="fdt__num">{{ size.band ?? '–' }}</td>
+                                <td data-label="Motorleistung" class="fdt__num">{{ size.band ?? '–' }}</td>
                                 <td data-label="Mindestens laut Gutachten">{{ size.minimum ?? '–' }}</td>
                             </tr>
                         </tbody>
@@ -192,7 +192,7 @@ const originalBySize = computed(() => originalGroups.value.some((group) => group
         <details v-if="original.length" class="fdt__original" data-original>
             <summary class="fdt__original-toggle">Originaltext anzeigen</summary>
             <p class="small muted fdt__original-lede">
-                Der hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung.<template v-if="originalBySize"> Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.</template>
+                Der bei uns hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung.<template v-if="originalBySize"> Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.</template>
             </p>
             <template v-for="group in originalGroups" :key="group.key">
                 <p v-if="group.label" class="fdt__for">{{ group.label }}</p>

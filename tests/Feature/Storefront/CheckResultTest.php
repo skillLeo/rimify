@@ -88,10 +88,10 @@ it('asks for the car first, refuses a size that is gone, and shows nothing for a
     $fixture = KomplettradFixture::permitted();
 
     $this->post('/rimify-check/ergebnis', ['wheelConfigId' => $fixture->config->id])
-        ->assertSessionHasErrors(['wheelConfigId' => 'Wähl zuerst dein Fahrzeug – der RIMIFY-Check gilt immer für ein bestimmtes Auto.']);
+        ->assertSessionHasErrors(['wheelConfigId' => 'Wähle zuerst dein Fahrzeug – der RIMIFY-Check gilt immer für ein bestimmtes Auto.']);
 
     $this->withCookies($fixture->cookies())->post('/rimify-check/ergebnis', ['wheelConfigId' => 99_999_999])
-        ->assertSessionHasErrors(['wheelConfigId' => 'Diese Felgengröße gibt es nicht mehr. Wähl bitte eine andere.']);
+        ->assertSessionHasErrors(['wheelConfigId' => 'Diese Felgengröße gibt es nicht mehr. Wähle bitte eine andere.']);
 
     expect(CheckResult::query()->count())->toBe(0);
 

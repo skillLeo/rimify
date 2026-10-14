@@ -17,6 +17,8 @@ use Database\Seeders\CommerceSeeder;
  * honest UNKNOWN; and the walkthrough's placeholder document gets the marked table too.
  */
 beforeEach(function (): void {
+    // The answers this test reads are at the legal minimum: margins as shipped, stated (the look-back, D-232).
+    config(['rimify.speed_symbol_margin_steps' => 0, 'rimify.load_index_margin_steps' => 0]);
     $this->seed(CommerceSeeder::class);
 });
 

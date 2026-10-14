@@ -65,7 +65,7 @@ const canonical = computed(() => (typeof shared.value.canonical === 'string' ? s
 .blog__head {
     display: grid;
     gap: var(--sp-12);
-    max-width: 54ch;
+    max-width: calc(54 * var(--ch-text));
     margin-bottom: var(--sp-40);
 }
 
@@ -80,7 +80,7 @@ const canonical = computed(() => (typeof shared.value.canonical === 'string' ? s
 .blog__list {
     display: grid;
     gap: var(--sp-32);
-    max-width: 64ch;
+    max-width: calc(64 * var(--ch-text));
     margin: 0;
     padding: 0;
     list-style: none;

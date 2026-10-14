@@ -28,6 +28,13 @@ final class OnRecord
 
     private const DENIAL = '(?:kein\w*|nicht|nichts|nie|niemals|ohne|nur|ausschließlich|lediglich|weder)';
 
+    /**
+     * The other direction (the operator's brief of 14.10.2026 §9): a claim that we quote a document whole or word for
+     * word — „Wörtlich aus dem Gutachten“, „So steht es im Gutachten“, the two of finding 118 the first pattern could not
+     * see. What we hold may be a part of it.
+     */
+    private const ASSERTION = '(?:wörtlich\w*|vollständig\w*|genau\s+so|so\s+steht|steht\s+so|ohne\s+Auslassungen|alle|allen|aller|alles|sämtlich\w*|immer)';
+
     /** Speaking about our own record is the point of the rule, not a breach of it. */
     private const OURS = '/hinterlegt|erfasst|bei uns|haben wir|fehl(?:t|en) uns|vorliegt|vorliegen|lieg(?:t|en)\b[^.!?]{0,60}\bvor\b/ui';
 
@@ -39,6 +46,15 @@ final class OnRecord
 
         // The external thing is matched as written (a German noun, capitalised); the denial may open the sentence.
         return preg_match("/{$external}[^.!?]{0,90}?(?i:{$denial})|(?i:{$denial})[^.!?]{0,70}?{$external}/u", $sentence) === 1;
+    }
+
+    /** Does this sentence claim that a document says something whole, word for word, or always? */
+    public static function asserts(string $sentence): bool
+    {
+        $external = '(?<![\p{L}\d_:$>-])'.self::EXTERNAL.'(?![\p{L}\d_(:])';
+        $assertion = '(?<![\p{L}\d_$>-])'.self::ASSERTION.'(?![\p{L}\d_(])';
+
+        return preg_match("/{$external}[^.!?]{0,90}?(?i:{$assertion})|(?i:{$assertion})[^.!?]{0,70}?{$external}/u", $sentence) === 1;
     }
 
     /** Is the sentence about what RIMIFY holds, rather than about the document? */
@@ -69,7 +85,7 @@ final class OnRecord
 
                 foreach (self::logicalLines((string) file_get_contents($file->getPathname()), $file->getExtension()) as $number => $line) {
                     foreach (preg_split('/(?<=[.!?])\s+/u', $line) ?: [] as $sentence) {
-                        if (self::denies($sentence) && ! self::speaksOfOurRecord($sentence)) {
+                        if ((self::denies($sentence) || self::asserts($sentence)) && ! self::speaksOfOurRecord($sentence)) {
                             $found[] = [
                                 'file' => $path,
                                 'line' => $number,

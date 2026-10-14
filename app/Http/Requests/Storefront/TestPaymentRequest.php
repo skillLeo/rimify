@@ -31,7 +31,7 @@ class TestPaymentRequest extends FormRequest
     /** @return array<string, string> */
     public function messages(): array
     {
-        return ['outcome.*' => 'Bitte wähl, wie die Testzahlung ausgehen soll.'];
+        return ['outcome.*' => 'Bitte wähle, wie die Testzahlung ausgehen soll.'];
     }
 
     public function outcome(): string

@@ -69,7 +69,7 @@ const context = computed(() => `${props.matrix.summary.sentence} · Stand: ${pro
                 <div class="adm-section__head">
                     <h2 id="ab-speed-h" class="adm-section__title">Gutachten ohne Tragfähigkeitstabelle</h2>
                 </div>
-                <p class="adm-note">Diese Gutachten drucken keine Tabelle zur Tragfähigkeit der Reifen bei hoher Geschwindigkeit. Für Fahrzeuge über 210&nbsp;km/h bestätigt der Shop die Reifen daraus nicht und sagt der Kundschaft, warum. Die Felge selbst bleibt freigegeben.</p>
+                <p class="adm-note">Zu diesen Gutachten ist keine Tabelle zur Tragfähigkeit der Reifen bei hoher Geschwindigkeit hinterlegt. Für Fahrzeuge über 210&nbsp;km/h bestätigt der Shop die Reifen daraus nicht und sagt der Kundschaft, warum. Die Felge selbst bleibt freigegeben.</p>
                 <ul class="ab__docs">
                     <li v-for="item in matrix.noSpeedTable" :key="item.href" class="ab__doc">
                         <Link :href="item.href" class="ab__link">{{ item.document }}</Link>

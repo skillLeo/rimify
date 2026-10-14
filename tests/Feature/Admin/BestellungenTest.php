@@ -21,6 +21,8 @@ use Inertia\Testing\AssertableInertia;
  * away.
  */
 beforeEach(function (): void {
+    // The review pages off, as in the live shop: switched on, the rail gains them (the look-back, D-232).
+    config(['rimify.review.enabled' => false]);
     $this->seed(AccessSeeder::class);
 });
 

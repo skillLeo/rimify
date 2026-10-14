@@ -13,7 +13,7 @@
 import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import BrandWall from './BrandWall.vue'
-import { felgen, NNBSP } from '../../format'
+import { felgen, modelle, NNBSP } from '../../format'
 import type { StartseiteProps } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -29,9 +29,11 @@ function passende(count: number): string {
 }
 
 /*
- * A size with no wheel at all is not a tile. With a vehicle, the count is what a document permits
- * on that car — `0 passende Felgen` greys the tile and takes its link away; when the engine has
- * no figure for it, the tile keeps the plain catalogue count and claims nothing (CLAUDE.md §2).
+ * A size with no wheel at all is not a tile. Without a vehicle the count is the catalogue's models
+ * in that size — `17 Modelle`, never „Felgen“, which on the listing counts each finish. With a
+ * vehicle, the count is what a document permits on that car — `0 passende Felgen` greys the tile
+ * and takes its link away; when the engine has no figure for it, the tile keeps the plain
+ * catalogue count and claims nothing (CLAUDE.md §2).
  */
 const tiles = computed(() =>
     props.sizes
@@ -42,7 +44,7 @@ const tiles = computed(() =>
             return {
                 ...size,
                 none: fitting === 0,
-                line: fitting === null ? felgen(size.count) : passende(fitting),
+                line: fitting === null ? modelle(size.count) : passende(fitting),
             }
         })
 )

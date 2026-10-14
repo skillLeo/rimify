@@ -49,6 +49,33 @@ afterEach(() => {
     mounted = []
 })
 
+describe('Felgen — the count with a filter set (EIGENE-FUNDE 128)', () => {
+    it('says what the filters left of what they narrowed: „0 von 44 Felgen“, and the plain count without a filter', () => {
+        current.props = { vehicle: null, contact: { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: '' } }
+        const filtered = mount(Felgen, {
+            props: { hasVehicle: false, cards: [], total: null, unfiltered: 44, facets: {}, filters: { zoll: ['22.0'] }, page: 1, demo: false },
+            global: { stubs: { FilterBar: true, ProductTile: true } },
+        })
+        const plain = mount(Felgen, {
+            props: { hasVehicle: false, cards: [], total: null, unfiltered: null, facets: {}, filters: {}, page: 1, demo: false },
+            global: { stubs: { FilterBar: true, ProductTile: true } },
+        })
+        mounted.push(filtered, plain)
+
+        expect(filtered.find('.plp__count').text().replace(/\s+/g, ' ')).toBe('0 von 44 Felgen')
+        expect(plain.find('.plp__count').text().replace(/\s+/g, ' ')).toBe('0 Felgen im Sortiment')
+    })
+
+    it('says it for a car too, with what the Gutachten cover', () => {
+        const wrapper = mountEmpty({ zoll: ['22.0'] })
+        wrapper.setProps({ unfiltered: 12 })
+
+        return wrapper.vm.$nextTick().then(() => {
+            expect(wrapper.find('.plp__count').text().replace(/\s+/g, ' ')).toBe('0 von 12 Felgen mit gültigem Gutachten für dieses Fahrzeug')
+        })
+    })
+})
+
 describe('Felgen — the choices in the list on a phone (the client\'s #31)', () => {
     const FACETS = {
         zoll: [{ value: '18.0', count: 3 }, { value: '19.0', count: 0 }],
@@ -65,7 +92,7 @@ describe('Felgen — the choices in the list on a phone (the client\'s #31)', ()
         mounted.push(wrapper)
         const chips = wrapper.findAll('.plp__quick .chip')
 
-        expect(chips.map((c) => c.text())).toEqual(['18 Zoll 3', '19 Zoll 0', 'BORBET 2'])
+        expect(chips.map((c) => c.text())).toEqual(['18\u202fZoll 3', '19\u202fZoll 0', 'BORBET 2'])
         expect(chips[0]?.attributes('aria-pressed')).toBe('true')
         expect(chips[1]?.attributes('disabled')).toBeDefined()
 

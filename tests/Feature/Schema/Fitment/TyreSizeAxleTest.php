@@ -16,6 +16,11 @@ use App\Models\WheelConfig;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 
+beforeEach(function (): void {
+    // The verdict this test reads is positive only at the legal minimum: margins as shipped, stated (the look-back, D-232).
+    config(['rimify.speed_symbol_margin_steps' => 0, 'rimify.load_index_margin_steps' => 0]);
+});
+
 /*
  * `fitment_tyre_sizes.axle` has existed, been CHECK-constrained and sat inside the unique key
  * since the table was created — and the resolver discarded it (spec §3.3a). The normal shape of a

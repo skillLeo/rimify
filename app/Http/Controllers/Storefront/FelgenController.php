@@ -148,6 +148,8 @@ class FelgenController extends Controller
                 // of the range, so a cap here hid a product and made "24 Felgen im Sortiment" untrue.
                 'cards' => $this->cards->catalogue(limit: null, options: ['filters' => $filters]),
                 'total' => null,
+                // What the filters narrowed from, said beside what they left (EIGENE-FUNDE 128: „0 von 44 Felgen“).
+                'unfiltered' => $filters === [] ? null : count($this->cards->catalogue(limit: null, options: ['filters' => []])),
                 'facets' => $this->cards->catalogueFacets($filters),
                 // „Ohne Eintragung“ is a statement about a car: without one it is neither offered nor applied.
                 'filters' => array_diff_key($filters, ['ohne_eintragung' => true]),
@@ -187,6 +189,7 @@ class FelgenController extends Controller
             'hasVehicle' => true,
             'cards' => $result['cards'],
             'total' => $result['total'],
+            'unfiltered' => $filters === [] ? null : $this->cards->forVehicle($vehicleId, [], perPage: 1, page: 1)['total'],
             // Counts carry the OTHER filters but not the facet's own, so "18 Zoll (312)" means
             // "312 results if you add this" rather than a number that only holds in isolation.
             'facets' => $this->listing->facets($vehicleId, $filters),

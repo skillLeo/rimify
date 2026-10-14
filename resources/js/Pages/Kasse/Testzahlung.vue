@@ -30,7 +30,7 @@ function finish(outcome: 'bezahlt' | 'abgelehnt' | 'abgebrochen'): void {
         <div class="wrap tz">
             <p class="tag tag--unknown tz__tag">Testzahlung – es wird kein Geld bewegt</p>
             <h1 class="t-h1">Bestellung {{ order.number }} bezahlen</h1>
-            <p class="t-lead tz__lead">Diese Seite ersetzt in der Vorschau den Zahlungsanbieter. Wähl, wie die Zahlung ausgehen soll.</p>
+            <p class="t-lead tz__lead">Diese Seite ersetzt in der Vorschau den Zahlungsanbieter. Wähle, wie die Zahlung ausgehen soll.</p>
 
             <ul class="tz__lines">
                 <li v-for="line in order.lines" :key="line.label" class="tz__line">

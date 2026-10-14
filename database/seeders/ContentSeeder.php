@@ -138,7 +138,7 @@ class ContentSeeder extends Seeder
         $this->menu('header', [
             ['label' => 'Felgen', 'route_name' => 'felgen.index'],
             ['label' => 'RIMIFY-Check', 'route_name' => 'check.index'],
-            ['label' => 'FAQ', 'route_name' => 'faq'],
+            ['label' => 'Häufige Fragen', 'route_name' => 'faq'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt'],
         ]);
 
@@ -153,7 +153,7 @@ class ContentSeeder extends Seeder
         ]);
 
         $this->menu('footer_service', [
-            ['label' => 'Fragen und Antworten', 'route_name' => 'faq'],
+            ['label' => 'Häufige Fragen', 'route_name' => 'faq'],
             ['label' => 'Kontakt', 'route_name' => 'kontakt'],
             ['label' => 'Versand', 'href' => '/rechtliches/versand'],
         ]);
@@ -247,25 +247,30 @@ class ContentSeeder extends Seeder
          * add nothing the title does not already say: no PDF, no dispatch time, no in-house
          * workshop (docs/client-questions.md items 7–9, ACCURACY D7). A line changes when the
          * client confirms more, not before.
+         *
+         * Two of his titles are down until he answers (the operator's brief of 14.10.2026 §11, EIGENE-FUNDE 129, D-235):
+         * „Garantierte Passgenauigkeit“ is a guarantee with legal weight and „Express-Versand“ a delivery time nobody has
+         * given us. What stands in their place says only what the shop does.
          */
         $this->block($page, 'promise_row', 15, [
             'items' => [
-                ['icon' => 'check', 'title' => 'Garantierte Passgenauigkeit', 'text' => 'Jede Felge, die wir dir zeigen, steht mit deinem Fahrzeug im Gutachten.'],
+                ['icon' => 'check', 'title' => 'Nur Felgen mit Freigabe', 'text' => 'Jede Felge, die wir dir zeigen, steht mit deinem Fahrzeug im Gutachten.'],
                 ['icon' => 'document', 'title' => 'Gutachten zu jeder Felge', 'text' => 'Bei jeder Felge siehst du, welches Gutachten sie für dein Fahrzeug freigibt.'],
-                ['icon' => 'wrench', 'title' => 'Montiert und gewuchtet', 'text' => 'Kompletträder kommen fertig montiert und gewuchtet bei dir an.'],
-                ['icon' => 'truck', 'title' => 'Express-Versand aus Deutschland', 'text' => 'Wir versenden direkt aus Deutschland.'],
+                // The title says it; the line does not say it again (the copy review of 14.10.2026: once per page).
+                ['icon' => 'wrench', 'title' => 'Montiert und gewuchtet', 'text' => 'So kommt jedes Komplettrad bei dir an.'],
+                ['icon' => 'truck', 'title' => 'Versand aus Deutschland', 'text' => 'Wir versenden direkt aus Deutschland.'],
             ],
         ]);
     }
 
     private function seedFaqPage(): void
     {
-        $page = $this->page('faq', 'faq', 'Meistgestellte Fragen');
+        $page = $this->page('faq', 'faq', 'Häufige Fragen');
 
         // `faq_list`: the chrome around the accordions. `groups` fixes the order of the two
         // micro-labels; the rows themselves are `faq_entries`, keyed by `group_key`.
         $this->block($page, 'faq_list', 10, [
-            'heading' => 'Meistgestellte Fragen',
+            'heading' => 'Häufige Fragen',
             'search_placeholder' => 'Suchen',
             'groups' => ['KOMPATIBILITÄT & FREIGABE', 'BESTELLUNG & VERSAND'],
         ]);
@@ -480,7 +485,7 @@ class ContentSeeder extends Seeder
         .'Ob Auflagen gelten oder wir noch Werte aus deinen Fahrzeugpapieren brauchen, steht bei jeder Felge. Einzelne '
         .'Kombinationen prüfst du mit dem RIMIFY-Check.';
 
-    public const FAQ_ENTRY_QUESTION = 'Was bedeutet „Eintragung erforderlich"?';
+    public const FAQ_ENTRY_QUESTION = 'Was bedeutet „Eintragung erforderlich“?';
 
     public const FAQ_ENTRY = 'Bei manchen Felgen verlangt das Gutachten, dass ein amtlich anerkannter Prüfer die Änderung abnimmt und sie '
         .'in die Fahrzeugpapiere eingetragen wird. Bei anderen genügt die Abnahme, weil das Gutachten von der Berichtigung der '
@@ -494,8 +499,8 @@ class ContentSeeder extends Seeder
     /**
      * The questions in display order, each with its own `published` flag.
      *
-     * Q3's quotes are `„` U+201E opening and a straight `"` U+0022 closing — that is what both
-     * artifacts contain, and "fixing" it to a typographic `"` would be a change to client copy.
+     * Q3's quotes were `„` U+201E opening and a straight `"` U+0022 closing, as both artifacts had them; the
+     * operator approved the German closing `“` U+201C on 14.10.2026 (copy review, EIGENE-FUNDE 128).
      *
      * What changed in the accuracy pass (docs/reviews/client-answers-audit.json):
      * - the range is the client's two categories, Felgen without tyres or Kompletträder (#16/#65);

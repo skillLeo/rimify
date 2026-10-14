@@ -325,6 +325,8 @@ export interface FelgenProps {
     hasVehicle: boolean
     cards: ProductCardProp[]
     total: number | null
+    /** What the filters narrowed from — the range, or the car's wheels, unfiltered; null while no filter is set. */
+    unfiltered?: number | null
     facets: Facets
     filters: Record<string, unknown>
     page?: number

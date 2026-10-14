@@ -222,6 +222,11 @@ what happens (*147 passende Felgen anzeigen*, never *Mehr erfahren*). No exclama
 emoji, no slogans, no buzzwords, and no number, rating, guarantee or partner that is not backed by
 real data. An Auflage is always a full German sentence, never a code.
 
+**The fourth answer has one word.** Where the shop cannot yet say yes or no for a car, every public
+surface — badge, panel, check result, order, mail — says *Noch nicht bestätigt*. The admin says
+*nicht hinterlegt* for a field nobody has entered. Never *Unbekannt*, never *Keine Angabe*, never
+*Keine Freigabe hinterlegt* as a verdict (D-234).
+
 ## 8 · Page architecture
 
 - One component per route, `Pages/<Page>/Index.vue`, responsive from 320 to 1920 px and beyond

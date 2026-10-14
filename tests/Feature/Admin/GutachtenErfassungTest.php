@@ -279,7 +279,7 @@ it('keeps a car’s source to the list, and a car from a Gutachten to its docume
     expect(fn () => $source->delete())->toThrow(QueryException::class);
 });
 
-it('records where two documents disagree, releases anyway, and says the shop answers „Unbekannt“ until someone decides', function (): void {
+it('records where two documents disagree, releases anyway, and says the shop answers „Noch nicht bestätigt“ until someone decides', function (): void {
     $vehicle = Vehicle::factory()->create();
     $size = wheelSize();
     $existing = ApprovalDocument::factory()->create();
@@ -289,7 +289,7 @@ it('records where two documents disagree, releases anyway, and says the shop ans
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size]));
 
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
-        ->assertSessionHas('toast', fn (string $t): bool => str_contains($t, 'Widerspr') && str_contains($t, '„Unbekannt“'));
+        ->assertSessionHas('toast', fn (string $t): bool => str_contains($t, 'Widerspr') && str_contains($t, '„Noch nicht bestätigt“'));
 
     $conflicts = FitmentConflict::query()->get();
 
@@ -370,7 +370,7 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
 
         expect($preview[0]['status'])->toBe('UNKNOWN')
             ->and($preview[0]['reason'])->toBe('Eine Auflage des Gutachtens ist bei uns noch nicht vollständig erfasst. Bis dahin können wir die Freigabe nicht bestätigen.')
-            ->and(app(DocumentRelease::class)->check($document))->toBe(['Code K1c ist in diesem Gutachten nicht definiert (eine Zeile). Leg ihn im Auflagenverzeichnis an oder nimm ihn aus den Zeilen.']);
+            ->and(app(DocumentRelease::class)->check($document))->toBe(['Code K1c ist im Auflagenverzeichnis dieses Gutachtens nicht hinterlegt (eine Zeile). Leg ihn dort an oder nimm ihn aus den Zeilen.']);
 
         $this->actingAs(erfassung(), 'admin')->get("/admin/gutachten/{$document->id}")
             ->assertInertia(fn (AssertableInertia $page) => $page->where('unresolved', [['code' => 'K1c', 'rows' => 1]])->where('rows.0.conditions.0.defined', false));

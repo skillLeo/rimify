@@ -12,13 +12,13 @@ test.beforeEach(async ({ context }) => {
     await consent(context, ABNAHME)
 })
 
-test('judgement: our own cross-section — ET, Maulweite and Lochkreis — and the wheel moves in the arch when the ET changes', { tag: '@kunde-11' }, async ({ page }, info) => {
+test('judgement: our own cross-section — ET, Felgenbreite and Lochkreis — and the wheel moves in the arch when the ET changes', { tag: '@kunde-11' }, async ({ page }, info) => {
     await open(page, '/felgenrechner')
 
     const drawing = page.locator('.calc-drawing').first()
     await expect(drawing.locator('[data-measure="et"]')).toBeAttached()
     await expect(drawing.locator('[data-measure="width"]')).toBeAttached()
-    await expect(drawing).toContainText('Maulweite')
+    await expect(drawing).toContainText('Felgenbreite')
     await expect(drawing).toContainText('Lochkreis')
     await expect(drawing).toContainText('Einpresstiefe (ET)')
 
@@ -168,7 +168,7 @@ test('RIMIFY-Check: one car, one wheel, one answer with its Auflagen, document a
     await expect(answer.locator('.fit__pdf a').first()).toHaveText(/^\s*Gutachten öffnen \(PDF(, Seite \d+)?\)\s*$/)
     await expect(answer.locator('.chk__go')).toHaveText('Jetzt kaufen')
     await expect(answer.locator('.chk__go')).toBeEnabled()
-    await expect(answer.locator('.chk__buy .bmc-tile', { hasText: 'Komplettrad' })).toBeVisible()
+    await expect(answer.locator('.chk__buy .bmc-tile', { hasText: 'Kompletträder' })).toBeVisible()
 
     await shot(answer, 28, info)
 

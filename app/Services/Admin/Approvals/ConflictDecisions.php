@@ -173,7 +173,7 @@ final class ConflictDecisions
         $document = $row->approvalDocument;
         $defined = $document->conditions->keyBy('code');
         $sizes = $row->tyreSizes->map(static fn (FitmentTyreSize $s): string => GermanFormat::tyreSize($s->width_mm, $s->aspect, (float) $s->diameter_in).($s->axle->value === 'ALL' ? '' : ' ('.$s->axle->labelDe().')'))->all();
-        $conditions = $row->conditionCodes->map(static fn ($c): string => $c->code.' – '.($defined->get($c->code)->text_de ?? 'im Gutachten nicht definiert'))->all();
+        $conditions = $row->conditionCodes->map(static fn ($c): string => $c->code.' – '.($defined->get($c->code)->text_de ?? 'im Auflagenverzeichnis nicht hinterlegt'))->all();
 
         return [
             'documentId' => (int) $document->id,

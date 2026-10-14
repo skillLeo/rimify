@@ -8,8 +8,8 @@ import { SMALL_BUSINESS_TERMS, STANDARD_TERMS, priceTerms, totalNote } from './u
 describe('priceTerms', () => {
     it('names the VAT beside a price and in the footer, as a standard shop must', () => {
         expect(priceTerms(false)).toBe(STANDARD_TERMS)
-        expect(STANDARD_TERMS.note).toBe('inkl. MwSt., zzgl. Versand')
-        expect(STANDARD_TERMS.footer).toBe('Alle Preise inkl. gesetzl. MwSt., zzgl. Versandkosten.')
+        expect(STANDARD_TERMS.note).toBe('inkl. MwSt., zzgl. Versandkosten')
+        expect(STANDARD_TERMS.footer).toBe('Alle Preise inkl. MwSt., zzgl. Versandkosten.')
     })
 
     it('names no VAT for a Kleinunternehmer, and gives § 19 UStG as the reason', () => {

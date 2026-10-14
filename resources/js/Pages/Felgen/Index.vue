@@ -22,6 +22,7 @@ import ProductTile from '../../Components/Ui/ProductTile.vue'
 import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
+import { zoll } from '../../format'
 import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import type { FelgenProps } from '../../types/pages'
@@ -98,7 +99,7 @@ const quick = computed<QuickOption[]>(() => {
 
         return Array.isArray(raw) && raw.map(String).includes(value)
     }
-    const sizes = (props.facets?.zoll ?? []).map((o) => ({ facet: 'zoll' as const, value: o.value, label: `${formatNumber(Number(o.value))} Zoll`, count: o.count, on: chosen('zoll', o.value) }))
+    const sizes = (props.facets?.zoll ?? []).map((o) => ({ facet: 'zoll' as const, value: o.value, label: zoll(Number(o.value)), count: o.count, on: chosen('zoll', o.value) }))
     const brands = (props.facets?.marke ?? []).map((o) => ({ facet: 'marke' as const, value: o.value, label: o.value, count: o.count, on: chosen('marke', o.value) }))
 
     return [...sizes, ...brands]
@@ -147,11 +148,15 @@ onBeforeUnmount(() => {
                     <!-- Seeded demonstration rows are on this page: it says so, once (OVERHAUL.md §2). -->
                     <span v-if="demo" class="badge demo-note plp__demo">Demodaten</span>
                 </h1>
+                <!-- With a filter set, what it narrowed from stands beside what it left: „0 von 44 Felgen“ (EIGENE-FUNDE 128). -->
                 <p class="plp__count">
                     <template v-if="total !== null">
                         <strong class="tabular">{{ formatNumber(total ?? 0) }}</strong>
-                        {{ total === 1 ? 'Felge' : 'Felgen' }} mit gültigem Gutachten für dieses Fahrzeug
+                        <template v-if="unfiltered != null"> von <span class="tabular">{{ formatNumber(unfiltered) }}</span> {{ unfiltered === 1 ? 'Felge' : 'Felgen' }}</template>
+                        <template v-else> {{ total === 1 ? 'Felge' : 'Felgen' }}</template>
+                        mit gültigem Gutachten für dieses Fahrzeug
                     </template>
+                    <template v-else-if="unfiltered != null">{{ formatNumber(cards.length) }} von {{ formatNumber(unfiltered) }} {{ unfiltered === 1 ? 'Felge' : 'Felgen' }}</template>
                     <template v-else>{{ formatNumber(cards.length) }} {{ cards.length === 1 ? 'Felge' : 'Felgen' }} im Sortiment</template>
                 </p>
                 <!-- The acceptance set is sold with the test payment (rimify:demo --abnahme): the product page's own words. -->
@@ -234,7 +239,7 @@ onBeforeUnmount(() => {
                         <p class="state__title">
                             {{
                                 appliedCount > 0
-                                    ? 'Keine Felgen für diese Filter.'
+                                    ? 'Keine Felge passt zu diesen Filtern.'
                                     : hasVehicle
                                         ? 'Für dieses Fahrzeug haben wir noch keine freigegebenen Felgen.'
                                         : 'Im Sortiment ist gerade keine Felge.'

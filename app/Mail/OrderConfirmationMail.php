@@ -88,7 +88,7 @@ class OrderConfirmationMail extends Mailable
                         ? 'Für dein Fahrzeug freigegeben, mit Hinweisen aus dem Gutachten.'
                         : 'Für dein Fahrzeug freigegeben, mit Auflagen.',
                     'NOT_PERMITTED' => 'Nicht freigegeben.',
-                    default => 'Keine Freigabe hinterlegt.',
+                    default => 'Noch nicht bestätigt.',
                 },
                 // The papers, in the two lines the purchase showed (PapersWording): the Auflagen's, and the document's.
                 'entry' => $snapshot === null ? null : ($entryBySize ? PapersWording::entryBySize($groups['sizes'], $snapshot->papersExempt()) : PapersWording::entryLine($entryHere, $snapshot->papersExempt())),

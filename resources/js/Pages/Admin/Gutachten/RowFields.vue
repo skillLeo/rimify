@@ -354,7 +354,7 @@ function removeSize(index: number): void {
                     <div class="rf-code__line">
                         <b class="rf-code__code">{{ code }}</b>
                         <span v-if="byCode.get(code)" class="rf-code__text">{{ byCode.get(code)!.text }}<span class="rf-code__meta"> · {{ byCode.get(code)!.kindLabel }}<template v-if="byCode.get(code)!.page"> · S. {{ byCode.get(code)!.page }}</template></span></span>
-                        <span v-else class="rf-code__text rf-undefined">Nicht im Auflagenverzeichnis. Die Zeile bleibt „Unbekannt“ und das Gutachten nicht freigebbar, bis der Code dort steht.</span>
+                        <span v-else class="rf-code__text rf-undefined">Nicht im Auflagenverzeichnis. Die Zeile bleibt „Noch nicht bestätigt“ und das Gutachten nicht freigebbar, bis der Code dort steht.</span>
                         <button v-if="!noting.has(code)" class="btn btn--ghost rf-code__add" type="button" :aria-label="`Zusatz zu ${code}`" @click="openNote(code)">Zusatz</button>
                     </div>
                     <div v-if="noting.has(code)" class="form-field rf-code__note">

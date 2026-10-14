@@ -21,14 +21,16 @@ final class SlowQueries
 {
     public static function listen(): void
     {
-        $threshold = (float) config('rimify.slow_query_ms', 500);
-
-        if ($threshold <= 0) {
+        if ((float) config('rimify.slow_query_ms', 500) <= 0) {
             return;
         }
 
-        DB::listen(static function (QueryExecuted $query) use ($threshold): void {
-            if ($query->time < $threshold) {
+        DB::listen(static function (QueryExecuted $query): void {
+            // Read at each statement, not once at boot: switched off (0) in the running app, it writes nothing more —
+            // a test that spies on the log says so for itself (the look-back of D-180, D-232).
+            $threshold = (float) config('rimify.slow_query_ms', 500);
+
+            if ($threshold <= 0 || $query->time < $threshold) {
                 return;
             }
 

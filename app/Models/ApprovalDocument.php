@@ -249,9 +249,24 @@ class ApprovalDocument extends Model
      */
     public function scopeIncompleteDe(): ?string
     {
+        $missing = $this->missingAnnexesDe();
+
+        return $missing === null ? null : 'Verwendungsbereich unvollständig – '.$missing.' liegen nicht vor.';
+    }
+
+    /**
+     * What is missing, said one way everywhere: „Anlagen 1–15“ for the range as the document prints it („1–15“), and
+     * whatever someone wrote in words („Anlagen 1–15“, „Anlage BMW15“) as written. Null when nothing is named.
+     */
+    public function missingAnnexesDe(): ?string
+    {
         $missing = trim((string) $this->missing_annexes);
 
-        return $missing === '' ? null : 'Verwendungsbereich unvollständig – Anlagen '.$missing.' liegen nicht vor.';
+        return match (true) {
+            $missing === '' => null,
+            preg_match('/^\d/', $missing) === 1 => 'Anlagen '.$missing,
+            default => $missing,
+        };
     }
 
     /**
@@ -260,11 +275,11 @@ class ApprovalDocument extends Model
      */
     public function completenessDe(): string
     {
-        $missing = trim((string) $this->missing_annexes);
+        $missing = $this->missingAnnexesDe();
 
         return match ($this->completeness) {
             self::COMPLETE => 'Alle Anlagen und alle Fahrzeuge erfasst',
-            self::PARTIAL => 'Teilweise erfasst'.($missing === '' ? '' : ' – es fehlen: '.$missing),
+            self::PARTIAL => 'Teilweise erfasst'.($missing === null ? '' : ' – es fehlen: '.$missing),
             self::UNKNOWN => 'Nicht bekannt, ob alles erfasst ist',
             default => 'Nicht beantwortet – der Shop liest es als teilweise erfasst',
         };

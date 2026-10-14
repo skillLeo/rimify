@@ -318,9 +318,9 @@ final readonly class Chrome
 
         if ($vehicle->max_speed_kmh !== null && $vehicle->max_speed_kmh > $figures->topSpeedKmh) {
             $notes[] = sprintf(
-                'Als Höchstgeschwindigkeit rechnen wir mit %s km/h aus unseren Fahrzeugdaten – mehr als deine %s km/h aus Feld T. So bist du auf der sicheren Seite.',
-                GermanFormat::integer($vehicle->max_speed_kmh),
-                GermanFormat::integer($figures->topSpeedKmh),
+                'Als Höchstgeschwindigkeit rechnen wir mit %s aus unseren Fahrzeugdaten – mehr als deine %s aus Feld T. So bist du auf der sicheren Seite.',
+                GermanFormat::integer($vehicle->max_speed_kmh).GermanFormat::NBSP.'km/h',
+                GermanFormat::integer($figures->topSpeedKmh).GermanFormat::NBSP.'km/h',
             );
         }
 

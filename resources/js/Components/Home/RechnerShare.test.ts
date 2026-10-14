@@ -36,8 +36,8 @@ describe('RechnerShare', () => {
         await nextTick()
 
         expect(input.attributes('readonly')).toBeDefined()
-        expect(input.attributes('aria-label')).toBe('Link zu dieser Rechnung')
-        expect(wrapper.find('label').text()).toBe('Link zu dieser Rechnung')
+        expect(input.attributes('aria-label')).toBe('Link zu dieser Berechnung')
+        expect(wrapper.find('label').text()).toBe('Link zu dieser Berechnung')
         expect(input.element.value).toBe(`${window.location.origin}/felgenrechner?beliebt=neu&rechner=${PARAM}`)
 
         await wrapper.setProps({ param: '8x17-40-225-45_8x17-40-225-45' })
