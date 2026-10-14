@@ -175,6 +175,19 @@ final readonly class FitmentVerdict
         return $this->status->isSellable();
     }
 
+    /**
+     * „Felge freigegeben · Reifengröße noch nicht bestätigt“ (finding 103, D-214): the document approves the wheel for
+     * the car, and the tyres' half is open for want of something on record — a table, an index — not for want of a fact
+     * about the car. The product page words this state (useConfigurator's `tyreUnconfirmed`); the go-live check counts it.
+     */
+    public function tyreUnconfirmed(): bool
+    {
+        return $this->status === VerdictStatus::Unknown
+            && ($this->wheelStatus === VerdictStatus::Permitted || $this->wheelStatus === VerdictStatus::Conditional)
+            && $this->tyre?->status === VerdictStatus::Unknown
+            && $this->missingFacts === [];
+    }
+
     /** Any condition the customer must tick before the item can enter the basket. */
     public function requiresAcknowledgement(): bool
     {

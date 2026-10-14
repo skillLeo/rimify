@@ -274,13 +274,13 @@ test.describe('Felgenrechner rear view', () => {
         await open(page, '/felgenrechner?rechner=7.5x17-45-225-45_8.5x19-35-225-35');
 
         await expect(page.locator('[data-result="lage"] .calc-result__say')).toHaveText(
-            /^Die neue Felge steht rechnerisch 23\smm weiter außen – näher am Kotflügel\. Die Innenkante rückt rechnerisch 3\smm näher ans Federbein\.$/
+            /^Die Außenkante der neuen Felge steht rechnerisch 23\smm weiter außen – näher am Kotflügel\. Die Innenkante rückt rechnerisch 3\smm näher ans Federbein\.$/
         );
         await expect(page.locator('[data-result="groesse"] .calc-result__say')).toHaveText(/^Das Rad wird rechnerisch 6\smm größer im Durchmesser \(\+0,91\s%\)\.$/);
         await expect(page.locator('[data-result="tacho"] .calc-result__say')).toHaveText(
             /^Zeigt der Tacho 100\skm\/h, fährst du rechnerisch 100,9\skm\/h – 0,9\skm\/h mehr als mit der bisherigen Größe\.$/
         );
-        await expect(page.locator('[data-say="tachoangleichung"]')).toHaveText('Dann kann eine Tachoangleichung nötig werden – das steht im Gutachten.');
+        await expect(page.locator('[data-say="tachoangleichung"]')).toHaveText('Zeigt der Tacho dadurch weniger an, als du fährst, kann eine Tachoangleichung nötig sein – prüfe dazu die Auflagen des Gutachtens.');
 
         // Chrome once translated "5,5 J" as "5.5 years": every select and every figure is translate="no".
         const selects = page.locator('.rechner select');

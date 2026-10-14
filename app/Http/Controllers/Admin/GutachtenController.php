@@ -73,7 +73,7 @@ class GutachtenController extends Controller
             ->leftJoin('fitments as f', 'f.approval_document_id', '=', 'ad.id')
             ->groupBy(
                 'ad.id', 'ad.report_number', 'ad.kind', 'ad.issuer', 'ad.kba_number', 'ad.approval_mark',
-                'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count',
+                'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count', 'ad.is_demo',
             )
             // Drafts first — the documents being worked on — then the newest; a document without its
             // date is not buried at the bottom (MySQL sorts NULL last in a descending order).
@@ -83,7 +83,7 @@ class GutachtenController extends Controller
             ->orderByDesc('ad.id')
             ->get([
                 'ad.id', 'ad.report_number', 'ad.kind', 'ad.issuer', 'ad.kba_number', 'ad.approval_mark',
-                'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count',
+                'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count', 'ad.is_demo',
                 DB::raw('COUNT(f.id) as fitment_count'),
                 DB::raw('SUM(f.status = \'published\') as published_count'),
             ]);
@@ -106,6 +106,8 @@ class GutachtenController extends Controller
                 'pageCount' => $row->page_count === null ? null : (int) $row->page_count,
                 'fitmentCount' => (int) $row->fitment_count,
                 'publishedCount' => (int) $row->published_count,
+                // Seeded as an example (the acceptance set, the demo catalogue): said in the list, not only in the row.
+                'demo' => (bool) $row->is_demo,
                 'href' => '/admin/gutachten/'.$row->id,
             ];
         }

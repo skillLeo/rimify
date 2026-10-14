@@ -147,7 +147,7 @@ final class ReviewBoard
      */
     private const SHOP = [
         ['label' => 'Shop · Startseite', 'exact' => '', 'prefix' => null],
-        ['label' => 'Shop · Auto wählen', 'exact' => '/felgen-suchen', 'prefix' => '/felgen-suchen/'],
+        ['label' => 'Shop · Fahrzeug wählen', 'exact' => '/felgen-suchen', 'prefix' => '/felgen-suchen/'],
         ['label' => 'Shop · Felgenliste', 'exact' => '/felgen', 'prefix' => null],
         ['label' => 'Shop · Produktseite', 'exact' => null, 'prefix' => '/felgen/'],
         ['label' => 'Shop · RIMIFY-Check', 'exact' => '/rimify-check', 'prefix' => '/rimify-check/'],

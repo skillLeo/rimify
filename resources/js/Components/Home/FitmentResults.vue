@@ -51,7 +51,7 @@ const RULE_SENTENCE: Record<FaustregelPosition, string> = {
 }
 
 const EDGE_NOTE =
-    'Rechnerisch aus Felgenbreite und Einpresstiefe, auf ganze Millimeter gerundet. Ob Rad und Reifen frei laufen, hängt von Radhaus, Fahrwerk und Bremse ab – die Bedingungen nennt das Gutachten der Felge.'
+    'Rechnerisch aus Felgenbreite und Einpresstiefe, auf ganze Millimeter gerundet. Ob Felge und Reifen frei laufen, hängt von Radhaus, Fahrwerk und Bremse ab – die Auflagen dazu nennt das Gutachten der Felge.'
 
 /* The neutral scale: −5 % … +5 %, the Faustregel as a band, the value as a mark (clamped at the ends). */
 const SCALE_MIN = -5

@@ -76,6 +76,7 @@ class FahrzeugeController extends Controller
                 'power' => $v->getAttribute('power_kw') === null ? null : $v->getAttribute('power_kw').' kW',
                 'approvals' => (int) $v->getAttribute('approvals'),
                 'needsReview' => $v->needs_review,
+                'demo' => (bool) $v->is_demo,
                 'href' => '/admin/fahrzeuge/'.$v->id,
             ])->values()->all(),
             'filters' => ['q' => $term, 'marke' => $make],

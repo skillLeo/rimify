@@ -37,8 +37,10 @@ const props = withDefaults(
     defineProps<{
         card: ProductCardProp
         vehicle?: VehicleProp | null
-        /** Tiles below the fold load lazily; the first row does not. */
+        /** The first tile of a page: its photograph may be the page's largest paint, and asks for the first bytes. */
         eager?: boolean
+        /** A tile on the first screen: its photograph is loaded at once, never lazily. Every other tile loads lazily. */
+        prompt?: boolean
         /** Render the compare control. The card then reads and writes the compare store. */
         compare?: boolean
         /** How wide the tile is at each width, for `srcset`; the listing passes its own grid. */
@@ -47,6 +49,7 @@ const props = withDefaults(
     {
         vehicle: null,
         eager: false,
+        prompt: false,
         compare: false,
         sizes: '(min-width: 1280px) 306px, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 62vw',
     }
@@ -67,8 +70,19 @@ watch(
 )
 const photo = computed(() => (props.card.image && !failed.value ? props.card.image : null))
 const alt = computed(() => photo.value?.alt ?? `${props.card.brandName} ${props.card.modelName} in ${props.card.finishName}, Ansicht von vorn`)
-/* A second studio angle, when the finish has one, fades in on hover — decoration: the front view carries the alt text. */
-const hoverView = computed(() => photo.value?.views?.[0] ?? null)
+/*
+ * A second studio angle, when the finish has one, fades in on hover — decoration: the front view carries the alt text.
+ * It is fetched when a mouse first comes over the tile, not with the page: there it sat invisible on top of the first
+ * row, and every tile's second picture was requested beside the ones a visitor sees (finding 110). A finger never asks.
+ */
+const hovered = ref(false)
+const hoverView = computed(() => (hovered.value ? (photo.value?.views?.[0] ?? null) : null))
+
+function onPointerEnter(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+        hovered.value = true
+    }
+}
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
@@ -171,14 +185,14 @@ function onCompareLabelClick(event: MouseEvent): void {
 </script>
 
 <template>
-    <article class="tile" :data-demo="card.isDemo ? 'true' : undefined" :data-fallback="photo ? undefined : 'true'">
+    <article class="tile" :data-demo="card.isDemo ? 'true' : undefined" :data-fallback="photo ? undefined : 'true'" @pointerenter="onPointerEnter">
         <div class="tile__media" @error.capture="failed = true">
-            <Picture v-if="photo" :image="photo" :alt="alt" :sizes="sizes" :eager="eager" class="tile__picture" />
+            <Picture v-if="photo" :image="photo" :alt="alt" :sizes="sizes" :eager="eager" :prompt="prompt" class="tile__picture" />
             <!-- Until the cut-out exists the drawing stands alone; a caption would make the
                  missing photograph the tile's message. -->
             <WheelOutline v-else :spokes="card.art.spokes" size="60%" />
             <!-- After the v-if/v-else pair, never between: there it would take the v-else. -->
-            <Picture v-if="hoverView" :image="hoverView" alt="" :sizes="sizes" class="tile__picture tile__media--alt" aria-hidden="true" />
+            <Picture v-if="hoverView" :image="hoverView" alt="" :sizes="sizes" soon class="tile__picture tile__media--alt" aria-hidden="true" />
 
             <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" class="tile__badge" />
         </div>

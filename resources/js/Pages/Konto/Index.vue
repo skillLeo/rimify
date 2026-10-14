@@ -56,7 +56,7 @@ function send(method: 'post' | 'delete', url: string): void {
                         </Link>
                     </li>
                 </ul>
-                <p v-else class="konto__lead">Unter dieser Adresse gibt es noch keine Bestellung.</p>
+                <p v-else class="konto__lead">Mit dieser E-Mail-Adresse hast du noch nichts bestellt. <Link href="/felgen-suchen">Fahrzeug wählen</Link> und passende Felgen finden.</p>
 
                 <div class="konto__actions">
                     <button class="btn btn--secondary" type="button" :disabled="busy" :aria-busy="busy ? 'true' : undefined" @click="send('post', '/konto/abmelden')">Abmelden</button>

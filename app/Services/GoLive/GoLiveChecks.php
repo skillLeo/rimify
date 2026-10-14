@@ -24,6 +24,7 @@ use App\Services\Mail\MailSettings;
 use App\Services\Mail\SenderDns;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Smoke\PrivateFilesProbe;
+use App\Support\GermanFormat;
 use App\Support\ScheduleBeat;
 use App\Support\Seller;
 use App\Support\Shipping;
@@ -67,7 +68,7 @@ final class GoLiveChecks
      */
     private const EU = ['at', 'be', 'bg', 'cy', 'cz', 'de', 'dk', 'ee', 'es', 'fi', 'fr', 'gr', 'hr', 'hu', 'ie', 'it', 'lt', 'lu', 'lv', 'mt', 'nl', 'pl', 'pt', 'ro', 'se', 'si', 'sk'];
 
-    public function __construct(private readonly LegalTexts $legal, private readonly PrivateFilesProbe $privateFiles, private readonly MailSettings $mail, private readonly SenderDns $dns) {}
+    public function __construct(private readonly LegalTexts $legal, private readonly PrivateFilesProbe $privateFiles, private readonly MailSettings $mail, private readonly SenderDns $dns, private readonly TyreConfirmations $tyres) {}
 
     /**
      * Every check, in the order the report gives them. `$network` false leaves out what asks the shop's own address
@@ -77,7 +78,7 @@ final class GoLiveChecks
      */
     public function all(bool $network = true): array
     {
-        return [...$this->legalChecks(), ...$this->wheelChecks(), ...$this->paymentChecks(), ...$this->operationsChecks($network)];
+        return [...$this->legalChecks(), ...$this->wheelChecks($network), ...$this->paymentChecks(), ...$this->operationsChecks($network)];
     }
 
     /** @return list<GoLiveCheck> */
@@ -329,7 +330,7 @@ final class GoLiveChecks
     // ── Recht am Rad ─────────────────────────────────────────────────────────────────────────────────────────────
 
     /** @return list<GoLiveCheck> */
-    private function wheelChecks(): array
+    private function wheelChecks(bool $fresh = false): array
     {
         $released = ApprovalDocument::query()->currentlyValid()->get();
 
@@ -341,6 +342,7 @@ final class GoLiveChecks
             $this->annexes($released->all()),
             $this->developmentVehicles(),
             $this->axleLoads(),
+            $this->tyresUnconfirmed($fresh),
         ];
     }
 
@@ -429,6 +431,43 @@ final class GoLiveChecks
         return $this->check('achslasten', self::WHEEL, 'Achslasten und Höchstgeschwindigkeit der Fahrzeuge', GoLiveCheck::US, $without === 0 ? GoLiveCheck::OK : GoLiveCheck::MISSING, $without === 0
             ? ($total === 0 ? 'Noch nennt kein freigegebenes Gutachten ein Fahrzeug.' : "Für alle {$total} Fahrzeuge der freigegebenen Gutachten sind Achslasten und Höchstgeschwindigkeit hinterlegt.")
             : "{$without} von {$total} Fahrzeugen der freigegebenen Gutachten fehlen Achslasten oder Höchstgeschwindigkeit: Ihre Reifenfreigabe bleibt „mit Auflagen“.", '/admin/fahrzeuge');
+    }
+
+    /**
+     * Finding 103: the pairs of a vehicle and a wheel whose Gutachten approves the wheel while the tyre size cannot be
+     * confirmed — counted from the engine's own answers (TyreConfirmations). The shop sells none of them.
+     */
+    private function tyresUnconfirmed(bool $fresh): GoLiveCheck
+    {
+        $count = $this->tyres->count($fresh);
+        $title = 'Reifengröße zu jeder freigegebenen Felge bestätigt';
+        $pairs = GermanFormat::integer($count['pairs']).($count['pairs'] === 1 ? ' Kombination' : ' Kombinationen').' aus Fahrzeug und Felge';
+
+        if ($count['state'] === TyreConfirmations::NO_TABLES) {
+            return $this->check('reifenbestaetigung', self::WHEEL, $title, GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, "Die Tabellen der Tragfähigkeits- und Geschwindigkeitsindizes fehlen in dieser Installation; ohne sie beantwortet die Prüfung keine der {$pairs}.", 'php artisan db:seed --class=ReferenceDataSeeder');
+        }
+
+        // A page does not count a large shop while someone waits (TyreConfirmations): the command and the hour do.
+        if ($count['state'] === TyreConfirmations::PENDING) {
+            return $this->check('reifenbestaetigung', self::WHEEL, $title, GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, "Noch nicht gezählt: Die {$pairs} werden stündlich im Hintergrund geprüft und bei jedem Lauf von rimify:go-live-check.", 'php artisan rimify:go-live-check');
+        }
+
+        $counted = ' Gezählt: '.$count['countedAt'].'.';
+
+        if ($count['open'] === 0) {
+            return $this->check('reifenbestaetigung', self::WHEEL, $title, GoLiveCheck::CLIENT, GoLiveCheck::OK, $count['pairs'] === 0
+                ? 'Noch nennt kein freigegebenes Gutachten ein Fahrzeug.'
+                : "Keine der {$pairs} in freigegebenen Gutachten steht auf „Felge freigegeben · Reifengröße noch nicht bestätigt“.".$counted, '/admin/gutachten');
+        }
+
+        $real = $count['open'] - $count['demo'];
+
+        return $this->check('reifenbestaetigung', self::WHEEL, $title, GoLiveCheck::CLIENT, $real > 0 ? GoLiveCheck::MISSING : GoLiveCheck::OK, implode(' ', [
+            GermanFormat::integer($count['open']).' von '.$pairs.($count['open'] === 1 ? ' steht' : ' stehen').' auf „Felge freigegeben · Reifengröße noch nicht bestätigt“'
+                .($count['demo'] === 0 ? '' : ($real === 0 ? ' – alle aus Beispieldaten' : ', davon '.GermanFormat::integer($count['demo']).' aus Beispieldaten')).'.',
+            'Die Felge ist dort freigegeben und wird nicht verkauft, bis die Angaben zu den Reifen hinterlegt sind; welche fehlt, steht in der Vorschau des Gutachtens.',
+            'Zum Beispiel: '.implode('; ', $count['examples']).'.',
+        ]).$counted, '/admin/gutachten');
     }
 
     // ── Zahlung ──────────────────────────────────────────────────────────────────────────────────────────────────

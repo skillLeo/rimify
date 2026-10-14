@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use App\Domain\Storefront\VehicleContext;
 use App\Domain\Storefront\VisitorKey;
+use App\Http\RateLimits\ShopRateLimits;
 use App\Http\Requests\Storefront\ContactRequest;
 use App\Mail\ContactConfirmationMail;
 use App\Mail\ContactMessageMail;
 use App\Models\AdminUser;
 use App\Models\ContactMessage;
+use App\Models\CustomerAccount;
 use App\Models\Vehicle;
 use App\Support\VehicleName;
 use Database\Seeders\AccessSeeder;
@@ -18,9 +20,11 @@ use Inertia\Testing\AssertableInertia;
 
 /*
  * The client's #12 (D-123): a contact form instead of a mail program. A message is kept (Verkauf › Nachrichten),
- * mailed to the shop with the sender as reply-to, and confirmed to the sender. A filled honeypot is answered like a
- * person and keeps nothing; the car goes with a message only where the visitor left it ticked, and only the car
- * their own cookie names; a visitor gets five messages a minute.
+ * mailed to the shop with the sender as reply-to, and a copy goes to the sender only where the address is a signed-in
+ * customer's own, confirmed (finding 102, D-218) — to any other the shop would be mailing a stranger's words on a
+ * stranger's say-so. A filled honeypot is answered like a person and keeps nothing; the car goes with a message only
+ * where the visitor left it ticked, and only the car their own cookie names; a visitor gets five messages a minute, an
+ * address of the network thirty an hour, an e-mail address three an hour and ten a day.
  */
 
 beforeEach(function (): void {
@@ -55,7 +59,7 @@ it('opens with the subject and the page the visitor came from, both taken only a
         ->assertInertia(fn (AssertableInertia $page) => $page->where('prefill.from', null)->where('prefill.subject', ''));
 });
 
-it('keeps the message, mails it to the shop with the sender as reply-to, and confirms it to the sender @kunde-12', function (): void {
+it('keeps the message and mails it to the shop with the sender as reply-to — and writes to no address a guest typed @kunde-12', function (): void {
     Mail::fake();
 
     $this->from('/kontakt')->post('/kontakt', kontaktForm())->assertRedirect('/kontakt')->assertSessionHasNoErrors();
@@ -72,7 +76,107 @@ it('keeps the message, mails it to the shop with the sender as reply-to, and con
     Mail::assertSent(ContactMessageMail::class, fn (ContactMessageMail $mail): bool => $mail->hasTo('service@example.com')
         && $mail->hasReplyTo('jana@example.com')
         && $mail->contactMessage->is($message));
+    // The address is whatever the visitor typed: the shop mails nothing to it (finding 102, D-218).
+    Mail::assertNotSent(ContactConfirmationMail::class);
+    Mail::assertSentCount(1);
+});
+
+it('sends the copy to a signed-in customer\'s own confirmed address, and to no other @kunde-12', function (): void {
+    Mail::fake();
+    $account = CustomerAccount::query()->create(['email' => 'jana@example.com']);
+    $account->forceFill(['password' => 'ein-langes-passwort', 'email_verified_at' => now()])->save();
+
+    // The form opens with the one address a copy goes to.
+    $this->actingAs($account, 'customer')->get('/kontakt')->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('copyTo', 'jana@example.com'));
+
+    // Their own address, however it is typed: the copy goes to it.
+    $this->actingAs($account, 'customer')->post('/kontakt', kontaktForm(['email' => ' Jana@Example.com ']))->assertSessionHasNoErrors();
     Mail::assertSent(ContactConfirmationMail::class, fn (ContactConfirmationMail $mail): bool => $mail->hasTo('jana@example.com'));
+    Mail::assertSent(ContactConfirmationMail::class, 1);
+
+    // Somebody else's address typed by the same signed-in customer: the shop is written to, that address is not.
+    $this->actingAs($account, 'customer')->post('/kontakt', kontaktForm(['email' => 'opfer@example.org', 'subject' => 'An eine fremde Adresse']))->assertSessionHasNoErrors();
+    Mail::assertSent(ContactConfirmationMail::class, 1);
+    Mail::assertNotSent(ContactConfirmationMail::class, fn (ContactConfirmationMail $mail): bool => $mail->hasTo('opfer@example.org'));
+    Mail::assertSent(ContactMessageMail::class, 2);
+});
+
+it('sends no copy to an account whose address was never confirmed, and hands a guest no address', function (): void {
+    Mail::fake();
+    $account = CustomerAccount::query()->create(['email' => 'jana@example.com']);
+    $account->forceFill(['password' => 'ein-langes-passwort'])->save();
+
+    $this->get('/kontakt')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('copyTo', null));
+    $this->actingAs($account, 'customer')->get('/kontakt')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('copyTo', null));
+    $this->actingAs($account, 'customer')->post('/kontakt', kontaktForm())->assertSessionHasNoErrors();
+
+    Mail::assertNotSent(ContactConfirmationMail::class);
+});
+
+it('takes a name and a subject of one line only: both end in a mail\'s headers', function (): void {
+    Mail::fake();
+
+    $this->from('/kontakt')->post('/kontakt', kontaktForm(['name' => "Jana\r\nBcc: opfer@example.org", 'subject' => "Frage\nX-Injected: 1"]))
+        ->assertRedirect('/kontakt')
+        ->assertSessionHasErrors([
+            'name' => 'Der Name passt in eine Zeile – bitte ohne Zeilenumbruch.',
+            'subject' => 'Der Betreff passt in eine Zeile – bitte ohne Zeilenumbruch.',
+        ]);
+
+    expect(ContactMessage::query()->count())->toBe(0);
+    Mail::assertNothingSent();
+});
+
+it('lets one e-mail address name three messages an hour, whoever types it — and another address is not held up by it', function (): void {
+    Mail::fake();
+    $this->travelTo(now()->startOfHour());
+
+    foreach (range(1, ContactRequest::PER_ADDRESS_HOUR) as $n) {
+        // Each from another visitor: the limit is the address's, not the sender's.
+        $this->withCookies([VisitorKey::COOKIE => str_pad('adresse'.$n, 40, 'x')])->post('/kontakt', kontaktForm(['subject' => 'Nachricht '.$n]))->assertSessionHasNoErrors();
+    }
+
+    $this->from('/kontakt')->withCookies([VisitorKey::COOKIE => str_pad('adresse-vier', 40, 'x')])->post('/kontakt', kontaktForm(['email' => 'JANA@example.com', 'subject' => 'Die vierte']))
+        ->assertRedirect('/kontakt')
+        ->assertSessionHasErrors(['email' => ContactRequest::TOO_MANY]);
+    $this->post('/kontakt', kontaktForm(['email' => 'emil@example.com', 'subject' => 'Eine andere Adresse']))->assertSessionHasNoErrors();
+
+    expect(ContactMessage::query()->where('email', 'like', '%jana%')->count())->toBe(3)
+        ->and(ContactMessage::query()->where('email', 'emil@example.com')->count())->toBe(1);
+
+    // A filled honeypot keeps nothing and counts against no address.
+    expect(ContactRequest::addressLimited('ruth@example.com'))->toBeFalse();
+    foreach (range(1, 5) as $n) {
+        $this->post('/kontakt', kontaktForm(['email' => 'ruth@example.com', 'rmf_leer' => 'x']));
+    }
+    expect(ContactRequest::addressLimited('ruth@example.com'))->toBeFalse();
+
+    // An hour on, the address writes again.
+    $this->travel(61)->minutes();
+    $this->post('/kontakt', kontaktForm(['subject' => 'Eine Stunde später', 'ticket' => ContactRequest::ticket(now()->subSeconds(30)->getTimestampMs())]))->assertSessionHasNoErrors();
+    expect(ContactMessage::query()->where('email', 'like', '%jana%')->count())->toBe(4);
+});
+
+it('lets one address of the network send thirty messages an hour, however many visitors it claims to be', function (): void {
+    Mail::fake();
+    $this->travelTo(now()->startOfHour());
+    $limit = ShopRateLimits::HOURLY_PER_ADDRESS['shop-kontakt'];
+
+    foreach (range(1, $limit) as $n) {
+        // A new visitor key and a new e-mail address every time, a minute apart: only the hour's count is left to stop it.
+        $this->travel(1)->minutes();
+        $this->withCookies([VisitorKey::COOKIE => str_pad('netz'.$n, 40, 'x')])
+            ->post('/kontakt', kontaktForm(['email' => "absender{$n}@example.com", 'ticket' => ContactRequest::ticket(now()->subSeconds(30)->getTimestampMs())]))
+            ->assertRedirect();
+    }
+
+    $this->travel(1)->minutes();
+    $this->withCookies([VisitorKey::COOKIE => str_pad('netz-mehr', 40, 'x')])
+        ->post('/kontakt', kontaktForm(['email' => 'noch-einer@example.com', 'ticket' => ContactRequest::ticket(now()->subSeconds(30)->getTimestampMs())]))
+        ->assertStatus(429);
+
+    expect(ContactMessage::query()->count())->toBe($limit);
 });
 
 it('writes the mails in German, with the message word for word', function (): void {
@@ -227,10 +331,10 @@ it('lets a visitor send five messages a minute @kunde-12', function (): void {
     $visitor = [VisitorKey::COOKIE => str_pad('kontakt', 40, 'x')];
 
     foreach (range(1, 5) as $n) {
-        $this->withCookies($visitor)->post('/kontakt', kontaktForm(['subject' => 'Nachricht '.$n]))->assertRedirect();
+        $this->withCookies($visitor)->post('/kontakt', kontaktForm(['subject' => 'Nachricht '.$n, 'email' => "jana{$n}@example.com"]))->assertRedirect();
     }
 
-    $this->withCookies($visitor)->post('/kontakt', kontaktForm(['subject' => 'Nachricht 6']))->assertStatus(429);
+    $this->withCookies($visitor)->post('/kontakt', kontaktForm(['subject' => 'Nachricht 6', 'email' => 'jana6@example.com']))->assertStatus(429);
     expect(ContactMessage::query()->count())->toBe(5);
 });
 

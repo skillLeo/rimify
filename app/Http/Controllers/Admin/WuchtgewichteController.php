@@ -200,6 +200,7 @@ class WuchtgewichteController extends Controller
             'isDefault' => $colour->is_default,
             'active' => $colour->active,
             'sortOrder' => $colour->sort_order,
+            'demo' => (bool) $colour->getAttribute('is_demo'),
         ];
     }
 

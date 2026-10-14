@@ -160,7 +160,7 @@ const view = computed<View>(() => {
         return {
             icon: 'search',
             title: 'Diese Seite haben wir nicht gefunden.',
-            lead: 'Der Link führt ins Leere – vielleicht wurde die Seite verschoben, oder diese Felge steht nicht mehr im Sortiment.',
+            lead: 'Der Link führt ins Leere – vielleicht wurde die Seite verschoben oder entfernt, etwa weil eine Felge nicht mehr im Sortiment ist.',
             detail: 'RIMIFY zeigt ausschließlich Felgen, für die ein gültiges Gutachten vorliegt. Sag uns dein Fahrzeug, dann zeigen wir dir genau diese.',
             routes: [felgen('primary'), home('secondary'), faq('ghost')],
         }

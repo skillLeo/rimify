@@ -114,7 +114,7 @@ const originalBySize = computed(() => originalGroups.value.some((group) => group
     <section id="auflagen" class="fdt" aria-labelledby="fdt-h">
         <h2 id="fdt-h" class="h2 fdt__h" tabindex="-1">Was das Gutachten für {{ vehicleLabel }} verlangt</h2>
         <p class="small muted fdt__lede">
-            Wörtlich aus dem Gutachten.<template v-if="hasOwn"> Was mit „Unser Hinweis“ beginnt, kommt von uns.</template>
+            Der Wortlaut des Gutachtens, wie er bei uns hinterlegt ist.<template v-if="hasOwn"> Was mit „Unser Hinweis“ beginnt, kommt von uns.</template>
         </p>
 
         <div class="fdt__cols">
@@ -192,7 +192,7 @@ const originalBySize = computed(() => originalGroups.value.some((group) => group
         <details v-if="original.length" class="fdt__original" data-original>
             <summary class="fdt__original-toggle">Originaltext anzeigen</summary>
             <p class="small muted fdt__original-lede">
-                So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.<template v-if="originalBySize"> Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.</template>
+                Der hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung.<template v-if="originalBySize"> Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.</template>
             </p>
             <template v-for="group in originalGroups" :key="group.key">
                 <p v-if="group.label" class="fdt__for">{{ group.label }}</p>

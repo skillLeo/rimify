@@ -620,7 +620,7 @@ final readonly class FitmentResolver
             // The first line of a failing axle is the reason; keep it first.
             usort($lines, static fn (string $a, string $b): int => (int) str_starts_with($b, '!') <=> (int) str_starts_with($a, '!'));
 
-            // A sentence both axles give — „Das Gutachten druckt keine Tabelle …“ — is said once.
+            // A sentence both axles give — „Zu diesem Gutachten ist keine Tragfähigkeitstabelle … hinterlegt.“ — is said once.
             $lines = array_values(array_unique(array_map(static fn (string $l): string => ltrim($l, '!'), $lines)));
 
             // Always shown: why not, and the document it rests on.
@@ -834,13 +834,13 @@ final readonly class FitmentResolver
 
         if ($lookup === null || $lookup->isAbsent()) {
             return [VerdictStatus::Unknown, [$check['hasTable']
-                ? sprintf('!Für %s km/h nennt die Tabelle des Gutachtens für Geschwindigkeitsindex %s keinen Wert. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed), $check['symbol'])
-                : sprintf('!Das Gutachten druckt keine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit. Für %s km/h können wir die Reifen deshalb nicht bestätigen.', GermanFormat::integer($speed))]];
+                ? sprintf('!Für %s km/h ist in der hinterlegten Tabelle für Geschwindigkeitsindex %s kein Wert eingetragen. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed), $check['symbol'])
+                : sprintf('!Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt. Für %s km/h können wir die Reifen deshalb nicht bestätigen.', GermanFormat::integer($speed))]];
         }
 
         if ($check['limitsUncovered'] !== null) {
             return [VerdictStatus::Unknown, [sprintf(
-                '!Die Auflagen des Gutachtens nennen Tragfähigkeitsindizes nur bis %s Achslast; die %s trägt %s. Die Reifen können wir deshalb nicht bestätigen.',
+                '!Zu den Auflagen dieses Gutachtens sind Tragfähigkeitsindizes nur bis %s Achslast hinterlegt; die %s trägt %s. Die Reifen können wir deshalb nicht bestätigen.',
                 GermanFormat::kilograms((int) $check['limitsUncovered']),
                 $name,
                 GermanFormat::kilograms($load),

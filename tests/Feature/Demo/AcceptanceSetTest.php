@@ -6,6 +6,8 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
 use App\Domain\Storefront\VehicleKey;
+use App\Models\AdminUser;
+use App\Models\ApprovalDocument;
 use App\Models\BalanceWeightColour;
 use App\Models\Brand;
 use App\Models\Vehicle;
@@ -14,6 +16,7 @@ use App\Services\Demo\AcceptanceSeeder;
 use App\Services\Demo\DemoPurge;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
+use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -187,6 +190,40 @@ it('refuses to double a real DB8GT2', function (): void {
         ->and(DB::table('approval_documents')->count())->toBe(0);
 });
 
+it('refuses to double a Gutachten the shop holds under another name: the same PDF is the same document', function (): void {
+    // As on the client's preview on 13.10.2026: the set's Nachtrag, entered by hand as „ABE, KBA 53841“ — another kind,
+    // another number, the very same file.
+    $dir = sys_get_temp_dir().'/rimify-abnahme-pdfs';
+    $data = require database_path('seeders/content/abnahme/gutachten.php');
+
+    foreach ($data['documents'] as $key => $document) {
+        $path = $dir.'/'.$document['pdf']['source'];
+        is_dir(dirname($path)) || mkdir(dirname($path), 0777, true);
+        file_put_contents($path, "%PDF-1.4\n% stand-in for {$key}\n");
+        $data['documents'][$key]['pdf']['sha256'] = hash_file('sha256', $path);
+    }
+
+    ApprovalDocument::factory()->draft()->create([
+        'kind' => 'ABE', 'kba_number' => '53841',
+        'pdf_sha256' => $data['documents']['nachtrag-366-0350-21']['pdf']['sha256'],
+    ]);
+
+    expect(fn () => (new AcceptanceSeeder($dir, $data))->seed())
+        ->toThrow(RuntimeException::class, 'dieselbe PDF-Datei liegt dort als „ABE 53841“')
+        ->and(DB::table('wheel_models')->count())->toBe(0)
+        ->and(DB::table('approval_documents')->where('is_demo', true)->count())->toBe(0);
+
+    // Said explicitly (the operator's decision of 14.10.2026 for that preview): written beside it, every row demo, the real
+    // document untouched — and the note names it.
+    $real = ApprovalDocument::query()->where('is_demo', false)->sole();
+    ['notes' => $notes] = (new AcceptanceSeeder($dir, $data, besideSamePdf: true))->seed();
+
+    expect($notes)->toContain('Neben „ABE 53841“ (Gutachten #'.$real->id.', dieselbe PDF-Datei) geschrieben, wie mit --neben-gleicher-pdf verlangt. Das echte Gutachten bleibt, wie es ist.')
+        ->and(DB::table('approval_documents')->where('is_demo', true)->count())->toBe(2)
+        ->and($real->fresh()?->getAttributes())->toBe($real->getAttributes())
+        ->and(DB::table('wheel_models')->where('is_demo', false)->count())->toBe(0);
+});
+
 it('goes in one press, the shop\'s own accessories untouched, the cars hidden and never deleted (R-04)', function (): void {
     $own = BalanceWeightColour::query()->create(['name_de' => 'Gold', 'slug' => 'gold', 'swatch_hex' => '#B08D57', 'surcharge_cents' => 0, 'currency' => 'EUR', 'is_default' => true, 'active' => true, 'sort_order' => 1]);
     seedAcceptanceSet();
@@ -209,4 +246,26 @@ it('goes in one press, the shop\'s own accessories untouched, the cars hidden an
     // Written again on the same database: the hidden cars come back, nothing collides.
     seedAcceptanceSet();
     expect(DB::table('vehicles')->where('demo_ref', 'like', 'abnahme:%')->whereNull('deleted_at')->count())->toBe(3);
+});
+
+it('marks every row it seeds as Demodaten in the admin list that shows it — not only in the database (the brief of 14.10.2026, §6)', function (): void {
+    $this->seed(AccessSeeder::class);
+    seedAcceptanceSet();
+    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+
+    // The list, the prop that holds its rows, and how many rows of its table were born demo.
+    $lists = [
+        '/admin/gutachten' => ['documents', DB::table('approval_documents')->where('is_demo', true)->count()],
+        '/admin/fahrzeuge' => ['vehicles', DB::table('vehicles')->where('is_demo', true)->whereNull('deleted_at')->count()],
+        '/admin/felgen' => ['wheels', DB::table('wheel_models')->where('is_demo', true)->count()],
+        '/admin/zubehoerpreise/wuchtgewichte' => ['colours', DB::table('balance_weight_colours')->where('is_demo', true)->count()],
+        '/admin/zubehoerpreise/rdks' => ['prices', DB::table('tpms_sensor_prices')->where('is_demo', true)->count()],
+    ];
+
+    foreach ($lists as $url => [$prop, $born]) {
+        expect($born)->toBeGreaterThan(0, $url);
+
+        $this->actingAs($admin, 'admin')->get($url)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where($prop, fn ($rows): bool => collect($rows)->where('demo', true)->count() === $born));
+    }
 });

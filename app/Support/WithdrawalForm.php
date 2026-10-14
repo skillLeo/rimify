@@ -36,7 +36,8 @@ final class WithdrawalForm
         $parts = $seller->addressLines();
 
         if ($seller->email !== null) {
-            $parts[] = 'E-Mail: '.$seller->email;
+            // „E-Mail info@…“: the line ends in the statute's colon, and a second one inside it read as a slip.
+            $parts[] = 'E-Mail '.$seller->email;
         }
 
         return 'An '.implode(', ', $parts).':';

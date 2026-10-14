@@ -151,15 +151,24 @@ describe('ProductTile', () => {
         expect(photographed.find('svg').exists()).toBe(false)
     })
 
-    it('lays a second studio angle over the front view for the hover, hidden from assistive tech', () => {
+    it('lays a second studio angle over the front view for the hover, hidden from assistive tech — fetched when a mouse comes, not with the page', async () => {
         const single = mountTile({ card: card(2, { image }) })
         expect(single.findAll('picture')).toHaveLength(1)
 
         const angled = { ...image, name: 'schraeg', base: '/storage/demo/wheels/x-schraeg/x-schraeg', label: 'Schräg von vorn' }
         const withView = mountTile({ card: card(2, { image: { ...image, views: [angled] } }) })
+
+        // With the page: the front view alone. A finger over the tile asks for nothing either (finding 110).
+        expect(withView.findAll('picture')).toHaveLength(1)
+        await withView.trigger('pointerenter', { pointerType: 'touch' })
+        expect(withView.findAll('picture')).toHaveLength(1)
+
+        await withView.trigger('pointerenter', { pointerType: 'mouse' })
         const pictures = withView.findAll('picture')
 
         expect(pictures).toHaveLength(2)
+        // Asked for by the visitor: loaded at once, never lazily behind a picture that is in view.
+        expect(pictures[1]!.find('img').attributes('loading')).toBe('eager')
         expect(pictures[0]!.find('img').attributes('alt')).toBe('Demo Zehnspeiche Z-02 in Platinum Silber, Ansicht von vorn')
         expect(pictures[1]!.classes()).toContain('tile__media--alt')
         expect(pictures[1]!.attributes('aria-hidden')).toBe('true')

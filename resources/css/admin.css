@@ -2617,6 +2617,11 @@ a.adm-foot__health {
     color: var(--c-ink-2);
 }
 
+/* A row seeded as an example (the acceptance set, the demo catalogue), beside its name in every list that can hold one. */
+.adm-demo {
+    margin-left: var(--sp-8);
+}
+
 /* Still on file, but something newer governs. */
 .adm-tag--warn {
     background: var(--c-warn-tint);

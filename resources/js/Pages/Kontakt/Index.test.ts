@@ -81,11 +81,11 @@ const VEHICLE: VehicleProp = {
 let mounted: VueWrapper[] = []
 
 function mountPage(
-    options: { contact?: ContactProp; vehicle?: VehicleProp | null; prefill?: { subject: string; from: string | null }; mail?: boolean; ticket?: string } = {}
+    options: { contact?: ContactProp; vehicle?: VehicleProp | null; prefill?: { subject: string; from: string | null }; mail?: boolean; ticket?: string; copyTo?: string | null } = {}
 ): VueWrapper {
     const contact = options.contact ?? CONTACT
     current.props = { contact, vehicle: options.vehicle ?? null, notifyByMail: options.mail ?? true }
-    const wrapper = mount(Kontakt, { props: { contact, prefill: options.prefill, ticket: options.ticket }, attachTo: document.body })
+    const wrapper = mount(Kontakt, { props: { contact, prefill: options.prefill, ticket: options.ticket, copyTo: options.copyTo ?? null }, attachTo: document.body })
     mounted.push(wrapper)
 
     return wrapper
@@ -237,9 +237,40 @@ describe('Kontakt — the contact form (#12)', () => {
         expect(wrapper.find('#kon-name-err').text()).toBe('')
     })
 
-    it('promises a copy by mail only where outgoing mail is configured', async () => {
-        expect(mountPage({ mail: true }).find('.kon__copy').exists()).toBe(true)
-        expect(mountPage({ mail: false }).find('.kon__copy').exists()).toBe(false)
+    it('promises a copy by mail only to a signed-in customer\'s own address, and only where outgoing mail is configured (D-218)', async () => {
+        // A guest: the shop cannot know the address typed is theirs, so no copy is sent and none is promised.
+        const guest = mountPage({ mail: true })
+        await fill(guest)
+        expect(guest.find('.kon__copy').exists()).toBe(false)
+
+        // A signed-in customer: the form opens with their address, and the copy is promised for it.
+        const customer = mountPage({ mail: true, copyTo: 'Jana@Example.com' })
+        expect((customer.find('#kon-email').element as HTMLInputElement).value).toBe('Jana@Example.com')
+        expect(customer.find('.kon__copy').text()).toBe('Du bekommst eine Kopie an deine E-Mail-Adresse.')
+
+        // …for that address and no other: typed over, the promise goes.
+        await customer.find('#kon-email').setValue('jemand.anders@example.org')
+        expect(customer.find('.kon__copy').exists()).toBe(false)
+        await customer.find('#kon-email').setValue(' jana@example.com ')
+        expect(customer.find('.kon__copy').exists()).toBe(true)
+
+        expect(mountPage({ mail: false, copyTo: 'jana@example.com' }).find('.kon__copy').exists()).toBe(false)
+    })
+
+    it('says a copy is in the postbox only when one was sent', async () => {
+        const guest = mountPage()
+        await fill(guest)
+        await guest.find('form').trigger('submit')
+        posted[0]!.options.onSuccess?.(ARRIVED)
+        await flushPromises()
+        expect(guest.find('.kon__done').text()).not.toContain('Kopie')
+
+        const customer = mountPage({ copyTo: 'jana@example.com' })
+        await fill(customer)
+        await customer.find('form').trigger('submit')
+        posted[1]!.options.onSuccess?.(ARRIVED)
+        await flushPromises()
+        expect(customer.find('.kon__done').text()).toContain('Eine Kopie deiner Nachricht ist schon in deinem Postfach.')
     })
 
     it('keeps the words in the tab when a send fails, and brings them back on the next visit', async () => {

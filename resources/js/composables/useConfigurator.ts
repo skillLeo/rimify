@@ -29,7 +29,28 @@ export interface SizeOption {
     readonly config: ProduktConfig
     /** No configuration of this diameter is permitted on the chosen vehicle. Shown, disabled. */
     readonly blocked: boolean
+    /**
+     * Not sold, and not refused either (finding 103): the Gutachten approves the wheel for the car, and what cannot be
+     * confirmed is the tyre size. Marked grey, never struck through — struck through reads as forbidden — and it can be
+     * chosen, so the answer and the way on can be read.
+     */
+    readonly unconfirmed: boolean
     readonly reason: string | null
+}
+
+/**
+ * The wheel half approved, the tyre half without an answer: unverified, which is neither forbidden nor unavailable.
+ * (A verdict that still waits for a fact of the car is „noch offen“, and is asked for in place — not this.)
+ */
+export function tyreUnconfirmed(verdict: ProduktConfig['verdict']): boolean {
+    return (
+        verdict !== null &&
+        verdict !== undefined &&
+        verdict.status === 'UNKNOWN' &&
+        (verdict.wheelStatus === 'PERMITTED' || verdict.wheelStatus === 'CONDITIONAL') &&
+        verdict.tyre?.status === 'UNKNOWN' &&
+        (verdict.missing ?? []).length === 0
+    )
 }
 
 /** One width/ET configuration inside the chosen diameter. */
@@ -119,9 +140,10 @@ export function useConfigurator(
 
         return [...groups.entries()]
             .map(([diameter, group]): SizeOption => {
-                const blocked = !group.some(choosable)
+                const unconfirmed = !group.some(choosable) && group.some((c) => tyreUnconfirmed(c.verdict))
+                const blocked = !group.some(choosable) && !unconfirmed
                 const representative =
-                    current !== null && group.includes(current) ? current : (best(group) ?? group[0]!)
+                    current !== null && group.includes(current) ? current : (best(group) ?? group.find((c) => tyreUnconfirmed(c.verdict)) ?? group[0]!)
 
                 return {
                     diameter,
@@ -130,7 +152,8 @@ export function useConfigurator(
                     label: String(diameter).replace('.', ','),
                     config: representative,
                     blocked,
-                    reason: blocked ? reasonFor(group) : null,
+                    unconfirmed,
+                    reason: blocked || unconfirmed ? reasonFor(group) : null,
                 }
             })
             .sort((a, b) => a.diameter - b.diameter)

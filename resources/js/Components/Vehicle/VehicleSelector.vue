@@ -44,8 +44,13 @@ const props = withDefaults(
         returnTo?: string | null
         /** The homepage fold is tighter than the full-page version. */
         compact?: boolean
+        /**
+         * The level of the two routes' headings: 3 under a section's own h2 (the RIMIFY-Check), 2 where the page's h1
+         * stands directly above (the vehicle picker) — a screen reader announces a skipped level as a gap (finding 111).
+         */
+        headingLevel?: 2 | 3
     }>(),
-    { basePath: '/felgen-suchen', baseQuery: () => ({}), returnTo: null, compact: false }
+    { basePath: '/felgen-suchen', baseQuery: () => ({}), returnTo: null, compact: false, headingLevel: 3 }
 )
 
 /* A drill step's address: the step's own parameters over what the page keeps; an empty value is left out. */
@@ -246,7 +251,7 @@ function onTsn(event: Event): void {
         <!-- Route one: the key numbers off the registration document — first in the markup, as a person reads and tabs it,
              on every width; the layout only spaces, it never reorders. -->
         <section class="vsel__col vsel__col--keys" aria-labelledby="vsel-keys-title">
-            <h3 id="vsel-keys-title" class="t-h3 vsel__title">Mit Schlüsselnummern</h3>
+            <component :is="`h${headingLevel}`" id="vsel-keys-title" class="t-h3 vsel__title">Mit Schlüsselnummern</component>
 
             <!-- No vehicle dataset yet (KeyNumberSearch): one sentence, and Marke & Modell beside it is the way that works. -->
             <p v-if="keysClosed" class="vsel__closed">{{ keysClosed }}</p>
@@ -397,7 +402,7 @@ function onTsn(event: Event): void {
                     <Icon name="chevron-right" :size="20" />
                     {{ level === 'variant' ? selectedMake : 'Zurück' }}
                 </button>
-                <h3 id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</h3>
+                <component :is="`h${headingLevel}`" id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</component>
             </div>
 
             <label class="visually-hidden" :for="`vsel-q-${basePath}`">Marke oder Modell suchen</label>

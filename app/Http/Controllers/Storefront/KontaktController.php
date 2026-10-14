@@ -31,8 +31,9 @@ use Throwable;
  * not given arrives as null, and the page leaves its row out.
  *
  * The contact form (the client's #12, D-123): every e-mail button in the shop leads here (#26), with a subject where
- * the page knows one (`?betreff=…`) and the page it came from (`?von=…`). A message is kept, mailed to the shop with
- * the sender as reply-to, and confirmed to the sender; the car goes with it only where the visitor left it ticked.
+ * the page knows one (`?betreff=…`) and the page it came from (`?von=…`). A message is kept and mailed to the shop with
+ * the sender as reply-to; a copy goes to the sender only where the address is a signed-in customer's own (D-218); the
+ * car goes with it only where the visitor left it ticked.
  */
 class KontaktController extends Controller
 {
@@ -47,6 +48,8 @@ class KontaktController extends Controller
             ],
             // When the form was handed out, sealed: a message back sooner than a person writes one is a script's (#12).
             'ticket' => ContactRequest::ticket(),
+            // The one address a copy of the message goes to: the signed-in customer's own, confirmed. Null for a guest.
+            'copyTo' => ContactRequest::confirmedAddress($request),
         ]);
     }
 
@@ -75,7 +78,13 @@ class KontaktController extends Controller
                 Mail::to($to)->send(new ContactMessageMail($message));
             }
 
-            Mail::to($message->email)->send(new ContactConfirmationMail($message));
+            // The copy carries the sender's words to the address typed. It goes only where that address is known to be
+            // theirs — a signed-in customer's own, confirmed — or the form mails anyone a stranger names (D-218).
+            $copy = $request->copyAddress();
+
+            if ($copy !== null) {
+                Mail::to($copy)->send(new ContactConfirmationMail($message));
+            }
         } catch (Throwable $e) {
             Log::warning('Kontaktformular: E-Mail nicht gesendet, die Nachricht ist gespeichert.', ['contact_message_id' => $message->id, 'error' => $e->getMessage()]);
         }

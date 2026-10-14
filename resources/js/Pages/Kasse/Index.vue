@@ -695,7 +695,7 @@ function verdictSentence(line: BasketLine): string {
             <div v-if="lines.length === 0" class="state">
                 <Icon name="cart" :size="24" />
                 <p class="state__title">Dein Warenkorb ist noch leer.</p>
-                <p class="t-body">Lege zuerst eine Felge in den Warenkorb – dann geht es hier weiter.</p>
+                <p class="t-body">Wähle dein Fahrzeug und lege eine Felge in den Warenkorb – dann geht es hier weiter.</p>
                 <Link v-if="vehicle" href="/felgen" class="btn btn--primary">
                     Felgen für {{ vehicle.short }} ansehen
                 </Link>
@@ -754,6 +754,8 @@ function verdictSentence(line: BasketLine): string {
                         <div id="ko-sum-body" class="ko__sum-body" :class="{ 'is-open': summaryOpen }">
                             <!-- On the payment step the goods stand above the button (§312j); the aside keeps the sums only. -->
                             <h2 id="ko-sum-title" class="t-h3 ko__sum-title">{{ step === 3 ? 'Summe' : 'Deine Bestellung' }}</h2>
+                            <!-- Every „freigegeben“ below is for one car: named where the order is placed, as in the basket. -->
+                            <p v-if="vehicle" class="t-small ko__sum-car">Geprüft für {{ vehicle.label }} <span class="data">({{ vehicle.approval ?? vehicle.keyNumbers }})</span></p>
 
                             <ul v-if="step < 3" class="ko__lines">
                                 <li v-for="line in lines" :key="line.key" class="ko__line">
@@ -766,8 +768,8 @@ function verdictSentence(line: BasketLine): string {
                                     </div>
                                     <p class="ko__line-sub">
                                         {{ line.subtitle }}<template v-if="line.sizeLabel">
-                                            · <span class="data">{{ line.sizeLabel }}</span></template
-                                        >
+                                            · <span class="data">{{ line.sizeLabel }}</span>
+                                        </template>
                                     </p>
                                     <p v-if="line.demo !== false" class="ko__line-flag">
                                         <span class="tag tag--unknown">Beispielsortiment</span>
@@ -819,7 +821,7 @@ function verdictSentence(line: BasketLine): string {
                                     <dd class="tabular">{{ shippingLabel }}</dd>
                                 </div>
                                 <div class="sum__row sum__row--total">
-                                    <dt>Gesamt</dt>
+                                    <dt>{{ shippingOpen ? 'Summe ohne Versand' : 'Gesamt' }}</dt>
                                     <dd class="tabular">{{ totals.total }}</dd>
                                 </div>
                             </dl>
@@ -851,7 +853,7 @@ function verdictSentence(line: BasketLine): string {
                                             aria-describedby="ko-mail-help ko-mail-err"
                                             :aria-invalid="errors.email ? 'true' : undefined"
                                             @blur="touch('email')"
-                                        />
+                                        >
                                         <p id="ko-mail-help" class="field-help">
                                             Hierhin schicken wir dir Infos zu deiner Bestellung.
                                         </p>
@@ -868,7 +870,7 @@ function verdictSentence(line: BasketLine): string {
                                             autocomplete="tel"
                                             aria-describedby="ko-tel-err"
                                             :aria-invalid="errors.phone ? 'true' : undefined"
-                                        />
+                                        >
                                         <span id="ko-tel-err" class="field-error">{{ errors.phone ?? '' }}</span>
                                     </div>
                                 </div>
@@ -891,7 +893,7 @@ function verdictSentence(line: BasketLine): string {
                                             aria-describedby="ko-name-err"
                                             :aria-invalid="errors.name ? 'true' : undefined"
                                             @blur="touch('name')"
-                                        />
+                                        >
                                         <span id="ko-name-err" class="field-error">{{ errors.name ?? '' }}</span>
                                     </div>
                                     <div class="ko__street">
@@ -908,7 +910,7 @@ function verdictSentence(line: BasketLine): string {
                                             aria-describedby="ko-street-err"
                                             :aria-invalid="errors.street ? 'true' : undefined"
                                             @blur="touch('street')"
-                                        />
+                                        >
                                         <span id="ko-street-err" class="field-error">{{ errors.street ?? '' }}</span>
                                     </div>
                                     <div class="ko__nr">
@@ -926,7 +928,7 @@ function verdictSentence(line: BasketLine): string {
                                             aria-describedby="ko-nr-err"
                                             :aria-invalid="errors.houseNumber ? 'true' : undefined"
                                             @blur="touch('houseNumber')"
-                                        />
+                                        >
                                         <button
                                             v-if="!letters.houseNumber"
                                             class="ko__letters"
@@ -954,7 +956,7 @@ function verdictSentence(line: BasketLine): string {
                                             aria-describedby="ko-zip-err"
                                             :aria-invalid="errors.zip ? 'true' : undefined"
                                             @blur="touch('zip')"
-                                        />
+                                        >
                                         <span id="ko-zip-err" class="field-error">{{ errors.zip ?? '' }}</span>
                                     </div>
                                     <div class="ko__city">
@@ -971,7 +973,7 @@ function verdictSentence(line: BasketLine): string {
                                             aria-describedby="ko-city-err"
                                             :aria-invalid="errors.city ? 'true' : undefined"
                                             @blur="touch('city')"
-                                        />
+                                        >
                                         <div v-if="places.zip.length" class="ko__places" role="group" aria-label="Orte zu dieser PLZ">
                                             <span class="label ko__places-lead">Zu {{ form.zip }} gehören:</span>
                                             <button
@@ -997,7 +999,7 @@ function verdictSentence(line: BasketLine): string {
                             <fieldset class="ko__group">
                                 <legend class="t-h3">Rechnungsadresse</legend>
                                 <label class="ko__check">
-                                    <input v-model="billingOther" type="checkbox" />
+                                    <input v-model="billingOther" type="checkbox">
                                     <span>Andere Rechnungsadresse</span>
                                 </label>
 
@@ -1016,7 +1018,7 @@ function verdictSentence(line: BasketLine): string {
                                             :aria-invalid="errors.billingName ? 'true' : undefined"
                                             aria-describedby="ko-b-name-err"
                                             @blur="touch('billingName')"
-                                        />
+                                        >
                                         <span id="ko-b-name-err" class="field-error">{{ errors.billingName ?? '' }}</span>
                                     </div>
                                     <div class="ko__street">
@@ -1033,7 +1035,7 @@ function verdictSentence(line: BasketLine): string {
                                             :aria-invalid="errors.billingStreet ? 'true' : undefined"
                                             aria-describedby="ko-b-street-err"
                                             @blur="touch('billingStreet')"
-                                        />
+                                        >
                                         <span id="ko-b-street-err" class="field-error">{{ errors.billingStreet ?? '' }}</span>
                                     </div>
                                     <div class="ko__nr">
@@ -1051,7 +1053,7 @@ function verdictSentence(line: BasketLine): string {
                                             :aria-invalid="errors.billingHouseNumber ? 'true' : undefined"
                                             aria-describedby="ko-b-nr-err"
                                             @blur="touch('billingHouseNumber')"
-                                        />
+                                        >
                                         <button
                                             v-if="!letters.billingHouseNumber"
                                             class="ko__letters"
@@ -1079,7 +1081,7 @@ function verdictSentence(line: BasketLine): string {
                                             :aria-invalid="errors.billingZip ? 'true' : undefined"
                                             aria-describedby="ko-b-zip-err"
                                             @blur="touch('billingZip')"
-                                        />
+                                        >
                                         <span id="ko-b-zip-err" class="field-error">{{ errors.billingZip ?? '' }}</span>
                                     </div>
                                     <div class="ko__city">
@@ -1096,7 +1098,7 @@ function verdictSentence(line: BasketLine): string {
                                             :aria-invalid="errors.billingCity ? 'true' : undefined"
                                             aria-describedby="ko-b-city-err"
                                             @blur="touch('billingCity')"
-                                        />
+                                        >
                                         <div
                                             v-if="places.billingZip.length"
                                             class="ko__places"
@@ -1205,7 +1207,7 @@ function verdictSentence(line: BasketLine): string {
                                                 value="ja"
                                                 :checked="tpms.choice === 'ja'"
                                                 @change="chooseTpms('ja')"
-                                            />
+                                            >
                                             <span class="opt__name">Ja, bitte mit RDKS-Sensoren</span>
                                             <span class="opt__price tabular">{{ tpms.line }}</span>
                                             <span class="opt__sub">Wir setzen die Sensoren gleich mit ein.</span>
@@ -1221,7 +1223,7 @@ function verdictSentence(line: BasketLine): string {
                                                 value="nein"
                                                 :checked="tpms.choice === 'nein'"
                                                 @change="chooseTpms('nein')"
-                                            />
+                                            >
                                             <span class="opt__name">Nein, ich brauche keine</span>
                                             <span class="opt__price tabular">0,00&nbsp;€</span>
                                             <span class="opt__check" aria-hidden="true">
@@ -1235,7 +1237,7 @@ function verdictSentence(line: BasketLine): string {
                                 <fieldset class="ko__group">
                                     <legend class="visually-hidden">Versandart</legend>
                                     <label class="ko__option">
-                                        <input v-model="form.shipping" type="radio" name="shipping" value="standard" />
+                                        <input v-model="form.shipping" type="radio" name="shipping" value="standard">
                                         <span class="ko__option-text">
                                             <span class="ko__option-name">Standardversand</span>
                                         </span>
@@ -1302,11 +1304,10 @@ function verdictSentence(line: BasketLine): string {
                                                 <span class="ko__essential-price tabular">{{ line.lineTotal }}</span>
                                             </p>
                                             <p class="ko__essential-spec">
-                                                {{ line.subtitle }}<template v-if="line.sizeLabel"> · <span class="data">{{ line.sizeLabel }}</span></template
-                                                ><template v-if="line.isSet && line.tyre">
+                                                {{ line.subtitle }}<template v-if="line.sizeLabel"> · <span class="data">{{ line.sizeLabel }}</span></template><template v-if="line.isSet && line.tyre">
                                                     · mit {{ line.tyre.brandName }} {{ line.tyre.name }}
-                                                    <span class="data">{{ line.tyre.sizeLabel }}</span></template
-                                                >
+                                                    <span class="data">{{ line.tyre.sizeLabel }}</span>
+                                                </template>
                                             </p>
                                             <template v-if="line.verdict">
                                                 <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
@@ -1339,7 +1340,7 @@ function verdictSentence(line: BasketLine): string {
                                             <dd>{{ deliveryTime ?? 'wird noch festgelegt' }}</dd>
                                         </div>
                                         <div class="ko__term ko__term--total">
-                                            <dt>Gesamt</dt>
+                                            <dt>{{ shippingOpen ? 'Summe ohne Versand' : 'Gesamt' }}</dt>
                                             <dd class="tabular">{{ totals.total }}</dd>
                                         </div>
                                     </dl>

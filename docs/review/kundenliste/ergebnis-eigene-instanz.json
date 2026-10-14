@@ -1,8 +1,8 @@
 {
   "instance": "eigene-instanz",
   "where": "unser lokaler Abnahme-Shop (127.0.0.1)",
-  "commit": "6315105b",
-  "at": "2026-10-13T20:24:02.193Z",
+  "commit": "6b007603 mit lokalen Änderungen",
+  "at": "2026-10-14T09:11:39.227Z",
   "items": {
     "1": {
       "passed": true,
@@ -61,7 +61,7 @@
     },
     "12": {
       "passed": true,
-      "tests": 17,
+      "tests": 18,
       "failed": 0
     },
     "13": {

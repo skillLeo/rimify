@@ -109,7 +109,7 @@ final class AcceptanceSeeder
      * @param  array{documents: array<string, array<string, mixed>>, fitments: list<array<string, mixed>>, templates: array<string, array<string, mixed>>}|null  $data
      *                                                                                                                                                                  the documents' rows (content/abnahme/gutachten.php unless given)
      */
-    public function __construct(?string $pdfSource = null, private ?array $data = null)
+    public function __construct(?string $pdfSource = null, private ?array $data = null, private bool $besideSamePdf = false)
     {
         $this->pdfSource = $pdfSource ?? Storage::disk(GutachtenController::DISK)->path('');
     }
@@ -135,13 +135,11 @@ final class AcceptanceSeeder
             return ['counts' => [], 'notes' => ['Der Abnahme-Satz ist schon da. Entfernen: System › Zurücksetzen › Demodaten.']];
         }
 
-        $this->refuseDoubles();
-
         /** @var array{documents: array<string, array<string, mixed>>, fitments: list<array<string, mixed>>, templates: array<string, array<string, mixed>>} $data */
         $data = $this->data ?? require database_path('seeders/content/abnahme/gutachten.php');
+        $notes = $this->refuseDoubles($data['documents']);
         $this->refuseWithoutPdfs($data['documents']);
         $counts = [];
-        $notes = [];
 
         DB::transaction(function () use ($data, &$counts, &$notes): void {
             $brands = $this->brands($counts);
@@ -161,8 +159,37 @@ final class AcceptanceSeeder
         return ['counts' => $counts, 'notes' => $notes];
     }
 
-    private function refuseDoubles(): void
+    /**
+     * The set never doubles something real: the wheel by its address, its two Gutachten by their numbers — and by the
+     * fingerprint of their PDFs. On the client's preview (13.10.2026) the wheel was already there as „Borbet DBGT8“ and
+     * the Nachtrag as „ABE, KBA 53841“: other words for the same wheel and the very same file. A number is typed; a file
+     * is what it is.
+     *
+     * Beside the same file, and only that, the set may be written when someone says so (`--neben-gleicher-pdf`): the
+     * operator's decision of 14.10.2026 for that preview — „beside his own wheel: yes“, every row born demo and marked so
+     * in every admin list (D-221). The note it returns names the document it sits beside.
+     *
+     * @param  array<string, array<string, mixed>>  $documents
+     * @return list<string> what was let through, said
+     */
+    private function refuseDoubles(array $documents): array
     {
+        $notes = [];
+        $hashes = array_values(array_filter(array_map(static fn (array $d): ?string => is_string($d['pdf']['sha256'] ?? null) ? $d['pdf']['sha256'] : null, $documents)));
+        $same = $hashes === [] ? null : DB::table('approval_documents')->where('is_demo', false)->whereIn('pdf_sha256', $hashes)
+            ->first(['id', 'kind', 'kba_number', 'report_number']);
+
+        if ($same !== null) {
+            $name = trim($same->kind.' '.($same->kba_number ?: $same->report_number ?: ''));
+
+            if (! $this->besideSamePdf) {
+                throw new RuntimeException('Ein Gutachten des Abnahme-Satzes ist schon im Shop: dieselbe PDF-Datei liegt dort als „'
+                    .$name.'“. Der Abnahme-Satz würde es – und die Felge dazu – doppeln und wird nicht geschrieben. (Ausdrücklich daneben: --neben-gleicher-pdf.)');
+            }
+
+            $notes[] = 'Neben „'.$name.'“ (Gutachten #'.$same->id.', dieselbe PDF-Datei) geschrieben, wie mit --neben-gleicher-pdf verlangt. Das echte Gutachten bleibt, wie es ist.';
+        }
+
         if (WheelModel::withTrashed()->where('slug', self::SLUG)->where('is_demo', false)->exists()) {
             throw new RuntimeException('Die echte BORBET DB8GT2 ist schon im Shop. Der Abnahme-Satz würde sie doppeln und wird nicht geschrieben.');
         }
@@ -174,6 +201,8 @@ final class AcceptanceSeeder
         if ($real !== null) {
             throw new RuntimeException('ABE 55255 oder der Nachtrag 366-0350-21-WIRD/N1 sind schon im Shop. Der Abnahme-Satz würde sie doppeln und wird nicht geschrieben.');
         }
+
+        return $notes;
     }
 
     /**

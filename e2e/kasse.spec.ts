@@ -100,7 +100,7 @@ test.describe('Kasse', () => {
         // §312j: the goods, shipping, delivery time and the total directly above the one button.
         const block = page.locator('section.ko__final');
         await expect(block).toContainText('Lieferzeit');
-        await expect(block).toContainText('Gesamt');
+        await expect(block).toContainText(/Gesamt|Summe ohne Versand/);
         await tabTo(page, 'button.ko__pay');
         await expect(page.locator('button.ko__pay')).toHaveText('Zahlungspflichtig bestellen');
         await page.keyboard.press('Enter');

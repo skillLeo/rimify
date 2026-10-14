@@ -75,7 +75,7 @@ class ApprovalSeeder extends Seeder
     /**
      * The one example document left deliberately WITHOUT a table (the operator's decision of 29.09.2026):
      * DEMO-0007, Stahlwerk 19 Kontur X and Aventin Linea 10. Every car above 210 km/h gets an honest UNKNOWN
-     * on it — „Das Gutachten druckt keine Tabelle …“ — so the demo shows that RIMIFY says it does not know
+     * on it — „Zu diesem Gutachten ist keine Tragfähigkeitstabelle … hinterlegt“ — so the demo shows that RIMIFY says it does not know
      * when it does not, beside the documents that answer.
      */
     public const WITHOUT_DERATING = 'range7';

@@ -64,7 +64,8 @@ final class Smoke extends Command
         {--url= : The site to check (default: APP_URL)}
         {--product= : A product slug}
         {--hsn= : HSN of a car the product is approved for}
-        {--tsn= : TSN of that car}';
+        {--tsn= : TSN of that car}
+        {--testbestellung : Also place and pay one sandbox order. Never by default: an order stays in the shop for good (R-12)}';
 
     protected $description = 'Smoke test of the running shop over HTTP: pages, SSR, lookup, PDF, admin, test order, storage';
 
@@ -209,12 +210,17 @@ final class Smoke extends Command
                 return 'öffnet, Seite '.(preg_match('/#page=(\d+)/', (string) $pdf, $page) ? $page[1] : '–');
             });
 
-            if ($config->wheelModel->is_demo) {
+            $step = self::orderStep((bool) $config->wheelModel->is_demo, Payments::sandbox(), (bool) $this->option('testbestellung'));
+
+            if ($step === 'demo') {
                 // The acceptance set's wheel (AcceptanceSet): a paid order would get an invoice, and an invoice is never
                 // deleted — the set could then only go with all the shop's data, not in the one press it is promised.
                 $this->rows[] = ['Testbestellung', 'übersprungen', 'Im Shop sind nur die Demodaten der Abnahme: Eine bezahlte Testbestellung bekäme eine Rechnung, die nie gelöscht wird, und „Demodaten entfernen“ ginge dann nicht mehr in einem Schritt.'];
-            } elseif (Payments::sandbox()) {
+            } elseif ($step === 'order') {
                 $this->check('Testbestellung (Sandbox)', fn (): string => $this->order($config));
+            } elseif ($step === 'before') {
+                $this->check('Warenkorb und Kasse (ohne Bestellung)', fn (): string => $this->toThePointBeforeOrdering($config));
+                $this->rows[] = ['Testbestellung', 'übersprungen', 'Nur auf Wunsch (--testbestellung): Eine bezahlte Bestellung bleibt für immer im Shop. Geprüft ist der Weg bis vor „Zahlungspflichtig bestellen“.'];
             } else {
                 $this->rows[] = ['Testbestellung', 'übersprungen', 'Keine Testzahlung in dieser Umgebung (im Live-Shop immer aus).'];
             }
@@ -310,6 +316,48 @@ final class Smoke extends Command
         }
 
         return null;
+    }
+
+    /**
+     * What the smoke does about an order: `order` — place and pay one — only where it was asked for by name, payments are
+     * in test mode and the wheel is the shop's own; otherwise `before` (the way to the purchase, read and not pressed),
+     * `demo` (the acceptance set: nothing that would leave an invoice) or `none` (no test payment here).
+     *
+     * An order's frozen approval is never deleted (R-12). Until 13.10.2026 the smoke ordered whenever it could, and a
+     * release left a paid test order in the shop the client works in (RMF-2026-0003). It never orders by itself now.
+     *
+     * @return 'order'|'before'|'demo'|'none'
+     */
+    public static function orderStep(bool $demoWheel, bool $sandbox, bool $asked): string
+    {
+        return match (true) {
+            $demoWheel => 'demo',
+            ! $sandbox => 'none',
+            $asked => 'order',
+            default => 'before',
+        };
+    }
+
+    /**
+     * One wheel into this run's own basket (a session, no row of the shop's), then the basket and the checkout as the
+     * customer would see them: the wheel's price as the line, and the button the law names (§ 312j BGB) — read, not pressed.
+     */
+    private function toThePointBeforeOrdering(WheelConfig $config): string
+    {
+        $this->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => (string) $config->id, 'quantity' => '1']);
+        $price = GermanFormat::money((int) $config->price_cents);
+
+        $basket = $this->get('/warenkorb');
+        $this->expect($basket->status() === 200, "Warenkorb: HTTP {$basket->status()}");
+        $this->expect(str_contains(self::rendered($basket->body()), $price), "der Warenkorb zeigt {$price} nicht");
+
+        $checkout = $this->get('/kasse');
+        $this->expect($checkout->status() === 200, "Kasse: HTTP {$checkout->status()}");
+        $page = self::rendered($checkout->body());
+        $this->expect(str_contains($page, 'Zahlungspflichtig bestellen'), 'die Kasse zeigt den Knopf „Zahlungspflichtig bestellen“ nicht');
+        $this->expect(str_contains($page, $price), "die Kasse zeigt {$price} nicht");
+
+        return "1 × {$price} im Warenkorb, die Kasse zeigt „Zahlungspflichtig bestellen“ – nicht gedrückt";
     }
 
     /** One wheel into the basket, the checkout, „Zahlung erfolgreich“ — and the confirmation says Bezahlt. */

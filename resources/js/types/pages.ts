@@ -797,6 +797,8 @@ export interface KontaktProps {
     prefill?: { subject: string; from: string | null }
     /** When the server handed the form out, sealed (#12): sent back with the message. */
     ticket?: string
+    /** The one address a copy of the message goes to: the signed-in customer's own, confirmed (D-218). Null for a guest. */
+    copyTo?: string | null
 }
 
 export interface RechtlichesProps {
@@ -834,6 +836,8 @@ export interface AdminGutachtenProps {
         pageCount: number | null
         fitmentCount: number
         publishedCount: number
+        /** Seeded as an example: the list says „Demodaten“ beside the number. */
+        demo?: boolean
         href: string
     }[]
     can: { create: boolean }
@@ -895,6 +899,8 @@ export interface AdminWuchtgewichteProps {
         isDefault: boolean
         active: boolean
         sortOrder: number
+        /** Seeded as an example: the list says „Demodaten“ beside the name. */
+        demo?: boolean
     }[]
     /**
      * `Montage und Auswuchten` per wheel — one shop-wide fee, edited on this page (§13, D-032).
@@ -917,6 +923,8 @@ export interface AdminRdksProps {
         /** `49,00 €` */
         price: string
         active: boolean
+        /** Seeded as an example: the list says „Demodaten“ beside the make. */
+        demo?: boolean
     }[]
     /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
     makes: string[]

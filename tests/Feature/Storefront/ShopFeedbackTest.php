@@ -104,7 +104,7 @@ it('names the shop’s pages for the list and its filter', function (): void {
     expect(ReviewBoard::screenFor('/'))->toBe('Shop · Startseite')
         ->and(ReviewBoard::screenFor('/felgen?zoll=19'))->toBe('Shop · Felgenliste')
         ->and(ReviewBoard::screenFor('/felgen/borbet-db8gt2'))->toBe('Shop · Produktseite')
-        ->and(ReviewBoard::screenFor('/felgen-suchen?marke=BMW'))->toBe('Shop · Auto wählen')
+        ->and(ReviewBoard::screenFor('/felgen-suchen?marke=BMW'))->toBe('Shop · Fahrzeug wählen')
         ->and(ReviewBoard::screenFor('/rimify-check/ergebnis'))->toBe('Shop · RIMIFY-Check')
         ->and(ReviewBoard::screenFor('/kasse/testzahlung/RMF-1'))->toBe('Shop · Kasse')
         ->and(ReviewBoard::screenFor('/impressum'))->toBe('Shop · andere Seite')

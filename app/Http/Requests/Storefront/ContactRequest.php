@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests\Storefront;
 
 use App\Models\ContactMessage;
+use App\Models\CustomerAccount;
 use App\Support\ShopPath;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Validator;
 
 /**
@@ -22,7 +25,11 @@ use Illuminate\Validation\Validator;
  * - `ticket` is the time the form was handed out, encrypted with the app's key: a message sent sooner than a person can
  *   write one — under MIN_SECONDS — or with no ticket of ours is not kept. Unlike the honeypot it is said, in a sentence
  *   under the button: a person who was that quick, or whose page is older than the ticket, sends again and loses nothing.
- * - the route allows five messages a minute per visitor (`throttle:shop-kontakt`).
+ * - the route allows five messages a minute per visitor and thirty an hour per address of the network
+ *   (`throttle:shop-kontakt`), and one e-mail address names three messages an hour and ten a day (finding 102, D-218).
+ *
+ * What a visitor types ends in a mail to the shop and in the admin, never in a mail to an address the shop cannot know
+ * to be the visitor's: the copy goes to a signed-in customer's own, confirmed address, or to nobody (copyAddress()).
  *
  * The car comes as the id of the one the box showed, only where it stayed ticked; its name is always the server's.
  */
@@ -34,6 +41,13 @@ class ContactRequest extends FormRequest
     public const TOO_FAST = 'Das ging zu schnell. Bitte schick deine Nachricht noch einmal ab.';
 
     public const NO_TICKET = 'Das Formular ist abgelaufen. Bitte lade die Seite neu und schick deine Nachricht noch einmal ab.';
+
+    /** How many messages one e-mail address sends: a person asks once or twice, a script fills a stranger's name in. */
+    public const PER_ADDRESS_HOUR = 3;
+
+    public const PER_ADDRESS_DAY = 10;
+
+    public const TOO_MANY = 'Von dieser E-Mail-Adresse sind in kurzer Zeit schon mehrere Nachrichten gekommen. Sie liegen uns vor und wir melden uns – eine weitere kannst du später schicken.';
 
     /**
      * The ticket a form is handed out with: when it was, sealed with the app's key — to the millisecond, so MIN_SECONDS
@@ -54,9 +68,10 @@ class ContactRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:120'],
+            // One line each: both end up in a mail's headers (the reply-to's name, the subject).
+            'name' => ['required', 'string', 'max:120', 'not_regex:/[\r\n]/'],
             'email' => ['required', 'string', 'email', 'max:190'],
-            'subject' => ['required', 'string', 'max:150'],
+            'subject' => ['required', 'string', 'max:150', 'not_regex:/[\r\n]/'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
             'withVehicle' => ['boolean'],
             'vehicleId' => ['nullable', 'integer', 'min:1'],
@@ -87,8 +102,71 @@ class ContactRequest extends FormRequest
                 } elseif (now()->getTimestampMs() - $issuedAt < self::MIN_SECONDS * 1000) {
                     $validator->errors()->add('ticket', self::TOO_FAST);
                 }
+
+                // An address that has written this often lately writes no more for now — whoever typed it.
+                if ($validator->errors()->isEmpty() && self::addressLimited((string) $this->input('email'))) {
+                    $validator->errors()->add('email', self::TOO_MANY);
+                }
             },
         ];
+    }
+
+    /** A message that will be kept counts against the address it names. */
+    protected function passedValidation(): void
+    {
+        if ($this->isBot()) {
+            return;
+        }
+
+        foreach (self::addressKeys((string) $this->input('email')) as $key => [, $seconds]) {
+            RateLimiter::hit($key, $seconds);
+        }
+    }
+
+    public static function addressLimited(string $email): bool
+    {
+        foreach (self::addressKeys($email) as $key => [$max]) {
+            if (RateLimiter::tooManyAttempts($key, $max)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The counters of one address, by a hash of it — the cache holds no address: key → [how many, in how many seconds].
+     *
+     * @return array<string, array{0: int, 1: int}>
+     */
+    private static function addressKeys(string $email): array
+    {
+        $hash = hash('sha256', mb_strtolower(trim($email)));
+
+        return [
+            'kontakt-adresse-stunde|'.$hash => [self::PER_ADDRESS_HOUR, 3600],
+            'kontakt-adresse-tag|'.$hash => [self::PER_ADDRESS_DAY, 86_400],
+        ];
+    }
+
+    /**
+     * The address a copy of a message may go to (finding 102, D-218): the signed-in customer's own, confirmed when the
+     * account was opened through the link mailed to it. Null for everyone else — the shop does not send a stranger's
+     * words to an address on a stranger's say-so.
+     */
+    public static function confirmedAddress(Request $request): ?string
+    {
+        $account = $request->user('customer');
+
+        return $account instanceof CustomerAccount && $account->email_verified_at !== null ? $account->email : null;
+    }
+
+    /** The confirmed address, where it is the one the message names; null otherwise. */
+    public function copyAddress(): ?string
+    {
+        $confirmed = self::confirmedAddress($this);
+
+        return $confirmed !== null && mb_strtolower(trim($confirmed)) === mb_strtolower(trim((string) $this->validated('email'))) ? $confirmed : null;
     }
 
     /** When the form was handed out, in milliseconds, from its ticket; null for none, or for one this app did not seal. */
@@ -120,6 +198,8 @@ class ContactRequest extends FormRequest
             'email.max' => 'Die E-Mail-Adresse ist zu lang.',
             'subject.required' => 'Worum geht es? Ein paar Worte als Betreff reichen.',
             'subject.max' => 'Der Betreff ist zu lang – höchstens 150 Zeichen.',
+            'name.not_regex' => 'Der Name passt in eine Zeile – bitte ohne Zeilenumbruch.',
+            'subject.not_regex' => 'Der Betreff passt in eine Zeile – bitte ohne Zeilenumbruch.',
             'message.required' => 'Bitte schreib uns deine Frage.',
             'message.min' => 'Ein, zwei Sätze mehr, damit wir dir gleich richtig antworten können.',
             'message.max' => 'Die Nachricht ist zu lang – höchstens 5.000 Zeichen.',

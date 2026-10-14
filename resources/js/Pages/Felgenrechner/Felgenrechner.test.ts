@@ -93,7 +93,7 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         )
         // The answer first, in a sentence; the drawing inside the position block, under it.
         const lage = wrapper.find('[data-result="lage"]')
-        expect(lage.find('.calc-result__say').text()).toContain('Die neue Felge steht rechnerisch')
+        expect(lage.find('.calc-result__say').text()).toContain('Die Außenkante der neuen Felge steht rechnerisch')
         expect(lage.find('.cd[role="img"]').exists()).toBe(true)
         expect(wrapper.findAll('.cd[role="img"]')).toHaveLength(1)
         expect(text).toContain('Zeigt der Tacho')

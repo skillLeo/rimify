@@ -80,6 +80,41 @@ describe('FitmentPanel', () => {
         expect(unknown.find('.rcheck-panel__vehicle').text()).toBe('Keine Freigabe hinterlegt für BMW 3er Coupe')
     })
 
+    // Finding 103 (the operator's decision of 14.10.2026): the client's own wheel on his own car read „Keine Freigabe
+    // hinterlegt“ over a row saying „Freigegeben mit Auflagen“. Unverified is neither forbidden nor unavailable.
+    it('leads with the half that is true where the wheel is approved and only the tyre size is unconfirmed — and shows a way on', () => {
+        const summary = 'Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt. Für 250 km/h können wir die Reifen deshalb nicht bestätigen.'
+        const open = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                askHref: '/kontakt?betreff=Wunschreifen',
+                verdict: verdict({
+                    status: 'UNKNOWN', label: 'Unbekannt', sellable: false, reason: summary, reasonCode: 'TYRE_UNKNOWN',
+                    wheelStatus: 'CONDITIONAL', wheelLabel: 'Freigegeben mit Auflagen',
+                    tyre: { status: 'UNKNOWN', label: 'Keine Angabe', summary, lines: [], thresholds: [], fromVehicleData: true },
+                }),
+            },
+            global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } },
+        })
+
+        expect(open.find('.rcheck-panel__vehicle').text()).toBe('Felge freigegeben mit Auflagen · Reifengröße noch nicht bestätigt')
+        expect(open.text()).not.toContain('Keine Freigabe hinterlegt')
+        expect(open.find('[data-open="tyre"]').text()).toBe('Die Felge selbst ist für deinen BMW 3er Coupe freigegeben, mit Auflagen. Nicht bestätigen können wir die Reifengröße.')
+        // What is on record, said as that — and never what the document does or does not print (R-17).
+        expect(open.find('.fit__tyre-summary').text()).toBe(summary)
+        expect(open.text()).not.toMatch(/Gutachten (druckt|enthält|nennt) kein/)
+        expect(open.find('[data-open="next"]').text()).toContain('Wenn du deine Wunschreifen nennst, prüfen wir sie vorab von Hand.')
+        expect(open.find('[data-open="next"] a').attributes('href')).toBe('/kontakt?betreff=Wunschreifen')
+
+        // A wheel approved outright reads without „mit Auflagen“; a plain „we hold nothing“ stays what it was.
+        const plain = mount(FitmentPanel, {
+            props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Unbekannt', sellable: false, wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre: { status: 'UNKNOWN', label: 'Keine Angabe', summary, lines: [], thresholds: [], fromVehicleData: true } }) },
+        })
+
+        expect(plain.find('.rcheck-panel__vehicle').text()).toBe('Felge freigegeben · Reifengröße noch nicht bestätigt')
+        expect(plain.find('[data-open="next"] a').exists()).toBe(false)
+    })
+
     it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', async () => {
         const tyre = { status: 'CONDITIONAL' as const, label: 'Mit deinen Fahrzeugpapieren prüfen', lines: ['…'], thresholds: [], fromVehicleData: false }
         const empty = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })
@@ -164,14 +199,32 @@ describe('FitmentPanel', () => {
                 verdict: verdict({
                     status: 'NOT_PERMITTED',
                     sellable: false,
-                    reason: 'Das Gutachten führt dieses Fahrzeug nicht auf.',
+                    reason: 'Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.',
                 }),
             },
         })
 
         expect(wrapper.text()).toContain('Nicht freigegeben für BMW 3er Coupe')
         expect(wrapper.text()).not.toContain('Eintragung')
-        expect(wrapper.text()).toContain('Das Gutachten führt dieses Fahrzeug nicht auf.')
+        expect(wrapper.text()).toContain('Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.')
+    })
+
+    it('is no dead end where this wheel is no answer for the car: the wheels that are, one link away (finding 117)', () => {
+        const link = (v: ConfigVerdict) => mount(FitmentPanel, { props: { vehicle, verdict: v }, global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } } }).find('.fit__elsewhere a')
+
+        for (const v of [
+            verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.' }),
+            verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'NO_DOCUMENT', reason: 'Für diese Kombination liegt uns kein Gutachten vor.' }),
+            verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'ANNEX_MISSING', reason: 'Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor.' }),
+        ]) {
+            expect(link(v).text()).toBe('Felgen für deinen BMW 3er anzeigen')
+            expect(link(v).attributes('href')).toBe('/felgen?fahrzeug=3')
+        }
+
+        // Not where the wheel may go on, nor where the way on is already in the panel: a fact to give, a tyre size open.
+        expect(link(verdict({ status: 'CONDITIONAL', sellable: true })).exists()).toBe(false)
+        expect(link(verdict({ status: 'UNKNOWN', sellable: false, missing: ['bodyForm'] })).exists()).toBe(false)
+        expect(link(verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'PERMITTED', tyre: { status: 'UNKNOWN', label: 'Keine Angabe', summary: null, basis: null, lines: [], thresholds: [], fromVehicleData: true, open: false } })).exists()).toBe(false)
     })
 
     it('says nothing about entry for UNKNOWN, and does not dress it as a refusal', () => {

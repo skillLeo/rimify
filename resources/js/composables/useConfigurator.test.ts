@@ -67,6 +67,30 @@ describe('useConfigurator', () => {
         expect(c.selected.value?.id).toBe(3)
     })
 
+    // Finding 103: struck through reads as forbidden. A wheel its Gutachten approves, with a tyre size nobody could
+    // confirm, is unverified — a third state, and one that can be chosen so its answer can be read.
+    it('tells an unconfirmed size from a refused one: the wheel approved and the tyre without an answer is not blocked', () => {
+        const tyre = { status: 'UNKNOWN' as const, label: 'Keine Angabe', lines: [], thresholds: [], fromVehicleData: true }
+        const configs = [
+            config({ id: 1, diameterIn: 17, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Für dein Fahrzeug nicht freigegeben.' }) }),
+            config({ id: 2, diameterIn: 18, verdict: verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'CONDITIONAL', tyre, reason: 'Für 250 km/h können wir die Reifen nicht bestätigen.' }) }),
+            // Nothing on record for the car at all: that is still „keine Freigabe hinterlegt“, struck through.
+            config({ id: 3, diameterIn: 19, verdict: verdict({ status: 'UNKNOWN', sellable: false }) }),
+            // Waiting for a fact of the car is asked for in place: choosable as before, and not this state either.
+            config({ id: 4, diameterIn: 20, verdict: verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'CONDITIONAL', tyre, missing: ['bodyForm'] }) }),
+        ]
+
+        const sizes = useConfigurator(() => configs, 10).sizes.value
+
+        expect(sizes.map((s) => [s.label, s.blocked, s.unconfirmed])).toEqual([
+            ['17', true, false],
+            ['18', false, true],
+            ['19', true, false],
+            ['20', false, false],
+        ])
+        expect(sizes[1]?.reason).toBe('Für 250 km/h können wir die Reifen nicht bestätigen.')
+    })
+
     it('shows a blocked size with its reason instead of hiding it', () => {
         const configs = [
             config({ id: 1, diameterIn: 20, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Nicht freigegeben.' }) }),

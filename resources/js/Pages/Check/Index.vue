@@ -409,7 +409,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     },
     {
         status: 'CONDITIONAL',
-        text: 'Zulässig unter den Bedingungen aus dem Gutachten, etwa nur mit bestimmten Radschrauben. Jede Auflage steht ausformuliert dabei.',
+        text: 'Zulässig unter den Auflagen des Gutachtens, etwa nur mit bestimmten Radschrauben. Jede Auflage steht ausformuliert dabei.',
     },
     {
         status: 'NOT_PERMITTED',
@@ -417,7 +417,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     },
     {
         status: 'UNKNOWN',
-        text: 'Für diese Kombination liegt uns kein Gutachten vor. Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir es nicht belegen können.',
+        text: 'Für diese Kombination liegt uns kein Gutachten vor. Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir nicht belegen können, dass sie zulässig ist.',
     },
 ]
 </script>

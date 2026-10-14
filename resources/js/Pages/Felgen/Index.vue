@@ -33,6 +33,13 @@ const props = defineProps<FelgenProps>()
 const PAGE_SIZE = 24
 
 const shared = useShared()
+
+/*
+ * How many tiles stand on the first screen: two rows of four on a desktop, two rows of two on a phone. Their
+ * photographs are loaded at once; every tile after them lazily (the image rule, e2e/image-loading.spec.ts). The server
+ * knows which of the two it is serving, so the markup is right before any script runs.
+ */
+const FIRST_SCREEN = shared.value.isMobile ? 4 : 8
 const vehicle = computed(() => shared.value.vehicle)
 const filters = useListingFilters(() => props.filters)
 const sheetOpen = ref(false)
@@ -204,6 +211,9 @@ onBeforeUnmount(() => {
                 </aside>
 
                 <div class="plp__results">
+                    <!-- The tiles' names are third-level headings; this is the second level they stand under, on every
+                         width — on a phone „Filter“ is a button, not a heading (finding 112). -->
+                    <h2 class="visually-hidden">Ergebnisse</h2>
                     <!-- The same card as the homepage (home-overhaul.md §1): one CTA, one checkbox. -->
                     <div v-if="cards.length > 0" class="tile-grid plp__grid">
                         <ProductTile
@@ -211,7 +221,8 @@ onBeforeUnmount(() => {
                             :key="`${card.modelId}-${card.finishId}`"
                             :card="card"
                             :vehicle="vehicle"
-                            :eager="i < 4"
+                            :eager="i === 0"
+                            :prompt="i > 0 && i < FIRST_SCREEN"
                             sizes="(min-width: 1280px) 240px, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 45vw"
                             compare
                         />

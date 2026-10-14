@@ -219,7 +219,7 @@ it('serves the PDF by its signed link only, and refuses one whose bytes were cha
 it('prints the model withdrawal form word for word, addressed with the seller’s own data', function (): void {
     $this->get('/rechtliches/widerrufsformular')->assertOk()
         ->assertInertia(fn ($page) => $page->component('Rechtliches/Widerrufsformular')
-            ->where('addressee', 'An Beispiel Handels GmbH, Musterweg 1, 50667 Köln, E-Mail: rechnung@beispiel.test:')
+            ->where('addressee', 'An Beispiel Handels GmbH, Musterweg 1, 50667 Köln, E-Mail rechnung@beispiel.test:')
             ->where('fields.0', 'Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über den Kauf der folgenden Waren (*)/die Erbringung der folgenden Dienstleistung (*)')
             ->where('footnote', '(*) Unzutreffendes streichen.'));
 });
