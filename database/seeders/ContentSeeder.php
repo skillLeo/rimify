@@ -147,8 +147,9 @@ class ContentSeeder extends Seeder
             ['label' => 'Alle Felgen', 'route_name' => 'felgen.index'],
             ['label' => 'Fahrzeug wählen', 'route_name' => 'felgen.suchen'],
             ['label' => 'RIMIFY-Check', 'route_name' => 'check.index'],
-            // The client's #10: the calculator from the footer too (a Blog link waits for a blog — Rückfrage).
+            // The client's #10: the calculator from the footer too, and the Blog (D-230).
             ['label' => 'Felgenrechner', 'route_name' => 'felgenrechner.index'],
+            ['label' => 'Blog', 'route_name' => 'blog.index'],
         ]);
 
         $this->menu('footer_service', [

@@ -64,8 +64,11 @@ final class ReleaseSeed extends Command
      *
      * v9: the dark band's wheel (the client's #9): the photographs' manifests again (GoldenRecordSeeder attaches them), now
      * with the `open` frame wheels:process-images (pipeline 6) writes for a studio shot.
+     *
+     * v10: the footer's Blog link (the client's #10, ContentSeeder, D-230) — a menu the team has edited is left alone; and
+     * the example documents' completeness answer (ApprovalSeeder, D-227).
      */
-    public const VERSION = 9;
+    public const VERSION = 10;
 
     /** From this version on, a kept demo set is written again once, so its frozen labels match. */
     public const DEMO_RENEWED_AT = 4;

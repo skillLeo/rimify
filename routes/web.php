@@ -76,6 +76,7 @@ use App\Http\Controllers\Storefront\RechnungController;
 use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\RobotsController;
 use App\Http\Controllers\Storefront\SesWebhookController;
+use App\Http\Controllers\Storefront\SitemapController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
@@ -107,7 +108,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/robots.txt', RobotsController::class)->name('robots');
 
 Route::get('/', [StartseiteController::class, 'index'])->name('startseite');
+// The Blog (the client's #10, D-230): the index, and the articles at the address the guides have always had.
+Route::get('/blog', [RatgeberController::class, 'index'])->name('blog.index');
+Route::redirect('/ratgeber', '/blog', 301)->name('ratgeber.index');
 Route::get('/ratgeber/{slug}', RatgeberController::class)->name('ratgeber.show');
+// The public pages for search engines; robots.txt names it on the live shop only.
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/felgenrechner', [FelgenrechnerController::class, 'index'])->name('felgenrechner.index');
 
 Route::get('/felgen-suchen', [FelgenController::class, 'suchen'])->name('felgen.suchen');
@@ -302,6 +308,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/gutachten/{document}', [GutachtenController::class, 'show'])->whereNumber('document')->name('gutachten.show');
         Route::put('/gutachten/{document}', [GutachtenController::class, 'update'])->whereNumber('document')->name('gutachten.update');
         Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
+        // „Sind alle Anlagen und alle Fahrzeuge erfasst?“ for a released document (D-227).
+        Route::post('/gutachten/{document}/vollstaendigkeit', [GutachtenController::class, 'completeness'])->whereNumber('document')->name('gutachten.vollstaendigkeit');
         Route::post('/gutachten/{document}/zeilen', [GutachtenZeilenController::class, 'store'])->whereNumber('document')->name('gutachten.zeilen.store');
         // A car exactly as the document names it — no HSN or TSN, none made up (Block C, item 7).
         Route::post('/gutachten/{document}/fahrzeuge', [GutachtenFahrzeugController::class, 'store'])->whereNumber('document')->middleware('throttle:30,1,gutachten-fahrzeuge-store')->name('gutachten.fahrzeuge.store');

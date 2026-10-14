@@ -1,7 +1,8 @@
 // The client's list „Rimify Changes“ (34 points), as docs/review/KUNDENLISTE.md shows it to him: his wish in his words,
 // what the shop does now in one sentence, and the state a passing test with both pictures earns (scripts/kundenliste/
-// run.mjs). Three are judgement (#11, #32, #33: „Urteil offen“, never „erledigt“), two are solved differently with the
-// reason (#19, #23), one waits for his answer (#34). The states are the operator's (the brief „THE 34“ §5).
+// run.mjs). Three are judgement (#11, #32, #33: „Urteil offen“, never „erledigt“), three are solved differently with the
+// reason (#9, #19, #23), one waits for his answer (#34). The states are the operator's (the briefs „THE 34“ §5 and „CLOSE
+// THE PUBLIC SIDE“ §3, §5).
 
 export const STATES = {
     erledigt: 'umgesetzt; der Test dazu besteht, und die Bilder zeigen es',
@@ -71,14 +72,15 @@ export const ITEMS = [
     {
         nr: 9,
         wish: 'Echte Beispielfelge (z. B. Motec) im drehenden Rad',
-        now: 'Im drehenden Rad steht eine echte Felge aus deinen Fotos, die im Shop zu kaufen ist: die BORBET DB8GT2.',
-        state: 'erledigt',
+        // The operator's brief „CLOSE THE PUBLIC SIDE“ §3: right call, not what he asked for — so not „erledigt“.
+        now: 'Im drehenden Rad steht eine echte Felge aus deinen Fotos, die im Shop zu kaufen ist: die BORBET DB8GT2. Eine Motec haben wir nicht genommen, weil wir keine Rechte an Motec-Fotos haben; schickst du uns welche, tauschen wir sie ein.',
+        state: 'anders gelöst',
         commits: ['72e1cf81', '266ff0d8'],
     },
     {
         nr: 10,
         wish: '„Felgenrechner“ und „Blog“ im Footer verlinken',
-        now: 'Der Felgenrechner steht im Footer und öffnet sich; einen Blog gibt es noch nicht, deshalb steht dort kein Link ins Leere.',
+        now: 'Im Footer stehen der Felgenrechner und der Blog; beide öffnen sich, und der Blog führt zu seinen Artikeln.',
         state: 'erledigt',
         commits: ['bd8c58d2'],
     },
