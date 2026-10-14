@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\FakeBucket;
 
@@ -94,6 +95,47 @@ it('warns — and does not fail — on versioning and lifecycle, and fails on mi
         ->and($rows[8]['status'])->toBe('warn')
         ->and($rows[7]['status'])->toBe('fail')
         ->and($rows[7]['detail'])->toContain('PUT und POST für https://rimify.test');
+});
+
+/** The plain reads as auditHttp() answers them, and the browser's CORS question answered by a rule allowing `$allowed`. */
+function auditHttpWithCors(?string $allowed): void
+{
+    Http::fake(static function (Request $request) use ($allowed) {
+        if ($request->method() === 'OPTIONS') {
+            return $allowed !== null && $request->header('Origin')[0] === $allowed
+                ? Http::response('', 200, ['Access-Control-Allow-Origin' => $allowed, 'Access-Control-Allow-Methods' => 'PUT, POST'])
+                : Http::response('', 403);
+        }
+
+        return str_contains($request->url(), '/invoices/') ? Http::response('', 403) : Http::response('rimify-audit', 200);
+    });
+}
+
+it('asks as the browser asks where the key may not read the CORS rule — a rule it cannot see is not a missing rule (ADMIN-GEFUNDEN 502)', function (): void {
+    $this->bucket->refuse['GetBucketCors'] = 'AccessDenied';
+
+    auditHttpWithCors('https://rimify.test');
+    $row = auditRows()[7];
+
+    expect($row['status'])->toBe('ok')
+        ->and($row['detail'])->toStartWith('PUT und POST von https://rimify.test erlaubt.')
+        ->and($row['detail'])->toContain('Die Regel selbst darf der Schlüssel nicht lesen');
+
+    Http::assertSent(static fn (Request $r): bool => $r->method() === 'OPTIONS'
+        && $r->url() === AUDIT_HOST.'/'
+        && $r->header('Origin') === ['https://rimify.test']
+        && $r->header('Access-Control-Request-Method') === ['POST']);
+});
+
+it('fails the CORS row when the browser would be refused, though the key cannot read the rule', function (): void {
+    $this->bucket->refuse['GetBucketCors'] = 'AccessDenied';
+
+    // The rule allows another site only.
+    auditHttpWithCors('https://elsewhere.test');
+    $row = auditRows()[7];
+
+    expect($row['status'])->toBe('fail')
+        ->and($row['detail'])->toContain('Der Browser darf von https://rimify.test nicht direkt in den Bucket hochladen (PUT: HTTP 403, POST: HTTP 403)');
 });
 
 it('is one row of the preflight', function (): void {

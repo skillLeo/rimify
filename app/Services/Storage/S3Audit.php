@@ -180,7 +180,11 @@ final class S3Audit
                 ? self::row(7, 'CORS', 'ok', "PUT und POST erlaubt für: {$list}")
                 : self::row(7, 'CORS', 'fail', "PUT und POST für {$origin} fehlen. Eingetragen: {$list}");
         } catch (Throwable $e) {
-            $rows[] = self::row(7, 'CORS', 'fail', 'Keine CORS-Regel ('.self::aws($e)."). Nötig: PUT und POST für {$origin} – für das direkte Hochladen der Gutachten.");
+            // A key that may not READ the rule says nothing about the rule (ADMIN-GEFUNDEN 502): then the browser's own
+            // question decides — the Gutachten upload is a POST with progress, so the browser asks first, every time.
+            $rows[] = $e instanceof AwsException && $e->getAwsErrorCode() === 'NoSuchCORSConfiguration'
+                ? self::row(7, 'CORS', 'fail', 'Keine CORS-Regel ('.self::aws($e)."). Nötig: PUT und POST für {$origin} – für das direkte Hochladen der Gutachten.")
+                : self::preflightRow($set, $origin, self::aws($e));
         }
 
         // 8 · Lifecycle: incomplete multipart uploads cleaned up.
@@ -221,6 +225,39 @@ final class S3Audit
             : self::row(10, 'Aufräumen', 'warn', count($left).' Prüfdateien mussten nachträglich gelöscht werden: '.implode(', ', $left));
 
         return ['config' => $set, 'rows' => $rows];
+    }
+
+    /**
+     * Row 7 asked as a browser asks: an OPTIONS request from our origin for PUT and for POST, without credentials. The
+     * bucket answers it from its CORS rule whatever the key may read — 200 with our origin allowed, or 403.
+     *
+     * @return Row
+     */
+    private static function preflightRow(StorageConfig $set, string $origin, string $unreadable): array
+    {
+        $refused = [];
+
+        foreach (['PUT', 'POST'] as $method) {
+            try {
+                $response = Http::timeout(15)->withoutRedirecting()
+                    ->withHeaders(['Origin' => $origin, 'Access-Control-Request-Method' => $method])
+                    ->send('OPTIONS', self::objectUrl($set, ''));
+                $allowedOrigin = (string) $response->header('Access-Control-Allow-Origin');
+                $allowedMethods = array_map('trim', explode(',', strtoupper((string) $response->header('Access-Control-Allow-Methods'))));
+
+                if ($response->status() !== 200 || ! in_array($allowedOrigin, ['*', $origin], true) || ! in_array($method, $allowedMethods, true)) {
+                    $refused[] = "{$method}: HTTP {$response->status()}";
+                }
+            } catch (Throwable $e) {
+                $refused[] = "{$method}: ".self::aws($e);
+            }
+        }
+
+        $unread = "Die Regel selbst darf der Schlüssel nicht lesen ({$unreadable}); gefragt wurde wie der Browser fragt.";
+
+        return $refused === []
+            ? self::row(7, 'CORS', 'ok', "PUT und POST von {$origin} erlaubt. {$unread}")
+            : self::row(7, 'CORS', 'fail', "Der Browser darf von {$origin} nicht direkt in den Bucket hochladen (".implode(', ', $refused)."). Nötig: PUT und POST für {$origin} – für das direkte Hochladen der Gutachten. {$unread}");
     }
 
     /** @return list<Row> */
