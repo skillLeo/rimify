@@ -2,16 +2,26 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\Fitment;
+use App\Models\FitmentTyreSize;
 use App\Models\MailSetting;
 use App\Models\Page;
 use App\Models\Setting;
+use App\Models\Vehicle;
+use App\Models\WheelConfig;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\GoLive\GoLiveCheck;
 use App\Services\GoLive\GoLiveChecks;
+use App\Services\GoLive\TyreConfirmations;
+use App\Services\GoLive\WasFehlt;
 use App\Services\Mail\DnsLookup;
 use App\Support\Seller;
+use Database\Seeders\ApprovalSeeder;
+use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Console\Scheduling\Schedule;
 
 /*
  * rimify:go-live-check's checks (the operator's brief of 05.10.2026, §7): each reads the state the shop is in — the
@@ -189,6 +199,95 @@ it('names each released Gutachten whose Anlagen are missing, with how many', fun
     expect($anlagen->state)->toBe(GoLiveCheck::MISSING)
         ->and($anlagen->sentence)->toStartWith('ABE 53841: 15 Anlagen fehlen (1–15).')
         ->and($anlagen->sentence)->toContain('„noch nicht gelesen“, nie ein Nein');
+});
+
+it('counts the pairs of a vehicle and a wheel that stand on „Reifengröße noch nicht bestätigt“ (finding 103, §1.5)', function (): void {
+    $this->seed(ReferenceDataSeeder::class);
+
+    // An RS 4 runs 280 km/h. One wheel's Gutachten carries the table of tyre load at speed; the other's does not.
+    $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
+    $confirmed = WheelConfig::factory()->havanna85x18()->create();
+    $open = WheelConfig::factory()->havanna85x18()->create();
+
+    foreach ([[$confirmed, ApprovalDocument::factory()->printingDeratingTable()], [$open, ApprovalDocument::factory()]] as [$config, $document]) {
+        $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => $document]);
+        FitmentTyreSize::factory()->for($fitment)->size(245, 40, 18.0)->create();
+    }
+
+    $resolver = app(FitmentResolver::class);
+    expect($resolver->resolve($vehicle->id, $confirmed->id)->tyreUnconfirmed())->toBeFalse()
+        ->and($resolver->resolve($vehicle->id, $open->id)->tyreUnconfirmed())->toBeTrue();
+
+    $check = goLiveById()['reifenbestaetigung'];
+
+    expect($check->state)->toBe(GoLiveCheck::MISSING)
+        ->and($check->owner)->toBe(GoLiveCheck::CLIENT)
+        ->and($check->sentence)->toStartWith('1 von 2 Kombinationen aus Fahrzeug und Felge steht auf „Felge freigegeben · Reifengröße noch nicht bestätigt“.')
+        ->and($check->sentence)->toContain('Zum Beispiel: Audi ')
+        ->and($check->sentence)->toContain(' mit ')
+        // The report rimify:go-live-check writes carries the same line.
+        ->and(WasFehlt::markdown([$check], now()))->toContain('1 von 2 Kombinationen aus Fahrzeug und Felge steht auf');
+
+    // Once the table is on record, nothing is open — asked afresh, as the command asks.
+    ApprovalSeeder::seedDerating(ApprovalDocument::query()->findOrFail(Fitment::query()->where('wheel_config_id', $open->id)->value('approval_document_id')));
+    $after = app(TyreConfirmations::class)->count(fresh: true);
+
+    expect($after)->toMatchArray(['pairs' => 2, 'open' => 0, 'demo' => 0])
+        ->and(goLiveById()['reifenbestaetigung']->state)->toBe(GoLiveCheck::OK)
+        ->and(goLiveById()['reifenbestaetigung']->sentence)->toStartWith('Keine der 2 Kombinationen aus Fahrzeug und Felge in freigegebenen Gutachten steht auf „Felge freigegeben · Reifengröße noch nicht bestätigt“. Gezählt: ');
+});
+
+it('never makes a page count a large shop: it reads what the command and the hour have counted, or says nothing is counted yet', function (): void {
+    $this->seed(ReferenceDataSeeder::class);
+
+    $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
+    $document = ApprovalDocument::factory()->create();
+    Fitment::factory()->count(TyreConfirmations::INLINE_PAIRS + 1)->create(['vehicle_id' => $vehicle->id, 'approval_document_id' => $document->id]);
+
+    $pending = goLiveById()['reifenbestaetigung'];
+
+    expect(app(TyreConfirmations::class)->count()['state'])->toBe(TyreConfirmations::PENDING)
+        ->and($pending->state)->toBe(GoLiveCheck::UNCHECKABLE)
+        ->and($pending->sentence)->toStartWith('Noch nicht gezählt: Die 201 Kombinationen aus Fahrzeug und Felge werden stündlich im Hintergrund geprüft')
+        ->and($pending->place)->toBe('php artisan rimify:go-live-check');
+
+    // The hour's run is registered, and what it counts is what the page then reads.
+    $hourly = collect(app(Schedule::class)->events())->first(fn ($event): bool => $event->description === 'reifenbestaetigung-zaehlen');
+    expect($hourly)->not->toBeNull()
+        ->and($hourly->expression)->toBe('0 * * * *');
+
+    app(TyreConfirmations::class)->count(fresh: true);
+
+    expect(app(TyreConfirmations::class)->count()['state'])->toBe(TyreConfirmations::COUNTED)
+        ->and(goLiveById()['reifenbestaetigung']->state)->not->toBe(GoLiveCheck::UNCHECKABLE);
+});
+
+it('says it cannot answer where the engine\'s reference tables are missing, instead of failing the whole report', function (): void {
+    $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
+    $config = WheelConfig::factory()->havanna85x18()->create();
+    FitmentTyreSize::factory()->for(Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id]))->size(245, 40, 18.0)->create();
+
+    $check = goLiveById()['reifenbestaetigung'];
+
+    expect($check->state)->toBe(GoLiveCheck::UNCHECKABLE)
+        ->and($check->owner)->toBe(GoLiveCheck::US)
+        ->and($check->sentence)->toContain('ohne sie beantwortet die Prüfung keine der 1 Kombination aus Fahrzeug und Felge');
+});
+
+it('says so when every open pair comes from example data, and does not call the shop unready for it', function (): void {
+    $this->seed(ReferenceDataSeeder::class);
+
+    // The acceptance set's case: a born-demo Gutachten without the table, a car faster than 210 km/h.
+    $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
+    $config = WheelConfig::factory()->havanna85x18()->create();
+    $document = ApprovalDocument::factory()->create(['is_demo' => true, 'demo_ref' => 'test:doc:ohne-tabelle']);
+    FitmentTyreSize::factory()->for(Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => $document->id]))->size(245, 40, 18.0)->create();
+
+    $check = goLiveById()['reifenbestaetigung'];
+
+    expect(app(TyreConfirmations::class)->count())->toMatchArray(['pairs' => 1, 'open' => 1, 'demo' => 1])
+        ->and($check->state)->toBe(GoLiveCheck::OK)
+        ->and($check->sentence)->toStartWith('1 von 1 Kombination aus Fahrzeug und Felge steht auf „Felge freigegeben · Reifengröße noch nicht bestätigt“ – alle aus Beispieldaten.');
 });
 
 it('takes no real payment while a legal check fails — and says nothing of it in test mode', function (): void {
