@@ -354,10 +354,22 @@ final class Smoke extends Command
         $checkout = $this->get('/kasse');
         $this->expect($checkout->status() === 200, "Kasse: HTTP {$checkout->status()}");
         $page = self::rendered($checkout->body());
-        $this->expect(str_contains($page, 'Zahlungspflichtig bestellen'), 'die Kasse zeigt den Knopf „Zahlungspflichtig bestellen“ nicht');
         $this->expect(str_contains($page, $price), "die Kasse zeigt {$price} nicht");
+        // The button stands on the checkout's third step, which only an order the server creates reaches — a smoke that
+        // may not order never sees it on the page. What it can see is that the release's own checkout carries it
+        // (§ 312j Abs. 3 BGB), word for word (D-224).
+        $this->expect(self::orderButtonShips(public_path('build')), 'der Code der Kasse enthält den Knopf „Zahlungspflichtig bestellen“ nicht');
 
-        return "1 × {$price} im Warenkorb, die Kasse zeigt „Zahlungspflichtig bestellen“ – nicht gedrückt";
+        return "1 × {$price} im Warenkorb und in der Kasse; ihr Knopf „Zahlungspflichtig bestellen“ ist im ausgelieferten Code – nicht gedrückt";
+    }
+
+    /** Whether the built checkout (the manifest's entry for the page) carries the order button's words. */
+    public static function orderButtonShips(string $buildDir): bool
+    {
+        $manifest = json_decode((string) @file_get_contents($buildDir.'/manifest.json'), true);
+        $file = is_array($manifest) ? ($manifest['resources/js/Pages/Kasse/Index.vue']['file'] ?? null) : null;
+
+        return is_string($file) && str_contains((string) @file_get_contents($buildDir.'/'.$file), 'Zahlungspflichtig bestellen');
     }
 
     /** One wheel into the basket, the checkout, „Zahlung erfolgreich“ — and the confirmation says Bezahlt. */
