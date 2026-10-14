@@ -199,14 +199,14 @@ describe('FitmentPanel', () => {
                 verdict: verdict({
                     status: 'NOT_PERMITTED',
                     sellable: false,
-                    reason: 'Das Gutachten führt dieses Fahrzeug nicht auf.',
+                    reason: 'Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.',
                 }),
             },
         })
 
         expect(wrapper.text()).toContain('Nicht freigegeben für BMW 3er Coupe')
         expect(wrapper.text()).not.toContain('Eintragung')
-        expect(wrapper.text()).toContain('Das Gutachten führt dieses Fahrzeug nicht auf.')
+        expect(wrapper.text()).toContain('Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.')
     })
 
     it('says nothing about entry for UNKNOWN, and does not dress it as a refusal', () => {

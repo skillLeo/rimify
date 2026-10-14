@@ -242,7 +242,7 @@ it('does not know what the tyres need where the document’s limits all stop bel
     expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->reason?->code)->toBe(VerdictReason::TYRE_UNKNOWN)
-        ->and($verdict->reason?->textDe)->toBe('Die Auflagen des Gutachtens nennen Tragfähigkeitsindizes nur bis '.kg('1.160').' Achslast; die Vorderachse trägt '.kg('1.300').'. Die Reifen können wir deshalb nicht bestätigen.');
+        ->and($verdict->reason?->textDe)->toBe('Zu den Auflagen dieses Gutachtens sind Tragfähigkeitsindizes nur bis '.kg('1.160').' Achslast hinterlegt; die Vorderachse trägt '.kg('1.300').'. Die Reifen können wir deshalb nicht bestätigen.');
 });
 
 /* ── The wheel's tested load, per axle, the binding axle named ─────────────────────────────────── */
@@ -324,7 +324,7 @@ it('answers UNKNOWN above the table, and for a document that prints no table abo
     $slow = decideFor(bmw4er3C(1100, 1100, 200), withTable: false);
 
     expect($above->status)->toBe(VerdictStatus::Unknown)
-        ->and($above->reason?->textDe)->toBe('Für 310 km/h nennt die Tabelle des Gutachtens für Geschwindigkeitsindex (Y) keinen Wert. Die Reifen können wir deshalb nicht bestätigen.')
+        ->and($above->reason?->textDe)->toBe('Für 310 km/h ist in der hinterlegten Tabelle für Geschwindigkeitsindex (Y) kein Wert eingetragen. Die Reifen können wir deshalb nicht bestätigen.')
         ->and($noTable->status)->toBe(VerdictStatus::Unknown)
         ->and($noTable->reason?->textDe)->toBe('Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt. Für 250 km/h können wir die Reifen deshalb nicht bestätigen.')
         // Up to 210 km/h no table is needed: no tyre loses load there.

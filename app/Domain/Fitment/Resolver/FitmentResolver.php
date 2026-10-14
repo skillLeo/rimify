@@ -834,13 +834,13 @@ final readonly class FitmentResolver
 
         if ($lookup === null || $lookup->isAbsent()) {
             return [VerdictStatus::Unknown, [$check['hasTable']
-                ? sprintf('!Für %s km/h nennt die Tabelle des Gutachtens für Geschwindigkeitsindex %s keinen Wert. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed), $check['symbol'])
+                ? sprintf('!Für %s km/h ist in der hinterlegten Tabelle für Geschwindigkeitsindex %s kein Wert eingetragen. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed), $check['symbol'])
                 : sprintf('!Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt. Für %s km/h können wir die Reifen deshalb nicht bestätigen.', GermanFormat::integer($speed))]];
         }
 
         if ($check['limitsUncovered'] !== null) {
             return [VerdictStatus::Unknown, [sprintf(
-                '!Die Auflagen des Gutachtens nennen Tragfähigkeitsindizes nur bis %s Achslast; die %s trägt %s. Die Reifen können wir deshalb nicht bestätigen.',
+                '!Zu den Auflagen dieses Gutachtens sind Tragfähigkeitsindizes nur bis %s Achslast hinterlegt; die %s trägt %s. Die Reifen können wir deshalb nicht bestätigen.',
                 GermanFormat::kilograms((int) $check['limitsUncovered']),
                 $name,
                 GermanFormat::kilograms($load),

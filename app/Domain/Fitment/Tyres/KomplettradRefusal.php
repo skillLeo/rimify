@@ -50,7 +50,7 @@ enum KomplettradRefusal: string
             self::TyresUnknown => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
             self::TyresNotPermitted => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Ein Komplettrad können wir dir deshalb nicht anbieten.',
             self::VerdictRestored => 'Diese Zusammenstellung können wir dir gerade nicht neu prüfen. Bitte wähl dein Fahrzeug noch einmal aus.',
-            self::NoPermittedSizes => 'Für diese Kombination nennt das Gutachten keine Reifengröße. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
+            self::NoPermittedSizes => 'Für diese Kombination ist bei uns keine Reifengröße hinterlegt. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
             self::NoUsableMinimum => 'Für dein Fahrzeug fehlen uns Achslast oder Höchstgeschwindigkeit. Trag die zulässigen Achslasten und die Höchstgeschwindigkeit aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir die zulässigen Reifen. Die Felge allein kannst du sofort bestellen.',
             // Never „stellen wir persönlich zusammen“ beside a Mischbereifung the page offers itself (D-105).
             self::StaggeredLayout => 'Vorne und hinten sind für dein Fahrzeug unterschiedliche Reifengrößen freigegeben – vier gleiche Reifen gibt es dafür nicht. Die Felge allein kannst du sofort bestellen.',
@@ -60,9 +60,9 @@ enum KomplettradRefusal: string
             self::BelowMinimum => 'Dieser Reifen erfüllt die Mindestwerte für dein Fahrzeug nicht.',
             self::OutOfStock => 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.',
             self::NoTyreAvailable => 'Passende Reifen für diese Größe haben wir gerade nicht vorrätig. Die Felge allein kannst du bestellen.',
-            self::AxleLoadAboveLimit => 'Für die zulässige Achslast deines Fahrzeugs nennt das Gutachten in dieser Reifengröße keinen Tragfähigkeitsindex.',
-            self::NoMixedPairing => 'Unterschiedliche Reifengrößen vorne und hinten nennt das Gutachten für dein Fahrzeug mit dieser Felge nicht.',
-            self::MixedPairNotListed => 'Diese Reifengrößen für vorne und hinten nennt das Gutachten für dein Fahrzeug nicht als Kombination.',
+            self::AxleLoadAboveLimit => 'Für die zulässige Achslast deines Fahrzeugs ist in dieser Reifengröße kein Tragfähigkeitsindex hinterlegt.',
+            self::NoMixedPairing => 'Unterschiedliche Reifengrößen vorne und hinten sind für dein Fahrzeug mit dieser Felge nicht hinterlegt.',
+            self::MixedPairNotListed => 'Diese Reifengrößen für vorne und hinten sind für dein Fahrzeug nicht als Kombination hinterlegt.',
             self::MixedNotOneMaker => 'Vorne und hinten müssen Reifen desselben Herstellers und derselben Profilreihe sein – so verlangt es das Gutachten.',
         };
     }

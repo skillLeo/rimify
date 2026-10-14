@@ -86,21 +86,21 @@ final readonly class VerdictReason
     {
         return match ($code) {
             self::VEHICLE_NOT_FOUND => 'Zu dieser Kombination haben wir die Daten für dieses Fahrzeug noch nicht hinterlegt.',
-            self::VEHICLE_INCOMPLETE => 'Für dieses Fahrzeug können wir die Freigabe nicht bestätigen.',
+            self::VEHICLE_INCOMPLETE => 'Dieses Fahrzeug führen wir nicht mehr in unseren Daten. Wähl dein Fahrzeug bitte neu aus – dann prüfen wir die Felge dafür.',
             self::NO_DOCUMENT => 'Für diese Kombination liegt uns kein Gutachten vor.',
-            self::NOT_COVERED => 'Das Gutachten führt dieses Fahrzeug nicht auf.',
+            self::NOT_COVERED => 'Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.',
             self::ANNEX_MISSING => 'Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor. Bis dahin können wir die Freigabe nicht bestätigen.',
             self::OUTSIDE_BUILD_WINDOW => 'Das Gutachten gilt nicht für den Bauzeitraum dieses Fahrzeugs.',
             self::WIDTH_OR_ET_OUTSIDE_RANGE => 'Breite oder Einpresstiefe liegen außerhalb der Freigabe.',
             self::NO_TYRE_SIZE => 'Für diese Kombination ist keine Reifengröße freigegeben.',
-            self::REFERENCE_DATA_MISSING => 'Für dieses Fahrzeug können wir die Freigabe nicht bestätigen.',
+            self::REFERENCE_DATA_MISSING => 'Für die Prüfung der Reifen fehlen uns gerade die Tabellen der Tragfähigkeits- und Geschwindigkeitsindizes. Das liegt an uns, nicht an deinem Fahrzeug – bis sie hinterlegt sind, können wir die Freigabe nicht bestätigen.',
             self::CONDITION_UNRESOLVED => 'Eine Auflage des Gutachtens ist bei uns noch nicht vollständig erfasst. Bis dahin können wir die Freigabe nicht bestätigen.',
             self::BODY_OR_DRIVE_EXCLUDED => 'Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs.',
             self::BODY_OR_DRIVE_UNKNOWN => 'Das Gutachten gilt nur für bestimmte Karosserieformen oder Antriebe. Welche dein Fahrzeug hat, wissen wir nicht sicher – deshalb können wir die Freigabe nicht bestätigen.',
             self::DOCUMENTS_DISAGREE => 'Zwei Gutachten sagen zu dieser Kombination Verschiedenes. Wir prüfen das und können die Freigabe bis dahin nicht bestätigen.',
             self::WHEEL_LOAD_EXCEEDED => 'Die zulässige Achslast deines Fahrzeugs ist für die geprüfte Radlast dieser Felge zu hoch.',
             self::TYRE_NOT_PERMITTED => 'Für die Höchstgeschwindigkeit deines Fahrzeugs lässt das Gutachten keinen passenden Reifen zu.',
-            self::TYRE_UNKNOWN => 'Welche Reifen dein Fahrzeug mit dieser Felge braucht, sagt das Gutachten nicht. Wir können die Freigabe deshalb nicht bestätigen.',
+            self::TYRE_UNKNOWN => 'Welche Reifen dein Fahrzeug mit dieser Felge braucht, ist bei uns zu diesem Gutachten nicht hinterlegt. Die Reifen können wir deshalb nicht bestätigen.',
             default => 'Für diese Kombination liegt uns kein Gutachten vor.',
         };
     }
