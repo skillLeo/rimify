@@ -16,7 +16,7 @@ export interface CookieEntry {
     clear: string
 }
 
-const BROWSER = 'Oder du löschst die Cookies für diese Seite in deinem Browser.'
+const BROWSER = 'Du kannst die Cookies dieser Seite auch in deinem Browser löschen.'
 
 export const COOKIES: CookieEntry[] = [
     {

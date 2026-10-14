@@ -209,6 +209,24 @@ describe('FitmentPanel', () => {
         expect(wrapper.text()).toContain('Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.')
     })
 
+    it('is no dead end where this wheel is no answer for the car: the wheels that are, one link away (finding 117)', () => {
+        const link = (v: ConfigVerdict) => mount(FitmentPanel, { props: { vehicle, verdict: v }, global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } } }).find('.fit__elsewhere a')
+
+        for (const v of [
+            verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.' }),
+            verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'NO_DOCUMENT', reason: 'Für diese Kombination liegt uns kein Gutachten vor.' }),
+            verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'ANNEX_MISSING', reason: 'Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor.' }),
+        ]) {
+            expect(link(v).text()).toBe('Felgen für deinen BMW 3er anzeigen')
+            expect(link(v).attributes('href')).toBe('/felgen?fahrzeug=3')
+        }
+
+        // Not where the wheel may go on, nor where the way on is already in the panel: a fact to give, a tyre size open.
+        expect(link(verdict({ status: 'CONDITIONAL', sellable: true })).exists()).toBe(false)
+        expect(link(verdict({ status: 'UNKNOWN', sellable: false, missing: ['bodyForm'] })).exists()).toBe(false)
+        expect(link(verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'PERMITTED', tyre: { status: 'UNKNOWN', label: 'Keine Angabe', summary: null, basis: null, lines: [], thresholds: [], fromVehicleData: true, open: false } })).exists()).toBe(false)
+    })
+
     it('says nothing about entry for UNKNOWN, and does not dress it as a refusal', () => {
         const wrapper = mount(FitmentPanel, {
             props: { vehicle, verdict: verdict({ status: 'UNKNOWN', sellable: false }) },

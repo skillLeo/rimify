@@ -14,7 +14,7 @@ const next: WheelSetup = { widthIn: 8.5, diameterIn: 19, etMm: 35, tyreWidthMm: 
 
 const RULE = `der häufig genannten Faustregel von ${pct('−2,5')} bis ${pct('+1,5')} (keine gesetzliche Grenze)`
 const R39 = `Der Tacho darf nie weniger anzeigen als die tatsächliche Geschwindigkeit, höchstens ${pct('10')} + ${kmh('4')} mehr (UN-Regelung Nr. 39).`
-const ADJUST = 'Dann kann eine Tachoangleichung nötig werden – das steht im Gutachten.'
+const ADJUST = 'Zeigt der Tacho dadurch weniger an, als du fährst, kann eine Tachoangleichung nötig sein – prüfe dazu die Auflagen des Gutachtens.'
 const IMPLAUSIBLE = 'Diese Reifenbreite und diese Maulweite gehören so nicht zusammen – prüf die Angaben.'
 
 /** Words that would make arithmetic sound like a verdict (ACCURACY.md D8, §6; brief W6). */
@@ -75,7 +75,7 @@ describe('FitmentResults', () => {
         expect(wrapper.findAll('.calc-result > .label').map((l) => l.text())).toEqual(['Lage der Felge', 'Radgröße', 'Tacho'])
 
         expect(say(wrapper, 'lage')).toBe(
-            `Die neue Felge steht rechnerisch ${mm('23')} weiter außen – näher am Kotflügel. Die Innenkante rückt rechnerisch ${mm('3')} näher ans Federbein.`
+            `Die Außenkante der neuen Felge steht rechnerisch ${mm('23')} weiter außen – näher am Kotflügel. Die Innenkante rückt rechnerisch ${mm('3')} näher ans Federbein.`
         )
         expect(block(wrapper, 'lage').find('.calc-result__sub').text()).toBe(`Felge 7,5J · ET${NNBSP}45 → 8,5J · ET${NNBSP}35`)
 
@@ -108,7 +108,7 @@ describe('FitmentResults', () => {
         )
 
         expect(say(wrapper, 'lage')).toBe(
-            `Die neue Felge steht rechnerisch ${mm('15')} weiter innen – weiter weg vom Kotflügel. Die Innenkante rückt rechnerisch ${mm('15')} näher ans Federbein.`
+            `Die Außenkante der neuen Felge steht rechnerisch ${mm('15')} weiter innen – weiter weg vom Kotflügel. Die Innenkante rückt rechnerisch ${mm('15')} näher ans Federbein.`
         )
         expect(say(wrapper, 'groesse')).toBe(`Das Rad wird rechnerisch ${mm('9')} kleiner im Durchmesser (${pct('−1,42')}).`)
         expect(say(wrapper, 'tacho')).toBe(

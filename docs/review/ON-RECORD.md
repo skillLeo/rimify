@@ -8,7 +8,7 @@ names a Gutachten, an ABE, a Nachtrag, a manufacturer or a document **and denies
 breath. It is written from `tests/Support/on-record-ledger.php`; `tests/Unit/OnRecordTest.php` fails when a sentence of
 this shape appears that is not on the list, and when an entry is no longer written anywhere.
 
-**71 sentences: 11 open, 18 backed by a recorded field, 40 about the shop itself, 2 not sentences.**
+**72 sentences: 10 open, 18 backed by a recorded field, 42 about the shop itself, 2 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -17,7 +17,6 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 
 | Sentence | Read by | Where | Finding |
 |---|---|---|---|
-| „So steht es im Gutachten – ohne unsere Gliederung und ohne Auslassungen.“ | customer / operator | `Components/Product/FitmentDetail.vue:195` | EIGENE-FUNDE 118: true of what is recorded, not of the document — a record with one of six conditions reads the same |
 | „Das Gutachten deckt diese Größe für dein Fahrzeug nicht ab.“ | customer / operator | `Pages/Check/Index.vue:416` | EIGENE-FUNDE 119: also said where the recorded rows simply do not name the car |
 | „Das Gutachten lässt diese Kombination für das Fahrzeug nicht zu.“ | customer / operator | `Pages/CheckErgebnis/Index.vue:82` | EIGENE-FUNDE 119: also said where the recorded rows simply do not name the car |
 | „Fotos und Gutachten enthalten keine Kundendaten.“ | customer / operator | `Services/Legal/ProcessingRecord.php:167` | EIGENE-FUNDE 121: a general statement in the processing record, backed by no field — the operator's legal text |
@@ -42,9 +41,9 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php:98` | the body or drive restriction recorded on every row that names the car |
 | „Das Gutachten gilt nur für bestimmte Karosserieformen oder Antriebe.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php:99` | the same recorded restriction; what is unknown is the car's own body or drive, and the sentence says so |
 | „Für die Höchstgeschwindigkeit deines Fahrzeugs lässt das Gutachten keinen passenden Reifen zu.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php:102` | a recorded „–“ in the document's speed table for the car's top speed |
-| „Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.“ | customer / operator | `Components/Product/FitmentPanel.vue:284` | every recorded condition of the answer is a note (FitmentVerdict::notesOnly) |
+| „Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.“ | customer / operator | `Components/Product/FitmentPanel.vue:299` | every recorded condition of the answer is a note (FitmentVerdict::notesOnly) |
 | „Das Gutachten deckt die geprüfte Kombination ab und nennt dazu nur Hinweise – nichts, was du tun musst.“ | customer / operator | `Pages/CheckErgebnis/Index.vue:55` | every recorded condition of the answer is a note (FitmentVerdict::notesOnly) |
-| „Zulässig unter den Bedingungen aus dem Gutachten, etwa nur mit bestimmten Radschrauben.“ | customer / operator | `Pages/Check/Index.vue:412` | the legend of CONDITIONAL: the recorded conditions; the example is one |
+| „Zulässig unter den Auflagen des Gutachtens, etwa nur mit bestimmten Radschrauben.“ | customer / operator | `Pages/Check/Index.vue:412` | the legend of CONDITIONAL: the recorded conditions; the example is one |
 | „Das Gutachten lässt die Kombination nur unter Bedingungen zu.“ | customer / operator | `Pages/CheckErgebnis/Index.vue:74` | a CONDITIONAL answer: the recorded conditions |
 | „Das Gutachten hat nur … Seiten.“ | admin | `Http/Requests/Admin/DocumentConditionRequest.php:121`, `Http/Requests/Admin/DocumentDeratingRequest.php:69`, `Http/Requests/Admin/DocumentExtraRequest.php:154`, `Http/Requests/Admin/FitmentRowsRequest.php:232`, `Http/Requests/Admin/VehicleFromDocumentRequest.php:75` | approval_documents.page_count, read from the uploaded PDF |
 | „Wähl eine Karosserie aus der Liste oder „Nennt das Gutachten nicht“.“ | admin | `Http/Requests/Admin/VehicleFromDocumentRequest.php:71`, `Http/Requests/Admin/VehicleFromDocumentRequest.php:72`, `Pages/Admin/Gutachten/VehicleFromDocument.vue:139`, `Pages/Admin/Gutachten/VehicleFromDocument.vue:147` | this choice is the recorded absence: the person entering the document says it names none |
@@ -68,10 +67,12 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Ohne das PDF wird kein Gutachten freigegeben, und auf diesem Rechner fehlt:“ | customer / operator | `Services/Demo/AcceptanceSeeder.php:214` | a rule of the release |
 | „Entferne sie dort zuerst; ein echtes Gutachten verliert keine Zeile als Nebenwirkung.“ | customer / operator | `Services/Demo/DemoCatalogue.php:134`, `Services/Demo/DemoCatalogue.php:158` | R-05, said to whoever removes demo data |
 | „Platzhalter – kein echtes Gutachten“ | customer / operator | `Services/Demo/PlaceholderTables.php:21` | the issuer name of a demo document: says what our row is |
-| „Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge.“ | customer / operator | `Services/GoLive/GoLiveChecks.php:338` | the state of the record, on the go-live check |
-| „Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | customer / operator | `Services/Admin/Dashboard/RoleFigures.php:59`, `Services/GoLive/GoLiveChecks.php:359` | counts wheels and versions without a row in a released document |
-| „Kein Entwicklungsfahrzeug in einem freigegebenen Gutachten“ | customer / operator | `Services/GoLive/GoLiveChecks.php:412` | the name of a go-live check on our rows |
-| „Kein Fahrzeug in einem freigegebenen Gutachten ist ein Entwicklungsfahrzeug.“ | customer / operator | `Services/GoLive/GoLiveChecks.php:413` | its result, counted on our rows |
+| „Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge.“ | customer / operator | `Services/GoLive/GoLiveChecks.php:339` | the state of the record, on the go-live check |
+| „Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | customer / operator | `Services/Admin/Dashboard/RoleFigures.php:59`, `Services/GoLive/GoLiveChecks.php:361` | counts wheels and versions without a row in a released document |
+| „Kein Entwicklungsfahrzeug in einem freigegebenen Gutachten“ | customer / operator | `Services/GoLive/GoLiveChecks.php:414` | the name of a go-live check on our rows |
+| „Noch nennt kein freigegebenes Gutachten ein Fahrzeug.“ | customer / operator | `Services/GoLive/GoLiveChecks.php:459` | the state of the record, on the go-live check |
+| „Keine der {$pairs} in freigegebenen Gutachten steht auf „Felge freigegeben · Reifengröße noch nicht bestätigt“.“ | customer / operator | `Services/GoLive/GoLiveChecks.php:460` | counted from the engine's answers on our rows (D-217) |
+| „Kein Fahrzeug in einem freigegebenen Gutachten ist ein Entwicklungsfahrzeug.“ | customer / operator | `Services/GoLive/GoLiveChecks.php:415` | its result, counted on our rows |
 | „Ablage der Felgenfotos, der Bilder der Inhaltsseiten, der Gutachten-PDFs, der Rechnungen und Gutschriften (privat, nur über signierte Links) und der Exporte.“ | customer / operator | `Services/Legal/ProcessingRecord.php:166` | how the shop stores its files |
 | „Ein Gutachten wird nur im PDF-Format angenommen.“ | customer / operator | `Http/Requests/Admin/PdfLocalUploadRequest.php:37`, `Services/Storage/PdfUpload.php:120`, `composables/admin/usePresignedUpload.ts:33` | a rule of the upload |
 | „Entschieden: Für diese Kombination gilt jetzt nur das gewählte Gutachten.“ | admin | `Http/Controllers/Admin/KonflikteController.php:59` | the decision just recorded |

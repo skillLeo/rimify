@@ -38,14 +38,14 @@ describe('the position of the new rim', () => {
     it('says how far the outer edge moves out, and the inner edge towards the strut (+)', () => {
         const m = felgenModel(current, next)
 
-        expect(outerSentence(m)).toBe(`Die neue Felge steht rechnerisch ${mm('23')} weiter außen – näher am Kotflügel.`)
+        expect(outerSentence(m)).toBe(`Die Außenkante der neuen Felge steht rechnerisch ${mm('23')} weiter außen – näher am Kotflügel.`)
         expect(innerSentence(m)).toBe(`Die Innenkante rückt rechnerisch ${mm('3')} näher ans Federbein.`)
     })
 
     it('says weiter innen and weiter weg from the fender, or from the strut (−)', () => {
         // The same rim with 15 mm more ET: the whole rim 15 mm inboard.
         const inboard = felgenModel(setup(8, 18, 45, 225, 40), setup(8, 18, 60, 225, 40))
-        expect(outerSentence(inboard)).toBe(`Die neue Felge steht rechnerisch ${mm('15')} weiter innen – weiter weg vom Kotflügel.`)
+        expect(outerSentence(inboard)).toBe(`Die Außenkante der neuen Felge steht rechnerisch ${mm('15')} weiter innen – weiter weg vom Kotflügel.`)
         expect(innerSentence(inboard)).toBe(`Die Innenkante rückt rechnerisch ${mm('15')} näher ans Federbein.`)
 
         // …with 15 mm less ET: 15 mm outboard, away from the strut.
@@ -135,7 +135,7 @@ describe('the speedometer', () => {
 
     it('adds the Tachoangleichung line only when the speedometer now reads less than before', () => {
         expect(speedoAdjust(felgenModel(current, next))).toBe(SPEEDO_ADJUST_NOTE)
-        expect(SPEEDO_ADJUST_NOTE).toBe('Dann kann eine Tachoangleichung nötig werden – das steht im Gutachten.')
+        expect(SPEEDO_ADJUST_NOTE).toBe('Zeigt der Tacho dadurch weniger an, als du fährst, kann eine Tachoangleichung nötig sein – prüfe dazu die Auflagen des Gutachtens.')
         expect(speedoAdjust(felgenModel(current, setup(7.5, 17, 45, 215, 45)))).toBeNull()
         expect(speedoAdjust(felgenModel(current, current))).toBeNull()
 

@@ -35,11 +35,11 @@ const baseQuery = computed((): Record<string, string> => {
 </script>
 
 <template>
-    <Head title="Auto wählen" />
+    <Head title="Fahrzeug wählen" />
 
     <section class="section">
         <div class="wrap">
-            <h1 class="t-h1">Auto wählen</h1>
+            <h1 class="t-h1">Fahrzeug wählen</h1>
             <p class="t-lead sel__lead">
                 Danach siehst du nur Felgen, deren Gutachten dein Auto nennt. Zwei Wege – direkt über die
                 Schlüsselnummern aus deinen Fahrzeugpapieren oder über Marke und Modell.

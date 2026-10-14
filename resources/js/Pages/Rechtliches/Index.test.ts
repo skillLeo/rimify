@@ -18,7 +18,7 @@ vi.mock('@inertiajs/vue3', () => ({
 
 const { default: Rechtliches } = await import('./Index.vue')
 
-const PREPARING = 'Diesen Text erstellt gerade die Kanzlei des Shopbetreibers; sobald er vorliegt, steht er im Shop unter Rechtliches.'
+const PREPARING = 'Diesen Text erstellt gerade unsere Kanzlei. Sobald er vorliegt, steht er hier.'
 
 const tabs = [
     { slug: 'impressum', title: 'Impressum' },

@@ -251,7 +251,7 @@ const backHref = computed(() => props.prefill?.from ?? '/')
                     <div class="form-field">
                         <label class="form-field__label" for="kon-message">Deine Nachricht</label>
                         <textarea id="kon-message" v-model="form.message" class="input kon__area" rows="7" maxlength="5000" :aria-describedby="vehicle ? 'kon-message-err' : 'kon-message-help kon-message-err'" :aria-invalid="form.errors.message ? 'true' : undefined" @blur="check('message')" @input="recheck('message')" />
-                        <p v-if="!vehicle" id="kon-message-help" class="form-field__help">Geht es um die Passform? Dann nenn uns gern HSN, TSN und Modell – du findest sie im Fahrzeugschein.</p>
+                        <p v-if="!vehicle" id="kon-message-help" class="form-field__help">Geht es um die Passform? Dann nenn uns gern HSN, TSN und Modell – sie stehen in deiner Zulassungsbescheinigung Teil I, Felder 2.1 und 2.2.</p>
                         <p id="kon-message-err" class="form-field__error">{{ form.errors.message ?? '' }}</p>
                     </div>
 

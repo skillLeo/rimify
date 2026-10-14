@@ -139,7 +139,7 @@ function removeVehicle(): void {
                         <Icon name="cart" :size="24" />
                         <span v-if="shared.cartCount > 0" class="badge badge--count sh__badge" aria-hidden="true">{{ shared.cartCount }}</span>
                     </span>
-                    <span>Warenkorb</span>
+                    <span class="sh__cart-label">Warenkorb</span>
                 </Link>
             </div>
         </div>
@@ -255,6 +255,23 @@ function removeVehicle(): void {
     position: absolute;
     top: calc(-1 * var(--sp-8));
     right: calc(-1 * var(--sp-8));
+}
+
+/* The links of the bar stay on one line: „RIMIFY-Check“ broke in two at 1024 px. */
+.sh__nav :deep(a),
+.sh__nav :deep(button) {
+    white-space: nowrap;
+}
+
+/*
+ * From 1024 to 1279 px the bar holds the wordmark, four links, the search, the car and the basket, and was 21 px wider
+ * than the window: „Warenkorb“ was cut off at its right edge (the sweep of 14.10.2026). There the basket keeps its icon
+ * and its count — the link names itself to a screen reader — and the word comes back from 1280.
+ */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+    .sh__cart-label {
+        display: none;
+    }
 }
 
 @media (min-width: 1024px) {

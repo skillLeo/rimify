@@ -28,7 +28,7 @@ export const R39_NOTE = `Der Tacho darf nie weniger anzeigen als die tatsächlic
  * speedometer check (ABE 53810, Auflagen G01/G03 — accuracy-research-motec.md §3b), so the line
  * points there and decides nothing.
  */
-export const SPEEDO_ADJUST_NOTE = 'Dann kann eine Tachoangleichung nötig werden – das steht im Gutachten.'
+export const SPEEDO_ADJUST_NOTE = 'Zeigt der Tacho dadurch weniger an, als du fährst, kann eine Tachoangleichung nötig sein – prüfe dazu die Auflagen des Gutachtens.'
 
 const DASH = '–'
 const HUNDRED = withUnit(100, 'km/h')
@@ -37,7 +37,7 @@ function mm(value: number): string {
     return withUnit(decimal(Math.abs(value), 0), 'mm')
 }
 
-/** `Die neue Felge steht rechnerisch 23 mm weiter außen – näher am Kotflügel.` */
+/** `Die Außenkante der neuen Felge steht rechnerisch 23 mm weiter außen – näher am Kotflügel.` */
 export function outerSentence(m: FelgenModel): string {
     const shown = m.outer.shownMm
 
@@ -50,8 +50,8 @@ export function outerSentence(m: FelgenModel): string {
     }
 
     return shown > 0
-        ? `Die neue Felge steht rechnerisch ${mm(shown)} weiter außen – näher am Kotflügel.`
-        : `Die neue Felge steht rechnerisch ${mm(shown)} weiter innen – weiter weg vom Kotflügel.`
+        ? `Die Außenkante der neuen Felge steht rechnerisch ${mm(shown)} weiter außen – näher am Kotflügel.`
+        : `Die Außenkante der neuen Felge steht rechnerisch ${mm(shown)} weiter innen – weiter weg vom Kotflügel.`
 }
 
 /** `Die Innenkante rückt rechnerisch 3 mm näher ans Federbein.` */

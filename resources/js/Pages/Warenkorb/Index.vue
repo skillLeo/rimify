@@ -361,7 +361,7 @@ const VERDICT_TONE: Record<string, string> = {
                             <dd v-else class="tabular">{{ totals.shipping }}</dd>
                         </div>
                         <div class="sum__row sum__row--total">
-                            <dt>Gesamt</dt>
+                            <dt>{{ shippingOpen ? 'Summe ohne Versand' : 'Gesamt' }}</dt>
                             <dd class="tabular">{{ totals.total }}</dd>
                         </div>
                     </dl>

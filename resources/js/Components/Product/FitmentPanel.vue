@@ -263,6 +263,21 @@ const headline = computed(() => {
  * sentence states what is on record with us, never what the document does or does not print (R-17).
  */
 const tyreOpen = computed(() => tyreUnconfirmed(props.verdict))
+
+/*
+ * Where this wheel is no answer for the car — refused, or nothing on record for it — the panel was the end of the road
+ * (finding 117): the wheels that are an answer are one link away. Not where the answer waits for something the
+ * customer can give (the body style, the drive) or only the tyre size is open: there the way on is in the panel.
+ */
+const elsewhere = computed(() => {
+    const verdict = props.verdict
+
+    if (props.vehicle === null || verdict === null || tyreOpen.value || (verdict.missing ?? []).length > 0) {
+        return null
+    }
+
+    return verdict.status === 'NOT_PERMITTED' || verdict.status === 'UNKNOWN' ? `/felgen?fahrzeug=${props.vehicle.id}` : null
+})
 const wheelApproved = computed(() => (props.verdict?.wheelStatus === 'CONDITIONAL' ? 'Felge freigegeben mit Auflagen' : 'Felge freigegeben'))
 const openLead = computed(() =>
     tyreOpen.value && props.vehicle
@@ -366,6 +381,10 @@ const openLead = computed(() =>
                 <a class="link" :href="verdict.document.pdf.url" target="_blank" rel="noopener">
                     Gutachten öffnen (PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
                 </a>
+            </p>
+            <!-- No dead end (finding 117): the wheels that are an answer for this car. -->
+            <p v-if="elsewhere && vehicle" class="fit__pdf fit__elsewhere">
+                <Link class="link" :href="elsewhere">Felgen für deinen {{ vehicle.short }} anzeigen</Link>
             </p>
             <!-- The answer to take away: frozen whole, every line of the sum, printable and shareable. -->
             <p v-if="vehicle && configId" class="fit__pdf">
