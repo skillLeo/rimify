@@ -836,6 +836,8 @@ export interface AdminGutachtenProps {
         pageCount: number | null
         fitmentCount: number
         publishedCount: number
+        /** Seeded as an example: the list says „Demodaten“ beside the number. */
+        demo?: boolean
         href: string
     }[]
     can: { create: boolean }
@@ -897,6 +899,8 @@ export interface AdminWuchtgewichteProps {
         isDefault: boolean
         active: boolean
         sortOrder: number
+        /** Seeded as an example: the list says „Demodaten“ beside the name. */
+        demo?: boolean
     }[]
     /**
      * `Montage und Auswuchten` per wheel — one shop-wide fee, edited on this page (§13, D-032).
@@ -919,6 +923,8 @@ export interface AdminRdksProps {
         /** `49,00 €` */
         price: string
         active: boolean
+        /** Seeded as an example: the list says „Demodaten“ beside the make. */
+        demo?: boolean
     }[]
     /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
     makes: string[]

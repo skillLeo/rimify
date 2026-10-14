@@ -176,6 +176,7 @@ class RdksPreiseController extends Controller
             'priceCents' => $price->price_cents,
             'price' => GermanFormat::money($price->price_cents, $price->currency),
             'active' => $price->active,
+            'demo' => (bool) $price->getAttribute('is_demo'),
         ];
     }
 

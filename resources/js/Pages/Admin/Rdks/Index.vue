@@ -306,6 +306,7 @@ function remove(): void {
                         <tr v-for="price in prices" :key="price.id" :aria-current="editing === price.id ? 'true' : undefined">
                             <td data-label="Automarke">
                                 <span class="adm-table__key">{{ price.makeLabelDe }}</span>
+                                <span v-if="price.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span>
                                 <span class="adm-table__sub rd__key">{{ keyNote(price.makeKey) }}</span>
                             </td>
                             <td data-label="Preis je Sensor" class="num">{{ price.price }}</td>

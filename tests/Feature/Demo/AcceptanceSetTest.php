@@ -6,6 +6,7 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
 use App\Domain\Storefront\VehicleKey;
+use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\BalanceWeightColour;
 use App\Models\Brand;
@@ -15,6 +16,7 @@ use App\Services\Demo\AcceptanceSeeder;
 use App\Services\Demo\DemoPurge;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
+use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -234,4 +236,26 @@ it('goes in one press, the shop\'s own accessories untouched, the cars hidden an
     // Written again on the same database: the hidden cars come back, nothing collides.
     seedAcceptanceSet();
     expect(DB::table('vehicles')->where('demo_ref', 'like', 'abnahme:%')->whereNull('deleted_at')->count())->toBe(3);
+});
+
+it('marks every row it seeds as Demodaten in the admin list that shows it — not only in the database (the brief of 14.10.2026, §6)', function (): void {
+    $this->seed(AccessSeeder::class);
+    seedAcceptanceSet();
+    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+
+    // The list, the prop that holds its rows, and how many rows of its table were born demo.
+    $lists = [
+        '/admin/gutachten' => ['documents', DB::table('approval_documents')->where('is_demo', true)->count()],
+        '/admin/fahrzeuge' => ['vehicles', DB::table('vehicles')->where('is_demo', true)->whereNull('deleted_at')->count()],
+        '/admin/felgen' => ['wheels', DB::table('wheel_models')->where('is_demo', true)->count()],
+        '/admin/zubehoerpreise/wuchtgewichte' => ['colours', DB::table('balance_weight_colours')->where('is_demo', true)->count()],
+        '/admin/zubehoerpreise/rdks' => ['prices', DB::table('tpms_sensor_prices')->where('is_demo', true)->count()],
+    ];
+
+    foreach ($lists as $url => [$prop, $born]) {
+        expect($born)->toBeGreaterThan(0, $url);
+
+        $this->actingAs($admin, 'admin')->get($url)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where($prop, fn ($rows): bool => collect($rows)->where('demo', true)->count() === $born));
+    }
 });

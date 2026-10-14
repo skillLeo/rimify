@@ -359,6 +359,7 @@ function remove(): void {
                                     <span class="wg__swatch" :style="swatchStyle(colour.swatchHex)" aria-hidden="true" />
                                     <span>
                                         <span class="adm-table__key">{{ colour.nameDe }}</span>
+                                        <span v-if="colour.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span>
                                         <span class="adm-table__sub">{{ colour.slug }}</span>
                                     </span>
                                 </span>

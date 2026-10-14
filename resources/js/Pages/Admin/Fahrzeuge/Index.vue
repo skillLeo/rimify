@@ -17,7 +17,7 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<{
     review: boolean
-    vehicles: { id: number; name: string; variant: string; keys: string; window: string; power: string | null; approvals: number; needsReview: boolean; href: string }[]
+    vehicles: { id: number; name: string; variant: string; keys: string; window: string; power: string | null; approvals: number; needsReview: boolean; demo?: boolean; href: string }[]
     filters: { q: string; marke: string }
     makes: string[]
     counts: { all: number; review: number }
@@ -102,6 +102,7 @@ function reset(): void {
                         <tr v-for="vehicle in vehicles" :key="vehicle.id">
                             <td data-label="Fahrzeug">
                                 <Link :href="vehicle.href" class="fz-name">{{ vehicle.name }}</Link>
+                                <span v-if="vehicle.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span>
                                 <span class="fz-sub">{{ vehicle.variant }}<template v-if="vehicle.power"> · {{ vehicle.power }}</template></span>
                             </td>
                             <td data-label="HSN/TSN" class="fz-keys">{{ vehicle.keys }}</td>

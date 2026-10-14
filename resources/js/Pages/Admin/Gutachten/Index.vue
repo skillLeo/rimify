@@ -153,6 +153,7 @@ const context = computed(() => {
                         <td data-label="Nummer">
                             <Link :href="doc.href" class="adm-table__key gd-link">{{ doc.reportNumber }}</Link>
                             <span v-if="doc.kbaNumber" class="adm-table__sub">KBA {{ doc.kbaNumber }}</span>
+                            <span v-if="doc.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span>
                         </td>
                         <td data-label="Art" data-phone="hide">{{ KIND_LABEL[doc.kind] ?? doc.kind }}</td>
                         <td data-label="Aussteller" data-phone="hide">{{ doc.issuer }}</td>
