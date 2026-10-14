@@ -88,6 +88,7 @@ return [
     'Dieses Gutachten hat noch keine Tabelle' => ['open', 'ADMIN-GEFUNDEN 505: means „none entered yet“'],
     'nicht aus diesem Gutachten übertragen' => ['backed', 'the recorded origin of a demo table (seeded_from)'],
     'Entwurf, noch nicht freigegeben' => ['ours', 'the state of a record'],
+    'Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben' => ['ours', 'the state of a record: only a released one can be taken back (D-225)'],
     'Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht' => ['backed', 'the field being filled in: valid_from_production'],
     'Ein Nachtrag ohne eigene Angabe übernimmt es' => ['ours', 'a rule of the record'],
     'so wie im Gutachten.' => ['ours', 'an instruction for entering codes'],

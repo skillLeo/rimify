@@ -143,6 +143,7 @@ final class AuditDescriber
         'approval.row_updated' => 'gutachten',
         'approval.row_deleted' => 'gutachten',
         'approval.released' => 'gutachten',
+        'approval.taken_back' => 'gutachten',
         'approval.entry_overridden' => 'gutachten',
         'approval.condition_added' => 'gutachten',
         'approval.condition_changed' => 'gutachten',
@@ -456,6 +457,7 @@ final class AuditDescriber
             'approval.row_updated' => ['Eine Zeile im Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde geändert.', []],
             'approval.row_deleted' => ['Eine Zeile wurde aus dem Verwendungsbereich von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' entfernt.', []],
             'approval.released' => [self::released($p), []],
+            'approval.taken_back' => [self::takenBack($p), []],
             'approval.entry_overridden' => [
                 match ($p['override'] ?? null) {
                     'required' => 'In einer Zeile von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Eintragung abweichend von den Codes auf „erforderlich“ gesetzt: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.',
@@ -556,6 +558,28 @@ final class AuditDescriber
 
         if ($instruction !== null) {
             $sentence .= ' Nicht im Browser geklickt: freigegeben auf schriftliche Anweisung des Betreibers für die Testumgebung ('
+                .(self::text($p, 'environment') ?? 'staging').'), über die Kommandozeile. Anweisung: '.self::q($instruction).'.';
+        }
+
+        return $sentence;
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function takenBack(array $p): string
+    {
+        $rows = is_numeric($p['rows'] ?? null) ? (int) $p['rows'] : 0;
+        $sentence = 'Die Freigabe von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde zurückgenommen: '
+            .match ($rows) {
+                0 => 'Es war keine Zeile im Shop.',
+                1 => 'Eine Zeile ist wieder Entwurf und nicht mehr im Shop.',
+                default => GermanFormat::integer($rows).' Zeilen sind wieder Entwurf und nicht mehr im Shop.',
+            }
+        .' Grund: '.self::q(rtrim(self::text($p, 'reason') ?? 'ohne Grund', '.')).'.';
+
+        $instruction = self::text($p, DocumentRelease::ON_INSTRUCTION);
+
+        if ($instruction !== null) {
+            $sentence .= ' Nicht im Browser geklickt: zurückgenommen auf schriftliche Anweisung des Betreibers für die Testumgebung ('
                 .(self::text($p, 'environment') ?? 'staging').'), über die Kommandozeile. Anweisung: '.self::q($instruction).'.';
         }
 

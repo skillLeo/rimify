@@ -11,6 +11,11 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Services\Admin\AuditTrail;
+use App\Services\Admin\Dashboard\Coverage;
+use App\Services\GoLive\TyreConfirmations;
+use App\Services\Storefront\FitmentCount;
+use App\Services\Storefront\HomeStats;
+use App\Services\Storefront\MegaMenu;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -143,5 +148,54 @@ final class DocumentRelease
 
             return ['rows' => $rows, 'conflicts' => count($conflicts)];
         });
+    }
+
+    /**
+     * Freigabe zurücknehmen: a released document and all of its rows back to Entwurf at once, so nothing it says reaches a
+     * customer until a person releases it again through check() (the operator's brief of 14.10.2026, §4: an entry that
+     * leans the permissive way comes off the shop until it is complete — D-225). Orders keep what they were told: their
+     * snapshots are frozen (R-12) and not touched. A revision it superseded stays superseded: the car loses the answer
+     * rather than getting an older one back unasked (fails closed).
+     *
+     * @return int the rows taken off the shop
+     */
+    public function takeBack(ApprovalDocument $document, AdminUser $admin, string $reason, ?string $instruction = null): int
+    {
+        if ($document->status !== DocumentStatus::Published) {
+            throw ValidationException::withMessages(['release' => 'Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben.']);
+        }
+
+        $vehicleIds = Fitment::query()->where('approval_document_id', $document->id)->distinct()->pluck('vehicle_id')->map(static fn ($id): int => (int) $id)->all();
+
+        $rows = DB::transaction(function () use ($document, $admin, $reason, $instruction): int {
+            $rows = Fitment::query()->where('approval_document_id', $document->id)->where('status', FitmentStatus::Published->value)
+                ->update(['status' => FitmentStatus::Draft->value, 'updated_at' => now()]);
+
+            $document->forceFill(['status' => DocumentStatus::Draft->value, 'valid_from' => null])->save();
+
+            AuditTrail::record($admin, 'approval.taken_back', [
+                'document' => FitmentRows::label($document),
+                'rows' => $rows,
+                'reason' => $reason,
+                ...($instruction === null ? [] : [
+                    self::ON_INSTRUCTION => $instruction,
+                    'environment' => (string) app()->environment(),
+                ]),
+            ], $document);
+
+            return $rows;
+        });
+
+        // What a publish forgets (ForgetCoverage, NotifyFitmentSubscribers), forgotten the other way round — no mail.
+        Coverage::forget();
+        HomeStats::forget();
+        MegaMenu::forget();
+        TyreConfirmations::forget();
+
+        foreach ($vehicleIds as $vehicleId) {
+            FitmentCount::forget($vehicleId);
+        }
+
+        return $rows;
     }
 }
