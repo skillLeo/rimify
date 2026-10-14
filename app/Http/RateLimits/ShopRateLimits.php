@@ -52,6 +52,15 @@ final class ShopRateLimits
         'shop-ses-meldungen' => [120, false],
     ];
 
+    /**
+     * Name → requests an hour per address, on top of the minute's: a form that keeps a row and sends mail for every
+     * request (finding 102, D-218). A shared address has room for thirty messages an hour; a script does not get three
+     * thousand.
+     */
+    public const HOURLY_PER_ADDRESS = [
+        'shop-kontakt' => 30,
+    ];
+
     public static function register(): void
     {
         foreach (self::LIMITS as $name => [$perMinute, $checkout]) {
@@ -95,6 +104,12 @@ final class ShopRateLimits
                 throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
             });
 
-        return $byVisitor === null ? $byAddress : [$byVisitor, $byAddress];
+        $limits = $byVisitor === null ? [$byAddress] : [$byVisitor, $byAddress];
+
+        if (isset(self::HOURLY_PER_ADDRESS[$name])) {
+            $limits[] = Limit::perHour(self::HOURLY_PER_ADDRESS[$name])->by('address-hour|'.$request->ip());
+        }
+
+        return count($limits) === 1 ? $limits[0] : $limits;
     }
 }

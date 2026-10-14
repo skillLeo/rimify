@@ -16,6 +16,7 @@ import { decimal } from '../../../format'
 import { formatMoney } from '../../../lib/num'
 import type { OrderState } from '../../../types/admin/bestellungen'
 import type { ConditionGroupsView } from '../../../types/rimify'
+import { mailtoHref } from '../../../lib/mailto'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -317,7 +318,7 @@ function tagClass(state: OrderState): string | null {
                     <div class="adm-facts__row"><dt>Name</dt><dd>{{ customer.name ?? '–' }}</dd></div>
                     <div class="adm-facts__row">
                         <dt>E-Mail</dt>
-                        <dd><a v-if="customer.email" :href="`mailto:${customer.email}`">{{ customer.email }}</a><template v-else>–</template></dd>
+                        <dd><a v-if="customer.email" :href="mailtoHref(customer.email)">{{ customer.email }}</a><template v-else>–</template></dd>
                     </div>
                     <div v-if="customer.phone" class="adm-facts__row"><dt>Telefon</dt><dd>{{ customer.phone }}</dd></div>
                     <div class="adm-facts__row">

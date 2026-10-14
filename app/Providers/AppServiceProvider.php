@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Http\RateLimits\ShopRateLimits;
 use App\Listeners\DropSuppressedRecipients;
 use App\Listeners\FailedJobAlert;
+use App\Listeners\StripRemoteMailContent;
 use App\Mail\LiteralMarkdown;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
@@ -124,6 +125,8 @@ class AppServiceProvider extends ServiceProvider
             app(MailSettings::class)->apply($manager);
         });
         Event::listen(MessageSending::class, DropSuppressedRecipients::class);
+        // Nothing in a mail of ours is fetched from another host (finding 102, D-218): whatever would be is taken out.
+        Event::listen(MessageSending::class, StripRemoteMailContent::class);
 
         // The shop's own slow query log (storage/logs/slow-queries-*.log): the host keeps none.
         SlowQueries::listen();

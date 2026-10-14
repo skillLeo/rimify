@@ -797,6 +797,8 @@ export interface KontaktProps {
     prefill?: { subject: string; from: string | null }
     /** When the server handed the form out, sealed (#12): sent back with the message. */
     ticket?: string
+    /** The one address a copy of the message goes to: the signed-in customer's own, confirmed (D-218). Null for a guest. */
+    copyTo?: string | null
 }
 
 export interface RechtlichesProps {

@@ -3,7 +3,7 @@
  * Kontakt: the contact form (the client's #12, D-123).
  *
  * Name, e-mail, subject and message go to `POST /kontakt` (ContactRequest, ContactMessagePolicy): the message is kept
- * for the team (Verkauf › Nachrichten), mailed to the shop with the sender as reply-to, and confirmed to the sender.
+ * for the team (Verkauf › Nachrichten), mailed to the shop with the sender as reply-to; a copy goes only to a signed-in customer's own address (D-218).
  * Every e-mail button in the shop leads here (#26), with a subject where the page knows one and the path it came from.
  *
  * The chosen car is offered as a ticked box — the first thing we would ask is which car the question is about — and
@@ -33,18 +33,26 @@ const vehicle = computed(() => shared.value.vehicle ?? null)
 /* The car as the page names it: its key numbers, or, for a car known only from a Gutachten, its Feld K. */
 const vehicleLine = computed(() => (vehicle.value === null ? null : `${vehicle.value.label} (${vehicle.value.approval ?? vehicle.value.keyNumbers})`))
 
-/* A copy to the sender only where outgoing mail is configured (F2): elsewhere it would never arrive. */
-const copyByMail = computed(() => shared.value.notifyByMail === true)
-
 const form = useForm({
     name: '',
-    email: '',
+    // A signed-in customer's own address, so the copy can go to it — theirs to change.
+    email: props.copyTo ?? '',
     subject: props.prefill?.subject ?? '',
     message: '',
     withVehicle: true,
     from: props.prefill?.from ?? null,
     rmf_leer: '',
     ticket: props.ticket ?? '',
+})
+
+/*
+ * A copy of the message goes to one address only: a signed-in customer's own, confirmed (D-218) — the shop does not
+ * send a visitor's words to an address it cannot know to be theirs. And only where outgoing mail is configured (F2).
+ */
+const copyByMail = computed(() => {
+    const confirmed = props.copyTo?.trim().toLowerCase() ?? ''
+
+    return shared.value.notifyByMail === true && confirmed !== '' && form.email.trim().toLowerCase() === confirmed
 })
 
 const sent = ref(false)
@@ -88,7 +96,7 @@ onMounted(() => {
     }
 
     form.name = typeof draft.name === 'string' ? draft.name : form.name
-    form.email = typeof draft.email === 'string' ? draft.email : form.email
+    form.email = typeof draft.email === 'string' && draft.email.trim() !== '' ? draft.email : form.email
     form.message = typeof draft.message === 'string' ? draft.message : form.message
 
     // A half-written message keeps its own subject — the visitor's words over a linking page's, which may only be the
