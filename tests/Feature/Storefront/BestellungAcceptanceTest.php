@@ -10,52 +10,64 @@ use App\Models\WheelModel;
 use App\Services\Demo\AcceptanceSet;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 
 /*
- * EIGENE-FUNDE 131 (S1): an order a real person places for the acceptance set's wheel is a real order. The acceptance
- * set's models are born demo and, off production, may be bought (AcceptanceSet::sellable) — so „has a line on a demo
- * model“ no longer means „seeded demonstration data“, and the order page must not open such an order to a stranger who
- * guesses its number. Only the seeded example catalogue's orders (CommerceSeeder) and orders born demo stay open.
+ * EIGENE-FUNDE 131 (S1, D-238). The order page opened demonstration data to anyone holding the number, and an order a
+ * real person placed for the acceptance set's wheel counted as demonstration data. The rule is provenance now, never
+ * content (the operator's rule of 15.10.2026): a seeded order opens by number; an order that came through the
+ * checkout requires its proof — always, in every environment, whatever it contains.
  */
 beforeEach(function (): void {
     CatalogueSeeder::$shopFixture = false;
     $this->seed(CommerceSeeder::class);
 });
 
-/** A seeded order whose wheels become the acceptance set's — what a real purchase of the acceptance wheel looks like. */
-function orderOnAcceptanceWheel(): Order
+/** An order as the checkout writes it, with one wheel line on the acceptance set's wheel when asked. */
+function checkoutOrder(bool $acceptanceWheel): Order
 {
-    $order = Order::query()->where('is_demo', false)->orderBy('id')->firstOrFail();
-    $configIds = OrderLine::query()->where('order_id', $order->id)->where('kind', OrderLineKind::Wheel->value)->pluck('wheel_config_id');
-    $modelIds = WheelConfig::query()->whereIn('id', $configIds)->pluck('wheel_model_id')->unique();
+    $order = Order::factory()->create();
 
-    foreach ($modelIds as $id) {
-        WheelModel::query()->whereKey($id)->update(['is_demo' => true, 'demo_ref' => AcceptanceSet::PREFIX.'wheel:test-'.$id]);
+    if ($acceptanceWheel) {
+        $config = WheelConfig::query()->orderBy('id')->firstOrFail();
+        WheelModel::query()->whereKey($config->wheel_model_id)->update(['is_demo' => true, 'demo_ref' => AcceptanceSet::PREFIX.'wheel:test']);
+        OrderLine::factory()->create(['order_id' => $order->id, 'kind' => OrderLineKind::Wheel->value, 'wheel_config_id' => $config->id]);
     }
 
     return $order->refresh();
 }
 
-it('opens an order for the acceptance set\'s wheel to nobody who merely knows its number', function (): void {
-    $order = orderOnAcceptanceWheel();
+it('opens an order that came through the checkout to nobody who merely knows its number, whatever it contains', function (bool $acceptanceWheel): void {
+    $order = checkoutOrder($acceptanceWheel);
+
+    expect($order->origin)->toBe(Order::ORIGIN_CHECKOUT)
+        ->and($order->seeded())->toBeFalse();
 
     $this->get('/bestellung/'.$order->order_number)->assertNotFound();
+    $this->getJson('/bestellung/'.$order->order_number.'/status')->assertNotFound();
+})->with(['a real wheel' => [false], 'the acceptance set\'s wheel' => [true]]);
 
-    expect($order->isDemo())->toBeFalse();
-});
-
-it('opens it for its buyer through the signed link, as a real order with nothing hidden', function (): void {
-    $order = orderOnAcceptanceWheel();
+it('opens it through its signed link — and an order with a demo line says it is demonstration data', function (): void {
+    $order = checkoutOrder(acceptanceWheel: true);
 
     $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('demo', true));
 });
 
-it('still shows the seeded example catalogue\'s orders as demonstration data', function (): void {
-    $order = Order::query()->where('is_demo', false)->orderBy('id')->firstOrFail();
+it('opens an order a seeder wrote by its number', function (): void {
+    $order = Order::query()->orderBy('id')->firstOrFail();
 
-    expect($order->isDemo())->toBeTrue();
+    expect($order->seeded())->toBeTrue();
+
+    $this->get('/bestellung/'.$order->order_number)->assertOk();
+});
+
+it('never lets an order become a seeded one after the fact', function (): void {
+    $order = checkoutOrder(acceptanceWheel: false);
+
+    expect(fn () => Order::query()->whereKey($order->id)->update(['origin' => Order::ORIGIN_SEEDED]))
+        ->toThrow(QueryException::class, 'origin is fixed at insert');
 });

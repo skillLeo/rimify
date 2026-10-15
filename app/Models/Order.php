@@ -7,7 +7,6 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use App\Exceptions\IllegalOrderTransition;
 use App\Observers\OrderAlertObserver;
-use App\Services\Demo\AcceptanceSet;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Database\Factories\OrderFactory;
@@ -46,6 +45,7 @@ use Illuminate\Support\Facades\DB;
  * @property CarbonImmutable|null $shipped_at
  * @property CarbonImmutable|null $delivered_at recorded by the team („Zugestellt“); only then can its lines be reviewed
  * @property CarbonImmutable|null $review_invited_at when the review invitation went out, once
+ * @property string $origin `checkout` or `seeded` — how the order came about, fixed at insert (D-238)
  * @property-read Collection<int, OrderLine> $lines
  */
 #[ObservedBy(OrderAlertObserver::class)]
@@ -53,6 +53,12 @@ class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
     use HasFactory;
+
+    /** A person placed it through the checkout: it opens only with its proof, never by its number. */
+    public const ORIGIN_CHECKOUT = 'checkout';
+
+    /** A seeder wrote it: nobody is behind it, and it opens by number. */
+    public const ORIGIN_SEEDED = 'seeded';
 
     protected $fillable = [
         'order_number', 'customer_id', 'delivery_address_id', 'billing_address_id', 'status',
@@ -151,12 +157,18 @@ class Order extends Model
     }
 
     /**
-     * Seeded demonstration data: an order born demo (`is_demo`, DemoDashboardSeeder), or one with a
-     * wheel from the seeded example catalogue (CommerceSeeder). That catalogue can never be ordered
-     * (KasseController refuses it) and a real order can never be marked demo (R-12), so a real order
-     * never matches. The acceptance set's wheel is demo too, but off production it may be bought
-     * (AcceptanceSet::sellable): an order for it is a person's real order, never demonstration data —
-     * counting it as one opened it to anyone holding its number (EIGENE-FUNDE 131, S1).
+     * Written by a seeder, with nobody behind it. Anything else — an order of unknown provenance included — came
+     * through the checkout and is protected: the rule fails closed (EIGENE-FUNDE 131).
+     */
+    public function seeded(): bool
+    {
+        return $this->getAttribute('origin') === self::ORIGIN_SEEDED;
+    }
+
+    /**
+     * Demonstration data: an order born demo (`is_demo`), or one with a wheel from a demo model. It
+     * says what an order is — shown as Demodaten, kept out of every real figure — and never who may
+     * open it: that is its provenance (`seeded()`, EIGENE-FUNDE 131).
      * The one rule, for the storefront's receipt and the admin alike.
      */
     public function isDemo(): bool
@@ -193,8 +205,6 @@ class Order extends Model
         return DB::table('order_lines as ol')
             ->join('wheel_configs as wc', 'wc.id', '=', 'ol.wheel_config_id')
             ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
-            ->where('wm.is_demo', true)
-            // The example catalogue's models only: the acceptance set's are bought by real people (EIGENE-FUNDE 131).
-            ->where(static fn (QueryBuilder $q) => $q->whereNull('wm.demo_ref')->orWhere('wm.demo_ref', 'not like', AcceptanceSet::PREFIX.'%'));
+            ->where('wm.is_demo', true);
     }
 }

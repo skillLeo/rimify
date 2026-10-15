@@ -28,7 +28,7 @@ number. **No personal data was disclosed; this is not an Article 33 question.**
 
 | Address | Shape | Who can open it |
 |---|---|---|
-| `/bestellung/{Nummer}`, `/status` | sequential number, display only | the placing browser, the mail's signed link (HMAC, no expiry — as unguessable as a random token), the owning account; else 404 |
+| `/bestellung/{Nummer}`, `/status` | sequential number, display only | A seeded order opens by number. An order that came through the checkout requires its signed link (or the browser that placed it, or the account it was placed under) — always, in every environment, whatever it contains. |
 | `/bestellung/{Nummer}/konto` (POST) | sequential number | the placing browser only, paid orders only, CSRF |
 | `/rechnung/{Nummer}` | sequential invoice number | signed link only, expires after 30 minutes; the file lives under the bucket's private `invoices/` (403 to anyone) |
 | `/bewertung/{Nummer}` | order number | signed link only, expires (the invitation's 30 days) |
@@ -43,5 +43,6 @@ number. **No personal data was disclosed; this is not an Article 33 question.**
 | System › Zurücksetzen › Rückgängig | no token — a POST | Super-Admin, after re-entering the password, test environments only, throttled |
 | `/warenkorb/{Zeile}` | line id in the session | only the session that holds the basket |
 
-Nothing in this list needs a change. If the operator wants the mail's link to expire as well, that is a choice with a
-cost: a customer opening the mail weeks later would meet a dead link and have to sign in.
+Changed since this check: who may open an order is decided by where it came from, never by what it contains — the
+first line of the table (EIGENE-FUNDE 131, D-238). The mail's link is to expire after twelve months, an expired one
+leading to a page that sends a fresh link to the address the order went to (your answer of 15.10.2026; not built yet).

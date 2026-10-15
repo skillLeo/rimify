@@ -202,8 +202,16 @@ class CommerceSeeder extends Seeder
 
             $placedAt = now()->subDays(90 - $index * 4);
 
-            $order = Order::updateOrCreate(
-                ['order_number' => $orderNumber],
+            // Written here, nobody behind it: seeded, so it opens by number (D-238). `origin` is fixed at
+            // insert and never mass-assigned — it is set on a new row only; one written before the column
+            // existed keeps what the migration found for it.
+            $order = Order::query()->firstOrNew(['order_number' => $orderNumber]);
+
+            if (! $order->exists) {
+                $order->forceFill(['origin' => Order::ORIGIN_SEEDED]);
+            }
+
+            $order->fill(
                 [
                     'customer_id' => $customer->id,
                     'delivery_address_id' => $address->id,
@@ -236,7 +244,7 @@ class CommerceSeeder extends Seeder
                         ? sprintf('00340434%010d', 1_000_000 + $index)
                         : null,
                 ],
-            );
+            )->save();
 
             $group = $withTyres ? 1 : null;
 

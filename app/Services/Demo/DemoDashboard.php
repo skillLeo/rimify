@@ -500,6 +500,8 @@ final class DemoDashboard
         $ref = sprintf('%05d', $index);
 
         $orderRow = $this->upsert(Order::class, "demo:order:{$ref}", [
+            // Written here, nobody behind it: it opens by number (D-238).
+            'origin' => Order::ORIGIN_SEEDED,
             'order_number' => sprintf('RMF-D-%d-%05d', $placed->year, $index),
             'customer_id' => $customer->getKey(),
             'delivery_address_id' => $address->getKey(),
