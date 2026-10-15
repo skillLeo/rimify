@@ -240,7 +240,7 @@ test.describe('Startseite/Mobile', () => {
         await expect(brand).toHaveAttribute('href', /\/felgen\?marke=/)
         // Named by its content, not an aria-label, so the visible count is part of the name (WCAG 2.5.3).
         await expect(brand).not.toHaveAttribute('aria-label')
-        await expect(brand).toHaveAccessibleName(/^\S.* \d+\sFelgen?$/)
+        await expect(brand).toHaveAccessibleName(/^\S.* \d+\sModelle?$/)
     })
 
     test('hero frame: callouts only over a photograph, the key line beneath, no hint text in the code fields', async ({ page }) => {

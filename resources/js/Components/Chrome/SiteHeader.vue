@@ -204,9 +204,15 @@ function removeVehicle(): void {
     display: flex;
     align-items: center;
     gap: var(--sp-8);
-    /* It may grow narrower than its content: the search field inside gives way (SearchBox), not the window. */
-    min-width: 0;
     margin-left: auto;
+}
+
+/* Where the search field stands, the row may grow narrower than its content: the field gives way (SearchBox), not the
+   window. Below, every tool keeps its size — a phone's icons stay 44 px to tap. */
+@media (min-width: 1280px) {
+    .sh__tools {
+        min-width: 0;
+    }
 }
 
 /* Only the search field gives way where the bar is full; the car and the basket keep their size. */

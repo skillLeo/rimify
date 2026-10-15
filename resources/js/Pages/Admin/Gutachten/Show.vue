@@ -116,6 +116,21 @@ function focusState(): void {
     void nextTick(() => document.getElementById('gs-state-h')?.focus())
 }
 
+/*
+ * The Freigabe answers with the document released, and the dialog goes with the button that opened it (`can.release`):
+ * removed with the focus inside it, the browser drops the keyboard to <body>. Once the page has redrawn, the keyboard
+ * lands on the document's new state (GUTACHTEN-08b, found again by the gate of 15.10.2026).
+ */
+watch(
+    () => props.document.status,
+    (now, was) => {
+        if (now === 'published' && was === 'draft') {
+            focusState()
+        }
+    },
+    { flush: 'post' },
+)
+
 /* ── One row: change or take out ──────────────────────────────────────────── */
 
 const editing = ref<FitmentRowView | null>(null)
