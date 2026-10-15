@@ -149,7 +149,7 @@ describe('Startseite (phone) — Nach Marke', () => {
             // A card is never scaled (DIRECTION §6).
             expect(link.classes()).not.toContain('m-press')
         }
-        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
+        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Nur Marken, von denen gerade Felgen lieferbar sind.')
     })
 
     it('keeps the 40 px gap after the size shelf only when there is one', () => {
@@ -181,6 +181,6 @@ describe('Startseite (phone) — Nach Marke', () => {
         expect(cells[1]?.find('.brand-cell__count').exists()).toBe(false)
         expect(cells[1]?.text()).toContain('Zurzeit keine Felgen lieferbar')
         expect(cells[2]?.attributes('data-kind')).toBe('sample')
-        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
+        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine lieferbaren Felgen.')
     })
 })
