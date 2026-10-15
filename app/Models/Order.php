@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use App\Exceptions\IllegalOrderTransition;
 use App\Observers\OrderAlertObserver;
+use App\Services\Demo\AcceptanceSet;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Database\Factories\OrderFactory;
@@ -151,8 +152,11 @@ class Order extends Model
 
     /**
      * Seeded demonstration data: an order born demo (`is_demo`, DemoDashboardSeeder), or one with a
-     * wheel from a demo model (CommerceSeeder). A demo model can never be ordered (KasseController
-     * refuses it) and a real order can never be marked demo (R-12), so a real order never matches.
+     * wheel from the seeded example catalogue (CommerceSeeder). That catalogue can never be ordered
+     * (KasseController refuses it) and a real order can never be marked demo (R-12), so a real order
+     * never matches. The acceptance set's wheel is demo too, but off production it may be bought
+     * (AcceptanceSet::sellable): an order for it is a person's real order, never demonstration data —
+     * counting it as one opened it to anyone holding its number (EIGENE-FUNDE 131, S1).
      * The one rule, for the storefront's receipt and the admin alike.
      */
     public function isDemo(): bool
@@ -189,6 +193,8 @@ class Order extends Model
         return DB::table('order_lines as ol')
             ->join('wheel_configs as wc', 'wc.id', '=', 'ol.wheel_config_id')
             ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
-            ->where('wm.is_demo', true);
+            ->where('wm.is_demo', true)
+            // The example catalogue's models only: the acceptance set's are bought by real people (EIGENE-FUNDE 131).
+            ->where(static fn (QueryBuilder $q) => $q->whereNull('wm.demo_ref')->orWhere('wm.demo_ref', 'not like', AcceptanceSet::PREFIX.'%'));
     }
 }
