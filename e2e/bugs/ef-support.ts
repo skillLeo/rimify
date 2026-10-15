@@ -181,7 +181,8 @@ export async function heroOptions(page: Page): Promise<OptionInfo[]> {
     await expect(input).toBeEnabled();
     await input.click();
 
-    const list = page.locator('[aria-label="Fahrzeuge"]');
+    // The third field and its list are „Variante“ since the copy review (EIGENE-FUNDE 128, D-220).
+    const list = page.locator('[aria-label="Varianten"]');
 
     await expect(list.getByRole('option').first()).toBeVisible();
 

@@ -73,8 +73,15 @@ onClickOutside(root, () => {
 
 onMounted(() => {
     shell.registerSearch(() => {
-        input.value?.focus()
-        input.value?.select()
+        // Between 1024 and 1279 px the header shows the search as an icon (SiteHeader): there the palette is the search.
+        if (input.value === null || input.value.getClientRects().length === 0) {
+            shell.paletteOpen.value = true
+
+            return
+        }
+
+        input.value.focus()
+        input.value.select()
     })
 })
 
@@ -214,9 +221,11 @@ function useSuggestion(): void {
 </template>
 
 <style scoped>
+/* Where the bar is full, the field gives way first — never the window: the menu's links are the admin's to word. */
 .sbox {
     position: relative;
     width: 320px;
+    min-width: 0;
 }
 
 .sbox__input {

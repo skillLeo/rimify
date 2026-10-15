@@ -232,8 +232,9 @@ test.describe('Startseite/Mobile', () => {
         await open(page, '/')
         const size = page.locator('#h6 a.size-tile').first()
         await expect(size).toHaveAttribute('href', /\/felgen\?zoll=\d+/)
-        // `felgen()` joins the number and the noun with a narrow no-break space; one wheel is *1 Felge*.
-        await expect(size).toContainText(/\d+\sFelgen?\b/)
+        // `anzahl()` joins the number and the noun with a narrow no-break space; the tiles count designs, so one is
+        // *1 Modell* (the copy review, EIGENE-FUNDE 128).
+        await expect(size).toContainText(/\d+\sModelle?\b/)
         // A linked cell: a brand without stock is on the wall too, greyed as a span that goes nowhere.
         const brand = page.locator('#h6 a.brand-cell:not(.brand-cell--all)').first()
         await expect(brand).toHaveAttribute('href', /\/felgen\?marke=/)
