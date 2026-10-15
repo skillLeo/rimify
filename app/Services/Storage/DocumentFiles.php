@@ -21,7 +21,8 @@ use Throwable;
  * is. A file found nowhere is reported as missing — in the log, in the admin, by the go-live check — never handed to a
  * customer as a link that fails. `rimify:pdf-migrate` brings the stragglers over.
  *
- * Asked on every product page with a Gutachten, so a bucket answer is kept for ten minutes per key and settings version.
+ * Asked on every product page with a Gutachten, so where a file was found is kept for ten minutes per key and disk; a
+ * file not found is looked for again on every read.
  */
 final class DocumentFiles
 {
@@ -39,11 +40,22 @@ final class DocumentFiles
     /** @return array{state: string, url: string|null} */
     public function locate(string $key): array
     {
-        /** @var array{state: string, url: string|null} $found */
-        $found = Cache::remember(self::cacheKey($key, $this->settings->current()->isBucket()), self::CACHE_SECONDS, fn (): array => $this->look($key));
+        $cacheKey = self::cacheKey($key, $this->settings->current()->isBucket());
+        $found = Cache::get($cacheKey);
 
+        if (is_array($found) && is_string($found['state'] ?? null)) {
+            /** @var array{state: string, url: string|null} $found */
+            return $found;
+        }
+
+        $found = $this->look($key);
+
+        // Only a file that is there is remembered: a missing one is looked for again on the next read, so it shows the
+        // moment it arrives — an upload, a copy, `rimify:pdf-migrate` — and is never „missing“ for ten more minutes.
         if ($found['state'] === self::MISSING) {
             Log::warning('Gutachten-PDF nicht gefunden', ['key' => $key]);
+        } else {
+            Cache::put($cacheKey, $found, self::CACHE_SECONDS);
         }
 
         return $found;
