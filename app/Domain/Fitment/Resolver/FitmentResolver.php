@@ -1351,15 +1351,17 @@ final readonly class FitmentResolver
             );
         }
 
-        // The pages we hold do not name the car, and pages of the document are missing (ABE 53841: Anlagen 1–15 of 16):
-        // the one that names it may be among them. „We have not read that page yet“, never „no approval“ (R-07). A car
-        // the pages we hold DO name, and rule out by window or geometry, stays refused below — the document spoke.
+        // The rows do not name the car, and nobody has asserted that the document is entered whole (EIGENE-FUNDE 119,
+        // D-227): a document is incomplete until someone says it is complete. With the missing Anlagen on record (ABE
+        // 53841: 1–15 of 16) the answer names them; without, it says the entry is unconfirmed. „Noch nicht bestätigt“,
+        // never „nicht zulässig“ (R-07). A car the rows DO name, and rule out by window or geometry, stays refused
+        // below — the document spoke.
         if ($allRows === [] && $incomplete !== null) {
             return $this->negative(
                 VerdictStatus::Unknown,
                 $vehicle,
                 $wheel,
-                VerdictReason::of(VerdictReason::ANNEX_MISSING),
+                VerdictReason::of($incomplete->missingAnnexes !== null ? VerdictReason::ANNEX_MISSING : VerdictReason::COVERAGE_UNCONFIRMED),
                 $incomplete,
             );
         }

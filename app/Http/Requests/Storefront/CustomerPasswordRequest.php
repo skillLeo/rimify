@@ -32,7 +32,7 @@ class CustomerPasswordRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'password.required' => 'Bitte wähl ein Passwort.',
+            'password.required' => 'Bitte wähle ein Passwort.',
             'password.confirmed' => 'Die beiden Passwörter sind nicht gleich.',
             'password.min' => 'Dein Passwort braucht mindestens 10 Zeichen.',
         ];

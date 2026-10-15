@@ -42,10 +42,10 @@ class VehicleBuildRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'body_form.required_without' => 'Wähl die Karosserieform oder die Antriebsart deines Fahrzeugs.',
-            'drive_axle.required_without' => 'Wähl die Karosserieform oder die Antriebsart deines Fahrzeugs.',
-            'body_form.in' => 'Wähl eine der gezeigten Karosserieformen.',
-            'drive_axle.in' => 'Wähl eine der gezeigten Antriebsarten.',
+            'body_form.required_without' => 'Wähle die Karosserieform oder die Antriebsart deines Fahrzeugs.',
+            'drive_axle.required_without' => 'Wähle die Karosserieform oder die Antriebsart deines Fahrzeugs.',
+            'body_form.in' => 'Wähle eine der gezeigten Karosserieformen.',
+            'drive_axle.in' => 'Wähle eine der gezeigten Antriebsarten.',
         ];
     }
 

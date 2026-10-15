@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\Schema;
  */
 
 beforeEach(function (): void {
+    // The verdict this test reads is positive only at the legal minimum: margins as shipped, stated (the look-back, D-232).
+    config(['rimify.speed_symbol_margin_steps' => 0, 'rimify.load_index_margin_steps' => 0]);
     $this->seed(ReferenceDataSeeder::class);
 });
 

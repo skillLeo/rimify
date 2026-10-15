@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Storefront\VehicleContext;
+use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Support\GermanFormat;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -28,6 +30,8 @@ it('prices one rim, shows the set of four, and links the Gutachten at the row’
 
     $verdict = $resolver->resolve((int) $vehicle->id, (int) $config->id);
     $page = $verdict->document?->sourcePage;
+    // A link is only built to where the file is (D-229), so the file is there.
+    Storage::fake(GutachtenController::DISK)->put((string) $verdict->document?->pdfKey, "%PDF-1.4\n");
 
     $this->withCookies([VehicleContext::COOKIE => (new VehicleContext((int) $vehicle->id, true))->encode()])
         ->get('/felgen/'.$config->wheelModel->slug)

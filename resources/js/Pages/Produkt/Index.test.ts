@@ -273,14 +273,14 @@ describe('Produkt page', () => {
 
         expect(wrapper.find('.amt output').text()).toBe('4')
         expect(wrapper.find('.pdp__total').text()).toBe(`916,00${NNBSP}€`)
-        expect(wrapper.find('.pdp__each').text()).toBe(`4 × 229,00${NNBSP}€ = 916,00${NNBSP}€, inkl. MwSt., zzgl. Versand`)
+        expect(wrapper.find('.pdp__each').text()).toBe(`4 × 229,00${NNBSP}€ = 916,00${NNBSP}€, inkl. MwSt., zzgl. Versandkosten`)
 
         for (let i = 0; i < 3; i++) {
             await less.trigger('click')
         }
 
         expect(wrapper.find('.pdp__total').text()).toBe(`229,00${NNBSP}€`)
-        expect(wrapper.find('.pdp__each').text()).toBe(`1 × 229,00${NNBSP}€ = 229,00${NNBSP}€, inkl. MwSt., zzgl. Versand`)
+        expect(wrapper.find('.pdp__each').text()).toBe(`1 × 229,00${NNBSP}€ = 229,00${NNBSP}€, inkl. MwSt., zzgl. Versandkosten`)
         expect(less.attributes('disabled')).toBeDefined()
 
         await wrapper.find('button.pdp__add').trigger('click')
@@ -385,11 +385,11 @@ describe('Produkt page', () => {
         expect(rows).toMatchObject({
             'Größe': '8,5J × 19 · ET 45',
             'Lochkreis': '5 × 112',
-            'Einpresstiefe (ET)': '45 mm',
+            'Einpresstiefe (ET)': '45\u202fmm',
             'Hump': 'H2',
             'Farbe': 'Light Grey D5',
             'Speichen': '5',
-            'Gewicht pro Felge': '8,6 kg',
+            'Gewicht pro Felge': '8,6\u202fkg',
             'Traglast': `620${NNBSP}kg`,
             'KBA-Nummer': '53810',
             'Artikelnummer': 'MO-MCR4-8519-45',
@@ -476,9 +476,9 @@ describe('Produkt page', () => {
         const modes = wrapper.findAll('.bmc-tile')
 
         expect(wrapper.find('.pdp__mode legend').text()).toBe('Was möchtest du bestellen?')
-        expect(modes.map((m) => m.find('.bmc-tile__name').text())).toEqual(['Nur Felgen', 'Komplettrad'])
-        expect(modes[1]!.find('.bmc-tile__sub').text()).toMatch(/^Mit Reifen, fertig montiert\s+ab 965,00 € je Rad$/)
-        expect(modes[1]!.find('.bmc-tile__price').text()).toBe('ab 965,00 € je Rad')
+        expect(modes.map((m) => m.find('.bmc-tile__name').text())).toEqual(['Nur Felgen', 'Kompletträder'])
+        expect(modes[1]!.find('.bmc-tile__sub').text()).toMatch(/^Mit Reifen, fertig montiert\s+ab 965,00 € pro Rad$/)
+        expect(modes[1]!.find('.bmc-tile__price').text()).toBe('ab 965,00 € pro Rad')
         expect((wrapper.find('input[value="felgen"]').element as HTMLInputElement).checked).toBe(true)
         // No tyre on screen while the rims alone are chosen.
         expect(wrapper.find('.kc').exists()).toBe(false)
@@ -494,7 +494,7 @@ describe('Produkt page', () => {
         expect(choice.text()).toContain('Potenza Sport')
         expect(choice.find('.kc-row--on').exists()).toBe(true)
         expect(wrapper.find('.pdp__total').text()).toBe('3.860,00 €')
-        expect(wrapper.find('.pdp__each').text()).toBe('für 4 Kompletträder, je Rad 965,00 €, inkl. MwSt., zzgl. Versand')
+        expect(wrapper.find('.pdp__each').text()).toBe('für 4 Kompletträder, pro Rad 965,00 €, inkl. MwSt., zzgl. Versandkosten')
         // A set is four: no amount stepper beside it.
         expect(wrapper.find('.amt').exists()).toBe(false)
 
@@ -574,7 +574,7 @@ describe('Produkt page', () => {
         await wrapper.find('input[name="kc-rdks"][value="ja"]').setValue()
 
         expect(wrapper.find('.pdp__total').text()).toBe('3.880,00 €')
-        expect(wrapper.find('.pdp__each').text()).toContain('je Rad 970,00 €')
+        expect(wrapper.find('.pdp__each').text()).toContain('pro Rad 970,00 €')
         expect(wrapper.find('.pdp__sensors').text()).toBe('+ 196,00 € für 4 RDKS-Sensoren')
 
         await wrapper.find('button.pdp__add').trigger('click')

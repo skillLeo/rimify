@@ -29,7 +29,7 @@ final class ChartData
         VerdictStatus::Permitted->value => 'Freigegeben',
         VerdictStatus::Conditional->value => 'Mit Auflagen',
         VerdictStatus::NotPermitted->value => 'Nicht freigegeben',
-        VerdictStatus::Unknown->value => 'Unbekannt',
+        VerdictStatus::Unknown->value => 'Noch nicht bestätigt',
     ];
 
     public function __construct(private readonly SalesFigures $sales) {}

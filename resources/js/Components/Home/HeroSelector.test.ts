@@ -355,7 +355,7 @@ describe('HeroSelector — Marke → Modell → Fahrzeug', () => {
         await flushPromises()
         await nextTick()
 
-        const fahrzeug = byLabel(wrapper, 'Fahrzeug')
+        const fahrzeug = byLabel(wrapper, 'Variante')
         expect(fahrzeug.element.disabled).toBe(false)
         await fahrzeug.setValue('3')
         await nextTick()
@@ -401,7 +401,7 @@ describe('HeroSelector — Marke → Modell → Fahrzeug', () => {
         await wrapper.find('[role="option"]').trigger('click')
         await flushPromises()
         await nextTick()
-        await byLabel(wrapper, 'Fahrzeug').setValue('1')
+        await byLabel(wrapper, 'Variante').setValue('1')
         await nextTick()
 
         const rows = wrapper.findAll('[role="option"]')

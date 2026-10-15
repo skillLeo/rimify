@@ -49,7 +49,7 @@ enum KomplettradRefusal: string
             self::VerdictUnknown => 'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
             self::TyresUnknown => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
             self::TyresNotPermitted => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Ein Komplettrad können wir dir deshalb nicht anbieten.',
-            self::VerdictRestored => 'Diese Zusammenstellung können wir dir gerade nicht neu prüfen. Bitte wähl dein Fahrzeug noch einmal aus.',
+            self::VerdictRestored => 'Diese Zusammenstellung können wir dir gerade nicht neu prüfen. Bitte wähle dein Fahrzeug noch einmal aus.',
             self::NoPermittedSizes => 'Für diese Kombination ist bei uns keine Reifengröße hinterlegt. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
             self::NoUsableMinimum => 'Für dein Fahrzeug fehlen uns Achslast oder Höchstgeschwindigkeit. Trag die zulässigen Achslasten und die Höchstgeschwindigkeit aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir die zulässigen Reifen. Die Felge allein kannst du sofort bestellen.',
             // Never „stellen wir persönlich zusammen“ beside a Mischbereifung the page offers itself (D-105).

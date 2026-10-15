@@ -191,14 +191,50 @@ it('says a legal page is missing while it holds the placeholder, and points at t
     expect(goLiveById()['agb']->state)->toBe(GoLiveCheck::OK);
 });
 
-it('names each released Gutachten whose Anlagen are missing, with how many', function (): void {
-    ApprovalDocument::factory()->create(['kind' => 'ABE', 'kba_number' => '53841', 'status' => 'published', 'missing_annexes' => '1–15', 'valid_from' => null, 'valid_to' => null]);
+it('passes „Anlagen und Fahrzeuge vollständig erfasst“ only on an explicit yes, and names every other answer (EIGENE-FUNDE 119, D-227)', function (): void {
+    // Released before the question existed: no note, no answer — the old check called this an all-clear.
+    $silent = ApprovalDocument::factory()->unanswered()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'valid_from' => null, 'valid_to' => null]);
 
     $anlagen = goLiveById()['anlagen'];
 
     expect($anlagen->state)->toBe(GoLiveCheck::MISSING)
-        ->and($anlagen->sentence)->toStartWith('ABE 53841: 15 Anlagen fehlen (1–15).')
-        ->and($anlagen->sentence)->toContain('„noch nicht gelesen“, nie ein Nein');
+        ->and($anlagen->sentence)->toStartWith('Teilegutachten 1810080716: nicht beantwortet, ob alles erfasst ist.')
+        ->and($anlagen->sentence)->toContain('„noch nicht bestätigt“, nie „nicht freigegeben“');
+
+    ApprovalDocument::factory()->create(['kind' => 'ABE', 'kba_number' => '53841', 'completeness' => ApprovalDocument::PARTIAL, 'missing_annexes' => 'Anlagen 1–15', 'valid_from' => null, 'valid_to' => null]);
+    ApprovalDocument::factory()->create(['kind' => 'ABE', 'kba_number' => '55255', 'completeness' => ApprovalDocument::UNKNOWN, 'valid_from' => null, 'valid_to' => null]);
+
+    expect(goLiveById()['anlagen']->sentence)->toContain('ABE 53841: teilweise erfasst, es fehlen Anlagen 1–15')
+        ->and(goLiveById()['anlagen']->sentence)->toContain('ABE 55255: nicht bekannt, ob alles erfasst ist')
+        ->and(GoLiveChecks::unanswered())->toBe(['Teilegutachten 1810080716']);
+
+    // Every document answered „complete“: only now the check passes.
+    ApprovalDocument::query()->update(['completeness' => ApprovalDocument::COMPLETE, 'missing_annexes' => null, 'completeness_at' => now(), 'completeness_revision' => 1]);
+
+    expect(goLiveById()['anlagen']->state)->toBe(GoLiveCheck::OK)
+        ->and(GoLiveChecks::unanswered())->toBe([])
+        ->and($silent->refresh()->completeness)->toBe(ApprovalDocument::COMPLETE);
+});
+
+it('holds live payments while a released Gutachten has no completeness answer (D-227)', function (): void {
+    goLiveLegalComplete();
+    $document = ApprovalDocument::factory()->unanswered()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'valid_from' => null, 'valid_to' => null]);
+    app()['env'] = 'production';
+
+    try {
+        config(['rimify.payments.driver' => 'stripe', 'rimify.review.enabled' => false, 'services.stripe.mode' => 'live', 'services.stripe.key' => 'pk_live_fakeKey', 'services.stripe.secret' => 'sk_live_fakeKey', 'services.stripe.webhook_secret' => 'whsec_live_x']);
+
+        $refused = app(GoLiveChecks::class)->liveRefusal() ?? [];
+
+        expect(array_map(static fn (GoLiveCheck $c): string => $c->id, $refused))->toBe(['anlagen-beantwortet'])
+            ->and($refused[0]->sentence)->toContain('Teilegutachten 1810080716');
+
+        $document->forceFill(['completeness' => ApprovalDocument::PARTIAL, 'missing_annexes' => 'weitere Anlagen des Prüfberichts', 'completeness_at' => now(), 'completeness_revision' => 1])->save();
+
+        expect(app(GoLiveChecks::class)->liveRefusal())->toBeNull();
+    } finally {
+        app()['env'] = 'testing';
+    }
 });
 
 it('counts the pairs of a vehicle and a wheel that stand on „Reifengröße noch nicht bestätigt“ (finding 103, §1.5)', function (): void {
@@ -327,6 +363,8 @@ function goLiveMailSet(array $test, string $state = MailSetting::ACTIVE): MailSe
 }
 
 it('reads „fehlt“ for the mail while no SES key is in, naming every DNS record the sender needs', function (): void {
+    // The transport and the sender this test names, stated rather than taken from the pinned environment (D-232).
+    config(['mail.default' => 'array', 'mail.from.address' => 'noreply@rimify.de']);
     $sending = goLiveById()['mailversand'];
     $dns = goLiveById()['mail_dns'];
 
@@ -339,6 +377,7 @@ it('reads „fehlt“ for the mail while no SES key is in, naming every DNS reco
 });
 
 it('names what keeps a working SES key from carrying the mail: the sandbox, an unverified domain', function (): void {
+    config(['mail.default' => 'array', 'mail.from.address' => 'noreply@rimify.de']);
     goLiveMailSet(['production_access' => false, 'identity_verified' => false]);
 
     expect(goLiveById()['mailversand']->sentence)->toBe('Die Mails gehen über „array“ und erreichen bis dahin niemanden. Noch offen: der Produktionszugang bei AWS (das Konto ist noch in der Sandbox), die bestätigte Absenderdomain rimify.de.');
@@ -367,4 +406,25 @@ it('passes the mail once SES carries it and every record is in the DNS, and the 
         ->and($checks['mail_dns']->state)->toBe(GoLiveCheck::OK)
         ->and($checks['mail_dns']->sentence)->toBe('SPF, DKIM (drei CNAME-Einträge) und DMARC für rimify.de stehen im DNS.')
         ->and($checks['bestaetigung']->sentence)->toStartWith('Die Bestätigung wird über Amazon SES verschickt');
+});
+
+/*
+ * The Blog's third guide (the operator's brief of 15.10.2026 §2, D-237): the one that tells ABE, Teilegutachten and ECE
+ * apart waits for its rewrite and the Kanzlei — a tracked item on this list, not a loose draft, and it stays on the
+ * list whether the draft is there or someone has deleted it.
+ */
+it('keeps the guide to ABE, Teilegutachten and ECE on the list until it is published, naming the Kanzlei', function (): void {
+    expect(goLiveById()['ratgeber-dokumentarten']->state)->toBe(GoLiveCheck::MISSING)
+        ->and(goLiveById()['ratgeber-dokumentarten']->sentence)->toContain('erst, wenn die Kanzlei ihn freigegeben hat');
+
+    $draft = Page::query()->create(['slug' => GoLiveChecks::DOCUMENT_KINDS_GUIDE, 'locale' => 'de', 'kind' => Page::KIND_GUIDE, 'title' => 'ABE, Teilegutachten, ECE', 'status' => Page::STATUS_DRAFT]);
+    $check = goLiveById()['ratgeber-dokumentarten'];
+
+    expect($check->state)->toBe(GoLiveCheck::MISSING)
+        ->and($check->owner)->toBe(GoLiveCheck::US)
+        ->and($check->place)->toBe('/admin/seiten/'.$draft->id);
+
+    $draft->update(['status' => Page::STATUS_PUBLISHED, 'published_at' => now()]);
+
+    expect(goLiveById()['ratgeber-dokumentarten']->state)->toBe(GoLiveCheck::OK);
 });

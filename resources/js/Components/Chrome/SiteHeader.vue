@@ -73,7 +73,13 @@ function removeVehicle(): void {
             <MegaMenu class="from-lg sh__nav" />
 
             <div class="sh__tools">
-                <SearchBox class="from-lg" />
+                <SearchBox class="from-lg sh__search" />
+
+                <!-- From 1024 to 1279 px the search is this icon, and opens the palette as on a phone: the field needs the
+                     room the menu's links leave it only from 1280. -->
+                <button class="icon-btn sh__search-icon" type="button" aria-label="Suche" @click="shell.paletteOpen.value = true">
+                    <Icon name="search" :size="24" />
+                </button>
 
                 <!-- The vehicle on a desktop: a chip with a small menu. -->
                 <DropdownMenuRoot v-if="vehicle">
@@ -201,6 +207,24 @@ function removeVehicle(): void {
     margin-left: auto;
 }
 
+/* Where the search field stands, the row may grow narrower than its content: the field gives way (SearchBox), not the
+   window. Below, every tool keeps its size — a phone's icons stay 44 px to tap. */
+@media (min-width: 1280px) {
+    .sh__tools {
+        min-width: 0;
+    }
+}
+
+/* Only the search field gives way where the bar is full; the car and the basket keep their size. */
+.sh__vchip,
+.sh__cart {
+    flex-shrink: 0;
+}
+
+.sh__search-icon {
+    display: none;
+}
+
 .sh__vchip {
     max-width: 220px;
     /* Level with the search field and the basket beside it. */
@@ -266,11 +290,18 @@ function removeVehicle(): void {
 /*
  * From 1024 to 1279 px the bar holds the wordmark, four links, the search, the car and the basket, and was 21 px wider
  * than the window: „Warenkorb“ was cut off at its right edge (the sweep of 14.10.2026). There the basket keeps its icon
- * and its count — the link names itself to a screen reader — and the word comes back from 1280.
+ * and its count — the link names itself to a screen reader — and the word comes back from 1280. With „Häufige Fragen“
+ * for „FAQ“ (the copy review) it was 29 px wider again: there the search is an icon too, and the field comes back from
+ * 1280 (the gate of 15.10.2026, D-244).
  */
 @media (min-width: 1024px) and (max-width: 1279.98px) {
-    .sh__cart-label {
+    .sh__cart-label,
+    .sh__search {
         display: none;
+    }
+
+    .sh__search-icon {
+        display: inline-flex;
     }
 }
 

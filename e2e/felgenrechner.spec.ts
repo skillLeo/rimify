@@ -299,7 +299,7 @@ test.describe('Felgenrechner rear view', () => {
         await open(page, '/felgenrechner?rechner=7.5x17-45-225-45_5.5x19-35-305-30');
 
         await expect(page.locator('[data-result="implausible"] .calc-result__say')).toHaveText(
-            'Diese Reifenbreite und diese Maulweite gehören so nicht zusammen – prüf die Angaben.'
+            'Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen – prüf die Angaben.'
         );
         await expect(page.locator('.cd')).toHaveCount(0);
         await expect(page.locator('.specs')).toHaveCount(0);

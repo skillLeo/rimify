@@ -94,6 +94,8 @@ it('counts two visitors behind one address apart', function (): void {
 
 it('falls back to the address at ten times the ceiling, and logs when that fires', function (): void {
     config()->set('rimify.features.notify_by_mail', false);
+    // The log is spied on: a slow statement's own warning (SlowQueries) is not this test's, and is switched off (D-232).
+    config()->set('rimify.slow_query_ms', 0);
     Log::spy();
 
     foreach (range(1, 10 * ShopRateLimits::ADDRESS_FACTOR) as $ignored) {

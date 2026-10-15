@@ -1,4 +1,5 @@
 import { expect, test, type Page } from './fixtures';
+import { waitForApp } from './bugs/faq-support';
 import { SHOP } from './shop';
 
 /*
@@ -136,6 +137,8 @@ test('the listing loads its first screen at once and everything after it lazily 
 test('a tile fetches its second photograph when a mouse comes over it, not with the page — and never for a finger @bild-regel', async ({ page }, testInfo) => {
     await page.goto('/felgen');
     await read(page);
+    // A tile listens for the mouse once the page is hydrated — on a remote shop that is after the load event (14.10.).
+    await waitForApp(page);
 
     // The tiles of wheels photographed from two angles carry both in their data; none is in the document yet.
     await expect(page.locator('.tile__media--alt')).toHaveCount(0);
@@ -155,7 +158,8 @@ test('a tile fetches its second photograph when a mouse comes over it, not with 
 
     for (let i = 0; i < Math.min(count, 8) && !appeared; i++) {
         await tiles.nth(i).hover();
-        appeared = (await tiles.nth(i).locator('.tile__media--alt img').count()) > 0;
+        // Given the moment Vue takes to draw it; a tile without a second angle stays without.
+        appeared = await tiles.nth(i).locator('.tile__media--alt img').waitFor({ timeout: 1_500 }).then(() => true, () => false);
 
         if (appeared) {
             await expect(tiles.nth(i).locator('.tile__media--alt img')).toHaveAttribute('loading', 'eager');

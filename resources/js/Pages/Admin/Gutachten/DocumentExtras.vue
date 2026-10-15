@@ -247,7 +247,7 @@ function remove(): void {
         <!-- ── Pflichthinweise ─────────────────────────────────── -->
         <section class="dx-list" aria-labelledby="dx-n-h">
             <h3 id="dx-n-h" class="dx-list__title" tabindex="-1">Pflichthinweise</h3>
-            <p class="adm-note">Was das Gutachten immer sagt – etwa das Nachziehen der Radschrauben nach 50 km. Der Shop zeigt es bei jeder Freigabe.</p>
+            <p class="adm-note">Hinweise, die für jede Zeile dieses Gutachtens gelten – etwa das Nachziehen der Radschrauben nach 50 km. Der Shop zeigt sie bei jeder Freigabe.</p>
             <ul v-if="notices.length" class="dx-notices">
                 <li v-for="n in notices" :key="n.id" class="dx-notice">
                     <span>{{ n.text }}<span v-if="n.page" class="dx-page"> · S. {{ n.page }}</span></span>

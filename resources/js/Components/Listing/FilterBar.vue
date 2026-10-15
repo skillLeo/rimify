@@ -32,7 +32,7 @@ const emit = defineEmits<{
 const FACETS = [
     { key: 'marke', label: 'Marke' },
     { key: 'zoll', label: 'Durchmesser (Zoll)' },
-    { key: 'breite', label: 'Breite (Zoll)' },
+    { key: 'breite', label: 'Felgenbreite' },
     { key: 'et', label: 'Einpresstiefe (ET)' },
     { key: 'farbe', label: 'Farbe' },
 ] as const
@@ -56,7 +56,8 @@ function optionsFor(facet: string): { value: string; count: number }[] {
 
 /*
  * The measurements arrive as the database holds them (`18.0`, `8.50`); they are shown the German
- * way, with only the decimals they need — `18`, `8,5`, `35` (R-10). The value sent back stays raw.
+ * way, with only the decimals they need — `18`, `8,5J`, `35` (R-10): the Felgenbreite as every
+ * other page writes it, with its `J`. The value sent back stays raw.
  */
 function optionLabel(facet: string, value: string): string {
     if (facet !== 'zoll' && facet !== 'breite' && facet !== 'et') {
@@ -69,7 +70,9 @@ function optionLabel(facet: string, value: string): string {
         return value
     }
 
-    return formatNumber(n, Number.isInteger(n) ? 0 : Number.isInteger(n * 10) ? 1 : 2)
+    const figure = formatNumber(n, Number.isInteger(n) ? 0 : Number.isInteger(n * 10) ? 1 : 2)
+
+    return facet === 'breite' ? `${figure}J` : figure
 }
 </script>
 

@@ -111,7 +111,8 @@ it('uses a fresh CSP nonce per response', function (): void {
 });
 
 it('sends HSTS only over TLS', function (): void {
-    $this->get('/_probe')->assertHeaderMissing('Strict-Transport-Security');
+    // Over plain HTTP by its address, whatever scheme APP_URL names (the look-back, D-232).
+    $this->get('http://localhost/_probe')->assertHeaderMissing('Strict-Transport-Security');
 
     $this->get('https://localhost/_probe')
         ->assertHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');

@@ -86,7 +86,7 @@ const felgen = (tone: Tone): Route =>
         : { key: 'felgen', label: 'Fahrzeug wählen', href: '/felgen-suchen', tone }
 
 const home = (tone: Tone): Route => ({ key: 'home', label: 'Zur Startseite', href: '/', tone })
-const faq = (tone: Tone): Route => ({ key: 'faq', label: 'Häufige Fragen lesen', href: '/faq', tone })
+const faq = (tone: Tone): Route => ({ key: 'faq', label: 'Häufige Fragen', href: '/faq', tone })
 const basket = (tone: Tone): Route => ({ key: 'basket', label: 'Zum Warenkorb', href: '/warenkorb', tone })
 
 const signIn = (tone: Tone): Route => ({

@@ -32,6 +32,8 @@ use Inertia\Testing\AssertableInertia;
  * never silently undo each other, and a release never writes the seeded copy over the team's.
  */
 beforeEach(function (): void {
+    // Not a reset-ready test environment: there the Impressum names its operator first (the look-back, D-232).
+    config(['rimify.reset.allowed' => false]);
     $this->seed(CommerceSeeder::class);
     $this->seed(AccessSeeder::class);
     $this->seed(ContentSeeder::class);
@@ -109,7 +111,7 @@ it('lists the pages whose words the shop prints, and no others', function (): vo
 
     // The FAQ and Kontakt pages print none of their block fields; offering them would be a promise.
     $titles = collect($response->viewData('page')['props']['groups'])->flatMap(fn (array $g) => array_column($g['pages'], 'title'))->all();
-    expect($titles)->not->toContain('Meistgestellte Fragen')->not->toContain('Kontakt');
+    expect($titles)->not->toContain('Häufige Fragen')->not->toContain('Kontakt');
 });
 
 it('answers a page the panel does not edit as absent, not forbidden, and logs no refusal', function (): void {

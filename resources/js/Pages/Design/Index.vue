@@ -40,7 +40,7 @@ const COLOURS = [
     ['c-dark', 'Dunkles Band'], ['c-dark-2', 'Dunkel, sekundär'], ['c-on-dark-2', 'Text auf dunkel'],
     ['c-blue', 'Aktion'], ['c-blue-hover', 'Aktion, hover'], ['c-blue-press', 'Aktion, gedrückt'], ['c-blue-tint', 'Aktion, Fläche'],
     ['c-ok', 'Freigegeben'], ['c-ok-tint', 'Freigegeben, Fläche'], ['c-warn', 'Mit Auflagen'], ['c-warn-tint', 'Mit Auflagen, Fläche'],
-    ['c-bad', 'Nicht freigegeben'], ['c-bad-tint', 'Nicht freigegeben, Fläche'], ['c-unk', 'Unbekannt'], ['c-unk-tint', 'Unbekannt, Fläche'],
+    ['c-bad', 'Nicht freigegeben'], ['c-bad-tint', 'Nicht freigegeben, Fläche'], ['c-unk', 'Noch nicht bestätigt'], ['c-unk-tint', 'Noch nicht bestätigt, Fläche'],
     ['c-star', 'Bewertung'],
 ] as const
 

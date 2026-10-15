@@ -554,6 +554,16 @@ describe('putting every entry into words', function (): void {
                 'Das Dokument „ABE 53810“ wurde freigegeben: 30 Zeilen sind jetzt im Shop. 2 Widersprüche zu anderen Gutachten wurden erkannt.',
                 [],
             ],
+            'approval.taken_back' => [
+                ['document' => 'Teilegutachten 1810080716', 'rows' => 2, 'reason' => 'Eingetragen ist eine von sechs Auflagen.'],
+                'Die Freigabe von „Teilegutachten 1810080716“ wurde zurückgenommen: 2 Zeilen sind wieder Entwurf und nicht mehr im Shop. Grund: „Eingetragen ist eine von sechs Auflagen“.',
+                [],
+            ],
+            'approval.completeness_answered' => [
+                ['document' => 'ABE 53841', 'completeness' => 'partial', 'missing' => 'Anlagen 1–15', 'before' => null, 'revision' => 1],
+                'Zu „ABE 53841“ wurde festgehalten: teilweise erfasst – es fehlen: Anlagen 1–15.',
+                [],
+            ],
             'approval.entry_overridden' => [
                 ['document' => 'ABE 53810', 'row' => 4, 'override' => 'not_required', 'reason' => 'Der Prüfer verlangt keine Abnahme.'],
                 'In einer Zeile von „ABE 53810“ wurde die Eintragung abweichend von den Codes auf „nicht erforderlich“ gesetzt: „Der Prüfer verlangt keine Abnahme.“.',

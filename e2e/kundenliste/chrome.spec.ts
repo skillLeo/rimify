@@ -122,18 +122,30 @@ test('the basket sits in the phone\'s header left of the menu, with its count, 4
     }
 })
 
-test('the footer links the Felgenrechner, which opens, and has no Blog link while there is no blog', { tag: '@kunde-10' }, async ({ page, request }, info) => {
+test('the footer links the Felgenrechner and the Blog; both open, and the Blog leads to its articles', { tag: '@kunde-10' }, async ({ page, request }, info) => {
     await open(page, '/')
     const footer = page.locator('footer').last()
     const rechner = footer.getByRole('link', { name: 'Felgenrechner' })
+    const blog = footer.getByRole('link', { name: 'Blog', exact: true })
 
     await expect(rechner).toHaveCount(1)
     const href = await rechner.getAttribute('href')
     expect((await request.get(new URL(href ?? '', ABNAHME).toString())).status()).toBe(200)
-    // No blog exists: no link that would lead into the empty.
-    await expect(footer.getByRole('link', { name: /Blog/i })).toHaveCount(0)
 
+    // The Blog exists (D-230): the link leads to its index, and every article listed there opens.
+    await expect(blog).toHaveCount(1)
     await shot(footer, 10, info)
+    await blog.click()
+    await expect(page).toHaveURL(/\/blog$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Blog' })).toBeVisible()
+
+    const articles = page.getByRole('main').getByRole('heading', { level: 2 }).getByRole('link')
+    expect(await articles.count()).toBeGreaterThan(0)
+
+    for (const link of await articles.all()) {
+        const article = await link.getAttribute('href')
+        expect((await request.get(new URL(article ?? '', ABNAHME).toString())).status(), `${article} does not open`).toBe(200)
+    }
 })
 
 test('one footer exists, the same on every page and width, right at 390 × 844 and 360 × 640', { tag: '@kunde-29' }, async ({ page }, info) => {

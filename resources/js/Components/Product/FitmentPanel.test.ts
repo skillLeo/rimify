@@ -67,7 +67,7 @@ describe('FitmentPanel', () => {
 
     it('calls an answer that waits for the body style or drive open, not absent, and asks for it right below', () => {
         const waiting = mount(FitmentPanel, {
-            props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Unbekannt', sellable: false, reason: 'Das Gutachten unterscheidet nach Karosserieform.', missing: ['bodyForm'] }) },
+            props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, reason: 'Das Gutachten unterscheidet nach Karosserieform.', missing: ['bodyForm'] }) },
         })
 
         expect(waiting.find('.rcheck-panel__vehicle').text()).toBe('Noch offen für BMW 3er Coupe')
@@ -75,9 +75,9 @@ describe('FitmentPanel', () => {
         // The vaguer reason gives way to the question.
         expect(waiting.find('.fit__reason').exists()).toBe(false)
 
-        const unknown = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Unbekannt', sellable: false }) } })
+        const unknown = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false }) } })
 
-        expect(unknown.find('.rcheck-panel__vehicle').text()).toBe('Keine Freigabe hinterlegt für BMW 3er Coupe')
+        expect(unknown.find('.rcheck-panel__vehicle').text()).toBe('Noch nicht bestätigt für BMW 3er Coupe')
     })
 
     // Finding 103 (the operator's decision of 14.10.2026): the client's own wheel on his own car read „Keine Freigabe
@@ -89,9 +89,9 @@ describe('FitmentPanel', () => {
                 vehicle,
                 askHref: '/kontakt?betreff=Wunschreifen',
                 verdict: verdict({
-                    status: 'UNKNOWN', label: 'Unbekannt', sellable: false, reason: summary, reasonCode: 'TYRE_UNKNOWN',
+                    status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, reason: summary, reasonCode: 'TYRE_UNKNOWN',
                     wheelStatus: 'CONDITIONAL', wheelLabel: 'Freigegeben mit Auflagen',
-                    tyre: { status: 'UNKNOWN', label: 'Keine Angabe', summary, lines: [], thresholds: [], fromVehicleData: true },
+                    tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', summary, lines: [], thresholds: [], fromVehicleData: true },
                 }),
             },
             global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } },
@@ -108,7 +108,7 @@ describe('FitmentPanel', () => {
 
         // A wheel approved outright reads without „mit Auflagen“; a plain „we hold nothing“ stays what it was.
         const plain = mount(FitmentPanel, {
-            props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Unbekannt', sellable: false, wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre: { status: 'UNKNOWN', label: 'Keine Angabe', summary, lines: [], thresholds: [], fromVehicleData: true } }) },
+            props: { vehicle, verdict: verdict({ status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', summary, lines: [], thresholds: [], fromVehicleData: true } }) },
         })
 
         expect(plain.find('.rcheck-panel__vehicle').text()).toBe('Felge freigegeben · Reifengröße noch nicht bestätigt')
@@ -135,7 +135,7 @@ describe('FitmentPanel', () => {
             },
         })
 
-        expect(kept.find('.pp__summary').text()).toContain('8.1 1.050 kg · 8.2 1.100 kg · T 250 km/h')
+        expect(kept.find('.pp__summary').text()).toContain('8.1 1.050 kg · 8.2 1.100 kg · T 250 km/h')
         expect(kept.text()).toContain(note)
         expect(kept.find('#pp-axle_front_kg').exists()).toBe(false)
     })
@@ -224,7 +224,7 @@ describe('FitmentPanel', () => {
         // Not where the wheel may go on, nor where the way on is already in the panel: a fact to give, a tyre size open.
         expect(link(verdict({ status: 'CONDITIONAL', sellable: true })).exists()).toBe(false)
         expect(link(verdict({ status: 'UNKNOWN', sellable: false, missing: ['bodyForm'] })).exists()).toBe(false)
-        expect(link(verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'PERMITTED', tyre: { status: 'UNKNOWN', label: 'Keine Angabe', summary: null, basis: null, lines: [], thresholds: [], fromVehicleData: true, open: false } })).exists()).toBe(false)
+        expect(link(verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'PERMITTED', tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', summary: null, basis: null, lines: [], thresholds: [], fromVehicleData: true, open: false } })).exists()).toBe(false)
     })
 
     it('says nothing about entry for UNKNOWN, and does not dress it as a refusal', () => {

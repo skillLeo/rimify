@@ -38,7 +38,7 @@ class ReviewRequest extends FormRequest
         return [
             'reviews.required' => 'Gib mindestens einer Felge Sterne.',
             'reviews.min' => 'Gib mindestens einer Felge Sterne.',
-            'reviews.*.rating.*' => 'Wähl zwischen einem und fünf Sternen.',
+            'reviews.*.rating.*' => 'Wähle zwischen einem und fünf Sternen.',
             'reviews.*.body.max' => 'Dein Text darf höchstens 1.000 Zeichen lang sein.',
         ];
     }

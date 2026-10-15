@@ -11,6 +11,7 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\FitmentRows;
+use App\Services\Admin\Approvals\ReleaseDeclaration;
 use App\Support\GermanFormat;
 use Illuminate\Console\Command;
 use Illuminate\Validation\ValidationException;
@@ -37,7 +38,16 @@ final class ReleaseOnInstruction extends Command
     protected $signature = 'rimify:gutachten-freigeben
         {document : Die Nummer des Entwurfs (Admin › Gutachten › Dokumente, in der Adresse)}
         {--anweisung= : Die schriftliche Anweisung des Betreibers, im Wortlaut fürs Protokoll}
-        {--konto= : E-Mail des Admin-Kontos, unter dem die Freigabe im Protokoll steht}';
+        {--konto= : E-Mail des Admin-Kontos, unter dem die Freigabe im Protokoll steht}
+        {--erfasst= : Sind alle Anlagen und alle Fahrzeuge erfasst? alle, teilweise oder unbekannt (D-227)}
+        {--fehlt= : Bei „teilweise“: welche Anlagen oder Bereiche fehlen}
+        {--codes= : Wie viele Auflagen-Codes der Verwendungsbereich für die erfassten Fahrzeuge druckt (D-228)}
+        {--groessen= : Wie viele Reifengrößen er für sie nennt}
+        {--achslast= : Die Achslastgrenze in kg, die er nennt – leer, wenn keine}
+        {--abnahme= : Ob er eine Abnahme verlangt: alle (bei jeder Kombination), einige oder keine}';
+
+    /** The command's words for the three answers. */
+    private const ANSWERS = ['alle' => ApprovalDocument::COMPLETE, 'teilweise' => ApprovalDocument::PARTIAL, 'unbekannt' => ApprovalDocument::UNKNOWN];
 
     protected $description = 'Testumgebung: einen Gutachten-Entwurf auf schriftliche Anweisung des Betreibers freigeben, so im Protokoll vermerkt';
 
@@ -75,9 +85,31 @@ final class ReleaseOnInstruction extends Command
         }
 
         $label = FitmentRows::label($document);
+        $answer = self::ANSWERS[(string) $this->option('erfasst')] ?? null;
+
+        if ($answer === null) {
+            $this->error('Ohne die Antwort, ob alle Anlagen und alle Fahrzeuge erfasst sind (--erfasst=alle, teilweise oder unbekannt), wird nichts freigegeben.');
+
+            return self::FAILURE;
+        }
+
+        $int = fn (string $option): ?int => is_numeric($this->option($option)) ? (int) $this->option($option) : null;
+        $declaration = new ReleaseDeclaration(
+            completeness: $answer,
+            missing: $this->option('fehlt') === null ? null : trim((string) $this->option('fehlt')),
+            codes: $int('codes'),
+            sizes: $int('groessen'),
+            axleLimitKg: $int('achslast'),
+            abnahme: match ((string) $this->option('abnahme')) {
+                'alle' => ReleaseDeclaration::ABNAHME_ALL,
+                'einige' => ReleaseDeclaration::ABNAHME_SOME,
+                'keine' => ReleaseDeclaration::ABNAHME_NONE,
+                default => null,
+            },
+        );
 
         try {
-            $result = $release->release($document, $admin, $instruction);
+            $result = $release->release($document, $admin, $instruction, $declaration);
         } catch (ValidationException $e) {
             $this->error($label.': '.implode(' ', $e->errors()['release'] ?? [$e->getMessage()]));
 

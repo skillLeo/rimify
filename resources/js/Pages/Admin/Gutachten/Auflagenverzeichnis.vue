@@ -350,7 +350,7 @@ function confirmLimit(condition: DocumentConditionView): void {
 <template>
     <div class="av">
         <p v-if="unresolved.length" class="adm-alert" role="alert">
-            Nicht im Auflagenverzeichnis: {{ unresolved.map((u) => u.code).join(', ') }}. Zeilen mit diesen Codes bleiben „Unbekannt“, bis der Code hier steht – und das
+            Nicht im Auflagenverzeichnis: {{ unresolved.map((u) => u.code).join(', ') }}. Zeilen mit diesen Codes bleiben „Noch nicht bestätigt“, bis der Code hier steht – und das
             Gutachten ist so lange nicht freigebbar.
         </p>
         <p v-if="listError" class="adm-alert" role="alert">{{ listError }}</p>

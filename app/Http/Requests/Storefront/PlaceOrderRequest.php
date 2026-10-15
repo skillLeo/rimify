@@ -144,7 +144,7 @@ class PlaceOrderRequest extends FormRequest
             'rdks.in' => Basket::TPMS_UNANSWERED_REFUSAL,
             'email.required' => 'Bitte gib deine E-Mail-Adresse an.',
             'email.email' => 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.',
-            'name.required' => 'Bitte gib deinen vollständigen Namen an.',
+            'name.required' => 'Bitte gib deinen Vor- und Nachnamen an.',
             'street.required' => 'Bitte gib die Straße an.',
             'houseNumber.required' => 'Bitte gib die Hausnummer an.',
             'zip.required' => 'Bitte gib die PLZ an.',

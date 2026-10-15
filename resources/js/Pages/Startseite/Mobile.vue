@@ -27,7 +27,7 @@ import Accordion from '../../Components/Ui/Accordion.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import ProductTile from '../../Components/Ui/ProductTile.vue'
 import TyreLabel, { type TyreClass } from '../../Components/Ui/TyreLabel.vue'
-import { felgen, NNBSP } from '../../format'
+import { felgen, modelle, NNBSP } from '../../format'
 import { contactHref } from '../../lib/contact'
 import { isIconName, type IconName } from '../../icons'
 import { useShared } from '../../composables/useShared'
@@ -88,7 +88,8 @@ const sizes = computed(() =>
             return {
                 ...s,
                 none: fitting === 0,
-                line: fitting === null ? felgen(s.count) : passende(fitting),
+                // Without a car the count is models (`17 Modelle`); with one, the listing's own count of what fits.
+                line: fitting === null ? modelle(s.count) : passende(fitting),
             }
         })
 )
@@ -287,7 +288,7 @@ onBeforeUnmount(() => {
 
             <div v-else class="container empty">
                 <p class="empty__title">Für dein Fahrzeug ist hier gerade keine dabei.</p>
-                <p class="empty__text">In der Felgenliste siehst du alles, was das Gutachten für dein Fahrzeug erlaubt.</p>
+                <p class="empty__text">In der Felgenliste siehst du jede Felge, deren Freigabe für dein Fahrzeug bei uns hinterlegt ist.</p>
             </div>
 
             <div class="container home-h5__foot">
@@ -336,8 +337,9 @@ onBeforeUnmount(() => {
     <!-- H7 · The one dark band: what a Komplettrad is, and its tyre's regulated facts. -->
     <section v-if="rendered.h7" id="h7" data-section="H7" :class="cls('h7')" aria-labelledby="h7-title">
         <div class="container home-komplett">
+            <!-- „montiert und gewuchtet“ once on the page: here; the line under it and the promise row do not repeat it. -->
             <h2 id="h7-title" class="h2 home-h2">Kompletträder&nbsp;– <br>montiert und gewuchtet.</h2>
-            <p class="body-l home-komplett__text">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
+            <p class="body-l home-komplett__text">Felge und Reifen kommen zusammen bei dir an.</p>
 
             <KomplettradWheel class="home-komplett__wheel" :wheel="komplettrad.wheel ?? null" />
 
@@ -352,7 +354,7 @@ onBeforeUnmount(() => {
                 class="home-komplett__label"
             />
 
-            <Link :href="komplettradHref" class="btn btn--light btn--block" prefetch>Kompletträder für mein Fahrzeug</Link>
+            <Link :href="komplettradHref" class="btn btn--light btn--block" prefetch>Kompletträder für dein Fahrzeug anzeigen</Link>
         </div>
     </section>
 
@@ -406,7 +408,7 @@ onBeforeUnmount(() => {
     <!-- H11 · A person to ask, and the five questions most people ask. -->
     <section id="h11" data-section="H11" :class="cls('h11')" aria-labelledby="h11-title">
         <div class="container">
-            <h2 id="h11-title" class="h2 home-h2">Fragen zur Passform? Wir schauen mit dir drauf.</h2>
+            <h2 id="h11-title" class="h2 home-h2">Fragen zu einer Felge? Wir schauen mit dir drauf.</h2>
             <p class="small home-status" :class="{ 'home-status--open': service?.open }">{{ statusLine }}</p>
         </div>
 
@@ -416,7 +418,7 @@ onBeforeUnmount(() => {
                 <template #leading><span class="home-contact__slot" aria-hidden="true" /></template>
             </ListRow>
             <!-- The address, to read and copy; the row opens the contact form (#26). -->
-            <ListRow icon="mail" :title="contact.email" sub="Nachricht schreiben" :href="contactHref({ subject: 'Frage zur Passform', from: '/' })" />
+            <ListRow icon="mail" :title="contact.email" sub="Nachricht schreiben" :href="contactHref({ subject: 'Frage zu einer Felge', from: '/' })" />
             <ListRow icon="clock" :title="contact.hours" static />
         </div>
 

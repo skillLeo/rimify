@@ -50,6 +50,8 @@
     /* ── Type · one family, one scale ────────────────────────────────────────────
        Sizes below are the desktop scale; the phone scale follows under a media query. */
     --font-sans: 'Archivo Variable', 'Archivo fallback Arial', 'Archivo fallback Roboto', Arial, sans-serif;
+    /* The Gutachten facsimile's narrow small print: static cuts at 70 % and 85 % (fonts.css, finding 116, D-231). */
+    --font-doc: 'Archivo Doc', var(--font-sans);
     /* A measure in characters, as Archivo sets it at the text, heading and display styles (the width of its „0",
        fonts-fallback.json `zero`). `ch` is the „0" of whichever font is drawing — the fallback's until Archivo arrives,
        and no fallback matches one glyph and the average at once — so a box measured in `ch` changes width on the swap:

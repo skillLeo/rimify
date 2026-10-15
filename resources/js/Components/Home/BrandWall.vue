@@ -10,7 +10,7 @@
  * without a usable logo is set as its name.
  *
  * Every wheel brand is on the wall, stock or not. A brand with nothing on stock is greyed — its
- * mark or name in the tertiary ink, the sentence *Noch keine Felgen auf Lager* where its count
+ * mark or name in the tertiary ink, the sentence *Zurzeit keine Felgen lieferbar* where its count
  * would be — and is not a link, the way the size tiles above grey a size nothing fits: shown,
  * never hidden, never struck, never a tile into an empty listing (CLAUDE.md §2). The note under
  * the wall states the wall's own rule — which sentence depends on whether a greyed brand is on it —
@@ -20,7 +20,7 @@
 import { Link } from '@inertiajs/vue3'
 import { computed, onMounted, shallowRef, watch } from 'vue'
 import Icon from '../Ui/Icon.vue'
-import { felgen } from '../../format'
+import { modelle } from '../../format'
 import type { StartseiteProps } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 import {
@@ -130,7 +130,7 @@ onMounted(() => {
                     <span class="brand-cell__stage">
                         <!-- A brand is a name, wherever it stands: the wordmark, the text behind a
                              logo, the one beside the sample range. A translator would turn it into
-                             a word. The count is a figure and *Felgen* a term of art (§6). -->
+                             a word. The count is a figure: the brand's models in stock (`17 Modelle`). -->
                         <template v-if="kind === 'mark'">
                             <span class="brand-cell__mark" aria-hidden="true" :style="markStyle(brand)" />
                             <span class="visually-hidden" translate="no">{{ `${brand.name} ` }}</span>
@@ -141,7 +141,7 @@ onMounted(() => {
                         </template>
                         <span v-else class="brand-cell__name" :data-len="wordmarkSize(brand.name)" translate="no">{{ brand.name }}</span>
                     </span>
-                    <span v-if="href !== null" class="brand-cell__foot brand-cell__count small num" translate="no">{{ felgen(brand.count) }}</span>
+                    <span v-if="href !== null" class="brand-cell__foot brand-cell__count small num" translate="no">{{ modelle(brand.count) }}</span>
                     <!-- Greyed says it for the eye and the note under the wall explains it once; the
                          sentence is read out per cell, and the foot keeps its line so the marks align. -->
                     <span v-else class="brand-cell__foot brand-cell__none small"><span class="visually-hidden">{{ NO_STOCK_LINE }}</span></span>

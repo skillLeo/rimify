@@ -61,7 +61,7 @@ enum VerdictStatus: string
             self::Permitted => 'Freigegeben',
             self::Conditional => 'Freigegeben mit Auflagen',
             self::NotPermitted => 'Nicht freigegeben',
-            self::Unknown => 'Keine Angabe',
+            self::Unknown => 'Noch nicht bestätigt',
         };
     }
 

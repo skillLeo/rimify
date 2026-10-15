@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Storefront;
 
 use App\Enums\CatalogueStatus;
+use App\Support\GermanFormat;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -127,7 +128,7 @@ final readonly class MegaMenu
         foreach ($rows as $row) {
             $inch = rtrim(rtrim((string) $row->diameter_in, '0'), '.');
             $out[] = [
-                'label' => str_replace('.', ',', $inch).' Zoll',
+                'label' => str_replace('.', ',', $inch).GermanFormat::NBSP.'Zoll',
                 'count' => (int) $row->models,
                 'href' => '/felgen?zoll='.rawurlencode($inch),
             ];

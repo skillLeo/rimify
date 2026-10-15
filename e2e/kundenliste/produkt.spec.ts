@@ -48,7 +48,7 @@ async function add(page: Page, button: Locator = page.locator('button.pdp__add')
 }
 
 async function mode(page: Page, which: 'Nur Felgen' | 'Komplettrad'): Promise<void> {
-    await page.locator('.pdp__mode .bmc-tile', { hasText: which }).click()
+    await page.locator('.pdp__mode .bmc-tile', { hasText: which === 'Nur Felgen' ? 'Nur Felgen' : 'Kompletträder' }).click()
     await expect(page.locator(`.pdp__mode input[value="${which === 'Nur Felgen' ? 'felgen' : 'komplettrad'}"]`)).toBeChecked()
 }
 
@@ -91,7 +91,7 @@ test('beside the price: 1 to 8, four chosen, the price following and read as „
     expect(Math.abs(stepper.y + stepper.height / 2 - (price.y + price.height / 2)), 'the amount stands beside the price').toBeLessThan(price.height + stepper.height)
     await expect(shown).toHaveText('4')
     await expect(total).toHaveText(euro(4 * RIM))
-    await expect(line).toHaveText(`4 × ${euro(RIM)} = ${euro(4 * RIM)}, inkl. MwSt., zzgl. Versand`)
+    await expect(line).toHaveText(`4 × ${euro(RIM)} = ${euro(4 * RIM)}, inkl. MwSt., zzgl. Versandkosten`)
 
     // Up to eight, the price following every step.
     for (let n = 5; n <= 8; n++) {
@@ -108,7 +108,7 @@ test('beside the price: 1 to 8, four chosen, the price following and read as „
     }
 
     await expect(less).toBeDisabled()
-    await expect(line).toHaveText(`1 × ${euro(RIM)} = ${euro(RIM)}, inkl. MwSt., zzgl. Versand`)
+    await expect(line).toHaveText(`1 × ${euro(RIM)} = ${euro(RIM)}, inkl. MwSt., zzgl. Versandkosten`)
 
     await amount(page, 4)
     await shot(page.locator('.pdp__price'), 17, info)

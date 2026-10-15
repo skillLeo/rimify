@@ -103,7 +103,7 @@ export async function openSellableAnswer(page: Page, set = false): Promise<SizeO
             return size;
         }
 
-        await page.locator('label.bmc-tile', { hasText: 'Komplettrad' }).click();
+        await page.locator('label.bmc-tile', { hasText: 'Kompletträder' }).click();
 
         const tyres = await page.locator('label.kc-row').count();
         const colours = await page.locator('label.kc-swatch').count();

@@ -81,9 +81,10 @@ const wheelFailed = ref(false)
         <div class="container grid komplett__grid">
             <div class="komplett__text">
                 <h2 id="h7-heading" class="h2">Kompletträder – montiert und gewuchtet.</h2>
-                <!-- No promise that the Gutachten is delivered: nothing delivers it yet (ACCURACY D7). -->
-                <p class="body-l komplett__lead">Felge und Reifen kommen fertig montiert und gewuchtet bei dir an.</p>
-                <Link :href="href" class="btn btn--light komplett__button">Kompletträder für mein Fahrzeug</Link>
+                <!-- No promise that the Gutachten is delivered: nothing delivers it yet (ACCURACY D7). The heading says
+                     „montiert und gewuchtet“; the line under it does not say it again (once per page). -->
+                <p class="body-l komplett__lead">Felge und Reifen kommen zusammen bei dir an.</p>
+                <Link :href="href" class="btn btn--light komplett__button">Kompletträder für dein Fahrzeug anzeigen</Link>
             </div>
 
             <figure class="komplett__stage">

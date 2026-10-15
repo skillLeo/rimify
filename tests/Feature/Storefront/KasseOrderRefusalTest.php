@@ -130,7 +130,7 @@ it('checks the address on the server, with the page\'s own German sentences', fu
         ->assertSessionHasErrors([
             'email' => 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.',
             'zip' => 'Eine deutsche PLZ hat fünf Ziffern.',
-            'name' => 'Bitte gib deinen vollständigen Namen an.',
+            'name' => 'Bitte gib deinen Vor- und Nachnamen an.',
         ]);
 
     $this->withSession(kasseBasket(kasseInStockConfig()))

@@ -5,7 +5,7 @@ import type { CheckAnswer, CheckProps, ConfigVerdict, ProduktConfig } from '../.
 import type { VehicleProp } from '../../types/rimify'
 
 /*
- * The client's #28: „Passt diese Felge auf mein Auto?“ — the car, the wheel and its size each a visit, so the address
+ * The client's #28: „Darf diese Felge an mein Auto?“ — the car, the wheel and its size each a visit, so the address
  * carries the question; one answer for the pair; „Jetzt kaufen“ for exactly that combination, then the basket; and the
  * link to the answer, to send to a friend.
  */
@@ -206,12 +206,12 @@ describe('RIMIFY-Check', () => {
         const wrapper = mountCheck()
         const selector = wrapper.findComponent(SelectorStub)
 
-        expect(wrapper.find('h1').text()).toBe('Passt diese Felge auf mein Auto?')
+        expect(wrapper.find('h1').text()).toBe('Darf diese Felge an mein Auto?')
         expect(selector.props('basePath')).toBe('/rimify-check')
         expect(selector.props('baseQuery')).toEqual({ hersteller: 'borbet', felge: 'borbet-db8gt2', groesse: 110 })
         // Once the car is chosen the visitor comes back here, the wheel already chosen.
         expect(selector.props('returnTo')).toBe('/rimify-check?hersteller=borbet&felge=borbet-db8gt2&groesse=110')
-        expect(wrapper.find('.chk__ask').text()).toContain('Wähl oben dein Auto')
+        expect(wrapper.find('.chk__ask').text()).toContain('Wähle oben dein Auto')
         expect(wrapper.find('#antwort').exists()).toBe(false)
     })
 
@@ -409,9 +409,9 @@ describe('RIMIFY-Check', () => {
 
     it('says so when a shared link names a wheel or a size the shop no longer has', () => {
         expect(mountCheck({ notFound: 'wheel' }).find('.chk__lost').text()).toBe(
-            'Die Felge aus dem Link gibt es bei uns nicht mehr. Wähl einen Hersteller und eine andere Felge.'
+            'Die Felge aus dem Link gibt es bei uns nicht mehr. Wähle einen Hersteller und eine andere Felge.'
         )
-        expect(mountCheck({ notFound: 'size' }).find('.chk__lost').text()).toBe('Diese Felge gibt es in der Größe aus dem Link nicht mehr. Wähl oben eine andere Größe.')
+        expect(mountCheck({ notFound: 'size' }).find('.chk__lost').text()).toBe('Diese Felge gibt es in der Größe aus dem Link nicht mehr. Wähle oben eine andere Größe.')
         expect(mountCheck().find('.chk__lost').exists()).toBe(false)
     })
 

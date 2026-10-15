@@ -238,7 +238,7 @@ const measures = computed(() => ({
 const description = computed(
     () =>
         `Blick von hinten auf ein Rad im Radhaus, die Felge im Schnitt, rechnerisch. ${model.value.outer.text}. ${model.value.inner.text}. ` +
-        `Neue Felge: Einpresstiefe ${measures.value.et}, der Abstand von der Felgenmitte zur Anlagefläche; Maulweite ${measures.value.width}. ` +
+        `Neue Felge: Einpresstiefe ${measures.value.et}, der Abstand von der Felgenmitte zur Anlagefläche; Felgenbreite ${measures.value.width}. ` +
         'Daneben ist die Radmitte von außen zu sehen, mit Lochkreis und Mittenlochbohrung. Federbein, Kotflügel, Radschüssel und Schrauben sind schematisch gezeichnet.'
 )
 </script>
@@ -300,7 +300,7 @@ const description = computed(
                         <path v-if="scene.outer.head" class="cd__head" data-dim="outer" :d="scene.outer.head" />
                         <path v-if="scene.inner.head" class="cd__head" data-dim="inner" :d="scene.inner.head" />
 
-                        <!-- ET: from the centre plane to the mounting face. Maulweite: rim edge to rim edge. -->
+                        <!-- ET: from the centre plane to the mounting face. Felgenbreite: rim edge to rim edge. -->
                         <g data-measure="et">
                             <template v-if="scene.section.et.drawn">
                                 <path class="cd__line cd__mdim" :d="scene.section.et.shaft" />
@@ -311,7 +311,7 @@ const description = computed(
                         <g data-measure="width">
                             <path class="cd__line cd__mdim" :d="scene.section.width.shaft" />
                             <path class="cd__mhead" :d="scene.section.width.heads" />
-                            <text class="cd__tag" :x="scene.section.width.midX" :y="scene.section.width.y - 7" text-anchor="middle">Maulweite</text>
+                            <text class="cd__tag" :x="scene.section.width.midX" :y="scene.section.width.y - 7" text-anchor="middle">Felgenbreite</text>
                             <text class="cd__tag cd__tag--value" :x="scene.section.width.midX" :y="scene.section.width.y + 17" text-anchor="middle" translate="no">{{ measures.width }}</text>
                         </g>
                     </svg>
@@ -330,13 +330,13 @@ const description = computed(
                     <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
                         <path class="cd__line cd__old" d="M0 4 H32" />
                     </svg>
-                    <span>bisher <ValueText :text="legend.current" /></span>
+                    <span>Bisher <ValueText :text="legend.current" /></span>
                 </span>
                 <span class="cd__key" data-key="next">
                     <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
                         <path class="cd__line cd__new" d="M0 4 H32" />
                     </svg>
-                    <span>neu <ValueText :text="legend.next" /></span>
+                    <span>Neu <ValueText :text="legend.next" /></span>
                 </span>
                 <span class="cd__key" data-key="face">
                     <svg class="cd__swatch" viewBox="0 0 32 8" width="32" height="8" aria-hidden="true" focusable="false">
@@ -571,7 +571,7 @@ const description = computed(
     stroke-dasharray: 10 3 2 3;
 }
 
-/* ET and Maulweite: the dimension lines of the new wheel, in ink — the figures the visitor typed in. */
+/* ET and Felgenbreite: the dimension lines of the new wheel, in ink — the figures the visitor typed in. */
 .cd__mdim {
     stroke: var(--c-ink);
     stroke-linecap: butt;

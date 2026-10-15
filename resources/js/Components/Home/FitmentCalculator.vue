@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The Felgenrechner's form: two setups, Aktuell and Neu, five figures each. It owns nothing but
+ * The Felgenrechner's form: two setups, Bisher and Neu, five figures each. It owns nothing but
  * the controls — the state lives in `useRechner`, the geometry in `lib/felgenGeometry`, the
  * drawing and the results in their own components — and it hands a comparison up only when every
  * figure is one it offers itself. An ET outside −30 … 70 is explained under its field and never
@@ -10,7 +10,7 @@
  * - `row` (the homepage teaser, desktop): two fieldsets side by side, five fields in a row each;
  * - `table` (/felgenrechner, desktop): the compact table — the label at the left, the two
  *   controls beside it, five rows;
- * - `tabs` (both phone documents): Aktuell · Neu as tabs, the five fields two abreast.
+ * - `tabs` (both phone documents): Bisher · Neu as tabs, the five fields two abreast.
  *
  * Every control is at least 16 px (`.input`), has a visible label or a row-and-column name, and
  * validates on blur. Every control is `translate="no"`: its options are figures (`8,5J`,
@@ -44,7 +44,7 @@ const props = withDefaults(
     defineProps<{
         modelValue: RechnerState
         layout?: CalculatorLayout
-        /** True while *Aktuell* holds the server's prefill; its controls then carry `data-prefilled`. */
+        /** True while *Bisher* holds the server's prefill; its controls then carry `data-prefilled`. */
         prefilled?: boolean
     }>(),
     { layout: 'row', prefilled: false }
@@ -67,7 +67,7 @@ interface FieldDef {
 
 /* Selects carry their unit in the option text (the chevron owns the right edge); the ET field carries a suffix. */
 const FIELDS: FieldDef[] = [
-    { key: 'widthIn', short: 'Breite', long: 'Felgenbreite', option: jLabel },
+    { key: 'widthIn', short: 'Felgenbreite', long: 'Felgenbreite', option: jLabel },
     { key: 'diameterIn', short: 'Durchmesser', long: 'Durchmesser', option: (v) => withUnit(v, 'Zoll') },
     { key: 'etMm', short: 'ET', long: 'Einpresstiefe (ET)', option: String },
     { key: 'tyreWidthMm', short: 'Reifenbreite', long: 'Reifenbreite', option: (v) => withUnit(v, 'mm') },
@@ -76,7 +76,7 @@ const FIELDS: FieldDef[] = [
 
 const label = (field: FieldDef): string => (props.layout === 'row' ? field.short : field.long)
 
-const ET_ERROR = `Die Einpresstiefe liegt zwischen ${ET_MIN.toString().replace('-', '−')} und ${ET_MAX}${' '}mm.`
+const ET_ERROR = `Die Einpresstiefe liegt zwischen ${ET_MIN.toString().replace('-', '−')} und ${withUnit(ET_MAX, 'mm')}.`
 const SELECT_ERROR = 'Bitte einen Wert aus der Liste wählen.'
 
 /* ── State: what the controls hold, and what has been committed upward ─────────── */
@@ -192,8 +192,8 @@ const setup = (side: Side): WheelSetup => local[side]
 
 <template>
     <form class="calc-form" :class="`calc-form--${layout}`" novalidate @submit.prevent>
-        <!-- Desktop, the full page: a compact table of controls — the label at the left, Aktuell and Neu beside it. -->
-        <div v-if="layout === 'table'" class="calc-form__table" role="group" aria-label="Aktuelle und neue Größe">
+        <!-- Desktop, the full page: a compact table of controls — the label at the left, Bisher and Neu beside it. -->
+        <div v-if="layout === 'table'" class="calc-form__table" role="group" aria-label="Bisherige und neue Größe">
             <span class="calc-form__corner" aria-hidden="true" />
             <span v-for="side in SIDES" :id="hid(side.key)" :key="side.key" class="label calc-form__head">{{ side.label }}</span>
 
@@ -246,7 +246,7 @@ const setup = (side: Side): WheelSetup => local[side]
             </template>
         </div>
 
-        <!-- The teaser: Aktuell and Neu as two fieldsets, five fields in a row each. -->
+        <!-- The teaser: Bisher and Neu as two fieldsets, five fields in a row each. -->
         <div v-else-if="layout === 'row'" class="calc-row">
             <fieldset v-for="side in SIDES" :key="side.key" class="calc-form__set">
                 <legend class="label calc-form__legend">{{ side.label }}</legend>
@@ -299,9 +299,9 @@ const setup = (side: Side): WheelSetup => local[side]
             </fieldset>
         </div>
 
-        <!-- Phone: Aktuell · Neu as tabs, the five fields two abreast under each. -->
+        <!-- Phone: Bisher · Neu as tabs, the five fields two abreast under each. -->
         <TabsRoot v-else v-model="tab" class="calc-form__tabs">
-            <TabsList class="tabs__list" aria-label="Aktuelle oder neue Größe">
+            <TabsList class="tabs__list" aria-label="Bisherige oder neue Größe">
                 <TabsTrigger v-for="side in SIDES" :key="side.key" :value="side.key" class="tabs__trigger">{{ side.label }}</TabsTrigger>
             </TabsList>
 

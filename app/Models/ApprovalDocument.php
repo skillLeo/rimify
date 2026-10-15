@@ -39,12 +39,27 @@ use LogicException;
  * @property CarbonImmutable|null $revision_date
  * @property CarbonImmutable|null $valid_from_production the first day of the month a wheel must be made from
  * @property bool|null $papers_correction_required § 15 FZV: false = no correction of the papers; null = not said
- * @property string|null $missing_annexes the Anlagen of its Verwendungsbereich we do not hold („1–15“)
+ * @property string|null $missing_annexes the Anlagen or ranges of its Verwendungsbereich we do not hold („1–15“)
+ * @property string|null $completeness complete | partial | unknown, asserted at release; null = not answered (D-227)
+ * @property int|null $completeness_by
+ * @property CarbonImmutable|null $completeness_at
+ * @property int|null $completeness_revision
  */
 class ApprovalDocument extends Model
 {
     /** @use HasFactory<ApprovalDocumentFactory> */
     use HasFactory;
+
+    /** Every Anlage and every vehicle of the document is entered: only then is a car its rows do not name refused (D-227). */
+    public const COMPLETE = 'complete';
+
+    /** These Anlagen or ranges are missing — said in `missing_annexes`. */
+    public const PARTIAL = 'partial';
+
+    /** Nobody can say. */
+    public const UNKNOWN = 'unknown';
+
+    public const COMPLETENESS = [self::COMPLETE, self::PARTIAL, self::UNKNOWN];
 
     protected $fillable = [
         'kind', 'kba_number', 'approval_mark', 'report_number', 'issuer', 'issued_on',
@@ -52,6 +67,7 @@ class ApprovalDocument extends Model
         'supplement_to_id', 'supplement_to_number', 'annex', 'test_report_number', 'copy_number',
         'designation_number', 'test_site', 'test_date', 'revision_date', 'valid_from_production',
         'papers_correction_required', 'missing_annexes',
+        'completeness', 'completeness_by', 'completeness_at', 'completeness_revision',
         'pdf_key', 'pdf_sha256', 'page_count', 'status', 'created_by',
     ];
 
@@ -70,6 +86,8 @@ class ApprovalDocument extends Model
             'revision' => 'integer',
             'page_count' => 'integer',
             'papers_correction_required' => 'boolean',
+            'completeness_at' => 'immutable_datetime',
+            'completeness_revision' => 'integer',
         ];
     }
 
@@ -231,9 +249,40 @@ class ApprovalDocument extends Model
      */
     public function scopeIncompleteDe(): ?string
     {
+        $missing = $this->missingAnnexesDe();
+
+        return $missing === null ? null : 'Verwendungsbereich unvollständig – '.$missing.' liegen nicht vor.';
+    }
+
+    /**
+     * What is missing, said one way everywhere: „Anlagen 1–15“ for the range as the document prints it („1–15“), and
+     * whatever someone wrote in words („Anlagen 1–15“, „Anlage BMW15“) as written. Null when nothing is named.
+     */
+    public function missingAnnexesDe(): ?string
+    {
         $missing = trim((string) $this->missing_annexes);
 
-        return $missing === '' ? null : 'Verwendungsbereich unvollständig – Anlagen '.$missing.' liegen nicht vor.';
+        return match (true) {
+            $missing === '' => null,
+            preg_match('/^\d/', $missing) === 1 => 'Anlagen '.$missing,
+            default => $missing,
+        };
+    }
+
+    /**
+     * The answer to „Sind alle Anlagen und alle Fahrzeuge erfasst?“, in the admin's words (D-227) — „nicht beantwortet“
+     * while nobody has answered, which the shop reads as partial.
+     */
+    public function completenessDe(): string
+    {
+        $missing = $this->missingAnnexesDe();
+
+        return match ($this->completeness) {
+            self::COMPLETE => 'Alle Anlagen und alle Fahrzeuge erfasst',
+            self::PARTIAL => 'Teilweise erfasst'.($missing === null ? '' : ' – es fehlen: '.$missing),
+            self::UNKNOWN => 'Nicht bekannt, ob alles erfasst ist',
+            default => 'Nicht beantwortet – der Shop liest es als teilweise erfasst',
+        };
     }
 
     /** `Gilt für Felgen, die ab 03/2021 gefertigt wurden.` — null when the document names no month. */

@@ -433,7 +433,8 @@ it('answers a car the Anlage we hold does not name UNKNOWN on the 18″ — the 
 
     expect($eighteen->status)->toBe(VerdictStatus::Unknown)
         ->and($eighteen->reason?->code)->toBe(VerdictReason::ANNEX_MISSING)
-        ->and($eighteen->reason?->textDe)->toContain('liegt uns die entsprechende Anlage des Gutachtens noch nicht vor')
+        // The operator's sentence (brief of 14.10.2026 §2, D-227): it keeps the customer and gives us a reason to chase it.
+        ->and($eighteen->reason?->textDe)->toBe('Für dieses Fahrzeug liegt uns die passende Anlage des Gutachtens noch nicht vor – sag uns dein Auto, und wir holen sie.')
         ->and($eighteen->papersExempt())->toBeFalse();
 
     // The BMW Z4 is named by the Nachtrag only: on the whole ABE 55255 it is refused, as the document says.

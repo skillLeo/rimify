@@ -246,7 +246,7 @@ test('while it is dragged, no chart reaches past its card', async ({ page }) => 
         charts.verdicts = {
             series: [
                 { key: 'PERMITTED', label: 'Zulässig' },
-                { key: 'UNKNOWN', label: 'Unbekannt' },
+                { key: 'UNKNOWN', label: 'Noch nicht bestätigt' },
             ],
             weeks: Array.from({ length: 4 }, (_, i) => ({ key: `w${i}`, label: `KW ${36 + i}`, range: '', values: { PERMITTED: 20 + i, UNKNOWN: 4 }, total: 24 + i })),
             since: '01.09.2026',

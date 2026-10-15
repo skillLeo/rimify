@@ -182,7 +182,7 @@ describe('VehiclePanel — the halves of one car', () => {
         await byLabel(wrapper, 'Modell').setValue('1er-Reihe')
         await flushPromises()
 
-        const select = byLabel(wrapper, 'Fahrzeug')
+        const select = byLabel(wrapper, 'Variante')
 
         expect(select.findAll('option').slice(1).map((o) => o.text())).toEqual([`1K4 · Feld${nb}K *00 bis${nb}*03`, `1K4 · Feld${nb}K ab${nb}*04`])
 

@@ -35,7 +35,18 @@ class ApprovalDocumentFactory extends Factory
             // („Das Gutachten hat nur 6 Seiten.“). A test about the page limit sets its own count.
             'page_count' => 24,
             'status' => DocumentStatus::Published->value,
+            // A fixture document is entered whole, and someone said so (D-227). A test about the default sets
+            // `unanswered()`: in the shop, a document nobody has answered for reads as partial.
+            'completeness' => ApprovalDocument::COMPLETE,
+            'completeness_at' => now(),
+            'completeness_revision' => 1,
         ];
+    }
+
+    /** Released before the completeness question existed, or never answered: read as partial (D-227). */
+    public function unanswered(): static
+    {
+        return $this->state(fn (): array => ['completeness' => null, 'completeness_at' => null, 'completeness_revision' => null]);
     }
 
     public function draft(): static

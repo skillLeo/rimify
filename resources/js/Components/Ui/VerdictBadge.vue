@@ -32,7 +32,7 @@ const LABELS: Record<VerdictStatus, string> = {
     PERMITTED: 'Freigegeben',
     CONDITIONAL: 'Mit Auflagen',
     NOT_PERMITTED: 'Nicht freigegeben',
-    UNKNOWN: 'Unbekannt',
+    UNKNOWN: 'Noch nicht bestätigt',
 }
 
 const TONES: Record<VerdictStatus, { cls: string; icon: IconName }> = {

@@ -24,6 +24,12 @@ export interface DocumentFacts {
     statusLabel: string
     validFrom: string | null
     validTo: string | null
+    /** „Sind alle Anlagen und alle Fahrzeuge erfasst?“ (D-227) — null while nobody has answered: the shop reads it as partial. */
+    completeness?: 'complete' | 'partial' | 'unknown' | null
+    completenessLabel?: string
+    completenessBy?: string | null
+    completenessAt?: string | null
+    missingAnnexes?: string
     pdfUrl: string | null
     hasPdf: boolean
     /** A key is stored, the file is not in the storage. */

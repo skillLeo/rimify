@@ -123,13 +123,13 @@ describe('FitmentDetail', () => {
 
         expect(printed.findAll('.fdt__for').map((s) => s.text())).toEqual(['Für jede zulässige Reifengröße', 'Nur bei 235/45 R19 und 245/40 R19', 'Nur bei 255/40 R19'])
         expect(printed.findAll('ul').map((ul) => ul.findAll('li').map((li) => li.text()))).toEqual([[`${tubeless} (Seite 6)`], [`${chains} (Seite 7)`], [`${none} (Seite 7)`]])
-        expect(printed.find('.fdt__original-lede').text()).toBe('Der hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung. Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.')
+        expect(printed.find('.fdt__original-lede').text()).toBe('Der bei uns hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung. Gilt ein Satz nur für bestimmte Reifengrößen, stehen diese Größen direkt darüber.')
 
         // Nothing size-bound: one list, no label, and the lede says nothing about sizes.
         const plain = mount(FitmentDetail, { props: { detail: { ...borbetDetail, original: [{ text: ABNAHME, page: 4 }] }, vehicleLabel: 'BMW 1er-Reihe 1K4' } })
 
         expect(plain.find('details[data-original]').findAll('.fdt__for')).toHaveLength(0)
-        expect(plain.find('.fdt__original-lede').text()).toBe('Der hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung.')
+        expect(plain.find('.fdt__original-lede').text()).toBe('Der bei uns hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung.')
     })
 
     it('marks our own sentences apart from the document’s wording', () => {

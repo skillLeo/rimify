@@ -88,13 +88,13 @@ it('gives Kontakt the envelope in the phone\'s bottom bar', function (): void {
         ->and(DB::table('nav_items')->where('icon', 'phone')->exists())->toBeFalse();
 });
 
-it('links the Felgenrechner from the footer’s shop column, and no blog that does not exist — the client’s #10', function (): void {
+it('links the Felgenrechner and the blog from the footer’s shop column — the client’s #10, now that the blog exists (D-230)', function (): void {
     $this->seed(ContentSeeder::class);
 
     expect(DB::table('nav_items')->where('menu', 'footer_shop')->orderBy('sort_order')->pluck('label')->all())
-        ->toBe(['Alle Felgen', 'Fahrzeug wählen', 'RIMIFY-Check', 'Felgenrechner'])
+        ->toBe(['Alle Felgen', 'Fahrzeug wählen', 'RIMIFY-Check', 'Felgenrechner', 'Blog'])
         ->and(DB::table('nav_items')->where('menu', 'footer_shop')->where('label', 'Felgenrechner')->value('route_name'))->toBe('felgenrechner.index')
-        ->and(DB::table('nav_items')->where('label', 'Blog')->exists())->toBeFalse();
+        ->and(DB::table('nav_items')->where('label', 'Blog')->value('route_name'))->toBe('blog.index');
 });
 
 it('promises in the promise row only what the client has confirmed', function (): void {
@@ -109,12 +109,15 @@ it('promises in the promise row only what the client has confirmed', function ()
     $titles = array_column($data['items'], 'title');
     $lines = implode(' ', array_column($data['items'], 'text'));
 
-    // The client's four titles stay; our lines lose the PDF, the dispatch time and "unser Haus".
-    expect($titles)->toBe(['Garantierte Passgenauigkeit', 'Gutachten zu jeder Felge', 'Montiert und gewuchtet', 'Express-Versand aus Deutschland'])
+    // Two of the client's titles are down until he answers (brief of 14.10.2026 §11, D-235): no guarantee, no
+    // delivery speed. Our lines lose the PDF, the dispatch time and "unser Haus".
+    expect($titles)->toBe(['Nur Felgen mit Freigabe', 'Gutachten zu jeder Felge', 'Montiert und gewuchtet', 'Versand aus Deutschland'])
+        ->and(implode(' ', $titles))->not->toContain('Garantie')
+        ->not->toContain('Express')
         ->and($lines)->not->toContain('PDF')
         ->not->toContain('Werktag')
         ->not->toContain('unser Haus')
-        ->toContain('Kompletträder kommen fertig montiert und gewuchtet bei dir an.');
+        ->toContain('So kommt jedes Komplettrad bei dir an.');
 });
 
 it('gives every FAQ entry its own published flag, and a re-seed keeps an unpublished one unpublished', function (): void {

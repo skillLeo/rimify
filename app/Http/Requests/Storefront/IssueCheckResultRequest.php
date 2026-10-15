@@ -42,7 +42,7 @@ class IssueCheckResultRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'wheelConfigId.*' => 'Diese Felgengröße gibt es nicht mehr. Wähl bitte eine andere.',
+            'wheelConfigId.*' => 'Diese Felgengröße gibt es nicht mehr. Wähle bitte eine andere.',
         ];
     }
 
@@ -50,11 +50,11 @@ class IssueCheckResultRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             if ($validator->errors()->isEmpty() && $this->vehicleId() === null) {
-                $validator->errors()->add('wheelConfigId', 'Wähl zuerst dein Fahrzeug – der RIMIFY-Check gilt immer für ein bestimmtes Auto.');
+                $validator->errors()->add('wheelConfigId', 'Wähle zuerst dein Fahrzeug – der RIMIFY-Check gilt immer für ein bestimmtes Auto.');
             }
 
             if ($validator->errors()->isEmpty() && ! $this->published()) {
-                $validator->errors()->add('wheelConfigId', 'Diese Felge ist gerade nicht im Shop. Wähl bitte eine andere.');
+                $validator->errors()->add('wheelConfigId', 'Diese Felge ist gerade nicht im Shop. Wähle bitte eine andere.');
             }
         });
     }

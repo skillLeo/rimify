@@ -20,6 +20,8 @@ use Tests\Support\DemoWheelFixtures;
  * expect. Nothing here is a placeholder.
  */
 beforeEach(function (): void {
+    // Fitting partners off, as shipped: switched on, the homepage gains their section (the look-back, D-232).
+    config(['rimify.features.partners' => false]);
     $this->dir = DemoWheelFixtures::emptyDir();
     $this->seed(CommerceSeeder::class);
     $this->seed(AccessSeeder::class);

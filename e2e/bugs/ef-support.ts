@@ -138,7 +138,7 @@ export async function panelOptions(page: Page): Promise<OptionInfo[]> {
     await expect(model.locator(`option[value="${MODEL}"]`)).toHaveCount(1);
     await model.selectOption(MODEL);
 
-    const vehicle = panel.getByLabel('Fahrzeug', { exact: true });
+    const vehicle = panel.getByLabel('Variante', { exact: true });
 
     await expect(vehicle).toBeEnabled();
     await expect.poll(() => vehicle.locator('option').count()).toBeGreaterThan(1);
@@ -176,12 +176,13 @@ export async function heroOptions(page: Page): Promise<OptionInfo[]> {
 
     await models.getByRole('option', { name: new RegExp(`^${escape(MODEL)}\\b`) }).click();
 
-    const input = hero.getByLabel('Fahrzeug', { exact: true });
+    const input = hero.getByLabel('Variante', { exact: true });
 
     await expect(input).toBeEnabled();
     await input.click();
 
-    const list = page.locator('[aria-label="Fahrzeuge"]');
+    // The third field and its list are „Variante“ since the copy review (EIGENE-FUNDE 128, D-220).
+    const list = page.locator('[aria-label="Varianten"]');
 
     await expect(list.getByRole('option').first()).toBeVisible();
 

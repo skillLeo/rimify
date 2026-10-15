@@ -115,7 +115,7 @@ describe('the chart data', function (): void {
 
         $chart = app(ChartData::class)->verdicts(Period::between('2026-09-14', '2026-09-26'));
 
-        expect(array_column($chart['series'], 'label'))->toBe(['Freigegeben', 'Mit Auflagen', 'Nicht freigegeben', 'Unbekannt'])
+        expect(array_column($chart['series'], 'label'))->toBe(['Freigegeben', 'Mit Auflagen', 'Nicht freigegeben', 'Noch nicht bestätigt'])
             ->and(array_column($chart['weeks'], 'label'))->toBe(['KW 38', 'KW 39'])
             ->and($chart['weeks'][0]['values'])->toBe(['PERMITTED' => 0, 'CONDITIONAL' => 3, 'NOT_PERMITTED' => 0, 'UNKNOWN' => 0])
             ->and($chart['weeks'][1]['total'])->toBe(7)

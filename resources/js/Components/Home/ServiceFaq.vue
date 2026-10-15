@@ -29,7 +29,7 @@ const status = computed(() => shared.value.serviceStatus)
 const telHref = computed(() => `tel:${(contact.value.phoneIntl ?? contact.value.phone ?? '').replace(/\s/g, '')}`)
 const waHref = computed(() => `https://wa.me/${(contact.value.whatsapp ?? '').replace(/[^\d]/g, '')}`)
 /* The address, to read and copy; the link opens the contact form (#26). */
-const mailHref = contactHref({ subject: 'Frage zur Passform', from: '/' })
+const mailHref = contactHref({ subject: 'Frage zu einer Felge', from: '/' })
 
 const items = computed<AccordionEntry[]>(() => props.faq.map((entry) => ({ id: entry.id, title: entry.question, body: entry.answer })))
 
@@ -52,7 +52,7 @@ onBeforeUnmount(() => {
     <section id="h11" class="service" data-section="H11" aria-labelledby="h11-heading">
         <div class="container grid service__grid">
             <div class="service__contact">
-                <h2 id="h11-heading" class="h2 service__title">Fragen zur Passform? Wir schauen mit dir drauf.</h2>
+                <h2 id="h11-heading" class="h2 service__title">Fragen zu einer Felge? Wir schauen mit dir drauf.</h2>
 
                 <p class="small status" :class="status.open ? 'status--open' : 'status--closed'">{{ status.label }}</p>
 

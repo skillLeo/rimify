@@ -64,7 +64,7 @@ const ROUTE_TITLES: Record<string, string> = {
     'check.ergebnis': 'Ergebnis',
     'kasse.index': 'Kasse',
     'bestellung.show': 'Bestellung',
-    faq: 'Fragen und Antworten',
+    faq: 'Häufige Fragen',
     kontakt: 'Kontakt',
     rechtliches: 'Rechtliches',
 }

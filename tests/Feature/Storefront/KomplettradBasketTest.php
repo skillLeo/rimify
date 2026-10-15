@@ -20,6 +20,8 @@ use Tests\Support\Storefront\KomplettradFixture;
  * decided — and leaves the session exactly as it was (R-11, CLAUDE.md §2).
  */
 beforeEach(function (): void {
+    // Mounting as shipped (no fee named yet); a test that prices it sets its own (the look-back, D-232).
+    config(['rimify.komplettrad.mounting_per_wheel_cents' => null]);
     $this->seed(CommerceSeeder::class);
     $this->seed(KomplettradOptionsSeeder::class);
 });

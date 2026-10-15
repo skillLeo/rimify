@@ -45,6 +45,12 @@ class OrderFactory extends Factory
         ];
     }
 
+    /** Written by a seeder: opens by number. Without it an order came through the checkout (D-238). */
+    public function seeded(): static
+    {
+        return $this->state(fn (): array => ['origin' => Order::ORIGIN_SEEDED]);
+    }
+
     public function status(OrderStatus $status): static
     {
         return $this->state(fn (): array => ['status' => $status->value]);

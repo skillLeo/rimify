@@ -19,6 +19,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import PapersFacsimile from '../Art/PapersFacsimile.vue'
 import Icon from '../Ui/Icon.vue'
 import { useOcr } from '../../composables/useOcr'
+import { withUnit } from '../../format'
 import { parsePapers } from '../../lib/fahrzeugschein'
 import { formatNumber } from '../../lib/num'
 import type { PapersProp } from '../../types/rimify'
@@ -92,8 +93,9 @@ function cancel(): void {
     open.value = false
     void nextTick(() => document.getElementById(props.papers ? 'pp-change' : 'pp-open')?.focus())
 }
-const NBSP = ' '
-const kg = (n: number): string => `${formatNumber(n)}${NBSP}kg`
+
+/* `1.160 kg`: a figure and its unit through the one helper (R-10). */
+const kg = (n: number): string => withUnit(formatNumber(n), 'kg')
 
 function save(): void {
     busy.value = true
@@ -194,7 +196,7 @@ function clear(): void {
     <div class="pp">
         <template v-if="papers && !open">
             <p class="pp__summary">
-                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ papers.topSpeedKmh }}&nbsp;km/h<template v-if="papers.powerKw"> · P.2 {{ papers.powerKw }}&nbsp;kW</template></span>
+                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ withUnit(papers.topSpeedKmh, 'km/h') }}<template v-if="papers.powerKw"> · P.2 {{ withUnit(papers.powerKw, 'kW') }}</template></span>
                 <button id="pp-change" class="btn btn--ghost btn--sm" type="button" @click="change">Ändern</button>
             </p>
             <p v-for="note in papers.notes" :key="note" class="pp__help">{{ note }}</p>
@@ -231,7 +233,7 @@ function clear(): void {
                 <p v-if="powerMismatch" class="notice notice--warn" role="alert">
                     <Icon name="warning" :size="20" />
                     <span>
-                        Laut Foto hat dein Fahrzeug {{ readPowerKw }}&nbsp;kW (Feld P.2), gewählt ist eine Variante mit {{ powerKw }}&nbsp;kW. Prüf bitte, ob du die
+                        Laut Foto hat dein Fahrzeug {{ withUnit(readPowerKw ?? '', 'kW') }} (Feld P.2), gewählt ist eine Variante mit {{ withUnit(powerKw ?? '', 'kW') }}. Prüf bitte, ob du die
                         richtige Variante gewählt hast – davon hängt ab, welche Felgen freigegeben sind.
                     </span>
                 </p>

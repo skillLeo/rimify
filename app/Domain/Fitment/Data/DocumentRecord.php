@@ -47,13 +47,27 @@ final readonly class DocumentRecord
         public ?bool $papersCorrectionRequired = null,
         /** The Anlagen of the document's Verwendungsbereich we do not hold („1–15“); null while all are held. */
         public ?string $missingAnnexes = null,
+        /**
+         * What a person asserted about the entry at release (EIGENE-FUNDE 119, D-227): `complete` — every Anlage and
+         * every vehicle entered —, `partial` or `unknown`; null where nobody has answered yet, which reads as partial. Only
+         * `complete` lets a car the rows do not name be answered „nicht zulässig“.
+         */
+        public ?string $completeness = null,
     ) {}
+
+    public const COMPLETE = 'complete';
+
+    /** Whether a person asserted that every Anlage and every vehicle of the document is entered. */
+    public function assertedComplete(): bool
+    {
+        return $this->completeness === self::COMPLETE;
+    }
 
     /**
      * @return array{
      *     id: string, kind: string, number: string|null, revision: int,
      *     issuedOn: string|null, pdfUrl: string|null, pdfSha256: string|null, sourcePage: int|null,
-     *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string
+     *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string, completeness?: string
      * }
      */
     public function toArray(): array
@@ -72,6 +86,8 @@ final readonly class DocumentRecord
             ...($this->notesDe === [] ? [] : ['notes' => $this->notesDe]),
             ...($this->papersCorrectionRequired === null ? [] : ['papersCorrectionRequired' => $this->papersCorrectionRequired]),
             ...($this->missingAnnexes === null ? [] : ['missingAnnexes' => $this->missingAnnexes]),
+            // Frozen with the verdict: what the answer rested on, as asserted that day.
+            ...($this->completeness === null ? [] : ['completeness' => $this->completeness]),
         ];
     }
 
@@ -85,7 +101,7 @@ final readonly class DocumentRecord
      * @param array{
      *     id: string|int, kind: string, number: string|null, revision: int,
      *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
-     *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null
+     *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null, completeness?: string|null
      * } $data
      */
     public static function fromArray(array $data): self
@@ -104,6 +120,7 @@ final readonly class DocumentRecord
             notesDe: $data['notes'] ?? [],
             papersCorrectionRequired: $data['papersCorrectionRequired'] ?? null,
             missingAnnexes: $data['missingAnnexes'] ?? null,
+            completeness: $data['completeness'] ?? null,
         );
     }
 }

@@ -1,0 +1,16 @@
+# LAUF — the run to the end, 15.10.2026
+
+For the operator. Appended as I work, never rewritten (your brief „FINISH IT“ §3). One line each: a decision the briefs
+did not already make, with its reason; a skipped test, with why; a finding, with its number and severity; the gate's
+start and end; the deploy; each batch. Times are Karachi time.
+
+## Log
+
+- 15.10. 13:10 — `main` (`d46677c7` + `6dd99192`) merged into `public-round` (`9721a24d`). The one conflict was ProtokollTest: both sides had added the take-back case; it stands once, beside the branch's completeness case. That is the known red of the stopped gate (D-225's test), resolved.
+- 15.10. 13:40 — **Decision (D-237):** the Blog's third guide is a go-live check, `ratgeber-dokumentarten` (Recht am Rad, bei uns), not a loose draft: it names the Kanzlei, stays on WAS-FEHLT until the article is published, whether the draft exists or not. The Blog index and the homepage already show two articles as equals, with no slot, no count, no „weitere folgen“ — nothing to change there.
+- 15.10. 14:20 — **Finding 131, S1:** an order a real person places for the acceptance set's wheel counted as demonstration data, and the order page opens demonstration data to anyone holding its number. Reproduced locally (a stranger got 200 instead of 404). Preview read 14:25: 3 real orders, none on a demo wheel — nothing disclosed. First fix (`5813c942`) keyed on demo-ness; being replaced by provenance (your brief „GO-AND-KEEP-GOING“ §1).
+- 15.10. 14:30 — The machine had restarted overnight: MariaDB :3308 and MySQL 8.4 :3307 started again. No line otherwise.
+- 15.10. 15:45 — The briefs' contradiction (THE-34 §1.3 „buy from with the test payment“ against RUN-TO-THE-END §2.3 „the checkout refuses“) is resolved by your GO §2: refused on production only; elsewhere the order is born demo. The watermark and `demo:assert-clean` on documents (FOUR-ANSWERS §3) are not in GO §2's text; I build them anyway — the narrower, safer reading.
+- 15.10. 16:10 — **Finding 131 fixed on provenance (D-238), replacing `5813c942`:** `orders.origin` (`checkout` by default, `seeded` only where a seeder writes it; a CHECK; fixed at insert by a trigger; existing seeded orders backfilled). One rule for the order page and its payment status (`OrderAccess`). „Is it demo?“ now only decides what the page says and which figures count it.
+- 15.10. 16:10 — **Two readings of your sentence, the broader kept:** „requires its signed link — always“ read literally would also shut out the browser that placed the order and the account it was placed under; both are proofs no stranger holds, and the literal reading would rebuild Stripe's return to the shop (its return address carries no signature) days before your client tests a purchase. Kept: signed link, placing browser, owning account — never the number. GUESSABLE-URLS.md says so in your sentence with one parenthesis.
+- 15.10. 18:05 — Before the gate, the whole Pest suite in parallel (no coverage) on the branch: 6 failures of 2.634, three causes, all fixed and re-run green — a PDF found missing was remembered as missing for ten minutes, so an uploaded one kept showing „fehlt“ (cached only when found now); a test still expected „18 Zoll“ with a plain space (R-10's helper writes a no-break space); a test still expected the old annex sentence (yours of D-227 is in force).

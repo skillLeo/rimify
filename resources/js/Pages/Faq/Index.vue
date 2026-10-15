@@ -55,12 +55,12 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
 </script>
 
 <template>
-    <Head title="Meistgestellte Fragen" />
+    <Head title="Häufige Fragen" />
 
     <section class="section-dense">
         <div class="wrap faq">
             <div class="faq__main">
-                <h1 class="t-h1">Meistgestellte Fragen</h1>
+                <h1 class="t-h1">Häufige Fragen</h1>
 
                 <form class="faq__search" role="search" @submit.prevent>
                     <label class="visually-hidden" for="faq-q">Fragen durchsuchen</label>
@@ -133,7 +133,7 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
                     </li>
                     <li>
                         <!-- The address, to read and copy; the link opens the contact form (#26). -->
-                        <Link class="faq__way" :href="contactHref({ subject: 'Frage aus den FAQ', from: '/faq' })">
+                        <Link class="faq__way" :href="contactHref({ subject: 'Meine Frage ist nicht dabei', from: '/faq' })">
                             <Icon name="mail" :size="20" />
                             <span>
                                 <span class="faq__way-value">{{ contact.email }}</span>
@@ -145,7 +145,7 @@ const waHref = computed(() => `https://wa.me/${(props.contact.whatsapp ?? '').re
 
                 <hr class="hr faq__rule">
 
-                <p class="faq__promo">Kompatibilität sofort prüfen</p>
+                <p class="faq__promo">Eine bestimmte Felge prüfen</p>
                 <Link href="/rimify-check" class="btn btn--secondary btn--block">RIMIFY-Check öffnen</Link>
             </aside>
         </div>

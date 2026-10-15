@@ -1,7 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { felgen } from '../../format'
+import { modelle } from '../../format'
 import type { StartseiteProps } from '../../types/pages'
 import type { VehicleProp } from '../../types/rimify'
 
@@ -104,7 +104,7 @@ describe('FindFast — Nach Marke on the desktop document', () => {
         for (const link of wrapper.findAll('#h6 .brand-wall a')) {
             expect(link.attributes('aria-label')).toBeUndefined()
         }
-        expect(links[0]?.find('.brand-cell__count').text()).toBe(felgen(18))
+        expect(links[0]?.find('.brand-cell__count').text()).toBe(modelle(18))
     })
 
     it('keeps the heading, its id and the top margin of the wall', () => {
@@ -133,8 +133,8 @@ describe('FindFast — Nach Marke on the desktop document', () => {
         expect(cells[1]?.classes()).toContain('brand-cell--none')
         expect(cells[1]?.attributes('href')).toBeUndefined()
         expect(cells[1]?.find('.brand-cell__count').exists()).toBe(false)
-        expect(cells[1]?.text()).toContain('Noch keine Felgen auf Lager')
-        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
+        expect(cells[1]?.text()).toContain('Zurzeit keine Felgen lieferbar')
+        expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine lieferbaren Felgen.')
     })
 
     it('renders no brand row at all without brands', () => {

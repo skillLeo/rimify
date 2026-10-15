@@ -2,7 +2,7 @@
 /**
  * H2 — the vehicle selector in the hero panel (desktop document, ≥ 768).
  *
- * Three ways in, as three tabs: Marke → Modell → Fahrzeug through type-to-filter comboboxes, the
+ * Three ways in, as three tabs: Marke → Modell → Variante through type-to-filter comboboxes, the
  * two key numbers off the Zulassungsbescheinigung, and a photo of that document read on the
  * customer's own device. Whichever way, the panel shows — before anything is submitted — how many
  * wheels carry a Gutachten for the car (F1), and the primary button repeats that number.
@@ -94,7 +94,7 @@ const emptyHref = computed(() => contactHref({ subject: 'Mein Fahrzeug ist nicht
 const id = useId()
 const tab = ref<Tab>('marke')
 
-/* ── Marke → Modell → Fahrzeug ───────────────────────────────────────────────── */
+/* ── Marke → Modell → Variante ───────────────────────────────────────────────── */
 
 const make = ref<string | undefined>(undefined)
 const model = ref<string | undefined>(undefined)
@@ -393,7 +393,7 @@ const waitingWhy = computed(() => {
         return 'Noch kein Fahrzeug gewählt: Scanne zuerst deinen Fahrzeugschein.'
     }
 
-    return 'Noch kein Fahrzeug gewählt: Wähl zuerst Marke, Modell und Fahrzeug.'
+    return 'Noch kein Fahrzeug gewählt: Wähle zuerst Marke, Modell und Variante.'
 })
 
 /* A field that can take focus now: a list still loading leaves its field disabled, and focus would go nowhere. */
@@ -646,7 +646,7 @@ onBeforeUnmount(() => treeController?.abort())
                 <!-- The three panels share one cell, the inactive ones invisible: the panel is always as tall as its
                      tallest, so changing the tab moves nothing below it (the client's #7, D-112). -->
                 <div class="sel__panels">
-                    <!-- Marke → Modell → Fahrzeug -->
+                    <!-- Marke → Modell → Variante -->
                     <TabsContent value="marke" class="tabs__content" force-mount>
                         <div class="sel__row sel__row--pair">
                             <div class="form-field">
@@ -720,7 +720,7 @@ onBeforeUnmount(() => treeController?.abort())
 
                         <div class="sel__row">
                             <div class="form-field">
-                                <label class="form-field__label" :for="`${id}-fahrzeug`">Fahrzeug</label>
+                                <label class="form-field__label" :for="`${id}-fahrzeug`">Variante</label>
                                 <ComboboxRoot
                                     v-model="variantId"
                                     class="sel__combo"
@@ -738,9 +738,9 @@ onBeforeUnmount(() => treeController?.abort())
                                             :display-value="variantDisplay"
                                         />
                                     </ComboboxAnchor>
-                                    <ComboboxContent class="popover sel__list" aria-label="Fahrzeuge">
+                                    <ComboboxContent class="popover sel__list" aria-label="Varianten">
                                         <ComboboxViewport class="sel__viewport">
-                                            <ComboboxEmpty class="sel__empty small muted">Kein Fahrzeug gefunden.</ComboboxEmpty>
+                                            <ComboboxEmpty class="sel__empty small muted">Keine Variante gefunden.</ComboboxEmpty>
                                             <ComboboxItem
                                                 v-for="v in variants"
                                                 :key="v.id"

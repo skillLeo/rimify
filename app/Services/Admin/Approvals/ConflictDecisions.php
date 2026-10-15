@@ -14,11 +14,10 @@ use App\Models\FitmentConflict;
 use App\Models\FitmentTyreSize;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Dashboard\Coverage;
+use App\Services\Storage\DocumentFiles;
 use App\Support\GermanFormat;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 /**
  * Gutachten › Konflikte (the corrections memo §3): where two current documents say different things about
@@ -174,7 +173,7 @@ final class ConflictDecisions
         $document = $row->approvalDocument;
         $defined = $document->conditions->keyBy('code');
         $sizes = $row->tyreSizes->map(static fn (FitmentTyreSize $s): string => GermanFormat::tyreSize($s->width_mm, $s->aspect, (float) $s->diameter_in).($s->axle->value === 'ALL' ? '' : ' ('.$s->axle->labelDe().')'))->all();
-        $conditions = $row->conditionCodes->map(static fn ($c): string => $c->code.' – '.($defined->get($c->code)->text_de ?? 'im Gutachten nicht definiert'))->all();
+        $conditions = $row->conditionCodes->map(static fn ($c): string => $c->code.' – '.($defined->get($c->code)->text_de ?? 'im Auflagenverzeichnis nicht hinterlegt'))->all();
 
         return [
             'documentId' => (int) $document->id,
@@ -195,9 +194,10 @@ final class ConflictDecisions
             return null;
         }
 
-        try {
-            $url = Storage::disk(GutachtenController::DISK)->url($document->pdf_key);
-        } catch (Throwable) {
+        // Where the file is (D-229), never where storage points now.
+        $url = app(DocumentFiles::class)->locate($document->pdf_key)['url'];
+
+        if ($url === null) {
             return null;
         }
 

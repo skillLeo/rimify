@@ -45,6 +45,7 @@ use Illuminate\Support\Facades\DB;
  * @property CarbonImmutable|null $shipped_at
  * @property CarbonImmutable|null $delivered_at recorded by the team („Zugestellt“); only then can its lines be reviewed
  * @property CarbonImmutable|null $review_invited_at when the review invitation went out, once
+ * @property string $origin `checkout` or `seeded` — how the order came about, fixed at insert (D-238)
  * @property-read Collection<int, OrderLine> $lines
  */
 #[ObservedBy(OrderAlertObserver::class)]
@@ -52,6 +53,12 @@ class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
     use HasFactory;
+
+    /** A person placed it through the checkout: it opens only with its proof, never by its number. */
+    public const ORIGIN_CHECKOUT = 'checkout';
+
+    /** A seeder wrote it: nobody is behind it, and it opens by number. */
+    public const ORIGIN_SEEDED = 'seeded';
 
     protected $fillable = [
         'order_number', 'customer_id', 'delivery_address_id', 'billing_address_id', 'status',
@@ -150,9 +157,18 @@ class Order extends Model
     }
 
     /**
-     * Seeded demonstration data: an order born demo (`is_demo`, DemoDashboardSeeder), or one with a
-     * wheel from a demo model (CommerceSeeder). A demo model can never be ordered (KasseController
-     * refuses it) and a real order can never be marked demo (R-12), so a real order never matches.
+     * Written by a seeder, with nobody behind it. Anything else — an order of unknown provenance included — came
+     * through the checkout and is protected: the rule fails closed (EIGENE-FUNDE 131).
+     */
+    public function seeded(): bool
+    {
+        return $this->getAttribute('origin') === self::ORIGIN_SEEDED;
+    }
+
+    /**
+     * Demonstration data: an order born demo (`is_demo`), or one with a wheel from a demo model. It
+     * says what an order is — shown as Demodaten, kept out of every real figure — and never who may
+     * open it: that is its provenance (`seeded()`, EIGENE-FUNDE 131).
      * The one rule, for the storefront's receipt and the admin alike.
      */
     public function isDemo(): bool

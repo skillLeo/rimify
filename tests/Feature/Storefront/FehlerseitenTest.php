@@ -46,7 +46,8 @@ it('reloads the page itself after a GET, and the page a form was sent from after
         ->assertInertia(fn (AssertableInertia $page) => $page->where('reloadHref', ''));
 
     $this->withoutMiddleware(ValidateCsrfToken::class)
-        ->withHeader('Referer', 'http://localhost/felgen/borbet-db8gt2?groesse=18')
+        // The shop's own address, whatever APP_URL names (the look-back, D-232).
+        ->withHeader('Referer', url('/felgen/borbet-db8gt2?groesse=18'))
         ->post('/__fehler/formular')
         ->assertStatus(500)
         ->assertInertia(fn (AssertableInertia $page) => $page->where('reloadHref', '/felgen/borbet-db8gt2?groesse=18'));

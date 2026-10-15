@@ -175,8 +175,12 @@ it('renders a product page with its finishes and configurations', function (): v
 it('renders an order with its frozen verdict per line', function (): void {
     $order = Order::query()->firstOrFail();
 
-    // A real order opens for the browser that placed it, or through a signed link.
-    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
+    // Written by a seeder, nobody behind it: it opens by number (D-238).
+    expect($order->seeded())->toBeTrue();
+    $this->get('/bestellung/'.$order->order_number)->assertOk();
+
+    // One that came through the checkout never does: its signed link, the browser that placed it or its account.
+    $this->get('/bestellung/'.Order::factory()->create()->order_number)->assertNotFound();
 
     $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))
         ->assertOk()

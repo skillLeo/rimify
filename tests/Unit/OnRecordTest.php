@@ -33,7 +33,7 @@ it('lets no sentence deny something of a Gutachten, a manufacturer or a document
         }
     }
 
-    expect($unlisted)->toBe([], "These sentences say what an external document does not contain or allow, and nothing says what backs them.\n"
+    expect($unlisted)->toBe([], "These sentences say what an external document does not contain or allow, or that we quote it whole or word for word, and nothing says what backs them.\n"
         ."Reword each to what is on record with us (\u{201E}bei uns hinterlegt\u{201C}, \u{201E}liegt uns vor\u{201C}), or list it in tests/Support/on-record-ledger.php with the field (R-17):\n  "
         .implode("\n  ", $unlisted));
 });
@@ -80,6 +80,31 @@ it('lets the same things be said as what is on record', function (string $senten
     ['Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor.'],
     ['Eine Auflage des Gutachtens ist bei uns noch nicht vollständig erfasst.'],
     ['Das Gutachten nennt dein Fahrzeug und diese Reifengröße.'],
+]);
+
+/*
+ * The other direction (the operator's brief of 14.10.2026 §9, D-236): the first pattern looks for a denial and cannot see
+ * „So steht es im Gutachten“ or „Wörtlich aus dem Gutachten“ — the two of finding 118. What we hold may be a part of the
+ * document, so a claim of wholeness or literalness needs a verdict just as a denial does.
+ */
+it('catches a claim that we hold a document whole, word for word, or always', function (string $sentence): void {
+    expect(OnRecord::asserts($sentence))->toBeTrue()
+        ->and(OnRecord::speaksOfOurRecord($sentence))->toBeFalse();
+})->with([
+    'finding 118, the heading' => ['So steht es im Gutachten.'],
+    'finding 118, the lede' => ['Wörtlich aus dem Gutachten.'],
+    'everything a document allows' => ['In der Felgenliste siehst du alles, was das Gutachten für dein Fahrzeug erlaubt.'],
+    'always' => ['Das Gutachten verlangt immer eine Abnahme.'],
+    'every one' => ['Sämtliche Auflagen des Gutachtens stehen hier.'],
+]);
+
+it('lets the same be said as what we hold, and does not trip on a word that merely starts like one', function (string $sentence): void {
+    expect(OnRecord::asserts($sentence) && ! OnRecord::speaksOfOurRecord($sentence))->toBeFalse();
+})->with([
+    ['Der bei uns hinterlegte Wortlaut des Gutachtens, ohne unsere Gliederung.'],
+    ['In der Felgenliste siehst du jede Felge, deren Freigabe für dein Fahrzeug bei uns hinterlegt ist.'],
+    ['Allerdings nennt das Gutachten eine Abnahme.'],
+    ['Allem voran nennt das Gutachten die Felgenbreite.'],
 ]);
 
 it('reads a sentence that wraps in a template, and skips what a customer never reads', function (): void {

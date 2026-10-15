@@ -32,7 +32,7 @@ import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { LINE_ROOM, countedDe, fitsWhole } from '../../fitment/auflagen'
-import { papersLines } from '../../fitment/papers'
+import { ABNAHME_REQUIRED, ENTRY_REQUIRED, papersLines } from '../../fitment/papers'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import { useBasket } from '../../composables/useBasket'
 import { priceTerms, totalNote } from '../../composables/usePriceTerms'
@@ -67,6 +67,24 @@ const touched = ref<string | null>(null)
 function chooseColour(key: string, colourId: number): void {
     touched.value = key
     basket.setWeightColour(key, colourId)
+}
+
+/*
+ * The papers are said once, in their own line above the Auflagen — as on the product page (FitmentPanel `said`): an
+ * Auflage that says the same words („Eintragung in die Fahrzeugpapiere erforderlich.“, A01 of the Mesh 20) is not
+ * printed a second time right under it, nor counted in „… Auflagen anzeigen“.
+ */
+function saidAbove(line: BasketLine): string[] {
+    const papers = papersLines(line.verdict)
+
+    return papers.length === 0 ? [] : [...papers, ENTRY_REQUIRED, ABNAHME_REQUIRED]
+}
+
+/** The Auflagen the line still has to say once the papers' line has spoken. */
+function auflagenOf(line: BasketLine): string[] {
+    const said = saidAbove(line)
+
+    return (line.verdict?.conditions ?? []).filter((condition) => !said.includes(condition))
 }
 
 /** The server's reasons why this line cannot be ordered as it stands — full sentences, empty when none. */
@@ -162,7 +180,7 @@ const VERDICT_TONE: Record<string, string> = {
                                 <!-- Mischbereifung (#20): one axle of a set the document pairs; both axles change together. -->
                                 <p v-if="line.mixed" class="bl__mixed">
                                     Mischbereifung – zusammen mit <span class="data">{{ line.mixed.partnerSize }}</span> auf der
-                                    {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}. Menge und Entfernen gelten für beide Achsen.
+                                    {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}. Anzahl und Entfernen gelten für beide Achsen.
                                     <template v-if="line.mixed.minLoadIndex !== null">
                                         Auf der {{ line.mixed.axleLabel }} mindestens Tragfähigkeitsindex {{ line.mixed.minLoadIndex }}
                                         und Geschwindigkeitsindex {{ line.mixed.minSpeedSymbol }}.
@@ -188,17 +206,17 @@ const VERDICT_TONE: Record<string, string> = {
                                      for its tyre. Where they are a Gutachten's paragraphs they unfold in place (D-197): the
                                      badge and the papers' line above stay in sight, and „Zur Kasse“ stays within reach. -->
                                 <component
-                                    :is="fitsWhole(line.verdict.conditions, LINE_ROOM) ? 'div' : 'details'"
-                                    v-if="line.verdict && line.verdict.conditions.length"
+                                    :is="fitsWhole(auflagenOf(line), LINE_ROOM) ? 'div' : 'details'"
+                                    v-if="line.verdict && auflagenOf(line).length"
                                     class="bl__auflagen"
                                     data-auflagen
                                 >
-                                    <summary v-if="!fitsWhole(line.verdict.conditions, LINE_ROOM)" class="bl__auflagen-toggle">
-                                        {{ countedDe(line.verdict.conditions.length, line.verdict.notesOnly === true) }} anzeigen
+                                    <summary v-if="!fitsWhole(auflagenOf(line), LINE_ROOM)" class="bl__auflagen-toggle">
+                                        {{ countedDe(auflagenOf(line).length, line.verdict.notesOnly === true) }} anzeigen
                                     </summary>
-                                    <ConditionGroups v-if="line.verdict.conditionGroups" class="bl__groups" :groups="line.verdict.conditionGroups" />
+                                    <ConditionGroups v-if="line.verdict.conditionGroups" class="bl__groups" :groups="line.verdict.conditionGroups" :omit="saidAbove(line)" />
                                     <ul v-else class="bl__conditions">
-                                        <li v-for="condition in line.verdict.conditions" :key="condition">
+                                        <li v-for="condition in auflagenOf(line)" :key="condition">
                                             {{ condition }}
                                         </li>
                                     </ul>
@@ -289,12 +307,12 @@ const VERDICT_TONE: Record<string, string> = {
                             </div>
 
                             <div class="bl__qty">
-                                <span class="visually-hidden" :id="`qty-${line.key}`">Menge</span>
+                                <span class="visually-hidden" :id="`qty-${line.key}`">Anzahl</span>
                                 <div class="bl__stepper" role="group" :aria-labelledby="`qty-${line.key}`">
                                     <button
                                         class="bl__step"
                                         type="button"
-                                        aria-label="Menge verringern"
+                                        aria-label="Anzahl verringern"
                                         :disabled="line.quantity <= 1"
                                         @click="basket.setQuantity(line.key, line.quantity - 1)"
                                     >
@@ -304,7 +322,7 @@ const VERDICT_TONE: Record<string, string> = {
                                     <button
                                         class="bl__step"
                                         type="button"
-                                        aria-label="Menge erhöhen"
+                                        aria-label="Anzahl erhöhen"
                                         :disabled="line.quantity >= 99"
                                         @click="basket.setQuantity(line.key, line.quantity + 1)"
                                     >

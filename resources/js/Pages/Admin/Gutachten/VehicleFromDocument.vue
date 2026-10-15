@@ -106,7 +106,7 @@ async function save(): Promise<void> {
 
         <form v-else class="vfd-form" novalidate aria-labelledby="vfd-h" @submit.prevent="save">
             <p id="vfd-h" class="vfd-title">Fahrzeug aus diesem Gutachten</p>
-            <p class="form-field__help">So, wie das Gutachten es nennt. HSN und TSN stehen in keinem Gutachten und bleiben leer; Achslasten und Höchstgeschwindigkeit ebenso – das Fahrzeug kommt „zur Prüfung“.</p>
+            <p class="form-field__help">So, wie das Gutachten es nennt. HSN, TSN, Achslasten und Höchstgeschwindigkeit bleiben hier leer – sie stehen in der Zulassungsbescheinigung, und das Fahrzeug kommt „zur Prüfung“.</p>
             <div class="vfd-grid">
                 <div class="form-field">
                     <label class="form-field__label" for="vfd-make">Hersteller</label>

@@ -255,7 +255,7 @@ const sensorLine = computed(() => {
     return isSet.value && rdks.value === 'ja' && tpms?.available && tpms.yesTotal ? `+ ${tpms.yesTotal} für ${tpms.quantity} RDKS-Sensoren` : null
 })
 
-/* `ab 965,00 € je Rad` on the Komplettrad choice: the server's lowest figure with the colour chosen, never one the page computed. */
+/* `ab 965,00 € pro Rad` on the Komplettrad choice: the server's lowest figure with the colour chosen, never one the page computed. */
 const setFrom = computed(() => {
     const priced = (offer.value?.tyres ?? []).map(
         (t) => t.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: t.perWheel, forFourCents: t.forFourCents }
@@ -406,7 +406,7 @@ const shownNote = computed(() => {
 
     const set = offer.value?.quantity ?? 4
 
-    return setPrice.value === null ? '' : `für ${set} Kompletträder, je Rad ${setPrice.value.perWheel}, ${terms.value.note}`
+    return setPrice.value === null ? '' : `für ${set} Kompletträder, pro Rad ${setPrice.value.perWheel}, ${terms.value.note}`
 })
 
 /* The server's refusal of an add, under whichever key it answered with: the tyre for a Komplettrad, the size for rims. */
@@ -432,7 +432,7 @@ const weight = computed(() => {
 
     return grams === null || grams === undefined
         ? null
-        : `${(grams / 1000).toFixed(1).replace('.', ',')} kg`
+        : withUnit(decimal(grams / 1000, 1), 'kg')
 })
 
 /* The sticky bar appears only once the main button has left the screen. */
@@ -747,7 +747,7 @@ claimBottomEdge(() => stickyShown.value)
                     </div>
                     <div class="spec__row">
                         <dt>Einpresstiefe (ET)</dt>
-                        <dd class="t-mono" translate="no">{{ selected.etMm }} mm</dd>
+                        <dd class="t-mono" translate="no">{{ withUnit(selected.etMm, 'mm') }}</dd>
                     </div>
                     <div v-if="hump" class="spec__row">
                         <dt>Hump</dt>
@@ -861,6 +861,8 @@ claimBottomEdge(() => stickyShown.value)
             <p class="price" translate="no">{{ shownPrice }}</p>
             <p v-if="isSet" class="price-note">für {{ offer?.quantity ?? 4 }} Kompletträder</p>
             <p v-else class="price-note">{{ amountPrice ? (amount === 1 ? 'für 1 Felge' : `für ${amount} Felgen`) : 'pro Felge' }}</p>
+            <!-- The PAngV line beside every price, the bar's too (the operator's brief of 14.10.2026 §8). -->
+            <p class="price-legal pdp__sticky-legal">{{ terms.note }}</p>
         </div>
         <button
             class="btn btn--primary pdp__sticky-btn"

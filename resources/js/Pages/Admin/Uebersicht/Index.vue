@@ -159,7 +159,7 @@ const VERDICT_SKELETON: VerdictChart = {
         { key: 'PERMITTED', label: 'Freigegeben' },
         { key: 'CONDITIONAL', label: 'Mit Auflagen' },
         { key: 'NOT_PERMITTED', label: 'Nicht freigegeben' },
-        { key: 'UNKNOWN', label: 'Unbekannt' },
+        { key: 'UNKNOWN', label: 'Noch nicht bestätigt' },
     ],
     weeks: [],
     since: null,
@@ -324,7 +324,7 @@ function cell(slot: Slot): Record<string, number> {
                         class="dash__cell"
                         :style="cell('verdicts')"
                         title="Ergebnisse der Prüfungen"
-                        :empty="charts.verdicts ? null : 'Der Shop zählt jede Prüfung einer Felge an einem Auto. Sobald Kundinnen und Kunden prüfen, zeigt sich hier je Woche, wie oft die Antwort freigegeben, mit Auflagen, nicht freigegeben oder unbekannt war.'"
+                        :empty="charts.verdicts ? null : 'Der Shop zählt jede Prüfung einer Felge an einem Auto. Sobald Kundinnen und Kunden prüfen, zeigt sich hier je Woche, wie oft die Antwort freigegeben, mit Auflagen, nicht freigegeben oder noch nicht bestätigt war.'"
                     >
                         <template v-if="charts.verdicts" #tools>
                             <ChartMenu

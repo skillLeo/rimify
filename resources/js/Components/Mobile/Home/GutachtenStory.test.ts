@@ -74,7 +74,7 @@ describe('GutachtenStory (phone)', () => {
     })
 
     it('formats the facts line in German and hides it when any count is zero or the stats are missing', () => {
-        expect(mountStory().find('.story__facts').text()).toBe('1.234 Gutachten · 56.789 Fahrzeugvarianten · 412 Felgen mit Gutachten')
+        expect(mountStory().find('.story__facts').text()).toBe('1.234 Gutachten · 56.789 Fahrzeugvarianten · 412 Felgenmodelle mit Gutachten')
         expect(mountStory({ stats: { gutachten: 12, variants: 0, wheels: 40, brands: 2 } }).find('.story__facts').exists()).toBe(false)
         expect(mountStory({ stats: null }).find('.story__facts').exists()).toBe(false)
     })

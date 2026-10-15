@@ -95,13 +95,13 @@ describe('FitmentCalculator (the form)', () => {
 
         const sets = wrapper.findAll('fieldset')
         expect(sets).toHaveLength(2)
-        expect(sets.map((s) => s.find('legend').text())).toEqual(['Aktuell', 'Neu'])
+        expect(sets.map((s) => s.find('legend').text())).toEqual(['Bisher', 'Neu'])
         expect(wrapper.find('.calc-row').exists()).toBe(true)
 
         const controls = wrapper.findAll('select, input[type="number"]')
         expect(controls).toHaveLength(10)
         expect(controls.slice(0, 5).map((c) => nameOf(wrapper, c.element as HTMLElement))).toEqual([
-            'Breite',
+            'Felgenbreite',
             'Durchmesser',
             'ET',
             'Reifenbreite',
@@ -119,7 +119,7 @@ describe('FitmentCalculator (the form)', () => {
         const table = wrapper.find('.calc-form__table')
 
         expect(table.attributes('role')).toBe('group')
-        expect(table.findAll('.calc-form__head').map((h) => h.text())).toEqual(['Aktuell', 'Neu'])
+        expect(table.findAll('.calc-form__head').map((h) => h.text())).toEqual(['Bisher', 'Neu'])
         expect(table.findAll('.calc-form__row-label').map((l) => l.text())).toEqual([
             'Felgenbreite',
             'Durchmesser',
@@ -132,15 +132,15 @@ describe('FitmentCalculator (the form)', () => {
 
         const names = wrapper.findAll('select, input[type="number"]').map((c) => nameOf(wrapper, c.element as HTMLElement))
         expect(names).toEqual([
-            'Felgenbreite Aktuell',
+            'Felgenbreite Bisher',
             'Felgenbreite Neu',
-            'Durchmesser Aktuell',
+            'Durchmesser Bisher',
             'Durchmesser Neu',
-            'Einpresstiefe (ET) Aktuell',
+            'Einpresstiefe (ET) Bisher',
             'Einpresstiefe (ET) Neu',
-            'Reifenbreite Aktuell',
+            'Reifenbreite Bisher',
             'Reifenbreite Neu',
-            'Querschnitt Aktuell',
+            'Querschnitt Bisher',
             'Querschnitt Neu',
         ])
     })
@@ -150,7 +150,7 @@ describe('FitmentCalculator (the form)', () => {
 
         expect(wrapper.find('.calc-form__table').exists()).toBe(false)
         const tabs = wrapper.findAll('[role="tab"]')
-        expect(tabs.map((t) => t.text())).toEqual(['Aktuell', 'Neu'])
+        expect(tabs.map((t) => t.text())).toEqual(['Bisher', 'Neu'])
 
         let controls = wrapper.findAll('select, input[type="number"]')
         expect(controls).toHaveLength(5)

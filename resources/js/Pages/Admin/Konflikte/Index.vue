@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Gutachten › Konflikte (the corrections memo §3) — every car and wheel two current documents disagree
- * about. The shop answers „Unbekannt“ there until a person decides: „beide gelten jeweils für sich“ (the
+ * about. The shop answers „Noch nicht bestätigt“ there until a person decides: „beide gelten jeweils für sich“ (the
  * shop names both and reads them together, the stricter way) or „nur Dokument X gilt“. Both sides stand
  * side by side, as each document says it, with the page to check it on. A decision needs its reason and
  * goes into the Protokoll.
@@ -140,7 +140,7 @@ function decide(pair: Pair): void {
 <template>
     <AdminPage title="Konflikte" :context="context">
         <p id="kf-title" class="adm-note kf-intro" tabindex="-1">
-            Hier widersprechen sich zwei gültige Gutachten zur selben Kombination aus Fahrzeug und Felge. Bis du entscheidest, sagt der Shop dort „Unbekannt“ – nie von sich aus das eine oder das andere.
+            Hier widersprechen sich zwei gültige Gutachten zur selben Kombination aus Fahrzeug und Felge. Bis du entscheidest, sagt der Shop dort „Noch nicht bestätigt“ – nie von sich aus das eine oder das andere.
         </p>
 
         <p v-if="orphaned" class="adm-alert" role="alert">{{ orphaned }}</p>

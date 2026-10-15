@@ -50,7 +50,8 @@ return new class extends Migration
     {
         return [
             'Woher weiß ich, ob eine Felge zu meinem Auto passt?' => ContentSeeder::FAQ_HOW_WE_KNOW,
-            ContentSeeder::FAQ_ENTRY_QUESTION => ContentSeeder::FAQ_ENTRY,
+            // The question as it was seeded then: the seeder's own closing quote became „…“ on 14.10.2026.
+            'Was bedeutet „Eintragung erforderlich"?' => ContentSeeder::FAQ_ENTRY,
             'Wo finde ich HSN und TSN in meinen Fahrzeugpapieren?' => ContentSeeder::FAQ_KEY_NUMBERS,
         ];
     }

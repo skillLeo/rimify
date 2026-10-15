@@ -55,7 +55,7 @@ it('keeps the test environment out of search, and lets every crawler into the li
     app()['env'] = 'production';
     $live = $this->get('/robots.txt')->assertOk();
 
-    expect($live->getContent())->toBe("User-agent: *\nDisallow:\n")
+    expect($live->getContent())->toBe("User-agent: *\nDisallow:\n\nSitemap: ".rtrim((string) config('app.url'), '/')."/sitemap.xml\n")
         ->and($live->headers->has('X-Robots-Tag'))->toBeFalse();
 });
 

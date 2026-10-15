@@ -12,6 +12,7 @@ use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\AuditDescriber;
+use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Artisan;
@@ -55,10 +56,23 @@ function releasableDraft(): ApprovalDocument
     return $draft->refresh();
 }
 
-/** @param  array<string, string>  $options */
+/**
+ * The declaration matches releasableDraft(): one size, no code, no limit, no Abnahme (D-227, D-228).
+ *
+ * @param  array<string, string>  $options
+ */
 function releaseOnInstruction(ApprovalDocument $document, array $options = []): int
 {
-    return Artisan::call('rimify:gutachten-freigeben', ['document' => $document->id, '--anweisung' => RELEASE_INSTRUCTION, '--konto' => 'super-admin@rimify.test', ...$options]);
+    return Artisan::call('rimify:gutachten-freigeben', [
+        'document' => $document->id,
+        '--anweisung' => RELEASE_INSTRUCTION,
+        '--konto' => 'super-admin@rimify.test',
+        '--erfasst' => 'alle',
+        '--codes' => '0',
+        '--groessen' => '1',
+        '--abnahme' => 'keine',
+        ...$options,
+    ]);
 }
 
 it('releases a draft on the written instruction and says so in the Protokoll, in words', function (): void {
@@ -104,6 +118,24 @@ it('releases nothing without the instruction in words, or for an account without
         ->and(Artisan::output())->toContain('Recht')
         ->and($draft->refresh()->status)->toBe(DocumentStatus::Draft)
         ->and(AuditLog::query()->where('description', 'approval.released')->count())->toBe(0);
+});
+
+it('releases nothing without the completeness answer, or on counts the entry does not match (D-227, D-228)', function (): void {
+    $draft = releasableDraft();
+
+    expect(releaseOnInstruction($draft, ['--erfasst' => '']))->toBe(1)
+        ->and(Artisan::output())->toContain('--erfasst=alle, teilweise oder unbekannt');
+
+    // The client's Teilegutachten as it was entered against what its Verwendungsbereich prints (brief of 14.10.2026, §4).
+    expect(releaseOnInstruction($draft, ['--groessen' => '3', '--codes' => '6', '--abnahme' => 'alle', '--achslast' => '1160']))->toBe(1);
+    $said = Artisan::output();
+
+    expect($said)->toContain('Auflagen-Codes für die erfassten Fahrzeuge laut Verwendungsbereich: 6, erfasst: 0.')
+        ->and($said)->toContain('Reifengrößen für die erfassten Fahrzeuge laut Verwendungsbereich: 3, erfasst: 1.')
+        ->and($said)->toContain('Der Verwendungsbereich begrenzt die Achslast auf '.GermanFormat::kilograms(1160).'.')
+        ->and($said)->toContain('trag höchstens '.GermanFormat::kilograms(580).' je Rad ein')
+        ->and($said)->toContain('Der Verwendungsbereich verlangt bei jeder Kombination eine Abnahme, aber bei einer Zeile fehlt sie.')
+        ->and($draft->refresh()->status)->toBe(DocumentStatus::Draft);
 });
 
 it('stops where the button stops, with the same sentences', function (): void {

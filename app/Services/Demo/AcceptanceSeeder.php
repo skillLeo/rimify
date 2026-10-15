@@ -6,6 +6,7 @@ namespace App\Services\Demo;
 
 use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Models\ApprovalDocument;
 use App\Models\BalanceWeightColour;
 use App\Models\TpmsSensorPrice;
 use App\Models\Vehicle;
@@ -362,6 +363,11 @@ final class AcceptanceSeeder
                 'pdf_key' => $pdfKey,
                 'pdf_sha256' => $document['pdf']['sha256'],
                 'status' => 'published',
+                // The set enters three cars of each real document, never the whole Verwendungsbereich: every other car
+                // is „noch nicht bestätigt“, never refused on its silence (D-227).
+                'completeness' => ApprovalDocument::PARTIAL,
+                'completeness_at' => now(),
+                'completeness_revision' => (int) ($row['revision'] ?? 1),
                 'is_demo' => true,
                 'demo_ref' => AcceptanceSet::PREFIX.'doc:'.$key,
                 'created_at' => now(),

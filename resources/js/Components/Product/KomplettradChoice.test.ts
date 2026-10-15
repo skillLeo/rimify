@@ -138,7 +138,7 @@ describe('KomplettradChoice', () => {
         const label = { fuel: 'B', wetGrip: 'A', noiseDb: 71, noiseClass: 'B', eprelId: '123456' }
         const wrapper = mountChoice(offer({ tyres: [tyre({ label })] }))
 
-        expect(wrapper.find('.kc-row__eu').text()).toBe('Kraftstoffeffizienz B · Nasshaftung A · 71 dB (B)')
+        expect(wrapper.find('.kc-row__eu').text()).toBe('Kraftstoffeffizienz B · Nasshaftung A · 71 dB (B)')
         expect(wrapper.find('a[href="https://eprel.ec.europa.eu/qr/123456"]').exists()).toBe(true)
 
         // A class the regulation does not know is never shown, nor "corrected".
@@ -188,7 +188,7 @@ describe('KomplettradChoice', () => {
 
         expect(colours.map((c) => c.find('.kc-swatch__name').text())).toEqual(['Silber', 'Schwarz'])
         expect(colours[0]!.find('.kc-swatch__price').text()).toBe('ohne Aufpreis')
-        expect(colours[1]!.find('.kc-swatch__price').text()).toBe('+ 5,00 € je Rad')
+        expect(colours[1]!.find('.kc-swatch__price').text()).toBe('+ 5,00 € pro Rad')
         expect(colours[0]!.classes()).toContain('kc-swatch--on')
 
         await colours[1]!.find('input').setValue()

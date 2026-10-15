@@ -154,13 +154,13 @@ it('renders each candidate row with the differing values and its VSN', function 
 
     expect($first['vsn'])->toBe('00001')
         ->and($second['vsn'])->toBe('00017')
-        ->and($first['values']['max_speed'])->toBe('280 km/h')
-        ->and($second['values']['max_speed'])->toBe('290 km/h')
+        ->and($first['values']['max_speed'])->toBe("280\u{00A0}km/h")
+        ->and($second['values']['max_speed'])->toBe("290\u{00A0}km/h")
         ->and($first['values']['build_period'])->toBe("03/2018\u{2013}11/2019")
         // Still in production — never a coerced end date.
         ->and($second['values']['build_period'])->toBe("12/2019\u{2013}heute")
-        ->and($first['values']['axle_load_front'])->toBe('1.210 kg')
-        ->and($second['values']['axle_load_front'])->toBe('1.225 kg');
+        ->and($first['values']['axle_load_front'])->toBe("1.210\u{00A0}kg")
+        ->and($second['values']['axle_load_front'])->toBe("1.225\u{00A0}kg");
 });
 
 it('shows every row the same set of keys, so the chooser is a real table', function (): void {

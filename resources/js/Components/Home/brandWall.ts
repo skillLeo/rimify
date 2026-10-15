@@ -136,29 +136,29 @@ export function isLinked(brand: Brand): boolean {
 }
 
 /** What a greyed cell says where its count would be. */
-export const NO_STOCK_LINE = 'Noch keine Felgen auf Lager'
+export const NO_STOCK_LINE = 'Zurzeit keine Felgen lieferbar'
 
 /** The closing cell's link text (§4.1). */
 export function closingLabel(vehicle: VehicleProp | null): string {
     return vehicle ? 'Passende Felgen anzeigen' : 'Alle Felgen ansehen'
 }
 
-const RULE = 'Nur Marken, von denen gerade Felgen auf Lager sind.'
+const RULE = 'Nur Marken, von denen gerade Felgen lieferbar sind.'
 
 /** The rule once the wall holds a greyed brand: the old sentence would no longer be true. */
-const RULE_WITH_GREYED = 'Ausgegraute Marken haben gerade keine Felgen auf Lager.'
+const RULE_WITH_GREYED = 'Ausgegraute Marken haben gerade keine lieferbaren Felgen.'
 
 /**
  * The note under the wall (§4.1). It states the wall's own rule — which sentence depends on
  * whether a greyed brand is on the wall (`someWithoutStock`), so the note is always true. With a
  * vehicle it adds that the counts are the brand's catalogue counts, because the size tiles right
- * above count only what fits — RIMIFY may not let a bare `18 Felgen` read as "18 fit my car"
+ * above count only what fits — RIMIFY may not let a bare `18 Modelle` read as "18 fit my car"
  * (CLAUDE.md §2).
  */
 export function noteText(vehicle: VehicleProp | null, someWithoutStock = false): string {
     const rule = someWithoutStock ? RULE_WITH_GREYED : RULE
 
     return vehicle
-        ? `${rule} Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für ${vehicle.short} freigegeben sind, zeigt dir die Liste.`
+        ? `${rule} Die Zahl zählt alle lieferbaren Modelle der Marke; welche davon für ${vehicle.short} freigegeben sind, zeigt dir die Liste.`
         : rule
 }

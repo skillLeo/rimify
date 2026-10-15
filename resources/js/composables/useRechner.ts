@@ -72,14 +72,14 @@ export interface Rechner {
     shareParam: ComputedRef<string>
     /** The full page, carrying the current comparison. */
     href: ComputedRef<string>
-    /** True while *Aktuell* holds the prefill; its fields then carry `data-prefilled`. */
+    /** True while *Bisher* holds the prefill; its fields then carry `data-prefilled`. */
     fromVehicle: Ref<boolean>
     /**
      * Always null, kept for compatibility only. The old homepage teaser wrapped it in "Serienbereifung",
      * which the prefill is not (finding C3); that teaser is gone (W5). Use `prefillLine`.
      */
     prefillNote: ComputedRef<string | null>
-    /** The sentence that says what *Aktuell* was prefilled with, or null when it was not (C3). */
+    /** The sentence that says what *Bisher* was prefilled with, or null when it was not (C3). */
     prefillLine: ComputedRef<string | null>
     /** `7,5J × 17 · ET 45 · 225/45 R17 · Ø rechnerisch 634 mm` per side; without the Ø when implausible. */
     summaries: ComputedRef<Record<Side, string>>
@@ -120,7 +120,7 @@ export function nextStep(s: WheelSetup): WheelSetup {
 
 /** What the prefill is, said plainly (C3): not the factory size, the smallest size a Gutachten names. */
 export function prefillSentence(vehicleShort: string): string {
-    return `Aktuell ist vorbelegt mit der kleinsten Größe, die ein Gutachten für ${vehicleShort} nennt – nicht unbedingt mit deiner heutigen Bereifung.`
+    return `„Bisher“ ist vorbelegt mit der kleinsten Größe, die ein Gutachten für ${vehicleShort} nennt – nicht unbedingt mit deiner heutigen Bereifung.`
 }
 
 export function useRechner(options: UseRechnerOptions): Rechner {

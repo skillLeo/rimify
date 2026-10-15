@@ -4,7 +4,7 @@
  * corrections memo §1). There is no catalogue shared between documents any more: `A01` of one Gutachten and
  * `A01` of another are two entries, each with its own sentence. A list is written on its Gutachten, while it
  * is a draft; this page only shows them — and the codes a document's rows carry that it does not define,
- * which keep those rows „Unbekannt“ and the document unreleased.
+ * which keep those rows „Noch nicht bestätigt“ and the document unreleased.
  */
 
 import { Link } from '@inertiajs/vue3'
@@ -76,7 +76,7 @@ function parameter(c: DocumentConditionView): string {
             </div>
 
             <p v-if="doc.unresolved.length" class="adm-alert" role="status">
-                Nicht im Auflagenverzeichnis: {{ doc.unresolved.map((u) => `${u.code} (${u.rows === 1 ? '1 Zeile' : `${decimal(u.rows, 0)} Zeilen`})`).join(', ') }}. Diese Zeilen bleiben „Unbekannt“, bis der Code dort steht.
+                Nicht im Auflagenverzeichnis: {{ doc.unresolved.map((u) => `${u.code} (${u.rows === 1 ? '1 Zeile' : `${decimal(u.rows, 0)} Zeilen`})`).join(', ') }}. Diese Zeilen bleiben „Noch nicht bestätigt“, bis der Code dort steht.
             </p>
 
             <div v-if="doc.conditions.length" class="adm-panel">

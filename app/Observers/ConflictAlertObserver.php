@@ -31,9 +31,9 @@ class ConflictAlertObserver implements ShouldHandleEventsAfterCommit
         $vehicle = self::vehicle($conflict);
         $wheel = self::wheel($conflict);
 
-        // Until someone decides, the shop answers „Unbekannt“ where the documents' answers differ
+        // Until someone decides, the shop answers „Noch nicht bestätigt“ where the documents' answers differ
         // (the corrections memo §3) — never the stricter one by itself.
-        $until = ' Bis jemand unter Konflikte entscheidet, sagt der Shop dazu „Unbekannt“.';
+        $until = ' Bis jemand unter Konflikte entscheidet, sagt der Shop dazu „Noch nicht bestätigt“.';
         $disagreement = match ($conflict->kind) {
             ConflictKind::EntryRequirement => 'Eines verlangt eine Eintragung, das andere nicht.'.$until,
             ConflictKind::TyreSizes => 'Sie nennen verschiedene Reifengrößen.'.$until,

@@ -13,6 +13,7 @@ use App\Models\CustomerAccount;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
+use App\Services\Commerce\OrderAccess;
 use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
@@ -30,8 +31,10 @@ use Throwable;
  * receipt for what they were told, and re-deriving it would mean the page could one day disagree
  * with the email they were sent.
  *
- * An order number counts up, so it is no secret: a real order is shown only to the browser that
- * placed it, or through a signed link. Anyone else gets the same 404 as an order that does not exist.
+ * An order number counts up, so it is no secret: an order that came through the checkout is shown
+ * only through its signed link, to the browser that placed it, or to the account it was placed
+ * under — whatever it contains (OrderAccess). Anyone else gets the same 404 as an order that does
+ * not exist. Only an order a seeder wrote opens by number.
  */
 class BestellungController extends Controller
 {
@@ -54,13 +57,11 @@ class BestellungController extends Controller
             ->where('order_number', $order)
             ->firstOrFail();
 
+        // Provenance, never content, decides who sees it (OrderAccess, EIGENE-FUNDE 131).
+        abort_unless(OrderAccess::allows($request, $record), 404);
+
         $demo = $record->isDemo();
         $placed = $request->session()->get(self::SESSION_PLACED);
-
-        abort_unless(
-            $demo || $request->hasValidSignature() || (is_array($placed) && in_array($record->order_number, $placed, true)) || self::ownedBySignedIn($request, $record),
-            404,
-        );
 
         // Stripe sends the customer back here with `redirect_status`; the address alone pays nothing — only the
         // signed webhook does (ProcessPaymentEvent). The basket empties once the order IS paid.
@@ -140,14 +141,6 @@ class BestellungController extends Controller
         $invoice = Invoice::query()->where('order_id', $order->id)->where('kind', Invoice::INVOICE)->first();
 
         return $invoice === null ? null : ['number' => $invoice->number, 'href' => Invoices::link($invoice)];
-    }
-
-    /** A signed-in customer sees every order placed under the account's address (Mein Konto). */
-    private static function ownedBySignedIn(Request $request, Order $order): bool
-    {
-        $account = $request->user('customer');
-
-        return $account instanceof CustomerAccount && mb_strtolower((string) $order->customer?->email) === $account->email;
     }
 
     /**

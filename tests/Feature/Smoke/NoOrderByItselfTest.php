@@ -28,3 +28,24 @@ it('is not asked for an order by the release script, and names the switch in its
 
     $this->artisan('rimify:smoke', ['--help' => true])->expectsOutputToContain('--testbestellung')->assertSuccessful();
 });
+
+it('finds the order button where a smoke that may not order can see it: in the checkout the release ships', function (): void {
+    $dir = sys_get_temp_dir().'/rimify-smoke-build-'.bin2hex(random_bytes(4));
+    mkdir($dir.'/assets', 0777, true);
+    file_put_contents($dir.'/manifest.json', json_encode(['resources/js/Pages/Kasse/Index.vue' => ['file' => 'assets/Kasse-abc.js']]));
+
+    try {
+        file_put_contents($dir.'/assets/Kasse-abc.js', 'const t="Zahlungspflichtig bestellen";');
+        expect(Smoke::orderButtonShips($dir))->toBeTrue();
+
+        // A checkout whose button says anything else — or a build without the page — fails the row (§ 312j BGB).
+        file_put_contents($dir.'/assets/Kasse-abc.js', 'const t="Jetzt kaufen";');
+        expect(Smoke::orderButtonShips($dir))->toBeFalse()
+            ->and(Smoke::orderButtonShips($dir.'/nirgends'))->toBeFalse();
+    } finally {
+        @unlink($dir.'/assets/Kasse-abc.js');
+        @unlink($dir.'/manifest.json');
+        @rmdir($dir.'/assets');
+        @rmdir($dir);
+    }
+});

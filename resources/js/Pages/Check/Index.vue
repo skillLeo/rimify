@@ -244,10 +244,10 @@ const shownPrice = computed(() => (isSet.value ? setPrice.value?.forFour ?? null
 
 const shownNote = computed(() => {
     if (isSet.value) {
-        return setPrice.value === null ? '' : `für ${offer.value?.quantity ?? 4} Kompletträder, je Rad ${setPrice.value.perWheel}, ${terms.value.note}`
+        return setPrice.value === null ? '' : `für ${offer.value?.quantity ?? 4} Kompletträder, pro Rad ${setPrice.value.perWheel}, ${terms.value.note}`
     }
 
-    return rimAmount.value === 1 ? `für 1 Felge, ${terms.value.note}` : `für ${rimAmount.value} Felgen, je ${config.value?.price ?? ''}, ${terms.value.note}`
+    return rimAmount.value === 1 ? `für 1 Felge, ${terms.value.note}` : `für ${rimAmount.value} Felgen, pro Felge ${config.value?.price ?? ''}, ${terms.value.note}`
 })
 
 const sensorLine = computed(() => {
@@ -417,7 +417,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
     },
     {
         status: 'UNKNOWN',
-        text: 'Für diese Kombination liegt uns kein Gutachten vor. Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir nicht belegen können, dass sie zulässig ist.',
+        text: 'Für diese Kombination liegt uns kein Gutachten vor, oder dein Fahrzeug ist darin bei uns noch nicht erfasst. Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir noch nicht belegen können, dass sie zulässig ist.',
     },
 ]
 </script>
@@ -427,9 +427,9 @@ const STATES: { status: VerdictStatus; text: string }[] = [
 
     <section class="section-dense">
         <div class="container chk">
-            <h1 class="t-h1">Passt diese Felge auf mein Auto?</h1>
+            <h1 class="t-h1">Darf diese Felge an mein Auto?</h1>
             <p class="t-lead chk__lead">
-                Wähl dein Auto und die Felge. Du bekommst eine Antwort für genau diese Kombination – mit dem Gutachten, seinen
+                Wähle dein Auto und die Felge. Du bekommst eine Antwort für genau diese Kombination – mit dem Gutachten, seinen
                 Auflagen und der Seite, auf der das steht.
             </p>
 
@@ -519,7 +519,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                     <!-- A shared link that outlived its wheel or its size: said, with the way on. -->
                     <p v-if="notFound" class="notice chk__lost" role="status">
                         <Icon name="info" :size="20" />
-                        <span>{{ notFound === 'wheel' ? 'Die Felge aus dem Link gibt es bei uns nicht mehr. Wähl einen Hersteller und eine andere Felge.' : 'Diese Felge gibt es in der Größe aus dem Link nicht mehr. Wähl oben eine andere Größe.' }}</span>
+                        <span>{{ notFound === 'wheel' ? 'Die Felge aus dem Link gibt es bei uns nicht mehr. Wähle einen Hersteller und eine andere Felge.' : 'Diese Felge gibt es in der Größe aus dem Link nicht mehr. Wähle oben eine andere Größe.' }}</span>
                     </p>
                 </section>
             </div>
@@ -620,7 +620,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
 
             <p v-else-if="chosen.size && !vehicle" class="notice chk__ask">
                 <Icon name="info" :size="20" />
-                <span>Wähl oben dein Auto – dann prüfen wir genau diese Felge dafür.</span>
+                <span>Wähle oben dein Auto – dann prüfen wir genau diese Felge dafür.</span>
             </p>
         </div>
     </section>

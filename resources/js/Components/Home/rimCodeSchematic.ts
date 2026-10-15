@@ -4,7 +4,7 @@
  * Schematic and not to scale — the proportions are chosen so every term can be read — but the
  * definitions it illustrates are exact (ISO 3911 / ETRTO, `accuracy-research-motec.md` §3 (d)):
  *
- * - **Maulweite** runs between the INNER faces of the two flanges (Felgenhörner);
+ * - **Felgenbreite** (the Maulweite) runs between the INNER faces of the two flanges (Felgenhörner);
  * - **Felgendurchmesser** is taken at the bead seats (Wulstsitz), where the tyre bead sits, not at
  *   the flange — in a half-section that is a radius from the axis, labelled as half the diameter;
  * - the **rim centre plane** (Felgenmitte) lies exactly halfway between the flange inner faces;
@@ -126,7 +126,7 @@ export const DIMENSIONS: Record<SchematicKey, SchematicDimension> = {
         ext: `M ${S.xFlangeIn} 50 L ${S.xFlangeIn} 28 M ${S.xFlangeOut} 50 L ${S.xFlangeOut} 28`,
         line: `M ${S.xFlangeIn} 32 L ${S.xFlangeOut} 32`,
         ticks: ticks(S.xFlangeIn, 32, S.xFlangeOut, 32),
-        label: { text: 'Maulweite', x: S.xCentre, y: 24, anchor: 'middle' },
+        label: { text: 'Felgenbreite', x: S.xCentre, y: 24, anchor: 'middle' },
         faces: `M ${S.xFlangeIn} 54 L ${S.xFlangeIn} ${S.yBeadSeat} M ${S.xFlangeOut} 54 L ${S.xFlangeOut} ${S.yBeadSeat}`,
     },
     // From the axis up to the bead seat — a radius, so it is labelled as half the diameter.

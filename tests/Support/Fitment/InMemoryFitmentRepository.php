@@ -90,7 +90,7 @@ final class InMemoryFitmentRepository implements FitmentRepository
         $incomplete = [];
 
         foreach ($this->rows as $row) {
-            if ($row->document->missingAnnexes !== null && in_array($row->wheelConfigId, $wheelConfigIds, true)) {
+            if (! $row->document->assertedComplete() && in_array($row->wheelConfigId, $wheelConfigIds, true)) {
                 $incomplete[$row->wheelConfigId] ??= $row->document;
             }
         }

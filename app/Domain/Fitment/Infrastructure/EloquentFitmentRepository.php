@@ -141,7 +141,8 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         $rows = Fitment::query()
             ->with(['approvalDocument.speedDeratings', 'approvalDocument.supplementTo'])
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
-            ->whereHas('approvalDocument', static fn (Builder $q) => $q->whereNotNull('missing_annexes')->where('missing_annexes', '<>', ''))
+            // Incomplete until a person asserted otherwise (EIGENE-FUNDE 119, D-227): unanswered reads as partial.
+            ->whereHas('approvalDocument', static fn (Builder $q) => $q->where(static fn (Builder $w) => $w->whereNull('completeness')->orWhere('completeness', '<>', ApprovalDocument::COMPLETE)))
             ->tap($this->visible(...))
             ->orderBy('fitments.id')
             ->get(['fitments.id', 'fitments.wheel_config_id', 'fitments.approval_document_id']);
@@ -390,6 +391,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             speedDerating: self::speedDerating($document),
             papersCorrectionRequired: $document->papersCorrectionRequired(),
             missingAnnexes: $document->missing_annexes === null || trim($document->missing_annexes) === '' ? null : trim($document->missing_annexes),
+            completeness: $document->completeness,
         );
     }
 

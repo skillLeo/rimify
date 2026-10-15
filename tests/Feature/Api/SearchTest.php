@@ -47,7 +47,8 @@ it('reads a size however the customer spells it', function (string $q): void {
 
     $sizes = collect($response->json('groups'))->firstWhere('key', 'groessen');
 
-    expect($sizes['items'][0]['label'])->toBe('18 Zoll')
+    // The unit through the one helper, with its no-break space (R-10, the copy points of 14.10.2026).
+    expect($sizes['items'][0]['label'])->toBe("18\u{00A0}Zoll")
         ->and($sizes['items'][0]['href'])->toBe('/felgen?zoll=18');
 })->with(['18', '18 Zoll', '18″', '18zoll']);
 

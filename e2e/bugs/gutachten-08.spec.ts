@@ -91,7 +91,8 @@ test('GUTACHTEN-08b after „Freigeben" from the keyboard the focus stays on the
     );
 
     await openAsDraft(page, id);
-    await confirmFromKeyboard(page, '.adm-page__actions button.btn--primary', 'Gutachten freigeben?', 'Freigeben');
+    // The dialog asks what the release needs since D-227/D-228; the Freigabe is answered above, whatever is filled in.
+    await confirmFromKeyboard(page, '.adm-page__actions button.btn--primary', 'Gutachten freigeben', 'Freigeben');
 
     await expect(page.locator('.adm-page__actions').getByRole('button', { name: 'Freigeben' })).toHaveCount(0);
 

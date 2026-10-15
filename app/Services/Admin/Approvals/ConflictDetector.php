@@ -152,7 +152,7 @@ final class ConflictDetector
     {
         $defined = $row->approvalDocument?->conditions->keyBy('code');
         $codes = $row->conditionCodes
-            ->map(static fn ($c): string => $c->code.' – '.($defined?->get($c->code)->text_de ?? 'im Gutachten nicht definiert'))
+            ->map(static fn ($c): string => $c->code.' – '.($defined?->get($c->code)->text_de ?? 'im Auflagenverzeichnis nicht hinterlegt'))
             ->all();
         sort($codes);
 

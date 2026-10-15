@@ -11,7 +11,7 @@ import { renderToString } from '@vue/server-renderer'
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSSRApp, defineComponent, h, nextTick } from 'vue'
-import { felgen } from '../../format'
+import { modelle } from '../../format'
 import type { VehicleProp } from '../../types/rimify'
 import type { Brand } from './brandWall'
 
@@ -202,7 +202,7 @@ describe('BrandWall — marks and wordmarks', () => {
         expect(cssVar(mark, '--logo-url')).toContain(LOGO)
         expect(link.find('.brand-cell__name').exists()).toBe(false)
         expect(link.find('.visually-hidden').text()).toBe('MOTEC')
-        expect(accessibleName(link)).toBe(`MOTEC ${felgen(18)}`)
+        expect(accessibleName(link)).toBe(`MOTEC ${modelle(18)}`)
         expect(wrapper.find('img').exists()).toBe(false)
     })
 
@@ -226,7 +226,7 @@ describe('BrandWall — marks and wordmarks', () => {
             expect(link.find('.brand-cell__mark').exists()).toBe(false)
             expect(link.find('.brand-cell__name').text()).toBe('MOTEC')
             expect(link.find('.brand-cell__name').attributes('data-len')).toBe('s')
-            expect(accessibleName(link)).toBe(`MOTEC ${felgen(18)}`)
+            expect(accessibleName(link)).toBe(`MOTEC ${modelle(18)}`)
         }
     })
 
@@ -237,11 +237,11 @@ describe('BrandWall — marks and wordmarks', () => {
         expect(names.map((n) => n.attributes('data-len'))).toEqual(['m', 'l'])
     })
 
-    it('shows every count through felgen(), tabular', () => {
+    it('shows every count through modelle(), tabular', () => {
         const wrapper = mountWall([brand({ count: 1 }), brand({ name: 'BBS', slug: 'bbs', count: 1234 })])
         const counts = wrapper.findAll('.brand-cell__count')
 
-        expect(counts.map((c) => c.text())).toEqual([felgen(1), felgen(1234)])
+        expect(counts.map((c) => c.text())).toEqual([modelle(1), modelle(1234)])
         for (const count of counts) {
             expect(count.classes()).toContain('num')
         }
@@ -260,7 +260,7 @@ describe('BrandWall — the sample range', () => {
         expect(sample?.find('.brand-cell__sample').text()).toBe(`Beispiel${SOFT_HYPHEN}sortiment`)
         expect(sample?.find('.brand-cell__mark').exists()).toBe(false)
         expect(sample?.find('.brand-cell__name').exists()).toBe(false)
-        expect(sample ? accessibleName(sample) : '').toBe(`Beispiel${SOFT_HYPHEN}sortiment (Demo) ${felgen(20)}`)
+        expect(sample ? accessibleName(sample) : '').toBe(`Beispiel${SOFT_HYPHEN}sortiment (Demo) ${modelle(20)}`)
         // The sample range is not probed: it never draws a logo.
         expect(FakeImage.made).toHaveLength(0)
     })
@@ -275,7 +275,7 @@ describe('BrandWall — the closing cell and the note', () => {
         expect(closing.attributes('data-kind')).toBe('all')
         expect(accessibleName(closing)).toBe('Alle Felgen ansehen')
         expect(closing.find('svg').attributes('aria-hidden')).toBe('true')
-        expect(wrapper.find('.brand-wall__note').text()).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
+        expect(wrapper.find('.brand-wall__note').text()).toBe('Nur Marken, von denen gerade Felgen lieferbar sind.')
     })
 
     it('with a vehicle: the fitting list, and the counts named as the whole stock', () => {
@@ -283,17 +283,17 @@ describe('BrandWall — the closing cell and the note', () => {
 
         expect(accessibleName(wrapper.find('a.brand-cell--all'))).toBe('Passende Felgen anzeigen')
         expect(wrapper.find('.brand-wall__note').text()).toBe(
-            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
+            'Nur Marken, von denen gerade Felgen lieferbar sind. Die Zahl zählt alle lieferbaren Modelle der Marke; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
         )
         // Counts do not change with a vehicle.
-        expect(wrapper.find('.brand-cell__count').text()).toBe(felgen(18))
+        expect(wrapper.find('.brand-cell__count').text()).toBe(modelle(18))
     })
 })
 
 describe('BrandWall — a brand without stock: greyed, in place, not a link', () => {
     const bare = brand({ name: 'BBS', slug: 'bbs', count: 0, href: null })
     const bareWithLogo = brand({ name: 'BBS', slug: 'bbs', logo: '/images/brands/bbs.svg', logoAspect: 4, count: 0, href: null })
-    const GREYED_RULE = 'Ausgegraute Marken haben gerade keine Felgen auf Lager.'
+    const GREYED_RULE = 'Ausgegraute Marken haben gerade keine lieferbaren Felgen.'
 
     it('renders the cell as a span — no link, no count — and says why where the count would be', () => {
         const wrapper = mountWall([brand(), bare, demo])
@@ -311,13 +311,13 @@ describe('BrandWall — a brand without stock: greyed, in place, not a link', ()
         expect(cell?.attributes('data-kind')).toBe('name')
         expect(cell?.find('.brand-cell__name').text()).toBe('BBS')
         expect(cell?.find('.brand-cell__count').exists()).toBe(false)
-        expect(cell?.find('.brand-cell__none').text()).toBe('Noch keine Felgen auf Lager')
+        expect(cell?.find('.brand-cell__none').text()).toBe('Zurzeit keine Felgen lieferbar')
         expect(cell?.find('.brand-cell__none').classes()).toContain('small')
         // What a reader gets: the name, then the sentence — the shape of a linked cell's name.
-        expect(cell ? accessibleName(cell) : '').toBe('BBS Noch keine Felgen auf Lager')
+        expect(cell ? accessibleName(cell) : '').toBe('BBS Zurzeit keine Felgen lieferbar')
         // The stocked neighbours are untouched.
         expect(items[0]?.findAll('a')).toHaveLength(1)
-        expect(items[0]?.find('.brand-cell__count').text()).toBe(felgen(18))
+        expect(items[0]?.find('.brand-cell__count').text()).toBe(modelle(18))
         expect(items[2]?.find('a').attributes('data-kind')).toBe('sample')
     })
 
@@ -332,7 +332,7 @@ describe('BrandWall — a brand without stock: greyed, in place, not a link', ()
         expect(cssVar(mark, '--logo-aspect')).toBe('4.000')
         expect(cssVar(mark, '--logo-url')).toContain('/images/brands/bbs.svg')
         expect(cell.find('.visually-hidden').text()).toBe('BBS')
-        expect(accessibleName(cell)).toBe('BBS Noch keine Felgen auf Lager')
+        expect(accessibleName(cell)).toBe('BBS Zurzeit keine Felgen lieferbar')
         // The fill is a scoped rule, so the stylesheet is the proof: ink-3 for a greyed mark, name and label.
         expect(SOURCE).toMatch(/\.brand-cell--none \.brand-cell__mark,\s*\.brand-cell--none \.brand-cell__name,\s*\.brand-cell--none \.brand-cell__sample \{\s*color: var\(--c-ink-3\);/)
         expect(SOURCE).toMatch(/\.brand-cell__none \{\s*color: var\(--c-ink-3\);/)
@@ -372,14 +372,14 @@ describe('BrandWall — a brand without stock: greyed, in place, not a link', ()
         expect(sample?.attributes('data-kind')).toBe('sample')
         expect(sample?.find('.brand-cell__sample').text()).toBe(`Beispiel${SOFT_HYPHEN}sortiment`)
         expect(sample?.find('.brand-cell__mark').exists()).toBe(false)
-        expect(sample ? accessibleName(sample) : '').toBe(`Beispiel${SOFT_HYPHEN}sortiment (Demo) Noch keine Felgen auf Lager`)
+        expect(sample ? accessibleName(sample) : '').toBe(`Beispiel${SOFT_HYPHEN}sortiment (Demo) Zurzeit keine Felgen lieferbar`)
     })
 
     it('changes the note to the greyed rule, and keeps the vehicle sentence after it', () => {
-        expect(mountWall([brand(), demo]).find('.brand-wall__note').text()).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
+        expect(mountWall([brand(), demo]).find('.brand-wall__note').text()).toBe('Nur Marken, von denen gerade Felgen lieferbar sind.')
         expect(mountWall([brand(), bare, demo]).find('.brand-wall__note').text()).toBe(GREYED_RULE)
         expect(mountWall([brand(), bare, demo], { vehicle }).find('.brand-wall__note').text()).toBe(
-            `${GREYED_RULE} Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.`
+            `${GREYED_RULE} Die Zahl zählt alle lieferbaren Modelle der Marke; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.`
         )
     })
 
@@ -388,7 +388,7 @@ describe('BrandWall — a brand without stock: greyed, in place, not a link', ()
 
         expect(html).toMatch(/<span[^>]*class="brand-cell brand-cell--none"[^>]*>/)
         expect(html).toContain('aria-disabled="true"')
-        expect(html).toContain('Noch keine Felgen auf Lager')
+        expect(html).toContain('Zurzeit keine Felgen lieferbar')
         expect(html).toContain(GREYED_RULE)
         // Exactly two links: MOTEC and the closing cell.
         expect(html.match(/<a\b/g)).toHaveLength(2)
@@ -411,7 +411,7 @@ describe('BrandWall — a logo that fails to load', () => {
         expect(link.attributes('data-kind')).toBe('name')
         expect(link.find('.brand-cell__mark').exists()).toBe(false)
         expect(link.find('.brand-cell__name').text()).toBe('MOTEC')
-        expect(accessibleName(link)).toBe(`MOTEC ${felgen(18)}`)
+        expect(accessibleName(link)).toBe(`MOTEC ${modelle(18)}`)
     })
 
     it('keeps the mark in the server render: the probe is client-only, so hydration matches', async () => {

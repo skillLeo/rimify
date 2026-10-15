@@ -43,7 +43,7 @@ return [
             ],
             [
                 'heading' => 'Wenn mehrere Fahrzeuge angezeigt werden',
-                'text' => "Das kommt vor und ist kein Fehler. Eine Kombination aus HSN und TSN kann mehrere Varianten umfassen, die sich zum Beispiel im Bauzeitraum, in der Höchstgeschwindigkeit oder in der zulässigen Achslast unterscheiden.\n\nFür Felgen und Reifen sind genau diese Unterschiede wichtig. Achslast und Höchstgeschwindigkeit entscheiden mit darüber, welche Tragfähigkeit und welches Geschwindigkeitssymbol die Reifen brauchen und was das Gutachten für dein Fahrzeug freigibt. Deshalb fragen wir in diesem Fall nach, statt zu raten. Wähl die Variante, die zu deinen Papieren passt. Hilfreich sind dabei das Datum der Erstzulassung, die Höchstgeschwindigkeit und die zulässigen Achslasten; alles steht ebenfalls in der Zulassungsbescheinigung.",
+                'text' => "Das kommt vor und ist kein Fehler. Eine Kombination aus HSN und TSN kann mehrere Varianten umfassen, die sich zum Beispiel im Bauzeitraum, in der Höchstgeschwindigkeit oder in der zulässigen Achslast unterscheiden.\n\nFür Felgen und Reifen sind genau diese Unterschiede wichtig. Achslast und Höchstgeschwindigkeit entscheiden mit darüber, welche Tragfähigkeit und welches Geschwindigkeitssymbol die Reifen brauchen und was das Gutachten für dein Fahrzeug freigibt. Deshalb fragen wir in diesem Fall nach, statt zu raten. Wähle die Variante, die zu deinen Papieren passt. Hilfreich sind dabei das Datum der Erstzulassung, die Höchstgeschwindigkeit und die zulässigen Achslasten; alles steht ebenfalls in der Zulassungsbescheinigung.",
             ],
             [
                 'heading' => 'Wenn wir dein Fahrzeug nicht finden',
@@ -100,7 +100,7 @@ return [
             ],
             [
                 'heading' => 'Wo du den Wert findest',
-                'text' => "Die ET ist auf der Felge selbst angegeben, meist eingegossen oder eingeprägt auf der Rückseite oder innen an den Speichen. Die Schreibweise ist „ET 35“ oder kurz „ET35“.\n\nIn der vollständigen Größenangabe steht die ET hinter Breite und Durchmesser, zum Beispiel 8,5J × 18 · ET 35. Das bedeutet: 8,5\u{202F}Zoll Maulweite (die Breite zwischen den Felgenhörnern), 18\u{202F}Zoll Durchmesser, Einpresstiefe 35\u{202F}mm. Bei uns steht diese Angabe bei jeder Felge, und im Gutachten steht sie bei jeder freigegebenen Kombination.",
+                'text' => "Die ET ist auf der Felge selbst angegeben, meist eingegossen oder eingeprägt auf der Rückseite oder innen an den Speichen. Die Schreibweise ist „ET 35“ oder kurz „ET35“.\n\nIn der vollständigen Größenangabe steht die ET hinter Breite und Durchmesser, zum Beispiel 8,5J × 18 · ET 35. Das bedeutet: 8,5\u{202F}Zoll Felgenbreite (gemessen zwischen den Felgenhörnern), 18\u{202F}Zoll Durchmesser, Einpresstiefe 35\u{202F}mm. Bei uns steht diese Angabe bei jeder Felge, und im Gutachten steht sie bei jeder freigegebenen Kombination.",
             ],
             [
                 'heading' => 'Was eine kleinere oder größere ET bewirkt',

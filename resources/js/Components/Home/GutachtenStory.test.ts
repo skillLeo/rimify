@@ -143,7 +143,7 @@ describe('GutachtenStory', () => {
 
     it('formats the facts line in German and hides it when any count is zero', () => {
         const wrapper = mountStory()
-        expect(wrapper.find('.story__facts').text()).toBe('1.234 Gutachten · 56.789 Fahrzeugvarianten · 412 Felgen mit Gutachten')
+        expect(wrapper.find('.story__facts').text()).toBe('1.234 Gutachten · 56.789 Fahrzeugvarianten · 412 Felgenmodelle mit Gutachten')
 
         const empty = mountStory({ stats: { gutachten: 12, variants: 0, wheels: 40, brands: 2 } })
         expect(empty.find('.story__facts').exists()).toBe(false)

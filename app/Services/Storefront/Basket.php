@@ -120,9 +120,9 @@ final readonly class Basket
     /* How a line that has become unsellable is marked on render (§4.5). Never dropped. */
     public const LINE_TYRE_GONE = 'Diesen Reifen gibt es nicht mehr. Nimm bitte einen anderen oder bestell die Felge allein.';
 
-    public const LINE_VEHICLE_MISSING = 'Für dieses Komplettrad brauchen wir dein Fahrzeug. Wähl es bitte wieder aus, dann prüfen wir die Reifengröße erneut.';
+    public const LINE_VEHICLE_MISSING = 'Für dieses Komplettrad brauchen wir dein Fahrzeug. Wähle es bitte wieder aus, dann prüfen wir die Reifengröße erneut.';
 
-    public const LINE_COLOUR_GONE = 'Die gewählte Farbe der Wuchtgewichte gibt es nicht mehr. Bitte wähl eine neue Farbe.';
+    public const LINE_COLOUR_GONE = 'Die gewählte Farbe der Wuchtgewichte gibt es nicht mehr. Bitte wähle eine neue Farbe.';
 
     /** What an unpriced component reads (§8.2) — the same words unconfigured shipping uses. */
     public const OPEN_PRICE = 'wird noch festgelegt';

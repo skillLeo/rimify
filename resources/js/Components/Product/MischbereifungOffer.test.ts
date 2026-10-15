@@ -133,7 +133,7 @@ describe('MischbereifungOffer', () => {
         wrappers.push(wrapper)
 
         expect(wrapper.find('.mix-card__price .price').text()).toBe('1.940,00 €')
-        expect(wrapper.text()).toContain('je Rad vorne 470,00 €, hinten 500,00 €')
+        expect(wrapper.text()).toContain('pro Rad vorne 470,00 €, hinten 500,00 €')
     })
 
     it('lets the customer choose between several pairs, and shows only the chosen pair’s sets', async () => {

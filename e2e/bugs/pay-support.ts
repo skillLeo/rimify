@@ -69,16 +69,16 @@ export async function basketWithAWheel(page: Page, from = 0): Promise<string> {
 }
 
 /**
- * Finds the stock of the basket line's size the way a customer would: „Menge erhöhen" until the basket marks the
- * line „Nicht mehr verfügbar" (the stock is one below), then „Menge verringern" down to `pick(stock)`.
+ * Finds the stock of the basket line's size the way a customer would: „Anzahl erhöhen" until the basket marks the
+ * line „Nicht mehr verfügbar" (the stock is one below), then „Anzahl verringern" down to `pick(stock)`.
  */
 export async function quantityAgainstStock(page: Page, pick: (stock: number) => number): Promise<{ stock: number; quantity: number }> {
     await open(page, '/warenkorb');
 
     const line = page.locator('.bl__line').first();
     const shown = line.locator('.bl__n');
-    const more = line.getByRole('button', { name: 'Menge erhöhen' });
-    const less = line.getByRole('button', { name: 'Menge verringern' });
+    const more = line.getByRole('button', { name: 'Anzahl erhöhen' });
+    const less = line.getByRole('button', { name: 'Anzahl verringern' });
     const soldOut = line.getByText('Nicht mehr verfügbar', { exact: true });
 
     await expect(soldOut, 'precondition: the line is marked sold out before its quantity was touched').toHaveCount(0);

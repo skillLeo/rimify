@@ -18,7 +18,7 @@ use Inertia\Response;
 /**
  * Gutachten › Konflikte (the corrections memo §3): every car and wheel two current documents disagree
  * about, both sides as the documents say them, and the decision a person takes — the shop answers
- * „Unbekannt“ there until then. Reading asks the Gutachten view right (the route); deciding asks
+ * „Noch nicht bestätigt“ there until then. Reading asks the Gutachten view right (the route); deciding asks
  * FitmentConflictPolicy::decide through its Form Request (R-11).
  */
 class KonflikteController extends Controller

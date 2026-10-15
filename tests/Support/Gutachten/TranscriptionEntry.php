@@ -65,7 +65,7 @@ final class TranscriptionEntry
 
         if ($release) {
             foreach ($this->documents as $id) {
-                $this->test->actingAs($this->admin, 'admin')->post("/admin/gutachten/{$id}/freigeben")->assertSessionHasNoErrors();
+                $this->test->actingAs($this->admin, 'admin')->post("/admin/gutachten/{$id}/freigeben", ReleaseAnswers::for(ApprovalDocument::query()->findOrFail($id)))->assertSessionHasNoErrors();
             }
         }
     }

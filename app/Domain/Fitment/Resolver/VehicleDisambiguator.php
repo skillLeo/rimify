@@ -95,17 +95,17 @@ final readonly class VehicleDisambiguator
             'build_period' => $vehicle->buildWindow->labelDe(),
             'power' => $vehicle->powerKw === null && $vehicle->powerPs === null
                 ? '—'
-                : sprintf('%s kW (%s PS)', $vehicle->powerKw ?? '?', $vehicle->powerPs ?? '?'),
+                : sprintf('%s%skW (%s%sPS)', $vehicle->powerKw ?? '?', GermanFormat::NBSP, $vehicle->powerPs ?? '?', GermanFormat::NBSP),
             'body_form' => $vehicle->bodyForm ?? '—',
             'max_speed' => $vehicle->maxSpeedKmh === null
                 ? '—'
-                : GermanFormat::integer($vehicle->maxSpeedKmh).' km/h',
+                : GermanFormat::integer($vehicle->maxSpeedKmh).GermanFormat::NBSP.'km/h',
             'doors' => $vehicle->doors === null ? '—' : $vehicle->doors.' Türen',
             'seats' => $vehicle->seats === null ? '—' : $vehicle->seats.' Sitze',
             'drive_axle' => $vehicle->driveAxle ?? '—',
             'axle_load_front' => $vehicle->axleLoadFrontKg === null
                 ? '—'
-                : GermanFormat::integer($vehicle->axleLoadFrontKg).' kg',
+                : GermanFormat::kilograms($vehicle->axleLoadFrontKg),
             default => '—',
         };
     }

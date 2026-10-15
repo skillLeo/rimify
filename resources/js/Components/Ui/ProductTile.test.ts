@@ -117,7 +117,7 @@ describe('ProductTile', () => {
         expect(wrapper.find('.tile__finish').text()).toBe('Platinum Silber')
         expect(wrapper.find('.tile__sizes').text()).toBe(`18 · 19 · 20${NNBSP}Zoll`)
         expect(wrapper.find('.tile__price').text()).toBe(`ab ${formatMoney(17225)} pro Felge`)
-        expect(wrapper.find('.tile__legal').text()).toBe('inkl. MwSt., zzgl. Versand')
+        expect(wrapper.find('.tile__legal').text()).toBe('inkl. MwSt., zzgl. Versandkosten')
         expect(wrapper.find('.verdict').exists()).toBe(false)
         expect(wrapper.find('.stock--out').exists()).toBe(false)
     })
@@ -129,7 +129,7 @@ describe('ProductTile', () => {
             const wrapper = mountTile()
 
             expect(wrapper.find('.tile__price').text()).toBe(`ab ${formatMoney(17225)} pro Felge`)
-            expect(wrapper.find('.tile__legal').text()).toBe('zzgl. Versand, keine MwSt. nach § 19 UStG')
+            expect(wrapper.find('.tile__legal').text()).toBe('zzgl. Versandkosten, keine MwSt. nach § 19 UStG')
             expect(wrapper.text()).not.toContain('inkl. MwSt.')
         } finally {
             page.props.smallBusiness = false
@@ -202,7 +202,7 @@ describe('ProductTile', () => {
         expect(permitted.find('.tile__badge').text()).toBe('Freigegeben')
 
         const unknown = mountTile({ vehicle, card: card(4, { fitment: { status: 'UNKNOWN', requiresEntry: false } }) })
-        expect(unknown.find('.tile__badge').text()).toBe('Unbekannt')
+        expect(unknown.find('.tile__badge').text()).toBe('Noch nicht bestätigt')
 
         const without = mountTile({ vehicle: null, card: card(5, { fitment: { status: 'PERMITTED', requiresEntry: false } }) })
         expect(without.find('.verdict').exists()).toBe(false)

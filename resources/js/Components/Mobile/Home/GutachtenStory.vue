@@ -25,7 +25,8 @@ const facts = computed(() => {
         return null
     }
 
-    return `${anzahl(s.gutachten, 'Gutachten', 'Gutachten')} · ${anzahl(s.variants, 'Fahrzeugvariante', 'Fahrzeugvarianten')} · ${anzahl(s.wheels, 'Felge', 'Felgen')} mit Gutachten`
+    // Models, not finishes — as the desktop story says it (`Components/Home/GutachtenStory.vue`).
+    return `${anzahl(s.gutachten, 'Gutachten', 'Gutachten')} · ${anzahl(s.variants, 'Fahrzeugvariante', 'Fahrzeugvarianten')} · ${anzahl(s.wheels, 'Felgenmodell', 'Felgenmodelle')} mit Gutachten`
 })
 
 /*
@@ -64,7 +65,7 @@ const STEPS = [
     {
         n: 1,
         title: 'Fahrzeug eindeutig erkennen',
-        text: 'Aus Marke, Modell und Variante – oder aus HSN und TSN – bestimmen wir die Typgenehmigung deines Fahrzeugs. Stehen zwei Fahrzeuge hinter einem Schlüssel, fragen wir nach, statt zu raten.',
+        text: 'Aus Marke, Modell und Variante – oder aus HSN und TSN – bestimmen wir die Typgenehmigung deines Fahrzeugs. Gehören zu einer Schlüsselnummer mehrere Fahrzeuge, fragen wir nach, statt zu raten.',
         strokes: [1],
         stamp: false,
     },
@@ -78,7 +79,7 @@ const STEPS = [
     {
         n: 3,
         title: 'Klare Antwort',
-        text: 'Du bekommst eine von vier Antworten: freigegeben, mit Auflagen, nicht freigegeben oder unbekannt. Nennt das Gutachten Auflagen, schreiben wir sie aus:',
+        text: 'Du bekommst eine von vier Antworten: freigegeben, mit Auflagen, nicht freigegeben oder noch nicht bestätigt. Nennt das Gutachten Auflagen, schreiben wir sie aus:',
         strokes: [1, 2, 3],
         stamp: true,
     },
@@ -218,6 +219,7 @@ const markerStyle = useRowMarker(markedRow, { top: 56, height: 28 })
     color: var(--c-ink);
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
+    font-family: var(--font-doc);
     font-stretch: 85%;
     font-variant-numeric: tabular-nums;
 }

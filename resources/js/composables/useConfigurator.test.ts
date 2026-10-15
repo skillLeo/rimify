@@ -70,7 +70,7 @@ describe('useConfigurator', () => {
     // Finding 103: struck through reads as forbidden. A wheel its Gutachten approves, with a tyre size nobody could
     // confirm, is unverified — a third state, and one that can be chosen so its answer can be read.
     it('tells an unconfirmed size from a refused one: the wheel approved and the tyre without an answer is not blocked', () => {
-        const tyre = { status: 'UNKNOWN' as const, label: 'Keine Angabe', lines: [], thresholds: [], fromVehicleData: true }
+        const tyre = { status: 'UNKNOWN' as const, label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: true }
         const configs = [
             config({ id: 1, diameterIn: 17, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Für dein Fahrzeug nicht freigegeben.' }) }),
             config({ id: 2, diameterIn: 18, verdict: verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'CONDITIONAL', tyre, reason: 'Für 250 km/h können wir die Reifen nicht bestätigen.' }) }),

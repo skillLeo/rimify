@@ -149,7 +149,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
             <div class="adm-section__head">
                 <h2 id="fs-rows-h" class="adm-section__title">In Gutachten genannt</h2>
             </div>
-            <p v-if="rows.length === 0" class="adm-note">Noch kein Gutachten nennt dieses Fahrzeug.</p>
+            <p v-if="rows.length === 0" class="adm-note">Zu diesem Fahrzeug ist noch keine Zeile aus einem Gutachten hinterlegt.</p>
             <div v-for="group in groups" :key="group.id" class="fs-group">
                 <h3 class="fs-group__title">
                     <Link :href="group.href" class="fs-link">{{ group.document }}</Link>

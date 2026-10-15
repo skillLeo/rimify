@@ -95,7 +95,7 @@ function cellError(i: number, symbol: string): string {
         </p>
 
         <template v-if="!editing">
-            <p v-if="empty" class="adm-note">Dieses Gutachten hat noch keine Tabelle.</p>
+            <p v-if="empty" class="adm-note">Zu diesem Gutachten ist noch keine Tabelle hinterlegt.</p>
 
             <div v-else class="dt-scroll">
                 <table class="adm-table dt-table">

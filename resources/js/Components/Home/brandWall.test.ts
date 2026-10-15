@@ -260,17 +260,17 @@ describe('the wordmark, the order and the copy', () => {
     })
 
     it('states the rule, and with a vehicle that the counts are the whole stock (§4.1)', () => {
-        expect(noteText(null)).toBe('Nur Marken, von denen gerade Felgen auf Lager sind.')
+        expect(noteText(null)).toBe('Nur Marken, von denen gerade Felgen lieferbar sind.')
         expect(noteText(null, false)).toBe(noteText(null))
         expect(noteText(vehicle)).toBe(
-            'Nur Marken, von denen gerade Felgen auf Lager sind. Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
+            'Nur Marken, von denen gerade Felgen lieferbar sind. Die Zahl zählt alle lieferbaren Modelle der Marke; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
         )
     })
 
     it('changes the rule once a greyed brand is on the wall, and keeps the vehicle sentence after it', () => {
-        expect(noteText(null, true)).toBe('Ausgegraute Marken haben gerade keine Felgen auf Lager.')
+        expect(noteText(null, true)).toBe('Ausgegraute Marken haben gerade keine lieferbaren Felgen.')
         expect(noteText(vehicle, true)).toBe(
-            'Ausgegraute Marken haben gerade keine Felgen auf Lager. Die Zahl zählt alle Felgen der Marke, die wir auf Lager haben; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
+            'Ausgegraute Marken haben gerade keine lieferbaren Felgen. Die Zahl zählt alle lieferbaren Modelle der Marke; welche davon für Audi RS 4 freigegeben sind, zeigt dir die Liste.'
         )
     })
 })
@@ -295,6 +295,6 @@ describe('isLinked — a cell is a link only when there is something to list (fa
     })
 
     it('says, where the count would be, that there is nothing yet', () => {
-        expect(NO_STOCK_LINE).toBe('Noch keine Felgen auf Lager')
+        expect(NO_STOCK_LINE).toBe('Zurzeit keine Felgen lieferbar')
     })
 })
