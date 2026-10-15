@@ -407,3 +407,24 @@ it('passes the mail once SES carries it and every record is in the DNS, and the 
         ->and($checks['mail_dns']->sentence)->toBe('SPF, DKIM (drei CNAME-Einträge) und DMARC für rimify.de stehen im DNS.')
         ->and($checks['bestaetigung']->sentence)->toStartWith('Die Bestätigung wird über Amazon SES verschickt');
 });
+
+/*
+ * The Blog's third guide (the operator's brief of 15.10.2026 §2, D-237): the one that tells ABE, Teilegutachten and ECE
+ * apart waits for its rewrite and the Kanzlei — a tracked item on this list, not a loose draft, and it stays on the
+ * list whether the draft is there or someone has deleted it.
+ */
+it('keeps the guide to ABE, Teilegutachten and ECE on the list until it is published, naming the Kanzlei', function (): void {
+    expect(goLiveById()['ratgeber-dokumentarten']->state)->toBe(GoLiveCheck::MISSING)
+        ->and(goLiveById()['ratgeber-dokumentarten']->sentence)->toContain('erst, wenn die Kanzlei ihn freigegeben hat');
+
+    $draft = Page::query()->create(['slug' => GoLiveChecks::DOCUMENT_KINDS_GUIDE, 'locale' => 'de', 'kind' => Page::KIND_GUIDE, 'title' => 'ABE, Teilegutachten, ECE', 'status' => Page::STATUS_DRAFT]);
+    $check = goLiveById()['ratgeber-dokumentarten'];
+
+    expect($check->state)->toBe(GoLiveCheck::MISSING)
+        ->and($check->owner)->toBe(GoLiveCheck::US)
+        ->and($check->place)->toBe('/admin/seiten/'.$draft->id);
+
+    $draft->update(['status' => Page::STATUS_PUBLISHED, 'published_at' => now()]);
+
+    expect(goLiveById()['ratgeber-dokumentarten']->state)->toBe(GoLiveCheck::OK);
+});

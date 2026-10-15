@@ -56,6 +56,9 @@ final class GoLiveChecks
 
     public const GROUPS = [self::LEGAL, self::WHEEL, self::PAYMENT, self::OPERATIONS];
 
+    /** The guide that tells ABE, Teilegutachten and ECE apart: a draft until rewritten and signed off (D-237). */
+    public const DOCUMENT_KINDS_GUIDE = 'abe-teilegutachten-ece';
+
     /** What a customer is told when live payment is refused: it names no check — those are for the admin. */
     public const LIVE_REFUSAL = 'Bestellen ist gerade nicht möglich. Es wird nichts abgebucht. Schreib uns – wir melden uns bei dir.';
 
@@ -354,6 +357,7 @@ final class GoLiveChecks
             $this->developmentVehicles(),
             $this->axleLoads(),
             $this->tyresUnconfirmed($fresh),
+            $this->documentKindsGuide(),
         ];
     }
 
@@ -521,6 +525,21 @@ final class GoLiveChecks
         return $this->check('achslasten', self::WHEEL, 'Achslasten und Höchstgeschwindigkeit der Fahrzeuge', GoLiveCheck::US, $without === 0 ? GoLiveCheck::OK : GoLiveCheck::MISSING, $without === 0
             ? ($total === 0 ? 'Noch nennt kein freigegebenes Gutachten ein Fahrzeug.' : "Für alle {$total} Fahrzeuge der freigegebenen Gutachten sind Achslasten und Höchstgeschwindigkeit hinterlegt.")
             : "{$without} von {$total} Fahrzeugen der freigegebenen Gutachten fehlen Achslasten oder Höchstgeschwindigkeit: Ihre Reifenfreigabe bleibt „mit Auflagen“.", '/admin/fahrzeuge');
+    }
+
+    /**
+     * The third guide of the Blog, the one that explains ABE against Teilegutachten against ECE — the distinction the
+     * shop rests on (the operator's brief of 15.10.2026 §2, D-237). The Blog went out with the other two; this one is
+     * close to legal advice, so it is rewritten and published only once the Kanzlei has signed it off (ACCURACY.md
+     * §3.0). Until then it stays on this list, whoever deletes the draft, so it cannot quietly disappear.
+     */
+    private function documentKindsGuide(): GoLiveCheck
+    {
+        $published = Page::query()->where('slug', self::DOCUMENT_KINDS_GUIDE)->where('status', Page::STATUS_PUBLISHED)->exists();
+
+        return $this->check('ratgeber-dokumentarten', self::WHEEL, 'Ratgeber „ABE, Teilegutachten, ECE“', GoLiveCheck::US, $published ? GoLiveCheck::OK : GoLiveCheck::MISSING, $published
+            ? 'Der Ratgeber zu ABE, Teilegutachten und ECE steht im Blog.'
+            : 'Der Ratgeber, der ABE, Teilegutachten und ECE unterscheidet, ist ein Entwurf: Wir schreiben ihn neu, und er erscheint erst, wenn die Kanzlei ihn freigegeben hat. Bis dahin zeigt der Blog zwei Artikel.', $this->pagePlace(self::DOCUMENT_KINDS_GUIDE));
     }
 
     /**
