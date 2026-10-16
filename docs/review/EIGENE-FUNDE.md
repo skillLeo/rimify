@@ -7,10 +7,14 @@ it stands. Admin-side observations are in `ADMIN-GEFUNDEN.md` (from 500), record
 **Severity.** S1 wrong information, a broken purchase path or a legal gap · S2 a dead end, a visibly broken layout, a
 console error · S3 copy, consistency, polish · S4 an opinion.
 
-**State of the sweep (14.10.2026, second pass).** The first pass ran on the preview (release `d126238d`); the second on
-a shop of our own that holds every answer the engine gives (`scripts/qa/sweep-states.mjs`, the e2e shop with one
-Gutachten marked as held in part). Everything fixed here is on `main` and **not yet on the preview** — the next release
-carries it. 31 entries: 7 S1, 8 S2, 13 S3, 2 S4, 1 to check on a real iPhone.
+**State of the sweep (16.10.2026, the run to the end).** The first pass ran on the preview (release `d126238d`); the
+second on a shop of our own that holds every answer the engine gives (`scripts/qa/sweep-states.mjs`, the e2e shop with
+one Gutachten marked as held in part); the third on the preview again, release 4 — the four items the second pass had
+left („not done, and so not claimed“, below) and the client's 34 in two engines. Everything fixed here is on the
+preview with release 4 (`e73553df`, 16.10.). 37 entries: 8 S1, 11 S2, 14 S3, 2 S4, one S3/S4, one to check on a real
+iPhone. **Open S1/S2: two, and both wait on someone else** — 126 (the seller's name and postal address for the
+Muster-Widerrufsformular, which come with the seller's details: the go-live check „Impressum“) and 129 (the promise
+row's two titles: the client's questions #6 and #9).
 
 | Nr | Page | What is wrong | Sev. | State |
 |---|---|---|---|---|
@@ -42,15 +46,15 @@ carries it. 31 entries: 7 S1, 8 S2, 13 S3, 2 S4, 1 to check on a real iPhone.
 | 125 | Basket, checkout | „Gesamt“ beside „Versand – wird noch festgelegt“: it was not the total. | S2 | **Fixed** (D-220): „Summe ohne Versand“ while shipping is open. |
 | 126 | Legal › Muster-Widerrufsformular | „An E-Mail: info@rimify.de:“ — a doubled colon, and no name or postal address. | S2 | **Fixed in part** (D-220): the colon. Name and address come from the seller's data; the preview holds none yet (the go-live check „Impressum“ says so). |
 | 127 | Eleven wordings across the shop (copy review) | Grammar, terms and next steps — „nur, dass wir es nicht belegen können“, „das steht im Gutachten“ in the Felgenrechner, „Auto wählen“ beside „Fahrzeug wählen“, „Bedingungen“ for Auflagen, the empty checkout and account, the 404, the legal placeholders. | S3 | **Fixed** (D-220); each with before and after in D-220. |
-| 128 | Copy review, the rest | 20 smaller points: the FAQ named four ways, „Felgen“ counting designs here and finishes there, the filter's empty state, the selector's third field „Fahrzeug“, three names for the rim width, units that can wrap, „Passform“ and „Kompatibilität“, „Wähl“ beside „Wähle“, the brand wall's „Noch keine Felgen auf Lager“, the basket's doubled Eintragung line, an ASCII quote in the FAQ. | S3/S4 | Listed with the editor's proposals below. Each touches tests or seeded content; none is wrong information. |
+| 128 | Copy review, the rest | 20 smaller points: the FAQ named four ways, „Felgen“ counting designs here and finishes there, the filter's empty state, the selector's third field „Fahrzeug“, three names for the rim width, units that can wrap, „Passform“ and „Kompatibilität“, „Wähl“ beside „Wähle“, the brand wall's „Noch keine Felgen auf Lager“, the basket's doubled Eintragung line, an ASCII quote in the FAQ. | S3/S4 | **Applied** (14.–16.10.). Searched on 16.10.: none of the old wordings in the table below is left on a public page — what remains stands in code comments, the internal design specimen (`/__design`) and the admin, whose round is closed („Wähl sie bitte noch einmal aus“ in its upload forms). |
 | 129 | Homepage › promise row | „Garantierte Passgenauigkeit“ (a guarantee carries legal weight) and „Express-Versand aus Deutschland“ (no delivery time is on record) — the client's own titles. | S2 | **Open — waiting on the client** (client questions #6 and #9). |
 | 130 | Homepage, desktop | LCP 2,6 s on the preview from here (the hero photograph); the server answers in 0,75 s from Boston. | S3 | Listed: the lever is the host's location (UMZUG-DE, your call). |
 | 131 | Order page (`/bestellung/{Nummer}`) | An order a real person places for the acceptance set's wheel counted as demonstration data, and the order page opens demonstration data to anyone who has the number — so that person's name, address and purchase would have been readable by guessing it. Reproduced (15.10.): a stranger got 200 instead of 404. On the preview no such order exists (read 15.10.: 3 real orders, none on a demo wheel); the acceptance wheel can be bought there. | S1 | **Fixed** (15.10., D-238) on provenance, as you set it: a seeded order opens by number; an order that came through the checkout never does — always, in every environment, whatever it contains (`orders.origin`, fixed at insert); `BestellungAcceptanceTest`. In the release of 15.10. |
 | 132 | Every page, 1024–1279 px | The header was 29 px wider than the window again: the menu's „FAQ“ became „Häufige Fragen“ in the copy review, and the bar had no room left for it. Found by the release gate, before any release carried it. | S2 | **Fixed** (15.10., D-244): there the search is an icon that opens the palette, as on a phone; the field comes back from 1280, and where the bar is full only the field gives way. |
 | 133 | Every page, first visit | When the shop's font arrives late, the cookie notice's text breaks into lines anew and the notice — standing on the window's bottom edge — moves up by up to 0,055 of a layout shift (budget 0,02). Seen in the gate's load tests at 768 and 1024 px when the notice drew before the font. | S3 | **Listed**, tied to the notice: as your FINISH brief says, the notice stays exactly as it is until its rework (D-241 — it goes or becomes the consent dialog); the rework must keep its box from moving. The load tests now measure the pages as a returning visitor sees them. |
 | 134 | Homepage on the phone, opened below the Gutachten story (a link to `/#h5`) | The story's heading „Wir lesen das Gutachten. Du bekommst die Antwort.“ takes three lines in the fallback font and two in the shop's own; when the font arrives, everything below it moves up 30 px (0,0345, budget 0,02) — in four loads of six from here. A load from the top is not affected: the change happens off screen. | S3 | **Listed**: the fix is the fallback faces' metrics (`fonts-fallback.css`), which every page's text rests on — its own task, measured across the site. The load test leaves the link to `/#h5` out until then and keeps the reload part-way down. |
-| 135 | Product page › „Zum Warenkorb hinzugefügt“, in Safari | With the keyboard, Tab walked out of the panel past „Zum Warenkorb“ to the page behind it: Safari's Tab skips links, and the panel only caught Tab at its first and last control. Found by the client's item #16 on the preview (WebKit; Chromium passed). | S2 | **Fixed** (16.10.): every Tab inside the panel is the panel's own and moves through its links and buttons in order, in every engine; its component test walks all three. In the next release. |
-| 136 | Product page › „Werte aus einem Foto“ (and the homepage's scan) | Every photograph read on the device wrote „Estimating resolution as 588“ to the browser's console as an error — the reading engine's own diagnostics. Found by the sweep's photograph test on the preview (§3), in both engines; the values were read right. | S2 | **Fixed** (16.10.): the engine's diagnostics go nowhere; proven on the shop's own engine and language data — the same text is read, and nothing reaches the console. In the next release. |
+| 135 | Product page › „Zum Warenkorb hinzugefügt“, in Safari | With the keyboard, Tab walked out of the panel past „Zum Warenkorb“ to the page behind it: Safari's Tab skips links, and the panel only caught Tab at its first and last control. Found by the client's item #16 on the preview (WebKit; Chromium passed). | S2 | **Fixed** (16.10.): every Tab inside the panel is the panel's own and moves through its links and buttons in order, in every engine; its component test walks all three. On the preview with release 4. |
+| 136 | Product page › „Werte aus einem Foto“ (and the homepage's scan) | Every photograph read on the device wrote „Estimating resolution as 588“ to the browser's console as an error — the reading engine's own diagnostics. Found by the sweep's photograph test on the preview (§3), in both engines; the values were read right. | S2 | **Fixed** (16.10.): the engine's diagnostics go nowhere; proven on the shop's own engine and language data — the same text is read, and nothing reaches the console. On the preview with release 4. |
 
 ## What has been looked at, and what has not
 
@@ -68,12 +72,21 @@ accessibility beyond axe, technical, speed. **Second pass** (our own shop, the b
 | 6 Terms | Felge/Rad · Freigabe/Gutachten/Prüfnachweis · Warenkorb/Korb · Fahrzeug/Auto · Kasse · Komplettrad · Reifengröße · Auflage/Bedingung/Hinweis | **Felge** (Rad only for wheel and tyre together) · **Gutachten** for the document, **Freigabe** for what it grants, „Prüfnachweis“ and „Zulassung“ not used · **Warenkorb** · **Fahrzeug** („Auto“ only in the visitor's own questions) · **Kasse** · **Komplettrad / Kompletträder** · **Reifengröße** · **Auflagen** („Bedingungen“ replaced, 127). The fourth answer's three names: 122. |
 | 7 LCP and CLS | Five loads per page and width, first visit, the LCP element named — the preview from here, and our own shop | Preview: LCP 1,0–1,5 s on every page but the desktop homepage (2,6 s, the hero photograph); CLS 0,000 everywhere but one product page (0,003). The LCP element is the hero photograph, the listing's first photograph, the page's lead sentence — or, on a first visit, the cookie notice. 130. |
 
-**Not done, and so not claimed:** the Fahrzeugschein photograph path (it needs a photograph and the vision service) · a
-real contact submission on the preview (it would write a row the client sees) · the Gutachten PDF opening at its page on
-the preview · the 500 page · axe on the preview (it is green locally) · anything on a real iPhone (116) · Safari's own
-numbers for LCP (WebKit does not report them).
+**Third pass** (the preview, release 4, 16.10.2026, Chromium 1440 × 900 and WebKit 390 × 844, `tests/abnahme/sweep.spec.ts`
+and `scripts/qa/axe.mjs`) — the four items the second pass had not done:
 
-### The copy review's points that stay open (128), with the editor's proposals
+| Sweep item | What ran | Found |
+|---|---|---|
+| The 500 page | Opened on purpose (`/__fehlerseite/500`, D-243): the shop's frame, header and footer, three ways on, no mail link — and the standalone page a failed boot gets, which loads no bundle | nothing |
+| The Fahrzeugschein photograph | A form drawn in the page and read on the device. On the product page 8.1, 8.2 and T were read right (1120, 1180, 250) and kept only on „Werte übernehmen“, which was not pressed. The homepage's scan waits with the key numbers on the preview, and says so; the reading itself is the same engine | 136 |
+| The Gutachten PDF at its page | The link's page against the page the answer names, the file a PDF that has it — through the example document's marked page (D-239): page 5 of 13 of ABE 55255, the X3's row | nothing |
+| axe on the preview | axe-core (WCAG 2.0 A/AA, 2.1 AA, 2.2 AA) on the fifteen routes a customer meets — the homepage to the order page, the legal pages, the admin's sign-in and the 404 — at 390 and 1440 | zero violations |
+
+**Not done, and so not claimed:** a real contact submission on the preview (it would write a row the client sees) ·
+the homepage's scan reading key numbers on the preview (it waits there with the key numbers until vehicle data opens
+them) · anything on a real iPhone (116) · Safari's own numbers for LCP (WebKit does not report them).
+
+### The copy review's smaller points (128), with the editor's proposals — applied by 16.10.
 
 | Where | Now | Proposed |
 |---|---|---|
