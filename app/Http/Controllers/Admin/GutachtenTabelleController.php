@@ -25,6 +25,11 @@ class GutachtenTabelleController extends Controller
         $cells = $request->cells();
         $page = $request->sourcePage();
 
+        // Nothing saved over nothing: no change, so no Protokoll entry saying one happened (ADMIN-GEFUNDEN 509's class).
+        if ($cells === [] && ! DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->exists()) {
+            return back()->with('toast', 'Es war keine Tabelle eingetragen.');
+        }
+
         DB::transaction(static function () use ($cells, $page, $document, $request): void {
             $before = DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->count();
             DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->delete();
