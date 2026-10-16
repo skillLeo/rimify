@@ -22,6 +22,8 @@ export interface DocumentFacts {
     revision: number
     supersedesId: number | null
     supersedesLabel: string | null
+    /** What its Verwendungsbereich prints, counted from the PDF before the rows (ADMIN-GEFUNDEN 511) — null until counted. */
+    count?: DocumentCount | null
     status: 'draft' | 'published' | 'superseded' | 'withdrawn'
     statusLabel: string
     validFrom: string | null
@@ -46,6 +48,24 @@ export interface DocumentFacts {
     baseMissing: string | null
     /** `Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor.` — null while every Anlage is held. */
     scopeIncomplete?: string | null
+}
+
+/** The count of a Verwendungsbereich, each figure with the page it was read on (ADMIN-GEFUNDEN 511). */
+export interface DocumentCount {
+    codes: number
+    codesPage: number
+    sizes: number
+    sizesPage: number
+    axleLimitKg: number | null
+    axleLimitPage: number | null
+    abnahme: 'all' | 'some' | 'none'
+    abnahmePage: number | null
+    /** `6 Auflagen-Codes (Seite 3)` … as the page shows them. */
+    lines: string[]
+    by: string | null
+    at: string
+    /** Taken while the document had no row: nobody could have counted the entry. */
+    beforeEntry: boolean
 }
 
 /** A code on a row or a tyre size, as printed, with what its own document says it means. */
@@ -251,7 +271,11 @@ export interface AdminGutachtenShowProps {
     derating: DeratingView
     openConflicts: number
     /** `levels`: may set how loud each Auflage is in the shop (#23, D-104) — on a released document too. */
-    can: { edit: boolean; release: boolean; levels?: boolean }
+    /** `revise`: may start a new revision of this released document (ADMIN-GEFUNDEN 510). */
+    /** `answer`: may say whether a released document is entered in full (D-227). */
+    can: { edit: boolean; release: boolean; levels?: boolean; revise?: boolean; answer?: boolean }
+    /** A new revision of this released document, already started as a draft: opened, never copied twice. */
+    revisionDraft?: { id: number; label: string; revision: number } | null
     levels?: { value: string; label: string }[]
     levelFloorSentence?: string
 }

@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
 import { installPopstateGuard } from './composables/admin/popstateGuard';
+import { installPreloadErrorGuard } from './lib/preloadErrors';
 import { installVehicleMemory, vehicleVisitOptions } from './lib/vehicleMemory';
 import { root } from './root';
 
@@ -16,6 +17,9 @@ installPopstateGuard();
 
 // Back and Forward tell the server which car the restored page is about (the client's #8, vehicleMemory.ts).
 installVehicleMemory();
+
+// A chunk's stylesheet cancelled because the page moved on is no crash (preloadErrors.ts).
+installPreloadErrorGuard();
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ${appName}` : appName),

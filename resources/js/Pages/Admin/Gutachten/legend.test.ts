@@ -41,6 +41,21 @@ describe('splitLegend', () => {
         expect(splitLegend('A14 Der Reifen muss\nDie Kennzeichnung tragen.')).toEqual([{ code: 'A14', text: 'Der Reifen muss Die Kennzeichnung tragen.' }])
     })
 
+    it('reads the BBS legend, whose codes close with a bracket — a single letter too — and keeps the bracket out of the code', () => {
+        const pasted = [
+            '0) Radanbau nur zulässig in Verbindung mit BBS - Zubehörsatz T.Nr. 09.31.149',
+            'bestehend aus Zentrierring und Kegelbund-Radschrauben.',
+            'R) Es sind vorn und hinten nur Reifen eines Herstellers und Typs zulässig.',
+            '16a) Die Radabdeckung ist zu prüfen.',
+        ].join('\n')
+
+        expect(splitLegend(pasted)).toEqual([
+            { code: '0', text: 'Radanbau nur zulässig in Verbindung mit BBS - Zubehörsatz T.Nr. 09.31.149 bestehend aus Zentrierring und Kegelbund-Radschrauben.' },
+            { code: 'R', text: 'Es sind vorn und hinten nur Reifen eines Herstellers und Typs zulässig.' },
+            { code: '16a', text: 'Die Radabdeckung ist zu prüfen.' },
+        ])
+    })
+
     it('ignores text before the first code and empty lines', () => {
         expect(splitLegend('Auflagen und Hinweise\n\nA01 Abnahme.')).toEqual([{ code: 'A01', text: 'Abnahme.' }])
     })

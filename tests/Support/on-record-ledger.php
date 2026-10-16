@@ -91,7 +91,8 @@ return [
     'nur für diese Leistung gilt die Größe' => ['ours', 'an instruction for entering a kW band'],
     'Codes, die das Gutachten nur bei dieser Größe druckt' => ['ours', 'an instruction for entering codes'],
     'und das Gutachten nicht freigebbar, bis der Code dort steht' => ['ours', 'a rule of the release'],
-    'Ein freigegebenes Gutachten ändert sich nicht mehr' => ['ours', 'R-12\'s neighbour: a released record is not edited'],
+    'Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern' => ['ours', 'R-12\'s neighbour: a released record is not edited; a correction is a new revision (D-250)'],
+    'Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten' => ['ours', 'a rule of the record: a revision is started from the released one (D-250)'],
     'Für keine Lücke wurde bisher ein Gutachten angefordert' => ['ours', 'the state of our requests'],
 
     // ── The second pattern: a document word beside „wörtlich“, „vollständig“, „alle“, „immer“ (D-236) ─────────────────

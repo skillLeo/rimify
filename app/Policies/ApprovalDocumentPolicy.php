@@ -50,6 +50,26 @@ final class ApprovalDocumentPolicy
     }
 
     /**
+     * „Sind alle Anlagen und alle Fahrzeuge erfasst?“ answered for a document already released (D-227): who may release
+     * may answer it — on the released revision. Until 16.10.2026 the answer asked `publish`, which only a draft passes,
+     * so no released document could be answered and the go-live check waited for nothing anyone could give
+     * (ADMIN-GEFUNDEN 513).
+     */
+    public function answerCompleteness(AdminUser $user, ApprovalDocument $document): bool
+    {
+        return $document->status === DocumentStatus::Published && $user->may(PermissionModule::Approvals, PermissionAction::Publish);
+    }
+
+    /**
+     * „Neue Fassung anlegen“ (ADMIN-GEFUNDEN 510): the way back into a released document is a new revision, a draft that
+     * supersedes it once released. Who may create Gutachten may start one; only from the revision the shop reads.
+     */
+    public function revise(AdminUser $user, ApprovalDocument $document): bool
+    {
+        return $document->status === DocumentStatus::Published && $user->may(PermissionModule::Approvals, PermissionAction::Create);
+    }
+
+    /**
      * The page an example document opens through (decision 6, D-239), for anyone — a visitor included — and only for a
      * document born demo that the shop shows. A real document has no such page: it opens as itself.
      */

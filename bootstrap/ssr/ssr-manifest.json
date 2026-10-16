@@ -2754,16 +2754,28 @@
     "/build/assets/MatrixPanel-w_sMw93I.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Auflagenverzeichnis.vue": [
-    "/build/assets/Auflagenverzeichnis-C3z6YkML.js",
-    "/build/assets/Auflagenverzeichnis-Bpe8RDlu.css"
+    "/build/assets/Auflagenverzeichnis-iB5igf6-.js",
+    "/build/assets/Auflagenverzeichnis-COf0JA05.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Auflagenverzeichnis.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Auflagenverzeichnis-C3z6YkML.js",
-    "/build/assets/Auflagenverzeichnis-Bpe8RDlu.css"
+    "/build/assets/Auflagenverzeichnis-iB5igf6-.js",
+    "/build/assets/Auflagenverzeichnis-COf0JA05.css"
   ],
-  "resources/js/Pages/Admin/Gutachten/Auflagenverzeichnis.vue?vue&type=style&index=0&scoped=039815ed&lang.css": [
-    "/build/assets/Auflagenverzeichnis-C3z6YkML.js",
-    "/build/assets/Auflagenverzeichnis-Bpe8RDlu.css"
+  "resources/js/Pages/Admin/Gutachten/Auflagenverzeichnis.vue?vue&type=style&index=0&scoped=a41dedf8&lang.css": [
+    "/build/assets/Auflagenverzeichnis-iB5igf6-.js",
+    "/build/assets/Auflagenverzeichnis-COf0JA05.css"
+  ],
+  "resources/js/Pages/Admin/Gutachten/CountCard.vue": [
+    "/build/assets/CountCard-igqmvzBq.js",
+    "/build/assets/CountCard-CDsIGViV.css"
+  ],
+  "resources/js/Pages/Admin/Gutachten/CountCard.vue?vue&type=script&setup=true&lang.ts": [
+    "/build/assets/CountCard-igqmvzBq.js",
+    "/build/assets/CountCard-CDsIGViV.css"
+  ],
+  "resources/js/Pages/Admin/Gutachten/CountCard.vue?vue&type=style&index=0&scoped=b317b501&lang.css": [
+    "/build/assets/CountCard-igqmvzBq.js",
+    "/build/assets/CountCard-CDsIGViV.css"
   ],
   "resources/js/Pages/Admin/Gutachten/DeratingTable.vue": [
     "/build/assets/DeratingTable-D1DOFzCG.js",
@@ -2838,52 +2850,52 @@
     "/build/assets/RecordFields-D9AuhF-A.css"
   ],
   "resources/js/Pages/Admin/Gutachten/ReleaseDialog.vue": [
-    "/build/assets/ReleaseDialog-DWzKgmZi.js",
-    "/build/assets/ReleaseDialog-BfyMJsqt.css"
+    "/build/assets/ReleaseDialog-CW8cLj8b.js",
+    "/build/assets/ReleaseDialog-Bpq3MNes.css"
   ],
   "resources/js/Pages/Admin/Gutachten/ReleaseDialog.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/ReleaseDialog-DWzKgmZi.js",
-    "/build/assets/ReleaseDialog-BfyMJsqt.css"
+    "/build/assets/ReleaseDialog-CW8cLj8b.js",
+    "/build/assets/ReleaseDialog-Bpq3MNes.css"
   ],
-  "resources/js/Pages/Admin/Gutachten/ReleaseDialog.vue?vue&type=style&index=0&scoped=11d99515&lang.css": [
-    "/build/assets/ReleaseDialog-DWzKgmZi.js",
-    "/build/assets/ReleaseDialog-BfyMJsqt.css"
+  "resources/js/Pages/Admin/Gutachten/ReleaseDialog.vue?vue&type=style&index=0&scoped=7334b35c&lang.css": [
+    "/build/assets/ReleaseDialog-CW8cLj8b.js",
+    "/build/assets/ReleaseDialog-Bpq3MNes.css"
   ],
   "resources/js/Pages/Admin/Gutachten/RowComposer.vue": [
-    "/build/assets/RowComposer-KK6R_4Mv.js",
+    "/build/assets/RowComposer-bFQQ8wuV.js",
     "/build/assets/RowComposer-CqEjQ3hX.css"
   ],
   "resources/js/Pages/Admin/Gutachten/RowComposer.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/RowComposer-KK6R_4Mv.js",
+    "/build/assets/RowComposer-bFQQ8wuV.js",
     "/build/assets/RowComposer-CqEjQ3hX.css"
   ],
   "resources/js/Pages/Admin/Gutachten/RowComposer.vue?vue&type=style&index=0&scoped=366a5d3f&lang.css": [
-    "/build/assets/RowComposer-KK6R_4Mv.js",
+    "/build/assets/RowComposer-bFQQ8wuV.js",
     "/build/assets/RowComposer-CqEjQ3hX.css"
   ],
   "resources/js/Pages/Admin/Gutachten/RowFields.vue": [
-    "/build/assets/RowFields-Ch2GLsMj.js",
+    "/build/assets/RowFields-CMN9BGPl.js",
     "/build/assets/RowFields-B_M6Jkuw.css"
   ],
   "resources/js/Pages/Admin/Gutachten/RowFields.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/RowFields-Ch2GLsMj.js",
+    "/build/assets/RowFields-CMN9BGPl.js",
     "/build/assets/RowFields-B_M6Jkuw.css"
   ],
   "resources/js/Pages/Admin/Gutachten/RowFields.vue?vue&type=style&index=0&scoped=530bdf01&lang.css": [
-    "/build/assets/RowFields-Ch2GLsMj.js",
+    "/build/assets/RowFields-CMN9BGPl.js",
     "/build/assets/RowFields-B_M6Jkuw.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Show.vue": [
-    "/build/assets/Show-CDnDjRtj.js",
-    "/build/assets/Show-Bh1TZs6y.css"
+    "/build/assets/Show-DPzuM0T0.js",
+    "/build/assets/Show-B6NhwZcZ.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Show.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Show-CDnDjRtj.js",
-    "/build/assets/Show-Bh1TZs6y.css"
+    "/build/assets/Show-DPzuM0T0.js",
+    "/build/assets/Show-B6NhwZcZ.css"
   ],
-  "resources/js/Pages/Admin/Gutachten/Show.vue?vue&type=style&index=0&scoped=e4468582&lang.css": [
-    "/build/assets/Show-CDnDjRtj.js",
-    "/build/assets/Show-Bh1TZs6y.css"
+  "resources/js/Pages/Admin/Gutachten/Show.vue?vue&type=style&index=0&scoped=aa6c9363&lang.css": [
+    "/build/assets/Show-DPzuM0T0.js",
+    "/build/assets/Show-B6NhwZcZ.css"
   ],
   "resources/js/Pages/Admin/Gutachten/VehicleFromDocument.vue": [
     "/build/assets/VehicleFromDocument-DPKXeWwF.js",
@@ -2898,7 +2910,7 @@
     "/build/assets/VehicleFromDocument-BNYe-Ipp.css"
   ],
   "resources/js/Pages/Admin/Gutachten/rows.ts": [
-    "/build/assets/RowFields-Ch2GLsMj.js",
+    "/build/assets/RowFields-CMN9BGPl.js",
     "/build/assets/RowFields-B_M6Jkuw.css"
   ],
   "resources/js/Pages/Admin/Katalog/Import.vue": [

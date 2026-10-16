@@ -8,7 +8,7 @@ names a Gutachten, an ABE, a Nachtrag, a manufacturer or a document **and denies
 breath. It is written from `tests/Support/on-record-ledger.php`; `tests/Unit/OnRecordTest.php` fails when a sentence of
 this shape appears that is not on the list, and when an entry is no longer written anywhere.
 
-**72 sentences: 10 open, 18 backed by a recorded field, 42 about the shop itself, 2 not sentences.**
+**73 sentences: 10 open, 18 backed by a recorded field, 43 about the shop itself, 2 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -95,7 +95,8 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Den kW-Bereich, den das Gutachten neben die Größe druckt, trägst du daneben ein – 85-195; nur für diese Leistung gilt die Größe.“ | admin | `Pages/Admin/Gutachten/RowFields.vue:326` | an instruction for entering a kW band |
 | „Codes, die das Gutachten nur bei dieser Größe druckt, stehen dahinter.“ | admin | `Pages/Admin/Gutachten/RowFields.vue:326` | an instruction for entering codes |
 | „Die Zeile bleibt „Unbekannt“ und das Gutachten nicht freigebbar, bis der Code dort steht.“ | admin | `Pages/Admin/Gutachten/RowFields.vue:357` | a rule of the release |
-| „${what} Ein freigegebenes Gutachten ändert sich nicht mehr; Änderungen kommen mit einer neuen Fassung.“ | admin | `Pages/Admin/Gutachten/Show.vue:109`, `Pages/Admin/Gutachten/Show.vue:307` | R-12's neighbour: a released record is not edited |
+| „Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern. …“ | admin | `Pages/Admin/Gutachten/Show.vue:335`, `Pages/Admin/Gutachten/Show.vue:336` | R-12's neighbour: a released record is not edited; a correction is a new revision (D-250) |
+| „Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten.“ | admin (a refusal the page never reaches) | `Services/Admin/Approvals/DocumentRevision.php:41` | a rule of the record: a revision is started from the released one (D-250) |
 | „Für keine Lücke wurde bisher ein Gutachten angefordert.“ | admin | `Pages/Admin/Nachfrage/Index.vue:40` | the state of our requests |
 
 ## Not a sentence

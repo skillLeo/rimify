@@ -155,6 +155,18 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
         await shot(page, '03-gutachten-neu')
         await page.getByRole('button', { name: 'Gutachten anlegen' }).click()
         await page.waitForURL(/\/admin\/gutachten\/\d+$/, { timeout: 30_000 })
+        await waitForApp(page)
+
+        // ── 3b · Zählung — before the first row, from the PDF, each figure with its page (ADMIN-GEFUNDEN 511): the row
+        // entered below carries one Auflage of the Katalog and one tyre size, and no Abnahme.
+        await page.locator('#zl-codes').fill('1')
+        await page.locator('#zl-codes-page').fill('2')
+        await page.locator('#zl-sizes').fill('1')
+        await page.locator('#zl-sizes-page').fill('2')
+        await page.locator('input[name="zl-abnahme"][value="none"]').check()
+        await page.getByRole('button', { name: 'Zählung speichern' }).click()
+        await expect(page.locator('#zl-edit')).toBeVisible({ timeout: 20_000 })
+        await shot(page, '03b-zaehlung')
     } else {
         await existing.first().click()
         await page.waitForURL(/\/admin\/gutachten\/\d+$/)

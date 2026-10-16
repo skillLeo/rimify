@@ -9,6 +9,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AuditLog;
+use App\Services\Admin\Approvals\CountFigures;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Orders\OrderList;
 use App\Services\Content\NavigationSchema;
@@ -145,6 +146,9 @@ final class AuditDescriber
         'approval.released' => 'gutachten',
         'approval.taken_back' => 'gutachten',
         'approval.completeness_answered' => 'gutachten',
+        'approval.counted' => 'gutachten',
+        'approval.count_changed' => 'gutachten',
+        'approval.revision_started' => 'gutachten',
         'approval.entry_overridden' => 'gutachten',
         'approval.condition_added' => 'gutachten',
         'approval.condition_changed' => 'gutachten',
@@ -466,6 +470,15 @@ final class AuditDescriber
                 'unknown' => 'nicht bekannt, ob alles erfasst ist.',
                 default => 'eine Antwort, die es nicht gibt.',
             }, []],
+            // ADMIN-GEFUNDEN 511: the count read off the PDF, and whether any row stood when it was taken.
+            'approval.counted' => [self::counted($p), []],
+            'approval.count_changed' => ['Die Zählung zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde geändert'.self::whenCounted($p).'.', self::countChanges($p)],
+            // ADMIN-GEFUNDEN 510: the way back into a released document.
+            'approval.revision_started' => [
+                'Zu '.self::q(self::text($p, 'from') ?? self::text($p, 'document') ?? 'ohne Nummer').' wurde Fassung '.(self::text($p, 'revision') ?? '–').' als Entwurf angelegt, mit '
+                    .(is_int($p['rows'] ?? null) ? ($p['rows'] === 1 ? 'einer Zeile' : $p['rows'].' Zeilen') : 'ihren Zeilen').'.',
+                [],
+            ],
             'approval.entry_overridden' => [
                 match ($p['override'] ?? null) {
                     'required' => 'In einer Zeile von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Eintragung abweichend von den Codes auf „erforderlich“ gesetzt: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.',
@@ -477,11 +490,12 @@ final class AuditDescriber
             'approval.condition_added' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' angelegt.', []],
             'approval.condition_changed' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' geändert.', []],
             'approval.condition_removed' => ['Aus dem Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' entfernt.', []],
+            // The level, not a look the shop would give it: a level moves only an answer's label (D-247, ADMIN-GEFUNDEN 512).
             'approval.condition_level_set' => [
-                'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' erscheint der Code '.self::q(self::text($p, 'code') ?? '–').' im Shop jetzt als '
+                'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' hat der Code '.self::q(self::text($p, 'code') ?? '–').' jetzt die Stufe '
                     .self::q(ConditionLevel::tryFrom((string) self::text($p, 'level'))?->labelDe() ?? self::NOT_RECORDED).'.',
                 [self::change(
-                    'Im Shop',
+                    'Stufe',
                     ConditionLevel::tryFrom((string) self::text($p, 'old'))?->labelDe() ?? self::NOT_RECORDED,
                     ConditionLevel::tryFrom((string) self::text($p, 'level'))?->labelDe() ?? self::NOT_RECORDED,
                 )],
@@ -1408,6 +1422,55 @@ final class AuditDescriber
     }
 
     /** German quotation marks around a name. */
+    /** @param  array<array-key, mixed>  $p */
+    private static function counted(array $p): string
+    {
+        $count = CountFigures::fromArray(is_array($p['count'] ?? null) ? $p['count'] : null);
+
+        return 'Zu '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Verwendungsbereich gezählt'.self::whenCounted($p)
+            .($count === null ? '.' : ': '.implode(' · ', $count->linesDe()).'.');
+    }
+
+    /** @param  array<array-key, mixed>  $p „, bevor die erste Zeile stand“ — or how many rows stood. */
+    private static function whenCounted(array $p): string
+    {
+        $rows = is_int($p['rows'] ?? null) ? $p['rows'] : null;
+
+        return match (true) {
+            $rows === null => '',
+            $rows === 0 => ', bevor die erste Zeile stand',
+            $rows === 1 => ', als schon eine Zeile stand',
+            default => ", als schon {$rows} Zeilen standen",
+        };
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $p
+     * @return list<Change>
+     */
+    private static function countChanges(array $p): array
+    {
+        $before = CountFigures::fromArray(is_array($p['before'] ?? null) ? $p['before'] : null);
+        $after = CountFigures::fromArray(is_array($p['count'] ?? null) ? $p['count'] : null);
+
+        if ($before === null || $after === null) {
+            return [];
+        }
+
+        $changes = [];
+
+        foreach (['Auflagen-Codes', 'Reifengrößen', 'Achslast', 'Abnahme'] as $i => $label) {
+            $old = $before->linesDe()[$i];
+            $new = $after->linesDe()[$i];
+
+            if ($old !== $new) {
+                $changes[] = self::change($label, $old, $new);
+            }
+        }
+
+        return $changes;
+    }
+
     private static function q(string $name): string
     {
         return "\u{201E}".$name."\u{201C}";

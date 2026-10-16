@@ -20,6 +20,7 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
+import CountCard from './CountCard.vue'
 import DeratingTable from './DeratingTable.vue'
 import DocumentExtras from './DocumentExtras.vue'
 import FactsDialog from './FactsDialog.vue'
@@ -34,6 +35,9 @@ const props = defineProps<AdminGutachtenShowProps>()
 
 const page = usePage()
 const draft = computed(() => props.document.status === 'draft')
+/* A new draft is counted before its first row (ADMIN-GEFUNDEN 511): until then the rows' form waits, so the count is read
+   off the PDF and not off the entry. A draft that already has rows is counted at release, and says so. */
+const countFirst = computed(() => draft.value && !props.document.count && props.rows.length === 0)
 
 const context = computed(() => {
     const n = props.rows.length
@@ -103,13 +107,32 @@ const releaseNote = computed(() => {
         : `Mit der Freigabe gelten alle ${decimal(props.rows.length, 0)} Zeilen auf einmal im Shop. Prüf sie vorher in der Vorschau unten.`
 })
 
+/*
+ * What becomes read-only, and what changing it then takes — said before „Freigeben“ is pressed (ADMIN-GEFUNDEN 510: the
+ * client released his first Gutachten and looked for the way back nine times in six minutes).
+ */
 const releaseBody = computed(() => {
     const what = props.rows.length === 0
         ? 'Der Shop übernimmt danach die Angaben dieses Grundgutachtens für seine Nachträge.'
         : `${props.rows.length === 1 ? 'Die Zeile gilt' : `Alle ${decimal(props.rows.length, 0)} Zeilen gelten`} danach sofort im Shop.`
 
-    return `${what} Ein freigegebenes Gutachten ändert sich nicht mehr; Änderungen kommen mit einer neuen Fassung.`
+    return `${what} Angaben, Codes und Zeilen lassen sich dann nicht mehr ändern – eine Korrektur geht über „Neue Fassung anlegen“, und die neue Fassung ersetzt dieses Gutachten, sobald sie freigegeben ist.`
 })
+
+/* ── Neue Fassung (ADMIN-GEFUNDEN 510) ───────────────────────────────────────── */
+
+const reviseOpen = ref(false)
+const reviseBusy = ref(false)
+
+function revise(): void {
+    reviseBusy.value = true
+    router.post(`/admin/gutachten/${props.document.id}/neue-fassung`, {}, {
+        onFinish: () => {
+            reviseBusy.value = false
+            reviseOpen.value = false
+        },
+    })
+}
 
 /* The button that opened the dialog goes with the Freigabe: the keyboard lands on the document's new state. */
 function focusState(): void {
@@ -284,6 +307,17 @@ const TONE: Record<string, string | null> = {
                 Freigeben
             </button>
         </template>
+        <!-- The way back into a released document: a new revision, or the one already started (ADMIN-GEFUNDEN 510). -->
+        <template v-else-if="document.status === 'published' && (revisionDraft || can.revise)" #primary>
+            <a v-if="revisionDraft" class="btn btn--primary" :href="`/admin/gutachten/${revisionDraft.id}`">
+                <Icon name="edit" :size="20" />
+                Neue Fassung öffnen
+            </a>
+            <button v-else class="btn btn--primary" type="button" @click="reviseOpen = true">
+                <Icon name="edit" :size="20" />
+                Neue Fassung anlegen
+            </button>
+        </template>
 
         <!-- ── The state of the document ─────────────────────────────── -->
         <section class="gs-state" :class="{ 'gs-state--blocked': draft && blockers.length }" aria-labelledby="gs-state-h">
@@ -298,13 +332,14 @@ const TONE: Record<string, string | null> = {
             <p v-else-if="draft" class="adm-note">{{ releaseNote }}</p>
             <p v-else-if="document.status === 'withdrawn'" class="adm-note">Dieses Dokument wurde zurückgezogen. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else-if="document.status === 'superseded'" class="adm-note">Eine neuere Fassung hat dieses Dokument ersetzt. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
-            <p v-else class="adm-note">Ein freigegebenes Gutachten ändert sich nicht mehr. Für Änderungen legst du eine neue Fassung an, die es ersetzt.</p>
+            <p v-else-if="revisionDraft" class="adm-note">Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern. Fassung {{ revisionDraft.revision }} ist schon als Entwurf angelegt; sobald sie freigegeben ist, ersetzt sie diese Fassung.</p>
+            <p v-else class="adm-note">Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern. Änderungen gehen über eine neue Fassung: Sie bringt alle Zeilen und Codes mit; sobald sie freigegeben ist, ersetzt sie diese Fassung.</p>
             <!-- D-227: a released document is read as partial until someone says what was entered — and the go-live check waits for it. -->
             <div v-if="document.status === 'published'" class="gs-complete" :class="{ 'gs-complete--open': !document.completeness }">
                 <p class="adm-note">
                     <strong>Erfasst:</strong> {{ document.completenessLabel }}<template v-if="document.completenessBy || document.completenessAt"> · {{ [document.completenessBy, document.completenessAt].filter(Boolean).join(', ') }}</template>
                 </p>
-                <button v-if="can.release" class="btn btn--secondary" type="button" @click="answerOpen = true">{{ document.completeness ? 'Antwort ändern' : 'Jetzt beantworten' }}</button>
+                <button v-if="can.answer" class="btn btn--secondary" type="button" @click="answerOpen = true">{{ document.completeness ? 'Antwort ändern' : 'Jetzt beantworten' }}</button>
             </div>
             <p v-if="openConflicts" class="adm-note">
                 {{ openConflicts === 1 ? 'Eine Zeile widerspricht' : `${decimal(openConflicts, 0)} Zeilen widersprechen` }} einem anderen Gutachten. Bis unter
@@ -355,6 +390,14 @@ const TONE: Record<string, string | null> = {
             </dl>
         </section>
 
+        <!-- ── The count of its Verwendungsbereich, from the PDF, before the rows (ADMIN-GEFUNDEN 511) ── -->
+        <section v-if="draft || document.count" class="adm-section" aria-labelledby="gs-count-h">
+            <div class="adm-section__head">
+                <h2 id="gs-count-h" class="adm-section__title">Zählung</h2>
+            </div>
+            <CountCard :document-id="document.id" :count="document.count ?? null" :editable="can.edit && draft" :page-count="document.pageCount" :rows="rows.length" />
+        </section>
+
         <!-- ── Auflagenverzeichnis: the codes this document prints, with its own sentences ── -->
         <section class="adm-section" aria-labelledby="gs-conditions-h">
             <div class="adm-section__head">
@@ -398,7 +441,7 @@ const TONE: Record<string, string | null> = {
                 <h2 id="gs-rows-h" class="adm-section__title" tabindex="-1">Verwendungsbereich</h2>
             </div>
 
-            <p v-if="rows.length === 0" class="adm-note">Noch keine Zeile. {{ can.edit ? 'Leg unten die ersten an: Fahrzeuge und Größen wählen, Reifengrößen und Auflagen eintragen.' : '' }}</p>
+            <p v-if="rows.length === 0" class="adm-note">Noch keine Zeile. {{ can.edit ? (countFirst ? 'Erst zählen, dann erfassen: Sobald die Zählung oben gespeichert ist, legst du unten die ersten Zeilen an.' : 'Leg unten die ersten an: Fahrzeuge und Größen wählen, Reifengrößen und Auflagen eintragen.') : '' }}</p>
 
             <div v-for="group in groups" :key="group.vehicleId" class="gs-group">
                 <h3 class="gs-group__title">{{ group.vehicle }}</h3>
@@ -457,7 +500,7 @@ const TONE: Record<string, string | null> = {
             </div>
         </section>
 
-        <section v-if="can.edit" class="adm-section" aria-labelledby="gs-add-h">
+        <section v-if="can.edit && !countFirst" class="adm-section" aria-labelledby="gs-add-h">
             <div class="adm-section__head">
                 <h2 id="gs-add-h" class="adm-section__title">Zeilen hinzufügen</h2>
             </div>
@@ -502,7 +545,17 @@ const TONE: Record<string, string | null> = {
         </section>
 
         <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" mode="release" :document="document" :rows="rows.length" :note="releaseBody" @done="focusState" />
-        <ReleaseDialog v-if="can.release && document.status === 'published'" v-model:open="answerOpen" mode="answer" :document="document" :rows="rows.length" />
+        <ReleaseDialog v-if="can.answer" v-model:open="answerOpen" mode="answer" :document="document" :rows="rows.length" />
+
+        <AdminConfirm
+            v-if="can.revise"
+            v-model:open="reviseOpen"
+            title="Neue Fassung anlegen?"
+            body="Die neue Fassung beginnt als Entwurf mit allen Angaben, Codes und Zeilen dieser Fassung. Im Shop gilt diese Fassung weiter, bis die neue freigegeben ist und sie ersetzt."
+            confirm-label="Neue Fassung anlegen"
+            :busy="reviseBusy"
+            @confirm="revise"
+        />
 
         <AdminConfirm
             v-model:open="removeOpen"

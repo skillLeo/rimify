@@ -379,7 +379,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                         <td data-label="Satz" class="av__text">{{ condition.text }}</td>
                         <td v-if="levels" data-label="Im Shop" class="av__level">
                             <template v-if="levelsEditable">
-                                <label class="visually-hidden" :for="`av-level-${condition.id}`">So erscheint Code {{ condition.code }} im Shop</label>
+                                <label class="visually-hidden" :for="`av-level-${condition.id}`">Stufe von Code {{ condition.code }} im Shop</label>
                                 <select
                                     :id="`av-level-${condition.id}`"
                                     class="input av__level-select"

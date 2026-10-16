@@ -19,6 +19,13 @@ const SENTENCE_WORDS = new Set(['Die', 'Der', 'Das', 'Den', 'Dem', 'Des', 'Bei',
 const LEGEND_LINE = /^([A-Za-z0-9]{1,8})(?:\s*[:.\-–]\s*|\s+)(.+)$/u
 
 /**
+ * A code printed with a closing bracket opens its line — BBS's Teilegutachten: `0) Radanbau nur zulässig …`,
+ * `R) Es sind vorn und hinten …`, `16a) …` (the client's item 8). The bracket says it is a code, a single letter too; it
+ * is not part of the code (DocumentConditions::normaliseCode).
+ */
+const BRACKETED_LINE = /^([A-Za-z0-9]{1,4})\)\s*(.+)$/u
+
+/**
  * Whether the first word of a line is a code: it carries a digit (`A01`, `K1c`, `140`, `76O`), is in
  * capitals (`YDM`, `KMV`), or is a three-letter body-style abbreviation (`Cpe`, `Lim`) that is not a word a
  * sentence starts with.
@@ -38,6 +45,14 @@ export function splitLegend(pasted: string): LegendEntry[] {
         const line = raw.replace(/\s+/g, ' ').trim()
 
         if (line === '') {
+            continue
+        }
+
+        const bracketed = BRACKETED_LINE.exec(line)
+
+        if (bracketed) {
+            entries.push({ code: bracketed[1] ?? '', text: (bracketed[2] ?? '').trim() })
+
             continue
         }
 
