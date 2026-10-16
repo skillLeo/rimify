@@ -44,9 +44,15 @@ function psBody(string $code, string ...$forms): RowFilter
     return new RowFilter($code, RowFilter::BODY_FORM, array_values($forms));
 }
 
-function psDrive(string $code, string $mode, string $drive): RowFilter
+function psDrive(string $code, string $mode, string $drive, ?string $text = null): RowFilter
 {
-    return new RowFilter($code, RowFilter::DRIVE, [], $mode, $drive);
+    return new RowFilter($code, RowFilter::DRIVE, [], $mode, $drive, $text);
+}
+
+/** A body-style code with the sentence its document prints beside it. */
+function psBodySaid(string $code, string $text, string ...$forms): RowFilter
+{
+    return new RowFilter($code, RowFilter::BODY_FORM, array_values($forms), textDe: $text);
 }
 
 function psResolve(VehicleRecord $vehicle, FitmentRow $row): FitmentVerdict
@@ -102,6 +108,45 @@ it('narrows a size by the codes printed beside it, and keeps the row for the car
         // Every size keeps the Coupé out: the row does.
         ->and(psResolve(psCar('Coupe'), $row)->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
         ->and(psResolve(psCar(null), $row)->status)->toBe(VerdictStatus::Unknown);
+});
+
+it('names the Auflagen that keep the car out in the answer, in their own words — 512a: the cause, never a decoration', function (): void {
+    // ABE 55255, page 4: BMW 5er-Reihe 5L, A58 — not with all-wheel drive.
+    $a58 = 'Rad-Reifen-Kombination(en) nicht zulässig an Fahrzeugen mit Allradantrieb.';
+    $notAwd = FitmentFixtures::row(filters: [psDrive('A58', 'not', 'Allrad', $a58)]);
+    $awd = psResolve(psCar('Limousine', 'Allrad'), $notAwd);
+
+    expect($awd->status)->toBe(VerdictStatus::NotPermitted)
+        ->and($awd->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
+        ->and($awd->reason?->textDe)->toBe('Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs. Das liegt an der Auflage: „'.$a58.'“')
+        // Let in, nothing to name.
+        ->and(psResolve(psCar('Limousine', 'Hinterachse'), $notAwd)->status)->not->toBe(VerdictStatus::NotPermitted);
+
+    // Body-style codes are read together — „Cbo Cpe“ is a Cabrio or a Coupé — so a Limousine is kept out by both.
+    $row = FitmentFixtures::row(filters: [psBodySaid('Cbo', 'Nur für Cabrio.', 'Cabrio', 'Roadster'), psBodySaid('Cpe', 'Nur für Coupé.', 'Coupe')]);
+
+    expect(psResolve(psCar('Limousine'), $row)->reason?->textDe)->toEndWith('Das liegt an den Auflagen: „Nur für Cabrio.“ und „Nur für Coupé.“');
+
+    // A drive the „nur mit“ codes leave out is kept out by them; a body code the car passes is not named.
+    $only = FitmentFixtures::row(filters: [psBodySaid('Lim', 'Nur für Limousinen.', 'Limousine'), psDrive('A56', 'only', 'Allrad', 'Nur mit Allradantrieb.')]);
+
+    expect(psResolve(psCar('Limousine', 'Hinterachse'), $only)->reason?->textDe)->toEndWith('Das liegt an der Auflage: „Nur mit Allradantrieb.“');
+
+    // Every size keeps the car out, the row lets it in: the sizes' codes are the cause.
+    $bySizes = FitmentFixtures::row(sizes: [
+        new TyreSize(225, 35, 19.0, filters: [psBodySaid('Lim', 'Nur für Limousinen.', 'Limousine')]),
+        new TyreSize(235, 35, 19.0, filters: [psBodySaid('Lim', 'Nur für Limousinen.', 'Limousine')]),
+    ]);
+
+    expect(psResolve(psCar('Kombi'), $bySizes)->reason?->textDe)->toEndWith('Das liegt an der Auflage: „Nur für Limousinen.“');
+
+    // A code entered without its sentence: the plain reason, nothing invented.
+    expect(psResolve(psCar('Limousine', 'Allrad'), FitmentFixtures::row(filters: [psDrive('A58', 'not', 'Allrad')]))->reason?->textDe)
+        ->toBe('Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs.');
+
+    // A sentence recorded without its stop keeps its words; the reason closes after the quote.
+    expect(psResolve(psCar('Limousine', 'Allrad'), FitmentFixtures::row(filters: [psDrive('A58', 'not', 'Allrad', 'Nicht an Fahrzeugen mit Allradantrieb')]))->reason?->textDe)
+        ->toEndWith('Das liegt an der Auflage: „Nicht an Fahrzeugen mit Allradantrieb“.');
 });
 
 it('says the Eintragung only where a size the car keeps needs it', function (): void {

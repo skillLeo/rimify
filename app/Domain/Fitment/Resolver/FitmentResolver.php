@@ -193,6 +193,8 @@ final readonly class FitmentResolver
             $admitted = [];
             // What of the car the undecided rows would need: asked for by name, never as a riddle (§1.1).
             $missing = [];
+            // The codes that keep the car out, named in the answer where every row does (512a).
+            $refusing = [];
 
             foreach ($covering[$id] as $row) {
                 $admit = $row->filtersAdmit($vehicle);
@@ -220,6 +222,9 @@ final readonly class FitmentResolver
 
                 if ($admit === false) {
                     $excludedBy ??= $row->document;
+                    // The row's own codes, or — where the row lets the car in and every size keeps it out — the sizes'.
+                    $byRow = RowFilter::refusing($row->filters, $vehicle);
+                    $refusing = [...$refusing, ...($byRow !== [] ? $byRow : array_merge([], ...array_map(static fn (TyreSize $s): array => RowFilter::refusing($s->filters, $vehicle), $row->tyreSizes)))];
                 } elseif ($admit === null) {
                     $undecided ??= $row->document;
 
@@ -240,7 +245,7 @@ final readonly class FitmentResolver
             }
 
             if ($admitted === []) {
-                $verdicts[$id] = $this->negative(VerdictStatus::NotPermitted, $vehicle, $wheel, VerdictReason::of(VerdictReason::BODY_OR_DRIVE_EXCLUDED), $excludedBy);
+                $verdicts[$id] = $this->negative(VerdictStatus::NotPermitted, $vehicle, $wheel, VerdictReason::excludedBy(array_map(static fn (RowFilter $f): ?string => $f->textDe, $refusing)), $excludedBy);
 
                 continue;
             }

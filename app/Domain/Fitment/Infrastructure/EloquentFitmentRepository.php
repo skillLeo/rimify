@@ -274,6 +274,8 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                     bodyForms: $definition->body_forms ?? [],
                     driveMode: is_array($definition->drive) ? ($definition->drive['mode'] ?? null) : null,
                     drive: is_array($definition->drive) ? ($definition->drive['drive'] ?? null) : null,
+                    // Named in the answer where the code keeps a car out (512a).
+                    textDe: $definition->text_de,
                 );
 
                 return null;

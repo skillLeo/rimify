@@ -118,6 +118,13 @@ title; please confirm every line, or replace it with the wording the shop can st
     from 01.01.2025, while books and records stay at ten. Please have the Kanzlei confirm the period for invoices,
     credit notes and the order records before the deletion the record lists as open (its § 3) is set. Until then the
     record names the two paragraphs and no period.
+37. **How the shop says it checks reviews it did not collect itself — for the Kanzlei and the client (17.10.2026).**
+    Not built yet (#19); the drafts in `docs/review/BEWERTUNGEN-IMPORT.md` put one sentence under § 5b Abs. 3 UWG
+    beside each set. Beside Google reviews: „Diese Bewertungen stammen aus unserem Google-Profil. Wir prüfen nicht, ob
+    unsere Kundinnen und Kunden sie geschrieben haben.“ Beside reviews taken over from the former shop: „Diese
+    Bewertungen haben wir aus unserem früheren Shop übernommen. Ob sie von Käuferinnen und Käufern dieser Felge stammen,
+    haben wir nicht geprüft.“ Please have the Kanzlei confirm both. And from the client: did the former shop check that
+    a reviewer had bought the wheel? If it did, the second sentence is not true as written and must say how.
 
 ## Photography and brands
 

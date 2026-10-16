@@ -5,17 +5,21 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Verdict;
 
 /**
- * How loud an Auflage is, as the customer meets it (the client's #23, answered by the operator, D-104).
+ * How loud an Auflage is, as the operator classifies it (the client's #23, D-104; decided further on 17.10.2026, D-260,
+ * D-261):
  *
- *   hinweis          nothing to do, just know it      the ink colour, no badge
- *   auflage          something must be done, or use is restricted      warn
- *   nicht_zulaessig  not permitted                    bad
+ *   hinweis          nothing to do, just know it
+ *   auflage          something must be done, or use is restricted
+ *   nicht_zulaessig  not permitted — where the document says so
  *
- * It decides the colour and the badge — „Freigegeben“ where every Auflage of a verdict is a Hinweis, „Mit Auflagen“
- * where one is more — never the verdict itself: the engine's four states (R-07) and the tyres' half (R-03) are
- * computed exactly as before. One rule cannot be configured away: an Abnahme or work on the body is always at least
- * an Auflage (`floorFor`), in the form, in the model and in the database — so nobody can make a wheel that needs a
- * Prüfer look as if it needed nothing.
+ * A level may change what the customer reads; it may never change what he may do. It moves one thing: the badge's
+ * words, „Freigegeben“ where every Auflage of a verdict is a Hinweis, „Mit Auflagen“ where one is more — every Auflage
+ * still listed beneath. Never the verdict, the tyres offered or the wheels shown (`LevelsChangeNoAnswerTest`). In the
+ * shop no level has a colour or a badge of its own: a refusal reads as the shape of what is permitted — „nur
+ * Vorderachse“ beside a size, the document's own sentence — and one that keeps a car out entirely is named in the
+ * answer's reason. One rule cannot be configured away: an Abnahme or work on the body is always at least an Auflage
+ * (`floorFor`), in the form, in the model and in the database — so nobody can make a wheel that needs a Prüfer look as
+ * if it needed nothing.
  */
 enum ConditionLevel: string
 {
