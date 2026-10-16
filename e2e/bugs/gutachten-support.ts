@@ -146,8 +146,27 @@ export async function busiestDocument(page: Page): Promise<number> {
 }
 
 /** A released document's props, turned into a draft the viewer may edit and release. */
+/*
+ * A draft's count of its Verwendungsbereich (ADMIN-GEFUNDEN 511): a new draft asks for it before its rows' form appears.
+ * These specs are about the rows, so the draft they make stands counted — as one counted before its first row.
+ */
+const COUNTED = {
+    codes: 1,
+    codesPage: 1,
+    sizes: 1,
+    sizesPage: 1,
+    axleLimitKg: null,
+    axleLimitPage: null,
+    abnahme: 'none' as const,
+    abnahmePage: null,
+    lines: ['1 Auflagen-Code (Seite 1)', '1 Reifengröße (Seite 1)', 'keine Achslastgrenze', 'keine Abnahme'],
+    by: null,
+    at: '16.10.2026, 12:00 Uhr',
+    beforeEntry: true,
+};
+
 export function asDraft(props: ShowProps): void {
-    props.document = { ...props.document, status: 'draft', statusLabel: 'Entwurf' };
+    props.document = { ...props.document, status: 'draft', statusLabel: 'Entwurf', count: props.document.count ?? COUNTED };
     props.can = { edit: true, release: true };
     props.blockers = [];
 }
