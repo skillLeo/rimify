@@ -178,7 +178,7 @@ export const ITEMS = [
     {
         nr: 23,
         wish: '„Mit Auflagen“ nur gelb bei echten Auflagen (z. B. Bördeln), im Backend einstellbar',
-        now: 'Jede Auflage eines Gutachtens hat im Admin eine Stufe – Hinweis, Auflage oder Nicht zulässig –, und „Mit Auflagen“ steht nur, wo eine echte Auflage gilt.',
+        now: 'Jede Auflage eines Gutachtens hat im Admin eine Stufe – Hinweis, Auflage oder Nicht zulässig. Sind alle Auflagen einer Antwort Hinweise, ist keine Eintragung nötig und sind auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“; „Nicht zulässig“ wirkt im Shop wie eine Auflage. Auf deiner Vorschau braucht jede Demo-Antwort, die „Mit Auflagen“ zeigt, eine Eintragung – dort bleibt es dabei, welche Stufe du auch wählst.',
         reason: 'Einen freien Grün/Gelb-Schalter gibt es nicht: Abnahme und Arbeiten an der Karosserie bleiben immer Auflagen, sonst könnte jemand kaufen, ohne zu wissen, dass ein Prüfer nötig ist.',
         state: 'anders gelöst',
         tick: true,
