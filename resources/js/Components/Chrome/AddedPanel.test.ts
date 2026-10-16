@@ -115,7 +115,13 @@ describe('AddedPanel', () => {
         expect(document.activeElement).toBe(close.element)
         await tab(true)
         expect(document.activeElement).toBe(basket.element)
-        // Between the first and the last the browser's own order holds: „Weiter einkaufen“ is one of the three.
+        // Between them too every Tab is the panel's — Safari's own skips the link and walked out past it (16.10.2026).
+        await tab()
+        expect(document.activeElement).toBe(close.element)
+        await tab()
+        expect(document.activeElement).toBe(onward.element)
+        await tab()
+        expect(document.activeElement).toBe(basket.element)
         expect([close, onward, basket].map((c) => c.text())).toEqual(['', 'Weiter einkaufen', 'Zum Warenkorb'])
 
         // Escape: closed, and the focus back on the button the add came from.

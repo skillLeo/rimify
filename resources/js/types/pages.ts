@@ -500,6 +500,8 @@ export interface ConfigVerdict {
         pdf?: { url: string; page: number | null } | null
         others?: string[]
         notes?: string[]
+        /** An example document (decision 6, D-239): marked where it is shown, opened through its marked page. */
+        example?: boolean
     } | null
     tyreSizes: string[]
     /* docs/specs/komplettrad.md §3.4 — the tyre side of the verdict, additive and optional. */
@@ -511,9 +513,9 @@ export interface ConfigVerdict {
     minLoadIndex?: number | null
     minSpeedSymbol?: string | null
     /** Which side of R-06 governed — combined, and per half, because a document may state only one. */
-    minSource?: 'DOCUMENT' | 'DERIVED'
-    minLoadSource?: 'DOCUMENT' | 'DERIVED'
-    minSpeedSource?: 'DOCUMENT' | 'DERIVED'
+    minSource?: 'DOCUMENT' | 'DERIVED' | 'PAPERS'
+    minLoadSource?: 'DOCUMENT' | 'DERIVED' | 'PAPERS'
+    minSpeedSource?: 'DOCUMENT' | 'DERIVED' | 'PAPERS'
     /** `Für dein Fahrzeug brauchen die Reifen mindestens …` — a full sentence, never a bare number pair. */
     minSentence?: string | null
     /**
@@ -665,7 +667,8 @@ export interface CompareItem extends ProductCardProp {
         boltPattern: string
         /** `66,6 mm` */
         centreBore: string
-        documents: { kind: 'ABE' | 'Teilegutachten' | 'ECE' | 'EG-Genehmigung'; number: string | null }[]
+        /** `example`: born demo — named as an example wherever it is shown (D-239). */
+        documents: { kind: 'ABE' | 'Teilegutachten' | 'ECE' | 'EG-Genehmigung'; number: string | null; example?: boolean }[]
     }
     /** Merged toward caution across the model's configurations; null without a vehicle. */
     verdict: ConfigVerdict | null
@@ -706,7 +709,7 @@ export interface CheckResultView {
     papers: { axleFrontKg: number; axleRearKg: number; topSpeedKmh: number; powerKw?: number | null } | null
     /** What the answer assumed that the vehicle data does not hold, and from where (G-02). Additive. */
     build?: { fact: string; value: string; source: string }[]
-    document: { label: string; issuer: string | null; revision: number; page: number | null } | null
+    document: { label: string; issuer: string | null; revision: number; page: number | null; example?: boolean } | null
     /** Said only when the document has changed since the result was issued. */
     documentToday: string | null
     issuedAt: string | null

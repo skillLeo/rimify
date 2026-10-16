@@ -30,6 +30,7 @@ use App\Policies\CatalogueImportPolicy;
 use App\Policies\DemandMarkPolicy;
 use App\Policies\DemoDataPolicy;
 use App\Policies\DocumentUploadPolicy;
+use App\Policies\ErrorPagePolicy;
 use App\Policies\FaqEntryPolicy;
 use App\Policies\FitmentConflictPolicy;
 use App\Policies\GoLivePolicy;
@@ -49,6 +50,7 @@ use App\Services\Demo\DemoTables;
 use App\Services\GoLive\GoLiveChecks;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Storage\PdfUpload;
+use App\Services\Storefront\ErrorPage;
 use App\Support\Seller;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -94,6 +96,8 @@ final class AuthServiceProvider extends ServiceProvider
         TestEnvironment::class => TestResetPolicy::class,
         // Not a model: what the live shop still needs (GoLiveChecks), read on System › Was fehlt.
         GoLiveChecks::class => GoLivePolicy::class,
+        // Not a model: the shop's error pages, opened on purpose in a test environment (D-243).
+        ErrorPage::class => ErrorPagePolicy::class,
         WheelModel::class => WheelModelPolicy::class,
         Brand::class => BrandPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,

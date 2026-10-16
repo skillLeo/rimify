@@ -394,8 +394,8 @@ final readonly class FitmentResolver
             $combination = Condition::union($combination, $row->conditions);
         }
 
-        [$front, $frontCheck] = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT', $vehicle->powerKw);
-        [$rear, $rearCheck] = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR', $vehicle->powerKw);
+        [$front, $frontCheck] = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT', $vehicle->powerKw, $vehicle->papersIndex?->forAxle('FRONT'), self::provenance($vehicle, 'FRONT'));
+        [$rear, $rearCheck] = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR', $vehicle->powerKw, $vehicle->papersIndex?->forAxle('REAR'), self::provenance($vehicle, 'REAR'));
 
         // A size the document gives only for a kW band, on a car whose power is not known: kept, never
         // PERMITTED — the band is said, with the field of the papers to compare it with (Block D).
@@ -612,6 +612,17 @@ final readonly class FitmentResolver
             }
 
             [$axleStatus, $axleLines] = $this->axleLines($name, $axle, $check, $wheel);
+
+            // The papers' index where our own computation is missing: said, and never taken alone (R-03, D-242).
+            if ($axleStatus === VerdictStatus::Unknown && is_array($check['papers'] ?? null)) {
+                $axleLines[] = sprintf(
+                    'Deine Angabe aus Feld %s – Tragfähigkeitsindex %d, Geschwindigkeitsindex %s – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Rechnung aus Achslast und Höchstgeschwindigkeit.',
+                    $check['papers']['field'],
+                    $check['papers']['loadIndex'],
+                    $check['papers']['speedSymbol'],
+                );
+            }
+
             $status = VerdictStatus::weaker($status, $axleStatus);
             $lines = [...$lines, ...$axleLines];
         }
@@ -903,13 +914,31 @@ final readonly class FitmentResolver
                 GermanFormat::kilograms($derived->capacityKg),
             );
 
+        // The papers' own index, where the customer typed it (D-242): said whether or not it governs.
+        if (is_array($check['papers'] ?? null)) {
+            $lines[] = sprintf('Nach deinen Angaben aus Feld %s: Tragfähigkeitsindex %d, Geschwindigkeitsindex %s.', $check['papers']['field'], $check['papers']['loadIndex'], $check['papers']['speedSymbol']);
+        }
+
         $binding = match ($check['binding']) {
             'limit' => sprintf('die Auflage %s', $check['limit']['code'] ?? ''),
             'size' => 'die Reifengröße im Gutachten',
+            'papers' => sprintf('deine Angabe aus Feld %s', $check['papers']['field'] ?? '15.1'),
             default => 'die Minderung bei hoher Geschwindigkeit',
         };
 
-        $lines[] = sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol);
+        // Each half credited to what set it: where the papers set one half and not the other, the line says so (D-242).
+        $speedByPapers = $axle->minSpeedSource === MinSource::Papers;
+        $lines[] = match (true) {
+            $speedByPapers && $check['binding'] !== 'papers' => sprintf(
+                'Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d. Den Geschwindigkeitsindex %s verlangt deine Angabe aus Feld %s.',
+                $binding,
+                (int) $axle->minLoadIndex,
+                $axle->minSpeedSymbol,
+                $check['papers']['field'] ?? '15.1',
+            ),
+            ! $speedByPapers && $check['binding'] === 'papers' => sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d. Der Geschwindigkeitsindex muss mindestens %s sein.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol),
+            default => sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol),
+        };
 
         return [VerdictStatus::Permitted, $lines];
     }
@@ -981,7 +1010,12 @@ final readonly class FitmentResolver
      * the symbol to the one the row requires); the document's `reifen_tragfaehigkeit` limits (the smallest
      * index whose limit reaches this axle); and a size's own stated minimum (R-06).
      *
+     * The papers' own index (15.1, 15.2 — D-242) is a fourth floor, and the only one that cannot stand alone: it raises a
+     * minimum the car's axle load and top speed already produced, and is not read without them (R-03).
+     *
      * @param  list<FitmentRow>  $covering
+     * @param  array{loadIndex: int, speedSymbol: string, field: string}|null  $papers
+     * @param  array{axleLoadFrom: string|null, topSpeedFrom: string|null}|null  $provenance  where the figures came from, where the customer's own took part
      * @return array{0: AxleRequirement, 1: array<string, mixed>}
      */
     private function axleRequirement(
@@ -990,6 +1024,8 @@ final readonly class FitmentResolver
         ?int $maxSpeedKmh,
         string $axle,
         ?int $powerKw = null,
+        ?array $papers = null,
+        ?array $provenance = null,
     ): array {
         $sizes = null;
         $sizeLoadIndex = null;
@@ -1061,6 +1097,21 @@ final readonly class FitmentResolver
             }
         }
 
+        // The symbol the table was read for: the computation stands exactly as it would without the papers (D-242).
+        $tableSymbol = $minSpeedSymbol;
+
+        // The papers' symbol (15.1/15.2): stricter wins, never the weaker — and only on top of a symbol the top speed
+        // already gave (R-03). After the table, so the index computed for the slower symbol is kept: that is the stricter.
+        if ($papers !== null && $minSpeedSymbol !== null) {
+            $papersRank = $this->speedSymbol->rankOf($papers['speedSymbol']);
+            $ownRank = $this->speedSymbol->rankOf($minSpeedSymbol);
+
+            if ($papersRank !== null && $ownRank !== null && $papersRank > $ownRank) {
+                $minSpeedSymbol = $papers['speedSymbol'];
+                $speedSource = MinSource::Papers;
+            }
+        }
+
         $derivedLoadIndex = $axleLoadKg === null || $axleLoadKg <= 0 || $lookup === null || $lookup->percent === null
             ? null
             : $this->loadIndex->forAxleAt($axleLoadKg, $lookup->percent);
@@ -1110,7 +1161,14 @@ final readonly class FitmentResolver
             $documentLoadIndex,
         );
 
+        // The papers' load index: stricter wins, never the weaker, never in place of a computation (R-03).
+        if ($papers !== null && $minLoadIndex !== null && $papers['loadIndex'] > $minLoadIndex) {
+            $minLoadIndex = $papers['loadIndex'];
+            $loadSource = MinSource::Papers;
+        }
+
         $binding = match (true) {
+            $loadSource === MinSource::Papers => 'papers',
             $loadSource !== MinSource::Document => 'derived',
             $limit !== null && $limit['index'] === $minLoadIndex => 'limit',
             default => 'size',
@@ -1140,11 +1198,19 @@ final readonly class FitmentResolver
                     : MinSource::Derived,
                 minLoadSource: $loadSource,
                 minSpeedSource: $speedSource,
+                // Where the figures came from, frozen with the answer — written where the customer's own took part;
+                // absent, every figure is our vehicle data's (D-242).
+                provenance: $provenance === null ? null : [
+                    ...$provenance,
+                    ...($papers === null ? [] : ['papersLoadIndex' => $papers['loadIndex'], 'papersSpeedSymbol' => $papers['speedSymbol']]),
+                ],
             ),
             [
+                'axle' => $axle,
+                'papers' => $papers,
                 'load' => $axleLoadKg,
                 'speed' => $maxSpeedKmh,
-                'symbol' => $minSpeedSymbol,
+                'symbol' => $tableSymbol,
                 'lookup' => $lookup,
                 'raisedFrom' => $raisedFrom,
                 'derived' => $derivedLoadIndex,
@@ -1164,6 +1230,30 @@ final readonly class FitmentResolver
                     )),
                 },
             ],
+        ];
+    }
+
+    /**
+     * Where an axle's figures came from, where the customer's own took part (D-242): `customer` where his figure raised
+     * the vehicle data's (PapersFigures::applyTo() takes the larger), `dataset` where ours stood. Null where he typed
+     * nothing — then every figure is our vehicle data's.
+     *
+     * @return array{axleLoadFrom: string|null, topSpeedFrom: string|null}|null
+     */
+    private static function provenance(VehicleRecord $vehicle, string $axle): ?array
+    {
+        $before = $vehicle->beforePapers;
+
+        if ($before === null) {
+            return null;
+        }
+
+        $load = $axle === 'REAR' ? $vehicle->axleLoadRearKg : $vehicle->axleLoadFrontKg;
+        $loadBefore = $axle === 'REAR' ? $before->axleLoadRearKg : $before->axleLoadFrontKg;
+
+        return [
+            'axleLoadFrom' => $load === null ? null : ((int) $load > (int) $loadBefore ? 'customer' : 'dataset'),
+            'topSpeedFrom' => $vehicle->maxSpeedKmh === null ? null : ((int) $vehicle->maxSpeedKmh > (int) $before->maxSpeedKmh ? 'customer' : 'dataset'),
         ];
     }
 

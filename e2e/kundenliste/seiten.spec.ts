@@ -165,7 +165,8 @@ test('RIMIFY-Check: one car, one wheel, one answer with its Auflagen, document a
     await expect(answer.locator('.rcheck-panel__vehicle')).toHaveText(/^Mit Auflagen freigegeben für /)
     await expect(answer.locator('.fit__overview')).toContainText('Das verlangt das Gutachten')
     await expect(answer.locator('.fit__doc')).toBeVisible()
-    await expect(answer.locator('.fit__pdf a').first()).toHaveText(/^\s*Gutachten öffnen \(PDF(, Seite \d+)?\)\s*$/)
+    // The acceptance set's documents are examples: the link says so (D-239).
+    await expect(answer.locator('.fit__pdf a').first()).toHaveText(/^\s*Gutachten öffnen \(Beispiel, PDF(, Seite \d+)?\)\s*$/)
     await expect(answer.locator('.chk__go')).toHaveText('Jetzt kaufen')
     await expect(answer.locator('.chk__go')).toBeEnabled()
     await expect(answer.locator('.chk__buy .bmc-tile', { hasText: 'Kompletträder' })).toBeVisible()

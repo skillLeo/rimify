@@ -49,6 +49,23 @@ final readonly class TyreEligibility
 
     private const MINIMUM_LOAD_DOCUMENT_SPEED_DERIVED = 'Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.';
 
+    /* The papers' own index, where it was the stricter (15.1, 15.2, as the customer typed them — D-242). */
+    private const MINIMUM_BOTH_PAPERS = 'Diese Mindestwerte stehen nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).';
+
+    private const MINIMUM_LOAD_PAPERS = 'Der Tragfähigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2), %s';
+
+    private const MINIMUM_SPEED_PAPERS = '%s, der Geschwindigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).';
+
+    private const SPEED_FROM = [
+        'DERIVED' => 'der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.',
+        'DOCUMENT' => 'der Geschwindigkeitsindex steht so im Gutachten.',
+    ];
+
+    private const LOAD_FROM = [
+        'DERIVED' => 'Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs',
+        'DOCUMENT' => 'Der Tragfähigkeitsindex steht so im Gutachten',
+    ];
+
     public function __construct(
         private TyreCatalogue $catalogue,
         private SpeedSymbolDeriver $speedSymbol,
@@ -213,10 +230,17 @@ final readonly class TyreEligibility
             return null;
         }
 
+        $load = $minimum['loadSource'];
+        $speed = $minimum['speedSource'];
+
         $tail = match (true) {
-            $minimum['loadSource'] === MinSource::Document && $minimum['speedSource'] === MinSource::Document => self::MINIMUM_BOTH_DOCUMENT,
-            $minimum['loadSource'] === MinSource::Document => self::MINIMUM_LOAD_DOCUMENT_SPEED_DERIVED,
-            $minimum['speedSource'] === MinSource::Document => self::MINIMUM_LOAD_DERIVED_SPEED_DOCUMENT,
+            // Where the papers governed a half, it is credited to them — and the other half to its own source.
+            $load === MinSource::Papers && $speed === MinSource::Papers => self::MINIMUM_BOTH_PAPERS,
+            $load === MinSource::Papers => sprintf(self::MINIMUM_LOAD_PAPERS, self::SPEED_FROM[$speed->value]),
+            $speed === MinSource::Papers => sprintf(self::MINIMUM_SPEED_PAPERS, self::LOAD_FROM[$load->value]),
+            $load === MinSource::Document && $speed === MinSource::Document => self::MINIMUM_BOTH_DOCUMENT,
+            $load === MinSource::Document => self::MINIMUM_LOAD_DOCUMENT_SPEED_DERIVED,
+            $speed === MinSource::Document => self::MINIMUM_LOAD_DERIVED_SPEED_DOCUMENT,
             default => self::MINIMUM_BOTH_DERIVED,
         };
 
@@ -708,9 +732,11 @@ final readonly class TyreEligibility
 
         return [
             $frontValue,
-            ($frontSource === MinSource::Document || $rearSource === MinSource::Document)
-                ? MinSource::Document
-                : MinSource::Derived,
+            match (true) {
+                $frontSource === MinSource::Document || $rearSource === MinSource::Document => MinSource::Document,
+                $frontSource === MinSource::Papers || $rearSource === MinSource::Papers => MinSource::Papers,
+                default => MinSource::Derived,
+            },
         ];
     }
 }

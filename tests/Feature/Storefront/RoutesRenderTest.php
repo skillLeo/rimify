@@ -5,10 +5,10 @@ declare(strict_types=1);
 use App\Models\AdminUser;
 use App\Models\Order;
 use App\Models\WheelModel;
+use App\Services\Commerce\OrderLinks;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
-use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -182,7 +182,7 @@ it('renders an order with its frozen verdict per line', function (): void {
     // One that came through the checkout never does: its signed link, the browser that placed it or its account.
     $this->get('/bestellung/'.Order::factory()->create()->order_number)->assertNotFound();
 
-    $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))
+    $this->get(OrderLinks::link($order))
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page

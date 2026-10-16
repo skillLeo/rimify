@@ -7,11 +7,12 @@ use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Commerce\OrderLinks;
 use App\Services\Demo\AcceptanceSet;
+use App\Services\Demo\DemoPurge;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 
 /*
@@ -52,7 +53,7 @@ it('opens an order that came through the checkout to nobody who merely knows its
 it('opens it through its signed link — and an order with a demo line says it is demonstration data', function (): void {
     $order = checkoutOrder(acceptanceWheel: true);
 
-    $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))
+    $this->get(OrderLinks::link($order))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('demo', true));
 });
@@ -63,6 +64,16 @@ it('opens an order a seeder wrote by its number', function (): void {
     expect($order->seeded())->toBeTrue();
 
     $this->get('/bestellung/'.$order->order_number)->assertOk();
+});
+
+it('opens a seeded demo order by number only while the demo data is there — afterwards its number answers 404', function (): void {
+    $order = Order::factory()->seeded()->create(['is_demo' => true, 'demo_ref' => 'demo:order:verschwindet']);
+
+    $this->get('/bestellung/'.$order->order_number)->assertOk();
+
+    app(DemoPurge::class)->run('Test', null, catalogue: false);
+
+    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
 });
 
 it('never lets an order become a seeded one after the fact', function (): void {

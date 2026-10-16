@@ -54,7 +54,11 @@ Nur bei {{ $size['size'] }} ({{ $size['axle'] }}):
 
 **Lieferzeit:** {{ $deliveryTime ?? 'Wir melden uns mit dem Versanddatum.' }}
 
+@if ($invoiceNumber !== null)
 Deine Rechnung **{{ $invoiceNumber }}** hängt an dieser Mail. Du kannst sie auch [hier herunterladen]({{ $invoiceUrl }}) (der Link gilt sieben Tage).
+@else
+Dies ist ein Testkauf mit Beispieldaten: Er bekommt keine Rechnung und zählt in keiner echten Zahl des Shops.
+@endif
 @if ($legalAttached)
 
 {{ $legalAttached }}
@@ -63,6 +67,8 @@ Deine Rechnung **{{ $invoiceNumber }}** hängt an dieser Mail. Du kannst sie auc
 <x-mail::button :url="$orderUrl">
 Bestellung ansehen
 </x-mail::button>
+
+Der Link gilt zwölf Monate. Danach schicken wir dir auf der Seite, die er dann öffnet, einen neuen an diese Adresse.
 
 Fragen zur Bestellung? Antworte einfach auf diese Mail und nenn die Bestellnummer.
 

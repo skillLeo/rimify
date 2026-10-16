@@ -481,6 +481,46 @@ it('takes the stricter axle for each half of the minimum, with the source that g
         );
 });
 
+it('credits the papers for the half they set, and the other half to its own source (D-242)', function (): void {
+    $live = liveVerdict(FitmentFixtures::row());
+    $sizes = [new TyreSize(245, 45, 18.0)];
+
+    // Both halves from 15.1/15.2: the front's 95 is the stricter index; on the tied Y the papers outrank the computation.
+    $both = withAxles(
+        $live,
+        new AxleRequirement($sizes, 95, 'Y', MinSource::Derived, MinSource::Papers, MinSource::Papers),
+        new AxleRequirement($sizes, 93, 'Y', MinSource::Derived),
+    );
+
+    $loadOnly = withAxles(
+        $live,
+        new AxleRequirement($sizes, 95, 'Y', MinSource::Derived, MinSource::Papers, MinSource::Derived),
+        new AxleRequirement($sizes, 93, 'Y', MinSource::Derived),
+    );
+
+    // The index tied and written in the Gutachten; the symbol (Y) from the papers.
+    $speedOnly = withAxles(
+        $live,
+        new AxleRequirement($sizes, 93, '(Y)', MinSource::Document, MinSource::Document, MinSource::Papers),
+        new AxleRequirement($sizes, 93, 'Y', MinSource::Derived),
+    );
+
+    expect(eligibilityOver()->minimumSentenceDe($both))->toBe(
+        'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y. '
+        .'Diese Mindestwerte stehen nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).'
+    )
+        ->and(eligibilityOver()->minimumSentenceDe($loadOnly))->toBe(
+            'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y. '
+            .'Der Tragfähigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2), der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.'
+        )
+        ->and(eligibilityOver()->minimumSentenceDe($speedOnly))->toBe(
+            'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 93 und Geschwindigkeitsindex (Y). '
+            .'Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).'
+        )
+        // A tyre below the papers' floor is refused like any other below the minimum.
+        ->and(eligibilityOver()->permits($both, permittedTyre(loadIndex: 94)))->toBe(KomplettradRefusal::BelowMinimum);
+});
+
 it('returns no minimum sentence for a verdict that has none to state', function (): void {
     expect(eligibilityOver()->minimumSentenceDe(liveVerdict()))->toBeNull();
 });

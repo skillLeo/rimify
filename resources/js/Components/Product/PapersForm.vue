@@ -59,6 +59,22 @@ const form = reactive<Record<FieldKey, number | ''>>({
     power_kw: (props.papers?.powerKw ?? '') as number | '',
 })
 
+/*
+ * 15.1 and 15.2, optional and together (D-242): the tyres the papers name, typed as printed. The answer takes the
+ * stricter of these and its own sum — never the weaker — and never without 8.1, 8.2 and T (R-03).
+ */
+type IndexKey = 'index_front' | 'index_rear'
+
+const INDEX_FIELDS: { key: IndexKey; label: string }[] = [
+    { key: 'index_front', label: '15.1 · Reifen vorn' },
+    { key: 'index_rear', label: '15.2 · Reifen hinten' },
+]
+
+const index = reactive<Record<IndexKey, string>>({
+    index_front: props.papers?.index?.front ?? '',
+    index_rear: props.papers?.index?.rear ?? '',
+})
+
 const entered = computed(() => props.papers !== null)
 
 /** The form as the kept figures say, nothing typed since — for „Ändern“ and „Abbrechen“. */
@@ -67,6 +83,8 @@ function fromPapers(): void {
     form.axle_rear_kg = props.papers?.axleRearKg ?? ''
     form.top_speed_kmh = props.papers?.topSpeedKmh ?? ''
     form.power_kw = props.papers?.powerKw ?? ''
+    index.index_front = props.papers?.index?.front ?? ''
+    index.index_rear = props.papers?.index?.rear ?? ''
     errors.value = {}
 }
 
@@ -99,14 +117,19 @@ const kg = (n: number): string => withUnit(formatNumber(n), 'kg')
 
 function save(): void {
     busy.value = true
-    // P.2 goes only where it was asked; empty, it is not sent.
+    // P.2 goes only where it was asked; empty, it is not sent. 15.1 and 15.2 go where either was typed.
     const { power_kw: power, ...figures } = form
-    router.post(`/fahrzeug/${props.vehicleId}/papiere`, { ...figures, ...(props.powerKw == null && power !== '' ? { power_kw: power } : {}) }, {
+    const typed = index.index_front.trim() !== '' || index.index_rear.trim() !== ''
+    router.post(`/fahrzeug/${props.vehicleId}/papiere`, {
+        ...figures,
+        ...(props.powerKw == null && power !== '' ? { power_kw: power } : {}),
+        ...(typed ? { index_front: index.index_front, index_rear: index.index_rear } : {}),
+    }, {
         preserveScroll: true,
         errorBag: 'papiere',
         onError: (bag) => {
             errors.value = bag as Record<string, string>
-            const first = ['axle_front_kg', 'axle_rear_kg', 'top_speed_kmh', 'power_kw'].find((key) => errors.value[key])
+            const first = ['axle_front_kg', 'axle_rear_kg', 'top_speed_kmh', 'power_kw', 'index_front', 'index_rear'].find((key) => errors.value[key])
             document.getElementById(first ? `pp-${first}` : 'pp-save')?.focus()
         },
         onSuccess: () => {
@@ -180,6 +203,8 @@ function clear(): void {
             form.axle_rear_kg = ''
             form.top_speed_kmh = ''
             form.power_kw = ''
+            index.index_front = ''
+            index.index_rear = ''
             // What was wrong with figures that are gone is no longer said (C-07).
             errors.value = {}
             open.value = false
@@ -196,7 +221,7 @@ function clear(): void {
     <div class="pp">
         <template v-if="papers && !open">
             <p class="pp__summary">
-                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ withUnit(papers.topSpeedKmh, 'km/h') }}<template v-if="papers.powerKw"> · P.2 {{ withUnit(papers.powerKw, 'kW') }}</template></span>
+                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ withUnit(papers.topSpeedKmh, 'km/h') }}<template v-if="papers.powerKw"> · P.2 {{ withUnit(papers.powerKw, 'kW') }}</template><template v-if="papers.index"> · 15.1 {{ papers.index.front }} · 15.2 {{ papers.index.rear }}</template></span>
                 <button id="pp-change" class="btn btn--ghost btn--sm" type="button" @click="change">Ändern</button>
             </p>
             <p v-for="note in papers.notes" :key="note" class="pp__help">{{ note }}</p>
@@ -257,6 +282,31 @@ function clear(): void {
                         <span class="input-group__suffix" aria-hidden="true" translate="no">{{ field.unit }}</span>
                     </div>
                     <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
+                </div>
+            </div>
+
+            <!-- 15.1 and 15.2, optional (D-242): the stricter of these and our own sum governs, never the weaker. -->
+            <div class="pp__index">
+                <p class="pp__help">
+                    Freiwillig, vorn und hinten zusammen: die Reifen aus Feld 15.1 und 15.2, so wie sie dort stehen. Verlangen sie mehr
+                    als unsere Rechnung, gilt das Strengere.
+                </p>
+                <div class="pp__pair">
+                    <div v-for="field in INDEX_FIELDS" :key="field.key" class="form-field">
+                        <label class="form-field__label" :for="`pp-${field.key}`">{{ field.label }}</label>
+                        <input
+                            :id="`pp-${field.key}`"
+                            v-model="index[field.key]"
+                            class="input"
+                            type="text"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="z. B. 225/45 R17 91W"
+                            :aria-invalid="errors[field.key] ? 'true' : undefined"
+                            :aria-describedby="`pp-${field.key}-err`"
+                        >
+                        <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
+                    </div>
                 </div>
             </div>
 
@@ -350,6 +400,24 @@ function clear(): void {
 
 .pp .input-group .input {
     padding-right: var(--sp-48);
+}
+
+.pp__index {
+    display: grid;
+    gap: var(--sp-8);
+}
+
+.pp__pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-16);
+}
+
+/* Two side by side once the form has room for a full designation in each. */
+@container (min-width: 480px) {
+    .pp__pair {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .pp__form .form-field__error:empty {

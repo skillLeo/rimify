@@ -14,6 +14,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
 use App\Services\Commerce\OrderAccess;
+use App\Services\Commerce\OrderLinks;
 use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
@@ -58,7 +59,14 @@ class BestellungController extends Controller
             ->firstOrFail();
 
         // Provenance, never content, decides who sees it (OrderAccess, EIGENE-FUNDE 131).
-        abort_unless(OrderAccess::allows($request, $record), 404);
+        $proof = OrderAccess::proof($request, $record);
+
+        if ($proof === null) {
+            // A link of ours whose twelve months are up: the way back, not a dead end (D-240). Anything else: 404.
+            abort_unless(OrderLinks::expired($request), 404);
+
+            return Inertia::render('Bestellung/Abgelaufen', ['number' => $record->order_number]);
+        }
 
         $demo = $record->isDemo();
         $placed = $request->session()->get(self::SESSION_PLACED);
@@ -115,8 +123,9 @@ class BestellungController extends Controller
                 'trackingCode' => $demo ? null : $record->tracking_code,
             ],
             'lines' => $lines,
-            // Where the payment stands, in the page's words — and whether the page should keep asking.
-            'payment' => $demo ? null : self::payment($record, $request->query('redirect_status')),
+            // Where the payment stands, in the page's words — and whether the page should keep asking. A seeded order
+            // was never paid; a test purchase was (the test payment), and walks the whole path.
+            'payment' => $demo && $record->seeded() ? null : self::payment($record, $request->query('redirect_status'), $proof === OrderAccess::LINK),
             // The §14 invoice as issued, by a signed link — never to a seeded order.
             'invoice' => $demo ? null : self::invoice($record),
             // „Konto anlegen“ in one click, once paid, for the browser that placed it and no account yet (Block G §2).
@@ -128,6 +137,9 @@ class BestellungController extends Controller
             // verdicts on it say nothing about the car (ACCURACY.md §3.1 F3). The snapshots stay
             // exactly as written (R-12); the page says what they are.
             'demo' => $demo,
+            // Demonstration data that a person placed through the checkout — the acceptance set, off production
+            // (D-239): no invoice, in no real figure, taken away by the test environment's reset; the page says so.
+            'testPurchase' => $demo && ! $record->seeded(),
             // The shared shape, whole: a page prop named `contact` replaces the shared one for the
             // header and the footer too. The phone is null until the client gives one, and the page
             // then offers the e-mail.
@@ -164,9 +176,12 @@ class BestellungController extends Controller
      * `mailed` says whether the confirmation mail actually went out (OrderPaid audits it), so the page never claims
      * one that failed or that an order older than it never got.
      *
+     * Opened by its link alone — a forwarded mail, a shared inbox — the page shows the least that is useful (D-240): the
+     * address the mail went to, shortened to what its owner recognises.
+     *
      * @return array{state: string, poll: bool, email: string|null, mailed: bool}
      */
-    private static function payment(Order $order, mixed $redirectStatus): array
+    private static function payment(Order $order, mixed $redirectStatus, bool $byLink = false): array
     {
         $mailed = AuditLog::query()
             ->where('description', 'order.confirmation_sent')
@@ -185,9 +200,21 @@ class BestellungController extends Controller
         return [
             'state' => $state,
             'poll' => in_array($state, ['confirming', 'processing'], true),
-            'email' => $order->customer?->email,
+            'email' => $byLink ? self::shortened($order->customer?->email) : $order->customer?->email,
             'mailed' => $mailed,
         ];
+    }
+
+    /** `e…@beispiel.de`: the first letter and the domain, enough for its owner and little for anyone else. */
+    private static function shortened(?string $email): ?string
+    {
+        if ($email === null || ! str_contains($email, '@')) {
+            return $email;
+        }
+
+        [$name, $domain] = explode('@', $email, 2);
+
+        return mb_substr($name, 0, 1).'…@'.$domain;
     }
 
     /**

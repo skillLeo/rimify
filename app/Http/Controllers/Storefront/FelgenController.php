@@ -823,6 +823,8 @@ class FelgenController extends Controller
                 'number' => $verdict->document->number,
                 'issuer' => $verdict->document->issuer,
                 'kind' => $verdict->document->kind,
+                // An example document is marked wherever it is shown, and opened through its marked page (D-239).
+                'example' => $verdict->document->isDemo,
                 // The Gutachten itself, opened at the page the answer stands on.
                 'pdf' => self::pdfLink($verdict->document),
                 // Every further document the answer rests on, named (the corrections memo §3).
@@ -894,6 +896,12 @@ class FelgenController extends Controller
             return null;
         }
 
+        // An example document opens through the page that marks it (decision 6, D-239): the file itself carries no mark,
+        // so the shop never hands out its address bare.
+        if ($document->isDemo) {
+            return ['url' => route('gutachten.beispiel', ['document' => $document->id, ...($document->sourcePage === null ? [] : ['seite' => $document->sourcePage])]), 'page' => $document->sourcePage];
+        }
+
         return ['url' => $url.($document->sourcePage === null ? '' : '#page='.$document->sourcePage), 'page' => $document->sourcePage];
     }
 
@@ -945,12 +953,14 @@ class FelgenController extends Controller
         };
     }
 
-    /** `DOCUMENT` when either half came from the Gutachten — the combined bit `AxleRequirement::$minSource` carries. */
+    /** `DOCUMENT` when either half came from the Gutachten — the combined bit `AxleRequirement::$minSource` carries — then `PAPERS` (D-242). */
     private function either(MinSource $a, MinSource $b): string
     {
-        return ($a === MinSource::Document || $b === MinSource::Document)
-            ? MinSource::Document->value
-            : MinSource::Derived->value;
+        return match (true) {
+            $a === MinSource::Document || $b === MinSource::Document => MinSource::Document->value,
+            $a === MinSource::Papers || $b === MinSource::Papers => MinSource::Papers->value,
+            default => MinSource::Derived->value,
+        };
     }
 
     /**
