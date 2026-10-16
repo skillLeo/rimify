@@ -47,6 +47,17 @@ function goLiveSeller(array $over = []): void
     ]);
 }
 
+/**
+ * What holds live payments, leaving out the cookie question — open by our own judgement until it is decided (D-241), and
+ * proven on its own below — so a test about another check sees that check alone.
+ *
+ * @return list<GoLiveCheck>
+ */
+function goLiveRefusedBesideCookies(): array
+{
+    return array_values(array_filter(app(GoLiveChecks::class)->liveRefusal() ?? [], static fn (GoLiveCheck $c): bool => $c->id !== 'cookies'));
+}
+
 /** Everything „Recht und Pflichtangaben" asks for, given. */
 function goLiveLegalComplete(): void
 {
@@ -224,14 +235,14 @@ it('holds live payments while a released Gutachten has no completeness answer (D
     try {
         config(['rimify.payments.driver' => 'stripe', 'rimify.review.enabled' => false, 'services.stripe.mode' => 'live', 'services.stripe.key' => 'pk_live_fakeKey', 'services.stripe.secret' => 'sk_live_fakeKey', 'services.stripe.webhook_secret' => 'whsec_live_x']);
 
-        $refused = app(GoLiveChecks::class)->liveRefusal() ?? [];
+        $refused = goLiveRefusedBesideCookies();
 
         expect(array_map(static fn (GoLiveCheck $c): string => $c->id, $refused))->toBe(['anlagen-beantwortet'])
             ->and($refused[0]->sentence)->toContain('Teilegutachten 1810080716');
 
         $document->forceFill(['completeness' => ApprovalDocument::PARTIAL, 'missing_annexes' => 'weitere Anlagen des Prüfberichts', 'completeness_at' => now(), 'completeness_revision' => 1])->save();
 
-        expect(app(GoLiveChecks::class)->liveRefusal())->toBeNull();
+        expect(goLiveRefusedBesideCookies())->toBe([]);
     } finally {
         app()['env'] = 'testing';
     }
@@ -339,12 +350,10 @@ it('takes no real payment while a legal check fails — and says nothing of it i
     try {
         config(['rimify.review.enabled' => false, 'services.stripe.mode' => 'live', 'services.stripe.key' => 'pk_live_fakeKey', 'services.stripe.secret' => 'sk_live_fakeKey', 'services.stripe.webhook_secret' => 'whsec_live_x']);
 
-        $refused = app(GoLiveChecks::class)->liveRefusal();
-        expect($refused)->not->toBeNull()
-            ->and(array_map(static fn (GoLiveCheck $c): string => $c->id, $refused ?? []))->toBe(['agb']);
+        expect(array_map(static fn (GoLiveCheck $c): string => $c->id, goLiveRefusedBesideCookies()))->toBe(['agb']);
 
         goLivePage('agb', 'AGB');
-        expect(app(GoLiveChecks::class)->liveRefusal())->toBeNull();
+        expect(goLiveRefusedBesideCookies())->toBe([]);
     } finally {
         app()['env'] = 'testing';
     }
@@ -427,4 +436,30 @@ it('keeps the guide to ABE, Teilegutachten and ECE on the list until it is publi
     $draft->update(['status' => Page::STATUS_PUBLISHED, 'published_at' => now()]);
 
     expect(goLiveById()['ratgeber-dokumentarten']->state)->toBe(GoLiveCheck::OK);
+});
+
+/*
+ * § 25 TDDDG, entry by entry (the operator's brief of 15.10.2026 §2.2, D-241): what the shop stores in a browser without
+ * it being strictly necessary for what the visitor asked for needs consent with an equally weighted „Ablehnen“, or goes.
+ * Until that is decided the check fails, names each entry, and holds live payments like every legal gap.
+ */
+it('holds live payments while something is stored in the browser without being strictly necessary, naming each (D-241)', function (): void {
+    goLiveLegalComplete();
+    $check = goLiveById()['cookies'];
+
+    expect($check->state)->toBe(GoLiveCheck::MISSING)
+        ->and($check->sentence)->toContain('rmf_garage')
+        ->and($check->sentence)->toContain('rmf.recent-searches')
+        ->and($check->sentence)->toContain('gleichwertigem „Ablehnen“')
+        ->and($check->sentence)->not->toContain('rmf_vehicle');
+
+    app()['env'] = 'production';
+
+    try {
+        config(['rimify.payments.driver' => 'stripe', 'rimify.review.enabled' => false, 'services.stripe.mode' => 'live', 'services.stripe.key' => 'pk_live_fakeKey', 'services.stripe.secret' => 'sk_live_fakeKey', 'services.stripe.webhook_secret' => 'whsec_live_x']);
+
+        expect(array_map(static fn (GoLiveCheck $c): string => $c->id, app(GoLiveChecks::class)->liveRefusal() ?? []))->toBe(['cookies']);
+    } finally {
+        app()['env'] = 'testing';
+    }
 });

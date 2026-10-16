@@ -1,30 +1,54 @@
-# RIMIFY — the cookies the shop sets
+# RIMIFY — what the shop stores in a visitor's browser
 
-For the Kanzlei writing the Datenschutzerklärung (BLOCKED.md, row 4). The legal body text is theirs to
-write (D-024); this sheet only states the facts that text must cover. The shop's own cookie list, in the
-footer under *Cookie-Einstellungen*, shows the same categories. No statistics or marketing service is
-configured, so no cookie here needs consent to be set. Whether the functional cookie counts as "strictly
-necessary for a service the user explicitly requested" (§ 25 Abs. 2 Nr. 2 TDDDG) is for the Kanzlei to
-confirm.
+For the Kanzlei writing the Datenschutzerklärung (BLOCKED.md, row 4), and for the operator, who asked for the
+either-or to be resolved with a table (brief of 14.10.2026 §7, of 15.10.2026 §2.2; D-241). The legal body text is the
+Kanzlei's (D-024); this sheet states the facts and our answer, entry by entry, to one question: **is it strictly
+necessary for a service the visitor explicitly asked for (§ 25 Abs. 2 Nr. 2 TDDDG)?** § 25 covers browser storage as it
+covers cookies, so both are here. The same answers are code (`app/Services/Legal/CookieInventory.php`), and the go-live
+check „Cookies und Browser-Speicher“ reads them.
 
-| Cookie | Category | What it holds | Set when | Lifetime | Flags |
+## How it lands
+
+**Not everything passes.** Five entries only make the shop more convenient, and one keeps for a year what a visit
+needs: the last five cars (`rmf_garage`), the figures typed from the papers for up to five cars for a year
+(`rmf_papiere`), recent searches, the checkout's and the contact form's drafts across a reload, and the direction
+the phone view slides. No statistics or marketing service exists. So the shop stores things that need consent, and
+until one of two things happens the go-live check fails (and with it live payment, like every legal gap):
+
+1. **They go** — kept for the visit only, or not at all. Then nothing needs consent, the notice stops being a consent
+   dialog and becomes a quiet line, and it stops being the largest paint on a first visit (the LCP note of 14.10.).
+2. **Consent is asked** — with „Ablehnen“ as prominent as „Annehmen“, and the six entries set only after a yes.
+
+Which of the two is a product decision, and the Kanzlei confirms the answers below. **The notice is left exactly as it
+is until then** (your brief „FINISH IT“ §1). Its category label „Funktional“ stays with it for now; the purposes
+replace it when the notice changes.
+
+## Entry by entry
+
+| Name | Kind | Purpose | Lifetime | Strictly necessary? | Why |
 |---|---|---|---|---|---|
-| `rmf_vehicle` | Notwendig | The id of the vehicle the visitor chose, and whether they chose it deliberately | A vehicle is chosen | 90 days | encrypted, HttpOnly, SameSite=Lax |
-| `rmf_garage` | Notwendig | The ids of the last five vehicles chosen | A vehicle is chosen | 90 days | encrypted, HttpOnly, SameSite=Lax |
-| `rmf_papiere` | **Funktional** | For up to five vehicles: the vehicle id and three figures the visitor typed from their own Zulassungsbescheinigung Teil I — 8.1 and 8.2 (zulässige Achslast vorn/hinten, kg) and T (Höchstgeschwindigkeit, km/h). For up to five vehicles, the body style (Karosserieform) and kind of drive (Antriebsart) the visitor chose where the vehicle data has neither, as two digits. No name, no registration number, no VIN. At most 500 bytes | Only when the visitor enters figures on a product page and presses *Werte übernommen*, or chooses a body style or kind of drive the check asks for; removed by *Werte löschen* and by deleting those answers | 1 year | HttpOnly, SameSite=Lax, Secure in production; not encrypted (it holds nothing but these figures, and the server re-checks each one) |
-| `rmf_geraet` | **Funktional** (listed so since 29.09.2026, Block G) | A random 40-character key and nothing else — no name, no vehicle, no history. The shop's rate limits count against it instead of the visitor's IP address, so customers who share one mobile network address are never turned away together | The first shop request that has none (never in the admin) | 1 year | encrypted, HttpOnly, SameSite=Lax, Secure in production |
-| `rmf_consent` | Notwendig | That the cookie notice was acknowledged, and when | *Verstanden* is pressed | 12 months | SameSite=Lax, Secure on HTTPS; written by the browser |
-| `rmf_view` | Notwendig | A layout preference (`desktop` / `mobile`), only when a `?view=` link is opened | A `?view=` link is opened | 7 days | SameSite=Lax |
-| Session cookie | Notwendig | The session id (basket, form state) | Every visit | 120 minutes | encrypted, HttpOnly, SameSite=Lax |
-| `XSRF-TOKEN` | Notwendig | The form-protection token | Every visit | 120 minutes | SameSite=Lax |
+| Session and `XSRF-TOKEN` | Cookie | The basket and the protection of every entry against other sites | 120 minutes | **Yes** | Without them there is no basket and no safe order. |
+| `rmf_vehicle` | Cookie | The vehicle the visitor chose — only its number in our list | 90 days | **Yes** | Every answer is computed for that car; that is why it was chosen. *For the Kanzlei: 90 days beyond the visit.* |
+| `rmf_garage` | Cookie | The last five vehicles chosen, to switch back quickly | 90 days | **No** | Convenience: a car is chosen, not a list of the last ones. |
+| `rmf_papiere` | Cookie | 8.1, 8.2 (axle loads), T (top speed), where asked P.2 (power) and 15.1/15.2 (the tyres the papers name, D-242), body style and drive the visitor typed from his papers — for up to five cars | 1 year | **No** (as set) | The answer needs the figures during the visit; a year and five cars is more than it needs. |
+| `rmf_consent` | Cookie | That the notice was read, and when | 12 months | **Yes** | Otherwise the notice stands on every page. |
+| `rmf_geraet` | Cookie | A random key of this browser, against which the limits on too many requests count | 1 year | **Yes** | Protection against abuse, without locking out visitors behind one mobile-network address. *For the Kanzlei: a year, or the session?* |
+| `rmf_view` | Cookie | The view (phone or desktop) the visitor chose himself | 7 days | **Yes** | Set only when he chooses a view. |
+| `rmf_vorschau` | Cookie | That the „Vorschau“ band was closed | 30 days | **Yes** | The preview only, and only once someone closes the band; the live shop has none. |
+| `__stripe_mid`, `__stripe_sid` | Cookie (Stripe) | Stripe's fraud prevention on the checkout | 1 year, 30 minutes | **Yes** | Set by Stripe.js on the checkout only and only when Stripe takes the payment the visitor starts. Stripe is named as a processor in the Datenschutzerklärung. |
+| `rmf_compare` | Browser storage (stays) | The wheels the visitor put on the comparison | until he empties it | **Yes** | He puts them there to compare them. |
+| `rmf.recent-searches` | Browser storage (stays) | Recent searches, offered under the search field | until he clears it | **No** | Convenience. |
+| `rmf.kasse.v1` | Browser storage (tab) | What was already typed at the checkout, in case the page reloads | until the tab closes | **No** | Convenience: the order works without it. |
+| `rmf-kontakt-entwurf` | Browser storage (tab) | A message begun in the contact form, in case the page reloads | until the tab closes | **No** | Convenience. |
+| `rmf.nav.depth` | Browser storage (tab) | Which way the phone view slides when going back | until the tab closes | **No** | An animation, not a service. |
 
-`rmf_papiere` moves into the customer's account once customer accounts exist; the cookie is then no longer
-set for a signed-in customer (REMAINING.md, item 10).
+Flags of the cookies, as before: `rmf_vehicle`, `rmf_garage`, `rmf_geraet` and the session are encrypted, HttpOnly,
+SameSite=Lax (Secure in production); `rmf_papiere` is HttpOnly and SameSite=Lax, not encrypted (it holds nothing but the
+figures, and the server re-checks each); `rmf_consent` and `rmf_vorschau` are written by the browser, SameSite=Lax.
 
-The shop shows these facts itself, from one list (`resources/js/legal/cookies.ts`): in *Cookie-Einstellungen*
-the two functional cookies by name, each with what it stores and how to clear it, and on the Datenschutz page
-a table of every cookie below the Kanzlei's text (`#cookies`). That table is facts, not the legal text.
+The admin's own storage (its command palette's recent entries, a refund's draft) belongs to the operator's staff, not
+to visitors, and is not in this list.
 
-Stripe (Block G): on the checkout only, Stripe.js is loaded from js.stripe.com to take the payment; Stripe
-sets its own cookies there for fraud prevention (`__stripe_mid`, `__stripe_sid`). No Stripe script is on any
-other page. The Kanzlei decides how the Datenschutzerklärung names Stripe as a processor.
+The shop shows a part of these facts itself, from `resources/js/legal/cookies.ts` (the notice and the table on the
+Datenschutz page). That list is left as it is with the notice; every name in it stands in the inventory
+(`CookieInventoryTest`).

@@ -20,6 +20,7 @@ use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
+use App\Services\Legal\CookieInventory;
 use App\Services\Mail\MailSettings;
 use App\Services\Mail\SenderDns;
 use App\Services\Reset\TestEnvironment;
@@ -279,21 +280,18 @@ final class GoLiveChecks
     }
 
     /** § 25 TDDDG: only what the shop needs, so nothing to ask — read from the cookie list the notice and the page share. */
+    /**
+     * § 25 TDDDG, entry by entry (CookieInventory, D-241): everything the shop stores in a visitor's browser, cookie or
+     * browser storage, with the answer whether it is strictly necessary for what the visitor asked for. The category a
+     * cookie was filed under said nothing; the purpose does.
+     */
     private function cookies(): GoLiveCheck
     {
-        $file = 'resources/js/legal/cookies.ts';
-        $source = is_file(base_path($file)) ? (string) file_get_contents(base_path($file)) : '';
-        preg_match_all("/category:\s*'([^']+)'/", $source, $m);
-        $categories = array_values(array_unique($m[1]));
-        $asking = array_values(array_diff($categories, ['Notwendig', 'Funktional']));
+        $without = CookieInventory::notNecessary();
 
-        if ($categories === []) {
-            return $this->check('cookies', self::LEGAL, 'Cookies (§ 25 TDDDG)', GoLiveCheck::US, GoLiveCheck::UNCHECKABLE, 'Die Liste der Cookies liegt dieser Installation nicht bei.', $file);
-        }
-
-        return $this->check('cookies', self::LEGAL, 'Cookies (§ 25 TDDDG)', GoLiveCheck::US, $asking === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $asking === []
-            ? 'Der Shop setzt nur Cookies der Kategorien „Notwendig“ und „Funktional“ und fragt keine Einwilligung ab – es gibt also nichts gleichwertig abzulehnen.'
-            : 'Cookies der Kategorie '.implode(', ', $asking).' brauchen eine Einwilligung mit gleichwertigem Ablehnen – der Cookie-Hinweis bietet keine.', $file);
+        return $this->check('cookies', self::LEGAL, 'Cookies und Browser-Speicher (§ 25 TDDDG)', GoLiveCheck::US, $without === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $without === []
+            ? 'Alles, was der Shop im Browser speichert, ist für den Dienst unbedingt erforderlich, den der Besucher anstößt – eine Einwilligung braucht es nicht.'
+            : 'Ohne Einwilligung gespeichert, aber nicht unbedingt erforderlich: '.implode(', ', $without).'. Das braucht eine Einwilligung mit gleichwertigem „Ablehnen“, oder es fällt weg. Bis das entschieden ist, bleibt der Hinweis, wie er ist.', 'docs/launch/COOKIES.md');
     }
 
     /** GPSR: every brand on sale names its manufacturer. */
